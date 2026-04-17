@@ -32,3 +32,10 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# HarmonyOS / OpenHarmony (DevEco Studio, hvigor, OhPM)
+.hvigor/
+oh_modules/
+*.hap
+*.hsp
+.preview/
