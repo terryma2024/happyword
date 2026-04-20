@@ -1,4 +1,7 @@
-# Gradle files
+# macOS
+.DS_Store
+
+# Gradle files (legacy / hybrid templates)
 .gradle/
 build/
 
@@ -34,8 +37,11 @@ google-services.json
 *.hprof
 
 # HarmonyOS / OpenHarmony (DevEco Studio, hvigor, OhPM)
+# Cache is `.hvigor/`; commit root `hvigor/` (hvigor-config.json5, etc.).
 .hvigor/
 oh_modules/
+node_modules/
 *.hap
 *.hsp
+*.har
 .preview/
