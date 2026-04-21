@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "MagicWord vocabulary learning"
+      "value": "魔法背单词"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "MagicWord main entry"
+      "value": "魔法背单词"
     },
     {
       "name": "EntryAbility_label",
-      "value": "MagicWord"
+      "value": "魔法背单词"
     }
   ]
 }
