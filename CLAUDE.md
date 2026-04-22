@@ -6,6 +6,7 @@
 - DevEco Studio managed project
 
 ## Commands
+- **Phased build/test commands, log paths, and device rules:** [`.cursor/dev-commands.md`](.cursor/dev-commands.md) (source of truth for the Harmony autofix skills).
 - Install deps: ohpm install
 - Build debug HAP: ./hvigorw assembleHap
 - Build module: ./hvigorw --mode module -p module=entry assembleHap
