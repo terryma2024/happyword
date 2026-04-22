@@ -1,6 +1,7 @@
 import media from '@ohos.multimedia.media';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
+import { GiftBox } from '../components/GiftBox';
 
 /**
  * Relative path under `entry/src/main/resources/rawfile/` (sibling of `base/`, not inside it).
@@ -12,6 +13,7 @@ const NOTIFICATION_OGG_RAW_PATH: string = 'sound/notification.ogg';
 @Component
 struct Index {
   @State message: string = 'Hello World';
+  @State private clickTick: number = 0;
   private avPlayer?: media.AVPlayer;
 
   async aboutToAppear(): Promise<void> {
@@ -96,6 +98,13 @@ struct Index {
           this.message = 'Welcome';
         })
 
+      GiftBox({ trigger: this.clickTick })
+        .alignRules({
+          bottom: { anchor: 'HelloButton', align: VerticalAlign.Top },
+          middle: { anchor: '__container__', align: HorizontalAlign.Center }
+        })
+        .margin({ bottom: 24 })
+
       Button('点击我')
         .id('HelloButton')
         .alignRules({
@@ -104,6 +113,7 @@ struct Index {
         })
         .margin({ bottom: 80 })
         .onClick((): void => {
+          this.clickTick += 1;
           void this.playBundledNotificationSound();
         })
     }
