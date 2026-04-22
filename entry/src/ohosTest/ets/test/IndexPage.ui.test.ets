@@ -54,5 +54,30 @@ export default function indexPageUiTest(): void {
       expect(openMarkerPresent).assertFalse();
       done();
     });
+
+    it('giftBox_opensOnTap', 0, async (done: Function) => {
+      const driver = await launchIndex();
+      await driver.assertComponentExist(ON.id('GiftBoxContainer'));
+
+      const button = await driver.findComponent(ON.id('HelloButton'));
+      await button.click();
+      await driver.delayMs(500);
+
+      const openNow: boolean = await componentExists(driver, 'GiftBoxOpenMarker');
+      expect(openNow).assertTrue();
+      done();
+    });
+
+    it('giftBox_autoClosesAfterTap', 0, async (done: Function) => {
+      const driver = await launchIndex();
+      const button = await driver.findComponent(ON.id('HelloButton'));
+      await button.click();
+      await driver.delayMs(2000);
+
+      const stillOpen: boolean = await componentExists(driver, 'GiftBoxOpenMarker');
+      expect(stillOpen).assertFalse();
+      await driver.assertComponentExist(ON.id('GiftBoxContainer'));
+      done();
+    });
   });
 }

@@ -113,6 +113,7 @@ struct Index {
         })
         .margin({ bottom: 80 })
         .onClick((): void => {
+          this.clickTick += 1;
           void this.playBundledNotificationSound();
         })
     }
