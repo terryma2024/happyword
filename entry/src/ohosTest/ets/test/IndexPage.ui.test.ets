@@ -94,5 +94,28 @@ export default function indexPageUiTest(): void {
       expect(ribbonGone).assertFalse();
       done();
     });
+
+    it('giftBox_rapidDoubleTapRestartsCleanly', 0, async (done: Function) => {
+      const driver = await launchIndex();
+      const button = await driver.findComponent(ON.id('HelloButton'));
+
+      await button.click();
+      await driver.delayMs(200);
+      await button.click();
+
+      // After the second tap, the cycle restarts: open marker must be present shortly.
+      await driver.delayMs(500);
+      const openMid: boolean = await componentExists(driver, 'GiftBoxOpenMarker');
+      expect(openMid).assertTrue();
+
+      // And it auto-closes ~1500ms after the second tap, so total ~2200ms from first tap is safe.
+      await driver.delayMs(2000);
+      const openLater: boolean = await componentExists(driver, 'GiftBoxOpenMarker');
+      expect(openLater).assertFalse();
+
+      // Container itself must still be alive — rules out a crash or teardown bug.
+      await driver.assertComponentExist(ON.id('GiftBoxContainer'));
+      done();
+    });
   });
 }
