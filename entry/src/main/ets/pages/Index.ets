@@ -105,15 +105,6 @@ struct Index {
         .margin({ bottom: 80 })
         .onClick((): void => {
           void this.playBundledNotificationSound();
-
-          this.getUIContext().showAlertDialog({
-            message: '你好',
-            confirm: {
-              value: '确定',
-              action: (): void => {
-              }
-            }
-          });
         })
     }
     .height('100%')

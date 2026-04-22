@@ -13,7 +13,7 @@ description: Runs OHPM and Hvigor build steps for this HarmonyOS repo using the 
 ## Steps
 
 1. `ohpm install` from **project root** (unless manifest says already satisfied).
-2. `./hvigorw assembleHap` (or the manifest’s module-scoped `assembleHap`).
+2. `hvigorw assembleHap` (assumes `hvigorw` is installed and available on `PATH`; or use the manifest’s module-scoped `assembleHap`).
 
 ## On success
 

@@ -16,7 +16,7 @@ description: Installs HAP and runs on-device or Instrument UI tests (ohosTest, U
 
 ## Run
 
-- `hdc install` then the manifest’s **on-device** / `ohosTest` / UiTest `hvigorw` task, as recorded for the team’s **DevEco** version.
+- `hdc install` then run the manifest’s **on-device** / `ohosTest` / UiTest command (for example, an `aa test` invocation on device/emulator), as recorded for the team’s **DevEco** version.
 
 ## On failure
 
