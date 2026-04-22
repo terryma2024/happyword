@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Git worktrees (project-local isolated workspaces)
+.worktrees/
+
 # Gradle files (legacy / hybrid templates)
 .gradle/
 build/
