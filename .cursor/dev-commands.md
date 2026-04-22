@@ -7,7 +7,7 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 
 ## Conventions
 
-- Use `./hvigorw` from **project root**; add `--no-daemon` in CI or long non-interactive runs if your environment recommends it.
+- Use `hvigorw` from **project root** (assumes Hvigor wrapper is installed and available on `PATH`); add `--no-daemon` in CI or long non-interactive runs if your environment recommends it.
 - **Phase order (autofix loop):** build → **no-device unit** → **emulator/device** → **on-device / UI (Instrument)**.
 
 ---
@@ -17,8 +17,8 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 | Step | Command | Success signal |
 |------|---------|----------------|
 | Install deps | `ohpm install` | Exit 0, `oh_modules` resolvable |
-| Assemble HAP (debug) | `./hvigorw assembleHap` | Exit 0, `.hap` under `entry/build/...` (path may vary) |
-| (Optional) single module | `./hvigorw --mode module -p module=entry assembleHap` | Exit 0 |
+| Assemble HAP (debug) | `hvigorw assembleHap` | Exit 0, `.hap` under `entry/build/...` (path may vary) |
+| (Optional) single module | `hvigorw --mode module -p module=entry assembleHap` | Exit 0 |
 
 **Working directory:** project root.
 
@@ -30,7 +30,7 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 
 | Command | Success signal |
 |---------|----------------|
-| Typical (adjust to your SDK if needed): `./hvigorw -p module=entry@default test` | Exit 0, test report under `entry/build/.../reports` or console shows passed |
+| Typical (adjust to your SDK if needed): `hvigorw -p module=entry@default test` | Exit 0, test report under `entry/build/.../reports` or console shows passed |
 
 **Notes:**
 
@@ -59,7 +59,7 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 | Step | Command | Success signal |
 |------|---------|----------------|
 | Install HAP | `hdc install <path-to-debug.hap>` | Install success in hdc output |
-| On-device / Instrument test | *(fill: e.g. `./hvigorw -p module=entry@ohosTest` task name from your SDK, such as on-device test task)* | Exit 0 and/or report under `entry/build/...` |
+| On-device / Instrument test | `hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -w 120` | `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0` |
 
 **Notes:** Exact **Instrument** / **onDevice** task names depend on **DevEco / hvigor-ohos-plugin** version. Record the same command you use in DevEco’s “Run” for `ohosTest`.
 
