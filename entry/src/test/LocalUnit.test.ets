@@ -1,33 +1,57 @@
-import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
+import { describe, it, expect } from '@ohos/hypium';
+import { generateRibbons, Ribbon, RIBBON_COLORS } from '../main/ets/components/GiftBox';
 
 export default function localUnitTest() {
-  describe('localUnitTest', () => {
-    // Defines a test suite. Two parameters are supported: test suite name and test suite function.
-    beforeAll(() => {
-      // Presets an action, which is performed only once before all test cases of the test suite start.
-      // This API supports only one parameter: preset action function.
+  describe('generateRibbons', () => {
+    it('returnsRequestedCount', 0, () => {
+      const ribbons: Ribbon[] = generateRibbons(10);
+      expect(ribbons.length).assertEqual(10);
     });
-    beforeEach(() => {
-      // Presets an action, which is performed before each unit test case starts.
-      // The number of execution times is the same as the number of test cases defined by **it**.
-      // This API supports only one parameter: preset action function.
+
+    it('assignsUniqueIncrementingIds', 0, () => {
+      const ribbons: Ribbon[] = generateRibbons(10);
+      for (let i = 0; i < ribbons.length; i++) {
+        expect(ribbons[i].id).assertEqual(i);
+      }
     });
-    afterEach(() => {
-      // Presets a clear action, which is performed after each unit test case ends.
-      // The number of execution times is the same as the number of test cases defined by **it**.
-      // This API supports only one parameter: clear action function.
+
+    it('spreadsAnglesAcrossCircle', 0, () => {
+      const ribbons: Ribbon[] = generateRibbons(10);
+      // Normalize to [0, 360) and check we cover a wide range. ArkTS strict mode
+      // disallows Function.apply, so min/max are computed with a plain loop.
+      let min: number = 360;
+      let max: number = 0;
+      for (let i = 0; i < ribbons.length; i++) {
+        const a: number = ((ribbons[i].angleDeg % 360) + 360) % 360;
+        if (a < min) {
+          min = a;
+        }
+        if (a > max) {
+          max = a;
+        }
+      }
+      expect(max - min >= 270).assertTrue();
     });
-    afterAll(() => {
-      // Presets a clear action, which is performed after all test cases of the test suite end.
-      // This API supports only one parameter: clear action function.
+
+    it('colorsOnlyFromPalette', 0, () => {
+      const ribbons: Ribbon[] = generateRibbons(10);
+      for (let i = 0; i < ribbons.length; i++) {
+        expect(RIBBON_COLORS.indexOf(ribbons[i].color) >= 0).assertTrue();
+      }
     });
-    it('assertContain', 0, () => {
-      // Defines a test case. This API supports three parameters: test case name, filter parameter, and test case function.
-      let a = 'abc';
-      let b = 'b';
-      // Defines a variety of assertion methods, which are used to declare expected boolean conditions.
-      expect(a).assertContain(b);
-      expect(a).assertEqual(a);
+
+    it('isDeterministic', 0, () => {
+      const a: Ribbon[] = generateRibbons(10);
+      const b: Ribbon[] = generateRibbons(10);
+      for (let i = 0; i < a.length; i++) {
+        expect(a[i].angleDeg).assertEqual(b[i].angleDeg);
+        expect(a[i].color).assertEqual(b[i].color);
+      }
+    });
+
+    it('handlesZeroCount', 0, () => {
+      const ribbons: Ribbon[] = generateRibbons(0);
+      expect(ribbons.length).assertEqual(0);
     });
   });
 }
