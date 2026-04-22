@@ -79,5 +79,20 @@ export default function indexPageUiTest(): void {
       await driver.assertComponentExist(ON.id('GiftBoxContainer'));
       done();
     });
+
+    it('giftBox_spawnsAndRetiresRibbons', 0, async (done: Function) => {
+      const driver = await launchIndex();
+      const button = await driver.findComponent(ON.id('HelloButton'));
+      await button.click();
+      await driver.delayMs(200);
+
+      const ribbonPresent: boolean = await componentExists(driver, 'GiftBoxRibbon0');
+      expect(ribbonPresent).assertTrue();
+
+      await driver.delayMs(1200);
+      const ribbonGone: boolean = await componentExists(driver, 'GiftBoxRibbon0');
+      expect(ribbonGone).assertFalse();
+      done();
+    });
   });
 }

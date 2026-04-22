@@ -33,6 +33,61 @@ export function generateRibbons(count: number): Ribbon[] {
 const BOX_BODY_RED: string = '#E63946';
 const BOX_RIBBON_GOLD: string = '#F4C430';
 const AUTO_CLOSE_DELAY_MS: number = 1500;
+const RIBBON_COUNT: number = 10;
+const RIBBON_FLY_RADIUS: number = 90;
+const RIBBON_GRAVITY_DROP: number = 120;
+const RIBBON_PHASE1_MS: number = 300;
+const RIBBON_PHASE2_MS: number = 600;
+const RIBBON_CLEAR_DELAY_MS: number = 900;
+
+@Component
+struct GiftBoxRibbon {
+  @Prop angleDeg: number = 0;
+  @Prop color: string = '#E63946';
+  @Prop index: number = 0;
+
+  @State private tx: number = 0;
+  @State private ty: number = 0;
+  @State private opacityValue: number = 1;
+
+  private phase2Timer: number = 0;
+
+  aboutToAppear(): void {
+    const angleRad: number = this.angleDeg * Math.PI / 180;
+    const flyX: number = Math.cos(angleRad) * RIBBON_FLY_RADIUS;
+    const flyY: number = Math.sin(angleRad) * RIBBON_FLY_RADIUS;
+
+    animateTo({ duration: RIBBON_PHASE1_MS, curve: Curve.EaseOut }, () => {
+      this.tx = flyX;
+      this.ty = flyY;
+    });
+
+    this.phase2Timer = setTimeout(() => {
+      animateTo({ duration: RIBBON_PHASE2_MS, curve: Curve.EaseIn }, () => {
+        this.ty = flyY + RIBBON_GRAVITY_DROP;
+        this.opacityValue = 0;
+      });
+    }, RIBBON_PHASE1_MS);
+  }
+
+  aboutToDisappear(): void {
+    if (this.phase2Timer !== 0) {
+      clearTimeout(this.phase2Timer);
+      this.phase2Timer = 0;
+    }
+  }
+
+  build(): void {
+    Column()
+      .id(`GiftBoxRibbon${this.index}`)
+      .width(10)
+      .height(18)
+      .borderRadius(3)
+      .backgroundColor(this.color)
+      .translate({ x: this.tx, y: this.ty })
+      .opacity(this.opacityValue);
+  }
+}
 
 @Component
 export struct GiftBox {
@@ -42,6 +97,7 @@ export struct GiftBox {
   @State private lidTy: number = 0;
   @State private lidRotate: number = 0;
   @State private boxScale: number = 1;
+  @State private ribbons: Ribbon[] = [];
 
   private timers: number[] = [];
 
@@ -70,6 +126,7 @@ export struct GiftBox {
     this.lidTy = 0;
     this.lidRotate = 0;
     this.boxScale = 1;
+    this.ribbons = [];
     this.startCycle();
   }
 
@@ -91,6 +148,14 @@ export struct GiftBox {
       this.lidTy = -40;
       this.lidRotate = -15;
     });
+
+    // Spawn ribbons — each one animates itself in its own aboutToAppear.
+    this.ribbons = generateRibbons(RIBBON_COUNT);
+
+    // Retire ribbons after both animation phases complete.
+    this.scheduleTimer(() => {
+      this.ribbons = [];
+    }, RIBBON_CLEAR_DELAY_MS);
 
     // Auto-close.
     this.scheduleTimer(() => {
@@ -159,6 +224,14 @@ export struct GiftBox {
           .height(1)
           .opacity(0);
       }
+
+      ForEach(
+        this.ribbons,
+        (r: Ribbon) => {
+          GiftBoxRibbon({ angleDeg: r.angleDeg, color: r.color, index: r.id });
+        },
+        (r: Ribbon) => r.id.toString()
+      );
     }
     .id('GiftBoxContainer')
     .width(132)
