@@ -26,7 +26,10 @@ export struct CharacterCard {
   name: string = '';
   @Prop hp: number = 0;
   @Prop maxHp: number = 1;
-  sublabel: string = '';
+  // Must be @Prop so updates from the parent (e.g. "Monster 2 / 5" after
+  // the first monster is defeated) actually invalidate this component. A
+  // plain property would be captured at construction and stay stale.
+  @Prop sublabel: string = '';
 
   // Background tint for the whole card — a medium-light pastel with enough
   // saturation that the card edge reads clearly against the page background

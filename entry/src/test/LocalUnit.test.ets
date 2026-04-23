@@ -13,6 +13,15 @@ import { Question } from '../main/ets/models/Question';
 import { WordRepository } from '../main/ets/services/WordRepository';
 import { shuffle, mulberry32, RandomFn } from '../main/ets/utils/shuffle';
 import { QuestionGenerator, OPTIONS_PER_QUESTION } from '../main/ets/services/QuestionGenerator';
+import {
+  BattleEngine,
+  BattleConfig,
+  AnswerOutcome,
+  DEFAULT_PLAYER_HP,
+  DEFAULT_MONSTER_HP,
+  DEFAULT_MONSTERS_TOTAL
+} from '../main/ets/services/BattleEngine';
+import { BattleState, BattleStatus } from '../main/ets/models/BattleState';
 
 function makeWord(id: string, word: string, meaning: string, category: string): WordEntry {
   const e: WordEntry = new WordEntry();
@@ -35,6 +44,30 @@ function buildFruitRepo(): WordRepository {
   ];
   repo.setEntries(entries);
   return repo;
+}
+
+/**
+ * Build a BattleEngine over the fruit repo with deterministic RNG so the
+ * BattleEngine tests can reason about a reproducible question sequence.
+ * Declared at module scope because ArkTS strict mode does not permit
+ * nested function declarations inside `describe`/`it` callbacks.
+ */
+function engineWithFruit(seed: number, config?: BattleConfig): BattleEngine {
+  const repo: WordRepository = buildFruitRepo();
+  const gen: QuestionGenerator = new QuestionGenerator(repo, mulberry32(seed));
+  const engine: BattleEngine = new BattleEngine(gen, config);
+  engine.start();
+  return engine;
+}
+
+/** Pick any option from `q` that is not the correct answer. */
+function pickWrongOption(q: Question): string {
+  for (let i = 0; i < q.options.length; i++) {
+    if (q.options[i] !== q.answer) {
+      return q.options[i];
+    }
+  }
+  return '';
 }
 
 export default function localUnitTest() {
@@ -451,6 +484,308 @@ export default function localUnitTest() {
         }
         lastWordId = q.wordId;
       }
+    });
+  });
+
+  describe('BattleEngine', () => {
+    /**
+     * T6 unit tests for the pure battle-rules layer (spec §4.1–§4.3, §8.3).
+     *
+     * These tests fix BattleEngine behaviour independently from the UI so
+     * regressions show up as LocalUnit failures rather than as visual bugs
+     * that only surface on the emulator. Each test constructs its own
+     * QuestionGenerator with a deterministic Mulberry32 seed so the
+     * sequence of questions is reproducible across runs.
+     *
+     * T6 deliberately uses constant 1-damage-per-hit. The 3-combo 2× damage
+     * bonus and its visual feedback land in T7 and are covered by separate
+     * tests added at that time; here we only assert that comboCount is
+     * tracked and resets correctly.
+     */
+
+    it('startInitializesPlayingStateWithDefaults', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const state: BattleState = engine.getState();
+      expect(state.status).assertEqual(BattleStatus.Playing);
+      expect(state.playerHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(state.playerMaxHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(state.monsterHp).assertEqual(DEFAULT_MONSTER_HP);
+      expect(state.monsterMaxHp).assertEqual(DEFAULT_MONSTER_HP);
+      expect(state.monsterIndex).assertEqual(1);
+      expect(state.monstersTotal).assertEqual(DEFAULT_MONSTERS_TOTAL);
+      expect(state.comboCount).assertEqual(0);
+      expect(state.totalAnswers).assertEqual(0);
+      expect(state.correctAnswers).assertEqual(0);
+      expect(state.defeatedMonsters).assertEqual(0);
+      expect(state.currentQuestion !== undefined).assertTrue();
+    });
+
+    it('startHonorsCustomConfig', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.playerMaxHp = 2;
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 3;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      const state: BattleState = engine.getState();
+      expect(state.playerHp).assertEqual(2);
+      expect(state.playerMaxHp).assertEqual(2);
+      expect(state.monsterHp).assertEqual(1);
+      expect(state.monsterMaxHp).assertEqual(1);
+      expect(state.monstersTotal).assertEqual(3);
+    });
+
+    it('submitCorrectAnswerDealsOneDamageAndIncrementsCombo', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const state0: BattleState = engine.getState();
+      const firstQuestion: Question = state0.currentQuestion!;
+      const outcome: AnswerOutcome = engine.submitAnswer(firstQuestion.answer);
+      const state1: BattleState = engine.getState();
+
+      expect(outcome.correct).assertTrue();
+      expect(outcome.damage).assertEqual(1);
+      expect(outcome.monsterDefeated).assertFalse();
+      expect(outcome.battleEnded).assertFalse();
+
+      expect(state1.monsterHp).assertEqual(DEFAULT_MONSTER_HP - 1);
+      expect(state1.playerHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(state1.comboCount).assertEqual(1);
+      expect(state1.totalAnswers).assertEqual(1);
+      expect(state1.correctAnswers).assertEqual(1);
+      expect(state1.status).assertEqual(BattleStatus.Playing);
+      // A new question has been spawned and it is a different word.
+      expect(state1.currentQuestion !== undefined).assertTrue();
+      expect(state1.currentQuestion!.wordId === firstQuestion.wordId).assertFalse();
+    });
+
+    it('submitWrongAnswerHurtsPlayerAndResetsCombo', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const q0: Question = engine.getState().currentQuestion!;
+
+      // Prime a combo first so the reset is observable.
+      engine.submitAnswer(q0.answer);
+      expect(engine.getState().comboCount).assertEqual(1);
+
+      const q1: Question = engine.getState().currentQuestion!;
+      const wrong1: string = pickWrongOption(q1);
+      expect(wrong1.length > 0).assertTrue();
+      const outcome: AnswerOutcome = engine.submitAnswer(wrong1);
+      const state: BattleState = engine.getState();
+
+      expect(outcome.correct).assertFalse();
+      expect(outcome.damage).assertEqual(1);
+      expect(outcome.battleEnded).assertFalse();
+
+      expect(state.monsterHp).assertEqual(DEFAULT_MONSTER_HP - 1); // only from the earlier correct hit
+      expect(state.playerHp).assertEqual(DEFAULT_PLAYER_HP - 1);
+      expect(state.comboCount).assertEqual(0);
+      expect(state.totalAnswers).assertEqual(2);
+      expect(state.correctAnswers).assertEqual(1);
+      expect(state.status).assertEqual(BattleStatus.Playing);
+    });
+
+    it('monsterDefeatedSpawnsNextMonsterAndPreservesCombo', 0, () => {
+      // monsterMaxHp = 1 so a single correct answer drops the monster.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 3;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      const q: Question = engine.getState().currentQuestion!;
+      const outcome: AnswerOutcome = engine.submitAnswer(q.answer);
+      const state: BattleState = engine.getState();
+
+      expect(outcome.correct).assertTrue();
+      expect(outcome.monsterDefeated).assertTrue();
+      expect(outcome.newMonsterSpawned).assertTrue();
+      expect(outcome.battleEnded).assertFalse();
+
+      expect(state.defeatedMonsters).assertEqual(1);
+      expect(state.monsterIndex).assertEqual(2);
+      // Next monster spawns at full HP — spec §4.1 treats each monster
+      // independently so the next slime is fresh.
+      expect(state.monsterHp).assertEqual(1);
+      expect(state.monsterMaxHp).assertEqual(1);
+      // Combo survives a monster kill — only wrong answers reset combo.
+      expect(state.comboCount).assertEqual(1);
+      expect(state.status).assertEqual(BattleStatus.Playing);
+    });
+
+    it('defeatingFinalMonsterTransitionsToWon', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      // Two correct answers defeat both monsters.
+      const outcome1: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(outcome1.battleEnded).assertFalse();
+      const outcome2: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      const state: BattleState = engine.getState();
+
+      expect(outcome2.monsterDefeated).assertTrue();
+      expect(outcome2.newMonsterSpawned).assertFalse();
+      expect(outcome2.battleEnded).assertTrue();
+      expect(outcome2.endStatus).assertEqual(BattleStatus.Won);
+
+      expect(state.defeatedMonsters).assertEqual(2);
+      expect(state.status).assertEqual(BattleStatus.Won);
+      // After a final win, currentQuestion is cleared so the UI knows not to
+      // keep rendering a stale prompt.
+      expect(state.currentQuestion === undefined).assertTrue();
+    });
+
+    it('drainingPlayerHpTransitionsToLost', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.playerMaxHp = 2;
+      cfg.monsterMaxHp = 10; // keep the monster alive so the player dies first
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      expect(engine.getState().playerHp).assertEqual(1);
+      expect(engine.getState().status).assertEqual(BattleStatus.Playing);
+
+      const outcome: AnswerOutcome = engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      const state: BattleState = engine.getState();
+
+      expect(outcome.correct).assertFalse();
+      expect(outcome.battleEnded).assertTrue();
+      expect(outcome.endStatus).assertEqual(BattleStatus.Lost);
+      expect(state.playerHp).assertEqual(0);
+      expect(state.status).assertEqual(BattleStatus.Lost);
+      expect(state.currentQuestion === undefined).assertTrue();
+    });
+
+    it('rejectsUnknownOption', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      let threw: boolean = false;
+      try {
+        engine.submitAnswer('not-a-real-option');
+      } catch (e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+      // State must not change on an invalid input.
+      const state: BattleState = engine.getState();
+      expect(state.totalAnswers).assertEqual(0);
+      expect(state.playerHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(state.monsterHp).assertEqual(DEFAULT_MONSTER_HP);
+    });
+
+    it('rejectsSubmitAfterBattleEnded', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 1;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(engine.getState().status).assertEqual(BattleStatus.Won);
+
+      let threw: boolean = false;
+      try {
+        engine.submitAnswer('anything');
+      } catch (e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+    });
+
+    it('comboIncrementsOnStreakAndResetsOnWrong', 0, () => {
+      // T7 changes the combo semantics: the 3rd consecutive correct deals
+      // 2 damage and immediately resets the counter to 0. The counter
+      // therefore walks 1 -> 2 -> 0, not 1 -> 2 -> 3. See dedicated T7
+      // tests below for the trigger behaviour; this test only confirms
+      // that a non-triggering wrong answer resets a short streak.
+      const engine: BattleEngine = engineWithFruit(1);
+      const firstOutcome: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(firstOutcome.damage).assertEqual(1);
+      expect(firstOutcome.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(1);
+
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(engine.getState().comboCount).assertEqual(2);
+
+      // Wrong answer with combo = 2 resets the counter without triggering.
+      const wrongOutcome: AnswerOutcome = engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      expect(wrongOutcome.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(0);
+      expect(engine.getState().correctAnswers).assertEqual(2);
+      expect(engine.getState().totalAnswers).assertEqual(3);
+    });
+
+    it('thirdConsecutiveCorrectTriggersComboBurst', 0, () => {
+      // Spec §4.3: 每次答对后 comboCount 加 1；当 comboCount 达到 3 时，
+      // 本次伤害为 2，触发魔法爆发反馈，并将 comboCount 重置为 0.
+      //
+      // Use a high-HP monster so the 2× damage on the 3rd correct can't
+      // overlap with a monster-defeat transition — this test isolates the
+      // combo-burst rule from the defeat cascade.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 10;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      const o1: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(o1.damage).assertEqual(1);
+      expect(o1.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(1);
+
+      const o2: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(o2.damage).assertEqual(1);
+      expect(o2.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(2);
+
+      const o3: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(o3.damage).assertEqual(2);
+      expect(o3.comboTriggered).assertTrue();
+      // Counter resets the moment the burst fires, per spec.
+      expect(engine.getState().comboCount).assertEqual(0);
+      // Total monster damage so far: 1 + 1 + 2 = 4.
+      expect(engine.getState().monsterHp).assertEqual(10 - 4);
+    });
+
+    it('fourthCorrectAfterBurstIsNormalDamage', 0, () => {
+      // After the burst resets the counter, the next correct answer must
+      // start a fresh streak at damage 1, not continue doubling.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 20;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer); // burst
+
+      const o4: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(o4.damage).assertEqual(1);
+      expect(o4.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(1);
+    });
+
+    it('comboBurstSurvivesMonsterKill', 0, () => {
+      // If the 3rd-correct burst also kills the current monster, the
+      // combo counter must still reset (spec wording is about the burst
+      // firing, independent of which monster is on screen).
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 4; // 1 + 1 + 2 = 4 damage defeats exactly.
+      cfg.monstersTotal = 3;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      const o3: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+
+      expect(o3.comboTriggered).assertTrue();
+      expect(o3.damage).assertEqual(2);
+      expect(o3.monsterDefeated).assertTrue();
+      expect(o3.newMonsterSpawned).assertTrue();
+      expect(engine.getState().comboCount).assertEqual(0);
+      expect(engine.getState().defeatedMonsters).assertEqual(1);
+      expect(engine.getState().monsterIndex).assertEqual(2);
+    });
+
+    it('wrongAnswerNeverTriggersCombo', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const outcome: AnswerOutcome = engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      expect(outcome.correct).assertFalse();
+      expect(outcome.comboTriggered).assertFalse();
+      expect(outcome.damage).assertEqual(1);
     });
   });
 }

@@ -79,43 +79,55 @@ export default function routingFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('PlayerArea'));
       await driver.assertComponentExist(ON.id('MonsterArea'));
       await driver.assertComponentExist(ON.id('QuestionArea'));
-      // Content: player card renders full HP (5/5) and monster card shows its
-      // own HP (3/3) plus the combo counter. Without these assertions we would
-      // not notice if the cards rendered blank.
+      // T6 rationale: the engine loads `words_v1.json` asynchronously in
+      // `aboutToAppear`, so this 800ms buffer (after the HomeStartButton
+      // tap above) lets the first real question paint before assertions
+      // that depend on engine state. On a cold emulator, the repo load
+      // typically finishes within ~200ms.
+      //
+      // Content: player card renders full HP (5/5) and monster card shows
+      // its own HP (3/3). These are engine-driven defaults
+      // (DEFAULT_PLAYER_HP / DEFAULT_MONSTER_HP), asserted so a regression
+      // that zeros out HP on boot is caught immediately.
       await driver.assertComponentExist(ON.text('HP 5 / 5'));
       await driver.assertComponentExist(ON.text('HP 3 / 3'));
       await driver.assertComponentExist(ON.text('Combo: 0'));
-      await driver.assertComponentExist(ON.text('中文提示会显示在这里'));
-      // T5 header: combo + timer readout render with the expected static
-      // values. "Time 05:00" matches BattlePage.formatTime(300).
+      // Static-T5 header labels still apply: combo counter and the static
+      // timer readout (timer wiring is deferred past T6). "Time 05:00"
+      // matches BattlePage.formatTime(DEFAULT_STARTING_SECONDS=300).
       await driver.assertComponentExist(ON.id('BattleComboLabel'));
       await driver.assertComponentExist(ON.id('BattleTimerLabel'));
       await driver.assertComponentExist(ON.text('Time 05:00'));
-      // T5 monster sublabel moves from a plain Text to CharacterCard's
-      // sublabel prop but preserves the exact string.
       await driver.assertComponentExist(ON.text('Monster 1 / 5'));
-      // All three option buttons render with their placeholder labels.
+      // All three option buttons render. After T6 the texts are real
+      // English words from words_v1.json (chosen by the engine's default
+      // RNG, so we don't pin them here) — asserting ID existence is
+      // sufficient to catch button regressions.
       await driver.assertComponentExist(ON.id('BattleOptionA'));
       await driver.assertComponentExist(ON.id('BattleOptionB'));
       await driver.assertComponentExist(ON.id('BattleOptionC'));
-      await driver.assertComponentExist(ON.text('Option A'));
-      await driver.assertComponentExist(ON.text('Option B'));
-      await driver.assertComponentExist(ON.text('Option C'));
+      // BattleFeedback is a dedicated Text slot that holds per-answer
+      // feedback ("正确！" / "正确答案是 ..."). Asserting the ID exists even
+      // when idle catches layout regressions that would otherwise only
+      // surface mid-game.
+      await driver.assertComponentExist(ON.id('BattleFeedback'));
 
-      // Negative coverage: in T5, ChoiceButton.onTap is a no-op stub (T6 will
-      // wire it to BattleEngine.submitAnswer) — clicking any option must NOT
-      // navigate away. This guards against accidentally wiring router calls
-      // into the options before the battle engine lands.
+      // Behavioural coverage: tapping an option must NOT immediately route
+      // away from BattlePage. The engine handles win/lose transitions but
+      // a single tap on a cold game cannot end the session (default config
+      // is 5 monsters × 3 HP, player 5 HP), so we should stay on the
+      // battle page after each tap. The 800ms delay covers the 650ms
+      // reveal window plus a small margin.
       await clickById(driver, 'BattleOptionA');
-      await driver.delayMs(300);
+      await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('BattleTitle'));
       await clickById(driver, 'BattleOptionB');
-      await driver.delayMs(300);
-      await driver.assertComponentExist(ON.id('BattleTitle'));
-      await clickById(driver, 'BattleOptionC');
-      await driver.delayMs(300);
+      await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('BattleTitle'));
 
+      // Use the debug escape hatch to jump to ResultPage deterministically —
+      // testing the full win/lose flow with random words would require
+      // seeding the engine from outside the app, which is out of scope.
       await clickById(driver, 'BattleFinishButton');
       await driver.delayMs(800);
 
