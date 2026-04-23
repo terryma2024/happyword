@@ -599,5 +599,48 @@ export default function routingFlowUiTest(): void {
       expect(true).assertTrue();
       done();
     });
+
+    /**
+     * Config-driven timeout loss: set the countdown to 3 seconds, start
+     * the battle, and wait without tapping. After ~3s the engine's
+     * tick loop pushes remainingSeconds to 0, flips status to Lost,
+     * and BattlePage auto-navigates to ResultPage showing 挑战失败.
+     *
+     * Covers the spec §4.1 "倒计时结束" loss branch end-to-end
+     * without touching the debug finish button.
+     */
+    it('configTimerExpiry_lossOnTimeout', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+
+      const cfg: TestGameConfig = new TestGameConfig();
+      cfg.playerHp = 5;
+      cfg.monsterHp = 3;
+      cfg.monstersTotal = 5;
+      cfg.timerChipId = 'ConfigTimer3s';
+      cfg.categories = ['fruit'];
+      await openConfigAndApply(driver, cfg);
+
+      await clickById(driver, 'HomeStartButton');
+      await driver.delayMs(1000);
+      await driver.assertComponentExist(ON.id('BattlePrompt'));
+
+      // No taps — let the 3s timer run down. Five seconds covers the
+      // three ticks, any jitter, the 650ms feedback window cleanup,
+      // and the router.replaceUrl to ResultPage.
+      await driver.delayMs(5000);
+
+      await driver.assertComponentExist(ON.id('ResultTitle'));
+      await driver.assertComponentExist(ON.text('挑战失败'));
+      // Zero correct answers across the whole session -> 0 defeated.
+      await driver.assertComponentExist(ON.text('击败怪物：0 / 5'));
+
+      await clickById(driver, 'ResultHomeButton');
+      await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+
+      expect(true).assertTrue();
+      done();
+    });
   });
 }
