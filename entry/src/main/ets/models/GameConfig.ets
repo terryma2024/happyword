@@ -23,7 +23,25 @@ export class GameConfig {
   startingSeconds: number = 300;
   enabledCategories: string[] = ['fruit', 'place', 'home'];
   customWordsRaw: string = '';
+  /**
+   * V0.2: auto-play English pronunciation on each new question. Default
+   * on — pronunciation is only useful if it happens without the user
+   * tapping the speaker every time. ConfigPage exposes a toggle chip.
+   */
+  autoSpeak: boolean = true;
+  /**
+   * V0.2: battle mode — 'normal' uses the configured category pool,
+   * 'review' sources prompts from the wrong-answer store (T14). Stays
+   * 'normal' on fresh AppStorage; HomePage's review button flips it
+   * to 'review' before routing to BattlePage, and BattlePage resets
+   * it back to 'normal' on end-of-battle.
+   */
+  mode: string = 'normal';
 }
+
+/** Battle-mode string values to avoid typos at call sites. */
+export const GAME_MODE_NORMAL: string = 'normal';
+export const GAME_MODE_REVIEW: string = 'review';
 
 export const GAME_CONFIG_STORAGE_KEY: string = 'gameConfig';
 
@@ -53,6 +71,8 @@ export function cloneGameConfig(src: GameConfig): GameConfig {
   c.startingSeconds = src.startingSeconds;
   c.enabledCategories = src.enabledCategories.slice();
   c.customWordsRaw = src.customWordsRaw;
+  c.autoSpeak = src.autoSpeak;
+  c.mode = src.mode;
   return c;
 }
 

@@ -1,7 +1,9 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { BusinessError } from '@ohos.base';
 import { GameConfig, GAME_CONFIG_STORAGE_KEY } from '../models/GameConfig';
+import { getLearningRecorder } from '../services/LearningRecorder';
 
 const DOMAIN = 0x0000;
 
@@ -16,6 +18,12 @@ export default class EntryAbility extends UIAbility {
     if (existing === undefined) {
       AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, new GameConfig());
     }
+    // Boot the learning recorder so HomePage can check recentWrongIds
+    // before any battle has started. init() is idempotent — BattlePage
+    // will call it again and the second call resolves immediately.
+    getLearningRecorder().init(this.context).catch((err: BusinessError): void => {
+      hilog.error(DOMAIN, 'testTag', 'LearningRecorder.init failed: %{public}s', JSON.stringify(err));
+    });
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 

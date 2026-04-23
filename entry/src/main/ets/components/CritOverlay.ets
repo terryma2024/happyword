@@ -110,33 +110,38 @@ export struct CritOverlay {
 
   build(): void {
     Stack() {
-      if (this.visible) {
-        // Full-bleed gold flash.
-        Column()
-          .id('CritGoldFlash')
-          .width('100%')
-          .height('100%')
-          .backgroundColor('#FFB400')
-          .opacity(this.flashOpacity);
-
-        // Big floating damage number. Uses Column with alignItems so it
-        // sits near the top-center (above the monster card area on a
-        // 16:9 landscape canvas).
-        Column() {
-          Text(`-${this.damage}!`)
-            .id('CritDamageNumber')
-            .fontSize(72)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#E63946')
-            .opacity(this.numberOpacity)
-            .scale({ x: this.numberScale, y: this.numberScale })
-            .translate({ x: 0, y: this.numberTranslateY });
-        }
+      // Full-bleed gold flash. Always mounted (opacity 0 at rest) so
+      // the `CritGoldFlash` id is addressable by UiTest as soon as the
+      // crit animation begins — ArkUI's visibility matcher treats a
+      // conditionally-mounted Column (via `if (visible)`) as "not
+      // visible" during the brief window UiTest samples, even though
+      // the node exists in the frame buffer. Opacity alone is enough
+      // to hide it at rest visually.
+      Column()
+        .id('CritGoldFlash')
         .width('100%')
         .height('100%')
-        .justifyContent(FlexAlign.Center)
-        .alignItems(HorizontalAlign.Center);
+        .backgroundColor('#FFB400')
+        .opacity(this.flashOpacity);
+
+      // Big floating damage number. Same always-mounted reasoning:
+      // the opacity drops to 0 at rest so the big number is
+      // imperceptible off-crit, but the id stays in the tree for
+      // UiTest to assert on.
+      Column() {
+        Text(`-${this.damage}!`)
+          .id('CritDamageNumber')
+          .fontSize(72)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#E63946')
+          .opacity(this.numberOpacity)
+          .scale({ x: this.numberScale, y: this.numberScale })
+          .translate({ x: 0, y: this.numberTranslateY });
       }
+      .width('100%')
+      .height('100%')
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center);
     }
     // hitTestBehavior passthrough so the overlay never swallows taps
     // meant for the option buttons beneath it.

@@ -42,6 +42,8 @@ struct ResultPage {
     merged.correctRate = incoming.correctRate !== undefined ? incoming.correctRate : merged.correctRate;
     merged.learnedWordCount = incoming.learnedWordCount !== undefined ? incoming.learnedWordCount : merged.learnedWordCount;
     merged.stars = incoming.stars !== undefined ? incoming.stars : merged.stars;
+    merged.newlyLearnedCount = incoming.newlyLearnedCount !== undefined ? incoming.newlyLearnedCount : merged.newlyLearnedCount;
+    merged.totalLearnedCount = incoming.totalLearnedCount !== undefined ? incoming.totalLearnedCount : merged.totalLearnedCount;
     this.result = merged;
   }
 
@@ -107,6 +109,14 @@ struct ResultPage {
         Text(`学习单词：${this.result.learnedWordCount}`)
           .id('ResultLearned')
           .fontSize(18);
+        // V0.2 learning record summary — sits below the per-session
+        // "学习单词" line so the two read top-to-bottom as
+        // session → cumulative.
+        Text(`本局新学 ${this.result.newlyLearnedCount} 个词，已累计学过 ${this.result.totalLearnedCount} 个`)
+          .id('ResultLearnedTotals')
+          .fontSize(14)
+          .fontColor('#457B9D')
+          .margin({ top: 10 });
       }
       .alignItems(HorizontalAlign.Center)
       .margin({ bottom: 28 });
