@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "words": [
+    { "id": "fruit-apple", "word": "apple", "meaningZh": "苹果", "category": "fruit", "difficulty": 1 },
+    { "id": "fruit-banana", "word": "banana", "meaningZh": "香蕉", "category": "fruit", "difficulty": 1 },
+    { "id": "fruit-orange", "word": "orange", "meaningZh": "橙子", "category": "fruit", "difficulty": 1 },
+    { "id": "fruit-grape", "word": "grape", "meaningZh": "葡萄", "category": "fruit", "difficulty": 1 },
+    { "id": "fruit-pear", "word": "pear", "meaningZh": "梨", "category": "fruit", "difficulty": 1 },
+    { "id": "fruit-peach", "word": "peach", "meaningZh": "桃子", "category": "fruit", "difficulty": 1 },
+    { "id": "fruit-lemon", "word": "lemon", "meaningZh": "柠檬", "category": "fruit", "difficulty": 1 },
+    { "id": "fruit-mango", "word": "mango", "meaningZh": "芒果", "category": "fruit", "difficulty": 1 },
+    { "id": "fruit-melon", "word": "melon", "meaningZh": "瓜", "category": "fruit", "difficulty": 1 },
+    { "id": "fruit-cherry", "word": "cherry", "meaningZh": "樱桃", "category": "fruit", "difficulty": 1 },
+
+    { "id": "place-school", "word": "school", "meaningZh": "学校", "category": "place", "difficulty": 1 },
+    { "id": "place-hospital", "word": "hospital", "meaningZh": "医院", "category": "place", "difficulty": 1 },
+    { "id": "place-park", "word": "park", "meaningZh": "公园", "category": "place", "difficulty": 1 },
+    { "id": "place-supermarket", "word": "supermarket", "meaningZh": "超市", "category": "place", "difficulty": 1 },
+    { "id": "place-library", "word": "library", "meaningZh": "图书馆", "category": "place", "difficulty": 1 },
+    { "id": "place-zoo", "word": "zoo", "meaningZh": "动物园", "category": "place", "difficulty": 1 },
+    { "id": "place-bank", "word": "bank", "meaningZh": "银行", "category": "place", "difficulty": 1 },
+    { "id": "place-museum", "word": "museum", "meaningZh": "博物馆", "category": "place", "difficulty": 1 },
+    { "id": "place-station", "word": "station", "meaningZh": "车站", "category": "place", "difficulty": 1 },
+    { "id": "place-home", "word": "home", "meaningZh": "家", "category": "place", "difficulty": 1 },
+
+    { "id": "home-tv", "word": "TV", "meaningZh": "电视", "category": "home", "difficulty": 1 },
+    { "id": "home-chair", "word": "chair", "meaningZh": "椅子", "category": "home", "difficulty": 1 },
+    { "id": "home-bed", "word": "bed", "meaningZh": "床", "category": "home", "difficulty": 1 },
+    { "id": "home-table", "word": "table", "meaningZh": "桌子", "category": "home", "difficulty": 1 },
+    { "id": "home-sofa", "word": "sofa", "meaningZh": "沙发", "category": "home", "difficulty": 1 },
+    { "id": "home-lamp", "word": "lamp", "meaningZh": "台灯", "category": "home", "difficulty": 1 },
+    { "id": "home-door", "word": "door", "meaningZh": "门", "category": "home", "difficulty": 1 },
+    { "id": "home-window", "word": "window", "meaningZh": "窗户", "category": "home", "difficulty": 1 },
+    { "id": "home-book", "word": "book", "meaningZh": "书", "category": "home", "difficulty": 1 },
+    { "id": "home-cup", "word": "cup", "meaningZh": "杯子", "category": "home", "difficulty": 1 }
+  ]
+}

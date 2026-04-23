@@ -9,7 +9,13 @@ import { GiftBox } from '../components/GiftBox';
  */
 const NOTIFICATION_OGG_RAW_PATH: string = 'sound/notification.ogg';
 
-@Entry
+/**
+ * Legacy scratchpad component: originally the @Entry home page with a click-to-play
+ * notification sound and GiftBox animation demo. Kept out of the route table after
+ * the T2 routing split (see `main_pages.json`). The AVPlayer setup is a useful
+ * reference for the future `AudioService` (spec §7.3), so we keep the file, just
+ * drop the @Entry decorator so it is no longer a valid route target.
+ */
 @Component
 struct Index {
   @State message: string = 'Hello World';
