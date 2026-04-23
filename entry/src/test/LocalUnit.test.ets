@@ -25,12 +25,37 @@ import {
 } from '../main/ets/services/BattleEngine';
 import { BattleState, BattleStatus } from '../main/ets/models/BattleState';
 import { SessionResult } from '../main/ets/models/SessionResult';
+import {
+  GameConfig,
+  TIMER_CHOICES,
+  HP_MIN,
+  HP_MAX,
+  MONSTER_COUNT_MIN,
+  MONSTER_COUNT_MAX,
+  KNOWN_CATEGORIES,
+  CUSTOM_CATEGORY_KEY,
+  MIN_POOL_SIZE,
+  cloneGameConfig,
+  parseCustomWords,
+  computeFinalPool
+} from '../main/ets/models/GameConfig';
 
 function makeWord(id: string, word: string, meaning: string, category: string): WordEntry {
   const e: WordEntry = new WordEntry();
   e.id = id;
   e.word = word;
   e.meaningZh = meaning;
+  e.category = category;
+  e.difficulty = 1;
+  return e;
+}
+
+/** For GameConfig.computeFinalPool tests: meaningZh mirrors English word. */
+function makeEntry(id: string, word: string, category: string): WordEntry {
+  const e: WordEntry = new WordEntry();
+  e.id = id;
+  e.word = word;
+  e.meaningZh = word;
   e.category = category;
   e.difficulty = 1;
   return e;
@@ -1004,6 +1029,148 @@ export default function localUnitTest() {
       expect(result.totalAnswers).assertEqual(0);
       expect(result.correctRate).assertEqual(0);
       expect(result.stars).assertEqual(0);
+    });
+  });
+
+  describe('GameConfig.defaults', () => {
+    it('defaultsMatchEngineDefaults', 0, () => {
+      const c: GameConfig = new GameConfig();
+      expect(c.playerMaxHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(c.monsterMaxHp).assertEqual(DEFAULT_MONSTER_HP);
+      expect(c.monstersTotal).assertEqual(DEFAULT_MONSTERS_TOTAL);
+      expect(c.startingSeconds).assertEqual(DEFAULT_STARTING_SECONDS);
+      expect(c.customWordsRaw).assertEqual('');
+      expect(c.enabledCategories.length).assertEqual(KNOWN_CATEGORIES.length);
+      for (let i = 0; i < KNOWN_CATEGORIES.length; i++) {
+        expect(c.enabledCategories.indexOf(KNOWN_CATEGORIES[i]) >= 0).assertTrue();
+      }
+      expect(HP_MIN).assertEqual(1);
+      expect(HP_MAX).assertEqual(10);
+      expect(MONSTER_COUNT_MIN).assertEqual(1);
+      expect(MONSTER_COUNT_MAX).assertEqual(10);
+      expect(MIN_POOL_SIZE).assertEqual(3);
+      expect(CUSTOM_CATEGORY_KEY).assertEqual('custom');
+      expect(TIMER_CHOICES.indexOf(DEFAULT_STARTING_SECONDS) >= 0).assertTrue();
+      expect(TIMER_CHOICES.indexOf(3) >= 0).assertTrue();
+    });
+  });
+
+  describe('GameConfig.cloneGameConfig', () => {
+    it('cloneIsDeepEnoughToIsolateDraft', 0, () => {
+      const original: GameConfig = new GameConfig();
+      original.customWordsRaw = '苹果:apple';
+      const beforePlayer: number = original.playerMaxHp;
+      const beforeCats: string[] = original.enabledCategories.slice();
+      const beforeRaw: string = original.customWordsRaw;
+
+      const clone: GameConfig = cloneGameConfig(original);
+      clone.playerMaxHp = 1;
+      clone.monsterMaxHp = 9;
+      clone.monstersTotal = 2;
+      clone.startingSeconds = 3;
+      clone.enabledCategories.push('mutated');
+      clone.customWordsRaw = 'mutated';
+
+      expect(original.playerMaxHp).assertEqual(beforePlayer);
+      expect(original.enabledCategories.length).assertEqual(beforeCats.length);
+      for (let i = 0; i < beforeCats.length; i++) {
+        expect(original.enabledCategories[i]).assertEqual(beforeCats[i]);
+      }
+      expect(original.customWordsRaw).assertEqual(beforeRaw);
+    });
+  });
+
+  describe('GameConfig.parseCustomWords', () => {
+    it('emptyReturnsEmpty', 0, () => {
+      expect(parseCustomWords('').length).assertEqual(0);
+      expect(parseCustomWords('\n\n  \n').length).assertEqual(0);
+    });
+
+    it('acceptsAsciiAndFullwidthColon', 0, () => {
+      const out: WordEntry[] = parseCustomWords('苹果:apple\n香蕉：banana');
+      expect(out.length).assertEqual(2);
+      expect(out[0].meaningZh).assertEqual('苹果');
+      expect(out[0].word).assertEqual('apple');
+      expect(out[0].category).assertEqual(CUSTOM_CATEGORY_KEY);
+      expect(out[0].id).assertEqual('custom-0');
+      expect(out[1].meaningZh).assertEqual('香蕉');
+      expect(out[1].word).assertEqual('banana');
+      expect(out[1].id).assertEqual('custom-1');
+    });
+
+    it('skipsInvalidLinesAndKeepsIdsSequential', 0, () => {
+      const raw: string = [
+        '苹果:apple',
+        'no colon here',
+        ':only-right',
+        '香蕉:banana',
+        '左边只有:',
+        '   ',
+        '梨:pear'
+      ].join('\n');
+      const out: WordEntry[] = parseCustomWords(raw);
+      expect(out.length).assertEqual(3);
+      expect(out[0].id).assertEqual('custom-0');
+      expect(out[0].word).assertEqual('apple');
+      expect(out[1].id).assertEqual('custom-1');
+      expect(out[1].word).assertEqual('banana');
+      expect(out[2].id).assertEqual('custom-2');
+      expect(out[2].word).assertEqual('pear');
+    });
+  });
+
+  describe('GameConfig.computeFinalPool', () => {
+    it('customDisabledIgnoresRaw', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit'),
+        makeEntry('p1', 'park', 'place'),
+        makeEntry('h1', 'home', 'home')
+      ];
+      const out: WordEntry[] = computeFinalPool(all, ['fruit'], '你好:hello');
+      expect(out.length).assertEqual(1);
+      expect(out[0].category).assertEqual('fruit');
+    });
+
+    it('customEnabledMergesCustoms', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit'),
+        makeEntry('a2', 'pear', 'fruit')
+      ];
+      const out: WordEntry[] = computeFinalPool(all, ['fruit', CUSTOM_CATEGORY_KEY], '你好:hello');
+      expect(out.length).assertEqual(3);
+      expect(out[2].category).assertEqual(CUSTOM_CATEGORY_KEY);
+      expect(out[2].word).assertEqual('hello');
+    });
+
+    it('customOnlyEmpty', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit')
+      ];
+      const out: WordEntry[] = computeFinalPool(all, [CUSTOM_CATEGORY_KEY], '');
+      expect(out.length).assertEqual(0);
+    });
+
+    it('customOnlyWithValidCustoms', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit')
+      ];
+      const out: WordEntry[] = computeFinalPool(
+        all,
+        [CUSTOM_CATEGORY_KEY],
+        '一:one\n二:two\n三:three');
+      expect(out.length).assertEqual(3);
+      expect(out[0].category).assertEqual(CUSTOM_CATEGORY_KEY);
+    });
+
+    it('builtinOnlyFilters', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit'),
+        makeEntry('p1', 'park', 'place'),
+        makeEntry('h1', 'home', 'home'),
+        makeEntry('a2', 'pear', 'fruit')
+      ];
+      const out: WordEntry[] = computeFinalPool(all, ['fruit', 'home'], '');
+      expect(out.length).assertEqual(3);
     });
   });
 }
