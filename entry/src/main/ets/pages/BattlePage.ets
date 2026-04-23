@@ -99,6 +99,21 @@ struct BattlePage {
   @State comboCount: number = 0;
   @State remainingSeconds: number = DEFAULT_STARTING_SECONDS;
 
+  /**
+   * Monotonically-increasing pulse counters, passed through to
+   * CharacterCard @Prop @Watch hooks. See CharacterCard for the
+   * animation recipe tied to each counter.
+   *   - playerHurtPulse: ++ on every wrong answer.
+   *   - monsterHurtPulse: ++ on every correct non-crit answer.
+   *   - playerNudgePulse: ++ on every correct non-crit answer.
+   *   - monsterZoomPulse / playerCastPulse: ++ on every crit trigger.
+   */
+  @State playerHurtPulse: number = 0;
+  @State monsterHurtPulse: number = 0;
+  @State playerNudgePulse: number = 0;
+  @State monsterZoomPulse: number = 0;
+  @State playerCastPulse: number = 0;
+
   // Question text shown while loading the dictionary. Real prompts overwrite
   // this once the engine produces its first question.
   @State prompt: string = 'Loading…';
@@ -303,14 +318,21 @@ struct BattlePage {
       this.feedbackText = `连击 3！魔法爆发 ×${outcome.damage}`;
       this.feedbackColor = '#FFB400';
       this.audio.play(SoundKeys.HIT_CRIT);
+      // Crit path: skip the T10 nudge/hurt pulses (they would be
+      // washed out by the spectacle) and fire the zoom/cast layers.
+      this.monsterZoomPulse += 1;
+      this.playerCastPulse += 1;
     } else if (outcome.correct) {
       this.feedbackText = '正确！';
       this.feedbackColor = '#2ECC71';
       this.audio.play(SoundKeys.HIT_NORMAL);
+      this.monsterHurtPulse += 1;
+      this.playerNudgePulse += 1;
     } else {
       this.feedbackText = `正确答案是 ${correctWord}`;
       this.feedbackColor = '#E74C3C';
       this.audio.play(SoundKeys.ANSWER_WRONG);
+      this.playerHurtPulse += 1;
     }
     // Layer a monster-defeat cue on top of the hit SFX when the final
     // blow landed but the battle is not yet over. The win-side cue is
@@ -539,6 +561,9 @@ struct BattlePage {
             hp: this.playerHp,
             maxHp: this.playerMaxHp,
             sublabel: '',
+            hurtPulse: this.playerHurtPulse,
+            nudgePulse: this.playerNudgePulse,
+            castPulse: this.playerCastPulse,
           });
         }
         .id('PlayerArea')
@@ -555,6 +580,8 @@ struct BattlePage {
             hp: this.monsterHp,
             maxHp: this.monsterMaxHp,
             sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
+            hurtPulse: this.monsterHurtPulse,
+            zoomPulse: this.monsterZoomPulse,
           });
         }
         .id('MonsterArea')
