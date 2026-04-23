@@ -25,6 +25,7 @@ import { WordEntry } from '../models/WordEntry';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question } from '../models/Question';
+import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 
 /**
  * BattlePage is the core gameplay screen.
@@ -71,6 +72,7 @@ struct BattlePage {
   // survive across frames. They are populated asynchronously during
   // `aboutToAppear` so the first render shows the "Loading…" placeholder.
   private engine?: BattleEngine;
+  private audio: AudioService = new AudioService();
   private feedbackTimer: number = -1;
   /**
    * Handle returned by setInterval for the 1Hz countdown driver. -1 when
@@ -122,6 +124,11 @@ struct BattlePage {
     // resolves. On success we snapshot the engine's state into our @State
     // fields, which triggers the first real render of the battle UI.
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    // Preload SFX in parallel with word-list loading. AudioService never
+    // throws — asset failures are silently muted — so we don't chain.
+    this.audio.preload(ctx, ALL_SOUND_KEYS).catch((err: BusinessError): void => {
+      console.error(`BattlePage: AudioService.preload failed: ${JSON.stringify(err)}`);
+    });
     const repo: WordRepository = new WordRepository();
     repo.loadFromRawfile(ctx).then((): void => {
       const storedCfg: GameConfig | undefined =
@@ -175,6 +182,11 @@ struct BattlePage {
       clearInterval(this.tickTimer);
       this.tickTimer = -1;
     }
+    // Best-effort audio teardown. AudioService.dispose() swallows
+    // per-player errors so we never need to await it.
+    this.audio.dispose().catch((err: BusinessError): void => {
+      console.error(`BattlePage: AudioService.dispose failed: ${JSON.stringify(err)}`);
+    });
   }
 
   /**
@@ -290,12 +302,21 @@ struct BattlePage {
     if (outcome.comboTriggered) {
       this.feedbackText = `连击 3！魔法爆发 ×${outcome.damage}`;
       this.feedbackColor = '#FFB400';
+      this.audio.play(SoundKeys.HIT_CRIT);
     } else if (outcome.correct) {
       this.feedbackText = '正确！';
       this.feedbackColor = '#2ECC71';
+      this.audio.play(SoundKeys.HIT_NORMAL);
     } else {
       this.feedbackText = `正确答案是 ${correctWord}`;
       this.feedbackColor = '#E74C3C';
+      this.audio.play(SoundKeys.ANSWER_WRONG);
+    }
+    // Layer a monster-defeat cue on top of the hit SFX when the final
+    // blow landed but the battle is not yet over. The win-side cue is
+    // handled in onBattleEnded so it doesn't double up with hit_crit.
+    if (outcome.monsterDefeated && !outcome.battleEnded) {
+      this.audio.play(SoundKeys.MONSTER_DEFEAT);
     }
 
     // Snapshot the next question now so the closure below doesn't have to
@@ -339,6 +360,14 @@ struct BattlePage {
     if (this.tickTimer >= 0) {
       clearInterval(this.tickTimer);
       this.tickTimer = -1;
+    }
+    // Play the terminal fanfare just before we navigate. AudioService
+    // drops the cue silently if preload failed, and ResultPage doesn't
+    // own an AudioService so this is the last chance to emit it.
+    if (outcome.endStatus === BattleStatus.Won) {
+      this.audio.play(SoundKeys.VICTORY);
+    } else {
+      this.audio.play(SoundKeys.DEFEAT);
     }
     this.navigateToResult(engine.buildSessionResult());
   }

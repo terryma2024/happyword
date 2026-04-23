@@ -39,6 +39,11 @@ import {
   parseCustomWords,
   computeFinalPool
 } from '../main/ets/models/GameConfig';
+import {
+  AudioService,
+  ALL_SOUND_KEYS,
+  SoundKeys
+} from '../main/ets/services/AudioService';
 
 function makeWord(id: string, word: string, meaning: string, category: string): WordEntry {
   const e: WordEntry = new WordEntry();
@@ -1171,6 +1176,38 @@ export default function localUnitTest() {
       ];
       const out: WordEntry[] = computeFinalPool(all, ['fruit', 'home'], '');
       expect(out.length).assertEqual(3);
+    });
+  });
+
+  describe('AudioService', () => {
+    it('exposesAllSixSoundKeys', 0, () => {
+      // Guards against silently dropping a key when the SFX table is
+      // edited — every key BattlePage expects must be in the preload list.
+      expect(ALL_SOUND_KEYS.length).assertEqual(6);
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_NORMAL) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_CRIT) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.ANSWER_WRONG) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.MONSTER_DEFEAT) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.VICTORY) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.DEFEAT) >= 0).assertTrue();
+    });
+
+    it('playBeforePreloadIsSafeNoOp', 0, () => {
+      // New service with no preload should tolerate play() without
+      // throwing — this is the state during BattlePage's first render
+      // before AudioService.preload resolves.
+      const svc: AudioService = new AudioService();
+      svc.play(SoundKeys.HIT_NORMAL);
+      svc.play('unknown_key');
+      expect(svc.hasKey(SoundKeys.HIT_NORMAL)).assertFalse();
+      expect(svc.isPlayable(SoundKeys.HIT_NORMAL)).assertFalse();
+    });
+
+    it('playAfterDisposeIsNoOp', 0, async () => {
+      const svc: AudioService = new AudioService();
+      await svc.dispose();
+      svc.play(SoundKeys.HIT_NORMAL);
+      expect(svc.hasKey(SoundKeys.HIT_NORMAL)).assertFalse();
     });
   });
 }
