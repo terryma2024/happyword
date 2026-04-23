@@ -312,8 +312,14 @@ async function openCustomWordsAndSave(driver: Driver, rawText: string): Promise<
 
   const ta = await driver.findComponent(ON.id('CustomWordsTextArea'));
   await ta.inputText(rawText);
-  await driver.delayMs(120);
+  await driver.delayMs(300);
+  // inputText pops the soft keyboard on the emulator, which covers the
+  // Save button and makes findComponent return null. pressBack
+  // dismisses it so the Save button returns to the visible set.
+  await driver.pressBack();
+  await driver.delayMs(500);
 
+  await driver.assertComponentExist(ON.id('CustomWordsSaveButton'));
   const save = await driver.findComponent(ON.id('CustomWordsSaveButton'));
   await save.click();
   await driver.delayMs(800);
@@ -677,6 +683,64 @@ export default function routingFlowUiTest(): void {
       await driver.assertComponentExist(ON.text('挑战失败'));
       // No monster was defeated (player died mid first encounter).
       await driver.assertComponentExist(ON.text('击败怪物：0 / 5'));
+
+      await clickById(driver, 'ResultHomeButton');
+      await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+
+      expect(true).assertTrue();
+      done();
+    });
+
+    /**
+     * Config-driven custom-words win: seed three custom words via
+     * CustomWordsPage, switch the ConfigPage category chips to
+     * 'custom' only, configure a 1-monster / 1-HP battle, then win in
+     * a single correct tap against a custom prompt.
+     *
+     * Validates the whole custom-words flow:
+     *   CustomWordsPage text input -> AppStorage.customWordsRaw
+     *   ConfigPage 'custom' chip toggle + builtins off
+     *   BattlePage computeFinalPool narrowing to CUSTOM_TEST_PROMPTS
+     *   QuestionGenerator serving those prompts
+     *   Win path reaches ResultPage with 胜利！
+     *
+     * Helper ordering note: custom words must be saved BEFORE enabling
+     * the 'custom' chip exclusively in ConfigPage — otherwise save-time
+     * validation would block with an empty pool.
+     */
+    it('configCustomWordsOnly_oneShotVictory', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+
+      await openCustomWordsAndSave(driver, CUSTOM_TEST_RAW);
+
+      const cfg: TestGameConfig = new TestGameConfig();
+      cfg.playerHp = 5;
+      cfg.monsterHp = 1;
+      cfg.monstersTotal = 1;
+      cfg.timerChipId = 'ConfigTimer60s';
+      cfg.categories = ['custom'];
+      await openConfigAndApply(driver, cfg);
+
+      await clickById(driver, 'HomeStartButton');
+      await driver.delayMs(1000);
+      await driver.assertComponentExist(ON.id('BattlePrompt'));
+
+      // Confirm the pool narrowed to custom: the prompt MUST be one of
+      // the three CUSTOM_TEST_PROMPTS strings. Failing here would mean
+      // computeFinalPool leaked a built-in category.
+      const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
+      const prompt: string = await promptComp.getText();
+      expect(isCustomTestPrompt(prompt)).assertTrue();
+
+      await tapCorrectAnswer(driver);
+      await driver.delayMs(900);
+
+      await driver.assertComponentExist(ON.id('ResultTitle'));
+      await driver.assertComponentExist(ON.text('胜利！'));
+      await driver.assertComponentExist(ON.text('击败怪物：1 / 1'));
+      await driver.assertComponentExist(ON.text('正确率：100%'));
 
       await clickById(driver, 'ResultHomeButton');
       await driver.delayMs(800);
