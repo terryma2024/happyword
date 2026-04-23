@@ -24,4 +24,4 @@ description: Constrains shell operations during HarmonyOS local CI and autofix r
 
 ## Integration
 
-- Apply whenever **`harmony-build`**, **`harmony-unit-test`**, **`harmony-emulator-manage`**, or **`harmony-ui-test`** is about to execute a shell line.
+- Apply whenever **`harmony-build`**, **`harmony-codelinter`**, **`harmony-unit-test`**, **`harmony-emulator-manage`**, or **`harmony-ui-test`** is about to execute a shell line.

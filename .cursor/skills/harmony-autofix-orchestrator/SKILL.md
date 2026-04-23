@@ -1,6 +1,6 @@
 ---
 name: harmony-autofix-orchestrator
-description: Schedules a HarmonyOS autofix loop (build, no-device unit, emulator, UI test) with guards and failure classification. Use when the user wants to fix until green, run a local CI-style loop, hvigor until tests pass, or asks for an orchestrated HarmonyOS build-and-test cycle with human escalation on infra failures.
+description: Schedules a HarmonyOS autofix loop (build, codelinter, no-device unit, emulator, UI test) with guards and failure classification. Use when the user wants to fix until green, run a local CI-style loop, hvigor until tests pass, or asks for an orchestrated HarmonyOS build-and-test cycle with human escalation on infra failures.
 ---
 
 # harmony-autofix-orchestrator
@@ -10,11 +10,12 @@ description: Schedules a HarmonyOS autofix loop (build, no-device unit, emulator
 ## Default pipeline order (one full pass)
 
 1. **`harmony-build`**
-2. **`harmony-unit-test`** (no device / Local only; see manifest)
-3. **`harmony-emulator-manage`**
-4. **`harmony-ui-test`**
+2. **`harmony-codelinter`** (CodeLinter / `codelinter` on project root; after successful HAP build; see [`.cursor/dev-commands.md`](.cursor/dev-commands.md))
+3. **`harmony-unit-test`** (no device / Local only; see manifest)
+4. **`harmony-emulator-manage`**
+5. **`harmony-ui-test`**
 
-Rationale: fail compile early; run **no-device** unit tests **before** starting the simulator to save time; then device; then on-device/Instrument and UI.
+Rationale: fail compile early; run **codelinter** on the same tree the build just validated; run **no-device** unit tests **before** starting the simulator to save time; then device; then on-device/Instrument and UI.
 
 ## After any failure in a pass
 
@@ -31,7 +32,7 @@ Rationale: fail compile early; run **no-device** unit tests **before** starting 
 
 ## Rerun rule
 
-- After a fix, re-run from the **failed phase** (or from build if the change can affect compile—use judgment: large API changes → from **build**).
+- After a fix, re-run from the **failed phase** (or from **build** if the change can affect compile—use judgment: large API changes → from **build**; from **codelinter** if only static issues were reported after a good build).
 
 ## Stop conditions (must end in one of these)
 
@@ -42,4 +43,4 @@ Rationale: fail compile early; run **no-device** unit tests **before** starting 
 
 ## Sub-skills to invoke (project `.cursor/skills/**/SKILL.md` names)
 
-`harmony-build` · `harmony-unit-test` · `harmony-emulator-manage` · `harmony-ui-test` · `harmony-log-analyzer` · `harmony-fix-strategy` · `autoloop-guard` · `safe-command-policy` · `test-failure-classifier`
+`harmony-build` · `harmony-codelinter` · `harmony-unit-test` · `harmony-emulator-manage` · `harmony-ui-test` · `harmony-log-analyzer` · `harmony-fix-strategy` · `autoloop-guard` · `safe-command-policy` · `test-failure-classifier`

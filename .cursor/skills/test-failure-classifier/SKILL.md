@@ -1,6 +1,6 @@
 ---
 name: test-failure-classifier
-description: Classifies build and test failures into category (compile, unit, ui, env-infra) and fixability tier only—no file edit instructions. Use after harmony-log-analyzer output or when routing HarmonyOS hvigor, hdc, or on-device test failures in an autofix loop.
+description: Classifies build, lint, and test failures into category (compile, lint, unit, ui, env-infra) and fixability tier only—no file edit instructions. Use after harmony-log-analyzer output or when routing HarmonyOS hvigor, codelinter, hdc, or on-device test failures in an autofix loop.
 ---
 
 # test-failure-classifier
@@ -12,9 +12,10 @@ description: Classifies build and test failures into category (compile, unit, ui
 | Category | Typical signals |
 |----------|-----------------|
 | **compile** | ArkTS/ets errors, `hvigor` **Error** in compile/compileArk, missing symbol, type errors |
+| **lint** | `codelinter` non-zero exit, rule violations in `code-linter.json5` output, static analysis errors from CodeLinter (not `hvigor` compile) |
 | **unit** | Failed assert in `src/test` / Local test output, JUnit/arkxtest local failure, exit non-zero in **no-device** test phase |
 | **ui** | UiTest / `ohosTest` / on-device test failure, selector not found, UI timeout, test under `ohosTest` path |
-| **env-infra** | `hdc` no target, simulator not booting, **signing** errors, SDK path wrong, OOM, install failure clearly environmental |
+| **env-infra** | `codelinter` **not found** or not on `PATH`, `hdc` no target, simulator not booting, **signing** errors, SDK path wrong, OOM, install failure clearly environmental |
 | **unknown** | Unparseable, mixed errors, or insufficient log |
 
 ## Tiers (fixability routing)
@@ -28,7 +29,7 @@ description: Classifies build and test failures into category (compile, unit, ui
 ## Input
 
 - Short **excerpts** from the failing command (see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) failure order).
-- Which **phase** failed: build, unit, emulator, ui.
+- Which **phase** failed: build, codelinter, unit, emulator, ui.
 
 ## Output format (for orchestrator and fix-strategy)
 
