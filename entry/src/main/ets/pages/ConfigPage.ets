@@ -1,25 +1,343 @@
 import { router } from '@kit.ArkUI';
+import { common } from '@kit.AbilityKit';
+import { BusinessError } from '@ohos.base';
+import {
+  GameConfig,
+  GAME_CONFIG_STORAGE_KEY,
+  TIMER_CHOICES,
+  HP_MIN,
+  HP_MAX,
+  MONSTER_COUNT_MIN,
+  MONSTER_COUNT_MAX,
+  KNOWN_CATEGORIES,
+  CUSTOM_CATEGORY_KEY,
+  MIN_POOL_SIZE,
+  cloneGameConfig,
+  computeFinalPool
+} from '../models/GameConfig';
+import { WordRepository } from '../services/WordRepository';
+import { WordEntry } from '../models/WordEntry';
 
+/**
+ * ConfigPage exposes five battle knobs plus a custom-words category.
+ * All non-custom edits happen on a local @State draft and are only
+ * written to AppStorage when the user taps 保存 AND the resulting
+ * pool size ≥ MIN_POOL_SIZE. 取消 returns to HomePage without
+ * touching stored state. The custom-words raw text is owned by
+ * CustomWordsPage (spec §3.4 / §4.5).
+ */
 @Entry
 @Component
 struct ConfigPage {
+  @State private draft: GameConfig = new GameConfig();
+  @State private showValidationHint: boolean = false;
+  private builtinEntries: WordEntry[] = [];
+
+  aboutToAppear(): void {
+    const stored: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    this.draft = cloneGameConfig(stored !== undefined ? stored : new GameConfig());
+
+    // Load built-in entries for Save-time validation. Form renders
+    // without waiting — validation only runs on the Save click.
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const repo: WordRepository = new WordRepository();
+    repo.loadFromRawfile(ctx).then((): void => {
+      this.builtinEntries = repo.all();
+    }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage: loadFromRawfile failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  onPageShow(): void {
+    // Re-sync draft.customWordsRaw when returning from CustomWordsPage
+    // so validation uses the latest value even though ConfigPage never
+    // mutates this field itself.
+    const stored: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    if (stored !== undefined) {
+      this.draft.customWordsRaw = stored.customWordsRaw;
+      this.showValidationHint = false;
+      this.forceRerender();
+    }
+  }
+
+  private forceRerender(): void {
+    this.draft = cloneGameConfig(this.draft);
+  }
+
+  private decPlayerHp(): void {
+    if (this.draft.playerMaxHp > HP_MIN) {
+      this.draft.playerMaxHp -= 1;
+      this.showValidationHint = false;
+      this.forceRerender();
+    }
+  }
+  private incPlayerHp(): void {
+    if (this.draft.playerMaxHp < HP_MAX) {
+      this.draft.playerMaxHp += 1;
+      this.showValidationHint = false;
+      this.forceRerender();
+    }
+  }
+  private decMonsterHp(): void {
+    if (this.draft.monsterMaxHp > HP_MIN) {
+      this.draft.monsterMaxHp -= 1;
+      this.showValidationHint = false;
+      this.forceRerender();
+    }
+  }
+  private incMonsterHp(): void {
+    if (this.draft.monsterMaxHp < HP_MAX) {
+      this.draft.monsterMaxHp += 1;
+      this.showValidationHint = false;
+      this.forceRerender();
+    }
+  }
+  private decMonstersTotal(): void {
+    if (this.draft.monstersTotal > MONSTER_COUNT_MIN) {
+      this.draft.monstersTotal -= 1;
+      this.showValidationHint = false;
+      this.forceRerender();
+    }
+  }
+  private incMonstersTotal(): void {
+    if (this.draft.monstersTotal < MONSTER_COUNT_MAX) {
+      this.draft.monstersTotal += 1;
+      this.showValidationHint = false;
+      this.forceRerender();
+    }
+  }
+
+  private selectTimer(seconds: number): void {
+    if (this.draft.startingSeconds === seconds) {
+      return;
+    }
+    this.draft.startingSeconds = seconds;
+    this.showValidationHint = false;
+    this.forceRerender();
+  }
+
+  private toggleCategory(key: string): void {
+    const idx: number = this.draft.enabledCategories.indexOf(key);
+    if (idx >= 0) {
+      // Silently refuse if this would leave zero categories selected
+      // (spec §4.2 — "last-chip tap has no reaction").
+      if (this.draft.enabledCategories.length <= 1) {
+        return;
+      }
+      this.draft.enabledCategories.splice(idx, 1);
+    } else {
+      this.draft.enabledCategories.push(key);
+    }
+    this.showValidationHint = false;
+    this.forceRerender();
+  }
+
+  private openCustomWords(): void {
+    router.pushUrl({ url: 'pages/CustomWordsPage' }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage: pushUrl CustomWordsPage failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private onSave(): void {
+    // Read current stored customWordsRaw so validation matches what
+    // BattlePage will actually use (spec §5.7).
+    const storedNow: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    const currentCustomRaw: string =
+      storedNow !== undefined ? storedNow.customWordsRaw : '';
+
+    const finalPool: WordEntry[] = computeFinalPool(
+      this.builtinEntries, this.draft.enabledCategories, currentCustomRaw);
+
+    if (finalPool.length < MIN_POOL_SIZE) {
+      this.showValidationHint = true;
+      this.forceRerender();
+      return;
+    }
+
+    // Merge: keep stored customWordsRaw (owned by CustomWordsPage),
+    // overlay draft's stepper/timer/category edits.
+    const merged: GameConfig =
+      cloneGameConfig(storedNow !== undefined ? storedNow : new GameConfig());
+    merged.playerMaxHp = this.draft.playerMaxHp;
+    merged.monsterMaxHp = this.draft.monsterMaxHp;
+    merged.monstersTotal = this.draft.monstersTotal;
+    merged.startingSeconds = this.draft.startingSeconds;
+    merged.enabledCategories = this.draft.enabledCategories.slice();
+
+    AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
+    router.back();
+  }
+
+  private onCancel(): void {
+    router.back();
+  }
+
+  @Builder
+  private stepperRow(label: string, valueId: string, value: number,
+                     decId: string, decAction: () => void, decEnabled: boolean,
+                     incId: string, incAction: () => void, incEnabled: boolean) {
+    Row() {
+      Text(label).fontSize(18).width(120);
+      Button('-')
+        .id(decId)
+        .width(44).height(44)
+        .fontSize(24)
+        .enabled(decEnabled)
+        .opacity(decEnabled ? 1.0 : 0.4)
+        .onClick((): void => decAction());
+      Text(`${value}`)
+        .id(valueId)
+        .fontSize(22)
+        .width(48)
+        .textAlign(TextAlign.Center);
+      Button('+')
+        .id(incId)
+        .width(44).height(44)
+        .fontSize(24)
+        .enabled(incEnabled)
+        .opacity(incEnabled ? 1.0 : 0.4)
+        .onClick((): void => incAction());
+    }
+    .margin({ bottom: 12 })
+    .alignItems(VerticalAlign.Center);
+  }
+
+  private timerLabel(seconds: number): string {
+    if (seconds < 60) {
+      return `${seconds}s`;
+    }
+    return `${seconds / 60}m`;
+  }
+
+  private timerChipId(seconds: number): string {
+    return `ConfigTimer${seconds}s`;
+  }
+
+  @Builder
+  private timerRow() {
+    Row() {
+      Text('倒计时').fontSize(18).width(120);
+      Row({ space: 8 }) {
+        ForEach(TIMER_CHOICES, (sec: number) => {
+          Button(this.timerLabel(sec))
+            .id(this.timerChipId(sec))
+            .width(56).height(40)
+            .fontSize(16)
+            .backgroundColor(this.draft.startingSeconds === sec ? '#FFB400' : '#EAF2F8')
+            .fontColor(this.draft.startingSeconds === sec ? '#FFFFFF' : '#457B9D')
+            .onClick((): void => this.selectTimer(sec));
+        }, (sec: number) => `${sec}`);
+      };
+    }
+    .margin({ bottom: 12 })
+    .alignItems(VerticalAlign.Center);
+  }
+
+  private builtinCategoryLabel(key: string): string {
+    if (key === 'fruit') return '水果';
+    if (key === 'place') return '地点';
+    if (key === 'home') return '家居';
+    return key;
+  }
+
+  private builtinCategoryId(key: string): string {
+    if (key === 'fruit') return 'ConfigCategoryFruit';
+    if (key === 'place') return 'ConfigCategoryPlace';
+    if (key === 'home') return 'ConfigCategoryHome';
+    return `ConfigCategory${key}`;
+  }
+
+  @Builder
+  private categoryRow() {
+    Row() {
+      Text('词库类别').fontSize(18).width(120);
+      Row({ space: 8 }) {
+        ForEach(KNOWN_CATEGORIES, (key: string) => {
+          Button(this.builtinCategoryLabel(key))
+            .id(this.builtinCategoryId(key))
+            .width(72).height(40)
+            .fontSize(16)
+            .backgroundColor(this.draft.enabledCategories.indexOf(key) >= 0 ? '#FFF4D0' : '#F0F0F0')
+            .fontColor(this.draft.enabledCategories.indexOf(key) >= 0 ? '#B8860B' : '#666666')
+            .borderWidth(this.draft.enabledCategories.indexOf(key) >= 0 ? 2 : 0)
+            .borderColor('#FFB400')
+            .onClick((): void => this.toggleCategory(key));
+        }, (key: string) => key);
+
+        // Custom chip + edit icon
+        Button('自定义')
+          .id('ConfigCategoryCustom')
+          .width(72).height(40)
+          .fontSize(16)
+          .backgroundColor(this.draft.enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0 ? '#FFF4D0' : '#F0F0F0')
+          .fontColor(this.draft.enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0 ? '#B8860B' : '#666666')
+          .borderWidth(this.draft.enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0 ? 2 : 0)
+          .borderColor('#FFB400')
+          .onClick((): void => this.toggleCategory(CUSTOM_CATEGORY_KEY));
+        Button('✎')
+          .id('ConfigCategoryCustomEdit')
+          .width(40).height(40)
+          .fontSize(18)
+          .backgroundColor('#EAF2F8')
+          .fontColor('#457B9D')
+          .onClick((): void => this.openCustomWords());
+      };
+    }
+    .margin({ bottom: 16 })
+    .alignItems(VerticalAlign.Center);
+  }
+
   build(): void {
-    Column({ space: 16 }) {
+    Column() {
       Text('游戏设置')
         .id('ConfigTitle')
-        .fontSize(24)
-        .fontWeight(FontWeight.Bold);
+        .fontSize(28)
+        .fontWeight(FontWeight.Bold)
+        .margin({ bottom: 16 });
 
-      Text('TODO: configuration form')
-        .fontSize(14)
-        .opacity(0.6);
+      this.stepperRow(
+        '玩家血量', 'ConfigPlayerHpValue', this.draft.playerMaxHp,
+        'ConfigPlayerHpDec', (): void => this.decPlayerHp(), this.draft.playerMaxHp > HP_MIN,
+        'ConfigPlayerHpInc', (): void => this.incPlayerHp(), this.draft.playerMaxHp < HP_MAX);
+      this.stepperRow(
+        '怪物血量', 'ConfigMonsterHpValue', this.draft.monsterMaxHp,
+        'ConfigMonsterHpDec', (): void => this.decMonsterHp(), this.draft.monsterMaxHp > HP_MIN,
+        'ConfigMonsterHpInc', (): void => this.incMonsterHp(), this.draft.monsterMaxHp < HP_MAX);
+      this.stepperRow(
+        '怪物数量', 'ConfigMonstersTotalValue', this.draft.monstersTotal,
+        'ConfigMonstersTotalDec', (): void => this.decMonstersTotal(), this.draft.monstersTotal > MONSTER_COUNT_MIN,
+        'ConfigMonstersTotalInc', (): void => this.incMonstersTotal(), this.draft.monstersTotal < MONSTER_COUNT_MAX);
 
-      Button('返回')
-        .id('ConfigBackButton')
-        .onClick(() => { router.back(); });
+      this.timerRow();
+      this.categoryRow();
+
+      if (this.showValidationHint) {
+        Text('单词池太小（少于 3 个），请启用更多类别或添加自定义词')
+          .id('ConfigValidationHint')
+          .fontSize(14)
+          .fontColor('#E63946')
+          .margin({ bottom: 12 });
+      }
+
+      Row({ space: 16 }) {
+        Button('取消')
+          .id('ConfigCancelButton')
+          .width(160).height(52)
+          .backgroundColor('#BDBDBD')
+          .onClick((): void => this.onCancel());
+        Button('保存')
+          .id('ConfigSaveButton')
+          .width(160).height(52)
+          .backgroundColor('#2ECC71')
+          .onClick((): void => this.onSave());
+      };
     }
     .width('100%')
     .height('100%')
+    .padding({ top: 24, bottom: 24, left: 40, right: 40 })
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center);
   }
