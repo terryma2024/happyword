@@ -37,6 +37,14 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 - If your Hvigor version uses different `-p` names, copy the exact line from DevEco’s Gradle-like task for **Local Unit Test** and paste it here.
 - **Device-required** or `ohosTest` cases are **not** in this step; they run after the emulator is up (section 4).
 
+### Pre-flight: `oh_modules/` must exist at project root
+
+**`hvigorw ... test` drives tests through the offline Previewer binary.** The Previewer loads `@ohos/hypium` from `oh_modules/` at runtime; if that directory is missing (fresh clone, new `git worktree`, or after a wipe), the test ability silently fails to register, so the Previewer never emits `OHOS_REPORT_STATUS: taskconsuming` and hvigor hangs forever in `child.stdout.on('data', ...)` waiting for it.
+
+- **Symptom:** `UnitTestArkTS` compiles, then `GenerateUnitTestResult` prints one or more `Darwin` lines and never completes; killing hvigor leaves a `Previewer` child process reparented to init.
+- **Fix:** run `ohpm install` at project root before `hvigorw ... test`. Verify `oh_modules/` exists (not only under `entry/`).
+- **Zombie cleanup on hang:** `pkill -9 -f "openharmony/previewer/common/bin/Previewer"` and re-run. Leaked Previewers squat ports 40000+ and each leak adds one extra `Darwin` line via `findPort` recursion, but the real failure is still the missing `oh_modules/`.
+
 ---
 
 ## 3) Emulator / device — `harmony-emulator-manage`

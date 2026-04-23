@@ -10,8 +10,9 @@ description: Runs no-device local unit tests for the HarmonyOS entry module usin
 ## Before running
 
 1. **Build must have succeeded** (or user explicitly re-runs tests only).
-2. Read [`.cursor/dev-commands.md`](.cursor/dev-commands.md) section **Unit test (no device)**.
-3. Apply **`safe-command-policy`**.
+2. **Verify `oh_modules/` exists at project root.** If absent (fresh clone or new git worktree), run `ohpm install` from the project root first. Without it, `hvigorw test` hangs indefinitely in `GenerateUnitTestResult` — the offline Previewer child cannot load `@ohos/hypium` and never emits the `OHOS_REPORT_STATUS: taskconsuming` marker hvigor waits on. See `.cursor/dev-commands.md` section 2 for the detailed symptom/fix.
+3. Read [`.cursor/dev-commands.md`](.cursor/dev-commands.md) section **Unit test (no device)**.
+4. Apply **`safe-command-policy`**.
 
 ## On failure
 
