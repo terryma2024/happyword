@@ -1,9 +1,10 @@
 import { Question } from '../models/Question';
 import { BattleState, BattleStatus } from '../models/BattleState';
+import { SessionResult } from '../models/SessionResult';
 import { QuestionGenerator } from './QuestionGenerator';
 
 /**
- * Battle rules (spec §4.1, §4.2, §4.3, §8.3) as of T7:
+ * Battle rules (spec §4.1, §4.2, §4.3, §4.4, §8.3) as of T8:
  *
  * - The player starts with {@link DEFAULT_PLAYER_HP} HP and faces
  *   {@link DEFAULT_MONSTERS_TOTAL} monsters, each with
@@ -17,12 +18,11 @@ import { QuestionGenerator } from './QuestionGenerator';
  *   {@link AnswerOutcome.comboTriggered}, and `comboCount` is reset to 0
  *   before the next question is picked. Defeating a monster does NOT
  *   reset combo; only a wrong answer or a burst trigger does.
- *
- * What the engine still intentionally omits:
- *
- * - Countdown timer side-effects. `state.remainingSeconds` is a pure data
- *   field here; BattlePage drives it via setInterval when T8 wires the
- *   timer. Engine does not read from it.
+ * - Countdown: `state.remainingSeconds` starts at
+ *   {@link DEFAULT_STARTING_SECONDS} (5 minutes). BattlePage drives the
+ *   timer via {@link tick} once per second; when the counter reaches 0
+ *   the engine transitions to {@link BattleStatus.Lost} regardless of
+ *   player HP (spec §2.1 failure condition).
  *
  * Construction split:
  *
@@ -85,6 +85,20 @@ export class AnswerOutcome {
   endStatus?: BattleStatus;
 }
 
+/**
+ * The result of a single {@link BattleEngine.tick} call.
+ *
+ * `battleEnded` is true exactly once — on the tick that transitions the
+ * engine from Playing to Lost because time ran out. Subsequent ticks on
+ * an already-finished engine are no-ops and emit `battleEnded = false`,
+ * so BattlePage can safely keep its interval running until the next
+ * render cycle clears it.
+ */
+export class TickOutcome {
+  battleEnded: boolean = false;
+  endStatus?: BattleStatus;
+}
+
 export class BattleEngine {
   private readonly generator: QuestionGenerator;
   private readonly state_: BattleState;
@@ -131,7 +145,9 @@ export class BattleEngine {
       throw new Error('BattleEngine: cannot start() after battle has ended');
     }
     this.state_.status = BattleStatus.Playing;
-    this.state_.currentQuestion = this.generator.nextQuestion();
+    const q: Question = this.generator.nextQuestion();
+    this.state_.currentQuestion = q;
+    this.rememberWord(q.wordId);
   }
 
   /** Immutable-ish view of the current state. Callers must not mutate. */
@@ -213,7 +229,102 @@ export class BattleEngine {
 
     // Battle continues — pick the next question, avoiding a same-word repeat
     // for a smoother flow (spec §5.2 last bullet).
-    this.state_.currentQuestion = this.generator.nextQuestion(q.wordId);
+    const next: Question = this.generator.nextQuestion(q.wordId);
+    this.state_.currentQuestion = next;
+    this.rememberWord(next.wordId);
     return outcome;
+  }
+
+  /**
+   * Advance the countdown by {@code deltaSeconds}. BattlePage calls this
+   * once per second via setInterval (spec §10.3 — timer owned by page
+   * lifecycle, engine only applies the delta).
+   *
+   * Semantics:
+   *   - If the battle already ended (Won/Lost), tick is a no-op. This
+   *     lets callers run a cheap clean-up loop without worrying about
+   *     races against navigation.
+   *   - While Playing, remainingSeconds decreases. On hitting 0 the
+   *     engine transitions to Lost, clears the current question, and
+   *     returns `battleEnded = true` (exactly once).
+   */
+  tick(deltaSeconds: number): TickOutcome {
+    const outcome: TickOutcome = new TickOutcome();
+    if (this.state_.status !== BattleStatus.Playing) {
+      return outcome;
+    }
+    this.state_.remainingSeconds -= deltaSeconds;
+    if (this.state_.remainingSeconds <= 0) {
+      this.state_.remainingSeconds = 0;
+      this.state_.status = BattleStatus.Lost;
+      this.state_.currentQuestion = undefined;
+      outcome.battleEnded = true;
+      outcome.endStatus = BattleStatus.Lost;
+    }
+    return outcome;
+  }
+
+  /**
+   * Produce a frozen {@link SessionResult} describing the finished
+   * battle. Only valid once status is Won or Lost — calling it earlier
+   * throws because ResultPage would otherwise show stats that can still
+   * change. Star rating comes straight from spec §4.4:
+   *
+   *   3 stars — Won with correctRate ≥ 0.8.
+   *   2 stars — Won with correctRate < 0.8,
+   *             OR Lost with ≥ 3 monsters defeated.
+   *   1 star  — Lost with ≥ 1 monster defeated.
+   *   0 stars — Otherwise (no monster defeated).
+   *
+   * The OR branch on tier 2 interprets the spec's slightly compressed
+   * wording: a loss that still cleared three or more monsters is
+   * rewarded with 2 stars.
+   */
+  buildSessionResult(): SessionResult {
+    if (this.state_.status !== BattleStatus.Won && this.state_.status !== BattleStatus.Lost) {
+      throw new Error(`BattleEngine.buildSessionResult: battle not finished (status=${this.state_.status})`);
+    }
+    const r: SessionResult = new SessionResult();
+    r.status = this.state_.status;
+    r.defeatedMonsters = this.state_.defeatedMonsters;
+    r.monstersTotal = this.state_.monstersTotal;
+    r.totalAnswers = this.state_.totalAnswers;
+    r.correctAnswers = this.state_.correctAnswers;
+    r.correctRate = this.state_.totalAnswers > 0
+      ? this.state_.correctAnswers / this.state_.totalAnswers
+      : 0;
+    r.learnedWordCount = this.state_.learnedWordIds.length;
+    r.stars = this.computeStars();
+    return r;
+  }
+
+  /** Dedupe guard — learnedWordIds is conceptually a Set. */
+  private rememberWord(wordId: string): void {
+    const ids: string[] = this.state_.learnedWordIds;
+    for (let i = 0; i < ids.length; i++) {
+      if (ids[i] === wordId) {
+        return;
+      }
+    }
+    ids.push(wordId);
+  }
+
+  private computeStars(): number {
+    const won: boolean = this.state_.status === BattleStatus.Won;
+    const defeated: number = this.state_.defeatedMonsters;
+    const rate: number = this.state_.totalAnswers > 0
+      ? this.state_.correctAnswers / this.state_.totalAnswers
+      : 0;
+
+    if (won && rate >= 0.8) {
+      return 3;
+    }
+    if (won || defeated >= 3) {
+      return 2;
+    }
+    if (defeated >= 1) {
+      return 1;
+    }
+    return 0;
   }
 }

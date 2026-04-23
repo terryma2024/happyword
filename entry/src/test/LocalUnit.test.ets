@@ -17,11 +17,14 @@ import {
   BattleEngine,
   BattleConfig,
   AnswerOutcome,
+  TickOutcome,
   DEFAULT_PLAYER_HP,
   DEFAULT_MONSTER_HP,
-  DEFAULT_MONSTERS_TOTAL
+  DEFAULT_MONSTERS_TOTAL,
+  DEFAULT_STARTING_SECONDS
 } from '../main/ets/services/BattleEngine';
 import { BattleState, BattleStatus } from '../main/ets/models/BattleState';
+import { SessionResult } from '../main/ets/models/SessionResult';
 
 function makeWord(id: string, word: string, meaning: string, category: string): WordEntry {
   const e: WordEntry = new WordEntry();
@@ -786,6 +789,221 @@ export default function localUnitTest() {
       expect(outcome.correct).assertFalse();
       expect(outcome.comboTriggered).assertFalse();
       expect(outcome.damage).assertEqual(1);
+    });
+  });
+
+  describe('BattleEngine.learnedWords', () => {
+    it('tracksEachUniqueWordShown', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      // The first question is spawned by start(); subsequent ones by
+      // submitAnswer. QuestionGenerator's avoid-same-word rule only
+      // looks one step back, so with a 5-word repo we may see repeats
+      // across 4 questions. What MUST hold is: learnedWordIds grows
+      // monotonically and contains no duplicates.
+      const initialLearned: number = engine.getState().learnedWordIds.length;
+      expect(initialLearned).assertEqual(1);
+
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+
+      const learned: string[] = engine.getState().learnedWordIds;
+      // Four questions have been posed; we saw at least two distinct
+      // words and at most four.
+      expect(learned.length >= 2).assertTrue();
+      expect(learned.length <= 4).assertTrue();
+      // The list must contain no duplicates (it's conceptually a Set).
+      const seen: Map<string, boolean> = new Map<string, boolean>();
+      for (let i = 0; i < learned.length; i++) {
+        expect(seen.has(learned[i])).assertFalse();
+        seen.set(learned[i], true);
+      }
+    });
+  });
+
+  describe('BattleEngine.tick', () => {
+    it('decrementsRemainingSecondsWhilePlaying', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const startSeconds: number = engine.getState().remainingSeconds;
+      const outcome: TickOutcome = engine.tick(1);
+      expect(outcome.battleEnded).assertFalse();
+      expect(engine.getState().remainingSeconds).assertEqual(startSeconds - 1);
+    });
+
+    it('clampsRemainingSecondsAtZeroAndEndsBattleAsLost', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.startingSeconds = 5;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      // Tick past zero; the engine must clamp and transition to Lost.
+      const outcome: TickOutcome = engine.tick(10);
+      expect(outcome.battleEnded).assertTrue();
+      expect(outcome.endStatus).assertEqual(BattleStatus.Lost);
+      expect(engine.getState().remainingSeconds).assertEqual(0);
+      expect(engine.getState().status).assertEqual(BattleStatus.Lost);
+    });
+
+    it('isNoOpAfterBattleEnded', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.startingSeconds = 5;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.tick(10); // Lost
+      const before: number = engine.getState().remainingSeconds;
+      const outcome: TickOutcome = engine.tick(5);
+      // Post-end ticks do nothing — they don't change seconds and don't
+      // re-fire the battleEnded signal (BattlePage only navigates on the
+      // *first* end signal).
+      expect(outcome.battleEnded).assertFalse();
+      expect(engine.getState().remainingSeconds).assertEqual(before);
+    });
+
+    it('rejectsSubmitAnswerAfterTimeExpires', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.startingSeconds = 1;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.tick(1);
+      let threw: boolean = false;
+      try {
+        engine.submitAnswer(engine.getState().currentQuestion !== undefined
+          ? engine.getState().currentQuestion!.options[0]
+          : 'anything');
+      } catch (_e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+    });
+  });
+
+  describe('BattleEngine.buildSessionResult', () => {
+    it('throwsWhileBattleStillInProgress', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      let threw: boolean = false;
+      try {
+        engine.buildSessionResult();
+      } catch (_e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+    });
+
+    it('wonWithPerfectAccuracyYieldsThreeStars', 0, () => {
+      // Small fight: 2 monsters, 1 HP each, so we can win with 2 corrects.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Won);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.status).assertEqual(BattleStatus.Won);
+      expect(result.defeatedMonsters).assertEqual(2);
+      expect(result.totalAnswers).assertEqual(2);
+      expect(result.correctAnswers).assertEqual(2);
+      expect(result.correctRate).assertEqual(1);
+      expect(result.stars).assertEqual(3);
+    });
+
+    it('wonWithLowAccuracyYieldsTwoStars', 0, () => {
+      // Win with accuracy < 80%. Use 1-HP monsters so each correct kills
+      // one, and sprinkle enough wrongs to drag accuracy below 0.8 without
+      // losing the battle (need player HP > 0 at end).
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 2;
+      cfg.playerMaxHp = 5;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      // 2 wrongs + 2 corrects = 50% accuracy, player HP 3/5 at end.
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Won);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.status).assertEqual(BattleStatus.Won);
+      expect(result.correctRate < 0.8).assertTrue();
+      expect(result.stars).assertEqual(2);
+    });
+
+    it('lostWithThreeDefeatsYieldsTwoStars', 0, () => {
+      // Lose after defeating exactly 3 monsters. Spec §4.4 tier-2 row's
+      // OR-clause: at least 3 monsters defeated grants 2 stars even on a
+      // loss. Configure so 3 corrects kill 3 monsters, then enough wrongs
+      // drain the player HP to zero.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 5;
+      cfg.playerMaxHp = 3;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      // 3 wrongs drain the 3 HP the player has left.
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Lost);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.defeatedMonsters).assertEqual(3);
+      expect(result.stars).assertEqual(2);
+    });
+
+    it('lostWithOneDefeatYieldsOneStar', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 5;
+      cfg.playerMaxHp = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer); // kill 1
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Lost);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.defeatedMonsters).assertEqual(1);
+      expect(result.stars).assertEqual(1);
+    });
+
+    it('lostWithoutDefeatYieldsZeroStars', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.playerMaxHp = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Lost);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.defeatedMonsters).assertEqual(0);
+      expect(result.stars).assertEqual(0);
+    });
+
+    it('reportsLearnedWordCount', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      const result: SessionResult = engine.buildSessionResult();
+      // start() primes 1 word, the first correct spawns monster #2 plus
+      // a fresh question (word #2), and the second correct wins the
+      // battle WITHOUT spawning another question. So exactly 2 unique
+      // words were shown this session.
+      expect(result.learnedWordCount).assertEqual(2);
+    });
+
+    it('correctRateIsZeroWhenNoAnswersSubmittedAndTimeRanOut', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.startingSeconds = 1;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.tick(1);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.status).assertEqual(BattleStatus.Lost);
+      expect(result.totalAnswers).assertEqual(0);
+      expect(result.correctRate).assertEqual(0);
+      expect(result.stars).assertEqual(0);
     });
   });
 }

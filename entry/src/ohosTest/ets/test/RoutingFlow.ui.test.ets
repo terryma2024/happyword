@@ -46,6 +46,91 @@ async function clickById(driver: Driver, id: string): Promise<void> {
   await comp.click();
 }
 
+/**
+ * zh -> en word mapping, mirrored from words_v1.json. Duplicated here
+ * on purpose: the ohosTest HAP is a separate module and resolving the
+ * main module's rawfile from a test would mean standing up a
+ * ResourceManager context just for this flow. The source list is small
+ * (30 entries) and stable, and any drift from words_v1.json will
+ * surface as the win-flow test timing out on an unknown prompt — loud
+ * and easy to diagnose.
+ */
+class WordMapEntry {
+  zh: string = '';
+  en: string = '';
+}
+
+const WORD_MAP: WordMapEntry[] = [
+  { zh: '苹果', en: 'apple' },
+  { zh: '香蕉', en: 'banana' },
+  { zh: '橙子', en: 'orange' },
+  { zh: '葡萄', en: 'grape' },
+  { zh: '梨', en: 'pear' },
+  { zh: '桃子', en: 'peach' },
+  { zh: '柠檬', en: 'lemon' },
+  { zh: '芒果', en: 'mango' },
+  { zh: '瓜', en: 'melon' },
+  { zh: '樱桃', en: 'cherry' },
+  { zh: '学校', en: 'school' },
+  { zh: '医院', en: 'hospital' },
+  { zh: '公园', en: 'park' },
+  { zh: '超市', en: 'supermarket' },
+  { zh: '图书馆', en: 'library' },
+  { zh: '动物园', en: 'zoo' },
+  { zh: '银行', en: 'bank' },
+  { zh: '博物馆', en: 'museum' },
+  { zh: '车站', en: 'station' },
+  { zh: '家', en: 'home' },
+  { zh: '电视', en: 'TV' },
+  { zh: '椅子', en: 'chair' },
+  { zh: '床', en: 'bed' },
+  { zh: '桌子', en: 'table' },
+  { zh: '沙发', en: 'sofa' },
+  { zh: '台灯', en: 'lamp' },
+  { zh: '门', en: 'door' },
+  { zh: '窗户', en: 'window' },
+  { zh: '书', en: 'book' },
+  { zh: '杯子', en: 'cup' }
+];
+
+function lookupEnglishAnswer(zhPrompt: string): string {
+  for (let i = 0; i < WORD_MAP.length; i++) {
+    if (WORD_MAP[i].zh === zhPrompt) {
+      return WORD_MAP[i].en;
+    }
+  }
+  return '';
+}
+
+/**
+ * Read the current question's Chinese prompt, resolve it to the
+ * expected English answer via WORD_MAP, find whichever of the three
+ * option buttons has that text, and click it. Returns the English
+ * answer that was clicked (useful for logging; the winFlow test uses
+ * it to distinguish "no match" from successful clicks).
+ */
+async function tapCorrectAnswer(driver: Driver): Promise<string> {
+  const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
+  const promptText: string = await promptComp.getText();
+  const answer: string = lookupEnglishAnswer(promptText);
+  if (answer === '') {
+    throw new Error(`tapCorrectAnswer: unknown prompt "${promptText}"`);
+  }
+  // Options are rendered as child Text nodes of each button. Walking
+  // the three button IDs lets us find the matching option without
+  // scanning the whole tree.
+  const optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
+  for (let i = 0; i < optionIds.length; i++) {
+    const btn = await driver.findComponent(ON.id(optionIds[i]));
+    const text: string = await btn.getText();
+    if (text.toLowerCase() === answer.toLowerCase()) {
+      await btn.click();
+      return answer;
+    }
+  }
+  throw new Error(`tapCorrectAnswer: no option button matches answer "${answer}" for prompt "${promptText}"`);
+}
+
 export default function routingFlowUiTest(): void {
   describe('RoutingFlowUiTest', () => {
     /**
@@ -92,12 +177,12 @@ export default function routingFlowUiTest(): void {
       await driver.assertComponentExist(ON.text('HP 5 / 5'));
       await driver.assertComponentExist(ON.text('HP 3 / 3'));
       await driver.assertComponentExist(ON.text('Combo: 0'));
-      // Static-T5 header labels still apply: combo counter and the static
-      // timer readout (timer wiring is deferred past T6). "Time 05:00"
-      // matches BattlePage.formatTime(DEFAULT_STARTING_SECONDS=300).
+      // Header labels: combo counter + timer. T8 wires a live 1Hz
+      // countdown so the timer text changes during the test's delays;
+      // we assert the ID exists (structural) rather than pinning the
+      // exact text — tick correctness is covered in LocalUnit.test.ets.
       await driver.assertComponentExist(ON.id('BattleComboLabel'));
       await driver.assertComponentExist(ON.id('BattleTimerLabel'));
-      await driver.assertComponentExist(ON.text('Time 05:00'));
       await driver.assertComponentExist(ON.text('Monster 1 / 5'));
       // All three option buttons render. After T6 the texts are real
       // English words from words_v1.json (chosen by the engine's default
@@ -132,17 +217,21 @@ export default function routingFlowUiTest(): void {
       await driver.delayMs(800);
 
       // --- ResultPage ---
+      // T8: ResultPage renders a real SessionResult. The debug [debug]
+      // end-battle path forces the engine to Lost by ticking past the
+      // countdown, so the headline is always "挑战失败". Stat numbers
+      // depend on how many taps happened before the debug button was
+      // pressed, so we assert the row IDs exist rather than pinning
+      // specific numbers (that churn would fight the engine's RNG).
       await driver.assertComponentExist(ON.id('ResultTitle'));
+      await driver.assertComponentExist(ON.id('ResultStars'));
+      await driver.assertComponentExist(ON.id('ResultDefeated'));
+      await driver.assertComponentExist(ON.id('ResultAnswers'));
+      await driver.assertComponentExist(ON.id('ResultAccuracy'));
+      await driver.assertComponentExist(ON.id('ResultLearned'));
       await driver.assertComponentExist(ON.id('ResultRetryButton'));
       await driver.assertComponentExist(ON.id('ResultHomeButton'));
-      // Content: all four stat rows per spec §6.4. Stats are static placeholders
-      // in T2 (wired to SessionResult in T8) — asserting them now makes it
-      // obvious when the wiring arrives by failing the test with a text diff.
-      await driver.assertComponentExist(ON.text('本局结果（占位）'));
-      await driver.assertComponentExist(ON.text('击败怪物：0 / 5'));
-      await driver.assertComponentExist(ON.text('正确率：0%'));
-      await driver.assertComponentExist(ON.text('学习单词：0'));
-      await driver.assertComponentExist(ON.text('星级：☆☆☆'));
+      await driver.assertComponentExist(ON.text('挑战失败'));
       await driver.assertComponentExist(ON.text('再来一局'));
       await driver.assertComponentExist(ON.text('返回首页'));
 
@@ -198,6 +287,75 @@ export default function routingFlowUiTest(): void {
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
 
+      expect(true).assertTrue();
+      done();
+    });
+
+    /**
+     * Win flow: play a full battle through to victory and verify the
+     * ResultPage shows "胜利！" (spec §2.2). Counterpart to the two Lost
+     * flows above, which exit via the debug [debug] end-battle button
+     * and always produce a loss.
+     *
+     * Damage arithmetic (BattleEngine defaults: monster 3 HP, combo
+     * threshold = 3, burst damage = 2):
+     *   corr 1 -> dmg 1, mon 2/3 (combo 1)
+     *   corr 2 -> dmg 1, mon 1/3 (combo 2)
+     *   corr 3 -> BURST dmg 2, mon 0/3 defeat, combo reset
+     * So exactly 3 correct answers defeat each monster, and 5 x 3 = 15
+     * correct answers in a row clear all 5 monsters. The engine picks a
+     * fresh (different-word) question after each submit, so every tap
+     * can be resolved by zh->en lookup against WORD_MAP.
+     *
+     * On the 15th correct tap the engine enters Won inside the 650ms
+     * feedback window and BattlePage navigates to ResultPage when it
+     * fires. A single 900ms wait after the final click covers that
+     * window plus the router transition.
+     */
+    it('winFlow_fifteenCorrectAnswersReachesVictory', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await clickById(driver, 'HomeStartButton');
+      await driver.delayMs(1000);
+      await driver.assertComponentExist(ON.id('BattleTitle'));
+      await driver.assertComponentExist(ON.id('BattlePrompt'));
+
+      // 14 taps while BattlePage is still live — each loop reads the
+      // current prompt, picks the matching option, then waits past the
+      // feedback window for the next question to paint.
+      for (let i = 0; i < 14; i++) {
+        await tapCorrectAnswer(driver);
+        await driver.delayMs(800);
+        await driver.assertComponentExist(ON.id('BattlePrompt'));
+      }
+
+      // Final tap — this one ends the battle. Don't assert
+      // BattlePrompt after: the reveal window will auto-navigate to
+      // ResultPage. A slightly longer wait covers feedback + replaceUrl.
+      await tapCorrectAnswer(driver);
+      await driver.delayMs(900);
+
+      // --- ResultPage (Won) ---
+      await driver.assertComponentExist(ON.id('ResultTitle'));
+      await driver.assertComponentExist(ON.id('ResultStars'));
+      await driver.assertComponentExist(ON.id('ResultDefeated'));
+      await driver.assertComponentExist(ON.id('ResultAnswers'));
+      await driver.assertComponentExist(ON.id('ResultAccuracy'));
+      await driver.assertComponentExist(ON.id('ResultLearned'));
+      await driver.assertComponentExist(ON.id('ResultRetryButton'));
+      await driver.assertComponentExist(ON.id('ResultHomeButton'));
+      // The critical assertion — victory headline. 100% correct with
+      // all monsters defeated yields the Won path and 3 stars; we don't
+      // pin the star count here (spec tiers are covered by
+      // LocalUnit.test.ets) but the headline text IS the win contract.
+      await driver.assertComponentExist(ON.text('胜利！'));
+      await driver.assertComponentExist(ON.text('击败怪物：5 / 5'));
+      await driver.assertComponentExist(ON.text('正确率：100%'));
+
+      await clickById(driver, 'ResultHomeButton');
+      await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
       expect(true).assertTrue();
       done();
     });

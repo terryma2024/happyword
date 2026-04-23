@@ -42,6 +42,15 @@ export class BattleState {
   totalAnswers: number = 0;
   correctAnswers: number = 0;
   defeatedMonsters: number = 0;
+  /**
+   * Unique wordIds the player has been shown this session. Conceptually
+   * a Set — kept as an array because ArkTS strict mode dislikes generic
+   * Set literals crossing module boundaries, and the V0.1 session only
+   * ever sees a few dozen words so O(n) dedupe is fine. Consumers must
+   * treat it as an unordered collection. Feeds ResultPage's "学习单词"
+   * line per spec §6.4.
+   */
+  learnedWordIds: string[] = [];
   currentQuestion?: Question;
   status: BattleStatus = BattleStatus.Ready;
 }
