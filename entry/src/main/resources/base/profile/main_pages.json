@@ -2,6 +2,8 @@
   "src": [
     "pages/HomePage",
     "pages/BattlePage",
-    "pages/ResultPage"
+    "pages/ResultPage",
+    "pages/ConfigPage",
+    "pages/CustomWordsPage"
   ]
 }

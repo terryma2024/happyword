@@ -1,3 +1,5 @@
+import { UIContext } from '@kit.ArkUI';
+
 export const RIBBON_COLORS: string[] = ['#E63946', '#F4C430', '#457B9D', '#F78DA7'];
 
 // Phase-1 fly-out radius (vp) from the box center.
@@ -84,13 +86,17 @@ struct GiftBoxRibbon {
     const flyX: number = target.x;
     const flyY: number = target.y;
 
-    animateTo({ duration: RIBBON_PHASE1_MS, curve: Curve.EaseOut }, () => {
+    // Global animateTo is deprecated in HarmonyOS NEXT; the replacement is
+    // the UIContext-scoped variant obtained via getUIContext(). Semantics
+    // and options are identical, so the two-phase ribbon timeline works
+    // unchanged.
+    this.getUIContext().animateTo({ duration: RIBBON_PHASE1_MS, curve: Curve.EaseOut }, () => {
       this.tx = flyX;
       this.ty = flyY;
     });
 
     this.phase2Timer = setTimeout(() => {
-      animateTo({ duration: RIBBON_PHASE2_MS, curve: Curve.EaseIn }, () => {
+      this.getUIContext().animateTo({ duration: RIBBON_PHASE2_MS, curve: Curve.EaseIn }, () => {
         this.ty = flyY + RIBBON_GRAVITY_DROP;
         this.opacityValue = 0;
       });
@@ -160,18 +166,23 @@ export struct GiftBox {
   private startCycle(): void {
     this.isOpen = true;
 
+    // All animateTo calls use the UIContext-scoped API; the global animateTo
+    // was deprecated in HarmonyOS NEXT. Capturing the context once up-front
+    // keeps the timeline easy to read and avoids repeated getter lookups.
+    const ui: UIContext = this.getUIContext();
+
     // Scale bounce: 1 -> 1.08 -> 1 over 200 ms total.
-    animateTo({ duration: 100, curve: Curve.EaseOut }, () => {
+    ui.animateTo({ duration: 100, curve: Curve.EaseOut }, () => {
       this.boxScale = 1.08;
     });
     this.scheduleTimer(() => {
-      animateTo({ duration: 100, curve: Curve.EaseIn }, () => {
+      this.getUIContext().animateTo({ duration: 100, curve: Curve.EaseIn }, () => {
         this.boxScale = 1;
       });
     }, 100);
 
     // Lid off.
-    animateTo({ duration: 200, curve: Curve.EaseOut }, () => {
+    ui.animateTo({ duration: 200, curve: Curve.EaseOut }, () => {
       this.lidTy = -40;
       this.lidRotate = -15;
     });
@@ -187,7 +198,7 @@ export struct GiftBox {
     // Auto-close.
     this.scheduleTimer(() => {
       this.isOpen = false;
-      animateTo({ duration: 180, curve: Curve.EaseInOut }, () => {
+      this.getUIContext().animateTo({ duration: 180, curve: Curve.EaseInOut }, () => {
         this.lidTy = 0;
         this.lidRotate = 0;
       });

@@ -13,12 +13,49 @@ import { Question } from '../main/ets/models/Question';
 import { WordRepository } from '../main/ets/services/WordRepository';
 import { shuffle, mulberry32, RandomFn } from '../main/ets/utils/shuffle';
 import { QuestionGenerator, OPTIONS_PER_QUESTION } from '../main/ets/services/QuestionGenerator';
+import {
+  BattleEngine,
+  BattleConfig,
+  AnswerOutcome,
+  TickOutcome,
+  DEFAULT_PLAYER_HP,
+  DEFAULT_MONSTER_HP,
+  DEFAULT_MONSTERS_TOTAL,
+  DEFAULT_STARTING_SECONDS
+} from '../main/ets/services/BattleEngine';
+import { BattleState, BattleStatus } from '../main/ets/models/BattleState';
+import { SessionResult } from '../main/ets/models/SessionResult';
+import {
+  GameConfig,
+  TIMER_CHOICES,
+  HP_MIN,
+  HP_MAX,
+  MONSTER_COUNT_MIN,
+  MONSTER_COUNT_MAX,
+  KNOWN_CATEGORIES,
+  CUSTOM_CATEGORY_KEY,
+  MIN_POOL_SIZE,
+  cloneGameConfig,
+  parseCustomWords,
+  computeFinalPool
+} from '../main/ets/models/GameConfig';
 
 function makeWord(id: string, word: string, meaning: string, category: string): WordEntry {
   const e: WordEntry = new WordEntry();
   e.id = id;
   e.word = word;
   e.meaningZh = meaning;
+  e.category = category;
+  e.difficulty = 1;
+  return e;
+}
+
+/** For GameConfig.computeFinalPool tests: meaningZh mirrors English word. */
+function makeEntry(id: string, word: string, category: string): WordEntry {
+  const e: WordEntry = new WordEntry();
+  e.id = id;
+  e.word = word;
+  e.meaningZh = word;
   e.category = category;
   e.difficulty = 1;
   return e;
@@ -35,6 +72,30 @@ function buildFruitRepo(): WordRepository {
   ];
   repo.setEntries(entries);
   return repo;
+}
+
+/**
+ * Build a BattleEngine over the fruit repo with deterministic RNG so the
+ * BattleEngine tests can reason about a reproducible question sequence.
+ * Declared at module scope because ArkTS strict mode does not permit
+ * nested function declarations inside `describe`/`it` callbacks.
+ */
+function engineWithFruit(seed: number, config?: BattleConfig): BattleEngine {
+  const repo: WordRepository = buildFruitRepo();
+  const gen: QuestionGenerator = new QuestionGenerator(repo, mulberry32(seed));
+  const engine: BattleEngine = new BattleEngine(gen, config);
+  engine.start();
+  return engine;
+}
+
+/** Pick any option from `q` that is not the correct answer. */
+function pickWrongOption(q: Question): string {
+  for (let i = 0; i < q.options.length; i++) {
+    if (q.options[i] !== q.answer) {
+      return q.options[i];
+    }
+  }
+  return '';
 }
 
 export default function localUnitTest() {
@@ -451,6 +512,665 @@ export default function localUnitTest() {
         }
         lastWordId = q.wordId;
       }
+    });
+  });
+
+  describe('BattleEngine', () => {
+    /**
+     * T6 unit tests for the pure battle-rules layer (spec §4.1–§4.3, §8.3).
+     *
+     * These tests fix BattleEngine behaviour independently from the UI so
+     * regressions show up as LocalUnit failures rather than as visual bugs
+     * that only surface on the emulator. Each test constructs its own
+     * QuestionGenerator with a deterministic Mulberry32 seed so the
+     * sequence of questions is reproducible across runs.
+     *
+     * T6 deliberately uses constant 1-damage-per-hit. The 3-combo 2× damage
+     * bonus and its visual feedback land in T7 and are covered by separate
+     * tests added at that time; here we only assert that comboCount is
+     * tracked and resets correctly.
+     */
+
+    it('startInitializesPlayingStateWithDefaults', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const state: BattleState = engine.getState();
+      expect(state.status).assertEqual(BattleStatus.Playing);
+      expect(state.playerHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(state.playerMaxHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(state.monsterHp).assertEqual(DEFAULT_MONSTER_HP);
+      expect(state.monsterMaxHp).assertEqual(DEFAULT_MONSTER_HP);
+      expect(state.monsterIndex).assertEqual(1);
+      expect(state.monstersTotal).assertEqual(DEFAULT_MONSTERS_TOTAL);
+      expect(state.comboCount).assertEqual(0);
+      expect(state.totalAnswers).assertEqual(0);
+      expect(state.correctAnswers).assertEqual(0);
+      expect(state.defeatedMonsters).assertEqual(0);
+      expect(state.currentQuestion !== undefined).assertTrue();
+    });
+
+    it('startHonorsCustomConfig', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.playerMaxHp = 2;
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 3;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      const state: BattleState = engine.getState();
+      expect(state.playerHp).assertEqual(2);
+      expect(state.playerMaxHp).assertEqual(2);
+      expect(state.monsterHp).assertEqual(1);
+      expect(state.monsterMaxHp).assertEqual(1);
+      expect(state.monstersTotal).assertEqual(3);
+    });
+
+    it('submitCorrectAnswerDealsOneDamageAndIncrementsCombo', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const state0: BattleState = engine.getState();
+      const firstQuestion: Question = state0.currentQuestion!;
+      const outcome: AnswerOutcome = engine.submitAnswer(firstQuestion.answer);
+      const state1: BattleState = engine.getState();
+
+      expect(outcome.correct).assertTrue();
+      expect(outcome.damage).assertEqual(1);
+      expect(outcome.monsterDefeated).assertFalse();
+      expect(outcome.battleEnded).assertFalse();
+
+      expect(state1.monsterHp).assertEqual(DEFAULT_MONSTER_HP - 1);
+      expect(state1.playerHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(state1.comboCount).assertEqual(1);
+      expect(state1.totalAnswers).assertEqual(1);
+      expect(state1.correctAnswers).assertEqual(1);
+      expect(state1.status).assertEqual(BattleStatus.Playing);
+      // A new question has been spawned and it is a different word.
+      expect(state1.currentQuestion !== undefined).assertTrue();
+      expect(state1.currentQuestion!.wordId === firstQuestion.wordId).assertFalse();
+    });
+
+    it('submitWrongAnswerHurtsPlayerAndResetsCombo', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const q0: Question = engine.getState().currentQuestion!;
+
+      // Prime a combo first so the reset is observable.
+      engine.submitAnswer(q0.answer);
+      expect(engine.getState().comboCount).assertEqual(1);
+
+      const q1: Question = engine.getState().currentQuestion!;
+      const wrong1: string = pickWrongOption(q1);
+      expect(wrong1.length > 0).assertTrue();
+      const outcome: AnswerOutcome = engine.submitAnswer(wrong1);
+      const state: BattleState = engine.getState();
+
+      expect(outcome.correct).assertFalse();
+      expect(outcome.damage).assertEqual(1);
+      expect(outcome.battleEnded).assertFalse();
+
+      expect(state.monsterHp).assertEqual(DEFAULT_MONSTER_HP - 1); // only from the earlier correct hit
+      expect(state.playerHp).assertEqual(DEFAULT_PLAYER_HP - 1);
+      expect(state.comboCount).assertEqual(0);
+      expect(state.totalAnswers).assertEqual(2);
+      expect(state.correctAnswers).assertEqual(1);
+      expect(state.status).assertEqual(BattleStatus.Playing);
+    });
+
+    it('monsterDefeatedSpawnsNextMonsterAndPreservesCombo', 0, () => {
+      // monsterMaxHp = 1 so a single correct answer drops the monster.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 3;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      const q: Question = engine.getState().currentQuestion!;
+      const outcome: AnswerOutcome = engine.submitAnswer(q.answer);
+      const state: BattleState = engine.getState();
+
+      expect(outcome.correct).assertTrue();
+      expect(outcome.monsterDefeated).assertTrue();
+      expect(outcome.newMonsterSpawned).assertTrue();
+      expect(outcome.battleEnded).assertFalse();
+
+      expect(state.defeatedMonsters).assertEqual(1);
+      expect(state.monsterIndex).assertEqual(2);
+      // Next monster spawns at full HP — spec §4.1 treats each monster
+      // independently so the next slime is fresh.
+      expect(state.monsterHp).assertEqual(1);
+      expect(state.monsterMaxHp).assertEqual(1);
+      // Combo survives a monster kill — only wrong answers reset combo.
+      expect(state.comboCount).assertEqual(1);
+      expect(state.status).assertEqual(BattleStatus.Playing);
+    });
+
+    it('defeatingFinalMonsterTransitionsToWon', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      // Two correct answers defeat both monsters.
+      const outcome1: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(outcome1.battleEnded).assertFalse();
+      const outcome2: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      const state: BattleState = engine.getState();
+
+      expect(outcome2.monsterDefeated).assertTrue();
+      expect(outcome2.newMonsterSpawned).assertFalse();
+      expect(outcome2.battleEnded).assertTrue();
+      expect(outcome2.endStatus).assertEqual(BattleStatus.Won);
+
+      expect(state.defeatedMonsters).assertEqual(2);
+      expect(state.status).assertEqual(BattleStatus.Won);
+      // After a final win, currentQuestion is cleared so the UI knows not to
+      // keep rendering a stale prompt.
+      expect(state.currentQuestion === undefined).assertTrue();
+    });
+
+    it('drainingPlayerHpTransitionsToLost', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.playerMaxHp = 2;
+      cfg.monsterMaxHp = 10; // keep the monster alive so the player dies first
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      expect(engine.getState().playerHp).assertEqual(1);
+      expect(engine.getState().status).assertEqual(BattleStatus.Playing);
+
+      const outcome: AnswerOutcome = engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      const state: BattleState = engine.getState();
+
+      expect(outcome.correct).assertFalse();
+      expect(outcome.battleEnded).assertTrue();
+      expect(outcome.endStatus).assertEqual(BattleStatus.Lost);
+      expect(state.playerHp).assertEqual(0);
+      expect(state.status).assertEqual(BattleStatus.Lost);
+      expect(state.currentQuestion === undefined).assertTrue();
+    });
+
+    it('rejectsUnknownOption', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      let threw: boolean = false;
+      try {
+        engine.submitAnswer('not-a-real-option');
+      } catch (e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+      // State must not change on an invalid input.
+      const state: BattleState = engine.getState();
+      expect(state.totalAnswers).assertEqual(0);
+      expect(state.playerHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(state.monsterHp).assertEqual(DEFAULT_MONSTER_HP);
+    });
+
+    it('rejectsSubmitAfterBattleEnded', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 1;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(engine.getState().status).assertEqual(BattleStatus.Won);
+
+      let threw: boolean = false;
+      try {
+        engine.submitAnswer('anything');
+      } catch (e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+    });
+
+    it('comboIncrementsOnStreakAndResetsOnWrong', 0, () => {
+      // T7 changes the combo semantics: the 3rd consecutive correct deals
+      // 2 damage and immediately resets the counter to 0. The counter
+      // therefore walks 1 -> 2 -> 0, not 1 -> 2 -> 3. See dedicated T7
+      // tests below for the trigger behaviour; this test only confirms
+      // that a non-triggering wrong answer resets a short streak.
+      const engine: BattleEngine = engineWithFruit(1);
+      const firstOutcome: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(firstOutcome.damage).assertEqual(1);
+      expect(firstOutcome.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(1);
+
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(engine.getState().comboCount).assertEqual(2);
+
+      // Wrong answer with combo = 2 resets the counter without triggering.
+      const wrongOutcome: AnswerOutcome = engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      expect(wrongOutcome.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(0);
+      expect(engine.getState().correctAnswers).assertEqual(2);
+      expect(engine.getState().totalAnswers).assertEqual(3);
+    });
+
+    it('thirdConsecutiveCorrectTriggersComboBurst', 0, () => {
+      // Spec §4.3: 每次答对后 comboCount 加 1；当 comboCount 达到 3 时，
+      // 本次伤害为 2，触发魔法爆发反馈，并将 comboCount 重置为 0.
+      //
+      // Use a high-HP monster so the 2× damage on the 3rd correct can't
+      // overlap with a monster-defeat transition — this test isolates the
+      // combo-burst rule from the defeat cascade.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 10;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      const o1: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(o1.damage).assertEqual(1);
+      expect(o1.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(1);
+
+      const o2: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(o2.damage).assertEqual(1);
+      expect(o2.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(2);
+
+      const o3: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(o3.damage).assertEqual(2);
+      expect(o3.comboTriggered).assertTrue();
+      // Counter resets the moment the burst fires, per spec.
+      expect(engine.getState().comboCount).assertEqual(0);
+      // Total monster damage so far: 1 + 1 + 2 = 4.
+      expect(engine.getState().monsterHp).assertEqual(10 - 4);
+    });
+
+    it('fourthCorrectAfterBurstIsNormalDamage', 0, () => {
+      // After the burst resets the counter, the next correct answer must
+      // start a fresh streak at damage 1, not continue doubling.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 20;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer); // burst
+
+      const o4: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      expect(o4.damage).assertEqual(1);
+      expect(o4.comboTriggered).assertFalse();
+      expect(engine.getState().comboCount).assertEqual(1);
+    });
+
+    it('comboBurstSurvivesMonsterKill', 0, () => {
+      // If the 3rd-correct burst also kills the current monster, the
+      // combo counter must still reset (spec wording is about the burst
+      // firing, independent of which monster is on screen).
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 4; // 1 + 1 + 2 = 4 damage defeats exactly.
+      cfg.monstersTotal = 3;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      const o3: AnswerOutcome = engine.submitAnswer(engine.getState().currentQuestion!.answer);
+
+      expect(o3.comboTriggered).assertTrue();
+      expect(o3.damage).assertEqual(2);
+      expect(o3.monsterDefeated).assertTrue();
+      expect(o3.newMonsterSpawned).assertTrue();
+      expect(engine.getState().comboCount).assertEqual(0);
+      expect(engine.getState().defeatedMonsters).assertEqual(1);
+      expect(engine.getState().monsterIndex).assertEqual(2);
+    });
+
+    it('wrongAnswerNeverTriggersCombo', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const outcome: AnswerOutcome = engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      expect(outcome.correct).assertFalse();
+      expect(outcome.comboTriggered).assertFalse();
+      expect(outcome.damage).assertEqual(1);
+    });
+  });
+
+  describe('BattleEngine.learnedWords', () => {
+    it('tracksEachUniqueWordShown', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      // The first question is spawned by start(); subsequent ones by
+      // submitAnswer. QuestionGenerator's avoid-same-word rule only
+      // looks one step back, so with a 5-word repo we may see repeats
+      // across 4 questions. What MUST hold is: learnedWordIds grows
+      // monotonically and contains no duplicates.
+      const initialLearned: number = engine.getState().learnedWordIds.length;
+      expect(initialLearned).assertEqual(1);
+
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+
+      const learned: string[] = engine.getState().learnedWordIds;
+      // Four questions have been posed; we saw at least two distinct
+      // words and at most four.
+      expect(learned.length >= 2).assertTrue();
+      expect(learned.length <= 4).assertTrue();
+      // The list must contain no duplicates (it's conceptually a Set).
+      const seen: Map<string, boolean> = new Map<string, boolean>();
+      for (let i = 0; i < learned.length; i++) {
+        expect(seen.has(learned[i])).assertFalse();
+        seen.set(learned[i], true);
+      }
+    });
+  });
+
+  describe('BattleEngine.tick', () => {
+    it('decrementsRemainingSecondsWhilePlaying', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      const startSeconds: number = engine.getState().remainingSeconds;
+      const outcome: TickOutcome = engine.tick(1);
+      expect(outcome.battleEnded).assertFalse();
+      expect(engine.getState().remainingSeconds).assertEqual(startSeconds - 1);
+    });
+
+    it('clampsRemainingSecondsAtZeroAndEndsBattleAsLost', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.startingSeconds = 5;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      // Tick past zero; the engine must clamp and transition to Lost.
+      const outcome: TickOutcome = engine.tick(10);
+      expect(outcome.battleEnded).assertTrue();
+      expect(outcome.endStatus).assertEqual(BattleStatus.Lost);
+      expect(engine.getState().remainingSeconds).assertEqual(0);
+      expect(engine.getState().status).assertEqual(BattleStatus.Lost);
+    });
+
+    it('isNoOpAfterBattleEnded', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.startingSeconds = 5;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.tick(10); // Lost
+      const before: number = engine.getState().remainingSeconds;
+      const outcome: TickOutcome = engine.tick(5);
+      // Post-end ticks do nothing — they don't change seconds and don't
+      // re-fire the battleEnded signal (BattlePage only navigates on the
+      // *first* end signal).
+      expect(outcome.battleEnded).assertFalse();
+      expect(engine.getState().remainingSeconds).assertEqual(before);
+    });
+
+    it('rejectsSubmitAnswerAfterTimeExpires', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.startingSeconds = 1;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.tick(1);
+      let threw: boolean = false;
+      try {
+        engine.submitAnswer(engine.getState().currentQuestion !== undefined
+          ? engine.getState().currentQuestion!.options[0]
+          : 'anything');
+      } catch (_e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+    });
+  });
+
+  describe('BattleEngine.buildSessionResult', () => {
+    it('throwsWhileBattleStillInProgress', 0, () => {
+      const engine: BattleEngine = engineWithFruit(1);
+      let threw: boolean = false;
+      try {
+        engine.buildSessionResult();
+      } catch (_e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+    });
+
+    it('wonWithPerfectAccuracyYieldsThreeStars', 0, () => {
+      // Small fight: 2 monsters, 1 HP each, so we can win with 2 corrects.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Won);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.status).assertEqual(BattleStatus.Won);
+      expect(result.defeatedMonsters).assertEqual(2);
+      expect(result.totalAnswers).assertEqual(2);
+      expect(result.correctAnswers).assertEqual(2);
+      expect(result.correctRate).assertEqual(1);
+      expect(result.stars).assertEqual(3);
+    });
+
+    it('wonWithLowAccuracyYieldsTwoStars', 0, () => {
+      // Win with accuracy < 80%. Use 1-HP monsters so each correct kills
+      // one, and sprinkle enough wrongs to drag accuracy below 0.8 without
+      // losing the battle (need player HP > 0 at end).
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 2;
+      cfg.playerMaxHp = 5;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      // 2 wrongs + 2 corrects = 50% accuracy, player HP 3/5 at end.
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Won);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.status).assertEqual(BattleStatus.Won);
+      expect(result.correctRate < 0.8).assertTrue();
+      expect(result.stars).assertEqual(2);
+    });
+
+    it('lostWithThreeDefeatsYieldsTwoStars', 0, () => {
+      // Lose after defeating exactly 3 monsters. Spec §4.4 tier-2 row's
+      // OR-clause: at least 3 monsters defeated grants 2 stars even on a
+      // loss. Configure so 3 corrects kill 3 monsters, then enough wrongs
+      // drain the player HP to zero.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 5;
+      cfg.playerMaxHp = 3;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      // 3 wrongs drain the 3 HP the player has left.
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Lost);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.defeatedMonsters).assertEqual(3);
+      expect(result.stars).assertEqual(2);
+    });
+
+    it('lostWithOneDefeatYieldsOneStar', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 5;
+      cfg.playerMaxHp = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer); // kill 1
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Lost);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.defeatedMonsters).assertEqual(1);
+      expect(result.stars).assertEqual(1);
+    });
+
+    it('lostWithoutDefeatYieldsZeroStars', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.playerMaxHp = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+
+      expect(engine.getState().status).assertEqual(BattleStatus.Lost);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.defeatedMonsters).assertEqual(0);
+      expect(result.stars).assertEqual(0);
+    });
+
+    it('reportsLearnedWordCount', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 2;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      const result: SessionResult = engine.buildSessionResult();
+      // start() primes 1 word, the first correct spawns monster #2 plus
+      // a fresh question (word #2), and the second correct wins the
+      // battle WITHOUT spawning another question. So exactly 2 unique
+      // words were shown this session.
+      expect(result.learnedWordCount).assertEqual(2);
+    });
+
+    it('correctRateIsZeroWhenNoAnswersSubmittedAndTimeRanOut', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.startingSeconds = 1;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+      engine.tick(1);
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.status).assertEqual(BattleStatus.Lost);
+      expect(result.totalAnswers).assertEqual(0);
+      expect(result.correctRate).assertEqual(0);
+      expect(result.stars).assertEqual(0);
+    });
+  });
+
+  describe('GameConfig.defaults', () => {
+    it('defaultsMatchEngineDefaults', 0, () => {
+      const c: GameConfig = new GameConfig();
+      expect(c.playerMaxHp).assertEqual(DEFAULT_PLAYER_HP);
+      expect(c.monsterMaxHp).assertEqual(DEFAULT_MONSTER_HP);
+      expect(c.monstersTotal).assertEqual(DEFAULT_MONSTERS_TOTAL);
+      expect(c.startingSeconds).assertEqual(DEFAULT_STARTING_SECONDS);
+      expect(c.customWordsRaw).assertEqual('');
+      expect(c.enabledCategories.length).assertEqual(KNOWN_CATEGORIES.length);
+      for (let i = 0; i < KNOWN_CATEGORIES.length; i++) {
+        expect(c.enabledCategories.indexOf(KNOWN_CATEGORIES[i]) >= 0).assertTrue();
+      }
+      expect(HP_MIN).assertEqual(1);
+      expect(HP_MAX).assertEqual(10);
+      expect(MONSTER_COUNT_MIN).assertEqual(1);
+      expect(MONSTER_COUNT_MAX).assertEqual(10);
+      expect(MIN_POOL_SIZE).assertEqual(3);
+      expect(CUSTOM_CATEGORY_KEY).assertEqual('custom');
+      expect(TIMER_CHOICES.indexOf(DEFAULT_STARTING_SECONDS) >= 0).assertTrue();
+      expect(TIMER_CHOICES.indexOf(3) >= 0).assertTrue();
+    });
+  });
+
+  describe('GameConfig.cloneGameConfig', () => {
+    it('cloneIsDeepEnoughToIsolateDraft', 0, () => {
+      const original: GameConfig = new GameConfig();
+      original.customWordsRaw = '苹果:apple';
+      const beforePlayer: number = original.playerMaxHp;
+      const beforeCats: string[] = original.enabledCategories.slice();
+      const beforeRaw: string = original.customWordsRaw;
+
+      const clone: GameConfig = cloneGameConfig(original);
+      clone.playerMaxHp = 1;
+      clone.monsterMaxHp = 9;
+      clone.monstersTotal = 2;
+      clone.startingSeconds = 3;
+      clone.enabledCategories.push('mutated');
+      clone.customWordsRaw = 'mutated';
+
+      expect(original.playerMaxHp).assertEqual(beforePlayer);
+      expect(original.enabledCategories.length).assertEqual(beforeCats.length);
+      for (let i = 0; i < beforeCats.length; i++) {
+        expect(original.enabledCategories[i]).assertEqual(beforeCats[i]);
+      }
+      expect(original.customWordsRaw).assertEqual(beforeRaw);
+    });
+  });
+
+  describe('GameConfig.parseCustomWords', () => {
+    it('emptyReturnsEmpty', 0, () => {
+      expect(parseCustomWords('').length).assertEqual(0);
+      expect(parseCustomWords('\n\n  \n').length).assertEqual(0);
+    });
+
+    it('acceptsAsciiAndFullwidthColon', 0, () => {
+      const out: WordEntry[] = parseCustomWords('苹果:apple\n香蕉：banana');
+      expect(out.length).assertEqual(2);
+      expect(out[0].meaningZh).assertEqual('苹果');
+      expect(out[0].word).assertEqual('apple');
+      expect(out[0].category).assertEqual(CUSTOM_CATEGORY_KEY);
+      expect(out[0].id).assertEqual('custom-0');
+      expect(out[1].meaningZh).assertEqual('香蕉');
+      expect(out[1].word).assertEqual('banana');
+      expect(out[1].id).assertEqual('custom-1');
+    });
+
+    it('skipsInvalidLinesAndKeepsIdsSequential', 0, () => {
+      const raw: string = [
+        '苹果:apple',
+        'no colon here',
+        ':only-right',
+        '香蕉:banana',
+        '左边只有:',
+        '   ',
+        '梨:pear'
+      ].join('\n');
+      const out: WordEntry[] = parseCustomWords(raw);
+      expect(out.length).assertEqual(3);
+      expect(out[0].id).assertEqual('custom-0');
+      expect(out[0].word).assertEqual('apple');
+      expect(out[1].id).assertEqual('custom-1');
+      expect(out[1].word).assertEqual('banana');
+      expect(out[2].id).assertEqual('custom-2');
+      expect(out[2].word).assertEqual('pear');
+    });
+  });
+
+  describe('GameConfig.computeFinalPool', () => {
+    it('customDisabledIgnoresRaw', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit'),
+        makeEntry('p1', 'park', 'place'),
+        makeEntry('h1', 'home', 'home')
+      ];
+      const out: WordEntry[] = computeFinalPool(all, ['fruit'], '你好:hello');
+      expect(out.length).assertEqual(1);
+      expect(out[0].category).assertEqual('fruit');
+    });
+
+    it('customEnabledMergesCustoms', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit'),
+        makeEntry('a2', 'pear', 'fruit')
+      ];
+      const out: WordEntry[] = computeFinalPool(all, ['fruit', CUSTOM_CATEGORY_KEY], '你好:hello');
+      expect(out.length).assertEqual(3);
+      expect(out[2].category).assertEqual(CUSTOM_CATEGORY_KEY);
+      expect(out[2].word).assertEqual('hello');
+    });
+
+    it('customOnlyEmpty', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit')
+      ];
+      const out: WordEntry[] = computeFinalPool(all, [CUSTOM_CATEGORY_KEY], '');
+      expect(out.length).assertEqual(0);
+    });
+
+    it('customOnlyWithValidCustoms', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit')
+      ];
+      const out: WordEntry[] = computeFinalPool(
+        all,
+        [CUSTOM_CATEGORY_KEY],
+        '一:one\n二:two\n三:three');
+      expect(out.length).assertEqual(3);
+      expect(out[0].category).assertEqual(CUSTOM_CATEGORY_KEY);
+    });
+
+    it('builtinOnlyFilters', 0, () => {
+      const all: WordEntry[] = [
+        makeEntry('a1', 'apple', 'fruit'),
+        makeEntry('p1', 'park', 'place'),
+        makeEntry('h1', 'home', 'home'),
+        makeEntry('a2', 'pear', 'fruit')
+      ];
+      const out: WordEntry[] = computeFinalPool(all, ['fruit', 'home'], '');
+      expect(out.length).assertEqual(3);
     });
   });
 }
