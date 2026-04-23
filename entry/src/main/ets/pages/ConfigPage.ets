@@ -291,54 +291,63 @@ struct ConfigPage {
   }
 
   build(): void {
-    Column() {
-      Text('游戏设置')
-        .id('ConfigTitle')
-        .fontSize(28)
-        .fontWeight(FontWeight.Bold)
-        .margin({ bottom: 16 });
-
-      this.stepperRow(
-        '玩家血量', 'ConfigPlayerHpValue', this.draft.playerMaxHp,
-        'ConfigPlayerHpDec', (): void => this.decPlayerHp(), this.draft.playerMaxHp > HP_MIN,
-        'ConfigPlayerHpInc', (): void => this.incPlayerHp(), this.draft.playerMaxHp < HP_MAX);
-      this.stepperRow(
-        '怪物血量', 'ConfigMonsterHpValue', this.draft.monsterMaxHp,
-        'ConfigMonsterHpDec', (): void => this.decMonsterHp(), this.draft.monsterMaxHp > HP_MIN,
-        'ConfigMonsterHpInc', (): void => this.incMonsterHp(), this.draft.monsterMaxHp < HP_MAX);
-      this.stepperRow(
-        '怪物数量', 'ConfigMonstersTotalValue', this.draft.monstersTotal,
-        'ConfigMonstersTotalDec', (): void => this.decMonstersTotal(), this.draft.monstersTotal > MONSTER_COUNT_MIN,
-        'ConfigMonstersTotalInc', (): void => this.incMonstersTotal(), this.draft.monstersTotal < MONSTER_COUNT_MAX);
-
-      this.timerRow();
-      this.categoryRow();
-
-      if (this.showValidationHint) {
-        Text('单词池太小（少于 3 个），请启用更多类别或添加自定义词')
-          .id('ConfigValidationHint')
-          .fontSize(14)
-          .fontColor('#E63946')
+    // Scroll wrapper: the form's natural height exceeds the landscape
+    // viewport once ArkUI applies its minimum-tap-target sizing to the
+    // stepper/timer/category buttons. Without Scroll the Save/Cancel
+    // row ends up past the Column's bottom clip boundary and swallows
+    // touch events — see the regression hunted down in Task 7.
+    Scroll() {
+      Column() {
+        Text('游戏设置')
+          .id('ConfigTitle')
+          .fontSize(24)
+          .fontWeight(FontWeight.Bold)
           .margin({ bottom: 12 });
-      }
 
-      Row({ space: 16 }) {
-        Button('取消')
-          .id('ConfigCancelButton')
-          .width(160).height(52)
-          .backgroundColor('#BDBDBD')
-          .onClick((): void => this.onCancel());
-        Button('保存')
-          .id('ConfigSaveButton')
-          .width(160).height(52)
-          .backgroundColor('#2ECC71')
-          .onClick((): void => this.onSave());
-      };
+        this.stepperRow(
+          '玩家血量', 'ConfigPlayerHpValue', this.draft.playerMaxHp,
+          'ConfigPlayerHpDec', (): void => this.decPlayerHp(), this.draft.playerMaxHp > HP_MIN,
+          'ConfigPlayerHpInc', (): void => this.incPlayerHp(), this.draft.playerMaxHp < HP_MAX);
+        this.stepperRow(
+          '怪物血量', 'ConfigMonsterHpValue', this.draft.monsterMaxHp,
+          'ConfigMonsterHpDec', (): void => this.decMonsterHp(), this.draft.monsterMaxHp > HP_MIN,
+          'ConfigMonsterHpInc', (): void => this.incMonsterHp(), this.draft.monsterMaxHp < HP_MAX);
+        this.stepperRow(
+          '怪物数量', 'ConfigMonstersTotalValue', this.draft.monstersTotal,
+          'ConfigMonstersTotalDec', (): void => this.decMonstersTotal(), this.draft.monstersTotal > MONSTER_COUNT_MIN,
+          'ConfigMonstersTotalInc', (): void => this.incMonstersTotal(), this.draft.monstersTotal < MONSTER_COUNT_MAX);
+
+        this.timerRow();
+        this.categoryRow();
+
+        if (this.showValidationHint) {
+          Text('单词池太小（少于 3 个），请启用更多类别或添加自定义词')
+            .id('ConfigValidationHint')
+            .fontSize(14)
+            .fontColor('#E63946')
+            .margin({ bottom: 12 });
+        }
+
+        Row({ space: 16 }) {
+          Button('取消')
+            .id('ConfigCancelButton')
+            .width(160).height(48)
+            .backgroundColor('#BDBDBD')
+            .onClick((): void => this.onCancel());
+          Button('保存')
+            .id('ConfigSaveButton')
+            .width(160).height(48)
+            .backgroundColor('#2ECC71')
+            .onClick((): void => this.onSave());
+        }
+        .margin({ top: 8, bottom: 24 });
+      }
+      .width('100%')
+      .padding({ top: 16, bottom: 24, left: 40, right: 40 })
+      .alignItems(HorizontalAlign.Center);
     }
     .width('100%')
     .height('100%')
-    .padding({ top: 24, bottom: 24, left: 40, right: 40 })
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center);
+    .scrollable(ScrollDirection.Vertical);
   }
 }

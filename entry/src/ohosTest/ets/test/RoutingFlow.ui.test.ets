@@ -247,7 +247,10 @@ async function openConfigAndApply(driver: Driver, cfg: TestGameConfig): Promise<
   await driver.assertComponentExist(ON.id('HomeConfigButton'));
   const gear = await driver.findComponent(ON.id('HomeConfigButton'));
   await gear.click();
-  await driver.delayMs(800);
+  // Longer wait: ConfigPage loads words_v1.json asynchronously in
+  // aboutToAppear and Save-time validation needs that list to be
+  // populated. 1500ms gives the rawfile load headroom on a cold emu.
+  await driver.delayMs(1500);
   await driver.assertComponentExist(ON.id('ConfigTitle'));
 
   await stepDownTo(driver, 'ConfigPlayerHpDec', 'ConfigPlayerHpValue', cfg.playerHp);
@@ -299,7 +302,7 @@ async function openCustomWordsAndSave(driver: Driver, rawText: string): Promise<
   await driver.assertComponentExist(ON.id('HomeConfigButton'));
   const gear = await driver.findComponent(ON.id('HomeConfigButton'));
   await gear.click();
-  await driver.delayMs(800);
+  await driver.delayMs(1500);
   await driver.assertComponentExist(ON.id('ConfigCategoryCustomEdit'));
 
   const editIcon = await driver.findComponent(ON.id('ConfigCategoryCustomEdit'));
@@ -548,6 +551,51 @@ export default function routingFlowUiTest(): void {
       await clickById(driver, 'ResultHomeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      expect(true).assertTrue();
+      done();
+    });
+
+    /**
+     * Config-driven short Win: configure a 1-monster / 1-HP battle on
+     * the 'fruit' category only, then land the kill in a single correct
+     * tap. Uses openConfigAndApply so the Save path (ConfigPage ->
+     * HomePage with AppStorage mutated) is exercised end-to-end rather
+     * than via the debug escape hatch.
+     */
+    it('configShortWin_oneShotVictory', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+
+      const cfg: TestGameConfig = new TestGameConfig();
+      cfg.playerHp = 5;
+      cfg.monsterHp = 1;
+      cfg.monstersTotal = 1;
+      cfg.timerChipId = 'ConfigTimer60s';
+      cfg.categories = ['fruit'];
+      await openConfigAndApply(driver, cfg);
+
+      await clickById(driver, 'HomeStartButton');
+      await driver.delayMs(1000);
+      await driver.assertComponentExist(ON.id('BattlePrompt'));
+
+      // Confirm category filtering: prompt MUST be a fruit word since
+      // we disabled 'place' and 'home' via openConfigAndApply.
+      const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
+      const prompt: string = await promptComp.getText();
+      expect(isFruitPrompt(prompt)).assertTrue();
+
+      await tapCorrectAnswer(driver);
+      await driver.delayMs(900);
+
+      await driver.assertComponentExist(ON.id('ResultTitle'));
+      await driver.assertComponentExist(ON.text('胜利！'));
+      await driver.assertComponentExist(ON.text('击败怪物：1 / 1'));
+      await driver.assertComponentExist(ON.text('正确率：100%'));
+
+      await clickById(driver, 'ResultHomeButton');
+      await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+
       expect(true).assertTrue();
       done();
     });
