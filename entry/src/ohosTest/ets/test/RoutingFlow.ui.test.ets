@@ -642,5 +642,48 @@ export default function routingFlowUiTest(): void {
       expect(true).assertTrue();
       done();
     });
+
+    /**
+     * Config-driven HP-zero loss: set playerHp to the 1-HP minimum on
+     * a long timer, then answer incorrectly once. Wrong answer deals 1
+     * damage (spec §4.3), so the single miss drops HP to 0 and flips
+     * the engine to Lost without a timeout.
+     *
+     * Covers the spec §4.1 "玩家 HP 为 0" loss branch end-to-end
+     * without the debug finish button.
+     */
+    it('configHpZero_lossOnWrongAnswers', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+
+      const cfg: TestGameConfig = new TestGameConfig();
+      cfg.playerHp = 1;
+      cfg.monsterHp = 3;
+      cfg.monstersTotal = 5;
+      cfg.timerChipId = 'ConfigTimer300s';
+      cfg.categories = ['fruit'];
+      await openConfigAndApply(driver, cfg);
+
+      await clickById(driver, 'HomeStartButton');
+      await driver.delayMs(1000);
+      await driver.assertComponentExist(ON.id('BattlePrompt'));
+
+      // Single wrong tap -> HP 0 -> Lost. 1000ms covers the 650ms
+      // feedback reveal and the router replaceUrl to ResultPage.
+      await tapWrongAnswer(driver);
+      await driver.delayMs(1000);
+
+      await driver.assertComponentExist(ON.id('ResultTitle'));
+      await driver.assertComponentExist(ON.text('挑战失败'));
+      // No monster was defeated (player died mid first encounter).
+      await driver.assertComponentExist(ON.text('击败怪物：0 / 5'));
+
+      await clickById(driver, 'ResultHomeButton');
+      await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+
+      expect(true).assertTrue();
+      done();
+    });
   });
 }
