@@ -8,7 +8,7 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 ## Conventions
 
 - Use `hvigorw` from **project root** (assumes Hvigor wrapper is installed and available on `PATH`); add `--no-daemon` in CI or long non-interactive runs if your environment recommends it.
-- **Phase order (autofix loop):** build → **no-device unit** → **emulator/device** → **on-device / UI (Instrument)**.
+- **Phase order (autofix loop):** build → **codelinter** → **no-device unit** → **emulator/device** → **on-device / UI (Instrument)**.
 
 ---
 
@@ -21,6 +21,22 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 | (Optional) single module | `hvigorw --mode module -p module=entry assembleHap` | Exit 0 |
 
 **Working directory:** project root.
+
+### CodeLinter (after successful build) — `harmony-codelinter`
+
+Run **after** the HAP build step succeeds. Uses the project’s [code-linter.json5](code-linter.json5) at the repo root.
+
+| Step | Command | Success signal |
+|------|---------|----------------|
+| Code check + auto-fix (recommended) | `codelinter -c ./code-linter.json5 . --fix` | Exit 0, no errors (warnings per team policy) |
+| Check only (no auto-fix) | `codelinter -c ./code-linter.json5 .` | Exit 0 |
+| Stricter CI-style exit (optional) | `codelinter -c ./code-linter.json5 . --fix --exit-on error` | Exit 0 |
+
+**Working directory:** project root.
+
+**Prerequisite:** the `codelinter` binary from **HarmonyOS / DevEco Command Line Tools** must be on `PATH` (not bundled in this repo). In-repo command reference: [docs/arkts-references/codelinter.md](docs/arkts-references/codelinter.md).
+
+**Fix loop:** If codelinter reports issues, address them in source (re-run `codelinter` with `--fix` where supported, then manual fixes). Re-run codelinter until it passes before starting **no-device unit** tests in a full pipeline.
 
 ---
 
@@ -75,7 +91,7 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 
 ## 5) Failure artifacts — `harmony-log-analyzer` (read in this order)
 
-1. **Console:** last 200–400 lines of the failing command (Hvigor / shell stderr+stdout).
+1. **Console:** last 200–400 lines of the failing command (Hvigor / `codelinter` / shell stderr+stdout). For codelinter, if `-o` was used, also open that report file.
 2. **Hvigor reports:** under `entry/build/`, `**/reports/**`, `**/*test*report*`, `**/test-results/**` (glob; paths vary by version).
 3. **Device / UI failure:** `hdc hilog` (or the project’s standard hilog command) **after** reproducing; filter by your app’s bundle and tag as needed.
 4. **HAP path:** if install failed, re-check `.hap` path from build output.

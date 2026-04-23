@@ -11,7 +11,7 @@ description: Given a classified failure tier and log excerpts, proposes minimal 
 
 | Tier | Strategy |
 |------|----------|
-| **agent_safe** | Minimal fix: the smallest change that addresses the error (often one file or a focused test). Prefer **tests** for wrong expectations; prefer **app** for real bugs. |
+| **agent_safe** | Minimal fix: the smallest change that addresses the error (often one file or a focused test). For **lint** / **codelinter**, apply fixes in source and re-run the manifest codelinter command. Prefer **tests** for wrong expectations; prefer **app** for real bugs. |
 | **agent_risky** | Prefer **test** stabilization (explicit waits, deterministic setup) or **one** scoped product fix with a short note. If the fix would change product behavior in a debatable way, **stop** and list options for the user. |
 | **human_required** | **No code edits** in the loop. Produce a short checklist: signing, `hdc`, SDK path, org policy, etc. |
 

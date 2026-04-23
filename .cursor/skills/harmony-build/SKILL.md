@@ -17,7 +17,7 @@ description: Runs OHPM and Hvigor build steps for this HarmonyOS repo using the 
 
 ## On success
 
-Proceed to **`harmony-unit-test`** in a full loop, or as orchestrated.
+Proceed to **`harmony-codelinter`** (static analysis; see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) **CodeLinter**), then to **`harmony-unit-test`** in a full loop, or as orchestrated. Command-line options: [docs/arkts-references/codelinter.md](../../docs/arkts-references/codelinter.md).
 
 ## On failure
 

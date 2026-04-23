@@ -19,6 +19,6 @@ Read **section 5 (Failure artifacts)** in [`.cursor/dev-commands.md`](.cursor/de
 
 - `excerpt` (key errors, a few short blocks, not the whole build).
 - `paths_found`: list of report or log file paths you actually read.
-- `failed_phase`: build | unit | emulator | ui (which step produced the primary error).
+- `failed_phase`: build | codelinter | unit | emulator | ui (which step produced the primary error).
 
 **Do not** assign edit instructions; **`test-failure-classifier`** and **`harmony-fix-strategy`** do that.
