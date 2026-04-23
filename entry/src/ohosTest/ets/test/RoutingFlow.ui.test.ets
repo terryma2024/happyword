@@ -35,6 +35,29 @@ async function launchApp(): Promise<Driver> {
 }
 
 /**
+ * Ensure a category chip ends in the requested selected state,
+ * regardless of starting state. Reads chip selection from the chip's
+ * text (ConfigPage prefixes active chips with "✓") so helpers are
+ * idempotent across tests that share AppStorage.
+ *
+ * Button.selected() is not part of ButtonAttribute in this ArkTS
+ * toolchain, so the ✓ prefix is the simplest introspection channel.
+ *
+ * Guard: toggleCategory silently refuses to turn off the last active
+ * category. Callers must turn wanted chips ON before turning unwanted
+ * ones OFF so the guard never fires mid-helper.
+ */
+async function setChipSelected(driver: Driver, chipId: string, wantSelected: boolean): Promise<void> {
+  const chip = await driver.findComponent(ON.id(chipId));
+  const text: string = await chip.getText();
+  const isOn: boolean = text.indexOf('✓') === 0;
+  if (isOn !== wantSelected) {
+    await chip.click();
+    await driver.delayMs(80);
+  }
+}
+
+/**
  * Click the button with the given id after asserting it exists. `findComponent`
  * alone returns null when the component is missing and the subsequent `.click`
  * throws a confusing "Cannot read property click of null" — asserting first
@@ -211,18 +234,29 @@ class TestGameConfig {
 }
 
 /**
- * Repeatedly tap a stepper's "-" button until the shown value equals
- * target. Reads the current value from the stepper's value Text id so
- * we don't rely on knowing the draft's prior state.
+ * Bidirectional stepper driver: reads the current value from the
+ * stepper's value Text id, then taps either the "-" or "+" button
+ * until the shown value matches target. Necessary because tests run
+ * sequentially against a shared AppStorage — a test that wants a
+ * higher value than the previous test cannot rely on decrementing.
  */
-async function stepDownTo(driver: Driver, decId: string, valueId: string, target: number): Promise<void> {
+async function stepStepperTo(driver: Driver, decId: string, incId: string,
+                             valueId: string, target: number): Promise<void> {
   const valueComp = await driver.findComponent(ON.id(valueId));
   const curText: string = await valueComp.getText();
   const current: number = parseInt(curText, 10);
-  for (let i = current; i > target; i--) {
-    const dec = await driver.findComponent(ON.id(decId));
-    await dec.click();
-    await driver.delayMs(80);
+  if (current > target) {
+    for (let i = current; i > target; i--) {
+      const dec = await driver.findComponent(ON.id(decId));
+      await dec.click();
+      await driver.delayMs(80);
+    }
+  } else if (current < target) {
+    for (let i = current; i < target; i++) {
+      const inc = await driver.findComponent(ON.id(incId));
+      await inc.click();
+      await driver.delayMs(80);
+    }
   }
 }
 
@@ -253,33 +287,37 @@ async function openConfigAndApply(driver: Driver, cfg: TestGameConfig): Promise<
   await driver.delayMs(1500);
   await driver.assertComponentExist(ON.id('ConfigTitle'));
 
-  await stepDownTo(driver, 'ConfigPlayerHpDec', 'ConfigPlayerHpValue', cfg.playerHp);
-  await stepDownTo(driver, 'ConfigMonsterHpDec', 'ConfigMonsterHpValue', cfg.monsterHp);
-  await stepDownTo(driver, 'ConfigMonstersTotalDec', 'ConfigMonstersTotalValue', cfg.monstersTotal);
+  await stepStepperTo(driver, 'ConfigPlayerHpDec', 'ConfigPlayerHpInc',
+    'ConfigPlayerHpValue', cfg.playerHp);
+  await stepStepperTo(driver, 'ConfigMonsterHpDec', 'ConfigMonsterHpInc',
+    'ConfigMonsterHpValue', cfg.monsterHp);
+  await stepStepperTo(driver, 'ConfigMonstersTotalDec', 'ConfigMonstersTotalInc',
+    'ConfigMonstersTotalValue', cfg.monstersTotal);
 
+  // Timer chip: clicking a chip that is already the active timer is a
+  // no-op in ConfigPage.selectTimer, so we can safely click the wanted
+  // chip without checking its current state.
   await driver.assertComponentExist(ON.id(cfg.timerChipId));
-  const chip = await driver.findComponent(ON.id(cfg.timerChipId));
-  await chip.click();
+  const tchip = await driver.findComponent(ON.id(cfg.timerChipId));
+  await tchip.click();
   await driver.delayMs(80);
 
-  // Built-in default enabled-set = ['fruit','place','home']; 'custom' is off.
+  // Category chips: read actual chip state via isSelected() rather
+  // than assuming the default-on set. State leaks across tests when
+  // the previous test left enabledCategories != default, so assuming
+  // defaults breaks the second config test onward.
   const wanted: string[] = cfg.categories;
-  const defaultOn: string[] = ['fruit', 'place', 'home'];
+  const allCats: string[] = ['fruit', 'place', 'home', 'custom'];
 
-  // Step 1: toggle ON any wanted category currently off by default.
+  // Step 1: turn ON every wanted chip first. This guarantees we never
+  // hit the last-chip guard while turning off the unwanted ones.
   for (let i = 0; i < wanted.length; i++) {
-    if (defaultOn.indexOf(wanted[i]) < 0) {
-      const c = await driver.findComponent(ON.id(categoryChipId(wanted[i])));
-      await c.click();
-      await driver.delayMs(80);
-    }
+    await setChipSelected(driver, categoryChipId(wanted[i]), true);
   }
-  // Step 2: toggle OFF any default-on category not wanted.
-  for (let i = 0; i < defaultOn.length; i++) {
-    if (wanted.indexOf(defaultOn[i]) < 0) {
-      const c = await driver.findComponent(ON.id(categoryChipId(defaultOn[i])));
-      await c.click();
-      await driver.delayMs(80);
+  // Step 2: turn OFF every chip that isn't wanted.
+  for (let i = 0; i < allCats.length; i++) {
+    if (wanted.indexOf(allCats[i]) < 0) {
+      await setChipSelected(driver, categoryChipId(allCats[i]), false);
     }
   }
 

@@ -216,15 +216,33 @@ struct ConfigPage {
     return `ConfigTimer${seconds}s`;
   }
 
+  /**
+   * Prefix the active timer chip with "✓" so UI tests can read a chip's
+   * selection state via getText() without relying on Button.selected()
+   * (not available on ButtonAttribute) or on colour inspection.
+   */
+  private timerChipLabel(seconds: number): string {
+    const base: string = this.timerLabel(seconds);
+    return this.draft.startingSeconds === seconds ? `✓${base}` : base;
+  }
+
+  /**
+   * Prefix active category chip labels with "✓". Same rationale as
+   * timerChipLabel: gives tests a reliable way to read selection state.
+   */
+  private categoryChipLabel(baseLabel: string, key: string): string {
+    return this.draft.enabledCategories.indexOf(key) >= 0 ? `✓${baseLabel}` : baseLabel;
+  }
+
   @Builder
   private timerRow() {
     Row() {
       Text('倒计时').fontSize(18).width(120);
       Row({ space: 8 }) {
         ForEach(TIMER_CHOICES, (sec: number) => {
-          Button(this.timerLabel(sec))
+          Button(this.timerChipLabel(sec))
             .id(this.timerChipId(sec))
-            .width(56).height(40)
+            .width(64).height(40)
             .fontSize(16)
             .backgroundColor(this.draft.startingSeconds === sec ? '#FFB400' : '#EAF2F8')
             .fontColor(this.draft.startingSeconds === sec ? '#FFFFFF' : '#457B9D')
@@ -256,9 +274,9 @@ struct ConfigPage {
       Text('词库类别').fontSize(18).width(120);
       Row({ space: 8 }) {
         ForEach(KNOWN_CATEGORIES, (key: string) => {
-          Button(this.builtinCategoryLabel(key))
+          Button(this.categoryChipLabel(this.builtinCategoryLabel(key), key))
             .id(this.builtinCategoryId(key))
-            .width(72).height(40)
+            .width(80).height(40)
             .fontSize(16)
             .backgroundColor(this.draft.enabledCategories.indexOf(key) >= 0 ? '#FFF4D0' : '#F0F0F0')
             .fontColor(this.draft.enabledCategories.indexOf(key) >= 0 ? '#B8860B' : '#666666')
@@ -268,9 +286,9 @@ struct ConfigPage {
         }, (key: string) => key);
 
         // Custom chip + edit icon
-        Button('自定义')
+        Button(this.categoryChipLabel('自定义', CUSTOM_CATEGORY_KEY))
           .id('ConfigCategoryCustom')
-          .width(72).height(40)
+          .width(80).height(40)
           .fontSize(16)
           .backgroundColor(this.draft.enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0 ? '#FFF4D0' : '#F0F0F0')
           .fontColor(this.draft.enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0 ? '#B8860B' : '#666666')
