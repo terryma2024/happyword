@@ -86,6 +86,14 @@ export default function routingFlowUiTest(): void {
       await driver.assertComponentExist(ON.text('HP 3 / 3'));
       await driver.assertComponentExist(ON.text('Combo: 0'));
       await driver.assertComponentExist(ON.text('中文提示会显示在这里'));
+      // T5 header: combo + timer readout render with the expected static
+      // values. "Time 05:00" matches BattlePage.formatTime(300).
+      await driver.assertComponentExist(ON.id('BattleComboLabel'));
+      await driver.assertComponentExist(ON.id('BattleTimerLabel'));
+      await driver.assertComponentExist(ON.text('Time 05:00'));
+      // T5 monster sublabel moves from a plain Text to CharacterCard's
+      // sublabel prop but preserves the exact string.
+      await driver.assertComponentExist(ON.text('Monster 1 / 5'));
       // All three option buttons render with their placeholder labels.
       await driver.assertComponentExist(ON.id('BattleOptionA'));
       await driver.assertComponentExist(ON.id('BattleOptionB'));
@@ -94,9 +102,10 @@ export default function routingFlowUiTest(): void {
       await driver.assertComponentExist(ON.text('Option B'));
       await driver.assertComponentExist(ON.text('Option C'));
 
-      // Negative coverage: in the T2 skeleton, option buttons have no onClick
-      // handlers — clicking them must NOT navigate away. This guards against
-      // accidentally wiring a router call into the options before T6 lands.
+      // Negative coverage: in T5, ChoiceButton.onTap is a no-op stub (T6 will
+      // wire it to BattleEngine.submitAnswer) — clicking any option must NOT
+      // navigate away. This guards against accidentally wiring router calls
+      // into the options before the battle engine lands.
       await clickById(driver, 'BattleOptionA');
       await driver.delayMs(300);
       await driver.assertComponentExist(ON.id('BattleTitle'));
