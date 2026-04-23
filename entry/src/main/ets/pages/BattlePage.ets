@@ -7,6 +7,7 @@ import { WordRepository } from '../services/WordRepository';
 import { QuestionGenerator } from '../services/QuestionGenerator';
 import {
   BattleEngine,
+  BattleConfig,
   AnswerOutcome,
   TickOutcome,
   DEFAULT_PLAYER_HP,
@@ -14,6 +15,13 @@ import {
   DEFAULT_MONSTERS_TOTAL,
   DEFAULT_STARTING_SECONDS,
 } from '../services/BattleEngine';
+import {
+  GameConfig,
+  GAME_CONFIG_STORAGE_KEY,
+  cloneGameConfig,
+  computeFinalPool
+} from '../models/GameConfig';
+import { WordEntry } from '../models/WordEntry';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question } from '../models/Question';
@@ -116,8 +124,24 @@ struct BattlePage {
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     const repo: WordRepository = new WordRepository();
     repo.loadFromRawfile(ctx).then((): void => {
-      const gen: QuestionGenerator = new QuestionGenerator(repo);
-      const engine: BattleEngine = new BattleEngine(gen);
+      const storedCfg: GameConfig | undefined =
+        AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+      const cfg: GameConfig = cloneGameConfig(storedCfg !== undefined ? storedCfg : new GameConfig());
+
+      const finalEntries: WordEntry[] =
+        computeFinalPool(repo.all(), cfg.enabledCategories, cfg.customWordsRaw);
+      const finalRepo: WordRepository = new WordRepository();
+      finalRepo.setEntries(finalEntries);
+
+      const gen: QuestionGenerator = new QuestionGenerator(finalRepo);
+
+      const bc: BattleConfig = new BattleConfig();
+      bc.playerMaxHp = cfg.playerMaxHp;
+      bc.monsterMaxHp = cfg.monsterMaxHp;
+      bc.monstersTotal = cfg.monstersTotal;
+      bc.startingSeconds = cfg.startingSeconds;
+
+      const engine: BattleEngine = new BattleEngine(gen, bc);
       engine.start();
       this.engine = engine;
       this.syncFromEngine();
