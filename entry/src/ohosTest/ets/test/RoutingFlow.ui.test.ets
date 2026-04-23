@@ -90,7 +90,12 @@ const WORD_MAP: WordMapEntry[] = [
   { zh: '门', en: 'door' },
   { zh: '窗户', en: 'window' },
   { zh: '书', en: 'book' },
-  { zh: '杯子', en: 'cup' }
+  { zh: '杯子', en: 'cup' },
+  // Custom-word entries used by configCustomWordsOnly_oneShotVictory.
+  // Kept in lock-step with CUSTOM_TEST_RAW below.
+  { zh: '一只狗', en: 'dog' },
+  { zh: '一只猫', en: 'cat' },
+  { zh: '太阳', en: 'sun' }
 ];
 
 function lookupEnglishAnswer(zhPrompt: string): string {
@@ -129,6 +134,193 @@ async function tapCorrectAnswer(driver: Driver): Promise<string> {
     }
   }
   throw new Error(`tapCorrectAnswer: no option button matches answer "${answer}" for prompt "${promptText}"`);
+}
+
+/**
+ * Ten Chinese prompts in the 'fruit' category. When GameConfig restricts
+ * enabledCategories to ['fruit'], every question's prompt MUST be in
+ * this set — asserting it makes category filtering visible in output.
+ */
+const FRUIT_PROMPTS: string[] = [
+  '苹果', '香蕉', '橙子', '葡萄', '梨',
+  '桃子', '柠檬', '芒果', '瓜', '樱桃'
+];
+
+function isFruitPrompt(prompt: string): boolean {
+  for (let i = 0; i < FRUIT_PROMPTS.length; i++) {
+    if (FRUIT_PROMPTS[i] === prompt) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Prompts used in the custom-words E2E test. Kept in lock-step with the
+ * raw text passed to openCustomWordsAndSave in that test AND with the
+ * WORD_MAP additions above so tapCorrectAnswer can resolve them.
+ */
+const CUSTOM_TEST_PROMPTS: string[] = ['一只狗', '一只猫', '太阳'];
+const CUSTOM_TEST_RAW: string = '一只狗:dog\n一只猫:cat\n太阳:sun';
+
+function isCustomTestPrompt(prompt: string): boolean {
+  for (let i = 0; i < CUSTOM_TEST_PROMPTS.length; i++) {
+    if (CUSTOM_TEST_PROMPTS[i] === prompt) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Inverse of tapCorrectAnswer: reads the current prompt, resolves the
+ * correct English via WORD_MAP, then clicks any option button whose
+ * text is NOT that answer. Returns the wrong-answer text that was
+ * clicked (for diagnostic logging).
+ */
+async function tapWrongAnswer(driver: Driver): Promise<string> {
+  const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
+  const promptText: string = await promptComp.getText();
+  const correct: string = lookupEnglishAnswer(promptText);
+  if (correct === '') {
+    throw new Error(`tapWrongAnswer: unknown prompt "${promptText}"`);
+  }
+  const optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
+  for (let i = 0; i < optionIds.length; i++) {
+    const btn = await driver.findComponent(ON.id(optionIds[i]));
+    const text: string = await btn.getText();
+    if (text.toLowerCase() !== correct.toLowerCase()) {
+      await btn.click();
+      return text;
+    }
+  }
+  throw new Error(`tapWrongAnswer: all 3 options matched correct answer "${correct}"`);
+}
+
+/**
+ * Plain-old-data carrier passed to openConfigAndApply. Defaults mirror
+ * the GameConfig defaults so tests only have to set the fields they
+ * actually care about.
+ */
+class TestGameConfig {
+  playerHp: number = 5;
+  monsterHp: number = 3;
+  monstersTotal: number = 5;
+  timerChipId: string = 'ConfigTimer300s';
+  categories: string[] = ['fruit']; // may include 'custom'
+}
+
+/**
+ * Repeatedly tap a stepper's "-" button until the shown value equals
+ * target. Reads the current value from the stepper's value Text id so
+ * we don't rely on knowing the draft's prior state.
+ */
+async function stepDownTo(driver: Driver, decId: string, valueId: string, target: number): Promise<void> {
+  const valueComp = await driver.findComponent(ON.id(valueId));
+  const curText: string = await valueComp.getText();
+  const current: number = parseInt(curText, 10);
+  for (let i = current; i > target; i--) {
+    const dec = await driver.findComponent(ON.id(decId));
+    await dec.click();
+    await driver.delayMs(80);
+  }
+}
+
+function categoryChipId(cat: string): string {
+  if (cat === 'fruit') return 'ConfigCategoryFruit';
+  if (cat === 'place') return 'ConfigCategoryPlace';
+  if (cat === 'home') return 'ConfigCategoryHome';
+  if (cat === 'custom') return 'ConfigCategoryCustom';
+  throw new Error(`categoryChipId: unknown category "${cat}"`);
+}
+
+/**
+ * From HomePage: open ConfigPage, apply steppers/timer/categories,
+ * then Save. Precondition: HomePage visible. Postcondition: back on
+ * HomePage with AppStorage updated.
+ *
+ * Category ordering: toggle-on wanted categories first, then toggle-off
+ * unwanted ones. This way the "last-chip-cannot-be-removed" guard
+ * never fires mid-helper.
+ */
+async function openConfigAndApply(driver: Driver, cfg: TestGameConfig): Promise<void> {
+  await driver.assertComponentExist(ON.id('HomeConfigButton'));
+  const gear = await driver.findComponent(ON.id('HomeConfigButton'));
+  await gear.click();
+  await driver.delayMs(800);
+  await driver.assertComponentExist(ON.id('ConfigTitle'));
+
+  await stepDownTo(driver, 'ConfigPlayerHpDec', 'ConfigPlayerHpValue', cfg.playerHp);
+  await stepDownTo(driver, 'ConfigMonsterHpDec', 'ConfigMonsterHpValue', cfg.monsterHp);
+  await stepDownTo(driver, 'ConfigMonstersTotalDec', 'ConfigMonstersTotalValue', cfg.monstersTotal);
+
+  await driver.assertComponentExist(ON.id(cfg.timerChipId));
+  const chip = await driver.findComponent(ON.id(cfg.timerChipId));
+  await chip.click();
+  await driver.delayMs(80);
+
+  // Built-in default enabled-set = ['fruit','place','home']; 'custom' is off.
+  const wanted: string[] = cfg.categories;
+  const defaultOn: string[] = ['fruit', 'place', 'home'];
+
+  // Step 1: toggle ON any wanted category currently off by default.
+  for (let i = 0; i < wanted.length; i++) {
+    if (defaultOn.indexOf(wanted[i]) < 0) {
+      const c = await driver.findComponent(ON.id(categoryChipId(wanted[i])));
+      await c.click();
+      await driver.delayMs(80);
+    }
+  }
+  // Step 2: toggle OFF any default-on category not wanted.
+  for (let i = 0; i < defaultOn.length; i++) {
+    if (wanted.indexOf(defaultOn[i]) < 0) {
+      const c = await driver.findComponent(ON.id(categoryChipId(defaultOn[i])));
+      await c.click();
+      await driver.delayMs(80);
+    }
+  }
+
+  const save = await driver.findComponent(ON.id('ConfigSaveButton'));
+  await save.click();
+  await driver.delayMs(800);
+  await driver.assertComponentExist(ON.id('HomeStartButton'));
+}
+
+/**
+ * From HomePage: open ConfigPage, enter CustomWordsPage via the edit
+ * icon, replace the TextArea contents, tap Save, and exit ConfigPage
+ * via Cancel so stepper/category defaults stay untouched.
+ *
+ * Precondition: HomePage visible.
+ * Postcondition: HomePage visible; only GameConfig.customWordsRaw
+ *                has been mutated in AppStorage.
+ */
+async function openCustomWordsAndSave(driver: Driver, rawText: string): Promise<void> {
+  await driver.assertComponentExist(ON.id('HomeConfigButton'));
+  const gear = await driver.findComponent(ON.id('HomeConfigButton'));
+  await gear.click();
+  await driver.delayMs(800);
+  await driver.assertComponentExist(ON.id('ConfigCategoryCustomEdit'));
+
+  const editIcon = await driver.findComponent(ON.id('ConfigCategoryCustomEdit'));
+  await editIcon.click();
+  await driver.delayMs(800);
+  await driver.assertComponentExist(ON.id('CustomWordsTextArea'));
+
+  const ta = await driver.findComponent(ON.id('CustomWordsTextArea'));
+  await ta.inputText(rawText);
+  await driver.delayMs(120);
+
+  const save = await driver.findComponent(ON.id('CustomWordsSaveButton'));
+  await save.click();
+  await driver.delayMs(800);
+  await driver.assertComponentExist(ON.id('ConfigTitle'));
+
+  // Exit ConfigPage without altering other fields.
+  const cancel = await driver.findComponent(ON.id('ConfigCancelButton'));
+  await cancel.click();
+  await driver.delayMs(800);
+  await driver.assertComponentExist(ON.id('HomeStartButton'));
 }
 
 export default function routingFlowUiTest(): void {
