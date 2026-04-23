@@ -22,6 +22,15 @@ import { Want } from '@kit.AbilityKit';
 
 const delegator: abilityDelegatorRegistry.AbilityDelegator = abilityDelegatorRegistry.getAbilityDelegator();
 
+/**
+ * Exported launcher for sibling UI test files (e.g. CritSpectacle) so
+ * they can reuse the cold-launch delay without duplicating bundle name
+ * lookup. Behavior matches the internal `launchApp` used by this suite.
+ */
+export async function launchAppShared(): Promise<Driver> {
+  return launchApp();
+}
+
 async function launchApp(): Promise<Driver> {
   const bundleName: string = abilityDelegatorRegistry.getArguments().bundleName;
   const want: Want = { bundleName, abilityName: 'EntryAbility' };
@@ -63,6 +72,10 @@ async function setChipSelected(driver: Driver, chipId: string, wantSelected: boo
  * throws a confusing "Cannot read property click of null" — asserting first
  * gives a clear component-not-found error at the point of failure.
  */
+export async function clickByIdShared(driver: Driver, id: string): Promise<void> {
+  return clickById(driver, id);
+}
+
 async function clickById(driver: Driver, id: string): Promise<void> {
   await driver.assertComponentExist(ON.id(id));
   const comp = await driver.findComponent(ON.id(id));
@@ -137,6 +150,10 @@ function lookupEnglishAnswer(zhPrompt: string): string {
  * answer that was clicked (useful for logging; the winFlow test uses
  * it to distinguish "no match" from successful clicks).
  */
+export async function tapCorrectAnswerShared(driver: Driver): Promise<string> {
+  return tapCorrectAnswer(driver);
+}
+
 async function tapCorrectAnswer(driver: Driver): Promise<string> {
   const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
   const promptText: string = await promptComp.getText();

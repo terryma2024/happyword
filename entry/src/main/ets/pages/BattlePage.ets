@@ -26,6 +26,7 @@ import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question } from '../models/Question';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
+import { CritOverlay } from '../components/CritOverlay';
 
 /**
  * BattlePage is the core gameplay screen.
@@ -58,6 +59,12 @@ import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioServic
  * screen still displays plausible numbers.
  */
 
+// V0.1 FEEDBACK_MS = 650 kept for V0.2. CritOverlay's ~700 ms
+// timeline is owned by animateTo callbacks that fire regardless of
+// whether the next question has loaded, so the full spectacle plays
+// out even if FEEDBACK_MS elapses in the middle of it. Existing UI
+// tests wait 800 ms after each tap, so leaving FEEDBACK_MS at 650
+// keeps them green.
 const FEEDBACK_MS: number = 650;
 const TICK_MS: number = 1000;
 
@@ -113,6 +120,13 @@ struct BattlePage {
   @State playerNudgePulse: number = 0;
   @State monsterZoomPulse: number = 0;
   @State playerCastPulse: number = 0;
+  /**
+   * Drives CritOverlay (full-bleed gold flash + big floating damage
+   * number). ++ on every crit trigger; `critDamage` mirrors
+   * outcome.damage so the overlay label renders the actual multiplier.
+   */
+  @State critPulse: number = 0;
+  @State critDamage: number = 2;
 
   // Question text shown while loading the dictionary. Real prompts overwrite
   // this once the engine produces its first question.
@@ -319,9 +333,12 @@ struct BattlePage {
       this.feedbackColor = '#FFB400';
       this.audio.play(SoundKeys.HIT_CRIT);
       // Crit path: skip the T10 nudge/hurt pulses (they would be
-      // washed out by the spectacle) and fire the zoom/cast layers.
+      // washed out by the spectacle) and fire the zoom/cast layers
+      // plus the full-bleed CritOverlay (gold flash + big damage #).
       this.monsterZoomPulse += 1;
       this.playerCastPulse += 1;
+      this.critDamage = outcome.damage;
+      this.critPulse += 1;
     } else if (outcome.correct) {
       this.feedbackText = '正确！';
       this.feedbackColor = '#2ECC71';
@@ -550,54 +567,66 @@ struct BattlePage {
   }
 
   build(): void {
-    Column() {
-      this.header();
+    Stack() {
+      // Main content — header, character row, options. The Stack wrapper
+      // exists so CritOverlay can sit above everything on the Z axis
+      // without forcing the option buttons beneath it to reflow.
+      Column() {
+        this.header();
 
-      Row({ space: 16 }) {
-        Column() {
-          CharacterCard({
-            kind: CharacterKind.Mage,
-            name: this.playerName,
-            hp: this.playerHp,
-            maxHp: this.playerMaxHp,
-            sublabel: '',
-            hurtPulse: this.playerHurtPulse,
-            nudgePulse: this.playerNudgePulse,
-            castPulse: this.playerCastPulse,
-          });
+        Row({ space: 16 }) {
+          Column() {
+            CharacterCard({
+              kind: CharacterKind.Mage,
+              name: this.playerName,
+              hp: this.playerHp,
+              maxHp: this.playerMaxHp,
+              sublabel: '',
+              hurtPulse: this.playerHurtPulse,
+              nudgePulse: this.playerNudgePulse,
+              castPulse: this.playerCastPulse,
+            });
+          }
+          .id('PlayerArea')
+          .layoutWeight(1)
+          .height('100%')
+          .justifyContent(FlexAlign.Center);
+
+          this.questionArea();
+
+          Column() {
+            CharacterCard({
+              kind: CharacterKind.Slime,
+              name: this.monsterName,
+              hp: this.monsterHp,
+              maxHp: this.monsterMaxHp,
+              sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
+              hurtPulse: this.monsterHurtPulse,
+              zoomPulse: this.monsterZoomPulse,
+            });
+          }
+          .id('MonsterArea')
+          .layoutWeight(1)
+          .height('100%')
+          .justifyContent(FlexAlign.Center);
         }
-        .id('PlayerArea')
+        .width('100%')
         .layoutWeight(1)
-        .height('100%')
-        .justifyContent(FlexAlign.Center);
+        .alignItems(VerticalAlign.Center)
+        .padding({ left: 20, right: 20, top: 4, bottom: 4 });
 
-        this.questionArea();
-
-        Column() {
-          CharacterCard({
-            kind: CharacterKind.Slime,
-            name: this.monsterName,
-            hp: this.monsterHp,
-            maxHp: this.monsterMaxHp,
-            sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
-            hurtPulse: this.monsterHurtPulse,
-            zoomPulse: this.monsterZoomPulse,
-          });
-        }
-        .id('MonsterArea')
-        .layoutWeight(1)
-        .height('100%')
-        .justifyContent(FlexAlign.Center);
+        this.optionsRow();
       }
       .width('100%')
-      .layoutWeight(1)
-      .alignItems(VerticalAlign.Center)
-      .padding({ left: 20, right: 20, top: 4, bottom: 4 });
+      .height('100%')
+      .backgroundColor('#F8F9FA');
 
-      this.optionsRow();
+      // Crit spectacle layers — gold flash + big floating damage
+      // number. CritOverlay sets hitTestBehavior = Transparent so it
+      // never intercepts taps destined for the ChoiceButtons.
+      CritOverlay({ critPulse: this.critPulse, damage: this.critDamage });
     }
     .width('100%')
-    .height('100%')
-    .backgroundColor('#F8F9FA');
+    .height('100%');
   }
 }
