@@ -55,6 +55,7 @@ export class GameConfig {
   monstersTotal: number = 5;     // integer, range [1, 10]
   startingSeconds: number = 300; // allowed: 3, 15, 30, 60, 120, 300, 600
   enabledCategories: string[] = ['fruit', 'place', 'home']; // non-empty subset
+  customWordsRaw: string = '';   // raw multi-line '中文:英文' text (edited on CustomWordsPage)
 }
 
 export const GAME_CONFIG_STORAGE_KEY: string = 'gameConfig';
@@ -68,8 +69,17 @@ export const HP_MAX: number = 10;
 export const MONSTER_COUNT_MIN: number = 1;
 export const MONSTER_COUNT_MAX: number = 10;
 
-// Known category keys. The first element is the default displayed first.
+// Built-in category keys (data-driven, loaded from words_v1.json).
+// The Custom category is NOT in this list; it is rendered separately.
 export const KNOWN_CATEGORIES: string[] = ['fruit', 'place', 'home'];
+
+// Sentinel category key for player-supplied custom words.
+export const CUSTOM_CATEGORY_KEY: string = 'custom';
+
+// QuestionGenerator requires >= 3 entries; duplicated here so ConfigPage
+// validation can reason about "final pool" size without depending on
+// internal engine constants.
+export const MIN_POOL_SIZE: number = 3;
 ```
 
 Rationale:
@@ -84,16 +94,121 @@ Rationale:
   cover both extremes with one tap per change.
 - All range/choice constants exported so tests and ConfigPage share
   the same truth.
+- `customWordsRaw` is stored as **raw text**, not pre-parsed entries,
+  so CustomWordsPage round-trips the exact text the player typed
+  (including ordering, casing, whitespace). `parseCustomWords` derives
+  `WordEntry[]` on demand at battle start and at Save-time validation.
 
-### 3.2 AppStorage contract
+### 3.2 Custom-word parsing
+
+Exported alongside `GameConfig`:
+
+```typescript
+export function parseCustomWords(raw: string): WordEntry[] {
+  const out: WordEntry[] = [];
+  if (raw.length === 0) {
+    return out;
+  }
+  const lines: string[] = raw.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed: string = lines[i].trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    // Accept ASCII ':' or fullwidth '：'.
+    let sep: number = trimmed.indexOf(':');
+    if (sep < 0) {
+      sep = trimmed.indexOf('：');
+    }
+    if (sep <= 0 || sep >= trimmed.length - 1) {
+      continue; // Missing colon, empty left, or empty right.
+    }
+    const zh: string = trimmed.substring(0, sep).trim();
+    const en: string = trimmed.substring(sep + 1).trim();
+    if (zh.length === 0 || en.length === 0) {
+      continue;
+    }
+    const e: WordEntry = new WordEntry();
+    e.id = `custom-${out.length}`;
+    e.word = en;
+    e.meaningZh = zh;
+    e.category = CUSTOM_CATEGORY_KEY;
+    e.difficulty = 1;
+    out.push(e);
+  }
+  return out;
+}
+```
+
+Parsing rules (explicit):
+
+1. Line separator is `\n` (also handles `\r\n` because `\r` ends up
+   in `trimmed` and is removed by `.trim()`).
+2. Accept `:` (ASCII) or `：` (fullwidth). First occurrence wins.
+3. Lines with no colon, empty left-half, or empty right-half are
+   silently skipped (not surfaced as error — keeps the editor tolerant).
+4. IDs are assigned sequentially `custom-0`, `custom-1`, … across
+   valid lines only. Duplicate IDs are impossible by construction.
+5. Duplicate `meaningZh` entries are kept as-is (no dedup): letting
+   the user intentionally repeat a Chinese word pointing to two
+   English answers is harmless — QuestionGenerator's distractor logic
+   works off the entry list regardless.
+
+### 3.3 Final-pool composition
+
+Battle-time word pool = built-in entries filtered by enabled built-in
+categories **plus** custom entries iff `CUSTOM_CATEGORY_KEY` is enabled:
+
+```typescript
+export function computeFinalPool(
+  allBuiltin: WordEntry[],
+  enabledCategories: string[],
+  customWordsRaw: string
+): WordEntry[] {
+  const out: WordEntry[] = [];
+  for (let i = 0; i < allBuiltin.length; i++) {
+    if (enabledCategories.indexOf(allBuiltin[i].category) >= 0) {
+      out.push(allBuiltin[i]);
+    }
+  }
+  if (enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0) {
+    const customs: WordEntry[] = parseCustomWords(customWordsRaw);
+    for (let i = 0; i < customs.length; i++) {
+      out.push(customs[i]);
+    }
+  }
+  return out;
+}
+```
+
+Both ConfigPage's Save validation and BattlePage's `aboutToAppear` call
+this single helper, guaranteeing parity between "what Save said the
+pool would be" and "what BattlePage actually uses".
+
+### 3.4 AppStorage contract
+
+### 3.4 AppStorage contract
+
+There is a single AppStorage key, `gameConfig`, holding the whole
+`GameConfig` value object. Custom-word raw text is one field of that
+object; there is **no** separate storage key for customs.
 
 | Operation    | Where                               | Notes                                                       |
 |--------------|-------------------------------------|-------------------------------------------------------------|
 | Initialise   | `EntryAbility.onCreate`             | `AppStorage.setOrCreate(GAME_CONFIG_STORAGE_KEY, new GameConfig())` — guaranteed before any page renders. |
 | Read (battle)| `BattlePage.aboutToAppear`          | `AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY)`, fallback to `new GameConfig()` if `undefined`. |
-| Read (config)| `ConfigPage.aboutToAppear`          | Same, copied into a local `@State draft` so cancellations don't leak. |
-| Write        | ConfigPage "保存" button only       | `AppStorage.set(GAME_CONFIG_STORAGE_KEY, this.draft)` then `router.back()`. |
-| Cancel       | ConfigPage "取消" button            | `router.back()` only; AppStorage untouched.                 |
+| Read (config)| `ConfigPage.aboutToAppear` / `onPageShow` | Same, copied into a local `@State draft`. `onPageShow` refreshes `draft.customWordsRaw` from AppStorage so returning from `CustomWordsPage` reflects its save. |
+| Read (custom)| `CustomWordsPage.aboutToAppear`     | Reads `GameConfig.customWordsRaw` into a local `@State rawText`. |
+| Write (config)| ConfigPage "保存" (validation-gated)| Build merged `GameConfig` by overlaying draft's stepper / timer / category fields onto a fresh read of the current `GameConfig` (so we never clobber a `customWordsRaw` written by a concurrent `CustomWordsPage` visit), then `AppStorage.set(...)` then `router.back()`. |
+| Write (custom)| CustomWordsPage "保存" button      | Clones the current `GameConfig`, overwrites `customWordsRaw`, writes back, `router.back()`. |
+| Cancel (both)| "取消" buttons                      | `router.back()` only; AppStorage untouched.                 |
+
+Rationale for the read-merge-write on ConfigPage Save: ConfigPage's
+draft doesn't own `customWordsRaw` (CustomWordsPage does). If
+ConfigPage wrote its draft verbatim, it would overwrite any custom
+edits the user made via the sub-page. The merge keeps each page's
+edits independent — ConfigPage owns stepper/timer/category; the
+sub-page owns raw custom text.
 
 ## 4. ConfigPage UI
 
@@ -103,16 +218,19 @@ Landscape, single-screen, no scrolling. Built with the same
 ### 4.1 Layout (landscape wireframe)
 
 ```
-┌─── 游戏设置  (ConfigTitle) ───────────────────────┐
-│                                                   │
-│  玩家血量      [ – ]  5  [ + ]                    │
-│  怪物血量      [ – ]  3  [ + ]                    │
-│  怪物数量      [ – ]  5  [ + ]                    │
-│  倒计时    [3s][15s][30s][1m][2m][5m][10m]        │
-│  词库类别  [水果 ✓][地点 ✓][家居 ✓]               │
-│                                                   │
-│           [ 取消 ]        [ 保存 ]                │
-└───────────────────────────────────────────────────┘
+┌─── 游戏设置  (ConfigTitle) ────────────────────────────┐
+│                                                        │
+│  玩家血量      [ – ]  5  [ + ]                         │
+│  怪物血量      [ – ]  3  [ + ]                         │
+│  怪物数量      [ – ]  5  [ + ]                         │
+│  倒计时    [3s][15s][30s][1m][2m][5m][10m]             │
+│  词库类别  [水果 ✓][地点 ✓][家居 ✓][自定义  ✎]         │
+│                                                        │
+│  (hint, hidden unless save blocked)                    │
+│  单词池太小（少于 3 个），请启用更多类别或添加自定义词  │
+│                                                        │
+│           [ 取消 ]        [ 保存 ]                     │
+└────────────────────────────────────────────────────────┘
 ```
 
 ### 4.2 Controls
@@ -124,10 +242,28 @@ Landscape, single-screen, no scrolling. Built with the same
   (highlighted fill). Tapping a different chip switches selection;
   tapping the already-selected chip is a no-op. Null/zero selection
   is impossible because `aboutToAppear` always seeds a valid choice.
-- **Category chips**: 3 toggle buttons. Selected = gold border, pale
-  fill. Tapping toggles. **If tapping would result in zero selected
-  categories, the tap is a no-op** (silently ignored — per user
-  choice in brainstorming).
+- **Built-in category chips** (3 of them — 水果 / 地点 / 家居):
+  toggle buttons. Selected = gold border, pale fill. Tapping toggles.
+  **If tapping would leave zero *total* categories (built-in + custom)
+  selected, the tap is a no-op** (silently ignored — per user choice
+  in brainstorming).
+- **Custom category chip** (`自定义`): 4th toggle in the same row,
+  visually identical to the built-in chips. Tapping the chip body
+  toggles the `'custom'` key in `enabledCategories` using the same
+  "last one cannot be removed" guard that the other chips use.
+- **Edit icon** (`✎`) next to the Custom chip: separate tappable
+  Button with its own id. Tapping always navigates to
+  `pages/CustomWordsPage` regardless of whether Custom is currently
+  selected — the player can prepare custom words before opting into
+  the category.
+- **Validation hint text** (`ConfigValidationHint`): hidden (`Visibility.None`)
+  while `draft` passes validation. When the user taps Save and the
+  computed final pool (`computeFinalPool`) has fewer than
+  `MIN_POOL_SIZE` (3) entries, the hint becomes visible in red, Save
+  does NOT write to AppStorage, and the page stays open. Any subsequent
+  edit that could conceivably fix the pool (toggling a category on,
+  leaving the page to edit customs) re-hides the hint so it doesn't
+  persist past its cause.
 - **Save / Cancel buttons**: 160vp × 52vp, side-by-side, bottom-center.
 
 ### 4.3 State management
@@ -177,7 +313,89 @@ Timer chips:
 
 Category chips:
 
-- `ConfigCategoryFruit`, `ConfigCategoryPlace`, `ConfigCategoryHome`
+- `ConfigCategoryFruit`, `ConfigCategoryPlace`, `ConfigCategoryHome`,
+  `ConfigCategoryCustom` (chip body), `ConfigCategoryCustomEdit`
+  (the ✎ icon — navigates to CustomWordsPage)
+
+Validation:
+
+- `ConfigValidationHint` (`Text` node, conditionally visible)
+
+### 4.5 `CustomWordsPage` (sub-page)
+
+New file `entry/src/main/ets/pages/CustomWordsPage.ets`.
+
+Landscape, single-screen, full page (not a modal). Reached only via
+the Custom chip's `✎` icon on ConfigPage. Owns `customWordsRaw` end
+to end — ConfigPage never mutates this field itself.
+
+#### 4.5.1 Layout (landscape wireframe)
+
+```
+┌─── 自定义词表  (CustomWordsTitle) ─────────────────┐
+│                                                    │
+│  格式：中文:英文，每行一个                         │
+│                                                    │
+│  ┌──────────────────────────────────────────────┐  │
+│  │ 苹果:apple                                   │  │
+│  │ 香蕉:banana                                  │  │
+│  │ _                                            │  │
+│  │                                              │  │
+│  │                                              │  │
+│  │                                              │  │
+│  │                          (CustomWordsTextArea) │
+│  └──────────────────────────────────────────────┘  │
+│                                                    │
+│            [ 取消 ]        [ 保存 ]                │
+└────────────────────────────────────────────────────┘
+```
+
+#### 4.5.2 Controls
+
+- **TextArea** (`CustomWordsTextArea`): multiline, 80% width, 60% height,
+  placeholder `'每行一条，例如：\n苹果:apple\n香蕉:banana'`. Accepts
+  any characters; parse validation happens at Save.
+- **Cancel button** (`CustomWordsCancelButton`): `router.back()` only.
+- **Save button** (`CustomWordsSaveButton`): writes the raw text back
+  to `GameConfig.customWordsRaw` via read-merge-write, then
+  `router.back()`. **No** pool-size validation happens here — the
+  player might save customs they intend to use alongside built-in
+  categories, and CustomWordsPage doesn't know the enabled-category
+  context. Validation is ConfigPage's job at its own Save.
+
+#### 4.5.3 State management
+
+```typescript
+@Entry
+@Component
+struct CustomWordsPage {
+  @State private rawText: string = '';
+
+  aboutToAppear(): void {
+    const cfg: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    this.rawText = (cfg !== undefined) ? cfg.customWordsRaw : '';
+  }
+
+  private onSave(): void {
+    const current: GameConfig =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY) ?? new GameConfig();
+    const merged: GameConfig = cloneGameConfig(current);
+    merged.customWordsRaw = this.rawText;
+    AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
+    router.back();
+  }
+
+  private onCancel(): void {
+    router.back();
+  }
+}
+```
+
+#### 4.5.4 IDs (test-stable)
+
+`CustomWordsTitle`, `CustomWordsTextArea`, `CustomWordsSaveButton`,
+`CustomWordsCancelButton`.
 
 ## 5. Integration points
 
@@ -229,19 +447,15 @@ Replace the current constructor trio:
 const cfg: GameConfig =
   AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY) ?? new GameConfig();
 
-// Build a sub-repository limited to the enabled categories so the
-// generator's same-category distractor pool respects the filter.
-const all: WordEntry[] = repo.all();
-const filtered: WordEntry[] = [];
-for (let i = 0; i < all.length; i++) {
-  if (cfg.enabledCategories.indexOf(all[i].category) >= 0) {
-    filtered.push(all[i]);
-  }
-}
-const filteredRepo: WordRepository = new WordRepository();
-filteredRepo.setEntries(filtered);
+// Single helper computes the exact same pool ConfigPage validated at
+// Save time — built-in entries filtered by enabled built-in categories,
+// plus parsed custom entries when 'custom' is enabled.
+const finalEntries: WordEntry[] =
+  computeFinalPool(repo.all(), cfg.enabledCategories, cfg.customWordsRaw);
+const finalRepo: WordRepository = new WordRepository();
+finalRepo.setEntries(finalEntries);
 
-const gen = new QuestionGenerator(filteredRepo);
+const gen = new QuestionGenerator(finalRepo);
 
 const bc = new BattleConfig();
 bc.playerMaxHp = cfg.playerMaxHp;
@@ -252,16 +466,18 @@ const engine = new BattleEngine(gen, bc);
 engine.start();
 ```
 
-Filtering inline (instead of adding `WordRepository.filterByCategories`)
-keeps the change small and self-contained in BattlePage. The existing
-`setEntries` test hook is already public for this purpose.
+Using the shared `computeFinalPool` helper (instead of inlining the
+filter like an earlier draft proposed) guarantees parity between
+ConfigPage's validation and BattlePage's runtime pool — one function,
+one source of truth. The existing `WordRepository.setEntries` test
+hook is already public for exactly this kind of projection.
 
 ### 5.4 `main_pages.json`
 
-Register the new page:
+Register the two new pages:
 
 ```json
-{ "src": ["pages/HomePage", "pages/BattlePage", "pages/ResultPage", "pages/ConfigPage"] }
+{ "src": ["pages/HomePage", "pages/BattlePage", "pages/ResultPage", "pages/ConfigPage", "pages/CustomWordsPage"] }
 ```
 
 ### 5.5 Retry flow
@@ -272,11 +488,61 @@ on every entry, so retries honour the saved config.
 
 ### 5.6 Edge-case: tiny word pool
 
-When only one category is enabled the filtered pool is 10 words —
-still ≥ 3, so `QuestionGenerator` works. No guard required for v0.1.
-If a future change shrinks a category below 3 words, the generator
-will throw from `nextQuestion`; a fallback path is out-of-scope here
-but noted for the spec log.
+With built-in-only categories, the smallest filtered pool is 10 words
+(one category) — still ≥ `MIN_POOL_SIZE`. The minimum-pool guard is
+only needed because Custom can bring the pool arbitrarily small:
+
+1. User enables ONLY Custom and the raw text parses to 0–2 valid lines.
+2. User enables ONLY Custom, has 5 valid customs, then deletes most of
+   them from the sub-page.
+
+ConfigPage's Save-time validation catches both by calling
+`computeFinalPool(repo.all(), draft.enabledCategories, currentCustomWordsRaw)`
+and refusing to save when the result's length is `< MIN_POOL_SIZE`.
+BattlePage therefore never starts a battle with an undersized pool —
+the invalid state is unreachable in a legitimate UI flow.
+
+### 5.7 Validation contract (ConfigPage Save)
+
+```typescript
+private onSave(): void {
+  const storedNow: GameConfig | undefined =
+    AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+  const currentCustomRaw: string =
+    storedNow !== undefined ? storedNow.customWordsRaw : '';
+
+  // `repo` is the already-loaded WordRepository held on HomePage's
+  // module scope; if not loaded yet, Save is trivially valid
+  // (defaults are all built-in, pool size ≫ 3).
+  const builtin: WordEntry[] = this.loadedBuiltinEntries;
+  const finalPool: WordEntry[] = computeFinalPool(
+    builtin, this.draft.enabledCategories, currentCustomRaw);
+
+  if (finalPool.length < MIN_POOL_SIZE) {
+    this.showHint = true;
+    this.forceRerender();
+    return;
+  }
+
+  // Merge draft (stepper/timer/category) with stored (customWordsRaw).
+  const merged: GameConfig =
+    cloneGameConfig(storedNow !== undefined ? storedNow : new GameConfig());
+  merged.playerMaxHp = this.draft.playerMaxHp;
+  merged.monsterMaxHp = this.draft.monsterMaxHp;
+  merged.monstersTotal = this.draft.monstersTotal;
+  merged.startingSeconds = this.draft.startingSeconds;
+  merged.enabledCategories = this.draft.enabledCategories.slice();
+
+  AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
+  router.back();
+}
+```
+
+The builtin entries are loaded once on ConfigPage `aboutToAppear` via
+`WordRepository.loadFromRawfile(...)` — the same path HomePage already
+uses — and cached on the page instance. Loading is fast (one JSON file)
+and ConfigPage can render the form optimistically before load
+completes, since validation only matters at Save time.
 
 ## 6. Testing
 
@@ -290,26 +556,50 @@ edits. We will re-run them to confirm.
 
 ### 6.2 New unit tests (`entry/src/test/LocalUnit.test.ets`)
 
-Three additions:
+Additions, grouped by concern:
 
-1. `GameConfig_defaultsMatchEngineDefaults`: asserts that a
-   newly-constructed `GameConfig` projects to a `BattleConfig` equal
-   to current `DEFAULT_*` constants. Protects against divergent
-   defaults.
+**Defaults / clone / filter:**
+
+1. `GameConfig_defaultsMatchEngineDefaults`: newly-constructed
+   `GameConfig` projects to a `BattleConfig` equal to current
+   `DEFAULT_*` constants and `customWordsRaw === ''`.
 2. `GameConfig_enabledCategoriesFilterProducesExpectedPool`: given a
-   fake 30-entry repository, calling the Battlepage-style inline
-   filter with `['fruit']` yields 10 entries, all `category=='fruit'`.
+   30-entry repository, `computeFinalPool(entries, ['fruit'], '')`
+   yields 10 entries, all `category=='fruit'`.
 3. `GameConfig_cloneIsDeepEnoughToIsolateDraft`: constructs a
-   `GameConfig`, clones it via the same helper ConfigPage uses,
-   mutates every field on the clone (including
-   `enabledCategories.push(...)`), then asserts that the original is
-   still equal to its pre-clone snapshot. Guards against accidentally
-   sharing the `enabledCategories` array reference, which would make
-   "Cancel" leak draft edits into AppStorage.
+   `GameConfig`, clones it, mutates every field on the clone
+   (including `enabledCategories.push(...)` and `customWordsRaw`),
+   asserts the original is still equal to its pre-clone snapshot.
+
+**parseCustomWords:**
+
+4. `parseCustomWords_emptyReturnsEmpty`: `parseCustomWords('')` and
+   `parseCustomWords('\n\n  \n')` both return a zero-length array.
+5. `parseCustomWords_acceptsAsciiAndFullwidthColon`: mixed input
+   `'苹果:apple\n香蕉：banana'` parses to 2 entries, correct
+   `meaningZh` / `word` mapping, both in `CUSTOM_CATEGORY_KEY`.
+6. `parseCustomWords_skipsInvalidLines`: input with missing colons,
+   empty-left-half, empty-right-half, and trailing whitespace yields
+   only the well-formed lines. IDs `'custom-0'`, `'custom-1'` are
+   sequential over valid lines only (no gaps).
+
+**computeFinalPool (the BattlePage/ConfigPage shared helper):**
+
+7. `computeFinalPool_customEnabledMergesCustoms`: with enabled
+   `['fruit', 'custom']`, 10 fruit entries and raw `'你好:hello'`,
+   result length is 11 and the last entry has `category==='custom'`.
+8. `computeFinalPool_customDisabledIgnoresRaw`: with enabled
+   `['fruit']` and raw `'你好:hello'`, result length is 10. Custom
+   words are silently excluded when the category is off, even if
+   the raw text has valid entries.
+9. `computeFinalPool_customOnlyEmpty`: with enabled `['custom']`
+   and raw `''`, result is `[]` (explicit — ConfigPage relies on
+   this length for validation).
 
 ### 6.3 New UI tests (`entry/src/ohosTest/ets/test/RoutingFlow.ui.test.ets`)
 
-Three new `it` blocks, sharing a helper `openConfigAndApply(driver, cfg)`.
+Four new `it` blocks, sharing helpers `openConfigAndApply(driver, cfg)`
+and `openCustomWordsAndSave(driver, rawText)`.
 
 **Helper data structure**
 
@@ -319,7 +609,7 @@ class TestGameConfig {
   monsterHp: number = 3;
   monstersTotal: number = 5;
   timerChipId: string = 'ConfigTimer300s';
-  categories: string[] = ['fruit']; // internal category keys
+  categories: string[] = ['fruit']; // internal category keys (may include 'custom')
 }
 ```
 
@@ -333,11 +623,24 @@ class TestGameConfig {
 3. Same for monster HP and monsters total, starting from current
    AppStorage defaults.
 4. Tap the chip `cfg.timerChipId`.
-5. Walk the 3 category chips; toggle any whose selected state differs
-   from `cfg.categories.includes(catName)`. Respect the "last one
-   cannot be unselected" rule by ordering toggles such that at least
-   one stays on throughout (toggle on the wanted category first).
+5. Walk the 4 category chips (Fruit / Place / Home / Custom); toggle
+   any whose selected state differs from
+   `cfg.categories.includes(catName)`. Ordering: toggle-on wanted
+   categories FIRST, then toggle-off unwanted ones, so the
+   "last-one-cannot-be-unselected" guard never fires mid-helper.
 6. Tap `ConfigSaveButton`, wait 800ms — back on HomePage.
+
+`openCustomWordsAndSave(driver, rawText)`:
+
+1. From HomePage, tap `HomeConfigButton`, wait 800ms.
+2. Tap `ConfigCategoryCustomEdit`, wait 800ms — driver now on
+   CustomWordsPage.
+3. Find `CustomWordsTextArea`, clear it (via `inputText('')` or
+   tap-select-all-then-type), then `inputText(rawText)`.
+4. Tap `CustomWordsSaveButton`, wait 800ms — back on ConfigPage.
+5. Caller is now expected to enable the Custom chip (if not already)
+   and hit `ConfigSaveButton`; the helper does NOT save ConfigPage
+   itself.
 
 **Test 1: `configShortWin_oneShotVictory`**
 
@@ -376,6 +679,36 @@ class TestGameConfig {
   - `ON.text('击败怪物：0 / 5')`
 - Return home via `ResultHomeButton`.
 
+**Test 4: `configCustomWordsOnly_oneShotVictory`**
+
+- Raw custom text: `'一只狗:dog\n一只猫:cat\n太阳:sun'` (3 valid entries).
+- Config after applying: `playerHp=5, monsterHp=1, monstersTotal=1,
+  timer=60s, categories=['custom']`.
+- Flow:
+  1. `openCustomWordsAndSave(driver, '一只狗:dog\n一只猫:cat\n太阳:sun')`
+     → returns to ConfigPage.
+  2. Toggle Custom chip ON, toggle all built-in chips OFF (in that
+     order — wanted category on first), step Player HP / Monster HP /
+     Monsters Total / Timer as for Test 1, tap `ConfigSaveButton`.
+  3. Tap `HomeStartButton`, wait for BattlePage.
+  4. Assert `BattlePrompt` text is one of `'一只狗'`, `'一只猫'`, `'太阳'`
+     — proving `parseCustomWords` + `computeFinalPool` + BattlePage
+     wire custom text all the way to on-screen prompts.
+  5. `tapCorrectAnswer(driver)` — the `WORD_MAP` used by that helper
+     is augmented at the top of the test file with the three custom
+     pairs so lookup succeeds.
+  6. `delayMs(900)` → assert ResultPage + `胜利！` + `1 / 1`.
+  7. Return home via `ResultHomeButton`.
+- Secondary assertion (before Save): tap `ConfigSaveButton` while
+  `categories==['custom']` and raw customs is empty (before step 1)
+  to confirm the validation-hint path fires. This is implemented as
+  a short initial probe inside the test:
+  ```
+  openConfigAndApply(driver, {custom-only, no customs yet}) → expect
+  ConfigValidationHint visible → ConfigCancelButton → continue to
+  the happy-path above.
+  ```
+
 **Helper `tapWrongAnswer(driver)`**: reads `BattlePrompt`, looks up the
 **correct** English via `WORD_MAP`, then scans `BattleOptionA/B/C` and
 clicks the first one whose text does NOT match. Throws if all three
@@ -386,31 +719,38 @@ happen to match (impossible with 3 unique options).
 is the explicit contract that category filtering propagates from
 AppStorage → BattlePage → QuestionGenerator.
 
+**`CUSTOM_TEST_PROMPTS` set**: `['一只狗', '一只猫', '太阳']` —
+asserted in Test 4 as the only legal prompts once `['custom']` is
+the sole enabled category.
+
 **Timing budget**
 
-| Test                           | Steps                                                         | Budget |
-|--------------------------------|---------------------------------------------------------------|--------|
-| configShortWin                 | 10 stepper taps + 3 chip taps + Save + 1 game tap             | ~8s    |
-| configTimerExpiry              | 1 timer-chip tap + 2 category taps + Save + 3.5s wait         | ~7s    |
-| configHpZero                   | 4 stepper taps + 1 category tap + Save + 1 wrong tap          | ~6s    |
-| **Total new**                  |                                                               | ~21s   |
-| **Total suite (existing + new)**| 33s existing + 21s new                                       | ~54s   |
+| Test                           | Steps                                                             | Budget |
+|--------------------------------|-------------------------------------------------------------------|--------|
+| configShortWin                 | 10 stepper taps + 4 chip taps + Save + 1 game tap                 | ~8s    |
+| configTimerExpiry              | 1 timer-chip tap + 3 category taps + Save + 3.5s wait             | ~7s    |
+| configHpZero                   | 4 stepper taps + 2 category taps + Save + 1 wrong tap             | ~6s    |
+| configCustomWordsOnly          | edit-page round-trip + validation probe + steppers + Save + 1 tap | ~14s   |
+| **Total new**                  |                                                                   | ~35s   |
+| **Total suite (existing + new)**| 33s existing + 35s new                                           | ~68s   |
 
-All tests complete within the current `-s timeout 60000` per-test
-budget and the suite stays well under any reasonable wall-clock cap.
+The suite-level wall-clock stays comfortably under hypium's 240s
+global `-w` budget. Per-test, all four new tests fit inside
+`-s timeout 60000` (Test 4 is the biggest at ~14s).
 
 ## 7. File change summary
 
-| File                                                              | Action                                                  |
-|-------------------------------------------------------------------|---------------------------------------------------------|
-| `entry/src/main/ets/models/GameConfig.ets`                        | NEW                                                     |
-| `entry/src/main/ets/pages/ConfigPage.ets`                         | NEW                                                     |
-| `entry/src/main/ets/entryability/EntryAbility.ets`                | seed AppStorage in `onCreate`                           |
-| `entry/src/main/ets/pages/HomePage.ets`                           | wrap in `Stack`, add gear-icon overlay                  |
-| `entry/src/main/ets/pages/BattlePage.ets`                         | read `GameConfig`, filter repo, build `BattleConfig`    |
-| `entry/src/main/resources/base/profile/main_pages.json`           | register `pages/ConfigPage`                             |
-| `entry/src/test/LocalUnit.test.ets`                               | 3 new unit tests                                        |
-| `entry/src/ohosTest/ets/test/RoutingFlow.ui.test.ets`             | 3 new UI tests + `openConfigAndApply` + `tapWrongAnswer`|
+| File                                                              | Action                                                                    |
+|-------------------------------------------------------------------|---------------------------------------------------------------------------|
+| `entry/src/main/ets/models/GameConfig.ets`                        | NEW — value object, constants, `cloneGameConfig`, `parseCustomWords`, `computeFinalPool` |
+| `entry/src/main/ets/pages/ConfigPage.ets`                         | NEW — form page with validation                                           |
+| `entry/src/main/ets/pages/CustomWordsPage.ets`                    | NEW — sub-page for raw custom-word text                                   |
+| `entry/src/main/ets/entryability/EntryAbility.ets`                | seed AppStorage in `onCreate`                                             |
+| `entry/src/main/ets/pages/HomePage.ets`                           | wrap in `Stack`, add gear-icon overlay                                    |
+| `entry/src/main/ets/pages/BattlePage.ets`                         | read `GameConfig`, build pool via `computeFinalPool`                      |
+| `entry/src/main/resources/base/profile/main_pages.json`           | register `pages/ConfigPage` and `pages/CustomWordsPage`                   |
+| `entry/src/test/LocalUnit.test.ets`                               | 9 new unit tests (defaults/clone/filter/parse/pool)                       |
+| `entry/src/ohosTest/ets/test/RoutingFlow.ui.test.ets`             | 4 new UI tests + `openConfigAndApply` + `openCustomWordsAndSave` + `tapWrongAnswer` |
 
 No changes required to `BattleEngine`, `BattleConfig`, `WordRepository`,
 `QuestionGenerator`, `ResultPage`, `SessionResult`.
@@ -430,16 +770,37 @@ No changes required to `BattleEngine`, `BattleConfig`, `WordRepository`,
 - **Combo burst on 1-HP monster**: damage 1 still defeats 1-HP monster
   in one hit (no burst needed). Verified by spec §4.3 and existing
   unit tests.
+- **Custom words clobber on concurrent edits**: ConfigPage's Save
+  could overwrite a `customWordsRaw` written by a prior
+  CustomWordsPage visit if it wrote its draft verbatim. Mitigated by
+  the read-merge-write in §3.4 and §5.7.
+- **Custom text crosses ArkTS 4KB string literal budget in tests**:
+  UI Test 4's custom text is well under 100 bytes. If future tests
+  use larger inputs, split across multiple `inputText` calls.
+- **Hypium `inputText` not clearing prior content**: mitigated by
+  explicitly clearing the TextArea before inserting test text (see
+  §6.3 helper contract).
+- **Fullwidth colon parse failures on non-CJK devices**: UTF-16
+  handling in ArkTS is consistent across locales; `indexOf('：')`
+  returns the correct byte offset. No mitigation needed but flagged.
 
 ## 9. Self-review checklist outcomes
 
 - **Placeholders:** none.
-- **Internal consistency:** Section 5.3 and Section 6.3 agree on
-  inline category filter in BattlePage.
-- **Scope:** single implementation plan.
+- **Internal consistency:** §5.3 (BattlePage) and §5.7 (ConfigPage
+  Save) both compute the battle pool via the single exported
+  `computeFinalPool` helper, so Save-time validation and runtime
+  never diverge.
+- **Scope:** single implementation plan. The Custom-word feature is
+  integrated into the same plan (not a separate deliverable) because
+  it shares the ConfigPage / AppStorage surface.
 - **Ambiguity:** the "last category chip click has no reaction" rule
-  is stated explicitly and shown in both UI spec (§4.2) and test
-  helper (§6.3).
+  now applies to all 4 chips (Fruit / Place / Home / Custom) and is
+  stated explicitly in §4.2 and §6.3.
+- **Double-entry:** Custom-words raw text has exactly one owner
+  (`GameConfig.customWordsRaw`) and one writer (CustomWordsPage).
+  ConfigPage only reads it for validation; its Save merges the
+  current stored value rather than its own draft field.
 
 ## 10. Open questions / follow-ups
 
@@ -449,3 +810,6 @@ None blocking. Future work (not this plan):
 - Difficulty presets shortcut.
 - Category filter applied to distractor pool only (currently applied
   whole-repo, which is stricter and correct for v0.1).
+- Inline per-line validation feedback on CustomWordsPage (current
+  behaviour silently drops invalid lines — acceptable for v0.1).
+- Custom-word difficulty selector (all currently pinned to 1).
