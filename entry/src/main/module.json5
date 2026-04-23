@@ -20,6 +20,12 @@
         "label": "$string:EntryAbility_label",
         "startWindowIcon": "$media:startIcon",
         "startWindowBackground": "$color:start_window_background",
+        // Lock to landscape (either direction) to match the spec §6.3 three-
+        // segment battle layout. `auto_rotation_landscape` rotates with the
+        // device between the two landscape orientations but forbids portrait,
+        // so kids can hold the tablet either way while our UI never collapses
+        // into a portrait column.
+        "orientation": "auto_rotation_landscape",
         "exported": true,
         "skills": [
           {

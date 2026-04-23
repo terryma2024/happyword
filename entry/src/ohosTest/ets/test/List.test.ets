@@ -1,7 +1,5 @@
-import abilityTest from './Ability.test';
-import indexPageUiTest from './IndexPage.ui.test';
+import routingFlowUiTest from './RoutingFlow.ui.test';
 
 export default function testsuite() {
-  abilityTest();
-  indexPageUiTest();
+  routingFlowUiTest();
 }

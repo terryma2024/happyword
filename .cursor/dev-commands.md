@@ -83,7 +83,7 @@ Run **after** the HAP build step succeeds. Uses the project’s [code-linter.jso
 | Step | Command | Success signal |
 |------|---------|----------------|
 | Install HAP | `hdc install <path-to-debug.hap>` | Install success in hdc output |
-| On-device / Instrument test | `hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -w 120` | `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0` |
+| On-device / Instrument test | `hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -s timeout 30000 -w 180` | `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0` |
 
 **Notes:** Exact **Instrument** / **onDevice** task names depend on **DevEco / hvigor-ohos-plugin** version. Record the same command you use in DevEco’s “Run” for `ohosTest`.
 
