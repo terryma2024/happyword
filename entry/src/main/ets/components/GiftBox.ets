@@ -1,9 +1,37 @@
 export const RIBBON_COLORS: string[] = ['#E63946', '#F4C430', '#457B9D', '#F78DA7'];
 
+// Phase-1 fly-out radius (vp) from the box center.
+export const RIBBON_FLY_RADIUS: number = 90;
+
+// Weak upward impulse (vp) applied to every ribbon's phase-1 target so that the
+// burst feels like an explosion with a slight upward lift rather than a purely
+// uniform radial puff. Screen coords: y grows downward, so "up" is negative y.
+export const RIBBON_UPWARD_BIAS: number = 25;
+
 export class Ribbon {
   id: number = 0;
   angleDeg: number = 0;
   color: string = '#E63946';
+}
+
+export class RibbonFlyTarget {
+  x: number = 0;
+  y: number = 0;
+}
+
+/**
+ * Pure helper: compute a ribbon's phase-1 fly target for a given angle.
+ *
+ * Applies RIBBON_FLY_RADIUS along the angle and then subtracts
+ * RIBBON_UPWARD_BIAS from y to bias the explosion upward. Kept pure so it is
+ * cheap to unit-test without touching the UI framework.
+ */
+export function computeRibbonFlyTarget(angleDeg: number): RibbonFlyTarget {
+  const angleRad: number = angleDeg * Math.PI / 180;
+  const out: RibbonFlyTarget = new RibbonFlyTarget();
+  out.x = Math.cos(angleRad) * RIBBON_FLY_RADIUS;
+  out.y = Math.sin(angleRad) * RIBBON_FLY_RADIUS - RIBBON_UPWARD_BIAS;
+  return out;
 }
 
 /**
@@ -34,7 +62,6 @@ const BOX_BODY_RED: string = '#E63946';
 const BOX_RIBBON_GOLD: string = '#F4C430';
 const AUTO_CLOSE_DELAY_MS: number = 1500;
 const RIBBON_COUNT: number = 10;
-const RIBBON_FLY_RADIUS: number = 90;
 const RIBBON_GRAVITY_DROP: number = 120;
 const RIBBON_PHASE1_MS: number = 300;
 const RIBBON_PHASE2_MS: number = 600;
@@ -53,9 +80,9 @@ struct GiftBoxRibbon {
   private phase2Timer: number = 0;
 
   aboutToAppear(): void {
-    const angleRad: number = this.angleDeg * Math.PI / 180;
-    const flyX: number = Math.cos(angleRad) * RIBBON_FLY_RADIUS;
-    const flyY: number = Math.sin(angleRad) * RIBBON_FLY_RADIUS;
+    const target: RibbonFlyTarget = computeRibbonFlyTarget(this.angleDeg);
+    const flyX: number = target.x;
+    const flyY: number = target.y;
 
     animateTo({ duration: RIBBON_PHASE1_MS, curve: Curve.EaseOut }, () => {
       this.tx = flyX;
