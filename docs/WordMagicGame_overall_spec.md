@@ -87,6 +87,16 @@ V0.1 的目标不是构建完整商业化游戏，而是交付一个可运行、
 
 该规则简单、可感知，并能在短局内频繁触发奖励。后续版本可扩展为更长连击条、技能槽或角色技能，但 V0.1 不引入额外复杂度。
 
+**V0.2 暴击视听分层 (crit spectacle).** 当 `AnswerOutcome.comboTriggered === true` 时，`BattlePage` 叠放以下五层反馈（详见 [2026-04-24-v0.2-design.md](superpowers/specs/2026-04-24-v0.2-design.md) §4），以让暴击明显强于普通攻击：
+
+1. **全屏金色闪光**：`CritOverlay` 中的 `CritGoldFlash`，`#FFB400` opacity `0 → 0.55 → 0`，约 450 ms。
+2. **巨型浮动伤害数字**：`CritDamageNumber` 72 vp，`-${outcome.damage}!` 悬浮于怪物卡片上方，联合 `translateY / opacity / scale` 约 700 ms。
+3. **怪物缓慢放大**：`CharacterCard.zoomPulse` 驱动 220 ms ease-out 放大至 1.12，保持 120 ms 后在 160 ms 内复位。
+4. **独立爆发音效**：`AudioService.play('hit_crit')`；普通攻击仍然使用 `hit_normal`。
+5. **延长的玩家施法动画**：`CharacterCard.castPulse` 触发 500 ms 旋转 + 缩放 + 金色光环，明显长于普通命中的 120 ms 轻推。
+
+普通命中走 `hurtPulse / nudgePulse`（150 ms / 120 ms），两条路径在 `onOptionTap` 里二选一触发，避免视觉叠加。`FEEDBACK_MS` 保持 650 ms，五层动画均在该窗口内完成。
+
 ### 4.4 星级奖励
 
 V0.1 采用轻量星级反馈，不涉及持久化货币。建议规则如下：
@@ -224,10 +234,14 @@ entry/src/main/resources/
 | `QuestionGenerator` | 从词库生成题目和干扰项           | `WordRepository`, `shuffle`        |
 | `BattleState`       | 保存当前血量、连击、怪物序号、统计数据   | 纯状态模型                              |
 | `BattleEngine`      | 执行答题判定、伤害、胜负和结算转换     | `BattleState`, `QuestionGenerator` |
-| `AudioService`      | 播放本地音效，封装 AVPlayer 细节 | HarmonyOS media API                |
+| `AudioService`      | 播放本地音效，封装 AVPlayer 细节；单键预加载 + 失败静音回退 | HarmonyOS media API                |
+| `PronunciationService` | 封装 `@kit.CoreSpeechKit` TTS，`speak(word)` 取消前一条，引擎不可用时静默 no-op (V0.2) | CoreSpeechKit                       |
+| `LearningRecorder`  | 维护 per-word 学习统计，100 ms 去抖写盘，暴露 `recordAnswer / recentWrongIds / newlyLearnedCount / totalLearnedCount` (V0.2) | `WrongAnswerStore`                  |
+| `WrongAnswerStore`  | `@ohos.data.preferences` 封装，`wordmagic_learning` JSON 持久化 `LearningSnapshot` (V0.2) | `@ohos.data.preferences`            |
 | `HpBar`             | 展示血量百分比               | UI 入参                              |
 | `ChoiceButton`      | 统一答案按钮样式与禁用态          | UI 入参                              |
-| `CharacterCard`     | 展示玩家或怪物形象和 HP         | `HpBar`                            |
+| `CharacterCard`     | 展示玩家或怪物形象和 HP；V0.2 新增 `hurtPulse / nudgePulse / zoomPulse / castPulse` 四个脉冲动画入口 | `HpBar`                            |
+| `CritOverlay`       | 暴击视觉三层：`CritGoldFlash` 全屏金闪 + `CritDamageNumber` 浮动伤害数字 + `CritCastGlow` 玩家施法光环 (V0.2) | `@Prop critPulse`                  |
 
 
 ### 7.4 状态流
@@ -450,11 +464,15 @@ V0.1 版本通过验收需满足以下条件：
 
 ## 15. 后续路线图
 
-### V0.2 学习体验增强
+### V0.2 学习体验增强（当前）
 
-- 加入音效、角色攻击动画和怪物受击动画。
-- 加入英文发音按钮或自动播放。
-- 增加错题回顾和本地学习记录。
+已落地，详见 [2026-04-24-v0.2-design.md](superpowers/specs/2026-04-24-v0.2-design.md)：
+
+- **Track A · 反馈打磨与暴击视听.** `AudioService` 统一音效派发（`hit_normal / hit_crit / answer_wrong / monster_defeat / victory / defeat`）；`CharacterCard` 增加 `hurtPulse / nudgePulse` 普通命中脉冲；`CritOverlay` 叠加 `CritGoldFlash` + `CritDamageNumber` + `CritCastGlow`，配合 `zoomPulse / castPulse` 让暴击显著强于普通攻击（见 §4.3）。相关任务：T9 / T10 / T11。
+- **Track B · 英文发音.** `PronunciationService` 封装 `@kit.CoreSpeechKit` TTS，`BattlePage.questionArea` 新增 `BattleSpeakerButton`；`GameConfig.autoSpeak` 由 `ConfigPage` 的 `ConfigAutoSpeakToggle` 切换。相关任务：T12。
+- **Track C · 本地学习记录.** `WrongAnswerStore` + `LearningRecorder` 通过 `@ohos.data.preferences` 持久化每词统计（100 ms 去抖），`ResultPage` 展示 `本局新学 N / 累计 M`。相关任务：T13。
+- **Track D · 错题复习模式.** `GameConfig.mode` 新增 `normal / review`；`HomePage.HomeReviewButton` 在 `recentWrongIds(12).length ≥ 3` 时启用；`BattlePage.aboutToAppear` 在复习模式下以错题池构建题目并覆盖 3 怪 / 120 s 参数；`BattlePage.navigateToResult` 结束时复位 `mode=normal`。相关任务：T14。
+- **Track E · 验证与文档.** 新增 UI 测试 `CritSpectacleUiTest / SpeakerButtonUiTest / ReviewModeUiTest` 与单测 `WrongAnswerStore / LearningRecorder`，并在 `RoutingFlow.ui.test.ets` 中导出 `resetToDefaultConfigShared` 作为共享测试夹具。相关任务：T15 / T16。
 
 ### V0.3 内容与关卡
 

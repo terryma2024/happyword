@@ -37,4 +37,16 @@ export class SessionResult {
 
   /** 0..3 per the spec §4.4 star table. */
   stars: number = 0;
+
+  /**
+   * V0.2 additions (spec §15 / learning record). Both come from
+   * LearningRecorder at the moment the battle ends.
+   * - newlyLearnedCount: words that crossed 0→1 correctness in THIS
+   *   session. Mirrors `LearningRecorder.newlyLearnedCount`.
+   * - totalLearnedCount: distinct words ever answered correctly at
+   *   least once, across all prior sessions. Mirrors
+   *   `LearningRecorder.totalLearnedCount` captured post-record.
+   */
+  newlyLearnedCount: number = 0;
+  totalLearnedCount: number = 0;
 }

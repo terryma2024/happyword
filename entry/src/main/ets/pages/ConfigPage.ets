@@ -118,6 +118,12 @@ struct ConfigPage {
     this.forceRerender();
   }
 
+  private toggleAutoSpeak(): void {
+    this.draft.autoSpeak = !this.draft.autoSpeak;
+    this.showValidationHint = false;
+    this.forceRerender();
+  }
+
   private toggleCategory(key: string): void {
     const idx: number = this.draft.enabledCategories.indexOf(key);
     if (idx >= 0) {
@@ -158,7 +164,7 @@ struct ConfigPage {
     }
 
     // Merge: keep stored customWordsRaw (owned by CustomWordsPage),
-    // overlay draft's stepper/timer/category edits.
+    // overlay draft's stepper/timer/category/autoSpeak edits.
     const merged: GameConfig =
       cloneGameConfig(storedNow !== undefined ? storedNow : new GameConfig());
     merged.playerMaxHp = this.draft.playerMaxHp;
@@ -166,6 +172,7 @@ struct ConfigPage {
     merged.monstersTotal = this.draft.monstersTotal;
     merged.startingSeconds = this.draft.startingSeconds;
     merged.enabledCategories = this.draft.enabledCategories.slice();
+    merged.autoSpeak = this.draft.autoSpeak;
 
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
     router.back();
@@ -269,6 +276,24 @@ struct ConfigPage {
   }
 
   @Builder
+  private autoSpeakRow() {
+    Row() {
+      Text('发音播放').fontSize(18).width(120);
+      Button(this.draft.autoSpeak ? '✓ 自动朗读' : '自动朗读')
+        .id('ConfigAutoSpeakToggle')
+        .width(140).height(40)
+        .fontSize(16)
+        .backgroundColor(this.draft.autoSpeak ? '#FFF4D0' : '#F0F0F0')
+        .fontColor(this.draft.autoSpeak ? '#B8860B' : '#666666')
+        .borderWidth(this.draft.autoSpeak ? 2 : 0)
+        .borderColor('#FFB400')
+        .onClick((): void => this.toggleAutoSpeak());
+    }
+    .margin({ bottom: 12 })
+    .alignItems(VerticalAlign.Center);
+  }
+
+  @Builder
   private categoryRow() {
     Row() {
       Text('词库类别').fontSize(18).width(120);
@@ -336,6 +361,7 @@ struct ConfigPage {
           'ConfigMonstersTotalInc', (): void => this.incMonstersTotal(), this.draft.monstersTotal < MONSTER_COUNT_MAX);
 
         this.timerRow();
+        this.autoSpeakRow();
         this.categoryRow();
 
         if (this.showValidationHint) {

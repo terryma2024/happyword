@@ -39,6 +39,60 @@ import {
   parseCustomWords,
   computeFinalPool
 } from '../main/ets/models/GameConfig';
+import {
+  AudioService,
+  ALL_SOUND_KEYS,
+  SoundKeys
+} from '../main/ets/services/AudioService';
+import {
+  LearningSnapshot,
+  WordStat,
+  WrongAnswerStore,
+  StringPreferencesLike,
+  parseSnapshot,
+  serializeSnapshot
+} from '../main/ets/services/WrongAnswerStore';
+import { LearningRecorder } from '../main/ets/services/LearningRecorder';
+
+/**
+ * Test-only Map-backed StringPreferencesLike. Used by both the
+ * WrongAnswerStore round-trip tests and the LearningRecorder unit
+ * tests so a single class covers every "fake prefs" need without
+ * relying on ArkTS untyped object literals.
+ */
+class FakePreferences implements StringPreferencesLike {
+  private readonly map: Map<string, string> = new Map<string, string>();
+
+  getString(key: string): Promise<string> {
+    return Promise.resolve(this.map.has(key) ? (this.map.get(key) as string) : '');
+  }
+
+  putString(key: string, value: string): Promise<void> {
+    this.map.set(key, value);
+    return Promise.resolve();
+  }
+
+  flush(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+/**
+ * Build a LearningRecorder seeded with a pre-existing snapshot and a
+ * no-op preferences stub. Factored to the top level because ArkTS
+ * strict mode rejects nested functions inside a `describe` block.
+ */
+function makeRecorderWithSnapshot(stats: WordStat[]): LearningRecorder {
+  const snap: LearningSnapshot = new LearningSnapshot();
+  for (let i = 0; i < stats.length; i++) {
+    snap.stats.push(stats[i]);
+  }
+  const store: WrongAnswerStore = new WrongAnswerStore();
+  store.injectPreferences(new FakePreferences());
+  const rec: LearningRecorder = new LearningRecorder(store);
+  rec.attachStore(store, snap);
+  return rec;
+}
 
 function makeWord(id: string, word: string, meaning: string, category: string): WordEntry {
   const e: WordEntry = new WordEntry();
@@ -1171,6 +1225,171 @@ export default function localUnitTest() {
       ];
       const out: WordEntry[] = computeFinalPool(all, ['fruit', 'home'], '');
       expect(out.length).assertEqual(3);
+    });
+  });
+
+  describe('AudioService', () => {
+    it('exposesAllSixSoundKeys', 0, () => {
+      // Guards against silently dropping a key when the SFX table is
+      // edited — every key BattlePage expects must be in the preload list.
+      expect(ALL_SOUND_KEYS.length).assertEqual(6);
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_NORMAL) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_CRIT) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.ANSWER_WRONG) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.MONSTER_DEFEAT) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.VICTORY) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.DEFEAT) >= 0).assertTrue();
+    });
+
+    it('playBeforePreloadIsSafeNoOp', 0, () => {
+      // New service with no preload should tolerate play() without
+      // throwing — this is the state during BattlePage's first render
+      // before AudioService.preload resolves.
+      const svc: AudioService = new AudioService();
+      svc.play(SoundKeys.HIT_NORMAL);
+      svc.play('unknown_key');
+      expect(svc.hasKey(SoundKeys.HIT_NORMAL)).assertFalse();
+      expect(svc.isPlayable(SoundKeys.HIT_NORMAL)).assertFalse();
+    });
+
+    it('playAfterDisposeIsNoOp', 0, async () => {
+      const svc: AudioService = new AudioService();
+      await svc.dispose();
+      svc.play(SoundKeys.HIT_NORMAL);
+      expect(svc.hasKey(SoundKeys.HIT_NORMAL)).assertFalse();
+    });
+  });
+
+  describe('WrongAnswerStore', () => {
+    it('parseEmptyReturnsFreshSnapshot', 0, () => {
+      const snap: LearningSnapshot = parseSnapshot('');
+      expect(snap.version).assertEqual(1);
+      expect(snap.stats.length).assertEqual(0);
+    });
+
+    it('parseMalformedJsonReturnsFreshSnapshot', 0, () => {
+      // Corrupt blobs should never throw or crash — kids don't deserve
+      // a startup loop if their on-disk file got truncated by a crash.
+      const snap: LearningSnapshot = parseSnapshot('{not json');
+      expect(snap.stats.length).assertEqual(0);
+    });
+
+    it('roundTripRestoresStats', 0, () => {
+      const original: LearningSnapshot = new LearningSnapshot();
+      const stat: WordStat = new WordStat();
+      stat.wordId = 'w1';
+      stat.seenCount = 5;
+      stat.correctCount = 3;
+      stat.wrongCount = 2;
+      stat.lastAnsweredMs = 12345;
+      original.stats.push(stat);
+      const json: string = serializeSnapshot(original);
+      const round: LearningSnapshot = parseSnapshot(json);
+      expect(round.stats.length).assertEqual(1);
+      expect(round.stats[0].wordId).assertEqual('w1');
+      expect(round.stats[0].correctCount).assertEqual(3);
+      expect(round.stats[0].wrongCount).assertEqual(2);
+      expect(round.stats[0].lastAnsweredMs).assertEqual(12345);
+    });
+
+    it('parseSkipsStatsWithEmptyWordId', 0, () => {
+      const payload: string =
+        '{"version":1,"stats":[{"wordId":"","correctCount":1},{"wordId":"ok"}]}';
+      const snap: LearningSnapshot = parseSnapshot(payload);
+      expect(snap.stats.length).assertEqual(1);
+      expect(snap.stats[0].wordId).assertEqual('ok');
+    });
+
+    it('saveThenLoadRoundTripsThroughInjectedStore', 0, async () => {
+      const fake: FakePreferences = new FakePreferences();
+      const store: WrongAnswerStore = new WrongAnswerStore();
+      store.injectPreferences(fake);
+
+      const snap: LearningSnapshot = new LearningSnapshot();
+      const s1: WordStat = new WordStat();
+      s1.wordId = 'apple';
+      s1.seenCount = 2;
+      s1.correctCount = 1;
+      s1.wrongCount = 1;
+      snap.stats.push(s1);
+
+      await store.save(snap);
+      const reloaded: LearningSnapshot = await store.load();
+      expect(reloaded.stats.length).assertEqual(1);
+      expect(reloaded.stats[0].wordId).assertEqual('apple');
+      expect(reloaded.stats[0].correctCount).assertEqual(1);
+    });
+  });
+
+  describe('LearningRecorder', () => {
+    it('recordCorrectCountsAsNewlyLearned', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.beginSession();
+      rec.recordAnswer('apple', true);
+      expect(rec.newlyLearnedCount).assertEqual(1);
+      expect(rec.totalLearnedCount).assertEqual(1);
+    });
+
+    it('alreadyLearnedWordDoesNotDoubleCount', 0, () => {
+      const prior: WordStat = new WordStat();
+      prior.wordId = 'apple';
+      prior.correctCount = 1;
+      prior.seenCount = 1;
+      const rec: LearningRecorder = makeRecorderWithSnapshot([prior]);
+      rec.beginSession();
+      rec.recordAnswer('apple', true);
+      // Apple was already learned before the session started — the
+      // session footer should stay at zero new words.
+      expect(rec.newlyLearnedCount).assertEqual(0);
+      expect(rec.totalLearnedCount).assertEqual(1);
+    });
+
+    it('wrongAnswerIncrementsWrongCountAndFeedsRecentWrongIds', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.beginSession();
+      rec.recordAnswer('apple', false);
+      rec.recordAnswer('pear', false);
+      rec.recordAnswer('grape', true);
+      const recent: string[] = rec.recentWrongIds(5);
+      expect(recent.length).assertEqual(2);
+      // Most-recent-first ordering — pear was logged after apple.
+      expect(recent[0]).assertEqual('pear');
+      expect(recent[1]).assertEqual('apple');
+    });
+
+    it('recentWrongIdsLimitClamps', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.beginSession();
+      rec.recordAnswer('a', false);
+      rec.recordAnswer('b', false);
+      rec.recordAnswer('c', false);
+      const two: string[] = rec.recentWrongIds(2);
+      expect(two.length).assertEqual(2);
+      const none: string[] = rec.recentWrongIds(0);
+      expect(none.length).assertEqual(0);
+    });
+
+    it('emptyWordIdIsIgnored', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.beginSession();
+      rec.recordAnswer('', true);
+      expect(rec.newlyLearnedCount).assertEqual(0);
+      expect(rec.totalLearnedCount).assertEqual(0);
+    });
+
+    it('recentWrongIdsSurviveSubsequentCorrectAnswer', 0, () => {
+      // Review mode uses `wrongCount > 0` as its inclusion criterion —
+      // even if the learner answers apple correctly later, the engine
+      // should still treat it as review-worthy because they got it
+      // wrong at least once historically. This test nails down that
+      // contract.
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.beginSession();
+      rec.recordAnswer('apple', false);
+      rec.recordAnswer('apple', true);
+      const recent: string[] = rec.recentWrongIds(5);
+      expect(recent.length).assertEqual(1);
+      expect(recent[0]).assertEqual('apple');
     });
   });
 }

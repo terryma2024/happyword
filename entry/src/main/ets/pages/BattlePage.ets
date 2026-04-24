@@ -18,6 +18,8 @@ import {
 import {
   GameConfig,
   GAME_CONFIG_STORAGE_KEY,
+  GAME_MODE_NORMAL,
+  GAME_MODE_REVIEW,
   cloneGameConfig,
   computeFinalPool
 } from '../models/GameConfig';
@@ -25,6 +27,10 @@ import { WordEntry } from '../models/WordEntry';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question } from '../models/Question';
+import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
+import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
+import { CritOverlay } from '../components/CritOverlay';
+import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 
 /**
  * BattlePage is the core gameplay screen.
@@ -57,8 +63,23 @@ import { Question } from '../models/Question';
  * screen still displays plausible numbers.
  */
 
+// V0.1 FEEDBACK_MS = 650 kept for V0.2. CritOverlay's ~700 ms
+// timeline is owned by animateTo callbacks that fire regardless of
+// whether the next question has loaded, so the full spectacle plays
+// out even if FEEDBACK_MS elapses in the middle of it. Existing UI
+// tests wait 800 ms after each tap, so leaving FEEDBACK_MS at 650
+// keeps them green.
 const FEEDBACK_MS: number = 650;
 const TICK_MS: number = 1000;
+/**
+ * Review-mode battle overrides. Kept as top-level constants so unit
+ * tests can import the same values and assert the review pool
+ * behaviour without poking at private fields. Matches spec §15 Track
+ * D: 3 monsters, 120 seconds.
+ */
+export const REVIEW_MODE_MONSTERS_TOTAL: number = 3;
+export const REVIEW_MODE_STARTING_SECONDS: number = 120;
+export const REVIEW_WINDOW_SIZE: number = 12;
 
 @Entry
 @Component
@@ -71,6 +92,16 @@ struct BattlePage {
   // survive across frames. They are populated asynchronously during
   // `aboutToAppear` so the first render shows the "Loading…" placeholder.
   private engine?: BattleEngine;
+  private audio: AudioService = new AudioService();
+  private tts: PronunciationService = new PronunciationService();
+  private recorder: LearningRecorder = getLearningRecorder();
+  private autoSpeak: boolean = true;
+  /**
+   * True when this battle was launched from HomePage's review button.
+   * Drives the 3-monster / 120-s overrides and the mode reset after
+   * the battle ends.
+   */
+  private isReviewMode: boolean = false;
   private feedbackTimer: number = -1;
   /**
    * Handle returned by setInterval for the 1Hz countdown driver. -1 when
@@ -97,6 +128,28 @@ struct BattlePage {
   @State comboCount: number = 0;
   @State remainingSeconds: number = DEFAULT_STARTING_SECONDS;
 
+  /**
+   * Monotonically-increasing pulse counters, passed through to
+   * CharacterCard @Prop @Watch hooks. See CharacterCard for the
+   * animation recipe tied to each counter.
+   *   - playerHurtPulse: ++ on every wrong answer.
+   *   - monsterHurtPulse: ++ on every correct non-crit answer.
+   *   - playerNudgePulse: ++ on every correct non-crit answer.
+   *   - monsterZoomPulse / playerCastPulse: ++ on every crit trigger.
+   */
+  @State playerHurtPulse: number = 0;
+  @State monsterHurtPulse: number = 0;
+  @State playerNudgePulse: number = 0;
+  @State monsterZoomPulse: number = 0;
+  @State playerCastPulse: number = 0;
+  /**
+   * Drives CritOverlay (full-bleed gold flash + big floating damage
+   * number). ++ on every crit trigger; `critDamage` mirrors
+   * outcome.damage so the overlay label renders the actual multiplier.
+   */
+  @State critPulse: number = 0;
+  @State critDamage: number = 2;
+
   // Question text shown while loading the dictionary. Real prompts overwrite
   // this once the engine produces its first question.
   @State prompt: string = 'Loading…';
@@ -122,14 +175,42 @@ struct BattlePage {
     // resolves. On success we snapshot the engine's state into our @State
     // fields, which triggers the first real render of the battle UI.
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    // Preload SFX in parallel with word-list loading. AudioService never
+    // throws — asset failures are silently muted — so we don't chain.
+    this.audio.preload(ctx, ALL_SOUND_KEYS).catch((err: BusinessError): void => {
+      console.error(`BattlePage: AudioService.preload failed: ${JSON.stringify(err)}`);
+    });
+    // Kick the TTS engine off in parallel — init resolves ~100-500 ms
+    // later on a healthy device, and speak() safely no-ops until then.
+    this.tts.init().catch((err: BusinessError): void => {
+      console.error(`BattlePage: PronunciationService.init failed: ${JSON.stringify(err)}`);
+    });
+    // Hydrate the learning recorder (idempotent — EntryAbility kicks
+    // it off at app boot, this is a belt-and-braces guarantee in case
+    // the user launches directly into BattlePage via a future deep
+    // link). The `beginSession` resets per-session counters so the
+    // ResultPage footer reflects THIS battle only.
+    this.recorder.init(ctx).then((): void => {
+      this.recorder.beginSession();
+    }).catch((err: BusinessError): void => {
+      console.error(`BattlePage: LearningRecorder.init failed: ${JSON.stringify(err)}`);
+    });
     const repo: WordRepository = new WordRepository();
     repo.loadFromRawfile(ctx).then((): void => {
       const storedCfg: GameConfig | undefined =
         AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
       const cfg: GameConfig = cloneGameConfig(storedCfg !== undefined ? storedCfg : new GameConfig());
+      this.autoSpeak = cfg.autoSpeak;
+      this.isReviewMode = cfg.mode === GAME_MODE_REVIEW;
 
-      const finalEntries: WordEntry[] =
+      // Universe pool: every word the player could be shown, honouring
+      // their category filters. For review mode we then *narrow* this
+      // to the set of wordIds they've recently answered wrong.
+      const universe: WordEntry[] =
         computeFinalPool(repo.all(), cfg.enabledCategories, cfg.customWordsRaw);
+      const finalEntries: WordEntry[] =
+        this.isReviewMode ? this.buildReviewPool(universe) : universe;
+
       const finalRepo: WordRepository = new WordRepository();
       finalRepo.setEntries(finalEntries);
 
@@ -138,13 +219,25 @@ struct BattlePage {
       const bc: BattleConfig = new BattleConfig();
       bc.playerMaxHp = cfg.playerMaxHp;
       bc.monsterMaxHp = cfg.monsterMaxHp;
-      bc.monstersTotal = cfg.monstersTotal;
-      bc.startingSeconds = cfg.startingSeconds;
+      // Review mode overrides (spec §15 Track D): a short, focused
+      // challenge — 3 monsters / 120 s — so the learner sees every
+      // word they just missed without a full 5-monster session.
+      if (this.isReviewMode) {
+        bc.monstersTotal = REVIEW_MODE_MONSTERS_TOTAL;
+        bc.startingSeconds = REVIEW_MODE_STARTING_SECONDS;
+      } else {
+        bc.monstersTotal = cfg.monstersTotal;
+        bc.startingSeconds = cfg.startingSeconds;
+      }
 
       const engine: BattleEngine = new BattleEngine(gen, bc);
       engine.start();
       this.engine = engine;
       this.syncFromEngine();
+      // Auto-speak the first question's English answer. Subsequent
+      // auto-speaks happen inside the onOptionTap closure when the
+      // next question is loaded.
+      this.maybeAutoSpeakCurrent(false);
       // Enable the option buttons once the engine is ready. syncFromEngine
       // has already seeded prompt/options/lastAnswerWord from the first
       // question generated by engine.start().
@@ -175,6 +268,80 @@ struct BattlePage {
       clearInterval(this.tickTimer);
       this.tickTimer = -1;
     }
+    // Best-effort audio teardown. AudioService.dispose() swallows
+    // per-player errors so we never need to await it.
+    this.audio.dispose().catch((err: BusinessError): void => {
+      console.error(`BattlePage: AudioService.dispose failed: ${JSON.stringify(err)}`);
+    });
+    this.tts.dispose();
+  }
+
+  /**
+   * Build the review-mode word pool by intersecting
+   * LearningRecorder.recentWrongIds with the active word universe.
+   * Falls back to the universe itself when fewer than
+   * MIN_POOL_SIZE matches are found — that can happen if the user
+   * changed category filters after the wrong answers were recorded.
+   *
+   * Exposed as a private method (not a free function) so it can
+   * remain untestable-at-the-function-level while still reading the
+   * single getLearningRecorder() singleton that other tests may
+   * swap out via __resetLearningRecorderForTest.
+   */
+  private buildReviewPool(universe: WordEntry[]): WordEntry[] {
+    const wrongIds: string[] = this.recorder.recentWrongIds(REVIEW_WINDOW_SIZE);
+    if (wrongIds.length === 0) {
+      return universe;
+    }
+    const lookup: Map<string, WordEntry> = new Map<string, WordEntry>();
+    for (let i = 0; i < universe.length; i++) {
+      lookup.set(universe[i].id, universe[i]);
+    }
+    const pool: WordEntry[] = [];
+    for (let i = 0; i < wrongIds.length; i++) {
+      const hit: WordEntry | undefined = lookup.get(wrongIds[i]);
+      if (hit !== undefined) {
+        pool.push(hit);
+      }
+    }
+    // Guard: QuestionGenerator requires at least 3 distinct entries to
+    // produce valid 3-option questions. If the review set collapses
+    // below that (user changed category filters etc.), degrade to
+    // the full universe so the battle can still start.
+    if (pool.length < 3) {
+      return universe;
+    }
+    return pool;
+  }
+
+  /**
+   * Auto-speak helper: bounces through the pure `shouldAutoSpeak`
+   * predicate so the decision stays unit-testable. Callers pass
+   * `isRevealing` true during the feedback window to suppress TTS
+   * while the crit/hurt SFX are already playing.
+   */
+  private resetModeToNormal(): void {
+    const storedCfg: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    if (storedCfg === undefined) {
+      return;
+    }
+    if (storedCfg.mode === GAME_MODE_NORMAL) {
+      return;
+    }
+    const next: GameConfig = cloneGameConfig(storedCfg);
+    next.mode = GAME_MODE_NORMAL;
+    AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, next);
+  }
+
+  private maybeAutoSpeakCurrent(isRevealing: boolean): void {
+    if (!shouldAutoSpeak(this.autoSpeak, this.tts.isAvailable, isRevealing)) {
+      return;
+    }
+    if (this.lastAnswerWord.length === 0) {
+      return;
+    }
+    this.tts.speak(this.lastAnswerWord);
   }
 
   /**
@@ -222,6 +389,7 @@ struct BattlePage {
       this.prompt = q.promptZh;
       this.options = [q.options[0], q.options[1], q.options[2]];
       this.lastAnswerWord = q.answer;
+      this.currentWordId = q.wordId;
     }
   }
 
@@ -258,8 +426,15 @@ struct BattlePage {
     const answeredPrompt: string = this.prompt;
     const answeredOptions: string[] = this.options.slice();
     const correctWord: string = this.lastAnswerWord;
+    const answeredWordId: string = this.currentWordId;
 
     const outcome: AnswerOutcome = engine.submitAnswer(text);
+    // Record the answer BEFORE syncFromEngine rotates to the next
+    // question so the wordId we pass is the one the player just
+    // answered. Falls through silently if the recorder wasn't ready.
+    if (answeredWordId.length > 0) {
+      this.recorder.recordAnswer(answeredWordId, outcome.correct);
+    }
 
     // Update stat displays (HP, combo, monster index) immediately so the
     // damage is visible before the reveal delay elapses.
@@ -290,12 +465,31 @@ struct BattlePage {
     if (outcome.comboTriggered) {
       this.feedbackText = `连击 3！魔法爆发 ×${outcome.damage}`;
       this.feedbackColor = '#FFB400';
+      this.audio.play(SoundKeys.HIT_CRIT);
+      // Crit path: skip the T10 nudge/hurt pulses (they would be
+      // washed out by the spectacle) and fire the zoom/cast layers
+      // plus the full-bleed CritOverlay (gold flash + big damage #).
+      this.monsterZoomPulse += 1;
+      this.playerCastPulse += 1;
+      this.critDamage = outcome.damage;
+      this.critPulse += 1;
     } else if (outcome.correct) {
       this.feedbackText = '正确！';
       this.feedbackColor = '#2ECC71';
+      this.audio.play(SoundKeys.HIT_NORMAL);
+      this.monsterHurtPulse += 1;
+      this.playerNudgePulse += 1;
     } else {
       this.feedbackText = `正确答案是 ${correctWord}`;
       this.feedbackColor = '#E74C3C';
+      this.audio.play(SoundKeys.ANSWER_WRONG);
+      this.playerHurtPulse += 1;
+    }
+    // Layer a monster-defeat cue on top of the hit SFX when the final
+    // blow landed but the battle is not yet over. The win-side cue is
+    // handled in onBattleEnded so it doesn't double up with hit_crit.
+    if (outcome.monsterDefeated && !outcome.battleEnded) {
+      this.audio.play(SoundKeys.MONSTER_DEFEAT);
     }
 
     // Snapshot the next question now so the closure below doesn't have to
@@ -315,6 +509,9 @@ struct BattlePage {
         this.prompt = nextQuestion.promptZh;
         this.options = [nextQuestion.options[0], nextQuestion.options[1], nextQuestion.options[2]];
         this.lastAnswerWord = nextQuestion.answer;
+        // New question loaded — feedback window is closed so it's
+        // safe to auto-speak the answer now.
+        this.maybeAutoSpeakCurrent(false);
       }
       this.optionStates = [ChoiceState.Idle, ChoiceState.Idle, ChoiceState.Idle];
     }, FEEDBACK_MS);
@@ -327,6 +524,12 @@ struct BattlePage {
    * for the question the player just answered.
    */
   private lastAnswerWord: string = '';
+  /**
+   * WordId of the currently-displayed question. Tracked alongside
+   * lastAnswerWord so LearningRecorder gets the stable identifier
+   * (survives deck reshuffles) rather than the display string.
+   */
+  private currentWordId: string = '';
 
   private onBattleEnded(outcome: AnswerOutcome): void {
     const engine: BattleEngine | undefined = this.engine;
@@ -339,6 +542,14 @@ struct BattlePage {
     if (this.tickTimer >= 0) {
       clearInterval(this.tickTimer);
       this.tickTimer = -1;
+    }
+    // Play the terminal fanfare just before we navigate. AudioService
+    // drops the cue silently if preload failed, and ResultPage doesn't
+    // own an AudioService so this is the last chance to emit it.
+    if (outcome.endStatus === BattleStatus.Won) {
+      this.audio.play(SoundKeys.VICTORY);
+    } else {
+      this.audio.play(SoundKeys.DEFEAT);
     }
     this.navigateToResult(engine.buildSessionResult());
   }
@@ -377,6 +588,22 @@ struct BattlePage {
       return;
     }
     this.battleEndHandled = true;
+    // Enrich the engine-built SessionResult with learning-record
+    // totals before ResultPage consumes it. The engine doesn't know
+    // about the recorder, so this is the integration point.
+    result.newlyLearnedCount = this.recorder.newlyLearnedCount;
+    result.totalLearnedCount = this.recorder.totalLearnedCount;
+    // Review mode is always a single-battle affordance — reset the
+    // stored GameConfig back to 'normal' so the next HomePage launch
+    // doesn't accidentally start another review session. Done even
+    // when we weren't in review mode so a stale flag from a crashed
+    // previous session gets cleaned up on any battle end.
+    this.resetModeToNormal();
+    // Force a final flush so counters survive a force-stop — disk
+    // errors are swallowed inside flushNow() so nothing is leaked.
+    this.recorder.flushNow().catch((err: BusinessError): void => {
+      console.error(`BattlePage: LearningRecorder.flushNow failed: ${JSON.stringify(err)}`);
+    });
     router.replaceUrl({
       url: 'pages/ResultPage',
       params: result,
@@ -433,6 +660,24 @@ struct BattlePage {
           .fontWeight(FontWeight.Bold)
           .fontColor('#1D3557')
           .margin({ top: 16 });
+        // Speaker button — tap re-plays the English pronunciation
+        // regardless of the autoSpeak config. Rendered even when
+        // TTS init failed so the UI layout is stable; the tap path
+        // then silently no-ops via PronunciationService.isAvailable.
+        Button('🔊')
+          .id('BattleSpeakerButton')
+          .type(ButtonType.Circle)
+          .width(40)
+          .height(40)
+          .fontSize(18)
+          .fontColor('#457B9D')
+          .backgroundColor('#EAF2F8')
+          .margin({ top: 12 })
+          .onClick((): void => {
+            if (this.lastAnswerWord.length > 0) {
+              this.tts.speak(this.lastAnswerWord);
+            }
+          });
         Text(this.feedbackText)
           .id('BattleFeedback')
           .fontSize(18)
@@ -499,49 +744,66 @@ struct BattlePage {
   }
 
   build(): void {
-    Column() {
-      this.header();
+    Stack() {
+      // Main content — header, character row, options. The Stack wrapper
+      // exists so CritOverlay can sit above everything on the Z axis
+      // without forcing the option buttons beneath it to reflow.
+      Column() {
+        this.header();
 
-      Row({ space: 16 }) {
-        Column() {
-          CharacterCard({
-            kind: CharacterKind.Mage,
-            name: this.playerName,
-            hp: this.playerHp,
-            maxHp: this.playerMaxHp,
-            sublabel: '',
-          });
+        Row({ space: 16 }) {
+          Column() {
+            CharacterCard({
+              kind: CharacterKind.Mage,
+              name: this.playerName,
+              hp: this.playerHp,
+              maxHp: this.playerMaxHp,
+              sublabel: '',
+              hurtPulse: this.playerHurtPulse,
+              nudgePulse: this.playerNudgePulse,
+              castPulse: this.playerCastPulse,
+            });
+          }
+          .id('PlayerArea')
+          .layoutWeight(1)
+          .height('100%')
+          .justifyContent(FlexAlign.Center);
+
+          this.questionArea();
+
+          Column() {
+            CharacterCard({
+              kind: CharacterKind.Slime,
+              name: this.monsterName,
+              hp: this.monsterHp,
+              maxHp: this.monsterMaxHp,
+              sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
+              hurtPulse: this.monsterHurtPulse,
+              zoomPulse: this.monsterZoomPulse,
+            });
+          }
+          .id('MonsterArea')
+          .layoutWeight(1)
+          .height('100%')
+          .justifyContent(FlexAlign.Center);
         }
-        .id('PlayerArea')
+        .width('100%')
         .layoutWeight(1)
-        .height('100%')
-        .justifyContent(FlexAlign.Center);
+        .alignItems(VerticalAlign.Center)
+        .padding({ left: 20, right: 20, top: 4, bottom: 4 });
 
-        this.questionArea();
-
-        Column() {
-          CharacterCard({
-            kind: CharacterKind.Slime,
-            name: this.monsterName,
-            hp: this.monsterHp,
-            maxHp: this.monsterMaxHp,
-            sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
-          });
-        }
-        .id('MonsterArea')
-        .layoutWeight(1)
-        .height('100%')
-        .justifyContent(FlexAlign.Center);
+        this.optionsRow();
       }
       .width('100%')
-      .layoutWeight(1)
-      .alignItems(VerticalAlign.Center)
-      .padding({ left: 20, right: 20, top: 4, bottom: 4 });
+      .height('100%')
+      .backgroundColor('#F8F9FA');
 
-      this.optionsRow();
+      // Crit spectacle layers — gold flash + big floating damage
+      // number. CritOverlay sets hitTestBehavior = Transparent so it
+      // never intercepts taps destined for the ChoiceButtons.
+      CritOverlay({ critPulse: this.critPulse, damage: this.critDamage });
     }
     .width('100%')
-    .height('100%')
-    .backgroundColor('#F8F9FA');
+    .height('100%');
   }
 }

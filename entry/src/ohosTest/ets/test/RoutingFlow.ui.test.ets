@@ -22,6 +22,15 @@ import { Want } from '@kit.AbilityKit';
 
 const delegator: abilityDelegatorRegistry.AbilityDelegator = abilityDelegatorRegistry.getAbilityDelegator();
 
+/**
+ * Exported launcher for sibling UI test files (e.g. CritSpectacle) so
+ * they can reuse the cold-launch delay without duplicating bundle name
+ * lookup. Behavior matches the internal `launchApp` used by this suite.
+ */
+export async function launchAppShared(): Promise<Driver> {
+  return launchApp();
+}
+
 async function launchApp(): Promise<Driver> {
   const bundleName: string = abilityDelegatorRegistry.getArguments().bundleName;
   const want: Want = { bundleName, abilityName: 'EntryAbility' };
@@ -63,6 +72,10 @@ async function setChipSelected(driver: Driver, chipId: string, wantSelected: boo
  * throws a confusing "Cannot read property click of null" — asserting first
  * gives a clear component-not-found error at the point of failure.
  */
+export async function clickByIdShared(driver: Driver, id: string): Promise<void> {
+  return clickById(driver, id);
+}
+
 async function clickById(driver: Driver, id: string): Promise<void> {
   await driver.assertComponentExist(ON.id(id));
   const comp = await driver.findComponent(ON.id(id));
@@ -137,6 +150,10 @@ function lookupEnglishAnswer(zhPrompt: string): string {
  * answer that was clicked (useful for logging; the winFlow test uses
  * it to distinguish "no match" from successful clicks).
  */
+export async function tapCorrectAnswerShared(driver: Driver): Promise<string> {
+  return tapCorrectAnswer(driver);
+}
+
 async function tapCorrectAnswer(driver: Driver): Promise<string> {
   const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
   const promptText: string = await promptComp.getText();
@@ -201,6 +218,10 @@ function isCustomTestPrompt(prompt: string): boolean {
  * text is NOT that answer. Returns the wrong-answer text that was
  * clicked (for diagnostic logging).
  */
+export async function tapWrongAnswerShared(driver: Driver): Promise<string> {
+  return tapWrongAnswer(driver);
+}
+
 async function tapWrongAnswer(driver: Driver): Promise<string> {
   const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
   const promptText: string = await promptComp.getText();
@@ -224,13 +245,43 @@ async function tapWrongAnswer(driver: Driver): Promise<string> {
  * Plain-old-data carrier passed to openConfigAndApply. Defaults mirror
  * the GameConfig defaults so tests only have to set the fields they
  * actually care about.
+ *
+ * Exported so sibling UI test files can reset the shared AppStorage
+ * config back to defaults at the start of their own `it` blocks —
+ * necessary because the runner holds the app open between suites and
+ * RoutingFlow's last test leaves the config pinned to a 1-monster /
+ * 1-HP custom-words loop that would end a regular battle after a
+ * single correct tap.
  */
-class TestGameConfig {
+export class TestGameConfig {
   playerHp: number = 5;
   monsterHp: number = 3;
   monstersTotal: number = 5;
   timerChipId: string = 'ConfigTimer300s';
   categories: string[] = ['fruit']; // may include 'custom'
+}
+
+/**
+ * Shared wrapper around openConfigAndApply for sibling UI test files.
+ * Call at the start of any test that needs the default battle shape
+ * (5 HP / 3 HP / 5 monsters / 300 s / fruit) so RoutingFlow's final
+ * custom-words test cannot leak its 1-monster config into us.
+ */
+export async function applyConfigShared(driver: Driver,
+                                        cfg: TestGameConfig): Promise<void> {
+  return openConfigAndApply(driver, cfg);
+}
+
+/**
+ * Convenience helper used by every sibling V0.2 UI test. Resets the
+ * shared AppStorage config to sensible defaults (5 HP / 3 HP /
+ * 5 monsters / 300 s / fruit category) so a failing prior test or a
+ * test ordering difference can't cause us to inherit a config where
+ * one correct tap ends the battle.
+ */
+export async function resetToDefaultConfigShared(driver: Driver): Promise<void> {
+  const cfg: TestGameConfig = new TestGameConfig();
+  await openConfigAndApply(driver, cfg);
 }
 
 /**
@@ -321,6 +372,15 @@ async function openConfigAndApply(driver: Driver, cfg: TestGameConfig): Promise<
     }
   }
 
+  // V0.2 note: ConfigPage grew the `ConfigAutoSpeakToggle` row (auto-
+  // play pronunciation toggle), which on a narrow landscape emulator
+  // pushes ConfigSaveButton below the viewport. Swipe up on the
+  // Scroll container so Save is reachable. The swipe is idempotent
+  // on already-in-view content and cheap (one gesture), so we always
+  // perform it rather than gating on screen size.
+  await driver.swipe(1400, 1100, 1400, 300, 600);
+  await driver.delayMs(300);
+  await driver.assertComponentExist(ON.id('ConfigSaveButton'));
   const save = await driver.findComponent(ON.id('ConfigSaveButton'));
   await save.click();
   await driver.delayMs(800);
@@ -363,7 +423,13 @@ async function openCustomWordsAndSave(driver: Driver, rawText: string): Promise<
   await driver.delayMs(800);
   await driver.assertComponentExist(ON.id('ConfigTitle'));
 
-  // Exit ConfigPage without altering other fields.
+  // V0.2 note: ConfigPage grew the `ConfigAutoSpeakToggle` row,
+  // pushing Save/Cancel below the viewport on a narrow landscape
+  // emulator. Swipe up once before looking for the Cancel button
+  // so findComponent doesn't return null.
+  await driver.swipe(1400, 1100, 1400, 300, 600);
+  await driver.delayMs(300);
+  await driver.assertComponentExist(ON.id('ConfigCancelButton'));
   const cancel = await driver.findComponent(ON.id('ConfigCancelButton'));
   await cancel.click();
   await driver.delayMs(800);
