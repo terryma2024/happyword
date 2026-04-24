@@ -225,23 +225,23 @@ entry/src/main/resources/
 ### 7.3 模块职责
 
 
-| 模块                  | 职责                    | 依赖                                 |
-| ------------------- | --------------------- | ---------------------------------- |
-| `WordEntry`         | 定义单词数据结构              | 无                                  |
-| `Question`          | 定义单题提示、选项、答案          | `WordEntry`                        |
-| `SessionResult`     | 定义结算数据                | `BattleState` 输出                   |
-| `WordRepository`    | 加载本地 JSON 词库，按分类/难度筛选 | 资源管理器                              |
-| `QuestionGenerator` | 从词库生成题目和干扰项           | `WordRepository`, `shuffle`        |
-| `BattleState`       | 保存当前血量、连击、怪物序号、统计数据   | 纯状态模型                              |
-| `BattleEngine`      | 执行答题判定、伤害、胜负和结算转换     | `BattleState`, `QuestionGenerator` |
-| `AudioService`      | 播放本地音效，封装 AVPlayer 细节；单键预加载 + 失败静音回退 | HarmonyOS media API                |
-| `PronunciationService` | 封装 `@kit.CoreSpeechKit` TTS，`speak(word)` 取消前一条，引擎不可用时静默 no-op (V0.2) | CoreSpeechKit                       |
-| `LearningRecorder`  | 维护 per-word 学习统计，100 ms 去抖写盘，暴露 `recordAnswer / recentWrongIds / newlyLearnedCount / totalLearnedCount` (V0.2) | `WrongAnswerStore`                  |
-| `WrongAnswerStore`  | `@ohos.data.preferences` 封装，`wordmagic_learning` JSON 持久化 `LearningSnapshot` (V0.2) | `@ohos.data.preferences`            |
-| `HpBar`             | 展示血量百分比               | UI 入参                              |
-| `ChoiceButton`      | 统一答案按钮样式与禁用态          | UI 入参                              |
-| `CharacterCard`     | 展示玩家或怪物形象和 HP；V0.2 新增 `hurtPulse / nudgePulse / zoomPulse / castPulse` 四个脉冲动画入口 | `HpBar`                            |
-| `CritOverlay`       | 暴击视觉三层：`CritGoldFlash` 全屏金闪 + `CritDamageNumber` 浮动伤害数字 + `CritCastGlow` 玩家施法光环 (V0.2) | `@Prop critPulse`                  |
+| 模块                     | 职责                                                                                                             | 依赖                                 |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `WordEntry`            | 定义单词数据结构                                                                                                       | 无                                  |
+| `Question`             | 定义单题提示、选项、答案                                                                                                   | `WordEntry`                        |
+| `SessionResult`        | 定义结算数据                                                                                                         | `BattleState` 输出                   |
+| `WordRepository`       | 加载本地 JSON 词库，按分类/难度筛选                                                                                          | 资源管理器                              |
+| `QuestionGenerator`    | 从词库生成题目和干扰项                                                                                                    | `WordRepository`, `shuffle`        |
+| `BattleState`          | 保存当前血量、连击、怪物序号、统计数据                                                                                            | 纯状态模型                              |
+| `BattleEngine`         | 执行答题判定、伤害、胜负和结算转换                                                                                              | `BattleState`, `QuestionGenerator` |
+| `AudioService`         | 播放本地音效，封装 AVPlayer 细节；单键预加载 + 失败静音回退                                                                           | HarmonyOS media API                |
+| `PronunciationService` | 封装 `@kit.CoreSpeechKit` TTS，`speak(word)` 取消前一条，引擎不可用时静默 no-op (V0.2)                                          | CoreSpeechKit                      |
+| `LearningRecorder`     | 维护 per-word 学习统计，100 ms 去抖写盘，暴露 `recordAnswer / recentWrongIds / newlyLearnedCount / totalLearnedCount` (V0.2) | `WrongAnswerStore`                 |
+| `WrongAnswerStore`     | `@ohos.data.preferences` 封装，`wordmagic_learning` JSON 持久化 `LearningSnapshot` (V0.2)                            | `@ohos.data.preferences`           |
+| `HpBar`                | 展示血量百分比                                                                                                        | UI 入参                              |
+| `ChoiceButton`         | 统一答案按钮样式与禁用态                                                                                                   | UI 入参                              |
+| `CharacterCard`        | 展示玩家或怪物形象和 HP；V0.2 新增 `hurtPulse / nudgePulse / zoomPulse / castPulse` 四个脉冲动画入口                                | `HpBar`                            |
+| `CritOverlay`          | 暴击视觉三层：`CritGoldFlash` 全屏金闪 + `CritDamageNumber` 浮动伤害数字 + `CritCastGlow` 玩家施法光环 (V0.2)                         | `@Prop critPulse`                  |
 
 
 ### 7.4 状态流
