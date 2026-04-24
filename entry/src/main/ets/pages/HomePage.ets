@@ -127,20 +127,36 @@ struct HomePage {
       .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center);
 
-      Button('⚙')
-        .id('HomeConfigButton')
-        .type(ButtonType.Circle)
-        .width(56)
-        .height(56)
-        .fontSize(28)
-        .fontColor('#457B9D')
-        .backgroundColor('#EAF2F8')
-        .margin({ top: 16, right: 16 })
-        .onClick((): void => {
-          router.pushUrl({ url: 'pages/ConfigPage' }).catch((err: BusinessError) => {
-            console.error(`HomePage: pushUrl ConfigPage failed: ${JSON.stringify(err)}`);
+      Row({ space: 12 }) {
+        Button('🧪')
+          .id('HomeTtsTestButton')
+          .type(ButtonType.Circle)
+          .width(56)
+          .height(56)
+          .fontSize(24)
+          .fontColor('#457B9D')
+          .backgroundColor('#EAF2F8')
+          .onClick((): void => {
+            router.pushUrl({ url: 'pages/TtsTestPage' }).catch((err: BusinessError): void => {
+              console.error(`HomePage: pushUrl TtsTestPage failed: ${JSON.stringify(err)}`);
+            });
           });
-        });
+
+        Button('⚙')
+          .id('HomeConfigButton')
+          .type(ButtonType.Circle)
+          .width(56)
+          .height(56)
+          .fontSize(28)
+          .fontColor('#457B9D')
+          .backgroundColor('#EAF2F8')
+          .onClick((): void => {
+            router.pushUrl({ url: 'pages/ConfigPage' }).catch((err: BusinessError) => {
+              console.error(`HomePage: pushUrl ConfigPage failed: ${JSON.stringify(err)}`);
+            });
+          });
+      }
+      .margin({ top: 16, right: 16 });
     }
     .alignContent(Alignment.TopEnd)
     .width('100%')

@@ -26,9 +26,16 @@ import { BusinessError } from '@ohos.base';
  * from @kit.CoreSpeechKit) because the kit's CreateEngineParams type
  * doesn't expose all four fields as a named type we can reference
  * cleanly from ArkTS strict mode.
+ *
+ * HarmonyOS CoreSpeechKit note (verified on MatePad Air / HarmonyOS 6,
+ * 2026-04): `createEngine` only accepts `language: 'zh-CN'`. Passing
+ * `'en-US'` fails with `1002300003 "person not support!"`. The zh-CN
+ * engine transparently handles English input — latin-script words are
+ * pronounced with its built-in English voice — so we create a zh-CN
+ * engine and pass the English word straight to speak().
  */
 export class PronunciationInitParams {
-  language: string = 'en-US';
+  language: string = 'zh-CN';
   person: number = 0;
   /** Online-only voice disables offline fallback; 0 = default (on-device if available). */
   online: number = 1;
@@ -110,8 +117,26 @@ export class PronunciationService {
     try {
       engine.stop();
       this.utteranceCounter += 1;
+      // Pin playback to the MEDIA audio stream (soundChannel=1 maps to
+      // AudioKit's STREAM_USAGE_MEDIA) so TTS volume follows the same
+      // slider as the game's SFX/music. Verified 2026-04 on MatePad Air
+      // (HarmonyOS 6): the default routing is VOICE_ASSISTANT (chan=3),
+      // which on tablets has a separate, commonly-low volume level
+      // (seen at 1/15, gain ≈ -54 dB → inaudible) so kids couldn't hear
+      // the pronunciation even though PCM was synthesised and written.
+      // playType=1 tells the engine to both synthesise AND play; if we
+      // dropped that we'd have to render PCM ourselves.
+      const extra: Record<string, Object> = {
+        'queueMode': 0,
+        'speed': 1,
+        'volume': 1,
+        'pitch': 1,
+        'soundChannel': 1,
+        'playType': 1,
+      };
       const speakParams: textToSpeech.SpeakParams = {
         requestId: `wordmagic_${this.utteranceCounter}`,
+        extraParams: extra,
       };
       engine.speak(trimmed, speakParams);
     } catch (err) {
