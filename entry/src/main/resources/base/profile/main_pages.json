@@ -4,6 +4,7 @@
     "pages/BattlePage",
     "pages/ResultPage",
     "pages/ConfigPage",
-    "pages/CustomWordsPage"
+    "pages/CustomWordsPage",
+    "pages/TtsTestPage"
   ]
 }
