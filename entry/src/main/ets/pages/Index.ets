@@ -83,7 +83,10 @@ struct Index {
         return;
     }
     try {
-      await player.seek(0);
+      // `seek` is a fire-and-forget call on AVPlayer (callback-driven
+      // via stateChange events); it is typed as `void` so awaiting it
+      // is a no-op that codelinter flags.
+      player.seek(0);
       await player.play();
     } catch (err) {
       console.error('Playback failed:', JSON.stringify(err as BusinessError));

@@ -30,6 +30,7 @@ import { Question } from '../models/Question';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
 import { CritOverlay } from '../components/CritOverlay';
+import { MagicProjectile } from '../components/MagicProjectile';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 
 /**
@@ -111,6 +112,13 @@ struct BattlePage {
    */
   private tickTimer: number = -1;
   /**
+   * Outstanding setTimeout handles for the delayed impact effects (hurt
+   * pulses, shockwave, etc.) that fire after a magic projectile reaches
+   * its target. Cleared on teardown so they cannot mutate @State on a
+   * page that is no longer in the navigation stack.
+   */
+  private impactTimers: number[] = [];
+  /**
    * Guard against re-entering onBattleEnded. Two paths can race to it —
    * a submitted answer and a timer tick firing at almost the same instant
    * — and we only want ONE router.replaceUrl per session.
@@ -143,12 +151,24 @@ struct BattlePage {
   @State monsterZoomPulse: number = 0;
   @State playerCastPulse: number = 0;
   /**
-   * Drives CritOverlay (full-bleed gold flash + big floating damage
-   * number). ++ on every crit trigger; `critDamage` mirrors
-   * outcome.damage so the overlay label renders the actual multiplier.
+   * Drives CritOverlay (full-bleed gold flash + expanding shockwave +
+   * big floating damage number). ++ on every crit trigger; `critDamage`
+   * mirrors outcome.damage so the overlay label renders the actual
+   * multiplier.
    */
   @State critPulse: number = 0;
   @State critDamage: number = 2;
+
+  /**
+   * Drives MagicProjectile overlays. Forward fires from mage to monster
+   * on every correct answer (and combo burst); backward fires from
+   * monster to mage on wrong answers. `projectileIntensity` is read at
+   * pulse time by MagicProjectile to scale the orb up and recolour it
+   * gold for combo bursts.
+   */
+  @State projectileForwardPulse: number = 0;
+  @State projectileBackwardPulse: number = 0;
+  @State projectileIntensity: number = 1;
 
   // Question text shown while loading the dictionary. Real prompts overwrite
   // this once the engine produces its first question.
@@ -268,6 +288,10 @@ struct BattlePage {
       clearInterval(this.tickTimer);
       this.tickTimer = -1;
     }
+    for (let i = 0; i < this.impactTimers.length; i++) {
+      clearTimeout(this.impactTimers[i]);
+    }
+    this.impactTimers = [];
     // Best-effort audio teardown. AudioService.dispose() swallows
     // per-player errors so we never need to await it.
     this.audio.dispose().catch((err: BusinessError): void => {
@@ -332,6 +356,21 @@ struct BattlePage {
     const next: GameConfig = cloneGameConfig(storedCfg);
     next.mode = GAME_MODE_NORMAL;
     AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, next);
+  }
+
+  /**
+   * Schedule an impact callback to run after the magic projectile
+   * roughly reaches its target. The projectile spends ~80 ms spawning
+   * and ~260 ms travelling (see MagicProjectile constants), so 320 ms
+   * lands the impact a touch before the explode-out frame and reads as
+   * the orb striking the character. Tracked in `impactTimers` so a
+   * teardown clears any pending callbacks before they touch @State.
+   */
+  private scheduleImpact(cb: () => void): void {
+    const id: number = setTimeout((): void => {
+      cb();
+    }, 320);
+    this.impactTimers.push(id);
   }
 
   private maybeAutoSpeakCurrent(isRevealing: boolean): void {
@@ -466,24 +505,42 @@ struct BattlePage {
       this.feedbackText = `连击 3！魔法爆发 ×${outcome.damage}`;
       this.feedbackColor = '#FFB400';
       this.audio.play(SoundKeys.HIT_CRIT);
-      // Crit path: skip the T10 nudge/hurt pulses (they would be
-      // washed out by the spectacle) and fire the zoom/cast layers
-      // plus the full-bleed CritOverlay (gold flash + big damage #).
-      this.monsterZoomPulse += 1;
+      // Crit path: launch a charged forward projectile and the cast
+      // glow immediately, then time the impact spectacle (zoom +
+      // shockwave + big floating damage number) to fire when the
+      // projectile reaches the monster.
+      this.projectileIntensity = outcome.damage;
+      this.projectileForwardPulse += 1;
       this.playerCastPulse += 1;
-      this.critDamage = outcome.damage;
-      this.critPulse += 1;
+      this.scheduleImpact((): void => {
+        this.monsterZoomPulse += 1;
+        this.critDamage = outcome.damage;
+        this.critPulse += 1;
+      });
     } else if (outcome.correct) {
       this.feedbackText = '正确！';
       this.feedbackColor = '#2ECC71';
       this.audio.play(SoundKeys.HIT_NORMAL);
-      this.monsterHurtPulse += 1;
+      // Forward projectile flies first, monster hurt + shake fire on
+      // arrival; player nudge is the recoil from casting and stays at
+      // launch time so the lunge precedes the impact.
+      this.projectileIntensity = 1;
+      this.projectileForwardPulse += 1;
       this.playerNudgePulse += 1;
+      this.scheduleImpact((): void => {
+        this.monsterHurtPulse += 1;
+      });
     } else {
       this.feedbackText = `正确答案是 ${correctWord}`;
       this.feedbackColor = '#E74C3C';
       this.audio.play(SoundKeys.ANSWER_WRONG);
-      this.playerHurtPulse += 1;
+      // Backward projectile: monster fires back at the mage. Player
+      // hurt + shake fire on arrival.
+      this.projectileIntensity = 1;
+      this.projectileBackwardPulse += 1;
+      this.scheduleImpact((): void => {
+        this.playerHurtPulse += 1;
+      });
     }
     // Layer a monster-defeat cue on top of the hit SFX when the final
     // blow landed but the battle is not yet over. The win-side cue is
@@ -798,9 +855,26 @@ struct BattlePage {
       .height('100%')
       .backgroundColor('#F8F9FA');
 
-      // Crit spectacle layers — gold flash + big floating damage
-      // number. CritOverlay sets hitTestBehavior = Transparent so it
-      // never intercepts taps destined for the ChoiceButtons.
+      // Magic projectile overlays — sit between the battle scene and
+      // the crit spectacle. Forward-firing orb travels mage -> monster
+      // on correct answers (gold-recoloured & enlarged for combo
+      // bursts); backward-firing orb travels monster -> mage on wrong
+      // answers. Both ignore hit testing so option taps still land.
+      MagicProjectile({
+        projectilePulse: this.projectileForwardPulse,
+        forward: true,
+        intensity: this.projectileIntensity,
+      });
+      MagicProjectile({
+        projectilePulse: this.projectileBackwardPulse,
+        forward: false,
+        intensity: 1,
+      });
+
+      // Crit spectacle layers — gold flash + expanding shockwave + big
+      // floating damage number. CritOverlay sets hitTestBehavior =
+      // Transparent so it never intercepts taps destined for the
+      // ChoiceButtons.
       CritOverlay({ critPulse: this.critPulse, damage: this.critDamage });
     }
     .width('100%')

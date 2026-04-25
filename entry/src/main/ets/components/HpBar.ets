@@ -10,6 +10,7 @@
  * clamping side-effects on its inputs. Callers are responsible for supplying
  * non-negative values; defensive clamping here would just hide bugs upstream.
  */
+@Reusable
 @Component
 export struct HpBar {
   @Prop current: number = 0;

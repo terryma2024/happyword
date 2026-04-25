@@ -78,26 +78,56 @@ export struct CharacterCard {
   }
 
   /**
-   * Monster hurt: squash to 0.95 with a red overlay flash, then relax.
-   * Skipped on the very first @Watch callback that fires when the
-   * parent initialises the prop (value still at default 0 for a freshly
-   * spawned card). Detected via hurtPulse <= 0.
+   * Hurt animation: squash + red overlay flash + side-to-side shake to
+   * sell the impact. The shake fires the same direction as the incoming
+   * projectile (mage struck from the right pushes left, monster struck
+   * from the left pushes right) before settling back to centre over
+   * three diminishing oscillations. Skipped on the very first @Watch
+   * callback that fires when the parent initialises the prop (value
+   * still at default 0 for a freshly spawned card).
    */
   private onHurtPulseChanged(): void {
     if (this.hurtPulse <= 0) {
       return;
     }
     const ui: UIContext = this.getUIContext();
-    ui.animateTo({ duration: 80, curve: Curve.EaseOut }, () => {
-      this.avatarScale = 0.95;
-      this.hurtOverlayOpacity = 0.55;
+    // Initial impact direction: characters get pushed AWAY from the
+    // attacker. Mage (left side) is hit by a projectile coming from the
+    // right -> recoils to the left (-X). Slime (right side) is hit by
+    // one coming from the left -> recoils to the right (+X).
+    const recoil: number = this.kind === CharacterKind.Mage ? -12 : 12;
+
+    ui.animateTo({ duration: 60, curve: Curve.EaseOut }, () => {
+      this.avatarScale = 0.92;
+      this.hurtOverlayOpacity = 0.7;
+      this.avatarTranslateX = recoil;
     });
+    // Shake step 1: bounce to the opposite side, slightly smaller.
     this.scheduleTimer((): void => {
-      this.getUIContext().animateTo({ duration: 140, curve: Curve.EaseIn }, () => {
+      this.getUIContext().animateTo({ duration: 70, curve: Curve.EaseInOut }, () => {
+        this.avatarTranslateX = -recoil * 0.7;
+      });
+    }, 60);
+    // Shake step 2: damp back across centre.
+    this.scheduleTimer((): void => {
+      this.getUIContext().animateTo({ duration: 70, curve: Curve.EaseInOut }, () => {
+        this.avatarTranslateX = recoil * 0.4;
+      });
+    }, 130);
+    // Shake step 3: smaller wobble.
+    this.scheduleTimer((): void => {
+      this.getUIContext().animateTo({ duration: 70, curve: Curve.EaseInOut }, () => {
+        this.avatarTranslateX = -recoil * 0.2;
+      });
+    }, 200);
+    // Settle: clear scale, overlay, and translate together.
+    this.scheduleTimer((): void => {
+      this.getUIContext().animateTo({ duration: 130, curve: Curve.EaseOut }, () => {
         this.avatarScale = 1;
         this.hurtOverlayOpacity = 0;
+        this.avatarTranslateX = 0;
       });
-    }, 100);
+    }, 270);
   }
 
   /**
