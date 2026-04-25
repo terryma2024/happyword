@@ -1,0 +1,20 @@
+{
+  "name": "the1-cocos-codex-agent",
+  "version": "0.1.0",
+  "description": "Cocos Creator development skills and agent workflows for Codex.",
+  "skills": "./skills",
+  "interface": {
+    "displayName": "The1 Cocos Codex Agent",
+    "shortDescription": "Cocos Creator expert skills for Codex.",
+    "developerName": "The1Studio",
+    "category": "Development",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Cocos skills to analyze this Cocos Creator project.",
+      "Use playable ad skills when creating or optimizing playable ads."
+    ]
+  }
+}
