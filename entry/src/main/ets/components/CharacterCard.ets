@@ -45,6 +45,13 @@ export struct CharacterCard {
   // plain property would be captured at construction and stay stale.
   @Prop sublabel: string = '';
 
+  // Per-monster theming colors used by slimeAvatar(). Defaults equal
+  // the hex literals slimeAvatar painted before this prop existed, so
+  // any caller that doesn't pass them gets the V0.2 slime green look
+  // (mageAvatar never reads these — they're scoped to the slime body).
+  @Prop bodyFill: string = '#4ECB71';
+  @Prop bodyStroke: string = '#2E8B57';
+
   /**
    * Monotonically-increasing counters. Each observed change plays a
    * short animation and returns to rest; BattlePage never has to
@@ -266,8 +273,8 @@ export struct CharacterCard {
     Column() {
       Stack() {
         Ellipse({ width: 80, height: 72 })
-          .fill('#4ECB71')
-          .stroke('#2E8B57')
+          .fill(this.bodyFill)
+          .stroke(this.bodyStroke)
           .strokeWidth(2);
         Rect({ width: 84, height: 36 })
           .fill(this.backgroundForKind())
