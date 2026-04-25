@@ -79,7 +79,7 @@ Constraints encoded in the unit test:
 
 - All 10 names are unique.
 - All 10 fills are unique; all 10 strokes are unique.
-- No `fill` or `stroke` falls in the purple hue band (HSL hue ∈ [240°, 300°]). The mage uses `#8E5EC8` (hue ≈ 273°) and `#4A2577` (hue ≈ 269°), so this exclusion guarantees "怪物的颜色不和魔法师相同" both literally and visually.
+- No saturated `fill` or `stroke` falls in the purple hue band (HSL hue ∈ [240°, 300°]). The mage uses `#8E5EC8` (hue ≈ 273°) and `#4A2577` (hue ≈ 269°), so this exclusion guarantees "怪物的颜色不和魔法师相同" both literally and visually. Achromatic (saturation < 0.10) colors are exempt from the hue check — they read as neutral grey regardless of where the hex math places their hue. Ash Imp's smoky grey (`#6E6E73` / `#2C2C2E`) is the one entry where this matters: B is the max channel by 5/255 so the formula lands hue at 240°, but saturation is ~2% so children see grey, not purple.
 - `getMonsterByIndex(1)` returns entry index 0 (Lava Imp); `getMonsterByIndex(11)` also returns entry index 0 (mod wrap is the documented overflow behavior).
 
 ### Component: `CharacterCard` — new optional props
