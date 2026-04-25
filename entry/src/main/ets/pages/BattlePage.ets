@@ -27,6 +27,7 @@ import { WordEntry } from '../models/WordEntry';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question } from '../models/Question';
+import { MonsterEntry, getMonsterByIndex } from '../data/MonsterCatalog';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
 import { CritOverlay } from '../components/CritOverlay';
@@ -87,7 +88,6 @@ export const REVIEW_WINDOW_SIZE: number = 12;
 struct BattlePage {
   // Character metadata: cosmetic only, not driven by the engine.
   private readonly playerName: string = 'Magician';
-  private readonly monsterName: string = 'Word Slime';
 
   // Engine and its inputs are not part of render state — plain fields that
   // survive across frames. They are populated asynchronously during
@@ -133,6 +133,13 @@ struct BattlePage {
   @State monsterMaxHp: number = DEFAULT_MONSTER_HP;
   @State monsterIndex: number = 1;
   @State monsterTotal: number = DEFAULT_MONSTERS_TOTAL;
+  // Mirror of MonsterCatalog entry for the monster currently in
+  // combat. Updated inside syncFromState whenever monsterIndex
+  // changes, then read by the slime CharacterCard (name +
+  // bodyFill/bodyStroke) and the backward MagicProjectile (accent
+  // colors). Initialised to entry 1 so the first paint of the page
+  // before BattleEngine emits its first state still shows Lava Imp.
+  @State currentMonster: MonsterEntry = getMonsterByIndex(1);
   @State comboCount: number = 0;
   @State remainingSeconds: number = DEFAULT_STARTING_SECONDS;
 
@@ -420,6 +427,11 @@ struct BattlePage {
     this.monsterMaxHp = state.monsterMaxHp;
     this.monsterIndex = state.monsterIndex;
     this.monsterTotal = state.monstersTotal;
+    // Re-read catalog every sync. getMonsterByIndex is a constant-
+    // time array lookup, so the cost is negligible and keeping the
+    // assignment unconditional avoids a stale @State if the engine
+    // ever resets monsterIndex back to 1 between battles.
+    this.currentMonster = getMonsterByIndex(state.monsterIndex);
     this.comboCount = state.comboCount;
     this.remainingSeconds = state.remainingSeconds;
 
@@ -831,7 +843,9 @@ struct BattlePage {
           Column() {
             CharacterCard({
               kind: CharacterKind.Slime,
-              name: this.monsterName,
+              name: this.currentMonster.name,
+              bodyFill: this.currentMonster.fill,
+              bodyStroke: this.currentMonster.stroke,
               hp: this.monsterHp,
               maxHp: this.monsterMaxHp,
               sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
@@ -869,6 +883,11 @@ struct BattlePage {
         projectilePulse: this.projectileBackwardPulse,
         forward: false,
         intensity: 1,
+        accentCore: this.currentMonster.fill,
+        // Glow tracks the core fill; outerOpacity 0.65 makes the
+        // shared color read as a halo around the core orb.
+        accentGlow: this.currentMonster.fill,
+        accentRing: this.currentMonster.stroke,
       });
 
       // Crit spectacle layers — gold flash + expanding shockwave + big
