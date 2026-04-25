@@ -38,6 +38,17 @@ export struct MagicProjectile {
   /** 1 = normal shot, 2 = combo-burst shot (gold, bigger). */
   @Prop intensity: number = 1;
 
+  // Per-monster theme colors for the BACKWARD shot (monster -> mage).
+  // Empty string is the "not set" sentinel; non-empty overrides the
+  // backward defaults inside coreColor / glowColor / ringColor when
+  // intensity <= 1. The forward path and combo-burst path always
+  // win, so per-monster theming never affects the gold spectacle.
+  // Empty-string defaults are preferred over `string | undefined`
+  // because @Prop primitives default cleanly without a guard.
+  @Prop accentCore: string = '';
+  @Prop accentGlow: string = '';
+  @Prop accentRing: string = '';
+
   @State private translateX: number = 0;
   @State private coreOpacity: number = 0;
   @State private coreScale: number = 0.4;
@@ -132,6 +143,9 @@ export struct MagicProjectile {
     if (this.intensity > 1) {
       return '#FFE56F';
     }
+    if (!this.forward && this.accentGlow.length > 0) {
+      return this.accentGlow;
+    }
     return this.forward ? '#C5DBFF' : '#FFCBCB';
   }
 
@@ -140,6 +154,9 @@ export struct MagicProjectile {
     if (this.intensity > 1) {
       return '#FFD93D';
     }
+    if (!this.forward && this.accentCore.length > 0) {
+      return this.accentCore;
+    }
     return this.forward ? '#7BA9FF' : '#FF6B6B';
   }
 
@@ -147,6 +164,9 @@ export struct MagicProjectile {
   private ringColor(): string {
     if (this.intensity > 1) {
       return '#FF8A1E';
+    }
+    if (!this.forward && this.accentRing.length > 0) {
+      return this.accentRing;
     }
     return this.forward ? '#3D6FD0' : '#B23A3A';
   }
