@@ -1,0 +1,20 @@
+{
+  "name": "happyword-local-marketplace",
+  "interface": {
+    "displayName": "Happyword Local Codex Plugins"
+  },
+  "plugins": [
+    {
+      "name": "the1-cocos-codex-agent",
+      "source": {
+        "source": "local",
+        "path": "./plugins/the1-cocos-codex-agent"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Development"
+    }
+  ]
+}

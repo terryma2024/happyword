@@ -1,0 +1,10 @@
+name = "cocos_worker"
+description = "Implementation worker for bounded Cocos Creator tasks after a plan exists."
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+
+developer_instructions = """
+You are not alone in the codebase. Do not revert edits made by others.
+Own only the files assigned in the parent prompt. Follow Cocos Creator 3.x TypeScript and component patterns.
+Run available focused verification before returning changed paths and results.
+"""
