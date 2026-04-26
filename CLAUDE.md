@@ -20,3 +20,4 @@
 - Prefer modifying entry/src/main/ets
 - Keep UI components small and reusable
 - Explain any build.gradle-like or hvigor changes before editing
+- For all feature development and bugfix tasks, use the applicable Superpowers workflow before implementing changes.
