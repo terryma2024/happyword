@@ -5,6 +5,7 @@ import {
   WordStat,
   WrongAnswerStore,
 } from './WrongAnswerStore';
+import { MemoryScheduler, MemoryState } from './MemoryScheduler';
 
 const DEBOUNCE_MS: number = 100;
 
@@ -47,9 +48,11 @@ export class LearningRecorder {
    */
   private recordSequence: number = 0;
   private statSequence: Map<string, number> = new Map<string, number>();
+  private scheduler: MemoryScheduler;
 
-  constructor(store?: WrongAnswerStore) {
+  constructor(store?: WrongAnswerStore, scheduler?: MemoryScheduler) {
     this.store = store !== undefined ? store : new WrongAnswerStore();
+    this.scheduler = scheduler !== undefined ? scheduler : new MemoryScheduler();
   }
 
   /**
@@ -114,7 +117,45 @@ export class LearningRecorder {
     stat.lastAnsweredMs = Date.now();
     this.recordSequence += 1;
     this.statSequence.set(wordId, this.recordSequence);
+    this.scheduler.applyAnswer(stat, correct, stat.lastAnsweredMs);
+    this.snapshot.version = 2;
     this.scheduleSave();
+  }
+
+  /**
+   * Return wordIds whose current MemoryState (with due-check) matches
+   * `state`, most-recent-first by lastAnsweredMs. New (unseen) words
+   * cannot be enumerated here because the recorder only knows about
+   * wordIds it has observed; callers needing every "new" wordId must
+   * combine this with their own word universe.
+   */
+  wordIdsByMemoryState(state: MemoryState, limit: number, nowMs: number): string[] {
+    if (limit <= 0) {
+      return [];
+    }
+    const out: string[] = [];
+    const stats: WordStat[] = this.snapshot.stats.slice();
+    stats.sort((a: WordStat, b: WordStat): number => b.lastAnsweredMs - a.lastAnsweredMs);
+    for (let i = 0; i < stats.length && out.length < limit; i++) {
+      if (this.scheduler.classify(stats[i], nowMs) === state) {
+        out.push(stats[i].wordId);
+      }
+    }
+    return out;
+  }
+
+  /** Test seam — assert the snapshot version after recordAnswer ran. */
+  snapshotVersionForTest(): number {
+    return this.snapshot.version;
+  }
+
+  /**
+   * Read the in-memory stats list. Test seam used by both the unit
+   * tests and TodayAdventureBuilder so the latter does not need a
+   * private accessor on WrongAnswerStore.
+   */
+  statsForTest(): WordStat[] {
+    return this.snapshot.stats.slice();
   }
 
   /**

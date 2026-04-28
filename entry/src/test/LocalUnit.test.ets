@@ -54,6 +54,7 @@ import {
   serializeSnapshot
 } from '../main/ets/services/WrongAnswerStore';
 import { LearningRecorder } from '../main/ets/services/LearningRecorder';
+import { MemoryState } from '../main/ets/services/MemoryScheduler';
 
 /**
  * Test-only Map-backed StringPreferencesLike. Used by both the
@@ -1537,6 +1538,29 @@ export default function localUnitTest() {
       const recent: string[] = rec.recentWrongIds(5);
       expect(recent.length).assertEqual(1);
       expect(recent[0]).assertEqual('apple');
+    });
+  });
+
+  describe('LearningRecorder.recordAnswer with MemoryScheduler', () => {
+    it('movesNewWordToLearningOnFirstCorrect', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.recordAnswer('fruit-apple', true);
+      const ids: string[] = rec.wordIdsByMemoryState(MemoryState.Learning, 10, Date.now() + 1);
+      expect(ids.indexOf('fruit-apple') >= 0).assertTrue();
+    });
+
+    it('marksWordReviewOnWrong', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.recordAnswer('fruit-apple', false);
+      const dueLater: number = Date.now() + 60 * 60 * 1000;
+      const ids: string[] = rec.wordIdsByMemoryState(MemoryState.Review, 10, dueLater);
+      expect(ids.indexOf('fruit-apple') >= 0).assertTrue();
+    });
+
+    it('upgradesSnapshotVersionToTwo', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.recordAnswer('fruit-apple', true);
+      expect(rec.snapshotVersionForTest()).assertEqual(2);
     });
   });
 }
