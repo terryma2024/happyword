@@ -72,6 +72,10 @@ export const MONSTER_CATALOG: MonsterEntry[] = [
   makeEntry('Ash Imp',      '#6E6E73', '#2C2C2E'),
   makeEntry('Sea Drop',     '#45B7D1', '#287590'),
   makeEntry('Ember Tail',   '#E67E22', '#A04500'),
+  // V0.3.5: difficulty archetypes used by Today Adventure.
+  makeMonsterEntryWithKind('Slime',  '#7BD389', '#3F8C50', MonsterKind.Normal),
+  makeMonsterEntryWithKind('Zombie', '#9DAA7A', '#4F5E33', MonsterKind.Spelling),
+  makeMonsterEntryWithKind('Dragon', '#E63946', '#7C1A23', MonsterKind.Elite),
 ];
 
 /**
@@ -93,4 +97,18 @@ export function getMonsterByIndex(index1Based: number): MonsterEntry {
   }
   const idx0: number = (index1Based - 1) % MONSTER_CATALOG.length;
   return MONSTER_CATALOG[idx0];
+}
+
+/**
+ * V0.3.5: map MonsterKind to the shared visual archetype catalog index.
+ * Indices are 1-based (same convention as getMonsterByIndex).
+ */
+export function monsterIndexForKind(kind: MonsterKind): number {
+  if (kind === MonsterKind.Normal) {
+    return 11;
+  }
+  if (kind === MonsterKind.Spelling || kind === MonsterKind.Review) {
+    return 12;
+  }
+  return 13;
 }

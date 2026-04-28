@@ -1,5 +1,11 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { MonsterEntry, MonsterKind, getMonsterByIndex, MONSTER_CATALOG } from '../main/ets/data/MonsterCatalog';
+import {
+  MonsterEntry,
+  MonsterKind,
+  getMonsterByIndex,
+  MONSTER_CATALOG,
+  monsterIndexForKind
+} from '../main/ets/data/MonsterCatalog';
 
 /**
  * Pure-data unit tests for the monster catalog.
@@ -121,7 +127,7 @@ export default function monsterCatalogTest() {
 
     it('getMonsterByIndexModWrapsAtElevenToFirstEntry', 0, () => {
       const first: MonsterEntry = getMonsterByIndex(1);
-      const wrapped: MonsterEntry = getMonsterByIndex(11);
+      const wrapped: MonsterEntry = getMonsterByIndex(MONSTER_CATALOG.length + 1);
       expect(wrapped.name).assertEqual(first.name);
       expect(wrapped.fill).assertEqual(first.fill);
       expect(wrapped.stroke).assertEqual(first.stroke);
@@ -137,11 +143,6 @@ export default function monsterCatalogTest() {
   });
 
   describe('MonsterEntry.kind', () => {
-    it('defaultsEveryEntryToNormal', 0, () => {
-      for (let i = 0; i < MONSTER_CATALOG.length; i++) {
-        expect(MONSTER_CATALOG[i].kind).assertEqual(MonsterKind.Normal);
-      }
-    });
     it('exposesAllFiveKindsViaEnum', 0, () => {
       // Pin the enum surface so PlanQuestionSource and AdventureCatalog
       // can rely on the five labels.
@@ -150,6 +151,22 @@ export default function monsterCatalogTest() {
       expect(MonsterKind.Review).assertEqual('review');
       expect(MonsterKind.Elite).assertEqual('elite');
       expect(MonsterKind.Boss).assertEqual('boss');
+    });
+  });
+
+  describe('V0.3.5 archetype entries + mapping', () => {
+    it('addsSlimeZombieDragonAtExpectedIndices', 0, () => {
+      expect(getMonsterByIndex(11).name).assertEqual('Slime');
+      expect(getMonsterByIndex(12).name).assertEqual('Zombie');
+      expect(getMonsterByIndex(13).name).assertEqual('Dragon');
+    });
+
+    it('monsterIndexForKindMapsDifficultyToArchetype', 0, () => {
+      expect(monsterIndexForKind(MonsterKind.Normal)).assertEqual(11);
+      expect(monsterIndexForKind(MonsterKind.Spelling)).assertEqual(12);
+      expect(monsterIndexForKind(MonsterKind.Review)).assertEqual(12);
+      expect(monsterIndexForKind(MonsterKind.Elite)).assertEqual(13);
+      expect(monsterIndexForKind(MonsterKind.Boss)).assertEqual(13);
     });
   });
 }
