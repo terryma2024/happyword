@@ -175,6 +175,25 @@ class FixedQuestionSource implements IQuestionSource {
   }
 }
 
+/** Deterministic test-only source that serves a fixed sequence. */
+class SequenceQuestionSource implements IQuestionSource {
+  private readonly qs: Question[];
+  private idx: number = 0;
+
+  constructor(qs: Question[]) {
+    this.qs = qs;
+  }
+
+  nextQuestion(_lastWordId?: string): Question {
+    if (this.idx >= this.qs.length) {
+      return this.qs[this.qs.length - 1];
+    }
+    const out: Question = this.qs[this.idx];
+    this.idx += 1;
+    return out;
+  }
+}
+
 function makeFillLetterQ(): Question {
   const q: Question = new Question();
   q.kind = QuestionKind.FillLetter;
@@ -195,6 +214,23 @@ function makeChoiceQ(): Question {
   q.answer = 'banana';
   q.wordId = 'fruit-banana';
   q.options = ['banana', 'apple', 'pear'];
+  return q;
+}
+
+function makeFillLetterMediumQ(): Question {
+  const q: Question = new Question();
+  q.kind = QuestionKind.FillLetterMedium;
+  q.promptZh = '苹果';
+  q.answer = 'apple';
+  q.wordId = 'fruit-apple';
+  q.letterTemplateBase = 'a _ p _ e';
+  q.missingIndices = [1, 3];
+  q.letterOptionsSteps = [
+    ['p', 'b', 't'],
+    ['l', 'r', 's'],
+  ];
+  q.letterAnswers = ['p', 'l'];
+  q.currentStep = 0;
   return q;
 }
 
@@ -1183,6 +1219,125 @@ export default function localUnitTest() {
       const outcome: AnswerOutcome = engine.submitAnswer('b');
       expect(outcome.correct).assertFalse();
       expect(engine.getState().playerHp).assertEqual(before - 1);
+    });
+  });
+
+  describe('BattleEngine fill-letter medium handling', () => {
+    it('step0CorrectAdvancesInPlace', 0, () => {
+      const q1: Question = makeFillLetterMediumQ();
+      const q2: Question = makeChoiceQ();
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(q1, q2));
+      engine.start();
+
+      const state0: BattleState = engine.getState();
+      expect(state0.currentQuestion !== undefined).assertTrue();
+      const beforeHp: number = state0.monsterHp;
+
+      const outcome: AnswerOutcome = engine.submitAnswer('p');
+      const state1: BattleState = engine.getState();
+
+      expect(outcome.correct).assertTrue();
+      expect(outcome.damage).assertEqual(0);
+      expect(outcome.advancedStep).assertTrue();
+      expect(state1.monsterHp).assertEqual(beforeHp);
+      expect(state1.comboCount).assertEqual(0);
+      expect(state1.totalAnswers).assertEqual(0);
+      expect(state1.correctAnswers).assertEqual(0);
+      expect(state1.currentQuestion === state0.currentQuestion).assertTrue();
+      expect(q1.currentStep).assertEqual(1);
+    });
+
+    it('step1CorrectCompletesQuestionAndRotates', 0, () => {
+      const q1: Question = makeFillLetterMediumQ();
+      const q2: Question = makeChoiceQ();
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(q1, q2));
+      engine.start();
+
+      engine.submitAnswer('p'); // advance
+      const stateA: BattleState = engine.getState();
+      const beforeHp: number = stateA.monsterHp;
+
+      const outcome: AnswerOutcome = engine.submitAnswer('l');
+      const stateB: BattleState = engine.getState();
+
+      expect(outcome.correct).assertTrue();
+      expect(outcome.advancedStep).assertFalse();
+      expect(outcome.damage).assertEqual(1);
+      expect(stateB.monsterHp).assertEqual(beforeHp - 1);
+      expect(stateB.totalAnswers).assertEqual(1);
+      expect(stateB.correctAnswers).assertEqual(1);
+      expect(stateB.comboCount).assertEqual(1);
+      expect(stateB.currentQuestion !== undefined).assertTrue();
+      expect(stateB.currentQuestion!.wordId === q1.wordId).assertFalse();
+    });
+
+    it('step0WrongJudgesEntireQuestionWrong', 0, () => {
+      const q1: Question = makeFillLetterMediumQ();
+      const q2: Question = makeChoiceQ();
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(q1, q2));
+      engine.start();
+
+      const beforeHp: number = engine.getState().playerHp;
+      const outcome: AnswerOutcome = engine.submitAnswer('b');
+
+      expect(outcome.correct).assertFalse();
+      expect(outcome.advancedStep).assertFalse();
+      expect(outcome.damage).assertEqual(1);
+      expect(engine.getState().playerHp).assertEqual(beforeHp - 1);
+      expect(engine.getState().comboCount).assertEqual(0);
+      expect(engine.getState().totalAnswers).assertEqual(1);
+      expect(engine.getState().currentQuestion !== undefined).assertTrue();
+      expect(engine.getState().currentQuestion!.wordId === q1.wordId).assertFalse();
+    });
+
+    it('step1WrongJudgesEntireQuestionWrong', 0, () => {
+      const q1: Question = makeFillLetterMediumQ();
+      const q2: Question = makeChoiceQ();
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(q1, q2));
+      engine.start();
+
+      engine.submitAnswer('p'); // advance
+      const beforeHp: number = engine.getState().playerHp;
+      const outcome: AnswerOutcome = engine.submitAnswer('r');
+
+      expect(outcome.correct).assertFalse();
+      expect(outcome.advancedStep).assertFalse();
+      expect(outcome.damage).assertEqual(1);
+      expect(engine.getState().playerHp).assertEqual(beforeHp - 1);
+      expect(engine.getState().comboCount).assertEqual(0);
+      expect(engine.getState().totalAnswers).assertEqual(1);
+    });
+
+    it('mediumLastStepCorrectCanStillTriggerBurst', 0, () => {
+      // Two normal corrects prime the streak at comboCount = 2, then a medium
+      // final-step correct should trigger burst like any other correct.
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 20;
+      const qA: Question = makeChoiceQ();
+      qA.answer = 'banana';
+      qA.options = ['banana', 'apple', 'pear'];
+      qA.wordId = 'fruit-banana';
+      const qB: Question = makeChoiceQ();
+      qB.answer = 'apple';
+      qB.options = ['apple', 'banana', 'pear'];
+      qB.wordId = 'fruit-apple';
+      const qM: Question = makeFillLetterMediumQ();
+      const qAfter: Question = makeChoiceQ();
+      const engine: BattleEngine = new BattleEngine(new SequenceQuestionSource([qA, qB, qM, qAfter]), cfg);
+      engine.start();
+
+      engine.submitAnswer(qA.answer);
+      engine.submitAnswer(qB.answer);
+      expect(engine.getState().comboCount).assertEqual(2);
+
+      const advance: AnswerOutcome = engine.submitAnswer('p'); // step 0 correct
+      expect(advance.advancedStep).assertTrue();
+      expect(engine.getState().comboCount).assertEqual(2);
+
+      const outcome: AnswerOutcome = engine.submitAnswer('l'); // third correct
+      expect(outcome.correct).assertTrue();
+      expect(outcome.comboTriggered).assertTrue();
+      expect(engine.getState().comboCount).assertEqual(0);
     });
   });
 

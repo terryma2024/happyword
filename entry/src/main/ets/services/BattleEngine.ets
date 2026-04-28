@@ -71,6 +71,12 @@ export class AnswerOutcome {
   correct: boolean = false;
   damage: number = 0;
   /**
+   * V0.3.5 medium fill-letter: true when a correct step advanced the internal
+   * step counter without resolving the question (no damage, no rotation, no
+   * score changes). BattlePage uses this to update UI in-place.
+   */
+  advancedStep: boolean = false;
+  /**
    * True when this answer pushed the combo counter to
    * {@link COMBO_BURST_THRESHOLD} and the 2× damage bonus fired. The UI
    * uses this flag to show the "magic burst" feedback for the reveal
@@ -172,17 +178,38 @@ export class BattleEngine {
       throw new Error('BattleEngine.submitAnswer called with no current question');
     }
     const isFillLetter: boolean = q.kind === QuestionKind.FillLetter;
-    const validOptions: string[] = isFillLetter ? q.letterOptions : q.options;
+    const isFillLetterMedium: boolean = q.kind === QuestionKind.FillLetterMedium;
+    let validOptions: string[] = q.options;
+    if (isFillLetter) {
+      validOptions = q.letterOptions;
+    } else if (isFillLetterMedium) {
+      // Medium is step-scoped: each step has its own options list.
+      validOptions = q.letterOptionsSteps[q.currentStep];
+    }
     if (validOptions.indexOf(option) < 0) {
       throw new Error(`BattleEngine.submitAnswer: option "${option}" is not on the current question`);
     }
 
     const outcome: AnswerOutcome = new AnswerOutcome();
-    const correct: boolean = isFillLetter
-      ? option === q.letterAnswer
-      : option === q.answer;
+    let correct: boolean = false;
+    if (isFillLetterMedium) {
+      correct = option === q.letterAnswers[q.currentStep];
+    } else if (isFillLetter) {
+      correct = option === q.letterAnswer;
+    } else {
+      correct = option === q.answer;
+    }
     outcome.correct = correct;
     outcome.damage = 1;
+
+    // V0.3.5: atomic two-step medium fill-letter. If step 0 is correct,
+    // advance in place without applying any damage or updating score/combo.
+    if (isFillLetterMedium && correct && q.currentStep < 1) {
+      q.currentStep += 1;
+      outcome.advancedStep = true;
+      outcome.damage = 0;
+      return outcome;
+    }
 
     this.state_.totalAnswers += 1;
     if (correct) {
