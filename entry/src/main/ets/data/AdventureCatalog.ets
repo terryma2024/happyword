@@ -3,12 +3,12 @@ import {
   MonsterPlan,
   MonsterSlot,
 } from '../models/AdventureRegion';
-import { MonsterKind } from './MonsterCatalog';
+import { MonsterKind, monsterIndexForKind } from './MonsterCatalog';
 
-function slot(kind: MonsterKind, catalogIndex: number): MonsterSlot {
+function slot(kind: MonsterKind): MonsterSlot {
   const s: MonsterSlot = new MonsterSlot();
   s.kind = kind;
-  s.catalogIndex = catalogIndex;
+  s.catalogIndex = monsterIndexForKind(kind);
   return s;
 }
 
@@ -29,17 +29,57 @@ const FRUIT_FOREST: AdventureRegion = (() => {
   r.bossName = 'Orchard Sentinel';
   const plan: MonsterPlan = new MonsterPlan();
   plan.slots = [
-    slot(MonsterKind.Normal, 1),
-    slot(MonsterKind.Spelling, 2),
-    slot(MonsterKind.Review, 3),
-    slot(MonsterKind.Elite, 4),
-    slot(MonsterKind.Boss, 5),
+    slot(MonsterKind.Normal),
+    slot(MonsterKind.Spelling),
+    slot(MonsterKind.Review),
+    slot(MonsterKind.Elite),
+    slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
   return r;
 })();
 
-export const ADVENTURE_REGIONS: AdventureRegion[] = [FRUIT_FOREST];
+const SCHOOL_CASTLE: AdventureRegion = (() => {
+  const r: AdventureRegion = new AdventureRegion();
+  r.id = 'school-castle';
+  r.displayName = 'School Castle';
+  r.themeWordCategories = ['place'];
+  r.bgPrimary = '#E8F0FE';
+  r.bgAccent = '#AECBFA';
+  r.bossName = 'Clock Wizard';
+  const plan: MonsterPlan = new MonsterPlan();
+  plan.slots = [
+    slot(MonsterKind.Normal),
+    slot(MonsterKind.Spelling),
+    slot(MonsterKind.Review),
+    slot(MonsterKind.Elite),
+    slot(MonsterKind.Boss),
+  ];
+  r.monsterPlan = plan;
+  return r;
+})();
+
+const HOME_COTTAGE: AdventureRegion = (() => {
+  const r: AdventureRegion = new AdventureRegion();
+  r.id = 'home-cottage';
+  r.displayName = 'Home Cottage';
+  r.themeWordCategories = ['home'];
+  r.bgPrimary = '#FFF1E6';
+  r.bgAccent = '#F4B98A';
+  r.bossName = 'Toy Knight';
+  const plan: MonsterPlan = new MonsterPlan();
+  plan.slots = [
+    slot(MonsterKind.Normal),
+    slot(MonsterKind.Spelling),
+    slot(MonsterKind.Review),
+    slot(MonsterKind.Elite),
+    slot(MonsterKind.Boss),
+  ];
+  r.monsterPlan = plan;
+  return r;
+})();
+
+export const ADVENTURE_REGIONS: AdventureRegion[] = [FRUIT_FOREST, SCHOOL_CASTLE, HOME_COTTAGE];
 
 export const DEFAULT_REGION_ID: string = 'fruit-forest';
 
