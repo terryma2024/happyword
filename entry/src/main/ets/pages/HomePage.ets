@@ -17,6 +17,8 @@ import { TodayAdventureBuilder, localDayKey } from '../services/TodayAdventureBu
 import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
 import { AdventureRegion, TodaySessionPlan } from '../models/AdventureRegion';
 import { AdventureCard } from '../components/AdventureCard';
+import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
+import { CoinSnapshot } from '../models/CoinSnapshot';
 
 /**
  * Review-mode gating threshold. Mirrors spec §15 Track D: kids need at
@@ -38,18 +40,35 @@ struct HomePage {
   @State private recentWrongCount: number = 0;
   @State private todayCompleted: boolean = false;
   @State private todayRegion: AdventureRegion = ADVENTURE_REGIONS[0];
+  @State private coinBalance: number = 0;
+  private coins: CoinAccount = getCoinAccount();
 
   aboutToAppear(): void {
+    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    this.coins.init(ctx).then((): void => {
+      this.coins.beginToday(Date.now());
+      this.refreshBalance();
+      this.refreshTodayState();
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage: CoinAccount.init failed: ${JSON.stringify(err)}`);
+      this.refreshTodayState();
+    });
     this.refreshWrongCount();
-    this.refreshTodayState();
   }
 
   onPageShow(): void {
     // ArkUI re-invokes onPageShow when navigating back from a pushed
     // page, but not aboutToAppear; refreshing here makes the button
     // light up the instant the battle ends.
+    this.coins.beginToday(Date.now());
+    this.refreshBalance();
     this.refreshWrongCount();
     this.refreshTodayState();
+  }
+
+  private refreshBalance(): void {
+    const snap: CoinSnapshot = this.coins.snapshot();
+    this.coinBalance = snap.totalCoins - snap.spentCoins;
   }
 
   private refreshWrongCount(): void {
@@ -58,10 +77,17 @@ struct HomePage {
   }
 
   private refreshTodayState(): void {
-    const stored: string | undefined =
-      AppStorage.get<string>(TODAY_LAST_COMPLETED_DAY_KEY);
+    // Prefer the persisted coin-account flag when it's available;
+    // fall back to AppStorage so a fresh boot before init() resolves
+    // still gets a correct first-frame estimate.
     const todayKey: string = localDayKey(Date.now());
-    this.todayCompleted = stored !== undefined && stored === todayKey;
+    if (this.coins.todayAdventureCompleted()) {
+      this.todayCompleted = true;
+    } else {
+      const stored: string | undefined =
+        AppStorage.get<string>(TODAY_LAST_COMPLETED_DAY_KEY);
+      this.todayCompleted = stored !== undefined && stored === todayKey;
+    }
     this.todayRegion = getRegionById(DEFAULT_REGION_ID);
   }
 
@@ -96,10 +122,10 @@ struct HomePage {
       // Init ensures the recorder snapshot is hydrated so the
       // builder sees real review/learning words, not an empty list.
       recorder.init(ctx).then((): void => {
-        const todayKey: string = localDayKey(Date.now());
-        const stored: string | undefined =
-          AppStorage.get<string>(TODAY_LAST_COMPLETED_DAY_KEY);
-        const isFirstToday: boolean = stored === undefined || stored !== todayKey;
+        // Use the persisted coin-account flag — it is the
+        // authoritative record of whether the player has finished
+        // today's adventure (BattlePage flips it on completion).
+        const isFirstToday: boolean = !this.coins.todayAdventureCompleted();
         const plan: TodaySessionPlan =
           builder.build(region, repo, recorder, Date.now(), isFirstToday);
         AppStorage.setOrCreate<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY, plan);
@@ -193,6 +219,28 @@ struct HomePage {
       .alignItems(HorizontalAlign.Center);
 
       Row({ space: 12 }) {
+        Text(`✨ ${this.coinBalance}`)
+          .id('HomeCoinBalance')
+          .fontSize(16)
+          .fontColor('#FFB400')
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .backgroundColor('#FFF6E5')
+          .borderRadius(20);
+
+        Button('🪄')
+          .id('HomeWishlistButton')
+          .type(ButtonType.Circle)
+          .width(56)
+          .height(56)
+          .fontSize(24)
+          .fontColor('#E63946')
+          .backgroundColor('#FCEAEA')
+          .onClick((): void => {
+            router.pushUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError): void => {
+              console.error(`HomePage: pushUrl WishlistPage failed: ${JSON.stringify(err)}`);
+            });
+          });
+
         Button('🧪')
           .id('HomeTtsTestButton')
           .type(ButtonType.Circle)
