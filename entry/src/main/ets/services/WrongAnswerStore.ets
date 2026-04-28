@@ -15,6 +15,11 @@ export class WordStat {
   correctCount: number = 0;
   wrongCount: number = 0;
   lastAnsweredMs: number = 0;
+  // V0.3 forgetting-curve fields. Defaults preserve V0.2 semantics:
+  // a fresh WordStat is treated as "new" and never due for review.
+  lastCorrectMs: number = 0;
+  nextReviewMs: number = 0;
+  memoryState: string = 'new';
 }
 
 /**
@@ -152,6 +157,9 @@ interface WordStatJson {
   correctCount?: number;
   wrongCount?: number;
   lastAnsweredMs?: number;
+  lastCorrectMs?: number;
+  nextReviewMs?: number;
+  memoryState?: string;
 }
 
 interface LearningSnapshotJson {
@@ -193,6 +201,18 @@ export function parseSnapshot(raw: string): LearningSnapshot {
       stat.correctCount = typeof item.correctCount === 'number' ? item.correctCount : 0;
       stat.wrongCount = typeof item.wrongCount === 'number' ? item.wrongCount : 0;
       stat.lastAnsweredMs = typeof item.lastAnsweredMs === 'number' ? item.lastAnsweredMs : 0;
+      // V0.3 fields. When the stored blob is v1 (no fields present),
+      // synthesize sensible defaults so MemoryScheduler.classify
+      // treats the word as 'learning' if it was ever answered right
+      // and 'new' otherwise. nextReviewMs left at 0 means "never
+      // scheduled" — the scheduler treats that as not-due.
+      stat.lastCorrectMs = typeof item.lastCorrectMs === 'number'
+        ? item.lastCorrectMs
+        : (stat.correctCount > 0 ? stat.lastAnsweredMs : 0);
+      stat.nextReviewMs = typeof item.nextReviewMs === 'number' ? item.nextReviewMs : 0;
+      stat.memoryState = typeof item.memoryState === 'string' && item.memoryState.length > 0
+        ? item.memoryState
+        : (stat.correctCount > 0 ? 'learning' : 'new');
       if (stat.wordId.length > 0) {
         snapshot.stats.push(stat);
       }

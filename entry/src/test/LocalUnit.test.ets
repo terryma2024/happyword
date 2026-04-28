@@ -1420,6 +1420,54 @@ export default function localUnitTest() {
     });
   });
 
+  describe('LearningSnapshot v2 schema', () => {
+    it('appliesV2DefaultsToV1Blob', 0, () => {
+      // Hand-rolled v1 JSON because ArkTS strict mode rejects untyped
+      // object literals; building a typed JSON-mirror class just for
+      // a fixture would add boilerplate without value.
+      const v1: string =
+        '{"version":1,"stats":[{"wordId":"fruit-apple","seenCount":4,'
+        + '"correctCount":3,"wrongCount":1,"lastAnsweredMs":1700}]}';
+      const snap: LearningSnapshot = parseSnapshot(v1);
+      expect(snap.version).assertEqual(1);
+      expect(snap.stats.length).assertEqual(1);
+      const s: WordStat = snap.stats[0];
+      expect(s.lastCorrectMs).assertEqual(1700);
+      expect(s.nextReviewMs).assertEqual(0);
+      expect(s.memoryState).assertEqual('learning');
+    });
+
+    it('readsBackV2BlobLossless', 0, () => {
+      const stat: WordStat = new WordStat();
+      stat.wordId = 'fruit-pear';
+      stat.seenCount = 2;
+      stat.correctCount = 1;
+      stat.wrongCount = 1;
+      stat.lastAnsweredMs = 9000;
+      stat.lastCorrectMs = 8000;
+      stat.nextReviewMs = 12000;
+      stat.memoryState = 'review';
+      const snap: LearningSnapshot = new LearningSnapshot();
+      snap.version = 2;
+      snap.stats.push(stat);
+      const round: LearningSnapshot = parseSnapshot(serializeSnapshot(snap));
+      expect(round.version).assertEqual(2);
+      const r: WordStat = round.stats[0];
+      expect(r.lastCorrectMs).assertEqual(8000);
+      expect(r.nextReviewMs).assertEqual(12000);
+      expect(r.memoryState).assertEqual('review');
+    });
+
+    it('marksMemoryStateNewWhenCorrectCountZeroInV1', 0, () => {
+      const v1: string =
+        '{"version":1,"stats":[{"wordId":"home-tv","seenCount":1,'
+        + '"correctCount":0,"wrongCount":1,"lastAnsweredMs":5000}]}';
+      const s: WordStat = parseSnapshot(v1).stats[0];
+      expect(s.memoryState).assertEqual('new');
+      expect(s.lastCorrectMs).assertEqual(0);
+    });
+  });
+
   describe('LearningRecorder', () => {
     it('recordCorrectCountsAsNewlyLearned', 0, () => {
       const rec: LearningRecorder = makeRecorderWithSnapshot([]);
