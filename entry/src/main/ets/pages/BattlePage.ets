@@ -1080,6 +1080,7 @@ struct BattlePage {
               .backgroundColor(LETTER_BG_MISSING)
               .borderRadius(6);
             Text('_')
+              .id(`LetterSlotText_${item.idx}`)
               .fontSize(28)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_MISSING);
@@ -1089,12 +1090,14 @@ struct BattlePage {
               .height(LETTER_SLOT_HEIGHT)
               .backgroundColor(LETTER_BG_PENDING)
               .borderRadius(6);
-            Text('_')
+            Text(item.glyph === '_' ? '_' : item.glyph)
+              .id(`LetterSlotText_${item.idx}`)
               .fontSize(28)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_PENDING);
           } else {
             Text(item.glyph)
+              .id(`LetterSlotText_${item.idx}`)
               .fontSize(32)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_FILLED);

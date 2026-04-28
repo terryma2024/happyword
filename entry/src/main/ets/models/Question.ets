@@ -144,8 +144,12 @@ export class Question {
     if (parts.length !== word.length) {
       return false;
     }
-    // Both missing positions must be rendered as '_' in the base template.
-    if (parts[idx0] !== '_' || parts[idx1] !== '_') {
+    // Medium runtime UX may reveal a previously-correct letter in-place.
+    // Accept '_' or the correct answer letter at each missing index.
+    const expected0: string = this.letterAnswers[0];
+    const expected1: string = this.letterAnswers[1];
+    if (!((parts[idx0] === '_' || parts[idx0] === expected0)
+      && (parts[idx1] === '_' || parts[idx1] === expected1))) {
       return false;
     }
 

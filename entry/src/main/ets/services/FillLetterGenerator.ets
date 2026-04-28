@@ -108,7 +108,10 @@ export class FillLetterGenerator {
     }
 
     // Pick two distinct missing indices from [1, letters.length - 1].
-    const idxA: number = this.randomInt(1, letters.length - 1);
+    // Invariants:
+    // - Never hide the first letter.
+    // - Always fill blanks left-to-right: step 0 is the smaller index.
+    let idxA: number = this.randomInt(1, letters.length - 1);
     let idxB: number = this.randomInt(1, letters.length - 1);
     if (idxB === idxA) {
       // Deterministic "re-pick": shift by one within range.
@@ -116,6 +119,11 @@ export class FillLetterGenerator {
       if (idxB > letters.length - 1) {
         idxB = 1;
       }
+    }
+    if (idxA > idxB) {
+      const tmp: number = idxA;
+      idxA = idxB;
+      idxB = tmp;
     }
     const missingIndices: number[] = [idxA, idxB];
     const answers: string[] = [letters[idxA], letters[idxB]];

@@ -177,6 +177,7 @@ export default function v03AdventureUiTest(): void {
 
       const optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
       let stepAdvancedSeen: boolean = false;
+      let revealedChecked: boolean = false;
       for (let turn = 0; turn < 12 && !stepAdvancedSeen; turn++) {
         const optId: string = optionIds[turn % 3];
         const btn = await driver.findComponent(ON.id(optId));
@@ -196,6 +197,36 @@ export default function v03AdventureUiTest(): void {
       }
 
       expect(stepAdvancedSeen).assertTrue();
+
+      // After step 0 is correct, the UI should reveal that letter in the word
+      // while step 1 still shows one remaining blank. BattlePage refreshes
+      // from engine state after the feedback window.
+      if (stepAdvancedSeen) {
+        await driver.delayMs(900);
+        let underscores: number = 0;
+        let foundAnySlot: boolean = false;
+        for (let i = 0; i < 20; i++) {
+          const slot = await driver.findComponent(ON.id(`LetterSlotText_${i}`));
+          if (slot === null) {
+            if (foundAnySlot) {
+              break;
+            }
+            continue;
+          }
+          foundAnySlot = true;
+          const glyph: string = await slot.getText();
+          if (glyph === '_') {
+            underscores += 1;
+          }
+        }
+        // Medium has 2 blanks originally; after revealing one correct letter,
+        // exactly one '_' should remain.
+        expect(foundAnySlot).assertTrue();
+        expect(underscores).assertEqual(1);
+        revealedChecked = true;
+      }
+
+      expect(revealedChecked).assertTrue();
 
       const finish = await driver.findComponent(ON.id('BattleFinishButton'));
       if (finish !== null) {

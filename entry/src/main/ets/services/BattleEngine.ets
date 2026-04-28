@@ -205,6 +205,7 @@ export class BattleEngine {
     // V0.3.5: atomic two-step medium fill-letter. If step 0 is correct,
     // advance in place without applying any damage or updating score/combo.
     if (isFillLetterMedium && correct && q.currentStep < 1) {
+      this.revealMediumStepLetter(q, option);
       q.currentStep += 1;
       outcome.advancedStep = true;
       outcome.damage = 0;
@@ -264,6 +265,33 @@ export class BattleEngine {
     this.state_.currentQuestion = next;
     this.rememberWord(next.wordId);
     return outcome;
+  }
+
+  /**
+   * Medium fill-letter UX: when step 0 is answered correctly, show that letter
+   * in the template while the player is working on step 1.
+   *
+   * Note: this mutates letterTemplateBase at runtime. Validation allows
+   * revealed correct letters at missing indices for in-battle state.
+   */
+  private revealMediumStepLetter(q: Question, chosen: string): void {
+    if (q.kind !== QuestionKind.FillLetterMedium) {
+      return;
+    }
+    if (q.currentStep < 0 || q.currentStep > 1) {
+      return;
+    }
+    const idx: number = q.missingIndices[q.currentStep];
+    const expected: string = q.letterAnswers[q.currentStep];
+    if (chosen !== expected) {
+      return;
+    }
+    const parts: string[] = q.letterTemplateBase.split(' ');
+    if (idx < 0 || idx >= parts.length) {
+      return;
+    }
+    parts[idx] = expected;
+    q.letterTemplateBase = parts.join(' ');
   }
 
   /**
