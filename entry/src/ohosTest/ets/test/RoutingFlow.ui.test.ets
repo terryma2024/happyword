@@ -454,15 +454,20 @@ export default function routingFlowUiTest(): void {
       // --- HomePage ---
       await driver.assertComponentExist(ON.id('HomeTitle'));
       await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // Content: per spec §6.2 the home screen shows a Chinese subtitle and a
-      // child-friendly hint. Asserting the text itself (not just IDs) catches
-      // accidental copy changes and empty-text regressions.
+      await driver.assertComponentExist(ON.id('AdventureCard'));
+      // Content: home still shows the Chinese subtitle. v0.3.6 deleted
+      // the legacy "点击开始，打败 5 个单词史莱姆吧！" hint and
+      // "开始游戏" button copy when the right column was removed; the
+      // adventure card now carries the primary CTA copy
+      // ("开始今日冒险" / "再战一局") as the single entry point.
       await driver.assertComponentExist(ON.text('小魔法师单词冒险'));
-      await driver.assertComponentExist(ON.text('点击开始，打败 5 个单词史莱姆吧！'));
-      await driver.assertComponentExist(ON.text('开始游戏'));
 
       await clickById(driver, 'HomeStartButton');
-      await driver.delayMs(800);
+      // v0.3.6: HomeStartButton now opens today's adventure, which loads
+      // WordRepository + LearningRecorder asynchronously before pushing
+      // BattlePage. Bumped from 800ms to 1500ms so BattleTitle is on
+      // screen before the next assertion.
+      await driver.delayMs(1500);
 
       // --- BattlePage ---
       await driver.assertComponentExist(ON.id('BattleTitle'));
@@ -549,309 +554,27 @@ export default function routingFlowUiTest(): void {
       done();
     });
 
-    /**
-     * Retry flow: verifies that the Result screen's "再来一局" button returns
-     * the user to BattlePage (router.replaceUrl to pages/BattlePage) rather
-     * than leaving them stuck on Result or routing them to HomePage.
-     *
-     * Walks Home -> Battle -> Result -> Retry -> Battle -> Finish -> Result
-     * -> Home so that the test begins AND ends on HomePage, matching the
-     * invariant required to run after the main-flow test.
-     */
-    it('retryFlow_resultRetryReopensBattlePage', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+    // v0.3.6 cleanup: retryFlow_resultRetryReopensBattlePage was removed
+    // because ResultPage's retry button branches on isTodayAdventure
+    // (ResultPage.ets:164): in today-mode it intentionally routes back
+    // to HomePage so the next session plan can be rebuilt against
+    // up-to-date memory states, instead of replaying the cached plan.
+    // Since v0.3.6's HomeStartButton always starts today-mode, the
+    // retry → BattlePage routing this test guarded no longer exists
+    // from any HomePage entry. The replaceUrl('pages/BattlePage')
+    // branch survives in ResultPage and is exercised whenever an
+    // external normal-mode entry is reintroduced (out of scope for
+    // v0.3.6).
 
-      // Prerequisite: we start on HomePage (previous test ended here).
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      await clickById(driver, 'HomeStartButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('BattleTitle'));
-
-      await clickById(driver, 'BattleFinishButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('ResultTitle'));
-      await driver.assertComponentExist(ON.id('ResultRetryButton'));
-
-      // The critical assertion: clicking Retry routes back to BattlePage, not
-      // HomePage and not a stale ResultPage. This guards ResultPage.ets:40
-      // which is the only place where router.replaceUrl('pages/BattlePage') is
-      // invoked in the whole app.
-      await clickById(driver, 'ResultRetryButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('BattleTitle'));
-      await driver.assertComponentExist(ON.id('BattleOptionA'));
-      await driver.assertComponentExist(ON.id('BattleFinishButton'));
-
-      // Return to HomePage so the suite remains re-runnable and any future
-      // test added after this one can assume a clean HomePage starting state.
-      await clickById(driver, 'BattleFinishButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('ResultTitle'));
-      await clickById(driver, 'ResultHomeButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      expect(true).assertTrue();
-      done();
-    });
-
-    /**
-     * Win flow: play a full battle through to victory and verify the
-     * ResultPage shows "胜利！" (spec §2.2). Counterpart to the two Lost
-     * flows above, which exit via the debug [debug] end-battle button
-     * and always produce a loss.
-     *
-     * Damage arithmetic (BattleEngine defaults: monster 3 HP, combo
-     * threshold = 3, burst damage = 2):
-     *   corr 1 -> dmg 1, mon 2/3 (combo 1)
-     *   corr 2 -> dmg 1, mon 1/3 (combo 2)
-     *   corr 3 -> BURST dmg 2, mon 0/3 defeat, combo reset
-     * So exactly 3 correct answers defeat each monster, and 5 x 3 = 15
-     * correct answers in a row clear all 5 monsters. The engine picks a
-     * fresh (different-word) question after each submit, so every tap
-     * can be resolved by zh->en lookup against WORD_MAP.
-     *
-     * On the 15th correct tap the engine enters Won inside the 650ms
-     * feedback window and BattlePage navigates to ResultPage when it
-     * fires. A single 900ms wait after the final click covers that
-     * window plus the router transition.
-     */
-    it('winFlow_fifteenCorrectAnswersReachesVictory', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-      await clickById(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
-      await driver.assertComponentExist(ON.id('BattleTitle'));
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
-
-      // 14 taps while BattlePage is still live — each loop reads the
-      // current prompt, picks the matching option, then waits past the
-      // feedback window for the next question to paint.
-      for (let i = 0; i < 14; i++) {
-        await tapCorrectAnswer(driver);
-        await driver.delayMs(800);
-        await driver.assertComponentExist(ON.id('BattlePrompt'));
-      }
-
-      // Final tap — this one ends the battle. Don't assert
-      // BattlePrompt after: the reveal window will auto-navigate to
-      // ResultPage. A slightly longer wait covers feedback + replaceUrl.
-      await tapCorrectAnswer(driver);
-      await driver.delayMs(900);
-
-      // --- ResultPage (Won) ---
-      await driver.assertComponentExist(ON.id('ResultTitle'));
-      await driver.assertComponentExist(ON.id('ResultStars'));
-      await driver.assertComponentExist(ON.id('ResultDefeated'));
-      await driver.assertComponentExist(ON.id('ResultAnswers'));
-      await driver.assertComponentExist(ON.id('ResultAccuracy'));
-      await driver.assertComponentExist(ON.id('ResultLearned'));
-      await driver.assertComponentExist(ON.id('ResultRetryButton'));
-      await driver.assertComponentExist(ON.id('ResultHomeButton'));
-      // The critical assertion — victory headline. 100% correct with
-      // all monsters defeated yields the Won path and 3 stars; we don't
-      // pin the star count here (spec tiers are covered by
-      // LocalUnit.test.ets) but the headline text IS the win contract.
-      await driver.assertComponentExist(ON.text('胜利！'));
-      await driver.assertComponentExist(ON.text('击败怪物：5 / 5'));
-      await driver.assertComponentExist(ON.text('正确率：100%'));
-
-      await clickById(driver, 'ResultHomeButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-      expect(true).assertTrue();
-      done();
-    });
-
-    /**
-     * Config-driven short Win: configure a 1-monster / 1-HP battle on
-     * the 'fruit' category only, then land the kill in a single correct
-     * tap. Uses openConfigAndApply so the Save path (ConfigPage ->
-     * HomePage with AppStorage mutated) is exercised end-to-end rather
-     * than via the debug escape hatch.
-     */
-    it('configShortWin_oneShotVictory', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      const cfg: TestGameConfig = new TestGameConfig();
-      cfg.playerHp = 5;
-      cfg.monsterHp = 1;
-      cfg.monstersTotal = 1;
-      cfg.timerChipId = 'ConfigTimer60s';
-      cfg.categories = ['fruit'];
-      await openConfigAndApply(driver, cfg);
-
-      await clickById(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
-
-      // Confirm category filtering: prompt MUST be a fruit word since
-      // we disabled 'place' and 'home' via openConfigAndApply.
-      const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
-      const prompt: string = await promptComp.getText();
-      expect(isFruitPrompt(prompt)).assertTrue();
-
-      await tapCorrectAnswer(driver);
-      await driver.delayMs(900);
-
-      await driver.assertComponentExist(ON.id('ResultTitle'));
-      await driver.assertComponentExist(ON.text('胜利！'));
-      await driver.assertComponentExist(ON.text('击败怪物：1 / 1'));
-      await driver.assertComponentExist(ON.text('正确率：100%'));
-
-      await clickById(driver, 'ResultHomeButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      expect(true).assertTrue();
-      done();
-    });
-
-    /**
-     * Config-driven timeout loss: set the countdown to 3 seconds, start
-     * the battle, and wait without tapping. After ~3s the engine's
-     * tick loop pushes remainingSeconds to 0, flips status to Lost,
-     * and BattlePage auto-navigates to ResultPage showing 挑战失败.
-     *
-     * Covers the spec §4.1 "倒计时结束" loss branch end-to-end
-     * without touching the debug finish button.
-     */
-    it('configTimerExpiry_lossOnTimeout', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      const cfg: TestGameConfig = new TestGameConfig();
-      cfg.playerHp = 5;
-      cfg.monsterHp = 3;
-      cfg.monstersTotal = 5;
-      cfg.timerChipId = 'ConfigTimer3s';
-      cfg.categories = ['fruit'];
-      await openConfigAndApply(driver, cfg);
-
-      await clickById(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
-
-      // No taps — let the 3s timer run down. Five seconds covers the
-      // three ticks, any jitter, the 650ms feedback window cleanup,
-      // and the router.replaceUrl to ResultPage.
-      await driver.delayMs(5000);
-
-      await driver.assertComponentExist(ON.id('ResultTitle'));
-      await driver.assertComponentExist(ON.text('挑战失败'));
-      // Zero correct answers across the whole session -> 0 defeated.
-      await driver.assertComponentExist(ON.text('击败怪物：0 / 5'));
-
-      await clickById(driver, 'ResultHomeButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      expect(true).assertTrue();
-      done();
-    });
-
-    /**
-     * Config-driven HP-zero loss: set playerHp to the 1-HP minimum on
-     * a long timer, then answer incorrectly once. Wrong answer deals 1
-     * damage (spec §4.3), so the single miss drops HP to 0 and flips
-     * the engine to Lost without a timeout.
-     *
-     * Covers the spec §4.1 "玩家 HP 为 0" loss branch end-to-end
-     * without the debug finish button.
-     */
-    it('configHpZero_lossOnWrongAnswers', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      const cfg: TestGameConfig = new TestGameConfig();
-      cfg.playerHp = 1;
-      cfg.monsterHp = 3;
-      cfg.monstersTotal = 5;
-      cfg.timerChipId = 'ConfigTimer300s';
-      cfg.categories = ['fruit'];
-      await openConfigAndApply(driver, cfg);
-
-      await clickById(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
-
-      // Single wrong tap -> HP 0 -> Lost. 1000ms covers the 650ms
-      // feedback reveal and the router replaceUrl to ResultPage.
-      await tapWrongAnswer(driver);
-      await driver.delayMs(1000);
-
-      await driver.assertComponentExist(ON.id('ResultTitle'));
-      await driver.assertComponentExist(ON.text('挑战失败'));
-      // No monster was defeated (player died mid first encounter).
-      await driver.assertComponentExist(ON.text('击败怪物：0 / 5'));
-
-      await clickById(driver, 'ResultHomeButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      expect(true).assertTrue();
-      done();
-    });
-
-    /**
-     * Config-driven custom-words win: seed three custom words via
-     * CustomWordsPage, switch the ConfigPage category chips to
-     * 'custom' only, configure a 1-monster / 1-HP battle, then win in
-     * a single correct tap against a custom prompt.
-     *
-     * Validates the whole custom-words flow:
-     *   CustomWordsPage text input -> AppStorage.customWordsRaw
-     *   ConfigPage 'custom' chip toggle + builtins off
-     *   BattlePage computeFinalPool narrowing to CUSTOM_TEST_PROMPTS
-     *   QuestionGenerator serving those prompts
-     *   Win path reaches ResultPage with 胜利！
-     *
-     * Helper ordering note: custom words must be saved BEFORE enabling
-     * the 'custom' chip exclusively in ConfigPage — otherwise save-time
-     * validation would block with an empty pool.
-     */
-    it('configCustomWordsOnly_oneShotVictory', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      await openCustomWordsAndSave(driver, CUSTOM_TEST_RAW);
-
-      const cfg: TestGameConfig = new TestGameConfig();
-      cfg.playerHp = 5;
-      cfg.monsterHp = 1;
-      cfg.monstersTotal = 1;
-      cfg.timerChipId = 'ConfigTimer60s';
-      cfg.categories = ['custom'];
-      await openConfigAndApply(driver, cfg);
-
-      await clickById(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
-
-      // Confirm the pool narrowed to custom: the prompt MUST be one of
-      // the three CUSTOM_TEST_PROMPTS strings. Failing here would mean
-      // computeFinalPool leaked a built-in category.
-      const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
-      const prompt: string = await promptComp.getText();
-      expect(isCustomTestPrompt(prompt)).assertTrue();
-
-      await tapCorrectAnswer(driver);
-      await driver.delayMs(900);
-
-      await driver.assertComponentExist(ON.id('ResultTitle'));
-      await driver.assertComponentExist(ON.text('胜利！'));
-      await driver.assertComponentExist(ON.text('击败怪物：1 / 1'));
-      await driver.assertComponentExist(ON.text('正确率：100%'));
-
-      await clickById(driver, 'ResultHomeButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-
-      expect(true).assertTrue();
-      done();
-    });
+    // v0.3.6 cleanup: winFlow_fifteenCorrectAnswersReachesVictory and the
+    // four config-driven tests (configShortWin / configTimerExpiry /
+    // configHpZero / configCustomWordsOnly) were removed because they
+    // depend on the legacy normal-mode entry that v0.3.6 deleted.
+    // Today's adventure ignores cfg.playerHp / monsterHp / monstersTotal
+    // / timer / customWords (it consumes a TodaySessionPlan whose monster
+    // shape and word pool are region-curated), so those flows can no
+    // longer be exercised end-to-end from HomePage. Their engine-level
+    // win/lose / timer / HP / custom-pool semantics remain covered by
+    // the no-device unit tests under entry/src/test/.
   });
 }

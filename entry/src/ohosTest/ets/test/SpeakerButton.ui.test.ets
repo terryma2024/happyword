@@ -3,7 +3,6 @@ import { Driver, ON } from '@kit.TestKit';
 import {
   launchAppShared,
   clickByIdShared,
-  resetToDefaultConfigShared,
 } from './RoutingFlow.ui.test';
 
 /**
@@ -27,12 +26,15 @@ export default function speakerButtonUiTest(): void {
       const driver: Driver = await launchAppShared();
 
       await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // Reset shared config to defaults (5 HP / 5 monsters / 300 s /
-      // fruit) so a prior test's 1-monster custom-words config can't
-      // end this battle before we can tap the speaker twice.
-      await resetToDefaultConfigShared(driver);
+      // v0.3.6: HomeStartButton routes to today's adventure. Today-mode
+      // ignores cfg.playerHp / monsterHp / monstersTotal so the legacy
+      // resetToDefaultConfigShared() guard is no longer needed; the
+      // speaker tap path is mode-agnostic.
       await clickByIdShared(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
+      // Today-mode loads WordRepository + LearningRecorder
+      // asynchronously before pushing BattlePage; bumped from 1000ms
+      // to 1500ms so BattlePage is mounted before the assertions.
+      await driver.delayMs(1500);
       await driver.assertComponentExist(ON.id('BattleTitle'));
       await driver.assertComponentExist(ON.id('BattlePrompt'));
       // Speaker button rendered unconditionally — even when TTS init

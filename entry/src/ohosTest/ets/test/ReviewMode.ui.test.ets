@@ -4,7 +4,6 @@ import {
   launchAppShared,
   clickByIdShared,
   tapWrongAnswerShared,
-  resetToDefaultConfigShared,
 } from './RoutingFlow.ui.test';
 
 /**
@@ -31,20 +30,24 @@ export default function reviewModeUiTest(): void {
       const driver: Driver = await launchAppShared();
 
       await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // Review button must be present on HomePage even when disabled,
-      // so the copy reads as guidance ("先答错几题再来复习吧") rather
-      // than vanishing silently on cold launch.
+      // v0.3.6: HomeReviewButton lives in the top toolbar (replacing
+      // the right-hand column entry) and is rendered as a circular
+      // 📚 icon. It must exist even when locked so a tap shows the
+      // "先答错几题再来复习吧" toast (covered by HomeToolbarLocked.ui.test).
       await driver.assertComponentExist(ON.id('HomeReviewButton'));
 
-      // Reset shared config to defaults so we get a 5-HP / 5-monster
-      // normal battle to seed the wrong answers into (otherwise the
-      // prior test's custom-words / 1-HP config would drop the player
-      // after a single miss and route to ResultPage early).
-      await resetToDefaultConfigShared(driver);
-
-      // --- Seed 3 wrong answers in a regular battle ---
+      // --- Seed 3 wrong answers in today's first basic slot ---
+      // Today-mode's first slot in fruit-forest is a Match question
+      // with 3-HP monster; tapWrongAnswerShared resolves the prompt
+      // to its English answer via WORD_MAP and clicks any other
+      // option, which works because fruit-forest's word pool is a
+      // subset of WORD_MAP. Default cfg.playerHp = 5 is still
+      // honoured by today-mode (BattlePage reads it before merging
+      // the plan), so 3 misses keep us on BattlePage.
       await clickByIdShared(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
+      // Today-mode loads WordRepository + LearningRecorder
+      // asynchronously; bumped from 1000ms to 1500ms.
+      await driver.delayMs(1500);
       await driver.assertComponentExist(ON.id('BattleTitle'));
       for (let i = 0; i < 3; i++) {
         await tapWrongAnswerShared(driver);
@@ -63,10 +66,10 @@ export default function reviewModeUiTest(): void {
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
 
-      // --- Review button must now be enabled ---
+      // --- Review button must now be enabled (📚 in top toolbar) ---
       await driver.assertComponentExist(ON.id('HomeReviewButton'));
       await clickByIdShared(driver, 'HomeReviewButton');
-      await driver.delayMs(1000);
+      await driver.delayMs(1500);
       // The 3-monster override lives in REVIEW_MODE_MONSTERS_TOTAL.
       // Asserting on the header text "Monster 1 / 3" catches both
       // the mode flag and the override in one shot.

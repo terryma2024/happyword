@@ -64,8 +64,8 @@ export default function v03AdventureUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
 
-      await driver.assertComponentExist(ON.id('AdventureCardCta'));
-      const cta = await driver.findComponent(ON.id('AdventureCardCta'));
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+      const cta = await driver.findComponent(ON.id('HomeStartButton'));
       await cta.click();
       await driver.delayMs(1500);
 
@@ -109,7 +109,13 @@ export default function v03AdventureUiTest(): void {
       done();
     });
 
-    it('freePracticeButtonStillStartsBattle', 0, async (done: Function) => {
+    /**
+     * After v0.3.6 the HomeStartButton on HomePage opens today's
+     * adventure (replacing the former normal-mode free-practice
+     * path). This case smoke-tests that the tap reaches BattlePage
+     * with a rendered title.
+     */
+    it('homeStartButtonOpensTodayAdventure', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
 
@@ -171,7 +177,7 @@ export default function v03AdventureUiTest(): void {
       await fruitChip.click();
       await driver.delayMs(300);
 
-      const cta = await driver.findComponent(ON.id('AdventureCardCta'));
+      const cta = await driver.findComponent(ON.id('HomeStartButton'));
       await cta.click();
       await driver.delayMs(1500);
 
