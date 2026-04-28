@@ -42,6 +42,16 @@ struct HomePage {
   @State private todayCompleted: boolean = false;
   @State private todayRegion: AdventureRegion = ADVENTURE_REGIONS[0];
   @State private coinBalance: number = 0;
+  /**
+   * v0.3.6: when the locked review button is tapped (fewer than 3
+   * recent wrong words), surface an inline toast instead of doing
+   * nothing. `toastTimer` holds the active setTimeout handle so a
+   * rapid second tap can reset the dismissal window cleanly, and
+   * `aboutToDisappear` can cancel a pending callback before the
+   * page is destroyed.
+   */
+  @State private reviewLockedToastVisible: boolean = false;
+  private toastTimer: number = -1;
   private coins: CoinAccount = getCoinAccount();
   private todayPrefs: TodayPreferences = getTodayPreferences();
 
@@ -78,6 +88,13 @@ struct HomePage {
     this.refreshTodayState();
   }
 
+  aboutToDisappear(): void {
+    if (this.toastTimer >= 0) {
+      clearTimeout(this.toastTimer);
+      this.toastTimer = -1;
+    }
+  }
+
   private refreshBalance(): void {
     const snap: CoinSnapshot = this.coins.snapshot();
     this.coinBalance = snap.totalCoins - snap.spentCoins;
@@ -107,6 +124,24 @@ struct HomePage {
 
   private reviewEnabled(): boolean {
     return this.recentWrongCount >= REVIEW_MIN_WRONG_IDS;
+  }
+
+  /**
+   * Surface a transient inline toast at the top of HomePage when the
+   * locked 📚 button is tapped. Self-dismisses after 1.5s; a rapid
+   * follow-up tap resets the timer so the toast doesn't disappear
+   * mid-message. The HomeReviewLockedToast id is the contract used
+   * by HomeToolbarLocked.ui.test.
+   */
+  private showReviewLockedToast(): void {
+    if (this.toastTimer >= 0) {
+      clearTimeout(this.toastTimer);
+    }
+    this.reviewLockedToastVisible = true;
+    this.toastTimer = setTimeout((): void => {
+      this.reviewLockedToastVisible = false;
+      this.toastTimer = -1;
+    }, 1500);
   }
 
   /**
@@ -189,6 +224,25 @@ struct HomePage {
       .height('100%')
       .scrollBar(BarState.Auto);
 
+      // v0.3.6: top-of-screen toast for a tap on the locked 📚 button.
+      // Wrapped in a full-width Column with HorizontalAlign.Center so
+      // it overrides the outer Stack's TopEnd alignment for this child
+      // and lands centred under the toolbar.
+      Column() {
+        if (this.reviewLockedToastVisible) {
+          Text('先答错几题再来复习吧')
+            .id('HomeReviewLockedToast')
+            .fontSize(14)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#3A3A3ACC')
+            .borderRadius(18)
+            .padding({ left: 16, right: 16, top: 8, bottom: 8 });
+        }
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Center)
+      .margin({ top: 96 });
+
       Row({ space: 12 }) {
         Text(`✨ ${this.coinBalance}`)
           .id('HomeCoinBalance')
@@ -206,12 +260,12 @@ struct HomePage {
           .fontSize(24)
           .fontColor(this.reviewEnabled() ? '#E63946' : '#999999')
           .backgroundColor(this.reviewEnabled() ? '#FCEAEA' : '#EEEEEE')
-          .enabled(this.reviewEnabled())
           .onClick((): void => {
-            if (!this.reviewEnabled()) {
-              return;
+            if (this.reviewEnabled()) {
+              this.enterReviewMode();
+            } else {
+              this.showReviewLockedToast();
             }
-            this.enterReviewMode();
           });
 
         Button('🪄')
