@@ -1,16 +1,28 @@
 /**
  * Question — one prompt shown to the player (spec §8.2).
  *
- * V0.1 invariant: exactly three options, the correct answer is always one of
- * them, and no option appears twice. `wordId` links the question back to the
- * originating WordEntry so BattleEngine can avoid picking the same word twice
- * in a row and can later track per-word accuracy.
+ * V0.3 introduces a `kind` discriminator. Choice questions keep
+ * the V0.1/V0.2 invariants exactly; FillLetter questions add a
+ * letter template + 3 candidate letters and reuse `answer` to
+ * carry the full English word so TTS auto-speak still works.
  */
+export enum QuestionKind {
+  Choice = 'choice',
+  FillLetter = 'fill-letter',
+}
+
 export class Question {
   promptZh: string = '';
   answer: string = '';
   options: string[] = [];
   wordId: string = '';
+
+  kind: QuestionKind = QuestionKind.Choice;
+
+  letterTemplate: string = '';
+  missingIndex: number = -1;
+  letterOptions: string[] = [];
+  letterAnswer: string = '';
 
   /**
    * Runtime invariant check. Returns true when the question is well-formed.
@@ -18,6 +30,22 @@ export class Question {
    * question.
    */
   isValid(): boolean {
+    if (this.wordId.length === 0) {
+      return false;
+    }
+    if (this.answer.length === 0) {
+      return false;
+    }
+    if (this.kind === QuestionKind.FillLetter) {
+      return this.isValidFillLetter();
+    }
+    return this.isValidChoice();
+  }
+
+  private isValidChoice(): boolean {
+    if (this.promptZh.length === 0) {
+      return false;
+    }
     if (this.options.length !== 3) {
       return false;
     }
@@ -31,10 +59,38 @@ export class Question {
       }
       seen.add(this.options[i]);
     }
-    if (this.promptZh.length === 0) {
+    return true;
+  }
+
+  private isValidFillLetter(): boolean {
+    if (this.letterTemplate.length === 0) {
       return false;
     }
-    if (this.wordId.length === 0) {
+    if (this.letterOptions.length !== 3) {
+      return false;
+    }
+    const seen: Set<string> = new Set<string>();
+    for (let i = 0; i < this.letterOptions.length; i++) {
+      const c: string = this.letterOptions[i];
+      if (c.length !== 1) {
+        return false;
+      }
+      if (seen.has(c)) {
+        return false;
+      }
+      seen.add(c);
+    }
+    if (this.letterOptions.indexOf(this.letterAnswer) < 0) {
+      return false;
+    }
+    if (this.missingIndex < 0) {
+      return false;
+    }
+    const word: string = this.answer.toLowerCase();
+    if (this.missingIndex >= word.length) {
+      return false;
+    }
+    if (word.charAt(this.missingIndex) !== this.letterAnswer) {
       return false;
     }
     return true;
