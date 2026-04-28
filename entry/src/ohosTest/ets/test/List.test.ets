@@ -5,6 +5,7 @@ import reviewModeUiTest from './ReviewMode.ui.test';
 import magicAttackUiTest from './MagicAttack.ui.test';
 import v03AdventureUiTest from './V03Adventure.ui.test';
 import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
+import fillLetterFlowUiTest from './FillLetterFlow.ui.test';
 
 export default function testsuite() {
   // HomeToolbarLocked must run before any suite that seeds wrong
@@ -19,4 +20,10 @@ export default function testsuite() {
   reviewModeUiTest();
   magicAttackUiTest();
   v03AdventureUiTest();
+  // FillLetterFlow taps correct answers driven by a static catalog
+  // map (see the file's header comment) so it stays deterministic
+  // even after earlier suites populated the LearningRecorder. Runs
+  // last so any monster-defeated stat seeded here does not pollute
+  // the assumptions the other suites bake in.
+  fillLetterFlowUiTest();
 }
