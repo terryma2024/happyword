@@ -6,6 +6,7 @@ import memorySchedulerTest from './MemoryScheduler.test';
 import adventureCatalogTest from './AdventureCatalog.test';
 import todayAdventureBuilderTest from './TodayAdventureBuilder.test';
 import planQuestionSourceTest from './PlanQuestionSource.test';
+import coinAccountTest from './CoinAccount.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -16,4 +17,5 @@ export default function testsuite() {
   adventureCatalogTest();
   todayAdventureBuilderTest();
   planQuestionSourceTest();
+  coinAccountTest();
 }
