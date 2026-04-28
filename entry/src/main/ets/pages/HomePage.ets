@@ -266,20 +266,6 @@ struct HomePage {
             });
           });
 
-        Button('🧪')
-          .id('HomeTtsTestButton')
-          .type(ButtonType.Circle)
-          .width(56)
-          .height(56)
-          .fontSize(24)
-          .fontColor('#457B9D')
-          .backgroundColor('#EAF2F8')
-          .onClick((): void => {
-            router.pushUrl({ url: 'pages/TtsTestPage' }).catch((err: BusinessError): void => {
-              console.error(`HomePage: pushUrl TtsTestPage failed: ${JSON.stringify(err)}`);
-            });
-          });
-
         Button('⚙')
           .id('HomeConfigButton')
           .type(ButtonType.Circle)
