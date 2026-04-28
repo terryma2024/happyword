@@ -9,7 +9,8 @@ import {
   RIBBON_UPWARD_BIAS
 } from '../main/ets/components/GiftBox';
 import { WordEntry, CATEGORY_FRUIT, CATEGORY_HOME, CATEGORY_PLACE } from '../main/ets/models/WordEntry';
-import { Question } from '../main/ets/models/Question';
+import { Question, QuestionKind } from '../main/ets/models/Question';
+import { IQuestionSource } from '../main/ets/services/IQuestionSource';
 import { WordRepository } from '../main/ets/services/WordRepository';
 import { shuffle, mulberry32, RandomFn } from '../main/ets/utils/shuffle';
 import { QuestionGenerator, OPTIONS_PER_QUESTION } from '../main/ets/services/QuestionGenerator';
@@ -53,6 +54,7 @@ import {
   serializeSnapshot
 } from '../main/ets/services/WrongAnswerStore';
 import { LearningRecorder } from '../main/ets/services/LearningRecorder';
+import { MemoryState } from '../main/ets/services/MemoryScheduler';
 
 /**
  * Test-only Map-backed StringPreferencesLike. Used by both the
@@ -150,6 +152,50 @@ function pickWrongOption(q: Question): string {
     }
   }
   return '';
+}
+
+/**
+ * Test fixture: a deterministic IQuestionSource that serves two
+ * pre-built questions in order. Used by the BattleEngine fill-letter
+ * suite so we can assert behaviour without owning a WordRepository.
+ */
+class FixedQuestionSource implements IQuestionSource {
+  private readonly q1: Question;
+  private readonly q2: Question;
+  private served: number = 0;
+
+  constructor(q1: Question, q2: Question) {
+    this.q1 = q1;
+    this.q2 = q2;
+  }
+
+  nextQuestion(_lastWordId?: string): Question {
+    this.served += 1;
+    return this.served === 1 ? this.q1 : this.q2;
+  }
+}
+
+function makeFillLetterQ(): Question {
+  const q: Question = new Question();
+  q.kind = QuestionKind.FillLetter;
+  q.promptZh = '苹果';
+  q.answer = 'apple';
+  q.wordId = 'fruit-apple';
+  q.letterTemplate = 'a _ p l e';
+  q.missingIndex = 1;
+  q.letterOptions = ['p', 'b', 't'];
+  q.letterAnswer = 'p';
+  return q;
+}
+
+function makeChoiceQ(): Question {
+  const q: Question = new Question();
+  q.kind = QuestionKind.Choice;
+  q.promptZh = '香蕉';
+  q.answer = 'banana';
+  q.wordId = 'fruit-banana';
+  q.options = ['banana', 'apple', 'pear'];
+  return q;
 }
 
 export default function localUnitTest() {
@@ -566,6 +612,28 @@ export default function localUnitTest() {
         }
         lastWordId = q.wordId;
       }
+    });
+  });
+
+  describe('QuestionGenerator.nextQuestionForWord', () => {
+    it('locksAnswerToTheGivenEntry', 0, () => {
+      const repo: WordRepository = buildFruitRepo();
+      const gen: QuestionGenerator = new QuestionGenerator(repo, mulberry32(7));
+      const target: WordEntry = repo.findById('fruit-pear') as WordEntry;
+      const q: Question = gen.nextQuestionForWord(target);
+      expect(q.answer).assertEqual('pear');
+      expect(q.wordId).assertEqual('fruit-pear');
+      expect(q.options.length).assertEqual(OPTIONS_PER_QUESTION);
+      expect(q.options.indexOf('pear') >= 0).assertTrue();
+    });
+
+    it('producesValidThreeOptionQuestion', 0, () => {
+      const repo: WordRepository = buildFruitRepo();
+      const gen: QuestionGenerator = new QuestionGenerator(repo, mulberry32(8));
+      const target: WordEntry = repo.findById('fruit-pear') as WordEntry;
+      const q: Question = gen.nextQuestionForWord(target, 'fruit-apple');
+      expect(q.options.length).assertEqual(OPTIONS_PER_QUESTION);
+      expect(q.isValid()).assertTrue();
     });
   });
 
@@ -1086,6 +1154,38 @@ export default function localUnitTest() {
     });
   });
 
+  describe('BattleEngine fill-letter handling', () => {
+    it('correctLetterDealsMonsterDamage', 0, () => {
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(makeFillLetterQ(), makeChoiceQ()));
+      engine.start();
+      const before: number = engine.getState().monsterHp;
+      const outcome: AnswerOutcome = engine.submitAnswer('p');
+      expect(outcome.correct).assertTrue();
+      expect(engine.getState().monsterHp).assertEqual(before - 1);
+    });
+
+    it('rejectsLetterNotInLetterOptions', 0, () => {
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(makeFillLetterQ(), makeChoiceQ()));
+      engine.start();
+      let threw: boolean = false;
+      try {
+        engine.submitAnswer('z');
+      } catch (_e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+    });
+
+    it('wrongLetterDealsPlayerDamage', 0, () => {
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(makeFillLetterQ(), makeChoiceQ()));
+      engine.start();
+      const before: number = engine.getState().playerHp;
+      const outcome: AnswerOutcome = engine.submitAnswer('b');
+      expect(outcome.correct).assertFalse();
+      expect(engine.getState().playerHp).assertEqual(before - 1);
+    });
+  });
+
   describe('GameConfig.defaults', () => {
     it('defaultsMatchEngineDefaults', 0, () => {
       const c: GameConfig = new GameConfig();
@@ -1321,6 +1421,54 @@ export default function localUnitTest() {
     });
   });
 
+  describe('LearningSnapshot v2 schema', () => {
+    it('appliesV2DefaultsToV1Blob', 0, () => {
+      // Hand-rolled v1 JSON because ArkTS strict mode rejects untyped
+      // object literals; building a typed JSON-mirror class just for
+      // a fixture would add boilerplate without value.
+      const v1: string =
+        '{"version":1,"stats":[{"wordId":"fruit-apple","seenCount":4,'
+        + '"correctCount":3,"wrongCount":1,"lastAnsweredMs":1700}]}';
+      const snap: LearningSnapshot = parseSnapshot(v1);
+      expect(snap.version).assertEqual(1);
+      expect(snap.stats.length).assertEqual(1);
+      const s: WordStat = snap.stats[0];
+      expect(s.lastCorrectMs).assertEqual(1700);
+      expect(s.nextReviewMs).assertEqual(0);
+      expect(s.memoryState).assertEqual('learning');
+    });
+
+    it('readsBackV2BlobLossless', 0, () => {
+      const stat: WordStat = new WordStat();
+      stat.wordId = 'fruit-pear';
+      stat.seenCount = 2;
+      stat.correctCount = 1;
+      stat.wrongCount = 1;
+      stat.lastAnsweredMs = 9000;
+      stat.lastCorrectMs = 8000;
+      stat.nextReviewMs = 12000;
+      stat.memoryState = 'review';
+      const snap: LearningSnapshot = new LearningSnapshot();
+      snap.version = 2;
+      snap.stats.push(stat);
+      const round: LearningSnapshot = parseSnapshot(serializeSnapshot(snap));
+      expect(round.version).assertEqual(2);
+      const r: WordStat = round.stats[0];
+      expect(r.lastCorrectMs).assertEqual(8000);
+      expect(r.nextReviewMs).assertEqual(12000);
+      expect(r.memoryState).assertEqual('review');
+    });
+
+    it('marksMemoryStateNewWhenCorrectCountZeroInV1', 0, () => {
+      const v1: string =
+        '{"version":1,"stats":[{"wordId":"home-tv","seenCount":1,'
+        + '"correctCount":0,"wrongCount":1,"lastAnsweredMs":5000}]}';
+      const s: WordStat = parseSnapshot(v1).stats[0];
+      expect(s.memoryState).assertEqual('new');
+      expect(s.lastCorrectMs).assertEqual(0);
+    });
+  });
+
   describe('LearningRecorder', () => {
     it('recordCorrectCountsAsNewlyLearned', 0, () => {
       const rec: LearningRecorder = makeRecorderWithSnapshot([]);
@@ -1390,6 +1538,29 @@ export default function localUnitTest() {
       const recent: string[] = rec.recentWrongIds(5);
       expect(recent.length).assertEqual(1);
       expect(recent[0]).assertEqual('apple');
+    });
+  });
+
+  describe('LearningRecorder.recordAnswer with MemoryScheduler', () => {
+    it('movesNewWordToLearningOnFirstCorrect', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.recordAnswer('fruit-apple', true);
+      const ids: string[] = rec.wordIdsByMemoryState(MemoryState.Learning, 10, Date.now() + 1);
+      expect(ids.indexOf('fruit-apple') >= 0).assertTrue();
+    });
+
+    it('marksWordReviewOnWrong', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.recordAnswer('fruit-apple', false);
+      const dueLater: number = Date.now() + 60 * 60 * 1000;
+      const ids: string[] = rec.wordIdsByMemoryState(MemoryState.Review, 10, dueLater);
+      expect(ids.indexOf('fruit-apple') >= 0).assertTrue();
+    });
+
+    it('upgradesSnapshotVersionToTwo', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.recordAnswer('fruit-apple', true);
+      expect(rec.snapshotVersionForTest()).assertEqual(2);
     });
   });
 }

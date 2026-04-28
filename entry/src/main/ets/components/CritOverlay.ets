@@ -151,12 +151,20 @@ export struct CritOverlay {
       // visible" during the brief window UiTest samples, even though
       // the node exists in the frame buffer. Opacity alone is enough
       // to hide it at rest visually.
+      //
+      // hitTestBehavior(None) is applied to EVERY descendant: the
+      // parent's Transparent only declares "self lets events through",
+      // it does NOT propagate to children — a full-screen Column with
+      // default mode would still swallow taps even at opacity 0,
+      // which previously left the option buttons unresponsive after
+      // a combo burst overlay was last triggered.
       Column()
         .id('CritGoldFlash')
         .width('100%')
         .height('100%')
         .backgroundColor('#FFB400')
-        .opacity(this.flashOpacity);
+        .opacity(this.flashOpacity)
+        .hitTestBehavior(HitTestMode.None);
 
       // Expanding shockwave rings — primary (outer) burst and a
       // secondary inner ring for depth. Both centred and grow from
@@ -168,18 +176,21 @@ export struct CritOverlay {
           .stroke('#FFD93D')
           .strokeWidth(10)
           .opacity(this.shockwaveOpacity)
-          .scale({ x: this.shockwaveScale, y: this.shockwaveScale });
+          .scale({ x: this.shockwaveScale, y: this.shockwaveScale })
+          .hitTestBehavior(HitTestMode.None);
         Circle({ width: 90, height: 90 })
           .id('CritShockwaveInner')
           .fill('#00000000')
           .stroke('#FFFFFF')
           .strokeWidth(6)
           .opacity(this.shockwaveSecondaryOpacity)
-          .scale({ x: this.shockwaveSecondaryScale, y: this.shockwaveSecondaryScale });
+          .scale({ x: this.shockwaveSecondaryScale, y: this.shockwaveSecondaryScale })
+          .hitTestBehavior(HitTestMode.None);
       }
       .width('100%')
       .height('100%')
-      .alignContent(Alignment.Center);
+      .alignContent(Alignment.Center)
+      .hitTestBehavior(HitTestMode.None);
 
       // Big floating damage number. Same always-mounted reasoning:
       // the opacity drops to 0 at rest so the big number is
@@ -193,16 +204,18 @@ export struct CritOverlay {
           .fontColor('#E63946')
           .opacity(this.numberOpacity)
           .scale({ x: this.numberScale, y: this.numberScale })
-          .translate({ x: 0, y: this.numberTranslateY });
+          .translate({ x: 0, y: this.numberTranslateY })
+          .hitTestBehavior(HitTestMode.None);
       }
       .width('100%')
       .height('100%')
       .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Center);
+      .alignItems(HorizontalAlign.Center)
+      .hitTestBehavior(HitTestMode.None);
     }
     // hitTestBehavior passthrough so the overlay never swallows taps
     // meant for the option buttons beneath it.
-    .hitTestBehavior(HitTestMode.Transparent)
+    .hitTestBehavior(HitTestMode.None)
     .width('100%')
     .height('100%');
   }

@@ -2,6 +2,7 @@ import { WordEntry } from '../models/WordEntry';
 import { Question } from '../models/Question';
 import { WordRepository } from './WordRepository';
 import { RandomFn, shuffle } from '../utils/shuffle';
+import { IQuestionSource } from './IQuestionSource';
 
 /**
  * QuestionGenerator turns a WordRepository into a stream of three-option
@@ -22,7 +23,7 @@ import { RandomFn, shuffle } from '../utils/shuffle';
 export const MIN_REPO_SIZE: number = 3;
 export const OPTIONS_PER_QUESTION: number = 3;
 
-export class QuestionGenerator {
+export class QuestionGenerator implements IQuestionSource {
   private readonly repo: WordRepository;
   private readonly rng: RandomFn;
 
@@ -54,6 +55,34 @@ export class QuestionGenerator {
 
     const shuffled: string[] = shuffle<string>(optionWords, this.rng);
 
+    const q: Question = new Question();
+    q.promptZh = answerEntry.meaningZh;
+    q.answer = answerEntry.word;
+    q.options = shuffled;
+    q.wordId = answerEntry.id;
+    return q;
+  }
+
+  /**
+   * Generate a Choice question whose answer is locked to `answerEntry`.
+   * Distractors still come from the same-category pool first and fall
+   * back to the global pool, mirroring nextQuestion(). Used by
+   * PlanQuestionSource so today's adventure can show a specific wordId
+   * on Normal/Review/Elite/Boss slots without duplicating logic.
+   */
+  nextQuestionForWord(answerEntry: WordEntry, _lastWordId?: string): Question {
+    const all: WordEntry[] = this.repo.all();
+    if (all.length < OPTIONS_PER_QUESTION) {
+      throw new Error(
+        `QuestionGenerator: repository has ${all.length} words, need at least ${OPTIONS_PER_QUESTION}`
+      );
+    }
+    const distractors: WordEntry[] = this.pickDistractors(all, answerEntry);
+    const optionWords: string[] = [answerEntry.word];
+    for (let i = 0; i < distractors.length; i++) {
+      optionWords.push(distractors[i].word);
+    }
+    const shuffled: string[] = shuffle<string>(optionWords, this.rng);
     const q: Question = new Question();
     q.promptZh = answerEntry.meaningZh;
     q.answer = answerEntry.word;

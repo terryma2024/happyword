@@ -5,6 +5,9 @@ import { CharacterCard, CharacterKind } from '../components/CharacterCard';
 import { ChoiceButton, ChoiceState } from '../components/ChoiceButton';
 import { WordRepository } from '../services/WordRepository';
 import { QuestionGenerator } from '../services/QuestionGenerator';
+import { FillLetterGenerator } from '../services/FillLetterGenerator';
+import { IQuestionSource } from '../services/IQuestionSource';
+import { PlanQuestionSource } from '../services/PlanQuestionSource';
 import {
   BattleEngine,
   BattleConfig,
@@ -20,13 +23,22 @@ import {
   GAME_CONFIG_STORAGE_KEY,
   GAME_MODE_NORMAL,
   GAME_MODE_REVIEW,
+  GAME_MODE_TODAY,
+  TODAY_PLAN_STORAGE_KEY,
+  TODAY_LAST_COMPLETED_DAY_KEY,
   cloneGameConfig,
   computeFinalPool
 } from '../models/GameConfig';
+import { formatDayKeyLocal } from '../models/CoinSnapshot';
+import { TodaySessionPlan, WordSlot, WordSource } from '../models/AdventureRegion';
+import { AdventureRegion } from '../models/AdventureRegion';
+import { getRegionById } from '../data/AdventureCatalog';
+import { CoinAccount, getCoinAccount, COIN_REASON_TODAY_FIRST } from '../services/CoinAccount';
+import { CoinSnapshot, DAILY_CAP } from '../models/CoinSnapshot';
 import { WordEntry } from '../models/WordEntry';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
-import { Question } from '../models/Question';
+import { Question, QuestionKind } from '../models/Question';
 import { MonsterEntry, getMonsterByIndex } from '../data/MonsterCatalog';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
@@ -83,6 +95,59 @@ export const REVIEW_MODE_MONSTERS_TOTAL: number = 3;
 export const REVIEW_MODE_STARTING_SECONDS: number = 120;
 export const REVIEW_WINDOW_SIZE: number = 12;
 
+/** Per-word answer tally used to compute review-only accuracy. */
+class AnswerCount {
+  correct: number = 0;
+  total: number = 0;
+}
+
+/**
+ * Inlined LetterTemplate slot model. The previous standalone
+ * @Component was folded into BattlePage as @Builder method to
+ * satisfy codelinter's avoid-overusing-custom-component rule;
+ * the slot row was the entire payload of that component.
+ */
+class LetterSlot {
+  idx: number = 0;
+  glyph: string = '';
+  isMissing: boolean = false;
+}
+
+const LETTER_SLOT_WIDTH: number = 36;
+const LETTER_SLOT_HEIGHT: number = 48;
+const LETTER_SLOT_GAP: number = 8;
+const LETTER_TEXT_FILLED: string = '#1D3557';
+const LETTER_TEXT_MISSING: string = '#E63946';
+const LETTER_BG_MISSING: string = '#FCEAEA';
+
+function countByWordSource(plan: TodaySessionPlan, src: WordSource): number {
+  let n: number = 0;
+  for (let i = 0; i < plan.wordPlan.length; i++) {
+    if (plan.wordPlan[i].source === src) {
+      n += 1;
+    }
+  }
+  return n;
+}
+
+function computeReviewAccuracy(plan: TodaySessionPlan, answers: Map<string, AnswerCount>): number {
+  let correct: number = 0;
+  let total: number = 0;
+  for (let i = 0; i < plan.wordPlan.length; i++) {
+    const slot: WordSlot = plan.wordPlan[i];
+    if (slot.source !== WordSource.Review) {
+      continue;
+    }
+    const cnt: AnswerCount | undefined = answers.get(slot.wordId);
+    if (cnt === undefined) {
+      continue;
+    }
+    correct += cnt.correct;
+    total += cnt.total;
+  }
+  return total > 0 ? correct / total : 0;
+}
+
 @Entry
 @Component
 struct BattlePage {
@@ -103,6 +168,22 @@ struct BattlePage {
    * the battle ends.
    */
   private isReviewMode: boolean = false;
+  /**
+   * V0.3: True when this battle was launched from the today-adventure
+   * card. Mutually exclusive with isReviewMode. Drives plan-based
+   * monster slots, FillLetter rendering on Spelling/Boss, and the
+   * "first-today reward" branch on ResultPage (Phase C).
+   */
+  private isTodayMode: boolean = false;
+  private todayPlan: TodaySessionPlan | undefined = undefined;
+  /**
+   * Per-wordId answer counters captured during the live battle.
+   * navigateToResult uses this to compute review-pool accuracy
+   * separately from the all-time `correctRate` so the Phase C
+   * `review-80` coin reward fires on the right metric.
+   */
+  private sessionAnswers: Map<string, AnswerCount> = new Map<string, AnswerCount>();
+  private coinAccount: CoinAccount = getCoinAccount();
   private feedbackTimer: number = -1;
   /**
    * Handle returned by setInterval for the 1Hz countdown driver. -1 when
@@ -183,6 +264,13 @@ struct BattlePage {
   @State feedbackText: string = ' ';
   @State feedbackColor: string = '#2ECC71';
 
+  // V0.3 fill-letter render state. For Choice questions these stay
+  // at their defaults and BattlePage renders the existing prompt
+  // layout; for FillLetter the LetterTemplate row replaces it.
+  @State currentQuestionKind: string = 'choice';
+  @State letterTemplate: string = '';
+  @State letterMissingIndex: number = -1;
+
   // Options and their per-button states. Kept in parallel arrays so the
   // three ChoiceButtons below can each pick their props with a single
   // index. The IDs are stable (not regenerated on question change) because
@@ -222,6 +310,9 @@ struct BattlePage {
     }).catch((err: BusinessError): void => {
       console.error(`BattlePage: LearningRecorder.init failed: ${JSON.stringify(err)}`);
     });
+    this.coinAccount.init(ctx).catch((err: BusinessError): void => {
+      console.error(`BattlePage: CoinAccount.init failed: ${JSON.stringify(err)}`);
+    });
     const repo: WordRepository = new WordRepository();
     repo.loadFromRawfile(ctx).then((): void => {
       const storedCfg: GameConfig | undefined =
@@ -229,10 +320,13 @@ struct BattlePage {
       const cfg: GameConfig = cloneGameConfig(storedCfg !== undefined ? storedCfg : new GameConfig());
       this.autoSpeak = cfg.autoSpeak;
       this.isReviewMode = cfg.mode === GAME_MODE_REVIEW;
+      this.isTodayMode = cfg.mode === GAME_MODE_TODAY;
 
       // Universe pool: every word the player could be shown, honouring
       // their category filters. For review mode we then *narrow* this
-      // to the set of wordIds they've recently answered wrong.
+      // to the set of wordIds they've recently answered wrong. Today
+      // mode keeps the full universe so PlanQuestionSource can still
+      // resolve any wordId that ended up in plan.wordPlan.
       const universe: WordEntry[] =
         computeFinalPool(repo.all(), cfg.enabledCategories, cfg.customWordsRaw);
       const finalEntries: WordEntry[] =
@@ -241,7 +335,37 @@ struct BattlePage {
       const finalRepo: WordRepository = new WordRepository();
       finalRepo.setEntries(finalEntries);
 
-      const gen: QuestionGenerator = new QuestionGenerator(finalRepo);
+      const choiceGen: QuestionGenerator = new QuestionGenerator(finalRepo);
+
+      // Pick the IQuestionSource. Today mode uses PlanQuestionSource
+      // backed by the plan stored in AppStorage; everything else falls
+      // back to the V0.2 QuestionGenerator path.
+      let source: IQuestionSource = choiceGen;
+      let planMonsters: number = -1;
+      if (this.isTodayMode) {
+        const plan: TodaySessionPlan | undefined =
+          AppStorage.get<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY);
+        if (plan !== undefined && plan.wordPlan.length > 0) {
+          this.todayPlan = plan;
+          // Today battles use the bundled repo (not the review pool)
+          // so PlanQuestionSource can resolve plan word ids regardless
+          // of the player's category filters.
+          const bundleRepo: WordRepository = new WordRepository();
+          bundleRepo.setEntries(repo.all());
+          const fillGen: FillLetterGenerator = new FillLetterGenerator();
+          const planChoiceGen: QuestionGenerator = new QuestionGenerator(bundleRepo);
+          const planSource: PlanQuestionSource = new PlanQuestionSource(
+            plan, bundleRepo, planChoiceGen, fillGen);
+          source = planSource;
+          planMonsters = plan.monsterSlots.length;
+          // The provider is wired right after engine construction so the
+          // closure captures the engine reference below.
+        } else {
+          // Plan is missing — degrade gracefully to normal mode so the
+          // player isn't stuck on a black screen.
+          this.isTodayMode = false;
+        }
+      }
 
       const bc: BattleConfig = new BattleConfig();
       bc.playerMaxHp = cfg.playerMaxHp;
@@ -252,12 +376,21 @@ struct BattlePage {
       if (this.isReviewMode) {
         bc.monstersTotal = REVIEW_MODE_MONSTERS_TOTAL;
         bc.startingSeconds = REVIEW_MODE_STARTING_SECONDS;
+      } else if (this.isTodayMode && planMonsters > 0) {
+        bc.monstersTotal = planMonsters;
+        bc.startingSeconds = cfg.startingSeconds;
       } else {
         bc.monstersTotal = cfg.monstersTotal;
         bc.startingSeconds = cfg.startingSeconds;
       }
 
-      const engine: BattleEngine = new BattleEngine(gen, bc);
+      const engine: BattleEngine = new BattleEngine(source, bc);
+      // Now that the engine exists, wire the monster-index provider
+      // so PlanQuestionSource can switch question kind per slot.
+      if (this.isTodayMode && source instanceof PlanQuestionSource) {
+        const planSource: PlanQuestionSource = source as PlanQuestionSource;
+        planSource.setMonsterIndexProvider((): number => engine.getState().monsterIndex);
+      }
       engine.start();
       this.engine = engine;
       this.syncFromEngine();
@@ -438,9 +571,18 @@ struct BattlePage {
     const q: Question | undefined = state.currentQuestion;
     if (q !== undefined) {
       this.prompt = q.promptZh;
-      this.options = [q.options[0], q.options[1], q.options[2]];
       this.lastAnswerWord = q.answer;
       this.currentWordId = q.wordId;
+      this.currentQuestionKind = q.kind;
+      if (q.kind === QuestionKind.FillLetter) {
+        this.letterTemplate = q.letterTemplate;
+        this.letterMissingIndex = q.missingIndex;
+        this.options = [q.letterOptions[0], q.letterOptions[1], q.letterOptions[2]];
+      } else {
+        this.letterTemplate = '';
+        this.letterMissingIndex = -1;
+        this.options = [q.options[0], q.options[1], q.options[2]];
+      }
     }
   }
 
@@ -474,8 +616,15 @@ struct BattlePage {
     // Capture the question state BEFORE submitting — submitAnswer mutates
     // currentQuestion to the next question, but we want to keep showing
     // the just-answered prompt and options during the reveal window.
+    // FillLetter questions carry their own template/missing-index, so
+    // those snapshots ride along too; otherwise the reveal window
+    // would show the answered prompt against the NEXT question's
+    // letter template (or vice versa).
     const answeredPrompt: string = this.prompt;
     const answeredOptions: string[] = this.options.slice();
+    const answeredKind: string = this.currentQuestionKind;
+    const answeredLetterTemplate: string = this.letterTemplate;
+    const answeredLetterMissingIndex: number = this.letterMissingIndex;
     const correctWord: string = this.lastAnswerWord;
     const answeredWordId: string = this.currentWordId;
 
@@ -485,6 +634,13 @@ struct BattlePage {
     // answered. Falls through silently if the recorder wasn't ready.
     if (answeredWordId.length > 0) {
       this.recorder.recordAnswer(answeredWordId, outcome.correct);
+      const prev: AnswerCount | undefined = this.sessionAnswers.get(answeredWordId);
+      const acc: AnswerCount = prev !== undefined ? prev : new AnswerCount();
+      acc.total += 1;
+      if (outcome.correct) {
+        acc.correct += 1;
+      }
+      this.sessionAnswers.set(answeredWordId, acc);
     }
 
     // Update stat displays (HP, combo, monster index) immediately so the
@@ -492,10 +648,13 @@ struct BattlePage {
     this.syncFromEngine();
 
     // Keep the answered question on screen for the reveal window —
-    // syncFromEngine above would have replaced prompt/options with the
-    // NEXT question's data.
+    // syncFromEngine above would have replaced prompt/options/kind/
+    // letter-template with the NEXT question's data.
     this.prompt = answeredPrompt;
     this.options = answeredOptions;
+    this.currentQuestionKind = answeredKind;
+    this.letterTemplate = answeredLetterTemplate;
+    this.letterMissingIndex = answeredLetterMissingIndex;
 
     // Highlight the tapped button; keep the other two disabled so the
     // player can't race through feedback.
@@ -576,8 +735,31 @@ struct BattlePage {
 
       if (nextQuestion !== undefined) {
         this.prompt = nextQuestion.promptZh;
-        this.options = [nextQuestion.options[0], nextQuestion.options[1], nextQuestion.options[2]];
         this.lastAnswerWord = nextQuestion.answer;
+        // Populate the option buttons from the field that matches the
+        // question kind. For FillLetter questions `nextQuestion.options`
+        // is empty by contract — the three letter candidates live in
+        // `letterOptions`. Without this branch the buttons would render
+        // with no text on the very first FillLetter shown after a
+        // Choice question (e.g. monster-2 in today's adventure).
+        this.currentQuestionKind = nextQuestion.kind;
+        if (nextQuestion.kind === QuestionKind.FillLetter) {
+          this.options = [
+            nextQuestion.letterOptions[0],
+            nextQuestion.letterOptions[1],
+            nextQuestion.letterOptions[2],
+          ];
+          this.letterTemplate = nextQuestion.letterTemplate;
+          this.letterMissingIndex = nextQuestion.missingIndex;
+        } else {
+          this.options = [
+            nextQuestion.options[0],
+            nextQuestion.options[1],
+            nextQuestion.options[2],
+          ];
+          this.letterTemplate = '';
+          this.letterMissingIndex = -1;
+        }
         // New question loaded — feedback window is closed so it's
         // safe to auto-speak the answer now.
         this.maybeAutoSpeakCurrent(false);
@@ -662,6 +844,12 @@ struct BattlePage {
     // about the recorder, so this is the integration point.
     result.newlyLearnedCount = this.recorder.newlyLearnedCount;
     result.totalLearnedCount = this.recorder.totalLearnedCount;
+    // Today-adventure coin earnings + result enrichment. Runs only
+    // when the engine actually consumed a TodaySessionPlan; in any
+    // other mode the new SessionResult fields stay at their defaults.
+    if (this.isTodayMode && this.todayPlan !== undefined) {
+      this.applyTodayAdventureRewards(result, this.todayPlan);
+    }
     // Review mode is always a single-battle affordance — reset the
     // stored GameConfig back to 'normal' so the next HomePage launch
     // doesn't accidentally start another review session. Done even
@@ -678,6 +866,52 @@ struct BattlePage {
       params: result,
     }).catch((err: BusinessError): void => {
       console.error(`BattlePage: replaceUrl ResultPage failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  /**
+   * Compute today-adventure coin awards, mark today as completed
+   * for the home-page badge, and write the result into the
+   * SessionResult. Coin awards are clamped to the daily cap inside
+   * CoinAccount.earn — `dailyCapHit` mirrors that state.
+   */
+  private applyTodayAdventureRewards(result: SessionResult, plan: TodaySessionPlan): void {
+    const now: number = Date.now();
+    this.coinAccount.beginToday(now);
+
+    const region: AdventureRegion = getRegionById(plan.regionId);
+    result.isTodayAdventure = true;
+    result.regionId = plan.regionId;
+    result.bossName = region.bossName;
+    result.reviewWordCount = countByWordSource(plan, WordSource.Review);
+    result.newWordCount = countByWordSource(plan, WordSource.New);
+
+    let earned: number = 0;
+    if (plan.isFirstToday && result.status === BattleStatus.Won) {
+      earned += this.coinAccount.earn(COIN_REASON_TODAY_FIRST, 5, now);
+    }
+    if (result.defeatedMonsters > 0) {
+      earned += this.coinAccount.earn('monster-defeat', result.defeatedMonsters, now);
+    }
+    if (result.correctRate >= 0.8) {
+      earned += this.coinAccount.earn('accuracy-80', 3, now);
+    }
+    if (computeReviewAccuracy(plan, this.sessionAnswers) >= 0.8) {
+      earned += this.coinAccount.earn('review-80', 2, now);
+    }
+    result.coinsEarned = earned;
+    const snap: CoinSnapshot = this.coinAccount.snapshot();
+    result.coinsTotal = snap.totalCoins - snap.spentCoins;
+    result.dailyCapHit = snap.todayCoinsEarned >= DAILY_CAP;
+
+    // Mark today as completed so HomePage can light the "已完成" badge
+    // immediately on return from ResultPage. Persistence to disk
+    // happens via flushNow on the coin account; the day-key flag is
+    // session-only AppStorage state read by HomePage.
+    AppStorage.setOrCreate<string>(TODAY_LAST_COMPLETED_DAY_KEY, formatDayKeyLocal(now));
+
+    this.coinAccount.flushNow().catch((err: BusinessError): void => {
+      console.error(`BattlePage: CoinAccount.flushNow failed: ${JSON.stringify(err)}`);
     });
   }
 
@@ -716,6 +950,62 @@ struct BattlePage {
     .padding({ left: 20, right: 20, top: 12, bottom: 12 });
   }
 
+  /**
+   * Pre-compute the slot list for the letter-template row. Hoists
+   * `letterMissingIndex` into a local before iterating so the loop
+   * body never reads the @State directly (codelinter rule
+   * `hp-arkui-no-state-var-access-in-loop`).
+   */
+  private letterSlots(): LetterSlot[] {
+    const out: LetterSlot[] = [];
+    if (this.letterTemplate.length === 0) {
+      return out;
+    }
+    const parts: string[] = this.letterTemplate.split(' ');
+    const missingIdx: number = this.letterMissingIndex;
+    for (let i = 0; i < parts.length; i++) {
+      const slot: LetterSlot = new LetterSlot();
+      slot.idx = i;
+      slot.glyph = parts[i];
+      slot.isMissing = i === missingIdx || parts[i] === '_';
+      out.push(slot);
+    }
+    return out;
+  }
+
+  @Builder
+  private letterTemplateRow() {
+    Row({ space: LETTER_SLOT_GAP }) {
+      ForEach(this.letterSlots(), (item: LetterSlot, _idx: number) => {
+        Stack() {
+          if (item.isMissing) {
+            Column()
+              .width(LETTER_SLOT_WIDTH)
+              .height(LETTER_SLOT_HEIGHT)
+              .backgroundColor(LETTER_BG_MISSING)
+              .borderRadius(6);
+            Text('_')
+              .fontSize(28)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(LETTER_TEXT_MISSING);
+          } else {
+            Text(item.glyph)
+              .fontSize(32)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(LETTER_TEXT_FILLED);
+          }
+        }
+        .width(LETTER_SLOT_WIDTH)
+        .height(LETTER_SLOT_HEIGHT)
+        .alignContent(Alignment.Center);
+      }, (item: LetterSlot, _idx: number): string => `${item.idx}-${item.glyph}`);
+    }
+    .id('LetterTemplateRow')
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .margin({ top: 12 });
+  }
+
   @Builder
   private questionArea() {
     Stack({ alignContent: Alignment.BottomEnd }) {
@@ -725,10 +1015,15 @@ struct BattlePage {
           .fontColor('#457B9D');
         Text(this.prompt)
           .id('BattlePrompt')
-          .fontSize(28)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1D3557')
-          .margin({ top: 16 });
+          .fontSize(this.currentQuestionKind === QuestionKind.FillLetter ? 20 : 28)
+          .fontWeight(this.currentQuestionKind === QuestionKind.FillLetter
+            ? FontWeight.Medium : FontWeight.Bold)
+          .fontColor(this.currentQuestionKind === QuestionKind.FillLetter
+            ? '#457B9D' : '#1D3557')
+          .margin({ top: this.currentQuestionKind === QuestionKind.FillLetter ? 8 : 16 });
+        if (this.currentQuestionKind === QuestionKind.FillLetter) {
+          this.letterTemplateRow();
+        }
         // Speaker button — tap re-plays the English pronunciation
         // regardless of the autoSpeak config. Rendered even when
         // TTS init failed so the UI layout is stable; the tap path

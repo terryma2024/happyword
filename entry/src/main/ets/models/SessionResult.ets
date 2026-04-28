@@ -49,4 +49,14 @@ export class SessionResult {
    */
   newlyLearnedCount: number = 0;
   totalLearnedCount: number = 0;
+
+  // V0.3 today-adventure additions. Defaults keep V0.2 callers unaffected.
+  isTodayAdventure: boolean = false;
+  regionId: string = '';
+  bossName: string = '';
+  reviewWordCount: number = 0;
+  newWordCount: number = 0;
+  coinsEarned: number = 0;
+  coinsTotal: number = 0;
+  dailyCapHit: boolean = false;
 }
