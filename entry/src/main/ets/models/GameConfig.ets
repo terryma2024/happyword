@@ -50,6 +50,8 @@ export const GAME_CONFIG_STORAGE_KEY: string = 'gameConfig';
 export const TODAY_PLAN_STORAGE_KEY: string = 'todayPlan';
 /** AppStorage key for the day-key when the player last finished today's adventure. */
 export const TODAY_LAST_COMPLETED_DAY_KEY: string = 'todayLastCompletedDayKey';
+/** AppStorage key for the selected Today Adventure region id (V0.3.5). */
+export const TODAY_REGION_ID_KEY: string = 'todayRegionId';
 
 export const TIMER_CHOICES: number[] = [3, 15, 30, 60, 120, 300, 600];
 

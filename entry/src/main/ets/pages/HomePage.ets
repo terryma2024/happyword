@@ -9,6 +9,7 @@ import {
   GAME_MODE_TODAY,
   TODAY_PLAN_STORAGE_KEY,
   TODAY_LAST_COMPLETED_DAY_KEY,
+  TODAY_REGION_ID_KEY,
   cloneGameConfig
 } from '../models/GameConfig';
 import { getLearningRecorder } from '../services/LearningRecorder';
@@ -19,6 +20,7 @@ import { AdventureRegion, TodaySessionPlan, MonsterSlot } from '../models/Advent
 import { describeMonsterKind } from '../services/TodayAdventureBuilder';
 import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
 import { CoinSnapshot } from '../models/CoinSnapshot';
+import { getTodayPreferences, TodayPreferences } from '../services/TodayPreferences';
 
 /**
  * Review-mode gating threshold. Mirrors spec §15 Track D: kids need at
@@ -42,6 +44,7 @@ struct HomePage {
   @State private todayRegion: AdventureRegion = ADVENTURE_REGIONS[0];
   @State private coinBalance: number = 0;
   private coins: CoinAccount = getCoinAccount();
+  private todayPrefs: TodayPreferences = getTodayPreferences();
 
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
@@ -52,6 +55,16 @@ struct HomePage {
     }).catch((err: BusinessError): void => {
       console.error(`HomePage: CoinAccount.init failed: ${JSON.stringify(err)}`);
       this.refreshTodayState();
+    });
+    this.todayPrefs.init(ctx).then((): void => {
+      this.todayPrefs.loadRegionId().then((id: string): void => {
+        AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, id);
+        this.refreshTodayState();
+      }).catch((err: BusinessError): void => {
+        console.error(`HomePage: TodayPreferences.loadRegionId failed: ${JSON.stringify(err)}`);
+      });
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage: TodayPreferences.init failed: ${JSON.stringify(err)}`);
     });
     this.refreshWrongCount();
   }
@@ -88,7 +101,9 @@ struct HomePage {
         AppStorage.get<string>(TODAY_LAST_COMPLETED_DAY_KEY);
       this.todayCompleted = stored !== undefined && stored === todayKey;
     }
-    this.todayRegion = getRegionById(DEFAULT_REGION_ID);
+    const storedRegionId: string | undefined = AppStorage.get<string>(TODAY_REGION_ID_KEY);
+    const id: string = storedRegionId !== undefined ? storedRegionId : DEFAULT_REGION_ID;
+    this.todayRegion = getRegionById(id);
   }
 
   private reviewEnabled(): boolean {
@@ -117,7 +132,7 @@ struct HomePage {
     const repo: WordRepository = new WordRepository();
     repo.loadFromRawfile(ctx).then((): void => {
       const builder: TodayAdventureBuilder = new TodayAdventureBuilder();
-      const region: AdventureRegion = getRegionById(DEFAULT_REGION_ID);
+      const region: AdventureRegion = this.todayRegion;
       const recorder = getLearningRecorder();
       // Init ensures the recorder snapshot is hydrated so the
       // builder sees real review/learning words, not an empty list.
@@ -313,6 +328,8 @@ struct HomePage {
       }
       .width('100%');
 
+      this.regionPicker();
+
       Row({ space: 8 }) {
         ForEach(this.todayRegion.monsterPlan.slots, (slot: MonsterSlot): void => {
           Text(describeMonsterKind(slot.kind))
@@ -346,5 +363,29 @@ struct HomePage {
     .backgroundColor(this.todayRegion.bgPrimary)
     .borderRadius(20)
     .border({ width: 1, color: this.todayRegion.bgAccent });
+  }
+
+  @Builder
+  private regionPicker() {
+    Row({ space: 10 }) {
+      ForEach(ADVENTURE_REGIONS, (r: AdventureRegion): void => {
+        const selected: boolean = r.id === this.todayRegion.id;
+        Button(r.displayName)
+          .id(`RegionChip_${r.id}`)
+          .fontSize(13)
+          .height(32)
+          .padding({ left: 12, right: 12 })
+          .backgroundColor(selected ? '#E63946' : '#FFFFFF')
+          .fontColor(selected ? '#FFFFFF' : '#3F2F1A')
+          .borderRadius(16)
+          .border({ width: 1, color: selected ? '#E63946' : '#DDDDDD' })
+          .onClick((): void => {
+            AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, r.id);
+            this.todayRegion = r;
+            this.todayPrefs.saveRegionId(r.id);
+          });
+      }, (r: AdventureRegion): string => r.id);
+    }
+    .width('100%');
   }
 }
