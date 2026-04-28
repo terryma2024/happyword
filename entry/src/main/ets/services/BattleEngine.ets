@@ -1,7 +1,7 @@
-import { Question } from '../models/Question';
+import { Question, QuestionKind } from '../models/Question';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
-import { QuestionGenerator } from './QuestionGenerator';
+import { IQuestionSource } from './IQuestionSource';
 
 /**
  * Battle rules (spec §4.1, §4.2, §4.3, §4.4, §8.3) as of T8:
@@ -100,10 +100,10 @@ export class TickOutcome {
 }
 
 export class BattleEngine {
-  private readonly generator: QuestionGenerator;
+  private readonly generator: IQuestionSource;
   private readonly state_: BattleState;
 
-  constructor(generator: QuestionGenerator, config?: BattleConfig) {
+  constructor(generator: IQuestionSource, config?: BattleConfig) {
     this.generator = generator;
     const state: BattleState = new BattleState();
 
@@ -171,12 +171,16 @@ export class BattleEngine {
     if (q === undefined) {
       throw new Error('BattleEngine.submitAnswer called with no current question');
     }
-    if (q.options.indexOf(option) < 0) {
+    const isFillLetter: boolean = q.kind === QuestionKind.FillLetter;
+    const validOptions: string[] = isFillLetter ? q.letterOptions : q.options;
+    if (validOptions.indexOf(option) < 0) {
       throw new Error(`BattleEngine.submitAnswer: option "${option}" is not on the current question`);
     }
 
     const outcome: AnswerOutcome = new AnswerOutcome();
-    const correct: boolean = option === q.answer;
+    const correct: boolean = isFillLetter
+      ? option === q.letterAnswer
+      : option === q.answer;
     outcome.correct = correct;
     outcome.damage = 1;
 

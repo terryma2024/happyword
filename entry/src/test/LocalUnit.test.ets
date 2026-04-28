@@ -9,7 +9,8 @@ import {
   RIBBON_UPWARD_BIAS
 } from '../main/ets/components/GiftBox';
 import { WordEntry, CATEGORY_FRUIT, CATEGORY_HOME, CATEGORY_PLACE } from '../main/ets/models/WordEntry';
-import { Question } from '../main/ets/models/Question';
+import { Question, QuestionKind } from '../main/ets/models/Question';
+import { IQuestionSource } from '../main/ets/services/IQuestionSource';
 import { WordRepository } from '../main/ets/services/WordRepository';
 import { shuffle, mulberry32, RandomFn } from '../main/ets/utils/shuffle';
 import { QuestionGenerator, OPTIONS_PER_QUESTION } from '../main/ets/services/QuestionGenerator';
@@ -150,6 +151,50 @@ function pickWrongOption(q: Question): string {
     }
   }
   return '';
+}
+
+/**
+ * Test fixture: a deterministic IQuestionSource that serves two
+ * pre-built questions in order. Used by the BattleEngine fill-letter
+ * suite so we can assert behaviour without owning a WordRepository.
+ */
+class FixedQuestionSource implements IQuestionSource {
+  private readonly q1: Question;
+  private readonly q2: Question;
+  private served: number = 0;
+
+  constructor(q1: Question, q2: Question) {
+    this.q1 = q1;
+    this.q2 = q2;
+  }
+
+  nextQuestion(_lastWordId?: string): Question {
+    this.served += 1;
+    return this.served === 1 ? this.q1 : this.q2;
+  }
+}
+
+function makeFillLetterQ(): Question {
+  const q: Question = new Question();
+  q.kind = QuestionKind.FillLetter;
+  q.promptZh = '苹果';
+  q.answer = 'apple';
+  q.wordId = 'fruit-apple';
+  q.letterTemplate = 'a _ p l e';
+  q.missingIndex = 1;
+  q.letterOptions = ['p', 'b', 't'];
+  q.letterAnswer = 'p';
+  return q;
+}
+
+function makeChoiceQ(): Question {
+  const q: Question = new Question();
+  q.kind = QuestionKind.Choice;
+  q.promptZh = '香蕉';
+  q.answer = 'banana';
+  q.wordId = 'fruit-banana';
+  q.options = ['banana', 'apple', 'pear'];
+  return q;
 }
 
 export default function localUnitTest() {
@@ -1105,6 +1150,38 @@ export default function localUnitTest() {
       expect(result.totalAnswers).assertEqual(0);
       expect(result.correctRate).assertEqual(0);
       expect(result.stars).assertEqual(0);
+    });
+  });
+
+  describe('BattleEngine fill-letter handling', () => {
+    it('correctLetterDealsMonsterDamage', 0, () => {
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(makeFillLetterQ(), makeChoiceQ()));
+      engine.start();
+      const before: number = engine.getState().monsterHp;
+      const outcome: AnswerOutcome = engine.submitAnswer('p');
+      expect(outcome.correct).assertTrue();
+      expect(engine.getState().monsterHp).assertEqual(before - 1);
+    });
+
+    it('rejectsLetterNotInLetterOptions', 0, () => {
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(makeFillLetterQ(), makeChoiceQ()));
+      engine.start();
+      let threw: boolean = false;
+      try {
+        engine.submitAnswer('z');
+      } catch (_e) {
+        threw = true;
+      }
+      expect(threw).assertTrue();
+    });
+
+    it('wrongLetterDealsPlayerDamage', 0, () => {
+      const engine: BattleEngine = new BattleEngine(new FixedQuestionSource(makeFillLetterQ(), makeChoiceQ()));
+      engine.start();
+      const before: number = engine.getState().playerHp;
+      const outcome: AnswerOutcome = engine.submitAnswer('b');
+      expect(outcome.correct).assertFalse();
+      expect(engine.getState().playerHp).assertEqual(before - 1);
     });
   });
 
