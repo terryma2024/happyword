@@ -26,7 +26,8 @@ import {
 import { WordEntry } from '../models/WordEntry';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
-import { Question } from '../models/Question';
+import { Question, QuestionKind } from '../models/Question';
+import { LetterTemplate } from '../components/LetterTemplate';
 import { MonsterEntry, getMonsterByIndex } from '../data/MonsterCatalog';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
@@ -182,6 +183,13 @@ struct BattlePage {
   @State prompt: string = 'Loading…';
   @State feedbackText: string = ' ';
   @State feedbackColor: string = '#2ECC71';
+
+  // V0.3 fill-letter render state. For Choice questions these stay
+  // at their defaults and BattlePage renders the existing prompt
+  // layout; for FillLetter the LetterTemplate row replaces it.
+  @State currentQuestionKind: string = 'choice';
+  @State letterTemplate: string = '';
+  @State letterMissingIndex: number = -1;
 
   // Options and their per-button states. Kept in parallel arrays so the
   // three ChoiceButtons below can each pick their props with a single
@@ -438,9 +446,18 @@ struct BattlePage {
     const q: Question | undefined = state.currentQuestion;
     if (q !== undefined) {
       this.prompt = q.promptZh;
-      this.options = [q.options[0], q.options[1], q.options[2]];
       this.lastAnswerWord = q.answer;
       this.currentWordId = q.wordId;
+      this.currentQuestionKind = q.kind;
+      if (q.kind === QuestionKind.FillLetter) {
+        this.letterTemplate = q.letterTemplate;
+        this.letterMissingIndex = q.missingIndex;
+        this.options = [q.letterOptions[0], q.letterOptions[1], q.letterOptions[2]];
+      } else {
+        this.letterTemplate = '';
+        this.letterMissingIndex = -1;
+        this.options = [q.options[0], q.options[1], q.options[2]];
+      }
     }
   }
 
@@ -725,10 +742,19 @@ struct BattlePage {
           .fontColor('#457B9D');
         Text(this.prompt)
           .id('BattlePrompt')
-          .fontSize(28)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1D3557')
-          .margin({ top: 16 });
+          .fontSize(this.currentQuestionKind === QuestionKind.FillLetter ? 20 : 28)
+          .fontWeight(this.currentQuestionKind === QuestionKind.FillLetter
+            ? FontWeight.Medium : FontWeight.Bold)
+          .fontColor(this.currentQuestionKind === QuestionKind.FillLetter
+            ? '#457B9D' : '#1D3557')
+          .margin({ top: this.currentQuestionKind === QuestionKind.FillLetter ? 8 : 16 });
+        if (this.currentQuestionKind === QuestionKind.FillLetter) {
+          LetterTemplate({
+            template: this.letterTemplate,
+            missingIndex: this.letterMissingIndex,
+          })
+            .margin({ top: 12 });
+        }
         // Speaker button — tap re-plays the English pronunciation
         // regardless of the autoSpeak config. Rendered even when
         // TTS init failed so the UI layout is stable; the tap path
