@@ -3,6 +3,7 @@ import monsterCatalogTest from './MonsterCatalog.test';
 import questionTest from './Question.test';
 import fillLetterGeneratorTest from './FillLetterGenerator.test';
 import memorySchedulerTest from './MemoryScheduler.test';
+import adventureCatalogTest from './AdventureCatalog.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -10,4 +11,5 @@ export default function testsuite() {
   questionTest();
   fillLetterGeneratorTest();
   memorySchedulerTest();
+  adventureCatalogTest();
 }
