@@ -5,10 +5,7 @@ import { UIContext } from '@kit.ArkUI';
  * CharacterCard is the left/right column on the BattlePage.
  *
  * It renders three stacked pieces:
- *   1) A shape-based avatar (the "mage" on the left, the "slime" on the
- *      right). Using plain ArkUI shapes avoids shipping image assets in
- *      V0.1 while keeping a consistent cartoon look across devices — emoji
- *      rendering is font-dependent and can't be styled per-pixel.
+ *   1) An SVG portrait loaded from rawfile via `assetPath`.
  *   2) A name line for the character.
  *   3) An optional sublabel (e.g. "Monster 1 / 5") rendered above the HP bar.
  *   4) An HpBar so children can read health at a glance.
@@ -49,12 +46,7 @@ export struct CharacterCard {
   // plain property would be captured at construction and stay stale.
   @Prop sublabel: string = '';
 
-  // Per-monster theming colors used by slimeAvatar(). Defaults equal
-  // the hex literals slimeAvatar painted before this prop existed, so
-  // any caller that doesn't pass them gets the V0.2 slime green look
-  // (mageAvatar never reads these — they're scoped to the slime body).
-  @Prop bodyFill: string = '#4ECB71';
-  @Prop bodyStroke: string = '#2E8B57';
+  @Prop assetPath: string = '';
 
   /**
    * Monotonically-increasing counters. Each observed change plays a
@@ -233,77 +225,6 @@ export struct CharacterCard {
   // tablet and phone landscape without letterboxing the HP bar below.
   private static readonly AVATAR_HEIGHT: number = 84;
 
-  @Builder
-  private mageAvatar() {
-    // Stack layers the wizard's hat above a round purple body, with two
-    // white eyes overlaid on the body so the character reads as a face.
-    // Sized to fit within AVATAR_HEIGHT: hat 26 + brim 4 (net 2 after
-    // margin -2) + body 54 + margin 2 ≈ 84vp.
-    Column() {
-      Polygon({ width: 44, height: 26 })
-        .points([[22, 0], [0, 26], [44, 26]])
-        .fill('#4A2577')
-        .stroke('#2E1753')
-        .strokeWidth(2);
-      Rect({ width: 54, height: 4 })
-        .fill('#2E1753')
-        .margin({ top: -2 });
-      Stack() {
-        Circle({ width: 54, height: 54 })
-          .fill('#8E5EC8')
-          .stroke('#4A2577')
-          .strokeWidth(2);
-        Row() {
-          Circle({ width: 10, height: 10 }).fill('#FFFFFF');
-          Circle({ width: 10, height: 10 }).fill('#FFFFFF').margin({ left: 10 });
-        }
-        .offset({ y: -3 });
-      }
-      .width(54)
-      .height(54)
-      .margin({ top: 2 });
-    }
-    .height(CharacterCard.AVATAR_HEIGHT)
-    .justifyContent(FlexAlign.End)
-    .alignItems(HorizontalAlign.Center);
-  }
-
-  @Builder
-  private slimeAvatar() {
-    // A green half-ellipse body with two eyes. The masking Rect hides the
-    // bottom half so the body reads as a dome; the dome is 42vp tall and
-    // sits at the bottom of AVATAR_HEIGHT so the baseline aligns with the
-    // mage's body baseline for a tidy visual row.
-    Column() {
-      Stack() {
-        Ellipse({ width: 80, height: 72 })
-          .fill(this.bodyFill)
-          .stroke(this.bodyStroke)
-          .strokeWidth(2);
-        Rect({ width: 84, height: 36 })
-          .fill(this.backgroundForKind())
-          .offset({ y: 20 });
-        Row() {
-          Stack() {
-            Circle({ width: 14, height: 14 }).fill('#FFFFFF');
-            Circle({ width: 6, height: 6 }).fill('#1D3557');
-          }
-          Stack() {
-            Circle({ width: 14, height: 14 }).fill('#FFFFFF');
-            Circle({ width: 6, height: 6 }).fill('#1D3557');
-          }
-          .margin({ left: 10 });
-        }
-        .offset({ y: -8 });
-      }
-      .width(88)
-      .height(72);
-    }
-    .height(CharacterCard.AVATAR_HEIGHT)
-    .justifyContent(FlexAlign.End)
-    .alignItems(HorizontalAlign.Center);
-  }
-
   build() {
     // Height budget (must fit the parent Row on phone landscape, ~248vp):
     //   padding top  12
@@ -335,11 +256,12 @@ export struct CharacterCard {
         .justifyContent(FlexAlign.Center)
         .alignItems(HorizontalAlign.Center);
 
-        if (this.kind === CharacterKind.Mage) {
-          this.mageAvatar();
-        } else {
-          this.slimeAvatar();
-        }
+        Image($rawfile(this.assetPath))
+          .objectFit(ImageFit.Contain)
+          .width(96)
+          .height(CharacterCard.AVATAR_HEIGHT)
+          .syncLoad(true)
+          .interpolation(ImageInterpolation.High);
 
         // Red damage overlay — sits above the avatar shapes, fades to
         // opacity 0 at rest. When hurtPulse fires we animate it up to

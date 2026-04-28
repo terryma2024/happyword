@@ -9,6 +9,7 @@ import planQuestionSourceTest from './PlanQuestionSource.test';
 import coinAccountTest from './CoinAccount.test';
 import wishlistStoreTest from './WishlistStore.test';
 import todayPreferencesTest from './TodayPreferences.test';
+import characterAssetsTests from './CharacterAssets.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -22,4 +23,5 @@ export default function testsuite() {
   coinAccountTest();
   wishlistStoreTest();
   todayPreferencesTest();
+  characterAssetsTests();
 }
