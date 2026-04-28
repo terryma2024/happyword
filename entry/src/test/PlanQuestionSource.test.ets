@@ -34,6 +34,8 @@ function makeRepo(): WordRepository {
     makeWord('fruit-grape', 'grape'),
     makeWord('fruit-pear', 'pear'),
     makeWord('fruit-mango', 'mango'),
+    makeWord('place-zoo', 'zoo'),
+    makeWord('home-tv', 'TV'),
   ]);
   return repo;
 }
@@ -109,7 +111,77 @@ export default function planQuestionSourceTest() {
       );
       src.setMonsterIndexProvider((): number => 1);
       const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.FillLetterMedium);
+    });
+
+    it('emitsFillLetterMediumForEliteMonster', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Elite],
+        ['fruit-banana']
+      );
+      const src: PlanQuestionSource = new PlanQuestionSource(
+        plan,
+        repo,
+        new QuestionGenerator(repo, mulberry32(3)),
+        new FillLetterGenerator(mulberry32(4))
+      );
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.FillLetterMedium);
+      expect(q.missingIndices.length).assertEqual(2);
+    });
+
+    it('spellingSlotStillEmitsBeginnerFillLetter', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Spelling],
+        ['fruit-apple']
+      );
+      const src: PlanQuestionSource = new PlanQuestionSource(
+        plan,
+        repo,
+        new QuestionGenerator(repo, mulberry32(5)),
+        new FillLetterGenerator(mulberry32(6))
+      );
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
       expect(q.kind).assertEqual(QuestionKind.FillLetter);
+      expect(q.letterOptions.length).assertEqual(3);
+    });
+
+    it('eliteWithShortWordFallsBackToBeginnerThenChoice', 0, () => {
+      const repo: WordRepository = makeRepo();
+      // wordId place-zoo has 3 letters: medium should return undefined; beginner should work.
+      const planZoo: TodaySessionPlan = planWith(
+        [MonsterKind.Elite],
+        ['place-zoo']
+      );
+      const srcZoo: PlanQuestionSource = new PlanQuestionSource(
+        planZoo,
+        repo,
+        new QuestionGenerator(repo, mulberry32(7)),
+        new FillLetterGenerator(mulberry32(8))
+      );
+      srcZoo.setMonsterIndexProvider((): number => 1);
+      const qZoo: Question = srcZoo.nextQuestion();
+      expect(qZoo.kind).assertEqual(QuestionKind.FillLetter);
+
+      // wordId home-tv has <3 alphabetic letters: both medium and beginner return undefined; must degrade to choice.
+      const planTv: TodaySessionPlan = planWith(
+        [MonsterKind.Elite],
+        ['home-tv']
+      );
+      const srcTv: PlanQuestionSource = new PlanQuestionSource(
+        planTv,
+        repo,
+        new QuestionGenerator(repo, mulberry32(9)),
+        new FillLetterGenerator(mulberry32(10))
+      );
+      srcTv.setMonsterIndexProvider((): number => 1);
+      const qTv: Question = srcTv.nextQuestion();
+      expect(qTv.kind).assertEqual(QuestionKind.Choice);
+      expect(qTv.options.length).assertEqual(3);
     });
 
     it('cyclesWordPlanWhenExhausted', 0, () => {

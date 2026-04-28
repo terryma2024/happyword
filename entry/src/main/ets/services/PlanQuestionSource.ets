@@ -58,11 +58,23 @@ export class PlanQuestionSource implements IQuestionSource {
   nextQuestion(lastWordId?: string): Question {
     const word: WordEntry = this.pickWord(lastWordId);
     const kind: MonsterKind = this.currentMonsterKind();
-    if (kind === MonsterKind.Spelling || kind === MonsterKind.Boss) {
+    if (kind === MonsterKind.Elite || kind === MonsterKind.Boss) {
+      const medium: Question | undefined = this.fillGen.generateMedium(word);
+      if (medium !== undefined) {
+        return medium;
+      }
+      const beginner: Question | undefined = this.fillGen.generate(word);
+      if (beginner !== undefined) {
+        return beginner;
+      }
+      return this.choiceGen.nextQuestionForWord(word, lastWordId);
+    }
+    if (kind === MonsterKind.Spelling) {
       const fill: Question | undefined = this.fillGen.generate(word);
       if (fill !== undefined) {
         return fill;
       }
+      return this.choiceGen.nextQuestionForWord(word, lastWordId);
     }
     return this.choiceGen.nextQuestionForWord(word, lastWordId);
   }
