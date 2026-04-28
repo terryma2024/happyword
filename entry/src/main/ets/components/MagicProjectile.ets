@@ -175,13 +175,20 @@ export struct MagicProjectile {
     Stack() {
       Stack() {
         // Outer glow halo — large, soft, follows the core.
+        // hitTestBehavior(None) on every node: ArkUI's None only
+        // applies to the node itself, not its children, so the
+        // outer Stack alone is insufficient. Without these the
+        // post-impact glow (scale ~2.8x, opacity 0) still claims
+        // hit-test bounds covering BattleOptionC and silently
+        // swallows option taps.
         Circle({
           width: 64 * this.intensity,
           height: 64 * this.intensity,
         })
           .fill(this.glowColor())
           .opacity(this.outerOpacity)
-          .scale({ x: this.outerScale, y: this.outerScale });
+          .scale({ x: this.outerScale, y: this.outerScale })
+          .hitTestBehavior(HitTestMode.None);
 
         // Bright core orb with a contrasting ring so it reads against
         // the pastel battle background.
@@ -193,10 +200,12 @@ export struct MagicProjectile {
           .stroke(this.ringColor())
           .strokeWidth(3)
           .opacity(this.coreOpacity)
-          .scale({ x: this.coreScale, y: this.coreScale });
+          .scale({ x: this.coreScale, y: this.coreScale })
+          .hitTestBehavior(HitTestMode.None);
       }
       .id(this.forward ? 'MagicProjectileForward' : 'MagicProjectileBackward')
-      .translate({ x: this.translateX, y: 0 });
+      .translate({ x: this.translateX, y: 0 })
+      .hitTestBehavior(HitTestMode.None);
     }
     .width('100%')
     .height('100%')

@@ -39,7 +39,6 @@ import { WordEntry } from '../models/WordEntry';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question, QuestionKind } from '../models/Question';
-import { LetterTemplate } from '../components/LetterTemplate';
 import { MonsterEntry, getMonsterByIndex } from '../data/MonsterCatalog';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
@@ -101,6 +100,25 @@ class AnswerCount {
   correct: number = 0;
   total: number = 0;
 }
+
+/**
+ * Inlined LetterTemplate slot model. The previous standalone
+ * @Component was folded into BattlePage as @Builder method to
+ * satisfy codelinter's avoid-overusing-custom-component rule;
+ * the slot row was the entire payload of that component.
+ */
+class LetterSlot {
+  idx: number = 0;
+  glyph: string = '';
+  isMissing: boolean = false;
+}
+
+const LETTER_SLOT_WIDTH: number = 36;
+const LETTER_SLOT_HEIGHT: number = 48;
+const LETTER_SLOT_GAP: number = 8;
+const LETTER_TEXT_FILLED: string = '#1D3557';
+const LETTER_TEXT_MISSING: string = '#E63946';
+const LETTER_BG_MISSING: string = '#FCEAEA';
 
 function countByWordSource(plan: TodaySessionPlan, src: WordSource): number {
   let n: number = 0;
@@ -598,8 +616,15 @@ struct BattlePage {
     // Capture the question state BEFORE submitting — submitAnswer mutates
     // currentQuestion to the next question, but we want to keep showing
     // the just-answered prompt and options during the reveal window.
+    // FillLetter questions carry their own template/missing-index, so
+    // those snapshots ride along too; otherwise the reveal window
+    // would show the answered prompt against the NEXT question's
+    // letter template (or vice versa).
     const answeredPrompt: string = this.prompt;
     const answeredOptions: string[] = this.options.slice();
+    const answeredKind: string = this.currentQuestionKind;
+    const answeredLetterTemplate: string = this.letterTemplate;
+    const answeredLetterMissingIndex: number = this.letterMissingIndex;
     const correctWord: string = this.lastAnswerWord;
     const answeredWordId: string = this.currentWordId;
 
@@ -623,10 +648,13 @@ struct BattlePage {
     this.syncFromEngine();
 
     // Keep the answered question on screen for the reveal window —
-    // syncFromEngine above would have replaced prompt/options with the
-    // NEXT question's data.
+    // syncFromEngine above would have replaced prompt/options/kind/
+    // letter-template with the NEXT question's data.
     this.prompt = answeredPrompt;
     this.options = answeredOptions;
+    this.currentQuestionKind = answeredKind;
+    this.letterTemplate = answeredLetterTemplate;
+    this.letterMissingIndex = answeredLetterMissingIndex;
 
     // Highlight the tapped button; keep the other two disabled so the
     // player can't race through feedback.
@@ -707,8 +735,31 @@ struct BattlePage {
 
       if (nextQuestion !== undefined) {
         this.prompt = nextQuestion.promptZh;
-        this.options = [nextQuestion.options[0], nextQuestion.options[1], nextQuestion.options[2]];
         this.lastAnswerWord = nextQuestion.answer;
+        // Populate the option buttons from the field that matches the
+        // question kind. For FillLetter questions `nextQuestion.options`
+        // is empty by contract — the three letter candidates live in
+        // `letterOptions`. Without this branch the buttons would render
+        // with no text on the very first FillLetter shown after a
+        // Choice question (e.g. monster-2 in today's adventure).
+        this.currentQuestionKind = nextQuestion.kind;
+        if (nextQuestion.kind === QuestionKind.FillLetter) {
+          this.options = [
+            nextQuestion.letterOptions[0],
+            nextQuestion.letterOptions[1],
+            nextQuestion.letterOptions[2],
+          ];
+          this.letterTemplate = nextQuestion.letterTemplate;
+          this.letterMissingIndex = nextQuestion.missingIndex;
+        } else {
+          this.options = [
+            nextQuestion.options[0],
+            nextQuestion.options[1],
+            nextQuestion.options[2],
+          ];
+          this.letterTemplate = '';
+          this.letterMissingIndex = -1;
+        }
         // New question loaded — feedback window is closed so it's
         // safe to auto-speak the answer now.
         this.maybeAutoSpeakCurrent(false);
@@ -899,6 +950,62 @@ struct BattlePage {
     .padding({ left: 20, right: 20, top: 12, bottom: 12 });
   }
 
+  /**
+   * Pre-compute the slot list for the letter-template row. Hoists
+   * `letterMissingIndex` into a local before iterating so the loop
+   * body never reads the @State directly (codelinter rule
+   * `hp-arkui-no-state-var-access-in-loop`).
+   */
+  private letterSlots(): LetterSlot[] {
+    const out: LetterSlot[] = [];
+    if (this.letterTemplate.length === 0) {
+      return out;
+    }
+    const parts: string[] = this.letterTemplate.split(' ');
+    const missingIdx: number = this.letterMissingIndex;
+    for (let i = 0; i < parts.length; i++) {
+      const slot: LetterSlot = new LetterSlot();
+      slot.idx = i;
+      slot.glyph = parts[i];
+      slot.isMissing = i === missingIdx || parts[i] === '_';
+      out.push(slot);
+    }
+    return out;
+  }
+
+  @Builder
+  private letterTemplateRow() {
+    Row({ space: LETTER_SLOT_GAP }) {
+      ForEach(this.letterSlots(), (item: LetterSlot, _idx: number) => {
+        Stack() {
+          if (item.isMissing) {
+            Column()
+              .width(LETTER_SLOT_WIDTH)
+              .height(LETTER_SLOT_HEIGHT)
+              .backgroundColor(LETTER_BG_MISSING)
+              .borderRadius(6);
+            Text('_')
+              .fontSize(28)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(LETTER_TEXT_MISSING);
+          } else {
+            Text(item.glyph)
+              .fontSize(32)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(LETTER_TEXT_FILLED);
+          }
+        }
+        .width(LETTER_SLOT_WIDTH)
+        .height(LETTER_SLOT_HEIGHT)
+        .alignContent(Alignment.Center);
+      }, (item: LetterSlot, _idx: number): string => `${item.idx}-${item.glyph}`);
+    }
+    .id('LetterTemplateRow')
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .margin({ top: 12 });
+  }
+
   @Builder
   private questionArea() {
     Stack({ alignContent: Alignment.BottomEnd }) {
@@ -915,11 +1022,7 @@ struct BattlePage {
             ? '#457B9D' : '#1D3557')
           .margin({ top: this.currentQuestionKind === QuestionKind.FillLetter ? 8 : 16 });
         if (this.currentQuestionKind === QuestionKind.FillLetter) {
-          LetterTemplate({
-            template: this.letterTemplate,
-            missingIndex: this.letterMissingIndex,
-          })
-            .margin({ top: 12 });
+          this.letterTemplateRow();
         }
         // Speaker button — tap re-plays the English pronunciation
         // regardless of the autoSpeak config. Rendered even when

@@ -15,8 +15,8 @@ import { getLearningRecorder } from '../services/LearningRecorder';
 import { WordRepository } from '../services/WordRepository';
 import { TodayAdventureBuilder, localDayKey } from '../services/TodayAdventureBuilder';
 import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
-import { AdventureRegion, TodaySessionPlan } from '../models/AdventureRegion';
-import { AdventureCard } from '../components/AdventureCard';
+import { AdventureRegion, TodaySessionPlan, MonsterSlot } from '../models/AdventureRegion';
+import { describeMonsterKind } from '../services/TodayAdventureBuilder';
 import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
 import { CoinSnapshot } from '../models/CoinSnapshot';
 
@@ -163,60 +163,70 @@ struct HomePage {
 
   build(): void {
     Stack() {
-      Column() {
-        Text('Small Magician Word Adventure')
-          .id('HomeTitle')
-          .fontSize(36)
-          .fontWeight(FontWeight.Bold)
-          .margin({ bottom: 12 });
+      // Two-column layout sized for landscape viewports: the new
+      // AdventureCard sits on the left next to the title/subtitle
+      // block, and the legacy Start / Review buttons stay on the
+      // right where existing UI tests expect to find them on first
+      // render. A Scroll wrapper handles smaller portrait viewports
+      // (e.g. phones) by allowing the content to scroll vertically.
+      Scroll() {
+        Row({ space: 32 }) {
+          Column() {
+            Text('Small Magician Word Adventure')
+              .id('HomeTitle')
+              .fontSize(32)
+              .fontWeight(FontWeight.Bold)
+              .margin({ bottom: 8 });
 
-        Text('小魔法师单词冒险')
-          .fontSize(22)
-          .fontColor('#457B9D')
-          .margin({ bottom: 32 });
+            Text('小魔法师单词冒险')
+              .fontSize(20)
+              .fontColor('#457B9D')
+              .margin({ bottom: 16 });
 
-        Text('点击开始，打败 5 个单词史莱姆吧！')
-          .fontSize(18)
-          .margin({ bottom: 24 });
+            this.adventureCard();
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Center);
 
-        Column() {
-          AdventureCard({
-            region: this.todayRegion,
-            completedToday: this.todayCompleted,
-            onTap: (): void => this.enterTodayAdventure()
-          });
+          Column({ space: 16 }) {
+            Text('点击开始，打败 5 个单词史莱姆吧！')
+              .fontSize(16)
+              .textAlign(TextAlign.Center);
+
+            Button('开始游戏')
+              .id('HomeStartButton')
+              .fontSize(24)
+              .width(220)
+              .height(64)
+              .backgroundColor('#E63946')
+              .onClick((): void => this.enterNormalMode());
+
+            Button(this.reviewEnabled() ? '复习错题' : '先答错几题再来复习吧')
+              .id('HomeReviewButton')
+              .fontSize(this.reviewEnabled() ? 20 : 14)
+              .width(260)
+              .height(56)
+              .backgroundColor(this.reviewEnabled() ? '#FFB400' : '#CCCCCC')
+              .fontColor(this.reviewEnabled() ? '#FFFFFF' : '#666666')
+              .enabled(this.reviewEnabled())
+              .onClick((): void => {
+                if (!this.reviewEnabled()) {
+                  return;
+                }
+                this.enterReviewMode();
+              });
+          }
+          .width(280)
+          .alignItems(HorizontalAlign.Center)
+          .justifyContent(FlexAlign.Center);
         }
-        .width(320)
-        .margin({ bottom: 24 });
-
-        Button('开始游戏')
-          .id('HomeStartButton')
-          .fontSize(24)
-          .width(220)
-          .height(64)
-          .backgroundColor('#E63946')
-          .onClick((): void => this.enterNormalMode());
-
-        Button(this.reviewEnabled() ? '复习错题' : '先答错几题再来复习吧')
-          .id('HomeReviewButton')
-          .fontSize(this.reviewEnabled() ? 20 : 14)
-          .width(260)
-          .height(56)
-          .margin({ top: 16 })
-          .backgroundColor(this.reviewEnabled() ? '#FFB400' : '#CCCCCC')
-          .fontColor(this.reviewEnabled() ? '#FFFFFF' : '#666666')
-          .enabled(this.reviewEnabled())
-          .onClick((): void => {
-            if (!this.reviewEnabled()) {
-              return;
-            }
-            this.enterReviewMode();
-          });
+        .width('100%')
+        .padding({ left: 24, right: 24, top: 100, bottom: 24 })
+        .alignItems(VerticalAlign.Center);
       }
       .width('100%')
       .height('100%')
-      .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Center);
+      .scrollBar(BarState.Auto);
 
       Row({ space: 12 }) {
         Text(`✨ ${this.coinBalance}`)
@@ -274,5 +284,67 @@ struct HomePage {
     .alignContent(Alignment.TopEnd)
     .width('100%')
     .height('100%');
+  }
+
+  /**
+   * "今日冒险" preview card. Inlined as @Builder (formerly the
+   * AdventureCard @Component) per codelinter
+   * `avoid-overusing-custom-component-check`. Tests target ID
+   * `AdventureCard` (the wrapping Column) and `AdventureCardCta`
+   * (the start button), so those IDs must stay attached here.
+   */
+  @Builder
+  private adventureCard() {
+    Column({ space: 10 }) {
+      Row() {
+        Text(this.todayRegion.displayName)
+          .id('AdventureCardTitle')
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#3F2F1A');
+        Blank();
+        Text(this.todayCompleted ? '已完成' : '今日')
+          .id('AdventureCardBadge')
+          .fontSize(14)
+          .fontColor(this.todayCompleted ? '#7B7B7B' : '#FFFFFF')
+          .backgroundColor(this.todayCompleted ? '#E5E5E5' : '#E63946')
+          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          .borderRadius(12);
+      }
+      .width('100%');
+
+      Row({ space: 8 }) {
+        ForEach(this.todayRegion.monsterPlan.slots, (slot: MonsterSlot): void => {
+          Text(describeMonsterKind(slot.kind))
+            .fontSize(13)
+            .fontColor('#3F2F1A')
+            .backgroundColor('#FFE7B5')
+            .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+            .borderRadius(10);
+        }, (slot: MonsterSlot, index: number): string => `slot-${index}-${slot.kind}`);
+      }
+      .width('100%');
+
+      Text('今天的冒险包含 5 关卡，含拼写、复习与首领关')
+        .fontSize(14)
+        .fontColor('#5A4A35');
+
+      Button(this.todayCompleted ? '再战一局' : '开始今日冒险')
+        .id('AdventureCardCta')
+        .fontSize(18)
+        .width('100%')
+        .height(48)
+        .backgroundColor('#E63946')
+        .fontColor('#FFFFFF')
+        .onClick((): void => {
+          this.enterTodayAdventure();
+        });
+    }
+    .id('AdventureCard')
+    .width('100%')
+    .padding(16)
+    .backgroundColor(this.todayRegion.bgPrimary)
+    .borderRadius(20)
+    .border({ width: 1, color: this.todayRegion.bgAccent });
   }
 }
