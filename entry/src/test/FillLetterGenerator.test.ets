@@ -78,5 +78,59 @@ export default function fillLetterGeneratorTest() {
       expect(tokens.length).assertEqual('pear'.length);
       expect(tokens[q.missingIndex]).assertEqual('_');
     });
+
+    it('producesWellFormedFillLetterMediumQuestion', 0, () => {
+      const gen: FillLetterGenerator = new FillLetterGenerator(mulberry32(6));
+      const q: Question | undefined = gen.generateMedium(makeWord('fruit-apple', 'apple'));
+      expect(q !== undefined).assertTrue();
+      const qq: Question = q as Question;
+      expect(qq.kind).assertEqual(QuestionKind.FillLetterMedium);
+      expect(qq.answer).assertEqual('apple');
+      expect(qq.missingIndices.length).assertEqual(2);
+      expect(qq.letterOptionsSteps.length).assertEqual(2);
+      expect(qq.letterAnswers.length).assertEqual(2);
+      expect(qq.isValid()).assertTrue();
+    });
+
+    it('mediumReturnsUndefinedForWordsShorterThanFourLetters', 0, () => {
+      const gen: FillLetterGenerator = new FillLetterGenerator(mulberry32(7));
+      expect(gen.generateMedium(makeWord('place-zoo', 'zoo')) === undefined).assertTrue();
+    });
+
+    it('mediumIsDeterministicGivenSameSeed', 0, () => {
+      const a: Question = new FillLetterGenerator(mulberry32(42))
+        .generateMedium(makeWord('fruit-banana', 'banana')) as Question;
+      const b: Question = new FillLetterGenerator(mulberry32(42))
+        .generateMedium(makeWord('fruit-banana', 'banana')) as Question;
+      expect(a.letterTemplateBase).assertEqual(b.letterTemplateBase);
+      expect(a.missingIndices[0]).assertEqual(b.missingIndices[0]);
+      expect(a.missingIndices[1]).assertEqual(b.missingIndices[1]);
+      expect(a.letterAnswers[0]).assertEqual(b.letterAnswers[0]);
+      expect(a.letterAnswers[1]).assertEqual(b.letterAnswers[1]);
+      expect(a.letterOptionsSteps[0][0]).assertEqual(b.letterOptionsSteps[0][0]);
+      expect(a.letterOptionsSteps[1][2]).assertEqual(b.letterOptionsSteps[1][2]);
+    });
+
+    it('mediumDistractorsExcludeWordLettersAndAnswers', 0, () => {
+      const gen: FillLetterGenerator = new FillLetterGenerator(mulberry32(9));
+      const q: Question = gen.generateMedium(makeWord('fruit-apple', 'apple')) as Question;
+      const word: string = 'apple';
+      const letters: Set<string> = new Set<string>();
+      for (let i = 0; i < word.length; i++) {
+        letters.add(word.charAt(i));
+      }
+      const ans0: string = q.letterAnswers[0];
+      const ans1: string = q.letterAnswers[1];
+      for (let step: number = 0; step < 2; step++) {
+        const opts: string[] = q.letterOptionsSteps[step];
+        for (let i = 0; i < opts.length; i++) {
+          const c: string = opts[i];
+          if (c === ans0 || c === ans1) {
+            continue;
+          }
+          expect(letters.has(c)).assertFalse();
+        }
+      }
+    });
   });
 }
