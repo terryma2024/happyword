@@ -569,6 +569,28 @@ export default function localUnitTest() {
     });
   });
 
+  describe('QuestionGenerator.nextQuestionForWord', () => {
+    it('locksAnswerToTheGivenEntry', 0, () => {
+      const repo: WordRepository = buildFruitRepo();
+      const gen: QuestionGenerator = new QuestionGenerator(repo, mulberry32(7));
+      const target: WordEntry = repo.findById('fruit-pear') as WordEntry;
+      const q: Question = gen.nextQuestionForWord(target);
+      expect(q.answer).assertEqual('pear');
+      expect(q.wordId).assertEqual('fruit-pear');
+      expect(q.options.length).assertEqual(OPTIONS_PER_QUESTION);
+      expect(q.options.indexOf('pear') >= 0).assertTrue();
+    });
+
+    it('producesValidThreeOptionQuestion', 0, () => {
+      const repo: WordRepository = buildFruitRepo();
+      const gen: QuestionGenerator = new QuestionGenerator(repo, mulberry32(8));
+      const target: WordEntry = repo.findById('fruit-pear') as WordEntry;
+      const q: Question = gen.nextQuestionForWord(target, 'fruit-apple');
+      expect(q.options.length).assertEqual(OPTIONS_PER_QUESTION);
+      expect(q.isValid()).assertTrue();
+    });
+  });
+
   describe('BattleEngine', () => {
     /**
      * T6 unit tests for the pure battle-rules layer (spec §4.1–§4.3, §8.3).
