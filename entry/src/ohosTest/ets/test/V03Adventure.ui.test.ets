@@ -132,5 +132,79 @@ export default function v03AdventureUiTest(): void {
       expect(true).assertTrue();
       done();
     });
+
+    it('homePageRegionPickerSwitchesPersistently', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+
+      await driver.assertComponentExist(ON.id('RegionChip_fruit-forest'));
+      await driver.assertComponentExist(ON.id('RegionChip_school-castle'));
+      await driver.assertComponentExist(ON.id('RegionChip_home-cottage'));
+
+      const schoolChip = await driver.findComponent(ON.id('RegionChip_school-castle'));
+      await schoolChip.click();
+      await driver.delayMs(400);
+
+      const title = await driver.findComponent(ON.id('AdventureCardTitle'));
+      const titleText: string = await title.getText();
+      expect(titleText === 'School Castle').assertTrue();
+
+      await returnToHome(driver);
+      await driver.delayMs(300);
+      const titleAfterReturn = await driver.findComponent(ON.id('AdventureCardTitle'));
+      const titleTextAfter: string = await titleAfterReturn.getText();
+      expect(titleTextAfter === 'School Castle').assertTrue();
+
+      // Reset so subsequent suites start in fruit-forest.
+      const fruitChip = await driver.findComponent(ON.id('RegionChip_fruit-forest'));
+      await fruitChip.click();
+      await driver.delayMs(300);
+
+      done();
+    });
+
+    it('intermediateFillLetterAtomicFlow', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+
+      const fruitChip = await driver.findComponent(ON.id('RegionChip_fruit-forest'));
+      await fruitChip.click();
+      await driver.delayMs(300);
+
+      const cta = await driver.findComponent(ON.id('AdventureCardCta'));
+      await cta.click();
+      await driver.delayMs(1500);
+
+      const optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
+      let stepAdvancedSeen: boolean = false;
+      for (let turn = 0; turn < 12 && !stepAdvancedSeen; turn++) {
+        const optId: string = optionIds[turn % 3];
+        const btn = await driver.findComponent(ON.id(optId));
+        if (btn === null) {
+          break;
+        }
+        await btn.click();
+        await driver.delayMs(250);
+        const feedback = await driver.findComponent(ON.id('BattleFeedback'));
+        if (feedback !== null) {
+          const text: string = await feedback.getText();
+          if (text === '答对啦！下一空') {
+            stepAdvancedSeen = true;
+          }
+        }
+        await driver.delayMs(550);
+      }
+
+      expect(stepAdvancedSeen).assertTrue();
+
+      const finish = await driver.findComponent(ON.id('BattleFinishButton'));
+      if (finish !== null) {
+        await finish.click();
+        await driver.delayMs(800);
+      }
+      await returnToHome(driver);
+
+      done();
+    });
   });
 }

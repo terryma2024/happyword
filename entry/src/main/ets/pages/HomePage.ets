@@ -236,7 +236,7 @@ struct HomePage {
           .justifyContent(FlexAlign.Center);
         }
         .width('100%')
-        .padding({ left: 24, right: 24, top: 100, bottom: 24 })
+        .padding({ left: 24, right: 24, top: 72, bottom: 24 })
         .alignItems(VerticalAlign.Center);
       }
       .width('100%')
