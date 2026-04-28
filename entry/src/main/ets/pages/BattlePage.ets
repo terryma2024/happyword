@@ -111,6 +111,7 @@ class LetterSlot {
   idx: number = 0;
   glyph: string = '';
   isMissing: boolean = false;
+  isPending: boolean = false;
 }
 
 const LETTER_SLOT_WIDTH: number = 36;
@@ -119,6 +120,8 @@ const LETTER_SLOT_GAP: number = 8;
 const LETTER_TEXT_FILLED: string = '#1D3557';
 const LETTER_TEXT_MISSING: string = '#E63946';
 const LETTER_BG_MISSING: string = '#FCEAEA';
+const LETTER_BG_PENDING: string = '#F1F3F5';
+const LETTER_TEXT_PENDING: string = '#A3A3A3';
 
 function countByWordSource(plan: TodaySessionPlan, src: WordSource): number {
   let n: number = 0;
@@ -270,6 +273,10 @@ struct BattlePage {
   @State currentQuestionKind: string = 'choice';
   @State letterTemplate: string = '';
   @State letterMissingIndex: number = -1;
+  @State pendingMissingIndex: number = -1;
+  @State isMedium: boolean = false;
+  @State currentStep: number = 0;
+  @State totalSteps: number = 1;
 
   // Options and their per-button states. Kept in parallel arrays so the
   // three ChoiceButtons below can each pick their props with a single
@@ -564,7 +571,7 @@ struct BattlePage {
     // time array lookup, so the cost is negligible and keeping the
     // assignment unconditional avoids a stale @State if the engine
     // ever resets monsterIndex back to 1 between battles.
-    this.currentMonster = getMonsterByIndex(state.monsterIndex);
+    this.currentMonster = this.resolveMonsterEntry(state);
     this.comboCount = state.comboCount;
     this.remainingSeconds = state.remainingSeconds;
 
@@ -574,16 +581,47 @@ struct BattlePage {
       this.lastAnswerWord = q.answer;
       this.currentWordId = q.wordId;
       this.currentQuestionKind = q.kind;
-      if (q.kind === QuestionKind.FillLetter) {
+      if (q.kind === QuestionKind.FillLetterMedium) {
+        this.isMedium = true;
+        this.currentStep = q.currentStep;
+        this.totalSteps = q.missingIndices.length;
+        this.letterTemplate = q.letterTemplateBase;
+        this.letterMissingIndex = q.missingIndices[q.currentStep];
+        this.pendingMissingIndex = q.missingIndices[q.currentStep === 0 ? 1 : 0];
+        this.options = [
+          q.letterOptionsSteps[q.currentStep][0],
+          q.letterOptionsSteps[q.currentStep][1],
+          q.letterOptionsSteps[q.currentStep][2],
+        ];
+      } else if (q.kind === QuestionKind.FillLetter) {
+        this.isMedium = false;
+        this.currentStep = 0;
+        this.totalSteps = 1;
+        this.pendingMissingIndex = -1;
         this.letterTemplate = q.letterTemplate;
         this.letterMissingIndex = q.missingIndex;
         this.options = [q.letterOptions[0], q.letterOptions[1], q.letterOptions[2]];
       } else {
+        this.isMedium = false;
+        this.currentStep = 0;
+        this.totalSteps = 1;
+        this.pendingMissingIndex = -1;
         this.letterTemplate = '';
         this.letterMissingIndex = -1;
         this.options = [q.options[0], q.options[1], q.options[2]];
       }
     }
+  }
+
+  private resolveMonsterEntry(state: BattleState): MonsterEntry {
+    if (this.isTodayMode && this.todayPlan !== undefined) {
+      const slots: number = this.todayPlan.monsterSlots.length;
+      if (slots > 0) {
+        const i: number = state.monsterIndex <= 0 ? 0 : (state.monsterIndex - 1) % slots;
+        return getMonsterByIndex(this.todayPlan.monsterSlots[i].catalogIndex);
+      }
+    }
+    return getMonsterByIndex(state.monsterIndex);
   }
 
   /**
@@ -625,10 +663,40 @@ struct BattlePage {
     const answeredKind: string = this.currentQuestionKind;
     const answeredLetterTemplate: string = this.letterTemplate;
     const answeredLetterMissingIndex: number = this.letterMissingIndex;
+    const answeredPendingMissingIndex: number = this.pendingMissingIndex;
+    const answeredIsMedium: boolean = this.isMedium;
+    const answeredStep: number = this.currentStep;
+    const answeredTotalSteps: number = this.totalSteps;
     const correctWord: string = this.lastAnswerWord;
     const answeredWordId: string = this.currentWordId;
 
     const outcome: AnswerOutcome = engine.submitAnswer(text);
+
+    if (outcome.advancedStep) {
+      // Atomic medium: step 0 correct. Do not record learning stats and do not
+      // rotate the question; just show a brief feedback and resync to step 1.
+      const tappedIndex2: number = answeredOptions.indexOf(text);
+      const states2: ChoiceState[] = [
+        ChoiceState.Disabled,
+        ChoiceState.Disabled,
+        ChoiceState.Disabled,
+      ];
+      if (tappedIndex2 >= 0) {
+        states2[tappedIndex2] = ChoiceState.Correct;
+      }
+      this.optionStates = states2;
+      this.feedbackText = '答对啦！下一空';
+      this.feedbackColor = '#2ECC71';
+      this.audio.play(SoundKeys.HIT_NORMAL);
+      this.feedbackTimer = setTimeout((): void => {
+        this.feedbackTimer = -1;
+        this.feedbackText = ' ';
+        this.syncFromEngine();
+        this.optionStates = [ChoiceState.Idle, ChoiceState.Idle, ChoiceState.Idle];
+      }, FEEDBACK_MS);
+      return;
+    }
+
     // Record the answer BEFORE syncFromEngine rotates to the next
     // question so the wordId we pass is the one the player just
     // answered. Falls through silently if the recorder wasn't ready.
@@ -655,6 +723,10 @@ struct BattlePage {
     this.currentQuestionKind = answeredKind;
     this.letterTemplate = answeredLetterTemplate;
     this.letterMissingIndex = answeredLetterMissingIndex;
+    this.pendingMissingIndex = answeredPendingMissingIndex;
+    this.isMedium = answeredIsMedium;
+    this.currentStep = answeredStep;
+    this.totalSteps = answeredTotalSteps;
 
     // Highlight the tapped button; keep the other two disabled so the
     // player can't race through feedback.
@@ -743,7 +815,23 @@ struct BattlePage {
         // with no text on the very first FillLetter shown after a
         // Choice question (e.g. monster-2 in today's adventure).
         this.currentQuestionKind = nextQuestion.kind;
-        if (nextQuestion.kind === QuestionKind.FillLetter) {
+        if (nextQuestion.kind === QuestionKind.FillLetterMedium) {
+          this.isMedium = true;
+          this.currentStep = nextQuestion.currentStep;
+          this.totalSteps = nextQuestion.missingIndices.length;
+          this.letterTemplate = nextQuestion.letterTemplateBase;
+          this.letterMissingIndex = nextQuestion.missingIndices[nextQuestion.currentStep];
+          this.pendingMissingIndex = nextQuestion.missingIndices[nextQuestion.currentStep === 0 ? 1 : 0];
+          this.options = [
+            nextQuestion.letterOptionsSteps[nextQuestion.currentStep][0],
+            nextQuestion.letterOptionsSteps[nextQuestion.currentStep][1],
+            nextQuestion.letterOptionsSteps[nextQuestion.currentStep][2],
+          ];
+        } else if (nextQuestion.kind === QuestionKind.FillLetter) {
+          this.isMedium = false;
+          this.currentStep = 0;
+          this.totalSteps = 1;
+          this.pendingMissingIndex = -1;
           this.options = [
             nextQuestion.letterOptions[0],
             nextQuestion.letterOptions[1],
@@ -752,6 +840,10 @@ struct BattlePage {
           this.letterTemplate = nextQuestion.letterTemplate;
           this.letterMissingIndex = nextQuestion.missingIndex;
         } else {
+          this.isMedium = false;
+          this.currentStep = 0;
+          this.totalSteps = 1;
+          this.pendingMissingIndex = -1;
           this.options = [
             nextQuestion.options[0],
             nextQuestion.options[1],
@@ -963,11 +1055,13 @@ struct BattlePage {
     }
     const parts: string[] = this.letterTemplate.split(' ');
     const missingIdx: number = this.letterMissingIndex;
+    const pendingIdx: number = this.pendingMissingIndex;
     for (let i = 0; i < parts.length; i++) {
       const slot: LetterSlot = new LetterSlot();
       slot.idx = i;
       slot.glyph = parts[i];
-      slot.isMissing = i === missingIdx || parts[i] === '_';
+      slot.isMissing = i === missingIdx;
+      slot.isPending = i === pendingIdx;
       out.push(slot);
     }
     return out;
@@ -988,6 +1082,16 @@ struct BattlePage {
               .fontSize(28)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_MISSING);
+          } else if (item.isPending) {
+            Column()
+              .width(LETTER_SLOT_WIDTH)
+              .height(LETTER_SLOT_HEIGHT)
+              .backgroundColor(LETTER_BG_PENDING)
+              .borderRadius(6);
+            Text('_')
+              .fontSize(28)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(LETTER_TEXT_PENDING);
           } else {
             Text(item.glyph)
               .fontSize(32)
@@ -1015,13 +1119,18 @@ struct BattlePage {
           .fontColor('#457B9D');
         Text(this.prompt)
           .id('BattlePrompt')
-          .fontSize(this.currentQuestionKind === QuestionKind.FillLetter ? 20 : 28)
-          .fontWeight(this.currentQuestionKind === QuestionKind.FillLetter
+          .fontSize((this.currentQuestionKind === QuestionKind.FillLetter
+            || this.currentQuestionKind === QuestionKind.FillLetterMedium) ? 20 : 28)
+          .fontWeight((this.currentQuestionKind === QuestionKind.FillLetter
+            || this.currentQuestionKind === QuestionKind.FillLetterMedium)
             ? FontWeight.Medium : FontWeight.Bold)
-          .fontColor(this.currentQuestionKind === QuestionKind.FillLetter
+          .fontColor((this.currentQuestionKind === QuestionKind.FillLetter
+            || this.currentQuestionKind === QuestionKind.FillLetterMedium)
             ? '#457B9D' : '#1D3557')
-          .margin({ top: this.currentQuestionKind === QuestionKind.FillLetter ? 8 : 16 });
-        if (this.currentQuestionKind === QuestionKind.FillLetter) {
+          .margin({ top: (this.currentQuestionKind === QuestionKind.FillLetter
+            || this.currentQuestionKind === QuestionKind.FillLetterMedium) ? 8 : 16 });
+        if (this.currentQuestionKind === QuestionKind.FillLetter
+          || this.currentQuestionKind === QuestionKind.FillLetterMedium) {
           this.letterTemplateRow();
         }
         // Speaker button — tap re-plays the English pronunciation
