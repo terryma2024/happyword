@@ -44,7 +44,20 @@ struct ResultPage {
     merged.stars = incoming.stars !== undefined ? incoming.stars : merged.stars;
     merged.newlyLearnedCount = incoming.newlyLearnedCount !== undefined ? incoming.newlyLearnedCount : merged.newlyLearnedCount;
     merged.totalLearnedCount = incoming.totalLearnedCount !== undefined ? incoming.totalLearnedCount : merged.totalLearnedCount;
+    merged.isTodayAdventure = incoming.isTodayAdventure !== undefined ? incoming.isTodayAdventure : merged.isTodayAdventure;
+    merged.regionId = incoming.regionId !== undefined ? incoming.regionId : merged.regionId;
+    merged.bossName = incoming.bossName !== undefined ? incoming.bossName : merged.bossName;
+    merged.reviewWordCount = incoming.reviewWordCount !== undefined ? incoming.reviewWordCount : merged.reviewWordCount;
+    merged.newWordCount = incoming.newWordCount !== undefined ? incoming.newWordCount : merged.newWordCount;
+    merged.coinsEarned = incoming.coinsEarned !== undefined ? incoming.coinsEarned : merged.coinsEarned;
+    merged.coinsTotal = incoming.coinsTotal !== undefined ? incoming.coinsTotal : merged.coinsTotal;
+    merged.dailyCapHit = incoming.dailyCapHit !== undefined ? incoming.dailyCapHit : merged.dailyCapHit;
     this.result = merged;
+  }
+
+  private coinLineText(): string {
+    const cap: string = this.result.dailyCapHit && this.result.coinsEarned > 0 ? '（今日封顶）' : '';
+    return `+${this.result.coinsEarned} ✨ 魔法币 ${cap}`;
   }
 
   private formatPercent(rate: number): string {
@@ -117,6 +130,23 @@ struct ResultPage {
           .fontSize(14)
           .fontColor('#457B9D')
           .margin({ top: 10 });
+        if (this.result.isTodayAdventure) {
+          Text(`本局新学 ${this.result.newWordCount} 个，复习 ${this.result.reviewWordCount} 个`)
+            .id('ResultTodayWordsLine')
+            .fontSize(14)
+            .fontColor('#457B9D')
+            .margin({ top: 6 });
+          Text(this.coinLineText())
+            .id('ResultCoinsEarned')
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#FFB400')
+            .margin({ top: 12 });
+          Text(`累计余额 ${this.result.coinsTotal} ✨`)
+            .id('ResultCoinsTotal')
+            .fontSize(13)
+            .fontColor('#888888');
+        }
       }
       .alignItems(HorizontalAlign.Center)
       .margin({ bottom: 28 });
@@ -124,18 +154,37 @@ struct ResultPage {
       Row() {
         Button('再来一局')
           .id('ResultRetryButton')
-          .width(160)
+          .width(140)
           .height(52)
-          .margin({ right: 16 })
+          .margin({ right: 12 })
           .onClick((): void => {
-            router.replaceUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError) => {
-              console.error(`ResultPage: replaceUrl BattlePage failed: ${JSON.stringify(err)}`);
+            // Today-adventure replays return to HomePage so the
+            // session plan can be rebuilt with up-to-date memory
+            // states (instead of replaying the cached plan).
+            const url: string = this.result.isTodayAdventure ? 'pages/HomePage' : 'pages/BattlePage';
+            router.replaceUrl({ url }).catch((err: BusinessError) => {
+              console.error(`ResultPage: replaceUrl ${url} failed: ${JSON.stringify(err)}`);
             });
           });
 
+        if (this.result.isTodayAdventure) {
+          Button('愿望单')
+            .id('ResultWishlistButton')
+            .width(120)
+            .height(52)
+            .margin({ right: 12 })
+            .backgroundColor('#FCEAEA')
+            .fontColor('#E63946')
+            .onClick((): void => {
+              router.replaceUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError) => {
+                console.error(`ResultPage: replaceUrl WishlistPage failed: ${JSON.stringify(err)}`);
+              });
+            });
+        }
+
         Button('返回首页')
           .id('ResultHomeButton')
-          .width(160)
+          .width(140)
           .height(52)
           .onClick((): void => {
             router.replaceUrl({ url: 'pages/HomePage' }).catch((err: BusinessError) => {
