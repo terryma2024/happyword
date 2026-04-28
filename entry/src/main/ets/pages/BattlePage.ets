@@ -46,6 +46,7 @@ import { PronunciationService, shouldAutoSpeak } from '../services/Pronunciation
 import { CritOverlay } from '../components/CritOverlay';
 import { MagicProjectile } from '../components/MagicProjectile';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
+import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
 
 /**
  * BattlePage is the core gameplay screen.
@@ -115,9 +116,6 @@ class LetterSlot {
   isPending: boolean = false;
 }
 
-const LETTER_SLOT_WIDTH: number = 36;
-const LETTER_SLOT_HEIGHT: number = 48;
-const LETTER_SLOT_GAP: number = 8;
 const LETTER_TEXT_FILLED: string = '#1D3557';
 const LETTER_TEXT_MISSING: string = '#E63946';
 const LETTER_BG_MISSING: string = '#FCEAEA';
@@ -1068,43 +1066,71 @@ struct BattlePage {
     return out;
   }
 
+  /**
+   * Length-banded LetterMetrics for the current letterTemplate.
+   * Helper instead of an inline const because ArkTS @Builder
+   * bodies forbid local declarations between the opening brace and
+   * the first UI node — but they DO permit method calls inside
+   * property expressions, which keeps the per-letter modifiers
+   * dynamic without breaking @State observability for the Builder.
+   */
+  private letterMetrics(): LetterMetrics {
+    return letterMetricsForLength(this.letterTemplate.split(' ').length);
+  }
+
+  /**
+   * Letter-template row. Reads `this.letterTemplate`,
+   * `this.letterMissingIndex`, and `this.pendingMissingIndex`
+   * directly so ArkUI re-invokes the Builder whenever those
+   * @State values change — the previous param-based version
+   * (slots / metrics computed at the call site) caused stale
+   * Text widgets to linger after the question rotated, because
+   * the Builder body referenced only its local parameters and
+   * therefore never registered as an observer of letterTemplate.
+   *
+   * The bucket selection is a method call (this.letterMetrics())
+   * so it stays observable: each property re-evaluates when
+   * letterTemplate updates, picking width/gap/font for the new
+   * length. Long prompts like "supermarket" (11 letters) still
+   * tighten enough to fit inside QuestionArea.
+   */
   @Builder
   private letterTemplateRow() {
-    Row({ space: LETTER_SLOT_GAP }) {
+    Row({ space: this.letterMetrics().gap }) {
       ForEach(this.letterSlots(), (item: LetterSlot, _idx: number) => {
         Stack() {
           if (item.isMissing) {
             Column()
-              .width(LETTER_SLOT_WIDTH)
-              .height(LETTER_SLOT_HEIGHT)
+              .width(this.letterMetrics().width)
+              .height(this.letterMetrics().height)
               .backgroundColor(LETTER_BG_MISSING)
               .borderRadius(6);
             Text('_')
               .id(`LetterSlotText_${item.idx}`)
-              .fontSize(28)
+              .fontSize(this.letterMetrics().fontPlaceholder)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_MISSING);
           } else if (item.isPending) {
             Column()
-              .width(LETTER_SLOT_WIDTH)
-              .height(LETTER_SLOT_HEIGHT)
+              .width(this.letterMetrics().width)
+              .height(this.letterMetrics().height)
               .backgroundColor(LETTER_BG_PENDING)
               .borderRadius(6);
             Text(item.glyph === '_' ? '_' : item.glyph)
               .id(`LetterSlotText_${item.idx}`)
-              .fontSize(28)
+              .fontSize(this.letterMetrics().fontPlaceholder)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_PENDING);
           } else {
             Text(item.glyph)
               .id(`LetterSlotText_${item.idx}`)
-              .fontSize(32)
+              .fontSize(this.letterMetrics().fontFilled)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_FILLED);
           }
         }
-        .width(LETTER_SLOT_WIDTH)
-        .height(LETTER_SLOT_HEIGHT)
+        .width(this.letterMetrics().width)
+        .height(this.letterMetrics().height)
         .alignContent(Alignment.Center);
       }, (item: LetterSlot, _idx: number): string => `${item.idx}-${item.glyph}`);
     }

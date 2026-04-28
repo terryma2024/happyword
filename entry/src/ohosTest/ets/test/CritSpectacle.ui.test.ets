@@ -4,7 +4,6 @@ import {
   launchAppShared,
   clickByIdShared,
   tapCorrectAnswerShared,
-  resetToDefaultConfigShared,
 } from './RoutingFlow.ui.test';
 
 /**
@@ -38,12 +37,20 @@ export default function critSpectacleUiTest() {
       const driver: Driver = await launchAppShared();
 
       await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // Reset the shared config to defaults — RoutingFlow's final
-      // test leaves it at 1-monster/1-HP/custom-words which would
-      // end this battle after a single correct tap.
-      await resetToDefaultConfigShared(driver);
+      // v0.3.6: HomeStartButton routes to today's adventure (the
+      // legacy normal-mode entry was deleted along with the right-
+      // hand HomePage column). Today's first slot in the default
+      // fruit-forest region is a basic Match question with 3 HP and
+      // English fruit options drawn from WORD_MAP, so 3 correct taps
+      // still trigger the combo burst exactly as the old normal-mode
+      // 5×3 free-practice flow did. resetToDefaultConfigShared is no
+      // longer needed (today-mode ignores cfg.playerHp / monsterHp /
+      // monstersTotal / customWords).
       await clickByIdShared(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
+      // Today-mode loads WordRepository + LearningRecorder
+      // asynchronously before pushing BattlePage; bumped from 1000ms
+      // to 1500ms so the first prompt is painted before the assert.
+      await driver.delayMs(1500);
       await driver.assertComponentExist(ON.id('BattleTitle'));
       await driver.assertComponentExist(ON.id('BattlePrompt'));
       // Rest-state: no taps yet, combo must be 0.

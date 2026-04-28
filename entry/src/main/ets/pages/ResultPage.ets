@@ -122,20 +122,15 @@ struct ResultPage {
         Text(`学习单词：${this.result.learnedWordCount}`)
           .id('ResultLearned')
           .fontSize(18);
-        // V0.2 learning record summary — sits below the per-session
-        // "学习单词" line so the two read top-to-bottom as
-        // session → cumulative.
-        Text(`本局新学 ${this.result.newlyLearnedCount} 个词，已累计学过 ${this.result.totalLearnedCount} 个`)
-          .id('ResultLearnedTotals')
-          .fontSize(14)
-          .fontColor('#457B9D')
-          .margin({ top: 10 });
+        // V0.3.6 (post v0.3.5) — the previous "本局新学 N 个词，
+        // 已累计学过 M 个" and "本局新学 N 个，复习 M 个" footer
+        // lines were dropped from this layout. The result page was
+        // getting visually noisy and the two lines duplicated stats
+        // that the "学习单词" line above already conveys, while the
+        // today-adventure breakdown was rarely scanned by players.
+        // Today-adventure coin lines stay because they carry the
+        // primary feedback for that mode.
         if (this.result.isTodayAdventure) {
-          Text(`本局新学 ${this.result.newWordCount} 个，复习 ${this.result.reviewWordCount} 个`)
-            .id('ResultTodayWordsLine')
-            .fontSize(14)
-            .fontColor('#457B9D')
-            .margin({ top: 6 });
           Text(this.coinLineText())
             .id('ResultCoinsEarned')
             .fontSize(16)

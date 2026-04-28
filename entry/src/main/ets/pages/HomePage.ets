@@ -4,7 +4,6 @@ import { common } from '@kit.AbilityKit';
 import {
   GameConfig,
   GAME_CONFIG_STORAGE_KEY,
-  GAME_MODE_NORMAL,
   GAME_MODE_REVIEW,
   GAME_MODE_TODAY,
   TODAY_PLAN_STORAGE_KEY,
@@ -43,6 +42,16 @@ struct HomePage {
   @State private todayCompleted: boolean = false;
   @State private todayRegion: AdventureRegion = ADVENTURE_REGIONS[0];
   @State private coinBalance: number = 0;
+  /**
+   * v0.3.6: when the locked review button is tapped (fewer than 3
+   * recent wrong words), surface an inline toast instead of doing
+   * nothing. `toastTimer` holds the active setTimeout handle so a
+   * rapid second tap can reset the dismissal window cleanly, and
+   * `aboutToDisappear` can cancel a pending callback before the
+   * page is destroyed.
+   */
+  @State private reviewLockedToastVisible: boolean = false;
+  private toastTimer: number = -1;
   private coins: CoinAccount = getCoinAccount();
   private todayPrefs: TodayPreferences = getTodayPreferences();
 
@@ -79,6 +88,13 @@ struct HomePage {
     this.refreshTodayState();
   }
 
+  aboutToDisappear(): void {
+    if (this.toastTimer >= 0) {
+      clearTimeout(this.toastTimer);
+      this.toastTimer = -1;
+    }
+  }
+
   private refreshBalance(): void {
     const snap: CoinSnapshot = this.coins.snapshot();
     this.coinBalance = snap.totalCoins - snap.spentCoins;
@@ -108,6 +124,24 @@ struct HomePage {
 
   private reviewEnabled(): boolean {
     return this.recentWrongCount >= REVIEW_MIN_WRONG_IDS;
+  }
+
+  /**
+   * Surface a transient inline toast at the top of HomePage when the
+   * locked 📚 button is tapped. Self-dismisses after 1.5s; a rapid
+   * follow-up tap resets the timer so the toast doesn't disappear
+   * mid-message. The HomeReviewLockedToast id is the contract used
+   * by HomeToolbarLocked.ui.test.
+   */
+  private showReviewLockedToast(): void {
+    if (this.toastTimer >= 0) {
+      clearTimeout(this.toastTimer);
+    }
+    this.reviewLockedToastVisible = true;
+    this.toastTimer = setTimeout((): void => {
+      this.reviewLockedToastVisible = false;
+      this.toastTimer = -1;
+    }, 1500);
   }
 
   /**
@@ -161,87 +195,48 @@ struct HomePage {
     });
   }
 
-  private enterNormalMode(): void {
-    const storedCfg: GameConfig | undefined =
-      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
-    const cfg: GameConfig = cloneGameConfig(
-      storedCfg !== undefined ? storedCfg : new GameConfig());
-    // Defensive: if someone returned to Home without going through
-    // ResultPage, stale review-mode could still be set. Reset here so
-    // the primary play button always starts a normal battle.
-    cfg.mode = GAME_MODE_NORMAL;
-    AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
-    router.pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
-      console.error(`HomePage: pushUrl BattlePage failed: ${JSON.stringify(err)}`);
-    });
-  }
-
   build(): void {
     Stack() {
-      // Two-column layout sized for landscape viewports: the new
-      // AdventureCard sits on the left next to the title/subtitle
-      // block, and the legacy Start / Review buttons stay on the
-      // right where existing UI tests expect to find them on first
-      // render. A Scroll wrapper handles smaller portrait viewports
-      // (e.g. phones) by allowing the content to scroll vertically.
+      // v0.3.6: single centred column. The legacy right-side
+      // Start / Review pair is gone; HomeStartButton is now the
+      // adventure-card CTA (see adventureCard() below) and the
+      // review entry has moved to the top toolbar.
       Scroll() {
-        Row({ space: 32 }) {
-          Column() {
-            Text('Small Magician Word Adventure')
-              .id('HomeTitle')
-              .fontSize(32)
-              .fontWeight(FontWeight.Bold)
-              .margin({ bottom: 8 });
+        Column({ space: 0 }) {
+          Text('Small Magician Word Adventure')
+            .id('HomeTitle')
+            .fontSize(32)
+            .fontWeight(FontWeight.Bold)
+            .margin({ bottom: 24 });
 
-            Text('小魔法师单词冒险')
-              .fontSize(20)
-              .fontColor('#457B9D')
-              .margin({ bottom: 16 });
-
-            this.adventureCard();
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Center);
-
-          Column({ space: 16 }) {
-            Text('点击开始，打败 5 个单词史莱姆吧！')
-              .fontSize(16)
-              .textAlign(TextAlign.Center);
-
-            Button('开始游戏')
-              .id('HomeStartButton')
-              .fontSize(24)
-              .width(220)
-              .height(64)
-              .backgroundColor('#E63946')
-              .onClick((): void => this.enterNormalMode());
-
-            Button(this.reviewEnabled() ? '复习错题' : '先答错几题再来复习吧')
-              .id('HomeReviewButton')
-              .fontSize(this.reviewEnabled() ? 20 : 14)
-              .width(260)
-              .height(56)
-              .backgroundColor(this.reviewEnabled() ? '#FFB400' : '#CCCCCC')
-              .fontColor(this.reviewEnabled() ? '#FFFFFF' : '#666666')
-              .enabled(this.reviewEnabled())
-              .onClick((): void => {
-                if (!this.reviewEnabled()) {
-                  return;
-                }
-                this.enterReviewMode();
-              });
-          }
-          .width(280)
-          .alignItems(HorizontalAlign.Center)
-          .justifyContent(FlexAlign.Center);
+          this.adventureCard();
         }
         .width('100%')
-        .padding({ left: 24, right: 24, top: 72, bottom: 24 })
-        .alignItems(VerticalAlign.Center);
+        .alignItems(HorizontalAlign.Center)
+        .padding({ left: 24, right: 24, top: 72, bottom: 24 });
       }
       .width('100%')
       .height('100%')
       .scrollBar(BarState.Auto);
+
+      // v0.3.6: top-of-screen toast for a tap on the locked 📚 button.
+      // Wrapped in a full-width Column with HorizontalAlign.Center so
+      // it overrides the outer Stack's TopEnd alignment for this child
+      // and lands centred under the toolbar.
+      Column() {
+        if (this.reviewLockedToastVisible) {
+          Text('先答错几题再来复习吧')
+            .id('HomeReviewLockedToast')
+            .fontSize(14)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#3A3A3ACC')
+            .borderRadius(18)
+            .padding({ left: 16, right: 16, top: 8, bottom: 8 });
+        }
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Center)
+      .margin({ top: 96 });
 
       Row({ space: 12 }) {
         Text(`✨ ${this.coinBalance}`)
@@ -251,6 +246,22 @@ struct HomePage {
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .backgroundColor('#FFF6E5')
           .borderRadius(20);
+
+        Button('📚')
+          .id('HomeReviewButton')
+          .type(ButtonType.Circle)
+          .width(56)
+          .height(56)
+          .fontSize(24)
+          .fontColor(this.reviewEnabled() ? '#E63946' : '#999999')
+          .backgroundColor(this.reviewEnabled() ? '#FCEAEA' : '#EEEEEE')
+          .onClick((): void => {
+            if (this.reviewEnabled()) {
+              this.enterReviewMode();
+            } else {
+              this.showReviewLockedToast();
+            }
+          });
 
         Button('🪄')
           .id('HomeWishlistButton')
@@ -263,20 +274,6 @@ struct HomePage {
           .onClick((): void => {
             router.pushUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError): void => {
               console.error(`HomePage: pushUrl WishlistPage failed: ${JSON.stringify(err)}`);
-            });
-          });
-
-        Button('🧪')
-          .id('HomeTtsTestButton')
-          .type(ButtonType.Circle)
-          .width(56)
-          .height(56)
-          .fontSize(24)
-          .fontColor('#457B9D')
-          .backgroundColor('#EAF2F8')
-          .onClick((): void => {
-            router.pushUrl({ url: 'pages/TtsTestPage' }).catch((err: BusinessError): void => {
-              console.error(`HomePage: pushUrl TtsTestPage failed: ${JSON.stringify(err)}`);
             });
           });
 
@@ -305,8 +302,9 @@ struct HomePage {
    * "今日冒险" preview card. Inlined as @Builder (formerly the
    * AdventureCard @Component) per codelinter
    * `avoid-overusing-custom-component-check`. Tests target ID
-   * `AdventureCard` (the wrapping Column) and `AdventureCardCta`
-   * (the start button), so those IDs must stay attached here.
+   * `AdventureCard` (the wrapping Column) and `HomeStartButton`
+   * (the adventure CTA — single primary entry point as of v0.3.6),
+   * so those IDs must stay attached here.
    */
   @Builder
   private adventureCard() {
@@ -347,7 +345,7 @@ struct HomePage {
         .fontColor('#5A4A35');
 
       Button(this.todayCompleted ? '再战一局' : '开始今日冒险')
-        .id('AdventureCardCta')
+        .id('HomeStartButton')
         .fontSize(18)
         .width('100%')
         .height(48)
@@ -359,6 +357,7 @@ struct HomePage {
     }
     .id('AdventureCard')
     .width('100%')
+    .constraintSize({ maxWidth: 720 })
     .padding(16)
     .backgroundColor(this.todayRegion.bgPrimary)
     .borderRadius(20)

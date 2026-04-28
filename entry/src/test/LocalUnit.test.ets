@@ -1,4 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
+import { LetterMetrics, letterMetricsForLength } from '../main/ets/services/LetterMetrics';
 import {
   computeRibbonFlyTarget,
   generateRibbons,
@@ -1716,6 +1717,74 @@ export default function localUnitTest() {
       const rec: LearningRecorder = makeRecorderWithSnapshot([]);
       rec.recordAnswer('fruit-apple', true);
       expect(rec.snapshotVersionForTest()).assertEqual(2);
+    });
+  });
+
+  // letterMetricsForLength banding contract — long FillLetter prompts
+  // must shrink width / gap / font monotonically so e.g. "supermarket"
+  // (11 letters) fits inside QuestionArea on a narrow viewport
+  // instead of clipping its tail like the bug screenshot showed.
+  describe('LetterMetrics', () => {
+    it('shortWordsKeepOriginalSize', 0, () => {
+      const m1: LetterMetrics = letterMetricsForLength(1);
+      const m6: LetterMetrics = letterMetricsForLength(6);
+      expect(m1.width).assertEqual(36);
+      expect(m1.gap).assertEqual(8);
+      expect(m1.fontFilled).assertEqual(32);
+      expect(m6.width).assertEqual(36);
+      expect(m6.gap).assertEqual(8);
+      expect(m6.fontFilled).assertEqual(32);
+    });
+
+    it('mediumWordsTightenAroundSeven', 0, () => {
+      const m7: LetterMetrics = letterMetricsForLength(7);
+      const m9: LetterMetrics = letterMetricsForLength(9);
+      expect(m7.width).assertEqual(30);
+      expect(m7.gap).assertEqual(6);
+      expect(m7.fontFilled).assertEqual(26);
+      expect(m9.width).assertEqual(30);
+    });
+
+    it('longWordsLikeSupermarketFitNarrowViewport', 0, () => {
+      // QuestionArea on the smallest supported viewport sits around
+      // 380 dp wide (1024 dp landscape × layoutWeight(2)/4 minus
+      // padding). Lock the bucket so 11-letter words always render
+      // under that ceiling.
+      const m11: LetterMetrics = letterMetricsForLength(11);
+      const total: number = 11 * m11.width + 10 * m11.gap;
+      expect(m11.width).assertEqual(24);
+      expect(m11.gap).assertEqual(4);
+      expect(m11.fontFilled).assertEqual(22);
+      expect(total).assertEqual(304);
+      expect(total < 380).assertTrue();
+    });
+
+    it('extraLongWordsUseTightestBucket', 0, () => {
+      const m13: LetterMetrics = letterMetricsForLength(13);
+      const m20: LetterMetrics = letterMetricsForLength(20);
+      expect(m13.width).assertEqual(20);
+      expect(m13.gap).assertEqual(3);
+      expect(m13.fontFilled).assertEqual(18);
+      expect(m20.width).assertEqual(20);
+    });
+
+    it('metricsAreMonotonicAcrossBuckets', 0, () => {
+      // Each band must produce smaller-or-equal width, gap and font
+      // than the previous band; otherwise long words could end up
+      // wider than short ones, which would surprise authors writing
+      // word lists.
+      const lens: number[] = [1, 6, 7, 9, 10, 12, 13, 20];
+      let prev: LetterMetrics | null = null;
+      for (let i = 0; i < lens.length; i++) {
+        const m: LetterMetrics = letterMetricsForLength(lens[i]);
+        if (prev !== null) {
+          expect(m.width <= prev.width).assertTrue();
+          expect(m.gap <= prev.gap).assertTrue();
+          expect(m.fontFilled <= prev.fontFilled).assertTrue();
+          expect(m.fontPlaceholder <= prev.fontPlaceholder).assertTrue();
+        }
+        prev = m;
+      }
     });
   });
 }

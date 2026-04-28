@@ -5,7 +5,6 @@ import {
   clickByIdShared,
   tapCorrectAnswerShared,
   tapWrongAnswerShared,
-  resetToDefaultConfigShared,
 } from './RoutingFlow.ui.test';
 
 /**
@@ -50,9 +49,16 @@ export default function magicAttackUiTest() {
       const driver: Driver = await launchAppShared();
 
       await driver.assertComponentExist(ON.id('HomeStartButton'));
-      await resetToDefaultConfigShared(driver);
+      // v0.3.6: HomeStartButton routes to today's adventure. Today-mode
+      // honours cfg.playerHp (default 5) but its monster HP comes from
+      // the region monster plan; fruit-forest's first slot is a basic
+      // 3-HP Match question, so the projectile-damage invariants below
+      // ("HP 5 / 5" -> "HP 4 / 5", "HP 3 / 3" -> "HP 2 / 3") are still
+      // valid on the first slot.
       await clickByIdShared(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
+      // Today-mode loads WordRepository + LearningRecorder
+      // asynchronously; bumped from 1000ms to 1500ms.
+      await driver.delayMs(1500);
       await driver.assertComponentExist(ON.id('BattleTitle'));
       await driver.assertComponentExist(ON.id('BattlePrompt'));
       // Pre-tap baseline: player at full HP.
@@ -85,9 +91,11 @@ export default function magicAttackUiTest() {
       const driver: Driver = await launchAppShared();
 
       await driver.assertComponentExist(ON.id('HomeStartButton'));
-      await resetToDefaultConfigShared(driver);
+      // v0.3.6: HomeStartButton routes to today's adventure (see above).
       await clickByIdShared(driver, 'HomeStartButton');
-      await driver.delayMs(1000);
+      // Today-mode loads WordRepository + LearningRecorder
+      // asynchronously; bumped from 1000ms to 1500ms.
+      await driver.delayMs(1500);
       await driver.assertComponentExist(ON.id('BattleTitle'));
       await driver.assertComponentExist(ON.id('BattlePrompt'));
       // Pre-tap baseline: monster at full HP. Both cards render an HP
