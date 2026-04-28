@@ -25,10 +25,16 @@ import {
   GAME_MODE_REVIEW,
   GAME_MODE_TODAY,
   TODAY_PLAN_STORAGE_KEY,
+  TODAY_LAST_COMPLETED_DAY_KEY,
   cloneGameConfig,
   computeFinalPool
 } from '../models/GameConfig';
-import { TodaySessionPlan } from '../models/AdventureRegion';
+import { formatDayKeyLocal } from '../models/CoinSnapshot';
+import { TodaySessionPlan, WordSlot, WordSource } from '../models/AdventureRegion';
+import { AdventureRegion } from '../models/AdventureRegion';
+import { getRegionById } from '../data/AdventureCatalog';
+import { CoinAccount, getCoinAccount, COIN_REASON_TODAY_FIRST } from '../services/CoinAccount';
+import { CoinSnapshot, DAILY_CAP } from '../models/CoinSnapshot';
 import { WordEntry } from '../models/WordEntry';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
@@ -90,6 +96,40 @@ export const REVIEW_MODE_MONSTERS_TOTAL: number = 3;
 export const REVIEW_MODE_STARTING_SECONDS: number = 120;
 export const REVIEW_WINDOW_SIZE: number = 12;
 
+/** Per-word answer tally used to compute review-only accuracy. */
+class AnswerCount {
+  correct: number = 0;
+  total: number = 0;
+}
+
+function countByWordSource(plan: TodaySessionPlan, src: WordSource): number {
+  let n: number = 0;
+  for (let i = 0; i < plan.wordPlan.length; i++) {
+    if (plan.wordPlan[i].source === src) {
+      n += 1;
+    }
+  }
+  return n;
+}
+
+function computeReviewAccuracy(plan: TodaySessionPlan, answers: Map<string, AnswerCount>): number {
+  let correct: number = 0;
+  let total: number = 0;
+  for (let i = 0; i < plan.wordPlan.length; i++) {
+    const slot: WordSlot = plan.wordPlan[i];
+    if (slot.source !== WordSource.Review) {
+      continue;
+    }
+    const cnt: AnswerCount | undefined = answers.get(slot.wordId);
+    if (cnt === undefined) {
+      continue;
+    }
+    correct += cnt.correct;
+    total += cnt.total;
+  }
+  return total > 0 ? correct / total : 0;
+}
+
 @Entry
 @Component
 struct BattlePage {
@@ -118,6 +158,14 @@ struct BattlePage {
    */
   private isTodayMode: boolean = false;
   private todayPlan: TodaySessionPlan | undefined = undefined;
+  /**
+   * Per-wordId answer counters captured during the live battle.
+   * navigateToResult uses this to compute review-pool accuracy
+   * separately from the all-time `correctRate` so the Phase C
+   * `review-80` coin reward fires on the right metric.
+   */
+  private sessionAnswers: Map<string, AnswerCount> = new Map<string, AnswerCount>();
+  private coinAccount: CoinAccount = getCoinAccount();
   private feedbackTimer: number = -1;
   /**
    * Handle returned by setInterval for the 1Hz countdown driver. -1 when
@@ -243,6 +291,9 @@ struct BattlePage {
       this.recorder.beginSession();
     }).catch((err: BusinessError): void => {
       console.error(`BattlePage: LearningRecorder.init failed: ${JSON.stringify(err)}`);
+    });
+    this.coinAccount.init(ctx).catch((err: BusinessError): void => {
+      console.error(`BattlePage: CoinAccount.init failed: ${JSON.stringify(err)}`);
     });
     const repo: WordRepository = new WordRepository();
     repo.loadFromRawfile(ctx).then((): void => {
@@ -558,6 +609,13 @@ struct BattlePage {
     // answered. Falls through silently if the recorder wasn't ready.
     if (answeredWordId.length > 0) {
       this.recorder.recordAnswer(answeredWordId, outcome.correct);
+      const prev: AnswerCount | undefined = this.sessionAnswers.get(answeredWordId);
+      const acc: AnswerCount = prev !== undefined ? prev : new AnswerCount();
+      acc.total += 1;
+      if (outcome.correct) {
+        acc.correct += 1;
+      }
+      this.sessionAnswers.set(answeredWordId, acc);
     }
 
     // Update stat displays (HP, combo, monster index) immediately so the
@@ -735,6 +793,12 @@ struct BattlePage {
     // about the recorder, so this is the integration point.
     result.newlyLearnedCount = this.recorder.newlyLearnedCount;
     result.totalLearnedCount = this.recorder.totalLearnedCount;
+    // Today-adventure coin earnings + result enrichment. Runs only
+    // when the engine actually consumed a TodaySessionPlan; in any
+    // other mode the new SessionResult fields stay at their defaults.
+    if (this.isTodayMode && this.todayPlan !== undefined) {
+      this.applyTodayAdventureRewards(result, this.todayPlan);
+    }
     // Review mode is always a single-battle affordance — reset the
     // stored GameConfig back to 'normal' so the next HomePage launch
     // doesn't accidentally start another review session. Done even
@@ -751,6 +815,52 @@ struct BattlePage {
       params: result,
     }).catch((err: BusinessError): void => {
       console.error(`BattlePage: replaceUrl ResultPage failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  /**
+   * Compute today-adventure coin awards, mark today as completed
+   * for the home-page badge, and write the result into the
+   * SessionResult. Coin awards are clamped to the daily cap inside
+   * CoinAccount.earn — `dailyCapHit` mirrors that state.
+   */
+  private applyTodayAdventureRewards(result: SessionResult, plan: TodaySessionPlan): void {
+    const now: number = Date.now();
+    this.coinAccount.beginToday(now);
+
+    const region: AdventureRegion = getRegionById(plan.regionId);
+    result.isTodayAdventure = true;
+    result.regionId = plan.regionId;
+    result.bossName = region.bossName;
+    result.reviewWordCount = countByWordSource(plan, WordSource.Review);
+    result.newWordCount = countByWordSource(plan, WordSource.New);
+
+    let earned: number = 0;
+    if (plan.isFirstToday && result.status === BattleStatus.Won) {
+      earned += this.coinAccount.earn(COIN_REASON_TODAY_FIRST, 5, now);
+    }
+    if (result.defeatedMonsters > 0) {
+      earned += this.coinAccount.earn('monster-defeat', result.defeatedMonsters, now);
+    }
+    if (result.correctRate >= 0.8) {
+      earned += this.coinAccount.earn('accuracy-80', 3, now);
+    }
+    if (computeReviewAccuracy(plan, this.sessionAnswers) >= 0.8) {
+      earned += this.coinAccount.earn('review-80', 2, now);
+    }
+    result.coinsEarned = earned;
+    const snap: CoinSnapshot = this.coinAccount.snapshot();
+    result.coinsTotal = snap.totalCoins - snap.spentCoins;
+    result.dailyCapHit = snap.todayCoinsEarned >= DAILY_CAP;
+
+    // Mark today as completed so HomePage can light the "已完成" badge
+    // immediately on return from ResultPage. Persistence to disk
+    // happens via flushNow on the coin account; the day-key flag is
+    // session-only AppStorage state read by HomePage.
+    AppStorage.setOrCreate<string>(TODAY_LAST_COMPLETED_DAY_KEY, formatDayKeyLocal(now));
+
+    this.coinAccount.flushNow().catch((err: BusinessError): void => {
+      console.error(`BattlePage: CoinAccount.flushNow failed: ${JSON.stringify(err)}`);
     });
   }
 
