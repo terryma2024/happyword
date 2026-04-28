@@ -9,6 +9,7 @@
 export enum QuestionKind {
   Choice = 'choice',
   FillLetter = 'fill-letter',
+  FillLetterMedium = 'fill-letter-medium',
 }
 
 export class Question {
@@ -24,6 +25,14 @@ export class Question {
   letterOptions: string[] = [];
   letterAnswer: string = '';
 
+  // V0.3.5: atomic two-step fill-letter (two blanks).
+  letterTemplateBase: string = '';
+  missingIndices: number[] = [];
+  letterOptionsSteps: string[][] = [];
+  letterAnswers: string[] = [];
+  // Engine runtime state: 0 = step 0 (first blank), 1 = step 1 (second blank).
+  currentStep: number = 0;
+
   /**
    * Runtime invariant check. Returns true when the question is well-formed.
    * Keep this cheap: it runs during QuestionGenerator tests on every generated
@@ -38,6 +47,9 @@ export class Question {
     }
     if (this.kind === QuestionKind.FillLetter) {
       return this.isValidFillLetter();
+    }
+    if (this.kind === QuestionKind.FillLetterMedium) {
+      return this.isValidFillLetterMedium();
     }
     return this.isValidChoice();
   }
@@ -93,6 +105,79 @@ export class Question {
     if (word.charAt(this.missingIndex) !== this.letterAnswer) {
       return false;
     }
+    return true;
+  }
+
+  private isValidFillLetterMedium(): boolean {
+    if (this.letterTemplateBase.length === 0) {
+      return false;
+    }
+    if (this.missingIndices.length !== 2) {
+      return false;
+    }
+    if (this.letterOptionsSteps.length !== 2) {
+      return false;
+    }
+    if (this.letterAnswers.length !== 2) {
+      return false;
+    }
+    if (this.currentStep < 0 || this.currentStep > 1) {
+      return false;
+    }
+
+    const idx0: number = this.missingIndices[0];
+    const idx1: number = this.missingIndices[1];
+    // Disallow missing the first letter (keeps the question readable).
+    if (idx0 <= 0 || idx1 <= 0) {
+      return false;
+    }
+    if (idx0 === idx1) {
+      return false;
+    }
+
+    const word: string = this.answer.toLowerCase();
+    if (idx0 >= word.length || idx1 >= word.length) {
+      return false;
+    }
+
+    const parts: string[] = this.letterTemplateBase.split(' ');
+    if (parts.length !== word.length) {
+      return false;
+    }
+    // Both missing positions must be rendered as '_' in the base template.
+    if (parts[idx0] !== '_' || parts[idx1] !== '_') {
+      return false;
+    }
+
+    for (let step: number = 0; step < 2; step++) {
+      const options: string[] = this.letterOptionsSteps[step];
+      if (options.length !== 3) {
+        return false;
+      }
+      const seen: Set<string> = new Set<string>();
+      for (let i = 0; i < options.length; i++) {
+        const c: string = options[i];
+        if (c.length !== 1) {
+          return false;
+        }
+        if (seen.has(c)) {
+          return false;
+        }
+        seen.add(c);
+      }
+      const ans: string = this.letterAnswers[step];
+      if (ans.length !== 1) {
+        return false;
+      }
+      if (options.indexOf(ans) < 0) {
+        return false;
+      }
+      const missingIdx: number = this.missingIndices[step];
+      if (word.charAt(missingIdx) !== ans) {
+        return false;
+      }
+    }
+
     return true;
   }
 }
