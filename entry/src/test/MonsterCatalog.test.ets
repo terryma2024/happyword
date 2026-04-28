@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { MonsterEntry, getMonsterByIndex, MONSTER_CATALOG } from '../main/ets/data/MonsterCatalog';
+import { MonsterEntry, MonsterKind, getMonsterByIndex, MONSTER_CATALOG } from '../main/ets/data/MonsterCatalog';
 
 /**
  * Pure-data unit tests for the monster catalog.
@@ -133,6 +133,23 @@ export default function monsterCatalogTest() {
       const neg: MonsterEntry = getMonsterByIndex(-3);
       expect(zero.name).assertEqual(first.name);
       expect(neg.name).assertEqual(first.name);
+    });
+  });
+
+  describe('MonsterEntry.kind', () => {
+    it('defaultsEveryEntryToNormal', 0, () => {
+      for (let i = 0; i < MONSTER_CATALOG.length; i++) {
+        expect(MONSTER_CATALOG[i].kind).assertEqual(MonsterKind.Normal);
+      }
+    });
+    it('exposesAllFiveKindsViaEnum', 0, () => {
+      // Pin the enum surface so PlanQuestionSource and AdventureCatalog
+      // can rely on the five labels.
+      expect(MonsterKind.Normal).assertEqual('normal');
+      expect(MonsterKind.Spelling).assertEqual('spelling');
+      expect(MonsterKind.Review).assertEqual('review');
+      expect(MonsterKind.Elite).assertEqual('elite');
+      expect(MonsterKind.Boss).assertEqual('boss');
     });
   });
 }

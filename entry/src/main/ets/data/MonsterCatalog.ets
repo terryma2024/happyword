@@ -13,10 +13,25 @@
  *   - getMonsterByIndex(idx) mod-wraps on idx > length so a future
  *     MONSTER_COUNT_MAX above 10 cannot crash mid-battle.
  */
+/**
+ * V0.3 monster archetypes — fed into AdventureRegion.monsterPlan to
+ * decide what kind of question (Choice, FillLetter, …) the player
+ * faces on each slot. Default is `Normal` so V0.2 catalog entries
+ * keep their existing behaviour.
+ */
+export enum MonsterKind {
+  Normal = 'normal',
+  Spelling = 'spelling',
+  Review = 'review',
+  Elite = 'elite',
+  Boss = 'boss',
+}
+
 export class MonsterEntry {
   name: string = '';
   fill: string = '';
   stroke: string = '';
+  kind: MonsterKind = MonsterKind.Normal;
 }
 
 function makeEntry(name: string, fill: string, stroke: string): MonsterEntry {
@@ -24,6 +39,25 @@ function makeEntry(name: string, fill: string, stroke: string): MonsterEntry {
   e.name = name;
   e.fill = fill;
   e.stroke = stroke;
+  return e;
+}
+
+/**
+ * Factory for AdventureCatalog use: builds a MonsterEntry with an
+ * explicit `kind` for region monster plans. Kept separate from
+ * makeEntry so the V0.2 roster stays Normal by default.
+ */
+export function makeMonsterEntryWithKind(
+  name: string,
+  fill: string,
+  stroke: string,
+  kind: MonsterKind
+): MonsterEntry {
+  const e: MonsterEntry = new MonsterEntry();
+  e.name = name;
+  e.fill = fill;
+  e.stroke = stroke;
+  e.kind = kind;
   return e;
 }
 
