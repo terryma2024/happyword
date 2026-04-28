@@ -18,6 +18,8 @@ import { common } from '@kit.AbilityKit';
  *   - `play(key)` with an unknown key is a no-op + warn log. This keeps
  *     BattlePage free of defensive guards for keys it knows it loaded.
  *   - `dispose()` releases every AVPlayer and marks the service unusable.
+ *
+ * V0.3.5: replaced `sound/hit_crit.ogg` with an explosion-style sample.
  */
 
 /**

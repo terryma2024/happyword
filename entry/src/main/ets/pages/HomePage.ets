@@ -369,16 +369,15 @@ struct HomePage {
   private regionPicker() {
     Row({ space: 10 }) {
       ForEach(ADVENTURE_REGIONS, (r: AdventureRegion): void => {
-        const selected: boolean = r.id === this.todayRegion.id;
         Button(r.displayName)
           .id(`RegionChip_${r.id}`)
           .fontSize(13)
           .height(32)
           .padding({ left: 12, right: 12 })
-          .backgroundColor(selected ? '#E63946' : '#FFFFFF')
-          .fontColor(selected ? '#FFFFFF' : '#3F2F1A')
+          .backgroundColor(r.id === this.todayRegion.id ? '#E63946' : '#FFFFFF')
+          .fontColor(r.id === this.todayRegion.id ? '#FFFFFF' : '#3F2F1A')
           .borderRadius(16)
-          .border({ width: 1, color: selected ? '#E63946' : '#DDDDDD' })
+          .border({ width: 1, color: r.id === this.todayRegion.id ? '#E63946' : '#DDDDDD' })
           .onClick((): void => {
             AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, r.id);
             this.todayRegion = r;
