@@ -7,6 +7,7 @@ import adventureCatalogTest from './AdventureCatalog.test';
 import todayAdventureBuilderTest from './TodayAdventureBuilder.test';
 import planQuestionSourceTest from './PlanQuestionSource.test';
 import coinAccountTest from './CoinAccount.test';
+import wishlistStoreTest from './WishlistStore.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -18,4 +19,5 @@ export default function testsuite() {
   todayAdventureBuilderTest();
   planQuestionSourceTest();
   coinAccountTest();
+  wishlistStoreTest();
 }
