@@ -42,8 +42,14 @@ export class GameConfig {
 /** Battle-mode string values to avoid typos at call sites. */
 export const GAME_MODE_NORMAL: string = 'normal';
 export const GAME_MODE_REVIEW: string = 'review';
+/** V0.3: today's adventure mode — BattlePage consumes a TodaySessionPlan from AppStorage. */
+export const GAME_MODE_TODAY: string = 'today';
 
 export const GAME_CONFIG_STORAGE_KEY: string = 'gameConfig';
+/** AppStorage key for the in-flight TodaySessionPlan handed off from HomePage to BattlePage. */
+export const TODAY_PLAN_STORAGE_KEY: string = 'todayPlan';
+/** AppStorage key for the day-key when the player last finished today's adventure. */
+export const TODAY_LAST_COMPLETED_DAY_KEY: string = 'todayLastCompletedDayKey';
 
 export const TIMER_CHOICES: number[] = [3, 15, 30, 60, 120, 300, 600];
 

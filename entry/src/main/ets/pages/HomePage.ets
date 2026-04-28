@@ -1,13 +1,22 @@
 import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
+import { common } from '@kit.AbilityKit';
 import {
   GameConfig,
   GAME_CONFIG_STORAGE_KEY,
   GAME_MODE_NORMAL,
   GAME_MODE_REVIEW,
+  GAME_MODE_TODAY,
+  TODAY_PLAN_STORAGE_KEY,
+  TODAY_LAST_COMPLETED_DAY_KEY,
   cloneGameConfig
 } from '../models/GameConfig';
 import { getLearningRecorder } from '../services/LearningRecorder';
+import { WordRepository } from '../services/WordRepository';
+import { TodayAdventureBuilder, localDayKey } from '../services/TodayAdventureBuilder';
+import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
+import { AdventureRegion, TodaySessionPlan } from '../models/AdventureRegion';
+import { AdventureCard } from '../components/AdventureCard';
 
 /**
  * Review-mode gating threshold. Mirrors spec §15 Track D: kids need at
@@ -27,9 +36,12 @@ struct HomePage {
    * has accrued 3+ wrong answers.
    */
   @State private recentWrongCount: number = 0;
+  @State private todayCompleted: boolean = false;
+  @State private todayRegion: AdventureRegion = ADVENTURE_REGIONS[0];
 
   aboutToAppear(): void {
     this.refreshWrongCount();
+    this.refreshTodayState();
   }
 
   onPageShow(): void {
@@ -37,11 +49,20 @@ struct HomePage {
     // page, but not aboutToAppear; refreshing here makes the button
     // light up the instant the battle ends.
     this.refreshWrongCount();
+    this.refreshTodayState();
   }
 
   private refreshWrongCount(): void {
     this.recentWrongCount =
       getLearningRecorder().recentWrongIds(REVIEW_WINDOW_SIZE).length;
+  }
+
+  private refreshTodayState(): void {
+    const stored: string | undefined =
+      AppStorage.get<string>(TODAY_LAST_COMPLETED_DAY_KEY);
+    const todayKey: string = localDayKey(Date.now());
+    this.todayCompleted = stored !== undefined && stored === todayKey;
+    this.todayRegion = getRegionById(DEFAULT_REGION_ID);
   }
 
   private reviewEnabled(): boolean {
@@ -62,6 +83,40 @@ struct HomePage {
     AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
     router.pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
       console.error(`HomePage: pushUrl BattlePage (review) failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private enterTodayAdventure(): void {
+    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    const repo: WordRepository = new WordRepository();
+    repo.loadFromRawfile(ctx).then((): void => {
+      const builder: TodayAdventureBuilder = new TodayAdventureBuilder();
+      const region: AdventureRegion = getRegionById(DEFAULT_REGION_ID);
+      const recorder = getLearningRecorder();
+      // Init ensures the recorder snapshot is hydrated so the
+      // builder sees real review/learning words, not an empty list.
+      recorder.init(ctx).then((): void => {
+        const todayKey: string = localDayKey(Date.now());
+        const stored: string | undefined =
+          AppStorage.get<string>(TODAY_LAST_COMPLETED_DAY_KEY);
+        const isFirstToday: boolean = stored === undefined || stored !== todayKey;
+        const plan: TodaySessionPlan =
+          builder.build(region, repo, recorder, Date.now(), isFirstToday);
+        AppStorage.setOrCreate<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY, plan);
+        const storedCfg: GameConfig | undefined =
+          AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+        const cfg: GameConfig = cloneGameConfig(
+          storedCfg !== undefined ? storedCfg : new GameConfig());
+        cfg.mode = GAME_MODE_TODAY;
+        AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
+        router.pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
+          console.error(`HomePage: pushUrl BattlePage (today) failed: ${JSON.stringify(err)}`);
+        });
+      }).catch((err: BusinessError): void => {
+        console.error(`HomePage.enterTodayAdventure recorder.init failed: ${JSON.stringify(err)}`);
+      });
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage.enterTodayAdventure loadFromRawfile failed: ${JSON.stringify(err)}`);
     });
   }
 
@@ -96,7 +151,17 @@ struct HomePage {
 
         Text('点击开始，打败 5 个单词史莱姆吧！')
           .fontSize(18)
-          .margin({ bottom: 40 });
+          .margin({ bottom: 24 });
+
+        Column() {
+          AdventureCard({
+            region: this.todayRegion,
+            completedToday: this.todayCompleted,
+            onTap: (): void => this.enterTodayAdventure()
+          });
+        }
+        .width(320)
+        .margin({ bottom: 24 });
 
         Button('开始游戏')
           .id('HomeStartButton')
