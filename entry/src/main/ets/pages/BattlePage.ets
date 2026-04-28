@@ -46,6 +46,7 @@ import { PronunciationService, shouldAutoSpeak } from '../services/Pronunciation
 import { CritOverlay } from '../components/CritOverlay';
 import { MagicProjectile } from '../components/MagicProjectile';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
+import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
 
 /**
  * BattlePage is the core gameplay screen.
@@ -115,9 +116,6 @@ class LetterSlot {
   isPending: boolean = false;
 }
 
-const LETTER_SLOT_WIDTH: number = 36;
-const LETTER_SLOT_HEIGHT: number = 48;
-const LETTER_SLOT_GAP: number = 8;
 const LETTER_TEXT_FILLED: string = '#1D3557';
 const LETTER_TEXT_MISSING: string = '#E63946';
 const LETTER_BG_MISSING: string = '#FCEAEA';
@@ -1068,43 +1066,55 @@ struct BattlePage {
     return out;
   }
 
+  /**
+   * Letter-template row. Takes pre-computed slots and metrics from
+   * the caller (slots and metrics are derived from `letterTemplate`,
+   * a @State, but ArkTS @Builder bodies forbid local const
+   * declarations — pulling them up to the call site keeps the
+   * codelinter `hp-arkui-no-state-var-access-in-loop` rule happy
+   * and makes the per-letter loop body purely structural).
+   *
+   * `m` (LetterMetrics) is length-banded so long prompts like
+   * "supermarket" (11 letters) tighten width/gap/font enough to fit
+   * inside QuestionArea instead of clipping off the right edge.
+   */
   @Builder
-  private letterTemplateRow() {
-    Row({ space: LETTER_SLOT_GAP }) {
-      ForEach(this.letterSlots(), (item: LetterSlot, _idx: number) => {
+  private letterTemplateRow(slots: LetterSlot[], m: LetterMetrics) {
+    Row({ space: m.gap }) {
+      ForEach(slots, (item: LetterSlot, _idx: number) => {
         Stack() {
           if (item.isMissing) {
             Column()
-              .width(LETTER_SLOT_WIDTH)
-              .height(LETTER_SLOT_HEIGHT)
+              .width(m.width)
+              .height(m.height)
               .backgroundColor(LETTER_BG_MISSING)
               .borderRadius(6);
             Text('_')
               .id(`LetterSlotText_${item.idx}`)
-              .fontSize(28)
+              .fontSize(m.fontPlaceholder)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_MISSING);
           } else if (item.isPending) {
             Column()
-              .width(LETTER_SLOT_WIDTH)
-              .height(LETTER_SLOT_HEIGHT)
+              .width(m.width)
+              .height(m.height)
               .backgroundColor(LETTER_BG_PENDING)
               .borderRadius(6);
             Text(item.glyph === '_' ? '_' : item.glyph)
               .id(`LetterSlotText_${item.idx}`)
-              .fontSize(28)
+              .fontSize(m.fontPlaceholder)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_PENDING);
           } else {
             Text(item.glyph)
               .id(`LetterSlotText_${item.idx}`)
-              .fontSize(32)
+              .fontSize(m.fontFilled)
               .fontWeight(FontWeight.Bold)
               .fontColor(LETTER_TEXT_FILLED);
           }
         }
-        .width(LETTER_SLOT_WIDTH)
-        .height(LETTER_SLOT_HEIGHT)
+        .width(m.width)
+        .height(m.height)
         .alignContent(Alignment.Center);
       }, (item: LetterSlot, _idx: number): string => `${item.idx}-${item.glyph}`);
     }
@@ -1135,7 +1145,8 @@ struct BattlePage {
             || this.currentQuestionKind === QuestionKind.FillLetterMedium) ? 8 : 16 });
         if (this.currentQuestionKind === QuestionKind.FillLetter
           || this.currentQuestionKind === QuestionKind.FillLetterMedium) {
-          this.letterTemplateRow();
+          this.letterTemplateRow(this.letterSlots(),
+            letterMetricsForLength(this.letterTemplate.split(' ').length));
         }
         // Speaker button — tap re-plays the English pronunciation
         // regardless of the autoSpeak config. Rendered even when
