@@ -455,12 +455,13 @@ export default function routingFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('HomeTitle'));
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       await driver.assertComponentExist(ON.id('AdventureCard'));
-      // Content: home still shows the Chinese subtitle. v0.3.6 deleted
-      // the legacy "点击开始，打败 5 个单词史莱姆吧！" hint and
-      // "开始游戏" button copy when the right column was removed; the
-      // adventure card now carries the primary CTA copy
-      // ("开始今日冒险" / "再战一局") as the single entry point.
-      await driver.assertComponentExist(ON.text('小魔法师单词冒险'));
+      // v0.3.6 (post-launch tweak) dropped the Chinese subtitle
+      // "小魔法师单词冒险" — keep just the English title above the
+      // adventure card. The "点击开始，打败 5 个单词史莱姆吧！"
+      // hint and the right-column "开始游戏" button were already
+      // removed in v0.3.6; the adventure card now carries the
+      // primary CTA copy ("开始今日冒险" / "再战一局") as the
+      // single entry point.
 
       await clickById(driver, 'HomeStartButton');
       // v0.3.6: HomeStartButton now opens today's adventure, which loads

@@ -207,12 +207,7 @@ struct HomePage {
             .id('HomeTitle')
             .fontSize(32)
             .fontWeight(FontWeight.Bold)
-            .margin({ bottom: 8 });
-
-          Text('小魔法师单词冒险')
-            .fontSize(20)
-            .fontColor('#457B9D')
-            .margin({ bottom: 16 });
+            .margin({ bottom: 24 });
 
           this.adventureCard();
         }
