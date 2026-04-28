@@ -263,6 +263,20 @@ struct HomePage {
             }
           });
 
+        Button('📖')
+          .id('HomeCodexButton')
+          .type(ButtonType.Circle)
+          .width(56)
+          .height(56)
+          .fontSize(24)
+          .fontColor('#E63946')
+          .backgroundColor('#FCEAEA')
+          .onClick((): void => {
+            router.pushUrl({ url: 'pages/MonsterCodexPage' }).catch((err: BusinessError): void => {
+              console.error(`HomePage: pushUrl MonsterCodexPage failed: ${JSON.stringify(err)}`);
+            });
+          });
+
         Button('🪄')
           .id('HomeWishlistButton')
           .type(ButtonType.Circle)

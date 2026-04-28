@@ -50,12 +50,12 @@ struct MonsterCodexPage {
       this.topBar();
       this.avatarRow();
       this.nameBlock();
-      this.descriptionBlock();
       this.positionIndicator();
+      this.descriptionBlock();
     }
     .width('100%')
     .height('100%')
-    .padding({ top: 16, left: 16, right: 16, bottom: 32 })
+    .padding({ top: 16, left: 16, right: 16, bottom: 16 })
     .backgroundColor('#F8F9FA');
   }
 
@@ -87,7 +87,7 @@ struct MonsterCodexPage {
 
   @Builder
   private avatarRow() {
-    Row({ space: 16 }) {
+    Row({ space: 12 }) {
       Button('⬅')
         .id('CodexPrev')
         .type(ButtonType.Circle)
@@ -103,22 +103,22 @@ struct MonsterCodexPage {
 
       Stack() {
         Column()
-          .width(160)
-          .height(160)
+          .width(140)
+          .height(140)
           .backgroundColor('#FFFFFF')
-          .borderRadius(24)
+          .borderRadius(20)
           .border({ width: 1, color: '#E0E0E0' });
 
         Image($rawfile(this.current().assetPath))
           .id('CodexAvatar')
           .objectFit(ImageFit.Contain)
-          .width(128)
-          .height(128)
+          .width(112)
+          .height(112)
           .syncLoad(true)
           .interpolation(ImageInterpolation.High);
       }
-      .width(160)
-      .height(160)
+      .width(140)
+      .height(140)
       .alignContent(Alignment.Center);
 
       Button('➡')
@@ -136,12 +136,12 @@ struct MonsterCodexPage {
     }
     .width('100%')
     .justifyContent(FlexAlign.Center)
-    .margin({ top: 32 });
+    .margin({ top: 16 });
   }
 
   @Builder
   private nameBlock() {
-    Column({ space: 8 }) {
+    Column({ space: 6 }) {
       Text(this.current().nameEn)
         .id('CodexName')
         .fontSize(22)
@@ -157,7 +157,16 @@ struct MonsterCodexPage {
         .borderRadius(12);
     }
     .alignItems(HorizontalAlign.Center)
-    .margin({ top: 24 });
+    .margin({ top: 12 });
+  }
+
+  @Builder
+  private positionIndicator() {
+    Text(`${this.currentIndex + 1} / ${MONSTER_CODEX.length}`)
+      .id('CodexPositionIndicator')
+      .fontSize(12)
+      .fontColor('#888888')
+      .margin({ top: 8 });
   }
 
   @Builder
@@ -169,15 +178,6 @@ struct MonsterCodexPage {
       .fontColor('#333333')
       .textAlign(TextAlign.Center)
       .padding({ left: 24, right: 24 })
-      .margin({ top: 24 });
-  }
-
-  @Builder
-  private positionIndicator() {
-    Text(`${this.currentIndex + 1} / ${MONSTER_CODEX.length}`)
-      .id('CodexPositionIndicator')
-      .fontSize(12)
-      .fontColor('#888888')
-      .margin({ top: 24 });
+      .margin({ top: 12 });
   }
 }
