@@ -39,7 +39,7 @@ export struct AdventureCard {
             .backgroundColor('#FFE7B5')
             .padding({ left: 8, right: 8, top: 4, bottom: 4 })
             .borderRadius(10);
-        });
+        }, (slot: MonsterSlot, index: number): string => `slot-${index}-${slot.kind}`);
       }
       .width('100%');
 
