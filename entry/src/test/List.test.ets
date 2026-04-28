@@ -10,6 +10,7 @@ import coinAccountTest from './CoinAccount.test';
 import wishlistStoreTest from './WishlistStore.test';
 import todayPreferencesTest from './TodayPreferences.test';
 import characterAssetsTests from './CharacterAssets.test';
+import monsterCodexTests from './MonsterCodex.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -24,4 +25,5 @@ export default function testsuite() {
   wishlistStoreTest();
   todayPreferencesTest();
   characterAssetsTests();
+  monsterCodexTests();
 }
