@@ -5,6 +5,9 @@ import { CharacterCard, CharacterKind } from '../components/CharacterCard';
 import { ChoiceButton, ChoiceState } from '../components/ChoiceButton';
 import { WordRepository } from '../services/WordRepository';
 import { QuestionGenerator } from '../services/QuestionGenerator';
+import { FillLetterGenerator } from '../services/FillLetterGenerator';
+import { IQuestionSource } from '../services/IQuestionSource';
+import { PlanQuestionSource } from '../services/PlanQuestionSource';
 import {
   BattleEngine,
   BattleConfig,
@@ -20,9 +23,12 @@ import {
   GAME_CONFIG_STORAGE_KEY,
   GAME_MODE_NORMAL,
   GAME_MODE_REVIEW,
+  GAME_MODE_TODAY,
+  TODAY_PLAN_STORAGE_KEY,
   cloneGameConfig,
   computeFinalPool
 } from '../models/GameConfig';
+import { TodaySessionPlan } from '../models/AdventureRegion';
 import { WordEntry } from '../models/WordEntry';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
@@ -104,6 +110,14 @@ struct BattlePage {
    * the battle ends.
    */
   private isReviewMode: boolean = false;
+  /**
+   * V0.3: True when this battle was launched from the today-adventure
+   * card. Mutually exclusive with isReviewMode. Drives plan-based
+   * monster slots, FillLetter rendering on Spelling/Boss, and the
+   * "first-today reward" branch on ResultPage (Phase C).
+   */
+  private isTodayMode: boolean = false;
+  private todayPlan: TodaySessionPlan | undefined = undefined;
   private feedbackTimer: number = -1;
   /**
    * Handle returned by setInterval for the 1Hz countdown driver. -1 when
@@ -237,10 +251,13 @@ struct BattlePage {
       const cfg: GameConfig = cloneGameConfig(storedCfg !== undefined ? storedCfg : new GameConfig());
       this.autoSpeak = cfg.autoSpeak;
       this.isReviewMode = cfg.mode === GAME_MODE_REVIEW;
+      this.isTodayMode = cfg.mode === GAME_MODE_TODAY;
 
       // Universe pool: every word the player could be shown, honouring
       // their category filters. For review mode we then *narrow* this
-      // to the set of wordIds they've recently answered wrong.
+      // to the set of wordIds they've recently answered wrong. Today
+      // mode keeps the full universe so PlanQuestionSource can still
+      // resolve any wordId that ended up in plan.wordPlan.
       const universe: WordEntry[] =
         computeFinalPool(repo.all(), cfg.enabledCategories, cfg.customWordsRaw);
       const finalEntries: WordEntry[] =
@@ -249,7 +266,37 @@ struct BattlePage {
       const finalRepo: WordRepository = new WordRepository();
       finalRepo.setEntries(finalEntries);
 
-      const gen: QuestionGenerator = new QuestionGenerator(finalRepo);
+      const choiceGen: QuestionGenerator = new QuestionGenerator(finalRepo);
+
+      // Pick the IQuestionSource. Today mode uses PlanQuestionSource
+      // backed by the plan stored in AppStorage; everything else falls
+      // back to the V0.2 QuestionGenerator path.
+      let source: IQuestionSource = choiceGen;
+      let planMonsters: number = -1;
+      if (this.isTodayMode) {
+        const plan: TodaySessionPlan | undefined =
+          AppStorage.get<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY);
+        if (plan !== undefined && plan.wordPlan.length > 0) {
+          this.todayPlan = plan;
+          // Today battles use the bundled repo (not the review pool)
+          // so PlanQuestionSource can resolve plan word ids regardless
+          // of the player's category filters.
+          const bundleRepo: WordRepository = new WordRepository();
+          bundleRepo.setEntries(repo.all());
+          const fillGen: FillLetterGenerator = new FillLetterGenerator();
+          const planChoiceGen: QuestionGenerator = new QuestionGenerator(bundleRepo);
+          const planSource: PlanQuestionSource = new PlanQuestionSource(
+            plan, bundleRepo, planChoiceGen, fillGen);
+          source = planSource;
+          planMonsters = plan.monsterSlots.length;
+          // The provider is wired right after engine construction so the
+          // closure captures the engine reference below.
+        } else {
+          // Plan is missing — degrade gracefully to normal mode so the
+          // player isn't stuck on a black screen.
+          this.isTodayMode = false;
+        }
+      }
 
       const bc: BattleConfig = new BattleConfig();
       bc.playerMaxHp = cfg.playerMaxHp;
@@ -260,12 +307,21 @@ struct BattlePage {
       if (this.isReviewMode) {
         bc.monstersTotal = REVIEW_MODE_MONSTERS_TOTAL;
         bc.startingSeconds = REVIEW_MODE_STARTING_SECONDS;
+      } else if (this.isTodayMode && planMonsters > 0) {
+        bc.monstersTotal = planMonsters;
+        bc.startingSeconds = cfg.startingSeconds;
       } else {
         bc.monstersTotal = cfg.monstersTotal;
         bc.startingSeconds = cfg.startingSeconds;
       }
 
-      const engine: BattleEngine = new BattleEngine(gen, bc);
+      const engine: BattleEngine = new BattleEngine(source, bc);
+      // Now that the engine exists, wire the monster-index provider
+      // so PlanQuestionSource can switch question kind per slot.
+      if (this.isTodayMode && source instanceof PlanQuestionSource) {
+        const planSource: PlanQuestionSource = source as PlanQuestionSource;
+        planSource.setMonsterIndexProvider((): number => engine.getState().monsterIndex);
+      }
       engine.start();
       this.engine = engine;
       this.syncFromEngine();
