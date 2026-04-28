@@ -5,6 +5,7 @@ import fillLetterGeneratorTest from './FillLetterGenerator.test';
 import memorySchedulerTest from './MemoryScheduler.test';
 import adventureCatalogTest from './AdventureCatalog.test';
 import todayAdventureBuilderTest from './TodayAdventureBuilder.test';
+import planQuestionSourceTest from './PlanQuestionSource.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -14,4 +15,5 @@ export default function testsuite() {
   memorySchedulerTest();
   adventureCatalogTest();
   todayAdventureBuilderTest();
+  planQuestionSourceTest();
 }
