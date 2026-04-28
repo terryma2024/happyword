@@ -5,6 +5,7 @@
     "pages/ResultPage",
     "pages/ConfigPage",
     "pages/CustomWordsPage",
-    "pages/TtsTestPage"
+    "pages/TtsTestPage",
+    "pages/WishlistPage"
   ]
 }
