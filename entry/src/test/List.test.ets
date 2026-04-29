@@ -11,6 +11,7 @@ import wishlistStoreTest from './WishlistStore.test';
 import todayPreferencesTest from './TodayPreferences.test';
 import characterAssetsTests from './CharacterAssets.test';
 import monsterCodexTests from './MonsterCodex.test';
+import redemptionHistoryStoreTest from './RedemptionHistoryStore.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -26,4 +27,5 @@ export default function testsuite() {
   todayPreferencesTest();
   characterAssetsTests();
   monsterCodexTests();
+  redemptionHistoryStoreTest();
 }
