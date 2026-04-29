@@ -38,7 +38,7 @@ const FRUIT_FOREST: AdventureRegion = (() => {
   r.monsterPlan = plan;
   // V0.3.8: Forest hosts Pumpkin King / Imp King / Phoenix; rotated
   // per local day by TodayAdventureBuilder.
-  r.bossCandidates = [14, 15, 16];
+  r.bossCandidates = [4, 5, 6];
   return r;
 })();
 
@@ -60,7 +60,7 @@ const SCHOOL_CASTLE: AdventureRegion = (() => {
   ];
   r.monsterPlan = plan;
   // V0.3.8: Castle hosts Witch / Snow Queen.
-  r.bossCandidates = [17, 18];
+  r.bossCandidates = [7, 8];
   return r;
 })();
 
@@ -83,7 +83,7 @@ const HOME_COTTAGE: AdventureRegion = (() => {
   r.monsterPlan = plan;
   // V0.3.8: Cottage hosts Unicorn / Kraken (Kraken will migrate to a
   // future ocean region in v0.4).
-  r.bossCandidates = [19, 20];
+  r.bossCandidates = [9, 10];
   return r;
 })();
 

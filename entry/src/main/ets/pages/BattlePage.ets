@@ -221,7 +221,7 @@ struct BattlePage {
   // changes, then read by the slime CharacterCard (name +
   // bodyFill/bodyStroke) and the backward MagicProjectile (accent
   // colors). Initialised to entry 1 so the first paint of the page
-  // before BattleEngine emits its first state still shows Lava Imp.
+  // before BattleEngine emits its first state still shows Slime.
   @State currentMonster: MonsterEntry = getMonsterByIndex(1);
   @State comboCount: number = 0;
   @State remainingSeconds: number = DEFAULT_STARTING_SECONDS;

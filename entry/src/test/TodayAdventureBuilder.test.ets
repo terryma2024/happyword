@@ -191,7 +191,7 @@ export default function todayAdventureBuilderTest() {
     const ONE_DAY: number = 24 * 60 * 60 * 1000;
 
     it('sameRegionSameDayPicksSameBoss', 0, () => {
-      const region: AdventureRegion = makeRegionWithBoss('test-region', [14, 15, 16]);
+      const region: AdventureRegion = makeRegionWithBoss('test-region', [4, 5, 6]);
       const repo: WordRepository = makeRepo();
       const rec: LearningRecorder = new LearningRecorder();
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
@@ -213,7 +213,7 @@ export default function todayAdventureBuilderTest() {
     });
 
     it('overrideOnlyTouchesLastSlot', 0, () => {
-      const region: AdventureRegion = makeRegionWithBoss('forest-test', [14, 15, 16]);
+      const region: AdventureRegion = makeRegionWithBoss('forest-test', [4, 5, 6]);
       const repo: WordRepository = makeRepo();
       const rec: LearningRecorder = new LearningRecorder();
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
@@ -225,7 +225,7 @@ export default function todayAdventureBuilderTest() {
     });
 
     it('chosenBossIndexIsAlwaysFromCandidates', 0, () => {
-      const region: AdventureRegion = makeRegionWithBoss('forest-test', [14, 15, 16]);
+      const region: AdventureRegion = makeRegionWithBoss('forest-test', [4, 5, 6]);
       const repo: WordRepository = makeRepo();
       const rec: LearningRecorder = new LearningRecorder();
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
@@ -235,7 +235,7 @@ export default function todayAdventureBuilderTest() {
         const p: TodaySessionPlan = b.build(region, repo, rec, now, false);
         const last: number = p.monsterSlots.length - 1;
         const idx: number = p.monsterSlots[last].catalogIndex;
-        expect(idx === 14 || idx === 15 || idx === 16).assertTrue();
+        expect(idx === 4 || idx === 5 || idx === 6).assertTrue();
         allHit.add(idx);
         now += ONE_DAY;
       }
@@ -245,8 +245,8 @@ export default function todayAdventureBuilderTest() {
     });
 
     it('differentRegionsCanPickDifferentBossesOnSameDay', 0, () => {
-      const forest: AdventureRegion = makeRegionWithBoss('fruit-forest', [14, 15, 16]);
-      const castle: AdventureRegion = makeRegionWithBoss('school-castle', [17, 18]);
+      const forest: AdventureRegion = makeRegionWithBoss('fruit-forest', [4, 5, 6]);
+      const castle: AdventureRegion = makeRegionWithBoss('school-castle', [7, 8]);
       const repo: WordRepository = makeRepo();
       const rec: LearningRecorder = new LearningRecorder();
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
@@ -255,10 +255,10 @@ export default function todayAdventureBuilderTest() {
       const last: number = pForest.monsterSlots.length - 1;
       // Disjoint candidate ranges guarantee non-equal indices when
       // both override paths fire.
-      expect(pForest.monsterSlots[last].catalogIndex).assertLarger(13);
-      expect(pForest.monsterSlots[last].catalogIndex).assertLess(17);
-      expect(pCastle.monsterSlots[last].catalogIndex).assertLarger(16);
-      expect(pCastle.monsterSlots[last].catalogIndex).assertLess(19);
+      expect(pForest.monsterSlots[last].catalogIndex).assertLarger(3);
+      expect(pForest.monsterSlots[last].catalogIndex).assertLess(7);
+      expect(pCastle.monsterSlots[last].catalogIndex).assertLarger(6);
+      expect(pCastle.monsterSlots[last].catalogIndex).assertLess(9);
     });
   });
 }
