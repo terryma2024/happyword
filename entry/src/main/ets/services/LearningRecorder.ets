@@ -4,6 +4,9 @@ import {
   LearningSnapshot,
   WordStat,
   WrongAnswerStore,
+  clampMastery,
+  MASTERY_DELTA_CORRECT,
+  MASTERY_DELTA_WRONG,
 } from './WrongAnswerStore';
 import { MemoryScheduler, MemoryState } from './MemoryScheduler';
 
@@ -108,17 +111,25 @@ export class LearningRecorder {
     stat.seenCount += 1;
     if (correct) {
       stat.correctCount += 1;
+      // V0.4.3 streaks + mastery: bump consecutiveCorrect, reset
+      // wrong streak, raise mastery by the asymmetric delta.
+      stat.consecutiveCorrect += 1;
+      stat.consecutiveWrong = 0;
+      stat.mastery = clampMastery(stat.mastery + MASTERY_DELTA_CORRECT);
       if (!wasLearned) {
         this.sessionNewlyLearnedIds.add(wordId);
       }
     } else {
       stat.wrongCount += 1;
+      stat.consecutiveWrong += 1;
+      stat.consecutiveCorrect = 0;
+      stat.mastery = clampMastery(stat.mastery - MASTERY_DELTA_WRONG);
     }
     stat.lastAnsweredMs = Date.now();
     this.recordSequence += 1;
     this.statSequence.set(wordId, this.recordSequence);
     this.scheduler.applyAnswer(stat, correct, stat.lastAnsweredMs);
-    this.snapshot.version = 2;
+    this.snapshot.version = 3;
     this.scheduleSave();
   }
 

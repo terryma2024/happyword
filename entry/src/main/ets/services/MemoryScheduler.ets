@@ -15,6 +15,17 @@ export const INTERVAL_14_DAY_MS: number = 14 * INTERVAL_1_DAY_MS;
 
 const PROMOTE_TO_FAMILIAR_AT: number = 2;
 const PROMOTE_TO_MASTERED_AT: number = 5;
+/**
+ * V0.4.3: legacy fallback thresholds in case a snapshot was migrated
+ * from before the streak counters existed (consecutiveCorrect = 0
+ * even though correctCount may be larger). For migrated entries we
+ * still respect the cumulative correctCount so a long-learned word
+ * doesn't snap back to "learning" forever after the upgrade. The
+ * thresholds are deliberately stricter than the streak ones since
+ * cumulative count is a weaker signal of mastery.
+ */
+const LEGACY_FAMILIAR_CORRECT_AT: number = 4;
+const LEGACY_MASTERED_CORRECT_AT: number = 10;
 
 /**
  * Pure state-machine that decides the next memoryState +
@@ -48,7 +59,7 @@ export class MemoryScheduler {
       return;
     }
     if (current === MemoryState.Learning) {
-      if (stat.correctCount >= PROMOTE_TO_FAMILIAR_AT) {
+      if (this.qualifiesForFamiliar(stat)) {
         stat.memoryState = MemoryState.Familiar;
         stat.nextReviewMs = nowMs + INTERVAL_3_DAY_MS;
       } else {
@@ -62,7 +73,7 @@ export class MemoryScheduler {
       return;
     }
     if (current === MemoryState.Familiar) {
-      if (stat.correctCount >= PROMOTE_TO_MASTERED_AT) {
+      if (this.qualifiesForMastered(stat)) {
         stat.memoryState = MemoryState.Mastered;
         stat.nextReviewMs = nowMs + INTERVAL_14_DAY_MS;
       } else {
@@ -72,6 +83,26 @@ export class MemoryScheduler {
     }
     // Mastered: stay put on continued correct answers, refresh schedule.
     stat.nextReviewMs = nowMs + INTERVAL_14_DAY_MS;
+  }
+
+  /**
+   * V0.4.3: promote to Familiar when the player has built a recent
+   * streak (preferred signal) OR has accumulated enough cumulative
+   * correct answers (legacy fallback for snapshots migrated from
+   * before consecutiveCorrect existed).
+   */
+  private qualifiesForFamiliar(stat: WordStat): boolean {
+    if (stat.consecutiveCorrect >= PROMOTE_TO_FAMILIAR_AT) {
+      return true;
+    }
+    return stat.correctCount >= LEGACY_FAMILIAR_CORRECT_AT;
+  }
+
+  private qualifiesForMastered(stat: WordStat): boolean {
+    if (stat.consecutiveCorrect >= PROMOTE_TO_MASTERED_AT) {
+      return true;
+    }
+    return stat.correctCount >= LEGACY_MASTERED_CORRECT_AT;
   }
 
   private applyWrong(stat: WordStat, nowMs: number): void {
