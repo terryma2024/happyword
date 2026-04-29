@@ -6,6 +6,7 @@
     "pages/ConfigPage",
     "pages/CustomWordsPage",
     "pages/WishlistPage",
-    "pages/MonsterCodexPage"
+    "pages/MonsterCodexPage",
+    "pages/ParentPinSetupPage"
   ]
 }

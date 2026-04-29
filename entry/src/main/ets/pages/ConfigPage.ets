@@ -50,13 +50,16 @@ struct ConfigPage {
   }
 
   onPageShow(): void {
-    // Re-sync draft.customWordsRaw when returning from CustomWordsPage
-    // so validation uses the latest value even though ConfigPage never
-    // mutates this field itself.
+    // Re-sync draft fields owned by other pages so reading them on
+    // this page (validation / row labels) reflects the latest value.
+    // ConfigPage never mutates these fields itself.
+    //   - customWordsRaw: owned by CustomWordsPage
+    //   - parentPin: owned by ParentPinSetupPage (V0.3.9)
     const stored: GameConfig | undefined =
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
     if (stored !== undefined) {
       this.draft.customWordsRaw = stored.customWordsRaw;
+      this.draft.parentPin = stored.parentPin;
       this.showValidationHint = false;
       this.forceRerender();
     }
@@ -144,6 +147,18 @@ struct ConfigPage {
     router.pushUrl({ url: 'pages/CustomWordsPage' }).catch((err: BusinessError): void => {
       console.error(`ConfigPage: pushUrl CustomWordsPage failed: ${JSON.stringify(err)}`);
     });
+  }
+
+  private openParentPinSetup(): void {
+    router.pushUrl({ url: 'pages/ParentPinSetupPage' }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage: pushUrl ParentPinSetupPage failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private parentPinIsConfigured(): boolean {
+    const stored: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    return stored !== undefined && stored.parentPin.length === 6;
   }
 
   private onSave(): void {
@@ -294,6 +309,24 @@ struct ConfigPage {
   }
 
   @Builder
+  private parentPinRow() {
+    Row() {
+      Text('家长密码').fontSize(18).width(120);
+      Button(this.draft.parentPin.length === 6 ? '修改 (•••••• 已设置)' : '设置')
+        .id('ConfigParentPinButton')
+        .width(220).height(40)
+        .fontSize(15)
+        .backgroundColor(this.draft.parentPin.length === 6 ? '#FFF4D0' : '#EAF2F8')
+        .fontColor(this.draft.parentPin.length === 6 ? '#B8860B' : '#457B9D')
+        .borderWidth(this.draft.parentPin.length === 6 ? 2 : 0)
+        .borderColor('#FFB400')
+        .onClick((): void => this.openParentPinSetup());
+    }
+    .margin({ bottom: 12 })
+    .alignItems(VerticalAlign.Center);
+  }
+
+  @Builder
   private categoryRow() {
     Row() {
       Text('词库类别').fontSize(18).width(120);
@@ -363,6 +396,7 @@ struct ConfigPage {
         this.timerRow();
         this.autoSpeakRow();
         this.categoryRow();
+        this.parentPinRow();
 
         if (this.showValidationHint) {
           Text('单词池太小（少于 3 个），请启用更多类别或添加自定义词')
