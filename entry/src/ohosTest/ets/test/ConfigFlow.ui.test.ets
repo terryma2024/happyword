@@ -69,18 +69,24 @@ export default function configFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
 
       await clickByIdShared(driver, 'ConfigParentPinButton');
-      await driver.delayMs(800);
+      await driver.delayMs(1200);
       await driver.assertComponentExist(ON.id('ParentPinSetupTitle'));
       await driver.assertComponentExist(ON.id('ParentPinSetupStepLabel'));
       await driver.assertComponentExist(ON.id('ParentPinSetupKeypad'));
-      // Cancel returns without persisting.
-      await clickByIdShared(driver, 'ParentPinSetupCancel');
-      await driver.delayMs(600);
-      await driver.assertComponentExist(ON.id('ConfigTitle'));
-
-      // Bail out of ConfigPage cleanly.
+      // The cancel button sits below the keypad on a narrow landscape
+      // viewport; swipe up so findComponent can resolve it.
       await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(300);
+      // Cancel returns without persisting. ConfigPage owns a Scroll
+      // wrapper whose scroll position is preserved across navigations,
+      // so we anchor on ConfigParentPinButton (the row we swiped to)
+      // instead of ConfigTitle (which sits at the top and may be off
+      // screen).
+      await clickByIdShared(driver, 'ParentPinSetupCancel');
+      await driver.delayMs(1200);
+      await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
+
+      // Bail out of ConfigPage cleanly.
       await clickByIdShared(driver, 'ConfigCancelButton');
       await driver.delayMs(600);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
@@ -94,7 +100,7 @@ export default function configFlowUiTest(): void {
       await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(300);
       await clickByIdShared(driver, 'ConfigParentPinButton');
-      await driver.delayMs(800);
+      await driver.delayMs(1200);
 
       // Step 1: 1 2 3 4 5 6
       await tapPinSetupKey(driver, '1');
@@ -103,7 +109,7 @@ export default function configFlowUiTest(): void {
       await tapPinSetupKey(driver, '4');
       await tapPinSetupKey(driver, '5');
       await tapPinSetupKey(driver, '6');
-      await driver.delayMs(200);
+      await driver.delayMs(400);
 
       // Step 2: confirm with the same digits
       await tapPinSetupKey(driver, '1');
@@ -112,18 +118,18 @@ export default function configFlowUiTest(): void {
       await tapPinSetupKey(driver, '4');
       await tapPinSetupKey(driver, '5');
       await tapPinSetupKey(driver, '6');
-      await driver.delayMs(800);
+      await driver.delayMs(1500);
 
-      // After commitOrReset the page routes back to ConfigPage and
-      // the entry-row label includes the 修改 marker.
-      await driver.assertComponentExist(ON.id('ConfigTitle'));
+      // After commitOrReset the page routes back to ConfigPage. The
+      // outer Scroll keeps its position across navigations, so the
+      // parent-pin row should still be in view (we already scrolled
+      // there to click the button). Anchor on ConfigParentPinButton
+      // rather than ConfigTitle which sits above the scroll fold.
       await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
       const btn = await driver.findComponent(ON.id('ConfigParentPinButton'));
       const label: string = await btn.getText();
       expect(label.indexOf('修改') >= 0).assertTrue();
 
-      await driver.swipe(1400, 1100, 1400, 300, 600);
-      await driver.delayMs(300);
       await clickByIdShared(driver, 'ConfigCancelButton');
       await driver.delayMs(600);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
@@ -137,34 +143,37 @@ export default function configFlowUiTest(): void {
       await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(300);
       await clickByIdShared(driver, 'ConfigParentPinButton');
+      await driver.delayMs(1200);
+
+      await tapPinSetupKey(driver, '1');
+      await tapPinSetupKey(driver, '1');
+      await tapPinSetupKey(driver, '1');
+      await tapPinSetupKey(driver, '1');
+      await tapPinSetupKey(driver, '1');
+      await tapPinSetupKey(driver, '1');
+      await driver.delayMs(400);
+
+      await tapPinSetupKey(driver, '2');
+      await tapPinSetupKey(driver, '2');
+      await tapPinSetupKey(driver, '2');
+      await tapPinSetupKey(driver, '2');
+      await tapPinSetupKey(driver, '2');
+      await tapPinSetupKey(driver, '2');
       await driver.delayMs(800);
-
-      await tapPinSetupKey(driver, '1');
-      await tapPinSetupKey(driver, '1');
-      await tapPinSetupKey(driver, '1');
-      await tapPinSetupKey(driver, '1');
-      await tapPinSetupKey(driver, '1');
-      await tapPinSetupKey(driver, '1');
-      await driver.delayMs(200);
-
-      await tapPinSetupKey(driver, '2');
-      await tapPinSetupKey(driver, '2');
-      await tapPinSetupKey(driver, '2');
-      await tapPinSetupKey(driver, '2');
-      await tapPinSetupKey(driver, '2');
-      await tapPinSetupKey(driver, '2');
-      await driver.delayMs(600);
 
       await driver.assertComponentExist(ON.id('ParentPinSetupMismatchHint'));
       // Step is reset to 1 (label re-shows the initial copy).
       await driver.assertComponentExist(ON.id('ParentPinSetupStepLabel'));
 
-      await clickByIdShared(driver, 'ParentPinSetupCancel');
-      await driver.delayMs(600);
-      await driver.assertComponentExist(ON.id('ConfigTitle'));
-
+      // Cancel sits below the keypad on a narrow viewport; swipe up.
       await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(300);
+      await clickByIdShared(driver, 'ParentPinSetupCancel');
+      await driver.delayMs(1200);
+      // Anchor on ConfigParentPinButton (the row we already scrolled
+      // to) rather than ConfigTitle to avoid Scroll-position artefacts.
+      await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
+
       await clickByIdShared(driver, 'ConfigCancelButton');
       await driver.delayMs(600);
       await driver.assertComponentExist(ON.id('HomeStartButton'));

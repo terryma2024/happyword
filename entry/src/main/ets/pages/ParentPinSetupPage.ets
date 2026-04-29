@@ -45,27 +45,35 @@ struct ParentPinSetupPage {
   }
 
   build(): void {
-    Column({ space: 24 }) {
-      this.headerRow();
-      this.titleBlock();
-      this.dotRow();
-      if (this.mismatch) {
-        Text('两次密码不一致，请重新设置')
-          .fontSize(13)
-          .fontColor('#E63946')
-          .id('ParentPinSetupMismatchHint');
+    // Wrap the content in Scroll so the bottom Cancel button stays
+    // reachable on narrow landscape viewports (mirrors the same
+    // pattern used in ConfigPage's build()). Without Scroll the
+    // keypad's last row + Cancel button get clipped on the emulator.
+    Scroll() {
+      Column({ space: 24 }) {
+        this.headerRow();
+        this.titleBlock();
+        this.dotRow();
+        if (this.mismatch) {
+          Text('两次密码不一致，请重新设置')
+            .fontSize(13)
+            .fontColor('#E63946')
+            .id('ParentPinSetupMismatchHint');
+        }
+        this.keypad();
+        Button('取消')
+          .id('ParentPinSetupCancel')
+          .width(160).height(44)
+          .backgroundColor('#BDBDBD')
+          .onClick((): void => router.back());
       }
-      this.keypad();
-      Button('取消')
-        .id('ParentPinSetupCancel')
-        .width(160).height(44)
-        .backgroundColor('#BDBDBD')
-        .onClick((): void => router.back());
+      .width('100%')
+      .padding({ top: 24, left: 24, right: 24, bottom: 24 })
+      .alignItems(HorizontalAlign.Center);
     }
     .width('100%')
     .height('100%')
-    .padding({ top: 24, left: 24, right: 24, bottom: 24 })
-    .alignItems(HorizontalAlign.Center)
+    .scrollable(ScrollDirection.Vertical)
     .backgroundColor('#FFFFFF');
   }
 
