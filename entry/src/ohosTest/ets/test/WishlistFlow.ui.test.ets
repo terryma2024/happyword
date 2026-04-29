@@ -96,8 +96,8 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
  * V0.3.9 acceptance for the wishlist surface (post-redesign):
  *  - Cards render with the new right-aligned button layout
  *    (WishApply_${id} or WishGap_${id} per affordability).
- *  - Header gains the WishlistHistoryButton (📜) entry to the
- *    redemption history page.
+ *  - Header gains the WishlistHistoryButton (📜 emoji in v0.3.9,
+ *    scroll.svg from v0.3.10) entry to the redemption history page.
  *  - RedemptionHistoryPage reads RedemptionHistoryStore and shows
  *    the empty-state copy when no redemption has happened yet.
  *  - Both pages back-navigate cleanly.

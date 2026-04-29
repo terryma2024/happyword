@@ -37,8 +37,9 @@ async function returnToHome(driver: Driver): Promise<void> {
 
 /**
  * v0.3.6 toolbar acceptance:
- *  - 📚 HomeReviewButton lives in the top toolbar (not the deleted
- *    right column), and the dev-only 🧪 HomeTtsTestButton is gone.
+ *  - HomeReviewButton (📚 emoji in v0.3.6–v0.3.9, review.svg from
+ *    v0.3.10) lives in the top toolbar (not the deleted right
+ *    column), and the dev-only 🧪 HomeTtsTestButton is gone.
  *  - On a fresh cold launch (0 wrong words → review locked), tapping
  *    the review button surfaces an inline toast (HomeReviewLockedToast)
  *    that auto-dismisses inside 2s without navigating away.

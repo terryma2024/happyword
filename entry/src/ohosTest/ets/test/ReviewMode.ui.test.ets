@@ -32,8 +32,10 @@ export default function reviewModeUiTest(): void {
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       // v0.3.6: HomeReviewButton lives in the top toolbar (replacing
       // the right-hand column entry) and is rendered as a circular
-      // 📚 icon. It must exist even when locked so a tap shows the
-      // "先答错几题再来复习吧" toast (covered by HomeToolbarLocked.ui.test).
+      // icon button (📚 emoji in v0.3.6–v0.3.9, replaced by the
+      // warm-parchment review.svg in v0.3.10). It must exist even
+      // when locked so a tap shows the "先答错几题再来复习吧" toast
+      // (covered by HomeToolbarLocked.ui.test).
       await driver.assertComponentExist(ON.id('HomeReviewButton'));
 
       // --- Seed 3 wrong answers in today's first basic slot ---
@@ -66,7 +68,7 @@ export default function reviewModeUiTest(): void {
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
 
-      // --- Review button must now be enabled (📚 in top toolbar) ---
+      // --- Review button must now be enabled (review.svg in top toolbar) ---
       await driver.assertComponentExist(ON.id('HomeReviewButton'));
       await clickByIdShared(driver, 'HomeReviewButton');
       await driver.delayMs(1500);
