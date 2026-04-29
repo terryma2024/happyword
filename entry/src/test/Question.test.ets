@@ -41,6 +41,18 @@ function makeFillLetterMedium(): Question {
   return q;
 }
 
+function makeSpell(): Question {
+  const q: Question = new Question();
+  q.kind = QuestionKind.Spell;
+  q.promptZh = '苹果';
+  q.answer = 'apple';
+  q.wordId = 'fruit-apple';
+  q.spellLetters = ['a', 'p', 'p', 'l', 'e'];
+  q.spellRevealedMask = [true, false, false, false, false];
+  q.spellPool = ['p', 'l', 'p', 'e'];
+  return q;
+}
+
 export default function questionTest() {
   describe('Question.isValid (Choice)', () => {
     it('acceptsThreeUniqueOptionsContainingAnswer', 0, () => {
@@ -125,6 +137,60 @@ export default function questionTest() {
         ['b', 'p', 't'],
         ['l', 'r', 's'],
       ];
+      expect(q.isValid()).assertFalse();
+    });
+  });
+
+  describe('Question.isValid (Spell)', () => {
+    it('acceptsWellFormedSpell', 0, () => {
+      expect(makeSpell().isValid()).assertTrue();
+    });
+    it('rejectsLengthShorterThanFour', 0, () => {
+      const q: Question = makeSpell();
+      q.answer = 'cat';
+      q.spellLetters = ['c', 'a', 't'];
+      q.spellRevealedMask = [true, false, false];
+      q.spellPool = ['a', 't'];
+      expect(q.isValid()).assertFalse();
+    });
+    it('rejectsLengthLongerThanNine', 0, () => {
+      const q: Question = makeSpell();
+      q.answer = 'strawberry';
+      q.spellLetters = ['s', 't', 'r', 'a', 'w', 'b', 'e', 'r', 'r', 'y'];
+      q.spellRevealedMask = [true, false, false, false, false, false, false, false, false, false];
+      q.spellPool = ['t', 'r', 'a', 'w', 'b', 'e', 'r', 'r', 'y'];
+      expect(q.isValid()).assertFalse();
+    });
+    it('rejectsMaskWithFirstNotRevealed', 0, () => {
+      const q: Question = makeSpell();
+      q.spellRevealedMask = [false, false, false, false, false];
+      expect(q.isValid()).assertFalse();
+    });
+    it('rejectsMaskWithExtraReveals', 0, () => {
+      const q: Question = makeSpell();
+      q.spellRevealedMask = [true, true, false, false, false];
+      expect(q.isValid()).assertFalse();
+    });
+    it('rejectsPoolMissingALetter', 0, () => {
+      const q: Question = makeSpell();
+      q.spellPool = ['p', 'l', 'e'];
+      expect(q.isValid()).assertFalse();
+    });
+    it('rejectsPoolWithExtraLetter', 0, () => {
+      const q: Question = makeSpell();
+      q.spellPool = ['p', 'l', 'p', 'e', 'x'];
+      expect(q.isValid()).assertFalse();
+    });
+    it('rejectsPoolWithWrongMultiset', 0, () => {
+      const q: Question = makeSpell();
+      // Same length but wrong content (replace one 'p' with 'b').
+      q.spellPool = ['p', 'l', 'b', 'e'];
+      expect(q.isValid()).assertFalse();
+    });
+    it('rejectsLettersJoinedNotMatchingAnswer', 0, () => {
+      const q: Question = makeSpell();
+      q.spellLetters = ['a', 'p', 'p', 'l', 'x'];
+      q.spellPool = ['p', 'l', 'p', 'x'];
       expect(q.isValid()).assertFalse();
     });
   });
