@@ -43,7 +43,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.3.9 | 魔法愿望单兑换流程重构      | 用 6 位家长 PIN 弹窗替代 3 秒长按门；兑换成功播放 GiftBox 庆祝动画（~1.68s 播 + 1.5s 停），期间遮罩 + HitTestMode.Block 屏蔽所有交互；新增持久化兑换记录页（cap 50，最新在前），从愿望单头部 📜 入口进入；卡片版式改为最左 emoji + 中间名+价 + 右侧申请兑换按钮的三段式；Pending 中间态退役（reader 兼容旧持久化）；ConfigPage 加家长密码入口行 | 无 |
 | V0.3.10 | App 图标与按钮图标重构 | 用 Recraft V4 vector 生成 8 个统一「童话魔法羊皮纸」风格 SVG：app 启动图标（前景 magician 1024 + 背景紫粉金渐变魔法夜空 1024 + startIcon 尖帽金星 216）+ HomePage 顶部工具栏 4 个圆形按钮（📚📖🪄⚙ → review/codex/wand/gear）+ WishlistPage 头部 📜 按钮（→ scroll）；新增 `tools/recraft/{generate-icons.sh, svg-to-png.mjs, icons-to-launcher.sh}` 工具链；UI 测试改为 by-id 断言；不动战斗页 / 不做密度限定多 PNG / 不做深色主题变体 | 无 |
 | V0.4.1 | 完整拼写题（Boss 限定）      | 新增 `QuestionKind.Spell` + `SpellGenerator`（4-9 字母门）+ `SpellingArea` 点选式字母板组件；首字母预亮，剩余字母按生成器 RNG 打乱成池；错点不扣血、不消耗、仅红色抖动；PlanQuestionSource 拆分 Boss/Elite，Boss 回退链 Spell→Medium→Beginner→Choice；BattleEngine.submitAnswer 接受 Spell 全词为合法选项；不动 LearningRecorder 写入 / 不接系统键盘 / 不做听写模式 | 无 |
-| V0.4.2 | 多空补字母升级（计划中）      | FillLetterMedium 升级到 3+ 空版本，加入撤销和错误位置可视化提示                              | 无 |
+| V0.4.2 | 多空补字母升级（已并入 V0.4.1） | 原计划「FillLetterMedium 升级到 3+ 空 + 撤销 + 错误反馈」与 V0.4.1 的完整拼写题在难度曲线上重复；点选式 Spell 已经覆盖「更长字符串的主动回忆」场景，故不再单独立项 | 无 |
 | V0.4.3 | 精细记忆状态（计划中）       | 学习状态加入连续正确/错误计数 + 掌握度 mastery，调度器据此选词                          | 无 |
 | V0.4.4 | 每日学习计划（计划中）       | 主页新增今日学习计划页，展示今天的新词、复习词与完成状态                              | 无 |
 | V0.4.5 | 本地学习报告（计划中）       | 学习报告本地版，展示正确率、复习完成率、掌握词数和薄弱分类                            | 无 |
@@ -497,7 +497,7 @@ V0.4 的目标是把 V0.3 的学习内核做深，重点从“点选识别”进
 | 子版本 | 主题 | 状态 |
 | --- | --- | --- |
 | V0.4.1 | 完整拼写题（Boss 限定） | 已完成 |
-| V0.4.2 | 多空补字母升级（3+ 空 / 撤销 / 错误反馈） | 计划中 |
+| V0.4.2 | 多空补字母升级（3+ 空 / 撤销 / 错误反馈） | 已并入 V0.4.1（点选式 Spell 已覆盖此难度曲线） |
 | V0.4.3 | 精细记忆状态（连续正/错次数 + 掌握度） | 计划中 |
 | V0.4.4 | 每日学习计划页 | 计划中 |
 | V0.4.5 | 本地学习报告 | 计划中 |
