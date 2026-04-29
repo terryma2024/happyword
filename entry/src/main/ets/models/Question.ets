@@ -234,8 +234,19 @@ export class Question {
         return false;
       }
     }
+    // Compare joined letters against the alphabetic projection of `answer`
+    // so words with hyphens / uppercase (e.g. 'ice-cream', 'Apple') still
+    // validate after the generator strips non-a-z characters.
+    let normalizedAnswer: string = '';
+    const lowerAnswer: string = this.answer.toLowerCase();
+    for (let i = 0; i < lowerAnswer.length; i++) {
+      const c: string = lowerAnswer.charAt(i);
+      if (c >= 'a' && c <= 'z') {
+        normalizedAnswer += c;
+      }
+    }
     const joined: string = this.spellLetters.join('');
-    if (joined !== this.answer.toLowerCase()) {
+    if (joined !== normalizedAnswer) {
       return false;
     }
     if (this.spellPool.length !== len - 1) {
