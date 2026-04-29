@@ -40,7 +40,7 @@ import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question, QuestionKind } from '../models/Question';
 import { MonsterEntry, getMonsterByIndex } from '../data/MonsterCatalog';
-import { PLAYER_CHARACTER_ASSET, characterAssetForKind } from '../data/CharacterAssets';
+import { PLAYER_CHARACTER_ASSET, assetPathForEntry } from '../data/CharacterAssets';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
 import { CritOverlay } from '../components/CritOverlay';
@@ -1284,7 +1284,7 @@ struct BattlePage {
               sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
               hurtPulse: this.monsterHurtPulse,
               zoomPulse: this.monsterZoomPulse,
-              assetPath: characterAssetForKind(this.currentMonster.kind),
+              assetPath: assetPathForEntry(this.currentMonster),
             });
           }
           .id('MonsterArea')

@@ -5,6 +5,7 @@ import { MemoryScheduler, MemoryState } from './MemoryScheduler';
 import { WordStat } from './WrongAnswerStore';
 import {
   AdventureRegion,
+  MonsterSlot,
   TodaySessionPlan,
   WordSlot,
   WordSource,
@@ -78,7 +79,58 @@ export class TodayAdventureBuilder {
     plan.wordPlan = wordPlan;
     plan.bossWordIds = bossWordIds;
     plan.isFirstToday = isFirstToday;
+
+    // V0.3.8: per-region boss rotation. Override slot 5 catalogIndex
+    // with a deterministic pick from region.bossCandidates so each
+    // local day can surface a different boss SVG without breaking
+    // the existing today-plan determinism contract (same inputs ->
+    // same plan, replays of the same day yield the same boss).
+    this.applyBossRotation(plan, region, nowMs);
+
     return plan;
+  }
+
+  private applyBossRotation(
+    plan: TodaySessionPlan,
+    region: AdventureRegion,
+    nowMs: number
+  ): void {
+    if (region.bossCandidates.length === 0) {
+      return;
+    }
+    const slots: MonsterSlot[] = plan.monsterSlots;
+    if (slots.length === 0) {
+      return;
+    }
+    const lastIdx: number = slots.length - 1;
+    const dayKey: string = localDayKey(nowMs);
+    const bossIdx: number = this.pickBossCatalogIndexForDay(region, dayKey);
+    const oldSlot: MonsterSlot = slots[lastIdx];
+    const newSlot: MonsterSlot = new MonsterSlot();
+    newSlot.kind = oldSlot.kind;
+    newSlot.catalogIndex = bossIdx;
+    slots[lastIdx] = newSlot;
+  }
+
+  private pickBossCatalogIndexForDay(region: AdventureRegion, dayKey: string): number {
+    const seedStr: string = `${region.id}:${dayKey}`;
+    const hash: number = this.hashSeed(seedStr);
+    const idx: number = hash % region.bossCandidates.length;
+    return region.bossCandidates[idx];
+  }
+
+  /**
+   * djb2 string hash truncated to a non-negative 32-bit integer. We
+   * intentionally avoid this.rng so word-plan shuffling stays on its
+   * own RNG path; boss rotation only depends on regionId + dayKey.
+   */
+  private hashSeed(s: string): number {
+    let h: number = 5381;
+    for (let i: number = 0; i < s.length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i);
+      h = h | 0;
+    }
+    return h < 0 ? -h : h;
   }
 
   private gatherCandidates(region: AdventureRegion, repo: WordRepository): WordEntry[] {
