@@ -32,6 +32,7 @@ export class MonsterEntry {
   fill: string = '';
   stroke: string = '';
   kind: MonsterKind = MonsterKind.Normal;
+  assetPath: string = '';
 }
 
 function makeEntry(name: string, fill: string, stroke: string): MonsterEntry {
@@ -61,6 +62,27 @@ export function makeMonsterEntryWithKind(
   return e;
 }
 
+/**
+ * V0.3.8 factory: builds a MonsterKind.Boss entry that carries its
+ * own SVG asset path. Per-entry assetPath wins in BattlePage's
+ * `assetPathForEntry` resolver so each region's slot 5 can show a
+ * unique boss without expanding MonsterKind.
+ */
+export function makeBossEntry(
+  name: string,
+  fill: string,
+  stroke: string,
+  assetPath: string
+): MonsterEntry {
+  const e: MonsterEntry = new MonsterEntry();
+  e.name = name;
+  e.fill = fill;
+  e.stroke = stroke;
+  e.kind = MonsterKind.Boss;
+  e.assetPath = assetPath;
+  return e;
+}
+
 export const MONSTER_CATALOG: MonsterEntry[] = [
   makeEntry('Lava Imp',     '#FF6B3D', '#B43A1A'),
   makeEntry('Frost Wisp',   '#4ECDC4', '#2A9088'),
@@ -76,6 +98,17 @@ export const MONSTER_CATALOG: MonsterEntry[] = [
   makeMonsterEntryWithKind('Slime',  '#7BD389', '#3F8C50', MonsterKind.Normal),
   makeMonsterEntryWithKind('Zombie', '#9DAA7A', '#4F5E33', MonsterKind.Spelling),
   makeMonsterEntryWithKind('Dragon', '#E63946', '#7C1A23', MonsterKind.Elite),
+  // V0.3.8: per-region boss roster. catalogIndex 14-20 (1-based).
+  // Each entry carries its own assetPath; AdventureCatalog assigns
+  // these indices to region.bossCandidates so TodayAdventureBuilder
+  // can pick one deterministically per day.
+  makeBossEntry('Pumpkin King', '#F2812B', '#B5530F', 'character/pumpkin-king.svg'),  // 14
+  makeBossEntry('Imp King',     '#5C9C3B', '#355E20', 'character/imp-king.svg'),       // 15
+  makeBossEntry('Phoenix',      '#F4A261', '#9A4A1F', 'character/phoenix.svg'),        // 16
+  makeBossEntry('Witch',        '#2B3470', '#13183A', 'character/witch.svg'),          // 17
+  makeBossEntry('Snow Queen',   '#9DC8E2', '#3F6B7F', 'character/snow-queen.svg'),     // 18
+  makeBossEntry('Unicorn',      '#F2B5C3', '#9C4F6E', 'character/unicorn.svg'),        // 19
+  makeBossEntry('Kraken',       '#1A6E7A', '#0F3B45', 'character/kraken.svg'),         // 20
 ];
 
 /**

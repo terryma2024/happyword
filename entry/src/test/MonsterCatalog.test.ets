@@ -169,4 +169,50 @@ export default function monsterCatalogTest() {
       expect(monsterIndexForKind(MonsterKind.Boss)).assertEqual(13);
     });
   });
+
+  describe('V0.3.8 boss entries', () => {
+    it('bossEntriesAtExpectedIndices', 0, () => {
+      expect(getMonsterByIndex(14).name).assertEqual('Pumpkin King');
+      expect(getMonsterByIndex(15).name).assertEqual('Imp King');
+      expect(getMonsterByIndex(16).name).assertEqual('Phoenix');
+      expect(getMonsterByIndex(17).name).assertEqual('Witch');
+      expect(getMonsterByIndex(18).name).assertEqual('Snow Queen');
+      expect(getMonsterByIndex(19).name).assertEqual('Unicorn');
+      expect(getMonsterByIndex(20).name).assertEqual('Kraken');
+    });
+
+    it('bossEntriesAreAllKindBoss', 0, () => {
+      for (let i: number = 14; i <= 20; i++) {
+        expect(getMonsterByIndex(i).kind).assertEqual(MonsterKind.Boss);
+      }
+    });
+
+    it('bossEntriesHaveNonEmptyAssetPath', 0, () => {
+      for (let i: number = 14; i <= 20; i++) {
+        const m: MonsterEntry = getMonsterByIndex(i);
+        expect(m.assetPath.length > 0).assertTrue();
+        expect(m.assetPath.indexOf('character/')).assertEqual(0);
+        expect(m.assetPath.endsWith('.svg')).assertTrue();
+      }
+    });
+
+    it('bossAssetPathsAreUnique', 0, () => {
+      const seen: Set<string> = new Set<string>();
+      for (let i: number = 14; i <= 20; i++) {
+        const p: string = getMonsterByIndex(i).assetPath;
+        expect(seen.has(p)).assertFalse();
+        seen.add(p);
+      }
+      // Also distinct from the three legacy archetype assets used via fallback.
+      expect(seen.has('character/slime.svg')).assertFalse();
+      expect(seen.has('character/zombie.svg')).assertFalse();
+      expect(seen.has('character/dragon.svg')).assertFalse();
+    });
+
+    it('legacyEntriesHaveEmptyAssetPath', 0, () => {
+      for (let i: number = 1; i <= 13; i++) {
+        expect(getMonsterByIndex(i).assetPath).assertEqual('');
+      }
+    });
+  });
 }
