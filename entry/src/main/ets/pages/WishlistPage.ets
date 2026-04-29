@@ -1,33 +1,69 @@
-import { router } from '@kit.ArkUI';
+import { router, promptAction } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import { MagicWish, WishState } from '../models/MagicWish';
 import { CoinSnapshot } from '../models/CoinSnapshot';
+import {
+  GameConfig,
+  GAME_CONFIG_STORAGE_KEY,
+} from '../models/GameConfig';
+import { RedemptionRecord } from '../models/RedemptionRecord';
 import { WishlistStore, getWishlistStore } from '../services/WishlistStore';
 import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
-import { ParentLongPressGate } from '../components/ParentLongPressGate';
+import {
+  RedemptionHistoryStore,
+  getRedemptionHistoryStore,
+} from '../services/RedemptionHistoryStore';
+import { ParentPinDialog, PIN_LENGTH } from '../components/ParentPinDialog';
+import { GiftBox } from '../components/GiftBox';
 
-/** Auto-acknowledge delay after parent confirmation. */
+/** Total time the GiftBox modal stays visible: anim cycle ~1.68s + 1.5s hold. */
+const GIFTBOX_MODAL_TOTAL_MS: number = 3180;
+
+/** Auto-acknowledge delay between Confirmed → Idle on the wish card. */
 const ACK_DELAY_MS: number = 1500;
 
 /**
- * WishlistPage — child-facing list of magic wishes. Tapping
- * "申请兑换" moves a wish to Pending; the ParentLongPressGate
- * inside the WishCard fires onParentConfirm after a 3s hold,
- * which redeems through CoinAccount and shows "已兑换" briefly
- * before recycling the card back to Idle.
+ * V0.3.9 WishlistPage — child-facing list of magic wishes.
+ *
+ * Redemption flow (replaces V0.3.8 Idle → Pending → ParentLongPressGate):
+ *  1. Tap 申请兑换. If `GameConfig.parentPin` is unset, show an
+ *     AlertDialog directing the parent to ConfigPage; refuse to open
+ *     the PIN dialog.
+ *  2. ParentPinDialog opens. Wrong PIN shakes + clears (no lockout).
+ *     Right PIN dismisses the dialog and runs redeemNow.
+ *  3. redeemNow calls `coins.redeem` → `store.markConfirmed` →
+ *     appends a RedemptionRecord to the history store, then mounts
+ *     the GiftBox modal overlay (3.18s blocking) and finally
+ *     auto-acknowledges the card back to Idle 1.5s after the modal
+ *     disappears.
+ *
+ * Header gains a 📜 icon button (left of "我的魔法币") that routes
+ * to RedemptionHistoryPage. Cards are restructured: name + cost on
+ * the left, prize emoji + 申请兑换 button right-aligned on a single
+ * row (was: emoji+name on top, button centred below).
  */
 @Entry
 @Component
 struct WishlistPage {
   @State private wishes: MagicWish[] = [];
   @State private balance: number = 0;
+  @State private giftBoxVisible: boolean = false;
+  @State private giftBoxTrigger: number = 0;
   private store: WishlistStore = getWishlistStore();
   private coins: CoinAccount = getCoinAccount();
+  private history: RedemptionHistoryStore = getRedemptionHistoryStore();
+  private pendingWishId: string = '';
+  private pinDialog: CustomDialogController | null = null;
 
   aboutToAppear(): void {
-    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    Promise.all<void>([this.coins.init(ctx), this.store.init(ctx)])
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    Promise.all<void>([
+      this.coins.init(ctx),
+      this.store.init(ctx),
+      this.history.init(ctx),
+    ])
       .then((): void => {
         this.coins.beginToday(Date.now());
         this.refresh();
@@ -43,114 +79,133 @@ struct WishlistPage {
     this.refresh();
   }
 
-  build(): void {
-    Column({ space: 12 }) {
-      this.headerRow();
-      Text('魔法愿望单')
-        .id('WishlistTitle')
-        .fontSize(26)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1D3557');
-      Scroll() {
-        Column({ space: 12 }) {
-          // ArkUI reactivity note (v0.3.6 letter-spacing lesson, also seen
-          // when "申请兑换" silently no-op'd in v0.3.8): a parameterised
-          // @Builder body (e.g. `wishCard(wish: MagicWish)` reading
-          // `wish.state`) is NOT re-evaluated when the parameter object's
-          // properties change, because ArkUI's compile-time dependency
-          // analysis only tracks @State reads inside the Builder body's
-          // source. The cell stays frozen on its initial branch.
-          //
-          // Workaround: inline the per-cell layout + state-driven if/else
-          // directly inside the ForEach iterator lambda. ForEach's diff
-          // (keyed by w.id) re-runs the lambda for each item every time
-          // `this.wishes` is reassigned in `refresh()`, so the new item
-          // value (with updated `state`) drives a fresh sub-tree. No
-          // nested @Builder hop, no stale capture.
-          ForEach(this.wishes, (w: MagicWish): void => {
-            Column({ space: 8 }) {
-              Row({ space: 12 }) {
-                Text(w.iconEmoji)
-                  .fontSize(32);
-                Column({ space: 4 }) {
-                  Text(w.displayName)
-                    .id(`WishName_${w.id}`)
-                    .fontSize(18)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor('#1D3557');
-                  Text(`${w.costCoins} ✨`)
-                    .fontSize(14)
-                    .fontColor('#FFB400');
-                }
-                .alignItems(HorizontalAlign.Start);
-              }
-              .width('100%')
-              .alignItems(VerticalAlign.Center);
+  /**
+   * V0.3.9: while the GiftBox modal is up the system Back press
+   * must not pop the page (parent-vs-child intent: animations and
+   * persistence have already committed; we only need to outlast
+   * the celebration). Returning true from onBackPress consumes
+   * the event so the router does not navigate.
+   */
+  onBackPress(): boolean {
+    if (this.giftBoxVisible) {
+      return true;
+    }
+    return false;
+  }
 
-              if (w.state === WishState.Idle) {
-                if (this.balance >= w.costCoins) {
-                  Button('申请兑换')
-                    .id(`WishApply_${w.id}`)
-                    .width(140)
-                    .height(40)
-                    .backgroundColor('#E63946')
-                    .fontColor('#FFFFFF')
-                    .onClick((): void => {
-                      this.onApply(w.id);
-                    });
-                } else {
-                  Text(`还差 ${w.costCoins - this.balance} ✨`)
-                    .id(`WishGap_${w.id}`)
-                    .fontSize(13)
-                    .fontColor('#888888');
-                }
-              } else if (w.state === WishState.Pending) {
-                Column({ space: 4 }) {
-                  Text('等待家长确认 ⏳')
-                    .fontSize(13)
-                    .fontColor('#457B9D');
-                  ParentLongPressGate({
-                    label: '长按 3 秒由家长确认',
-                    onConfirm: (): void => {
-                      this.onParentConfirm(w.id);
-                    },
-                  });
-                }
-                .alignItems(HorizontalAlign.Center);
-              } else {
-                Text('已兑换 ✓')
-                  .id(`WishConfirmed_${w.id}`)
-                  .fontSize(14)
-                  .fontColor('#2ECC71');
-              }
-            }
-            .id(`WishCard_${w.id}`)
-            .width('92%')
-            .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-            .backgroundColor('#FFFFFF')
-            .borderRadius(14)
-            .shadow({ radius: 8, color: '#11000000', offsetX: 0, offsetY: 2 });
-          }, (w: MagicWish): string => w.id);
+  build(): void {
+    Stack({ alignContent: Alignment.Center }) {
+      Column({ space: 12 }) {
+        this.headerRow();
+        Text('魔法愿望单')
+          .id('WishlistTitle')
+          .fontSize(26)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1D3557');
+        Scroll() {
+          Column({ space: 12 }) {
+            ForEach(this.wishes, (w: MagicWish): void => {
+              this.wishCardInline(w);
+            }, (w: MagicWish): string => w.id);
+          }
+          .padding({ top: 8, bottom: 24 });
         }
-        .padding({ top: 8, bottom: 24 });
+        .layoutWeight(1);
       }
-      .layoutWeight(1);
+      .width('100%')
+      .height('100%')
+      .padding({ left: 16, right: 16, top: 24 })
+      .backgroundColor('#F8F9FA');
+
+      if (this.giftBoxVisible) {
+        this.giftBoxModal();
+      }
     }
     .width('100%')
-    .height('100%')
-    .padding({ left: 16, right: 16, top: 24 })
-    .backgroundColor('#F8F9FA');
+    .height('100%');
+  }
+
+  /**
+   * Per-cell layout. Inlined into ForEach (not a parameterised
+   * @Builder) because ArkUI's compile-time dependency analysis only
+   * tracks @State reads inside an unparameterised builder body —
+   * a parameter object's property reads (e.g. `w.state`) do NOT
+   * register as deps, so a parameterised @Builder cell would stay
+   * frozen on its initial state. See the v0.3.6 letter-spacing
+   * lesson + v0.3.8 申请兑换 bug for prior incidents.
+   */
+  @Builder
+  private wishCardInline(w: MagicWish) {
+    Row() {
+      Column({ space: 4 }) {
+        Text(w.displayName)
+          .id(`WishName_${w.id}`)
+          .fontSize(18)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#1D3557');
+        Text(`${w.costCoins} ✨`)
+          .fontSize(14)
+          .fontColor('#FFB400');
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1);
+
+      Row({ space: 10 }) {
+        Text(w.iconEmoji)
+          .fontSize(32);
+        if (w.state === WishState.Idle) {
+          if (this.balance >= w.costCoins) {
+            Button('申请兑换')
+              .id(`WishApply_${w.id}`)
+              .width(108)
+              .height(40)
+              .backgroundColor('#E63946')
+              .fontColor('#FFFFFF')
+              .fontSize(15)
+              .onClick((): void => {
+                this.onApply(w.id);
+              });
+          } else {
+            Text(`还差 ${w.costCoins - this.balance} ✨`)
+              .id(`WishGap_${w.id}`)
+              .fontSize(13)
+              .fontColor('#888888');
+          }
+        } else if (w.state === WishState.Confirmed) {
+          Text('已兑换 ✓')
+            .id(`WishConfirmed_${w.id}`)
+            .fontSize(15)
+            .fontColor('#2ECC71');
+        } else {
+          // Legacy Pending should not occur after V0.3.9 migration;
+          // render a neutral placeholder for safety.
+          Text('…')
+            .fontSize(14)
+            .fontColor('#888888');
+        }
+      }
+      .alignItems(VerticalAlign.Center);
+    }
+    .id(`WishCard_${w.id}`)
+    .width('92%')
+    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+    .backgroundColor('#FFFFFF')
+    .borderRadius(14)
+    .shadow({ radius: 8, color: '#11000000', offsetX: 0, offsetY: 2 });
   }
 
   @Builder
   private headerRow() {
-    Row() {
+    Row({ space: 12 }) {
       Button('← 返回')
         .id('WishlistBackButton')
         .type(ButtonType.Normal)
         .backgroundColor(Color.Transparent)
         .fontColor('#457B9D')
         .onClick((): void => {
+          if (this.giftBoxVisible) {
+            return;
+          }
           try {
             router.back();
           } catch (err) {
@@ -159,12 +214,53 @@ struct WishlistPage {
         });
       Blank()
         .layoutWeight(1);
+      Button('📜')
+        .id('WishlistHistoryButton')
+        .width(40)
+        .height(36)
+        .fontSize(18)
+        .backgroundColor('#EAF2F8')
+        .fontColor('#1D3557')
+        .onClick((): void => {
+          if (this.giftBoxVisible) {
+            return;
+          }
+          router.pushUrl({ url: 'pages/RedemptionHistoryPage' })
+            .catch((err: BusinessError): void => {
+              console.error(`WishlistPage: pushUrl history failed: ${JSON.stringify(err)}`);
+            });
+        });
       Text(`我的魔法币: ${this.balance} ✨`)
         .id('WishlistBalance')
         .fontSize(16)
         .fontColor('#FFB400');
     }
-    .width('100%');
+    .width('100%')
+    .alignItems(VerticalAlign.Center);
+  }
+
+  /**
+   * Top-level overlay shown while a redemption is celebrating. The
+   * `HitTestMode.Block` on the backdrop swallows every touch under
+   * it so taps on cards / header buttons are no-ops during the
+   * 3.18 s window. `onBackPress` (above) handles the system back
+   * press the same way. The GiftBox itself is centred and re-keyed
+   * via `giftBoxTrigger` to ensure each modal mount runs a fresh
+   * animation cycle.
+   */
+  @Builder
+  private giftBoxModal() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(0, 0, 0, 0.5)')
+        .hitTestBehavior(HitTestMode.Block);
+      GiftBox({ trigger: this.giftBoxTrigger })
+        .id('WishlistGiftBoxModal');
+    }
+    .width('100%')
+    .height('100%');
   }
 
   private refresh(): void {
@@ -173,26 +269,116 @@ struct WishlistPage {
     this.balance = snap.totalCoins - snap.spentCoins;
   }
 
-  private onApply(wishId: string): void {
-    const ok: boolean = this.store.request(wishId, this.coins, Date.now());
-    if (!ok) {
-      console.warn(`WishlistPage.onApply rejected for ${wishId}`);
+  private getParentPin(): string {
+    const stored: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    if (stored === undefined) {
+      return '';
     }
-    this.refresh();
+    return stored.parentPin;
   }
 
-  private onParentConfirm(wishId: string): void {
-    const ok: boolean = this.store.confirmByParent(wishId, this.coins, Date.now());
-    if (!ok) {
-      console.warn(`WishlistPage.onParentConfirm rejected for ${wishId}`);
-      this.refresh();
+  private onApply(wishId: string): void {
+    if (this.giftBoxVisible) {
       return;
     }
+    const expected: string = this.getParentPin();
+    if (expected.length !== PIN_LENGTH) {
+      promptAction.showDialog({
+        title: '尚未设置家长密码',
+        message: '请先在设置页面配置家长密码（6 位数字），再兑换魔法愿望。',
+        buttons: [{ text: '知道了', color: '#1D3557' }],
+      }).catch((err: BusinessError): void => {
+        console.error(`WishlistPage: showDialog failed: ${JSON.stringify(err)}`);
+      });
+      return;
+    }
+    this.pendingWishId = wishId;
+    this.openPinDialog(expected);
+  }
+
+  private openPinDialog(expected: string): void {
+    const ctrl: CustomDialogController = new CustomDialogController({
+      builder: ParentPinDialog({
+        expectedPin: expected,
+        title: '请输入家长密码以兑换',
+        onConfirm: (): void => {
+          this.redeemNow(this.pendingWishId);
+        },
+        onCancel: (): void => {
+          this.pendingWishId = '';
+        },
+      }),
+      autoCancel: true,
+      customStyle: true,
+    });
+    this.pinDialog = ctrl;
+    ctrl.open();
+  }
+
+  private redeemNow(wishId: string): void {
+    if (wishId.length === 0) {
+      return;
+    }
+    const wish: MagicWish | undefined = this.findLocal(wishId);
+    if (wish === undefined) {
+      return;
+    }
+    const coinOk: boolean = this.coins.redeem(wish.id, wish.costCoins);
+    if (!coinOk) {
+      console.warn(`WishlistPage.redeemNow coin redeem refused for ${wishId}`);
+      this.refresh();
+      this.pendingWishId = '';
+      return;
+    }
+    const stateOk: boolean = this.store.markConfirmed(wish.id, Date.now());
+    if (!stateOk) {
+      console.warn(`WishlistPage.redeemNow markConfirmed refused for ${wishId}`);
+      // CoinAccount has already debited; refresh anyway so the user
+      // sees the new balance and stale Confirmed state if any.
+      this.refresh();
+      this.pendingWishId = '';
+      return;
+    }
+    this.history.add(this.makeRecord(wish, Date.now()));
     this.refresh();
+    this.showGiftBoxModal();
+    this.scheduleAcknowledge(wish.id);
+    this.pendingWishId = '';
+  }
+
+  private makeRecord(wish: MagicWish, nowMs: number): RedemptionRecord {
+    const r: RedemptionRecord = new RedemptionRecord();
+    r.id = `${nowMs}-${Math.floor(Math.random() * 65536).toString(16)}`;
+    r.ts = nowMs;
+    r.wishId = wish.id;
+    r.displayName = wish.displayName;
+    r.iconEmoji = wish.iconEmoji;
+    r.costCoins = wish.costCoins;
+    return r;
+  }
+
+  private showGiftBoxModal(): void {
+    this.giftBoxTrigger = this.giftBoxTrigger + 1;
+    this.giftBoxVisible = true;
+    setTimeout((): void => {
+      this.giftBoxVisible = false;
+    }, GIFTBOX_MODAL_TOTAL_MS);
+  }
+
+  private scheduleAcknowledge(wishId: string): void {
     setTimeout((): void => {
       this.store.acknowledge(wishId);
       this.refresh();
-    }, ACK_DELAY_MS);
+    }, GIFTBOX_MODAL_TOTAL_MS + ACK_DELAY_MS);
   }
 
+  private findLocal(wishId: string): MagicWish | undefined {
+    for (let i = 0; i < this.wishes.length; i++) {
+      if (this.wishes[i].id === wishId) {
+        return this.wishes[i];
+      }
+    }
+    return undefined;
+  }
 }
