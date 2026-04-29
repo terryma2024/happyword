@@ -57,6 +57,16 @@ class RealPrefs implements StringPreferencesLike {
  *
  * `confirmByParent` invokes `CoinAccount.redeem` and only advances
  * state when the redeem succeeds.
+ *
+ * V0.3.9 update: the Idle → Pending → Confirmed chain has been
+ * flattened. WishlistPage now redeems via the new
+ * `markConfirmed(wishId, nowMs)` after a parent-PIN gate clears
+ * (see ParentPinDialog) and CoinAccount.redeem succeeds — the
+ * caller is responsible for the redeem. `request` and
+ * `confirmByParent` are kept as @deprecated for one version so
+ * downstream tests can migrate. `coerceState` reads in any
+ * legacy `'pending'` snapshot as Idle (the redemption did not
+ * happen, so reverting to Idle is the safe migration default).
  */
 export class WishlistStore {
   private prefs?: StringPreferencesLike;
@@ -119,6 +129,13 @@ export class WishlistStore {
     return out;
   }
 
+  /**
+   * @deprecated V0.3.9 retired the Pending middle state in favour of
+   * a parent-PIN gate (see WishlistPage + ParentPinDialog). Callers
+   * should now build the redemption flow on `markConfirmed` after
+   * directly invoking `CoinAccount.redeem`. Kept for one version so
+   * downstream tests can migrate without a hard break.
+   */
   request(wishId: string, account: CoinAccount, nowMs: number): boolean {
     const w: MagicWish | undefined = this.findWish(wishId);
     if (w === undefined) {
@@ -136,6 +153,10 @@ export class WishlistStore {
     return true;
   }
 
+  /**
+   * @deprecated V0.3.9: see `request`. Use `markConfirmed` after
+   * `CoinAccount.redeem` succeeds.
+   */
   confirmByParent(wishId: string, account: CoinAccount, nowMs: number): boolean {
     const w: MagicWish | undefined = this.findWish(wishId);
     if (w === undefined) {
@@ -146,6 +167,28 @@ export class WishlistStore {
     }
     const ok: boolean = account.redeem(w.id, w.costCoins);
     if (!ok) {
+      return false;
+    }
+    w.state = WishState.Confirmed;
+    w.confirmedAt = nowMs;
+    this.scheduleSave();
+    return true;
+  }
+
+  /**
+   * V0.3.9: idempotent Idle → Confirmed transition. The caller has
+   * already cleared the parent PIN and invoked `CoinAccount.redeem`,
+   * so this method does *not* touch coin balance — it only flips
+   * state and stamps the confirmation timestamp. Returns false when
+   * the wish is unknown or already non-Idle (so callers can skip
+   * the GiftBox modal on a stale redeem click).
+   */
+  markConfirmed(wishId: string, nowMs: number): boolean {
+    const w: MagicWish | undefined = this.findWish(wishId);
+    if (w === undefined) {
+      return false;
+    }
+    if (w.state !== WishState.Idle) {
       return false;
     }
     w.state = WishState.Confirmed;
@@ -185,6 +228,36 @@ export class WishlistStore {
     }
     await this.prefs.putString(WISHLIST_PREFS_KEY, JSON.stringify(this.snap));
     await this.prefs.flush();
+  }
+
+  /**
+   * V0.3.9: expose the cold-start parsing path so unit tests can
+   * simulate a persisted snapshot without spinning up a real
+   * UIAbilityContext. Production code uses `init(ctx)` which calls
+   * the same logic plus catalog backfill.
+   */
+  async rehydrateForTest(): Promise<void> {
+    if (this.prefs === undefined) {
+      return;
+    }
+    const raw: string = await this.prefs.getString(WISHLIST_PREFS_KEY);
+    if (raw.length > 0) {
+      this.snap = parseWishlistSnapshot(raw);
+    }
+    if (this.snap.wishes.length === 0) {
+      this.snap.wishes = getWishCatalogClone();
+      return;
+    }
+    const seen: Set<string> = new Set<string>();
+    for (let i = 0; i < this.snap.wishes.length; i++) {
+      seen.add(this.snap.wishes[i].id);
+    }
+    const additions: MagicWish[] = getWishCatalogClone();
+    for (let i = 0; i < additions.length; i++) {
+      if (!seen.has(additions[i].id)) {
+        this.snap.wishes.push(additions[i]);
+      }
+    }
   }
 
   private findWish(wishId: string): MagicWish | undefined {
@@ -246,8 +319,10 @@ export function parseWishlistSnapshot(raw: string): WishlistSnapshot {
 }
 
 function coerceState(label: string): WishState {
-  if (label === WishState.Pending) return WishState.Pending;
   if (label === WishState.Confirmed) return WishState.Confirmed;
+  // V0.3.9: Pending state retired — a legacy 'pending' literal in
+  // persisted JSON normalises to Idle. The redemption never happened
+  // (CoinAccount didn't debit), so reverting is the safe migration.
   return WishState.Idle;
 }
 
