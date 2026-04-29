@@ -6,6 +6,7 @@ import magicAttackUiTest from './MagicAttack.ui.test';
 import v03AdventureUiTest from './V03Adventure.ui.test';
 import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
 import fillLetterFlowUiTest from './FillLetterFlow.ui.test';
+import spellQuestionFlowUiTest from './SpellQuestionFlow.ui.test';
 import monsterCodexFlowUiTest from './MonsterCodexFlow.ui.test';
 import wishlistFlowUiTest from './WishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
@@ -34,6 +35,10 @@ export default function testsuite() {
   // last so any monster-defeated stat seeded here does not pollute
   // the assumptions the other suites bake in.
   fillLetterFlowUiTest();
+  // V0.4.1: drives a Boss Spell question end-to-end on the same
+  // fruit-forest plan as FillLetterFlow. Reuses the static zh→en
+  // catalog so the suite stays deterministic.
+  spellQuestionFlowUiTest();
   // V0.3.9: wishlist redesign + parent PIN setup. Both suites are
   // navigation-only (they do not seed coins, do not redeem); the
   // full PIN → GiftBox → history flow is unit-tested.
