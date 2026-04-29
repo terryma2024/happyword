@@ -136,7 +136,9 @@ struct WishlistPage {
    */
   @Builder
   private wishCardInline(w: MagicWish) {
-    Row() {
+    Row({ space: 12 }) {
+      Text(w.iconEmoji)
+        .fontSize(32);
       Column({ space: 4 }) {
         Text(w.displayName)
           .id(`WishName_${w.id}`)
@@ -150,47 +152,43 @@ struct WishlistPage {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1);
 
-      Row({ space: 10 }) {
-        Text(w.iconEmoji)
-          .fontSize(32);
-        if (w.state === WishState.Idle) {
-          if (this.balance >= w.costCoins) {
-            Button('申请兑换')
-              .id(`WishApply_${w.id}`)
-              .width(108)
-              .height(40)
-              .backgroundColor('#E63946')
-              .fontColor('#FFFFFF')
-              .fontSize(15)
-              .onClick((): void => {
-                this.onApply(w.id);
-              });
-          } else {
-            Text(`还差 ${w.costCoins - this.balance} ✨`)
-              .id(`WishGap_${w.id}`)
-              .fontSize(13)
-              .fontColor('#888888');
-          }
-        } else if (w.state === WishState.Confirmed) {
-          Text('已兑换 ✓')
-            .id(`WishConfirmed_${w.id}`)
+      if (w.state === WishState.Idle) {
+        if (this.balance >= w.costCoins) {
+          Button('申请兑换')
+            .id(`WishApply_${w.id}`)
+            .width(108)
+            .height(40)
+            .backgroundColor('#E63946')
+            .fontColor('#FFFFFF')
             .fontSize(15)
-            .fontColor('#2ECC71');
+            .onClick((): void => {
+              this.onApply(w.id);
+            });
         } else {
-          // Legacy Pending should not occur after V0.3.9 migration;
-          // render a neutral placeholder for safety.
-          Text('…')
-            .fontSize(14)
+          Text(`还差 ${w.costCoins - this.balance} ✨`)
+            .id(`WishGap_${w.id}`)
+            .fontSize(13)
             .fontColor('#888888');
         }
+      } else if (w.state === WishState.Confirmed) {
+        Text('已兑换 ✓')
+          .id(`WishConfirmed_${w.id}`)
+          .fontSize(15)
+          .fontColor('#2ECC71');
+      } else {
+        // Legacy Pending should not occur after V0.3.9 migration;
+        // render a neutral placeholder for safety.
+        Text('…')
+          .fontSize(14)
+          .fontColor('#888888');
       }
-      .alignItems(VerticalAlign.Center);
     }
     .id(`WishCard_${w.id}`)
     .width('92%')
     .padding({ left: 16, right: 16, top: 12, bottom: 12 })
     .backgroundColor('#FFFFFF')
     .borderRadius(14)
+    .alignItems(VerticalAlign.Center)
     .shadow({ radius: 8, color: '#11000000', offsetX: 0, offsetY: 2 });
   }
 
@@ -298,14 +296,28 @@ struct WishlistPage {
   }
 
   private openPinDialog(expected: string): void {
-    const ctrl: CustomDialogController = new CustomDialogController({
+    // Two-step ctor: declare `ctrl` first, then create the
+    // CustomDialogController. This lets the onConfirm/onCancel
+    // closures capture `ctrl` and close the dialog explicitly,
+    // bypassing the @CustomDialog auto-bound `controller` field
+    // (which has been observed not to bind reliably when the dialog
+    // struct is instantiated with explicit named parameters under
+    // customStyle: true). See V0.3.9 emulator regression.
+    let ctrl: CustomDialogController | null = null;
+    ctrl = new CustomDialogController({
       builder: ParentPinDialog({
         expectedPin: expected,
         title: '请输入家长密码以兑换',
         onConfirm: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
           this.redeemNow(this.pendingWishId);
         },
         onCancel: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
           this.pendingWishId = '';
         },
       }),
@@ -359,8 +371,16 @@ struct WishlistPage {
   }
 
   private showGiftBoxModal(): void {
-    this.giftBoxTrigger = this.giftBoxTrigger + 1;
+    // Two-step: mount the modal first, then increment trigger on the
+    // next tick so GiftBox's `@Watch('onTriggerChanged')` actually
+    // fires (a freshly-mounted instance sees its prop as the initial
+    // value, not as a change, so an increment must happen *after*
+    // aboutToAppear). The 60ms gap covers ArkUI's initial layout
+    // pass without being perceptible to the user.
     this.giftBoxVisible = true;
+    setTimeout((): void => {
+      this.giftBoxTrigger = this.giftBoxTrigger + 1;
+    }, 60);
     setTimeout((): void => {
       this.giftBoxVisible = false;
     }, GIFTBOX_MODAL_TOTAL_MS);
