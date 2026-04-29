@@ -39,7 +39,8 @@ async function openCodex(driver: Driver): Promise<void> {
 
 /**
  * V0.3.8 acceptance (extends V0.3.7):
- *  - HomePage toolbar surfaces 📖 HomeCodexButton (always enabled).
+ *  - HomePage toolbar surfaces the HomeCodexButton (📖 emoji in
+ *    v0.3.7–v0.3.9, codex.svg from v0.3.10), always enabled.
  *  - Codex page enters at index 0 (Slime), shows '1 / 10' indicator,
  *    CodexPrev disabled, CodexNext enabled.
  *  - Clicking CodexNext walks all 10 entries (Slime → Zombie → Dragon →

@@ -247,13 +247,21 @@ struct HomePage {
           .backgroundColor('#FFF6E5')
           .borderRadius(20);
 
-        Button('📚')
+        // V0.3.10: emoji text replaced by an inline Image child. The
+        // Button() container syntax keeps the id / size / circular
+        // shape / soft-pink background, while letting us render a
+        // Recraft-generated rawfile SVG as the glyph. lock state
+        // dimming is now handled via .opacity on the Image.
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Image($rawfile('icons/review.svg'))
+            .width(32)
+            .height(32)
+            .objectFit(ImageFit.Contain)
+            .opacity(this.reviewEnabled() ? 1.0 : 0.4);
+        }
           .id('HomeReviewButton')
-          .type(ButtonType.Circle)
           .width(56)
           .height(56)
-          .fontSize(24)
-          .fontColor(this.reviewEnabled() ? '#E63946' : '#999999')
           .backgroundColor(this.reviewEnabled() ? '#FCEAEA' : '#EEEEEE')
           .onClick((): void => {
             if (this.reviewEnabled()) {
@@ -263,13 +271,15 @@ struct HomePage {
             }
           });
 
-        Button('📖')
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Image($rawfile('icons/codex.svg'))
+            .width(32)
+            .height(32)
+            .objectFit(ImageFit.Contain);
+        }
           .id('HomeCodexButton')
-          .type(ButtonType.Circle)
           .width(56)
           .height(56)
-          .fontSize(24)
-          .fontColor('#E63946')
           .backgroundColor('#FCEAEA')
           .onClick((): void => {
             router.pushUrl({ url: 'pages/MonsterCodexPage' }).catch((err: BusinessError): void => {
@@ -277,13 +287,15 @@ struct HomePage {
             });
           });
 
-        Button('🪄')
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Image($rawfile('icons/wand.svg'))
+            .width(32)
+            .height(32)
+            .objectFit(ImageFit.Contain);
+        }
           .id('HomeWishlistButton')
-          .type(ButtonType.Circle)
           .width(56)
           .height(56)
-          .fontSize(24)
-          .fontColor('#E63946')
           .backgroundColor('#FCEAEA')
           .onClick((): void => {
             router.pushUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError): void => {
@@ -291,13 +303,15 @@ struct HomePage {
             });
           });
 
-        Button('⚙')
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Image($rawfile('icons/gear.svg'))
+            .width(32)
+            .height(32)
+            .objectFit(ImageFit.Contain);
+        }
           .id('HomeConfigButton')
-          .type(ButtonType.Circle)
           .width(56)
           .height(56)
-          .fontSize(28)
-          .fontColor('#457B9D')
           .backgroundColor('#EAF2F8')
           .onClick((): void => {
             router.pushUrl({ url: 'pages/ConfigPage' }).catch((err: BusinessError) => {

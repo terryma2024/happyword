@@ -212,13 +212,22 @@ struct WishlistPage {
         });
       Blank()
         .layoutWeight(1);
-      Button('📜')
+      // V0.3.10: emoji-text 📜 replaced with the warm-parchment scroll
+      // SVG; id / dimensions / background colour preserved so existing
+      // by-id UI tests continue to match. borderRadius(8) explicitly
+      // set because the container Button() syntax does not inherit the
+      // default rectangular Button's soft-corner rounding.
+      Button({ type: ButtonType.Normal, stateEffect: true }) {
+        Image($rawfile('icons/scroll.svg'))
+          .width(22)
+          .height(22)
+          .objectFit(ImageFit.Contain);
+      }
         .id('WishlistHistoryButton')
         .width(40)
         .height(36)
-        .fontSize(18)
         .backgroundColor('#EAF2F8')
-        .fontColor('#1D3557')
+        .borderRadius(8)
         .onClick((): void => {
           if (this.giftBoxVisible) {
             return;
