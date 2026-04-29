@@ -3,7 +3,7 @@
 > 文档状态：路线图基线  
 > 关联基线：[WordMagicGame_overall_spec.md](WordMagicGame_overall_spec.md)  
 > 当前路线选择：趣味学习与长期学习系统平衡推进  
-> 最近更新：2026-04-29（V0.3.10 App 图标与按钮图标重构：Recraft V4 vector 生成 8 个统一「童话魔法羊皮纸」SVG → 启动图标 PNG（前景 1024 + 背景 1024 + startIcon 216）+ 5 个 rawfile/icons SVG（review/codex/wand/gear/scroll）；HomePage 4 toolbar 按钮 + WishlistPage 📜 按钮换成自家 SVG 图标；V0.3.9 魔法愿望单兑换流程重构）
+> 最近更新：2026-04-29（V0.4.1 完整拼写题：Boss-only 点选式字母板 SpellingArea，第一个字母预亮，错点不扣血、不消耗、仅红色抖动，PlanQuestionSource 拆分 Boss/Elite 分支并把 SpellGenerator 插在 Boss 回退链最前；BattleEngine.submitAnswer 接受 Spell 全词为唯一合法选项；新增 Question.Spell + 3 字段 + isValidSpell 校验；V0.3.10 App 图标与按钮图标重构）
 
 ## 1. 产品愿景
 
@@ -42,7 +42,13 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.3.8 | 怪物图鉴扩展（7 boss 上线 + V0.2 颜色变种 Slime 退役） | 怪物图鉴扩到 10 张（3 archetype + 7 童话风 boss）；3 个 region 各持有 2-3 只 boss 候选，每天按 hash(regionId+date) 确定性轮换战斗中的 boss SVG；同时退役 V0.2 的 10 条 colored slime 变种（`Lava Imp` / `Frost Wisp` 等），catalog 收紧到 10 条，boss 索引由 14-20 重排为 4-10 | 无 |
 | V0.3.9 | 魔法愿望单兑换流程重构      | 用 6 位家长 PIN 弹窗替代 3 秒长按门；兑换成功播放 GiftBox 庆祝动画（~1.68s 播 + 1.5s 停），期间遮罩 + HitTestMode.Block 屏蔽所有交互；新增持久化兑换记录页（cap 50，最新在前），从愿望单头部 📜 入口进入；卡片版式改为最左 emoji + 中间名+价 + 右侧申请兑换按钮的三段式；Pending 中间态退役（reader 兼容旧持久化）；ConfigPage 加家长密码入口行 | 无 |
 | V0.3.10 | App 图标与按钮图标重构 | 用 Recraft V4 vector 生成 8 个统一「童话魔法羊皮纸」风格 SVG：app 启动图标（前景 magician 1024 + 背景紫粉金渐变魔法夜空 1024 + startIcon 尖帽金星 216）+ HomePage 顶部工具栏 4 个圆形按钮（📚📖🪄⚙ → review/codex/wand/gear）+ WishlistPage 头部 📜 按钮（→ scroll）；新增 `tools/recraft/{generate-icons.sh, svg-to-png.mjs, icons-to-launcher.sh}` 工具链；UI 测试改为 by-id 断言；不动战斗页 / 不做密度限定多 PNG / 不做深色主题变体 | 无 |
-| V0.4   | 深度学习与拼写版         | 完整拼写、学习状态强化、每日计划、学习报告、更多复习策略                              | 无或可选远程词包 |
+| V0.4.1 | 完整拼写题（Boss 限定）      | 新增 `QuestionKind.Spell` + `SpellGenerator`（4-9 字母门）+ `SpellingArea` 点选式字母板组件；首字母预亮，剩余字母按生成器 RNG 打乱成池；错点不扣血、不消耗、仅红色抖动；PlanQuestionSource 拆分 Boss/Elite，Boss 回退链 Spell→Medium→Beginner→Choice；BattleEngine.submitAnswer 接受 Spell 全词为合法选项；不动 LearningRecorder 写入 / 不接系统键盘 / 不做听写模式 | 无 |
+| V0.4.2 | 多空补字母升级（计划中）      | FillLetterMedium 升级到 3+ 空版本，加入撤销和错误位置可视化提示                              | 无 |
+| V0.4.3 | 精细记忆状态（计划中）       | 学习状态加入连续正确/错误计数 + 掌握度 mastery，调度器据此选词                          | 无 |
+| V0.4.4 | 每日学习计划（计划中）       | 主页新增今日学习计划页，展示今天的新词、复习词与完成状态                              | 无 |
+| V0.4.5 | 本地学习报告（计划中）       | 学习报告本地版，展示正确率、复习完成率、掌握词数和薄弱分类                            | 无 |
+| V0.4.6 | 更多主题区域（计划中）       | 新增更多主题区域和关卡数据，让今日冒险有持续变化                                      | 无 |
+| V0.4.7 | 自定义愿望单条目（计划中）   | 奖励愿望单加入本地自定义兑换项，但仍不接真实支付                                      | 无 |
 | V0.5   | 内容后台与 LLM 题库版    | Node.js 内容后台、词库管理、LLM 生成题目草稿、人工审核、词包发布                    | 必需       |
 | V0.6   | 家长账户与设备绑定版       | 家长账号、孩子档案、二维码绑定设备、云端学习同步、云端愿望单                            | 必需       |
 | V0.7   | AI 剧情与语境学习版      | 句子填词、主题剧情、LLM 生成剧情草稿、个性化冒险                                | 必需       |
@@ -484,19 +490,51 @@ V0.3.10 把 v0.3.9 之前的「emoji 字符 + 模板蓝色 launcher PNG」视觉
 
 ## 11. V0.4 深度学习与拼写版
 
-V0.4 的目标是把 V0.3 的学习内核做深，重点从“点选识别”进入“主动回忆和拼写”。
+V0.4 的目标是把 V0.3 的学习内核做深，重点从“点选识别”进入“主动回忆和拼写”。它不是单一发布，而是按子版本顺序推进的一组能力（V0.4.1 → V0.4.7）。
 
-建议能力：
+子版本概览：
 
-- 完整写单词题型，支持系统键盘或自定义字母键盘。
-- 多空补字母升级，支持顺序填空、撤销和错误反馈。
-- 学习状态更精细，加入连续正确次数、连续错误次数和掌握度。
-- 每日学习计划，展示今天要学的新词、要复习的旧词和完成状态。
-- 学习报告本地版，展示正确率、复习完成率、掌握词数和薄弱分类。
-- 更多主题区域和关卡数据，让今日冒险有持续变化。
-- 奖励愿望单增加本地自定义兑换项，但仍不接真实支付。
+| 子版本 | 主题 | 状态 |
+| --- | --- | --- |
+| V0.4.1 | 完整拼写题（Boss 限定） | 已完成 |
+| V0.4.2 | 多空补字母升级（3+ 空 / 撤销 / 错误反馈） | 计划中 |
+| V0.4.3 | 精细记忆状态（连续正/错次数 + 掌握度） | 计划中 |
+| V0.4.4 | 每日学习计划页 | 计划中 |
+| V0.4.5 | 本地学习报告 | 计划中 |
+| V0.4.6 | 更多主题区域 | 计划中 |
+| V0.4.7 | 自定义愿望单条目 | 计划中 |
 
 V0.4 可以开始考虑远程词包 JSON，但不要求完整后台。若服务端尚未开始，客户端仍应保持本地可用。
+
+### 11.1 V0.4.1 完整拼写题（Boss 限定）
+
+V0.4.1 把 V0.3 在「主动回忆」上的进展再推一格：Boss 关卡从「双空选择 FillLetterMedium」升级为「完整点选拼写 Spell」。整个题型与既有的 Choice / FillLetter / FillLetterMedium 并列，不替换任何已有题型。
+
+**范围**
+
+- 新增 `QuestionKind.Spell` 与 3 个字段（`spellLetters` / `spellRevealedMask` / `spellPool`），并实现 `Question.isValidSpell()` 校验：
+  - 字母数 ∈ [4, 9]
+  - mask 仅首位为 true
+  - `spellLetters.join('')` 等于 `answer.toLowerCase()` 的 a-z 投影
+  - `spellPool` 是 `spellLetters[1..]` 的多重集
+- 新增 `SpellGenerator` 服务：从 `WordEntry.word` 抽 a-z 字母，套 4-9 长度门，剩余字母按注入的 `RandomFn` 打乱成池；4-字母词与 9-字母词都接受，3 / 10+ 字母词返回 `undefined` 由路由回退。
+- 拆分 `PlanQuestionSource` 中原本共用的 Elite/Boss 分支，Boss 单独回退链 `Spell → FillLetterMedium → FillLetter → Choice`，Elite 仍保持 `FillLetterMedium → FillLetter → Choice`。
+- 新增 `SpellingArea` 组件：上排 slot row 渲染字母槽，下排 pool row 渲染按生成器顺序排列的字母按钮；首字母槽预亮显示，错点字母按钮闪红 ~220ms（不扣血、不消耗），点对则字母进入下一个空槽并把对应池按钮置灰。最后一个字母落入槽后等待 200ms 揭示反馈，再回调 `onSpellComplete(answer)`。
+- `BattlePage` 在 `currentQuestionKind === Spell` 时挂载 `SpellingArea`，隐藏底部 3 个 ChoiceButton；`handleSpellSubmit` 复用 onOptionTap 的 correct / 暴击分支（Spell 不会 wrong，由 SpellingArea 在客户端拒绝错点）。
+- `BattleEngine.submitAnswer` 增加 `isSpell` 分支，把 `[q.answer]` 视为唯一合法 option。
+
+**验收**
+
+- 单元测试：`Question.isValid (Spell)`、`SpellGenerator`、`PlanQuestionSource`（Boss + 4 / 5 / 6 字母词都走 Spell；3 字母回退 FillLetter；2 字母回退 Choice；10+ 字母回退 FillLetterMedium；Elite 永不走 Spell）。
+- UI 测试：`SpellQuestionFlow` 在真机/模拟器走完一局水果森林冒险，到 Boss 时按字母正确顺序敲完字母池，断言中间每一槽都被填上、最终“正确！/魔法爆发”反馈出现；同样的入口验证错点不会推进字母槽。
+- 无设备 + on-device 全套测试通过（28/28），CodeLinter 无新增缺陷。
+
+**明确不做（留给 V0.4.2+）**
+
+- 系统键盘 / 自定义字母键盘：横屏键盘遮挡战斗 UI、儿童误输入成本高，留到后续考虑。
+- 「听写模式」：纯听 TTS 后拼写，听力优先。V0.4.1 仍由 prompt 中文释义引导。
+- LearningRecorder 增加 Spell-only 字段：写入仍只用 wordId + correct，记忆调度器不区分题型。
+- BattleEngine 接受错答的 Spell：错点已经被 SpellingArea 在客户端拦截，引擎层不增加“拼错一半的部分答案”路径。
 
 ## 12. V0.5 内容后台与 LLM 题库版
 
