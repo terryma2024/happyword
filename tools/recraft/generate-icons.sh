@@ -37,6 +37,12 @@ ENTRIES=(
   "scroll|partially unfurled parchment scroll lying horizontal, a deep red round wax seal pressed at the front edge, two tiny gold five-point stars floating above the scroll, gold ribbon ties on each end"
 )
 
+# Icons whose first canvas-rect element should be stripped before use
+# (off-white base would mask the soft-pink button bg or the launcher
+# background once layered). background.svg + startIcon.svg keep their
+# base because their full-bleed look is intentional.
+STRIP_TARGETS=(foreground review codex wand gear scroll)
+
 # In-app icons that should be copied to rawfile after generation.
 SYNC_TARGETS=(review codex wand gear scroll)
 
@@ -73,6 +79,17 @@ for entry in "${ENTRIES[@]}"; do
     echo "[ok  ] $NAME (${SIZE} bytes, ${ELAPSED}s)"
   else
     echo "[FAIL] $NAME rc=$RC elapsed=${ELAPSED}s"
+  fi
+done
+
+echo ""
+echo "=== strip canvas rects (for buttons / launcher fg) ==="
+for n in "${STRIP_TARGETS[@]}"; do
+  src="$OUT_DIR/$n.svg"
+  if [[ -f "$src" ]]; then
+    node tools/recraft/strip-svg-canvas.mjs --in "$src"
+  else
+    echo "  $n: SOURCE MISSING ($src)"
   fi
 done
 
