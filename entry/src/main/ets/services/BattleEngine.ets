@@ -179,12 +179,19 @@ export class BattleEngine {
     }
     const isFillLetter: boolean = q.kind === QuestionKind.FillLetter;
     const isFillLetterMedium: boolean = q.kind === QuestionKind.FillLetterMedium;
+    const isSpell: boolean = q.kind === QuestionKind.Spell;
     let validOptions: string[] = q.options;
     if (isFillLetter) {
       validOptions = q.letterOptions;
     } else if (isFillLetterMedium) {
       // Medium is step-scoped: each step has its own options list.
       validOptions = q.letterOptionsSteps[q.currentStep];
+    } else if (isSpell) {
+      // V0.4.1: Spell is the only kind whose "option" is the full
+      // word. SpellingArea validates each tap locally and only fires
+      // submitAnswer once the player has spelled the word correctly,
+      // so accepting q.answer is the entire valid space.
+      validOptions = [q.answer];
     }
     if (validOptions.indexOf(option) < 0) {
       throw new Error(`BattleEngine.submitAnswer: option "${option}" is not on the current question`);
@@ -197,6 +204,7 @@ export class BattleEngine {
     } else if (isFillLetter) {
       correct = option === q.letterAnswer;
     } else {
+      // Choice and Spell both compare against q.answer.
       correct = option === q.answer;
     }
     outcome.correct = correct;

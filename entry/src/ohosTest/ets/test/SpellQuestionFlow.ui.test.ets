@@ -349,10 +349,13 @@ export default function spellQuestionFlowUiTest(): void {
         const slotsNow: string[] = await readSpellSlots(driver);
         expect(slotsNow[pos]).assertEqual(letter);
       }
-      // Wait for the 200 ms reveal flash + 650 ms feedback window so
-      // the engine has had time to register the submit and emit the
-      // green "正确！" / "魔法爆发" feedback.
-      await driver.delayMs(950);
+      // SpellingArea's 200 ms reveal flash fires onSpellComplete →
+      // handleSpellSubmit, which sets feedbackText synchronously.
+      // BattlePage then keeps that text for FEEDBACK_MS (650 ms)
+      // before clearing it, so we must read inside that window.
+      // Reading at +350 ms catches the green "正确！" / burst label
+      // with comfortable margin on either side.
+      await driver.delayMs(350);
       const fb: string = await readFeedback(driver);
       expect(fb.indexOf('正确') >= 0 || fb.indexOf('魔法爆发') >= 0).assertTrue();
 

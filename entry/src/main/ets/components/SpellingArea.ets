@@ -57,8 +57,19 @@ export struct SpellingArea {
   @State private completed: boolean = false;
   private shakeTimer: number = -1;
   private completeTimer: number = -1;
+  /**
+   * Tracks the wordId of the question we last reset against. @Prop
+   * @Watch can fire on every parent re-render (e.g. the 1Hz battle
+   * tick), so without this guard the slot row would keep snapping
+   * back to its initial state mid-spell. Identity by wordId rather
+   * than reference because @Prop deep-copies and gives us a fresh
+   * Question instance each render even when the upstream value is
+   * unchanged.
+   */
+  private resetForWordId: string = '';
 
   aboutToAppear(): void {
+    this.resetForWordId = this.question.wordId;
     this.resetForQuestion();
   }
 
@@ -74,6 +85,10 @@ export struct SpellingArea {
   }
 
   private onQuestionChanged(): void {
+    if (this.question.wordId === this.resetForWordId) {
+      return;
+    }
+    this.resetForWordId = this.question.wordId;
     this.resetForQuestion();
   }
 
