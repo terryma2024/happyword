@@ -363,7 +363,7 @@ BattlePage 建议采用三段式横屏布局：
 - 答对：按钮短暂高亮为正向颜色，玩家播放攻击或魔法反馈，怪物 HP 下降。
 - 答错：错误按钮短暂高亮，正确答案显示为正向颜色，玩家 HP 下降。
 - 连击：第三次连续答对时展示“魔法爆发”或类似提示，并播放更明显的动画或音效。
-- 怪物击败：怪物消失或淡出，下一个史莱姆出现。
+- 怪物击败：怪物消失或淡出，下一只怪物出现（V0.3.5+ 今日冒险按区域 `monsterPlan` 顺序推进 Slime → Zombie → Dragon → Boss；free-play 模式按 catalog 1-based 索引轮播）。
 - 结束：禁止继续答题，进入结算页。
 
 ### 9.3 可访问性与儿童体验
@@ -479,6 +479,10 @@ V0.1 版本通过验收需满足以下条件：
 - 增加更多词库分类和难度等级。
 - 支持按分类选择关卡。
 - 增加更多怪物和背景主题。
+
+> 注：V0.3 系列已分为 V0.3 / V0.3.5 / V0.3.6 / V0.3.7 / V0.3.8 多个子版本陆续落地，详细范围与验收以 [`WordMagicGame_roadmap.md`](WordMagicGame_roadmap.md) §4–§8 为准；各子版本的设计与实现细节见 `superpowers/specs/` 与 `superpowers/plans/` 下对应文档。
+>
+> **V0.3.8 怪物体系定型（最近一次结构调整）**：`MonsterCatalog` 收紧到 10 条 —— 3 archetype（Slime / Zombie / Dragon，对应难度桶 Normal / Spelling / Review / Elite / Boss-fallback）+ 7 童话风 boss（Witch / Phoenix / Unicorn / Kraken / Pumpkin King / Snow Queen / Imp King）。V0.2 时代留下的 10 条共用 slime 资产的颜色变种（`Lava Imp` / `Frost Wisp` 等）整体退役 —— boss 视觉多样性已经接管"每只怪不一样"的体验。`MonsterEntry` 新增 `assetPath` 字段；`assetPathForEntry(entry)` 优先读 entry-level 路径，空时 fallback 到 `characterAssetForKind(kind)`。`AdventureRegion.bossCandidates` 把 7 只 boss 分发到 3 个 region（Forest 4-6 / Castle 7-8 / Cottage 9-10），`TodayAdventureBuilder` 以 djb2 哈希 `${regionId}:${localDayKey}` 确定性挑选，每天同一 region 稳定同一只 boss。
 
 ### V0.4 复习与成长
 
