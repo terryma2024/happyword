@@ -53,8 +53,83 @@ struct WishlistPage {
         .fontColor('#1D3557');
       Scroll() {
         Column({ space: 12 }) {
+          // ArkUI reactivity note (v0.3.6 letter-spacing lesson, also seen
+          // when "申请兑换" silently no-op'd in v0.3.8): a parameterised
+          // @Builder body (e.g. `wishCard(wish: MagicWish)` reading
+          // `wish.state`) is NOT re-evaluated when the parameter object's
+          // properties change, because ArkUI's compile-time dependency
+          // analysis only tracks @State reads inside the Builder body's
+          // source. The cell stays frozen on its initial branch.
+          //
+          // Workaround: inline the per-cell layout + state-driven if/else
+          // directly inside the ForEach iterator lambda. ForEach's diff
+          // (keyed by w.id) re-runs the lambda for each item every time
+          // `this.wishes` is reassigned in `refresh()`, so the new item
+          // value (with updated `state`) drives a fresh sub-tree. No
+          // nested @Builder hop, no stale capture.
           ForEach(this.wishes, (w: MagicWish): void => {
-            this.wishCard(w);
+            Column({ space: 8 }) {
+              Row({ space: 12 }) {
+                Text(w.iconEmoji)
+                  .fontSize(32);
+                Column({ space: 4 }) {
+                  Text(w.displayName)
+                    .id(`WishName_${w.id}`)
+                    .fontSize(18)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor('#1D3557');
+                  Text(`${w.costCoins} ✨`)
+                    .fontSize(14)
+                    .fontColor('#FFB400');
+                }
+                .alignItems(HorizontalAlign.Start);
+              }
+              .width('100%')
+              .alignItems(VerticalAlign.Center);
+
+              if (w.state === WishState.Idle) {
+                if (this.balance >= w.costCoins) {
+                  Button('申请兑换')
+                    .id(`WishApply_${w.id}`)
+                    .width(140)
+                    .height(40)
+                    .backgroundColor('#E63946')
+                    .fontColor('#FFFFFF')
+                    .onClick((): void => {
+                      this.onApply(w.id);
+                    });
+                } else {
+                  Text(`还差 ${w.costCoins - this.balance} ✨`)
+                    .id(`WishGap_${w.id}`)
+                    .fontSize(13)
+                    .fontColor('#888888');
+                }
+              } else if (w.state === WishState.Pending) {
+                Column({ space: 4 }) {
+                  Text('等待家长确认 ⏳')
+                    .fontSize(13)
+                    .fontColor('#457B9D');
+                  ParentLongPressGate({
+                    label: '长按 3 秒由家长确认',
+                    onConfirm: (): void => {
+                      this.onParentConfirm(w.id);
+                    },
+                  });
+                }
+                .alignItems(HorizontalAlign.Center);
+              } else {
+                Text('已兑换 ✓')
+                  .id(`WishConfirmed_${w.id}`)
+                  .fontSize(14)
+                  .fontColor('#2ECC71');
+              }
+            }
+            .id(`WishCard_${w.id}`)
+            .width('92%')
+            .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+            .backgroundColor('#FFFFFF')
+            .borderRadius(14)
+            .shadow({ radius: 8, color: '#11000000', offsetX: 0, offsetY: 2 });
           }, (w: MagicWish): string => w.id);
         }
         .padding({ top: 8, bottom: 24 });
@@ -120,100 +195,4 @@ struct WishlistPage {
     }, ACK_DELAY_MS);
   }
 
-  /**
-   * Single wish row. Inlined as @Builder (formerly the WishCard
-   * @Component) per codelinter `avoid-overusing-custom-component`.
-   * Three visible states drive the bottom slot:
-   *   Idle      — Either "申请兑换" button (balance OK) or a
-   *               "还差 N ✨" hint that shows how much more the
-   *               child needs to earn.
-   *   Pending   — A ParentLongPressGate that fires onParentConfirm
-   *               after a 3-second hold.
-   *   Confirmed — Static "已兑换 ✓" badge until WishlistStore
-   *               acknowledges it back to Idle.
-   */
-  @Builder
-  private wishCard(wish: MagicWish) {
-    Column({ space: 8 }) {
-      Row({ space: 12 }) {
-        Text(wish.iconEmoji)
-          .fontSize(32);
-        Column({ space: 4 }) {
-          Text(wish.displayName)
-            .id(`WishName_${wish.id}`)
-            .fontSize(18)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#1D3557');
-          Text(`${wish.costCoins} ✨`)
-            .fontSize(14)
-            .fontColor('#FFB400');
-        }
-        .alignItems(HorizontalAlign.Start);
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Center);
-      this.wishCardBottom(wish);
-    }
-    .id(`WishCard_${wish.id}`)
-    .width('92%')
-    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-    .backgroundColor('#FFFFFF')
-    .borderRadius(14)
-    .shadow({ radius: 8, color: '#11000000', offsetX: 0, offsetY: 2 });
-  }
-
-  @Builder
-  private wishCardBottom(wish: MagicWish) {
-    if (wish.state === WishState.Idle) {
-      this.wishCardIdleBottom(wish);
-    } else if (wish.state === WishState.Pending) {
-      this.wishCardPendingBottom(wish);
-    } else {
-      this.wishCardConfirmedBottom(wish);
-    }
-  }
-
-  @Builder
-  private wishCardIdleBottom(wish: MagicWish) {
-    if (this.balance >= wish.costCoins) {
-      Button('申请兑换')
-        .id(`WishApply_${wish.id}`)
-        .width(140)
-        .height(40)
-        .backgroundColor('#E63946')
-        .fontColor('#FFFFFF')
-        .onClick((): void => {
-          this.onApply(wish.id);
-        });
-    } else {
-      Text(`还差 ${wish.costCoins - this.balance} ✨`)
-        .id(`WishGap_${wish.id}`)
-        .fontSize(13)
-        .fontColor('#888888');
-    }
-  }
-
-  @Builder
-  private wishCardPendingBottom(wish: MagicWish) {
-    Column({ space: 4 }) {
-      Text('等待家长确认 ⏳')
-        .fontSize(13)
-        .fontColor('#457B9D');
-      ParentLongPressGate({
-        label: '长按 3 秒由家长确认',
-        onConfirm: (): void => {
-          this.onParentConfirm(wish.id);
-        },
-      });
-    }
-    .alignItems(HorizontalAlign.Center);
-  }
-
-  @Builder
-  private wishCardConfirmedBottom(wish: MagicWish) {
-    Text('已兑换 ✓')
-      .id(`WishConfirmed_${wish.id}`)
-      .fontSize(14)
-      .fontColor('#2ECC71');
-  }
 }
