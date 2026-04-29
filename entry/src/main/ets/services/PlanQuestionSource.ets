@@ -3,6 +3,7 @@ import { WordEntry } from '../models/WordEntry';
 import { WordRepository } from './WordRepository';
 import { QuestionGenerator } from './QuestionGenerator';
 import { FillLetterGenerator } from './FillLetterGenerator';
+import { SpellGenerator } from './SpellGenerator';
 import { IQuestionSource } from './IQuestionSource';
 import {
   TodaySessionPlan,
@@ -21,10 +22,16 @@ export type MonsterIndexProvider = () => number;
 /**
  * PlanQuestionSource — IQuestionSource that walks `plan.wordPlan`
  * deterministically while letting the current monster's
- * MonsterKind decide whether to render Choice or FillLetter
- * questions. Spelling and Boss monsters always emit FillLetter
- * (degrades to Choice when FillLetterGenerator returns undefined,
- * e.g. for two-letter words). Normal/Review/Elite emit Choice.
+ * MonsterKind decide what kind of question to render.
+ *
+ *   Normal / Review               -> Choice
+ *   Spelling                      -> FillLetter (1 blank), degrades to Choice
+ *   Elite                         -> FillLetterMedium (2 blanks), degrades to FillLetter -> Choice
+ *   Boss                          -> Spell (full word), degrades to FillLetterMedium -> FillLetter -> Choice
+ *
+ * V0.4.1 split Boss from the previous shared Elite/Boss branch so
+ * the Boss tier could insert SpellGenerator at the head of its
+ * fallback chain without changing Elite behaviour.
  *
  * Cycling: when wordPlan runs out the source wraps back to index
  * 0 so a long battle never stalls. The skip-last-word constraint
@@ -35,6 +42,7 @@ export class PlanQuestionSource implements IQuestionSource {
   private readonly repo: WordRepository;
   private readonly choiceGen: QuestionGenerator;
   private readonly fillGen: FillLetterGenerator;
+  private readonly spellGen: SpellGenerator;
   private monsterIndexProvider: MonsterIndexProvider;
   private cursor: number = 0;
 
@@ -42,12 +50,14 @@ export class PlanQuestionSource implements IQuestionSource {
     plan: TodaySessionPlan,
     repo: WordRepository,
     choiceGen: QuestionGenerator,
-    fillGen: FillLetterGenerator
+    fillGen: FillLetterGenerator,
+    spellGen: SpellGenerator
   ) {
     this.plan = plan;
     this.repo = repo;
     this.choiceGen = choiceGen;
     this.fillGen = fillGen;
+    this.spellGen = spellGen;
     this.monsterIndexProvider = (): number => 1;
   }
 
@@ -58,7 +68,22 @@ export class PlanQuestionSource implements IQuestionSource {
   nextQuestion(lastWordId?: string): Question {
     const word: WordEntry = this.pickWord(lastWordId);
     const kind: MonsterKind = this.currentMonsterKind();
-    if (kind === MonsterKind.Elite || kind === MonsterKind.Boss) {
+    if (kind === MonsterKind.Boss) {
+      const spell: Question | undefined = this.spellGen.generate(word);
+      if (spell !== undefined) {
+        return spell;
+      }
+      const medium: Question | undefined = this.fillGen.generateMedium(word);
+      if (medium !== undefined) {
+        return medium;
+      }
+      const beginner: Question | undefined = this.fillGen.generate(word);
+      if (beginner !== undefined) {
+        return beginner;
+      }
+      return this.choiceGen.nextQuestionForWord(word, lastWordId);
+    }
+    if (kind === MonsterKind.Elite) {
       const medium: Question | undefined = this.fillGen.generateMedium(word);
       if (medium !== undefined) {
         return medium;

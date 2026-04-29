@@ -6,6 +6,7 @@ import { ChoiceButton, ChoiceState } from '../components/ChoiceButton';
 import { WordRepository } from '../services/WordRepository';
 import { QuestionGenerator } from '../services/QuestionGenerator';
 import { FillLetterGenerator } from '../services/FillLetterGenerator';
+import { SpellGenerator } from '../services/SpellGenerator';
 import { IQuestionSource } from '../services/IQuestionSource';
 import { PlanQuestionSource } from '../services/PlanQuestionSource';
 import {
@@ -359,9 +360,10 @@ struct BattlePage {
           const bundleRepo: WordRepository = new WordRepository();
           bundleRepo.setEntries(repo.all());
           const fillGen: FillLetterGenerator = new FillLetterGenerator();
+          const spellGen: SpellGenerator = new SpellGenerator();
           const planChoiceGen: QuestionGenerator = new QuestionGenerator(bundleRepo);
           const planSource: PlanQuestionSource = new PlanQuestionSource(
-            plan, bundleRepo, planChoiceGen, fillGen);
+            plan, bundleRepo, planChoiceGen, fillGen, spellGen);
           source = planSource;
           planMonsters = plan.monsterSlots.length;
           // The provider is wired right after engine construction so the

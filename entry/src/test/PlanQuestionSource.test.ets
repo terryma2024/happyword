@@ -5,6 +5,7 @@ import { Question, QuestionKind } from '../main/ets/models/Question';
 import { WordRepository } from '../main/ets/services/WordRepository';
 import { QuestionGenerator } from '../main/ets/services/QuestionGenerator';
 import { FillLetterGenerator } from '../main/ets/services/FillLetterGenerator';
+import { SpellGenerator } from '../main/ets/services/SpellGenerator';
 import { PlanQuestionSource } from '../main/ets/services/PlanQuestionSource';
 import {
   MonsterPlan,
@@ -36,6 +37,8 @@ function makeRepo(): WordRepository {
     makeWord('fruit-mango', 'mango'),
     makeWord('place-zoo', 'zoo'),
     makeWord('home-tv', 'TV'),
+    makeWord('w-extraordinary', 'extraordinary'),
+    makeWord('w-fish', 'fish'),
   ]);
   return repo;
 }
@@ -58,6 +61,22 @@ function planWith(monsterKinds: MonsterKind[], wordIds: string[]): TodaySessionP
   return plan;
 }
 
+function buildSrc(
+  plan: TodaySessionPlan,
+  repo: WordRepository,
+  seedQ: number,
+  seedFill: number,
+  seedSpell: number,
+): PlanQuestionSource {
+  return new PlanQuestionSource(
+    plan,
+    repo,
+    new QuestionGenerator(repo, mulberry32(seedQ)),
+    new FillLetterGenerator(mulberry32(seedFill)),
+    new SpellGenerator(mulberry32(seedSpell)),
+  );
+}
+
 export default function planQuestionSourceTest() {
   describe('PlanQuestionSource', () => {
     it('emitsChoiceForNormalMonsterByDefault', 0, () => {
@@ -66,12 +85,7 @@ export default function planQuestionSourceTest() {
         [MonsterKind.Normal, MonsterKind.Normal],
         ['fruit-apple', 'fruit-banana']
       );
-      const src: PlanQuestionSource = new PlanQuestionSource(
-        plan,
-        repo,
-        new QuestionGenerator(repo, mulberry32(1)),
-        new FillLetterGenerator(mulberry32(2))
-      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 1, 2, 3);
       src.setMonsterIndexProvider((): number => 1);
       const q: Question = src.nextQuestion();
       expect(q.kind).assertEqual(QuestionKind.Choice);
@@ -84,12 +98,7 @@ export default function planQuestionSourceTest() {
         [MonsterKind.Spelling],
         ['fruit-banana', 'fruit-orange']
       );
-      const src: PlanQuestionSource = new PlanQuestionSource(
-        plan,
-        repo,
-        new QuestionGenerator(repo, mulberry32(1)),
-        new FillLetterGenerator(mulberry32(2))
-      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 1, 2, 3);
       src.setMonsterIndexProvider((): number => 1);
       const q: Question = src.nextQuestion();
       expect(q.kind).assertEqual(QuestionKind.FillLetter);
@@ -97,18 +106,82 @@ export default function planQuestionSourceTest() {
       expect(q.missingIndex >= 1).assertTrue();
     });
 
-    it('emitsFillLetterForBossMonster', 0, () => {
+    it('emitsSpellForBossMonsterWithFiveLetterWord', 0, () => {
       const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Boss],
+        ['fruit-apple']
+      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 1, 2, 3);
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.Spell);
+      expect(q.spellLetters.length).assertEqual(5);
+      expect(q.spellRevealedMask[0]).assertTrue();
+      expect(q.spellPool.length).assertEqual(4);
+    });
+
+    it('emitsSpellForBossMonsterWithSixLetterWord', 0, () => {
+      const repo: WordRepository = makeRepo();
+      // 'orange' has 6 alphabetic letters — within Spell's 4-9 gate.
       const plan: TodaySessionPlan = planWith(
         [MonsterKind.Boss],
         ['fruit-orange']
       );
-      const src: PlanQuestionSource = new PlanQuestionSource(
-        plan,
-        repo,
-        new QuestionGenerator(repo, mulberry32(1)),
-        new FillLetterGenerator(mulberry32(2))
+      const src: PlanQuestionSource = buildSrc(plan, repo, 1, 2, 3);
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.Spell);
+    });
+
+    it('bossWithFourLetterWordEmitsSpellAtBoundary', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Boss],
+        ['w-fish']
       );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 4, 5, 6);
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.Spell);
+      expect(q.spellLetters.length).assertEqual(4);
+    });
+
+    it('bossWithThreeLetterWordFallsBackToFillLetter', 0, () => {
+      const repo: WordRepository = makeRepo();
+      // 'zoo' has 3 letters: spell undefined; medium undefined; fill-letter works.
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Boss],
+        ['place-zoo']
+      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 7, 8, 9);
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.FillLetter);
+    });
+
+    it('bossWithTwoLetterWordFallsBackToChoice', 0, () => {
+      const repo: WordRepository = makeRepo();
+      // 'TV' has 2 alphabetic letters: spell, medium, and fill-letter all undefined.
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Boss],
+        ['home-tv']
+      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 10, 11, 12);
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.Choice);
+      expect(q.options.length).assertEqual(3);
+    });
+
+    it('bossWithLongWordFallsBackToFillLetterMedium', 0, () => {
+      const repo: WordRepository = makeRepo();
+      // 'extraordinary' has 13 letters: spell undefined (>9), medium works.
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Boss],
+        ['w-extraordinary']
+      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 13, 14, 15);
       src.setMonsterIndexProvider((): number => 1);
       const q: Question = src.nextQuestion();
       expect(q.kind).assertEqual(QuestionKind.FillLetterMedium);
@@ -120,16 +193,25 @@ export default function planQuestionSourceTest() {
         [MonsterKind.Elite],
         ['fruit-banana']
       );
-      const src: PlanQuestionSource = new PlanQuestionSource(
-        plan,
-        repo,
-        new QuestionGenerator(repo, mulberry32(3)),
-        new FillLetterGenerator(mulberry32(4))
-      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 3, 4, 5);
       src.setMonsterIndexProvider((): number => 1);
       const q: Question = src.nextQuestion();
       expect(q.kind).assertEqual(QuestionKind.FillLetterMedium);
       expect(q.missingIndices.length).assertEqual(2);
+    });
+
+    it('eliteNeverEmitsSpellEvenWithLongEnoughWord', 0, () => {
+      const repo: WordRepository = makeRepo();
+      // V0.4.1 regression guard: Boss split off from Elite, but Elite must
+      // continue to emit FillLetterMedium for 4-9 letter words, never Spell.
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Elite],
+        ['fruit-orange']
+      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 16, 17, 18);
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.FillLetterMedium);
     });
 
     it('spellingSlotStillEmitsBeginnerFillLetter', 0, () => {
@@ -138,12 +220,7 @@ export default function planQuestionSourceTest() {
         [MonsterKind.Spelling],
         ['fruit-apple']
       );
-      const src: PlanQuestionSource = new PlanQuestionSource(
-        plan,
-        repo,
-        new QuestionGenerator(repo, mulberry32(5)),
-        new FillLetterGenerator(mulberry32(6))
-      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 5, 6, 7);
       src.setMonsterIndexProvider((): number => 1);
       const q: Question = src.nextQuestion();
       expect(q.kind).assertEqual(QuestionKind.FillLetter);
@@ -157,12 +234,7 @@ export default function planQuestionSourceTest() {
         [MonsterKind.Elite],
         ['place-zoo']
       );
-      const srcZoo: PlanQuestionSource = new PlanQuestionSource(
-        planZoo,
-        repo,
-        new QuestionGenerator(repo, mulberry32(7)),
-        new FillLetterGenerator(mulberry32(8))
-      );
+      const srcZoo: PlanQuestionSource = buildSrc(planZoo, repo, 7, 8, 9);
       srcZoo.setMonsterIndexProvider((): number => 1);
       const qZoo: Question = srcZoo.nextQuestion();
       expect(qZoo.kind).assertEqual(QuestionKind.FillLetter);
@@ -172,12 +244,7 @@ export default function planQuestionSourceTest() {
         [MonsterKind.Elite],
         ['home-tv']
       );
-      const srcTv: PlanQuestionSource = new PlanQuestionSource(
-        planTv,
-        repo,
-        new QuestionGenerator(repo, mulberry32(9)),
-        new FillLetterGenerator(mulberry32(10))
-      );
+      const srcTv: PlanQuestionSource = buildSrc(planTv, repo, 9, 10, 11);
       srcTv.setMonsterIndexProvider((): number => 1);
       const qTv: Question = srcTv.nextQuestion();
       expect(qTv.kind).assertEqual(QuestionKind.Choice);
@@ -190,12 +257,7 @@ export default function planQuestionSourceTest() {
         [MonsterKind.Normal],
         ['fruit-apple', 'fruit-banana']
       );
-      const src: PlanQuestionSource = new PlanQuestionSource(
-        plan,
-        repo,
-        new QuestionGenerator(repo, mulberry32(1)),
-        new FillLetterGenerator(mulberry32(2))
-      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 1, 2, 3);
       src.setMonsterIndexProvider((): number => 1);
       const ids: string[] = [];
       for (let i = 0; i < 5; i++) {
@@ -216,12 +278,7 @@ export default function planQuestionSourceTest() {
         [MonsterKind.Normal, MonsterKind.Spelling],
         ['fruit-apple', 'fruit-banana', 'fruit-orange', 'fruit-grape']
       );
-      const src: PlanQuestionSource = new PlanQuestionSource(
-        plan,
-        repo,
-        new QuestionGenerator(repo, mulberry32(1)),
-        new FillLetterGenerator(mulberry32(2))
-      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 1, 2, 3);
       let monster: number = 1;
       src.setMonsterIndexProvider((): number => monster);
       const q1: Question = src.nextQuestion();
@@ -237,12 +294,7 @@ export default function planQuestionSourceTest() {
         [MonsterKind.Normal],
         ['fruit-apple', 'fruit-banana']
       );
-      const src: PlanQuestionSource = new PlanQuestionSource(
-        plan,
-        repo,
-        new QuestionGenerator(repo, mulberry32(1)),
-        new FillLetterGenerator(mulberry32(2))
-      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 1, 2, 3);
       src.setMonsterIndexProvider((): number => 1);
       const next: Question = src.nextQuestion('fruit-apple');
       expect(next.wordId === 'fruit-apple').assertFalse();
