@@ -1388,6 +1388,29 @@ export default function localUnitTest() {
       }
       expect(original.customWordsRaw).assertEqual(beforeRaw);
     });
+
+    it('parentPinDefaultsToEmptyString', 0, () => {
+      const c: GameConfig = new GameConfig();
+      expect(c.parentPin).assertEqual('');
+    });
+
+    it('cloneCopiesParentPinIndependently', 0, () => {
+      const src: GameConfig = new GameConfig();
+      src.parentPin = '123456';
+      const dst: GameConfig = cloneGameConfig(src);
+      expect(dst.parentPin).assertEqual('123456');
+      src.parentPin = '999999';
+      expect(dst.parentPin).assertEqual('123456');
+    });
+
+    it('cloneCoercesUndefinedParentPinToEmptyString', 0, () => {
+      const src: GameConfig = new GameConfig();
+      // Simulate a legacy AppStorage snapshot rehydrated before
+      // the parentPin field existed: explicitly drop it.
+      (src as object as Record<string, ESObject>)['parentPin'] = undefined;
+      const dst: GameConfig = cloneGameConfig(src);
+      expect(dst.parentPin).assertEqual('');
+    });
   });
 
   describe('GameConfig.parseCustomWords', () => {
