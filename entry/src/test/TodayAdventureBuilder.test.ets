@@ -43,6 +43,26 @@ function makeRegion(): AdventureRegion {
   return r;
 }
 
+function makeRegionWithBoss(id: string, candidates: number[]): AdventureRegion {
+  const r: AdventureRegion = new AdventureRegion();
+  r.id = id;
+  r.themeWordCategories = ['fruit'];
+  const plan: MonsterPlan = new MonsterPlan();
+  const slots: MonsterSlot[] = [];
+  for (let i: number = 0; i < MONSTER_PLAN_SLOT_COUNT; i++) {
+    const s: MonsterSlot = new MonsterSlot();
+    // Last slot is Boss to mirror real region templates; earlier
+    // slots stay Normal so the override leak check is trivial.
+    s.kind = i === MONSTER_PLAN_SLOT_COUNT - 1 ? MonsterKind.Boss : MonsterKind.Normal;
+    s.catalogIndex = i + 1;
+    slots.push(s);
+  }
+  plan.slots = slots;
+  r.monsterPlan = plan;
+  r.bossCandidates = candidates;
+  return r;
+}
+
 function makeRepo(): WordRepository {
   const repo: WordRepository = new WordRepository();
   const words: WordEntry[] = [];
@@ -164,6 +184,81 @@ export default function todayAdventureBuilderTest() {
         ids.add(plan.wordPlan[i].wordId);
       }
       expect(ids.size).assertEqual(4);
+    });
+  });
+
+  describe('TodayAdventureBuilder.bossRotation (V0.3.8)', () => {
+    const ONE_DAY: number = 24 * 60 * 60 * 1000;
+
+    it('sameRegionSameDayPicksSameBoss', 0, () => {
+      const region: AdventureRegion = makeRegionWithBoss('test-region', [4, 5, 6]);
+      const repo: WordRepository = makeRepo();
+      const rec: LearningRecorder = new LearningRecorder();
+      const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
+      const p1: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
+      const p2: TodaySessionPlan = b.build(region, repo, rec, NOW + 60_000, false);
+      const last: number = p1.monsterSlots.length - 1;
+      expect(p1.monsterSlots[last].catalogIndex).assertEqual(p2.monsterSlots[last].catalogIndex);
+    });
+
+    it('regionWithoutBossCandidatesPreservesTemplateSlot', 0, () => {
+      const region: AdventureRegion = makeRegionWithBoss('no-boss-region', []);
+      const repo: WordRepository = makeRepo();
+      const rec: LearningRecorder = new LearningRecorder();
+      const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
+      const p: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
+      const last: number = p.monsterSlots.length - 1;
+      expect(p.monsterSlots[last].catalogIndex).assertEqual(MONSTER_PLAN_SLOT_COUNT);
+      expect(p.monsterSlots[last].kind).assertEqual(MonsterKind.Boss);
+    });
+
+    it('overrideOnlyTouchesLastSlot', 0, () => {
+      const region: AdventureRegion = makeRegionWithBoss('forest-test', [4, 5, 6]);
+      const repo: WordRepository = makeRepo();
+      const rec: LearningRecorder = new LearningRecorder();
+      const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
+      const p: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
+      for (let i: number = 0; i < p.monsterSlots.length - 1; i++) {
+        expect(p.monsterSlots[i].catalogIndex).assertEqual(region.monsterPlan.slots[i].catalogIndex);
+        expect(p.monsterSlots[i].kind).assertEqual(region.monsterPlan.slots[i].kind);
+      }
+    });
+
+    it('chosenBossIndexIsAlwaysFromCandidates', 0, () => {
+      const region: AdventureRegion = makeRegionWithBoss('forest-test', [4, 5, 6]);
+      const repo: WordRepository = makeRepo();
+      const rec: LearningRecorder = new LearningRecorder();
+      const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
+      const allHit: Set<number> = new Set<number>();
+      let now: number = NOW;
+      for (let d: number = 0; d < 14; d++) {
+        const p: TodaySessionPlan = b.build(region, repo, rec, now, false);
+        const last: number = p.monsterSlots.length - 1;
+        const idx: number = p.monsterSlots[last].catalogIndex;
+        expect(idx === 4 || idx === 5 || idx === 6).assertTrue();
+        allHit.add(idx);
+        now += ONE_DAY;
+      }
+      // 14 days against 3 candidates with djb2 hash — extremely unlikely
+      // to land on a single candidate. Assert >= 2 distinct hits.
+      expect(allHit.size >= 2).assertTrue();
+    });
+
+    it('differentRegionsCanPickDifferentBossesOnSameDay', 0, () => {
+      const forest: AdventureRegion = makeRegionWithBoss('fruit-forest', [4, 5, 6]);
+      const castle: AdventureRegion = makeRegionWithBoss('school-castle', [7, 8]);
+      const repo: WordRepository = makeRepo();
+      const rec: LearningRecorder = new LearningRecorder();
+      const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
+      const pForest: TodaySessionPlan = b.build(forest, repo, rec, NOW, false);
+      const pCastle: TodaySessionPlan = b.build(castle, repo, rec, NOW, false);
+      const last: number = pForest.monsterSlots.length - 1;
+      // Disjoint candidate ranges guarantee non-equal indices when
+      // both override paths fire.
+      expect(pForest.monsterSlots[last].catalogIndex).assertLarger(3);
+      expect(pForest.monsterSlots[last].catalogIndex).assertLess(7);
+      expect(pCastle.monsterSlots[last].catalogIndex).assertLarger(6);
+      expect(pCastle.monsterSlots[last].catalogIndex).assertLess(9);
     });
   });
 }

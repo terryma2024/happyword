@@ -36,6 +36,9 @@ const FRUIT_FOREST: AdventureRegion = (() => {
     slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
+  // V0.3.8: Forest hosts Pumpkin King / Imp King / Phoenix; rotated
+  // per local day by TodayAdventureBuilder.
+  r.bossCandidates = [4, 5, 6];
   return r;
 })();
 
@@ -56,6 +59,8 @@ const SCHOOL_CASTLE: AdventureRegion = (() => {
     slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
+  // V0.3.8: Castle hosts Witch / Snow Queen.
+  r.bossCandidates = [7, 8];
   return r;
 })();
 
@@ -76,6 +81,9 @@ const HOME_COTTAGE: AdventureRegion = (() => {
     slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
+  // V0.3.8: Cottage hosts Unicorn / Kraken (Kraken will migrate to a
+  // future ocean region in v0.4).
+  r.bossCandidates = [9, 10];
   return r;
 })();
 

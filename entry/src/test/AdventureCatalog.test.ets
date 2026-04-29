@@ -69,4 +69,52 @@ export default function adventureCatalogTest() {
       }
     });
   });
+
+  describe('V0.3.8 region bossCandidates', () => {
+    it('forestHostsThreeBossCandidatesForestRange', 0, () => {
+      const r: AdventureRegion = getRegionById('fruit-forest');
+      expect(r.bossCandidates.length).assertEqual(3);
+      // V0.3.8 (post V0.2 retirement): bosses occupy catalog 4..10.
+      // Forest owns the first three (Pumpkin King / Imp King / Phoenix).
+      for (let i: number = 0; i < r.bossCandidates.length; i++) {
+        const v: number = r.bossCandidates[i];
+        expect(v >= 4 && v <= 6).assertTrue();
+      }
+    });
+
+    it('castleHostsTwoBossCandidatesCastleRange', 0, () => {
+      const r: AdventureRegion = getRegionById('school-castle');
+      expect(r.bossCandidates.length).assertEqual(2);
+      // Castle owns Witch / Snow Queen at catalog 7..8.
+      for (let i: number = 0; i < r.bossCandidates.length; i++) {
+        const v: number = r.bossCandidates[i];
+        expect(v >= 7 && v <= 8).assertTrue();
+      }
+    });
+
+    it('cottageHostsTwoBossCandidatesCottageRange', 0, () => {
+      const r: AdventureRegion = getRegionById('home-cottage');
+      expect(r.bossCandidates.length).assertEqual(2);
+      // Cottage owns Unicorn / Kraken at catalog 9..10.
+      for (let i: number = 0; i < r.bossCandidates.length; i++) {
+        const v: number = r.bossCandidates[i];
+        expect(v >= 9 && v <= 10).assertTrue();
+      }
+    });
+
+    it('bossCandidatesUnionCoversAllSevenIndicesUniquely', 0, () => {
+      const seen: Set<number> = new Set<number>();
+      for (let i: number = 0; i < ADVENTURE_REGIONS.length; i++) {
+        const cands: number[] = ADVENTURE_REGIONS[i].bossCandidates;
+        for (let j: number = 0; j < cands.length; j++) {
+          expect(seen.has(cands[j])).assertFalse();
+          seen.add(cands[j]);
+        }
+      }
+      expect(seen.size).assertEqual(7);
+      for (let i: number = 4; i <= 10; i++) {
+        expect(seen.has(i)).assertTrue();
+      }
+    });
+  });
 }

@@ -12,14 +12,20 @@ import {
  *
  * These pin the spec's invariants so future edits to the catalog
  * (adding a monster, swapping a color) keep the roster well-formed:
- *   - At least MONSTER_COUNT_MAX entries (cap is currently 10).
+ *   - Exactly 10 entries (3 archetypes + 7 bosses) — also matches
+ *     MONSTER_COUNT_MAX so a free-play 10-monster battle never
+ *     mod-wraps mid-session.
  *   - Names are unique.
  *   - Fills and strokes are unique within their channel.
- *   - No catalog color falls in the mage's purple hue band
+ *   - No saturated catalog color falls in the mage's purple hue band
  *     [240 deg, 300 deg], so children always see the monster as
  *     visually distinct from the wizard.
  *   - getMonsterByIndex is 1-based and mod-wraps on overflow so a
  *     future MONSTER_COUNT_MAX above 10 cannot crash a battle.
+ *
+ * V0.3.8: the V0.2 colored slime variants (Lava Imp / Frost Wisp / …)
+ * have been retired. Boss diversity now provides per-monster visual
+ * variety; the lone slime SVG carries the Normal archetype.
  */
 
 const MONSTER_COUNT_CAP: number = 10;
@@ -60,8 +66,11 @@ function hexToHsl(hex: string): HslColor {
 
 export default function monsterCatalogTest() {
   describe('MonsterCatalog', () => {
-    it('hasAtLeastMonsterCountCapEntries', 0, () => {
-      expect(MONSTER_CATALOG.length >= MONSTER_COUNT_CAP).assertTrue();
+    it('hasExactlyMonsterCountCapEntries', 0, () => {
+      // V0.3.8: catalog is now a tight 10 entries (3 archetypes + 7
+      // bosses). Pin "exactly" rather than "at least" so an accidental
+      // V0.2-style colored-variant re-introduction trips this guard.
+      expect(MONSTER_CATALOG.length).assertEqual(MONSTER_COUNT_CAP);
     });
 
     it('allNamesAreUnique', 0, () => {
@@ -98,10 +107,10 @@ export default function monsterCatalogTest() {
       //
       // Achromatic exception: colors with saturation < 0.10 (near-grey)
       // are visually neutral regardless of where the hex math places
-      // their hue. Ash Imp (#6E6E73 / #2C2C2E) has the channel order
-      // B>R=G which mathematically lands hue at exactly 240 deg, but
-      // the saturation is ~2% so a child reads it as smoky grey, not
-      // purple. Skip the hue check for these.
+      // their hue. The current compact catalog has no such entries,
+      // but the floor is kept defensive in case a future archetype
+      // adopts a smoky grey palette that lands the hue math at the
+      // 240-degree boundary purely on rounding.
       const SATURATION_FLOOR: number = 0.10;
       for (let i = 0; i < MONSTER_CATALOG.length; i++) {
         const fillHsl: HslColor = hexToHsl(MONSTER_CATALOG[i].fill);
@@ -115,17 +124,19 @@ export default function monsterCatalogTest() {
       }
     });
 
-    it('getMonsterByIndexReturnsLavaImpForOne', 0, () => {
+    it('getMonsterByIndexReturnsSlimeForOne', 0, () => {
+      // V0.3.8: archetype Slime now occupies catalogIndex 1 after the
+      // V0.2 colored-variant retirement.
       const m: MonsterEntry = getMonsterByIndex(1);
-      expect(m.name).assertEqual('Lava Imp');
+      expect(m.name).assertEqual('Slime');
     });
 
-    it('getMonsterByIndexReturnsFrostWispForTwo', 0, () => {
+    it('getMonsterByIndexReturnsZombieForTwo', 0, () => {
       const m: MonsterEntry = getMonsterByIndex(2);
-      expect(m.name).assertEqual('Frost Wisp');
+      expect(m.name).assertEqual('Zombie');
     });
 
-    it('getMonsterByIndexModWrapsAtElevenToFirstEntry', 0, () => {
+    it('getMonsterByIndexModWrapsBeyondCatalogToFirstEntry', 0, () => {
       const first: MonsterEntry = getMonsterByIndex(1);
       const wrapped: MonsterEntry = getMonsterByIndex(MONSTER_CATALOG.length + 1);
       expect(wrapped.name).assertEqual(first.name);
@@ -154,19 +165,73 @@ export default function monsterCatalogTest() {
     });
   });
 
-  describe('V0.3.5 archetype entries + mapping', () => {
+  describe('V0.3.5 archetype entries + mapping (V0.3.8 indices)', () => {
     it('addsSlimeZombieDragonAtExpectedIndices', 0, () => {
-      expect(getMonsterByIndex(11).name).assertEqual('Slime');
-      expect(getMonsterByIndex(12).name).assertEqual('Zombie');
-      expect(getMonsterByIndex(13).name).assertEqual('Dragon');
+      // V0.3.8: post V0.2 cleanup, archetypes occupy 1..3.
+      expect(getMonsterByIndex(1).name).assertEqual('Slime');
+      expect(getMonsterByIndex(2).name).assertEqual('Zombie');
+      expect(getMonsterByIndex(3).name).assertEqual('Dragon');
     });
 
     it('monsterIndexForKindMapsDifficultyToArchetype', 0, () => {
-      expect(monsterIndexForKind(MonsterKind.Normal)).assertEqual(11);
-      expect(monsterIndexForKind(MonsterKind.Spelling)).assertEqual(12);
-      expect(monsterIndexForKind(MonsterKind.Review)).assertEqual(12);
-      expect(monsterIndexForKind(MonsterKind.Elite)).assertEqual(13);
-      expect(monsterIndexForKind(MonsterKind.Boss)).assertEqual(13);
+      expect(monsterIndexForKind(MonsterKind.Normal)).assertEqual(1);
+      expect(monsterIndexForKind(MonsterKind.Spelling)).assertEqual(2);
+      expect(monsterIndexForKind(MonsterKind.Review)).assertEqual(2);
+      expect(monsterIndexForKind(MonsterKind.Elite)).assertEqual(3);
+      // Boss falls back to Dragon's archetype index — region-specific
+      // bosses override slot 5 via AdventureRegion.bossCandidates +
+      // TodayAdventureBuilder rotation, so this fallback only applies
+      // to free-play / non-Today modes.
+      expect(monsterIndexForKind(MonsterKind.Boss)).assertEqual(3);
+    });
+
+    it('archetypeEntriesHaveEmptyAssetPath', 0, () => {
+      // The 3 archetype entries fall back to characterAssetForKind via
+      // assetPathForEntry; only bosses carry an explicit assetPath.
+      for (let i: number = 1; i <= 3; i++) {
+        expect(getMonsterByIndex(i).assetPath).assertEqual('');
+      }
+    });
+  });
+
+  describe('V0.3.8 boss entries', () => {
+    it('bossEntriesAtExpectedIndices', 0, () => {
+      // V0.3.8 (post V0.2 retirement): bosses occupy catalogIndex 4..10.
+      expect(getMonsterByIndex(4).name).assertEqual('Pumpkin King');
+      expect(getMonsterByIndex(5).name).assertEqual('Imp King');
+      expect(getMonsterByIndex(6).name).assertEqual('Phoenix');
+      expect(getMonsterByIndex(7).name).assertEqual('Witch');
+      expect(getMonsterByIndex(8).name).assertEqual('Snow Queen');
+      expect(getMonsterByIndex(9).name).assertEqual('Unicorn');
+      expect(getMonsterByIndex(10).name).assertEqual('Kraken');
+    });
+
+    it('bossEntriesAreAllKindBoss', 0, () => {
+      for (let i: number = 4; i <= 10; i++) {
+        expect(getMonsterByIndex(i).kind).assertEqual(MonsterKind.Boss);
+      }
+    });
+
+    it('bossEntriesHaveNonEmptyAssetPath', 0, () => {
+      for (let i: number = 4; i <= 10; i++) {
+        const m: MonsterEntry = getMonsterByIndex(i);
+        expect(m.assetPath.length > 0).assertTrue();
+        expect(m.assetPath.indexOf('character/')).assertEqual(0);
+        expect(m.assetPath.endsWith('.svg')).assertTrue();
+      }
+    });
+
+    it('bossAssetPathsAreUnique', 0, () => {
+      const seen: Set<string> = new Set<string>();
+      for (let i: number = 4; i <= 10; i++) {
+        const p: string = getMonsterByIndex(i).assetPath;
+        expect(seen.has(p)).assertFalse();
+        seen.add(p);
+      }
+      // Also distinct from the three archetype assets used via fallback.
+      expect(seen.has('character/slime.svg')).assertFalse();
+      expect(seen.has('character/zombie.svg')).assertFalse();
+      expect(seen.has('character/dragon.svg')).assertFalse();
     });
   });
 }

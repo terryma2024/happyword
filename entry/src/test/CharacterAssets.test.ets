@@ -1,6 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { MonsterKind } from '../main/ets/data/MonsterCatalog';
+import { MonsterEntry, MonsterKind, MONSTER_CATALOG } from '../main/ets/data/MonsterCatalog';
 import {
+  assetPathForEntry,
   characterAssetForKind,
   PLAYER_CHARACTER_ASSET,
 } from '../main/ets/data/CharacterAssets';
@@ -38,6 +39,45 @@ export default function characterAssetsTests() {
         expect(paths[i].startsWith('character/')).assertTrue();
         expect(paths[i].endsWith('.svg')).assertTrue();
       }
+    });
+  });
+
+  describe('V0.3.8 assetPathForEntry', () => {
+    it('honorsExplicitAssetPath', 0, () => {
+      const e: MonsterEntry = new MonsterEntry();
+      e.kind = MonsterKind.Boss;
+      e.assetPath = 'character/witch.svg';
+      expect(assetPathForEntry(e)).assertEqual('character/witch.svg');
+    });
+
+    it('fallsBackForEmptyPathOnNormalKind', 0, () => {
+      const e: MonsterEntry = new MonsterEntry();
+      e.kind = MonsterKind.Normal;
+      expect(assetPathForEntry(e)).assertEqual(characterAssetForKind(MonsterKind.Normal));
+    });
+
+    it('fallsBackForEmptyPathOnBossKind', 0, () => {
+      const e: MonsterEntry = new MonsterEntry();
+      e.kind = MonsterKind.Boss;
+      expect(assetPathForEntry(e)).assertEqual(characterAssetForKind(MonsterKind.Boss));
+    });
+
+    it('resolvesEveryCatalogEntryToNonEmptySvgPath', 0, () => {
+      for (let i: number = 0; i < MONSTER_CATALOG.length; i++) {
+        const path: string = assetPathForEntry(MONSTER_CATALOG[i]);
+        expect(path.length > 0).assertTrue();
+        expect(path.startsWith('character/')).assertTrue();
+        expect(path.endsWith('.svg')).assertTrue();
+      }
+    });
+
+    it('explicitPathBeatsKindBucketEvenForLegacyArchetype', 0, () => {
+      // Override demonstrates the "explicit wins" rule even when the
+      // entry is kind=Normal (whose fallback is slime.svg).
+      const e: MonsterEntry = new MonsterEntry();
+      e.kind = MonsterKind.Normal;
+      e.assetPath = 'character/witch.svg';
+      expect(assetPathForEntry(e)).assertEqual('character/witch.svg');
     });
   });
 }

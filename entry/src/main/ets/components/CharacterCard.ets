@@ -34,10 +34,11 @@ export enum CharacterKind {
 @Component
 export struct CharacterCard {
   kind: CharacterKind = CharacterKind.Mage;
-  // Must be @Prop so the slime's name updates when BattlePage swaps in
-  // the next MonsterEntry (e.g. "Lava Imp" -> "Frost Wisp" after the
-  // first monster is defeated). A plain field would be captured at
-  // construction and stay stale across monster transitions.
+  // Must be @Prop so the monster's name updates when BattlePage swaps in
+  // the next MonsterEntry (e.g. "Slime" -> "Zombie" -> "Dragon" -> boss
+  // as the player advances through the 5 slots of a region). A plain
+  // field would be captured at construction and stay stale across
+  // monster transitions.
   @Prop name: string = '';
   @Prop hp: number = 0;
   @Prop maxHp: number = 1;

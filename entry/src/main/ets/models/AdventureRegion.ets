@@ -25,6 +25,15 @@ export class AdventureRegion {
   bgAccent: string = '#FFFFFF';
   bossName: string = '';
   monsterPlan: MonsterPlan = new MonsterPlan();
+  /**
+   * V0.3.8: catalogIndex candidates for the slot-5 boss; empty array
+   * keeps the legacy fallback (slot 5 sticks with whatever the
+   * monsterPlan template specified, typically `monsterIndexForKind(Boss)`
+   * = 13 = Dragon). When non-empty, TodayAdventureBuilder hashes the
+   * region id + local day key to deterministically pick one candidate
+   * and override the slot-5 catalogIndex.
+   */
+  bossCandidates: number[] = [];
 }
 
 export enum WordSource {
