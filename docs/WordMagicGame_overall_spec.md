@@ -480,9 +480,11 @@ V0.1 版本通过验收需满足以下条件：
 - 支持按分类选择关卡。
 - 增加更多怪物和背景主题。
 
-> 注：V0.3 系列已分为 V0.3 / V0.3.5 / V0.3.6 / V0.3.7 / V0.3.8 多个子版本陆续落地，详细范围与验收以 [`WordMagicGame_roadmap.md`](WordMagicGame_roadmap.md) §4–§8 为准；各子版本的设计与实现细节见 `superpowers/specs/` 与 `superpowers/plans/` 下对应文档。
+> 注：V0.3 系列已分为 V0.3 / V0.3.5 / V0.3.6 / V0.3.7 / V0.3.8 / V0.3.9 多个子版本陆续落地，详细范围与验收以 [`WordMagicGame_roadmap.md`](WordMagicGame_roadmap.md) §4–§9 为准；各子版本的设计与实现细节见 `superpowers/specs/` 与 `superpowers/plans/` 下对应文档。
 >
-> **V0.3.8 怪物体系定型（最近一次结构调整）**：`MonsterCatalog` 收紧到 10 条 —— 3 archetype（Slime / Zombie / Dragon，对应难度桶 Normal / Spelling / Review / Elite / Boss-fallback）+ 7 童话风 boss（Witch / Phoenix / Unicorn / Kraken / Pumpkin King / Snow Queen / Imp King）。V0.2 时代留下的 10 条共用 slime 资产的颜色变种（`Lava Imp` / `Frost Wisp` 等）整体退役 —— boss 视觉多样性已经接管"每只怪不一样"的体验。`MonsterEntry` 新增 `assetPath` 字段；`assetPathForEntry(entry)` 优先读 entry-level 路径，空时 fallback 到 `characterAssetForKind(kind)`。`AdventureRegion.bossCandidates` 把 7 只 boss 分发到 3 个 region（Forest 4-6 / Castle 7-8 / Cottage 9-10），`TodayAdventureBuilder` 以 djb2 哈希 `${regionId}:${localDayKey}` 确定性挑选，每天同一 region 稳定同一只 boss。
+> **V0.3.8 怪物体系定型**：`MonsterCatalog` 收紧到 10 条 —— 3 archetype（Slime / Zombie / Dragon，对应难度桶 Normal / Spelling / Review / Elite / Boss-fallback）+ 7 童话风 boss（Witch / Phoenix / Unicorn / Kraken / Pumpkin King / Snow Queen / Imp King）。V0.2 时代留下的 10 条共用 slime 资产的颜色变种（`Lava Imp` / `Frost Wisp` 等）整体退役 —— boss 视觉多样性已经接管"每只怪不一样"的体验。`MonsterEntry` 新增 `assetPath` 字段；`assetPathForEntry(entry)` 优先读 entry-level 路径，空时 fallback 到 `characterAssetForKind(kind)`。`AdventureRegion.bossCandidates` 把 7 只 boss 分发到 3 个 region（Forest 4-6 / Castle 7-8 / Cottage 9-10），`TodayAdventureBuilder` 以 djb2 哈希 `${regionId}:${localDayKey}` 确定性挑选，每天同一 region 稳定同一只 boss。
+>
+> **V0.3.9 魔法愿望单兑换流程重构（最近一次结构调整）**：旧的 Idle → Pending → 长按 3 秒由家长确认 → Confirmed 流程整体替换为 Idle → 6 位家长 PIN → Confirmed 单段链路。`GameConfig.parentPin: string` 默认空，家长在 ConfigPage 的「家长密码」入口走两步一致才能落盘到 AppStorage；`WishlistStore.markConfirmed(wishId, nowMs)` 取代 `request` / `confirmByParent`（旧方法 `@deprecated` 留一个版本，`coerceState` 把 V0.3.8 持久化里 `state='pending'` 归一为 Idle 以兼容升级）；`ParentPinDialog`（`@CustomDialog` + 自绘 3×4 数字键盘）做密码校验，输错抖动 + 清空，无锁定无计数；兑换成功后 WishlistPage 顶层 `Stack` 盖一层 50% 黑底 + `HitTestMode.Block` 的 modal 播放复用既有 `GiftBox`（~1.68s 动画 + 1.5s hold = 3.18s 阻塞），动画期间 `onBackPress` 返回 true 拦截系统返回；新 `RedemptionRecord` 模型 + `RedemptionHistoryStore` 服务（preferences 持久化、cap 50 滚动）每笔兑换写一条记录，新页 `RedemptionHistoryPage` 从愿望单头部 📜 入口进入，按 `ts desc` 渲染。卡片版式同步改成 **最左 prize emoji + 中间 name + cost + 右侧申请兑换按钮**（兑换按钮靠右对齐，emoji 不再贴在按钮旁）。
 
 ### V0.4 复习与成长
 

@@ -56,6 +56,12 @@ import {
 } from '../main/ets/services/WrongAnswerStore';
 import { LearningRecorder } from '../main/ets/services/LearningRecorder';
 import { MemoryState } from '../main/ets/services/MemoryScheduler';
+import {
+  RedemptionRecord,
+  RedemptionHistorySnapshot,
+  REDEMPTION_HISTORY_CAP,
+  formatLocalTimestamp,
+} from '../main/ets/models/RedemptionRecord';
 
 /**
  * Test-only Map-backed StringPreferencesLike. Used by both the
@@ -1388,6 +1394,29 @@ export default function localUnitTest() {
       }
       expect(original.customWordsRaw).assertEqual(beforeRaw);
     });
+
+    it('parentPinDefaultsToEmptyString', 0, () => {
+      const c: GameConfig = new GameConfig();
+      expect(c.parentPin).assertEqual('');
+    });
+
+    it('cloneCopiesParentPinIndependently', 0, () => {
+      const src: GameConfig = new GameConfig();
+      src.parentPin = '123456';
+      const dst: GameConfig = cloneGameConfig(src);
+      expect(dst.parentPin).assertEqual('123456');
+      src.parentPin = '999999';
+      expect(dst.parentPin).assertEqual('123456');
+    });
+
+    it('cloneCoercesUndefinedParentPinToEmptyString', 0, () => {
+      const src: GameConfig = new GameConfig();
+      // Simulate a legacy AppStorage snapshot rehydrated before
+      // the parentPin field existed: explicitly drop it.
+      (src as object as Record<string, ESObject>)['parentPin'] = undefined;
+      const dst: GameConfig = cloneGameConfig(src);
+      expect(dst.parentPin).assertEqual('');
+    });
   });
 
   describe('GameConfig.parseCustomWords', () => {
@@ -1792,6 +1821,39 @@ export default function localUnitTest() {
         }
         prev = m;
       }
+    });
+  });
+
+  describe('RedemptionRecord (V0.3.9)', () => {
+    it('defaultsAreEmptyOrZero', 0, () => {
+      const r: RedemptionRecord = new RedemptionRecord();
+      expect(r.id).assertEqual('');
+      expect(r.ts).assertEqual(0);
+      expect(r.wishId).assertEqual('');
+      expect(r.displayName).assertEqual('');
+      expect(r.iconEmoji).assertEqual('');
+      expect(r.costCoins).assertEqual(0);
+    });
+
+    it('snapshotStartsAtVersion1WithEmptyRecords', 0, () => {
+      const s: RedemptionHistorySnapshot = new RedemptionHistorySnapshot();
+      expect(s.version).assertEqual(1);
+      expect(s.records.length).assertEqual(0);
+    });
+
+    it('redemptionHistoryCapIs50', 0, () => {
+      expect(REDEMPTION_HISTORY_CAP).assertEqual(50);
+    });
+
+    it('formatLocalTimestampPadsSingleDigitComponents', 0, () => {
+      // Local 2026-01-02 03:04 — feed the local-tz ms equivalent.
+      const t1: Date = new Date(2026, 0, 2, 3, 4);
+      expect(formatLocalTimestamp(t1.getTime())).assertEqual('2026-01-02 03:04');
+    });
+
+    it('formatLocalTimestampKeepsDoubleDigitComponentsUnchanged', 0, () => {
+      const t2: Date = new Date(2026, 11, 31, 23, 59);
+      expect(formatLocalTimestamp(t2.getTime())).assertEqual('2026-12-31 23:59');
     });
   });
 }

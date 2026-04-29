@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { MagicWish, WishState } from '../main/ets/models/MagicWish';
+import { MagicWish, WishState, WISHLIST_PREFS_KEY } from '../main/ets/models/MagicWish';
 import { WishlistStore } from '../main/ets/services/WishlistStore';
 import { CoinAccount } from '../main/ets/services/CoinAccount';
 import { StringPreferencesLike } from '../main/ets/services/WrongAnswerStore';
@@ -107,6 +107,66 @@ export default function wishlistStoreTest() {
       store.confirmByParent('wish-ipad-20min', acct, NOW);
       store.acknowledge('wish-ipad-20min');
       expect(findWish(store.list(), 'wish-ipad-20min').state).assertEqual(WishState.Idle);
+    });
+
+    // V0.3.9 ----- new flow: PIN gate + markConfirmed -----
+
+    it('markConfirmedFlipsIdleToConfirmedAndStampsTimestamp', 0, () => {
+      const store: WishlistStore = freshStore();
+      const wishes: MagicWish[] = store.list();
+      const target: MagicWish = wishes[0];
+      expect(target.state).assertEqual(WishState.Idle);
+
+      const ok: boolean = store.markConfirmed(target.id, 5000);
+      expect(ok).assertTrue();
+
+      const after: MagicWish = findWish(store.list(), target.id);
+      expect(after.state).assertEqual(WishState.Confirmed);
+      expect(after.confirmedAt).assertEqual(5000);
+    });
+
+    it('markConfirmedRefusesWhenWishIsNotIdle', 0, () => {
+      const store: WishlistStore = freshStore();
+      const target: MagicWish = store.list()[0];
+      store.markConfirmed(target.id, 1000);
+      expect(store.markConfirmed(target.id, 2000)).assertFalse();
+    });
+
+    it('markConfirmedRefusesUnknownWishId', 0, () => {
+      const store: WishlistStore = freshStore();
+      expect(store.markConfirmed('does-not-exist', 1000)).assertFalse();
+    });
+
+    it('acknowledgeRecyclesMarkConfirmedBackToIdleAndClearsTimestamps', 0, () => {
+      const store: WishlistStore = freshStore();
+      const target: MagicWish = store.list()[0];
+      store.markConfirmed(target.id, 1000);
+      store.acknowledge(target.id);
+
+      const after: MagicWish = findWish(store.list(), target.id);
+      expect(after.state).assertEqual(WishState.Idle);
+      expect(after.requestedAt).assertEqual(0);
+      expect(after.confirmedAt).assertEqual(0);
+    });
+
+    it('rehydrateNormalisesLegacyPendingStateToIdle', 0, async () => {
+      const prefs: MapPrefs = new MapPrefs();
+      // V0.3.8 schema: state literal 'pending' was a real value; v0.3.9
+      // reader normalises it to Idle on rehydrate. Build the snapshot
+      // as raw JSON since ArkTS forbids untyped object literals.
+      const legacyJson: string =
+        '{"version":1,"wishes":[' +
+        '{"id":"wish-ipad-20min","displayName":"看 iPad 20 分钟","costCoins":10,' +
+        '"iconEmoji":"📱","state":"pending","requestedAt":12345,"confirmedAt":0}' +
+        ']}';
+      await prefs.putString(WISHLIST_PREFS_KEY, legacyJson);
+
+      const store: WishlistStore = new WishlistStore();
+      store.injectPreferencesForTest(prefs);
+      await store.rehydrateForTest();
+
+      const w: MagicWish = findWish(store.list(), 'wish-ipad-20min');
+      expect(w.state).assertEqual(WishState.Idle);
     });
   });
 }

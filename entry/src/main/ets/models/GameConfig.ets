@@ -37,6 +37,14 @@ export class GameConfig {
    * it back to 'normal' on end-of-battle.
    */
   mode: string = 'normal';
+  /**
+   * V0.3.9: 6-digit parent PIN gate for wishlist redemption. Empty
+   * string means "not configured" — wishlist's Apply button will
+   * pop a hint dialog pointing at ConfigPage and refuse to open the
+   * PIN entry dialog. Stored as plaintext (acceptable for a local
+   * family device; v0.6 cloud sync may add hashing).
+   */
+  parentPin: string = '';
 }
 
 /** Battle-mode string values to avoid typos at call sites. */
@@ -81,6 +89,10 @@ export function cloneGameConfig(src: GameConfig): GameConfig {
   c.customWordsRaw = src.customWordsRaw;
   c.autoSpeak = src.autoSpeak;
   c.mode = src.mode;
+  // V0.3.9: legacy AppStorage snapshots written before parentPin
+  // existed will rehydrate as undefined; coerce to empty string so
+  // the rest of the codebase can rely on a string contract.
+  c.parentPin = (typeof src.parentPin === 'string') ? src.parentPin : '';
   return c;
 }
 
