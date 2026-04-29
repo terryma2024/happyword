@@ -18,24 +18,30 @@
 export class LetterMetrics {
   width: number = 36;
   height: number = 48;
-  gap: number = 8;
+  gap: number = 4;
   fontFilled: number = 32;
   fontPlaceholder: number = 28;
 }
 
 export function letterMetricsForLength(n: number): LetterMetrics {
+  // Gap values halved from the original 8 / 6 / 4 / 3 vp set for a
+  // tighter FillLetter prompt row (per-band: 4 / 3 / 2 / 2 vp). Cell
+  // width / height / font sizes unchanged — only the inter-cell space
+  // is tightened, so the prompt still wraps the same length budget
+  // and "supermarket" continues to fit under the 380 dp viewport
+  // ceiling (now with 20 dp of extra slack).
   const m: LetterMetrics = new LetterMetrics();
   if (n <= 6) {
-    m.width = 36; m.height = 48; m.gap = 8;
+    m.width = 36; m.height = 48; m.gap = 4;
     m.fontFilled = 32; m.fontPlaceholder = 28;
   } else if (n <= 9) {
-    m.width = 30; m.height = 42; m.gap = 6;
+    m.width = 30; m.height = 42; m.gap = 3;
     m.fontFilled = 26; m.fontPlaceholder = 24;
   } else if (n <= 12) {
-    m.width = 24; m.height = 36; m.gap = 4;
+    m.width = 24; m.height = 36; m.gap = 2;
     m.fontFilled = 22; m.fontPlaceholder = 20;
   } else {
-    m.width = 20; m.height = 32; m.gap = 3;
+    m.width = 20; m.height = 32; m.gap = 2;
     m.fontFilled = 18; m.fontPlaceholder = 16;
   }
   return m;
