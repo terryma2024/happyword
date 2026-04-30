@@ -19,9 +19,7 @@ async def test_packs_latest_with_no_words_returns_empty_list(
 
 
 @pytest.mark.asyncio
-async def test_packs_latest_returns_seeded_words(
-    client: AsyncClient, db: object
-) -> None:
+async def test_packs_latest_returns_seeded_words(client: AsyncClient, db: object) -> None:
     now = datetime.now(tz=UTC)
     await Word(
         id="fruit-apple",

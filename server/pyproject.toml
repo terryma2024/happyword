@@ -39,6 +39,21 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "TCH"]
 
+[tool.ruff.lint.flake8-bugbear]
+# Depends() / Query() / Body() must be evaluated in argument defaults — that's the FastAPI idiom.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Body",
+    "fastapi.Path",
+    "fastapi.Header",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately assert that *any* exception is raised when Beanie + mongomock
+# disagree on the precise duplicate-key class.
+"tests/*" = ["B017"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

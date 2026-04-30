@@ -19,9 +19,7 @@ async def alice_token(db: object) -> str:
 
 
 @pytest.mark.asyncio
-async def test_me_returns_user_info_with_valid_token(
-    client: AsyncClient, alice_token: str
-) -> None:
+async def test_me_returns_user_info_with_valid_token(client: AsyncClient, alice_token: str) -> None:
     resp = await client.get(
         "/api/v1/auth/me",
         headers={"Authorization": f"Bearer {alice_token}"},
@@ -40,7 +38,5 @@ async def test_me_without_token_returns_401(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_me_with_garbage_token_returns_401(client: AsyncClient) -> None:
-    resp = await client.get(
-        "/api/v1/auth/me", headers={"Authorization": "Bearer NOT_A_JWT"}
-    )
+    resp = await client.get("/api/v1/auth/me", headers={"Authorization": "Bearer NOT_A_JWT"})
     assert resp.status_code == 401

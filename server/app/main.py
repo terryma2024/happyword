@@ -32,7 +32,7 @@ async def bootstrap_admin_user(username: str, password: str) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
-    client: AsyncIOMotorClient = AsyncIOMotorClient(settings.mongo_uri)
+    client: AsyncIOMotorClient[dict[str, object]] = AsyncIOMotorClient(settings.mongo_uri)
     await init_beanie(
         database=client[settings.mongo_db_name],
         document_models=[User, Word],
@@ -53,9 +53,7 @@ app = FastAPI(title="happyword-server", version="0.5.1", lifespan=lifespan)
 # CORS read from env directly — get_settings() can't run at module load
 # because pytest collection imports app.main before fixtures inject env.
 _cors_origins = [
-    o.strip()
-    for o in os.environ.get("CORS_ALLOW_ORIGINS", "*").split(",")
-    if o.strip()
+    o.strip() for o in os.environ.get("CORS_ALLOW_ORIGINS", "*").split(",") if o.strip()
 ]
 app.add_middleware(
     CORSMiddleware,

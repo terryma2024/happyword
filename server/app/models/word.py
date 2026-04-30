@@ -10,7 +10,8 @@ def _utcnow() -> datetime:
 
 
 class Word(Document):
-    id: Annotated[str, Indexed(unique=True)]
+    # Override Beanie's PydanticObjectId-typed id with a stable string slug.
+    id: Annotated[str, Indexed(unique=True)]  # type: ignore[assignment]
     word: str
     meaningZh: str
     category: Annotated[str, Indexed()]

@@ -36,9 +36,7 @@ def create_access_token(subject: str, expires_in: int | None = None) -> str:
 def decode_access_token(token: str) -> dict[str, Any]:
     settings = get_settings()
     try:
-        decoded: dict[str, Any] = jwt.decode(
-            token, settings.jwt_secret, algorithms=["HS256"]
-        )
+        decoded: dict[str, Any] = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
         return decoded
     except JWTError as e:
         raise JwtError(str(e)) from e
