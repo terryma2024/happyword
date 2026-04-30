@@ -20,12 +20,30 @@ interface MagicWishJson {
   state?: string;
   requestedAt?: number;
   confirmedAt?: number;
+  isCustom?: boolean;
 }
 
 interface WishlistSnapshotJson {
   version?: number;
   wishes?: MagicWishJson[];
 }
+
+/**
+ * V0.4.7 — id prefix used to mark wishes the parent created at
+ * runtime. `addCustomWish` always generates ids using this prefix
+ * (never collides with the closed catalog ids `wish-…`). The
+ * `removeCustomWish` guard also requires the wish to have
+ * `isCustom === true`, so renaming a catalog wish to start with
+ * this prefix wouldn't accidentally make it removable.
+ */
+const CUSTOM_WISH_ID_PREFIX: string = 'custom-';
+
+/** UI validation bounds, also enforced inside `addCustomWish`. */
+export const CUSTOM_WISH_NAME_MIN_CHARS: number = 1;
+export const CUSTOM_WISH_NAME_MAX_CHARS: number = 12;
+export const CUSTOM_WISH_COST_MIN: number = 5;
+export const CUSTOM_WISH_COST_MAX: number = 200;
+export const CUSTOM_WISH_DEFAULT_EMOJI: string = '⭐';
 
 class RealPrefs implements StringPreferencesLike {
   private readonly handle: preferences.Preferences;
@@ -93,6 +111,8 @@ export class WishlistStore {
     if (raw.length > 0) {
       this.snap = parseWishlistSnapshot(raw);
     }
+    // V0.4.7: bump version marker so future migrations can branch on it.
+    this.snap.version = 2;
     if (this.snap.wishes.length === 0) {
       this.snap.wishes = getWishCatalogClone();
       return;
@@ -124,9 +144,99 @@ export class WishlistStore {
       c.state = src.state;
       c.requestedAt = src.requestedAt;
       c.confirmedAt = src.confirmedAt;
+      c.isCustom = src.isCustom;
       out.push(c);
     }
     return out;
+  }
+
+  /**
+   * V0.4.7 — append a parent-created custom wish. Returns the new
+   * wish id on success, or an empty string on validation failure.
+   * Validation rules:
+   *  - displayName trimmed length in [CUSTOM_WISH_NAME_MIN_CHARS,
+   *    CUSTOM_WISH_NAME_MAX_CHARS] characters.
+   *  - costCoins integer in [CUSTOM_WISH_COST_MIN, CUSTOM_WISH_COST_MAX].
+   *  - iconEmoji trimmed to length 1 or 2; empty string falls back to
+   *    `CUSTOM_WISH_DEFAULT_EMOJI`.
+   * The generated id starts with `custom-` and includes nowMs plus
+   * a per-call counter so two adds in the same millisecond don't
+   * collide. Caller's nowMs is the source of truth for clock so the
+   * unit tests stay deterministic.
+   */
+  addCustomWish(name: string, costCoins: number, iconEmoji: string, nowMs: number): string {
+    const trimmedName: string = name.trim();
+    if (trimmedName.length < CUSTOM_WISH_NAME_MIN_CHARS) {
+      return '';
+    }
+    if (trimmedName.length > CUSTOM_WISH_NAME_MAX_CHARS) {
+      return '';
+    }
+    if (!Number.isFinite(costCoins)) {
+      return '';
+    }
+    const cost: number = Math.floor(costCoins);
+    if (cost < CUSTOM_WISH_COST_MIN || cost > CUSTOM_WISH_COST_MAX) {
+      return '';
+    }
+    let emoji: string = iconEmoji.trim();
+    if (emoji.length === 0) {
+      emoji = CUSTOM_WISH_DEFAULT_EMOJI;
+    }
+    if (emoji.length > 4) {
+      // 4 chars covers most multi-codepoint emoji combos (e.g. 🐻‍❄️ is
+      // 5 UTF-16 code units; we cap conservatively to keep the wish
+      // name bar from wrapping). Reject rather than silently truncate.
+      return '';
+    }
+    const newId: string = this.generateCustomWishId(nowMs);
+    const w: MagicWish = new MagicWish();
+    w.id = newId;
+    w.displayName = trimmedName;
+    w.costCoins = cost;
+    w.iconEmoji = emoji;
+    w.state = WishState.Idle;
+    w.isCustom = true;
+    this.snap.wishes.push(w);
+    this.scheduleSave();
+    return newId;
+  }
+
+  /**
+   * V0.4.7 — remove a custom wish. Refuses any wish that is not
+   * `isCustom=true` so the parent can't accidentally drop one of the
+   * baked-in default wishes. Returns true on success.
+   */
+  removeCustomWish(wishId: string): boolean {
+    if (wishId.length === 0) {
+      return false;
+    }
+    let idx: number = -1;
+    for (let i = 0; i < this.snap.wishes.length; i++) {
+      if (this.snap.wishes[i].id === wishId) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx < 0) {
+      return false;
+    }
+    if (!this.snap.wishes[idx].isCustom) {
+      return false;
+    }
+    this.snap.wishes.splice(idx, 1);
+    this.scheduleSave();
+    return true;
+  }
+
+  private generateCustomWishId(nowMs: number): string {
+    let suffix: number = Math.floor(Math.random() * 0xfffff);
+    let candidate: string = `${CUSTOM_WISH_ID_PREFIX}${nowMs}-${suffix.toString(16)}`;
+    while (this.findWish(candidate) !== undefined) {
+      suffix = (suffix + 1) & 0xfffff;
+      candidate = `${CUSTOM_WISH_ID_PREFIX}${nowMs}-${suffix.toString(16)}`;
+    }
+    return candidate;
   }
 
   /**
@@ -244,6 +354,7 @@ export class WishlistStore {
     if (raw.length > 0) {
       this.snap = parseWishlistSnapshot(raw);
     }
+    this.snap.version = 2;
     if (this.snap.wishes.length === 0) {
       this.snap.wishes = getWishCatalogClone();
       return;
@@ -310,6 +421,7 @@ export function parseWishlistSnapshot(raw: string): WishlistSnapshot {
       w.state = coerceState(typeof j.state === 'string' ? j.state : '');
       w.requestedAt = typeof j.requestedAt === 'number' ? j.requestedAt : 0;
       w.confirmedAt = typeof j.confirmedAt === 'number' ? j.confirmedAt : 0;
+      w.isCustom = typeof j.isCustom === 'boolean' ? j.isCustom : false;
       if (w.id.length > 0) {
         out.wishes.push(w);
       }

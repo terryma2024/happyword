@@ -1,6 +1,11 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { MagicWish, WishState, WISHLIST_PREFS_KEY } from '../main/ets/models/MagicWish';
-import { WishlistStore } from '../main/ets/services/WishlistStore';
+import {
+  WishlistStore,
+  CUSTOM_WISH_DEFAULT_EMOJI,
+  CUSTOM_WISH_NAME_MAX_CHARS,
+  CUSTOM_WISH_COST_MAX,
+} from '../main/ets/services/WishlistStore';
 import { CoinAccount } from '../main/ets/services/CoinAccount';
 import { StringPreferencesLike } from '../main/ets/services/WrongAnswerStore';
 
@@ -147,6 +152,126 @@ export default function wishlistStoreTest() {
       expect(after.state).assertEqual(WishState.Idle);
       expect(after.requestedAt).assertEqual(0);
       expect(after.confirmedAt).assertEqual(0);
+    });
+
+    // V0.4.7 ----- new flow: parent-created custom wishes -----
+
+    it('addCustomWishAppendsAtEndAndMarksIsCustomTrue', 0, () => {
+      const store: WishlistStore = freshStore();
+      const before: number = store.list().length;
+      const newId: string = store.addCustomWish('看动画 30 分钟', 15, '🎬', 1700000000000);
+      expect(newId.length > 0).assertTrue();
+      const after: MagicWish[] = store.list();
+      expect(after.length).assertEqual(before + 1);
+      const last: MagicWish = after[after.length - 1];
+      expect(last.id).assertEqual(newId);
+      expect(last.displayName).assertEqual('看动画 30 分钟');
+      expect(last.costCoins).assertEqual(15);
+      expect(last.iconEmoji).assertEqual('🎬');
+      expect(last.isCustom).assertTrue();
+      expect(last.state).assertEqual(WishState.Idle);
+    });
+
+    it('addCustomWishGeneratesIdWithCustomPrefix', 0, () => {
+      const store: WishlistStore = freshStore();
+      const id: string = store.addCustomWish('小奖励', 8, '🎁', 99);
+      expect(id.indexOf('custom-')).assertEqual(0);
+    });
+
+    it('addCustomWishFallsBackToDefaultEmojiWhenBlank', 0, () => {
+      const store: WishlistStore = freshStore();
+      const id: string = store.addCustomWish('小奖励', 8, '   ', 99);
+      const w: MagicWish = findWish(store.list(), id);
+      expect(w.iconEmoji).assertEqual(CUSTOM_WISH_DEFAULT_EMOJI);
+    });
+
+    it('addCustomWishRejectsEmptyName', 0, () => {
+      const store: WishlistStore = freshStore();
+      const id: string = store.addCustomWish('   ', 10, '🎬', 1);
+      expect(id).assertEqual('');
+      expect(store.list().length).assertEqual(3);
+    });
+
+    it('addCustomWishRejectsOverlongName', 0, () => {
+      const store: WishlistStore = freshStore();
+      let longName: string = '';
+      for (let i = 0; i < CUSTOM_WISH_NAME_MAX_CHARS + 1; i++) {
+        longName = longName + 'a';
+      }
+      const id: string = store.addCustomWish(longName, 10, '🎬', 1);
+      expect(id).assertEqual('');
+    });
+
+    it('addCustomWishRejectsCostBelowMinimum', 0, () => {
+      const store: WishlistStore = freshStore();
+      const id: string = store.addCustomWish('小奖励', 1, '🎬', 1);
+      expect(id).assertEqual('');
+    });
+
+    it('addCustomWishRejectsCostAboveMaximum', 0, () => {
+      const store: WishlistStore = freshStore();
+      const id: string = store.addCustomWish('小奖励', CUSTOM_WISH_COST_MAX + 1, '🎬', 1);
+      expect(id).assertEqual('');
+    });
+
+    it('addCustomWishCoercesNonIntegerCost', 0, () => {
+      const store: WishlistStore = freshStore();
+      const id: string = store.addCustomWish('小奖励', 12.7, '🎬', 1);
+      const w: MagicWish = findWish(store.list(), id);
+      expect(w.costCoins).assertEqual(12);
+    });
+
+    it('removeCustomWishDropsTheWish', 0, () => {
+      const store: WishlistStore = freshStore();
+      const id: string = store.addCustomWish('小奖励', 8, '🎁', 99);
+      const ok: boolean = store.removeCustomWish(id);
+      expect(ok).assertTrue();
+      expect(findWish(store.list(), id).id.length).assertEqual(0);
+    });
+
+    it('removeCustomWishRefusesDefaultCatalogIds', 0, () => {
+      const store: WishlistStore = freshStore();
+      const ok: boolean = store.removeCustomWish('wish-ipad-20min');
+      expect(ok).assertFalse();
+      expect(findWish(store.list(), 'wish-ipad-20min').id).assertEqual('wish-ipad-20min');
+    });
+
+    it('removeCustomWishRefusesUnknownId', 0, () => {
+      const store: WishlistStore = freshStore();
+      expect(store.removeCustomWish('does-not-exist')).assertFalse();
+    });
+
+    it('addThenRehydratePersistsCustomWish', 0, async () => {
+      const prefs: MapPrefs = new MapPrefs();
+      const store: WishlistStore = new WishlistStore();
+      store.injectPreferencesForTest(prefs);
+      const id: string = store.addCustomWish('看动画 30 分钟', 15, '🎬', 1700000000000);
+      await store.flushNow();
+
+      const reborn: WishlistStore = new WishlistStore();
+      reborn.injectPreferencesForTest(prefs);
+      await reborn.rehydrateForTest();
+      const w: MagicWish = findWish(reborn.list(), id);
+      expect(w.id).assertEqual(id);
+      expect(w.displayName).assertEqual('看动画 30 分钟');
+      expect(w.costCoins).assertEqual(15);
+      expect(w.iconEmoji).assertEqual('🎬');
+      expect(w.isCustom).assertTrue();
+    });
+
+    it('rehydrateAcceptsLegacyV1JsonAndDefaultsIsCustomToFalse', 0, async () => {
+      const prefs: MapPrefs = new MapPrefs();
+      const legacyJson: string =
+        '{"version":1,"wishes":[' +
+        '{"id":"wish-ipad-20min","displayName":"看 iPad 20 分钟","costCoins":10,' +
+        '"iconEmoji":"📱","state":"idle","requestedAt":0,"confirmedAt":0}' +
+        ']}';
+      await prefs.putString(WISHLIST_PREFS_KEY, legacyJson);
+      const store: WishlistStore = new WishlistStore();
+      store.injectPreferencesForTest(prefs);
+      await store.rehydrateForTest();
+      const w: MagicWish = findWish(store.list(), 'wish-ipad-20min');
+      expect(w.isCustom).assertFalse();
     });
 
     it('rehydrateNormalisesLegacyPendingStateToIdle', 0, async () => {

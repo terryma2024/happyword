@@ -12,6 +12,7 @@ import todayPlanFlowUiTest from './TodayPlanFlow.ui.test';
 import learningReportFlowUiTest from './LearningReportFlow.ui.test';
 import regionPickerFlowUiTest from './RegionPickerFlow.ui.test';
 import wishlistFlowUiTest from './WishlistFlow.ui.test';
+import customWishlistFlowUiTest from './CustomWishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
 
 export default function testsuite() {
@@ -62,5 +63,13 @@ export default function testsuite() {
   // navigation-only (they do not seed coins, do not redeem); the
   // full PIN → GiftBox → history flow is unit-tested.
   wishlistFlowUiTest();
+  // V0.4.7: parent-created custom wishlist entries. Runs after the
+  // built-in wishlistFlowUiTest because the second test in this
+  // suite re-commits the parent PIN — we don't want PIN setup
+  // bleed-over interfering with WishlistFlow's
+  // applyWithoutPinPromptsParentPinSetupHint case (which assumes
+  // the cheapest wish either has WishApply or WishGap, not a
+  // mid-PIN-entry side-effect).
+  customWishlistFlowUiTest();
   configFlowUiTest();
 }

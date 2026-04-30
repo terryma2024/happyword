@@ -16,12 +16,23 @@ import {
 } from '../services/RedemptionHistoryStore';
 import { ParentPinDialog, PIN_LENGTH } from '../components/ParentPinDialog';
 import { GiftBox } from '../components/GiftBox';
+import {
+  AddCustomWishDialog,
+  CustomWishFormResult,
+} from '../components/AddCustomWishDialog';
 
 /** Total time the GiftBox modal stays visible: anim cycle ~1.68s + 1.5s hold. */
 const GIFTBOX_MODAL_TOTAL_MS: number = 3180;
 
 /** Auto-acknowledge delay between Confirmed → Idle on the wish card. */
 const ACK_DELAY_MS: number = 1500;
+
+/**
+ * V0.4.7 — what action the parent-PIN gate is currently guarding.
+ * Used by the shared `onPinConfirmed` router so we don't keep three
+ * near-identical PIN dialog ctors around.
+ */
+type PinIntent = 'redeem' | 'add-custom' | 'remove-custom';
 
 /**
  * V0.3.9 WishlistPage — child-facing list of magic wishes.
@@ -54,7 +65,9 @@ struct WishlistPage {
   private coins: CoinAccount = getCoinAccount();
   private history: RedemptionHistoryStore = getRedemptionHistoryStore();
   private pendingWishId: string = '';
+  private pendingPinIntent: PinIntent = 'redeem';
   private pinDialog: CustomDialogController | null = null;
+  private addDialog: CustomDialogController | null = null;
 
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext =
@@ -182,6 +195,21 @@ struct WishlistPage {
           .fontSize(14)
           .fontColor('#888888');
       }
+
+      // V0.4.7: only parent-created custom wishes get a remove button.
+      // The button itself opens a PIN gate before the actual delete.
+      if (w.isCustom) {
+        Button('✕')
+          .id(`WishRemove_${w.id}`)
+          .width(32)
+          .height(32)
+          .fontSize(14)
+          .fontColor('#888888')
+          .backgroundColor('#F1F2F4')
+          .onClick((): void => {
+            this.onTapRemoveCustom(w.id);
+          });
+      }
     }
     .id(`WishCard_${w.id}`)
     .width('92%')
@@ -237,6 +265,18 @@ struct WishlistPage {
               console.error(`WishlistPage: pushUrl history failed: ${JSON.stringify(err)}`);
             });
         });
+      Button('+ 添加')
+        .id('WishlistAddCustomButton')
+        .type(ButtonType.Normal)
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .backgroundColor('#EAF2F8')
+        .fontColor('#1D3557')
+        .borderRadius(8)
+        .fontSize(14)
+        .onClick((): void => {
+          this.onTapAddCustom();
+        });
       Text(`我的魔法币: ${this.balance} ✨`)
         .id('WishlistBalance')
         .fontSize(16)
@@ -291,20 +331,53 @@ struct WishlistPage {
     }
     const expected: string = this.getParentPin();
     if (expected.length !== PIN_LENGTH) {
-      promptAction.showDialog({
-        title: '尚未设置家长密码',
-        message: '请先在设置页面配置家长密码（6 位数字），再兑换魔法愿望。',
-        buttons: [{ text: '知道了', color: '#1D3557' }],
-      }).catch((err: BusinessError): void => {
-        console.error(`WishlistPage: showDialog failed: ${JSON.stringify(err)}`);
-      });
+      this.showNoPinAlert();
       return;
     }
     this.pendingWishId = wishId;
-    this.openPinDialog(expected);
+    this.pendingPinIntent = 'redeem';
+    this.openPinDialog(expected, '请输入家长密码以兑换');
   }
 
-  private openPinDialog(expected: string): void {
+  private onTapAddCustom(): void {
+    if (this.giftBoxVisible) {
+      return;
+    }
+    const expected: string = this.getParentPin();
+    if (expected.length !== PIN_LENGTH) {
+      this.showNoPinAlert();
+      return;
+    }
+    this.pendingWishId = '';
+    this.pendingPinIntent = 'add-custom';
+    this.openPinDialog(expected, '请输入家长密码以添加自定义愿望');
+  }
+
+  private onTapRemoveCustom(wishId: string): void {
+    if (this.giftBoxVisible) {
+      return;
+    }
+    const expected: string = this.getParentPin();
+    if (expected.length !== PIN_LENGTH) {
+      this.showNoPinAlert();
+      return;
+    }
+    this.pendingWishId = wishId;
+    this.pendingPinIntent = 'remove-custom';
+    this.openPinDialog(expected, '请输入家长密码以删除该愿望');
+  }
+
+  private showNoPinAlert(): void {
+    promptAction.showDialog({
+      title: '尚未设置家长密码',
+      message: '请先在设置页面配置家长密码（6 位数字），再使用此功能。',
+      buttons: [{ text: '知道了', color: '#1D3557' }],
+    }).catch((err: BusinessError): void => {
+      console.error(`WishlistPage: showDialog failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private openPinDialog(expected: string, title: string): void {
     // Two-step ctor: declare `ctrl` first, then create the
     // CustomDialogController. This lets the onConfirm/onCancel
     // closures capture `ctrl` and close the dialog explicitly,
@@ -316,12 +389,12 @@ struct WishlistPage {
     ctrl = new CustomDialogController({
       builder: ParentPinDialog({
         expectedPin: expected,
-        title: '请输入家长密码以兑换',
+        title,
         onConfirm: (): void => {
           if (ctrl !== null) {
             ctrl.close();
           }
-          this.redeemNow(this.pendingWishId);
+          this.dispatchPinConfirmed();
         },
         onCancel: (): void => {
           if (ctrl !== null) {
@@ -335,6 +408,92 @@ struct WishlistPage {
     });
     this.pinDialog = ctrl;
     ctrl.open();
+  }
+
+  private dispatchPinConfirmed(): void {
+    const intent: PinIntent = this.pendingPinIntent;
+    if (intent === 'redeem') {
+      this.redeemNow(this.pendingWishId);
+      return;
+    }
+    if (intent === 'add-custom') {
+      this.openAddCustomDialog();
+      return;
+    }
+    if (intent === 'remove-custom') {
+      this.confirmRemoveCustom(this.pendingWishId);
+      return;
+    }
+  }
+
+  private openAddCustomDialog(): void {
+    let ctrl: CustomDialogController | null = null;
+    ctrl = new CustomDialogController({
+      builder: AddCustomWishDialog({
+        onSubmit: (result: CustomWishFormResult): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+          this.commitAddCustomWish(result);
+        },
+        onCancel: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+        },
+      }),
+      autoCancel: true,
+      customStyle: true,
+    });
+    this.addDialog = ctrl;
+    ctrl.open();
+  }
+
+  private commitAddCustomWish(result: CustomWishFormResult): void {
+    const newId: string = this.store.addCustomWish(
+      result.name,
+      result.costCoins,
+      result.iconEmoji,
+      Date.now(),
+    );
+    if (newId.length === 0) {
+      promptAction.showToast({ message: '添加失败，请检查输入', duration: 1500 });
+      return;
+    }
+    this.refresh();
+  }
+
+  private confirmRemoveCustom(wishId: string): void {
+    if (wishId.length === 0) {
+      return;
+    }
+    const wish: MagicWish | undefined = this.findLocal(wishId);
+    if (wish === undefined) {
+      return;
+    }
+    promptAction.showDialog({
+      title: '删除该愿望？',
+      message: `「${wish.displayName}」将从愿望单中移除，已记录的兑换历史不受影响。`,
+      buttons: [
+        { text: '取消', color: '#888888' },
+        { text: '删除', color: '#E63946' },
+      ],
+    }).then((confirm: promptAction.ShowDialogSuccessResponse): void => {
+      // promptAction returns index 0 for the first button (取消), 1 for 删除.
+      if (confirm.index !== 1) {
+        this.pendingWishId = '';
+        return;
+      }
+      const ok: boolean = this.store.removeCustomWish(wishId);
+      if (!ok) {
+        promptAction.showToast({ message: '删除失败', duration: 1500 });
+      }
+      this.refresh();
+      this.pendingWishId = '';
+    }).catch((err: BusinessError): void => {
+      console.error(`WishlistPage.confirmRemove failed: ${JSON.stringify(err)}`);
+      this.pendingWishId = '';
+    });
   }
 
   private redeemNow(wishId: string): void {
