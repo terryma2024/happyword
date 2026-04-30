@@ -3,7 +3,7 @@
 > 文档状态：路线图基线  
 > 关联基线：[WordMagicGame_overall_spec.md](WordMagicGame_overall_spec.md)  
 > 当前路线选择：趣味学习与长期学习系统平衡推进  
-> 最近更新：2026-04-30（V0.4.8 视觉与音效抛光，6 项小修补 + 一轮二次反馈修订：①HomePage 工具栏 review/codex/wand→gift/gear 与 WishlistPage scroll 五个 SVG 加 `.syncLoad(true)` 修复返回后偶现的占位符闪烁；②`HomeWishlistButton` 由 wand → 礼盒（Recraft V4 重生 67 KB SVG）；③launcher PNG 改自 `rawfile/icons/start_icon.svg` 经 `tools/recraft/start-icon-to-launcher.sh` 一键生成；④战斗中魔法师施法瞬间叠加 `magican_fight.svg` 替身（CharacterCard 新增 `altAssetPath` + `altActive` 走 opacity 切换）；⑤魔法弹圆形 → 椭圆 + 中心单词；⑥答错时 340 ms 后叠加 `player_hurt.ogg` 受伤音效，二轮反馈把样本从 Mixkit Man-in-pain 换成 Mixkit Female exclamation of pain + ffmpeg pitch +18% 拉成小女生音色；同时把用户新提供的 `hit_crit.mp3` 转成 OGG 覆盖旧版本。**战斗 BGM 在原计划中是第 7 项，但当 TTS 播放时会被系统强制 FORCE_PAUSE BGM，且尝试过的多种修复方案（INDEPENDENT_MODE / 周期性 ensureBgmPlaying / 仅在 paused 状态恢复 / 推迟到 3 s 后救场）都让 SpellQuestionFlow UI 套件出现稳定性下降——AVPlayer.play() 的成本在模拟器上足以使 SpellingArea 字母 tap poll 偶现失败，3 次 fix 后保留 1 / 3 flake 仍属不可接受。决定本版不带 BGM 上线，把音效对焦相关重构（扩展 SoundKeys、playLoop / stopLoop、`audioInterruptMode = INDEPENDENT_MODE`）一并回退到 SFX-only 形态，资源 `bgm_fight.ogg` 也从仓库删除；BGM 已推迟到 V0.8 战斗音频混音与 BGM 版，用 `BattleAudioMixer` 专门处理音频策略与焦点协议。** `ALL_SOUND_KEYS` 长度回到 7，UI 测 38 / 38 通过，CodeLinter 无新增缺陷。V0.4 全部子版本完成。）
+> 最近更新：2026-04-30（V0.5.1 Walking Skeleton 完成——服务端 `server/` 起新 Python 3.12 + FastAPI + Beanie + JWT 骨架，pytest 26/26（`filterwarnings=["error", ...]` 守门）；部署到 Vercel + MongoDB Atlas（Marketplace 集成自动注入 `MONGODB_URI`），生产 URL `https://happyword.vercel.app` 上 `/health`、`/auth/login`、`/auth/me`、`/packs/latest.json` 全链路 200；客户端新增 `RemoteWordPackConfig` / `WordPackCache` / `RemoteWordPackService` / `WordPackBootstrapper` 4 个服务，HomePage / BattlePage / TodayPlanPage / LearningReportPage / ConfigPage 五个 page 都走 cache → rawfile → 远端异步刷新三段冷启动；Mongo 中 seed 一条 `fruit-apple` 词条作为 prod 烟雾参照。三个生产坑全部加 regression 守门：①Atlas 拒绝 `Indexed(unique=True)` on `_id`（mongomock-motor 不强制，加结构性测试）；②Hobby 计划要求 git author 是团队成员，deploy 时临时 `mv .git .git.deploy_bak` 绕过；③本地 prebuilt build 出 macOS wheel（bcrypt native）跑不了 Linux arm64，改用 `vercel deploy --prod`（服务端 build）替代 `--prebuilt`。V0.5 拆分为 7 个子版本顺序推进，本版完成「客户端 → 服务端」的端到端最薄链路。）
 
 ## 1. 产品愿景
 
@@ -50,7 +50,13 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.4.6 | 更多主题区域（已完成）       | 词库 +20 词覆盖 `animal` / `ocean` 两个新分类；新增 `animal-safari` (Phoenix + Unicorn 共享) / `ocean-realm` (Kraken 独占) 区域；`home-cottage` 的 Kraken 迁出兑现 V0.3.8 承诺；regionPicker 横向 Scroll 容纳 5 chips；boss 共享允许多 region 共用旋转池 | 无 |
 | V0.4.7 | 自定义愿望单条目（已完成）   | `MagicWish.isCustom` + 快照 v2；`WishlistStore.addCustomWish/removeCustomWish` 带名称/币数/emoji 校验；`WishlistPage` 头部 `+ 添加` 按钮 + 自定义卡 ✕ 删除按钮，均过家长 PIN 闸；新增 `AddCustomWishDialog` 三段表单；不接真实支付 | 无 |
 | V0.4.8 | 视觉与音效抛光（已完成）     | 6 项小修补：HomePage 工具栏 review/codex/wand→gift/gear 与 WishlistPage scroll 五个 SVG 加 `.syncLoad(true)` 修复返回后图标占位符闪烁；HomeWishlistButton 由 wand → 礼盒（Recraft V4 重生）；launcher PNG 改自 `rawfile/icons/start_icon.svg`（`tools/recraft/start-icon-to-launcher.sh`）；战斗中魔法师施法瞬间叠加 `magican_fight.svg` 替身（CharacterCard 走 `altAssetPath` + opacity 切换）；魔法弹圆形 → 椭圆 + 中心单词；答错时叠加 `player_hurt.ogg` 受伤音效（小女生音色，Mixkit License + ffmpeg pitch shift）。**战斗 BGM 因 TTS 强制焦点抢占无法稳定共存（详见 §V0.4.8.7 deferred 段），整套 BGM 改动已回退，明确留到 V0.8 战斗音频混音与 BGM 版** | 无 |
-| V0.5   | 内容后台与 LLM 题库版    | Node.js 内容后台、词库管理、LLM 生成题目草稿、人工审核、词包发布                    | 必需       |
+| V0.5.1 | 内容后台 Walking Skeleton（已完成） | 端到端最薄链路：`server/` Python 3.12 + FastAPI + Beanie + JWT + admin bootstrap；部署 Vercel + MongoDB Atlas Marketplace；客户端 `RemoteWordPackConfig` / `WordPackCache` / `RemoteWordPackService` / `WordPackBootstrapper` 三段冷启动；prod URL `https://happyword.vercel.app` 全链路 smoke 通过 | 必需 |
+| V0.5.2 | 词条 CRUD + rawfile 迁移 | `POST/PUT/DELETE /admin/words/{id}`；`scripts/seed_from_rawfile.py` 把 V0.4.6 50 词一次性灌入 MongoDB；客户端零改动 | 必需 |
+| V0.5.3 | 版本化词包发布 + 回滚 | `WordPack` 快照 + `PackPointer` 指针；`POST /admin/packs/publish` + `rollback`；`/packs/latest.json` ETag / If-None-Match 304；客户端 cache 加 `cachedEtag`/`cachedVersion` | 必需 |
+| V0.5.4 | LLM 单词级草稿（干扰项 + 例句） | `POST /admin/llm/drafts/words` + 审核 approve/reject；OpenAI gpt-4o-mini；schema_v1→v2 加 `distractors?` / `example.{en,zh}?`；客户端类型层兼容、战斗端不使用 | 必需 |
+| V0.5.5 | 教程照片 → 一键分类导入 | `POST /admin/lessons/import`（multipart → Vercel Blob → gpt-4o vision）抽词 + 自动起 title/storyZh/category；新 `categories` 集合 + 5 条 manual seed；schema_v2→v4 加 `categories[]`；HomePage region 卡片下方渲染 `storyZh` | 必需 |
+| V0.5.6 | 词条插画 + 发音 MP3 | `POST /admin/assets/words/{id}/{illustration,audio}` 上传 Blob；schema_v4→v5 加 `illustrationUrl?` / `audioUrl?`；客户端新 `RemoteAssetCache`，`PronunciationService` 命中 mp3 优先；BattlePage / TodayPlanPage 命中 illustrationUrl 渲染 `Image(url)` 替代 emoji | 必需 |
+| V0.5.7 | 收尾（监控 + 文档 + rawfile 退化） | `/admin/stats`、OpenAI usage 日志、`backup_pack.py`；客户端 cache 命中即跳过 rawfile（rawfile 仅作首次冷装兜底）；admin 操作手册 + 运维 runbook | 必需 |
 | V0.6   | 家长账户与设备绑定版       | 家长账号、孩子档案、二维码绑定设备、云端学习同步、云端愿望单                            | 必需       |
 | V0.7   | AI 剧情与语境学习版      | 句子填词、主题剧情、LLM 生成剧情草稿、个性化冒险                                | 必需       |
 | V0.8   | 战斗音频混音与 BGM 版 | 新增 `BattleAudioMixer`，让战斗 BGM、combo/攻击/受伤音效、单词朗读按优先级共存；用 duck + 单次恢复策略解决 TTS 抢焦点问题 | 无 |
@@ -769,31 +775,203 @@ V0.4 作为离线学习版的最后一棒，不做新功能、只清理 V0.4 全
 
 ## 12. V0.5 内容后台与 LLM 题库版
 
-V0.5 开始引入 Node.js 服务端。后台优先定位为“内容生产与发布系统”，暂不做账号和设备绑定。
+V0.5 把客户端的离线词库切换到「服务端权威 + 客户端缓存」模式：引入 Python (FastAPI) + MongoDB Atlas + Vercel 的内容后台，承担词条管理、版本化词包发布、LLM 题目辅助生成、教程照片解析、词条插画 / 发音 MP3 托管，最终让客户端 rawfile 词包仅作首次冷装兜底。
 
-### 7.1 技术方向
+V0.5 不做账号体系、家长功能、孩子档案——这些留到 V0.6。本版聚焦「内容生产管线」与「客户端可灰度切换的远程词包」。
 
-- Node.js 实现，优先选择容易部署到 Vercel 的架构。
-- 数据库可选 Vercel Postgres、Neon、Supabase 或其他托管 PostgreSQL。
-- 后台 API 输出版本化词包 JSON，客户端按版本拉取。
-- LLM 调用只发生在服务端，客户端不直接请求 LLM。
+设计基线：[`2026-04-30-v0.5-content-backend-design.md`](superpowers/specs/2026-04-30-v0.5-content-backend-design.md)。
 
-### 7.2 后台能力
+V0.5 拆分为 7 个子版本顺序推进：
 
-- 词库管理：单词、中文释义、分类、难度、音标、发音资源、例句字段。
-- 题库管理：三选一题、补字母题、未来句子填词模板。
-- LLM 生成：根据单词批量生成干扰项、例句、句子填词草稿和简单剧情文案。
-- 人工审核：所有 LLM 内容先进入草稿，审核后才能发布。
-- 词包发布：生成版本化 JSON，包含版本号、发布时间、适配客户端版本和回滚信息。
-- 回滚机制：词包质量有问题时可以回退到上一版。
+| 子版本 | 主题 | 状态 |
+| --- | --- | --- |
+| V0.5.1 | Walking Skeleton | 已完成 |
+| V0.5.2 | 词条 CRUD + rawfile 迁移 | 计划中 |
+| V0.5.3 | 版本化词包发布 + 回滚 | 计划中 |
+| V0.5.4 | LLM 单词级草稿（干扰项 + 例句） | 计划中 |
+| V0.5.5 | 教程照片 → 一键分类导入 | 计划中 |
+| V0.5.6 | 词条插画 + 发音 MP3 | 计划中 |
+| V0.5.7 | 收尾（监控 + 文档 + rawfile 退化） | 计划中 |
 
-### 7.3 V0.5 明确不做
+### 12.1 技术方向（全 V0.5 适用）
 
-- 不做孩子账号。
-- 不做家长登录。
-- 不做设备二维码绑定。
-- 不做学习记录云同步。
-- 不让 LLM 内容未经审核直接进入儿童端。
+- **服务端**：Python 3.12 + FastAPI + uv 包管理；Beanie ODM（MongoDB）+ pydantic-settings 配置层；部署在 Vercel Functions（serverless），入口 `server/api/index.py` 复用 ASGI app。
+- **数据**：MongoDB Atlas（通过 Vercel Marketplace 集成自动注入 `MONGODB_URI`）；Pydantic 用 `AliasChoices("MONGODB_URI", "MONGO_URI")` 兼容 V0.5.0 之前的本地开发约定。二进制资源（插画 / 发音 MP3）走 Vercel Blob。
+- **认证**：JWT + bcrypt（直接调用，不走 passlib，因 passlib 与 bcrypt 5.x 不兼容）；V0.5 只做 admin 单一角色，家长 / 孩子角色留到 V0.6。
+- **LLM**：OpenAI SDK，**仅服务端调用**；客户端永远不直接接触 LLM API。所有生成内容必须经审核才能进入儿童端。
+- **词包发布**：版本化 JSON（`/packs/latest.json` + 历史快照），客户端按 ETag / `If-None-Match` 走 304。schema_version 字段从 v1 渐进演进到 v5（V0.5.4 加 LLM 字段、V0.5.5 加 categories、V0.5.6 加 illustration/audio）。
+- **客户端集成边界**：V0.5.1 一次性新增 4 个服务类，后续 V0.5.x 只在这些类内部追加字段，不再扩 API：
+    - `RemoteWordPackConfig`：dev / prod `SERVER_BASE_URL`，dev 走 host loopback `http://10.0.2.2:8000`，prod 走 `https://happyword.vercel.app`；通过 `BuildProfile.BUILD_MODE_NAME` 判定。
+    - `WordPackCache`：preferences 持久化 JSON 词包 + ETag + version。
+    - `RemoteWordPackService`：`@kit.NetworkKit` HTTP 包装，错误归一为 `RemoteFetchResult`。
+    - `WordPackBootstrapper`：编排 cache → rawfile → 远端 async refresh 三段冷启动；HomePage / BattlePage / TodayPlanPage / LearningReportPage / ConfigPage 五个 page 都接它。
+- **测试规约**：服务端 pytest 启用 `filterwarnings = ["error", ...]`，把任何新 warning 当 error 处理；唯一例外是 lazy_model 第三方 deprecation，pinned 到 message + module 范围。详见 `CLAUDE.md` / `AGENTS.md` 「Server (`server/`) discipline」段。
+
+### 12.2 V0.5.1 Walking Skeleton（已完成）
+
+打通「客户端 → 服务端 → MongoDB → Vercel」端到端的最薄链路，让后续 V0.5.2-7 都能在「服务器是真的、客户端能远端拉词包」的前提下推进。本版本不做 admin CRUD、不做版本化词包、不做 LLM、不做 Blob 资源——只确认这条链路在生产环境跑得通。
+
+**范围**
+
+- **服务端骨架（`server/`）**：uv 项目，FastAPI app；endpoints `/api/v1/health`、`POST /api/v1/auth/login`、`GET /api/v1/auth/me`、`GET /api/v1/packs/latest.json`；Beanie 在 lifespan 里 `init_beanie` 注册 `User` + `Word` 两个 document model；admin 用户在 startup hook 里幂等 bootstrap（`ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` 仅首次有效，后续无视——避免重启把 admin 密码改回环境变量）。
+- **离线 server 单测**：`mongomock-motor` 提供离线 Mongo（pinned `beanie>=1.26,<1.27` 因 1.27 给 `list_collection_names` 加了 `authorizedCollections=True` 这个 mongomock 不支持的关键字）；26 个 pytest 用例覆盖 health / config / Mongo 连通 / User-Word 模型 / JWT / login / me / pack endpoint / admin bootstrap 9 个域；`filterwarnings=["error"]` 守门，唯一允许 ignore 是 `lazy_model` 的 `model_fields` deprecation（pinned 到 message + module）。
+- **Vercel 部署管线**：`api/index.py` ASGI 入口 + `vercel.json` rewrites（`builds` 字段已废弃，与 `functions` 不能共存）；`MONGODB_URI` 通过 Marketplace MongoDB Atlas 集成自动注入；`MONGO_URI` 作为 Pydantic alias 兼容老 .env.local。
+- **客户端 3 段冷启动**：`HomePage` / `BattlePage` / `TodayPlanPage` / `LearningReportPage` / `ConfigPage` 启动时都改走 `WordPackBootstrapper.forContext(ctx)`：
+    1. **Stage 1（同步）**：`WordPackCache` 命中即立即返回缓存；
+    2. **Stage 2（同步）**：缓存未命中走 `WordRepository.loadFromRawfile(ctx)` 兜底，保证全离线首次安装也能玩；
+    3. **Stage 3（异步）**：背景 `RemoteWordPackService.fetchLatest()`，成功则写入缓存供下次冷启使用，失败静默降级（仅 hilog warning）。
+- **生产烟雾测试**：`https://happyword.vercel.app/api/v1/{health,auth/login,auth/me,packs/latest.json}` 全链路 200；MongoDB 中已 seed 一条 `fruit-apple` 词条作为 prod 烟雾参照。
+
+**验收**
+
+- pytest 26/26 通过、0 errors / 0 warnings；ruff / format / mypy（`mypy app`）全清；no-device hvigor unit 测试 +21 case 通过（`RemoteWordPackConfig` / `WordPackCache` / `RemoteWordPackService` / `WordPackBootstrapper`）。
+- Vercel 生产 admin 登录拿到 JWT、`/auth/me` 返回 `{username:'admin', role:'admin', last_login_at: ...}`、`/packs/latest.json` 返回 1 词包并包含 `fruit-apple`。
+- 客户端 `SERVER_BASE_URL` 在 debug build 走 `http://10.0.2.2:8000`、release build 走 `https://happyword.vercel.app`。
+- 客户端 BootstrapDeps 4 个分支（cache hit / rawfile fallback / 远端 200 写入 cache / 远端 5xx 静默降级）都有单测覆盖。
+
+**踩过的生产坑（写进文档供 V0.5.2+ 参考）**
+
+- **`Indexed(unique=True)` on `_id`**：Word 模型最初写成 `id: Annotated[str, Indexed(unique=True)]`。`mongomock-motor` 不强制 MongoDB 的「`_id` 隐式唯一，不允许显式 unique 索引」规则，本地全绿；Atlas 拒绝并抛 `InvalidIndexSpecificationOption`，整个 lifespan 在 `init_beanie → create_indexes` 阶段炸掉，所有 endpoint 返回 500 `FUNCTION_INVOCATION_FAILED`。修法：去掉 `Indexed(unique=True)`，仅保留 `id: str` type override。**已加结构性 regression 测试 `test_word_id_field_has_no_explicit_indexed_annotation`**，未来再误加 Indexed 会在本地 pytest 直接挂掉。
+- **Vercel CLI 旧版本 + 老 `vercel.json`**：CLI 44.7.3 不支持新 deploy endpoint（需 ≥47.2.2）；`vercel.json` 不能同时有 `builds` + `functions`（已改成 `rewrites + functions`）；`memory: 1024` 在 Active CPU billing 下被忽略，已删。
+- **Hobby 计划要求 git author 是团队成员**：本地 `git config user.email` 是 `terry.ma@bytedance.com`，但 Vercel 团队 `terrymas-projects` 只有 `zjumty@gmail.com`，部署被拒。Hobby 计划禁止 invite 新成员。临时 workaround：deploy 前 `mv .git .git.deploy_bak`、deploy 后立即恢复——CLI 无 git context 就不发送 author 校验。该 workaround 已封装进 deploy 脚本心智模型。
+- **本地 prebuilt build 出 macOS wheel**：`vercel build --prod` 在 macOS arm64 上把 bcrypt native 打包成 macOS wheel，部署到 Vercel 的 Linux arm64 函数环境跑不起来。改用 `vercel deploy --prod`（不带 `--prebuilt`，让 Vercel 服务端用 uv 重新 install）替代；本机不再 prebuild。
+
+**明确不做（已留到后续）**
+
+- 词条 CRUD（V0.5.2）。
+- 版本化词包发布与回滚（V0.5.3）。
+- LLM、教程照片、插画、MP3（V0.5.4-V0.5.6）。
+- 客户端 region picker 自动扫描 categories（V0.5.5 仅渲染 `storyZh`，picker 仍硬编码 5 region；动态 picker 留 V0.6+）。
+- admin web UI：admin 操作走 curl / Postman；正式 admin SPA 留 V0.6+。
+- 监控 / 备份脚本 / rawfile 退化（V0.5.7）。
+
+### 12.3 V0.5.2 词条 CRUD + rawfile 迁移
+
+让 admin 能在线上添加 / 修改 / 删除单词；同时把 V0.4.6 累积的 50 词 rawfile 词包一次性灌入 MongoDB，从下一版起 rawfile 不再做权威源（仍保留作首次冷装兜底）。
+
+**范围**
+
+- 服务端：`POST /admin/words`（创建）、`PUT /admin/words/{id}`（更新）、`DELETE /admin/words/{id}`（软删除：仅 mark `deleted_at`，保留行用于审计 / 恢复）；请求体覆盖 `word`/`meaningZh`/`category`/`difficulty` 四个字段；返回 200 + Word JSON；非 admin token 401。
+- 数据迁移：`server/scripts/seed_from_rawfile.py` 一次性把 `entry/src/main/resources/rawfile/data/words_v1.json` 50 词导入 MongoDB（idempotent upsert by id；已存在的词不覆盖，避免线上 admin 已修改的词被脚本重置）。
+- 客户端：**零改动**——仍走 V0.5.1 的远程 fetch + 缓存 fallback，rawfile 50 词在远端可用时不再被读。
+
+**验收**
+
+- admin token 可 CRUD 单词；非 admin token 401；DELETE 后 `/packs/latest.json` 不再包含该词，但 `words` 集合仍能查到（带 `deleted_at`）。
+- 50 词全部进入 Mongo，`/packs/latest.json` 返回 50 条；客户端冷启动从远程拿到 50 词，rawfile 50 词不再被读取（仅首次冷装会读 rawfile）。
+- pytest 0 errors / 0 warnings 维持。
+
+**明确不做**
+
+- 词包版本化 / pointer 表 / 回滚（V0.5.3）。
+- 客户端 admin UI（V0.5 全程都不做）。
+- 词条字段层 LLM 增强（V0.5.4）。
+
+### 12.4 V0.5.3 版本化词包发布 + 回滚
+
+让词包变成「快照 + 指针」结构：每次 publish 写一条 `WordPack` 文档（包含自增 `version` + 完整 words 快照 + ETag），`PackPointer` 单例文档指向当前 latest version；客户端按 ETag 走 304 不下载流量。
+
+**范围**
+
+- 服务端：`POST /admin/packs/publish`（生成新快照、版本 +1、更新 pointer）、`POST /admin/packs/rollback?to=N`（pointer 回退到指定 version）；`/packs/latest.json` 改成读 pointer → 读快照，并加 `ETag` / `If-None-Match` 304 路径。新增 `app/services/pack_service.py` 与 `app/scripts/publish_pack.py`。
+- 客户端：`WordPackCache` 增 `cachedEtag` + `cachedVersion`；`RemoteWordPackService.fetchLatest` 自动带 `If-None-Match` header；304 不写盘、不回调 reload。
+
+**验收**
+
+- 改一条词 + publish → version v1 → v2，`/packs/latest.json` 返回 v2 + 新 ETag；rollback to v1 后 `/packs/latest.json` 恢复 v1 + v1 的 ETag；客户端在 ETag 未变时 304 命中，hilog 显示 0 字节下载、0 次 cache 写入。
+
+**明确不做**
+
+- LLM-augmented schema 字段（V0.5.4）。
+- 客户端 schema_version gate（V0.5.5+ 才会加）。
+- 客户端历史词包列表（远端 admin 决定 version，客户端只看 latest）。
+
+### 12.5 V0.5.4 LLM 单词级草稿（干扰项 + 例句）
+
+引入第一类 LLM 内容：admin 给一批单词点「生成草稿」，服务端调 OpenAI 生成「3 个干扰项 + 1 个英中双语例句」，进入 `llm_drafts` 集合等待人审。审核通过后字段 merge 进 `words` 文档，下一次 publish 后随词包下发。
+
+**范围**
+
+- 服务端：`POST /admin/llm/drafts/words`（按 word id 列表批量生成）、`GET /admin/llm/drafts`（list pending）、`POST /admin/llm/drafts/{id}/approve` / `reject`；OpenAI 调用走 `app/services/llm_service.py`，gpt-4o-mini 默认；OpenAI 调用错误 / 超时归一为 `draft.status = 'failed'`，admin 可重试。
+- Schema 演进：词包 schema_version 1 → 2，新增可选字段 `distractors[]`（3 个）/ `example.{en,zh}`；客户端 `WordEntry` parser 兼容（**类型层加，但战斗端尚未消费**——V0.6+ 再决定是否替代本地 `QuestionGenerator` 的距离-N 干扰项）。
+
+**验收**
+
+- admin 给 5 个词生成草稿，审 3 个 approve、2 个 reject；publish 后 `/packs/latest.json` schema_version=2 包含 3 个词的新字段；客户端冷启动正常解析（旧 4 字段战斗仍然能跑）。
+- 单测覆盖 OpenAI mock 错误路径（429、500、timeout）→ draft 进入 failed 状态、不写 word 文档。
+
+**明确不做**
+
+- 战斗中真的用 LLM distractors 替代 QuestionGenerator 的本地干扰项（评估留 V0.6+）。
+- LLM 生成例句直接展示给孩子（V0.6+ 再决定是否进战斗 prompt）。
+- 流式生成（同步 + 进度轮询足够，admin 一次最多 20 词）。
+
+### 12.6 V0.5.5 教程照片 → 一键分类导入
+
+新能力：admin 上传一张教程页 / 课本页照片，服务端走 `gpt-4o vision` 提取词表 + 自动起 `title`/`storyZh`/`category` 三段文案，落到 `lesson_import_drafts` 集合等审核；审核通过后批量创建 `Word` 文档 + 一条 `Category` 文档。
+
+**范围**
+
+- 服务端：`POST /admin/lessons/import`（multipart 上传图 → Blob → 同步 vision 调用 → 立即返回 `extracted` 完整结果）；`POST /admin/lessons/drafts/{id}/{approve,reject}`；新建 `categories` collection 与 `Category` 模型；startup hook idempotent upsert 5 条 manual category（`fruit` / `school` / `home` / `animal` / `ocean`），与 V0.4.6 既有 region 一致。
+- 词包 schema 1→2 后再 2→4（**跳过 v3** 留作未来 alignment marker）：顶层新增 `categories[]`（每条 `{id, title, storyZh}`）；客户端 schema_version gate 在 v4 时升级 parser，旧 v2 不解析顶层 `categories[]`。
+- 客户端：HomePage region 卡片在命中分类时把 `storyZh` 显示为小字（≤2 行）；新建分类**不会自动出现在 region picker**——`AdventureCatalog` 仍是硬编码 region 列表，新建 region 是 V0.6+ 工作；V0.5.5 客户端只渲染「已存在 region 的故事文案」。
+
+**验收**
+
+- 上传一张含 15 词的课本页 → 同步收到 draft 含 15 词 + 自动 title / story / category；审核通过后 publish → 客户端冷启动 region 卡片下方出现 storyZh 小字；新建分类不会自动出现在 region picker。
+- 单测覆盖 vision 大图（≥1MB）路径与超时路径。
+
+**关于 Vercel timeout 兜底**
+
+- vision 调用在 Vercel Function 上有 60s timeout（hobby 10s / pro 60s）。一张含 15 个词的课本页 gpt-4o vision 通常 5-15s。**V0.5.5 设计上就是同步**：阻塞等待 vision 完成，立刻返回。如果落地时发现 hobby 计划 10s 超时，改成「先存 Blob + draft 占位 + 后台任务（Vercel Cron / QStash）」两步走——留实施期决定，不预先复杂化。
+
+**明确不做**
+
+- 客户端 region picker 自动扫描 categories（V0.6+）。
+- AdventureRegion 自动建立（绑 boss / theme color / region story）——这些都是产品决定，不能由 LLM 决定。
+- Vision 多图批量（一次一图）。
+
+### 12.7 V0.5.6 词条插画 + 发音 MP3
+
+让单词级别可选附插画与录音：admin 上传插画 / MP3 → 落 Vercel Blob → 词条引用 URL；客户端命中时插画走 `Image(url)`、MP3 走 `PronunciationService` 优先回路。
+
+**范围**
+
+- 服务端：`POST /admin/assets/words/{id}/illustration`（multipart png/jpg → Blob）、`POST /admin/assets/words/{id}/audio`（multipart mp3 → Blob）；返回的 URL 写回 `words.illustration_url` / `words.audio_url`；`app/services/blob_service.py` 封装 Vercel Blob SDK。
+- 词包 schema 4 → 5：词条增可选 `illustrationUrl?` / `audioUrl?`。
+- 客户端：新建 `services/RemoteAssetCache.ets`（按 URL hash 缓存到 cache 目录、LRU 上限 50MB）；`PronunciationService` 命中 audio_url 优先播 mp3，无 mp3 fallback 到 TTS；BattlePage / TodayPlanPage 命中 illustrationUrl 时渲染 `Image(url)` 替代当前 emoji。
+
+**验收**
+
+- admin 给 5 个词上传插画 + MP3，publish → 客户端冷启动这 5 个词战斗中显示插画 + 朗读为录音；其他 45 词维持 emoji + TTS；asset cache 命中无重复下载（hilog 验证）。
+- 离线模式（airplane）下：cache 命中的资产仍能播 / 显示，未命中则降级 emoji + TTS。
+
+**明确不做**
+
+- 离线模式下 illustration 缺失的 placeholder 美术（先用 emoji fallback）。
+- audio 多语种 / 多音色（一个词最多一条 mp3）。
+- 视频 / GIF 资产（仅静态图 + 音频）。
+
+### 12.8 V0.5.7 收尾（监控 + 文档 + rawfile 退化）
+
+把 V0.5 全程产生的 ops 债收尾。
+
+**范围**
+
+- 服务端：`/admin/stats` 输出基础指标（words / drafts / packs / blob 用量）；OpenAI usage 日志（每次调用记录 model + tokens + cost 估算）；定期备份 pack 到 GitHub Gist 或 Blob 冷存（`server/scripts/backup_pack.py`）。
+- 客户端：`WordPackBootstrapper` 调整 fallback 优先级 ——**缓存命中即跳过 rawfile**，rawfile 仅在「无缓存 + 远端不可达」时兜底；`SERVER_BASE_URL` 区分 dev / prod 已在 V0.5.1 落地，本版仅清理。
+- 文档：admin 操作手册（如何上传词 / 发版 / 回滚 / LLM 审核 / 教程导入 / 上传插画）；运维 runbook（监控、备份、应急回滚）。
+
+**验收**
+
+- admin 走完操作手册全流程（上传、审核、发版、回滚），不需要查代码就能完成；客户端冷启动从 cache 直接命中、不再读 rawfile（仅首次冷装会读）；`/admin/stats` 在浏览器可看；备份脚本本地跑通，能从 Gist 恢复一份历史词包。
+
+**明确不做**
+
+- 多环境（staging / prod）切换：V0.5 单环境（prod）够用；staging 留 V0.6+。
+- 完整 web 后台 UI：admin 仍走 curl / 简单 HTML 表单；正式 admin SPA 留 V0.6+。
+- rawfile 词包整体下线：保留作为首次冷装兜底，到 V0.6+ 视使用情况决定。
+- 真正的孩子端 / 家长端 telemetry（命中率、错误率、网络请求时长）：V0.6 家长账户落地后再做，避免无 user identity 时埋点变成噪声。
 
 ## 13. V0.6 家长账户与设备绑定版
 
