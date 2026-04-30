@@ -217,15 +217,16 @@ async function readSpellPool(driver: Driver): Promise<string[]> {
  * Tap the first non-consumed pool button whose label matches `letter`.
  * Returns the pool index that was tapped, or -1 if no match was found.
  *
- * V0.4.8 follow-up: the BGM AVPlayer adds a small but non-zero jitter
- * to the emulator's UI thread, which occasionally pushed the
- * letter-find loop to its first frame before the pool buttons had
- * finished re-rendering after the previous tap. The function now
- * retries the find up to ~600 ms (5 × 120 ms) before giving up,
+ * V0.4.8 follow-up: the BGM AVPlayer + parallel SFX (set to
+ * INDEPENDENT_MODE so they don't silence each other) add non-zero
+ * jitter to the emulator's UI thread, which occasionally pushes
+ * the letter-find loop to its first frame before the pool buttons
+ * have finished re-rendering after the previous tap. The function
+ * retries the find up to ~1.5 s (10 × 150 ms) before giving up,
  * so a transient empty-pool moment doesn't become a -1.
  */
 async function tapSpellPoolLetter(driver: Driver, letter: string): Promise<number> {
-  for (let attempt: number = 0; attempt < 5; attempt++) {
+  for (let attempt: number = 0; attempt < 10; attempt++) {
     for (let i: number = 0; i < MAX_POOL; i++) {
       const btn: Component | null =
         await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Pool_${i}`));
@@ -235,11 +236,11 @@ async function tapSpellPoolLetter(driver: Driver, letter: string): Promise<numbe
       const text: string = await btn.getText();
       if (text === letter) {
         await btn.click();
-        await driver.delayMs(120);
+        await driver.delayMs(150);
         return i;
       }
     }
-    await driver.delayMs(120);
+    await driver.delayMs(150);
   }
   return -1;
 }
@@ -359,17 +360,17 @@ export default function spellQuestionFlowUiTest(): void {
 
       // Tap pool letters in left-to-right order, asserting after each
       // tap that the slot row advanced one position. After V0.4.8
-      // added BGM the slot read is poll-based (up to ~600 ms) so a
-      // brief UI-thread pause from the AVPlayer doesn't read the
-      // pre-tap snapshot and fail.
+      // added BGM + parallel SFX (INDEPENDENT_MODE), slot read polls
+      // up to ~1.5 s so a brief UI-thread pause from the AVPlayer
+      // mixing doesn't read the pre-tap snapshot and fail.
       const lower: string = entry.answer.toLowerCase();
       for (let pos: number = 1; pos < lower.length; pos++) {
         const letter: string = lower.charAt(pos);
         const tappedIdx: number = await tapSpellPoolLetter(driver, letter);
         expect(tappedIdx >= 0).assertTrue();
         let slotsNow: string[] = [];
-        for (let attempt: number = 0; attempt < 5; attempt++) {
-          await driver.delayMs(120);
+        for (let attempt: number = 0; attempt < 10; attempt++) {
+          await driver.delayMs(150);
           slotsNow = await readSpellSlots(driver);
           if (slotsNow.length > pos && slotsNow[pos] === letter) {
             break;

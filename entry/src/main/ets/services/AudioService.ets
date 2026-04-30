@@ -1,4 +1,5 @@
 import media from '@ohos.multimedia.media';
+import audio from '@ohos.multimedia.audio';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 
@@ -163,6 +164,28 @@ export class AudioService {
       });
       player.on('stateChange', (state: string): void => {
         if (state === 'initialized') {
+          // V0.4.8 follow-up: configure stream type + interrupt mode
+          // BEFORE prepare() so the BGM AVPlayer doesn't grab exclusive
+          // audio focus and silence the SFX players (the default
+          // SHARE_MODE causes a "latest play wins" race that made the
+          // BGM cut out the moment the user tapped an answer).
+          //   - audioRendererInfo must be set in 'initialized' state.
+          //   - audioInterruptMode is also valid here.
+          // The BGM uses MUSIC, SFX use GAME — both of these stream
+          // types coexist with system focus rules; the per-player
+          // INDEPENDENT_MODE further disables the in-app same-stream
+          // mutual interruption.
+          try {
+            player.audioInterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
+            player.audioRendererInfo = {
+              usage: key === SoundKeys.BGM_FIGHT
+                ? audio.StreamUsage.STREAM_USAGE_MUSIC
+                : audio.StreamUsage.STREAM_USAGE_GAME,
+              rendererFlags: 0
+            };
+          } catch (cfgErr) {
+            console.error(`AudioService[${key}] audio focus config failed: ${JSON.stringify(cfgErr as BusinessError)}`);
+          }
           player.prepare().catch((err: BusinessError): void => {
             console.error(`AudioService[${key}] prepare failed: ${JSON.stringify(err)}`);
             slot.muted = true;

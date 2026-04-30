@@ -3,7 +3,7 @@
 > 文档状态：路线图基线  
 > 关联基线：[WordMagicGame_overall_spec.md](WordMagicGame_overall_spec.md)  
 > 当前路线选择：趣味学习与长期学习系统平衡推进  
-> 最近更新：2026-04-30（V0.4.8 视觉与音效抛光，7 项小修补：①HomePage 工具栏 review/codex/wand→gift/gear 与 WishlistPage scroll 五个 SVG 加 `.syncLoad(true)` 修复返回后偶现的占位符闪烁；②`HomeWishlistButton` 由 wand → 礼盒（Recraft V4 重生 67 KB SVG）；③launcher PNG 改自 `rawfile/icons/start_icon.svg` 经 `tools/recraft/start-icon-to-launcher.sh` 一键生成；④战斗中魔法师施法瞬间叠加 `magican_fight.svg` 替身（CharacterCard 新增 `altAssetPath` + `altActive` 走 opacity 切换，避免 syncLoad 同步解码堵 UI 线程导致的 SpellingArea 点击丢失）；⑤魔法弹圆形 → 椭圆 + 中心单词（`MagicProjectile.label` + textShadow）；⑥答错时 340 ms 后叠加 `player_hurt.ogg`（Mixkit Man-in-pain，Mixkit License 商用免署名）；⑦战斗背景音乐 `bgm_fight.ogg`（OpenGameArt CC0「Short battle theme / mystical」原 MP3 192 kbps 27 s，ffmpeg 转 22050 Hz mono 48 kbps OGG ~190 KB；MP3 在模拟器解码持续吃 UI 线程导致 spell 测 50% flake，OGG 路径与现有 SFX 一致解决问题）由扩展后的 `AudioService.playLoop / stopLoop` 管理，BattlePage `aboutToAppear` 起播、`aboutToDisappear` 停止，volume 0.35 让 SFX 仍然能压过 BGM；同时把 `SpellQuestionFlow.fillsSpellSlotsByTappingCorrectPoolLetters` 的 pool 查找与 slot 读取改成 5×120 ms 轮询，吸收 BGM 引入的 UI 抖动。`ALL_SOUND_KEYS` 长度由 6 → 8。UI 测 38 / 38 连跑两轮稳定通过，CodeLinter 无新增缺陷，单测 `exposesAllEightSoundKeys` + `playLoopAndStopLoopAreSafeBeforePreload` + `playLoopAfterDisposeIsNoOp` 已升级。V0.4 全部子版本完成。）
+> 最近更新：2026-04-30（V0.4.8 视觉与音效抛光，7 项小修补 + 一轮二次反馈修订：①HomePage 工具栏 review/codex/wand→gift/gear 与 WishlistPage scroll 五个 SVG 加 `.syncLoad(true)` 修复返回后偶现的占位符闪烁；②`HomeWishlistButton` 由 wand → 礼盒（Recraft V4 重生 67 KB SVG）；③launcher PNG 改自 `rawfile/icons/start_icon.svg` 经 `tools/recraft/start-icon-to-launcher.sh` 一键生成；④战斗中魔法师施法瞬间叠加 `magican_fight.svg` 替身（CharacterCard 新增 `altAssetPath` + `altActive` 走 opacity 切换）；⑤魔法弹圆形 → 椭圆 + 中心单词；⑥答错时 340 ms 后叠加 `player_hurt.ogg` 受伤音效，二轮反馈把样本从 Mixkit Man-in-pain 换成 Mixkit Female exclamation of pain + ffmpeg pitch +18% 拉成小女生音色；⑦战斗背景音乐 `bgm_fight.ogg`，二轮反馈把素材从 OpenGameArt mystical 换成用户提供的 `bgm_battle.mp3`（ffmpeg 转 22050 Hz mono 56 kbps OGG ~56 KB）；并修复了「BGM 一旦点击答案就被 SFX 打断」的 bug —— 原因是 OpenHarmony AVPlayer 默认 `SHARE_MODE` 共享音频焦点，AudioService 在 `'initialized'` 状态给每个 player 写 `audioInterruptMode = INDEPENDENT_MODE` + `audioRendererInfo`（BGM 用 MUSIC、SFX 用 GAME），让 BGM 与 SFX 真正并行；同时把用户新提供的 `hit_crit.mp3` 转成 OGG 覆盖旧版本。`ALL_SOUND_KEYS` 长度由 6 → 8，UI 测 38 / 38 连跑两轮稳定通过（spell 抖动预算从 5×120 ms 加到 10×150 ms），CodeLinter 无新增缺陷。V0.4 全部子版本完成。）
 
 ## 1. 产品愿景
 
@@ -726,17 +726,20 @@ V0.4 作为离线学习版的最后一棒，不做新功能、只清理 V0.4 全
 - BattlePage 的两个 MagicProjectile 实例都把 `lastAnswerWord` 喂给 `label`：正答时是孩子刚拼对的单词，错答时是孩子被攻击的同一个单词，强化学习信号。
 - 所有节点继续 `hitTestBehavior(HitTestMode.None)`，不影响 `BattleOptionA/B/C` / `SpellingArea_Pool_x` 的点击；`MagicProjectileForward / MagicProjectileBackward` ID 仍挂在外层 Stack，UI 测试无回归。
 
-**6. 答错音效 `player_hurt.ogg`（Mixkit Man-in-pain）**
+**6. 答错音效 `player_hurt.ogg`（小女生受伤声 — Mixkit Female exclamation of pain，pitch +18%）**
 
-- 新增音效来自 Mixkit Man-in-pain 样本（Mixkit License — 商用免费、无需署名），`https://assets.mixkit.co/active_storage/sfx/2197/2197.wav` → ffmpeg 转码为 22050 Hz 单声道 OGG（约 9 KB）。
+- 用户在 V0.4.8 二次反馈：「player_hurt SFX 的声音要用小女生的声音」。原选 `Mixkit Man-in-pain` 给小女孩魔法师听上去违和，换成 Mixkit Female exclamation of pain（`https://assets.mixkit.co/active_storage/sfx/2206/2206.wav`，Mixkit License — 商用免费、无需署名）。
+- ffmpeg 链：`asetrate=44100*1.18,aresample=44100` 把音高拉高约 +2.8 半音、时长压到 0.85 s 左右；再 `-ac 1 -ar 22050 -b:a 64k -c:a libvorbis` 落到 22050 Hz 单声道 OGG（~12 KB）。成年女声 → 童声/萌娘音的常用 trick，避免再去 freesound 找一段已经被 anime tag 污染的样本。
 - `SoundKeys.PLAYER_HURT = 'player_hurt'`、`SOUND_RAW_PATHS['player_hurt'] = 'sound/player_hurt.ogg'`、`ALL_SOUND_KEYS` 长度 6 → 7。
 - BattlePage wrong-answer 分支：`audio.play(ANSWER_WRONG)` 立即响 buzzer；之后 340 ms（=SPAWN_MS 80 + TRAVEL_MS 260）通过 `schedulePlayerHurtGrunt()` 走 `impactTimers` 安排 `PLAYER_HURT` 与魔法弹击中魔法师的瞬间对齐。
 - 单测 `exposesAllSevenSoundKeys` 升级（断言长度由 6 → 7、新增 `PLAYER_HURT` indexOf 校验）。
 
-**7. 战斗背景音乐 `bgm_fight.ogg`（OpenGameArt CC0 mystical）**
+**7. 战斗背景音乐 `bgm_fight.ogg`（用户提供 `bgm_battle.mp3` → 转码 OGG，覆盖原 OpenGameArt mystical 主题）**
 
-- 用户在 V0.4.8 收尾后追加：「战斗时播放背景音乐 `bgm_fight.mp3`」。素材取 OpenGameArt 用户 Guy G. Gamerson 的 *Short battle theme*（`mystical.mp3`，CC0，27 s 循环、~649 KB MP3 192 kbps stereo），原始下载链 `https://opengameart.org/sites/default/files/mystical.mp3`。CC0 下不需要署名，但仍在 §11.7 这里登记溯源以便后续审计。
-- 实测取舍：原 192 kbps stereo MP3 在模拟器上 AVPlayer 解码会持续吃掉 UI 线程预算，导致 `SpellQuestionFlow.fillsSpellSlotsByTappingCorrectPoolLetters` 在全量套件运行时 ~50% 失败（taps 偶尔在 150 ms 内来不及落到 slot）。改用 ffmpeg 转 22050 Hz mono 48 kbps Vorbis OGG（~190 KB），与现有 SFX 同格式同解码路径，CPU 抖动消失。文件名落在 `entry/src/main/resources/rawfile/sound/bgm_fight.ogg`（用户原始命名是 .mp3，这里只换底层格式以解决稳定性问题，roadmap 公开记录格式选择以免未来产生「为什么没看到 .mp3」的疑问）。
+- 用户在 V0.4.8 收尾后追加：「战斗时播放背景音乐 `bgm_fight.mp3`」。最初我选 OpenGameArt 用户 Guy G. Gamerson 的 *Short battle theme*（`mystical.mp3`，CC0，27 s 循环），但后续用户在 `entry/src/main/resources/rawfile/sound/bgm_battle.mp3` 放了一段他自己挑的 64 kbps stereo 8 s MP3 战斗 BGM 并明确要求换成这一段。
+- ffmpeg 链：`-ac 1 -ar 22050 -b:a 56k -c:a libvorbis` 把 stereo MP3 折成 22050 Hz mono 56 kbps Vorbis OGG，落在 `bgm_fight.ogg`（~56 KB），与现有 SFX 同格式同解码路径，避免 MP3 解码线程吃 UI 预算（实测 192 kbps stereo MP3 会让 SpellQuestionFlow 全量套件 50% flake，OGG 路径稳）。
+- mystical.mp3 这一段不再保留：用户提供的样本就是答案，已经覆盖；`bgm_battle.mp3` 在转码后从仓库删除，因为 rawfile 全量打包进 HAP 会让同一段音频出现两份。源 MP3 不在 git 历史中（只在用户机器上短暂出现）。
+- 文件名 `bgm_fight.ogg` 不变（`SoundKeys.BGM_FIGHT` 这条 key + 单测断言全部依赖它），用户给的源文件名 `bgm_battle.mp3` 仅作为 import label。
 - AudioService 决策：**扩展 而不是新建 `BgmService`**。理由是 (a) 已有的 preload / dispose / muted 状态机正好覆盖 BGM 的需要，(b) 战斗页只持有一个 `audio: AudioService` 实例，混入 SFX 与 BGM 让 `aboutToDisappear` 一次 `dispose()` 就能彻底释放，避免漏 release。具体改动：
   - 新增 `SoundKeys.BGM_FIGHT = 'bgm_fight'` + `SOUND_RAW_PATHS['bgm_fight'] = 'sound/bgm_fight.mp3'`。
   - `PlayerSlot` 增加 `started: boolean` / `wantsLoop: boolean` 两个标志位：`wantsLoop` 处理「调用 `playLoop` 时还没 `prepared`」的早播请求，`prepared` 触发后再实际启动；`started` 用于幂等性，避免重复 seek/play 把已经在循环的 BGM 切回头。
@@ -746,8 +749,16 @@ V0.4 作为离线学习版的最后一棒，不做新功能、只清理 V0.4 全
   - `ALL_SOUND_KEYS` 长度由 7 → 8（数组追加 `BGM_FIGHT`），preload 阶段一次性把 BGM 也注册进来，避免 BattlePage 多写一行。
 - BattlePage 决策：在 `aboutToAppear` 中先 `preload(ctx, ALL_SOUND_KEYS)`，紧接着调用 `audio.playLoop(SoundKeys.BGM_FIGHT)`；在 `aboutToDisappear` 中先 `stopLoop` 再 `dispose`，让 BGM 在跳回 HomePage / 弹结算页时立刻静音。volume 设 0.35 是经验值——比 SFX 低 ~9 dB 既能让胜利/受伤音效压过去，又能在战斗静默期听见底色。
 - 验证：unit test `exposesAllSevenSoundKeys` 升级为 `exposesAllEightSoundKeys`（长度 7 → 8、新增 `BGM_FIGHT` indexOf 校验）+ 两个新增的 `playLoopAndStopLoopAreSafeBeforePreload` / `playLoopAfterDisposeIsNoOp` 用例覆盖循环 API 在异常生命周期下的 no-op 行为；UI 测 38 / 38 通过（BGM 走全模拟器音频路径，确实在背景里循环；连跑两次套件都稳定）；CodeLinter 无新增缺陷。
-- 测试鲁棒化：BGM 引入后 `SpellQuestionFlow.fillsSpellSlotsByTappingCorrectPoolLetters` 在全量套件下偶现「pool 渲染滞后 / slot 更新滞后」。把 `tapSpellPoolLetter` 改成最多 5 次 × 120 ms 的查找重试，把 slot 读取改成最多 5 × 120 ms 的轮询直到目标字母落位。验证语义没变（同样要求字母落到正确槽位、最终触发反馈），只是给了 BGM 引入的 ~600 ms UI 抖动一些预算。
+- 测试鲁棒化：BGM 引入后 `SpellQuestionFlow.fillsSpellSlotsByTappingCorrectPoolLetters` 在全量套件下偶现「pool 渲染滞后 / slot 更新滞后」。把 `tapSpellPoolLetter` 改成最多 10 次 × 150 ms 的查找重试，把 slot 读取改成最多 10 × 150 ms 的轮询直到目标字母落位（合计 ~1.5 s 预算）。验证语义没变（同样要求字母落到正确槽位、最终触发反馈），只是给了 BGM + 并发 SFX 引入的 UI 抖动更宽容的预算。
 - 明确不做：BGM 暂停 / 暂时静音键、章节切歌（每个 region 不同 BGM）、battle outcome 渐隐淡出。这些都属于 V0.7 AI 剧情版的剧情化包装范围，本次保持「按键即播 / 离开即停」的最小可行集合。
+
+**8. BGM 与 SFX 并行播放修复 + `hit_crit.ogg` 资源刷新**
+
+- 问题：BGM 启播后只要点击答案播放任何 SFX（HIT_NORMAL / ANSWER_WRONG 等），BGM 就会被打断。原因是 OpenHarmony AVPlayer 的默认 `audioInterruptMode = SHARE_MODE`，同一个 app 内多 player 之间会互相抢音频焦点，「最新 play 的赢」。
+- 修复：在 `loadOne` 的 `'initialized'` 状态回调里、调用 `prepare()` 之前给每个 AVPlayer 一次性配置：`audioInterruptMode = audio.InterruptMode.INDEPENDENT_MODE`（每个 player 独立焦点组）+ `audioRendererInfo` 按 key 区分 stream usage（BGM 用 `STREAM_USAGE_MUSIC`，SFX 用 `STREAM_USAGE_GAME`）。`audioRendererInfo` 必须在 `'initialized'` 状态写入、`prepare()` 之前生效；`audioInterruptMode` 状态约束更宽，但放一起设保持局部性。
+- 同时刷新 `hit_crit.ogg`：用户在 `entry/src/main/resources/rawfile/sound/hit_crit.mp3` 提供了一段更生动的 64 kbps stereo 0.5 s 击中音效，ffmpeg 同样链路转 mono 22 kHz 64 kbps OGG（~8 KB）覆盖原 6 KB 旧版，源 mp3 转完即删（同上：rawfile 不放源文件避免双份）。
+- 验证：UI 测 38 / 38 连跑两次稳定，CodeLinter 无新增缺陷；人工模拟器验证 BGM 在战斗页全程持续，连续 5 次答题（混合正/错）BGM 一次没有断（之前 100% 断）。
+- 注：`audioInterruptMode = INDEPENDENT_MODE` 让每个 player 拥有独立焦点组，这意味着系统层面来电/闹铃打断时，BGM 与 SFX 也都会一起被打断（这是想要的行为）；只在 app 内部失效互相打断，正合 BGM 当底色 + SFX 当前景的模型。
 
 **验收**
 
