@@ -1,4 +1,3 @@
-import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -11,6 +10,7 @@ from app.config import get_settings
 from app.models.user import User
 from app.models.word import Word
 from app.routers import auth as auth_router
+from app.routers import public_packs as public_packs_router
 
 
 @asynccontextmanager
@@ -38,8 +38,4 @@ app.add_middleware(
 )
 
 app.include_router(auth_router.router)
-
-
-@app.get("/api/v1/health")
-async def health() -> dict[str, object]:
-    return {"ok": True, "ts": int(time.time())}
+app.include_router(public_packs_router.router)
