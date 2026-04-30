@@ -8,7 +8,7 @@ from mongomock_motor import AsyncMongoMockClient
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MONGO_URI", "mongodb://test")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://test")
     monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
     monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad-x")
     monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "testadmin")

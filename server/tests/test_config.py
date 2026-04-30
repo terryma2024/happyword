@@ -4,7 +4,7 @@ from app.config import Settings
 
 
 def test_settings_reads_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
     monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
     monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
     monkeypatch.setenv("JWT_EXPIRE_HOURS", "24")
@@ -21,9 +21,23 @@ def test_settings_reads_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert s.admin_bootstrap_pass == "pw"
 
 
+def test_settings_accepts_legacy_mongo_uri_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`MONGO_URI` must keep working for developers with existing .env.local files."""
+    monkeypatch.delenv("MONGODB_URI", raising=False)
+    monkeypatch.setenv("MONGO_URI", "mongodb://legacy:27017")
+    monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "admin")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "pw")
+
+    s = Settings()  # type: ignore[call-arg]
+
+    assert s.mongo_uri == "mongodb://legacy:27017"
+
+
 def test_settings_defaults_when_optional_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     for k in (
-        "MONGO_URI",
+        "MONGODB_URI",
         "MONGO_DB_NAME",
         "JWT_SECRET",
         "ADMIN_BOOTSTRAP_USER",

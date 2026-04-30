@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,7 +13,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    mongo_uri: str
+    # Vercel Marketplace MongoDB integrations auto-inject `MONGODB_URI`.
+    # `MONGO_URI` is kept as an alias so existing .env.local files keep working.
+    mongo_uri: str = Field(validation_alias=AliasChoices("MONGODB_URI", "MONGO_URI"))
     mongo_db_name: str
     jwt_secret: str
     jwt_expire_hours: int = 24

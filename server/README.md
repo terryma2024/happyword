@@ -7,7 +7,7 @@ Content backend for WordMagicGame. See [V0.5 design spec](../docs/superpowers/sp
 ```bash
 cd server
 uv sync
-cp .env.local.example .env.local      # then fill in MONGO_URI etc
+cp .env.local.example .env.local      # then fill in MONGODB_URI etc
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
@@ -33,6 +33,6 @@ See [V0.5 spec §9](../docs/superpowers/specs/2026-04-30-v0.5-content-backend-de
 ```bash
 cd server
 vercel link
-vercel env add MONGO_URI       # repeat for the rest in §9.3
+vercel env add MONGODB_URI     # or use the Marketplace integration which injects it; repeat for the rest in §9.3
 vercel --prod
 ```
