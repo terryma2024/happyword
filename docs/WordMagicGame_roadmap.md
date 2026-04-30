@@ -49,6 +49,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.4.5 | 本地学习报告（已完成）       | `LearningReportBuilder` 计算总正确率 / 4 态计数 / 今日复习完成率 / 薄弱分类（按正确率升序，skip seen=0）；`pages/LearningReportPage` 4 卡片渲染 + 全分类详情；TodayPlanPage 顶栏 📊 入口；不接入趋势图 / 不做云端同步 | 无 |
 | V0.4.6 | 更多主题区域（已完成）       | 词库 +20 词覆盖 `animal` / `ocean` 两个新分类；新增 `animal-safari` (Phoenix + Unicorn 共享) / `ocean-realm` (Kraken 独占) 区域；`home-cottage` 的 Kraken 迁出兑现 V0.3.8 承诺；regionPicker 横向 Scroll 容纳 5 chips；boss 共享允许多 region 共用旋转池 | 无 |
 | V0.4.7 | 自定义愿望单条目（已完成）   | `MagicWish.isCustom` + 快照 v2；`WishlistStore.addCustomWish/removeCustomWish` 带名称/币数/emoji 校验；`WishlistPage` 头部 `+ 添加` 按钮 + 自定义卡 ✕ 删除按钮，均过家长 PIN 闸；新增 `AddCustomWishDialog` 三段表单；不接真实支付 | 无 |
+| V0.4.8 | 视觉与音效抛光（计划中）     | 6 项小修补：HomePage 工具栏 SVG 加 `.syncLoad(true)` 修复返回后图标错位；HomeWishlistButton 由 wand → 礼盒（Recraft V4 重生）；launcher PNG 改自 `rawfile/icons/start_icon.svg`；战斗中魔法师施法瞬间换 `magican_fight.svg`；魔法弹圆形 → 椭圆 + 单词；答错时叠加魔法师受伤音效（CC0） | 无 |
 | V0.5   | 内容后台与 LLM 题库版    | Node.js 内容后台、词库管理、LLM 生成题目草稿、人工审核、词包发布                    | 必需       |
 | V0.6   | 家长账户与设备绑定版       | 家长账号、孩子档案、二维码绑定设备、云端学习同步、云端愿望单                            | 必需       |
 | V0.7   | AI 剧情与语境学习版      | 句子填词、主题剧情、LLM 生成剧情草稿、个性化冒险                                | 必需       |
@@ -503,6 +504,7 @@ V0.4 的目标是把 V0.3 的学习内核做深，重点从“点选识别”进
 | V0.4.5 | 本地学习报告 | 已完成 |
 | V0.4.6 | 更多主题区域 | 已完成 |
 | V0.4.7 | 自定义愿望单条目 | 已完成 |
+| V0.4.8 | 视觉与音效抛光 | 计划中 |
 
 V0.4 可以开始考虑远程词包 JSON，但不要求完整后台。若服务端尚未开始，客户端仍应保持本地可用。
 
