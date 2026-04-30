@@ -1514,12 +1514,11 @@ export default function localUnitTest() {
   });
 
   describe('AudioService', () => {
-    it('exposesAllEightSoundKeys', 0, () => {
+    it('exposesAllSevenSoundKeys', 0, () => {
       // Guards against silently dropping a key when the SFX table is
       // edited — every key BattlePage expects must be in the preload list.
-      // V0.4.8 added PLAYER_HURT (mage grunt on backward shot) and
-      // BGM_FIGHT (looping battle background music).
-      expect(ALL_SOUND_KEYS.length).assertEqual(8);
+      // V0.4.8 added PLAYER_HURT (mage grunt on backward shot).
+      expect(ALL_SOUND_KEYS.length).assertEqual(7);
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_NORMAL) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_CRIT) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.ANSWER_WRONG) >= 0).assertTrue();
@@ -1527,7 +1526,6 @@ export default function localUnitTest() {
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.MONSTER_DEFEAT) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.VICTORY) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.DEFEAT) >= 0).assertTrue();
-      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.BGM_FIGHT) >= 0).assertTrue();
     });
 
     it('playBeforePreloadIsSafeNoOp', 0, () => {
@@ -1546,28 +1544,6 @@ export default function localUnitTest() {
       await svc.dispose();
       svc.play(SoundKeys.HIT_NORMAL);
       expect(svc.hasKey(SoundKeys.HIT_NORMAL)).assertFalse();
-    });
-
-    it('playLoopAndStopLoopAreSafeBeforePreload', 0, () => {
-      // BattlePage.aboutToAppear calls playLoop(BGM_FIGHT) immediately
-      // after kicking off preload. The slot doesn't exist yet, so the
-      // call must be a clean no-op + console warn (similar to play()).
-      // After the no-op, stopLoop on the same un-preloaded key must
-      // also no-op so aboutToDisappear doesn't crash if the user
-      // back-presses before preload resolves.
-      const svc: AudioService = new AudioService();
-      svc.playLoop(SoundKeys.BGM_FIGHT);
-      svc.stopLoop(SoundKeys.BGM_FIGHT);
-      expect(svc.hasKey(SoundKeys.BGM_FIGHT)).assertFalse();
-      expect(svc.isPlayable(SoundKeys.BGM_FIGHT)).assertFalse();
-    });
-
-    it('playLoopAfterDisposeIsNoOp', 0, async () => {
-      const svc: AudioService = new AudioService();
-      await svc.dispose();
-      svc.playLoop(SoundKeys.BGM_FIGHT);
-      svc.stopLoop(SoundKeys.BGM_FIGHT);
-      expect(svc.hasKey(SoundKeys.BGM_FIGHT)).assertFalse();
     });
   });
 

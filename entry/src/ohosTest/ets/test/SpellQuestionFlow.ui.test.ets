@@ -217,13 +217,16 @@ async function readSpellPool(driver: Driver): Promise<string[]> {
  * Tap the first non-consumed pool button whose label matches `letter`.
  * Returns the pool index that was tapped, or -1 if no match was found.
  *
- * V0.4.8 follow-up: the BGM AVPlayer + parallel SFX (set to
- * INDEPENDENT_MODE so they don't silence each other) add non-zero
- * jitter to the emulator's UI thread, which occasionally pushes
- * the letter-find loop to its first frame before the pool buttons
- * have finished re-rendering after the previous tap. The function
- * retries the find up to ~1.5 s (10 × 150 ms) before giving up,
- * so a transient empty-pool moment doesn't become a -1.
+ * The function retries the find up to ~1.5 s (10 × 150 ms). The
+ * budget needs to be generous because V0.4.8 added several visual
+ * embellishments to the battle scene — the magician's
+ * `magican_fight.svg` opacity-toggled altAsset on CharacterCard
+ * (alpha flip during `triggerForwardCast`), the Ellipse/Text combo
+ * inside MagicProjectile (replaced the simpler Circle), and the
+ * `Image($rawfile(...)).syncLoad(true)` on a handful of HomePage /
+ * WishlistPage icons. Together they cost a few frames of extra UI
+ * work on the emulator that occasionally lands inside the spell-tap
+ * loop, even with no audio playback at all.
  */
 async function tapSpellPoolLetter(driver: Driver, letter: string): Promise<number> {
   for (let attempt: number = 0; attempt < 10; attempt++) {
@@ -357,12 +360,17 @@ export default function spellQuestionFlowUiTest(): void {
       for (let i: number = 1; i < entry.slots.length; i++) {
         expect(entry.slots[i]).assertEqual('_');
       }
+      // Settle: driveUntilSpell may return on the same tick the previous
+      // wrong-answer feedback flash is still draining (BattlePage's
+      // FEEDBACK_MS = 650 ms window). Give it a beat so the first
+      // pool tap below isn't competing with the feedback re-render.
+      await driver.delayMs(700);
 
       // Tap pool letters in left-to-right order, asserting after each
-      // tap that the slot row advanced one position. After V0.4.8
-      // added BGM + parallel SFX (INDEPENDENT_MODE), slot read polls
-      // up to ~1.5 s so a brief UI-thread pause from the AVPlayer
-      // mixing doesn't read the pre-tap snapshot and fail.
+      // tap that the slot row advanced one position. Slot read polls
+      // up to ~1.5 s (10 × 150 ms) — same budget as the pool tap loop
+      // above; cf. tapSpellPoolLetter comment for the V0.4.8
+      // visual-embellishment rationale.
       const lower: string = entry.answer.toLowerCase();
       for (let pos: number = 1; pos < lower.length; pos++) {
         const letter: string = lower.charAt(pos);
@@ -379,14 +387,21 @@ export default function spellQuestionFlowUiTest(): void {
         expect(slotsNow[pos]).assertEqual(letter);
       }
       // SpellingArea's 200 ms reveal flash fires onSpellComplete →
-      // handleSpellSubmit, which sets feedbackText synchronously.
-      // BattlePage then keeps that text for FEEDBACK_MS (650 ms)
-      // before clearing it, so we must read inside that window.
-      // Reading at +350 ms catches the green "正确！" / burst label
-      // with comfortable margin on either side.
-      await driver.delayMs(350);
-      const fb: string = await readFeedback(driver);
-      expect(fb.indexOf('正确') >= 0 || fb.indexOf('魔法爆发') >= 0).assertTrue();
+      // handleSpellSubmit, which sets feedbackText for FEEDBACK_MS
+      // (650 ms). Poll instead of using a flat delay because the
+      // upstream slot-poll tail can occasionally consume enough of
+      // that window that a single delay misses the label entirely.
+      let fb: string = '';
+      let fbHit: boolean = false;
+      for (let attempt: number = 0; attempt < 8; attempt++) {
+        await driver.delayMs(80);
+        fb = await readFeedback(driver);
+        if (fb.indexOf('正确') >= 0 || fb.indexOf('魔法爆发') >= 0) {
+          fbHit = true;
+          break;
+        }
+      }
+      expect(fbHit).assertTrue();
 
       await exitToHome(driver);
       done();
@@ -415,7 +430,12 @@ export default function spellQuestionFlowUiTest(): void {
       // assertion gracefully — the happy path test covers correctness.
       if (wrongIdx >= 0) {
         await tapPoolByIndex(driver, wrongIdx);
-        await driver.delayMs(300);
+        // 600 ms covers both the SpellingArea's 200 ms reject flash
+        // and any UI-thread work from V0.4.8 image embellishments
+        // before we read the slot row. With a shorter delay the read
+        // occasionally caught a transient mid-render state on the
+        // emulator.
+        await driver.delayMs(600);
         const slotsAfter: string[] = await readSpellSlots(driver);
         // First slot still revealed; everything past slot 0 still blank.
         expect(slotsAfter[0]).assertEqual(lower.charAt(0));

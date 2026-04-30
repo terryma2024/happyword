@@ -320,13 +320,6 @@ struct BattlePage {
     this.audio.preload(ctx, ALL_SOUND_KEYS).catch((err: BusinessError): void => {
       console.error(`BattlePage: AudioService.preload failed: ${JSON.stringify(err)}`);
     });
-    // V0.4.8: kick off the looping battle BGM. `playLoop` is safe to
-    // call before preload resolves — the BGM_FIGHT slot queues the
-    // intent via `wantsLoop` and the AVPlayer's 'prepared' callback
-    // honours it. `aboutToDisappear` calls `stopLoop` before the
-    // `dispose()` teardown so the music exits with the page even if
-    // dispose is delayed by a release race.
-    this.audio.playLoop(SoundKeys.BGM_FIGHT);
     // Kick the TTS engine off in parallel — init resolves ~100-500 ms
     // later on a healthy device, and speak() safely no-ops until then.
     this.tts.init().catch((err: BusinessError): void => {
@@ -469,11 +462,6 @@ struct BattlePage {
       clearTimeout(this.impactTimers[i]);
     }
     this.impactTimers = [];
-    // V0.4.8: pause the BGM loop before disposing the players so the
-    // audible silencing happens up-front (release() inside dispose()
-    // is async). dispose() then releases every AVPlayer including
-    // the BGM slot.
-    this.audio.stopLoop(SoundKeys.BGM_FIGHT);
     // Best-effort audio teardown. AudioService.dispose() swallows
     // per-player errors so we never need to await it.
     this.audio.dispose().catch((err: BusinessError): void => {
