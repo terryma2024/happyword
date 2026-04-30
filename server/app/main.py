@@ -9,10 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.config import get_settings
+from app.models.llm_draft import LlmDraft
 from app.models.pack_pointer import PackPointer
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.models.word_pack import WordPack
+from app.routers import admin_drafts as admin_drafts_router
 from app.routers import admin_llm as admin_llm_router
 from app.routers import admin_packs as admin_packs_router
 from app.routers import admin_words as admin_words_router
@@ -40,7 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     client: AsyncIOMotorClient[dict[str, object]] = AsyncIOMotorClient(settings.mongo_uri)
     await init_beanie(
         database=client[settings.mongo_db_name],
-        document_models=[User, Word, WordPack, PackPointer],
+        document_models=[User, Word, WordPack, PackPointer, LlmDraft],
     )
     app.state.mongo_client = client
     await bootstrap_admin_user(
@@ -72,3 +74,4 @@ app.include_router(public_packs_router.router)
 app.include_router(admin_llm_router.router)
 app.include_router(admin_words_router.router)
 app.include_router(admin_packs_router.router)
+app.include_router(admin_drafts_router.router)

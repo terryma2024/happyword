@@ -49,6 +49,12 @@ class WordOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
+    # V0.5.4: optional LLM-augmented fields (None until an llm_drafts row is
+    # approved). Surfacing them on the admin endpoint lets curl users
+    # inspect what's been merged into the word post-approval.
+    distractors: list[str] | None = None
+    example_sentence_en: str | None = None
+    example_sentence_zh: str | None = None
 
 
 class WordListOut(BaseModel):

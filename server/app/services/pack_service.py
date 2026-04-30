@@ -37,13 +37,22 @@ def serialize_word_for_pack(w: Word) -> dict[str, Any]:
     audio URLs) extend this dict — that's why the function is open to
     new fields rather than driven by a fixed Pydantic model.
     """
-    return {
+    out: dict[str, Any] = {
         "id": w.id,
         "word": w.word,
         "meaningZh": w.meaningZh,
         "category": w.category,
         "difficulty": w.difficulty,
     }
+    # V0.5.4: distractors + bilingual example sentence (admin-approved).
+    if w.distractors is not None and len(w.distractors) > 0:
+        out["distractors"] = list(w.distractors)
+    if w.example_sentence_en is not None and w.example_sentence_en.strip():
+        out["example"] = {
+            "en": w.example_sentence_en,
+            "zh": w.example_sentence_zh or "",
+        }
+    return out
 
 
 def derive_schema_version(words: list[dict[str, Any]]) -> int:

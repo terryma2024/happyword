@@ -25,5 +25,11 @@ class Word(Document):
     # pack JSON and from default `/admin/words` listings (V0.5.2).
     deleted_at: datetime | None = None
 
+    # V0.5.4: LLM-generated, admin-approved learner aids. None until an
+    # admin reviews & approves an `llm_drafts` row.
+    distractors: list[str] | None = None
+    example_sentence_en: str | None = None
+    example_sentence_zh: str | None = None
+
     class Settings:
         name = "words"

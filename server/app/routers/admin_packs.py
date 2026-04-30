@@ -54,9 +54,7 @@ async def get_current_pointer(_admin: User = Depends(current_admin_user)) -> Poi
 
     pointer = await PackPointer.find_one(PackPointer.singleton_key == "main")
     if pointer is None:
-        raise _err(
-            status.HTTP_404_NOT_FOUND, "NO_CURRENT_PACK", "No pack has been published"
-        )
+        raise _err(status.HTTP_404_NOT_FOUND, "NO_CURRENT_PACK", "No pack has been published")
     pack = await pack_service.get_pack_by_version(pointer.current_version)
     return PointerOut(
         current_version=pointer.current_version,

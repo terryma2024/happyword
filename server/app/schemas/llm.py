@@ -58,3 +58,47 @@ class ScanResponse(BaseModel):
 
     model: str
     result: ScanResult
+
+
+# ---------------------------------------------------------------------------
+# V0.5.4 — word-level draft outputs (distractors / example)
+# ---------------------------------------------------------------------------
+
+
+class DistractorsResult(BaseModel):
+    """Three plausible-but-wrong options for a multiple-choice question.
+
+    The model is instructed to return *exactly* three distractors, all in
+    lowercase English, none equal (case-insensitive) to the source word.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    distractors: list[str] = Field(
+        ...,
+        description=(
+            "Exactly three plausible-but-wrong English single-word distractors "
+            "for the given headword. Lowercase; no duplicates of the headword."
+        ),
+    )
+
+
+class ExampleSentenceResult(BaseModel):
+    """One bilingual example sentence that uses the headword in context."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    en: str = Field(
+        ...,
+        description=(
+            "A short, primary-school-friendly English sentence "
+            "(≤12 words) using the headword exactly once."
+        ),
+    )
+    zh: str = Field(
+        ...,
+        description=(
+            "A natural Chinese translation of `en`, ≤25 characters, "
+            "preserving the meaning of the headword."
+        ),
+    )

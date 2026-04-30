@@ -33,6 +33,9 @@ def _to_out(w: Word) -> WordOut:
         created_at=w.created_at,
         updated_at=w.updated_at,
         deleted_at=w.deleted_at,
+        distractors=w.distractors,
+        example_sentence_en=w.example_sentence_en,
+        example_sentence_zh=w.example_sentence_zh,
     )
 
 

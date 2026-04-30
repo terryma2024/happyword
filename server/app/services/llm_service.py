@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 from openai import AsyncOpenAI
 
 from app.config import get_settings
-from app.schemas.llm import ScanResult
+from app.schemas.llm import DistractorsResult, ExampleSentenceResult, ScanResult
 
 if TYPE_CHECKING:
     from openai.types.chat import (
@@ -28,6 +28,8 @@ if TYPE_CHECKING:
         ChatCompletionContentPartTextParam,
         ChatCompletionUserMessageParam,
     )
+
+    from app.models.word import Word
 
 
 class LlmConfigError(RuntimeError):
@@ -150,3 +152,105 @@ async def extract_target_vocabulary(
         refusal = completion.choices[0].message.refusal or "(no parsed content)"
         raise LlmCallError(f"OpenAI returned no structured payload: {refusal}")
     return chosen_model, parsed
+
+
+# ---------------------------------------------------------------------------
+# V0.5.4 — word-level drafts
+# ---------------------------------------------------------------------------
+
+
+_DISTRACTORS_SYSTEM_PROMPT = (
+    "You are an English vocabulary tutor for primary-school children. "
+    "Given a single English headword and its Chinese gloss, return THREE "
+    "plausible-but-wrong English single-word distractors that a student "
+    "might confuse with the correct answer in a 4-choice multiple-choice "
+    "question. Rules:\n"
+    "  * Exactly three distractors.\n"
+    "  * All lowercase, single English words, no punctuation.\n"
+    "  * Do not include the source headword (case-insensitive).\n"
+    "  * Prefer words from the SAME semantic category (e.g. fruits with "
+    "    fruits, animals with animals).\n"
+    "  * Avoid offensive, scary, or adult-themed words."
+)
+
+
+_EXAMPLE_SYSTEM_PROMPT = (
+    "You are an English vocabulary tutor for primary-school children. "
+    "Given a single English headword and its Chinese gloss, return ONE "
+    "short bilingual example sentence pair. Rules:\n"
+    "  * The English sentence (`en`) must use the headword exactly once.\n"
+    "  * The English sentence is at most 12 words.\n"
+    "  * The Chinese translation (`zh`) is at most 25 characters and "
+    "    preserves the meaning of the headword.\n"
+    "  * Use simple, age-appropriate vocabulary.\n"
+    "  * No quotation marks, no punctuation other than `. ! ?`."
+)
+
+
+def _word_brief(word: Word) -> str:
+    return f'word="{word.word}" meaningZh="{word.meaningZh}"'
+
+
+async def extract_word_distractors(word: Word) -> tuple[str, list[str]]:
+    """Generate exactly three lowercase distractors for ``word``.
+
+    Returns ``(model_used, distractors)``. Raises :class:`LlmCallError`
+    when the model refuses, returns the wrong shape, or includes the
+    source word as a distractor.
+    """
+    settings = get_settings()
+    client = _get_openai_client()
+    chosen_model = settings.openai_model_text
+
+    completion = await client.chat.completions.parse(
+        model=chosen_model,
+        messages=[
+            {"role": "system", "content": _DISTRACTORS_SYSTEM_PROMPT},
+            {"role": "user", "content": _word_brief(word)},
+        ],
+        response_format=DistractorsResult,
+        temperature=0,
+    )
+    parsed = completion.choices[0].message.parsed
+    if parsed is None:
+        refusal = completion.choices[0].message.refusal or "(no parsed content)"
+        raise LlmCallError(f"OpenAI returned no structured payload: {refusal}")
+
+    cleaned = [d.strip().lower() for d in parsed.distractors]
+    if len(cleaned) != 3:
+        raise LlmCallError(f"Expected exactly 3 distractors, got {len(cleaned)}: {cleaned!r}")
+    if word.word.lower() in cleaned:
+        raise LlmCallError(f"Distractor list contains the source word: {cleaned!r}")
+    if len(set(cleaned)) != 3:
+        raise LlmCallError(f"Distractors not unique: {cleaned!r}")
+    return chosen_model, cleaned
+
+
+async def extract_word_example(word: Word) -> tuple[str, dict[str, str]]:
+    """Generate one bilingual example sentence for ``word``.
+
+    Returns ``(model_used, {"en": ..., "zh": ...})``.
+    """
+    settings = get_settings()
+    client = _get_openai_client()
+    chosen_model = settings.openai_model_text
+
+    completion = await client.chat.completions.parse(
+        model=chosen_model,
+        messages=[
+            {"role": "system", "content": _EXAMPLE_SYSTEM_PROMPT},
+            {"role": "user", "content": _word_brief(word)},
+        ],
+        response_format=ExampleSentenceResult,
+        temperature=0,
+    )
+    parsed = completion.choices[0].message.parsed
+    if parsed is None:
+        refusal = completion.choices[0].message.refusal or "(no parsed content)"
+        raise LlmCallError(f"OpenAI returned no structured payload: {refusal}")
+
+    en = parsed.en.strip()
+    zh = parsed.zh.strip()
+    if word.word.lower() not in en.lower():
+        raise LlmCallError(f"Example sentence missing source word {word.word!r}: {en!r}")
+    return chosen_model, {"en": en, "zh": zh}
