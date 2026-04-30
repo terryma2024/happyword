@@ -31,6 +31,18 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# Project rule: every commit must run pytest with 0 errors and 0 warnings.
+# Default to errors so any new warning fails the suite. Narrow ignores below
+# must always pin both the message prefix and the originating module, with a
+# comment explaining why upstream cannot be fixed.
+filterwarnings = [
+    "error",
+    # lazy_model 0.2.x (transitive dep of beanie<1.27) accesses
+    # `instance.model_fields`, which Pydantic 2.11 deprecates. Beanie 1.27 fixes
+    # this but is incompatible with mongomock-motor (drops the test runtime).
+    # Re-evaluate when mongomock-motor catches up.
+    "ignore:Accessing the 'model_fields' attribute on the instance is deprecated:DeprecationWarning:lazy_model",
+]
 
 [tool.ruff]
 line-length = 100
