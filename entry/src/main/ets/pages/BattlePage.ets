@@ -568,17 +568,6 @@ struct BattlePage {
   }
 
   /**
-   * V0.4.8: resolve the current portrait the mage card should render.
-   * Idle by default; switches to the fight pose while
-   * `playerFighting` is true. Implemented as a method (not a getter)
-   * to mirror the existing `assetPathForEntry()` style elsewhere in
-   * the file.
-   */
-  private currentPlayerAsset(): string {
-    return this.playerFighting ? 'character/magican_fight.svg' : PLAYER_CHARACTER_ASSET;
-  }
-
-  /**
    * V0.4.8: schedule the player-hurt grunt to play when the backward
    * projectile reaches the mage. Mirrors MagicProjectile's spawn
    * (80 ms) + travel (260 ms) timing so the voice cue arrives with
@@ -1512,7 +1501,13 @@ struct BattlePage {
               hurtPulse: this.playerHurtPulse,
               nudgePulse: this.playerNudgePulse,
               castPulse: this.playerCastPulse,
-              assetPath: this.currentPlayerAsset(),
+              assetPath: PLAYER_CHARACTER_ASSET,
+              // V0.4.8: alt portrait toggled visible while a forward
+              // projectile is mid-flight. Both images mount once and
+              // are decoded once; the swap is opacity-only so it
+              // never blocks the UI thread on a cast.
+              altAssetPath: 'character/magican_fight.svg',
+              altActive: this.playerFighting,
             });
           }
           .id('PlayerArea')
