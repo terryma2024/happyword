@@ -6,10 +6,13 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "motor>=3.6",
-    "beanie>=1.27",
+    # Beanie 1.27 calls list_collection_names with authorizedCollections=True
+    # which mongomock-motor does not support; pin until upstream catches up.
+    "beanie>=1.26,<1.27",
     "pydantic-settings>=2.6",
     "python-jose[cryptography]>=3.3",
-    "passlib[bcrypt]>=1.7.4",
+    # Use bcrypt directly; passlib is unmaintained and incompatible with bcrypt 5.x.
+    "bcrypt>=4.2",
     "openai>=1.55",
     "httpx>=0.27",
     "uvicorn[standard]>=0.32",
@@ -22,7 +25,6 @@ dev = [
     "mongomock-motor>=0.0.34",
     "ruff>=0.7",
     "mypy>=1.13",
-    "types-passlib>=1.7",
     "types-python-jose>=3.3",
 ]
 
