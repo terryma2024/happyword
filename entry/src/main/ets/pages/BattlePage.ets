@@ -262,6 +262,16 @@ struct BattlePage {
   @State projectileBackwardPulse: number = 0;
   @State projectileIntensity: number = 1;
 
+  /**
+   * V0.4.8: when the player is mid-cast (forward projectile in flight)
+   * we swap the magician's portrait to its fight pose. Flips on at pulse
+   * time and back off after SPAWN_MS + TRAVEL_MS + IMPACT_MS settle
+   * (~560 ms) so the swap aligns with the impact frame and returns to
+   * idle exactly when the cast/zoom animations finish.
+   */
+  @State playerFighting: boolean = false;
+  private playerFightingTimer: number = -1;
+
   // Question text shown while loading the dictionary. Real prompts overwrite
   // this once the engine produces its first question.
   @State prompt: string = 'Loading…';
@@ -444,6 +454,10 @@ struct BattlePage {
       clearInterval(this.tickTimer);
       this.tickTimer = -1;
     }
+    if (this.playerFightingTimer >= 0) {
+      clearTimeout(this.playerFightingTimer);
+      this.playerFightingTimer = -1;
+    }
     for (let i = 0; i < this.impactTimers.length; i++) {
       clearTimeout(this.impactTimers[i]);
     }
@@ -527,6 +541,41 @@ struct BattlePage {
       cb();
     }, 320);
     this.impactTimers.push(id);
+  }
+
+  /**
+   * V0.4.8: bump `projectileForwardPulse` and flip `playerFighting`
+   * for the duration of the cast. Centralised so the four
+   * forward-shot call sites (correct / combo on Choice/FillLetter,
+   * correct / combo on Spell) all behave identically and we never
+   * forget to schedule the reset timer.
+   *
+   * The 560 ms reset window covers MagicProjectile's
+   * SPAWN_MS (80) + TRAVEL_MS (260) + IMPACT_MS (160) + a 60 ms
+   * settle so the magician returns to idle right as the impact
+   * spectacle relaxes, not before the projectile arrives.
+   */
+  private triggerForwardCast(): void {
+    this.projectileForwardPulse += 1;
+    if (this.playerFightingTimer >= 0) {
+      clearTimeout(this.playerFightingTimer);
+    }
+    this.playerFighting = true;
+    this.playerFightingTimer = setTimeout((): void => {
+      this.playerFighting = false;
+      this.playerFightingTimer = -1;
+    }, 560);
+  }
+
+  /**
+   * V0.4.8: resolve the current portrait the mage card should render.
+   * Idle by default; switches to the fight pose while
+   * `playerFighting` is true. Implemented as a method (not a getter)
+   * to mirror the existing `assetPathForEntry()` style elsewhere in
+   * the file.
+   */
+  private currentPlayerAsset(): string {
+    return this.playerFighting ? 'character/magican_fight.svg' : PLAYER_CHARACTER_ASSET;
   }
 
   private maybeAutoSpeakCurrent(isRevealing: boolean): void {
@@ -771,7 +820,7 @@ struct BattlePage {
       // shockwave + big floating damage number) to fire when the
       // projectile reaches the monster.
       this.projectileIntensity = outcome.damage;
-      this.projectileForwardPulse += 1;
+      this.triggerForwardCast();
       this.playerCastPulse += 1;
       this.scheduleImpact((): void => {
         this.monsterZoomPulse += 1;
@@ -786,7 +835,7 @@ struct BattlePage {
       // arrival; player nudge is the recoil from casting and stays at
       // launch time so the lunge precedes the impact.
       this.projectileIntensity = 1;
-      this.projectileForwardPulse += 1;
+      this.triggerForwardCast();
       this.playerNudgePulse += 1;
       this.scheduleImpact((): void => {
         this.monsterHurtPulse += 1;
@@ -929,7 +978,7 @@ struct BattlePage {
       this.feedbackColor = '#FFB400';
       this.audio.play(SoundKeys.HIT_CRIT);
       this.projectileIntensity = outcome.damage;
-      this.projectileForwardPulse += 1;
+      this.triggerForwardCast();
       this.playerCastPulse += 1;
       this.scheduleImpact((): void => {
         this.monsterZoomPulse += 1;
@@ -941,7 +990,7 @@ struct BattlePage {
       this.feedbackColor = '#2ECC71';
       this.audio.play(SoundKeys.HIT_NORMAL);
       this.projectileIntensity = 1;
-      this.projectileForwardPulse += 1;
+      this.triggerForwardCast();
       this.playerNudgePulse += 1;
       this.scheduleImpact((): void => {
         this.monsterHurtPulse += 1;
@@ -1443,7 +1492,7 @@ struct BattlePage {
               hurtPulse: this.playerHurtPulse,
               nudgePulse: this.playerNudgePulse,
               castPulse: this.playerCastPulse,
-              assetPath: PLAYER_CHARACTER_ASSET,
+              assetPath: this.currentPlayerAsset(),
             });
           }
           .id('PlayerArea')
