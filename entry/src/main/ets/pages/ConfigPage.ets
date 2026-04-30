@@ -16,6 +16,7 @@ import {
   computeFinalPool
 } from '../models/GameConfig';
 import { WordRepository } from '../services/WordRepository';
+import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
 import { WordEntry } from '../models/WordEntry';
 
 /**
@@ -41,11 +42,11 @@ struct ConfigPage {
     // Load built-in entries for Save-time validation. Form renders
     // without waiting — validation only runs on the Save click.
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    const repo: WordRepository = new WordRepository();
-    repo.loadFromRawfile(ctx).then((): void => {
+    WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
+      const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
       this.builtinEntries = repo.all();
     }).catch((err: BusinessError): void => {
-      console.error(`ConfigPage: loadFromRawfile failed: ${JSON.stringify(err)}`);
+      console.error(`ConfigPage: bootstrap failed: ${JSON.stringify(err)}`);
     });
   }
 

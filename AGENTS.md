@@ -21,3 +21,9 @@
 - Keep UI components small and reusable
 - Explain any build.gradle-like or hvigor changes before editing
 - For all feature development and bugfix tasks, use the applicable Superpowers workflow before implementing changes.
+
+## Server (`server/`) discipline
+- Every commit that touches `server/` MUST run `uv run pytest` with **0 errors and 0 warnings**.
+- `pyproject.toml` sets `filterwarnings = ["error", ...]` so any new warning fails the suite.
+- If a warning comes from a third-party dependency we cannot fix, add a *narrow* `ignore:...` entry to `[tool.pytest.ini_options].filterwarnings` with a comment explaining the source and why we cannot resolve it upstream.
+- Never use a blanket `ignore` (e.g. `ignore::DeprecationWarning`) — always pin by message + module.

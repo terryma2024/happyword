@@ -13,6 +13,7 @@ import {
 } from '../models/GameConfig';
 import { getLearningRecorder } from '../services/LearningRecorder';
 import { WordRepository } from '../services/WordRepository';
+import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
 import { TodayAdventureBuilder, localDayKey } from '../services/TodayAdventureBuilder';
 import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
 import { AdventureRegion, TodaySessionPlan, MonsterSlot } from '../models/AdventureRegion';
@@ -163,8 +164,8 @@ struct HomePage {
 
   private enterTodayAdventure(): void {
     const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
-    const repo: WordRepository = new WordRepository();
-    repo.loadFromRawfile(ctx).then((): void => {
+    WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
+      const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
       const builder: TodayAdventureBuilder = new TodayAdventureBuilder();
       const region: AdventureRegion = this.todayRegion;
       const recorder = getLearningRecorder();
@@ -191,7 +192,7 @@ struct HomePage {
         console.error(`HomePage.enterTodayAdventure recorder.init failed: ${JSON.stringify(err)}`);
       });
     }).catch((err: BusinessError): void => {
-      console.error(`HomePage.enterTodayAdventure loadFromRawfile failed: ${JSON.stringify(err)}`);
+      console.error(`HomePage.enterTodayAdventure bootstrap failed: ${JSON.stringify(err)}`);
     });
   }
 

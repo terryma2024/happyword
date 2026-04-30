@@ -11,6 +11,10 @@
     {
       "name": "EntryAbility_label",
       "value": "魔法背单词"
+    },
+    {
+      "name": "permission_internet_reason",
+      "value": "Sync the latest word pack from the Magic Word server."
     }
   ]
 }

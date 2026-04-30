@@ -16,6 +16,10 @@ import characterAssetsTests from './CharacterAssets.test';
 import monsterCodexTests from './MonsterCodex.test';
 import redemptionHistoryStoreTest from './RedemptionHistoryStore.test';
 import parentPinDialogTest from './ParentPinDialog.test';
+import remoteWordPackConfigTest from './RemoteWordPackConfig.test';
+import wordPackCacheTest from './WordPackCache.test';
+import remoteWordPackServiceTest from './RemoteWordPackService.test';
+import wordPackBootstrapperTest from './WordPackBootstrapper.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -36,4 +40,8 @@ export default function testsuite() {
   monsterCodexTests();
   redemptionHistoryStoreTest();
   parentPinDialogTest();
+  remoteWordPackConfigTest();
+  wordPackCacheTest();
+  remoteWordPackServiceTest();
+  wordPackBootstrapperTest();
 }
