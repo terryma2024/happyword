@@ -309,7 +309,7 @@ struct HomePage {
           });
 
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/wand.svg'))
+          Image($rawfile('icons/wishlist.svg'))
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
