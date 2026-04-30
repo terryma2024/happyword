@@ -16,8 +16,12 @@ async def health() -> dict[str, object]:
 
 @router.get("/packs/latest.json", response_model=PackResponse)
 async def latest_pack() -> PackResponse:
-    """V0.5.1: real-time pack from `words` collection. V0.5.3 will switch to snapshot."""
-    rows = await Word.find_all().to_list()
+    """V0.5.1: real-time pack from `words` collection. V0.5.3 will switch to snapshot.
+
+    V0.5.2: soft-deleted words (`deleted_at != None`) are filtered out so
+    they never reach the public client even before the snapshot model.
+    """
+    rows = await Word.find(Word.deleted_at == None).to_list()  # noqa: E711 (Beanie needs `==`)
     words = [
         PackWord(
             id=w.id,

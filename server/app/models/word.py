@@ -21,6 +21,9 @@ class Word(Document):
     difficulty: int
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
+    # Soft-delete timestamp. None == active; non-None == hidden from public
+    # pack JSON and from default `/admin/words` listings (V0.5.2).
+    deleted_at: datetime | None = None
 
     class Settings:
         name = "words"

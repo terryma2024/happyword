@@ -12,6 +12,7 @@ from app.config import get_settings
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.routers import admin_llm as admin_llm_router
+from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
 from app.routers import public_packs as public_packs_router
 from app.services.auth_service import hash_password
@@ -66,3 +67,4 @@ app.add_middleware(
 app.include_router(auth_router.router)
 app.include_router(public_packs_router.router)
 app.include_router(admin_llm_router.router)
+app.include_router(admin_words_router.router)
