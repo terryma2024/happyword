@@ -55,6 +55,10 @@ class WordOut(BaseModel):
     distractors: list[str] | None = None
     example_sentence_en: str | None = None
     example_sentence_zh: str | None = None
+    # V0.5.6: Blob asset URLs. Mirroring the model so admin curl users can
+    # see what's been uploaded without reaching into Mongo directly.
+    illustration_url: str | None = None
+    audio_url: str | None = None
 
 
 class WordListOut(BaseModel):

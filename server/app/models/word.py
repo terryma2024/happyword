@@ -31,5 +31,10 @@ class Word(Document):
     example_sentence_en: str | None = None
     example_sentence_zh: str | None = None
 
+    # V0.5.6: Vercel Blob URLs. None means the asset slot is empty and
+    # clients must fall back to the bundled rawfile illustration / TTS.
+    illustration_url: str | None = None
+    audio_url: str | None = None
+
     class Settings:
         name = "words"

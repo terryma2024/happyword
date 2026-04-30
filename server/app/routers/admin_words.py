@@ -36,6 +36,8 @@ def _to_out(w: Word) -> WordOut:
         distractors=w.distractors,
         example_sentence_en=w.example_sentence_en,
         example_sentence_zh=w.example_sentence_zh,
+        illustration_url=w.illustration_url,
+        audio_url=w.audio_url,
     )
 
 

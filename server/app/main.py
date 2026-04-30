@@ -16,6 +16,7 @@ from app.models.pack_pointer import PackPointer
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.models.word_pack import WordPack
+from app.routers import admin_assets as admin_assets_router
 from app.routers import admin_categories as admin_categories_router
 from app.routers import admin_drafts as admin_drafts_router
 from app.routers import admin_lessons as admin_lessons_router
@@ -94,3 +95,4 @@ app.include_router(admin_packs_router.router)
 app.include_router(admin_drafts_router.router)
 app.include_router(admin_categories_router.router)
 app.include_router(admin_lessons_router.router)
+app.include_router(admin_assets_router.router)

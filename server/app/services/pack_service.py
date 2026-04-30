@@ -53,6 +53,12 @@ def serialize_word_for_pack(w: Word) -> dict[str, Any]:
             "en": w.example_sentence_en,
             "zh": w.example_sentence_zh or "",
         }
+    # V0.5.6: Vercel Blob asset URLs. Serialize as camelCase to match the
+    # pack JSON contract (`illustrationUrl`, `audioUrl`).
+    if w.illustration_url:
+        out["illustrationUrl"] = w.illustration_url
+    if w.audio_url:
+        out["audioUrl"] = w.audio_url
     return out
 
 
