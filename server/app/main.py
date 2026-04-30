@@ -10,6 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import get_settings
 from app.models.user import User
 from app.models.word import Word
+from app.routers import auth as auth_router
 
 
 @asynccontextmanager
@@ -35,6 +36,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router.router)
 
 
 @app.get("/api/v1/health")
