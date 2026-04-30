@@ -9,6 +9,7 @@
     "pages/MonsterCodexPage",
     "pages/ParentPinSetupPage",
     "pages/RedemptionHistoryPage",
-    "pages/TodayPlanPage"
+    "pages/TodayPlanPage",
+    "pages/LearningReportPage"
   ]
 }

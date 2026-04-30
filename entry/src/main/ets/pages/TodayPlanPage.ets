@@ -131,8 +131,23 @@ struct TodayPlanPage {
         .fontWeight(FontWeight.Bold)
         .fontColor('#1D3557')
         .layoutWeight(1)
-        .textAlign(TextAlign.Center)
-        .margin({ right: 40 });
+        .textAlign(TextAlign.Center);
+
+      // V0.4.5: report entry. Pairs with TodayPlanPage as the
+      // "what to learn / how am I doing" duo so HomePage's toolbar
+      // budget stays at 5 buttons.
+      Button('📊')
+        .id('TodayPlanReportButton')
+        .type(ButtonType.Circle)
+        .width(40)
+        .height(40)
+        .fontSize(20)
+        .backgroundColor('#FFFFFF')
+        .onClick((): void => {
+          router.pushUrl({ url: 'pages/LearningReportPage' }).catch((err: BusinessError): void => {
+            console.error(`TodayPlanPage: pushUrl LearningReportPage failed: ${JSON.stringify(err)}`);
+          });
+        });
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 16, bottom: 12 });

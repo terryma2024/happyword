@@ -9,6 +9,7 @@ import fillLetterFlowUiTest from './FillLetterFlow.ui.test';
 import spellQuestionFlowUiTest from './SpellQuestionFlow.ui.test';
 import monsterCodexFlowUiTest from './MonsterCodexFlow.ui.test';
 import todayPlanFlowUiTest from './TodayPlanFlow.ui.test';
+import learningReportFlowUiTest from './LearningReportFlow.ui.test';
 import wishlistFlowUiTest from './WishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
 
@@ -46,6 +47,11 @@ export default function testsuite() {
   // recorder-seeded suites because TodayPlanService tolerates any
   // recorder state.
   todayPlanFlowUiTest();
+  // V0.4.5: navigation-only — opens HomePage → TodayPlanPage →
+  // LearningReportPage; surface and back nav. Tolerates any
+  // recorder state because LearningReportBuilder treats every
+  // word the same way regardless of prior taps.
+  learningReportFlowUiTest();
   // V0.3.9: wishlist redesign + parent PIN setup. Both suites are
   // navigation-only (they do not seed coins, do not redeem); the
   // full PIN → GiftBox → history flow is unit-tested.

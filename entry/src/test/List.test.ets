@@ -7,6 +7,7 @@ import memorySchedulerTest from './MemoryScheduler.test';
 import adventureCatalogTest from './AdventureCatalog.test';
 import todayAdventureBuilderTest from './TodayAdventureBuilder.test';
 import todayPlanServiceTest from './TodayPlanService.test';
+import learningReportBuilderTest from './LearningReportBuilder.test';
 import planQuestionSourceTest from './PlanQuestionSource.test';
 import coinAccountTest from './CoinAccount.test';
 import wishlistStoreTest from './WishlistStore.test';
@@ -26,6 +27,7 @@ export default function testsuite() {
   adventureCatalogTest();
   todayAdventureBuilderTest();
   todayPlanServiceTest();
+  learningReportBuilderTest();
   planQuestionSourceTest();
   coinAccountTest();
   wishlistStoreTest();
