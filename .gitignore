@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Vercel CLI link metadata (project link is local-only, never committed)
+.vercel/
+
 # Git worktrees (project-local isolated workspaces)
 .worktrees/
 
