@@ -17,6 +17,7 @@ import monsterCodexTests from './MonsterCodex.test';
 import redemptionHistoryStoreTest from './RedemptionHistoryStore.test';
 import parentPinDialogTest from './ParentPinDialog.test';
 import remoteWordPackConfigTest from './RemoteWordPackConfig.test';
+import wordPackCacheTest from './WordPackCache.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -38,4 +39,5 @@ export default function testsuite() {
   redemptionHistoryStoreTest();
   parentPinDialogTest();
   remoteWordPackConfigTest();
+  wordPackCacheTest();
 }
