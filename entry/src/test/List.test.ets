@@ -18,6 +18,7 @@ import redemptionHistoryStoreTest from './RedemptionHistoryStore.test';
 import parentPinDialogTest from './ParentPinDialog.test';
 import remoteWordPackConfigTest from './RemoteWordPackConfig.test';
 import wordPackCacheTest from './WordPackCache.test';
+import remoteWordPackServiceTest from './RemoteWordPackService.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -40,4 +41,5 @@ export default function testsuite() {
   parentPinDialogTest();
   remoteWordPackConfigTest();
   wordPackCacheTest();
+  remoteWordPackServiceTest();
 }

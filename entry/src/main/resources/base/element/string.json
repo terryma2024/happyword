@@ -11,6 +11,10 @@
     {
       "name": "EntryAbility_label",
       "value": "MagicWord"
+    },
+    {
+      "name": "permission_internet_reason",
+      "value": "Sync the latest word pack from the Magic Word server."
     }
   ]
 }
