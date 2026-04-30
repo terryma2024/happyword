@@ -3,32 +3,57 @@ import BuildProfile from 'BuildProfile';
 /**
  * V0.5.1: server base URL for the remote word pack.
  *
- * Switch is driven by hvigor's auto-generated `BuildProfile.BUILD_MODE_NAME`
- * (`'debug'` for `assembleHap` default, `'release'` for the `release`
- * buildOptionSet). Production builds always hit Vercel; debug builds hit
- * the emulator host loopback so the FastAPI server running on the dev
- * machine is reachable from the HarmonyOS emulator without a tunnel.
+ * Default routing: BOTH debug and release builds hit `PROD_BASE_URL`
+ * (https://happyword.vercel.app). This makes the cold-start path
+ * exercise the real production round-trip every time, which is what
+ * the V0.5.1 walking skeleton needs to verify.
  *
- * If you switch to a real device on LAN, change `DEV_BASE_URL` to the dev
- * machine's LAN IP (e.g. `http://192.168.1.100:8000`). If you use
+ * When you start V0.5.2+ work that actually iterates on a local
+ * FastAPI server, flip `USE_LOCAL_DEV_SERVER` to `true` below. With
+ * that toggle on, debug builds route to `DEV_BASE_URL`
+ * (`http://10.0.2.2:8000` — the emulator's host loopback) while
+ * release builds keep hitting prod. Remember to flip it back to
+ * `false` before tagging another release.
+ *
+ * For real devices on LAN: change `DEV_BASE_URL` to the dev
+ * machine's LAN IP (e.g. `http://192.168.1.100:8000`). For USB
  * `hdc fport tcp:8000 tcp:8000`, change to `http://127.0.0.1:8000`.
  */
 export const DEV_BASE_URL: string = 'http://10.0.2.2:8000';
 export const PROD_BASE_URL: string = 'https://happyword.vercel.app';
 
+/** One-line toggle: set to `true` only when actively iterating on the local FastAPI server. */
+export const USE_LOCAL_DEV_SERVER: boolean = false;
+
 /** Cap for a single fetch round-trip; exceeded => fallback to cache. */
 export const REMOTE_FETCH_TIMEOUT_MS: number = 8000;
 
 /**
- * Pure function: pick the appropriate base URL given a build mode name.
- * 'debug' -> DEV; everything else (including 'release' and unknown) -> PROD.
- * Kept pure so unit tests cover every branch without touching BuildProfile.
+ * Pure picker that takes the toggle value explicitly. Tests use this
+ * to cover both states without mutating the module-level constant.
+ *
+ * Rule:
+ *   - useLocalDevServer && buildModeName === 'debug'  -> DEV_BASE_URL
+ *   - everything else (release, unknown modes, toggle off)  -> PROD_BASE_URL
  */
-export function pickServerBaseUrl(buildModeName: string): string {
-  if (buildModeName === 'debug') {
+export function pickServerBaseUrlExplicit(
+  buildModeName: string,
+  useLocalDevServer: boolean,
+): string {
+  if (useLocalDevServer && buildModeName === 'debug') {
     return DEV_BASE_URL;
   }
   return PROD_BASE_URL;
+}
+
+/**
+ * Production picker: applies the module-level USE_LOCAL_DEV_SERVER
+ * constant. Kept as a thin wrapper so module bootstrap stays a
+ * single function call and call-sites don't have to know about the
+ * toggle.
+ */
+export function pickServerBaseUrl(buildModeName: string): string {
+  return pickServerBaseUrlExplicit(buildModeName, USE_LOCAL_DEV_SERVER);
 }
 
 /** Effective base URL for this build (read once at module load). */
