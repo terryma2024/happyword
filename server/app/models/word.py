@@ -11,7 +11,10 @@ def _utcnow() -> datetime:
 
 class Word(Document):
     # Override Beanie's PydanticObjectId-typed id with a stable string slug.
-    id: Annotated[str, Indexed(unique=True)]  # type: ignore[assignment]
+    # MongoDB's `_id` is implicitly unique; declaring `unique=True` on top
+    # produces InvalidIndexSpecificationOption (mongomock does not enforce
+    # this, which is why local tests miss it). Just type-override the field.
+    id: str  # type: ignore[assignment]
     word: str
     meaningZh: str
     category: Annotated[str, Indexed()]
