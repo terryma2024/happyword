@@ -23,6 +23,8 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 async def db() -> AsyncIterator[object]:
     """Beanie-initialized mongomock database for tests."""
+    from app.models.category import Category  # noqa: PLC0415
+    from app.models.lesson_import_draft import LessonImportDraft  # noqa: PLC0415
     from app.models.llm_draft import LlmDraft  # noqa: PLC0415
     from app.models.pack_pointer import PackPointer  # noqa: PLC0415
     from app.models.user import User  # noqa: PLC0415 - lazy to avoid early import
@@ -32,7 +34,15 @@ async def db() -> AsyncIterator[object]:
     mock = AsyncMongoMockClient()
     await init_beanie(
         database=mock["happyword_test"],
-        document_models=[User, Word, WordPack, PackPointer, LlmDraft],
+        document_models=[
+            User,
+            Word,
+            WordPack,
+            PackPointer,
+            LlmDraft,
+            Category,
+            LessonImportDraft,
+        ],
     )
     yield mock["happyword_test"]
 

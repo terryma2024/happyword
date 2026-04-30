@@ -10,6 +10,7 @@ illustration/audio URLs).
 from datetime import UTC, datetime
 from typing import Any
 
+from app.models.category import Category
 from app.models.pack_pointer import PackPointer
 from app.models.word import Word
 from app.models.word_pack import WordPack
@@ -55,19 +56,36 @@ def serialize_word_for_pack(w: Word) -> dict[str, Any]:
     return out
 
 
-def derive_schema_version(words: list[dict[str, Any]]) -> int:
+def derive_schema_version(
+    words: list[dict[str, Any]],
+    *,
+    has_categories: bool = False,
+) -> int:
     """Pick the lowest schema_version that can losslessly represent ``words``.
 
-    The hierarchy is v1 (baseline) < v2 (LLM) < v4 (+categories — set by
-    caller, not inferred from words) < v5 (+illustration/audio).
-    Categories live on the snapshot, not on words, so this function only
-    surfaces v1 / v2 / v5; the caller bumps to v4 if it has categories.
+    Hierarchy: v1 (baseline) < v2 (+ LLM word fields) < v4 (+ categories
+    top-level) < v5 (+ illustration/audio URLs). v3 is intentionally
+    skipped (see spec §6.7) so each tier maps 1-1 to the sub-version
+    that introduced it.
     """
     if any("illustrationUrl" in w or "audioUrl" in w for w in words):
         return 5
+    if has_categories:
+        return 4
     if any("distractors" in w or "example" in w for w in words):
         return 2
     return 1
+
+
+def serialize_category_for_pack(c: Category) -> dict[str, Any]:
+    """Wire-shape categories[] entry. camelCase to align with the spec
+    §6.7 schema_v4 contract that clients consume."""
+    return {
+        "id": c.id,
+        "labelEn": c.label_en,
+        "labelZh": c.label_zh,
+        "storyZh": c.story_zh,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +112,17 @@ async def publish_pack(*, published_by: str, notes: str | None = None) -> WordPa
         raise PackError("EMPTY_PACK", "No active words to publish")
 
     serialised_words = [serialize_word_for_pack(w) for w in rows]
-    schema_v = derive_schema_version(serialised_words)
+
+    # Only include categories that are actually referenced by an active
+    # word — otherwise unreferenced manual seeds (e.g. ocean before any
+    # ocean-* word is added) would leak empty region cards to clients.
+    referenced_ids = {w["category"] for w in serialised_words}
+    referenced_categories: list[dict[str, Any]] = []
+    if referenced_ids:
+        rows_cat = await Category.find({"_id": {"$in": list(referenced_ids)}}).to_list()
+        referenced_categories = [serialize_category_for_pack(c) for c in rows_cat]
+
+    schema_v = derive_schema_version(serialised_words, has_categories=bool(referenced_categories))
     pointer = await PackPointer.find_one(PackPointer.singleton_key == "main")
     next_version = (pointer.current_version + 1) if pointer is not None else 1
 
@@ -102,6 +130,7 @@ async def publish_pack(*, published_by: str, notes: str | None = None) -> WordPa
         version=next_version,
         schema_version=schema_v,
         words=serialised_words,
+        categories=referenced_categories or None,
         published_by=published_by,
         notes=notes,
         published_at=datetime.now(tz=UTC),

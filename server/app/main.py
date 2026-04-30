@@ -9,18 +9,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.config import get_settings
+from app.models.category import Category
+from app.models.lesson_import_draft import LessonImportDraft
 from app.models.llm_draft import LlmDraft
 from app.models.pack_pointer import PackPointer
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.models.word_pack import WordPack
+from app.routers import admin_categories as admin_categories_router
 from app.routers import admin_drafts as admin_drafts_router
+from app.routers import admin_lessons as admin_lessons_router
 from app.routers import admin_llm as admin_llm_router
 from app.routers import admin_packs as admin_packs_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
 from app.routers import public_packs as public_packs_router
 from app.services.auth_service import hash_password
+from app.services.category_service import seed_manual_categories
 
 
 async def bootstrap_admin_user(username: str, password: str) -> None:
@@ -42,13 +47,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     client: AsyncIOMotorClient[dict[str, object]] = AsyncIOMotorClient(settings.mongo_uri)
     await init_beanie(
         database=client[settings.mongo_db_name],
-        document_models=[User, Word, WordPack, PackPointer, LlmDraft],
+        document_models=[
+            User,
+            Word,
+            WordPack,
+            PackPointer,
+            LlmDraft,
+            Category,
+            LessonImportDraft,
+        ],
     )
     app.state.mongo_client = client
     await bootstrap_admin_user(
         username=settings.admin_bootstrap_user,
         password=settings.admin_bootstrap_pass,
     )
+    # V0.5.5 startup hook: idempotently seed the 5 manual category rows
+    # so legacy regions still have a category metadata row even before
+    # any lesson-import lands.
+    await seed_manual_categories()
     try:
         yield
     finally:
@@ -75,3 +92,5 @@ app.include_router(admin_llm_router.router)
 app.include_router(admin_words_router.router)
 app.include_router(admin_packs_router.router)
 app.include_router(admin_drafts_router.router)
+app.include_router(admin_categories_router.router)
+app.include_router(admin_lessons_router.router)
