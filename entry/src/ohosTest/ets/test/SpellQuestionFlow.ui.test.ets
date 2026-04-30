@@ -271,11 +271,20 @@ class SpellEntryState {
 
 async function driveUntilSpell(driver: Driver, maxTurns: number): Promise<SpellEntryState> {
   const out: SpellEntryState = new SpellEntryState();
+  // V0.4.4: add a small initial settle so BattlePage's first-question
+  // render lands before we probe ids. After heavy-suite runs the
+  // emulator can take >900ms to commit the first AppStorage-driven
+  // frame, which previously surfaced as a Spell-never-arrives flake.
+  await driver.delayMs(500);
   for (let turn: number = 0; turn < maxTurns; turn++) {
     // Already at Spell?
     const spellSlot0: Component | null =
       await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Slot_0`));
     if (spellSlot0 !== null) {
+      // Allow any in-flight pool/slot animation to settle before we
+      // snapshot the row — readSpellSlots and readSpellPool race
+      // against SpellingArea's reset path.
+      await driver.delayMs(150);
       const slots: string[] = await readSpellSlots(driver);
       const pool: string[] = await readSpellPool(driver);
       const reconstructed: string[] = slots.slice();
@@ -329,7 +338,7 @@ export default function spellQuestionFlowUiTest(): void {
       await returnToHome(driver);
       await startFruitForestBattle(driver);
 
-      const entry: SpellEntryState = await driveUntilSpell(driver, 30);
+      const entry: SpellEntryState = await driveUntilSpell(driver, 50);
       expect(entry.slots.length >= 4).assertTrue();
       expect(entry.answer !== '').assertTrue();
       // First slot is pre-revealed, every other slot starts as '_'.
@@ -374,7 +383,7 @@ export default function spellQuestionFlowUiTest(): void {
       await returnToHome(driver);
       await startFruitForestBattle(driver);
 
-      const entry: SpellEntryState = await driveUntilSpell(driver, 30);
+      const entry: SpellEntryState = await driveUntilSpell(driver, 50);
       expect(entry.slots.length >= 4).assertTrue();
       expect(entry.answer !== '').assertTrue();
 

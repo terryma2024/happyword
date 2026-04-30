@@ -8,6 +8,7 @@ import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
 import fillLetterFlowUiTest from './FillLetterFlow.ui.test';
 import spellQuestionFlowUiTest from './SpellQuestionFlow.ui.test';
 import monsterCodexFlowUiTest from './MonsterCodexFlow.ui.test';
+import todayPlanFlowUiTest from './TodayPlanFlow.ui.test';
 import wishlistFlowUiTest from './WishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
 
@@ -39,6 +40,12 @@ export default function testsuite() {
   // fruit-forest plan as FillLetterFlow. Reuses the static zh→en
   // catalog so the suite stays deterministic.
   spellQuestionFlowUiTest();
+  // V0.4.4: read-only daily plan page. Navigation-only test —
+  // verifies HomePlanButton → TodayPlanPage → back works and the
+  // page renders its essential ids. Order-independent vs the
+  // recorder-seeded suites because TodayPlanService tolerates any
+  // recorder state.
+  todayPlanFlowUiTest();
   // V0.3.9: wishlist redesign + parent PIN setup. Both suites are
   // navigation-only (they do not seed coins, do not redeem); the
   // full PIN → GiftBox → history flow is unit-tested.

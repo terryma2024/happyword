@@ -6,6 +6,7 @@ import spellGeneratorTest from './SpellGenerator.test';
 import memorySchedulerTest from './MemoryScheduler.test';
 import adventureCatalogTest from './AdventureCatalog.test';
 import todayAdventureBuilderTest from './TodayAdventureBuilder.test';
+import todayPlanServiceTest from './TodayPlanService.test';
 import planQuestionSourceTest from './PlanQuestionSource.test';
 import coinAccountTest from './CoinAccount.test';
 import wishlistStoreTest from './WishlistStore.test';
@@ -24,6 +25,7 @@ export default function testsuite() {
   memorySchedulerTest();
   adventureCatalogTest();
   todayAdventureBuilderTest();
+  todayPlanServiceTest();
   planQuestionSourceTest();
   coinAccountTest();
   wishlistStoreTest();

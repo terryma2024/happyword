@@ -287,6 +287,25 @@ struct HomePage {
             });
           });
 
+        // V0.4.4: today-plan visibility entry. Uses the 📋 emoji
+        // glyph rather than a Recraft SVG to keep the V0.4 series
+        // additive against the V0.3.10 icon set; promote to a
+        // bespoke SVG in a follow-up if the toolbar needs a uniform
+        // visual language.
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Text('📋')
+            .fontSize(28);
+        }
+          .id('HomePlanButton')
+          .width(56)
+          .height(56)
+          .backgroundColor('#FCEAEA')
+          .onClick((): void => {
+            router.pushUrl({ url: 'pages/TodayPlanPage' }).catch((err: BusinessError): void => {
+              console.error(`HomePage: pushUrl TodayPlanPage failed: ${JSON.stringify(err)}`);
+            });
+          });
+
         Button({ type: ButtonType.Circle, stateEffect: true }) {
           Image($rawfile('icons/wand.svg'))
             .width(32)
