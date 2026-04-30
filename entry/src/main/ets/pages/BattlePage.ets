@@ -1539,11 +1539,17 @@ struct BattlePage {
         projectilePulse: this.projectileForwardPulse,
         forward: true,
         intensity: this.projectileIntensity,
+        // V0.4.8: stamp the answer word inside the orb so the cast
+        // reinforces the spelling the player just produced.
+        label: this.lastAnswerWord,
       });
       MagicProjectile({
         projectilePulse: this.projectileBackwardPulse,
         forward: false,
         intensity: 1,
+        // V0.4.8: backward shot carries the same word so the kid
+        // sees what they missed flying toward the mage.
+        label: this.lastAnswerWord,
         accentCore: this.currentMonster.fill,
         // Glow tracks the core fill; outerOpacity 0.65 makes the
         // shared color read as a halo around the core orb.
