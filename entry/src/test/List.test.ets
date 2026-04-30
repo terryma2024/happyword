@@ -19,6 +19,7 @@ import parentPinDialogTest from './ParentPinDialog.test';
 import remoteWordPackConfigTest from './RemoteWordPackConfig.test';
 import wordPackCacheTest from './WordPackCache.test';
 import remoteWordPackServiceTest from './RemoteWordPackService.test';
+import wordPackBootstrapperTest from './WordPackBootstrapper.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -42,4 +43,5 @@ export default function testsuite() {
   remoteWordPackConfigTest();
   wordPackCacheTest();
   remoteWordPackServiceTest();
+  wordPackBootstrapperTest();
 }
