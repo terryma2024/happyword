@@ -44,6 +44,14 @@ export class SoundKeys {
   static readonly MONSTER_DEFEAT: string = 'monster_defeat';
   static readonly VICTORY: string = 'victory';
   static readonly DEFEAT: string = 'defeat';
+  /**
+   * V0.4.8 follow-up: looping battle background music. Driven through
+   * the dedicated {@link AudioService.playLoop} / {@link AudioService.stopLoop}
+   * pair (instead of {@link AudioService.play}) so SFX and BGM share
+   * the same preload + dispose lifecycle without colliding on
+   * `seek(0)` rewinds.
+   */
+  static readonly BGM_FIGHT: string = 'bgm_fight';
 }
 
 /**
@@ -60,7 +68,16 @@ const SOUND_RAW_PATHS: Record<string, string> = {
   'monster_defeat': 'sound/monster_defeat.ogg',
   'victory': 'sound/victory.ogg',
   'defeat': 'sound/defeat.ogg',
+  'bgm_fight': 'sound/bgm_fight.ogg',
 };
+
+/**
+ * Volume applied to looping BGM tracks. Keeps the music a measurable
+ * step below SFX (≈ −9 dB) so victory/defeat cues stay legible without
+ * needing a per-call duck. When V0.6 introduces the parental settings
+ * panel this becomes a slider and the constant is gone.
+ */
+const BGM_VOLUME: number = 0.35;
 
 /**
  * Factory signature used by {@link AudioService} to obtain an AVPlayer.
@@ -77,6 +94,22 @@ class PlayerSlot {
   muted: boolean = false;
   /** True once AVPlayer.state === 'prepared' (or later). */
   ready: boolean = false;
+  /**
+   * Loop-mode bookkeeping (V0.4.8 follow-up).
+   *
+   * `started` is set the first time a `playLoop` actually kicks off
+   * playback, and reset by `stopLoop` so a subsequent `playLoop` after
+   * a battle re-entry can replay from the top. It also makes
+   * `playLoop` idempotent — repeated calls during a single battle
+   * don't seek the running BGM back to zero.
+   *
+   * `wantsLoop` covers the early-call case: `BattlePage.aboutToAppear`
+   * fires `playLoop` immediately after `preload`, but the underlying
+   * AVPlayer is still racing through `initialized -> prepared`. We
+   * stash the intent here and let the `prepared` callback honour it.
+   */
+  started: boolean = false;
+  wantsLoop: boolean = false;
 }
 
 export class AudioService {
@@ -136,6 +169,25 @@ export class AudioService {
           });
         } else if (state === 'prepared') {
           slot.ready = true;
+          // V0.4.8: BGM key gets loop + reduced volume baked in once,
+          // and any queued playLoop() request is honoured here so the
+          // page lifecycle hook doesn't have to await `prepared`.
+          if (key === SoundKeys.BGM_FIGHT) {
+            try {
+              player.loop = true;
+              player.setVolume(BGM_VOLUME);
+            } catch (err) {
+              console.error(`AudioService[${key}] loop/volume init failed: ${JSON.stringify(err as BusinessError)}`);
+            }
+            if (slot.wantsLoop && !slot.started) {
+              slot.wantsLoop = false;
+              slot.started = true;
+              player.play().catch((err: BusinessError): void => {
+                console.error(`AudioService[${key}] deferred loop play failed: ${JSON.stringify(err)}`);
+                slot.started = false;
+              });
+            }
+          }
         }
       });
 
@@ -179,6 +231,77 @@ export class AudioService {
     player.seek(0);
     player.play().catch((err: BusinessError): void => {
       console.error(`AudioService[${key}] play failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  /**
+   * Start (or re-start) a long-running loop for `key`. Idempotent — a
+   * second call while playback is already active is a no-op rather
+   * than a `seek(0)` that would cut the BGM back to the top. Safe to
+   * call before `preload` resolves: the request is queued via
+   * `wantsLoop` and the `prepared` state callback will honour it.
+   *
+   * Used by BattlePage.aboutToAppear for `bgm_fight`. Not appropriate
+   * for one-shot SFX — those still go through `play()`.
+   */
+  playLoop(key: string): void {
+    if (this.disposed) {
+      return;
+    }
+    const slot: PlayerSlot | undefined = this.slots.get(key);
+    if (slot === undefined) {
+      console.warn(`AudioService.playLoop: key "${key}" not preloaded, dropping.`);
+      return;
+    }
+    if (slot.muted) {
+      return;
+    }
+    if (!slot.ready) {
+      slot.wantsLoop = true;
+      return;
+    }
+    if (slot.started) {
+      return;
+    }
+    const player: media.AVPlayer | undefined = slot.player;
+    if (player === undefined) {
+      return;
+    }
+    try {
+      player.loop = true;
+      player.setVolume(BGM_VOLUME);
+    } catch (err) {
+      console.error(`AudioService.playLoop[${key}] loop/volume failed: ${JSON.stringify(err as BusinessError)}`);
+    }
+    slot.started = true;
+    player.play().catch((err: BusinessError): void => {
+      console.error(`AudioService.playLoop[${key}] play failed: ${JSON.stringify(err)}`);
+      slot.started = false;
+    });
+  }
+
+  /**
+   * Pause a loop previously started by `playLoop`. Releases nothing —
+   * the AVPlayer stays prepared so a later `playLoop` (e.g. on the
+   * next battle) can resume without a new fdSrc. Use `dispose()` for
+   * actual teardown.
+   */
+  stopLoop(key: string): void {
+    const slot: PlayerSlot | undefined = this.slots.get(key);
+    if (slot === undefined) {
+      return;
+    }
+    slot.wantsLoop = false;
+    if (!slot.started) {
+      return;
+    }
+    slot.started = false;
+    const player: media.AVPlayer | undefined = slot.player;
+    if (player === undefined) {
+      return;
+    }
+    player.pause().catch((err: BusinessError): void => {
+      console.error(`AudioService.stopLoop[${key}] pause failed: ${JSON.stringify(err)}`);
     });
   }
 
@@ -228,4 +351,5 @@ export const ALL_SOUND_KEYS: string[] = [
   SoundKeys.MONSTER_DEFEAT,
   SoundKeys.VICTORY,
   SoundKeys.DEFEAT,
+  SoundKeys.BGM_FIGHT,
 ];

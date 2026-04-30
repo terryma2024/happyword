@@ -3,7 +3,7 @@
 > 文档状态：路线图基线  
 > 关联基线：[WordMagicGame_overall_spec.md](WordMagicGame_overall_spec.md)  
 > 当前路线选择：趣味学习与长期学习系统平衡推进  
-> 最近更新：2026-04-30（V0.4.8 视觉与音效抛光，6 项小修补：①HomePage 工具栏 review/codex/wand→gift/gear 与 WishlistPage scroll 五个 SVG 加 `.syncLoad(true)` 修复返回后偶现的占位符闪烁；②`HomeWishlistButton` 由 wand → 礼盒（Recraft V4 重生 67 KB SVG）；③launcher PNG 改自 `rawfile/icons/start_icon.svg` 经 `tools/recraft/start-icon-to-launcher.sh` 一键生成；④战斗中魔法师施法瞬间叠加 `magican_fight.svg` 替身（CharacterCard 新增 `altAssetPath` + `altActive` 走 opacity 切换，避免 syncLoad 同步解码堵 UI 线程导致的 SpellingArea 点击丢失）；⑤魔法弹圆形 → 椭圆 + 中心单词（`MagicProjectile.label` + textShadow）；⑥答错时 340 ms 后叠加 `player_hurt.ogg`（Mixkit Man-in-pain，Mixkit License 商用免署名）。`ALL_SOUND_KEYS` 长度由 6 → 7。UI 测 38 / 38 通过，CodeLinter 无新增缺陷，单测 `exposesAllSevenSoundKeys` 已升级。V0.4 全部子版本完成。）
+> 最近更新：2026-04-30（V0.4.8 视觉与音效抛光，7 项小修补：①HomePage 工具栏 review/codex/wand→gift/gear 与 WishlistPage scroll 五个 SVG 加 `.syncLoad(true)` 修复返回后偶现的占位符闪烁；②`HomeWishlistButton` 由 wand → 礼盒（Recraft V4 重生 67 KB SVG）；③launcher PNG 改自 `rawfile/icons/start_icon.svg` 经 `tools/recraft/start-icon-to-launcher.sh` 一键生成；④战斗中魔法师施法瞬间叠加 `magican_fight.svg` 替身（CharacterCard 新增 `altAssetPath` + `altActive` 走 opacity 切换，避免 syncLoad 同步解码堵 UI 线程导致的 SpellingArea 点击丢失）；⑤魔法弹圆形 → 椭圆 + 中心单词（`MagicProjectile.label` + textShadow）；⑥答错时 340 ms 后叠加 `player_hurt.ogg`（Mixkit Man-in-pain，Mixkit License 商用免署名）；⑦战斗背景音乐 `bgm_fight.ogg`（OpenGameArt CC0「Short battle theme / mystical」原 MP3 192 kbps 27 s，ffmpeg 转 22050 Hz mono 48 kbps OGG ~190 KB；MP3 在模拟器解码持续吃 UI 线程导致 spell 测 50% flake，OGG 路径与现有 SFX 一致解决问题）由扩展后的 `AudioService.playLoop / stopLoop` 管理，BattlePage `aboutToAppear` 起播、`aboutToDisappear` 停止，volume 0.35 让 SFX 仍然能压过 BGM；同时把 `SpellQuestionFlow.fillsSpellSlotsByTappingCorrectPoolLetters` 的 pool 查找与 slot 读取改成 5×120 ms 轮询，吸收 BGM 引入的 UI 抖动。`ALL_SOUND_KEYS` 长度由 6 → 8。UI 测 38 / 38 连跑两轮稳定通过，CodeLinter 无新增缺陷，单测 `exposesAllEightSoundKeys` + `playLoopAndStopLoopAreSafeBeforePreload` + `playLoopAfterDisposeIsNoOp` 已升级。V0.4 全部子版本完成。）
 
 ## 1. 产品愿景
 
@@ -49,7 +49,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.4.5 | 本地学习报告（已完成）       | `LearningReportBuilder` 计算总正确率 / 4 态计数 / 今日复习完成率 / 薄弱分类（按正确率升序，skip seen=0）；`pages/LearningReportPage` 4 卡片渲染 + 全分类详情；TodayPlanPage 顶栏 📊 入口；不接入趋势图 / 不做云端同步 | 无 |
 | V0.4.6 | 更多主题区域（已完成）       | 词库 +20 词覆盖 `animal` / `ocean` 两个新分类；新增 `animal-safari` (Phoenix + Unicorn 共享) / `ocean-realm` (Kraken 独占) 区域；`home-cottage` 的 Kraken 迁出兑现 V0.3.8 承诺；regionPicker 横向 Scroll 容纳 5 chips；boss 共享允许多 region 共用旋转池 | 无 |
 | V0.4.7 | 自定义愿望单条目（已完成）   | `MagicWish.isCustom` + 快照 v2；`WishlistStore.addCustomWish/removeCustomWish` 带名称/币数/emoji 校验；`WishlistPage` 头部 `+ 添加` 按钮 + 自定义卡 ✕ 删除按钮，均过家长 PIN 闸；新增 `AddCustomWishDialog` 三段表单；不接真实支付 | 无 |
-| V0.4.8 | 视觉与音效抛光（已完成）     | 6 项小修补：HomePage 工具栏 review/codex/wand→gift/gear 与 WishlistPage scroll 五个 SVG 加 `.syncLoad(true)` 修复返回后图标占位符闪烁；HomeWishlistButton 由 wand → 礼盒（Recraft V4 重生）；launcher PNG 改自 `rawfile/icons/start_icon.svg`（`tools/recraft/start-icon-to-launcher.sh`）；战斗中魔法师施法瞬间叠加 `magican_fight.svg` 替身（CharacterCard 走 `altAssetPath` + opacity 切换）；魔法弹圆形 → 椭圆 + 中心单词；答错时叠加 `player_hurt.ogg` 受伤音效（Mixkit License） | 无 |
+| V0.4.8 | 视觉与音效抛光（已完成）     | 7 项小修补：HomePage 工具栏 review/codex/wand→gift/gear 与 WishlistPage scroll 五个 SVG 加 `.syncLoad(true)` 修复返回后图标占位符闪烁；HomeWishlistButton 由 wand → 礼盒（Recraft V4 重生）；launcher PNG 改自 `rawfile/icons/start_icon.svg`（`tools/recraft/start-icon-to-launcher.sh`）；战斗中魔法师施法瞬间叠加 `magican_fight.svg` 替身（CharacterCard 走 `altAssetPath` + opacity 切换）；魔法弹圆形 → 椭圆 + 中心单词；答错时叠加 `player_hurt.ogg` 受伤音效（Mixkit License）；战斗背景音乐 `bgm_fight.ogg`（OpenGameArt CC0 mystical 主题，原 MP3 → mono OGG 以避免 UI 抖动，AudioService 扩展出 `playLoop / stopLoop`） | 无 |
 | V0.5   | 内容后台与 LLM 题库版    | Node.js 内容后台、词库管理、LLM 生成题目草稿、人工审核、词包发布                    | 必需       |
 | V0.6   | 家长账户与设备绑定版       | 家长账号、孩子档案、二维码绑定设备、云端学习同步、云端愿望单                            | 必需       |
 | V0.7   | AI 剧情与语境学习版      | 句子填词、主题剧情、LLM 生成剧情草稿、个性化冒险                                | 必需       |
@@ -732,6 +732,22 @@ V0.4 作为离线学习版的最后一棒，不做新功能、只清理 V0.4 全
 - `SoundKeys.PLAYER_HURT = 'player_hurt'`、`SOUND_RAW_PATHS['player_hurt'] = 'sound/player_hurt.ogg'`、`ALL_SOUND_KEYS` 长度 6 → 7。
 - BattlePage wrong-answer 分支：`audio.play(ANSWER_WRONG)` 立即响 buzzer；之后 340 ms（=SPAWN_MS 80 + TRAVEL_MS 260）通过 `schedulePlayerHurtGrunt()` 走 `impactTimers` 安排 `PLAYER_HURT` 与魔法弹击中魔法师的瞬间对齐。
 - 单测 `exposesAllSevenSoundKeys` 升级（断言长度由 6 → 7、新增 `PLAYER_HURT` indexOf 校验）。
+
+**7. 战斗背景音乐 `bgm_fight.ogg`（OpenGameArt CC0 mystical）**
+
+- 用户在 V0.4.8 收尾后追加：「战斗时播放背景音乐 `bgm_fight.mp3`」。素材取 OpenGameArt 用户 Guy G. Gamerson 的 *Short battle theme*（`mystical.mp3`，CC0，27 s 循环、~649 KB MP3 192 kbps stereo），原始下载链 `https://opengameart.org/sites/default/files/mystical.mp3`。CC0 下不需要署名，但仍在 §11.7 这里登记溯源以便后续审计。
+- 实测取舍：原 192 kbps stereo MP3 在模拟器上 AVPlayer 解码会持续吃掉 UI 线程预算，导致 `SpellQuestionFlow.fillsSpellSlotsByTappingCorrectPoolLetters` 在全量套件运行时 ~50% 失败（taps 偶尔在 150 ms 内来不及落到 slot）。改用 ffmpeg 转 22050 Hz mono 48 kbps Vorbis OGG（~190 KB），与现有 SFX 同格式同解码路径，CPU 抖动消失。文件名落在 `entry/src/main/resources/rawfile/sound/bgm_fight.ogg`（用户原始命名是 .mp3，这里只换底层格式以解决稳定性问题，roadmap 公开记录格式选择以免未来产生「为什么没看到 .mp3」的疑问）。
+- AudioService 决策：**扩展 而不是新建 `BgmService`**。理由是 (a) 已有的 preload / dispose / muted 状态机正好覆盖 BGM 的需要，(b) 战斗页只持有一个 `audio: AudioService` 实例，混入 SFX 与 BGM 让 `aboutToDisappear` 一次 `dispose()` 就能彻底释放，避免漏 release。具体改动：
+  - 新增 `SoundKeys.BGM_FIGHT = 'bgm_fight'` + `SOUND_RAW_PATHS['bgm_fight'] = 'sound/bgm_fight.mp3'`。
+  - `PlayerSlot` 增加 `started: boolean` / `wantsLoop: boolean` 两个标志位：`wantsLoop` 处理「调用 `playLoop` 时还没 `prepared`」的早播请求，`prepared` 触发后再实际启动；`started` 用于幂等性，避免重复 seek/play 把已经在循环的 BGM 切回头。
+  - 新增 `playLoop(key)`：muted/未注册直接 no-op；未 ready 时设 `wantsLoop=true`；ready 时若未 started 则设 `player.loop = true` + `player.setVolume(0.35)` + `player.play()`，并把 `started` 置 true。
+  - 新增 `stopLoop(key)`：清掉 `wantsLoop`，若 `started` 则 `player.pause()` 并把 `started` 置 false（不 release，下一次 `playLoop` 还能复用）。
+  - `loadOne` 内 `prepared` 分支检测 `key === BGM_FIGHT`：直接置 `player.loop = true`，再吃掉 `wantsLoop` 完成早播；普通 SFX 路径不变。
+  - `ALL_SOUND_KEYS` 长度由 7 → 8（数组追加 `BGM_FIGHT`），preload 阶段一次性把 BGM 也注册进来，避免 BattlePage 多写一行。
+- BattlePage 决策：在 `aboutToAppear` 中先 `preload(ctx, ALL_SOUND_KEYS)`，紧接着调用 `audio.playLoop(SoundKeys.BGM_FIGHT)`；在 `aboutToDisappear` 中先 `stopLoop` 再 `dispose`，让 BGM 在跳回 HomePage / 弹结算页时立刻静音。volume 设 0.35 是经验值——比 SFX 低 ~9 dB 既能让胜利/受伤音效压过去，又能在战斗静默期听见底色。
+- 验证：unit test `exposesAllSevenSoundKeys` 升级为 `exposesAllEightSoundKeys`（长度 7 → 8、新增 `BGM_FIGHT` indexOf 校验）+ 两个新增的 `playLoopAndStopLoopAreSafeBeforePreload` / `playLoopAfterDisposeIsNoOp` 用例覆盖循环 API 在异常生命周期下的 no-op 行为；UI 测 38 / 38 通过（BGM 走全模拟器音频路径，确实在背景里循环；连跑两次套件都稳定）；CodeLinter 无新增缺陷。
+- 测试鲁棒化：BGM 引入后 `SpellQuestionFlow.fillsSpellSlotsByTappingCorrectPoolLetters` 在全量套件下偶现「pool 渲染滞后 / slot 更新滞后」。把 `tapSpellPoolLetter` 改成最多 5 次 × 120 ms 的查找重试，把 slot 读取改成最多 5 × 120 ms 的轮询直到目标字母落位。验证语义没变（同样要求字母落到正确槽位、最终触发反馈），只是给了 BGM 引入的 ~600 ms UI 抖动一些预算。
+- 明确不做：BGM 暂停 / 暂时静音键、章节切歌（每个 region 不同 BGM）、battle outcome 渐隐淡出。这些都属于 V0.7 AI 剧情版的剧情化包装范围，本次保持「按键即播 / 离开即停」的最小可行集合。
 
 **验收**
 
