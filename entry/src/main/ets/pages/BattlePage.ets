@@ -5,6 +5,7 @@ import { CharacterCard, CharacterKind } from '../components/CharacterCard';
 import { ChoiceButton, ChoiceState } from '../components/ChoiceButton';
 import { SpellingArea } from '../components/SpellingArea';
 import { WordRepository } from '../services/WordRepository';
+import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
 import { QuestionGenerator } from '../services/QuestionGenerator';
 import { FillLetterGenerator } from '../services/FillLetterGenerator';
 import { SpellGenerator } from '../services/SpellGenerator';
@@ -338,8 +339,8 @@ struct BattlePage {
     this.coinAccount.init(ctx).catch((err: BusinessError): void => {
       console.error(`BattlePage: CoinAccount.init failed: ${JSON.stringify(err)}`);
     });
-    const repo: WordRepository = new WordRepository();
-    repo.loadFromRawfile(ctx).then((): void => {
+    WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
+      const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
       const storedCfg: GameConfig | undefined =
         AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
       const cfg: GameConfig = cloneGameConfig(storedCfg !== undefined ? storedCfg : new GameConfig());

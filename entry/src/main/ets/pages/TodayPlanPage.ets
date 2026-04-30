@@ -2,6 +2,7 @@ import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import { WordRepository } from '../services/WordRepository';
+import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
 import { AdventureRegion, WordSource } from '../models/AdventureRegion';
@@ -43,8 +44,8 @@ struct TodayPlanPage {
 
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
-    const repo: WordRepository = new WordRepository();
-    repo.loadFromRawfile(ctx).then((): void => {
+    WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
+      const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
       const recorder: LearningRecorder = getLearningRecorder();
       recorder.init(ctx).then((): void => {
         this.populateView(repo, recorder);
@@ -55,7 +56,7 @@ struct TodayPlanPage {
         this.populateView(repo, recorder);
       });
     }).catch((err: BusinessError): void => {
-      console.error(`TodayPlanPage: loadFromRawfile failed: ${JSON.stringify(err)}`);
+      console.error(`TodayPlanPage: bootstrap failed: ${JSON.stringify(err)}`);
       this.loaded = true;
     });
   }
