@@ -249,7 +249,8 @@ struct WishlistPage {
         Image($rawfile('icons/scroll.svg'))
           .width(22)
           .height(22)
-          .objectFit(ImageFit.Contain);
+          .objectFit(ImageFit.Contain)
+          .syncLoad(true);
       }
         .id('WishlistHistoryButton')
         .width(40)

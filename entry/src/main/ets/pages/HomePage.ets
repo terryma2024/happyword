@@ -257,6 +257,7 @@ struct HomePage {
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
+            .syncLoad(true)
             .opacity(this.reviewEnabled() ? 1.0 : 0.4);
         }
           .id('HomeReviewButton')
@@ -275,7 +276,8 @@ struct HomePage {
           Image($rawfile('icons/codex.svg'))
             .width(32)
             .height(32)
-            .objectFit(ImageFit.Contain);
+            .objectFit(ImageFit.Contain)
+            .syncLoad(true);
         }
           .id('HomeCodexButton')
           .width(56)
@@ -310,7 +312,8 @@ struct HomePage {
           Image($rawfile('icons/wand.svg'))
             .width(32)
             .height(32)
-            .objectFit(ImageFit.Contain);
+            .objectFit(ImageFit.Contain)
+            .syncLoad(true);
         }
           .id('HomeWishlistButton')
           .width(56)
@@ -326,7 +329,8 @@ struct HomePage {
           Image($rawfile('icons/gear.svg'))
             .width(32)
             .height(32)
-            .objectFit(ImageFit.Contain);
+            .objectFit(ImageFit.Contain)
+            .syncLoad(true);
         }
           .id('HomeConfigButton')
           .width(56)
