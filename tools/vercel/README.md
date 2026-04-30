@@ -9,7 +9,7 @@ intentionally a fast way to remember **why** we do it that way.
 | Script | What it does | When to run |
 | --- | --- | --- |
 | [`api.sh`](api.sh) | Sourced helper library (token + REST helpers). Not run directly. | Sourced by `deploy-status.sh`. |
-| [`deploy-prod.sh`](deploy-prod.sh) | Deploy `server/` to production with the Hobby-plan git-author bypass (rename `.git` → `.git.deploy_bak`, restore via trap). | After every `server/` change you want live. |
+| [`deploy-prod.sh`](deploy-prod.sh) | Deploy `server/` to production. Sets repo-local `user.email = zjumty@gmail.com` (the Vercel team's recognized email) on first run, then verifies HEAD's author matches before deploying. | After every `server/` change you want live. |
 | [`smoke-prod.sh`](smoke-prod.sh) | 4 curl probes: `/health`, `/auth/login`, `/auth/me`, `/packs/latest.json`. Exits non-zero on first failure. | Right after `deploy-prod.sh`, also any time prod is acting up. |
 | [`deploy-status.sh`](deploy-status.sh) | List recent deployments via REST API, **including the `errorMessage` the CLI hides**. Optional build event dump. | Anytime `deploy-prod.sh` exits non-zero or you need to investigate a previous failure. |
 | [`env-bootstrap.sh`](env-bootstrap.sh) | Idempotently push the deterministic env vars (`MONGO_DB_NAME`, `JWT_SECRET`, `ADMIN_BOOTSTRAP_PASS`, …) to a target scope. Auto-generates JWT secret + admin password when missing. | Initial project setup, or onboarding a new staging/preview scope. |
@@ -61,17 +61,37 @@ Git author terry.ma@bytedance.com must have access to the team
 terrymas-projects on Vercel to create deployments.
 ```
 
-Workaround used by `deploy-prod.sh`: rename `.git` → `.git.deploy_bak`
-for the duration of the `vercel deploy` call. The CLI walks parents
-looking for `.git/`; finds none; sends no git context; author check
-is skipped. A `trap … EXIT INT TERM` restores `.git` even if the
-deploy is interrupted. The script also refuses to run if a rebase /
-merge / cherry-pick / bisect is in progress, since restoring `.git`
-mid-rebase would corrupt repo state.
+Approach used by `deploy-prod.sh`: instead of hiding `.git/`, line
+up the repo's git identity with the team-recognized email.
 
-When you upgrade off Hobby and the email mismatch is resolved, the
-bypass becomes a no-op (the script has nothing to bypass) but is
-still safe to use.
+1. **Repo-local config** — on first run, the script writes
+   `user.email = zjumty@gmail.com` and `user.name = zjumty` into
+   this repo's `.git/config`. Repo-local; your global identity
+   (e.g. `terry.ma@bytedance.com`) is untouched. All future commits
+   *in this repo* will be authored with the deploy email.
+
+2. **HEAD verification** — the script then checks HEAD's author
+   email and refuses to deploy if it doesn't match. We do **not**
+   auto-rewrite history; the script prints two suggested commands
+   so you can choose:
+
+   ```bash
+   # A) Amend HEAD (only if HEAD is unpushed, or you'll force-push):
+   git -c user.email='zjumty@gmail.com' -c user.name='zjumty' \
+       commit --amend --no-edit --reset-author
+
+   # B) Add an empty marker commit (non-destructive):
+   git -c user.email='zjumty@gmail.com' -c user.name='zjumty' \
+       commit --allow-empty -m 'chore(deploy): production marker'
+   ```
+
+To use a different deploy identity:
+
+```bash
+DEPLOY_AUTHOR_EMAIL='you@example.com' \
+DEPLOY_AUTHOR_NAME='You' \
+    bash tools/vercel/deploy-prod.sh
+```
 
 ### 3. `vercel.json` schema
 
@@ -164,10 +184,10 @@ itself complains, just so you know what to do.
 
 | Symptom | Diagnosis script | Likely fix |
 | --- | --- | --- |
-| `vercel deploy` exits non-zero, no helpful message | `bash tools/vercel/deploy-status.sh 1` | Read `errorMessage`. If "git author …", `deploy-prod.sh` is doing the right thing — confirm `.git` was restored after the failed run (check for `.git.deploy_bak`). |
+| `deploy-prod.sh` refuses with `HEAD commit ... is authored by ...` | — | Run one of the two `git -c user.email=...` commands the script just printed (amend or empty marker), then re-run. |
+| `vercel deploy` exits non-zero, no helpful message | `bash tools/vercel/deploy-status.sh 1` | Read the `errorMessage` column — it has the real reason the CLI buries. |
 | Smoke shows `[FAIL 500]` on `/health` | `bash tools/vercel/deploy-status.sh 1 events` | Look for `InvalidIndexSpecificationOption`, missing env var, or import error in the build events. |
 | Smoke shows `[FAIL 401]` on `/auth/login` | — | Wrong admin password. Check `/tmp/admin_pass.txt` against what's in Vercel: `cd server && vercel env pull --environment=production .env.prod && grep ADMIN_BOOTSTRAP .env.prod && rm .env.prod`. |
-| `.git.deploy_bak` exists from previous failure | — | Manually restore: `mv .git.deploy_bak .git`. Then re-run deploy. |
 | Smoke shows pack with 0 words | — | Seed missing. Run `cd server && uv run python -c "..."` against MongoDB to insert a Word, or wait for V0.5.2 `seed_from_rawfile.py`. |
 
 ## Out of scope (for now)

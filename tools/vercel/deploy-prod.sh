@@ -1,26 +1,34 @@
 #!/usr/bin/env bash
 # tools/vercel/deploy-prod.sh
 #
-# Deploy the FastAPI server to Vercel production while bypassing
-# the Hobby-plan git-author-membership check.
+# Deploy the FastAPI server to Vercel production.
 #
 # Why this script exists
 # ----------------------
-# On Vercel Hobby plans the deployment is rejected with:
+# Vercel Hobby plans reject deploys whose HEAD commit author email
+# is not a confirmed member of the linked team:
 #
 #   Git author <email> must have access to the team <slug> on Vercel
 #
-# whenever the HEAD commit's author email is not a confirmed member
-# of the linked team. Hobby plans do not allow inviting additional
-# team members ("invites_not_allowed" via API), so the cleanest fix
-# is to deploy without git context. Vercel CLI walks the parent
-# directory tree looking for `.git/`; if it finds none, no git
-# metadata is sent and the author check is skipped.
+# Hobby plans don't allow inviting additional team members
+# ("invites_not_allowed" via API), so the cleanest fix is to author
+# all commits in this repo with an email Vercel already recognizes
+# (the default below: zjumty@gmail.com — the team owner). This
+# script enforces that contract:
 #
-# We therefore temporarily rename `.git` to `.git.deploy_bak`
-# during the call to `vercel deploy --prod`, and restore it
-# unconditionally on exit (success, failure, signal). The bak
-# directory only ever exists for ~30s.
+#   1. Sets `user.email` and `user.name` in this repo's
+#      .git/config to $DEPLOY_AUTHOR_EMAIL on first run. All future
+#      `git commit`s in this repo will be authored that way. The
+#      change is repo-local and won't touch your global identity.
+#
+#   2. Verifies the HEAD commit's author email already matches.
+#      If it doesn't (e.g. the commit pre-dates step 1), the script
+#      refuses to deploy and prints two suggested fixes — we never
+#      auto-rewrite history.
+#
+# (Earlier versions of this script renamed `.git` aside during
+# deploy to bypass the check. That was tricky and fragile. We don't
+# do that anymore.)
 #
 # Why NOT --prebuilt
 # ------------------
@@ -31,22 +39,23 @@
 # call `vercel deploy --prod` directly without `--prebuilt`.
 #
 # Usage:
-#   bash tools/vercel/deploy-prod.sh           # deploys server/
-#   bash tools/vercel/deploy-prod.sh server    # explicit dir
+#   bash tools/vercel/deploy-prod.sh                        # deploys server/
+#   bash tools/vercel/deploy-prod.sh server                 # explicit dir
+#   DEPLOY_AUTHOR_EMAIL='you@example.com' \
+#   DEPLOY_AUTHOR_NAME='You'             bash tools/vercel/deploy-prod.sh
 #
 # Prereqs:
 #   - vercel CLI >= 47.2.2 ('npm i -g vercel@latest' if older)
 #   - `vercel login` already done
 #   - `vercel link` already done from inside the deploy dir
-#   - git working tree is clean enough to risk the .git rename
-#     (script will refuse if a rebase / bisect / merge is in
-#     progress, since restoring `.git` mid-rebase would corrupt it)
 
 set -u
 cd "$(dirname "$0")/../.."
 REPO_ROOT="$(pwd)"
 
 DEPLOY_DIR="${1:-server}"
+DEPLOY_AUTHOR_NAME="${DEPLOY_AUTHOR_NAME:-zjumty}"
+DEPLOY_AUTHOR_EMAIL="${DEPLOY_AUTHOR_EMAIL:-zjumty@gmail.com}"
 
 if [[ ! -d "$REPO_ROOT/$DEPLOY_DIR" ]]; then
     echo "deploy-prod: directory '$DEPLOY_DIR' does not exist relative to $REPO_ROOT" >&2
@@ -56,35 +65,52 @@ if [[ ! -f "$REPO_ROOT/$DEPLOY_DIR/.vercel/project.json" ]]; then
     echo "deploy-prod: $DEPLOY_DIR/.vercel/project.json missing — run 'vercel link' from $DEPLOY_DIR first" >&2
     exit 2
 fi
-if [[ ! -d "$REPO_ROOT/.git" ]]; then
-    echo "deploy-prod: $REPO_ROOT/.git not found; nothing to bypass. Run 'vercel deploy --prod --yes' directly." >&2
-    exit 2
-fi
 
-# Refuse to run if a complex git operation is in progress.
-for marker in rebase-merge rebase-apply MERGE_HEAD CHERRY_PICK_HEAD BISECT_LOG; do
-    if [[ -e "$REPO_ROOT/.git/$marker" ]]; then
-        echo "deploy-prod: refusing to rename .git — operation in progress (.git/$marker exists)" >&2
+if [[ -d "$REPO_ROOT/.git" ]]; then
+    # Step 1: ensure repo-local user.email matches the
+    # Vercel-recognized member email. Idempotent — only writes when
+    # different from target. Repo-local config does not touch your
+    # global identity.
+    current_email="$(git -C "$REPO_ROOT" config --local user.email 2>/dev/null || true)"
+    if [[ "$current_email" != "$DEPLOY_AUTHOR_EMAIL" ]]; then
+        echo "[deploy-prod] setting repo-local user.email = $DEPLOY_AUTHOR_EMAIL"
+        echo "[deploy-prod]                       (was: ${current_email:-<unset, was using global config>})"
+        git -C "$REPO_ROOT" config --local user.email "$DEPLOY_AUTHOR_EMAIL"
+        git -C "$REPO_ROOT" config --local user.name  "$DEPLOY_AUTHOR_NAME"
+        echo "[deploy-prod] all future commits in this repo will be authored as $DEPLOY_AUTHOR_NAME <$DEPLOY_AUTHOR_EMAIL>"
+    fi
+
+    # Step 2: HEAD commit's author must already match — Vercel
+    # rejects on the commit object's author email, not the local
+    # config. We don't auto-rewrite history; we tell you how to.
+    head_email="$(git -C "$REPO_ROOT" log -1 --format=%ae)"
+    head_short="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+    if [[ "$head_email" != "$DEPLOY_AUTHOR_EMAIL" ]]; then
+        cat >&2 <<EOF
+[deploy-prod] HEAD commit $head_short is authored by $head_email
+[deploy-prod] but Vercel only recognizes $DEPLOY_AUTHOR_EMAIL.
+[deploy-prod] Vercel would reject this deploy with:
+[deploy-prod]   "Git author $head_email must have access to the team..."
+[deploy-prod]
+[deploy-prod] Apply ONE of these to fix HEAD, then re-run this script:
+[deploy-prod]
+[deploy-prod]   # A) amend HEAD in place (use only if HEAD is unpushed,
+[deploy-prod]   #    or if you intend to force-push afterwards):
+[deploy-prod]   git -c user.email='$DEPLOY_AUTHOR_EMAIL' \\
+[deploy-prod]       -c user.name='$DEPLOY_AUTHOR_NAME' \\
+[deploy-prod]       commit --amend --no-edit --reset-author
+[deploy-prod]
+[deploy-prod]   # B) add an empty marker commit on top with the deploy
+[deploy-prod]   #    author (non-destructive, leaves history intact):
+[deploy-prod]   git -c user.email='$DEPLOY_AUTHOR_EMAIL' \\
+[deploy-prod]       -c user.name='$DEPLOY_AUTHOR_NAME' \\
+[deploy-prod]       commit --allow-empty -m 'chore(deploy): production marker'
+EOF
         exit 1
     fi
-done
-
-GIT_BAK="$REPO_ROOT/.git.deploy_bak"
-if [[ -e "$GIT_BAK" ]]; then
-    echo "deploy-prod: $GIT_BAK already exists from a previous failed run" >&2
-    echo "deploy-prod: inspect, then 'mv .git.deploy_bak .git' before retrying" >&2
-    exit 1
+else
+    echo "[deploy-prod] no .git/ found at $REPO_ROOT — skipping git-author checks"
 fi
-
-restore_git() {
-    if [[ -e "$GIT_BAK" && ! -e "$REPO_ROOT/.git" ]]; then
-        mv "$GIT_BAK" "$REPO_ROOT/.git"
-    fi
-}
-trap 'restore_git' EXIT INT TERM
-
-echo "[deploy-prod] hiding .git -> .git.deploy_bak"
-mv "$REPO_ROOT/.git" "$GIT_BAK"
 
 echo "[deploy-prod] vercel deploy --prod --yes  (cwd: $DEPLOY_DIR)"
 cd "$REPO_ROOT/$DEPLOY_DIR"
@@ -109,5 +135,4 @@ else
     echo "[deploy-prod] for details: bash tools/vercel/deploy-status.sh"
 fi
 
-# trap will restore .git
 exit $DEPLOY_EXIT
