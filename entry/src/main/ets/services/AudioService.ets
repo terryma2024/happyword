@@ -20,6 +20,10 @@ import { common } from '@kit.AbilityKit';
  *   - `dispose()` releases every AVPlayer and marks the service unusable.
  *
  * V0.3.5: replaced `sound/hit_crit.ogg` with an explosion-style sample.
+ * V0.4.8: added `player_hurt` cue layered on the wrong-answer SFX.
+ *   (BGM was prototyped but reverted — TTS focus interaction destabilised
+ *   the spell-tap UI tests beyond the budget. Re-introduce in a later
+ *   release with a dedicated audio policy redesign.)
  */
 
 /**
@@ -35,6 +39,12 @@ export class SoundKeys {
   static readonly HIT_NORMAL: string = 'hit_normal';
   static readonly HIT_CRIT: string = 'hit_crit';
   static readonly ANSWER_WRONG: string = 'answer_wrong';
+  /**
+   * V0.4.8: short grunt cue layered on top of ANSWER_WRONG when the
+   * monster's counter-attack lands, so the projectile arrival has
+   * a softer voice signal in addition to the buzzer.
+   */
+  static readonly PLAYER_HURT: string = 'player_hurt';
   static readonly MONSTER_DEFEAT: string = 'monster_defeat';
   static readonly VICTORY: string = 'victory';
   static readonly DEFEAT: string = 'defeat';
@@ -50,6 +60,7 @@ const SOUND_RAW_PATHS: Record<string, string> = {
   'hit_normal': 'sound/hit_normal.ogg',
   'hit_crit': 'sound/hit_crit.ogg',
   'answer_wrong': 'sound/answer_wrong.ogg',
+  'player_hurt': 'sound/player_hurt.ogg',
   'monster_defeat': 'sound/monster_defeat.ogg',
   'victory': 'sound/victory.ogg',
   'defeat': 'sound/defeat.ogg',
@@ -217,6 +228,7 @@ export const ALL_SOUND_KEYS: string[] = [
   SoundKeys.HIT_NORMAL,
   SoundKeys.HIT_CRIT,
   SoundKeys.ANSWER_WRONG,
+  SoundKeys.PLAYER_HURT,
   SoundKeys.MONSTER_DEFEAT,
   SoundKeys.VICTORY,
   SoundKeys.DEFEAT,

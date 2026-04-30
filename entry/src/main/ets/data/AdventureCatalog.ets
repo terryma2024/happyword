@@ -81,13 +81,69 @@ const HOME_COTTAGE: AdventureRegion = (() => {
     slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
-  // V0.3.8: Cottage hosts Unicorn / Kraken (Kraken will migrate to a
-  // future ocean region in v0.4).
-  r.bossCandidates = [9, 10];
+  // V0.4.6: cottage drops Kraken; Unicorn is the only candidate now.
+  // Kraken migrates to OCEAN_REALM per the V0.3.8 standing promise
+  // ("Kraken will migrate to a future ocean region in v0.4").
+  r.bossCandidates = [9];
   return r;
 })();
 
-export const ADVENTURE_REGIONS: AdventureRegion[] = [FRUIT_FOREST, SCHOOL_CASTLE, HOME_COTTAGE];
+const ANIMAL_SAFARI: AdventureRegion = (() => {
+  const r: AdventureRegion = new AdventureRegion();
+  r.id = 'animal-safari';
+  r.displayName = 'Animal Safari';
+  r.themeWordCategories = ['animal'];
+  // Warm savanna palette so the picker chip + adventure card stand
+  // out from the existing fruit / school / home backdrops.
+  r.bgPrimary = '#FFF4D9';
+  r.bgAccent = '#E0B973';
+  r.bossName = 'Phoenix Spirit';
+  const plan: MonsterPlan = new MonsterPlan();
+  plan.slots = [
+    slot(MonsterKind.Normal),
+    slot(MonsterKind.Spelling),
+    slot(MonsterKind.Review),
+    slot(MonsterKind.Elite),
+    slot(MonsterKind.Boss),
+  ];
+  r.monsterPlan = plan;
+  // V0.4.6: borrows Phoenix (#6) from the FRUIT_FOREST rotation pool;
+  // pairs with Unicorn (#9) which now becomes a multi-region rotation
+  // member after the cottage Kraken migration. Boss sharing is
+  // legitimate because the rotation key is per-region (regionId +
+  // dayKey) — same boss can appear in different regions on different
+  // local days without a uniqueness conflict.
+  r.bossCandidates = [6, 9];
+  return r;
+})();
+
+const OCEAN_REALM: AdventureRegion = (() => {
+  const r: AdventureRegion = new AdventureRegion();
+  r.id = 'ocean-realm';
+  r.displayName = 'Ocean Realm';
+  r.themeWordCategories = ['ocean'];
+  // Cool teal palette to read as deep water.
+  r.bgPrimary = '#E0F4F7';
+  r.bgAccent = '#7BB6BF';
+  r.bossName = 'Kraken';
+  const plan: MonsterPlan = new MonsterPlan();
+  plan.slots = [
+    slot(MonsterKind.Normal),
+    slot(MonsterKind.Spelling),
+    slot(MonsterKind.Review),
+    slot(MonsterKind.Elite),
+    slot(MonsterKind.Boss),
+  ];
+  r.monsterPlan = plan;
+  // V0.4.6: Kraken (#10) lands here as its dedicated home. Single-
+  // candidate rotation pool means every local day surfaces the same
+  // boss; future V0.4.x can add a second oceanic boss to the codex.
+  r.bossCandidates = [10];
+  return r;
+})();
+
+export const ADVENTURE_REGIONS: AdventureRegion[] =
+  [FRUIT_FOREST, SCHOOL_CASTLE, HOME_COTTAGE, ANIMAL_SAFARI, OCEAN_REALM];
 
 export const DEFAULT_REGION_ID: string = 'fruit-forest';
 

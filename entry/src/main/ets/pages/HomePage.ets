@@ -257,6 +257,7 @@ struct HomePage {
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
+            .syncLoad(true)
             .opacity(this.reviewEnabled() ? 1.0 : 0.4);
         }
           .id('HomeReviewButton')
@@ -275,7 +276,8 @@ struct HomePage {
           Image($rawfile('icons/codex.svg'))
             .width(32)
             .height(32)
-            .objectFit(ImageFit.Contain);
+            .objectFit(ImageFit.Contain)
+            .syncLoad(true);
         }
           .id('HomeCodexButton')
           .width(56)
@@ -287,11 +289,31 @@ struct HomePage {
             });
           });
 
+        // V0.4.4: today-plan visibility entry. Uses the 📋 emoji
+        // glyph rather than a Recraft SVG to keep the V0.4 series
+        // additive against the V0.3.10 icon set; promote to a
+        // bespoke SVG in a follow-up if the toolbar needs a uniform
+        // visual language.
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/wand.svg'))
+          Text('📋')
+            .fontSize(28);
+        }
+          .id('HomePlanButton')
+          .width(56)
+          .height(56)
+          .backgroundColor('#FCEAEA')
+          .onClick((): void => {
+            router.pushUrl({ url: 'pages/TodayPlanPage' }).catch((err: BusinessError): void => {
+              console.error(`HomePage: pushUrl TodayPlanPage failed: ${JSON.stringify(err)}`);
+            });
+          });
+
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Image($rawfile('icons/wishlist.svg'))
             .width(32)
             .height(32)
-            .objectFit(ImageFit.Contain);
+            .objectFit(ImageFit.Contain)
+            .syncLoad(true);
         }
           .id('HomeWishlistButton')
           .width(56)
@@ -307,7 +329,8 @@ struct HomePage {
           Image($rawfile('icons/gear.svg'))
             .width(32)
             .height(32)
-            .objectFit(ImageFit.Contain);
+            .objectFit(ImageFit.Contain)
+            .syncLoad(true);
         }
           .id('HomeConfigButton')
           .width(56)
@@ -394,24 +417,34 @@ struct HomePage {
 
   @Builder
   private regionPicker() {
-    Row({ space: 10 }) {
-      ForEach(ADVENTURE_REGIONS, (r: AdventureRegion): void => {
-        Button(r.displayName)
-          .id(`RegionChip_${r.id}`)
-          .fontSize(13)
-          .height(32)
-          .padding({ left: 12, right: 12 })
-          .backgroundColor(r.id === this.todayRegion.id ? '#E63946' : '#FFFFFF')
-          .fontColor(r.id === this.todayRegion.id ? '#FFFFFF' : '#3F2F1A')
-          .borderRadius(16)
-          .border({ width: 1, color: r.id === this.todayRegion.id ? '#E63946' : '#DDDDDD' })
-          .onClick((): void => {
-            AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, r.id);
-            this.todayRegion = r;
-            this.todayPrefs.saveRegionId(r.id);
-          });
-      }, (r: AdventureRegion): string => r.id);
+    // V0.4.6: 5 regions overflow narrow phone widths — wrap the chip
+    // row in a horizontal Scroll so the picker scrolls cleanly to
+    // surface every region while keeping each `RegionChip_*` id
+    // tappable. Width budget: 5 × ~80 dp + 4 × 10 dp ≈ 440 dp.
+    Scroll() {
+      Row({ space: 10 }) {
+        ForEach(ADVENTURE_REGIONS, (r: AdventureRegion): void => {
+          Button(r.displayName)
+            .id(`RegionChip_${r.id}`)
+            .fontSize(13)
+            .height(32)
+            .padding({ left: 12, right: 12 })
+            .backgroundColor(r.id === this.todayRegion.id ? '#E63946' : '#FFFFFF')
+            .fontColor(r.id === this.todayRegion.id ? '#FFFFFF' : '#3F2F1A')
+            .borderRadius(16)
+            .border({ width: 1, color: r.id === this.todayRegion.id ? '#E63946' : '#DDDDDD' })
+            .onClick((): void => {
+              AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, r.id);
+              this.todayRegion = r;
+              this.todayPrefs.saveRegionId(r.id);
+            });
+        }, (r: AdventureRegion): string => r.id);
+      }
+      .padding({ right: 4 });
     }
-    .width('100%');
+    .id('RegionPickerScroll')
+    .width('100%')
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off);
   }
 }

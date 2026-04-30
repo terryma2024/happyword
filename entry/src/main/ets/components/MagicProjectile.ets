@@ -37,6 +37,13 @@ export struct MagicProjectile {
   @Prop forward: boolean = true;
   /** 1 = normal shot, 2 = combo-burst shot (gold, bigger). */
   @Prop intensity: number = 1;
+  /**
+   * V0.4.8: word displayed at the projectile's centre. Empty string
+   * hides the Text overlay (back-compat for callers that haven't been
+   * updated). On forward shots this is the answer the player just
+   * nailed; on backward shots it is the word they got wrong.
+   */
+  @Prop label: string = '';
 
   // Per-monster theme colors for the BACKWARD shot (monster -> mage).
   // Empty string is the "not set" sentinel; non-empty overrides the
@@ -190,18 +197,42 @@ export struct MagicProjectile {
           .scale({ x: this.outerScale, y: this.outerScale })
           .hitTestBehavior(HitTestMode.None);
 
-        // Bright core orb with a contrasting ring so it reads against
-        // the pastel battle background.
-        Circle({
-          width: 30 * this.intensity,
-          height: 30 * this.intensity,
-        })
-          .fill(this.coreColor())
-          .stroke(this.ringColor())
-          .strokeWidth(3)
-          .opacity(this.coreOpacity)
-          .scale({ x: this.coreScale, y: this.coreScale })
-          .hitTestBehavior(HitTestMode.None);
+        // V0.4.8: replace the round core orb with a flatter ellipse
+        // and stamp the active answer word in the centre. The outer
+        // glow stays a Circle because rotational symmetry reads
+        // better on a non-directional halo. Text uses a thin black
+        // outline (textShadow) so a white-on-pastel-pink core still
+        // reads against light battle backgrounds.
+        Stack() {
+          Ellipse({
+            width: 60 * this.intensity,
+            height: 34 * this.intensity,
+          })
+            .fill(this.coreColor())
+            .stroke(this.ringColor())
+            .strokeWidth(3)
+            .opacity(this.coreOpacity)
+            .scale({ x: this.coreScale, y: this.coreScale })
+            .hitTestBehavior(HitTestMode.None);
+
+          if (this.label.length > 0) {
+            Text(this.label)
+              .fontSize(this.intensity > 1 ? 16 : 13)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#FFFFFF')
+              .textShadow({
+                radius: 2,
+                color: '#000000',
+                offsetX: 0,
+                offsetY: 0,
+              })
+              .opacity(this.coreOpacity)
+              .scale({ x: this.coreScale, y: this.coreScale })
+              .hitTestBehavior(HitTestMode.None);
+          }
+        }
+        .alignContent(Alignment.Center)
+        .hitTestBehavior(HitTestMode.None);
       }
       .id(this.forward ? 'MagicProjectileForward' : 'MagicProjectileBackward')
       .translate({ x: this.translateX, y: 0 })

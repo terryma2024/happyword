@@ -3,9 +3,11 @@ import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import { CharacterCard, CharacterKind } from '../components/CharacterCard';
 import { ChoiceButton, ChoiceState } from '../components/ChoiceButton';
+import { SpellingArea } from '../components/SpellingArea';
 import { WordRepository } from '../services/WordRepository';
 import { QuestionGenerator } from '../services/QuestionGenerator';
 import { FillLetterGenerator } from '../services/FillLetterGenerator';
+import { SpellGenerator } from '../services/SpellGenerator';
 import { IQuestionSource } from '../services/IQuestionSource';
 import { PlanQuestionSource } from '../services/PlanQuestionSource';
 import {
@@ -260,6 +262,16 @@ struct BattlePage {
   @State projectileBackwardPulse: number = 0;
   @State projectileIntensity: number = 1;
 
+  /**
+   * V0.4.8: when the player is mid-cast (forward projectile in flight)
+   * we swap the magician's portrait to its fight pose. Flips on at pulse
+   * time and back off after SPAWN_MS + TRAVEL_MS + IMPACT_MS settle
+   * (~560 ms) so the swap aligns with the impact frame and returns to
+   * idle exactly when the cast/zoom animations finish.
+   */
+  @State playerFighting: boolean = false;
+  private playerFightingTimer: number = -1;
+
   // Question text shown while loading the dictionary. Real prompts overwrite
   // this once the engine produces its first question.
   @State prompt: string = 'Loading…';
@@ -276,6 +288,13 @@ struct BattlePage {
   @State isMedium: boolean = false;
   @State currentStep: number = 0;
   @State totalSteps: number = 1;
+
+  // V0.4.1 Spell render state. Holds the current Spell question while
+  // the SpellingArea component renders. Empty/default Question while
+  // the active question is anything else; SpellingArea is only mounted
+  // when currentQuestionKind === Spell so the default value never
+  // shows on screen.
+  @State currentSpellQuestion: Question = new Question();
 
   // Options and their per-button states. Kept in parallel arrays so the
   // three ChoiceButtons below can each pick their props with a single
@@ -359,9 +378,10 @@ struct BattlePage {
           const bundleRepo: WordRepository = new WordRepository();
           bundleRepo.setEntries(repo.all());
           const fillGen: FillLetterGenerator = new FillLetterGenerator();
+          const spellGen: SpellGenerator = new SpellGenerator();
           const planChoiceGen: QuestionGenerator = new QuestionGenerator(bundleRepo);
           const planSource: PlanQuestionSource = new PlanQuestionSource(
-            plan, bundleRepo, planChoiceGen, fillGen);
+            plan, bundleRepo, planChoiceGen, fillGen, spellGen);
           source = planSource;
           planMonsters = plan.monsterSlots.length;
           // The provider is wired right after engine construction so the
@@ -433,6 +453,10 @@ struct BattlePage {
     if (this.tickTimer >= 0) {
       clearInterval(this.tickTimer);
       this.tickTimer = -1;
+    }
+    if (this.playerFightingTimer >= 0) {
+      clearTimeout(this.playerFightingTimer);
+      this.playerFightingTimer = -1;
     }
     for (let i = 0; i < this.impactTimers.length; i++) {
       clearTimeout(this.impactTimers[i]);
@@ -519,6 +543,44 @@ struct BattlePage {
     this.impactTimers.push(id);
   }
 
+  /**
+   * V0.4.8: bump `projectileForwardPulse` and flip `playerFighting`
+   * for the duration of the cast. Centralised so the four
+   * forward-shot call sites (correct / combo on Choice/FillLetter,
+   * correct / combo on Spell) all behave identically and we never
+   * forget to schedule the reset timer.
+   *
+   * The 560 ms reset window covers MagicProjectile's
+   * SPAWN_MS (80) + TRAVEL_MS (260) + IMPACT_MS (160) + a 60 ms
+   * settle so the magician returns to idle right as the impact
+   * spectacle relaxes, not before the projectile arrives.
+   */
+  private triggerForwardCast(): void {
+    this.projectileForwardPulse += 1;
+    if (this.playerFightingTimer >= 0) {
+      clearTimeout(this.playerFightingTimer);
+    }
+    this.playerFighting = true;
+    this.playerFightingTimer = setTimeout((): void => {
+      this.playerFighting = false;
+      this.playerFightingTimer = -1;
+    }, 560);
+  }
+
+  /**
+   * V0.4.8: schedule the player-hurt grunt to play when the backward
+   * projectile reaches the mage. Mirrors MagicProjectile's spawn
+   * (80 ms) + travel (260 ms) timing so the voice cue arrives with
+   * the impact, not at submit time. Tracked through `impactTimers`
+   * so `aboutToDisappear` can cancel it on a back-press.
+   */
+  private schedulePlayerHurtGrunt(): void {
+    const id: number = setTimeout((): void => {
+      this.audio.play(SoundKeys.PLAYER_HURT);
+    }, 340);
+    this.impactTimers.push(id);
+  }
+
   private maybeAutoSpeakCurrent(isRevealing: boolean): void {
     if (!shouldAutoSpeak(this.autoSpeak, this.tts.isAvailable, isRevealing)) {
       return;
@@ -600,6 +662,15 @@ struct BattlePage {
         this.letterTemplate = q.letterTemplate;
         this.letterMissingIndex = q.missingIndex;
         this.options = [q.letterOptions[0], q.letterOptions[1], q.letterOptions[2]];
+      } else if (q.kind === QuestionKind.Spell) {
+        this.isMedium = false;
+        this.currentStep = 0;
+        this.totalSteps = 1;
+        this.pendingMissingIndex = -1;
+        this.letterTemplate = '';
+        this.letterMissingIndex = -1;
+        this.options = ['', '', ''];
+        this.currentSpellQuestion = q;
       } else {
         this.isMedium = false;
         this.currentStep = 0;
@@ -752,7 +823,7 @@ struct BattlePage {
       // shockwave + big floating damage number) to fire when the
       // projectile reaches the monster.
       this.projectileIntensity = outcome.damage;
-      this.projectileForwardPulse += 1;
+      this.triggerForwardCast();
       this.playerCastPulse += 1;
       this.scheduleImpact((): void => {
         this.monsterZoomPulse += 1;
@@ -767,7 +838,7 @@ struct BattlePage {
       // arrival; player nudge is the recoil from casting and stays at
       // launch time so the lunge precedes the impact.
       this.projectileIntensity = 1;
-      this.projectileForwardPulse += 1;
+      this.triggerForwardCast();
       this.playerNudgePulse += 1;
       this.scheduleImpact((): void => {
         this.monsterHurtPulse += 1;
@@ -776,6 +847,12 @@ struct BattlePage {
       this.feedbackText = `正确答案是 ${correctWord}`;
       this.feedbackColor = '#E74C3C';
       this.audio.play(SoundKeys.ANSWER_WRONG);
+      // V0.4.8: layer the player-hurt grunt on top of the buzzer so
+      // the monster's counter-attack lands with a softer voice cue
+      // when the projectile arrives. Delay matches the projectile's
+      // SPAWN_MS + TRAVEL_MS so the grunt lines up with the impact
+      // frame, not the answer-submit moment.
+      this.schedulePlayerHurtGrunt();
       // Backward projectile: monster fires back at the mage. Player
       // hurt + shake fire on arrival.
       this.projectileIntensity = 1;
@@ -853,6 +930,146 @@ struct BattlePage {
         }
         // New question loaded — feedback window is closed so it's
         // safe to auto-speak the answer now.
+        this.maybeAutoSpeakCurrent(false);
+      }
+      this.optionStates = [ChoiceState.Idle, ChoiceState.Idle, ChoiceState.Idle];
+    }, FEEDBACK_MS);
+  }
+
+  /**
+   * V0.4.1 Spell submit handler — invoked by SpellingArea when every
+   * slot is correctly filled. By the time we get here the answer is
+   * guaranteed correct (SpellingArea rejects wrong taps locally), so
+   * the engine path mirrors the correct branch of `onOptionTap`
+   * minus the per-option button highlighting (Spell has no
+   * ChoiceButtons).
+   */
+  private handleSpellSubmit(answer: string): void {
+    const engine: BattleEngine | undefined = this.engine;
+    if (engine === undefined) {
+      return;
+    }
+    if (this.feedbackTimer >= 0) {
+      return;
+    }
+    const answeredPrompt: string = this.prompt;
+    const answeredKind: string = this.currentQuestionKind;
+    const correctWord: string = this.lastAnswerWord;
+    const answeredWordId: string = this.currentWordId;
+    const answeredSpellQuestion: Question = this.currentSpellQuestion;
+
+    const outcome: AnswerOutcome = engine.submitAnswer(answer);
+
+    if (answeredWordId.length > 0) {
+      this.recorder.recordAnswer(answeredWordId, outcome.correct);
+      const prev: AnswerCount | undefined = this.sessionAnswers.get(answeredWordId);
+      const acc: AnswerCount = prev !== undefined ? prev : new AnswerCount();
+      acc.total += 1;
+      if (outcome.correct) {
+        acc.correct += 1;
+      }
+      this.sessionAnswers.set(answeredWordId, acc);
+    }
+
+    this.syncFromEngine();
+
+    // Hold the answered Spell on screen during the feedback window
+    // exactly like onOptionTap does for Choice / FillLetter.
+    this.prompt = answeredPrompt;
+    this.currentQuestionKind = answeredKind;
+    this.currentSpellQuestion = answeredSpellQuestion;
+
+    // Spell answers go through the correct-non-crit / crit branches
+    // only — wrong is impossible because SpellingArea rejects bad
+    // taps locally.
+    if (outcome.comboTriggered) {
+      this.feedbackText = `连击 3！魔法爆发 ×${outcome.damage}`;
+      this.feedbackColor = '#FFB400';
+      this.audio.play(SoundKeys.HIT_CRIT);
+      this.projectileIntensity = outcome.damage;
+      this.triggerForwardCast();
+      this.playerCastPulse += 1;
+      this.scheduleImpact((): void => {
+        this.monsterZoomPulse += 1;
+        this.critDamage = outcome.damage;
+        this.critPulse += 1;
+      });
+    } else {
+      this.feedbackText = '正确！';
+      this.feedbackColor = '#2ECC71';
+      this.audio.play(SoundKeys.HIT_NORMAL);
+      this.projectileIntensity = 1;
+      this.triggerForwardCast();
+      this.playerNudgePulse += 1;
+      this.scheduleImpact((): void => {
+        this.monsterHurtPulse += 1;
+      });
+    }
+    if (outcome.monsterDefeated && !outcome.battleEnded) {
+      this.audio.play(SoundKeys.MONSTER_DEFEAT);
+    }
+
+    const nextQuestion: Question | undefined = engine.getState().currentQuestion;
+
+    this.feedbackTimer = setTimeout((): void => {
+      this.feedbackTimer = -1;
+      this.feedbackText = ' ';
+
+      if (outcome.battleEnded) {
+        this.onBattleEnded(outcome);
+        return;
+      }
+
+      if (nextQuestion !== undefined) {
+        this.prompt = nextQuestion.promptZh;
+        this.lastAnswerWord = nextQuestion.answer;
+        this.currentQuestionKind = nextQuestion.kind;
+        if (nextQuestion.kind === QuestionKind.FillLetterMedium) {
+          this.isMedium = true;
+          this.currentStep = nextQuestion.currentStep;
+          this.totalSteps = nextQuestion.missingIndices.length;
+          this.letterTemplate = nextQuestion.letterTemplateBase;
+          this.letterMissingIndex = nextQuestion.missingIndices[nextQuestion.currentStep];
+          this.pendingMissingIndex = nextQuestion.missingIndices[nextQuestion.currentStep === 0 ? 1 : 0];
+          this.options = [
+            nextQuestion.letterOptionsSteps[nextQuestion.currentStep][0],
+            nextQuestion.letterOptionsSteps[nextQuestion.currentStep][1],
+            nextQuestion.letterOptionsSteps[nextQuestion.currentStep][2],
+          ];
+        } else if (nextQuestion.kind === QuestionKind.FillLetter) {
+          this.isMedium = false;
+          this.currentStep = 0;
+          this.totalSteps = 1;
+          this.pendingMissingIndex = -1;
+          this.options = [
+            nextQuestion.letterOptions[0],
+            nextQuestion.letterOptions[1],
+            nextQuestion.letterOptions[2],
+          ];
+          this.letterTemplate = nextQuestion.letterTemplate;
+          this.letterMissingIndex = nextQuestion.missingIndex;
+        } else if (nextQuestion.kind === QuestionKind.Spell) {
+          this.isMedium = false;
+          this.currentStep = 0;
+          this.totalSteps = 1;
+          this.pendingMissingIndex = -1;
+          this.letterTemplate = '';
+          this.letterMissingIndex = -1;
+          this.options = ['', '', ''];
+          this.currentSpellQuestion = nextQuestion;
+        } else {
+          this.isMedium = false;
+          this.currentStep = 0;
+          this.totalSteps = 1;
+          this.pendingMissingIndex = -1;
+          this.options = [
+            nextQuestion.options[0],
+            nextQuestion.options[1],
+            nextQuestion.options[2],
+          ];
+          this.letterTemplate = '';
+          this.letterMissingIndex = -1;
+        }
         this.maybeAutoSpeakCurrent(false);
       }
       this.optionStates = [ChoiceState.Idle, ChoiceState.Idle, ChoiceState.Idle];
@@ -1163,6 +1380,15 @@ struct BattlePage {
           || this.currentQuestionKind === QuestionKind.FillLetterMedium) {
           this.letterTemplateRow();
         }
+        if (this.currentQuestionKind === QuestionKind.Spell) {
+          SpellingArea({
+            question: this.currentSpellQuestion,
+            areaId: 'BattleSpellArea',
+            onSpellComplete: (answer: string): void => {
+              this.handleSpellSubmit(answer);
+            },
+          })
+        }
         // Speaker button — tap re-plays the English pronunciation
         // regardless of the autoSpeak config. Rendered even when
         // TTS init failed so the UI layout is stable; the tap path
@@ -1216,34 +1442,44 @@ struct BattlePage {
 
   @Builder
   private optionsRow() {
-    Row({ space: 4 }) {
-      ChoiceButton({
-        text: this.options[0],
-        choiceId: this.optionIds[0],
-        state: this.optionStates[0],
-        onTap: (t: string): void => {
-          this.onOptionTap(t);
-        },
-      });
-      ChoiceButton({
-        text: this.options[1],
-        choiceId: this.optionIds[1],
-        state: this.optionStates[1],
-        onTap: (t: string): void => {
-          this.onOptionTap(t);
-        },
-      });
-      ChoiceButton({
-        text: this.options[2],
-        choiceId: this.optionIds[2],
-        state: this.optionStates[2],
-        onTap: (t: string): void => {
-          this.onOptionTap(t);
-        },
-      });
+    if (this.currentQuestionKind !== QuestionKind.Spell) {
+      Row({ space: 4 }) {
+        ChoiceButton({
+          text: this.options[0],
+          choiceId: this.optionIds[0],
+          state: this.optionStates[0],
+          onTap: (t: string): void => {
+            this.onOptionTap(t);
+          },
+        });
+        ChoiceButton({
+          text: this.options[1],
+          choiceId: this.optionIds[1],
+          state: this.optionStates[1],
+          onTap: (t: string): void => {
+            this.onOptionTap(t);
+          },
+        });
+        ChoiceButton({
+          text: this.options[2],
+          choiceId: this.optionIds[2],
+          state: this.optionStates[2],
+          onTap: (t: string): void => {
+            this.onOptionTap(t);
+          },
+        });
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 16, bottom: 20 });
+    } else {
+      // Spell questions own their input via SpellingArea inside
+      // questionArea(); reserve a small bottom padding so the page
+      // layout doesn't snap up when transitioning to a Spell.
+      Column()
+        .id('BattleOptionsRow_SpellPlaceholder')
+        .width('100%')
+        .height(20);
     }
-    .width('100%')
-    .padding({ left: 20, right: 20, top: 16, bottom: 20 });
   }
 
   build(): void {
@@ -1266,6 +1502,12 @@ struct BattlePage {
               nudgePulse: this.playerNudgePulse,
               castPulse: this.playerCastPulse,
               assetPath: PLAYER_CHARACTER_ASSET,
+              // V0.4.8: alt portrait toggled visible while a forward
+              // projectile is mid-flight. Both images mount once and
+              // are decoded once; the swap is opacity-only so it
+              // never blocks the UI thread on a cast.
+              altAssetPath: 'character/magican_fight.svg',
+              altActive: this.playerFighting,
             });
           }
           .id('PlayerArea')
@@ -1312,11 +1554,17 @@ struct BattlePage {
         projectilePulse: this.projectileForwardPulse,
         forward: true,
         intensity: this.projectileIntensity,
+        // V0.4.8: stamp the answer word inside the orb so the cast
+        // reinforces the spelling the player just produced.
+        label: this.lastAnswerWord,
       });
       MagicProjectile({
         projectilePulse: this.projectileBackwardPulse,
         forward: false,
         intensity: 1,
+        // V0.4.8: backward shot carries the same word so the kid
+        // sees what they missed flying toward the mage.
+        label: this.lastAnswerWord,
         accentCore: this.currentMonster.fill,
         // Glow tracks the core fill; outerOpacity 0.65 makes the
         // shared color read as a halo around the core orb.

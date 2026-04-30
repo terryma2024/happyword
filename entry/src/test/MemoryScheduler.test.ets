@@ -35,20 +35,48 @@ export default function memorySchedulerTest() {
       expect(s.nextReviewMs).assertEqual(NOW + INTERVAL_30_MIN_MS);
     });
 
-    it('learningSecondCorrectPromotesToFamiliarWith3Day', 0, () => {
+    it('learningSecondConsecutiveCorrectPromotesToFamiliarWith3Day', 0, () => {
       const s: WordStat = freshStat(MemoryState.Learning);
+      s.consecutiveCorrect = 2;
       s.correctCount = 2;
       new MemoryScheduler().applyAnswer(s, true, NOW);
       expect(s.memoryState).assertEqual(MemoryState.Familiar);
       expect(s.nextReviewMs).assertEqual(NOW + INTERVAL_3_DAY_MS);
     });
 
-    it('learningFirstCorrectStaysLearning', 0, () => {
+    it('learningFirstConsecutiveCorrectStaysLearning', 0, () => {
       const s: WordStat = freshStat(MemoryState.Learning);
+      s.consecutiveCorrect = 1;
       s.correctCount = 1;
       new MemoryScheduler().applyAnswer(s, true, NOW);
       expect(s.memoryState).assertEqual(MemoryState.Learning);
       expect(s.nextReviewMs).assertEqual(NOW + INTERVAL_1_DAY_MS);
+    });
+
+    it('learningHighCorrectCountWithoutStreakStaysLearningUntilLegacyThreshold', 0, () => {
+      // V0.4.3 regression guard: a kid who answers right-then-wrong
+      // repeatedly should NOT be promoted just because correctCount
+      // crossed the old threshold of 2. We require either a real
+      // streak or a much larger cumulative count for legacy data.
+      const s: WordStat = freshStat(MemoryState.Learning);
+      s.consecutiveCorrect = 1;
+      s.correctCount = 3;
+      new MemoryScheduler().applyAnswer(s, true, NOW);
+      expect(s.memoryState).assertEqual(MemoryState.Learning);
+      expect(s.nextReviewMs).assertEqual(NOW + INTERVAL_1_DAY_MS);
+    });
+
+    it('learningLegacyMigrationStillPromotesAtLegacyThreshold', 0, () => {
+      // Snapshot migrated from before streaks existed: consecutive
+      // counters are 0 even though the player clearly knows the word
+      // (correctCount = 4). The legacy fallback path should still
+      // promote so we don't regress upgraded users.
+      const s: WordStat = freshStat(MemoryState.Learning);
+      s.consecutiveCorrect = 0;
+      s.correctCount = 4;
+      new MemoryScheduler().applyAnswer(s, true, NOW);
+      expect(s.memoryState).assertEqual(MemoryState.Familiar);
+      expect(s.nextReviewMs).assertEqual(NOW + INTERVAL_3_DAY_MS);
     });
 
     it('reviewCorrectMovesBackToLearning', 0, () => {
@@ -65,9 +93,19 @@ export default function memorySchedulerTest() {
       expect(s.nextReviewMs).assertEqual(NOW + INTERVAL_30_MIN_MS);
     });
 
-    it('familiarFifthCorrectPromotesToMastered', 0, () => {
+    it('familiarFifthConsecutiveCorrectPromotesToMastered', 0, () => {
       const s: WordStat = freshStat(MemoryState.Familiar);
+      s.consecutiveCorrect = 5;
       s.correctCount = 5;
+      new MemoryScheduler().applyAnswer(s, true, NOW);
+      expect(s.memoryState).assertEqual(MemoryState.Mastered);
+      expect(s.nextReviewMs).assertEqual(NOW + INTERVAL_14_DAY_MS);
+    });
+
+    it('familiarLegacyMigrationPromotesAtLegacyThreshold', 0, () => {
+      const s: WordStat = freshStat(MemoryState.Familiar);
+      s.consecutiveCorrect = 0;
+      s.correctCount = 10;
       new MemoryScheduler().applyAnswer(s, true, NOW);
       expect(s.memoryState).assertEqual(MemoryState.Mastered);
       expect(s.nextReviewMs).assertEqual(NOW + INTERVAL_14_DAY_MS);

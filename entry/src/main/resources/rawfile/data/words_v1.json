@@ -32,6 +32,28 @@
     { "id": "home-door", "word": "door", "meaningZh": "门", "category": "home", "difficulty": 1 },
     { "id": "home-window", "word": "window", "meaningZh": "窗户", "category": "home", "difficulty": 1 },
     { "id": "home-book", "word": "book", "meaningZh": "书", "category": "home", "difficulty": 1 },
-    { "id": "home-cup", "word": "cup", "meaningZh": "杯子", "category": "home", "difficulty": 1 }
+    { "id": "home-cup", "word": "cup", "meaningZh": "杯子", "category": "home", "difficulty": 1 },
+
+    { "id": "animal-cat", "word": "cat", "meaningZh": "猫", "category": "animal", "difficulty": 1 },
+    { "id": "animal-dog", "word": "dog", "meaningZh": "狗", "category": "animal", "difficulty": 1 },
+    { "id": "animal-lion", "word": "lion", "meaningZh": "狮子", "category": "animal", "difficulty": 1 },
+    { "id": "animal-tiger", "word": "tiger", "meaningZh": "老虎", "category": "animal", "difficulty": 1 },
+    { "id": "animal-bear", "word": "bear", "meaningZh": "熊", "category": "animal", "difficulty": 1 },
+    { "id": "animal-frog", "word": "frog", "meaningZh": "青蛙", "category": "animal", "difficulty": 1 },
+    { "id": "animal-duck", "word": "duck", "meaningZh": "鸭子", "category": "animal", "difficulty": 1 },
+    { "id": "animal-mouse", "word": "mouse", "meaningZh": "老鼠", "category": "animal", "difficulty": 1 },
+    { "id": "animal-sheep", "word": "sheep", "meaningZh": "绵羊", "category": "animal", "difficulty": 1 },
+    { "id": "animal-horse", "word": "horse", "meaningZh": "马", "category": "animal", "difficulty": 1 },
+
+    { "id": "ocean-fish", "word": "fish", "meaningZh": "鱼", "category": "ocean", "difficulty": 1 },
+    { "id": "ocean-whale", "word": "whale", "meaningZh": "鲸鱼", "category": "ocean", "difficulty": 1 },
+    { "id": "ocean-shark", "word": "shark", "meaningZh": "鲨鱼", "category": "ocean", "difficulty": 1 },
+    { "id": "ocean-crab", "word": "crab", "meaningZh": "螃蟹", "category": "ocean", "difficulty": 1 },
+    { "id": "ocean-dolphin", "word": "dolphin", "meaningZh": "海豚", "category": "ocean", "difficulty": 1 },
+    { "id": "ocean-octopus", "word": "octopus", "meaningZh": "章鱼", "category": "ocean", "difficulty": 1 },
+    { "id": "ocean-seal", "word": "seal", "meaningZh": "海豹", "category": "ocean", "difficulty": 1 },
+    { "id": "ocean-turtle", "word": "turtle", "meaningZh": "海龟", "category": "ocean", "difficulty": 1 },
+    { "id": "ocean-starfish", "word": "starfish", "meaningZh": "海星", "category": "ocean", "difficulty": 1 },
+    { "id": "ocean-jellyfish", "word": "jellyfish", "meaningZh": "水母", "category": "ocean", "difficulty": 1 }
   ]
 }

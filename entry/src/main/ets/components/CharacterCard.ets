@@ -50,6 +50,23 @@ export struct CharacterCard {
   @Prop assetPath: string = '';
 
   /**
+   * V0.4.8 — optional secondary portrait that lives in the avatar
+   * Stack alongside the primary `assetPath`. Both Images mount at
+   * construction so they decode once each (and only once); ArkUI
+   * then toggles between them via `altActive`'s opacity binding.
+   * Empty `altAssetPath` keeps the secondary layer absent so cards
+   * that only ever render the idle pose (e.g. monsters) pay zero
+   * extra layout cost.
+   *
+   * Prefer this over swapping `assetPath` mid-battle: a dynamic
+   * `Image($rawfile(this.assetPath))` re-decodes synchronously
+   * under `syncLoad(true)` and that 100+ KB SVG decode pause is
+   * long enough to drop a tap on the emulator.
+   */
+  @Prop altAssetPath: string = '';
+  @Prop altActive: boolean = false;
+
+  /**
    * Monotonically-increasing counters. Each observed change plays a
    * short animation and returns to rest; BattlePage never has to
    * reset the counter. Zero is the initial "no hit yet" value.
@@ -262,7 +279,24 @@ export struct CharacterCard {
           .width(96)
           .height(CharacterCard.AVATAR_HEIGHT)
           .syncLoad(true)
-          .interpolation(ImageInterpolation.High);
+          .interpolation(ImageInterpolation.High)
+          .opacity(this.altAssetPath.length > 0 && this.altActive ? 0 : 1);
+
+        // V0.4.8: stacked alt portrait for the player's mid-cast fight
+        // pose. Mounted at construction so the SVG is decoded once;
+        // toggled visible via opacity instead of swapping the primary
+        // assetPath, which was forcing a synchronous decode pause that
+        // dropped taps on the emulator.
+        if (this.altAssetPath.length > 0) {
+          Image($rawfile(this.altAssetPath))
+            .objectFit(ImageFit.Contain)
+            .width(96)
+            .height(CharacterCard.AVATAR_HEIGHT)
+            .syncLoad(true)
+            .interpolation(ImageInterpolation.High)
+            .opacity(this.altActive ? 1 : 0)
+            .hitTestBehavior(HitTestMode.None);
+        }
 
         // Red damage overlay — sits above the avatar shapes, fades to
         // opacity 0 at rest. When hurtPulse fires we animate it up to

@@ -20,6 +20,15 @@ export class WordStat {
   lastCorrectMs: number = 0;
   nextReviewMs: number = 0;
   memoryState: string = 'new';
+  // V0.4.3 refined-memory fields. `consecutiveCorrect` resets on a
+  // wrong answer and counts the current correct streak; ditto for
+  // `consecutiveWrong`. `mastery` is a confidence score in [0, 1]
+  // updated each answer (+0.1 / -0.2, clamped). MemoryScheduler now
+  // promotes by streak rather than cumulative count so a kid who
+  // alternates right/wrong does not accidentally land in Familiar.
+  consecutiveCorrect: number = 0;
+  consecutiveWrong: number = 0;
+  mastery: number = 0;
 }
 
 /**
@@ -160,6 +169,9 @@ interface WordStatJson {
   lastCorrectMs?: number;
   nextReviewMs?: number;
   memoryState?: string;
+  consecutiveCorrect?: number;
+  consecutiveWrong?: number;
+  mastery?: number;
 }
 
 interface LearningSnapshotJson {
@@ -213,6 +225,22 @@ export function parseSnapshot(raw: string): LearningSnapshot {
       stat.memoryState = typeof item.memoryState === 'string' && item.memoryState.length > 0
         ? item.memoryState
         : (stat.correctCount > 0 ? 'learning' : 'new');
+      // V0.4.3: streaks default to 0 when migrating from a v2 blob.
+      // Mastery seeds from correct/seen ratio so previously-learned
+      // words don't snap back to "new" confidence after the upgrade.
+      stat.consecutiveCorrect = typeof item.consecutiveCorrect === 'number'
+        ? item.consecutiveCorrect
+        : 0;
+      stat.consecutiveWrong = typeof item.consecutiveWrong === 'number'
+        ? item.consecutiveWrong
+        : 0;
+      if (typeof item.mastery === 'number') {
+        stat.mastery = clampMastery(item.mastery);
+      } else if (stat.seenCount > 0) {
+        stat.mastery = clampMastery(stat.correctCount / stat.seenCount);
+      } else {
+        stat.mastery = 0;
+      }
       if (stat.wordId.length > 0) {
         snapshot.stats.push(stat);
       }
@@ -225,3 +253,28 @@ export function parseSnapshot(raw: string): LearningSnapshot {
 export function serializeSnapshot(snapshot: LearningSnapshot): string {
   return JSON.stringify(snapshot);
 }
+
+/**
+ * Clamp a mastery score into [0, 1]. Exposed (vs inlined) so unit
+ * tests can exercise the boundary handling without driving the
+ * surrounding parser.
+ */
+export function clampMastery(value: number): number {
+  if (value < 0 || Number.isNaN(value)) {
+    return 0;
+  }
+  if (value > 1) {
+    return 1;
+  }
+  return value;
+}
+
+/**
+ * V0.4.3: per-answer mastery delta. A correct answer nudges the
+ * confidence up by MASTERY_DELTA_CORRECT; a wrong answer pulls it
+ * down by MASTERY_DELTA_WRONG. The asymmetry (wrong > correct) is
+ * intentional — kids should re-earn mastery rather than bounce in
+ * after a single right tap.
+ */
+export const MASTERY_DELTA_CORRECT: number = 0.1;
+export const MASTERY_DELTA_WRONG: number = 0.2;

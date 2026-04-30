@@ -1514,13 +1514,15 @@ export default function localUnitTest() {
   });
 
   describe('AudioService', () => {
-    it('exposesAllSixSoundKeys', 0, () => {
+    it('exposesAllSevenSoundKeys', 0, () => {
       // Guards against silently dropping a key when the SFX table is
       // edited — every key BattlePage expects must be in the preload list.
-      expect(ALL_SOUND_KEYS.length).assertEqual(6);
+      // V0.4.8 added PLAYER_HURT (mage grunt on backward shot).
+      expect(ALL_SOUND_KEYS.length).assertEqual(7);
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_NORMAL) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_CRIT) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.ANSWER_WRONG) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.PLAYER_HURT) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.MONSTER_DEFEAT) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.VICTORY) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.DEFEAT) >= 0).assertTrue();
@@ -1742,10 +1744,118 @@ export default function localUnitTest() {
       expect(ids.indexOf('fruit-apple') >= 0).assertTrue();
     });
 
-    it('upgradesSnapshotVersionToTwo', 0, () => {
+    it('upgradesSnapshotVersionToThree', 0, () => {
+      // V0.4.3: streak + mastery fields bump the schema to v3. Older
+      // installs round-trip through parseSnapshot, get default streaks,
+      // and any new write tags the blob with version 3.
       const rec: LearningRecorder = makeRecorderWithSnapshot([]);
       rec.recordAnswer('fruit-apple', true);
-      expect(rec.snapshotVersionForTest()).assertEqual(2);
+      expect(rec.snapshotVersionForTest()).assertEqual(3);
+    });
+  });
+
+  describe('LearningRecorder.recordAnswer streaks and mastery', () => {
+    it('correctIncrementsConsecutiveCorrectAndResetsConsecutiveWrong', 0, () => {
+      const prior: WordStat = new WordStat();
+      prior.wordId = 'apple';
+      prior.consecutiveWrong = 2;
+      prior.mastery = 0.4;
+      const rec: LearningRecorder = makeRecorderWithSnapshot([prior]);
+      rec.recordAnswer('apple', true);
+      const stat: WordStat = rec.statsForTest()[0];
+      expect(stat.consecutiveCorrect).assertEqual(1);
+      expect(stat.consecutiveWrong).assertEqual(0);
+      // 0.4 + 0.1 mastery delta on correct answer (within fp tolerance).
+      expect(Math.abs(stat.mastery - 0.5) < 1e-9).assertTrue();
+    });
+
+    it('wrongIncrementsConsecutiveWrongAndResetsConsecutiveCorrect', 0, () => {
+      const prior: WordStat = new WordStat();
+      prior.wordId = 'apple';
+      prior.consecutiveCorrect = 3;
+      prior.mastery = 0.5;
+      const rec: LearningRecorder = makeRecorderWithSnapshot([prior]);
+      rec.recordAnswer('apple', false);
+      const stat: WordStat = rec.statsForTest()[0];
+      expect(stat.consecutiveCorrect).assertEqual(0);
+      expect(stat.consecutiveWrong).assertEqual(1);
+      // 0.5 - 0.2 mastery delta on wrong answer (within fp tolerance).
+      expect(Math.abs(stat.mastery - 0.3) < 1e-9).assertTrue();
+    });
+
+    it('masteryClampsAtUpperBound', 0, () => {
+      const prior: WordStat = new WordStat();
+      prior.wordId = 'apple';
+      prior.mastery = 0.95;
+      const rec: LearningRecorder = makeRecorderWithSnapshot([prior]);
+      rec.recordAnswer('apple', true); // 0.95 + 0.1 -> 1.05, clamps to 1.
+      expect(rec.statsForTest()[0].mastery).assertEqual(1);
+    });
+
+    it('masteryClampsAtLowerBound', 0, () => {
+      const prior: WordStat = new WordStat();
+      prior.wordId = 'apple';
+      prior.mastery = 0.1;
+      const rec: LearningRecorder = makeRecorderWithSnapshot([prior]);
+      rec.recordAnswer('apple', false); // 0.1 - 0.2 -> -0.1, clamps to 0.
+      expect(rec.statsForTest()[0].mastery).assertEqual(0);
+    });
+
+    it('streakOnNewWordSeedsConsecutiveCorrectAtOne', 0, () => {
+      const rec: LearningRecorder = makeRecorderWithSnapshot([]);
+      rec.recordAnswer('apple', true);
+      const stat: WordStat = rec.statsForTest()[0];
+      expect(stat.consecutiveCorrect).assertEqual(1);
+      expect(stat.consecutiveWrong).assertEqual(0);
+      // 0 + 0.1 mastery delta on first correct (within fp tolerance).
+      expect(Math.abs(stat.mastery - 0.1) < 1e-9).assertTrue();
+    });
+  });
+
+  describe('LearningSnapshot v3 schema (V0.4.3)', () => {
+    it('v2BlobMigratesWithDefaultStreaksAndSeededMastery', 0, () => {
+      // A v2 blob (pre-streaks) with one previously-learned word
+      // should migrate cleanly: streaks default to 0; mastery seeds
+      // from correct/seen so a fully-mastered word doesn't snap back
+      // to mastery=0 after upgrade.
+      const v2: string =
+        '{"version":2,"stats":[{"wordId":"fruit-apple","seenCount":4,'
+        + '"correctCount":3,"wrongCount":1,"lastAnsweredMs":1700,'
+        + '"lastCorrectMs":1700,"nextReviewMs":2000,"memoryState":"learning"}]}';
+      const snap: LearningSnapshot = parseSnapshot(v2);
+      const s: WordStat = snap.stats[0];
+      expect(s.consecutiveCorrect).assertEqual(0);
+      expect(s.consecutiveWrong).assertEqual(0);
+      // 3 / 4 = 0.75 seeded mastery.
+      expect(Math.abs(s.mastery - 0.75) < 1e-9).assertTrue();
+    });
+
+    it('v3BlobReadsBackLossless', 0, () => {
+      const stat: WordStat = new WordStat();
+      stat.wordId = 'fruit-pear';
+      stat.seenCount = 5;
+      stat.correctCount = 4;
+      stat.wrongCount = 1;
+      stat.consecutiveCorrect = 3;
+      stat.consecutiveWrong = 0;
+      stat.mastery = 0.7;
+      const snap: LearningSnapshot = new LearningSnapshot();
+      snap.version = 3;
+      snap.stats.push(stat);
+      const round: LearningSnapshot = parseSnapshot(serializeSnapshot(snap));
+      expect(round.version).assertEqual(3);
+      const r: WordStat = round.stats[0];
+      expect(r.consecutiveCorrect).assertEqual(3);
+      expect(r.consecutiveWrong).assertEqual(0);
+      expect(r.mastery).assertEqual(0.7);
+    });
+
+    it('clampsMasteryFromOutOfRangeBlob', 0, () => {
+      const v3: string =
+        '{"version":3,"stats":[{"wordId":"x","seenCount":1,"correctCount":1,'
+        + '"mastery":2.5}]}';
+      const snap: LearningSnapshot = parseSnapshot(v3);
+      expect(snap.stats[0].mastery).assertEqual(1);
     });
   });
 

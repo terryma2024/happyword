@@ -6,8 +6,13 @@ import magicAttackUiTest from './MagicAttack.ui.test';
 import v03AdventureUiTest from './V03Adventure.ui.test';
 import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
 import fillLetterFlowUiTest from './FillLetterFlow.ui.test';
+import spellQuestionFlowUiTest from './SpellQuestionFlow.ui.test';
 import monsterCodexFlowUiTest from './MonsterCodexFlow.ui.test';
+import todayPlanFlowUiTest from './TodayPlanFlow.ui.test';
+import learningReportFlowUiTest from './LearningReportFlow.ui.test';
+import regionPickerFlowUiTest from './RegionPickerFlow.ui.test';
 import wishlistFlowUiTest from './WishlistFlow.ui.test';
+import customWishlistFlowUiTest from './CustomWishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
 
 export default function testsuite() {
@@ -34,9 +39,37 @@ export default function testsuite() {
   // last so any monster-defeated stat seeded here does not pollute
   // the assumptions the other suites bake in.
   fillLetterFlowUiTest();
+  // V0.4.1: drives a Boss Spell question end-to-end on the same
+  // fruit-forest plan as FillLetterFlow. Reuses the static zh→en
+  // catalog so the suite stays deterministic.
+  spellQuestionFlowUiTest();
+  // V0.4.4: read-only daily plan page. Navigation-only test —
+  // verifies HomePlanButton → TodayPlanPage → back works and the
+  // page renders its essential ids. Order-independent vs the
+  // recorder-seeded suites because TodayPlanService tolerates any
+  // recorder state.
+  todayPlanFlowUiTest();
+  // V0.4.5: navigation-only — opens HomePage → TodayPlanPage →
+  // LearningReportPage; surface and back nav. Tolerates any
+  // recorder state because LearningReportBuilder treats every
+  // word the same way regardless of prior taps.
+  learningReportFlowUiTest();
+  // V0.4.6: navigation-only — verifies all 5 region chips exist
+  // in the new horizontal Scroll container, and tapping one swaps
+  // the AdventureCard title. Resets to fruit-forest before
+  // returning so downstream suites still start on the default.
+  regionPickerFlowUiTest();
   // V0.3.9: wishlist redesign + parent PIN setup. Both suites are
   // navigation-only (they do not seed coins, do not redeem); the
   // full PIN → GiftBox → history flow is unit-tested.
   wishlistFlowUiTest();
+  // V0.4.7: parent-created custom wishlist entries. Runs after the
+  // built-in wishlistFlowUiTest because the second test in this
+  // suite re-commits the parent PIN — we don't want PIN setup
+  // bleed-over interfering with WishlistFlow's
+  // applyWithoutPinPromptsParentPinSetupHint case (which assumes
+  // the cheapest wish either has WishApply or WishGap, not a
+  // mid-PIN-entry side-effect).
+  customWishlistFlowUiTest();
   configFlowUiTest();
 }

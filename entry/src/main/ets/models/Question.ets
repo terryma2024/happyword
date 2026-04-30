@@ -10,6 +10,7 @@ export enum QuestionKind {
   Choice = 'choice',
   FillLetter = 'fill-letter',
   FillLetterMedium = 'fill-letter-medium',
+  Spell = 'spell',
 }
 
 export class Question {
@@ -33,6 +34,14 @@ export class Question {
   // Engine runtime state: 0 = step 0 (first blank), 1 = step 1 (second blank).
   currentStep: number = 0;
 
+  // V0.4.1: Spell — full-word point-select spelling. SpellingArea owns
+  // per-tap state in @State; these fields are read once on question
+  // reveal and never mutated afterwards (unlike FillLetterMedium's
+  // letterTemplateBase which is rewritten in-place on step advance).
+  spellLetters: string[] = [];
+  spellRevealedMask: boolean[] = [];
+  spellPool: string[] = [];
+
   /**
    * Runtime invariant check. Returns true when the question is well-formed.
    * Keep this cheap: it runs during QuestionGenerator tests on every generated
@@ -50,6 +59,9 @@ export class Question {
     }
     if (this.kind === QuestionKind.FillLetterMedium) {
       return this.isValidFillLetterMedium();
+    }
+    if (this.kind === QuestionKind.Spell) {
+      return this.isValidSpell();
     }
     return this.isValidChoice();
   }
@@ -182,6 +194,99 @@ export class Question {
       }
     }
 
+    return true;
+  }
+
+  /**
+   * V0.4.1 Spell invariants:
+   * - spellLetters length is in [SPELL_MIN_LEN, SPELL_MAX_LEN]
+   * - spellRevealedMask matches spellLetters length, with index 0 = true
+   *   and every other index = false (only the first letter is revealed)
+   * - spellLetters joined equals answer.toLowerCase()
+   * - spellPool is the multiset of spellLetters[1..] in any order
+   * - every letter in spellLetters and spellPool is a single a-z char
+   */
+  private isValidSpell(): boolean {
+    const SPELL_MIN_LEN: number = 4;
+    const SPELL_MAX_LEN: number = 9;
+    const len: number = this.spellLetters.length;
+    if (len < SPELL_MIN_LEN || len > SPELL_MAX_LEN) {
+      return false;
+    }
+    if (this.spellRevealedMask.length !== len) {
+      return false;
+    }
+    if (!this.spellRevealedMask[0]) {
+      return false;
+    }
+    for (let i = 1; i < len; i++) {
+      if (this.spellRevealedMask[i]) {
+        return false;
+      }
+    }
+    for (let i = 0; i < len; i++) {
+      const c: string = this.spellLetters[i];
+      if (c.length !== 1) {
+        return false;
+      }
+      const code: number = c.charCodeAt(0);
+      if (code < 97 || code > 122) {
+        return false;
+      }
+    }
+    // Compare joined letters against the alphabetic projection of `answer`
+    // so words with hyphens / uppercase (e.g. 'ice-cream', 'Apple') still
+    // validate after the generator strips non-a-z characters.
+    let normalizedAnswer: string = '';
+    const lowerAnswer: string = this.answer.toLowerCase();
+    for (let i = 0; i < lowerAnswer.length; i++) {
+      const c: string = lowerAnswer.charAt(i);
+      if (c >= 'a' && c <= 'z') {
+        normalizedAnswer += c;
+      }
+    }
+    const joined: string = this.spellLetters.join('');
+    if (joined !== normalizedAnswer) {
+      return false;
+    }
+    if (this.spellPool.length !== len - 1) {
+      return false;
+    }
+    for (let i = 0; i < this.spellPool.length; i++) {
+      const c: string = this.spellPool[i];
+      if (c.length !== 1) {
+        return false;
+      }
+      const code: number = c.charCodeAt(0);
+      if (code < 97 || code > 122) {
+        return false;
+      }
+    }
+    // Multiset check: spellPool must equal spellLetters[1..] as a multiset.
+    const expectedCounts: Map<string, number> = new Map<string, number>();
+    for (let i = 1; i < len; i++) {
+      const c: string = this.spellLetters[i];
+      const prev: number = expectedCounts.has(c) ? (expectedCounts.get(c) as number) : 0;
+      expectedCounts.set(c, prev + 1);
+    }
+    const actualCounts: Map<string, number> = new Map<string, number>();
+    for (let i = 0; i < this.spellPool.length; i++) {
+      const c: string = this.spellPool[i];
+      const prev: number = actualCounts.has(c) ? (actualCounts.get(c) as number) : 0;
+      actualCounts.set(c, prev + 1);
+    }
+    if (expectedCounts.size !== actualCounts.size) {
+      return false;
+    }
+    const keys: IterableIterator<string> = expectedCounts.keys();
+    let next: IteratorResult<string> = keys.next();
+    while (!next.done) {
+      const k: string = next.value;
+      if (expectedCounts.get(k) !== actualCounts.get(k)) {
+        return false;
+      }
+      next = keys.next();
+    }
     return true;
   }
 }

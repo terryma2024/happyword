@@ -8,6 +8,8 @@
     "pages/WishlistPage",
     "pages/MonsterCodexPage",
     "pages/ParentPinSetupPage",
-    "pages/RedemptionHistoryPage"
+    "pages/RedemptionHistoryPage",
+    "pages/TodayPlanPage",
+    "pages/LearningReportPage"
   ]
 }

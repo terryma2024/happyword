@@ -13,6 +13,7 @@ function makeWish(id: string, name: string, cost: number, emoji: string): MagicW
   w.costCoins = cost;
   w.iconEmoji = emoji;
   w.state = WishState.Idle;
+  w.isCustom = false;
   return w;
 }
 
