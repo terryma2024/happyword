@@ -55,6 +55,8 @@ export function describeCategory(category: string): string {
   if (category === 'fruit') return '水果';
   if (category === 'place') return '地点';
   if (category === 'home') return '家庭';
+  if (category === 'animal') return '动物';
+  if (category === 'ocean') return '海洋';
   return category;
 }
 

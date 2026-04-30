@@ -9,8 +9,9 @@ import { MonsterKind, monsterIndexForKind } from '../main/ets/data/MonsterCatalo
 
 export default function adventureCatalogTest() {
   describe('AdventureCatalog', () => {
-    it('shipsThreeRegionsInV035', 0, () => {
-      expect(ADVENTURE_REGIONS.length).assertEqual(3);
+    it('shipsFiveRegionsInV046', 0, () => {
+      // V0.4.6: 3 → 5 (animal-safari + ocean-realm join the picker).
+      expect(ADVENTURE_REGIONS.length).assertEqual(5);
     });
 
     it('defaultRegionIdMatchesFirstEntry', 0, () => {
@@ -34,6 +35,20 @@ export default function adventureCatalogTest() {
       expect(home.displayName).assertEqual('Home Cottage');
       expect(home.themeWordCategories[0]).assertEqual('home');
       expect(home.bossName).assertEqual('Toy Knight');
+    });
+
+    it('getRegionByIdReturnsAnimalSafariRegion', 0, () => {
+      const r: AdventureRegion = getRegionById('animal-safari');
+      expect(r.displayName).assertEqual('Animal Safari');
+      expect(r.themeWordCategories[0]).assertEqual('animal');
+      expect(r.bossName).assertEqual('Phoenix Spirit');
+    });
+
+    it('getRegionByIdReturnsOceanRealmRegion', 0, () => {
+      const r: AdventureRegion = getRegionById('ocean-realm');
+      expect(r.displayName).assertEqual('Ocean Realm');
+      expect(r.themeWordCategories[0]).assertEqual('ocean');
+      expect(r.bossName).assertEqual('Kraken');
     });
 
     it('getRegionByIdFallsBackForUnknown', 0, () => {
@@ -92,26 +107,42 @@ export default function adventureCatalogTest() {
       }
     });
 
-    it('cottageHostsTwoBossCandidatesCottageRange', 0, () => {
+    it('cottageHostsUnicornAfterV046KrakenMigration', 0, () => {
+      // V0.4.6: cottage drops Kraken; only Unicorn (#9) remains.
       const r: AdventureRegion = getRegionById('home-cottage');
-      expect(r.bossCandidates.length).assertEqual(2);
-      // Cottage owns Unicorn / Kraken at catalog 9..10.
-      for (let i: number = 0; i < r.bossCandidates.length; i++) {
-        const v: number = r.bossCandidates[i];
-        expect(v >= 9 && v <= 10).assertTrue();
-      }
+      expect(r.bossCandidates.length).assertEqual(1);
+      expect(r.bossCandidates[0]).assertEqual(9);
     });
 
-    it('bossCandidatesUnionCoversAllSevenIndicesUniquely', 0, () => {
+    it('safariHostsPhoenixAndUnicornCandidates', 0, () => {
+      const r: AdventureRegion = getRegionById('animal-safari');
+      // V0.4.6: borrows Phoenix (#6) and Unicorn (#9) — both
+      // fairy-tale creature-themed bosses.
+      expect(r.bossCandidates.length).assertEqual(2);
+      expect(r.bossCandidates.indexOf(6) >= 0).assertTrue();
+      expect(r.bossCandidates.indexOf(9) >= 0).assertTrue();
+    });
+
+    it('oceanHostsKrakenSoleBoss', 0, () => {
+      const r: AdventureRegion = getRegionById('ocean-realm');
+      expect(r.bossCandidates.length).assertEqual(1);
+      expect(r.bossCandidates[0]).assertEqual(10);
+    });
+
+    it('bossCandidatesUnionCoversFullCatalogPossiblyShared', 0, () => {
+      // V0.4.6 relaxes the V0.3.8 uniqueness invariant — multiple
+      // regions can share the same boss in their rotation pool
+      // (Phoenix appears in fruit-forest AND animal-safari; Unicorn
+      // appears in home-cottage AND animal-safari). The remaining
+      // contract is "every catalog index 4..10 is reachable from at
+      // least one region".
       const seen: Set<number> = new Set<number>();
       for (let i: number = 0; i < ADVENTURE_REGIONS.length; i++) {
         const cands: number[] = ADVENTURE_REGIONS[i].bossCandidates;
         for (let j: number = 0; j < cands.length; j++) {
-          expect(seen.has(cands[j])).assertFalse();
           seen.add(cands[j]);
         }
       }
-      expect(seen.size).assertEqual(7);
       for (let i: number = 4; i <= 10; i++) {
         expect(seen.has(i)).assertTrue();
       }

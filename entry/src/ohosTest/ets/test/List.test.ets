@@ -10,6 +10,7 @@ import spellQuestionFlowUiTest from './SpellQuestionFlow.ui.test';
 import monsterCodexFlowUiTest from './MonsterCodexFlow.ui.test';
 import todayPlanFlowUiTest from './TodayPlanFlow.ui.test';
 import learningReportFlowUiTest from './LearningReportFlow.ui.test';
+import regionPickerFlowUiTest from './RegionPickerFlow.ui.test';
 import wishlistFlowUiTest from './WishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
 
@@ -52,6 +53,11 @@ export default function testsuite() {
   // recorder state because LearningReportBuilder treats every
   // word the same way regardless of prior taps.
   learningReportFlowUiTest();
+  // V0.4.6: navigation-only — verifies all 5 region chips exist
+  // in the new horizontal Scroll container, and tapping one swaps
+  // the AdventureCard title. Resets to fruit-forest before
+  // returning so downstream suites still start on the default.
+  regionPickerFlowUiTest();
   // V0.3.9: wishlist redesign + parent PIN setup. Both suites are
   // navigation-only (they do not seed coins, do not redeem); the
   // full PIN → GiftBox → history flow is unit-tested.

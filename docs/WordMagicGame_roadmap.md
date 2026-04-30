@@ -3,7 +3,7 @@
 > 文档状态：路线图基线  
 > 关联基线：[WordMagicGame_overall_spec.md](WordMagicGame_overall_spec.md)  
 > 当前路线选择：趣味学习与长期学习系统平衡推进  
-> 最近更新：2026-04-30（V0.4.5 本地学习报告：新增 `LearningReportBuilder` + `pages/LearningReportPage`，TodayPlanPage 顶栏 📊 入口跳转；展示总正确率 / 4 态计数（掌握/熟悉/学习中/新词） / 今日复习进度条 / 最薄弱 1-3 个分类 + 全部分类详情；薄弱分类按正确率升序、跳过 seenCount = 0 的分类；review-bar id 落在外层 Stack 上，避免 0% 时内层 Row 折叠失踪；UI 测试用 swipe(1400→300) 滚一次后再 findComponent 折叠下方组件；V0.4.4 每日学习计划页：HomePage 📋 入口 + `TodayPlanService`）
+> 最近更新：2026-04-30（V0.4.6 更多主题区域：词库新增 `animal` / `ocean` 两个分类（共 +20 词）；`AdventureCatalog` 增 `animal-safari` / `ocean-realm` 两个区域，`home-cottage` 的 Kraken 迁出到 ocean-realm（兑现 V0.3.8 承诺）；regionPicker 用横向 Scroll 包裹避免 5 chips 在窄屏溢出；`LearningReportBuilder.describeCategory` 加 `animal → 动物` / `ocean → 海洋`；`bossCandidatesUnion...Uniquely` 不变量改为「全 catalog 4-10 都被某个 region 覆盖」（允许多 region 共享 boss）；V0.4.5 学习报告：4 卡片 + 薄弱分类）
 
 ## 1. 产品愿景
 
@@ -47,7 +47,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.4.3 | 精细记忆状态（已完成）       | `WordStat` 新增连续正/错次数 + `mastery`；`MemoryScheduler` 用连胜阈值促升 Familiar(2)/Mastered(5)，旧 `correctCount` 阈值（4/10）降级为 v2-snapshot 兼容回退；快照升级到 v3，老 blob 用 correct/seen 回填 mastery | 无 |
 | V0.4.4 | 每日学习计划（已完成）       | HomePage 工具栏 📋 入口跳 `TodayPlanPage`；`TodayPlanService` 用 (regionId+dayKey) 哈希种子复用 `TodayAdventureBuilder`，按 Review/Learning/New 拆 3 段展示当日单词；行内显示 `MemoryState` 徽章 + ✓ 已完成（基于 V0.4.3 streak 数据派生）；read-only，不接入战斗或编辑 | 无 |
 | V0.4.5 | 本地学习报告（已完成）       | `LearningReportBuilder` 计算总正确率 / 4 态计数 / 今日复习完成率 / 薄弱分类（按正确率升序，skip seen=0）；`pages/LearningReportPage` 4 卡片渲染 + 全分类详情；TodayPlanPage 顶栏 📊 入口；不接入趋势图 / 不做云端同步 | 无 |
-| V0.4.6 | 更多主题区域（计划中）       | 新增更多主题区域和关卡数据，让今日冒险有持续变化                                      | 无 |
+| V0.4.6 | 更多主题区域（已完成）       | 词库 +20 词覆盖 `animal` / `ocean` 两个新分类；新增 `animal-safari` (Phoenix + Unicorn 共享) / `ocean-realm` (Kraken 独占) 区域；`home-cottage` 的 Kraken 迁出兑现 V0.3.8 承诺；regionPicker 横向 Scroll 容纳 5 chips；boss 共享允许多 region 共用旋转池 | 无 |
 | V0.4.7 | 自定义愿望单条目（计划中）   | 奖励愿望单加入本地自定义兑换项，但仍不接真实支付                                      | 无 |
 | V0.5   | 内容后台与 LLM 题库版    | Node.js 内容后台、词库管理、LLM 生成题目草稿、人工审核、词包发布                    | 必需       |
 | V0.6   | 家长账户与设备绑定版       | 家长账号、孩子档案、二维码绑定设备、云端学习同步、云端愿望单                            | 必需       |
@@ -501,7 +501,7 @@ V0.4 的目标是把 V0.3 的学习内核做深，重点从“点选识别”进
 | V0.4.3 | 精细记忆状态（连续正/错次数 + 掌握度） | 已完成 |
 | V0.4.4 | 每日学习计划页 | 已完成 |
 | V0.4.5 | 本地学习报告 | 已完成 |
-| V0.4.6 | 更多主题区域 | 计划中 |
+| V0.4.6 | 更多主题区域 | 已完成 |
 | V0.4.7 | 自定义愿望单条目 | 计划中 |
 
 V0.4 可以开始考虑远程词包 JSON，但不要求完整后台。若服务端尚未开始，客户端仍应保持本地可用。
@@ -621,6 +621,38 @@ V0.4.5 把 V0.4.3 累积的记忆数据与 V0.4.4 的「今天」视图合在一
 - 题型维度拆分（按 Choice / FillLetter / Spell 看正确率）：孩子从不直接看到题型分布，加进来反而提升认知负担；后续可作为「家长视角」选配。
 - 云端同步：留到 V0.6 家长账户与设备绑定版。
 - 自定义目标线 / 提醒：本版本是只读回顾，目标设置归属设置/家长能力。
+
+### 11.5 V0.4.6 更多主题区域
+
+V0.4.6 把今日冒险的「主题房间」数从 3 加到 5，词库从 30 词扩到 50 词。最直接的产物是：每天打开 HomePage 都能选到 5 个不同的主题（水果森林 / 学校城堡 / 家庭小屋 / 动物乐园 / 深海王国），再加上 V0.4.4 的稳定 dayKey 旋转，孩子见到的怪物 + 单词组合每天可以不一样。
+
+**范围**
+
+- `entry/src/main/resources/rawfile/data/words_v1.json` 新增 2 个分类共 20 个词：
+  - `animal`（10 词）：cat、dog、lion、tiger、bear、frog、duck、mouse、sheep、horse；
+  - `ocean`（10 词）：fish、whale、shark、crab、dolphin、octopus、seal、turtle、starfish、jellyfish。
+- `AdventureCatalog` 新增两个 region：
+  - `animal-safari`（Animal Safari）：themeWordCategories=['animal']，bossCandidates=[6, 9]（Phoenix + Unicorn，童话动物题材，与 fruit-forest / home-cottage 共享旋转）；
+  - `ocean-realm`（Ocean Realm）：themeWordCategories=['ocean']，bossCandidates=[10]（Kraken 独占，兑现 V0.3.8 「Kraken 将迁移到未来 ocean region」承诺）。
+- `home-cottage` 的 bossCandidates 从 `[9, 10]` 收紧到 `[9]`（只剩 Unicorn）。
+- `LearningReportBuilder.describeCategory` 增 `animal → 动物` / `ocean → 海洋`。
+- HomePage 的 regionPicker 从原 `Row` 包成 `Scroll(scrollDirection=Horizontal)`，附 `RegionPickerScroll` id；5 chips（5×约 80 dp + 4×10 dp ≈ 440 dp）在 360 dp 竖屏会溢出，横向滚才能遍历。
+- 单元测试 `AdventureCatalog.test`：`shipsThreeRegionsInV035` 升级为 `shipsFiveRegionsInV046`（5 个 region），增 `getRegionByIdReturnsAnimalSafariRegion` / `OceanRealmRegion`，`cottageHostsTwoBossCandidatesCottageRange` 改为 `cottageHostsUnicornAfterV046KrakenMigration`，`bossCandidatesUnionCoversAllSevenIndicesUniquely` 放宽为 `bossCandidatesUnionCoversFullCatalogPossiblyShared`（全 catalog 4-10 都被某 region 覆盖，允许 shared）。
+- UI 测试 `RegionPickerFlow.ui.test`：assert 5 个 `RegionChip_*` id + `RegionPickerScroll` 容器存在；read animal-safari chip 文案为 'Animal Safari'。**有意不点击 chip**：region 切换会异步落库到 `TodayPreferences`，背景写入会触发后续 suite 的 `uitest-api dose not allow calling concurrently` 错误（`current processing: Driver.delayMs, incoming: Driver.create`），现象在前次运行中确诊。点击侧的覆盖落在单元测试。
+
+**验收**
+
+- 全套 36 / 36 on-device 测试通过；no-device 单测全过；CodeLinter 无新增缺陷。
+- 词库总数从 30 升至 50。
+- 5 个 region 都能从 picker 选中并通过 `getRegionById` 找到。
+- Kraken 不再出现在 home-cottage 的 bossCandidates；ocean-realm 的 boss 永远是 Kraken。
+
+**明确不做（留给 V0.5+）**
+
+- 第 11、12 个 boss 与新 SVG：扩展 codex / 新角色美术属内容生产，不在 V0.4.6 客户端范围。新区域共享既有 7 个 boss 的旋转池；future content 工作可以补 1-2 个海洋专属 boss。
+- 区域专属难度曲线 / 怪物 HP 调整：所有新区域沿用标准 5 槽 monster plan，未来 V0.4.x / V0.5 可按区域定制 HP / 题型权重。
+- 主题区域的关卡内地图 / 多关卡：V0.4.6 仍是「一日一局 5 怪」，不引入区域内章节链。
+- 区域解锁条件：当前所有区域默认对所有玩家开放，没有「学完水果再开启动物」的锁链。
 
 ## 12. V0.5 内容后台与 LLM 题库版
 

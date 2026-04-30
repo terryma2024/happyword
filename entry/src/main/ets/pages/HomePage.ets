@@ -413,24 +413,34 @@ struct HomePage {
 
   @Builder
   private regionPicker() {
-    Row({ space: 10 }) {
-      ForEach(ADVENTURE_REGIONS, (r: AdventureRegion): void => {
-        Button(r.displayName)
-          .id(`RegionChip_${r.id}`)
-          .fontSize(13)
-          .height(32)
-          .padding({ left: 12, right: 12 })
-          .backgroundColor(r.id === this.todayRegion.id ? '#E63946' : '#FFFFFF')
-          .fontColor(r.id === this.todayRegion.id ? '#FFFFFF' : '#3F2F1A')
-          .borderRadius(16)
-          .border({ width: 1, color: r.id === this.todayRegion.id ? '#E63946' : '#DDDDDD' })
-          .onClick((): void => {
-            AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, r.id);
-            this.todayRegion = r;
-            this.todayPrefs.saveRegionId(r.id);
-          });
-      }, (r: AdventureRegion): string => r.id);
+    // V0.4.6: 5 regions overflow narrow phone widths — wrap the chip
+    // row in a horizontal Scroll so the picker scrolls cleanly to
+    // surface every region while keeping each `RegionChip_*` id
+    // tappable. Width budget: 5 × ~80 dp + 4 × 10 dp ≈ 440 dp.
+    Scroll() {
+      Row({ space: 10 }) {
+        ForEach(ADVENTURE_REGIONS, (r: AdventureRegion): void => {
+          Button(r.displayName)
+            .id(`RegionChip_${r.id}`)
+            .fontSize(13)
+            .height(32)
+            .padding({ left: 12, right: 12 })
+            .backgroundColor(r.id === this.todayRegion.id ? '#E63946' : '#FFFFFF')
+            .fontColor(r.id === this.todayRegion.id ? '#FFFFFF' : '#3F2F1A')
+            .borderRadius(16)
+            .border({ width: 1, color: r.id === this.todayRegion.id ? '#E63946' : '#DDDDDD' })
+            .onClick((): void => {
+              AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, r.id);
+              this.todayRegion = r;
+              this.todayPrefs.saveRegionId(r.id);
+            });
+        }, (r: AdventureRegion): string => r.id);
+      }
+      .padding({ right: 4 });
     }
-    .width('100%');
+    .id('RegionPickerScroll')
+    .width('100%')
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off);
   }
 }

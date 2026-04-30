@@ -108,6 +108,11 @@ export default function learningReportBuilderTest() {
       expect(describeCategory('home')).assertEqual('家庭');
     });
 
+    it('mapsV046CategoriesToChineseLabels', 0, () => {
+      expect(describeCategory('animal')).assertEqual('动物');
+      expect(describeCategory('ocean')).assertEqual('海洋');
+    });
+
     it('fallsBackToRawCategoryForUnknown', 0, () => {
       expect(describeCategory('mystery')).assertEqual('mystery');
     });
