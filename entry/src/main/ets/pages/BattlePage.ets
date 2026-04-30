@@ -578,6 +578,20 @@ struct BattlePage {
     return this.playerFighting ? 'character/magican_fight.svg' : PLAYER_CHARACTER_ASSET;
   }
 
+  /**
+   * V0.4.8: schedule the player-hurt grunt to play when the backward
+   * projectile reaches the mage. Mirrors MagicProjectile's spawn
+   * (80 ms) + travel (260 ms) timing so the voice cue arrives with
+   * the impact, not at submit time. Tracked through `impactTimers`
+   * so `aboutToDisappear` can cancel it on a back-press.
+   */
+  private schedulePlayerHurtGrunt(): void {
+    const id: number = setTimeout((): void => {
+      this.audio.play(SoundKeys.PLAYER_HURT);
+    }, 340);
+    this.impactTimers.push(id);
+  }
+
   private maybeAutoSpeakCurrent(isRevealing: boolean): void {
     if (!shouldAutoSpeak(this.autoSpeak, this.tts.isAvailable, isRevealing)) {
       return;
@@ -844,6 +858,12 @@ struct BattlePage {
       this.feedbackText = `正确答案是 ${correctWord}`;
       this.feedbackColor = '#E74C3C';
       this.audio.play(SoundKeys.ANSWER_WRONG);
+      // V0.4.8: layer the player-hurt grunt on top of the buzzer so
+      // the monster's counter-attack lands with a softer voice cue
+      // when the projectile arrives. Delay matches the projectile's
+      // SPAWN_MS + TRAVEL_MS so the grunt lines up with the impact
+      // frame, not the answer-submit moment.
+      this.schedulePlayerHurtGrunt();
       // Backward projectile: monster fires back at the mage. Player
       // hurt + shake fire on arrival.
       this.projectileIntensity = 1;

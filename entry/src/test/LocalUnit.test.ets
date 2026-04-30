@@ -1514,13 +1514,15 @@ export default function localUnitTest() {
   });
 
   describe('AudioService', () => {
-    it('exposesAllSixSoundKeys', 0, () => {
+    it('exposesAllSevenSoundKeys', 0, () => {
       // Guards against silently dropping a key when the SFX table is
       // edited — every key BattlePage expects must be in the preload list.
-      expect(ALL_SOUND_KEYS.length).assertEqual(6);
+      // V0.4.8 added PLAYER_HURT (mage grunt on backward shot).
+      expect(ALL_SOUND_KEYS.length).assertEqual(7);
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_NORMAL) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.HIT_CRIT) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.ANSWER_WRONG) >= 0).assertTrue();
+      expect(ALL_SOUND_KEYS.indexOf(SoundKeys.PLAYER_HURT) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.MONSTER_DEFEAT) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.VICTORY) >= 0).assertTrue();
       expect(ALL_SOUND_KEYS.indexOf(SoundKeys.DEFEAT) >= 0).assertTrue();
