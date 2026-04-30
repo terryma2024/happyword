@@ -22,6 +22,7 @@ from app.routers import admin_drafts as admin_drafts_router
 from app.routers import admin_lessons as admin_lessons_router
 from app.routers import admin_llm as admin_llm_router
 from app.routers import admin_packs as admin_packs_router
+from app.routers import admin_stats as admin_stats_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
 from app.routers import public_packs as public_packs_router
@@ -96,3 +97,4 @@ app.include_router(admin_drafts_router.router)
 app.include_router(admin_categories_router.router)
 app.include_router(admin_lessons_router.router)
 app.include_router(admin_assets_router.router)
+app.include_router(admin_stats_router.router)
