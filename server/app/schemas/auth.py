@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -10,3 +12,9 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+
+
+class MeResponse(BaseModel):
+    username: str
+    role: str
+    last_login_at: datetime | None = None
