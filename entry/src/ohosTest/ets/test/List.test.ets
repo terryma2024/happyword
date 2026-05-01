@@ -14,6 +14,8 @@ import regionPickerFlowUiTest from './RegionPickerFlow.ui.test';
 import wishlistFlowUiTest from './WishlistFlow.ui.test';
 import customWishlistFlowUiTest from './CustomWishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
+import configSyncFlowUiTest from './ConfigSyncFlow.ui.test';
+import adminConsoleFlowUiTest from './AdminConsoleFlow.ui.test';
 
 export default function testsuite() {
   // HomeToolbarLocked must run before any suite that seeds wrong
@@ -72,4 +74,15 @@ export default function testsuite() {
   // mid-PIN-entry side-effect).
   customWishlistFlowUiTest();
   configFlowUiTest();
+  // V0.5 client follow-up (VC0.5.B): manual word-pack sync entry on
+  // ConfigPage. Order-independent; relies only on the cache slot
+  // schema and the production /packs/latest.json endpoint.
+  configSyncFlowUiTest();
+  // V0.5 client follow-up (VC0.5.F): in-app admin console behind
+  // parent PIN. Re-seeds the PIN to KNOWN_PIN inside each case so
+  // we don't depend on configFlowUiTest's twoStep ordering, but it
+  // is still scheduled after configFlowUiTest because the latter's
+  // mismatchSurfacesHintAndResetsBuffer leaves AppStorage in a
+  // mismatch state that this suite then heals.
+  adminConsoleFlowUiTest();
 }
