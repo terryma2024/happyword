@@ -3,6 +3,9 @@ import {
   pickServerBaseUrl,
   pickServerBaseUrlExplicit,
   buildLatestPackUrl,
+  resolveServerBaseUrl,
+  effectiveServerBaseUrl,
+  SERVER_BASE_URL_OVERRIDE_KEY,
   DEV_BASE_URL,
   PROD_BASE_URL,
   USE_LOCAL_DEV_SERVER,
@@ -45,6 +48,47 @@ export default function remoteWordPackConfigTest() {
     });
     it('buildLatestPackUrlReturnsEmptyForEmptyBase', 0, () => {
       expect(buildLatestPackUrl('')).assertEqual('');
+    });
+    it('overrideKeyIsStableForGrep', 0, () => {
+      // The ohosTest harness writes this exact key in beforeAll. If
+      // we ever rename it, both production resolveServerBaseUrl and
+      // List.test.ets must move together — this assertion guards
+      // against half-renames that silently leak prod traffic.
+      expect(SERVER_BASE_URL_OVERRIDE_KEY).assertEqual('serverBaseUrlOverride');
+    });
+    it('resolveServerBaseUrlReturnsOverrideWhenPresent', 0, () => {
+      expect(resolveServerBaseUrl('http://127.0.0.1:8123', 'debug'))
+        .assertEqual('http://127.0.0.1:8123');
+      expect(resolveServerBaseUrl('http://127.0.0.1:8123', 'release'))
+        .assertEqual('http://127.0.0.1:8123');
+    });
+    it('resolveServerBaseUrlIgnoresEmptyOverride', 0, () => {
+      expect(resolveServerBaseUrl('', 'debug')).assertEqual(PROD_BASE_URL);
+      expect(resolveServerBaseUrl('', 'release')).assertEqual(PROD_BASE_URL);
+    });
+    it('resolveServerBaseUrlIgnoresUndefinedOverride', 0, () => {
+      expect(resolveServerBaseUrl(undefined, 'debug')).assertEqual(PROD_BASE_URL);
+      expect(resolveServerBaseUrl(undefined, 'release')).assertEqual(PROD_BASE_URL);
+    });
+    it('effectiveServerBaseUrlReadsAppStorageOverride', 0, () => {
+      // Sanity: with no override written, production builds land on
+      // PROD_BASE_URL. We avoid mutating AppStorage from the unit
+      // test process to keep the assertion deterministic across
+      // suite ordering — see the beforeAll write in
+      // entry/src/ohosTest/ets/test/List.test.ets for the mocked path.
+      AppStorage.delete(SERVER_BASE_URL_OVERRIDE_KEY);
+      expect(effectiveServerBaseUrl()).assertEqual(PROD_BASE_URL);
+
+      // Write the override and confirm the next read picks it up.
+      AppStorage.setOrCreate<string>(
+        SERVER_BASE_URL_OVERRIDE_KEY,
+        'http://127.0.0.1:8123',
+      );
+      expect(effectiveServerBaseUrl()).assertEqual('http://127.0.0.1:8123');
+
+      // Clean up so the rest of the unit-test suite stays on PROD.
+      AppStorage.delete(SERVER_BASE_URL_OVERRIDE_KEY);
+      expect(effectiveServerBaseUrl()).assertEqual(PROD_BASE_URL);
     });
   });
 }

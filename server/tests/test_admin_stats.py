@@ -4,7 +4,11 @@ Behaviour contracts:
 1. /admin/stats returns correct counts across all collections.
 2. soft-deleted words are excluded from word_count.
 3. last_published_at is None when no pack ever shipped.
-4. non-admin -> 401/403.
+
+NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
+tests have been deleted. The remaining tests still send bearer tokens
+(harmless — the dependency no longer reads them) so the test bodies stay
+tightly diff-aligned with V0.5.7.
 """
 
 from datetime import UTC, datetime
@@ -51,18 +55,6 @@ async def parent(db: object) -> "AsyncIterator[User]":
 
 def _bearer(username: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {create_access_token(subject=username, expires_in=3600)}"}
-
-
-@pytest.mark.asyncio
-async def test_stats_requires_auth(client: "AsyncClient") -> None:
-    resp = await client.get("/api/v1/admin/stats")
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_stats_rejects_parent(client: "AsyncClient", parent: User) -> None:
-    resp = await client.get("/api/v1/admin/stats", headers=_bearer(parent.username))
-    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio

@@ -1,3 +1,4 @@
+import { SERVER_BASE_URL_OVERRIDE_KEY } from '../../../main/ets/services/RemoteWordPackConfig';
 import routingFlowUiTest from './RoutingFlow.ui.test';
 import critSpectacleUiTest from './CritSpectacle.ui.test';
 import speakerButtonUiTest from './SpeakerButton.ui.test';
@@ -15,9 +16,46 @@ import wishlistFlowUiTest from './WishlistFlow.ui.test';
 import customWishlistFlowUiTest from './CustomWishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
 import configSyncFlowUiTest from './ConfigSyncFlow.ui.test';
-import adminConsoleFlowUiTest from './AdminConsoleFlow.ui.test';
+import parentAdminFlowUiTest from './ParentAdminFlow.ui.test';
+import lessonDraftReviewFlowUiTest from './LessonDraftReviewFlow.ui.test';
+
+/**
+ * V0.5.8: route every HTTP call from the test ability through the
+ * locally-hosted FastAPI mock at 127.0.0.1:8123 (see
+ * server/mock_ui_server.py + scripts/run_ui_tests.sh).
+ *
+ * The override URL is read by `effectiveServerBaseUrl()` in
+ * RemoteWordPackConfig.ets every time a page (or sync service)
+ * builds its API client. Pages are only constructed AFTER the test
+ * delegator launches the main ability, so writing the key here in
+ * `testsuite()` guarantees the first page never sees the prod URL.
+ *
+ * Production / release builds NEVER write this key. They land on
+ * PROD_BASE_URL through the same `effectiveServerBaseUrl()` call,
+ * which falls back to `pickServerBaseUrl(BuildProfile.BUILD_MODE_NAME)`
+ * when the override is absent or empty.
+ *
+ * The orchestrator script `scripts/run_ui_tests.sh` is responsible
+ * for booting the mock server on the host and forwarding the
+ * device's loopback (`hdc rport tcp:8123 tcp:8123`); this file is
+ * only the in-process injection of the override URL.
+ */
+const UI_TEST_SERVER_BASE_URL: string = 'http://127.0.0.1:8123';
+
+function injectMockServerOverride(): void {
+  AppStorage.setOrCreate<string>(
+    SERVER_BASE_URL_OVERRIDE_KEY,
+    UI_TEST_SERVER_BASE_URL,
+  );
+}
 
 export default function testsuite() {
+  injectMockServerOverride();
+  // The lesson-import picker override is written by individual UI
+  // tests in ParentAdminFlow because materialising the bundled
+  // fixture into the app sandbox is async (`fs.open` + `fs.write`)
+  // and `testsuite()` runs synchronously. See
+  // `ParentAdminFlow.ui.test.ets::ensureLessonImportFixtureOnDevice`.
   // HomeToolbarLocked must run before any suite that seeds wrong
   // answers into LearningRecorder (ReviewMode / MagicAttack / V03 etc.)
   // — its lockedReviewShowsToastAndStays case asserts the toast is
@@ -78,11 +116,15 @@ export default function testsuite() {
   // ConfigPage. Order-independent; relies only on the cache slot
   // schema and the production /packs/latest.json endpoint.
   configSyncFlowUiTest();
-  // V0.5 client follow-up (VC0.5.F): in-app admin console behind
-  // parent PIN. Re-seeds the PIN to KNOWN_PIN inside each case so
-  // we don't depend on configFlowUiTest's twoStep ordering, but it
-  // is still scheduled after configFlowUiTest because the latter's
-  // mismatchSurfacesHintAndResetsBuffer leaves AppStorage in a
-  // mismatch state that this suite then heals.
-  adminConsoleFlowUiTest();
+  // V0.5.8: parent admin backend behind parent PIN (auth removed,
+  // photo lesson import added). Re-seeds the PIN to KNOWN_PIN inside
+  // each case so we don't depend on configFlowUiTest's twoStep
+  // ordering, but it is still scheduled after configFlowUiTest
+  // because the latter's mismatchSurfacesHintAndResetsBuffer leaves
+  // AppStorage in a mismatch state that this suite then heals.
+  parentAdminFlowUiTest();
+  // V0.5.8 H2: smoke-test that pages/LessonDraftReviewPage was added
+  // to main_pages.json without breaking app boot. Real edit / approve
+  // / reject coverage lives in ParentApiClient unit tests.
+  lessonDraftReviewFlowUiTest();
 }

@@ -23,7 +23,10 @@ import wordPackBootstrapperTest from './WordPackBootstrapper.test';
 import wordPackSyncServiceTest from './WordPackSyncService.test';
 import remoteAssetCacheTest from './RemoteAssetCache.test';
 import categoryCatalogTest from './CategoryCatalog.test';
-import adminApiClientTest from './AdminApiClient.test';
+import parentApiClientTest from './ParentApiClient.test';
+import orientationTest from './Orientation.test';
+import multipartBuilderTest from './MultipartBuilder.test';
+import lessonImagePickerTest from './LessonImagePicker.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -51,5 +54,8 @@ export default function testsuite() {
   wordPackSyncServiceTest();
   remoteAssetCacheTest();
   categoryCatalogTest();
-  adminApiClientTest();
+  parentApiClientTest();
+  orientationTest();
+  multipartBuilderTest();
+  lessonImagePickerTest();
 }

@@ -15,6 +15,10 @@
     {
       "name": "permission_internet_reason",
       "value": "Sync the latest word pack from the Magic Word server."
+    },
+    {
+      "name": "permission_camera_reason",
+      "value": "Needed for parents to upload textbook photos for word recognition."
     }
   ]
 }

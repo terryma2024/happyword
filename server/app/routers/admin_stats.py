@@ -1,8 +1,11 @@
-"""Admin stats endpoint (V0.5.7)."""
+"""Admin stats endpoint (V0.5.7).
 
-from fastapi import APIRouter, Depends
+NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
+network can call these endpoints. Per-family auth returns in V0.6.
+"""
 
-from app.deps import current_admin_user
+from fastapi import APIRouter
+
 from app.models.category import Category
 from app.models.lesson_import_draft import LessonImportDraft
 from app.models.llm_draft import LlmDraft
@@ -16,7 +19,7 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin-stats"])
 
 
 @router.get("/stats", response_model=StatsOut)
-async def get_stats(_admin: User = Depends(current_admin_user)) -> StatsOut:
+async def get_stats() -> StatsOut:
     user_count = await User.find_all().count()
     word_count = await Word.find(
         Word.deleted_at == None  # noqa: E711 - Beanie demands `==` for None

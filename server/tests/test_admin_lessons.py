@@ -1,15 +1,19 @@
 """V0.5.5 — admin lesson photo import tests.
 
 Behaviour contracts (LLM mocked):
-1. POST /admin/lessons/import requires admin auth (401/403)
-2. unsupported MIME → 415
-3. empty body → 400
-4. happy path → 201 + draft pending with extracted.words[*]
-5. PATCH /admin/lesson-drafts/{id} updates `edited_extracted`
-6. POST approve creates a Category + upserts Words (skipping existing
+1. unsupported MIME → 415
+2. empty body → 400
+3. happy path → 201 + draft pending with extracted.words[*]
+4. PATCH /admin/lesson-drafts/{id} updates `edited_extracted`
+5. POST approve creates a Category + upserts Words (skipping existing
    ids); existing Word.category gets included in skipped_words
-7. POST reject leaves DB untouched
-8. publish after approve produces schema_v4 with categories[]
+6. POST reject leaves DB untouched
+7. publish after approve produces schema_v4 with categories[]
+
+NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
+tests have been deleted. The remaining tests still send bearer tokens
+(harmless — the dependency no longer reads them) so the test bodies stay
+tightly diff-aligned with V0.5.7.
 """
 
 from datetime import UTC, datetime
@@ -96,27 +100,8 @@ def _stub_blob_upload(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Auth + validation
+# Validation
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_lesson_import_requires_auth(client: "AsyncClient") -> None:
-    resp = await client.post(
-        "/api/v1/admin/lessons/import",
-        files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg"), "image/jpeg")},
-    )
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_lesson_import_rejects_parent(client: "AsyncClient", parent: User) -> None:
-    resp = await client.post(
-        "/api/v1/admin/lessons/import",
-        headers=_bearer(parent.username),
-        files={"image": ("p.jpg", BytesIO(b"\xff\xd8fake"), "image/jpeg")},
-    )
-    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio

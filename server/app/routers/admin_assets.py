@@ -4,14 +4,15 @@ Word-level illustration / audio uploads. Files go to Vercel Blob via
 ``app.services.blob_service``; the public URL is persisted on the Word.
 The DELETE endpoints clear the URL field and best-effort delete the
 blob; the DB clear-out always proceeds even if the remote DELETE fails.
+
+NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
+network can call these endpoints. Per-family auth returns in V0.6.
 """
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from app.deps import current_admin_user
-from app.models.user import User
 from app.models.word import Word
 from app.schemas.admin_asset import AudioOut, IllustrationOut
 from app.services import blob_service
@@ -51,7 +52,6 @@ async def _load_word(word_id: str) -> Word:
 async def upload_illustration(
     word_id: str,
     image: UploadFile = File(...),
-    _admin: User = Depends(current_admin_user),
 ) -> IllustrationOut:
     w = await _load_word(word_id)
     mime = (image.content_type or "").lower()
@@ -90,9 +90,7 @@ async def upload_illustration(
 
 
 @router.delete("/{word_id}/illustration", response_model=IllustrationOut)
-async def delete_illustration(
-    word_id: str, _admin: User = Depends(current_admin_user)
-) -> IllustrationOut:
+async def delete_illustration(word_id: str) -> IllustrationOut:
     w = await _load_word(word_id)
     if w.illustration_url:
         await blob_service.delete_object(w.illustration_url)
@@ -111,7 +109,6 @@ async def delete_illustration(
 async def upload_audio(
     word_id: str,
     audio: UploadFile = File(...),
-    _admin: User = Depends(current_admin_user),
 ) -> AudioOut:
     w = await _load_word(word_id)
     mime = (audio.content_type or "").lower()
@@ -146,7 +143,7 @@ async def upload_audio(
 
 
 @router.delete("/{word_id}/audio", response_model=AudioOut)
-async def delete_audio(word_id: str, _admin: User = Depends(current_admin_user)) -> AudioOut:
+async def delete_audio(word_id: str) -> AudioOut:
     w = await _load_word(word_id)
     if w.audio_url:
         await blob_service.delete_object(w.audio_url)
