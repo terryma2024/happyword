@@ -2,8 +2,8 @@
 
 > 文档状态：路线图基线  
 > 关联基线：[WordMagicGame_overall_spec.md](WordMagicGame_overall_spec.md)  
-> 当前路线选择：趣味学习与长期学习系统平衡推进  
-> 最近更新：2026-04-30（V0.5.1 Walking Skeleton 完成——服务端 `server/` 起新 Python 3.12 + FastAPI + Beanie + JWT 骨架，pytest 26/26（`filterwarnings=["error", ...]` 守门）；部署到 Vercel + MongoDB Atlas（Marketplace 集成自动注入 `MONGODB_URI`），生产 URL `https://happyword.vercel.app` 上 `/health`、`/auth/login`、`/auth/me`、`/packs/latest.json` 全链路 200；客户端新增 `RemoteWordPackConfig` / `WordPackCache` / `RemoteWordPackService` / `WordPackBootstrapper` 4 个服务，HomePage / BattlePage / TodayPlanPage / LearningReportPage / ConfigPage 五个 page 都走 cache → rawfile → 远端异步刷新三段冷启动；Mongo 中 seed 一条 `fruit-apple` 词条作为 prod 烟雾参照。三个生产坑全部加 regression 守门：①Atlas 拒绝 `Indexed(unique=True)` on `_id`（mongomock-motor 不强制，加结构性测试）；②Hobby 计划要求 git author 是团队成员，deploy 时临时 `mv .git .git.deploy_bak` 绕过；③本地 prebuilt build 出 macOS wheel（bcrypt native）跑不了 Linux arm64，改用 `vercel deploy --prod`（服务端 build）替代 `--prebuilt`。V0.5 拆分为 7 个子版本顺序推进，本版完成「客户端 → 服务端」的端到端最薄链路。）
+> 当前路线选择：趣味学习与长期学习系统平衡推进
+> 最近更新：2026-05-01（V0.5.8 家长管理后台改版完成 —— "管理员控制台"重命名为"家长管理后台"，进入即锁定竖屏；admin 路由统一移除 JWT 闸（V0.6 以家长账户隔离）；课本图上传走 `LessonImagePicker` + `MultipartBuilder` + `ParentApiClient.importLesson` POST `/admin/lessons/import` → OpenAI vision → 草稿；`LessonDraftReviewPage` 复核保留 / 编辑 / 弃用 → PATCH + /approve 或 /reject；UI 测试 `ParentAdminFlow.ui.test.ets` 增补"📷拍照 / 🖼️从相册 / 待复核草稿 / 无登录 UI"断言，新增 `LessonDraftReviewFlow.ui.test.ets` 烟雾测试。先前更新：V0.5.1 Walking Skeleton 完成 —— 服务端 `server/` 起新 Python 3.12 + FastAPI + Beanie + JWT 骨架，pytest 26/26（`filterwarnings=["error", ...]` 守门）；部署到 Vercel + MongoDB Atlas（Marketplace 集成自动注入 `MONGODB_URI`），生产 URL `https://happyword.vercel.app` 上 `/health`、`/auth/login`、`/auth/me`、`/packs/latest.json` 全链路 200；客户端新增 `RemoteWordPackConfig` / `WordPackCache` / `RemoteWordPackService` / `WordPackBootstrapper` 4 个服务，HomePage / BattlePage / TodayPlanPage / LearningReportPage / ConfigPage 五个 page 都走 cache → rawfile → 远端异步刷新三段冷启动；Mongo 中 seed 一条 `fruit-apple` 词条作为 prod 烟雾参照。三个生产坑全部加 regression 守门：①Atlas 拒绝 `Indexed(unique=True)` on `_id`（mongomock-motor 不强制，加结构性测试）；②Hobby 计划要求 git author 是团队成员，deploy 时临时 `mv .git .git.deploy_bak` 绕过；③本地 prebuilt build 出 macOS wheel（bcrypt native）跑不了 Linux arm64，改用 `vercel deploy --prod`（服务端 build）替代 `--prebuilt`。V0.5 拆分为 7 个子版本顺序推进，本版完成「客户端 → 服务端」的端到端最薄链路。）
 
 ## 1. 产品愿景
 
@@ -57,7 +57,8 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.5.5 | 教程照片 → 一键分类导入 | `POST /admin/lessons/import`（multipart → Vercel Blob → gpt-4o vision）抽词 + 自动起 title/storyZh/category；新 `categories` 集合 + 5 条 manual seed；schema_v2→v4 加 `categories[]`；HomePage region 卡片下方渲染 `storyZh` | 必需 |
 | V0.5.6 | 词条插画 + 发音 MP3 | `POST /admin/assets/words/{id}/{illustration,audio}` 上传 Blob；schema_v4→v5 加 `illustrationUrl?` / `audioUrl?`；客户端新 `RemoteAssetCache`，`PronunciationService` 命中 mp3 优先；BattlePage / TodayPlanPage 命中 illustrationUrl 渲染 `Image(url)` 替代 emoji | 必需 |
 | V0.5.7 | 收尾（监控 + 文档 + rawfile 退化） | `/admin/stats`、OpenAI usage 日志、`backup_pack.py`；客户端 cache 命中即跳过 rawfile（rawfile 仅作首次冷装兜底）；admin 操作手册 + 运维 runbook | 必需 |
-| V0.6   | 家长账户与设备绑定版       | 家长账号、孩子档案、二维码绑定设备、云端学习同步、云端愿望单                            | 必需       |
+| V0.5.8 | 家长管理后台改版（已完成）     | "管理员控制台"重命名为"家长管理后台"；进入即锁定竖屏 + 离开恢复横屏；删除 JWT 登录闸（`Depends(current_admin_user)` 移出全部 admin 路由，V0.6 改为家长账户隔离）；以"📷 拍照 / 🖼️ 从相册"上传课本图替代手填发布流：`LessonImagePicker`（gallery + camera）+ `MultipartBuilder`（RFC-7578 单图 + 头注入防护）+ `ParentApiClient.importLesson` POST `/api/v1/admin/lessons/import` → vision → 草稿；新 `LessonDraftReviewPage`：原图缩略 + 主题标签 + 候选词列表（保留 / 编辑 / 弃用）+ 全部确认 / 全部拒绝；保留独立"发布新版本词包"按钮，让家长能批量积累草稿后再一次性发布 | 必需 |
+| V0.6   | 家长账户与设备绑定版       | 家长账号、孩子档案、二维码绑定设备、云端学习同步、云端愿望单（含 V0.5.8 留下的 admin 路由家长账户隔离）                            | 必需       |
 | V0.7   | AI 剧情与语境学习版      | 句子填词、主题剧情、LLM 生成剧情草稿、个性化冒险                                | 必需       |
 | V0.8   | 战斗音频混音与 BGM 版 | 新增 `BattleAudioMixer`，让战斗 BGM、combo/攻击/受伤音效、单词朗读按优先级共存；用 duck + 单次恢复策略解决 TTS 抢焦点问题 | 无 |
 | V0.9   | Cocos2D 战斗美术化重构版 | 用 Cocos Creator 重写战斗表现层，支持更完整的角色、怪物、动画、特效和多美术主题           | 可选       |
