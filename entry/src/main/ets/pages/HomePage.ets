@@ -21,6 +21,8 @@ import { describeMonsterKind } from '../services/TodayAdventureBuilder';
 import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
 import { CoinSnapshot } from '../models/CoinSnapshot';
 import { getTodayPreferences, TodayPreferences } from '../services/TodayPreferences';
+import { WordPackCache, WordPackCacheRecord } from '../services/WordPackCache';
+import { CategoryCatalog, CategoryRow } from '../services/CategoryCatalog';
 
 /**
  * Review-mode gating threshold. Mirrors spec §15 Track D: kids need at
@@ -55,6 +57,16 @@ struct HomePage {
   private toastTimer: number = -1;
   private coins: CoinAccount = getCoinAccount();
   private todayPrefs: TodayPreferences = getTodayPreferences();
+  /**
+   * V0.5.E: server-side category overlay. Empty until the WordPackCache
+   * has produced a v4+ record; v1 packs (current production) leave this
+   * empty so the bundled AdventureCatalog labels stay in place.
+   * `categoryCatalogVersion` is bumped on every refresh so the @Builder
+   * methods that read the overlay re-render after the async load.
+   */
+  @State private categoryCatalogVersion: number = 0;
+  private categoryCatalog: CategoryCatalog = new CategoryCatalog();
+  private wordPackCache: WordPackCache = new WordPackCache();
 
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
@@ -76,6 +88,10 @@ struct HomePage {
     }).catch((err: BusinessError): void => {
       console.error(`HomePage: TodayPreferences.init failed: ${JSON.stringify(err)}`);
     });
+    this.wordPackCache.init(ctx).then((): Promise<void> => this.refreshCategoryCatalog())
+      .catch((err: BusinessError): void => {
+        console.error(`HomePage: WordPackCache.init failed: ${JSON.stringify(err)}`);
+      });
     this.refreshWrongCount();
   }
 
@@ -87,6 +103,12 @@ struct HomePage {
     this.refreshBalance();
     this.refreshWrongCount();
     this.refreshTodayState();
+    // V0.5.E: re-read the cache so a successful manual sync on
+    // ConfigPage shows fresh category overlays the next time the
+    // player returns to the home screen.
+    this.refreshCategoryCatalog().catch((err: BusinessError): void => {
+      console.error(`HomePage: refreshCategoryCatalog failed: ${JSON.stringify(err)}`);
+    });
   }
 
   aboutToDisappear(): void {
@@ -104,6 +126,44 @@ struct HomePage {
   private refreshWrongCount(): void {
     this.recentWrongCount =
       getLearningRecorder().recentWrongIds(REVIEW_WINDOW_SIZE).length;
+  }
+
+  private async refreshCategoryCatalog(): Promise<void> {
+    const rec: WordPackCacheRecord | undefined = await this.wordPackCache.readRecord();
+    if (rec === undefined) {
+      this.categoryCatalog.setRows([]);
+      this.categoryCatalogVersion += 1;
+      return;
+    }
+    this.categoryCatalog.setRows(CategoryCatalog.parsePackCategories(rec.body));
+    this.categoryCatalogVersion += 1;
+  }
+
+  /**
+   * V0.5.E overlay: prefer the server `labelZh` for the given region id
+   * when available, otherwise fall back to the bundled `displayName`.
+   */
+  private regionLabel(region: AdventureRegion): string {
+    // Read this.categoryCatalogVersion here so any @State-bound caller
+    // re-runs when setRows() bumps the version. ArkUI does not track
+    // through helper methods, so the caller must read the @State too.
+    const overlay: CategoryRow | undefined = this.categoryCatalog.getById(region.id);
+    if (overlay !== undefined && overlay.labelZh.length > 0) {
+      return overlay.labelZh;
+    }
+    return region.displayName;
+  }
+
+  /**
+   * V0.5.E overlay: prefer the server `storyZh` for the active region
+   * when available; otherwise show the bundled static blurb.
+   */
+  private regionStory(region: AdventureRegion): string {
+    const overlay: CategoryRow | undefined = this.categoryCatalog.getById(region.id);
+    if (overlay !== undefined && overlay.storyZh !== undefined && overlay.storyZh.length > 0) {
+      return overlay.storyZh;
+    }
+    return '今天的冒险包含 5 关卡，含拼写、复习与首领关';
   }
 
   private refreshTodayState(): void {
@@ -362,7 +422,9 @@ struct HomePage {
   private adventureCard() {
     Column({ space: 10 }) {
       Row() {
-        Text(this.todayRegion.displayName)
+        // V0.5.E: read categoryCatalogVersion here so ArkUI re-runs the
+        // builder after a server pack overlay applies.
+        Text(this.categoryCatalogVersion >= 0 ? this.regionLabel(this.todayRegion) : this.todayRegion.displayName)
           .id('AdventureCardTitle')
           .fontSize(22)
           .fontWeight(FontWeight.Bold)
@@ -392,7 +454,8 @@ struct HomePage {
       }
       .width('100%');
 
-      Text('今天的冒险包含 5 关卡，含拼写、复习与首领关')
+      Text(this.categoryCatalogVersion >= 0 ? this.regionStory(this.todayRegion) : '今天的冒险包含 5 关卡，含拼写、复习与首领关')
+        .id('AdventureCardStory')
         .fontSize(14)
         .fontColor('#5A4A35');
 
@@ -425,7 +488,7 @@ struct HomePage {
     Scroll() {
       Row({ space: 10 }) {
         ForEach(ADVENTURE_REGIONS, (r: AdventureRegion): void => {
-          Button(r.displayName)
+          Button(this.categoryCatalogVersion >= 0 ? this.regionLabel(r) : r.displayName)
             .id(`RegionChip_${r.id}`)
             .fontSize(13)
             .height(32)

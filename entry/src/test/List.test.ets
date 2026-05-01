@@ -22,6 +22,7 @@ import remoteWordPackServiceTest from './RemoteWordPackService.test';
 import wordPackBootstrapperTest from './WordPackBootstrapper.test';
 import wordPackSyncServiceTest from './WordPackSyncService.test';
 import remoteAssetCacheTest from './RemoteAssetCache.test';
+import categoryCatalogTest from './CategoryCatalog.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -48,4 +49,5 @@ export default function testsuite() {
   wordPackBootstrapperTest();
   wordPackSyncServiceTest();
   remoteAssetCacheTest();
+  categoryCatalogTest();
 }
