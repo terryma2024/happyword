@@ -208,6 +208,27 @@ export default function parentAdminFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ParentAdminServerLabel'));
       await driver.assertComponentExist(ON.id('ParentAdminPublishButton'));
 
+      // V0.5.8 F1+F2: photo-import card and pending-drafts list both
+      // render unconditionally (no login wall). Stats may take a moment
+      // to populate, but the structural ids are wired into the build()
+      // tree from mount.
+      await driver.assertComponentExist(ON.id('ParentAdminPickCameraButton'));
+      await driver.assertComponentExist(ON.id('ParentAdminPickGalleryButton'));
+      await driver.assertComponentExist(ON.id('ParentAdminPendingTitle'));
+
+      // Login UI must NOT be present — the V0.5.8 C2 rewrite dropped it
+      // entirely. Re-asserting here catches any regression where the
+      // page accidentally re-introduces a login gate.
+      const loginBtn: Component | null =
+        await driver.findComponent(ON.id('ParentAdminLoginButton'));
+      expect(loginBtn === null).assertTrue();
+      const usernameInput: Component | null =
+        await driver.findComponent(ON.id('ParentAdminUsername'));
+      expect(usernameInput === null).assertTrue();
+      const passwordInput: Component | null =
+        await driver.findComponent(ON.id('ParentAdminPassword'));
+      expect(passwordInput === null).assertTrue();
+
       // Back button on ParentAdminPage routes back to ConfigPage.
       // ConfigPage's outer Scroll preserves its position across
       // navigations, so we anchor on the row we already scrolled to

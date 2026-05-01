@@ -16,6 +16,7 @@ import customWishlistFlowUiTest from './CustomWishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
 import configSyncFlowUiTest from './ConfigSyncFlow.ui.test';
 import parentAdminFlowUiTest from './ParentAdminFlow.ui.test';
+import lessonDraftReviewFlowUiTest from './LessonDraftReviewFlow.ui.test';
 
 export default function testsuite() {
   // HomeToolbarLocked must run before any suite that seeds wrong
@@ -85,4 +86,8 @@ export default function testsuite() {
   // because the latter's mismatchSurfacesHintAndResetsBuffer leaves
   // AppStorage in a mismatch state that this suite then heals.
   parentAdminFlowUiTest();
+  // V0.5.8 H2: smoke-test that pages/LessonDraftReviewPage was added
+  // to main_pages.json without breaking app boot. Real edit / approve
+  // / reject coverage lives in ParentApiClient unit tests.
+  lessonDraftReviewFlowUiTest();
 }
