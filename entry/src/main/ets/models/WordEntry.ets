@@ -1,11 +1,24 @@
 /**
- * WordEntry — single vocabulary record (spec §8.1).
+ * WordEntry — single vocabulary record (spec §8.1; V0.5 schemas v2/v5).
  *
- * Designed to be a plain ArkTS class with only public fields so it can be
- * populated from JSON via Object.assign and safely serialized. `image` and
- * `audio` are optional and reserved for future question types (picture prompt,
- * listen-and-pick). For V0.1 they stay undefined.
+ * Plain ArkTS class with only public fields so it can be populated
+ * from JSON via field-by-field hydration in `WordRepository.parseWordsJson`.
+ *
+ * Optional fields (all `undefined` for v1 packs):
+ *   - distractors:    server-curated wrong-answer suggestions (V0.5 schema v2)
+ *   - example:        bilingual sample sentence (V0.5 schema v2)
+ *   - illustrationUrl: Vercel Blob URL for a PNG illustration (V0.5 schema v5)
+ *   - audioUrl:        Vercel Blob URL for an MP3 pronunciation (V0.5 schema v5)
+ *
+ * The legacy `image` / `audio` fields (V0.1 reservation, never
+ * populated by the bundled rawfile) stay around to keep
+ * forward-compatibility for any caller that still references them.
  */
+export class ExampleSentence {
+  en: string = '';
+  zh: string = '';
+}
+
 export class WordEntry {
   id: string = '';
   word: string = '';
@@ -14,6 +27,10 @@ export class WordEntry {
   difficulty: number = 1;
   image?: string;
   audio?: string;
+  distractors?: string[];
+  example?: ExampleSentence;
+  illustrationUrl?: string;
+  audioUrl?: string;
 
   /**
    * Structural validation of a single entry. Kept here (not in the repository)
