@@ -10,6 +10,7 @@
     "pages/ParentPinSetupPage",
     "pages/RedemptionHistoryPage",
     "pages/TodayPlanPage",
-    "pages/LearningReportPage"
+    "pages/LearningReportPage",
+    "pages/AdminConsolePage"
   ]
 }

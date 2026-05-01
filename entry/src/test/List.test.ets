@@ -23,6 +23,7 @@ import wordPackBootstrapperTest from './WordPackBootstrapper.test';
 import wordPackSyncServiceTest from './WordPackSyncService.test';
 import remoteAssetCacheTest from './RemoteAssetCache.test';
 import categoryCatalogTest from './CategoryCatalog.test';
+import adminApiClientTest from './AdminApiClient.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -50,4 +51,5 @@ export default function testsuite() {
   wordPackSyncServiceTest();
   remoteAssetCacheTest();
   categoryCatalogTest();
+  adminApiClientTest();
 }

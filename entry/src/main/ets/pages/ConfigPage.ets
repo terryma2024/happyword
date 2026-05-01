@@ -25,6 +25,7 @@ import {
   SyncOutcome,
   SyncStatus,
 } from '../services/WordPackSyncService';
+import { ParentPinDialog } from '../components/ParentPinDialog';
 
 /**
  * ConfigPage exposes five battle knobs plus a custom-words category.
@@ -45,6 +46,7 @@ struct ConfigPage {
   private syncToastTimer: number = -1;
   private wordPackCache: WordPackCache = new WordPackCache();
   private builtinEntries: WordEntry[] = [];
+  private adminPinDialog: CustomDialogController | null = null;
 
   aboutToAppear(): void {
     const stored: GameConfig | undefined =
@@ -200,6 +202,24 @@ struct ConfigPage {
     .margin({ bottom: 16 });
   }
 
+  @Builder
+  private adminRow() {
+    Row() {
+      Text('管理员').fontSize(18).width(120);
+      Button('管理员控制台')
+        .id('ConfigAdminConsoleButton')
+        .width(220).height(40)
+        .fontSize(15)
+        .backgroundColor('#FFF4D0')
+        .fontColor('#B8860B')
+        .borderWidth(2)
+        .borderColor('#FFB400')
+        .onClick((): void => this.openAdminConsole());
+    }
+    .margin({ bottom: 16 })
+    .alignItems(VerticalAlign.Center);
+  }
+
   private decPlayerHp(): void {
     if (this.draft.playerMaxHp > HP_MIN) {
       this.draft.playerMaxHp -= 1;
@@ -290,6 +310,50 @@ struct ConfigPage {
     const stored: GameConfig | undefined =
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
     return stored !== undefined && stored.parentPin.length === 6;
+  }
+
+  /**
+   * V0.5.F: open the in-app admin console after a successful parent
+   * PIN verification. The actual server-side admin operations are then
+   * gated again by the server JWT login flow on AdminConsolePage; the
+   * parent PIN is the local "keep kids out" gate.
+   */
+  private openAdminConsole(): void {
+    const stored: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    const expected: string =
+      stored !== undefined ? stored.parentPin : '';
+    if (expected.length !== 6) {
+      // No parent PIN set — nudge the operator to configure one first.
+      router.pushUrl({ url: 'pages/ParentPinSetupPage' }).catch((err: BusinessError): void => {
+        console.error(`ConfigPage: pushUrl ParentPinSetupPage failed: ${JSON.stringify(err)}`);
+      });
+      return;
+    }
+    let ctrl: CustomDialogController | null = null;
+    ctrl = new CustomDialogController({
+      builder: ParentPinDialog({
+        expectedPin: expected,
+        title: '管理员入口需要家长密码',
+        onConfirm: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+          router.pushUrl({ url: 'pages/AdminConsolePage' }).catch((err: BusinessError): void => {
+            console.error(`ConfigPage: pushUrl AdminConsolePage failed: ${JSON.stringify(err)}`);
+          });
+        },
+        onCancel: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+        },
+      }),
+      autoCancel: true,
+      customStyle: true,
+    });
+    this.adminPinDialog = ctrl;
+    ctrl.open();
   }
 
   private onSave(): void {
@@ -529,6 +593,7 @@ struct ConfigPage {
         this.categoryRow();
         this.parentPinRow();
         this.syncRow();
+        this.adminRow();
 
         if (this.showValidationHint) {
           Text('单词池太小（少于 3 个），请启用更多类别或添加自定义词')
