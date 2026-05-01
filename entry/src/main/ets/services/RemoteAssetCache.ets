@@ -218,26 +218,48 @@ class RealAssetFs implements AssetFsAdapter {
   }
 
   async writeBytes(path: string, bytes: ArrayBuffer): Promise<void> {
-    const file: fs.File = await fs.open(
-      path,
-      fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC,
-    );
+    let file: fs.File | undefined;
     try {
+      file = await fs.open(
+        path,
+        fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC,
+      );
       await fs.write(file.fd, bytes);
+    } catch (err) {
+      throw err as Error;
     } finally {
-      await fs.close(file);
+      if (file !== undefined) {
+        try {
+          await fs.close(file);
+        } catch (closeErr) {
+          console.error(
+            `RealAssetFs.writeBytes close failed: ${JSON.stringify(closeErr as BusinessError)}`,
+          );
+        }
+      }
     }
   }
 
   async readBytes(path: string): Promise<ArrayBuffer> {
-    const file: fs.File = await fs.open(path, fs.OpenMode.READ_ONLY);
+    let file: fs.File | undefined;
     try {
+      file = await fs.open(path, fs.OpenMode.READ_ONLY);
       const stat: fs.Stat = await fs.stat(path);
       const bufRef: ArrayBuffer = new ArrayBuffer(stat.size);
       await fs.read(file.fd, bufRef);
       return bufRef;
+    } catch (err) {
+      throw err as Error;
     } finally {
-      await fs.close(file);
+      if (file !== undefined) {
+        try {
+          await fs.close(file);
+        } catch (closeErr) {
+          console.error(
+            `RealAssetFs.readBytes close failed: ${JSON.stringify(closeErr as BusinessError)}`,
+          );
+        }
+      }
     }
   }
 

@@ -27,6 +27,13 @@
     "@security/no-unsafe-rsa-key": "error",
     "@security/no-unsafe-dsa-key": "error",
     "@security/no-unsafe-dh-key": "error",
-    "@security/no-unsafe-3des": "error"
+    "@security/no-unsafe-3des": "error",
+    // The recommended rule preferentially uses @Builder over custom
+    // components, but it cannot distinguish @CustomDialog (the only
+    // legitimate way to write a dialog body for CustomDialogController)
+    // from a regular @Component. Both AddCustomWishDialog and
+    // ParentPinDialog are legitimate @CustomDialog structs. Disable
+    // the false-positive rule globally.
+    "@performance/avoid-overusing-custom-component-check": "off"
   }
 }

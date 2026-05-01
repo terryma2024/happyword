@@ -86,16 +86,35 @@ class RealPreferencesAdapter implements StringPreferencesLike {
   }
 
   async getString(key: string): Promise<string> {
-    const value: preferences.ValueType = await this.handle.get(key, '');
-    return typeof value === 'string' ? value : '';
+    try {
+      const value: preferences.ValueType = await this.handle.get(key, '');
+      return typeof value === 'string' ? value : '';
+    } catch (err) {
+      console.error(
+        `RealPreferencesAdapter.getString(${key}) failed: ${JSON.stringify(err as BusinessError)}`,
+      );
+      return '';
+    }
   }
 
-  putString(key: string, value: string): Promise<void> {
-    return this.handle.put(key, value);
+  async putString(key: string, value: string): Promise<void> {
+    try {
+      await this.handle.put(key, value);
+    } catch (err) {
+      console.error(
+        `RealPreferencesAdapter.putString(${key}) failed: ${JSON.stringify(err as BusinessError)}`,
+      );
+    }
   }
 
-  flush(): Promise<void> {
-    return this.handle.flush();
+  async flush(): Promise<void> {
+    try {
+      await this.handle.flush();
+    } catch (err) {
+      console.error(
+        `RealPreferencesAdapter.flush failed: ${JSON.stringify(err as BusinessError)}`,
+      );
+    }
   }
 }
 
@@ -118,10 +137,16 @@ export class WrongAnswerStore {
     if (this.loaded && this.prefs !== undefined) {
       return;
     }
-    const real: preferences.Preferences =
-      await preferences.getPreferences(ctx, PREFS_NAME);
-    this.prefs = new RealPreferencesAdapter(real);
-    this.loaded = true;
+    try {
+      const real: preferences.Preferences =
+        await preferences.getPreferences(ctx, PREFS_NAME);
+      this.prefs = new RealPreferencesAdapter(real);
+      this.loaded = true;
+    } catch (err) {
+      console.error(
+        `WrongAnswerStore.open failed: ${JSON.stringify(err as BusinessError)}`,
+      );
+    }
   }
 
   /**

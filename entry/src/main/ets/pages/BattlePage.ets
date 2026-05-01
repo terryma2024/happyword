@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import { CharacterCard, CharacterKind } from '../components/CharacterCard';
@@ -1170,7 +1169,7 @@ struct BattlePage {
     this.recorder.flushNow().catch((err: BusinessError): void => {
       console.error(`BattlePage: LearningRecorder.flushNow failed: ${JSON.stringify(err)}`);
     });
-    router.replaceUrl({
+    this.getUIContext().getRouter().replaceUrl({
       url: 'pages/ResultPage',
       params: result,
     }).catch((err: BusinessError): void => {

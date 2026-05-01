@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@ohos.base';
 import {
@@ -295,13 +294,13 @@ struct ConfigPage {
   }
 
   private openCustomWords(): void {
-    router.pushUrl({ url: 'pages/CustomWordsPage' }).catch((err: BusinessError): void => {
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/CustomWordsPage' }).catch((err: BusinessError): void => {
       console.error(`ConfigPage: pushUrl CustomWordsPage failed: ${JSON.stringify(err)}`);
     });
   }
 
   private openParentPinSetup(): void {
-    router.pushUrl({ url: 'pages/ParentPinSetupPage' }).catch((err: BusinessError): void => {
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/ParentPinSetupPage' }).catch((err: BusinessError): void => {
       console.error(`ConfigPage: pushUrl ParentPinSetupPage failed: ${JSON.stringify(err)}`);
     });
   }
@@ -325,11 +324,15 @@ struct ConfigPage {
       stored !== undefined ? stored.parentPin : '';
     if (expected.length !== 6) {
       // No parent PIN set — nudge the operator to configure one first.
-      router.pushUrl({ url: 'pages/ParentPinSetupPage' }).catch((err: BusinessError): void => {
+      this.getUIContext().getRouter().pushUrl({ url: 'pages/ParentPinSetupPage' }).catch((err: BusinessError): void => {
         console.error(`ConfigPage: pushUrl ParentPinSetupPage failed: ${JSON.stringify(err)}`);
       });
       return;
     }
+    // Capture the router reference outside the dialog callback so the
+    // closure does not depend on `this` still being valid when the
+    // CustomDialog dispatches onConfirm.
+    const adminRouter = this.getUIContext().getRouter();
     let ctrl: CustomDialogController | null = null;
     ctrl = new CustomDialogController({
       builder: ParentPinDialog({
@@ -339,7 +342,7 @@ struct ConfigPage {
           if (ctrl !== null) {
             ctrl.close();
           }
-          router.pushUrl({ url: 'pages/AdminConsolePage' }).catch((err: BusinessError): void => {
+          adminRouter.pushUrl({ url: 'pages/AdminConsolePage' }).catch((err: BusinessError): void => {
             console.error(`ConfigPage: pushUrl AdminConsolePage failed: ${JSON.stringify(err)}`);
           });
         },
@@ -385,11 +388,11 @@ struct ConfigPage {
     merged.autoSpeak = this.draft.autoSpeak;
 
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
-    router.back();
+    this.getUIContext().getRouter().back();
   }
 
   private onCancel(): void {
-    router.back();
+    this.getUIContext().getRouter().back();
   }
 
   @Builder

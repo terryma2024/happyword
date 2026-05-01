@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import { WordRepository } from '../services/WordRepository';
@@ -43,7 +42,7 @@ struct TodayPlanPage {
   @State private loaded: boolean = false;
 
   aboutToAppear(): void {
-    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
       const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
       const recorder: LearningRecorder = getLearningRecorder();
@@ -123,7 +122,7 @@ struct TodayPlanPage {
         .fontColor('#1D3557')
         .backgroundColor('#FFFFFF')
         .onClick((): void => {
-          router.back();
+          this.getUIContext().getRouter().back();
         });
 
       Text('今日学习计划')
@@ -145,7 +144,7 @@ struct TodayPlanPage {
         .fontSize(20)
         .backgroundColor('#FFFFFF')
         .onClick((): void => {
-          router.pushUrl({ url: 'pages/LearningReportPage' }).catch((err: BusinessError): void => {
+          this.getUIContext().getRouter().pushUrl({ url: 'pages/LearningReportPage' }).catch((err: BusinessError): void => {
             console.error(`TodayPlanPage: pushUrl LearningReportPage failed: ${JSON.stringify(err)}`);
           });
         });

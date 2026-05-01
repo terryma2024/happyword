@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import { WordRepository } from '../services/WordRepository';
@@ -39,7 +38,7 @@ struct LearningReportPage {
   @State private loaded: boolean = false;
 
   aboutToAppear(): void {
-    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
       const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
       const recorder: LearningRecorder = getLearningRecorder();
@@ -112,7 +111,7 @@ struct LearningReportPage {
         .fontColor('#1D3557')
         .backgroundColor('#FFFFFF')
         .onClick((): void => {
-          router.back();
+          this.getUIContext().getRouter().back();
         });
 
       Text('学习报告')

@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import {
@@ -69,7 +68,7 @@ struct HomePage {
   private wordPackCache: WordPackCache = new WordPackCache();
 
   aboutToAppear(): void {
-    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.coins.init(ctx).then((): void => {
       this.coins.beginToday(Date.now());
       this.refreshBalance();
@@ -217,13 +216,14 @@ struct HomePage {
       storedCfg !== undefined ? storedCfg : new GameConfig());
     cfg.mode = GAME_MODE_REVIEW;
     AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
-    router.pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
       console.error(`HomePage: pushUrl BattlePage (review) failed: ${JSON.stringify(err)}`);
     });
   }
 
   private enterTodayAdventure(): void {
-    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const router = this.getUIContext().getRouter();
     WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
       const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
       const builder: TodayAdventureBuilder = new TodayAdventureBuilder();
@@ -345,7 +345,7 @@ struct HomePage {
           .height(56)
           .backgroundColor('#FCEAEA')
           .onClick((): void => {
-            router.pushUrl({ url: 'pages/MonsterCodexPage' }).catch((err: BusinessError): void => {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/MonsterCodexPage' }).catch((err: BusinessError): void => {
               console.error(`HomePage: pushUrl MonsterCodexPage failed: ${JSON.stringify(err)}`);
             });
           });
@@ -364,7 +364,7 @@ struct HomePage {
           .height(56)
           .backgroundColor('#FCEAEA')
           .onClick((): void => {
-            router.pushUrl({ url: 'pages/TodayPlanPage' }).catch((err: BusinessError): void => {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/TodayPlanPage' }).catch((err: BusinessError): void => {
               console.error(`HomePage: pushUrl TodayPlanPage failed: ${JSON.stringify(err)}`);
             });
           });
@@ -381,7 +381,7 @@ struct HomePage {
           .height(56)
           .backgroundColor('#FCEAEA')
           .onClick((): void => {
-            router.pushUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError): void => {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError): void => {
               console.error(`HomePage: pushUrl WishlistPage failed: ${JSON.stringify(err)}`);
             });
           });
@@ -398,7 +398,7 @@ struct HomePage {
           .height(56)
           .backgroundColor('#EAF2F8')
           .onClick((): void => {
-            router.pushUrl({ url: 'pages/ConfigPage' }).catch((err: BusinessError) => {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/ConfigPage' }).catch((err: BusinessError): void => {
               console.error(`HomePage: pushUrl ConfigPage failed: ${JSON.stringify(err)}`);
             });
           });

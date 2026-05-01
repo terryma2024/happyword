@@ -41,6 +41,9 @@ class RealHttpRequester implements HttpRequester {
       const respHeader: Record<string, string> = (resp.header ?? {}) as Record<string, string>;
       out.etag = respHeader['etag'] ?? respHeader['ETag'] ?? '';
       return out;
+    } catch (err) {
+      // Propagate to fetchLatest, which logs and falls back to status=0.
+      throw err as Error;
     } finally {
       req.destroy();
     }

@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import {
   AdminApiClient,
@@ -161,7 +160,7 @@ struct AdminConsolePage {
   }
 
   private back(): void {
-    router.back();
+    this.getUIContext().getRouter().back();
   }
 
   private formatLatestVersion(): string {
