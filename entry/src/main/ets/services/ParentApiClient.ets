@@ -1,5 +1,6 @@
 import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@ohos.base';
+import { buildSingleImageMultipart, MultipartResult } from './MultipartBuilder';
 
 /**
  * ParentApiClient — V0.5.8.
@@ -165,9 +166,132 @@ interface RawStatsOut {
   lesson_import_draft_pending?: number;
 }
 
+// ---------------------------------------------------------------------------
+// V0.5.8: textbook lesson photo upload + LLM-driven word extraction.
+// Mirrors server schemas in `server/app/schemas/admin_lesson.py` exactly.
+//   - LessonExtractedWord: word + meaningZh + difficulty (1..5)
+//   - LessonExtractedDto  ↔ LessonExtractedOut
+//   - LessonDraftDto      ↔ LessonDraftOut
+//   - LessonApproveSummaryDto ↔ LessonApproveOut (created_category/words/skipped)
+// ---------------------------------------------------------------------------
+
+export class LessonExtractedWord {
+  word: string = '';
+  meaningZh: string = '';
+  difficulty: number = 1;
+}
+
+export class LessonExtractedDto {
+  category_id: string = '';
+  label_en: string = '';
+  label_zh: string = '';
+  story_zh?: string;
+  words: LessonExtractedWord[] = [];
+}
+
+export class LessonCategorySummary {
+  id: string = '';
+  label_en: string = '';
+  label_zh: string = '';
+  story_zh?: string;
+  source: string = '';
+  source_image_url?: string;
+  created_at: string = '';
+  updated_at: string = '';
+}
+
+export class LessonApproveSummaryDto {
+  created_category: LessonCategorySummary = new LessonCategorySummary();
+  created_words: object[] = [];
+  skipped_words: object[] = [];
+}
+
+export class LessonDraftDto {
+  id: string = '';
+  source_image_url: string = '';
+  extracted: LessonExtractedDto = new LessonExtractedDto();
+  edited_extracted?: LessonExtractedDto;
+  status: string = 'pending';
+  reviewer?: string;
+  model: string = '';
+  prompt_version: number = 1;
+  created_at: string = '';
+  reviewed_at?: string;
+  approval_summary?: LessonApproveSummaryDto;
+}
+
+export class LessonDraftListPage {
+  items: LessonDraftDto[] = [];
+  total: number = 0;
+  page: number = 0;
+  size: number = 0;
+}
+
+interface RawLessonDraftListPage {
+  items?: object[];
+  total?: number;
+  page?: number;
+  size?: number;
+}
+
+/** A single photo selected from the gallery or camera, plus enough
+ *  metadata for the server to validate and store it. */
+export class PickedImage {
+  bytes: ArrayBuffer = new ArrayBuffer(0);
+  mime: string = '';      // 'image/jpeg' | 'image/png' | 'image/webp'
+  filename: string = '';  // best-effort, e.g. 'lesson.jpg'
+  sizeBytes: number = 0;
+}
+
+/** Failure mode for `importLesson`. `code` is one of:
+ *  - TOO_LARGE: pre-flight, payload > IMPORT_MAX_BYTES
+ *  - BAD_MIME:  pre-flight, mime not in ALLOWED_MIMES
+ *  - NETWORK:   transport threw (timeout, DNS, etc.)
+ *  - HTTP:      server returned non-2xx; `status` carries the code
+ */
+export class LessonImportError extends Error {
+  code: string = '';
+  status: number = 0;
+  constructor(code: string, message: string, status: number) {
+    super(message);
+    this.name = 'LessonImportError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+const IMPORT_MAX_BYTES: number = 8 * 1024 * 1024;
+const IMPORT_TIMEOUT_MS: number = 60_000;
+const ALLOWED_MIMES: string[] = ['image/jpeg', 'image/png', 'image/webp'];
+
+/** Injection seam for the binary multipart upload — stubbed in tests
+ *  so we don't touch @kit.NetworkKit's http.HttpRequest from CI. */
+export interface IHttpRequester {
+  request(url: string, opts: object): Promise<http.HttpResponse>;
+}
+
+export class RealHttpRequester implements IHttpRequester {
+  async request(url: string, opts: object): Promise<http.HttpResponse> {
+    const req: http.HttpRequest = http.createHttp();
+    try {
+      // `req.request` declares `throws BusinessError`; ArkTS requires us
+      // to wrap the call so the compiler sees an explicit Promise rejection
+      // instead of an unhandled synchronous throw escaping `request`.
+      try {
+        return await req.request(url, opts as http.HttpRequestOptions);
+      } catch (e) {
+        throw e as Error;
+      }
+    } finally {
+      req.destroy();
+    }
+  }
+}
+
 export class ParentApiClient {
   private readonly adapter: ParentFetchAdapter;
   private readonly baseUrl: string;
+  private httpRequester: IHttpRequester = new RealHttpRequester();
 
   constructor(adapter: ParentFetchAdapter, baseUrl: string) {
     this.adapter = adapter;
@@ -176,6 +300,11 @@ export class ParentApiClient {
 
   static withRealHttp(baseUrl: string): ParentApiClient {
     return new ParentApiClient(new RealParentFetchAdapter(), baseUrl);
+  }
+
+  /** Override the binary http path; tests inject a stub. */
+  setHttpRequester(r: IHttpRequester): void {
+    this.httpRequester = r;
   }
 
   async listWords(page: number, size: number): Promise<ParentWordsPage> {
@@ -275,6 +404,163 @@ export class ParentApiClient {
       out.notes = parsed.notes;
     }
     return out;
+  }
+
+  // -------------------------------------------------------------------------
+  // V0.5.8 lesson-import endpoints. Auth is omitted in V0.5.8 (open admin);
+  // V0.6 will reattach a per-family bearer token.
+  // -------------------------------------------------------------------------
+
+  /** Upload a single textbook photo and let the server's vision model
+   *  extract candidate words. The request is `multipart/form-data` with a
+   *  single `image` part. Server returns a pending `LessonDraftDto`. */
+  async importLesson(image: PickedImage): Promise<LessonDraftDto> {
+    if (image.sizeBytes > IMPORT_MAX_BYTES) {
+      throw new LessonImportError(
+        'TOO_LARGE',
+        `importLesson: image is ${image.sizeBytes} bytes, max ${IMPORT_MAX_BYTES}`,
+        0,
+      );
+    }
+    if (!ALLOWED_MIMES.includes(image.mime)) {
+      throw new LessonImportError(
+        'BAD_MIME',
+        `importLesson: unsupported mime '${image.mime}'`,
+        0,
+      );
+    }
+
+    const url: string = `${this.baseUrl}/api/v1/admin/lessons/import`;
+    const built: MultipartResult = buildSingleImageMultipart(
+      'image',
+      image.filename.length > 0 ? image.filename : 'lesson.jpg',
+      image.mime,
+      image.bytes,
+    );
+    const headers: Record<string, string> = {};
+    headers[HEADER_CONTENT_TYPE] = `multipart/form-data; boundary=${built.boundary}`;
+    headers[HEADER_ACCEPT] = CONTENT_JSON;
+
+    let resp: http.HttpResponse;
+    try {
+      const opts: http.HttpRequestOptions = {
+        method: http.RequestMethod.POST,
+        header: headers,
+        extraData: built.body,
+        connectTimeout: IMPORT_TIMEOUT_MS,
+        readTimeout: IMPORT_TIMEOUT_MS,
+        expectDataType: http.HttpDataType.STRING,
+      };
+      resp = await this.httpRequester.request(url, opts);
+    } catch (err) {
+      const be: BusinessError = err as BusinessError;
+      throw new LessonImportError(
+        'NETWORK',
+        `importLesson: transport failed (${JSON.stringify(be)})`,
+        0,
+      );
+    }
+
+    const status: number = resp.responseCode;
+    const bodyStr: string = ParentApiClient.stringifyHttpBody(resp.result);
+    if (status !== 200 && status !== 201) {
+      throw new LessonImportError(
+        'HTTP',
+        `importLesson: HTTP ${status}: ${bodyStr}`,
+        status,
+      );
+    }
+    return ParentApiClient.parseLessonDraft(bodyStr, 'importLesson');
+  }
+
+  /** Fetch a single draft by id (used by the review page). */
+  async getLessonDraft(draftId: string): Promise<LessonDraftDto> {
+    const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}`;
+    const res: ParentFetchResult = await this.adapter.get(url, ParentApiClient.acceptJsonHeaders());
+    ParentApiClient.assertOk(res, 'getLessonDraft');
+    return ParentApiClient.parseLessonDraft(res.body, 'getLessonDraft');
+  }
+
+  /** Persist the parent's edits before approval. Body shape is
+   *  `{ "edited_extracted": {...} }` matching `LessonDraftPatchIn`. */
+  async patchLessonDraft(draftId: string, edited: LessonExtractedDto): Promise<LessonDraftDto> {
+    const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}`;
+    const headers: Record<string, string> = ParentApiClient.jsonHeaders();
+    const payload: Record<string, LessonExtractedDto> = { 'edited_extracted': edited };
+    const body: string = JSON.stringify(payload);
+    const res: ParentFetchResult = await this.adapter.patch(url, headers, body);
+    ParentApiClient.assertOk(res, 'patchLessonDraft');
+    return ParentApiClient.parseLessonDraft(res.body, 'patchLessonDraft');
+  }
+
+  /** Approve a pending draft. Server returns a summary describing the new
+   *  category, the words it created, and any duplicates it skipped. */
+  async approveLessonDraft(draftId: string): Promise<LessonApproveSummaryDto> {
+    const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}/approve`;
+    const headers: Record<string, string> = ParentApiClient.jsonHeaders();
+    const res: ParentFetchResult = await this.adapter.post(url, headers, '{}');
+    ParentApiClient.assertOk(res, 'approveLessonDraft');
+    let raw: LessonApproveSummaryDto;
+    try {
+      raw = JSON.parse(res.body) as LessonApproveSummaryDto;
+    } catch (_err) {
+      throw new ParentHttpError('approveLessonDraft: malformed response body', res.status, res.body);
+    }
+    return raw;
+  }
+
+  /** Reject a pending draft. Server returns the (now-rejected) draft. */
+  async rejectLessonDraft(draftId: string): Promise<LessonDraftDto> {
+    const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}/reject`;
+    const headers: Record<string, string> = ParentApiClient.jsonHeaders();
+    const res: ParentFetchResult = await this.adapter.post(url, headers, '{}');
+    ParentApiClient.assertOk(res, 'rejectLessonDraft');
+    return ParentApiClient.parseLessonDraft(res.body, 'rejectLessonDraft');
+  }
+
+  /** List drafts filtered by status (default 'pending'). */
+  async listPendingLessonDrafts(page: number, size: number): Promise<LessonDraftListPage> {
+    const url: string =
+      `${this.baseUrl}/api/v1/admin/lesson-drafts?status=pending&page=${page}&size=${size}`;
+    const res: ParentFetchResult = await this.adapter.get(url, ParentApiClient.acceptJsonHeaders());
+    ParentApiClient.assertOk(res, 'listPendingLessonDrafts');
+    let parsed: RawLessonDraftListPage;
+    try {
+      parsed = JSON.parse(res.body) as RawLessonDraftListPage;
+    } catch (_err) {
+      throw new ParentHttpError('listPendingLessonDrafts: malformed response body', res.status, res.body);
+    }
+    const out: LessonDraftListPage = new LessonDraftListPage();
+    out.total = typeof parsed.total === 'number' ? parsed.total : 0;
+    out.page = typeof parsed.page === 'number' ? parsed.page : page;
+    out.size = typeof parsed.size === 'number' ? parsed.size : size;
+    if (Array.isArray(parsed.items)) {
+      for (let i = 0; i < parsed.items.length; i++) {
+        // Items are LessonDraftOut JSON objects — re-stringify a single
+        // item and reuse the same parser used for single-draft endpoints.
+        const item: object = parsed.items[i];
+        out.items.push(ParentApiClient.parseLessonDraft(JSON.stringify(item), 'listPendingLessonDrafts'));
+      }
+    }
+    return out;
+  }
+
+  private static stringifyHttpBody(result: string | Object | ArrayBuffer): string {
+    if (typeof result === 'string') {
+      return result;
+    }
+    if (result === undefined) {
+      return '';
+    }
+    return JSON.stringify(result);
+  }
+
+  private static parseLessonDraft(bodyStr: string, op: string): LessonDraftDto {
+    try {
+      return JSON.parse(bodyStr) as LessonDraftDto;
+    } catch (_err) {
+      throw new ParentHttpError(`${op}: malformed response body`, 0, bodyStr);
+    }
   }
 
   private static jsonHeaders(): Record<string, string> {

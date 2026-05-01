@@ -25,6 +25,7 @@ import remoteAssetCacheTest from './RemoteAssetCache.test';
 import categoryCatalogTest from './CategoryCatalog.test';
 import parentApiClientTest from './ParentApiClient.test';
 import orientationTest from './Orientation.test';
+import multipartBuilderTest from './MultipartBuilder.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -54,4 +55,5 @@ export default function testsuite() {
   categoryCatalogTest();
   parentApiClientTest();
   orientationTest();
+  multipartBuilderTest();
 }
