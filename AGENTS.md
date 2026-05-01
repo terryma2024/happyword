@@ -22,6 +22,11 @@
 - Explain any build.gradle-like or hvigor changes before editing
 - For all feature development and bugfix tasks, use the applicable Superpowers workflow before implementing changes.
 
+## Asset retention policy
+- **Never delete resource files (SVG / PNG / audio / fonts / image source) when they become unused at runtime.** Move them under `assets/` instead — e.g. `assets/icons/` for design-source SVGs whose rasterized PNGs ship in `entry/src/main/resources/rawfile/`. This keeps the design source available for re-rasterization, redesign, rollback, or A/B comparison.
+- The same applies to retired UI mockups, deprecated audio takes, and old illustration variants — back them up under `assets/<category>/` and add a one-line entry in the matching `assets/<category>/README.md`.
+- Code files (`.ets`, `.ts`, `.py`) follow the normal git-history-as-backup model and do **not** need to be moved — only binary / design-source resources.
+
 ## Server (`server/`) discipline
 - Every commit that touches `server/` MUST run `uv run pytest` with **0 errors and 0 warnings**.
 - `pyproject.toml` sets `filterwarnings = ["error", ...]` so any new warning fails the suite.
