@@ -34,6 +34,8 @@ import bindingApiClientTest from './BindingApiClient.test';
 import familyPackMergeTest from './FamilyPackMerge.test';
 import familyPackServiceTest from './FamilyPackService.test';
 import cloudSyncServiceTest from './CloudSyncService.test';
+import cloudWishlistServiceTest from './CloudWishlistService.test';
+import parentRedemptionPollTest from './ParentRedemptionPoll.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -72,4 +74,6 @@ export default function testsuite() {
   familyPackMergeTest();
   familyPackServiceTest();
   cloudSyncServiceTest();
+  cloudWishlistServiceTest();
+  parentRedemptionPollTest();
 }

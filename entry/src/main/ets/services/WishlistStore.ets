@@ -11,6 +11,7 @@ import {
 import { getWishCatalogClone } from '../data/WishlistCatalog';
 import { CoinAccount } from './CoinAccount';
 import { StringPreferencesLike } from './WrongAnswerStore';
+import { CloudWishlistItem, CloudWishlistService } from './CloudWishlistService';
 
 interface MagicWishJson {
   id?: string;
@@ -103,6 +104,7 @@ export class WishlistStore {
   private prefs?: StringPreferencesLike;
   private snap: WishlistSnapshot = new WishlistSnapshot();
   private ready: boolean = false;
+  private cloud?: CloudWishlistService;
 
   injectPreferencesForTest(p: StringPreferencesLike): void {
     this.prefs = p;
@@ -110,6 +112,17 @@ export class WishlistStore {
     if (this.snap.wishes.length === 0) {
       this.snap.wishes = getWishCatalogClone();
     }
+  }
+
+  /** V0.6.6 — attach the cloud-overlay service. When attached and the
+   *  cloud cache is non-empty, `list()` returns the cloud items instead
+   *  of the local catalog. Pass `undefined` to detach (e.g. on unbind). */
+  attachCloudWishlist(svc: CloudWishlistService | undefined): void {
+    this.cloud = svc;
+  }
+
+  getCloudWishlist(): CloudWishlistService | undefined {
+    return this.cloud;
   }
 
   async init(ctx: common.UIAbilityContext): Promise<void> {
@@ -151,6 +164,14 @@ export class WishlistStore {
   }
 
   list(): MagicWish[] {
+    // V0.6.6: when bound, prefer the cloud overlay (last refresh) so the
+    // page sees the parent-curated set instead of the baked-in catalog.
+    if (this.cloud !== undefined) {
+      const cached: CloudWishlistItem[] = this.cloud.cachedItems();
+      if (cached.length > 0) {
+        return cloudItemsToWishes(cached);
+      }
+    }
     const out: MagicWish[] = [];
     for (let i = 0; i < this.snap.wishes.length; i++) {
       const src: MagicWish = this.snap.wishes[i];
@@ -454,6 +475,29 @@ function coerceState(label: string): WishState {
   // persisted JSON normalises to Idle. The redemption never happened
   // (CoinAccount didn't debit), so reverting is the safe migration.
   return WishState.Idle;
+}
+
+/** V0.6.6 — adapt a CloudWishlistItem list (server-curated overlay) into
+ *  the MagicWish shape the local UI already understands. State always
+ *  starts at Idle; the page re-classifies via CloudWishlistService.pendingFor()
+ *  to render the per-item overlay. */
+function cloudItemsToWishes(items: CloudWishlistItem[]): MagicWish[] {
+  const out: MagicWish[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const it: CloudWishlistItem = items[i];
+    if (it.state !== 'active') {
+      continue;
+    }
+    const w: MagicWish = new MagicWish();
+    w.id = it.itemId;
+    w.displayName = it.displayName;
+    w.costCoins = it.costCoins;
+    w.iconEmoji = it.iconEmoji;
+    w.state = WishState.Idle;
+    w.isCustom = !it.isParentCurated;
+    out.push(w);
+  }
+  return out;
 }
 
 let globalStore: WishlistStore | undefined = undefined;
