@@ -3,6 +3,9 @@ __pycache__/
 .venv/
 .env
 .env.local
+.env.production
+.env.preview
+.env.development
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/

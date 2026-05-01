@@ -19,6 +19,7 @@ from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.config import get_settings
+from app.models.category import Category
 from app.models.pack_pointer import PackPointer
 from app.models.user import User
 from app.models.word import Word
@@ -33,7 +34,7 @@ async def _main(notes: str | None, by: str) -> int:
     try:
         await init_beanie(
             database=client[settings.mongo_db_name],
-            document_models=[User, Word, WordPack, PackPointer],
+            document_models=[User, Word, Category, WordPack, PackPointer],
         )
         try:
             pack = await pack_service.publish_pack(published_by=by, notes=notes)
