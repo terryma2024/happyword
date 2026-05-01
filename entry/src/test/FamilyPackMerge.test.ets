@@ -7,6 +7,15 @@ import {
   parseFamilyPacksBlob,
 } from '../main/ets/services/FamilyPackMerge';
 
+class OverlayWord {
+  id: string = '';
+  word?: string;
+  meaningZh?: string;
+  category?: string;
+  difficulty?: number;
+  hidden?: boolean;
+}
+
 function we(id: string, word: string, meaning: string, category: string, difficulty: number): WordEntry {
   const e: WordEntry = new WordEntry();
   e.id = id;
@@ -17,14 +26,36 @@ function we(id: string, word: string, meaning: string, category: string, difficu
   return e;
 }
 
-function pack(packId: string, publishedAtMs: number, words: object[]): FamilyPackEntry {
+function ow(id: string, meaningZh?: string, hidden?: boolean): OverlayWord {
+  const w: OverlayWord = new OverlayWord();
+  w.id = id;
+  if (meaningZh !== undefined) {
+    w.meaningZh = meaningZh;
+  }
+  if (hidden !== undefined) {
+    w.hidden = hidden;
+  }
+  return w;
+}
+
+function ofull(id: string, word: string, meaning: string, category: string, difficulty: number): OverlayWord {
+  const w: OverlayWord = new OverlayWord();
+  w.id = id;
+  w.word = word;
+  w.meaningZh = meaning;
+  w.category = category;
+  w.difficulty = difficulty;
+  return w;
+}
+
+function pack(packId: string, publishedAtMs: number, words: OverlayWord[]): FamilyPackEntry {
   const e: FamilyPackEntry = new FamilyPackEntry();
   e.packId = packId;
   e.name = packId;
   e.version = 1;
   e.schemaVersion = 5;
   e.publishedAtMs = publishedAtMs;
-  e.words = words;
+  e.words = words.slice() as object[];
   return e;
 }
 
@@ -56,9 +87,7 @@ export default function familyPackMergeTest() {
         we('apple', 'apple', '苹果', 'fruit', 1),
         we('cat', 'cat', '猫', 'animal', 1),
       ];
-      const overlay: object[] = [
-        { id: 'apple', meaningZh: '苹果(覆盖)' } as object,
-      ];
+      const overlay: OverlayWord[] = [ow('apple', '苹果(覆盖)')];
       const out: WordEntry[] = mergeFamilyPacks(
         base,
         blob([pack('pck-1', 1_700_000_000_000, overlay)]),
@@ -67,7 +96,6 @@ export default function familyPackMergeTest() {
       const cat: WordEntry | undefined = out.find((e: WordEntry): boolean => e.id === 'cat');
       expect(apple !== undefined).assertTrue();
       expect(apple?.meaningZh).assertEqual('苹果(覆盖)');
-      // word/category/difficulty inherited from base when overlay omits them.
       expect(apple?.word).assertEqual('apple');
       expect(apple?.category).assertEqual('fruit');
       expect(cat?.meaningZh).assertEqual('猫');
@@ -75,8 +103,8 @@ export default function familyPackMergeTest() {
 
     it('merge_multi_pack_same_word_id_latest_published_wins', 0, () => {
       const base: WordEntry[] = [we('apple', 'apple', '苹果', 'fruit', 1)];
-      const older: object[] = [{ id: 'apple', meaningZh: 'OLD' } as object];
-      const newer: object[] = [{ id: 'apple', meaningZh: 'NEW' } as object];
+      const older: OverlayWord[] = [ow('apple', 'OLD')];
+      const newer: OverlayWord[] = [ow('apple', 'NEW')];
       const out: WordEntry[] = mergeFamilyPacks(
         base,
         blob([
@@ -92,8 +120,8 @@ export default function familyPackMergeTest() {
         we('apple', 'apple', '苹果', 'fruit', 1),
         we('cat', 'cat', '猫', 'animal', 1),
       ];
-      const visiblePack: object[] = [{ id: 'apple', meaningZh: 'visible' } as object];
-      const hidingPack: object[] = [{ id: 'apple', hidden: true } as object];
+      const visiblePack: OverlayWord[] = [ow('apple', 'visible')];
+      const hidingPack: OverlayWord[] = [ow('apple', undefined, true)];
       const out: WordEntry[] = mergeFamilyPacks(
         base,
         blob([
@@ -101,21 +129,14 @@ export default function familyPackMergeTest() {
           pack('pck-B', 1_700_000_999_999, hidingPack),
         ]),
       );
-      // Hidden wins even though pck-A still has a non-hidden version.
       expect(out.find((e: WordEntry): boolean => e.id === 'apple')).assertEqual(undefined);
       expect(out.find((e: WordEntry): boolean => e.id === 'cat')?.id).assertEqual('cat');
     });
 
     it('merge_appends_family_only_custom_word', 0, () => {
       const base: WordEntry[] = [we('apple', 'apple', '苹果', 'fruit', 1)];
-      const overlay: object[] = [
-        {
-          id: 'fam-aaaaaaaa-pencil',
-          word: 'pencil',
-          meaningZh: '铅笔',
-          category: 'school',
-          difficulty: 2,
-        } as object,
+      const overlay: OverlayWord[] = [
+        ofull('fam-aaaaaaaa-pencil', 'pencil', '铅笔', 'school', 2),
       ];
       const out: WordEntry[] = mergeFamilyPacks(
         base,
@@ -134,7 +155,7 @@ export default function familyPackMergeTest() {
         we('b', 'b', 'b-zh', 'cat-b', 1),
         we('c', 'c', 'c-zh', 'cat-c', 1),
       ];
-      const overlay: object[] = [{ id: 'a', meaningZh: 'a-overlay' } as object];
+      const overlay: OverlayWord[] = [ow('a', 'a-overlay')];
       const out: WordEntry[] = mergeFamilyPacks(
         base,
         blob([pack('pck-1', 1_700_000_000_000, overlay)]),
@@ -149,8 +170,8 @@ export default function familyPackMergeTest() {
       const out: WordEntry[] = mergeFamilyPacks(
         base,
         blob([
-          pack('pck-zzz', ts, [{ id: 'apple', meaningZh: 'Z' } as object]),
-          pack('pck-aaa', ts, [{ id: 'apple', meaningZh: 'A' } as object]),
+          pack('pck-zzz', ts, [ow('apple', 'Z')]),
+          pack('pck-aaa', ts, [ow('apple', 'A')]),
         ]),
       );
       // Ties broken by packId ASC, so pck-aaa wins.
@@ -158,26 +179,14 @@ export default function familyPackMergeTest() {
     });
 
     it('parseFamilyPacksBlob_handles_minimal_response', 0, () => {
-      const body: string = JSON.stringify({
-        schema_version: 5,
-        family_id: 'fam-12345678',
-        merged_at: '2026-05-01T08:00:00Z',
-        packs: [
-          {
-            pack_id: 'pck-aaa',
-            name: '水果',
-            version: 1,
-            schema_version: 5,
-            published_at: '2026-05-01T07:30:00Z',
-            words: [{ id: 'apple', meaningZh: '苹果' }],
-          },
-        ],
-      });
+      const body: string = '{"schema_version":5,"family_id":"fam-12345678","merged_at":"2026-05-01T08:00:00Z","packs":[{"pack_id":"pck-aaa","name":"水果","version":1,"schema_version":5,"published_at":"2026-05-01T07:30:00Z","words":[{"id":"apple","meaningZh":"苹果"}]}]}';
       const blobOut: FamilyPacksBlob | null = parseFamilyPacksBlob(body, '"etag-1"');
       expect(blobOut !== null).assertTrue();
       expect(blobOut?.familyId).assertEqual('fam-12345678');
       expect(blobOut?.packs.length).assertEqual(1);
-      expect(blobOut?.packs[0].publishedAtMs > 0).assertTrue();
+      const first: FamilyPackEntry | undefined = blobOut?.packs[0];
+      expect(first !== undefined).assertTrue();
+      expect((first as FamilyPackEntry).publishedAtMs > 0).assertTrue();
     });
 
     it('parseFamilyPacksBlob_returns_null_for_garbage', 0, () => {

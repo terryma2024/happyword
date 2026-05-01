@@ -450,6 +450,16 @@ struct BattlePage {
       console.error(`BattlePage: AudioService.dispose failed: ${JSON.stringify(err)}`);
     });
     this.tts.dispose();
+    // V0.6.4: fire-and-forget cloud sync once a battle ends so the
+    // learning deltas land on the server before the parent reloads
+    // their dashboard. The CloudSyncService is intentionally tolerant
+    // of unbound or offline state so we never need to await/guard.
+    const sync = this.recorder.getCloudSync();
+    if (sync !== undefined) {
+      sync.syncOnce().catch((err: BusinessError): void => {
+        console.error(`BattlePage: cloud sync failed: ${JSON.stringify(err)}`);
+      });
+    }
   }
 
   /**

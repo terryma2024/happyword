@@ -26,6 +26,8 @@ import {
 } from '../services/WordPackSyncService';
 import { ParentPinDialog } from '../components/ParentPinDialog';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
+import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
+import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
 import { router } from '@kit.ArkUI';
 
 /**
@@ -49,6 +51,12 @@ struct ConfigPage {
   @State private bindingNickname: string = '';
   @State private bindingPresent: boolean = false;
   @State private bindingDeviceIdSource: string = '';
+  // V0.6.4: cloud-sync UI state. The last-sync display tracks the most
+  // recent successful syncOnce attempt so parents can confirm the
+  // device is in touch with the server.
+  @State private cloudSyncBusy: boolean = false;
+  @State private cloudSyncStatusText: string = '';
+  @State private cloudSyncToastText: string = '';
   private cloudCreds: CloudCredentials = new CloudCredentials();
   private syncToastTimer: number = -1;
   private wordPackCache: WordPackCache = new WordPackCache();
@@ -267,6 +275,110 @@ struct ConfigPage {
     router.pushUrl({ url: 'pages/BoundDeviceInfoPage' }).catch((err: BusinessError): void => {
       console.error(`ConfigPage.openBoundDeviceInfo: ${JSON.stringify(err)}`);
     });
+  }
+
+  @Builder
+  private cloudSyncRow() {
+    if (this.bindingPresent) {
+      Column() {
+        Row() {
+          Text('学习记录').fontSize(18).width(120);
+          Button(this.cloudSyncBusy ? '同步中…' : '立即同步学习记录')
+            .id('ConfigCloudSyncButton')
+            .width(220).height(40).fontSize(15)
+            .backgroundColor(this.cloudSyncBusy ? '#E5E7EB' : '#E0F2FE')
+            .fontColor(this.cloudSyncBusy ? '#6B7280' : '#0369A1')
+            .borderWidth(2).borderColor(this.cloudSyncBusy ? '#9CA3AF' : '#0EA5E9')
+            .enabled(!this.cloudSyncBusy)
+            .onClick((): void => this.onCloudSyncTap());
+        }
+        .alignItems(VerticalAlign.Center);
+        if (this.cloudSyncStatusText.length > 0) {
+          Text(this.cloudSyncStatusText)
+            .id('ConfigCloudSyncStatus')
+            .fontSize(12).fontColor('#6B7280').margin({ top: 4 });
+        }
+        if (this.cloudSyncToastText.length > 0) {
+          Text(this.cloudSyncToastText)
+            .id('ConfigCloudSyncToast')
+            .fontSize(12).fontColor('#0369A1').margin({ top: 4 });
+        }
+      }
+      .width('100%').alignItems(HorizontalAlign.Start).margin({ bottom: 16 });
+    }
+  }
+
+  private onCloudSyncTap(): void {
+    if (this.cloudSyncBusy) {
+      return;
+    }
+    const recorder: LearningRecorder = getLearningRecorder();
+    const svc: CloudSyncLike | undefined = recorder.getCloudSync();
+    if (svc === undefined) {
+      this.applyCloudSyncToast('尚未启用云端同步');
+      return;
+    }
+    this.beginCloudSync();
+    svc.syncOnce().then((out: CloudSyncResult): void => {
+      this.applyCloudSyncOutcome(
+        ConfigPage.formatCloudSyncStatus(out),
+        ConfigPage.formatCloudSyncToast(out),
+      );
+    }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage.onCloudSyncTap failed: ${JSON.stringify(err)}`);
+      this.applyCloudSyncToast('同步失败 (内部错误)');
+    }).then((): void => {
+      this.endCloudSync();
+    });
+  }
+
+  private beginCloudSync(): void {
+    this.cloudSyncBusy = true;
+    this.cloudSyncToastText = '';
+  }
+
+  private endCloudSync(): void {
+    this.cloudSyncBusy = false;
+    this.forceRerender();
+  }
+
+  private applyCloudSyncToast(text: string): void {
+    this.cloudSyncToastText = text;
+  }
+
+  private applyCloudSyncOutcome(statusText: string, toastText: string): void {
+    this.cloudSyncStatusText = statusText;
+    this.cloudSyncToastText = toastText;
+  }
+
+  private static formatCloudSyncStatus(out: CloudSyncResult): string {
+    if (out.serverNowMs <= 0) {
+      return '上次同步时间未知';
+    }
+    return `上次成功同步 ${ConfigPage.formatLocalMs(out.serverNowMs)}`;
+  }
+
+  private static formatCloudSyncToast(out: CloudSyncResult): string {
+    switch (out.status) {
+      case 'unbound': return '未绑定家长账号，请先在“家长账户”中绑定';
+      case 'no_changes': return '没有新的学习记录';
+      case 'pushed': return `已上传 ${out.pushed} 条学习记录`;
+      case 'pulled': return `已合并 ${out.pulled} 条服务器记录`;
+      case 'pushed_and_pulled':
+        return `已上传 ${out.pushed} 条 / 合并 ${out.pulled} 条服务器记录`;
+      case 'network_error': return '同步失败：网络异常，请稍后重试';
+      default: return '同步完成';
+    }
+  }
+
+  private static formatLocalMs(ms: number): string {
+    const d: Date = new Date(ms);
+    const yyyy: number = d.getFullYear();
+    const mm: string = String(d.getMonth() + 1).padStart(2, '0');
+    const dd: string = String(d.getDate()).padStart(2, '0');
+    const hh: string = String(d.getHours()).padStart(2, '0');
+    const mn: string = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${mn}`;
   }
 
   @Builder
@@ -664,6 +776,7 @@ struct ConfigPage {
         this.categoryRow();
         this.parentPinRow();
         this.parentAccountRow();
+        this.cloudSyncRow();
         this.syncRow();
         this.adminRow();
 

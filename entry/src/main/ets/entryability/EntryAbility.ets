@@ -1,14 +1,53 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, common, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
+import preferences from '@ohos.data.preferences';
 import { GameConfig, GAME_CONFIG_STORAGE_KEY } from '../models/GameConfig';
-import { getLearningRecorder } from '../services/LearningRecorder';
+import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { DeviceIdProvider } from '../services/DeviceIdProvider';
+import { CloudCredentials } from '../services/CloudCredentials';
+import { CloudSyncService } from '../services/CloudSyncService';
+import { RealParentFetchAdapter } from '../services/ParentApiClient';
+import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { StringPreferencesLike } from '../services/WrongAnswerStore';
 
 const DOMAIN = 0x0000;
+const SYNC_PREFS_NAME: string = 'wordmagic_cloud_sync';
+
+class CloudSyncPrefs implements StringPreferencesLike {
+  private readonly handle: preferences.Preferences;
+  constructor(handle: preferences.Preferences) {
+    this.handle = handle;
+  }
+  async getString(key: string): Promise<string> {
+    try {
+      const v: preferences.ValueType = await this.handle.get(key, '');
+      return typeof v === 'string' ? v : '';
+    } catch (err) {
+      hilog.warn(DOMAIN, 'testTag', 'CloudSyncPrefs.getString failed: %{public}s', JSON.stringify(err as BusinessError));
+      return '';
+    }
+  }
+  async putString(key: string, value: string): Promise<void> {
+    try {
+      await this.handle.put(key, value);
+    } catch (err) {
+      hilog.warn(DOMAIN, 'testTag', 'CloudSyncPrefs.putString failed: %{public}s', JSON.stringify(err as BusinessError));
+    }
+  }
+  async flush(): Promise<void> {
+    try {
+      await this.handle.flush();
+    } catch (err) {
+      hilog.warn(DOMAIN, 'testTag', 'CloudSyncPrefs.flush failed: %{public}s', JSON.stringify(err as BusinessError));
+    }
+  }
+}
 
 export default class EntryAbility extends UIAbility {
+  private cloudSyncSvc?: CloudSyncService;
+
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
@@ -33,7 +72,33 @@ export default class EntryAbility extends UIAbility {
       .catch((err: BusinessError): void => {
         hilog.warn(DOMAIN, 'testTag', 'DeviceIdProvider.warmup failed: %{public}s', JSON.stringify(err));
       });
+    // V0.6.4: assemble the cloud-sync companion and attach it to the
+    // singleton recorder so flushNow / aboutToDisappear / onBackground
+    // can fire-and-forget without re-discovering credentials.
+    this.installCloudSync(this.context).catch((err: BusinessError): void => {
+      hilog.warn(DOMAIN, 'testTag', 'CloudSync wiring failed: %{public}s', JSON.stringify(err));
+    });
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+  }
+
+  private async installCloudSync(ctx: common.UIAbilityContext): Promise<void> {
+    const recorder: LearningRecorder = getLearningRecorder();
+    const creds: CloudCredentials = new CloudCredentials();
+    await creds.init(ctx);
+    const svc: CloudSyncService = new CloudSyncService(
+      recorder,
+      creds,
+      new RealParentFetchAdapter(),
+      effectiveServerBaseUrl(),
+    );
+    try {
+      const handle: preferences.Preferences = await preferences.getPreferences(ctx, SYNC_PREFS_NAME);
+      svc.injectPreferences(new CloudSyncPrefs(handle));
+    } catch (err) {
+      hilog.warn(DOMAIN, 'testTag', 'CloudSync prefs unavailable: %{public}s', JSON.stringify(err as BusinessError));
+    }
+    recorder.attachCloudSync(svc);
+    this.cloudSyncSvc = svc;
   }
 
   onDestroy(): void {
@@ -66,5 +131,13 @@ export default class EntryAbility extends UIAbility {
   onBackground(): void {
     // Ability has back to background
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+    // V0.6.4: take advantage of the lifecycle to push pending learning
+    // deltas before the system suspends us. CloudSyncService swallows
+    // every failure so this is safe to fire-and-forget.
+    if (this.cloudSyncSvc !== undefined) {
+      this.cloudSyncSvc.syncOnce().catch((err: BusinessError): void => {
+        hilog.warn(DOMAIN, 'testTag', 'CloudSync.onBackground failed: %{public}s', JSON.stringify(err));
+      });
+    }
   }
 }

@@ -33,6 +33,7 @@ import deviceBindingServiceTest from './DeviceBindingService.test';
 import bindingApiClientTest from './BindingApiClient.test';
 import familyPackMergeTest from './FamilyPackMerge.test';
 import familyPackServiceTest from './FamilyPackService.test';
+import cloudSyncServiceTest from './CloudSyncService.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -70,4 +71,5 @@ export default function testsuite() {
   bindingApiClientTest();
   familyPackMergeTest();
   familyPackServiceTest();
+  cloudSyncServiceTest();
 }
