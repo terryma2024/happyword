@@ -96,3 +96,25 @@ def decode_typed_token(token: str) -> TypedSubject:
     if not identifier:
         raise JwtError("empty identifier")
     return TypedSubject(role=role, identifier=identifier)  # type: ignore[arg-type]
+
+
+def create_device_token(
+    *,
+    binding_id: str,
+    child_profile_id: str,
+    expires_in_days: int = 30,
+) -> str:
+    """V0.6.2 — long-lived device token issued at pair-redeem time.
+
+    Encodes the child profile id as a `cpid` custom claim so the client can
+    surface "current child" without an extra `/me` round-trip on cold start.
+    """
+    now = int(time.time())
+    settings = get_settings()
+    payload: dict[str, Any] = {
+        "sub": f"device:{binding_id}",
+        "cpid": child_profile_id,
+        "iat": now,
+        "exp": now + expires_in_days * 86400,
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")

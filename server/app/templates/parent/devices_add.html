@@ -1,0 +1,35 @@
+{% extends "_base.html" %}
+{% block title %}添加设备{% endblock %}
+{% block content %}
+<section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 max-w-md mx-auto">
+  <h1 class="text-2xl font-semibold text-slate-900 mb-2">添加新设备</h1>
+  <p class="text-sm text-slate-600 mb-6">
+    在孩子的设备上打开「快乐背单词」，进入「设置 → 绑定家长账号」，扫描下方二维码。
+    若摄像头不可用，可手动输入下方 6 位短码。
+  </p>
+
+  <div class="text-center">
+    <img src="{{ qr_data_url }}" alt="二维码"
+         class="mx-auto mb-4 border border-slate-200 rounded-md" width="240" height="240" />
+    <div class="text-3xl font-mono tracking-widest text-slate-900">{{ short_code }}</div>
+    <p class="text-xs text-slate-400 mt-1">短码 · 有效期 3 分钟</p>
+  </div>
+
+  <div class="mt-6 border-t border-slate-200 pt-4">
+    <div id="pair-status" class="text-sm text-slate-600"
+         hx-get="/parent/devices/add/status?token={{ token }}"
+         hx-trigger="load delay:1s, every 2s"
+         hx-swap="innerHTML">
+      等待设备扫码…
+    </div>
+  </div>
+
+  <div class="mt-4 flex gap-2">
+    <a href="/parent/" class="text-sm text-slate-500 hover:text-slate-900">返回首页</a>
+    <form method="post" action="/parent/devices/add/cancel" class="inline">
+      <input type="hidden" name="token" value="{{ token }}" />
+      <button type="submit" class="text-sm text-rose-500 hover:text-rose-700">取消本次配对</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

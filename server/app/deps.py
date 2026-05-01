@@ -4,6 +4,7 @@ from fastapi import Cookie, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import get_settings
+from app.models.device_binding import DeviceBinding
 from app.models.user import User, UserRole
 from app.services.auth_service import (
     JwtError,
@@ -142,3 +143,52 @@ async def current_parent_user(
             set_parent_session_cookie(response, new_token)
 
     return user
+
+
+async def current_device_binding(
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> DeviceBinding:
+    """V0.6.2 — authenticate a bound HarmonyOS device by its device_token.
+
+    The token's typed sub is `device:<binding_id>`. We then load the
+    DeviceBinding row and reject if `revoked_at` is set so unbound clients
+    cannot continue to call `/api/v1/child/*` endpoints with their cached
+    token.
+    """
+    if creds is None or creds.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error": {"code": "UNAUTHORIZED", "message": "Missing device token"}
+            },
+        )
+    try:
+        typed = decode_typed_token(creds.credentials)
+    except JwtError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error": {"code": "UNAUTHORIZED", "message": "Invalid device token"}
+            },
+        ) from None
+    if typed.role != "device":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": {"code": "FORBIDDEN", "message": "Device role required"}
+            },
+        )
+    binding = await DeviceBinding.find_one(
+        DeviceBinding.binding_id == typed.identifier
+    )
+    if binding is None or binding.revoked_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "BINDING_REVOKED",
+                    "message": "This device binding is revoked or not found",
+                }
+            },
+        )
+    return binding

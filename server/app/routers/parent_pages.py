@@ -18,9 +18,13 @@ from fastapi.templating import Jinja2Templates
 from app.config import get_settings
 from app.deps import (
     clear_parent_session_cookie,
+    current_parent_user,
     set_parent_session_cookie,
 )
 from app.deps_email import get_email_provider
+from app.models.child_profile import ChildProfile
+from app.models.device_binding import DeviceBinding
+from app.models.pair_token import PairToken
 from app.models.user import User, UserRole
 from app.services.auth_service import (
     JwtError,
@@ -39,6 +43,14 @@ from app.services.otp_service import (
     request_code,
     verify_code,
 )
+from app.services.pair_service import (
+    PairTokenInvalid,
+    create_pair,
+)
+from app.services.pair_service import (
+    cancel as pair_cancel,
+)
+from app.services.qr_service import render_qr_data_url
 
 if TYPE_CHECKING:
     from app.services.email_provider import EmailProvider
@@ -187,6 +199,69 @@ async def get_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
     )
 
 
+@router.get("/devices/add", response_class=HTMLResponse)
+async def get_devices_add(
+    request: Request,
+    user: User = Depends(current_parent_user),
+) -> HTMLResponse:
+    """V0.6.2 — render a fresh QR + 6-digit short code for the parent to share."""
+    pt = await create_pair(family_id=user.family_id or "", parent_id=user.username)
+    settings = get_settings()
+    qr_payload = f"{settings.parent_web_base_url.rstrip('/')}/p/{pt.token[:12]}"
+    qr_data_url = render_qr_data_url(qr_payload)
+    return templates.TemplateResponse(
+        request,
+        "parent/devices_add.html",
+        {
+            "user": user,
+            "token": pt.token,
+            "short_code": pt.short_code,
+            "qr_data_url": qr_data_url,
+            "qr_payload_url": qr_payload,
+        },
+    )
+
+
+@router.get("/devices/add/status", response_class=HTMLResponse)
+async def get_devices_add_status(
+    request: Request,
+    token: str,
+    user: User = Depends(current_parent_user),
+) -> HTMLResponse:
+    """HTMX poll endpoint returning the small status partial."""
+    pt = await PairToken.find_one(
+        PairToken.token == token, PairToken.family_id == (user.family_id or "")
+    )
+    if pt is None:
+        return templates.TemplateResponse(
+            request,
+            "partials/pair_status_row.html",
+            {"user": user, "status": "expired", "device_id_tail": ""},
+        )
+    device_id_tail = ""
+    if pt.redeemed_by_device_id:
+        device_id_tail = pt.redeemed_by_device_id[-4:]
+    return templates.TemplateResponse(
+        request,
+        "partials/pair_status_row.html",
+        {
+            "user": user,
+            "status": pt.status.value,
+            "device_id_tail": device_id_tail,
+        },
+    )
+
+
+@router.post("/devices/add/cancel", response_model=None)
+async def post_devices_add_cancel(
+    token: str = Form(...),
+    user: User = Depends(current_parent_user),
+) -> RedirectResponse:
+    with contextlib.suppress(PairTokenInvalid):
+        await pair_cancel(token=token, family_id=user.family_id or "")
+    return RedirectResponse(url="/parent/", status_code=303)
+
+
 # Keep a referenced symbol so unused-import linting stays calm if Response
 # gets repurposed by future helpers.
-_ = Response, HTTPException
+_ = Response, HTTPException, ChildProfile, DeviceBinding

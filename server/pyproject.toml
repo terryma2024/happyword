@@ -1,6 +1,6 @@
 [project]
 name = "happyword-server"
-version = "0.6.1"
+version = "0.6.2"
 description = "Content backend for WordMagicGame (HarmonyOS NEXT client)"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,6 +21,7 @@ dependencies = [
     "jinja2>=3.1.6",
     "itsdangerous>=2.2.0",
     "email-validator>=2.3.0",
+    "qrcode[pil]>=8.2",
 ]
 
 [dependency-groups]
@@ -32,6 +33,7 @@ dev = [
     "mypy>=1.13",
     "types-python-jose>=3.3",
     "beautifulsoup4>=4.14.3",
+    "types-qrcode>=8.2.0.20260408",
 ]
 
 [tool.pytest.ini_options]

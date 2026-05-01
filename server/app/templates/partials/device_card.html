@@ -1,0 +1,16 @@
+<div class="border border-slate-200 rounded-md p-4 bg-slate-50">
+  <div class="flex items-start justify-between">
+    <div>
+      <div class="text-base font-semibold text-slate-900">
+        {{ child.avatar_emoji }} {{ child.nickname }}
+      </div>
+      <div class="text-xs text-slate-500 mt-1">设备 {{ device.device_id[-4:] }}</div>
+      {% if device.user_agent %}
+      <div class="text-xs text-slate-400">{{ device.user_agent }}</div>
+      {% endif %}
+    </div>
+    <div class="text-xs text-slate-400">
+      绑定于 {{ device.created_at.strftime("%Y-%m-%d") }}
+    </div>
+  </div>
+</div>
