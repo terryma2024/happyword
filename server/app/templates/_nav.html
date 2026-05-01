@@ -1,0 +1,10 @@
+<header class="bg-white border-b border-slate-200">
+  <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+    <a href="/parent/" class="text-lg font-semibold text-slate-900">快乐背单词 · 家长后台</a>
+    {% if user is defined and user %}
+    <form method="post" action="/parent/auth/logout" class="m-0">
+      <button type="submit" class="text-sm text-slate-500 hover:text-slate-900">退出登录</button>
+    </form>
+    {% endif %}
+  </div>
+</header>

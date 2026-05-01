@@ -6,10 +6,13 @@ from datetime import UTC, datetime
 from beanie import init_beanie
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.config import get_settings
 from app.models.category import Category
+from app.models.email_verification import EmailVerification
+from app.models.family import Family
 from app.models.lesson_import_draft import LessonImportDraft
 from app.models.llm_draft import LlmDraft
 from app.models.pack_pointer import PackPointer
@@ -25,9 +28,12 @@ from app.routers import admin_packs as admin_packs_router
 from app.routers import admin_stats as admin_stats_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
+from app.routers import parent_auth as parent_auth_router
+from app.routers import parent_pages as parent_pages_router
 from app.routers import public_packs as public_packs_router
 from app.services.auth_service import hash_password
 from app.services.category_service import seed_manual_categories
+from app.services.email_provider import build_email_provider
 
 
 async def bootstrap_admin_user(username: str, password: str) -> None:
@@ -57,9 +63,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             LlmDraft,
             Category,
             LessonImportDraft,
+            Family,
+            EmailVerification,
         ],
     )
     app.state.mongo_client = client
+    # V0.6.1: build the configured EmailProvider once and hang it off app state
+    # so router deps can resolve it without re-reading settings on every request.
+    app.state.email_provider = build_email_provider(settings)
     await bootstrap_admin_user(
         username=settings.admin_bootstrap_user,
         password=settings.admin_bootstrap_pass,
@@ -74,7 +85,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         client.close()
 
 
-app = FastAPI(title="happyword-server", version="0.5.1", lifespan=lifespan)
+app = FastAPI(title="happyword-server", version="0.6.1", lifespan=lifespan)
 
 # CORS read from env directly — get_settings() can't run at module load
 # because pytest collection imports app.main before fixtures inject env.
@@ -89,6 +100,8 @@ app.add_middleware(
 )
 
 app.include_router(auth_router.router)
+app.include_router(parent_auth_router.router)
+app.include_router(parent_pages_router.router)
 app.include_router(public_packs_router.router)
 app.include_router(admin_llm_router.router)
 app.include_router(admin_words_router.router)
@@ -98,3 +111,6 @@ app.include_router(admin_categories_router.router)
 app.include_router(admin_lessons_router.router)
 app.include_router(admin_assets_router.router)
 app.include_router(admin_stats_router.router)
+
+# V0.6.1: serve the parent web shell's static assets.
+app.mount("/static", StaticFiles(directory="app/static"), name="static")

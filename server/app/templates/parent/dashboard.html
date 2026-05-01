@@ -1,0 +1,31 @@
+{% extends "_base.html" %}
+{% block title %}首页{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header>
+    <h1 class="text-2xl font-semibold text-slate-900">
+      欢迎，{{ user.display_name or user.email.split('@')[0] }}
+    </h1>
+    <p class="text-sm text-slate-500 mt-1">{{ user.email }}</p>
+  </header>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-4">已绑定的设备</h2>
+    <div id="devices-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <p class="text-sm text-slate-500 col-span-full">
+        还没有绑定的设备。在客户端「设置 → 绑定家长账号」里扫描下方添加二维码即可。
+      </p>
+    </div>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-2">下一步（V0.6.2 起）</h2>
+    <ul class="text-sm text-slate-600 space-y-1 list-disc pl-5">
+      <li>在此页生成绑定二维码，让孩子的设备扫码加入家庭。</li>
+      <li>为每台设备配置一个孩子档案，记录学习进度。</li>
+      <li>创建家庭词包，按课本单元教学。</li>
+      <li>审批孩子的礼品兑换。</li>
+    </ul>
+  </section>
+</section>
+{% endblock %}

@@ -14,6 +14,13 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "testadmin")
     monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "testpw1234")
     monkeypatch.setenv("OPENAI_API_KEY", "")
+    # V0.6.1: ensure SMTP is unconfigured in the default test env so
+    # GmailSmtpProvider.send no-ops with a warning instead of trying to talk
+    # to Gmail. Tests that need to assert email behaviour install a recording
+    # provider via dependency injection (see test fixtures).
+    monkeypatch.setenv("SMTP_USERNAME", "")
+    monkeypatch.setenv("SMTP_PASSWORD", "")
+    monkeypatch.setenv("SMTP_FROM_EMAIL", "")
     # ensure each test starts with a fresh Settings cache
     from app.config import get_settings
 
@@ -24,6 +31,8 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> None:
 async def db() -> AsyncIterator[object]:
     """Beanie-initialized mongomock database for tests."""
     from app.models.category import Category  # noqa: PLC0415
+    from app.models.email_verification import EmailVerification  # noqa: PLC0415
+    from app.models.family import Family  # noqa: PLC0415
     from app.models.lesson_import_draft import LessonImportDraft  # noqa: PLC0415
     from app.models.llm_draft import LlmDraft  # noqa: PLC0415
     from app.models.pack_pointer import PackPointer  # noqa: PLC0415
@@ -42,6 +51,8 @@ async def db() -> AsyncIterator[object]:
             LlmDraft,
             Category,
             LessonImportDraft,
+            Family,
+            EmailVerification,
         ],
     )
     yield mock["happyword_test"]
