@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     smtp_starttls: bool = True
     smtp_timeout_seconds: float = 10.0
 
+    # V0.6.3 — family word packs
+    family_pack_max_words: int = 50
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -1,6 +1,6 @@
 [project]
 name = "happyword-server"
-version = "0.6.2"
+version = "0.6.3"
 description = "Content backend for WordMagicGame (HarmonyOS NEXT client)"
 requires-python = ">=3.12"
 dependencies = [

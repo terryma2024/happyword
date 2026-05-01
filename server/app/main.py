@@ -15,6 +15,10 @@ from app.models.child_profile import ChildProfile
 from app.models.device_binding import DeviceBinding
 from app.models.email_verification import EmailVerification
 from app.models.family import Family
+from app.models.family_pack_definition import FamilyPackDefinition
+from app.models.family_pack_draft import FamilyPackDraft
+from app.models.family_pack_pointer import FamilyPackPointer
+from app.models.family_word_pack import FamilyWordPack
 from app.models.lesson_import_draft import LessonImportDraft
 from app.models.llm_draft import LlmDraft
 from app.models.pack_pointer import PackPointer
@@ -31,9 +35,11 @@ from app.routers import admin_packs as admin_packs_router
 from app.routers import admin_stats as admin_stats_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
+from app.routers import child_family_pack as child_family_pack_router
 from app.routers import pair as pair_router
 from app.routers import parent_api as parent_api_router
 from app.routers import parent_auth as parent_auth_router
+from app.routers import parent_family_pack as parent_family_pack_router
 from app.routers import parent_pages as parent_pages_router
 from app.routers import public_packs as public_packs_router
 from app.services.auth_service import hash_password
@@ -73,6 +79,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             PairToken,
             DeviceBinding,
             ChildProfile,
+            FamilyPackDefinition,
+            FamilyPackDraft,
+            FamilyPackPointer,
+            FamilyWordPack,
         ],
     )
     app.state.mongo_client = client
@@ -93,7 +103,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         client.close()
 
 
-app = FastAPI(title="happyword-server", version="0.6.2", lifespan=lifespan)
+app = FastAPI(title="happyword-server", version="0.6.3", lifespan=lifespan)
 
 # CORS read from env directly — get_settings() can't run at module load
 # because pytest collection imports app.main before fixtures inject env.
@@ -110,7 +120,9 @@ app.add_middleware(
 app.include_router(auth_router.router)
 app.include_router(parent_auth_router.router)
 app.include_router(parent_api_router.router)
+app.include_router(parent_family_pack_router.router)
 app.include_router(parent_pages_router.router)
+app.include_router(child_family_pack_router.router)
 app.include_router(pair_router.router)
 app.include_router(public_packs_router.router)
 app.include_router(admin_llm_router.router)
