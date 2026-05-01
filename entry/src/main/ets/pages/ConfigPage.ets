@@ -18,6 +18,13 @@ import {
 import { WordRepository } from '../services/WordRepository';
 import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
 import { WordEntry } from '../models/WordEntry';
+import { WordPackCache, WordPackCacheRecord } from '../services/WordPackCache';
+import { RemoteWordPackService } from '../services/RemoteWordPackService';
+import {
+  WordPackSyncService,
+  SyncOutcome,
+  SyncStatus,
+} from '../services/WordPackSyncService';
 
 /**
  * ConfigPage exposes five battle knobs plus a custom-words category.
@@ -32,6 +39,11 @@ import { WordEntry } from '../models/WordEntry';
 struct ConfigPage {
   @State private draft: GameConfig = new GameConfig();
   @State private showValidationHint: boolean = false;
+  @State private syncStatusText: string = '';
+  @State private syncToastText: string = '';
+  @State private syncBusy: boolean = false;
+  private syncToastTimer: number = -1;
+  private wordPackCache: WordPackCache = new WordPackCache();
   private builtinEntries: WordEntry[] = [];
 
   aboutToAppear(): void {
@@ -48,6 +60,15 @@ struct ConfigPage {
     }).catch((err: BusinessError): void => {
       console.error(`ConfigPage: bootstrap failed: ${JSON.stringify(err)}`);
     });
+
+    // V0.5 client follow-up: wire the manual-sync card. The cache
+    // handle is owned by ConfigPage so that re-entering the page
+    // shows fresh fetchedAt timestamps without going through
+    // WordPackBootstrapper again.
+    this.wordPackCache.init(ctx).then((): Promise<void> => this.refreshSyncStatus())
+      .catch((err: BusinessError): void => {
+        console.error(`ConfigPage: WordPackCache.init failed: ${JSON.stringify(err)}`);
+      });
   }
 
   onPageShow(): void {
@@ -68,6 +89,115 @@ struct ConfigPage {
 
   private forceRerender(): void {
     this.draft = cloneGameConfig(this.draft);
+  }
+
+  private async refreshSyncStatus(): Promise<void> {
+    const rec: WordPackCacheRecord | undefined = await this.wordPackCache.readRecord();
+    if (rec === undefined) {
+      this.syncStatusText = '尚未同步 (使用内置词库)';
+      return;
+    }
+    this.syncStatusText =
+      `已缓存 schema v${rec.schemaVersion} · 同步时间 ${ConfigPage.formatLocal(rec.fetchedAt)}`;
+  }
+
+  private static formatLocal(iso: string): string {
+    if (iso.length === 0) {
+      return '—';
+    }
+    const parsed: number = Date.parse(iso);
+    if (!Number.isFinite(parsed)) {
+      return iso;
+    }
+    const d: Date = new Date(parsed);
+    const yyyy: number = d.getFullYear();
+    const mm: string = String(d.getMonth() + 1).padStart(2, '0');
+    const dd: string = String(d.getDate()).padStart(2, '0');
+    const hh: string = String(d.getHours()).padStart(2, '0');
+    const min: string = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+  }
+
+  private onSyncTap(): void {
+    if (this.syncBusy) {
+      return;
+    }
+    this.syncBusy = true;
+    const remote: RemoteWordPackService = new RemoteWordPackService();
+    const svc: WordPackSyncService = new WordPackSyncService(remote, this.wordPackCache);
+    svc.syncOnce().then((out: SyncOutcome): void => {
+      this.showSyncToast(ConfigPage.toastForOutcome(out));
+      this.refreshSyncStatus().catch((err: BusinessError): void => {
+        console.error(`ConfigPage.refreshSyncStatus failed: ${JSON.stringify(err)}`);
+      });
+    }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage.onSyncTap failed: ${JSON.stringify(err)}`);
+      this.showSyncToast('同步失败 (内部错误)');
+    }).then((): void => {
+      this.syncBusy = false;
+      this.forceRerender();
+    });
+  }
+
+  private showSyncToast(text: string): void {
+    this.syncToastText = text;
+    if (this.syncToastTimer >= 0) {
+      clearTimeout(this.syncToastTimer);
+    }
+    this.syncToastTimer = setTimeout((): void => {
+      this.syncToastText = '';
+      this.syncToastTimer = -1;
+      this.forceRerender();
+    }, 2400);
+  }
+
+  private static toastForOutcome(out: SyncOutcome): string {
+    if (out.status === SyncStatus.Updated) {
+      return `已同步至 v${out.cachedVersion}`;
+    }
+    if (out.status === SyncStatus.UpToDate) {
+      return out.cachedVersion > 0 ? `已是最新 v${out.cachedVersion}` : '已是最新';
+    }
+    if (out.status === SyncStatus.HttpError) {
+      return `同步失败 (HTTP ${out.httpStatus})`;
+    }
+    if (out.status === SyncStatus.RejectedTooSmall) {
+      return '同步失败 (服务端词包过小)';
+    }
+    return '同步失败 (网络错误)';
+  }
+
+  @Builder
+  private syncRow() {
+    Column({ space: 8 }) {
+      Row() {
+        Text('词库同步').fontSize(18).width(120);
+        Button(this.syncBusy ? '同步中…' : '同步词包')
+          .id('ConfigSyncButton')
+          .width(140).height(40)
+          .fontSize(16)
+          .backgroundColor(this.syncBusy ? '#F0F0F0' : '#EAF2F8')
+          .fontColor(this.syncBusy ? '#999999' : '#457B9D')
+          .enabled(!this.syncBusy)
+          .onClick((): void => this.onSyncTap());
+      }
+      .alignItems(VerticalAlign.Center);
+      Text(this.syncStatusText)
+        .id('ConfigSyncStatus')
+        .fontSize(13)
+        .fontColor('#666666');
+      if (this.syncToastText.length > 0) {
+        Text(this.syncToastText)
+          .id('ConfigSyncToast')
+          .fontSize(13)
+          .fontColor('#1D3557')
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor('#FFF4D0')
+          .borderRadius(6);
+      }
+    }
+    .alignItems(HorizontalAlign.Start)
+    .margin({ bottom: 16 });
   }
 
   private decPlayerHp(): void {
@@ -398,6 +528,7 @@ struct ConfigPage {
         this.autoSpeakRow();
         this.categoryRow();
         this.parentPinRow();
+        this.syncRow();
 
         if (this.showValidationHint) {
           Text('单词池太小（少于 3 个），请启用更多类别或添加自定义词')
