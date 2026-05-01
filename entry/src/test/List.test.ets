@@ -24,6 +24,7 @@ import wordPackSyncServiceTest from './WordPackSyncService.test';
 import remoteAssetCacheTest from './RemoteAssetCache.test';
 import categoryCatalogTest from './CategoryCatalog.test';
 import adminApiClientTest from './AdminApiClient.test';
+import orientationTest from './Orientation.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -52,4 +53,5 @@ export default function testsuite() {
   remoteAssetCacheTest();
   categoryCatalogTest();
   adminApiClientTest();
+  orientationTest();
 }
