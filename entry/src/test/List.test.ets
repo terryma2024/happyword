@@ -31,6 +31,8 @@ import cloudCredentialsTest from './CloudCredentials.test';
 import deviceIdProviderTest from './DeviceIdProvider.test';
 import deviceBindingServiceTest from './DeviceBindingService.test';
 import bindingApiClientTest from './BindingApiClient.test';
+import familyPackMergeTest from './FamilyPackMerge.test';
+import familyPackServiceTest from './FamilyPackService.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -66,4 +68,6 @@ export default function testsuite() {
   deviceIdProviderTest();
   deviceBindingServiceTest();
   bindingApiClientTest();
+  familyPackMergeTest();
+  familyPackServiceTest();
 }
