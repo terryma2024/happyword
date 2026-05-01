@@ -43,6 +43,7 @@ async def db() -> AsyncIterator[object]:
     from app.models.llm_draft import LlmDraft  # noqa: PLC0415
     from app.models.pack_pointer import PackPointer  # noqa: PLC0415
     from app.models.pair_token import PairToken  # noqa: PLC0415
+    from app.models.synced_word_stat import SyncedWordStat  # noqa: PLC0415
     from app.models.user import User  # noqa: PLC0415 - lazy to avoid early import
     from app.models.word import Word  # noqa: PLC0415
     from app.models.word_pack import WordPack  # noqa: PLC0415
@@ -67,6 +68,7 @@ async def db() -> AsyncIterator[object]:
             FamilyPackDraft,
             FamilyPackPointer,
             FamilyWordPack,
+            SyncedWordStat,
         ],
     )
     yield mock["happyword_test"]

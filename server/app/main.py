@@ -23,6 +23,7 @@ from app.models.lesson_import_draft import LessonImportDraft
 from app.models.llm_draft import LlmDraft
 from app.models.pack_pointer import PackPointer
 from app.models.pair_token import PairToken
+from app.models.synced_word_stat import SyncedWordStat
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.models.word_pack import WordPack
@@ -36,6 +37,7 @@ from app.routers import admin_stats as admin_stats_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
 from app.routers import child_family_pack as child_family_pack_router
+from app.routers import child_word_stats as child_word_stats_router
 from app.routers import pair as pair_router
 from app.routers import parent_api as parent_api_router
 from app.routers import parent_auth as parent_auth_router
@@ -83,6 +85,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             FamilyPackDraft,
             FamilyPackPointer,
             FamilyWordPack,
+            SyncedWordStat,
         ],
     )
     app.state.mongo_client = client
@@ -103,7 +106,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         client.close()
 
 
-app = FastAPI(title="happyword-server", version="0.6.3", lifespan=lifespan)
+app = FastAPI(title="happyword-server", version="0.6.4", lifespan=lifespan)
 
 # CORS read from env directly — get_settings() can't run at module load
 # because pytest collection imports app.main before fixtures inject env.
@@ -123,6 +126,7 @@ app.include_router(parent_api_router.router)
 app.include_router(parent_family_pack_router.router)
 app.include_router(parent_pages_router.router)
 app.include_router(child_family_pack_router.router)
+app.include_router(child_word_stats_router.router)
 app.include_router(pair_router.router)
 app.include_router(public_packs_router.router)
 app.include_router(admin_llm_router.router)
