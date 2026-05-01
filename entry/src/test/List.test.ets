@@ -27,6 +27,10 @@ import parentApiClientTest from './ParentApiClient.test';
 import orientationTest from './Orientation.test';
 import multipartBuilderTest from './MultipartBuilder.test';
 import lessonImagePickerTest from './LessonImagePicker.test';
+import cloudCredentialsTest from './CloudCredentials.test';
+import deviceIdProviderTest from './DeviceIdProvider.test';
+import deviceBindingServiceTest from './DeviceBindingService.test';
+import bindingApiClientTest from './BindingApiClient.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -58,4 +62,8 @@ export default function testsuite() {
   orientationTest();
   multipartBuilderTest();
   lessonImagePickerTest();
+  cloudCredentialsTest();
+  deviceIdProviderTest();
+  deviceBindingServiceTest();
+  bindingApiClientTest();
 }

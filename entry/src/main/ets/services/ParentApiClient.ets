@@ -626,7 +626,7 @@ export class ParentApiClient {
   }
 }
 
-class RealParentFetchAdapter implements ParentFetchAdapter {
+export class RealParentFetchAdapter implements ParentFetchAdapter {
   async get(url: string, headers: Record<string, string>): Promise<ParentFetchResult> {
     return RealParentFetchAdapter.send(url, http.RequestMethod.GET, headers, '');
   }

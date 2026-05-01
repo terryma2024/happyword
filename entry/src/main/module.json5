@@ -55,6 +55,16 @@
           "abilities": ["EntryAbility"],
           "when": "inuse"
         }
+      },
+      {
+        // V0.6.2: AssetStoreKit-backed device id needs persistent storage
+        // so the id survives app uninstall/reinstall on the same device.
+        "name": "ohos.permission.STORE_PERSISTENT_DATA",
+        "reason": "$string:permission_persistent_id_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "always"
+        }
       }
     ],
     "extensionAbilities": [

@@ -25,6 +25,8 @@ import {
   SyncStatus,
 } from '../services/WordPackSyncService';
 import { ParentPinDialog } from '../components/ParentPinDialog';
+import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
+import { router } from '@kit.ArkUI';
 
 /**
  * ConfigPage exposes five battle knobs plus a custom-words category.
@@ -42,6 +44,12 @@ struct ConfigPage {
   @State private syncStatusText: string = '';
   @State private syncToastText: string = '';
   @State private syncBusy: boolean = false;
+  // V0.6.2: parent-account binding state. Reloaded on aboutToAppear / onPageShow
+  // so the row reflects the latest binding without forcing a page rebuild.
+  @State private bindingNickname: string = '';
+  @State private bindingPresent: boolean = false;
+  @State private bindingDeviceIdSource: string = '';
+  private cloudCreds: CloudCredentials = new CloudCredentials();
   private syncToastTimer: number = -1;
   private wordPackCache: WordPackCache = new WordPackCache();
   private builtinEntries: WordEntry[] = [];
@@ -70,6 +78,18 @@ struct ConfigPage {
       .catch((err: BusinessError): void => {
         console.error(`ConfigPage: WordPackCache.init failed: ${JSON.stringify(err)}`);
       });
+
+    this.cloudCreds.init(ctx).then((): Promise<void> => this.refreshBindingState())
+      .catch((err: BusinessError): void => {
+        console.error(`ConfigPage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
+      });
+  }
+
+  private async refreshBindingState(): Promise<void> {
+    const snap: CloudCredentialsSnapshot = await this.cloudCreds.load();
+    this.bindingPresent = snap.isBound();
+    this.bindingNickname = snap.nickname.length > 0 ? snap.nickname : '宝贝';
+    this.bindingDeviceIdSource = snap.deviceIdSource;
   }
 
   onPageShow(): void {
@@ -86,6 +106,11 @@ struct ConfigPage {
       this.showValidationHint = false;
       this.forceRerender();
     }
+    // V0.6.2: refresh binding state in case ScanBindingPage / BoundDeviceInfoPage
+    // changed it.
+    this.refreshBindingState().catch((err: BusinessError): void => {
+      console.error(`ConfigPage.onPageShow: refreshBindingState failed: ${JSON.stringify(err)}`);
+    });
   }
 
   private forceRerender(): void {
@@ -199,6 +224,49 @@ struct ConfigPage {
     }
     .alignItems(HorizontalAlign.Start)
     .margin({ bottom: 16 });
+  }
+
+  @Builder
+  private parentAccountRow() {
+    Column() {
+      Row() {
+        Text('家长账户').fontSize(18).width(120);
+        if (this.bindingPresent) {
+          Button(`孩子档案：${this.bindingNickname}`)
+            .id('ConfigBoundDeviceInfoButton')
+            .width(220).height(40).fontSize(15)
+            .backgroundColor('#E0F2FE').fontColor('#0369A1')
+            .borderWidth(2).borderColor('#0EA5E9')
+            .onClick((): void => this.openBoundDeviceInfo());
+        } else {
+          Button('绑定家长账号')
+            .id('ConfigBindParentButton')
+            .width(220).height(40).fontSize(15)
+            .backgroundColor('#FFF4D0').fontColor('#B8860B')
+            .borderWidth(2).borderColor('#FFB400')
+            .onClick((): void => this.openScanBinding());
+        }
+      }
+      .alignItems(VerticalAlign.Center);
+      if (this.bindingDeviceIdSource === 'preferences_fallback') {
+        Text('⚠ 此设备未启用 AssetStoreKit，重装后将丢失家长绑定。')
+          .id('ConfigPersistentIdWarning')
+          .fontSize(12).fontColor('#B45309').margin({ top: 4 });
+      }
+    }
+    .width('100%').alignItems(HorizontalAlign.Start).margin({ bottom: 16 });
+  }
+
+  private openScanBinding(): void {
+    router.pushUrl({ url: 'pages/ScanBindingPage' }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage.openScanBinding: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private openBoundDeviceInfo(): void {
+    router.pushUrl({ url: 'pages/BoundDeviceInfoPage' }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage.openBoundDeviceInfo: ${JSON.stringify(err)}`);
+    });
   }
 
   @Builder
@@ -595,6 +663,7 @@ struct ConfigPage {
         this.autoSpeakRow();
         this.categoryRow();
         this.parentPinRow();
+        this.parentAccountRow();
         this.syncRow();
         this.adminRow();
 

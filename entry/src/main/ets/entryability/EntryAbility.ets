@@ -4,6 +4,7 @@ import { window } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { GameConfig, GAME_CONFIG_STORAGE_KEY } from '../models/GameConfig';
 import { getLearningRecorder } from '../services/LearningRecorder';
+import { DeviceIdProvider } from '../services/DeviceIdProvider';
 
 const DOMAIN = 0x0000;
 
@@ -24,6 +25,14 @@ export default class EntryAbility extends UIAbility {
     getLearningRecorder().init(this.context).catch((err: BusinessError): void => {
       hilog.error(DOMAIN, 'testTag', 'LearningRecorder.init failed: %{public}s', JSON.stringify(err));
     });
+    // V0.6.2: warm the device-id provider so the AssetStoreKit lookup happens
+    // before the user opens ScanBindingPage. The result is cached internally.
+    const deviceIdProvider: DeviceIdProvider = new DeviceIdProvider();
+    deviceIdProvider.init(this.context).then(() => deviceIdProvider.get())
+      .then(() => undefined)
+      .catch((err: BusinessError): void => {
+        hilog.warn(DOMAIN, 'testTag', 'DeviceIdProvider.warmup failed: %{public}s', JSON.stringify(err));
+      });
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 
