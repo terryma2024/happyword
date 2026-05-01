@@ -11,6 +11,7 @@
     "pages/RedemptionHistoryPage",
     "pages/TodayPlanPage",
     "pages/LearningReportPage",
-    "pages/ParentAdminPage"
+    "pages/ParentAdminPage",
+    "pages/LessonDraftReviewPage"
   ]
 }
