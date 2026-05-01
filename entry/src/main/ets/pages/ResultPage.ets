@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
@@ -28,7 +27,7 @@ struct ResultPage {
     // router.getParams() returns unknown; reshape into a SessionResult
     // field-by-field so ArkTS strict mode is satisfied and any missing
     // property stays at the SessionResult default rather than undefined.
-    const raw: Object = router.getParams() as Object;
+    const raw: Object = this.getUIContext().getRouter().getParams() as Object;
     if (raw === null || raw === undefined) {
       return;
     }
@@ -157,7 +156,7 @@ struct ResultPage {
             // session plan can be rebuilt with up-to-date memory
             // states (instead of replaying the cached plan).
             const url: string = this.result.isTodayAdventure ? 'pages/HomePage' : 'pages/BattlePage';
-            router.replaceUrl({ url }).catch((err: BusinessError) => {
+            this.getUIContext().getRouter().replaceUrl({ url }).catch((err: BusinessError): void => {
               console.error(`ResultPage: replaceUrl ${url} failed: ${JSON.stringify(err)}`);
             });
           });
@@ -171,7 +170,7 @@ struct ResultPage {
             .backgroundColor('#FCEAEA')
             .fontColor('#E63946')
             .onClick((): void => {
-              router.replaceUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError) => {
+              this.getUIContext().getRouter().replaceUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError): void => {
                 console.error(`ResultPage: replaceUrl WishlistPage failed: ${JSON.stringify(err)}`);
               });
             });
@@ -182,7 +181,7 @@ struct ResultPage {
           .width(140)
           .height(52)
           .onClick((): void => {
-            router.replaceUrl({ url: 'pages/HomePage' }).catch((err: BusinessError) => {
+            this.getUIContext().getRouter().replaceUrl({ url: 'pages/HomePage' }).catch((err: BusinessError): void => {
               console.error(`ResultPage: replaceUrl HomePage failed: ${JSON.stringify(err)}`);
             });
           });

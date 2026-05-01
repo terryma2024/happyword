@@ -71,7 +71,7 @@ export struct MagicProjectile {
       const d: display.Display = display.getDefaultDisplaySync();
       // display.width is reported in physical pixels; convert to vp so the
       // projectile's traversal matches ArkUI's layout units.
-      this.screenWidthVp = px2vp(d.width);
+      this.screenWidthVp = this.getUIContext().px2vp(d.width);
     } catch (err) {
       const e: BusinessError = err as BusinessError;
       console.error(`MagicProjectile: failed to read display: ${JSON.stringify(e)}`);

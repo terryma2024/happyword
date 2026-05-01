@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import {
   GameConfig,
   GAME_CONFIG_STORAGE_KEY,
@@ -29,11 +28,11 @@ struct CustomWordsPage {
     const merged: GameConfig = cloneGameConfig(current);
     merged.customWordsRaw = this.rawText;
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
-    router.back();
+    this.getUIContext().getRouter().back();
   }
 
   private onCancel(): void {
-    router.back();
+    this.getUIContext().getRouter().back();
   }
 
   build(): void {

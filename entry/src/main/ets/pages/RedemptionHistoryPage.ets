@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import {
@@ -123,7 +122,7 @@ struct RedemptionHistoryPage {
         .fontColor('#457B9D')
         .onClick((): void => {
           try {
-            router.back();
+            this.getUIContext().getRouter().back();
           } catch (err) {
             console.error(`RedemptionHistoryPage.back failed: ${JSON.stringify(err as BusinessError)}`);
           }

@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.services.auth_service import JwtError, decode_access_token
 
 _bearer = HTTPBearer(auto_error=False)
@@ -33,5 +33,15 @@ async def current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": {"code": "UNAUTHORIZED", "message": "User not found"}},
+        )
+    return user
+
+
+async def current_admin_user(user: User = Depends(current_user)) -> User:
+    """Authorize-only wrapper requiring `role == ADMIN`. Returns 403 otherwise."""
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "FORBIDDEN", "message": "Admin role required"}},
         )
     return user

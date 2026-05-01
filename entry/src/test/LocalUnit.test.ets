@@ -656,6 +656,108 @@ export default function localUnitTest() {
         lastWordId = q.wordId;
       }
     });
+
+    it('prefersServerSuppliedDistractorsWhenAvailable', 0, () => {
+      const repo: WordRepository = new WordRepository();
+      const apple: WordEntry = makeWord('fruit-apple', 'apple', '苹果', CATEGORY_FRUIT);
+      apple.distractors = ['plum', 'kiwi', 'fig'];
+      const banana: WordEntry = makeWord('fruit-banana', 'banana', '香蕉', CATEGORY_FRUIT);
+      const pear: WordEntry = makeWord('fruit-pear', 'pear', '梨', CATEGORY_FRUIT);
+      repo.setEntries([apple, banana, pear]);
+
+      // Loop over seeds until the answer happens to be apple — the
+      // assertion targets distractor sourcing for that one path.
+      let q: Question = new QuestionGenerator(repo, mulberry32(7)).nextQuestion();
+      let seed: number = 7;
+      while (q.wordId !== 'fruit-apple' && seed < 200) {
+        seed++;
+        q = new QuestionGenerator(repo, mulberry32(seed)).nextQuestion();
+      }
+      expect(q.wordId).assertEqual('fruit-apple');
+      expect(q.options.length).assertEqual(OPTIONS_PER_QUESTION);
+      // Two of the three options must come from the server distractors;
+      // the third is the answer.
+      const serverHits: number =
+        (q.options.indexOf('plum') >= 0 ? 1 : 0)
+        + (q.options.indexOf('kiwi') >= 0 ? 1 : 0)
+        + (q.options.indexOf('fig') >= 0 ? 1 : 0);
+      expect(serverHits).assertEqual(2);
+      // Same-category words must be IGNORED for distractor selection
+      // when server distractors satisfy the count.
+      expect(q.options.indexOf('banana') < 0).assertTrue();
+      expect(q.options.indexOf('pear') < 0).assertTrue();
+    });
+
+    it('fallsBackToCategoryDistractorsWhenServerSetTooSmall', 0, () => {
+      const repo: WordRepository = buildFruitRepo();
+      const apple: WordEntry | undefined = repo.findById('fruit-apple');
+      expect(apple !== undefined).assertTrue();
+      if (apple !== undefined) {
+        // Bogus server set: only candidate collides with the answer
+        // → generator must fall through to the category pool.
+        apple.distractors = ['apple'];
+      }
+      let q: Question = new QuestionGenerator(repo, mulberry32(11)).nextQuestion();
+      let seed: number = 11;
+      while (q.wordId !== 'fruit-apple' && seed < 200) {
+        seed++;
+        q = new QuestionGenerator(repo, mulberry32(seed)).nextQuestion();
+      }
+      expect(q.wordId).assertEqual('fruit-apple');
+      expect(q.options.length).assertEqual(OPTIONS_PER_QUESTION);
+      expect(q.options.indexOf('apple') >= 0).assertTrue();
+      expect(q.options.indexOf('banana') >= 0
+        || q.options.indexOf('orange') >= 0
+        || q.options.indexOf('pear') >= 0
+        || q.options.indexOf('grape') >= 0).assertTrue();
+    });
+  });
+
+  describe('WordRepository.parseWordsJson v0.5 fields', () => {
+    const v5Json: string = '{"version":1,"schema_version":5,"words":['
+      + '{"id":"fruit-apple","word":"apple","meaningZh":"苹果","category":"fruit","difficulty":1,'
+      + '"distractors":["pear","plum","kiwi"],'
+      + '"example":{"en":"I eat an apple.","zh":"我吃了一个苹果。"},'
+      + '"illustrationUrl":"https://blob/illustrations/fruit-apple-aaaaaaaa.png",'
+      + '"audioUrl":"https://blob/audio/fruit-apple-aaaaaaaa.mp3"}'
+      + ']}';
+
+    it('parsesDistractorsArray', 0, () => {
+      const entries: WordEntry[] = WordRepository.parseWordsJson(v5Json);
+      expect(entries.length).assertEqual(1);
+      const e: WordEntry = entries[0];
+      expect(e.distractors !== undefined).assertTrue();
+      if (e.distractors !== undefined) {
+        expect(e.distractors.length).assertEqual(3);
+        expect(e.distractors[0]).assertEqual('pear');
+      }
+    });
+
+    it('parsesExampleObject', 0, () => {
+      const e: WordEntry = WordRepository.parseWordsJson(v5Json)[0];
+      expect(e.example !== undefined).assertTrue();
+      if (e.example !== undefined) {
+        expect(e.example.en).assertEqual('I eat an apple.');
+        expect(e.example.zh).assertEqual('我吃了一个苹果。');
+      }
+    });
+
+    it('parsesIllustrationAndAudioUrls', 0, () => {
+      const e: WordEntry = WordRepository.parseWordsJson(v5Json)[0];
+      expect(e.illustrationUrl).assertEqual('https://blob/illustrations/fruit-apple-aaaaaaaa.png');
+      expect(e.audioUrl).assertEqual('https://blob/audio/fruit-apple-aaaaaaaa.mp3');
+    });
+
+    it('keepsLegacyV1JsonParsingUnchanged', 0, () => {
+      const v1: string = '{"version":1,"words":['
+        + '{"id":"fruit-apple","word":"apple","meaningZh":"苹果","category":"fruit","difficulty":1}'
+        + ']}';
+      const e: WordEntry = WordRepository.parseWordsJson(v1)[0];
+      expect(e.distractors).assertEqual(undefined);
+      expect(e.example).assertEqual(undefined);
+      expect(e.illustrationUrl).assertEqual(undefined);
+      expect(e.audioUrl).assertEqual(undefined);
+    });
   });
 
   describe('QuestionGenerator.nextQuestionForWord', () => {

@@ -109,20 +109,34 @@ export class QuestionGenerator implements IQuestionSource {
   private pickDistractors(all: WordEntry[], answer: WordEntry): WordEntry[] {
     const needed: number = OPTIONS_PER_QUESTION - 1;
 
-    // 1) Same-category candidates, excluding the answer and avoiding duplicate
+    // 1) V0.5 schema_v2: server-supplied distractors when the curator
+    //    marked them. They come as plain strings; wrap each in a
+    //    synthetic WordEntry so the option-shuffle path stays uniform.
+    const serverPicked: WordEntry[] = this.collectServerDistractors(answer, needed);
+    if (serverPicked.length >= needed) {
+      return serverPicked;
+    }
+
+    // 2) Same-category candidates, excluding the answer and avoiding duplicate
     //    words (different WordEntry objects can legally share the same word
     //    spelling if curators do so; we still want distinct option strings).
     const sameCategory: WordEntry[] = this.collectDistractorCandidates(
       this.repo.byCategory(answer.category),
-      answer
+      answer,
+      serverPicked,
     );
-    const picked: WordEntry[] = this.takeRandom(sameCategory, needed);
+    const fromCategory: WordEntry[] = this.takeRandom(sameCategory, needed - serverPicked.length);
+    const picked: WordEntry[] = serverPicked.slice();
+    for (let i = 0; i < fromCategory.length; i++) {
+      picked.push(fromCategory[i]);
+    }
     if (picked.length >= needed) {
       return picked;
     }
 
-    // 2) Global fallback — spec §5.2 explicitly allows dropping the same-category
-    //    constraint rather than crashing when the category pool is too small.
+    // 3) Global fallback — spec §5.2 explicitly allows dropping the
+    //    same-category constraint rather than crashing when the
+    //    category pool is too small.
     const takenWords: Set<string> = new Set<string>();
     takenWords.add(answer.word);
     for (let i = 0; i < picked.length; i++) {
@@ -146,9 +160,50 @@ export class QuestionGenerator implements IQuestionSource {
     return picked;
   }
 
-  private collectDistractorCandidates(pool: WordEntry[], answer: WordEntry): WordEntry[] {
+  /**
+   * V0.5 schema_v2 path: turn each server-supplied distractor string
+   * into a synthetic WordEntry so the rest of pickDistractors can
+   * treat it uniformly. Filters duplicates and answer collisions;
+   * capped at `needed` entries.
+   */
+  private collectServerDistractors(answer: WordEntry, needed: number): WordEntry[] {
+    const raw: string[] | undefined = answer.distractors;
+    if (raw === undefined || raw.length === 0) {
+      return [];
+    }
+    const seen: Set<string> = new Set<string>();
+    seen.add(answer.word);
+    const out: WordEntry[] = [];
+    for (let i = 0; i < raw.length && out.length < needed; i++) {
+      const w: string = raw[i];
+      if (w.length === 0 || seen.has(w)) {
+        continue;
+      }
+      seen.add(w);
+      const synth: WordEntry = new WordEntry();
+      synth.id = `__distractor-${answer.id}-${i}`;
+      synth.word = w;
+      // meaningZh is required by isValid() but never read by the
+      // option-shuffle path. Use a placeholder so the synthetic
+      // entry would still pass validation if anyone ever rechecked.
+      synth.meaningZh = '_';
+      synth.category = answer.category;
+      synth.difficulty = answer.difficulty;
+      out.push(synth);
+    }
+    return out;
+  }
+
+  private collectDistractorCandidates(
+    pool: WordEntry[],
+    answer: WordEntry,
+    extraExclusions: WordEntry[] = [],
+  ): WordEntry[] {
     const seenWords: Set<string> = new Set<string>();
     seenWords.add(answer.word);
+    for (let i = 0; i < extraExclusions.length; i++) {
+      seenWords.add(extraExclusions[i].word);
+    }
     const out: WordEntry[] = [];
     for (let i = 0; i < pool.length; i++) {
       const e: WordEntry = pool[i];

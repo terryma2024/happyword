@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { CodexEntry, MONSTER_CODEX } from '../data/MonsterCodex';
 
 /**
@@ -71,7 +70,7 @@ struct MonsterCodexPage {
         .fontColor('#1D3557')
         .backgroundColor('#FFFFFF')
         .onClick((): void => {
-          router.back();
+          this.getUIContext().getRouter().back();
         });
 
       Text('怪物图鉴')

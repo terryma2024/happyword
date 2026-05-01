@@ -30,14 +30,27 @@ class RealPrefs implements StringPreferencesLike {
     this.handle = handle;
   }
   async getString(key: string): Promise<string> {
-    const v: preferences.ValueType = await this.handle.get(key, '');
-    return typeof v === 'string' ? v : '';
+    try {
+      const v: preferences.ValueType = await this.handle.get(key, '');
+      return typeof v === 'string' ? v : '';
+    } catch (err) {
+      console.error(`RedemptionHistoryStore.RealPrefs.getString failed: ${JSON.stringify(err as BusinessError)}`);
+      return '';
+    }
   }
-  putString(key: string, value: string): Promise<void> {
-    return this.handle.put(key, value);
+  async putString(key: string, value: string): Promise<void> {
+    try {
+      await this.handle.put(key, value);
+    } catch (err) {
+      console.error(`RedemptionHistoryStore.RealPrefs.putString failed: ${JSON.stringify(err as BusinessError)}`);
+    }
   }
-  flush(): Promise<void> {
-    return this.handle.flush();
+  async flush(): Promise<void> {
+    try {
+      await this.handle.flush();
+    } catch (err) {
+      console.error(`RedemptionHistoryStore.RealPrefs.flush failed: ${JSON.stringify(err as BusinessError)}`);
+    }
   }
 }
 
@@ -63,10 +76,15 @@ export class RedemptionHistoryStore {
     if (this.ready && this.prefs !== undefined) {
       return;
     }
-    const real: preferences.Preferences =
-      await preferences.getPreferences(ctx, REDEMPTION_PREFS_NAME);
-    this.prefs = new RealPrefs(real);
-    this.ready = true;
+    try {
+      const real: preferences.Preferences =
+        await preferences.getPreferences(ctx, REDEMPTION_PREFS_NAME);
+      this.prefs = new RealPrefs(real);
+      this.ready = true;
+    } catch (err) {
+      console.error(`RedemptionHistoryStore.init failed: ${JSON.stringify(err as BusinessError)}`);
+      return;
+    }
     await this.rehydrateForTest();
   }
 

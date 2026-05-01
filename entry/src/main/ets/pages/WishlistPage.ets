@@ -1,4 +1,4 @@
-import { router, promptAction } from '@kit.ArkUI';
+import { promptAction } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import { MagicWish, WishState } from '../models/MagicWish';
@@ -233,7 +233,7 @@ struct WishlistPage {
             return;
           }
           try {
-            router.back();
+            this.getUIContext().getRouter().back();
           } catch (err) {
             console.error(`WishlistPage.back failed: ${JSON.stringify(err as BusinessError)}`);
           }
@@ -241,12 +241,14 @@ struct WishlistPage {
       Blank()
         .layoutWeight(1);
       // V0.3.10: emoji-text 📜 replaced with the warm-parchment scroll
-      // SVG; id / dimensions / background colour preserved so existing
-      // by-id UI tests continue to match. borderRadius(8) explicitly
-      // set because the container Button() syntax does not inherit the
-      // default rectangular Button's soft-corner rounding.
+      // glyph; id / dimensions / background colour preserved so
+      // existing by-id UI tests continue to match. borderRadius(8)
+      // explicitly set because the container Button() syntax does not
+      // inherit the default rectangular Button's soft-corner rounding.
+      // V0.5 follow-up: rasterized 96×96 PNG (was scroll.svg) so the
+      // rasterizer can't drop a placeholder frame on remount.
       Button({ type: ButtonType.Normal, stateEffect: true }) {
-        Image($rawfile('icons/scroll.svg'))
+        Image($rawfile('icons/scroll.png'))
           .width(22)
           .height(22)
           .objectFit(ImageFit.Contain)
@@ -261,7 +263,7 @@ struct WishlistPage {
           if (this.giftBoxVisible) {
             return;
           }
-          router.pushUrl({ url: 'pages/RedemptionHistoryPage' })
+          this.getUIContext().getRouter().pushUrl({ url: 'pages/RedemptionHistoryPage' })
             .catch((err: BusinessError): void => {
               console.error(`WishlistPage: pushUrl history failed: ${JSON.stringify(err)}`);
             });
@@ -369,7 +371,7 @@ struct WishlistPage {
   }
 
   private showNoPinAlert(): void {
-    promptAction.showDialog({
+    this.getUIContext().getPromptAction().showDialog({
       title: '尚未设置家长密码',
       message: '请先在设置页面配置家长密码（6 位数字），再使用此功能。',
       buttons: [{ text: '知道了', color: '#1D3557' }],
@@ -458,7 +460,11 @@ struct WishlistPage {
       Date.now(),
     );
     if (newId.length === 0) {
-      promptAction.showToast({ message: '添加失败，请检查输入', duration: 1500 });
+      try {
+        this.getUIContext().getPromptAction().showToast({ message: '添加失败，请检查输入', duration: 1500 });
+      } catch (err) {
+        console.error(`WishlistPage: showToast (add fail) failed: ${JSON.stringify(err as BusinessError)}`);
+      }
       return;
     }
     this.refresh();
@@ -472,7 +478,7 @@ struct WishlistPage {
     if (wish === undefined) {
       return;
     }
-    promptAction.showDialog({
+    this.getUIContext().getPromptAction().showDialog({
       title: '删除该愿望？',
       message: `「${wish.displayName}」将从愿望单中移除，已记录的兑换历史不受影响。`,
       buttons: [
@@ -487,7 +493,11 @@ struct WishlistPage {
       }
       const ok: boolean = this.store.removeCustomWish(wishId);
       if (!ok) {
-        promptAction.showToast({ message: '删除失败', duration: 1500 });
+        try {
+          this.getUIContext().getPromptAction().showToast({ message: '删除失败', duration: 1500 });
+        } catch (err) {
+          console.error(`WishlistPage: showToast (remove fail) failed: ${JSON.stringify(err as BusinessError)}`);
+        }
       }
       this.refresh();
       this.pendingWishId = '';

@@ -1,4 +1,5 @@
-import { promptAction } from '@kit.ArkUI';
+import { UIContext } from '@kit.ArkUI';
+import { BusinessError } from '@ohos.base';
 
 /**
  * V0.3.9: parent PIN gate dialog used by WishlistPage. Built as a
@@ -172,16 +173,17 @@ export struct ParentPinDialog {
   }
 
   private shakeOnError(): void {
-    animateTo({ duration: 70, curve: Curve.Linear }, (): void => {
+    const ui: UIContext = this.getUIContext();
+    ui.animateTo({ duration: 70, curve: Curve.Linear }, (): void => {
       this.shakeOffset = -8;
     });
     setTimeout((): void => {
-      animateTo({ duration: 70, curve: Curve.Linear }, (): void => {
+      ui.animateTo({ duration: 70, curve: Curve.Linear }, (): void => {
         this.shakeOffset = 8;
       });
     }, 70);
     setTimeout((): void => {
-      animateTo({ duration: 70, curve: Curve.Linear }, (): void => {
+      ui.animateTo({ duration: 70, curve: Curve.Linear }, (): void => {
         this.shakeOffset = 0;
       });
     }, 140);
@@ -194,7 +196,16 @@ export struct ParentPinDialog {
   }
 }
 
-/** Helper to surface lightweight feedback (e.g. wrong-pin toast). */
-export function showPinToast(message: string): void {
-  promptAction.showToast({ message, duration: 1500 });
+/**
+ * Helper to surface lightweight feedback (e.g. wrong-pin toast).
+ * Caller passes a UIContext (typically `this.getUIContext()` from the
+ * host @Entry / @Component) since `promptAction.showToast` was
+ * deprecated in favour of `UIContext.getPromptAction().showToast`.
+ */
+export function showPinToast(ui: UIContext, message: string): void {
+  try {
+    ui.getPromptAction().showToast({ message, duration: 1500 });
+  } catch (err) {
+    console.error(`showPinToast failed: ${JSON.stringify(err as BusinessError)}`);
+  }
 }

@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import {
@@ -21,6 +20,8 @@ import { describeMonsterKind } from '../services/TodayAdventureBuilder';
 import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
 import { CoinSnapshot } from '../models/CoinSnapshot';
 import { getTodayPreferences, TodayPreferences } from '../services/TodayPreferences';
+import { WordPackCache, WordPackCacheRecord } from '../services/WordPackCache';
+import { CategoryCatalog, CategoryRow } from '../services/CategoryCatalog';
 
 /**
  * Review-mode gating threshold. Mirrors spec §15 Track D: kids need at
@@ -55,9 +56,19 @@ struct HomePage {
   private toastTimer: number = -1;
   private coins: CoinAccount = getCoinAccount();
   private todayPrefs: TodayPreferences = getTodayPreferences();
+  /**
+   * V0.5.E: server-side category overlay. Empty until the WordPackCache
+   * has produced a v4+ record; v1 packs (current production) leave this
+   * empty so the bundled AdventureCatalog labels stay in place.
+   * `categoryCatalogVersion` is bumped on every refresh so the @Builder
+   * methods that read the overlay re-render after the async load.
+   */
+  @State private categoryCatalogVersion: number = 0;
+  private categoryCatalog: CategoryCatalog = new CategoryCatalog();
+  private wordPackCache: WordPackCache = new WordPackCache();
 
   aboutToAppear(): void {
-    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.coins.init(ctx).then((): void => {
       this.coins.beginToday(Date.now());
       this.refreshBalance();
@@ -76,6 +87,10 @@ struct HomePage {
     }).catch((err: BusinessError): void => {
       console.error(`HomePage: TodayPreferences.init failed: ${JSON.stringify(err)}`);
     });
+    this.wordPackCache.init(ctx).then((): Promise<void> => this.refreshCategoryCatalog())
+      .catch((err: BusinessError): void => {
+        console.error(`HomePage: WordPackCache.init failed: ${JSON.stringify(err)}`);
+      });
     this.refreshWrongCount();
   }
 
@@ -87,6 +102,12 @@ struct HomePage {
     this.refreshBalance();
     this.refreshWrongCount();
     this.refreshTodayState();
+    // V0.5.E: re-read the cache so a successful manual sync on
+    // ConfigPage shows fresh category overlays the next time the
+    // player returns to the home screen.
+    this.refreshCategoryCatalog().catch((err: BusinessError): void => {
+      console.error(`HomePage: refreshCategoryCatalog failed: ${JSON.stringify(err)}`);
+    });
   }
 
   aboutToDisappear(): void {
@@ -104,6 +125,44 @@ struct HomePage {
   private refreshWrongCount(): void {
     this.recentWrongCount =
       getLearningRecorder().recentWrongIds(REVIEW_WINDOW_SIZE).length;
+  }
+
+  private async refreshCategoryCatalog(): Promise<void> {
+    const rec: WordPackCacheRecord | undefined = await this.wordPackCache.readRecord();
+    if (rec === undefined) {
+      this.categoryCatalog.setRows([]);
+      this.categoryCatalogVersion += 1;
+      return;
+    }
+    this.categoryCatalog.setRows(CategoryCatalog.parsePackCategories(rec.body));
+    this.categoryCatalogVersion += 1;
+  }
+
+  /**
+   * V0.5.E overlay: prefer the server `labelZh` for the given region id
+   * when available, otherwise fall back to the bundled `displayName`.
+   */
+  private regionLabel(region: AdventureRegion): string {
+    // Read this.categoryCatalogVersion here so any @State-bound caller
+    // re-runs when setRows() bumps the version. ArkUI does not track
+    // through helper methods, so the caller must read the @State too.
+    const overlay: CategoryRow | undefined = this.categoryCatalog.getById(region.id);
+    if (overlay !== undefined && overlay.labelZh.length > 0) {
+      return overlay.labelZh;
+    }
+    return region.displayName;
+  }
+
+  /**
+   * V0.5.E overlay: prefer the server `storyZh` for the active region
+   * when available; otherwise show the bundled static blurb.
+   */
+  private regionStory(region: AdventureRegion): string {
+    const overlay: CategoryRow | undefined = this.categoryCatalog.getById(region.id);
+    if (overlay !== undefined && overlay.storyZh !== undefined && overlay.storyZh.length > 0) {
+      return overlay.storyZh;
+    }
+    return '今天的冒险包含 5 关卡，含拼写、复习与首领关';
   }
 
   private refreshTodayState(): void {
@@ -157,13 +216,14 @@ struct HomePage {
       storedCfg !== undefined ? storedCfg : new GameConfig());
     cfg.mode = GAME_MODE_REVIEW;
     AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
-    router.pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
       console.error(`HomePage: pushUrl BattlePage (review) failed: ${JSON.stringify(err)}`);
     });
   }
 
   private enterTodayAdventure(): void {
-    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const router = this.getUIContext().getRouter();
     WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
       const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
       const builder: TodayAdventureBuilder = new TodayAdventureBuilder();
@@ -251,10 +311,19 @@ struct HomePage {
         // V0.3.10: emoji text replaced by an inline Image child. The
         // Button() container syntax keeps the id / size / circular
         // shape / soft-pink background, while letting us render a
-        // Recraft-generated rawfile SVG as the glyph. lock state
-        // dimming is now handled via .opacity on the Image.
+        // Recraft-generated rawfile glyph. lock state dimming is
+        // handled via .opacity on the Image.
+        //
+        // V0.5 follow-up: the four toolbar icons were originally
+        // rawfile SVGs (58–141 KB / ~120 paths each). Even with
+        // syncLoad(true) the SVG rasterizer would occasionally yield
+        // a placeholder square on remount (back-nav from any pushed
+        // page), which the user reads as the icon "reverting to an
+        // emoji". Pre-rasterized 96×96 PNGs decode reliably and stay
+        // stable across remounts; the original SVGs are kept on
+        // disk as the design source.
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/review.svg'))
+          Image($rawfile('icons/review.png'))
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
@@ -274,7 +343,7 @@ struct HomePage {
           });
 
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/codex.svg'))
+          Image($rawfile('icons/codex.png'))
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
@@ -285,7 +354,7 @@ struct HomePage {
           .height(56)
           .backgroundColor('#FCEAEA')
           .onClick((): void => {
-            router.pushUrl({ url: 'pages/MonsterCodexPage' }).catch((err: BusinessError): void => {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/MonsterCodexPage' }).catch((err: BusinessError): void => {
               console.error(`HomePage: pushUrl MonsterCodexPage failed: ${JSON.stringify(err)}`);
             });
           });
@@ -304,13 +373,13 @@ struct HomePage {
           .height(56)
           .backgroundColor('#FCEAEA')
           .onClick((): void => {
-            router.pushUrl({ url: 'pages/TodayPlanPage' }).catch((err: BusinessError): void => {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/TodayPlanPage' }).catch((err: BusinessError): void => {
               console.error(`HomePage: pushUrl TodayPlanPage failed: ${JSON.stringify(err)}`);
             });
           });
 
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/wishlist.svg'))
+          Image($rawfile('icons/wishlist.png'))
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
@@ -321,13 +390,13 @@ struct HomePage {
           .height(56)
           .backgroundColor('#FCEAEA')
           .onClick((): void => {
-            router.pushUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError): void => {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/WishlistPage' }).catch((err: BusinessError): void => {
               console.error(`HomePage: pushUrl WishlistPage failed: ${JSON.stringify(err)}`);
             });
           });
 
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/gear.svg'))
+          Image($rawfile('icons/gear.png'))
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
@@ -338,7 +407,7 @@ struct HomePage {
           .height(56)
           .backgroundColor('#EAF2F8')
           .onClick((): void => {
-            router.pushUrl({ url: 'pages/ConfigPage' }).catch((err: BusinessError) => {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/ConfigPage' }).catch((err: BusinessError): void => {
               console.error(`HomePage: pushUrl ConfigPage failed: ${JSON.stringify(err)}`);
             });
           });
@@ -362,7 +431,9 @@ struct HomePage {
   private adventureCard() {
     Column({ space: 10 }) {
       Row() {
-        Text(this.todayRegion.displayName)
+        // V0.5.E: read categoryCatalogVersion here so ArkUI re-runs the
+        // builder after a server pack overlay applies.
+        Text(this.categoryCatalogVersion >= 0 ? this.regionLabel(this.todayRegion) : this.todayRegion.displayName)
           .id('AdventureCardTitle')
           .fontSize(22)
           .fontWeight(FontWeight.Bold)
@@ -392,7 +463,8 @@ struct HomePage {
       }
       .width('100%');
 
-      Text('今天的冒险包含 5 关卡，含拼写、复习与首领关')
+      Text(this.categoryCatalogVersion >= 0 ? this.regionStory(this.todayRegion) : '今天的冒险包含 5 关卡，含拼写、复习与首领关')
+        .id('AdventureCardStory')
         .fontSize(14)
         .fontColor('#5A4A35');
 
@@ -425,7 +497,7 @@ struct HomePage {
     Scroll() {
       Row({ space: 10 }) {
         ForEach(ADVENTURE_REGIONS, (r: AdventureRegion): void => {
-          Button(r.displayName)
+          Button(this.categoryCatalogVersion >= 0 ? this.regionLabel(r) : r.displayName)
             .id(`RegionChip_${r.id}`)
             .fontSize(13)
             .height(32)

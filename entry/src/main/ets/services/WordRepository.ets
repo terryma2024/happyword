@@ -1,11 +1,12 @@
 import { common } from '@kit.AbilityKit';
 import { util } from '@kit.ArkTS';
 import { BusinessError } from '@ohos.base';
-import { WordEntry } from '../models/WordEntry';
+import { ExampleSentence, WordEntry } from '../models/WordEntry';
 
 /**
- * Shape of the raw JSON payload bundled in `rawfile/data/words_v1.json`.
- * Keeping it explicit (not `any`) so the parser stays strictly typed.
+ * Shape of the raw JSON payload bundled in `rawfile/data/words_v1.json`,
+ * also used for server packs (schema_version 1..5). Keeping it explicit
+ * (not `any`) so the parser stays strictly typed.
  */
 interface WordsFilePayload {
   version: number;
@@ -20,6 +21,15 @@ interface WordEntryJson {
   difficulty: number;
   image?: string;
   audio?: string;
+  distractors?: string[];
+  example?: WordEntryExampleJson;
+  illustrationUrl?: string;
+  audioUrl?: string;
+}
+
+interface WordEntryExampleJson {
+  en?: string;
+  zh?: string;
 }
 
 /** Default rawfile location for the V0.1 bundled word list. */
@@ -134,6 +144,43 @@ export class WordRepository {
       entry.difficulty = typeof raw.difficulty === 'number' ? raw.difficulty : 1;
       entry.image = raw.image;
       entry.audio = raw.audio;
+
+      // V0.5 schema_v2: optional distractor strings. Drop empty
+      // values silently; an all-empty array stays undefined so the
+      // QuestionGenerator falls back to category sourcing.
+      if (Array.isArray(raw.distractors)) {
+        const cleaned: string[] = [];
+        const arr: string[] = raw.distractors as string[];
+        for (let j = 0; j < arr.length; j++) {
+          const d: string = arr[j];
+          if (typeof d === 'string' && d.length > 0) {
+            cleaned.push(d);
+          }
+        }
+        if (cleaned.length > 0) {
+          entry.distractors = cleaned;
+        }
+      }
+
+      // V0.5 schema_v2: optional bilingual example. Both halves are
+      // optional — the pack may have only Chinese or only English.
+      if (raw.example !== undefined && raw.example !== null) {
+        const ex: ExampleSentence = new ExampleSentence();
+        ex.en = typeof raw.example.en === 'string' ? raw.example.en : '';
+        ex.zh = typeof raw.example.zh === 'string' ? raw.example.zh : '';
+        if (ex.en.length > 0 || ex.zh.length > 0) {
+          entry.example = ex;
+        }
+      }
+
+      // V0.5 schema_v5: Vercel Blob asset URLs.
+      if (typeof raw.illustrationUrl === 'string' && raw.illustrationUrl.length > 0) {
+        entry.illustrationUrl = raw.illustrationUrl;
+      }
+      if (typeof raw.audioUrl === 'string' && raw.audioUrl.length > 0) {
+        entry.audioUrl = raw.audioUrl;
+      }
+
       if (!entry.isValid()) {
         continue;
       }

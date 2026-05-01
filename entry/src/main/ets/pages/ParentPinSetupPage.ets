@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import {
   GameConfig,
   GAME_CONFIG_STORAGE_KEY,
@@ -65,7 +64,7 @@ struct ParentPinSetupPage {
           .id('ParentPinSetupCancel')
           .width(160).height(44)
           .backgroundColor('#BDBDBD')
-          .onClick((): void => router.back());
+          .onClick((): void => this.getUIContext().getRouter().back());
       }
       .width('100%')
       .padding({ top: 24, left: 24, right: 24, bottom: 24 })
@@ -196,7 +195,7 @@ struct ParentPinSetupPage {
         cloneGameConfig(stored !== undefined ? stored : new GameConfig());
       next.parentPin = this.firstBuf;
       AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, next);
-      router.back();
+      this.getUIContext().getRouter().back();
       return;
     }
     this.mismatch = true;

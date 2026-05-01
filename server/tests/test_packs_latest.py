@@ -13,7 +13,9 @@ async def test_packs_latest_with_no_words_returns_empty_list(
     resp = await client.get("/api/v1/packs/latest.json")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["version"] == 1
+    # V0.5.3: live fallback (no pack ever published) reports version=0 so
+    # operators can distinguish "no publish yet" from "published v1".
+    assert body["version"] == 0
     assert body["schema_version"] == 1
     assert body["words"] == []
 

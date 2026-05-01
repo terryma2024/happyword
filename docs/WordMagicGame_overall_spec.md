@@ -1,269 +1,155 @@
 # WordMagicGame 产品与架构设计规格
 
-> 文档状态：正式产品架构设计  
-> 适用版本：V0.1 原型及后续迭代基线  
-> 初始需求来源：`docs/鸿蒙背单词游戏开发.pdf`  
-> 目标平台：HarmonyOS NEXT，ArkTS，ArkUI，DevEco Studio 托管工程
+> 文档状态：当前版本基线（V0.5 follow-up）
+> 适用版本：V0.1 原型 → V0.5 服务端化
+> 客户端目标平台：HarmonyOS NEXT，ArkTS / ArkUI，DevEco Studio 托管工程
+> 服务端：Python 3.11，FastAPI + Beanie(MongoDB)，部署在 Vercel Serverless
+> 详细演进时间线见 [`WordMagicGame_roadmap.md`](WordMagicGame_roadmap.md)；本文记录"现在跑的代码长什么样"。
+
+---
 
 ## 1. 产品定位
 
-WordMagicGame，中文暂定名“小魔法师单词冒险”，是一款面向儿童的英语单词学习小游戏。产品通过“魔法公主对战史莱姆”的轻量战斗包装，将单词选择题转化为短时冒险体验，降低机械背诵的枯燥感，并帮助 8 岁左右儿童建立中文含义、英文单词与即时反馈之间的记忆连接。
+WordMagicGame（中文暂定名"小魔法师单词冒险"）是面向 8 岁左右儿童的英语单词学习小游戏。产品通过"魔法师对战怪物"的轻量战斗 + "今日冒险"每日剧情 + "魔法币兑换愿望单"的成长闭环，把单词练习包装成短时冒险体验：单局 3–5 分钟即可完成，正向反馈密度高，并保留家长侧的内容/账户/数据掌控点。
 
-V0.1 的目标不是构建完整商业化游戏，而是交付一个可运行、可扩展、可验证的离线原型。该原型应能稳定运行在华为平板和手机上，完成从首页、战斗、答题、结算到重新开始的基础闭环，为后续加入动画、音效、发音、关卡、学习记录和内容扩展留下清晰边界。
+经过 V0.1 → V0.5 的迭代，产品已经从一个本地原型演进为：
+
+- 设备端：完整闭环的 HarmonyOS 应用，含战斗、复习、每日冒险、愿望单、家长 PIN、本地学习报告。
+- 服务端：FastAPI 应用（部署在 Vercel），管理词库 / 词包 / 类目 / 兑换池 / 家长账户 / OpenAI 辅助内容生成。
+- 协同：客户端按用户主动操作从服务端拉最新词包到本地缓存，下次冷启动从缓存重建本地仓库。
+
+---
 
 ## 2. 用户与场景
 
-### 2.1 目标用户
+### 2.1 角色
 
-- 核心用户：8 岁左右、正在学习英语基础词汇的儿童。
-- 使用陪伴者：家长或开发者本人，用于配置词库、观察学习效果和后续迭代内容。
-- 学习阶段：从中文释义或图片/语音提示识别英文单词，优先覆盖常见名词。
+- **儿童玩家**：8 岁左右，正在打基础英语词汇。
+- **家长**：通过 6 位家长 PIN 解锁兑换、添加 / 删除自定义愿望、进入管理员控制台、设置 / 修改 PIN。
+- **内容运营 / 开发者**：通过服务端 Admin Console 管理单词、生成插画与音频、发布词包、查看统计。
 
 ### 2.2 使用场景
 
-- 平板横屏短时学习：以华为 MatePad Air 为首要体验设备。
-- 手机横屏补充练习：兼容 Mate 60 Pro 及其他支持 HarmonyOS NEXT 的手机。
-- 离线使用：首版不依赖网络、账号、服务端或云同步，所有词库和资源本地打包。
+- 平板横屏短时学习（华为 MatePad Air 为首要体验设备）。
+- 手机横屏补充练习（Mate 60 Pro 等）。
+- 离线优先：所有"必须在线"的功能都靠本地缓存兜底；冷启动从本地词包加载，不需要网络。
+- 半在线：家长在 ConfigPage "词库同步" 行主动点击"同步词包"才会拉服务端最新词包。
 
-### 2.3 产品成功标准
+### 2.3 成功标准
 
-- 儿童可以在 5 分钟内独立完成一局游戏。
-- 答题反馈足够及时，能清楚知道“答对造成伤害、答错自己扣血”。
-- 视觉和交互足够游戏化，但规则简单到不需要额外教学。
-- 架构上能支持后续添加更多词库、题型、角色、音效和学习统计。
+- 儿童 5 分钟内独立完成一局今日冒险。
+- 答对/答错反馈即时、动效与音效区分明显。
+- 家长能在不打扰孩子的情况下管理 PIN、愿望单、词库。
+- 服务端发布新词包后，孩子下次入主页能看到新区域 / 新词，全程不需要重装应用。
 
-## 3. 版本范围
+---
 
-### 3.1 V0.1 必须包含
+## 3. 版本演进概览
 
-- 首页：展示游戏名、开始游戏入口和基础说明。
-- 战斗页：横屏战斗布局，左侧玩家角色，右侧怪物，中间或下方显示题目与三项英文选项。
-- 答题流程：每题显示中文提示，用户从三个英文选项中选择答案。
-- 战斗规则：正确答案攻击怪物，错误答案扣除玩家 HP。
-- 连击规则：连续答对 3 题后触发一次双倍伤害。
-- 结算页：展示本局胜负、击败怪物数、正确率、学习词数和星级奖励。
-- 本地词库：首批约 30 个词，分为水果、日常地点、家居物品三类。
-- 响应式横屏：适配平板与手机横屏，不出现主要内容裁切。
+下表是已落地的主线版本。详细子版本（V0.3.5–V0.3.10、V0.4.x、V0.5.x）参见 [`WordMagicGame_roadmap.md`](WordMagicGame_roadmap.md)。
 
-### 3.2 V0.1 明确不包含
+| 版本   | 主题                | 关键交付                                                                                                |
+| ---- | ----------------- | --------------------------------------------------------------------------------------------------- |
+| V0.1 | 原型基线              | HomePage / BattlePage / ResultPage 闭环；30 词本地 JSON；三选一 MCQ；连击双倍伤害。                                   |
+| V0.2 | 学习体验增强            | `AudioService` / `PronunciationService` / `LearningRecorder` / `WrongAnswerStore`；暴击视听五层；错题复习模式。     |
+| V0.3 | 内容与关卡             | "今日冒险" `TodaySessionPlan`；Wishlist + `CoinAccount`；区域选择器；怪物图鉴；Spell / FillLetter 题型；家长 PIN 兑换闸。     |
+| V0.4 | 复习与成长             | 自定义 PIN 设置页；自定义愿望（家长添加 / 删除）；今日学习计划与本地学习报告；五区主题（含 Animal Safari / Ocean Realm）；V0.3.10 暖羊皮纸图标整套。 |
+| V0.5 | 服务端化              | FastAPI 服务端 + Beanie/MongoDB；JWT 管理员账户；schema 版本化的词包发布；客户端手动同步 + 本地缓存；OpenAI 课本扫描 / 例句 / 干扰项辅助。     |
+| V0.5 follow-up（当前） | 客户端化 V0.5 + 体验细节修复 | 设备端 Admin Console；ConfigPage 同步入口；HomePage 区域故事用服务端 categories 覆写；魔法币改为 1 ⭐ = 1 币；工具栏图标光栅化；UI 自动化补全。  |
 
-- 用户账号、登录、云同步和排行榜。
-- 在线词库、服务端内容管理和远程配置。
-- 复杂养成系统、装备系统、商城或内购。
-- 强依赖图片识别、语音识别或 AI 生成题目。
-- 竖屏模式完整适配。
+---
 
-## 4. 游戏规则设计
+## 4. 游戏规则
 
-### 4.1 基础参数
+### 4.1 战斗参数（默认 / 可配置上下界）
 
+| 项目        | 默认                           | 可配范围 / 备注                                          |
+| --------- | ---------------------------- | -------------------------------------------------- |
+| 玩家 HP     | 5                            | 1 – 10（ConfigPage 步进）                              |
+| 怪物 HP     | 3                            | 1 – 10                                             |
+| 单局怪物数     | 5                            | 1 – 10                                             |
+| 单局倒计时     | 300 s                        | 来自 `TIMER_CHOICES = [3, 15, 30, 60, 120, 300, 600]` |
+| 每次正确伤害    | 1                            | 固定                                                 |
+| 连击奖励      | 连续答对 3 题 → 当次伤害 2，触发"魔法爆发"反馈 | 固定；暴击视听见 §4.4                                      |
+| 失败条件      | 玩家 HP = 0 或倒计时归零             | 任一即结束                                              |
+| 胜利条件      | 怪物全数被击败                      |                                                    |
+| 选项数量（MCQ） | 3                            | `QuestionGenerator.MIN_REPO_SIZE = 3`              |
 
-| 项目     | V0.1 设定                |
-| ------ | ---------------------- |
-| 单局时长   | 5 分钟                   |
-| 每局怪物数  | 5 个                    |
-| 玩家 HP  | 5                      |
-| 怪物 HP  | 3                      |
-| 每次正确伤害 | 1                      |
-| 连击奖励   | 连续答对 3 题后，本次攻击造成 2 点伤害 |
-| 选项数量   | 3 个英文选项                |
-| 失败条件   | 玩家 HP 为 0，或倒计时结束       |
-| 胜利条件   | 5 个怪物全部被击败             |
-
+> 默认值与 `entry/src/main/ets/models/GameConfig.ets`、`BattleEngine.ets` 中的常量保持一致，单测 `defaultsMatchEngineDefaults` 守住一致性。
 
 ### 4.2 答题循环
 
-1. 战斗开始后创建初始 `BattleState`，加载本局词库并生成第一题。
-2. 页面显示中文提示词、三个英文选项、双方 HP、当前怪物和剩余时间。
-3. 用户点击选项后，系统判断是否正确。
-4. 正确时增加连击计数，并按普通或连击伤害扣除怪物 HP。
-5. 错误时重置连击计数，玩家 HP 减 1，并短暂显示正确答案。
-6. 怪物 HP 为 0 时记录击败数，若未击败 5 个怪物则生成下一个怪物。
-7. 玩家 HP 为 0、倒计时归零或击败全部怪物时结束战斗并进入结算页。
+1. BattlePage `aboutToAppear` 根据 `GameConfig.mode` / `TodaySessionPlan` 构造对应的 `IQuestionSource`。
+2. `BattleEngine.start()` 创建初始 `BattleState` 并产出第一题。
+3. UI 渲染中文提示、题型对应控件（MCQ / FillLetter / Spell）、双方 HP、当前怪序号、剩余时间。
+4. 用户提交答案 → `BattleEngine.submitAnswer(option)` 返回 `AnswerOutcome`：
+   - 正确：`comboCount += 1`；当次伤害 = `comboTriggered ? 2 : 1`；扣怪 HP；记录学习数据。
+   - 错误：`comboCount = 0`，玩家 HP -1，短暂显示正确答案。
+5. 怪物 HP = 0 时 `defeatedMonsters += 1`，未达 `monstersTotal` 则推下一只。
+6. 任一终止条件成立时 `engine.buildSessionResult()` → `BattlePage.navigateToResult()` → `replaceUrl('pages/ResultPage')`。
 
-### 4.3 连击规则
+### 4.3 题型矩阵
 
-连击采用“第三次连续答对即触发奖励”的规则。每次答对后 `comboCount` 加 1；当 `comboCount` 达到 3 时，本次伤害为 2，触发魔法爆发反馈，并将 `comboCount` 重置为 0。答错会立即将 `comboCount` 重置为 0。
+| 题型枚举                      | 何时出现                  | 控件                                              |
+| ------------------------- | --------------------- | ----------------------------------------------- |
+| `Choice`                  | 普通槽 / 复习槽 / 兜底        | 三个 `ChoiceButton`                               |
+| `FillLetter`              | Spelling 槽位（缺 1 个字母）  | 字母模板 + 三个字母 `ChoiceButton`                      |
+| `FillLetterMedium`        | Elite 槽位（缺 2 个字母，两步）  | 字母模板 + 三个字母 `ChoiceButton`，分两步                  |
+| `Spell`                   | Boss 槽位               | `SpellingArea`：从打乱字母池里按序点齐                      |
 
-该规则简单、可感知，并能在短局内频繁触发奖励。后续版本可扩展为更长连击条、技能槽或角色技能，但 V0.1 不引入额外复杂度。
+`PlanQuestionSource` 决定每个怪槽位优先尝试哪种题型，词库不够时降级到下一档。
 
-**V0.2 暴击视听分层 (crit spectacle).** 当 `AnswerOutcome.comboTriggered === true` 时，`BattlePage` 叠放以下五层反馈（详见 [2026-04-24-v0.2-design.md](superpowers/specs/2026-04-24-v0.2-design.md) §4），以让暴击明显强于普通攻击：
+### 4.4 暴击视听五层（`AnswerOutcome.comboTriggered === true`）
 
-1. **全屏金色闪光**：`CritOverlay` 中的 `CritGoldFlash`，`#FFB400` opacity `0 → 0.55 → 0`，约 450 ms。
-2. **巨型浮动伤害数字**：`CritDamageNumber` 72 vp，`-${outcome.damage}!` 悬浮于怪物卡片上方，联合 `translateY / opacity / scale` 约 700 ms。
-3. **怪物缓慢放大**：`CharacterCard.zoomPulse` 驱动 220 ms ease-out 放大至 1.12，保持 120 ms 后在 160 ms 内复位。
-4. **独立爆发音效**：`AudioService.play('hit_crit')`；普通攻击仍然使用 `hit_normal`。
-5. **延长的玩家施法动画**：`CharacterCard.castPulse` 触发 500 ms 旋转 + 缩放 + 金色光环，明显长于普通命中的 120 ms 轻推。
+1. **全屏金色闪光** `CritGoldFlash` (`#FFB400`，opacity 0 → 0.55 → 0，~450 ms)。
+2. **巨型浮动伤害数字** `CritDamageNumber` 72 vp，`-${damage}!`，translateY + opacity + scale，~700 ms。
+3. **怪物 zoomPulse** 220 ms ease-out × 1.12 → 持续 120 ms → 160 ms 复位。
+4. **独立爆发音效** `AudioService.play('hit_crit')`；普通命中走 `hit_normal`。
+5. **加长玩家施法动画** `castPulse` 500 ms 旋转 + 缩放 + 金色光环（普通仅 120 ms `nudgePulse`）。
 
-普通命中走 `hurtPulse / nudgePulse`（150 ms / 120 ms），两条路径在 `onOptionTap` 里二选一触发，避免视觉叠加。`FEEDBACK_MS` 保持 650 ms，五层动画均在该窗口内完成。
+`FEEDBACK_MS = 650 ms` 同时控制反馈窗口；五层动效都在该窗口内完成。
 
-### 4.4 星级奖励
+### 4.5 星级奖励
 
-V0.1 采用轻量星级反馈，不涉及持久化货币。建议规则如下：
+`BattleEngine.computeStars()`：
 
+| 星级 | 条件                       |
+| -- | ------------------------ |
+| 3 ⭐ | 胜利且正确率 ≥ 80%             |
+| 2 ⭐ | 胜利（正确率 < 80%）或击破 ≥ 3 只怪 |
+| 1 ⭐ | 击破 ≥ 1 只怪                |
+| 0 ⭐ | 上述都不满足                   |
 
-| 星级  | 条件                       |
-| --- | ------------------------ |
-| 3 星 | 胜利且正确率不低于 80%            |
-| 2 星 | 胜利但正确率低于 80%，或击败至少 3 个怪物 |
-| 1 星 | 击败至少 1 个怪物               |
-| 0 星 | 未击败怪物                    |
+### 4.6 魔法币（V0.5 follow-up 起：1 星 = 1 币）
 
+仅 **今日冒险** 模式产生魔法币（其他模式只有星星反馈）：
+
+```
+coinsEarned = result.stars   // 0..3
+```
+
+- 当日首次完成今日冒险 + 胜利：通过 `COIN_REASON_TODAY_FIRST` 计入，触发 HomePage "已完成"徽章；即使 `DAILY_CAP` 截到 0 币，徽章仍翻起。
+- 其他完成（重玩 / 失败但有击破）：通过 `'stars'` 这个 txn reason 计入。
+- `DAILY_CAP = 20`，单局上限 3 币，理论上单日打满需要 7 局以上，正常使用不会触顶。
+
+---
 
 ## 5. 内容设计
 
-### 5.1 首批词库
+### 5.1 词库来源
 
-首版包含约 30 个高频、短词、具象名词，优先降低儿童阅读负担。
+按优先级：
 
+1. **远端词包缓存**（`WordPackCache.read()`）— 用户在 ConfigPage 主动同步过且未失效。
+2. **设备端 rawfile** `entry/src/main/resources/rawfile/data/words_v1.json` — 兜底，App 安装后即可用。
+3. **自定义词** — `GameConfig.customWordsRaw`，按 `中文:英文` / `中文：英文` 解析（支持半角/全角冒号），仅在用户勾选 `custom` 类目时拼入战斗池。
 
-| 分类   | 示例                                  |
-| ---- | ----------------------------------- |
-| 常见水果 | apple, banana, orange, grape, pear  |
-| 日常地点 | school, hospital, park, supermarket |
-| 家居物品 | TV, chair, bed, table               |
+战斗池由 `computeFinalPool(allBuiltin, enabledCategories, customWordsRaw)` 在 BattlePage 启动时计算。
 
-
-首版应避免过长或罕见单词，例如 `refrigerator`。若必须包含长词，应放入后续难度分层，而非 V0.1 默认词库。
-
-### 5.2 题目生成原则
-
-- 正确答案来自当前题目的 `word` 字段。
-- 提示优先使用 `meaningZh`，即中文释义。
-- 干扰项从同一或相近难度词库中选择，避免明显不属于同类导致题目过易。
-- 三个选项顺序必须随机化。
-- 不应连续两题出现同一个正确单词。
-- 当词库数量不足以生成两个干扰项时，应降级到全局词库补足，而不是崩溃。
-
-### 5.3 后续内容扩展
-
-后续版本可加入图片提示、英文发音、拼写题、听音选词、错题复习和难度等级。所有扩展应优先通过 `WordEntry` 数据字段和 `QuestionGenerator` 策略扩展，而不是把题型逻辑写死在 UI 页面中。
-
-## 6. 信息架构与页面流
-
-### 6.1 页面结构
-
-```text
-HomePage
-  -> BattlePage
-      -> ResultPage
-          -> HomePage 或 BattlePage
-```
-
-### 6.2 首页 HomePage
-
-职责：
-
-- 展示产品标题、角色主题和开始游戏按钮。
-- 可展示当前词库分类入口，V0.1 可先默认使用全部首批词库。
-- 不承载战斗状态和题目生成逻辑。
-
-### 6.3 战斗页 BattlePage
-
-职责：
-
-- 呈现玩家、怪物、HP、倒计时、题目和选项。
-- 接收用户答题输入并转发给 `BattleState` 或战斗控制器。
-- 根据状态展示普通攻击、错误反馈、连击反馈和怪物切换。
-- 在战斗结束时导航到结算页。
-
-### 6.4 结算页 ResultPage
-
-职责：
-
-- 展示本局结果：胜负、击败怪物数、答题数、正确数、正确率、学习词数、星级。
-- 提供“再来一局”和“返回首页”入口。
-- 不重新计算战斗过程，只消费战斗结束时生成的 `SessionResult`。
-
-## 7. 系统架构
-
-### 7.1 架构原则
-
-- 页面只负责展示和用户输入，核心规则放在模型或服务中。
-- 游戏状态集中管理，避免 UI 组件各自维护不一致的血量、连击或计时。
-- 词库、题目生成、战斗规则、音频播放相互解耦，便于独立测试。
-- 所有 V0.1 数据和资源本地打包，确保离线可用。
-- 组件小而清晰，优先保证儿童交互稳定和开发迭代效率。
-
-### 7.2 推荐目录结构
-
-```text
-entry/src/main/ets/
-  pages/
-    HomePage.ets
-    BattlePage.ets
-    ResultPage.ets
-  components/
-    HpBar.ets
-    ChoiceButton.ets
-    CharacterCard.ets
-    CountdownBadge.ets
-    ComboBadge.ets
-  models/
-    WordEntry.ets
-    Question.ets
-    BattleState.ets
-    SessionResult.ets
-  services/
-    WordRepository.ets
-    QuestionGenerator.ets
-    BattleEngine.ets
-    AudioService.ets
-  utils/
-    shuffle.ets
-    timer.ets
-entry/src/main/resources/
-  rawfile/
-    data/words_v1.json
-    sound/
-  base/media/
-  base/element/
-```
-
-当前工程仍以 `Index.ets` 作为入口页面，并已存在 `GiftBox.ets` 动画组件。后续实现时可以保留 `Index.ets` 作为临时入口，也可以将其改造为 `HomePage` 并同步更新 `main_pages.json`。已有礼盒动画和本地音频播放代码可作为后续奖励反馈、连击反馈或结算反馈的参考资产，但不应与战斗核心规则耦合。
-
-### 7.3 模块职责
-
-
-| 模块                     | 职责                                                                                                             | 依赖                                 |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `WordEntry`            | 定义单词数据结构                                                                                                       | 无                                  |
-| `Question`             | 定义单题提示、选项、答案                                                                                                   | `WordEntry`                        |
-| `SessionResult`        | 定义结算数据                                                                                                         | `BattleState` 输出                   |
-| `WordRepository`       | 加载本地 JSON 词库，按分类/难度筛选                                                                                          | 资源管理器                              |
-| `QuestionGenerator`    | 从词库生成题目和干扰项                                                                                                    | `WordRepository`, `shuffle`        |
-| `BattleState`          | 保存当前血量、连击、怪物序号、统计数据                                                                                            | 纯状态模型                              |
-| `BattleEngine`         | 执行答题判定、伤害、胜负和结算转换                                                                                              | `BattleState`, `QuestionGenerator` |
-| `AudioService`         | 播放本地音效，封装 AVPlayer 细节；单键预加载 + 失败静音回退                                                                           | HarmonyOS media API                |
-| `PronunciationService` | 封装 `@kit.CoreSpeechKit` TTS，`speak(word)` 取消前一条，引擎不可用时静默 no-op (V0.2)                                          | CoreSpeechKit                      |
-| `LearningRecorder`     | 维护 per-word 学习统计，100 ms 去抖写盘，暴露 `recordAnswer / recentWrongIds / newlyLearnedCount / totalLearnedCount` (V0.2) | `WrongAnswerStore`                 |
-| `WrongAnswerStore`     | `@ohos.data.preferences` 封装，`wordmagic_learning` JSON 持久化 `LearningSnapshot` (V0.2)                            | `@ohos.data.preferences`           |
-| `HpBar`                | 展示血量百分比                                                                                                        | UI 入参                              |
-| `ChoiceButton`         | 统一答案按钮样式与禁用态                                                                                                   | UI 入参                              |
-| `CharacterCard`        | 展示玩家或怪物形象和 HP；V0.2 新增 `hurtPulse / nudgePulse / zoomPulse / castPulse` 四个脉冲动画入口                                | `HpBar`                            |
-| `CritOverlay`          | 暴击视觉三层：`CritGoldFlash` 全屏金闪 + `CritDamageNumber` 浮动伤害数字 + `CritCastGlow` 玩家施法光环 (V0.2)                         | `@Prop critPulse`                  |
-
-
-### 7.4 状态流
-
-```text
-BattlePage
-  -> 用户点击 ChoiceButton
-  -> BattleEngine.submitAnswer(option)
-  -> BattleState 更新
-  -> QuestionGenerator 生成下一题或 BattleEngine 生成 SessionResult
-  -> BattlePage 重新渲染
-  -> 结束时路由到 ResultPage
-```
-
-页面不直接修改怪物 HP、玩家 HP 或连击数；所有用户动作必须通过战斗状态接口完成。这样可以在单元测试中不启动 UI，即验证核心规则。
-
-## 8. 数据模型
-
-### 8.1 WordEntry
+### 5.2 词条字段
 
 ```ts
-export class WordEntry {
+class WordEntry {
   id: string = '';
   word: string = '';
   meaningZh: string = '';
@@ -271,240 +157,620 @@ export class WordEntry {
   difficulty: number = 1;
   image?: string;
   audio?: string;
+  // V0.5 服务端拓展
+  distractors?: string[];        // 服务端 LLM 预生成的同类干扰项
+  example?: ExampleSentence;     // { en, zh }
+  illustrationUrl?: string;      // 服务端 Blob URL
+  audioUrl?: string;             // 服务端 Blob URL
 }
 ```
 
-字段说明：
+### 5.3 类目（Categories）
 
-- `id`：稳定唯一标识，避免直接用英文单词作为业务 ID。
-- `word`：英文答案。
-- `meaningZh`：中文提示。
-- `category`：词库分类，例如 `fruit`、`place`、`home`。
-- `difficulty`：难度等级，V0.1 默认 1。
-- `image`：后续图片提示预留字段。
-- `audio`：后续发音或听力题预留字段。
+| Category id | 中文标签（默认）| 关联区域 |
+| ----------- | ----------- | -------- |
+| `fruit`     | 水果         | Fruit Forest |
+| `place`     | 日常地点     | School Castle |
+| `home`      | 家居物品     | Home Cottage |
+| `animal`    | 动物         | Animal Safari |
+| `ocean`     | 海洋         | Ocean Realm |
+| `custom`    | 自定义       | （仅 free-play 战斗池） |
 
-### 8.2 Question
+服务端发布的词包若 `schema_version >= 4` 会带 `categories[]`，包含 `id / label_en / label_zh / story_zh / source_image_url`。客户端 `CategoryCatalog` 用作覆写：HomePage 的区域副标题与故事文本优先取服务端值，否则回退到设备端 `AdventureCatalog`。
+
+### 5.4 题目生成原则
+
+- 正确答案来自当前题目的 `word`。
+- 提示用 `meaningZh`（中文释义）。
+- 干扰项策略：服务端 `distractors` 字段 > 同类目同难度同步随机 > 全局兜底；同题三个选项不重复且包含答案。
+- 不连续两题命中同一正确单词（`QuestionGenerator` 维护 `lastAnswerWordId`）。
+- 词库不足以生成 3 个独特选项时，降级到全局补足而不是抛错。
+
+---
+
+## 6. 信息架构
+
+### 6.1 路由表
+
+`entry/src/main/resources/base/profile/main_pages.json` 注册了 12 个页面（顺序）：
+
+```
+pages/HomePage              入口
+pages/BattlePage            战斗
+pages/ResultPage            结算
+pages/ConfigPage            设置
+pages/CustomWordsPage       自定义词列表编辑
+pages/WishlistPage          愿望单
+pages/MonsterCodexPage      怪物图鉴
+pages/ParentPinSetupPage    家长 PIN 设置 / 修改
+pages/RedemptionHistoryPage 兑换历史
+pages/TodayPlanPage         今日学习计划预览
+pages/LearningReportPage    学习报告
+pages/AdminConsolePage      管理员控制台（设备端）
+```
+
+### 6.2 页面流
+
+```text
+HomePage ─┬─ HomeStartButton ─→ BattlePage(today) ─→ ResultPage ─┬─ HomePage
+          │                                                       └─ WishlistPage
+          ├─ HomeReviewButton ─→ BattlePage(review) ─→ ResultPage ─→ HomePage / BattlePage
+          ├─ HomeCodexButton ─→ MonsterCodexPage
+          ├─ HomePlanButton  ─→ TodayPlanPage ─→ LearningReportPage
+          ├─ HomeWishlistButton ─→ WishlistPage ─┬─ +添加 / ✕（PIN）─→ AddCustomWishDialog
+          │                                       ├─ 申请兑换（PIN）─→ GiftBox 模态
+          │                                       └─ 📜 历史 ─→ RedemptionHistoryPage
+          └─ HomeConfigButton ─→ ConfigPage ─┬─ 自定义词 ─→ CustomWordsPage
+                                              ├─ 家长密码 ─→ ParentPinSetupPage
+                                              ├─ 立即同步（HTTP）
+                                              └─ 管理员控制台（PIN）─→ AdminConsolePage
+```
+
+### 6.3 各页职责（高层）
+
+| 页面                  | 主要职责                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| HomePage            | 主入口；展示金币 / 复习 / 图鉴 / 计划 / 愿望单 / 设置六颗工具栏按钮 + 大尺寸 AdventureCard + 区域 chip 选择器 + HomeStartButton。 |
+| BattlePage          | 战斗主舞台。处理三种题型、HP / 倒计时 / 连击 / 暴击视听 / 反馈、动画、音效。                                                  |
+| ResultPage          | 单局总结（胜负标题 + 三星 + 击破/正确率/学习词数 + 今日模式专属的 +N ✨ 与累计余额）。                                            |
+| ConfigPage          | 战斗参数 + 类目勾选 + 自动发音开关 + 自定义词入口 + 家长 PIN 入口 + 词包同步入口 + 管理员控制台入口；含 ConfigValidationHint 阻止非法保存。 |
+| CustomWordsPage     | 单一 TextArea 编辑 `customWordsRaw`，保存校验非空 + 至少一行可解析。                                                |
+| WishlistPage        | 愿望卡片列表（默认 + 自定义）；显示余额；申请兑换 / 添加 / 删除均经家长 PIN；兑换成功展示 GiftBox 模态。                                |
+| RedemptionHistoryPage | 倒序展示 `RedemptionRecord` 列表，最多 50 条滚动保留。                                                          |
+| MonsterCodexPage    | 横向翻页查看 `MONSTER_CODEX` 中所有怪物 / boss 立绘 + 描述。                                                     |
+| TodayPlanPage       | 只读预览今日 10 个词的"复习 / 学习中 / 新词"分桶 + 完成进度（每个 wordId 一行）。                                            |
+| LearningReportPage  | 全量统计：正确率、已掌握词、新词数、复习词数、薄弱单词分组、按类目正确率分布。                                                       |
+| ParentPinSetupPage  | 6 位 PIN 两步一致校验，写回 `GameConfig.parentPin`。                                                        |
+| AdminConsolePage    | 设备端管理员 Shell：JWT 登录 → 拉 `getStats` / `listPacks` → 一键发布。仅对走过 PIN 的家长开放。                          |
+
+---
+
+## 7. 系统架构（客户端）
+
+### 7.1 架构原则
+
+- 页面只负责渲染 + 路由 + 用户输入；规则全部进 `models/` + `services/`。
+- AppStorage 只放跨页临时 handoff（GameConfig、TodaySessionPlan、TodayLastCompletedDayKey、TodayRegionId、admin_jwt）。
+- 持久化数据全部走 `@ohos.data.preferences`，每个领域一个 namespace（见 §9 表）。
+- 网络访问全部经 `RemoteWordPackService` / `AdminApiClient` 两个 facade，UI 不直接调用 `@kit.NetworkKit`。
+- 主线 UI 路径必须在没有网络、没有缓存、没有家长 PIN 的情况下也能跑（rawfile 兜底）。
+
+### 7.2 目录结构（实际）
+
+```text
+entry/src/main/ets/
+  pages/                                    12 个页面（见 §6.1）
+  components/
+    HpBar.ets                               HP 条
+    ChoiceButton.ets                        答案按钮，4 态
+    CharacterCard.ets                       角色卡 + 4 个脉冲动画入口
+    SpellingArea.ets                        Spell 题型字母池
+    AddCustomWishDialog.ets                 自定义愿望表单
+    ParentPinDialog.ets                     6 位 PIN 输入弹窗
+    GiftBox.ets                             兑换成功庆祝动画
+    CritOverlay.ets                         暴击金闪 / 浮动伤害 / 施法光环
+    MagicProjectile.ets                     法术投射动画
+    ParentLongPressGate.ets                 V0.3.9 之前的旧家长长按闸；当前已无引用，仅保留作历史代码
+  models/                                   见 §8
+  services/                                 见 §10
+  data/
+    AdventureCatalog.ets                    5 个区域元数据
+    MonsterCatalog.ets                      10 个怪物 / boss 元数据
+    CharacterAssets.ets                     角色 → svg 路径
+entry/src/main/resources/
+  rawfile/
+    data/words_v1.json                      内置词库
+    icons/{review,codex,wishlist,gear,scroll}.png   工具栏 PNG（V0.5 follow-up 替换）
+    character/*.svg                         玩家 + 怪物 + 7 个 boss 立绘
+    sound/*.ogg, battle_bgm.mp3
+  base/profile/main_pages.json              路由
+  base/element/*                            字符串 / 颜色资源
+```
+
+> `Index.ets`（V0.1 时期的 GiftBox 演示页）已在 V0.5 follow-up 中移除；启动直接进 HomePage。
+
+### 7.3 状态流
+
+```text
+ChoiceButton(tap)
+  ─→ BattlePage.onAnswer
+       ├─ BattleEngine.submitAnswer(option) → AnswerOutcome
+       │     └─ 内部更新 BattleState（HP / combo / monsters / answers）
+       ├─ AudioService.play('hit_normal'|'hit_crit'|'answer_wrong')
+       ├─ CharacterCard.{hurtPulse|nudgePulse|zoomPulse|castPulse}
+       └─ LearningRecorder.recordAnswer(wordId, correct)
+  ─→ BattleEngine.buildSessionResult()  // 终止条件
+       └─ BattlePage.navigateToResult
+            ├─ applyTodayAdventureRewards(result, plan)  // today 模式
+            │     ├─ result.stars → CoinAccount.earn
+            │     └─ AppStorage[todayLastCompletedDayKey] = today
+            └─ replaceUrl('pages/ResultPage', { params: result })
+```
+
+页面永远不直接改 `playerHp` / `monsterHp` / `comboCount`，所有写入都走 `BattleEngine.submitAnswer` 或 `tick`。
+
+---
+
+## 8. 数据模型
+
+仅列对外/跨页暴露的字段。完整签名见 `entry/src/main/ets/models/`。
+
+### 8.1 核心战斗
 
 ```ts
-export class Question {
-  promptZh: string = '';
-  answer: string = '';
-  options: string[] = [];
-  wordId: string = '';
+class WordEntry { id; word; meaningZh; category; difficulty;
+                  image?; audio?; distractors?; example?; illustrationUrl?; audioUrl? }
+class ExampleSentence { en; zh }
+
+enum QuestionKind { Choice, FillLetter, FillLetterMedium, Spell }
+class Question {
+  promptZh; answer; options[]; wordId; kind;
+  // FillLetter / FillLetterMedium
+  letterTemplate; missingIndex; letterOptions[]; letterAnswer;
+  // Spell
+  spellLetters[]; spellRevealedMask[]; spellPool[];
+}
+
+enum BattleStatus { Ready, Playing, Won, Lost }
+class BattleState {
+  playerHp; monsterHp; monsterIndex; monstersTotal;
+  comboCount; remainingSeconds;
+  totalAnswers; correctAnswers; defeatedMonsters;
+  learnedWordIds[]; currentQuestion?; status;
+}
+
+class SessionResult {
+  status; defeatedMonsters; monstersTotal;
+  totalAnswers; correctAnswers; correctRate;
+  learnedWordCount; stars;
+  newlyLearnedCount; totalLearnedCount;
+  // V0.3 today adventure 字段
+  isTodayAdventure; regionId; bossName;
+  reviewWordCount; newWordCount;
+  coinsEarned; coinsTotal; dailyCapHit;
 }
 ```
 
-约束：
-
-- `options.length` 必须等于 3。
-- `options` 必须包含 `answer`。
-- 同一题内选项不能重复。
-
-### 8.3 BattleState
+### 8.2 配置
 
 ```ts
-export class BattleState {
-  playerHp: number = 5;
-  monsterHp: number = 3;
-  monsterIndex: number = 1;
-  monstersTotal: number = 5;
-  comboCount: number = 0;
-  remainingSeconds: number = 300;
-  totalAnswers: number = 0;
-  correctAnswers: number = 0;
-  defeatedMonsters: number = 0;
-  currentQuestion?: Question;
-  status: BattleStatus = BattleStatus.Playing;
+class GameConfig {
+  playerMaxHp = 5; monsterMaxHp = 3; monstersTotal = 5;
+  startingSeconds = 300;
+  enabledCategories = ['fruit','place','home'];
+  customWordsRaw = '';
+  autoSpeak = true;
+  mode = 'normal';   // 'normal' | 'review' | 'today'
+  parentPin = '';    // 空字符串 = 未配置
 }
 ```
 
-建议状态枚举：
+### 8.3 经济与愿望
 
 ```ts
-export enum BattleStatus {
-  Ready = 'ready',
-  Playing = 'playing',
-  Won = 'won',
-  Lost = 'lost'
+class CoinTxn { ts; delta; reason; balanceAfter }
+class CoinSnapshot {
+  version; totalCoins; spentCoins;
+  todayDayKey; todayCoinsEarned; todayAdventureCompleted;
+  txns[];
 }
+
+enum WishState { Idle, Confirmed }   // V0.3.9 起 Pending 退役
+class MagicWish { id; displayName; costCoins; iconEmoji; state;
+                  requestedAt; confirmedAt; isCustom }
+class WishlistSnapshot { version; wishes[] }
+
+class RedemptionRecord { id; ts; wishId; displayName; iconEmoji; costCoins }
+class RedemptionHistorySnapshot { version; records[] }
 ```
 
-### 8.4 SessionResult
+### 8.4 今日冒险
 
 ```ts
-export class SessionResult {
-  isWin: boolean = false;
-  defeatedMonsters: number = 0;
-  totalAnswers: number = 0;
-  correctAnswers: number = 0;
-  accuracy: number = 0;
-  learnedWordCount: number = 0;
-  stars: number = 0;
-  elapsedSeconds: number = 0;
+enum WordSource { Review, Learning, New }
+class WordSlot { wordId; source }
+class MonsterSlot { kind; catalogIndex }     // kind: 'normal'|'spelling'|'review'|'elite'|'boss'
+class MonsterPlan { slots[] }                // 长度恒等于 MONSTER_PLAN_SLOT_COUNT = 5
+
+class AdventureRegion {
+  id; displayName;
+  themeWordCategories[];          // ['fruit'] / ['place'] / ...
+  bgPrimary; bgAccent;            // 主题色
+  bossName;
+  monsterPlan;                    // 模板：Normal → Spelling → Review → Elite → Boss
+  bossCandidates[];               // 1..n 个 boss 元数据
+}
+
+class TodaySessionPlan {
+  regionId; monsterSlots[];        // 5 个怪槽，最后一个是当日轮换的 boss
+  wordPlan[];                      // 10 个词槽（5 怪 × 2）
+  bossWordIds[];                   // boss 槽优先消费的两个词 id
+  isFirstToday;                    // 当日首次进入战斗
 }
 ```
 
-## 9. UI 与交互设计
+---
 
-### 9.1 横屏布局
+## 9. 持久化布局
 
-BattlePage 建议采用三段式横屏布局：
+### 9.1 `@ohos.data.preferences` 命名空间
 
-- 左侧：玩家角色卡，显示小魔法师、公主状态和玩家 HP。
-- 中央：题目区域，显示中文提示、连击状态、反馈文本和倒计时。
-- 右侧：怪物角色卡，显示史莱姆、怪物 HP 和当前第几个怪物。
-- 底部或中央下方：三个大尺寸答案按钮。
+| 领域       | 文件名                              | 主键                    | 内容                         |
+| -------- | -------------------------------- | --------------------- | -------------------------- |
+| 魔法币       | `wordmagic_coins`               | `snapshot_v1`         | `CoinSnapshot` (JSON)      |
+| 学习记录     | `wordmagic_learning`            | `snapshot_v1`         | `LearningSnapshot` (JSON)  |
+| 愿望单       | `wordmagic_wishlist`            | `snapshot_v1`         | `WishlistSnapshot` (JSON)  |
+| 兑换历史     | `wordmagic_redemption_history`  | `snapshot_v1`         | `RedemptionHistorySnapshot` |
+| 今日设置     | `today_settings`                | `region_id`           | 选中的区域 id                   |
+| 服务端词包缓存  | `word_pack_cache`               | `pack_v2`             | `{ body, etag, schemaVersion, fetchedAt }` |
 
-布局应使用 Row、Column、Flex、百分比宽度、权重和 vp 单位组合，不应依赖固定像素。按钮需要足够大，适合儿童点击。
+所有领域写入都用 100 ms 去抖 + fire-and-forget；进入 ResultPage / 退出战斗等关键节点显式 `flushNow()`。
 
-### 9.2 反馈规则
+### 9.2 AppStorage（跨页 handoff）
 
-- 答对：按钮短暂高亮为正向颜色，玩家播放攻击或魔法反馈，怪物 HP 下降。
-- 答错：错误按钮短暂高亮，正确答案显示为正向颜色，玩家 HP 下降。
-- 连击：第三次连续答对时展示“魔法爆发”或类似提示，并播放更明显的动画或音效。
-- 怪物击败：怪物消失或淡出，下一只怪物出现（V0.3.5+ 今日冒险按区域 `monsterPlan` 顺序推进 Slime → Zombie → Dragon → Boss；free-play 模式按 catalog 1-based 索引轮播）。
-- 结束：禁止继续答题，进入结算页。
+| Key                          | 值                  | 写入方                                | 读取方                               |
+| ---------------------------- | ------------------ | ---------------------------------- | --------------------------------- |
+| `gameConfig`                 | `GameConfig`       | ConfigPage / ParentPinSetupPage    | HomePage / BattlePage / WishlistPage |
+| `todayPlan`                  | `TodaySessionPlan` | HomePage（点击 HomeStartButton）       | BattlePage                        |
+| `todayLastCompletedDayKey`   | `YYYY-MM-DD`       | BattlePage（applyTodayAdventureRewards） | HomePage（已完成徽章）              |
+| `todayRegionId`              | 区域 id              | HomePage（区域 chip 切换）              | HomePage                          |
+| `admin_jwt`                  | JWT token          | AdminConsolePage 登录成功               | AdminConsolePage 后续 API 调用       |
 
-### 9.3 可访问性与儿童体验
+---
 
-- 文案短句化，避免复杂说明。
-- 选项按钮字体大、对比度高。
-- 关键反馈同时通过颜色和文字/动画表达，避免只依赖颜色。
-- 点击后应短暂禁用选项，防止连续点击造成重复结算。
+## 10. 服务模块（客户端）
 
-## 10. 技术实现约束
+### 10.1 战斗 / 学习
 
-### 10.1 HarmonyOS / ArkTS
+| 模块                     | 公开 API                                                                                   | 职责                            |
+| ---------------------- | ---------------------------------------------------------------------------------------- | ----------------------------- |
+| `WordRepository`       | `loadFromRawfile() / setEntries() / size() / all() / byCategory() / findById()`         | 内存词库；泛包 / rawfile / custom 三源同形 |
+| `IQuestionSource`      | `nextQuestion()`                                                                         | BattleEngine 喂料口              |
+| `QuestionGenerator`    | `nextQuestion() / nextQuestionForWord(wordId)`                                           | 三选一 MCQ                       |
+| `FillLetterGenerator`  | `generate() / generateMedium()`                                                          | FillLetter / FillLetterMedium |
+| `SpellGenerator`       | `generate()`                                                                             | Boss 拼写题                      |
+| `PlanQuestionSource`   | `nextQuestion() / setMonsterIndexProvider(...)`                                          | 把 TodaySessionPlan + 当前怪 kind 映射到题型链 |
+| `BattleEngine`         | `start() / submitAnswer() / tick() / getState() / buildSessionResult()`                  | 规则引擎；唯一可改 BattleState 的入口     |
+| `AudioService`         | `preload() / play() / dispose()`，`SoundKeys` 枚举                                          | 6 类 SFX + 战斗 BGM              |
+| `PronunciationService` | `init() / speak() / dispose()` + 模块级 `shouldAutoSpeak()`                                 | TTS（CoreSpeechKit）            |
+| `LearningRecorder`     | `init() / beginSession() / recordAnswer() / flushNow() / newlyLearnedCount / recentWrongIds(n) / totalLearnedCount` | per-word 统计 + 错题集 |
+| `WrongAnswerStore`     | `open() / load() / save()`                                                                 | 上一项的持久化适配层             |
+| `MemoryScheduler`      | `classify(stat)`                                                                         | 单词 → MemoryState（New/Learning/Review） |
 
-- 使用 ArkTS 和 ArkUI 声明式 UI。
-- 优先修改 `entry/src/main/ets` 下的页面、组件、模型和服务。
-- 保持 DevEco Studio 管理的工程结构，不进行无必要的工程重排。
-- 资源放入 `entry/src/main/resources`，词库建议放入 `rawfile/data/words_v1.json`。
+### 10.2 经济 / 愿望
 
-### 10.2 状态管理
+| 模块                       | 公开 API                                                                                                    | 职责                            |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `CoinAccount`            | `init() / beginToday() / earn(reason, amount, nowMs) / redeem(wishId, cost) / balance() / snapshot() / flushNow()` | 钱包 + 每日封顶 + txn 日志 |
+| `WishlistStore`          | `init() / list() / markConfirmed() / acknowledge() / addCustomWish() / removeCustomWish()`                | 愿望单 CRUD                      |
+| `RedemptionHistoryStore` | `init() / list() / add() / loadSnapshotForTest()`                                                          | 兑换历史滚动保留 50 条                 |
 
-V0.1 可采用页面持有状态对象的轻量方案，避免过早引入复杂全局状态。随着功能增加，可再抽象为更明确的 Store 或 AppStorage 方案。无论采用哪种方式，战斗规则都应能在非 UI 环境中测试。
+### 10.3 今日冒险 / 学习报告
 
-### 10.3 计时器
+| 模块                       | 公开 API                                                                  | 职责                            |
+| ------------------------ | ----------------------------------------------------------------------- | ----------------------------- |
+| `TodayPreferences`       | `init() / loadRegionId() / saveRegionId()`                              | 区域 id 持久化                     |
+| `TodayAdventureBuilder`  | `build(region, repo, recorder, nowMs, isFirstToday) → TodaySessionPlan` | 主算法见 §11                      |
+| `TodayPlanService`       | `build()`                                                               | TodayPlanPage 的只读视图模型         |
+| `LearningReportBuilder`  | `build()`                                                               | LearningReportPage 的只读视图模型    |
 
-倒计时由 BattlePage 生命周期启动和释放，或封装进 `timer.ets` 工具。页面退出、战斗结束或重新开始时必须清理计时器，避免后台继续扣时或内存泄漏。
+### 10.4 服务端协同（V0.5）
 
-### 10.4 音频
+| 模块                       | 公开 API                                                                                | 职责                                     |
+| ------------------------ | ------------------------------------------------------------------------------------- | -------------------------------------- |
+| `RemoteWordPackConfig`   | `SERVER_BASE_URL`、`pickServerBaseUrl()`、`latestPackUrl()`                              | 默认 `https://happyword.vercel.app`     |
+| `RemoteWordPackService`  | `fetchLatest(url, ifNoneMatch?)`                                                      | HTTP GET + ETag                        |
+| `WordPackCache`          | `init() / read() / readRecord() / write() / writeRecord() / touchFetchedAt()`         | 词包本地缓存 + ETag                          |
+| `WordPackBootstrapper`   | static `forContext(ctx)` + `bootstrap()`                                              | 冷启动：cache 优先，fallback rawfile，**不发网络** |
+| `WordPackSyncService`    | `syncOnce()`                                                                          | ConfigPage 手动同步入口；返回 outcome 枚举 + 拒收最小词数判断 |
+| `RemoteAssetCache`       | static `forContext(ctx)` + `resolve(url, kind)`                                       | 远端图片 / 音频的设备端 LRU                      |
+| `CategoryCatalog`        | `setRows() / getById() / size()`                                                      | 服务端 categories 覆写                      |
+| `AdminApiClient`         | `setBearerToken() / login() / listWords() / getStats() / listPacks() / publishPack()` | Admin Console HTTP                     |
 
-音频播放通过 `AudioService` 封装。V0.1 可以只提供接口或少量本地音效，不要求完整音频系统。已有 `Index.ets` 中的本地 OGG 播放实践可作为实现参考。
+---
 
-## 11. 迭代里程碑
+## 11. 今日冒险算法
 
+### 11.1 Plan 构建
 
-| 里程碑        | 内容                           | 验收产物          |
-| ---------- | ---------------------------- | ------------- |
-| T1 工程基线    | 确认 HarmonyOS ArkTS 工程可构建运行   | 空白或现有入口页在设备运行 |
-| T2 页面路由    | 建立首页、战斗页、结算页的导航闭环            | 可从首页进入战斗并到结算  |
-| T3 词库模型    | 定义 `WordEntry` 并创建本地 JSON 词库 | 可读取约 30 个词    |
-| T4 题目生成    | 实现正确答案、干扰项和随机顺序              | 单元测试覆盖题目生成    |
-| T5 战斗静态 UI | 完成横屏战斗页骨架                    | 平板和手机横屏布局正常   |
-| T6 基础战斗    | 接入答题、血量、下一题和怪物切换             | 可完成一局基础流程     |
-| T7 连击与反馈   | 实现三连击双倍伤害和提示                 | 连击行为可验证       |
-| T8 结算页     | 展示本局统计和星级                    | 可重新开始或返回首页    |
+入口：`HomePage.handleStartToday()` → `TodayAdventureBuilder.build(region, repo, recorder, nowMs, isFirstToday)`。
 
+1. `MonsterPlan` 模板从 `region.monsterPlan.slots` 复制，长度恒为 `MONSTER_PLAN_SLOT_COUNT = 5`，模板是 Normal → Spelling → Review → Elite → Boss。
+2. **Boss 轮换**：`hashDjb2('${region.id}:${localDayKey(nowMs)}') mod region.bossCandidates.length` → 选定当日 boss → 写回最后一槽的 `catalogIndex`。同区同日总是同一 boss。
+3. **Word slot 数**：`MONSTER_PLAN_SLOT_COUNT * WORD_PLAN_MULTIPLIER = 5 × 2 = 10` 个。
+4. **Word 分桶**：从 `region.themeWordCategories` 圈词，按 `MemoryScheduler.classify` 分 Review / Learning / New 三桶；目标比例 ≈ **5 复习 / 3 学习中 / 2 新词**，桶不够就轮转后续桶。
+5. **Boss words**：`pickBossWords(plan, 2)` 优先取 review + learning 中难度高的，不够则取最难的 new；写入 `plan.bossWordIds`，BattlePage 走到 boss 槽位时 `PlanQuestionSource` 优先吐这两个。
+6. **isFirstToday**：HomePage 入战前从 `CoinAccount.todayAdventureCompleted()` 反推。
 
-## 12. 验收标准
+### 11.2 区域目录
 
-V0.1 版本通过验收需满足以下条件：
+`entry/src/main/ets/data/AdventureCatalog.ets` 中的 5 个区域：
 
-- 构建部署：应用可编译，并可在 MatePad Air 和 Mate 60 Pro 或对应模拟/真机环境横屏运行。
-- 基础玩法：玩家可在 5 分钟内通过三选一题目攻击 5 个怪物。
-- 规则正确：答对扣怪物 HP，答错扣玩家 HP，三连击触发 2 点伤害。
-- 结束闭环：胜利、玩家 HP 归零或时间耗尽时进入结算页。
-- 统计准确：结算页正确显示击败数、答题数、正确率、学习词数和星级。
-- 响应式布局：横屏平板和手机上 HP、角色、题目和按钮不裁切、不重叠。
-- 稳定性：正常导航、答题、重开游戏过程中不崩溃；异常被记录并合理降级。
+| id              | displayName    | themeWordCategories | bossName       |
+| --------------- | -------------- | ------------------- | -------------- |
+| `fruit-forest`  | Fruit Forest   | `['fruit']`         | Witch / Phoenix / Pumpkin King 等 |
+| `school-castle` | School Castle  | `['place']`         | Imp King 等     |
+| `home-cottage`  | Home Cottage   | `['home']`          | Snow Queen 等   |
+| `animal-safari` | Animal Safari  | `['animal']`        | Unicorn 等      |
+| `ocean-realm`   | Ocean Realm    | `['ocean']`         | Kraken 等       |
 
-## 13. 测试策略
+> 区域 displayName / story / 主题色由 V0.5.E 起被服务端 `categories[]` 覆写（schema_version ≥ 4 时生效）。
 
-### 13.1 单元测试
+### 11.3 怪物图鉴
 
-优先覆盖纯逻辑：
+`MonsterCatalog` 共 **10** 条 = 3 archetype（Slime / Zombie / Dragon，按难度桶 Normal / Spelling / Review / Elite / Boss-fallback）+ 7 童话 boss（Witch / Phoenix / Unicorn / Kraken / Pumpkin King / Snow Queen / Imp King）。`MonsterEntry` 上有 `assetPath` 字段；`assetPathForEntry()` 优先读 entry 自带路径，空时回退到 `characterAssetForKind(kind)`。
 
-- `shuffle` 不丢失元素。
-- `QuestionGenerator` 生成 3 个不重复选项且包含正确答案。
-- `QuestionGenerator` 不连续重复同一正确单词。
-- `BattleEngine` 正确处理答对、答错、连击、怪物死亡、胜负条件。
-- `SessionResult` 正确计算正确率和星级。
+---
 
-### 13.2 UI 测试
+## 12. 愿望单与家长 PIN
 
-覆盖关键流程：
+### 12.1 PIN 流程
 
-- 首页点击开始进入战斗页。
-- 战斗页点击答案后状态变化。
-- 玩家失败进入结算页。
-- 击败 5 个怪物进入胜利结算页。
-- 结算页点击再来一局重置状态。
+- 设置 / 修改：HomePage → ConfigPage → "家长密码" → ParentPinSetupPage → 两步一致 → 写入 `GameConfig.parentPin`（明文，本地家庭设备）。
+- 校验：`ParentPinDialog` 自绘 3×4 数字键盘，输错抖动 + 清空，无锁定 / 无次数限制。
+- 取消：ConfigPage 的"管理员控制台"按钮、WishlistPage 的"申请兑换 / + 添加 / ✕"都先校验 PIN；PIN 为空时弹"尚未设置家长密码"提示。
 
-### 13.3 手工验收
+### 12.2 兑换流程（`MagicWish.state` 单段链路）
 
-- 在平板和手机横屏分别检查布局。
-- 快速连续点击答案，确认不会重复扣血或重复结算。
-- 切出页面或返回首页，确认倒计时不会继续影响新局。
-- 音效不可用时，确认游戏仍可正常进行。
+```
+Idle ──[家长 PIN 通过]──> Confirmed
+       │
+       └─ CoinAccount.redeem(wishId, cost) 扣款
+       └─ RedemptionHistoryStore.add(record)
+       └─ WishlistPage 顶层 Stack 盖 50% 黑底 modal
+       └─ GiftBox 动画（~1.68s 展开 + 1.5s hold = 3.18s 阻塞，期间 onBackPress 拦截）
+       └─ store.acknowledge(wishId) 把状态归位
+```
 
-## 14. 风险与决策
+### 12.3 自定义愿望
 
+- 添加：WishlistPage 头部 "+ 添加" → ParentPinDialog → AddCustomWishDialog（name / cost / emoji 三输入 + Submit / Cancel）。校验规则：
+  - name 长度 1–12 字（trim 后）
+  - cost 整数 5 – 200
+  - emoji 留空则用默认 ⭐，最多 4 字符
+- 删除：仅 `isCustom = true` 的愿望卡片右侧出现 ✕；点击 → ParentPinDialog → 系统 AlertDialog 二次确认 → `WishlistStore.removeCustomWish`。
 
-| 风险            | 影响         | 应对                                    |
-| ------------- | ---------- | ------------------------------------- |
-| 儿童误触或连点       | 状态重复结算     | 答题反馈期间禁用选项                            |
-| 横屏手机空间不足      | 按钮或角色裁切    | 使用弹性布局，必要时压缩角色区域                      |
-| 词库过少          | 干扰项重复或题目过易 | 全局补足干扰项，后续扩展词库                        |
-| UI 与规则耦合      | 后续难维护      | 战斗规则放入 `BattleEngine` / `BattleState` |
-| 音频 API 生命周期复杂 | 播放失败或资源泄漏  | 用 `AudioService` 封装并在页面销毁时释放          |
+---
 
+## 13. 服务端架构（V0.5）
 
-## 15. 后续路线图
+### 13.1 应用形状
 
-### V0.2 学习体验增强（当前）
+- 语言/框架：Python 3.11 + FastAPI（ASGI），Beanie ODM 跑在 Motor 之上。
+- 数据库：MongoDB（生产用 Atlas，单测用 `mongomock-motor`）。
+- 部署：Vercel Serverless Python，入口 `server/api/index.py` 重新导出 `app.main:app`，`server/vercel.json` 把所有 path 转发给 `api/index.py`，函数 `maxDuration = 60s`。
+- LLM：`openai`（`AsyncOpenAI`），用模型 `openai_model_text` 与 `openai_model_vision`。
 
-已落地，详见 [2026-04-24-v0.2-design.md](superpowers/specs/2026-04-24-v0.2-design.md)：
+### 13.2 文档模型（`init_beanie` 注册顺序）
 
-- **Track A · 反馈打磨与暴击视听.** `AudioService` 统一音效派发（`hit_normal / hit_crit / answer_wrong / monster_defeat / victory / defeat`）；`CharacterCard` 增加 `hurtPulse / nudgePulse` 普通命中脉冲；`CritOverlay` 叠加 `CritGoldFlash` + `CritDamageNumber` + `CritCastGlow`，配合 `zoomPulse / castPulse` 让暴击显著强于普通攻击（见 §4.3）。相关任务：T9 / T10 / T11。
-- **Track B · 英文发音.** `PronunciationService` 封装 `@kit.CoreSpeechKit` TTS，`BattlePage.questionArea` 新增 `BattleSpeakerButton`；`GameConfig.autoSpeak` 由 `ConfigPage` 的 `ConfigAutoSpeakToggle` 切换。相关任务：T12。
-- **Track C · 本地学习记录.** `WrongAnswerStore` + `LearningRecorder` 通过 `@ohos.data.preferences` 持久化每词统计（100 ms 去抖），`ResultPage` 展示 `本局新学 N / 累计 M`。相关任务：T13。
-- **Track D · 错题复习模式.** `GameConfig.mode` 新增 `normal / review`；`HomePage.HomeReviewButton` 在 `recentWrongIds(12).length ≥ 3` 时启用；`BattlePage.aboutToAppear` 在复习模式下以错题池构建题目并覆盖 3 怪 / 120 s 参数；`BattlePage.navigateToResult` 结束时复位 `mode=normal`。相关任务：T14。
-- **Track E · 验证与文档.** 新增 UI 测试 `CritSpectacleUiTest / SpeakerButtonUiTest / ReviewModeUiTest` 与单测 `WrongAnswerStore / LearningRecorder`，并在 `RoutingFlow.ui.test.ets` 中导出 `resetToDefaultConfigShared` 作为共享测试夹具。相关任务：T15 / T16。
+| Document      | 集合                  | 关键字段                                                          |
+| ------------- | -------------------- | ------------------------------------------------------------- |
+| `User`        | `users`              | `username` (unique) / `password_hash` / `role` / `last_login_at` |
+| `Word`        | `words`              | `id` (string) / `word` / `meaningZh` / `category` / `difficulty` / `distractors?` / `example_sentence_*` / `illustration_url?` / `audio_url?` / `deleted_at?` |
+| `WordPack`    | `word_packs`         | `version` (unique idx) / `schema_version` / `words[]` / `categories?` / `published_at` / `published_by` / `notes` |
+| `PackPointer` | `pack_pointers`      | 单例 `singleton_key='main'` / `current_version` / `previous_version` |
+| `Category`    | `categories`         | `id` / `label_en` / `label_zh` / `story_zh` / `source_image_url` / `source` |
+| `LlmDraft`    | `llm_drafts`         | LLM 生成的干扰项 / 例句草稿，需人工 approve 后写入 `Word`                     |
+| `LessonImportDraft` | `lesson_drafts`| OpenAI vision 课本扫描批量导入草稿                                      |
 
-### V0.3 内容与关卡
+### 13.3 路由表
 
-- 增加更多词库分类和难度等级。
-- 支持按分类选择关卡。
-- 增加更多怪物和背景主题。
+| Router 文件             | Prefix                       | 路由                                                                                  |
+| --------------------- | ---------------------------- | ----------------------------------------------------------------------------------- |
+| `auth.py`             | `/api/v1/auth`               | `POST /login` / `GET /me`                                                           |
+| `public_packs.py`     | `/api/v1`                    | `GET /health` / `GET /packs/latest.json`                                            |
+| `admin_words.py`      | `/api/v1/admin/words`        | `GET ""` / `GET /{id}` / `POST ""` / `PUT /{id}` / `DELETE /{id}`                   |
+| `admin_assets.py`     | `/api/v1/admin/words`        | `POST /{id}/illustration` + `DELETE` / `POST /{id}/audio` + `DELETE`                |
+| `admin_packs.py`      | `/api/v1/admin/packs`        | `GET ""` / `GET /current` / `GET /{version}` / `POST /publish` / `POST /rollback`   |
+| `admin_drafts.py`     | `/api/v1/admin`              | `POST /words/{id}/generate-distractors` / `…/generate-example` / `GET /drafts` / `GET /drafts/{id}` / `PATCH /drafts/{id}` / `POST /drafts/{id}/approve` / `POST /drafts/{id}/reject` |
+| `admin_categories.py` | `/api/v1/admin/categories`   | `GET ""` / `GET /{id}` / `POST ""` / `PUT /{id}` / `DELETE /{id}`                   |
+| `admin_lessons.py`    | `/api/v1/admin`              | `POST /lessons/import`（vision）/ `GET /lesson-drafts` / `GET /lesson-drafts/{id}` / `PATCH /lesson-drafts/{id}` / `POST /lesson-drafts/{id}/approve` / `POST /lesson-drafts/{id}/reject` |
+| `admin_llm.py`        | `/api/v1/admin/llm`          | `POST /scan-words`（OpenAI vision 提取课本单词）                                            |
+| `admin_stats.py`      | `/api/v1/admin`              | `GET /stats`                                                                        |
 
-> 注：V0.3 系列已分为 V0.3 / V0.3.5 / V0.3.6 / V0.3.7 / V0.3.8 / V0.3.9 多个子版本陆续落地，详细范围与验收以 [`WordMagicGame_roadmap.md`](WordMagicGame_roadmap.md) §4–§9 为准；各子版本的设计与实现细节见 `superpowers/specs/` 与 `superpowers/plans/` 下对应文档。
->
-> **V0.3.8 怪物体系定型**：`MonsterCatalog` 收紧到 10 条 —— 3 archetype（Slime / Zombie / Dragon，对应难度桶 Normal / Spelling / Review / Elite / Boss-fallback）+ 7 童话风 boss（Witch / Phoenix / Unicorn / Kraken / Pumpkin King / Snow Queen / Imp King）。V0.2 时代留下的 10 条共用 slime 资产的颜色变种（`Lava Imp` / `Frost Wisp` 等）整体退役 —— boss 视觉多样性已经接管"每只怪不一样"的体验。`MonsterEntry` 新增 `assetPath` 字段；`assetPathForEntry(entry)` 优先读 entry-level 路径，空时 fallback 到 `characterAssetForKind(kind)`。`AdventureRegion.bossCandidates` 把 7 只 boss 分发到 3 个 region（Forest 4-6 / Castle 7-8 / Cottage 9-10），`TodayAdventureBuilder` 以 djb2 哈希 `${regionId}:${localDayKey}` 确定性挑选，每天同一 region 稳定同一只 boss。
->
-> **V0.3.9 魔法愿望单兑换流程重构（最近一次结构调整）**：旧的 Idle → Pending → 长按 3 秒由家长确认 → Confirmed 流程整体替换为 Idle → 6 位家长 PIN → Confirmed 单段链路。`GameConfig.parentPin: string` 默认空，家长在 ConfigPage 的「家长密码」入口走两步一致才能落盘到 AppStorage；`WishlistStore.markConfirmed(wishId, nowMs)` 取代 `request` / `confirmByParent`（旧方法 `@deprecated` 留一个版本，`coerceState` 把 V0.3.8 持久化里 `state='pending'` 归一为 Idle 以兼容升级）；`ParentPinDialog`（`@CustomDialog` + 自绘 3×4 数字键盘）做密码校验，输错抖动 + 清空，无锁定无计数；兑换成功后 WishlistPage 顶层 `Stack` 盖一层 50% 黑底 + `HitTestMode.Block` 的 modal 播放复用既有 `GiftBox`（~1.68s 动画 + 1.5s hold = 3.18s 阻塞），动画期间 `onBackPress` 返回 true 拦截系统返回；新 `RedemptionRecord` 模型 + `RedemptionHistoryStore` 服务（preferences 持久化、cap 50 滚动）每笔兑换写一条记录，新页 `RedemptionHistoryPage` 从愿望单头部 📜 入口进入，按 `ts desc` 渲染。卡片版式同步改成 **最左 prize emoji + 中间 name + cost + 右侧申请兑换按钮**（兑换按钮靠右对齐，emoji 不再贴在按钮旁）。
+所有 admin 路由 `Depends(current_admin_user)`，要求请求带 JWT bearer。
 
-### V0.4 复习与成长
+### 13.4 词包发布（`/api/v1/packs/latest.json`）
 
-- 引入本地进度、连续学习天数和掌握度。
-- 根据错题频率调整出现概率。
-- 加入简单角色成长或奖励展示。
+公开端点。`pack_service.get_current_pack_payload()`：
 
-### V1.0 产品化方向
+1. `PackPointer.singleton('main').current_version` 指向已发布版本 → 返回 `{ version, schema_version, published_at, words[], categories? }`，`ETag = "${version}"`，命中 `If-None-Match` 返回 304。
+2. 没有发布过 → 返回 **synthetic** payload `version=0, schema_version=1, words=` 当前 DB 实时 dump，方便客户端冷启动也能跑通。
 
-- 完整视觉资源替换。
-- 更系统的家长配置和学习报告。
-- 评估是否需要云同步、账号和多设备进度。
+`schema_version` 由 `derive_schema_version` 推断：
 
-## 16. 当前项目落地建议
+| 值 | 触发条件                                                  |
+| - | ----------------------------------------------------- |
+| 1 | 仅基础词字段                                                |
+| 2 | 任一 word 含 `distractors` / `example`                   |
+| 4 | 词包顶层带非空 `categories`                                  |
+| 5 | 任一 word 含 `illustrationUrl` / `audioUrl`              |
 
-当前代码仍是较早期的 HarmonyOS 示例形态，入口为 `Index.ets`，包含基础按钮、礼盒动画和本地音效播放实验。推荐后续实现时采用渐进式替换：
+> 跳过 3 是历史原因。
 
-1. 保留现有工程配置，先新增模型、服务和单元测试。
-2. 将 `Index.ets` 改造成首页，或新增 `HomePage.ets` 后更新路由配置。
-3. 先完成无美术资源依赖的战斗闭环，再替换角色、怪物和背景资源。
-4. 将已有 `GiftBox` 动画改造成奖励反馈时，保持其作为独立组件，不直接读写战斗状态。
+### 13.5 同步流程（客户端视角）
 
-这份文档作为后续迭代的产品与架构基线。每次新增大功能时，应先确认是否仍符合本规格中的架构边界；若引入账号、联网、持久化学习记录或新题型，应新增对应的专项设计文档。
+ConfigPage "词库同步" 行 → "同步词包" 按钮（id `ConfigSyncButton`）：
+
+1. `WordPackSyncService.syncOnce(remote, cache)` 取出本地 `WordPackCacheRecord`。
+2. 用 `record.etag` 作为 `If-None-Match` 调 `RemoteWordPackService.fetchLatest(url, etag)`。
+3. 翻译为 `SyncStatus` 枚举：
+   - **304 Not Modified** → `UpToDate`，`touchFetchedAt`，cache 不动。
+   - **200 + body** → 解析后 wordsLength `< MIN_WORDS_PER_PACK (= 3)` → `RejectedTooSmall`；否则 `cache.writeRecord(body, etag, schemaVersion)` 后 `Updated`。
+   - HTTP 非 2xx/304 → `HttpError(httpStatus)`。
+   - 网络异常 / 解析失败 → `NetworkError`。
+4. ConfigPage `toastForOutcome` 把 `SyncOutcome` 翻成中文（id `ConfigSyncToast`，2.4 s 自动消失）：
+   - `已同步至 v{cachedVersion}`
+   - `已是最新 v{cachedVersion}` 或 `已是最新`（cache 还没拿到 version 时）
+   - `同步失败 (HTTP {httpStatus})`
+   - `同步失败 (服务端词包过小)`
+   - `同步失败 (网络错误)`
+5. ConfigSyncStatus 行（id `ConfigSyncStatus`）显示 `已缓存 schema v{schemaVersion}` 或 `尚未同步`。
+6. 同步成功后**不会立即刷新 HomePage** —— 下次进 HomePage 时 `WordPackBootstrapper.bootstrap()` 重新读 cache，新词包才生效。这是有意为之，避免战斗中途词库换底；UI 自动化测试也基于这个时序断言。
+
+### 13.6 设备端 Admin Console
+
+AdminConsolePage 是给家长用的设备内运维入口（不替代 Web 后台）：
+
+- 登录卡片：服务端域名只读 + username / password 输入 + Login。成功后 JWT 写入 AppStorage `admin_jwt`。
+- 已登录视图：
+  - 顶部统计：`/api/v1/admin/stats` 拿到的 `wordsCount / pendingDraftsCount / packsCount` 等。
+  - "发布新词包"按钮：`POST /api/v1/admin/packs/publish` + 可选 notes。发布成功立刻刷新 stats。
+  - "登出"：清空 token + AppStorage。
+- 入口：ConfigPage → "管理员控制台"按钮（家长 PIN 校验后才解锁 push）。
+
+---
+
+## 14. UI / 交互约束
+
+### 14.1 横屏布局（BattlePage）
+
+- 左：玩家角色卡（CharacterCard）+ HpBar + 当前怪剩余 / 总数。
+- 中：题目区域（中文 prompt + 自动播音按钮 + 倒计时 + 反馈条）。
+- 右：怪物角色卡 + HpBar + 怪物名 + 当前击破数。
+- 下：题型对应控件（三个 ChoiceButton / 字母模板 + 字母按钮 / SpellingArea）。
+
+布局走 Row + Column + Flex + 百分比，禁止固定像素；字号给 14–18 vp 区间，按钮高度 ≥ 44 vp（儿童手指）。
+
+### 14.2 工具栏图标
+
+V0.5 follow-up 把工具栏 5 个图标（review / codex / wishlist / gear + WishlistPage 的 scroll）从 SVG 光栅化为 96×96 PNG，配合 `.syncLoad(true)` 解决 SVG 复杂路径在 back-nav 重挂时偶尔闪占位符（被孩子家长描述为"图标变 emoji"）的问题。Plan 按钮（📋）保留 emoji 字样。
+
+### 14.3 反馈与无障碍
+
+- 答对：按钮高亮正向色 + 怪物 HP 下降 + 动画 + SFX。
+- 答错：错误按钮高亮 + 正确答案高亮 + 玩家 HP 下降 + SFX。
+- 连击爆发：暴击五层（§4.4）。
+- 怪物死亡：MagicProjectile + zoomPulse + monster_defeat SFX。
+- 文案短句化、对比度高；关键反馈同时通过颜色 + 文字/动画双通道，不只靠颜色。
+- 反馈期间 `FEEDBACK_MS = 650 ms` 禁用所有交互按钮，防止重复结算。
+
+---
+
+## 15. 测试策略
+
+### 15.1 设备无关单测（`entry/src/test/`）
+
+27 个测试文件，覆盖：
+
+- 纯算法：`shuffle` 不丢元素；`QuestionGenerator` 三选一不重复且包含答案；`PlanQuestionSource` 题型链；`MemoryScheduler.classify` 分桶。
+- BattleEngine：答对 / 答错 / 连击双倍 / 怪物切换 / 胜负条件 / `computeStars`。
+- CoinAccount：`earn` 上限截断、`today-first` 即使被截到 0 也翻 `todayAdventureCompleted`、`beginToday` 跨天重置、`redeem` 不受日封顶限制、txn 历史滚动 cap。
+- 持久化：WrongAnswerStore / WishlistStore / RedemptionHistoryStore 的 round-trip + 兼容老 schema 反序列化。
+- 解析：`parseCustomWords`（半角/全角冒号、空行、错行）、`computeFinalPool`、`parsePackCategories`。
+
+跑法：`hvigorw -p module=entry@default test`，BUILD SUCCESSFUL = 全部通过（hvigor 在任一断言失败时返回非 0）。
+
+### 15.2 设备 UI 测试（`entry/src/ohosTest/ets/test/`）
+
+19 个 Hypium UI 测试文件。覆盖：
+
+- 路由：`RoutingFlow.ui.test.ets`（首页 → 战斗 → 结算 → 重玩 / 返回的全闭环）。
+- 战斗题型：`SpellQuestionFlow / FillLetterFlow`。
+- 暴击 / 命中：`MagicAttack / CritSpectacle`。
+- 复习模式：`ReviewMode.ui.test.ets`。
+- 今日冒险 / 区域 / 计划：`V03Adventure / RegionPickerFlow / TodayPlanFlow`。
+- 学习报告：`LearningReportFlow.ui.test.ets`。
+- 愿望单（默认 + 自定义）：`WishlistFlow / CustomWishlistFlow`，含 PIN 闸 + 验证错误 + 端到端添加。
+- 设置 / 同步 / 管理员控制台：`ConfigFlow / ConfigSyncFlow / AdminConsoleFlow`，含 PIN 闸 + 同步成功断言 + 缓存状态跨页持久。
+- 图鉴：`MonsterCodexFlow.ui.test.ets`。
+
+入口 `entry/src/ohosTest/ets/test/List.test.ets`。跑法：
+
+```bash
+hvigorw --mode module -p module=entry@ohosTest assembleHap
+hdc install -r entry/build/default/outputs/ohosTest/entry-ohosTest-signed.hap
+hdc shell aa test -b com.terryma.wordmagicgame -m entry_test \
+  -s unittest OpenHarmonyTestRunner -s timeout 60000 -w 1500
+```
+
+成功标志：`OHOS_REPORT_RESULT: stream=Tests run: N, Failure: 0, Error: 0`。
+
+### 15.3 服务端测试（`server/tests/`）
+
+28 个文件（含 `conftest.py` / `__init__.py`，26 个 `test_*.py`）。覆盖：
+
+- 路由层：auth / public_packs / admin_words / admin_packs / admin_drafts / admin_categories / admin_lessons / admin_stats。
+- 服务层：`pack_service.derive_schema_version` 全分支、`llm_service` 解析、`asset_service` 上传链路（mock httpx）。
+- 模型：`Word` / `WordPack` / `User` 的字段约束。
+- 工具：`seed_from_rawfile` 命令行行为。
+- 可选：`test_llm_live_smoke.py` 是真正打 OpenAI 的 smoke 测试，CI 不跑。
+
+`AGENTS.md` 强制：每个改 `server/` 的 commit 必须 `uv run pytest` 全绿（含 0 warning，warnings filter 配在 `pyproject.toml`）。
+
+### 15.4 手工验收
+
+- 平板 + 手机分别横屏跑一局今日冒险。
+- 快速连点选项 → 不重复扣血 / 不重复结算。
+- 战斗中切出 App 再切回 → 倒计时不应该继续累计。
+- 飞行模式开 → 进入主页 / 战斗 / 愿望单 / ConfigPage 都应正常（同步按钮会 toast 网络异常但不崩）。
+
+---
+
+## 16. 风险与决策
+
+| 风险                         | 影响                  | 应对                                                                  |
+| -------------------------- | ------------------- | ------------------------------------------------------------------- |
+| 儿童误触 / 连点                  | 状态重复结算              | 反馈期间禁用选项 + `battleEndHandled` 单航闸。                                  |
+| 横屏手机空间不足                   | 按钮 / 角色裁切           | 弹性布局 + ChoiceButton 拉满宽。                                            |
+| 词库过少                        | 干扰项重复 / 题目过易        | 全局补足 + 自动降级题型。                                                     |
+| UI 与规则耦合                    | 后续难维护               | 战斗规则全部进 `BattleEngine` / `BattleState`，页面只调接口。                     |
+| 服务端冷启动慢（Vercel）             | "同步词包"首次延迟 5–10s     | UI 同步 toast 提示；UI 自动化 retry 1 次，但不掩盖真实 regression。                  |
+| SVG 图标在 back-nav 偶尔闪占位符      | 用户感知"图标变 emoji"      | V0.5 follow-up 改用 96×96 PNG + `syncLoad(true)`。                     |
+| 家长 PIN 明文                   | 设备被借用时 PIN 可能被读出     | V0.6 计划评估哈希 + 系统密钥环。                                               |
+| 词包大小爆炸                     | 缓存过大 + 同步带宽         | `WordPackCache` 只存最新一份；`MIN_WORDS_PER_PACK` 拒收过小词包做防御。            |
+| 服务端 schema 演进破坏老客户端         | 老设备崩溃               | 客户端解析器对未知字段 ignore，新字段都加 `?`；`schema_version` 单调向上递增。            |
+
+---
+
+## 17. 后续路线图
+
+> 详细子版本路线见 [`WordMagicGame_roadmap.md`](WordMagicGame_roadmap.md)。本节只列方向。
+
+### V0.6 候选（未启动）
+
+- 服务端发起 push（推送式新词包），客户端 silent refresh。
+- 家长 PIN 哈希存储，跨设备共用一个 family code。
+- 多账户 / 学习进度跨设备同步（评估是否需要登录态）。
+- 课本扫描 → 自动建议自定义词列表（接 V0.5 已有的 `admin_lessons` 草稿流）。
+
+### V1.0 候选
+
+- 完整美术替换（角色 / 怪物 / 背景 / UI 全套）。
+- 学习报告导出 PDF / 邮件给家长。
+- 评估云端学习记录、家长侧成长曲线、跨设备进度。
+- 评估正式商业化：内容订阅 / 家长账号 / 商城。
+
+---
+
+## 18. 关联文档与代码索引
+
+- [`docs/WordMagicGame_roadmap.md`](WordMagicGame_roadmap.md)：所有子版本的时间线 + 验收。
+- [`docs/superpowers/specs/`](superpowers/specs/)：每个版本的设计文档（V0.2 / V0.3 / V0.3.5 / V0.3.6 / V0.3.7 / V0.3.8 / V0.3.9 / V0.3.10 / V0.4.x / V0.5 / V0.5 follow-up）。
+- [`docs/superpowers/plans/`](superpowers/plans/)：对应实现计划与 checklist。
+- [`docs/arkts-references/`](arkts-references/)：HarmonyOS / ArkTS / hvigor 相关命令与 API 速查。
+- [`server/README.md`](../server/README.md) / [`server/pyproject.toml`](../server/pyproject.toml)：服务端依赖与启动。
+- [`AGENTS.md`](../AGENTS.md) / [`CLAUDE.md`](../CLAUDE.md)：项目内 AI 代理工作约定（包括 server 全绿要求）。
+- [`.cursor/dev-commands.md`](../.cursor/dev-commands.md)：HarmonyOS 构建 / lint / 测试命令的真源。
+
+每次新增大功能时先看本文档是否仍符合架构边界；若引入账号、长连接、或服务端结构性变化，必须新增专项设计文档并更新本文 §3 / §13 / §17。
