@@ -26,6 +26,7 @@ import categoryCatalogTest from './CategoryCatalog.test';
 import parentApiClientTest from './ParentApiClient.test';
 import orientationTest from './Orientation.test';
 import multipartBuilderTest from './MultipartBuilder.test';
+import lessonImagePickerTest from './LessonImagePicker.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -56,4 +57,5 @@ export default function testsuite() {
   parentApiClientTest();
   orientationTest();
   multipartBuilderTest();
+  lessonImagePickerTest();
 }
