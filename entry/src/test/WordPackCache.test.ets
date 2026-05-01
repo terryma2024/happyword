@@ -38,7 +38,7 @@ export default function wordPackCacheTest() {
     it('rejectsObviouslyCorruptJson', 0, async () => {
       const cache: WordPackCache = new WordPackCache();
       const prefs: MapPrefs = new MapPrefs();
-      prefs.store.set('pack_v1', '{not json}');
+      prefs.store.set('pack_v2', '{not json}');
       cache.injectPreferencesForTest(prefs);
       const got: string = await cache.read();
       expect(got).assertEqual('');
@@ -47,7 +47,7 @@ export default function wordPackCacheTest() {
     it('rejectsPackMissingWordsField', 0, async () => {
       const cache: WordPackCache = new WordPackCache();
       const prefs: MapPrefs = new MapPrefs();
-      prefs.store.set('pack_v1', '{"version":1}');
+      prefs.store.set('pack_v2', '{"version":1}');
       cache.injectPreferencesForTest(prefs);
       const got: string = await cache.read();
       expect(got).assertEqual('');

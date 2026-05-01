@@ -4,7 +4,10 @@ import { BusinessError } from '@ohos.base';
 import { StringPreferencesLike } from './WrongAnswerStore';
 
 const PREFS_NAME: string = 'word_pack_cache';
-const PACK_KEY: string = 'pack_v1';
+// V0.5 client follow-up: bumped from `pack_v1` so legacy bad caches
+// (e.g. a 1-word pack pulled from prod by the old background refresh)
+// are dropped on first launch after upgrade.
+const PACK_KEY: string = 'pack_v2';
 
 class RealPrefs implements StringPreferencesLike {
   private readonly handle: preferences.Preferences;
@@ -73,6 +76,22 @@ export class WordPackCache {
       return;
     }
     await this.prefs.putString(PACK_KEY, packJson);
+    await this.prefs.flush();
+  }
+
+  /**
+   * V0.5 client follow-up: wipe the cache slot so a UiTest scenario
+   * starts from a known-empty state and bootstrap falls through to the
+   * rawfile. Production code never calls this.
+   */
+  async clearForTest(ctx: common.UIAbilityContext): Promise<void> {
+    if (this.prefs === undefined) {
+      await this.init(ctx);
+    }
+    if (this.prefs === undefined) {
+      return;
+    }
+    await this.prefs.putString(PACK_KEY, '');
     await this.prefs.flush();
   }
 
