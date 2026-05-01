@@ -31,11 +31,23 @@ export class RealOrientationAdapter implements IOrientationAdapter {
   }
 
   async setPreferredOrientation(name: OrientationName): Promise<void> {
-    const win: window.Window = await window.getLastWindow(this.ctx);
-    const target: window.Orientation = name === 'PORTRAIT'
-      ? window.Orientation.PORTRAIT
-      : window.Orientation.AUTO_ROTATION_LANDSCAPE;
-    await win.setPreferredOrientation(target);
+    // window.getLastWindow + Window.setPreferredOrientation can both
+    // throw (window not ready, permission denied, etc.). The outer
+    // helpers (lockPortrait / restoreAutoLandscape) catch + swallow,
+    // but ArkTS still wants explicit handling at this call site.
+    try {
+      const win: window.Window = await window.getLastWindow(this.ctx);
+      const target: window.Orientation = name === 'PORTRAIT'
+        ? window.Orientation.PORTRAIT
+        : window.Orientation.AUTO_ROTATION_LANDSCAPE;
+      try {
+        await win.setPreferredOrientation(target);
+      } catch (e) {
+        throw new Error(`setPreferredOrientation failed: ${JSON.stringify(e)}`);
+      }
+    } catch (e) {
+      throw new Error(`getLastWindow failed: ${JSON.stringify(e)}`);
+    }
   }
 }
 

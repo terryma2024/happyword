@@ -64,7 +64,7 @@ async function returnToHome(driver: Driver): Promise<void> {
 /**
  * Open ConfigPage and scroll the sync/admin row pair into view. The
  * narrow landscape emulator viewport is shorter than the form once
- * we appended ConfigSync* + ConfigAdminConsoleButton, so a single
+ * we appended ConfigSync* + ConfigParentAdminButton, so a single
  * swipe-up is required before any of the new V0.5 ids resolve.
  */
 async function openConfigAndScrollToSync(driver: Driver): Promise<void> {

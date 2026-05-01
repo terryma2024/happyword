@@ -204,16 +204,16 @@ struct ConfigPage {
   @Builder
   private adminRow() {
     Row() {
-      Text('管理员').fontSize(18).width(120);
-      Button('管理员控制台')
-        .id('ConfigAdminConsoleButton')
+      Text('家长').fontSize(18).width(120);
+      Button('家长管理后台')
+        .id('ConfigParentAdminButton')
         .width(220).height(40)
         .fontSize(15)
         .backgroundColor('#FFF4D0')
         .fontColor('#B8860B')
         .borderWidth(2)
         .borderColor('#FFB400')
-        .onClick((): void => this.openAdminConsole());
+        .onClick((): void => this.openParentAdmin());
     }
     .margin({ bottom: 16 })
     .alignItems(VerticalAlign.Center);
@@ -312,12 +312,12 @@ struct ConfigPage {
   }
 
   /**
-   * V0.5.F: open the in-app admin console after a successful parent
-   * PIN verification. The actual server-side admin operations are then
-   * gated again by the server JWT login flow on AdminConsolePage; the
-   * parent PIN is the local "keep kids out" gate.
+   * V0.5.8: open the parent admin backend after a successful parent
+   * PIN verification. Server-side auth was removed in V0.5.8 (returns
+   * in V0.6 as per-family JWT); the parent PIN remains the local
+   * "keep kids out" gate.
    */
-  private openAdminConsole(): void {
+  private openParentAdmin(): void {
     const stored: GameConfig | undefined =
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
     const expected: string =
@@ -337,13 +337,13 @@ struct ConfigPage {
     ctrl = new CustomDialogController({
       builder: ParentPinDialog({
         expectedPin: expected,
-        title: '管理员入口需要家长密码',
+        title: '进入后台需要家长密码',
         onConfirm: (): void => {
           if (ctrl !== null) {
             ctrl.close();
           }
-          adminRouter.pushUrl({ url: 'pages/AdminConsolePage' }).catch((err: BusinessError): void => {
-            console.error(`ConfigPage: pushUrl AdminConsolePage failed: ${JSON.stringify(err)}`);
+          adminRouter.pushUrl({ url: 'pages/ParentAdminPage' }).catch((err: BusinessError): void => {
+            console.error(`ConfigPage: pushUrl ParentAdminPage failed: ${JSON.stringify(err)}`);
           });
         },
         onCancel: (): void => {

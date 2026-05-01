@@ -4,18 +4,16 @@ import { Want } from '@kit.AbilityKit';
 import { clickByIdShared } from './RoutingFlow.ui.test';
 
 /**
- * V0.5 client follow-up (VC0.5.F) acceptance: the in-app admin
- * console + parent-PIN gate at the ConfigPage entry. ConfigPage
- * exposes `ConfigAdminConsoleButton`; tapping it either nudges the
- * operator to set up a parent PIN (when none is configured) or pops
- * the existing `ParentPinDialog` and routes to AdminConsolePage on
- * the correct PIN.
+ * V0.5.8 acceptance: parent admin backend + parent-PIN gate.
  *
- * AdminConsolePage's login form is rendered on first visit (no
- * server JWT yet); we DO NOT submit real credentials here — we only
- * verify the page surface (`AdminConsoleTitle`,
- * `AdminConsoleServerLabel`, login card ids) so the test stays
- * deterministic against production.
+ * ConfigPage exposes `ConfigParentAdminButton`; tapping it either
+ * nudges the operator to set up a parent PIN (when none is configured)
+ * or pops the existing `ParentPinDialog` and routes to ParentAdminPage
+ * on the correct PIN.
+ *
+ * V0.5.8 removed the JWT login UI. The parent admin page now renders
+ * the stats / publish surface immediately on mount; we DO NOT assert
+ * statsCard contents because that would require a live server.
  *
  * Order: this file MUST run after configFlowUiTest's
  * twoStepMatchPersistsPinAndUpdatesButtonLabel (which is what seeds
@@ -102,8 +100,8 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   await returnToHome(driver);
 }
 
-export default function adminConsoleFlowUiTest(): void {
-  describe('AdminConsoleFlowV050F', () => {
+export default function parentAdminFlowUiTest(): void {
+  describe('ParentAdminFlowV058', () => {
     /**
      * The admin entry button lives on ConfigPage just below the
      * sync row. Renders unconditionally — the parent-PIN guard is
@@ -114,10 +112,10 @@ export default function adminConsoleFlowUiTest(): void {
       await returnToHome(driver);
       await openConfigAndScrollToAdmin(driver);
 
-      await driver.assertComponentExist(ON.id('ConfigAdminConsoleButton'));
-      const btn = await driver.findComponent(ON.id('ConfigAdminConsoleButton'));
+      await driver.assertComponentExist(ON.id('ConfigParentAdminButton'));
+      const btn = await driver.findComponent(ON.id('ConfigParentAdminButton'));
       const label: string = await btn.getText();
-      expect(label.indexOf('管理员控制台') >= 0).assertTrue();
+      expect(label.indexOf('家长管理后台') >= 0).assertTrue();
 
       await clickByIdShared(driver, 'ConfigCancelButton');
       await driver.delayMs(800);
@@ -129,7 +127,7 @@ export default function adminConsoleFlowUiTest(): void {
      * With a configured PIN, tapping the admin entry pops the
      * `ParentPinDialog`. Wrong PIN keeps the dialog open and lights
      * up the inline error; pressBack then dismisses the dialog
-     * without ever pushing AdminConsolePage onto the route stack.
+     * without ever pushing ParentAdminPage onto the route stack.
      *
      * pressBack (rather than the in-dialog Cancel button) is the
      * dismissal channel because the keypad fills the dialog's full
@@ -144,7 +142,7 @@ export default function adminConsoleFlowUiTest(): void {
       await ensureParentPin(driver, KNOWN_PIN);
 
       await openConfigAndScrollToAdmin(driver);
-      await clickByIdShared(driver, 'ConfigAdminConsoleButton');
+      await clickByIdShared(driver, 'ConfigParentAdminButton');
       await driver.delayMs(800);
 
       await driver.assertComponentExist(ON.id('ParentPinDialog'));
@@ -154,15 +152,7 @@ export default function adminConsoleFlowUiTest(): void {
       // Wrong PIN: 000000 (KNOWN_PIN is 123456). Six taps fills
       // ParentPinDialog.buf, fails validatePin, fires the shake
       // animation and clears the buffer. The dialog STAYS open and
-      // AdminConsolePage MUST NOT have been pushed.
-      //
-      // We deliberately do NOT assert ParentPinDialogError here:
-      // shakeOnError runs three 70 ms animateTo segments while
-      // setting errorVisible=true, and the inline error text mount
-      // can race the assertComponentExist's visibility filter on a
-      // slow emulator. The negative assertions below (dialog still
-      // open + AdminConsolePage NOT mounted) are the real safety
-      // net for the gate.
+      // ParentAdminPage MUST NOT have been pushed.
       const wrong: string = '000000';
       for (let i: number = 0; i < wrong.length; i++) {
         await tapPinDialogKey(driver, wrong.charAt(i));
@@ -170,13 +160,13 @@ export default function adminConsoleFlowUiTest(): void {
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ParentPinDialog'));
       const adminTitle: Component | null =
-        await driver.findComponent(ON.id('AdminConsoleTitle'));
+        await driver.findComponent(ON.id('ParentAdminTitle'));
       expect(adminTitle === null).assertTrue();
 
       // Dismiss the dialog and confirm we're still on ConfigPage.
       await driver.pressBack();
       await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('ConfigAdminConsoleButton'));
+      await driver.assertComponentExist(ON.id('ConfigParentAdminButton'));
       const dialog: Component | null =
         await driver.findComponent(ON.id('ParentPinDialog'));
       expect(dialog === null).assertTrue();
@@ -189,23 +179,20 @@ export default function adminConsoleFlowUiTest(): void {
 
     /**
      * Entering the correct 6-digit PIN auto-dismisses ParentPinDialog
-     * (validatePin === true => onConfirm) and pushes
-     * AdminConsolePage. The login card is rendered on the first
-     * visit (no JWT in AppStorage yet); we assert the structural
-     * surface — title, server label, login button — and back out.
+     * and pushes ParentAdminPage. We assert the structural surface
+     * (title, server label, publish button) and back out.
      *
-     * We deliberately DO NOT submit credentials. AdminConsolePage's
-     * login flow hits a real server and would either flake on
-     * network or silently leave a real JWT in AppStorage; neither
-     * is acceptable for an automated UI test.
+     * V0.5.8 removed the JWT login UI, so the page surfaces stats /
+     * publish directly. We do NOT assert stats values — that would
+     * require a live server response.
      */
-    it('correctPinNavigatesToAdminConsole', 0, async (done: Function) => {
+    it('correctPinNavigatesToParentAdmin', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await ensureParentPin(driver, KNOWN_PIN);
 
       await openConfigAndScrollToAdmin(driver);
-      await clickByIdShared(driver, 'ConfigAdminConsoleButton');
+      await clickByIdShared(driver, 'ConfigParentAdminButton');
       await driver.delayMs(800);
 
       await driver.assertComponentExist(ON.id('ParentPinDialog'));
@@ -213,27 +200,22 @@ export default function adminConsoleFlowUiTest(): void {
         await tapPinDialogKey(driver, KNOWN_PIN.charAt(i));
       }
       // ParentPinDialog auto-dismisses on a correct PIN, then the
-      // CustomDialog onConfirm pushes pages/AdminConsolePage. Allow
-      // a beat for the page transition + aboutToAppear (which checks
-      // AppStorage for an existing JWT but does not contact the
-      // network on a fresh install).
+      // CustomDialog onConfirm pushes pages/ParentAdminPage. Allow
+      // a beat for the page transition + aboutToAppear.
       await driver.delayMs(1500);
 
-      await driver.assertComponentExist(ON.id('AdminConsoleTitle'));
-      await driver.assertComponentExist(ON.id('AdminConsoleServerLabel'));
-      // Without a JWT the login card is rendered.
-      await driver.assertComponentExist(ON.id('AdminConsoleLoginButton'));
-      await driver.assertComponentExist(ON.id('AdminConsoleUsername'));
-      await driver.assertComponentExist(ON.id('AdminConsolePassword'));
+      await driver.assertComponentExist(ON.id('ParentAdminTitle'));
+      await driver.assertComponentExist(ON.id('ParentAdminServerLabel'));
+      await driver.assertComponentExist(ON.id('ParentAdminPublishButton'));
 
-      // Back button on AdminConsolePage routes back to ConfigPage.
+      // Back button on ParentAdminPage routes back to ConfigPage.
       // ConfigPage's outer Scroll preserves its position across
       // navigations, so we anchor on the row we already scrolled to
-      // (ConfigAdminConsoleButton) rather than ConfigTitle which
+      // (ConfigParentAdminButton) rather than ConfigTitle which
       // sits above the fold.
-      await clickByIdShared(driver, 'AdminConsoleBack');
+      await clickByIdShared(driver, 'ParentAdminBack');
       await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('ConfigAdminConsoleButton'));
+      await driver.assertComponentExist(ON.id('ConfigParentAdminButton'));
 
       await clickByIdShared(driver, 'ConfigCancelButton');
       await driver.delayMs(800);

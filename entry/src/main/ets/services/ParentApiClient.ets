@@ -2,61 +2,60 @@ import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@ohos.base';
 
 /**
- * AdminApiClient — V0.5.F MVP. The full v0.5 client follow-up plan
- * sketches a 6-page admin shell wrapping the entire server admin
- * surface (words CRUD, drafts, lesson import, asset upload, packs,
- * stats). To keep this commit reviewable and reduce on-device risk,
- * we ship the highest-value endpoints (login, listWords, getStats,
- * listPacks, publishPack) plus the supporting auth + http plumbing,
- * and defer the rest to follow-up commits. Word CRUD, draft generation
- * and asset upload remain CLI-only via the existing server scripts
- * (`server/scripts/seed_from_rawfile.py`, `publish_pack.py`,
- * `backup_pack.py`).
+ * ParentApiClient — V0.5.8.
  *
- * The client is split into a thin `AdminFetchAdapter` interface (so
+ * The V0.5.8 parent admin console is open (no login UI) so this client
+ * sends plain JSON / multipart requests without an Authorization
+ * header. Per-family auth returns in V0.6, at which point we'll add a
+ * bearer token field back behind a small adapter.
+ *
+ * The client is split into a thin `ParentFetchAdapter` interface (so
  * tests inject a stub) and the real implementation that wraps
  * `@kit.NetworkKit`'s `http.HttpRequest`. Errors are mapped to
- * `AdminAuthError` (401) and `AdminHttpError` (other non-2xx); the
- * caller is responsible for redirecting to login on AdminAuthError.
+ * `ParentAuthError` (401/403, retained as-is so we can distinguish
+ * future re-introduced auth failures from generic server errors) and
+ * `ParentHttpError` (other non-2xx).
+ *
+ * See `docs/superpowers/specs/2026-05-01-v0.5.8-parent-admin-revamp-design.md`.
  */
 
-const HEADER_AUTHORIZATION: string = 'Authorization';
 const HEADER_CONTENT_TYPE: string = 'Content-Type';
 const HEADER_ACCEPT: string = 'Accept';
 const CONTENT_JSON: string = 'application/json';
 const TIMEOUT_MS: number = 8000;
 
-export class AdminAuthError extends Error {
+export class ParentAuthError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'AdminAuthError';
+    this.name = 'ParentAuthError';
   }
 }
 
-export class AdminHttpError extends Error {
+export class ParentHttpError extends Error {
   status: number = 0;
   body: string = '';
   constructor(message: string, status: number, body: string) {
     super(message);
-    this.name = 'AdminHttpError';
+    this.name = 'ParentHttpError';
     this.status = status;
     this.body = body;
   }
 }
 
-export class AdminFetchResult {
+export class ParentFetchResult {
   status: number = 0;
   body: string = '';
 }
 
-export interface AdminFetchAdapter {
-  get(url: string, headers: Record<string, string>): Promise<AdminFetchResult>;
-  post(url: string, headers: Record<string, string>, body: string): Promise<AdminFetchResult>;
-  put(url: string, headers: Record<string, string>, body: string): Promise<AdminFetchResult>;
-  del(url: string, headers: Record<string, string>): Promise<AdminFetchResult>;
+export interface ParentFetchAdapter {
+  get(url: string, headers: Record<string, string>): Promise<ParentFetchResult>;
+  post(url: string, headers: Record<string, string>, body: string): Promise<ParentFetchResult>;
+  put(url: string, headers: Record<string, string>, body: string): Promise<ParentFetchResult>;
+  patch(url: string, headers: Record<string, string>, body: string): Promise<ParentFetchResult>;
+  del(url: string, headers: Record<string, string>): Promise<ParentFetchResult>;
 }
 
-export class AdminWordRow {
+export class ParentWordRow {
   id: string = '';
   word: string = '';
   meaningZh: string = '';
@@ -68,14 +67,14 @@ export class AdminWordRow {
   updatedAt: string = '';
 }
 
-export class AdminWordsPage {
-  items: AdminWordRow[] = [];
+export class ParentWordsPage {
+  items: ParentWordRow[] = [];
   total: number = 0;
   page: number = 0;
   size: number = 0;
 }
 
-export class AdminPackListItem {
+export class ParentPackListItem {
   version: number = 0;
   schemaVersion: number = 0;
   publishedAt: string = '';
@@ -84,14 +83,14 @@ export class AdminPackListItem {
   notes?: string;
 }
 
-export class AdminPackListPage {
-  items: AdminPackListItem[] = [];
+export class ParentPackListPage {
+  items: ParentPackListItem[] = [];
   total: number = 0;
   page: number = 0;
   size: number = 0;
 }
 
-export class AdminPackPublished {
+export class ParentPackPublished {
   version: number = 0;
   schemaVersion: number = 0;
   wordCount: number = 0;
@@ -100,7 +99,7 @@ export class AdminPackPublished {
   notes?: string;
 }
 
-export class AdminStats {
+export class ParentStats {
   userCount: number = 0;
   wordCount: number = 0;
   categoryCount: number = 0;
@@ -109,12 +108,6 @@ export class AdminStats {
   lastPublishedAt?: string;
   llmDraftPending: number = 0;
   lessonImportDraftPending: number = 0;
-}
-
-interface RawLoginResponse {
-  access_token?: string;
-  token_type?: string;
-  expires_in?: number;
 }
 
 interface RawWordRow {
@@ -172,85 +165,52 @@ interface RawStatsOut {
   lesson_import_draft_pending?: number;
 }
 
-export class AdminApiClient {
-  private readonly adapter: AdminFetchAdapter;
+export class ParentApiClient {
+  private readonly adapter: ParentFetchAdapter;
   private readonly baseUrl: string;
-  private bearerToken: string = '';
 
-  constructor(adapter: AdminFetchAdapter, baseUrl: string) {
+  constructor(adapter: ParentFetchAdapter, baseUrl: string) {
     this.adapter = adapter;
-    this.baseUrl = AdminApiClient.trimTrailingSlash(baseUrl);
+    this.baseUrl = ParentApiClient.trimTrailingSlash(baseUrl);
   }
 
-  static withRealHttp(baseUrl: string): AdminApiClient {
-    return new AdminApiClient(new RealAdminFetchAdapter(), baseUrl);
+  static withRealHttp(baseUrl: string): ParentApiClient {
+    return new ParentApiClient(new RealParentFetchAdapter(), baseUrl);
   }
 
-  setBearerToken(token: string): void {
-    this.bearerToken = token;
-  }
-
-  clearBearerToken(): void {
-    this.bearerToken = '';
-  }
-
-  hasBearerToken(): boolean {
-    return this.bearerToken.length > 0;
-  }
-
-  async login(username: string, password: string): Promise<string> {
-    const url: string = `${this.baseUrl}/api/v1/auth/login`;
-    const body: string = JSON.stringify({ username, password });
-    const headers: Record<string, string> = AdminApiClient.jsonHeaders();
-    const res: AdminFetchResult = await this.adapter.post(url, headers, body);
-    AdminApiClient.assertOk(res, 'login');
-    let parsed: RawLoginResponse;
-    try {
-      parsed = JSON.parse(res.body) as RawLoginResponse;
-    } catch (_err) {
-      throw new AdminHttpError('login: malformed response body', res.status, res.body);
-    }
-    const token: string | undefined = parsed.access_token;
-    if (token === undefined || token.length === 0) {
-      throw new AdminHttpError('login: missing access_token', res.status, res.body);
-    }
-    this.bearerToken = token;
-    return token;
-  }
-
-  async listWords(page: number, size: number): Promise<AdminWordsPage> {
+  async listWords(page: number, size: number): Promise<ParentWordsPage> {
     const url: string = `${this.baseUrl}/api/v1/admin/words?page=${page}&size=${size}`;
-    const res: AdminFetchResult = await this.adapter.get(url, this.authHeaders());
-    AdminApiClient.assertOk(res, 'listWords');
+    const res: ParentFetchResult = await this.adapter.get(url, ParentApiClient.acceptJsonHeaders());
+    ParentApiClient.assertOk(res, 'listWords');
     let parsed: RawWordsPage;
     try {
       parsed = JSON.parse(res.body) as RawWordsPage;
     } catch (_err) {
-      throw new AdminHttpError('listWords: malformed response body', res.status, res.body);
+      throw new ParentHttpError('listWords: malformed response body', res.status, res.body);
     }
-    const out: AdminWordsPage = new AdminWordsPage();
+    const out: ParentWordsPage = new ParentWordsPage();
     out.total = typeof parsed.total === 'number' ? parsed.total : 0;
     out.page = typeof parsed.page === 'number' ? parsed.page : page;
     out.size = typeof parsed.size === 'number' ? parsed.size : size;
     if (Array.isArray(parsed.items)) {
       for (let i = 0; i < parsed.items.length; i++) {
-        out.items.push(AdminApiClient.hydrateWord(parsed.items[i]));
+        out.items.push(ParentApiClient.hydrateWord(parsed.items[i]));
       }
     }
     return out;
   }
 
-  async getStats(): Promise<AdminStats> {
+  async getStats(): Promise<ParentStats> {
     const url: string = `${this.baseUrl}/api/v1/admin/stats`;
-    const res: AdminFetchResult = await this.adapter.get(url, this.authHeaders());
-    AdminApiClient.assertOk(res, 'getStats');
+    const res: ParentFetchResult = await this.adapter.get(url, ParentApiClient.acceptJsonHeaders());
+    ParentApiClient.assertOk(res, 'getStats');
     let parsed: RawStatsOut;
     try {
       parsed = JSON.parse(res.body) as RawStatsOut;
     } catch (_err) {
-      throw new AdminHttpError('getStats: malformed response body', res.status, res.body);
+      throw new ParentHttpError('getStats: malformed response body', res.status, res.body);
     }
-    const out: AdminStats = new AdminStats();
+    const out: ParentStats = new ParentStats();
     out.userCount = typeof parsed.user_count === 'number' ? parsed.user_count : 0;
     out.wordCount = typeof parsed.word_count === 'number' ? parsed.word_count : 0;
     out.categoryCount = typeof parsed.category_count === 'number' ? parsed.category_count : 0;
@@ -267,45 +227,45 @@ export class AdminApiClient {
     return out;
   }
 
-  async listPacks(page: number, size: number): Promise<AdminPackListPage> {
+  async listPacks(page: number, size: number): Promise<ParentPackListPage> {
     const url: string = `${this.baseUrl}/api/v1/admin/packs?page=${page}&size=${size}`;
-    const res: AdminFetchResult = await this.adapter.get(url, this.authHeaders());
-    AdminApiClient.assertOk(res, 'listPacks');
+    const res: ParentFetchResult = await this.adapter.get(url, ParentApiClient.acceptJsonHeaders());
+    ParentApiClient.assertOk(res, 'listPacks');
     let parsed: RawPackListPage;
     try {
       parsed = JSON.parse(res.body) as RawPackListPage;
     } catch (_err) {
-      throw new AdminHttpError('listPacks: malformed response body', res.status, res.body);
+      throw new ParentHttpError('listPacks: malformed response body', res.status, res.body);
     }
-    const out: AdminPackListPage = new AdminPackListPage();
+    const out: ParentPackListPage = new ParentPackListPage();
     out.total = typeof parsed.total === 'number' ? parsed.total : 0;
     out.page = typeof parsed.page === 'number' ? parsed.page : page;
     out.size = typeof parsed.size === 'number' ? parsed.size : size;
     if (Array.isArray(parsed.items)) {
       for (let i = 0; i < parsed.items.length; i++) {
-        out.items.push(AdminApiClient.hydratePackItem(parsed.items[i]));
+        out.items.push(ParentApiClient.hydratePackItem(parsed.items[i]));
       }
     }
     return out;
   }
 
-  async publishPack(notes?: string): Promise<AdminPackPublished> {
+  async publishPack(notes?: string): Promise<ParentPackPublished> {
     const url: string = `${this.baseUrl}/api/v1/admin/packs/publish`;
-    const headers: Record<string, string> = this.authJsonHeaders();
+    const headers: Record<string, string> = ParentApiClient.jsonHeaders();
     const payload: Record<string, string | null> = {};
     if (notes !== undefined && notes.length > 0) {
       payload['notes'] = notes;
     }
     const body: string = JSON.stringify(payload);
-    const res: AdminFetchResult = await this.adapter.post(url, headers, body);
-    AdminApiClient.assertOk(res, 'publishPack');
+    const res: ParentFetchResult = await this.adapter.post(url, headers, body);
+    ParentApiClient.assertOk(res, 'publishPack');
     let parsed: RawPublishOut;
     try {
       parsed = JSON.parse(res.body) as RawPublishOut;
     } catch (_err) {
-      throw new AdminHttpError('publishPack: malformed response body', res.status, res.body);
+      throw new ParentHttpError('publishPack: malformed response body', res.status, res.body);
     }
-    const out: AdminPackPublished = new AdminPackPublished();
+    const out: ParentPackPublished = new ParentPackPublished();
     out.version = typeof parsed.version === 'number' ? parsed.version : 0;
     out.schemaVersion = typeof parsed.schema_version === 'number' ? parsed.schema_version : 0;
     out.wordCount = typeof parsed.word_count === 'number' ? parsed.word_count : 0;
@@ -315,22 +275,6 @@ export class AdminApiClient {
       out.notes = parsed.notes;
     }
     return out;
-  }
-
-  private authHeaders(): Record<string, string> {
-    const h: Record<string, string> = AdminApiClient.acceptJsonHeaders();
-    if (this.bearerToken.length > 0) {
-      h[HEADER_AUTHORIZATION] = `Bearer ${this.bearerToken}`;
-    }
-    return h;
-  }
-
-  private authJsonHeaders(): Record<string, string> {
-    const h: Record<string, string> = AdminApiClient.jsonHeaders();
-    if (this.bearerToken.length > 0) {
-      h[HEADER_AUTHORIZATION] = `Bearer ${this.bearerToken}`;
-    }
-    return h;
   }
 
   private static jsonHeaders(): Record<string, string> {
@@ -346,18 +290,18 @@ export class AdminApiClient {
     return h;
   }
 
-  private static assertOk(res: AdminFetchResult, op: string): void {
+  private static assertOk(res: ParentFetchResult, op: string): void {
     if (res.status === 200 || res.status === 201 || res.status === 204) {
       return;
     }
     if (res.status === 401 || res.status === 403) {
-      throw new AdminAuthError(`${op}: HTTP ${res.status}`);
+      throw new ParentAuthError(`${op}: HTTP ${res.status}`);
     }
-    throw new AdminHttpError(`${op}: HTTP ${res.status}`, res.status, res.body);
+    throw new ParentHttpError(`${op}: HTTP ${res.status}`, res.status, res.body);
   }
 
-  private static hydrateWord(raw: RawWordRow): AdminWordRow {
-    const w: AdminWordRow = new AdminWordRow();
+  private static hydrateWord(raw: RawWordRow): ParentWordRow {
+    const w: ParentWordRow = new ParentWordRow();
     w.id = typeof raw.id === 'string' ? raw.id : '';
     w.word = typeof raw.word === 'string' ? raw.word : '';
     w.meaningZh = typeof raw.meaning_zh === 'string' ? raw.meaning_zh : '';
@@ -374,8 +318,8 @@ export class AdminApiClient {
     return w;
   }
 
-  private static hydratePackItem(raw: RawPackItem): AdminPackListItem {
-    const p: AdminPackListItem = new AdminPackListItem();
+  private static hydratePackItem(raw: RawPackItem): ParentPackListItem {
+    const p: ParentPackListItem = new ParentPackListItem();
     p.version = typeof raw.version === 'number' ? raw.version : 0;
     p.schemaVersion = typeof raw.schema_version === 'number' ? raw.schema_version : 0;
     p.publishedAt = typeof raw.published_at === 'string' ? raw.published_at : '';
@@ -396,21 +340,30 @@ export class AdminApiClient {
   }
 }
 
-class RealAdminFetchAdapter implements AdminFetchAdapter {
-  async get(url: string, headers: Record<string, string>): Promise<AdminFetchResult> {
-    return RealAdminFetchAdapter.send(url, http.RequestMethod.GET, headers, '');
+class RealParentFetchAdapter implements ParentFetchAdapter {
+  async get(url: string, headers: Record<string, string>): Promise<ParentFetchResult> {
+    return RealParentFetchAdapter.send(url, http.RequestMethod.GET, headers, '');
   }
 
-  async post(url: string, headers: Record<string, string>, body: string): Promise<AdminFetchResult> {
-    return RealAdminFetchAdapter.send(url, http.RequestMethod.POST, headers, body);
+  async post(url: string, headers: Record<string, string>, body: string): Promise<ParentFetchResult> {
+    return RealParentFetchAdapter.send(url, http.RequestMethod.POST, headers, body);
   }
 
-  async put(url: string, headers: Record<string, string>, body: string): Promise<AdminFetchResult> {
-    return RealAdminFetchAdapter.send(url, http.RequestMethod.PUT, headers, body);
+  async put(url: string, headers: Record<string, string>, body: string): Promise<ParentFetchResult> {
+    return RealParentFetchAdapter.send(url, http.RequestMethod.PUT, headers, body);
   }
 
-  async del(url: string, headers: Record<string, string>): Promise<AdminFetchResult> {
-    return RealAdminFetchAdapter.send(url, http.RequestMethod.DELETE, headers, '');
+  async patch(url: string, headers: Record<string, string>, body: string): Promise<ParentFetchResult> {
+    // The Harmony NetworkKit `RequestMethod` enum (API 20) does not
+    // include PATCH (only OPTIONS / GET / HEAD / POST / PUT / DELETE /
+    // TRACE / CONNECT — see @ohos.net.http.d.ts). At runtime libcurl
+    // forwards whatever method string we pass, so we cast a plain
+    // "PATCH" literal to the enum type.
+    return RealParentFetchAdapter.send(url, 'PATCH' as http.RequestMethod, headers, body);
+  }
+
+  async del(url: string, headers: Record<string, string>): Promise<ParentFetchResult> {
+    return RealParentFetchAdapter.send(url, http.RequestMethod.DELETE, headers, '');
   }
 
   private static async send(
@@ -418,8 +371,8 @@ class RealAdminFetchAdapter implements AdminFetchAdapter {
     method: http.RequestMethod,
     headers: Record<string, string>,
     body: string,
-  ): Promise<AdminFetchResult> {
-    const out: AdminFetchResult = new AdminFetchResult();
+  ): Promise<ParentFetchResult> {
+    const out: ParentFetchResult = new ParentFetchResult();
     const req: http.HttpRequest = http.createHttp();
     try {
       const resp: http.HttpResponse = await req.request(url, {
@@ -439,7 +392,7 @@ class RealAdminFetchAdapter implements AdminFetchAdapter {
       }
     } catch (err) {
       const be: BusinessError = err as BusinessError;
-      console.error(`AdminApiClient.send failed for ${url}: ${JSON.stringify(be)}`);
+      console.error(`ParentApiClient.send failed for ${url}: ${JSON.stringify(be)}`);
       out.status = 0;
       out.body = '';
     } finally {

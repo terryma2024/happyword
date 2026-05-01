@@ -1,52 +1,67 @@
 import { BusinessError } from '@ohos.base';
+import { common } from '@kit.AbilityKit';
 import {
-  AdminApiClient,
-  AdminAuthError,
-  AdminHttpError,
-  AdminPackPublished,
-  AdminStats,
-} from '../services/AdminApiClient';
+  ParentApiClient,
+  ParentAuthError,
+  ParentHttpError,
+  ParentPackPublished,
+  ParentStats,
+} from '../services/ParentApiClient';
 import { SERVER_BASE_URL } from '../services/RemoteWordPackConfig';
+import {
+  IOrientationAdapter,
+  RealOrientationAdapter,
+  lockPortrait,
+  restoreAutoLandscape,
+} from '../utils/orientation';
 
 /**
- * AdminConsolePage — V0.5.F MVP. Single-page admin shell that exposes
- * the highest-value server admin operations in a parent-PIN-gated UI:
- *  - Login (writes the JWT into AppStorage so subsequent visits skip
- *    the login form for the duration of the session).
- *  - Stats dashboard.
- *  - Publish a fresh word pack (POST /api/v1/admin/packs/publish).
- *  - Logout.
+ * ParentAdminPage — V0.5.8.
  *
- * Word CRUD, draft generation and asset upload remain CLI-only via the
- * existing server scripts (seed_from_rawfile.py, publish_pack.py,
- * backup_pack.py); a follow-up commit can plug additional admin pages
- * onto this surface as need arises.
+ * Open parent admin console (no login UI). Stays in portrait orientation
+ * for the duration of the page; restores AUTO_ROTATION_LANDSCAPE when
+ * the user backs out to ConfigPage. The login flow + JWT plumbing was
+ * removed in V0.5.8 C2 and will return in V0.6 as a per-family token.
+ *
+ * Page surfaces:
+ *   - Stats card: live snapshot of server state (refresh button).
+ *   - Lesson import card (F1, photo → words → review draft).
+ *   - Pending drafts list (F2, navigates to LessonDraftReviewPage).
+ *   - Publish card: publishes a fresh word-pack snapshot.
+ *
+ * See `docs/superpowers/specs/2026-05-01-v0.5.8-parent-admin-revamp-design.md`.
  */
 
-const ADMIN_JWT_KEY: string = 'admin_jwt';
 const TOAST_MS: number = 3000;
 
 @Entry
 @Component
-struct AdminConsolePage {
-  @State private username: string = '';
-  @State private password: string = '';
+struct ParentAdminPage {
   @State private busy: boolean = false;
-  @State private hasToken: boolean = false;
   @State private toast: string = '';
-  @State private stats?: AdminStats = undefined;
+  @State private stats?: ParentStats = undefined;
   @State private publishedSummary: string = '';
   @State private publishNotes: string = '';
   private toastTimer: number = -1;
-  private client: AdminApiClient = AdminApiClient.withRealHttp(SERVER_BASE_URL);
+  private client: ParentApiClient = ParentApiClient.withRealHttp(SERVER_BASE_URL);
+  private orientation: IOrientationAdapter = new RealOrientationAdapter(
+    this.getUIContext().getHostContext() as common.UIAbilityContext,
+  );
 
   aboutToAppear(): void {
-    const stored: string | undefined = AppStorage.get<string>(ADMIN_JWT_KEY);
-    if (stored !== undefined && stored.length > 0) {
-      this.client.setBearerToken(stored);
-      this.hasToken = true;
-      this.refreshStats();
-    }
+    lockPortrait(this.orientation).catch((err: BusinessError): void => {
+      console.error(`ParentAdminPage.lockPortrait failed: ${JSON.stringify(err)}`);
+    });
+    this.refreshStats().catch((err: BusinessError): void => {
+      console.error(`ParentAdminPage.refreshStats(initial) failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  onPageShow(): void {
+    // Re-lock on pop-back from LessonDraftReviewPage; idempotent.
+    lockPortrait(this.orientation).catch((err: BusinessError): void => {
+      console.error(`ParentAdminPage.lockPortrait(onPageShow) failed: ${JSON.stringify(err)}`);
+    });
   }
 
   aboutToDisappear(): void {
@@ -54,6 +69,9 @@ struct AdminConsolePage {
       clearTimeout(this.toastTimer);
       this.toastTimer = -1;
     }
+    restoreAutoLandscape(this.orientation).catch((err: BusinessError): void => {
+      console.error(`ParentAdminPage.restoreAutoLandscape failed: ${JSON.stringify(err)}`);
+    });
   }
 
   private showToast(message: string): void {
@@ -67,44 +85,14 @@ struct AdminConsolePage {
     }, TOAST_MS);
   }
 
-  private async submitLogin(): Promise<void> {
-    if (this.username.length === 0 || this.password.length === 0) {
-      this.showToast('请填写用户名和密码');
-      return;
-    }
-    this.busy = true;
-    try {
-      const tok: string = await this.client.login(this.username, this.password);
-      AppStorage.setOrCreate<string>(ADMIN_JWT_KEY, tok);
-      this.password = '';
-      this.hasToken = true;
-      this.showToast('登录成功');
-      await this.refreshStats();
-    } catch (err) {
-      if (err instanceof AdminAuthError) {
-        this.showToast('账号或密码错误');
-      } else if (err instanceof AdminHttpError) {
-        this.showToast(`登录失败 (HTTP ${err.status})`);
-      } else {
-        const be: BusinessError = err as BusinessError;
-        this.showToast(`登录异常: ${be.message ?? 'unknown'}`);
-      }
-    } finally {
-      this.busy = false;
-    }
-  }
-
   private async refreshStats(): Promise<void> {
-    if (!this.hasToken) {
-      return;
-    }
     this.busy = true;
     try {
       this.stats = await this.client.getStats();
     } catch (err) {
-      if (err instanceof AdminAuthError) {
-        this.handleAuthExpiry();
-      } else if (err instanceof AdminHttpError) {
+      if (err instanceof ParentAuthError) {
+        this.showToast('服务端拒绝访问 (401/403)');
+      } else if (err instanceof ParentHttpError) {
         this.showToast(`刷新失败 (HTTP ${err.status})`);
       } else {
         const be: BusinessError = err as BusinessError;
@@ -116,22 +104,19 @@ struct AdminConsolePage {
   }
 
   private async publishPack(): Promise<void> {
-    if (!this.hasToken) {
-      return;
-    }
     this.busy = true;
     try {
       const notes: string | undefined =
         this.publishNotes.length > 0 ? this.publishNotes : undefined;
-      const out: AdminPackPublished = await this.client.publishPack(notes);
+      const out: ParentPackPublished = await this.client.publishPack(notes);
       this.publishedSummary =
         `已发布 v${out.version} (schema_v${out.schemaVersion}, ${out.wordCount} 词)`;
       this.publishNotes = '';
       await this.refreshStats();
     } catch (err) {
-      if (err instanceof AdminAuthError) {
-        this.handleAuthExpiry();
-      } else if (err instanceof AdminHttpError) {
+      if (err instanceof ParentAuthError) {
+        this.showToast('服务端拒绝访问 (401/403)');
+      } else if (err instanceof ParentHttpError) {
         this.showToast(`发布失败 (HTTP ${err.status})`);
       } else {
         const be: BusinessError = err as BusinessError;
@@ -142,29 +127,12 @@ struct AdminConsolePage {
     }
   }
 
-  private handleAuthExpiry(): void {
-    AppStorage.delete(ADMIN_JWT_KEY);
-    this.client.clearBearerToken();
-    this.hasToken = false;
-    this.stats = undefined;
-    this.showToast('会话已过期，请重新登录');
-  }
-
-  private logout(): void {
-    AppStorage.delete(ADMIN_JWT_KEY);
-    this.client.clearBearerToken();
-    this.hasToken = false;
-    this.stats = undefined;
-    this.publishedSummary = '';
-    this.showToast('已退出登录');
-  }
-
   private back(): void {
     this.getUIContext().getRouter().back();
   }
 
   private formatLatestVersion(): string {
-    const s: AdminStats | undefined = this.stats;
+    const s: ParentStats | undefined = this.stats;
     if (s === undefined || s.latestVersion === undefined) {
       return '—';
     }
@@ -172,7 +140,7 @@ struct AdminConsolePage {
   }
 
   private formatLastPublishedAt(): string {
-    const s: AdminStats | undefined = this.stats;
+    const s: ParentStats | undefined = this.stats;
     if (s === undefined || s.lastPublishedAt === undefined || s.lastPublishedAt.length === 0) {
       return '—';
     }
@@ -184,7 +152,7 @@ struct AdminConsolePage {
       Column({ space: 16 }) {
         Row() {
           Button('返回')
-            .id('AdminConsoleBack')
+            .id('ParentAdminBack')
             .width(80)
             .height(36)
             .fontSize(14)
@@ -192,41 +160,28 @@ struct AdminConsolePage {
             .fontColor('#457B9D')
             .onClick((): void => this.back());
           Blank();
-          Text('管理员控制台')
-            .id('AdminConsoleTitle')
+          Text('家长管理后台')
+            .id('ParentAdminTitle')
             .fontSize(20)
             .fontWeight(FontWeight.Bold);
           Blank();
-          if (this.hasToken) {
-            Button('退出')
-              .id('AdminConsoleLogout')
-              .width(80)
-              .height(36)
-              .fontSize(14)
-              .backgroundColor('#FFEAEA')
-              .fontColor('#E63946')
-              .onClick((): void => this.logout());
-          } else {
-            Text('').width(80);
-          }
+          Text('').width(80);
         }
         .width('100%');
 
         Text(`服务器: ${SERVER_BASE_URL}`)
-          .id('AdminConsoleServerLabel')
+          .id('ParentAdminServerLabel')
           .fontSize(13)
           .fontColor('#666666');
 
-        if (!this.hasToken) {
-          this.loginCard();
-        } else {
-          this.statsCard();
-          this.publishCard();
-        }
+        this.statsCard();
+        this.lessonImportCard();
+        this.draftListCard();
+        this.publishCard();
 
         if (this.toast.length > 0) {
           Text(this.toast)
-            .id('AdminConsoleToast')
+            .id('ParentAdminToast')
             .fontSize(13)
             .fontColor('#1D3557')
             .padding({ left: 8, right: 8, top: 4, bottom: 4 })
@@ -243,54 +198,13 @@ struct AdminConsolePage {
   }
 
   @Builder
-  private loginCard(): void {
-    Column({ space: 12 }) {
-      Text('登录').fontSize(18).fontWeight(FontWeight.Medium);
-      TextInput({ placeholder: '用户名', text: this.username })
-        .id('AdminConsoleUsername')
-        .width('100%')
-        .height(44)
-        .enabled(!this.busy)
-        .onChange((v: string): void => {
-          this.username = v;
-        });
-      TextInput({ placeholder: '密码', text: this.password })
-        .id('AdminConsolePassword')
-        .type(InputType.Password)
-        .width('100%')
-        .height(44)
-        .enabled(!this.busy)
-        .onChange((v: string): void => {
-          this.password = v;
-        });
-      Button(this.busy ? '登录中…' : '登录')
-        .id('AdminConsoleLoginButton')
-        .width('100%')
-        .height(44)
-        .fontSize(16)
-        .backgroundColor(this.busy ? '#F0F0F0' : '#1D3557')
-        .fontColor(this.busy ? '#999999' : '#FFFFFF')
-        .enabled(!this.busy)
-        .onClick((): void => {
-          this.submitLogin().catch((err: BusinessError): void => {
-            console.error(`AdminConsolePage.submitLogin failed: ${JSON.stringify(err)}`);
-          });
-        });
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor('#F7F9FC')
-    .borderRadius(12);
-  }
-
-  @Builder
   private statsCard(): void {
     Column({ space: 8 }) {
       Row() {
         Text('概览').fontSize(18).fontWeight(FontWeight.Medium);
         Blank();
         Button('刷新')
-          .id('AdminConsoleRefresh')
+          .id('ParentAdminRefresh')
           .width(80)
           .height(32)
           .fontSize(13)
@@ -299,7 +213,7 @@ struct AdminConsolePage {
           .enabled(!this.busy)
           .onClick((): void => {
             this.refreshStats().catch((err: BusinessError): void => {
-              console.error(`AdminConsolePage.refreshStats failed: ${JSON.stringify(err)}`);
+              console.error(`ParentAdminPage.refreshStats failed: ${JSON.stringify(err)}`);
             });
           });
       }
@@ -316,7 +230,7 @@ struct AdminConsolePage {
         this.statsLine('待审课本图', `${this.stats.lessonImportDraftPending}`);
       } else {
         Text(this.busy ? '加载中…' : '尚无数据')
-          .id('AdminConsoleStatsEmpty')
+          .id('ParentAdminStatsEmpty')
           .fontSize(13)
           .fontColor('#666666');
       }
@@ -332,12 +246,24 @@ struct AdminConsolePage {
     Row() {
       Text(label).fontSize(14).fontColor('#3F2F1A').width(120);
       Text(value)
-        .id(`AdminConsoleStat_${label}`)
+        .id(`ParentAdminStat_${label}`)
         .fontSize(14)
         .fontColor('#1D3557');
     }
     .width('100%')
     .margin({ bottom: 4 });
+  }
+
+  @Builder
+  private lessonImportCard(): void {
+    // V0.5.8 F1 will replace this with the real photo-import card.
+    Column().width(0).height(0);
+  }
+
+  @Builder
+  private draftListCard(): void {
+    // V0.5.8 F2 will replace this with the pending-drafts list.
+    Column().width(0).height(0);
   }
 
   @Builder
@@ -348,7 +274,7 @@ struct AdminConsolePage {
         .fontSize(13)
         .fontColor('#666666');
       TextInput({ placeholder: '备注（可选，最多 500 字）', text: this.publishNotes })
-        .id('AdminConsolePublishNotes')
+        .id('ParentAdminPublishNotes')
         .width('100%')
         .height(44)
         .enabled(!this.busy)
@@ -356,7 +282,7 @@ struct AdminConsolePage {
           this.publishNotes = v;
         });
       Button(this.busy ? '发布中…' : '立即发布')
-        .id('AdminConsolePublishButton')
+        .id('ParentAdminPublishButton')
         .width('100%')
         .height(44)
         .fontSize(16)
@@ -365,12 +291,12 @@ struct AdminConsolePage {
         .enabled(!this.busy)
         .onClick((): void => {
           this.publishPack().catch((err: BusinessError): void => {
-            console.error(`AdminConsolePage.publishPack failed: ${JSON.stringify(err)}`);
+            console.error(`ParentAdminPage.publishPack failed: ${JSON.stringify(err)}`);
           });
         });
       if (this.publishedSummary.length > 0) {
         Text(this.publishedSummary)
-          .id('AdminConsolePublishSummary')
+          .id('ParentAdminPublishSummary')
           .fontSize(13)
           .fontColor('#2A9D8F');
       }
