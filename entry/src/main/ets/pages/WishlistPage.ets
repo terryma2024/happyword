@@ -241,12 +241,14 @@ struct WishlistPage {
       Blank()
         .layoutWeight(1);
       // V0.3.10: emoji-text 📜 replaced with the warm-parchment scroll
-      // SVG; id / dimensions / background colour preserved so existing
-      // by-id UI tests continue to match. borderRadius(8) explicitly
-      // set because the container Button() syntax does not inherit the
-      // default rectangular Button's soft-corner rounding.
+      // glyph; id / dimensions / background colour preserved so
+      // existing by-id UI tests continue to match. borderRadius(8)
+      // explicitly set because the container Button() syntax does not
+      // inherit the default rectangular Button's soft-corner rounding.
+      // V0.5 follow-up: rasterized 96×96 PNG (was scroll.svg) so the
+      // rasterizer can't drop a placeholder frame on remount.
       Button({ type: ButtonType.Normal, stateEffect: true }) {
-        Image($rawfile('icons/scroll.svg'))
+        Image($rawfile('icons/scroll.png'))
           .width(22)
           .height(22)
           .objectFit(ImageFit.Contain)

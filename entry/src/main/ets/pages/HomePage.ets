@@ -311,10 +311,19 @@ struct HomePage {
         // V0.3.10: emoji text replaced by an inline Image child. The
         // Button() container syntax keeps the id / size / circular
         // shape / soft-pink background, while letting us render a
-        // Recraft-generated rawfile SVG as the glyph. lock state
-        // dimming is now handled via .opacity on the Image.
+        // Recraft-generated rawfile glyph. lock state dimming is
+        // handled via .opacity on the Image.
+        //
+        // V0.5 follow-up: the four toolbar icons were originally
+        // rawfile SVGs (58–141 KB / ~120 paths each). Even with
+        // syncLoad(true) the SVG rasterizer would occasionally yield
+        // a placeholder square on remount (back-nav from any pushed
+        // page), which the user reads as the icon "reverting to an
+        // emoji". Pre-rasterized 96×96 PNGs decode reliably and stay
+        // stable across remounts; the original SVGs are kept on
+        // disk as the design source.
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/review.svg'))
+          Image($rawfile('icons/review.png'))
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
@@ -334,7 +343,7 @@ struct HomePage {
           });
 
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/codex.svg'))
+          Image($rawfile('icons/codex.png'))
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
@@ -370,7 +379,7 @@ struct HomePage {
           });
 
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/wishlist.svg'))
+          Image($rawfile('icons/wishlist.png'))
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
@@ -387,7 +396,7 @@ struct HomePage {
           });
 
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/gear.svg'))
+          Image($rawfile('icons/gear.png'))
             .width(32)
             .height(32)
             .objectFit(ImageFit.Contain)
