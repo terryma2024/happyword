@@ -32,7 +32,7 @@ import {
   computeFinalPool
 } from '../models/GameConfig';
 import { formatDayKeyLocal } from '../models/CoinSnapshot';
-import { TodaySessionPlan, WordSlot, WordSource } from '../models/AdventureRegion';
+import { TodaySessionPlan, WordSource } from '../models/AdventureRegion';
 import { AdventureRegion } from '../models/AdventureRegion';
 import { getRegionById } from '../data/AdventureCatalog';
 import { CoinAccount, getCoinAccount, COIN_REASON_TODAY_FIRST } from '../services/CoinAccount';
@@ -132,24 +132,6 @@ function countByWordSource(plan: TodaySessionPlan, src: WordSource): number {
     }
   }
   return n;
-}
-
-function computeReviewAccuracy(plan: TodaySessionPlan, answers: Map<string, AnswerCount>): number {
-  let correct: number = 0;
-  let total: number = 0;
-  for (let i = 0; i < plan.wordPlan.length; i++) {
-    const slot: WordSlot = plan.wordPlan[i];
-    if (slot.source !== WordSource.Review) {
-      continue;
-    }
-    const cnt: AnswerCount | undefined = answers.get(slot.wordId);
-    if (cnt === undefined) {
-      continue;
-    }
-    correct += cnt.correct;
-    total += cnt.total;
-  }
-  return total > 0 ? correct / total : 0;
 }
 
 @Entry
@@ -1182,6 +1164,16 @@ struct BattlePage {
    * for the home-page badge, and write the result into the
    * SessionResult. Coin awards are clamped to the daily cap inside
    * CoinAccount.earn — `dailyCapHit` mirrors that state.
+   *
+   * V0.5 follow-up — reward formula is now "1 star = 1 coin". We
+   * drop the previous monster-defeat / accuracy-80 / review-80
+   * stack in favour of the player-visible star count from
+   * BattleEngine.computeStars (0..3 per spec §4.4). The first-today
+   * win still routes through COIN_REASON_TODAY_FIRST so HomePage's
+   * 已完成 badge gate flips even when the daily cap clamps the
+   * award to zero. Subsequent same-day battles continue to award
+   * stars-as-coins under the generic 'stars' reason, preserving
+   * the txn ledger's diagnostic value.
    */
   private applyTodayAdventureRewards(result: SessionResult, plan: TodaySessionPlan): void {
     const now: number = Date.now();
@@ -1194,18 +1186,19 @@ struct BattlePage {
     result.reviewWordCount = countByWordSource(plan, WordSource.Review);
     result.newWordCount = countByWordSource(plan, WordSource.New);
 
+    const stars: number = result.stars;
     let earned: number = 0;
     if (plan.isFirstToday && result.status === BattleStatus.Won) {
-      earned += this.coinAccount.earn(COIN_REASON_TODAY_FIRST, 5, now);
-    }
-    if (result.defeatedMonsters > 0) {
-      earned += this.coinAccount.earn('monster-defeat', result.defeatedMonsters, now);
-    }
-    if (result.correctRate >= 0.8) {
-      earned += this.coinAccount.earn('accuracy-80', 3, now);
-    }
-    if (computeReviewAccuracy(plan, this.sessionAnswers) >= 0.8) {
-      earned += this.coinAccount.earn('review-80', 2, now);
+      // computeStars guarantees stars >= 2 on a win, so this is
+      // always the star-count even though earn() also flips the
+      // 已完成 flag for amount === 0.
+      earned = this.coinAccount.earn(COIN_REASON_TODAY_FIRST, stars, now);
+    } else if (stars > 0) {
+      // Replay-of-the-day or first-today loss with at least one
+      // monster down: still award stars-as-coins, but tag the txn
+      // with a generic reason so the badge gate above stays the
+      // sole owner of the 已完成 flag transition.
+      earned = this.coinAccount.earn('stars', stars, now);
     }
     result.coinsEarned = earned;
     const snap: CoinSnapshot = this.coinAccount.snapshot();
