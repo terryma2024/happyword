@@ -11,7 +11,7 @@ import {
   LessonImportError,
   PickedImage,
 } from '../services/ParentApiClient';
-import { SERVER_BASE_URL } from '../services/RemoteWordPackConfig';
+import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import {
   IOrientationAdapter,
   RealOrientationAdapter,
@@ -65,7 +65,8 @@ struct ParentAdminPage {
   @State private lastImportedWordCount: number = 0;
   @State private pendingDrafts: LessonDraftDto[] = [];
   private toastTimer: number = -1;
-  private client: ParentApiClient = ParentApiClient.withRealHttp(SERVER_BASE_URL);
+  private serverBaseUrl: string = effectiveServerBaseUrl();
+  private client: ParentApiClient = ParentApiClient.withRealHttp(this.serverBaseUrl);
   private orientation: IOrientationAdapter = new RealOrientationAdapter(
     this.getUIContext().getHostContext() as common.UIAbilityContext,
   );
@@ -286,7 +287,7 @@ struct ParentAdminPage {
         }
         .width('100%');
 
-        Text(`服务器: ${SERVER_BASE_URL}`)
+        Text(`服务器: ${this.serverBaseUrl}`)
           .id('ParentAdminServerLabel')
           .fontSize(13)
           .fontColor('#666666');

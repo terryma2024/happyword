@@ -484,7 +484,7 @@ class TodaySessionPlan {
 
 | 模块                       | 公开 API                                                                                | 职责                                     |
 | ------------------------ | ------------------------------------------------------------------------------------- | -------------------------------------- |
-| `RemoteWordPackConfig`   | `SERVER_BASE_URL`、`pickServerBaseUrl()`、`latestPackUrl()`                              | 默认 `https://happyword.vercel.app`     |
+| `RemoteWordPackConfig`   | `SERVER_BASE_URL`、`pickServerBaseUrl()`、`latestPackUrl()`、`effectiveServerBaseUrl()`、`SERVER_BASE_URL_OVERRIDE_KEY` | 默认 `https://happyword.vercel.app`；ohosTest 通过 AppStorage `serverBaseUrlOverride` 注入 mock 地址（V0.5.8） |
 | `RemoteWordPackService`  | `fetchLatest(url, ifNoneMatch?)`                                                      | HTTP GET + ETag                        |
 | `WordPackCache`          | `init() / read() / readRecord() / write() / writeRecord() / touchFetchedAt()`         | 词包本地缓存 + ETag                          |
 | `WordPackBootstrapper`   | static `forContext(ctx)` + `bootstrap()`                                              | 冷启动：cache 优先，fallback rawfile，**不发网络** |
@@ -713,17 +713,34 @@ V0.5 follow-up 把工具栏 5 个图标（review / codex / wishlist / gear + Wis
 - 今日冒险 / 区域 / 计划：`V03Adventure / RegionPickerFlow / TodayPlanFlow`。
 - 学习报告：`LearningReportFlow.ui.test.ets`。
 - 愿望单（默认 + 自定义）：`WishlistFlow / CustomWishlistFlow`，含 PIN 闸 + 验证错误 + 端到端添加。
-- 设置 / 同步 / 家长管理后台：`ConfigFlow / ConfigSyncFlow / ParentAdminFlow / LessonDraftReviewFlow`（后两者 V0.5.8 起取代 `AdminConsoleFlow`），含 PIN 闸 + 同步成功断言 + 缓存状态跨页持久 + 课本导入按钮 / 待复核列表 / 路由注册的烟雾测试。
+- 设置 / 同步 / 家长管理后台：`ConfigFlow / ConfigSyncFlow / ParentAdminFlow / LessonDraftReviewFlow`（后两者 V0.5.8 起取代 `AdminConsoleFlow`），含 PIN 闸 + 同步成功断言 + 缓存状态跨页持久 + 课本导入按钮 / 待复核列表 / 路由注册的烟雾测试。`ParentAdminFlowV058` 的 V0.5.8 增量包含 5 个走 mock server HTTP 的端到端用例：`refreshShowsMockedStats`（GET `/admin/stats`）、`pendingListShowsMockedDraft`（GET `/admin/lesson-drafts`）、`tapPublishShowsSuccessSummary`（POST `/admin/packs/publish` 后断言 `已发布 v\d+` 摘要）、`tapReviewLinkOpensReviewPageWithMockedDraft`（GET `/admin/lesson-drafts/{id}` 跨页路由 + 解析 + word row 渲染）、`tapPickGalleryUploadsAndShowsImported`（POST `/admin/lessons/import` multipart 上传：从 ohosTest rawfile 把 `lesson_import_fixture.jpg`（226KB 真实 JPG）写到 app 沙箱 tempDir，picker override 让 `RealPhotoPickerAdapter` 直接返回该路径，触发真实的 `fs.open`/`fs.read`/multipart/HTTP 调用链，最后断言 `✓ 已识别 3 个单词，请确认` 与 `去复核 →` 按钮）。
 - 图鉴：`MonsterCodexFlow.ui.test.ets`。
 
-入口 `entry/src/ohosTest/ets/test/List.test.ets`。跑法：
+入口 `entry/src/ohosTest/ets/test/List.test.ets`，**`testsuite()` 第一行**就把 `serverBaseUrlOverride = http://127.0.0.1:8123` 写进 `AppStorage`，所有页面里通过 `effectiveServerBaseUrl()` 取 URL 的请求都被路由到本地 mock。生产 / release 包从不写这把 key，因此线上版本依然命中 Vercel。
+
+V0.5.8 起推荐用 `scripts/run_ui_tests.sh`，它会：
+
+1. 在 host 起 `server/mock_ui_server.py`（FastAPI，**无 MongoDB**，纯 fixture）；
+2. `hdc rport tcp:8123 tcp:8123` 把模拟器 / 真机的 `127.0.0.1:8123` 反向转回 host；
+3. `hdc shell aa test ...`（per-test timeout 60s）；
+4. 退出时杀 mock 进程 + 清掉 rport 映射。
 
 ```bash
 hvigorw --mode module -p module=entry@ohosTest assembleHap
 hdc install -r entry/build/default/outputs/ohosTest/entry-ohosTest-signed.hap
-hdc shell aa test -b com.terryma.wordmagicgame -m entry_test \
-  -s unittest OpenHarmonyTestRunner -s timeout 60000 -w 1500
+scripts/run_ui_tests.sh                     # 全量 49 个测试
+scripts/run_ui_tests.sh --suite ParentAdminFlowV058   # 单 suite 调试
+scripts/run_ui_tests.sh --rebuild           # 顺手重 build / 重装两个 HAP
 ```
+
+不走脚本时（DevEco Run），先手工起 mock 和 rport：
+
+```bash
+(cd server && uv run python mock_ui_server.py) &
+hdc rport tcp:8123 tcp:8123
+```
+
+不起 mock 直接跑 ohosTest，`ConfigSyncFlowV050B` / `ParentAdminFlowV058` 都会因为 127.0.0.1:8123 不可达而失败（这是有意的：测试不允许偷偷 fallback 到 prod）。
 
 成功标志：`OHOS_REPORT_RESULT: stream=Tests run: N, Failure: 0, Error: 0`。
 

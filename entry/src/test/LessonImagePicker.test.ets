@@ -2,8 +2,10 @@ import { describe, it, expect } from '@ohos/hypium';
 import {
   IPhotoFileReader,
   IPhotoPickerAdapter,
+  LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY,
   LessonImagePicker,
   PickedFileRef,
+  readPickerOverrideUri,
 } from '../main/ets/services/LessonImagePicker';
 import { PickedImage } from '../main/ets/services/ParentApiClient';
 
@@ -120,6 +122,45 @@ export default function lessonImagePickerTest(): void {
       if (out !== null) {
         expect(out.mime).assertEqual('image/jpeg');
       }
+    });
+
+    /**
+     * V0.5.8 ohosTest harness: AppStorage[LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY]
+     * carries the on-device path of a fixture image pushed by
+     * `scripts/run_ui_tests.sh` via `hdc file send`. The
+     * `readPickerOverrideUri` helper is the ONE source of truth that
+     * `RealPhotoPickerAdapter.{selectGallery,selectCamera}` consult
+     * before invoking the system PhotoViewPicker / cameraPicker.
+     *
+     * We pin the key string and the parse semantics here because:
+     *   - the key is shared with the ohosTest harness in
+     *     `entry/src/ohosTest/ets/test/List.test.ets` — a typo / rename
+     *     would silently fall back to the real system picker and the
+     *     UI tests would freeze at the dialog;
+     *   - whitespace trimming matters because hdc-driven shell scripts
+     *     occasionally append trailing newlines when piping a path.
+     */
+    it('readPickerOverrideUri returns empty string when key is unset', 0, () => {
+      AppStorage.delete(LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY);
+      expect(readPickerOverrideUri()).assertEqual('');
+    });
+
+    it('readPickerOverrideUri returns the trimmed override path', 0, () => {
+      AppStorage.setOrCreate<string>(
+        LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY,
+        '  /data/local/tmp/lesson_import_fixture.jpg\n',
+      );
+      expect(readPickerOverrideUri())
+        .assertEqual('/data/local/tmp/lesson_import_fixture.jpg');
+      AppStorage.delete(LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY);
+      expect(readPickerOverrideUri()).assertEqual('');
+    });
+
+    it('LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY is the documented constant', 0, () => {
+      // ohosTest harness writes this exact string. Renaming the key
+      // requires a coordinated change across List.test.ets + this test.
+      expect(LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY)
+        .assertEqual('lessonImagePickerOverrideUri');
     });
   });
 }

@@ -9,7 +9,7 @@ import {
   LessonExtractedDto,
   LessonExtractedWord,
 } from '../services/ParentApiClient';
-import { SERVER_BASE_URL } from '../services/RemoteWordPackConfig';
+import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import {
   IOrientationAdapter,
   RealOrientationAdapter,
@@ -58,7 +58,7 @@ struct LessonDraftReviewPage {
   @State private toast: string = '';
   private toastTimer: number = -1;
   private draftId: string = '';
-  private client: ParentApiClient = ParentApiClient.withRealHttp(SERVER_BASE_URL);
+  private client: ParentApiClient = ParentApiClient.withRealHttp(effectiveServerBaseUrl());
   private orientation: IOrientationAdapter = new RealOrientationAdapter(
     this.getUIContext().getHostContext() as common.UIAbilityContext,
   );
@@ -115,8 +115,15 @@ struct LessonDraftReviewPage {
 
   private applyDraft(d: LessonDraftDto): void {
     this.draft = d;
+    // The server schema declares edited_extracted as Optional, and
+    // FastAPI serialises a missing edit as JSON null (NOT an absent
+    // key). After JSON.parse the field arrives as JS `null`, which is
+    // `!== undefined` but obviously cannot be dereferenced — guard
+    // against both shapes so a freshly-imported draft (always null
+    // edits) renders the original extraction instead of crashing.
+    const edited: LessonExtractedDto | undefined = d.edited_extracted;
     const src: LessonExtractedDto =
-      d.edited_extracted !== undefined ? d.edited_extracted : d.extracted;
+      edited !== undefined && edited !== null ? edited : d.extracted;
     const initEdits: LessonExtractedWord[] = [];
     const initKeep: boolean[] = [];
     const initEdited: boolean[] = [];

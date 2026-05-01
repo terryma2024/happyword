@@ -56,7 +56,51 @@ export function pickServerBaseUrl(buildModeName: string): string {
   return pickServerBaseUrlExplicit(buildModeName, USE_LOCAL_DEV_SERVER);
 }
 
-/** Effective base URL for this build (read once at module load). */
+/**
+ * AppStorage key set by the ohosTest harness in `List.test.ets`'s
+ * `testsuite()` BEFORE any flow runs. When present (non-empty
+ * string), `effectiveServerBaseUrl()` routes every HTTP call to the
+ * value of this key instead of the prod / dev base URL.
+ *
+ * Production code MUST NEVER write this key — the only writer is the
+ * test runner, so a release build never picks up an override. We keep
+ * the key intentionally namespaced to make grep audits trivial.
+ */
+export const SERVER_BASE_URL_OVERRIDE_KEY: string = 'serverBaseUrlOverride';
+
+/**
+ * Pure resolver — given an override candidate and a build mode, decide
+ * which URL wins. Tests cover both branches without touching
+ * AppStorage directly.
+ */
+export function resolveServerBaseUrl(
+  override: string | undefined,
+  buildModeName: string,
+): string {
+  if (typeof override === 'string' && override.length > 0) {
+    return override;
+  }
+  return pickServerBaseUrl(buildModeName);
+}
+
+/**
+ * Runtime base URL. Reads the AppStorage override on every call so
+ * the ohosTest harness can flip the value before any page is mounted.
+ * Production code never sets the override and lands on the same
+ * `pickServerBaseUrl(buildMode)` path it had before.
+ */
+export function effectiveServerBaseUrl(): string {
+  const override: string | undefined =
+    AppStorage.get<string>(SERVER_BASE_URL_OVERRIDE_KEY);
+  return resolveServerBaseUrl(override, BuildProfile.BUILD_MODE_NAME);
+}
+
+/**
+ * Default base URL captured at module load — purely for backward
+ * compatibility with code that imported `SERVER_BASE_URL` before the
+ * V0.5.8 ohosTest mock-injection landed. New call-sites should use
+ * `effectiveServerBaseUrl()` so they pick up the override.
+ */
 export const SERVER_BASE_URL: string = pickServerBaseUrl(BuildProfile.BUILD_MODE_NAME);
 
 /** Compose the full /packs/latest.json URL on top of any base. */
@@ -67,7 +111,7 @@ export function buildLatestPackUrl(base: string): string {
   return `${base}/api/v1/packs/latest.json`;
 }
 
-/** Convenience: full URL for this build mode. */
+/** Convenience: full URL for this build mode (honours override). */
 export function latestPackUrl(): string {
-  return buildLatestPackUrl(SERVER_BASE_URL);
+  return buildLatestPackUrl(effectiveServerBaseUrl());
 }

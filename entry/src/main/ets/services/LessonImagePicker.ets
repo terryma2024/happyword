@@ -35,6 +35,44 @@ export class PickedFileRef {
   uri: string = '';
 }
 
+/**
+ * AppStorage key the ohosTest harness writes to redirect the system
+ * gallery / camera picker at a deterministic on-device file path.
+ * When the value is a non-empty string `RealPhotoPickerAdapter` skips
+ * the system UI entirely and returns a `PickedFileRef` whose `uri`
+ * is the override path; the downstream `RealPhotoFileReader.readAsArrayBuffer`
+ * still reads real bytes off disk, exercising the production multipart
+ * upload + mock reception code paths.
+ *
+ * Production / release builds never write this key, so the override
+ * is a strict zero-impact addition: the existing
+ * `picker.PhotoViewPicker` / `cameraPicker.pick` code paths stay
+ * unchanged and untested-modulo this short-circuit.
+ *
+ * Why a runtime override instead of driving the system gallery UI:
+ * the HarmonyOS system PhotoViewPicker runs out-of-process and its
+ * UI tree is version-specific and not stably matchable from Hypium.
+ * The override lets us test the upload pipeline (file read → multipart
+ * encode → POST → server reception) without owning the system UI's
+ * brittleness.
+ */
+export const LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY: string =
+  'lessonImagePickerOverrideUri';
+
+/** Pull the override URI off AppStorage and trim whitespace; returns
+ *  '' (the no-override sentinel) for any non-string / empty value.
+ *  Exported so host unit tests can pin the parsing semantics without
+ *  needing a real `common.UIAbilityContext` to construct
+ *  `RealPhotoPickerAdapter`. */
+export function readPickerOverrideUri(): string {
+  const raw: string | undefined =
+    AppStorage.get<string>(LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY);
+  if (typeof raw !== 'string') {
+    return '';
+  }
+  return raw.trim();
+}
+
 export interface IPhotoPickerAdapter {
   selectGallery(): Promise<PickedFileRef | null>;
   selectCamera(): Promise<PickedFileRef | null>;
@@ -55,6 +93,13 @@ export class RealPhotoPickerAdapter implements IPhotoPickerAdapter {
   }
 
   async selectGallery(): Promise<PickedFileRef | null> {
+    // ohosTest short-circuit — see LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY.
+    const override: string = readPickerOverrideUri();
+    if (override.length > 0) {
+      const ref: PickedFileRef = new PickedFileRef();
+      ref.uri = override;
+      return ref;
+    }
     const uri: string | null = await RealPhotoPickerAdapter.invokeGalleryPicker();
     if (uri === null) {
       return null;
@@ -65,6 +110,16 @@ export class RealPhotoPickerAdapter implements IPhotoPickerAdapter {
   }
 
   async selectCamera(): Promise<PickedFileRef | null> {
+    // ohosTest short-circuit — same override key as gallery so a
+    // single AppStorage write covers both pick-from-gallery and
+    // pick-from-camera buttons. The fixture image stands in for both
+    // a saved photo and a freshly-captured frame.
+    const override: string = readPickerOverrideUri();
+    if (override.length > 0) {
+      const ref: PickedFileRef = new PickedFileRef();
+      ref.uri = override;
+      return ref;
+    }
     const uri: string | null = await RealPhotoPickerAdapter.invokeCameraPicker(this.ctx);
     if (uri === null) {
       return null;

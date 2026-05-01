@@ -83,7 +83,63 @@ Run **after** the HAP build step succeeds. Uses the project’s [code-linter.jso
 | Step | Command | Success signal |
 |------|---------|----------------|
 | Install HAP | `hdc install <path-to-debug.hap>` | Install success in hdc output |
-| On-device / Instrument test | `hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -s timeout 30000 -w 180` | `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0` |
+| On-device / Instrument test (recommended) | `scripts/run_ui_tests.sh` (boots the local mock + sets up `hdc rport` + runs `aa test`) | `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0` |
+| Raw command (no mock) | `hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -s timeout 60000 -w 1800` | Same — but flows that hit `/api/v1/...` will fail because the test harness rewrites the base URL to `http://127.0.0.1:8123` |
+
+**Mock UI server (V0.5.8+):**
+
+The ohosTest harness in `entry/src/ohosTest/ets/test/List.test.ets` writes the
+AppStorage key `serverBaseUrlOverride = http://127.0.0.1:8123` in `testsuite()`,
+which `RemoteWordPackConfig.effectiveServerBaseUrl()` reads on every API client
+construction. Production / release builds **never** write this key, so they
+keep hitting `https://happyword.vercel.app`. The orchestrator
+`scripts/run_ui_tests.sh` is responsible for:
+
+1. Booting `server/mock_ui_server.py` on host port 8123 (no MongoDB; fixed
+   fixtures only — see the file's module docstring for the endpoint list).
+   The pack-sync fixture mirrors the production
+   `entry/src/main/resources/rawfile/data/words_v1.json` 50-word catalog
+   so that `configSyncFlowUiTest`'s manual sync overwrites the on-device
+   cache with a vocabulary that downstream gameplay suites
+   (`FillLetterFlow`, `SpellQuestionFlow`, `ReviewMode`, `MagicAttack`)
+   still recognise. The lesson-draft seed (`ui-mock-draft-001`) is
+   pending on every boot so `pendingListShowsMockedDraft` and
+   `tapReviewLinkOpensReviewPageWithMockedDraft` stay deterministic.
+
+   The lesson-import fixture image
+   (`entry/src/ohosTest/resources/rawfile/lesson_import_fixture.jpg`) is
+   bundled into the ohosTest HAP. `tapPickGalleryUploadsAndShowsImported`
+   reads it via `Context.createModuleContext('entry_test').resourceManager.getRawFileContent`,
+   writes the bytes into the app sandbox at
+   `<appCtx.tempDir>/lesson_import_fixture.jpg`, and points the
+   `LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY` AppStorage key at that path.
+   `RealPhotoPickerAdapter.{selectGallery,selectCamera}` short-circuits
+   on the override and returns the path directly, so the system
+   PhotoViewPicker / cameraPicker UI is bypassed. We do NOT use
+   `hdc file send` for this fixture because HarmonyOS NEXT's selinux
+   blocks the bundle UID from reading every shell-writable path
+   (`/data/local/tmp/*`, `/storage/media/100/local/files/`, the bundle's
+   own `el2/.../files/` debug sandbox).
+2. Running `hdc rport tcp:8123 tcp:8123` so the device's loopback resolves
+   to the host's mock.
+3. Running `hdc shell aa test ...` with a 60s per-test timeout (parent-admin
+   flows fan out across launchApp → PIN → navigate → refresh → scroll →
+   typeInto and need ~35-45s in cold start).
+4. Tearing down: kill the mock process, drop the rport mapping.
+
+If you skip the script and run `aa test` directly, the test harness still
+sets the override URL — but with no mock listening the HTTP-driven flows
+(`ConfigSyncFlowV050B`, `ParentAdminFlowV058`) will all fail. To run the
+suite from DevEco's "Run" UI, start the mock and rport mapping by hand
+first:
+
+```sh
+(cd server && uv run python mock_ui_server.py) &
+hdc rport tcp:8123 tcp:8123
+```
+
+then trigger the test from DevEco. Tear down with `kill %1` and
+`hdc fport rm "tcp:8123 tcp:8123"` when done.
 
 **Notes:** Exact **Instrument** / **onDevice** task names depend on **DevEco / hvigor-ohos-plugin** version. Record the same command you use in DevEco’s “Run” for `ohosTest`.
 
