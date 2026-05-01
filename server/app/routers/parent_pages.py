@@ -9,9 +9,10 @@ HTML accordingly. Cookies are issued via the shared
 from __future__ import annotations
 
 import contextlib
+import time
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Form, HTTPException, Path, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -49,6 +50,10 @@ from app.services.pair_service import (
 )
 from app.services.pair_service import (
     cancel as pair_cancel,
+)
+from app.services.parent_report_service import (
+    ChildProfileNotFoundForReport,
+    build_report,
 )
 from app.services.qr_service import render_qr_data_url
 
@@ -194,8 +199,23 @@ async def get_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
     )
     if user is None:
         return RedirectResponse(url="/parent/login", status_code=303)
+    bindings = await DeviceBinding.find(
+        DeviceBinding.family_id == (user.family_id or ""),
+        DeviceBinding.revoked_at == None,  # noqa: E711
+    ).to_list()
+    children = await ChildProfile.find(
+        ChildProfile.family_id == (user.family_id or ""),
+        ChildProfile.deleted_at == None,  # noqa: E711
+    ).to_list()
+    children_by_id = {c.profile_id: c for c in children}
     return templates.TemplateResponse(
-        request, "parent/dashboard.html", {"user": user}
+        request,
+        "parent/dashboard.html",
+        {
+            "user": user,
+            "bindings": bindings,
+            "children_by_id": children_by_id,
+        },
     )
 
 
@@ -260,6 +280,73 @@ async def post_devices_add_cancel(
     with contextlib.suppress(PairTokenInvalid):
         await pair_cancel(token=token, family_id=user.family_id or "")
     return RedirectResponse(url="/parent/", status_code=303)
+
+
+@router.get("/devices/{binding_id}", response_class=HTMLResponse)
+async def get_device_detail(
+    request: Request,
+    binding_id: str = Path(min_length=8, max_length=64),
+    user: User = Depends(current_parent_user),
+) -> HTMLResponse:
+    """V0.6.5 — render the per-device detail page with embedded report
+    block. Other-family bindings raise 404."""
+    binding = await DeviceBinding.find_one(
+        DeviceBinding.binding_id == binding_id,
+        DeviceBinding.family_id == (user.family_id or ""),
+    )
+    if binding is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "BINDING_NOT_FOUND",
+                    "message": "Device binding not in your family",
+                }
+            },
+        )
+    child = await ChildProfile.find_one(
+        ChildProfile.profile_id == binding.child_profile_id,
+        ChildProfile.family_id == (user.family_id or ""),
+    )
+    if child is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "CHILD_NOT_FOUND",
+                    "message": "Child profile missing for this binding",
+                }
+            },
+        )
+    try:
+        report = await build_report(
+            family_id=user.family_id or "",
+            child_profile_id=child.profile_id,
+            lookback_days=7,
+            now_ms=int(time.time() * 1000),
+        )
+    except ChildProfileNotFoundForReport as e:
+        # Should be unreachable since we just looked the profile up, but
+        # be explicit about the contract.
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "CHILD_NOT_FOUND",
+                    "message": "Child profile not in your family",
+                }
+            },
+        ) from e
+    return templates.TemplateResponse(
+        request,
+        "parent/device_detail.html",
+        {
+            "user": user,
+            "binding": binding,
+            "child": child,
+            "report": report,
+        },
+    )
 
 
 # Keep a referenced symbol so unused-import linting stays calm if Response

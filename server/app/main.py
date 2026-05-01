@@ -106,7 +106,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         client.close()
 
 
-app = FastAPI(title="happyword-server", version="0.6.4", lifespan=lifespan)
+app = FastAPI(title="happyword-server", version="0.6.5", lifespan=lifespan)
 
 # CORS read from env directly — get_settings() can't run at module load
 # because pytest collection imports app.main before fixtures inject env.

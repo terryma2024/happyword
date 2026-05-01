@@ -6,10 +6,11 @@ to prevent cross-family reads.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
 from beanie.odm.enums import SortDirection
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from app.deps import current_parent_user
 from app.models.child_profile import ChildProfile
@@ -20,10 +21,15 @@ from app.schemas.parent_child import (
     DeviceListOut,
     DeviceOut,
 )
+from app.schemas.parent_report import ChildReportOut
 from app.services.child_profile_service import (
     ChildProfileNotFound,
     soft_delete,
     update,
+)
+from app.services.parent_report_service import (
+    ChildProfileNotFoundForReport,
+    build_report,
 )
 
 if TYPE_CHECKING:
@@ -116,6 +122,34 @@ async def delete_child(
             },
         ) from e
     return {"status": "deleted"}
+
+
+@router.get(
+    "/children/{profile_id}/report",
+    response_model=ChildReportOut,
+)
+async def get_child_report(
+    profile_id: str = Path(min_length=8, max_length=64),
+    lookback_days: int = Query(default=7, ge=1, le=90),
+    user: User = Depends(current_parent_user),
+) -> ChildReportOut:
+    try:
+        return await build_report(
+            family_id=user.family_id or "",
+            child_profile_id=profile_id,
+            lookback_days=lookback_days,
+            now_ms=int(time.time() * 1000),
+        )
+    except ChildProfileNotFoundForReport as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "CHILD_NOT_FOUND",
+                    "message": "Child profile not in your family",
+                }
+            },
+        ) from e
 
 
 @router.get("/children", response_model=list[ChildProfileOut])
