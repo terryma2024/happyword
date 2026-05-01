@@ -36,6 +36,7 @@ import familyPackServiceTest from './FamilyPackService.test';
 import cloudSyncServiceTest from './CloudSyncService.test';
 import cloudWishlistServiceTest from './CloudWishlistService.test';
 import parentRedemptionPollTest from './ParentRedemptionPoll.test';
+import deviceUnbindClientTest from './DeviceUnbindClient.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -76,4 +77,5 @@ export default function testsuite() {
   cloudSyncServiceTest();
   cloudWishlistServiceTest();
   parentRedemptionPollTest();
+  deviceUnbindClientTest();
 }
