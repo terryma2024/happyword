@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     # V0.6.3 — family word packs
     family_pack_max_words: int = 50
 
+    # V0.6.7 — notifications + account deletion
+    notification_email_enabled: bool = True
+    account_deletion_grace_days: int = 7
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

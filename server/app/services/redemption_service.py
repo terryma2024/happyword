@@ -70,6 +70,10 @@ async def submit_request(
     bubble out from `cloud_wishlist_service`). We don't dedupe on
     (profile, item, pending) — a parent can approve multiple stacked
     requests, and the client overlay will handle the most recent one.
+
+    V0.6.7: also writes a ParentInboxMsg + best-effort sends an email so
+    the parent is alerted out-of-band. Email failure is swallowed (the
+    request is more important than the notification).
     """
     item = await cloud_wishlist_service.get_active_for_device(
         item_id=wishlist_item_id, profile_id=profile_id
@@ -87,7 +91,65 @@ async def submit_request(
         expires_at=now + REDEMPTION_TTL,
     )
     await req.insert()
+    await _notify_redemption_request(req=req, item=item)
     return req
+
+
+async def _notify_redemption_request(
+    *, req: RedemptionRequest, item: object
+) -> None:
+    """Best-effort: write inbox row and try to send the email. Both are
+    optional; failures must not bubble back to the device caller."""
+    import contextlib  # noqa: PLC0415 — kept local to keep top-level imports lean
+
+    from app.config import get_settings  # noqa: PLC0415
+    from app.main import app  # noqa: PLC0415
+    from app.models.child_profile import ChildProfile  # noqa: PLC0415
+    from app.models.parent_inbox_msg import ParentInboxKind  # noqa: PLC0415
+    from app.models.user import User, UserRole  # noqa: PLC0415
+    from app.services import notification_service  # noqa: PLC0415
+
+    parent = await User.find_one(
+        User.family_id == req.family_id, User.role == UserRole.PARENT
+    )
+    if parent is None:
+        return
+    profile = await ChildProfile.find_one(
+        ChildProfile.profile_id == req.child_profile_id
+    )
+    nickname = profile.nickname if profile is not None else "孩子"
+    display_name = getattr(item, "display_name", "")
+    cost = getattr(item, "cost_coins", 0)
+
+    with contextlib.suppress(Exception):
+        await notification_service.write_inbox_msg(
+            family_id=req.family_id,
+            parent_user_id=parent.username,
+            kind=ParentInboxKind.REDEMPTION_REQUEST,
+            title=f"{nickname} 想兑换 {display_name}",
+            body_md=(
+                f"**{nickname}** 想兑换 **{display_name}**（{cost} 金币）。\n"
+                f"申请编号：`{req.request_id}`。请到 [兑换审批]"
+                f"(/parent/redemptions) 处理。"
+            ),
+            related_resource={"redemption_request_id": req.request_id},
+        )
+
+    settings = get_settings()
+    if not settings.notification_email_enabled or parent.email is None:
+        return
+    provider = getattr(app.state, "email_provider", None)
+    if provider is None:
+        return
+    with contextlib.suppress(Exception):
+        await notification_service.send_redemption_email(
+            provider,
+            to=parent.email,
+            child_nickname=nickname,
+            item_display_name=display_name,
+            cost_coins=cost,
+            request_id=req.request_id,
+        )
 
 
 async def list_pending_for_device(

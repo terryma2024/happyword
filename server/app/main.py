@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.config import get_settings
+from app.models.audit_log import AuditLog
 from app.models.category import Category
 from app.models.child_profile import ChildProfile
 from app.models.cloud_wishlist_item import CloudWishlistItem
@@ -24,6 +25,7 @@ from app.models.lesson_import_draft import LessonImportDraft
 from app.models.llm_draft import LlmDraft
 from app.models.pack_pointer import PackPointer
 from app.models.pair_token import PairToken
+from app.models.parent_inbox_msg import ParentInboxMsg
 from app.models.redemption_request import RedemptionRequest
 from app.models.synced_word_stat import SyncedWordStat
 from app.models.user import User, UserRole
@@ -42,9 +44,11 @@ from app.routers import child_family_pack as child_family_pack_router
 from app.routers import child_wishlist as child_wishlist_router
 from app.routers import child_word_stats as child_word_stats_router
 from app.routers import pair as pair_router
+from app.routers import parent_account as parent_account_router
 from app.routers import parent_api as parent_api_router
 from app.routers import parent_auth as parent_auth_router
 from app.routers import parent_family_pack as parent_family_pack_router
+from app.routers import parent_inbox as parent_inbox_router
 from app.routers import parent_pages as parent_pages_router
 from app.routers import public_packs as public_packs_router
 from app.services.auth_service import hash_password
@@ -91,6 +95,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             SyncedWordStat,
             CloudWishlistItem,
             RedemptionRequest,
+            ParentInboxMsg,
+            AuditLog,
         ],
     )
     app.state.mongo_client = client
@@ -111,7 +117,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         client.close()
 
 
-app = FastAPI(title="happyword-server", version="0.6.6", lifespan=lifespan)
+app = FastAPI(title="happyword-server", version="0.6.7", lifespan=lifespan)
 
 # CORS read from env directly — get_settings() can't run at module load
 # because pytest collection imports app.main before fixtures inject env.
@@ -130,6 +136,10 @@ app.include_router(parent_auth_router.router)
 app.include_router(parent_api_router.router)
 app.include_router(parent_family_pack_router.router)
 app.include_router(parent_pages_router.router)
+app.include_router(parent_inbox_router.router)
+app.include_router(parent_inbox_router.html_router)
+app.include_router(parent_account_router.router)
+app.include_router(parent_account_router.html_router)
 app.include_router(child_family_pack_router.router)
 app.include_router(child_word_stats_router.router)
 app.include_router(child_wishlist_router.router)

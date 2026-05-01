@@ -172,4 +172,28 @@ async def poll_decisions(
     )
 
 
+@router.post("/unbind", status_code=status.HTTP_200_OK)
+async def post_unbind(
+    binding: DeviceBinding = Depends(current_device_binding),
+) -> dict[str, str]:
+    """V0.6.7 — explicit device unbind. Sets revoked_at; subsequent
+    /api/v1/child/* calls with the same token return 404 BINDING_REVOKED.
+    """
+    from app.models.audit_log import ActorRole  # noqa: PLC0415
+    from app.services import audit_service  # noqa: PLC0415
+
+    if binding.revoked_at is None:
+        binding.revoked_at = datetime.now(tz=UTC)
+        await binding.save()
+        await audit_service.record(
+            actor_role=ActorRole.DEVICE,
+            actor_id=binding.binding_id,
+            action="device.unbind",
+            target_collection="device_bindings",
+            target_id=binding.binding_id,
+            payload_summary={"family_id": binding.family_id},
+        )
+    return {"status": "unbound"}
+
+
 __all__ = ["router"]
