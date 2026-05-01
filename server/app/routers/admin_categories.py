@@ -1,12 +1,14 @@
-"""Admin Category CRUD endpoints (V0.5.5)."""
+"""Admin Category CRUD endpoints (V0.5.5).
+
+NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
+network can call these endpoints. Per-family auth returns in V0.6.
+"""
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
-from app.deps import current_admin_user
 from app.models.category import Category
-from app.models.user import User
 from app.models.word import Word
 from app.schemas.admin_category import (
     CategoryCreateIn,
@@ -38,13 +40,13 @@ def _to_out(c: Category) -> CategoryOut:
 
 
 @router.get("", response_model=CategoryListOut)
-async def list_categories(_admin: User = Depends(current_admin_user)) -> CategoryListOut:
+async def list_categories() -> CategoryListOut:
     rows = await Category.find_all().sort("+id").to_list()
     return CategoryListOut(items=[_to_out(c) for c in rows], total=len(rows))
 
 
 @router.get("/{category_id}", response_model=CategoryOut)
-async def get_category(category_id: str, _admin: User = Depends(current_admin_user)) -> CategoryOut:
+async def get_category(category_id: str) -> CategoryOut:
     c = await Category.find_one(Category.id == category_id)
     if c is None:
         raise _err(
@@ -56,9 +58,7 @@ async def get_category(category_id: str, _admin: User = Depends(current_admin_us
 
 
 @router.post("", response_model=CategoryOut, status_code=status.HTTP_201_CREATED)
-async def create_category(
-    body: CategoryCreateIn, _admin: User = Depends(current_admin_user)
-) -> CategoryOut:
+async def create_category(body: CategoryCreateIn) -> CategoryOut:
     existing = await Category.find_one(Category.id == body.id)
     if existing is not None:
         raise _err(
@@ -84,7 +84,6 @@ async def create_category(
 async def update_category(
     category_id: str,
     body: CategoryUpdateIn,
-    _admin: User = Depends(current_admin_user),
 ) -> CategoryOut:
     c = await Category.find_one(Category.id == category_id)
     if c is None:
@@ -102,7 +101,7 @@ async def update_category(
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_category(category_id: str, _admin: User = Depends(current_admin_user)) -> None:
+async def delete_category(category_id: str) -> None:
     c = await Category.find_one(Category.id == category_id)
     if c is None:
         raise _err(

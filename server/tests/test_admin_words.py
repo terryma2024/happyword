@@ -1,17 +1,20 @@
 """V0.5.2 — admin word CRUD tests.
 
 Behaviour contracts from the V0.5.2 plan:
-1. unauth → 401 on every endpoint
-2. parent role → 403 on every endpoint
-3. POST creates a word; GET-by-id returns it
-4. POST with duplicate id → 409 DUPLICATE_ID
-5. POST with bad payload (missing field, difficulty out of 1-5) → 422
-6. PUT partial only updates given fields; updated_at advances
-7. PUT 404 when id missing
-8. DELETE marks deleted_at; subsequent GET returns 404; ?include_deleted=true returns it
-9. DELETE on already-deleted → 404
-10. soft-deleted word is excluded from /api/v1/packs/latest.json
-11. GET list paginated with category / difficulty / q filters
+1. POST creates a word; GET-by-id returns it
+2. POST with duplicate id → 409 DUPLICATE_ID
+3. POST with bad payload (missing field, difficulty out of 1-5) → 422
+4. PUT partial only updates given fields; updated_at advances
+5. PUT 404 when id missing
+6. DELETE marks deleted_at; subsequent GET returns 404; ?include_deleted=true returns it
+7. DELETE on already-deleted → 404
+8. soft-deleted word is excluded from /api/v1/packs/latest.json
+9. GET list paginated with category / difficulty / q filters
+
+NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
+tests have been deleted. The remaining tests still send bearer tokens
+(harmless — the dependency no longer reads them) so the test bodies stay
+tightly diff-aligned with V0.5.7.
 """
 
 from __future__ import annotations
@@ -70,25 +73,6 @@ def _new_word_payload(overrides: dict[str, object] | None = None) -> dict[str, o
     if overrides:
         base.update(overrides)
     return base
-
-
-# ---------------------------------------------------------------------------
-# Auth gates
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_admin_words_list_requires_auth(client: AsyncClient) -> None:
-    resp = await client.get("/api/v1/admin/words")
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_admin_words_create_rejects_parent(client: AsyncClient, parent: User) -> None:
-    resp = await client.post(
-        "/api/v1/admin/words", json=_new_word_payload(), headers=_bearer(parent.username)
-    )
-    assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------

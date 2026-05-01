@@ -8,7 +8,11 @@ Behaviour contracts:
 5. rollback → pointer flips: current=1, previous=2; latest.json returns v1 words
 6. rollback when previous=None → 409 NO_PREVIOUS_VERSION
 7. soft-deleted words excluded from snapshots at publish time
-8. non-admin → 401/403 on publish/rollback
+
+NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
+tests have been deleted. The remaining tests still send bearer tokens
+(harmless — the dependency no longer reads them) so the test bodies stay
+tightly diff-aligned with V0.5.7.
 """
 
 from datetime import UTC, datetime
@@ -67,20 +71,6 @@ async def _seed_word(wid: str, *, word: str = "apple", category: str = "fruit") 
     )
     await w.insert()
     return w
-
-
-@pytest.mark.asyncio
-async def test_publish_unauthenticated_returns_401(client: "AsyncClient") -> None:
-    resp = await client.post("/api/v1/admin/packs/publish")
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_publish_as_parent_returns_403(client: "AsyncClient", parent: User) -> None:
-    resp = await client.post(
-        "/api/v1/admin/packs/publish", json={}, headers=_bearer(parent.username)
-    )
-    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio

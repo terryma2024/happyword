@@ -10,7 +10,11 @@ Behaviour contracts:
 7. DELETE illustration -> field cleared, blob_service.delete called
 8. DELETE audio -> field cleared
 9. POST illustration on missing word -> 404
-10. non-admin -> 401/403
+
+NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
+tests have been deleted. The remaining tests still send bearer tokens
+(harmless — the dependency no longer reads them) so the test bodies stay
+tightly diff-aligned with V0.5.7.
 """
 
 from datetime import UTC, datetime
@@ -92,30 +96,6 @@ def _stub_blob(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[object]]:
     monkeypatch.setattr(blob_service, "upload_object", _fake_upload)
     monkeypatch.setattr(blob_service, "delete_object", _fake_delete)
     return captured
-
-
-# ---------------------------------------------------------------------------
-# Auth
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_illustration_requires_auth(client: "AsyncClient") -> None:
-    resp = await client.post(
-        "/api/v1/admin/words/fruit-apple/illustration",
-        files={"image": ("p.png", BytesIO(b"\x89PNGfake"), "image/png")},
-    )
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_illustration_rejects_parent(client: "AsyncClient", parent: User) -> None:
-    resp = await client.post(
-        "/api/v1/admin/words/fruit-apple/illustration",
-        headers=_bearer(parent.username),
-        files={"image": ("p.png", BytesIO(b"x"), "image/png")},
-    )
-    assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------

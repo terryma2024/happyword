@@ -1,9 +1,12 @@
-"""Admin pack publish / rollback / list (V0.5.3)."""
+"""Admin pack publish / rollback / list (V0.5.3).
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
+network can call these endpoints. Per-family auth returns in V0.6, when
+publishes will be attributed to the parent account from the JWT.
+"""
 
-from app.deps import current_admin_user
-from app.models.user import User
+from fastapi import APIRouter, HTTPException, Query, status
+
 from app.models.word_pack import WordPack
 from app.schemas.admin_pack import (
     PackDetailOut,
@@ -28,7 +31,6 @@ def _err(http_status: int, code: str, message: str) -> HTTPException:
 
 @router.get("", response_model=PackListOut)
 async def list_packs(
-    admin: User = Depends(current_admin_user),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
 ) -> PackListOut:
@@ -49,7 +51,7 @@ async def list_packs(
 
 
 @router.get("/current", response_model=PointerOut)
-async def get_current_pointer(_admin: User = Depends(current_admin_user)) -> PointerOut:
+async def get_current_pointer() -> PointerOut:
     from app.models.pack_pointer import PackPointer  # noqa: PLC0415
 
     pointer = await PackPointer.find_one(PackPointer.singleton_key == "main")
@@ -64,10 +66,7 @@ async def get_current_pointer(_admin: User = Depends(current_admin_user)) -> Poi
 
 
 @router.get("/{version}", response_model=PackDetailOut)
-async def get_pack(
-    version: int,
-    _admin: User = Depends(current_admin_user),
-) -> PackDetailOut:
+async def get_pack(version: int) -> PackDetailOut:
     pack = await pack_service.get_pack_by_version(version)
     if pack is None:
         raise _err(
@@ -87,12 +86,10 @@ async def get_pack(
 
 
 @router.post("/publish", response_model=PublishOut, status_code=status.HTTP_201_CREATED)
-async def publish_pack_endpoint(
-    body: PublishIn,
-    admin: User = Depends(current_admin_user),
-) -> PublishOut:
+async def publish_pack_endpoint(body: PublishIn) -> PublishOut:
     try:
-        pack = await pack_service.publish_pack(published_by=admin.username, notes=body.notes)
+        # V0.5.8: open-admin attributes publishes to the literal "parent".
+        pack = await pack_service.publish_pack(published_by="parent", notes=body.notes)
     except PackError as exc:
         raise _err(status.HTTP_409_CONFLICT, exc.code, exc.message) from exc
     return PublishOut(
@@ -106,9 +103,7 @@ async def publish_pack_endpoint(
 
 
 @router.post("/rollback", response_model=RollbackOut)
-async def rollback_pack_endpoint(
-    _admin: User = Depends(current_admin_user),
-) -> RollbackOut:
+async def rollback_pack_endpoint() -> RollbackOut:
     try:
         pointer = await pack_service.rollback_pack()
     except PackError as exc:

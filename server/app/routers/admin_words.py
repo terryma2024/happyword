@@ -3,15 +3,16 @@
 Soft-delete model: `DELETE` sets `deleted_at` and is the only way a word
 exits the public pack JSON. Listings exclude soft-deleted rows by default;
 operators can opt in via `?include_deleted=true` for audit / undo flows.
+
+NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
+network can call these endpoints. Per-family auth returns in V0.6.
 """
 
 from datetime import UTC, datetime
 
 from beanie.operators import RegEx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 
-from app.deps import current_admin_user
-from app.models.user import User
 from app.models.word import Word
 from app.schemas.admin_word import (
     WordCreateIn,
@@ -43,7 +44,6 @@ def _to_out(w: Word) -> WordOut:
 
 @router.get("", response_model=WordListOut)
 async def list_words(
-    _admin: User = Depends(current_admin_user),
     category: str | None = Query(None, max_length=32),
     difficulty: int | None = Query(None, ge=1, le=5),
     q: str | None = Query(None, max_length=64),
@@ -79,7 +79,6 @@ async def list_words(
 @router.get("/{word_id}", response_model=WordOut)
 async def get_word(
     word_id: str,
-    _admin: User = Depends(current_admin_user),
     include_deleted: bool = Query(False),
 ) -> WordOut:
     w = await Word.find_one(Word.id == word_id)
@@ -97,10 +96,7 @@ async def get_word(
 
 
 @router.post("", response_model=WordOut, status_code=status.HTTP_201_CREATED)
-async def create_word(
-    body: WordCreateIn,
-    _admin: User = Depends(current_admin_user),
-) -> WordOut:
+async def create_word(body: WordCreateIn) -> WordOut:
     existing = await Word.find_one(Word.id == body.id)
     if existing is not None:
         raise HTTPException(
@@ -130,7 +126,6 @@ async def create_word(
 async def update_word(
     word_id: str,
     body: WordUpdateIn,
-    _admin: User = Depends(current_admin_user),
 ) -> WordOut:
     w = await Word.find_one(Word.id == word_id)
     if w is None or w.deleted_at is not None:
@@ -147,10 +142,7 @@ async def update_word(
 
 
 @router.delete("/{word_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def soft_delete_word(
-    word_id: str,
-    _admin: User = Depends(current_admin_user),
-) -> None:
+async def soft_delete_word(word_id: str) -> None:
     w = await Word.find_one(Word.id == word_id)
     if w is None or w.deleted_at is not None:
         raise HTTPException(

@@ -1,13 +1,16 @@
 """V0.5.5 — admin Category CRUD tests.
 
 Behaviour contracts:
-1. unauth → 401
-2. parent → 403
-3. POST creates a category; GET lists it
-4. POST duplicate id → 409 DUPLICATE_ID
-5. PUT partial; PUT 404 on unknown
-6. DELETE 204; DELETE 409 when any non-deleted Word.category references it
-7. startup seeded the 5 manual categories on first launch (idempotent)
+1. POST creates a category; GET lists it
+2. POST duplicate id → 409 DUPLICATE_ID
+3. PUT partial; PUT 404 on unknown
+4. DELETE 204; DELETE 409 when any non-deleted Word.category references it
+5. startup seeded the 5 manual categories on first launch (idempotent)
+
+NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
+tests have been deleted. The remaining tests still send bearer tokens
+(harmless — the dependency no longer reads them) so the test bodies stay
+tightly diff-aligned with V0.5.7.
 """
 
 from datetime import UTC, datetime
@@ -65,20 +68,6 @@ def _new_payload(overrides: dict[str, object] | None = None) -> dict[str, object
     if overrides:
         base.update(overrides)
     return base
-
-
-@pytest.mark.asyncio
-async def test_categories_list_requires_auth(client: "AsyncClient") -> None:
-    resp = await client.get("/api/v1/admin/categories")
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_categories_create_rejects_parent(client: "AsyncClient", parent: User) -> None:
-    resp = await client.post(
-        "/api/v1/admin/categories", json=_new_payload(), headers=_bearer(parent.username)
-    )
-    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio

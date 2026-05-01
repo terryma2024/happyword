@@ -1,12 +1,16 @@
-"""Admin lesson photo import endpoints (V0.5.5)."""
+"""Admin lesson photo import endpoints (V0.5.5).
+
+NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
+network can call these endpoints. Per-family auth returns in V0.6, when
+each draft will be scoped to the parent account that uploaded it. Until
+then the `reviewer` field is hard-coded to "parent".
+"""
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 
-from app.deps import current_admin_user
 from app.models.lesson_import_draft import LessonImportDraft
-from app.models.user import User
 from app.schemas.admin_category import CategoryOut
 from app.schemas.admin_lesson import (
     LessonApproveOut,
@@ -58,7 +62,6 @@ def _to_out(d: LessonImportDraft) -> LessonDraftOut:
 )
 async def import_lesson(
     image: UploadFile = File(..., description="Textbook page photo (JPEG/PNG/WebP)."),
-    _admin: User = Depends(current_admin_user),
 ) -> LessonDraftOut:
     mime = (image.content_type or "").lower()
     if mime not in _ACCEPTED_MIME:
@@ -111,7 +114,6 @@ async def import_lesson(
 
 @router.get("/lesson-drafts", response_model=LessonDraftListOut)
 async def list_lesson_drafts(
-    _admin: User = Depends(current_admin_user),
     status: str | None = Query("pending", max_length=20),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
@@ -152,9 +154,7 @@ async def _load_draft(draft_id: str) -> LessonImportDraft:
 
 
 @router.get("/lesson-drafts/{draft_id}", response_model=LessonDraftOut)
-async def get_lesson_draft(
-    draft_id: str, _admin: User = Depends(current_admin_user)
-) -> LessonDraftOut:
+async def get_lesson_draft(draft_id: str) -> LessonDraftOut:
     return _to_out(await _load_draft(draft_id))
 
 
@@ -176,7 +176,6 @@ def _ensure_pending(draft: LessonImportDraft) -> None:
 async def patch_lesson_draft(
     draft_id: str,
     body: LessonDraftPatchIn,
-    _admin: User = Depends(current_admin_user),
 ) -> LessonDraftOut:
     draft = await _load_draft(draft_id)
     _ensure_pending(draft)
@@ -186,16 +185,16 @@ async def patch_lesson_draft(
 
 
 @router.post("/lesson-drafts/{draft_id}/approve", response_model=LessonApproveOut)
-async def approve_lesson(
-    draft_id: str, admin: User = Depends(current_admin_user)
-) -> LessonApproveOut:
+async def approve_lesson(draft_id: str) -> LessonApproveOut:
     draft = await _load_draft(draft_id)
     _ensure_pending(draft)
 
-    summary = await lesson_service.approve_lesson_draft(draft, reviewer=admin.username)
+    # V0.5.8: open-admin reviewer is the literal "parent". V0.6 will replace
+    # this with the parent account id from the JWT.
+    summary = await lesson_service.approve_lesson_draft(draft, reviewer="parent")
     draft.status = "approved"
     draft.reviewed_at = datetime.now(tz=UTC)
-    draft.reviewer = admin.username
+    draft.reviewer = "parent"
     draft.approval_summary = summary
     await draft.save()
 
@@ -217,11 +216,11 @@ async def approve_lesson(
 
 
 @router.post("/lesson-drafts/{draft_id}/reject", response_model=LessonDraftOut)
-async def reject_lesson(draft_id: str, admin: User = Depends(current_admin_user)) -> LessonDraftOut:
+async def reject_lesson(draft_id: str) -> LessonDraftOut:
     draft = await _load_draft(draft_id)
     _ensure_pending(draft)
     draft.status = "rejected"
     draft.reviewed_at = datetime.now(tz=UTC)
-    draft.reviewer = admin.username
+    draft.reviewer = "parent"
     await draft.save()
     return _to_out(draft)

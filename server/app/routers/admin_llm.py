@@ -2,14 +2,14 @@
 
 Today this router exposes a single endpoint — the OpenAI vision
 connectivity smoke test that powers the V0.5.5 'photo → vocabulary
-import' flow. Future V0.5.4 / V0.5.5 features will add more routes
-behind the same admin guard.
+import' flow.
+
+NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
+network can call these endpoints. Per-family auth returns in V0.6.
 """
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from app.deps import current_admin_user
-from app.models.user import User
 from app.schemas.llm import ScanResponse
 from app.services.llm_service import (
     LlmCallError,
@@ -31,7 +31,6 @@ _ACCEPTED_MIME = frozenset({"image/jpeg", "image/png", "image/webp"})
 @router.post("/scan-words", response_model=ScanResponse)
 async def scan_words(
     image: UploadFile = File(..., description="Textbook page photo (JPEG/PNG/WebP)."),
-    _admin: User = Depends(current_admin_user),
 ) -> ScanResponse:
     mime = (image.content_type or "").lower()
     if mime not in _ACCEPTED_MIME:

@@ -13,7 +13,11 @@ Behaviour contracts:
 9. reject -> word unchanged; draft.status="rejected"
 10. PATCH while pending updates content; approve uses edited content
 11. PATCH after approve -> 409
-12. non-admin 401/403
+
+NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
+tests have been deleted. The remaining tests still send bearer tokens
+(harmless — the dependency no longer reads them) so the test bodies stay
+tightly diff-aligned with V0.5.7.
 """
 
 from datetime import UTC, datetime
@@ -99,27 +103,6 @@ def _stub_example(monkeypatch: pytest.MonkeyPatch, en: str, zh: str) -> None:
         return "gpt-4o-mini-stub", {"en": en, "zh": zh}
 
     monkeypatch.setattr(admin_drafts, "extract_word_example", _fake)
-
-
-# ---------------------------------------------------------------------------
-# Auth
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_generate_distractors_requires_auth(client: "AsyncClient") -> None:
-    resp = await client.post("/api/v1/admin/words/fruit-apple/generate-distractors")
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_generate_distractors_rejects_parent(client: "AsyncClient", parent: User) -> None:
-    await _seed_word()
-    resp = await client.post(
-        "/api/v1/admin/words/fruit-apple/generate-distractors",
-        headers=_bearer(parent.username),
-    )
-    assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------

@@ -70,23 +70,11 @@ _FAKE_WORDS = [
 _FAKE_RESULT = ScanResult(words=_FAKE_WORDS, note="stub")
 
 
-@pytest.mark.asyncio
-async def test_scan_words_requires_auth(client: AsyncClient) -> None:
-    files = {"image": ("page.jpg", b"\xff\xd8\xff\xe0fake", "image/jpeg")}
-    resp = await client.post("/api/v1/admin/llm/scan-words", files=files)
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_scan_words_rejects_non_admin(client: AsyncClient, parent: User) -> None:
-    files = {"image": ("page.jpg", b"\xff\xd8\xff\xe0fake", "image/jpeg")}
-    resp = await client.post(
-        "/api/v1/admin/llm/scan-words",
-        files=files,
-        headers=_bearer(parent.username),
-    )
-    assert resp.status_code == 403
-    assert resp.json()["detail"]["error"]["code"] == "FORBIDDEN"
+# NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
+# tests (test_scan_words_requires_auth / _rejects_non_admin) have been
+# deleted. The remaining tests still send bearer tokens (harmless — the
+# dependency no longer reads them) so the test bodies stay tightly
+# diff-aligned with V0.5.7.
 
 
 @pytest.mark.asyncio

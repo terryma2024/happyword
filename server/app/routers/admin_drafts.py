@@ -4,17 +4,18 @@ Generate -> review -> approve flow. The actual LLM calls
 (`extract_word_distractors`, `extract_word_example`) are imported by
 *name* here so tests can monkeypatch this module directly without
 reaching into the service module.
+
+NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
+network can call these endpoints. Per-family auth returns in V0.6.
 """
 
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 
-from app.deps import current_admin_user
 from app.models.llm_draft import LlmDraft
-from app.models.user import User
 from app.models.word import Word
 from app.schemas.admin_draft import (
     DraftApproveOut,
@@ -121,10 +122,7 @@ async def _generate(
     response_model=DraftOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def generate_distractors_endpoint(
-    word_id: str,
-    _admin: User = Depends(current_admin_user),
-) -> DraftOut:
+async def generate_distractors_endpoint(word_id: str) -> DraftOut:
     draft = await _generate(word_id, draft_type="distractors", generate=extract_word_distractors)
     return _to_out(draft)
 
@@ -134,10 +132,7 @@ async def generate_distractors_endpoint(
     response_model=DraftOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def generate_example_endpoint(
-    word_id: str,
-    _admin: User = Depends(current_admin_user),
-) -> DraftOut:
+async def generate_example_endpoint(word_id: str) -> DraftOut:
     draft = await _generate(word_id, draft_type="example", generate=extract_word_example)
     return _to_out(draft)
 
@@ -149,7 +144,6 @@ async def generate_example_endpoint(
 
 @router.get("/drafts", response_model=DraftListOut)
 async def list_drafts(
-    _admin: User = Depends(current_admin_user),
     status: str | None = Query("pending", max_length=20),
     type: str | None = Query(None, alias="type", max_length=20),
     page: int = Query(1, ge=1),
@@ -193,10 +187,7 @@ async def _load_draft(draft_id: str) -> LlmDraft:
 
 
 @router.get("/drafts/{draft_id}", response_model=DraftOut)
-async def get_draft(
-    draft_id: str,
-    _admin: User = Depends(current_admin_user),
-) -> DraftOut:
+async def get_draft(draft_id: str) -> DraftOut:
     return _to_out(await _load_draft(draft_id))
 
 
@@ -218,7 +209,6 @@ def _ensure_pending(draft: LlmDraft) -> None:
 async def patch_draft(
     draft_id: str,
     body: DraftPatchIn,
-    _admin: User = Depends(current_admin_user),
 ) -> DraftOut:
     draft = await _load_draft(draft_id)
     _ensure_pending(draft)
@@ -228,10 +218,7 @@ async def patch_draft(
 
 
 @router.post("/drafts/{draft_id}/approve", response_model=DraftApproveOut)
-async def approve_draft(
-    draft_id: str,
-    admin: User = Depends(current_admin_user),
-) -> DraftApproveOut:
+async def approve_draft(draft_id: str) -> DraftApproveOut:
     draft = await _load_draft(draft_id)
     _ensure_pending(draft)
 
@@ -253,21 +240,18 @@ async def approve_draft(
 
     draft.status = "approved"
     draft.reviewed_at = datetime.now(tz=UTC)
-    draft.reviewer = admin.username
+    draft.reviewer = "parent"
     await draft.save()
 
     return DraftApproveOut(draft=_to_out(draft), word_id=word.id)
 
 
 @router.post("/drafts/{draft_id}/reject", response_model=DraftOut)
-async def reject_draft(
-    draft_id: str,
-    admin: User = Depends(current_admin_user),
-) -> DraftOut:
+async def reject_draft(draft_id: str) -> DraftOut:
     draft = await _load_draft(draft_id)
     _ensure_pending(draft)
     draft.status = "rejected"
     draft.reviewed_at = datetime.now(tz=UTC)
-    draft.reviewer = admin.username
+    draft.reviewer = "parent"
     await draft.save()
     return _to_out(draft)
