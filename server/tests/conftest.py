@@ -32,6 +32,7 @@ async def db() -> AsyncIterator[object]:
     """Beanie-initialized mongomock database for tests."""
     from app.models.category import Category  # noqa: PLC0415
     from app.models.child_profile import ChildProfile  # noqa: PLC0415
+    from app.models.cloud_wishlist_item import CloudWishlistItem  # noqa: PLC0415
     from app.models.device_binding import DeviceBinding  # noqa: PLC0415
     from app.models.email_verification import EmailVerification  # noqa: PLC0415
     from app.models.family import Family  # noqa: PLC0415
@@ -43,6 +44,7 @@ async def db() -> AsyncIterator[object]:
     from app.models.llm_draft import LlmDraft  # noqa: PLC0415
     from app.models.pack_pointer import PackPointer  # noqa: PLC0415
     from app.models.pair_token import PairToken  # noqa: PLC0415
+    from app.models.redemption_request import RedemptionRequest  # noqa: PLC0415
     from app.models.synced_word_stat import SyncedWordStat  # noqa: PLC0415
     from app.models.user import User  # noqa: PLC0415 - lazy to avoid early import
     from app.models.word import Word  # noqa: PLC0415
@@ -69,6 +71,8 @@ async def db() -> AsyncIterator[object]:
             FamilyPackPointer,
             FamilyWordPack,
             SyncedWordStat,
+            CloudWishlistItem,
+            RedemptionRequest,
         ],
     )
     yield mock["happyword_test"]

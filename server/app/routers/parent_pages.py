@@ -24,8 +24,10 @@ from app.deps import (
 )
 from app.deps_email import get_email_provider
 from app.models.child_profile import ChildProfile
+from app.models.cloud_wishlist_item import CloudWishlistItem
 from app.models.device_binding import DeviceBinding
 from app.models.pair_token import PairToken
+from app.models.redemption_request import RedemptionRequest
 from app.models.user import User, UserRole
 from app.services.auth_service import (
     JwtError,
@@ -56,6 +58,18 @@ from app.services.parent_report_service import (
     build_report,
 )
 from app.services.qr_service import render_qr_data_url
+from app.services.redemption_service import (
+    AlreadyDecided,
+    RequestNotFound,
+    list_pending_for_family,
+    list_recent_for_family,
+)
+from app.services.redemption_service import (
+    approve as redemption_approve,
+)
+from app.services.redemption_service import (
+    reject as redemption_reject,
+)
 
 if TYPE_CHECKING:
     from app.services.email_provider import EmailProvider
@@ -208,6 +222,9 @@ async def get_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
         ChildProfile.deleted_at == None,  # noqa: E711
     ).to_list()
     children_by_id = {c.profile_id: c for c in children}
+    pending_rows = await _decorated_redemptions(
+        family_id=user.family_id or "", pending=True, limit=5
+    )
     return templates.TemplateResponse(
         request,
         "parent/dashboard.html",
@@ -215,8 +232,106 @@ async def get_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
             "user": user,
             "bindings": bindings,
             "children_by_id": children_by_id,
+            "pending_redemptions": pending_rows,
         },
     )
+
+
+async def _decorated_redemptions(
+    *, family_id: str, pending: bool, limit: int = 50
+) -> list[dict[str, str | int]]:
+    """Decorate redemption rows with the joined item display name +
+    child nickname so the partial template doesn't have to fetch.
+    """
+    if pending:
+        rows = await list_pending_for_family(family_id=family_id)
+    else:
+        rows = await list_recent_for_family(family_id=family_id, limit=limit)
+    if not rows:
+        return []
+    item_ids = {r.wishlist_item_id for r in rows}
+    profile_ids = {r.child_profile_id for r in rows}
+    items = await CloudWishlistItem.find(
+        {"item_id": {"$in": list(item_ids)}}
+    ).to_list()
+    items_by_id = {i.item_id: i for i in items}
+    profiles = await ChildProfile.find(
+        {"profile_id": {"$in": list(profile_ids)}}
+    ).to_list()
+    profiles_by_id = {p.profile_id: p for p in profiles}
+
+    def _fmt(dt: object) -> str:
+        if dt is None or not hasattr(dt, "strftime"):
+            return ""
+        return str(dt.strftime("%Y-%m-%d %H:%M"))
+
+    out: list[dict[str, str | int]] = []
+    for r in rows:
+        item = items_by_id.get(r.wishlist_item_id)
+        profile = profiles_by_id.get(r.child_profile_id)
+        out.append(
+            {
+                "request_id": r.request_id,
+                "child_nickname": profile.nickname if profile else "（已删除）",
+                "item_display_name": item.display_name if item else "（已删除）",
+                "cost_coins_at_request": r.cost_coins_at_request,
+                "requested_at_label": _fmt(r.requested_at),
+                "decided_at_label": _fmt(r.decided_at),
+                "status": str(r.status),
+                "decision_note": r.decision_note or "",
+            }
+        )
+    return out
+
+
+@router.get("/redemptions", response_class=HTMLResponse, response_model=None)
+async def get_redemption_inbox(
+    request: Request,
+    user: User = Depends(current_parent_user),
+) -> HTMLResponse:
+    pending = await _decorated_redemptions(
+        family_id=user.family_id or "", pending=True
+    )
+    recent = await _decorated_redemptions(
+        family_id=user.family_id or "", pending=False, limit=20
+    )
+    # Filter "recent" to decided rows only so the section is clearly distinct.
+    recent = [r for r in recent if r["status"] != "pending"]
+    return templates.TemplateResponse(
+        request,
+        "parent/redemptions.html",
+        {"user": user, "pending": pending, "recent": recent},
+    )
+
+
+@router.post("/redemptions/{request_id}/approve", response_model=None)
+async def post_approve_redemption(
+    request_id: str = Path(min_length=4, max_length=64),
+    user: User = Depends(current_parent_user),
+) -> RedirectResponse:
+    with contextlib.suppress(RequestNotFound, AlreadyDecided):
+        await redemption_approve(
+            request_id=request_id,
+            family_id=user.family_id or "",
+            decided_by=user.username,
+            note=None,
+        )
+    return RedirectResponse(url="/parent/redemptions", status_code=303)
+
+
+@router.post("/redemptions/{request_id}/reject", response_model=None)
+async def post_reject_redemption(
+    request_id: str = Path(min_length=4, max_length=64),
+    user: User = Depends(current_parent_user),
+) -> RedirectResponse:
+    with contextlib.suppress(RequestNotFound, AlreadyDecided):
+        await redemption_reject(
+            request_id=request_id,
+            family_id=user.family_id or "",
+            decided_by=user.username,
+            note=None,
+        )
+    return RedirectResponse(url="/parent/redemptions", status_code=303)
 
 
 @router.get("/devices/add", response_class=HTMLResponse)
@@ -337,6 +452,9 @@ async def get_device_detail(
                 }
             },
         ) from e
+    wishlist_items = await CloudWishlistItem.find(
+        CloudWishlistItem.child_profile_id == child.profile_id,
+    ).to_list()
     return templates.TemplateResponse(
         request,
         "parent/device_detail.html",
@@ -345,10 +463,18 @@ async def get_device_detail(
             "binding": binding,
             "child": child,
             "report": report,
+            "wishlist_items": wishlist_items,
         },
     )
 
 
 # Keep a referenced symbol so unused-import linting stays calm if Response
 # gets repurposed by future helpers.
-_ = Response, HTTPException, ChildProfile, DeviceBinding
+_ = (
+    Response,
+    HTTPException,
+    ChildProfile,
+    DeviceBinding,
+    RedemptionRequest,
+    CloudWishlistItem,
+)

@@ -41,11 +41,31 @@
   </section>
 
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-slate-900">待审批的兑换申请</h2>
+      <a href="/parent/redemptions" class="text-sm text-sky-600 hover:underline">
+        查看全部 →
+      </a>
+    </div>
+    <div id="redemption-inbox" class="space-y-2">
+      {% if pending_redemptions %}
+        {% for row in pending_redemptions %}
+          {% include "partials/redemption_row.html" %}
+        {% endfor %}
+      {% else %}
+        <p id="no-pending-redemptions" class="text-sm text-slate-500">
+          暂无待审批的兑换申请。
+        </p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
     <h2 class="text-lg font-semibold text-slate-900 mb-2">下一步</h2>
     <ul class="text-sm text-slate-600 space-y-1 list-disc pl-5">
       <li>查看每台设备的学习报告（V0.6.5）。</li>
       <li>创建家庭词包，按课本单元教学（V0.6.3）。</li>
-      <li>审批孩子的礼品兑换（V0.6.6 · 计划中）。</li>
+      <li>审批孩子的礼品兑换（V0.6.6）。</li>
       <li>账号设置 / 删除账号（V0.6.7 · 计划中）。</li>
     </ul>
   </section>
