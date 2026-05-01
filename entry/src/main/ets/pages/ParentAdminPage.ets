@@ -6,6 +6,10 @@ import {
   ParentHttpError,
   ParentPackPublished,
   ParentStats,
+  LessonDraftDto,
+  LessonDraftListPage,
+  LessonImportError,
+  PickedImage,
 } from '../services/ParentApiClient';
 import { SERVER_BASE_URL } from '../services/RemoteWordPackConfig';
 import {
@@ -14,6 +18,11 @@ import {
   lockPortrait,
   restoreAutoLandscape,
 } from '../utils/orientation';
+import {
+  LessonImagePicker,
+  RealPhotoFileReader,
+  RealPhotoPickerAdapter,
+} from '../services/LessonImagePicker';
 
 /**
  * ParentAdminPage — V0.5.8.
@@ -27,12 +36,20 @@ import {
  *   - Stats card: live snapshot of server state (refresh button).
  *   - Lesson import card (F1, photo → words → review draft).
  *   - Pending drafts list (F2, navigates to LessonDraftReviewPage).
- *   - Publish card: publishes a fresh word-pack snapshot.
+ *   - Publish card: publishes a fresh word-pack snapshot (kept separate
+ *     from lesson import — see F3 rationale comment above publishCard).
  *
  * See `docs/superpowers/specs/2026-05-01-v0.5.8-parent-admin-revamp-design.md`.
  */
 
 const TOAST_MS: number = 3000;
+const PENDING_PAGE_SIZE: number = 50;
+const PICK_SOURCE_CAMERA: string = 'camera';
+const PICK_SOURCE_GALLERY: string = 'gallery';
+
+class LessonReviewRouteParams {
+  draftId: string = '';
+}
 
 @Entry
 @Component
@@ -42,10 +59,19 @@ struct ParentAdminPage {
   @State private stats?: ParentStats = undefined;
   @State private publishedSummary: string = '';
   @State private publishNotes: string = '';
+  @State private importBusy: boolean = false;
+  @State private importError: string = '';
+  @State private lastImportedId: string = '';
+  @State private lastImportedWordCount: number = 0;
+  @State private pendingDrafts: LessonDraftDto[] = [];
   private toastTimer: number = -1;
   private client: ParentApiClient = ParentApiClient.withRealHttp(SERVER_BASE_URL);
   private orientation: IOrientationAdapter = new RealOrientationAdapter(
     this.getUIContext().getHostContext() as common.UIAbilityContext,
+  );
+  private picker: LessonImagePicker = new LessonImagePicker(
+    new RealPhotoPickerAdapter(this.getUIContext().getHostContext() as common.UIAbilityContext),
+    new RealPhotoFileReader(),
   );
 
   aboutToAppear(): void {
@@ -55,12 +81,19 @@ struct ParentAdminPage {
     this.refreshStats().catch((err: BusinessError): void => {
       console.error(`ParentAdminPage.refreshStats(initial) failed: ${JSON.stringify(err)}`);
     });
+    this.refreshPendingDrafts().catch((err: BusinessError): void => {
+      console.error(`ParentAdminPage.refreshPendingDrafts(initial) failed: ${JSON.stringify(err)}`);
+    });
   }
 
   onPageShow(): void {
     // Re-lock on pop-back from LessonDraftReviewPage; idempotent.
     lockPortrait(this.orientation).catch((err: BusinessError): void => {
       console.error(`ParentAdminPage.lockPortrait(onPageShow) failed: ${JSON.stringify(err)}`);
+    });
+    // Refresh so an approved draft drops out of the pending list.
+    this.refreshPendingDrafts().catch((err: BusinessError): void => {
+      console.error(`ParentAdminPage.refreshPendingDrafts(onPageShow) failed: ${JSON.stringify(err)}`);
     });
   }
 
@@ -103,6 +136,17 @@ struct ParentAdminPage {
     }
   }
 
+  private async refreshPendingDrafts(): Promise<void> {
+    try {
+      const page: LessonDraftListPage =
+        await this.client.listPendingLessonDrafts(0, PENDING_PAGE_SIZE);
+      this.pendingDrafts = page.items;
+    } catch (err) {
+      const be: BusinessError = err as BusinessError;
+      console.error(`ParentAdminPage.refreshPendingDrafts failed: ${JSON.stringify(be)}`);
+    }
+  }
+
   private async publishPack(): Promise<void> {
     this.busy = true;
     try {
@@ -127,6 +171,71 @@ struct ParentAdminPage {
     }
   }
 
+  private async onPickPhoto(source: string): Promise<void> {
+    this.resetImportState();
+    this.importBusy = true;
+    try {
+      const file: PickedImage | null = source === PICK_SOURCE_CAMERA
+        ? await this.picker.pickFromCamera()
+        : await this.picker.pickFromGallery();
+      if (file === null) {
+        return;
+      }
+      const draft: LessonDraftDto = await this.client.importLesson(file);
+      this.lastImportedId = draft.id;
+      this.lastImportedWordCount = draft.extracted.words.length;
+      await this.refreshPendingDrafts();
+    } catch (err) {
+      this.importError = ParentAdminPage.humanizeImportError(err);
+    } finally {
+      this.importBusy = false;
+    }
+  }
+
+  private resetImportState(): void {
+    this.importError = '';
+    this.lastImportedId = '';
+    this.lastImportedWordCount = 0;
+  }
+
+  private static humanizeImportError(e: object): string {
+    if (e instanceof LessonImportError) {
+      const err: LessonImportError = e as LessonImportError;
+      if (err.code === 'TOO_LARGE') {
+        return '图片超过 8 MB，请压缩后重试';
+      }
+      if (err.code === 'BAD_MIME') {
+        return '仅支持 JPG / PNG / WebP 图片';
+      }
+      if (err.code === 'NETWORK') {
+        return '网络异常，请检查后重试';
+      }
+      return `服务异常 (HTTP ${err.status})`;
+    }
+    if (e instanceof ParentAuthError) {
+      return '服务端拒绝访问 (401/403)';
+    }
+    if (e instanceof ParentHttpError) {
+      const ph: ParentHttpError = e as ParentHttpError;
+      return `服务异常 (HTTP ${ph.status})`;
+    }
+    return '上传失败，请稍后重试';
+  }
+
+  private gotoReview(draftId: string): void {
+    if (draftId.length === 0) {
+      return;
+    }
+    const params: LessonReviewRouteParams = new LessonReviewRouteParams();
+    params.draftId = draftId;
+    this.getUIContext().getRouter().pushUrl({
+      url: 'pages/LessonDraftReviewPage',
+      params,
+    }).catch((err: BusinessError): void => {
+      console.error(`ParentAdminPage.gotoReview failed: ${JSON.stringify(err)}`);
+    });
+  }
+
   private back(): void {
     this.getUIContext().getRouter().back();
   }
@@ -145,6 +254,14 @@ struct ParentAdminPage {
       return '—';
     }
     return s.lastPublishedAt;
+  }
+
+  private formatTimestamp(iso: string): string {
+    // Best-effort: '2026-05-01T14:23:45+00:00' → '2026-05-01 14:23'.
+    if (iso.length < 16) {
+      return iso;
+    }
+    return `${iso.substring(0, 10)} ${iso.substring(11, 16)}`;
   }
 
   build(): void {
@@ -256,18 +373,149 @@ struct ParentAdminPage {
 
   @Builder
   private lessonImportCard(): void {
-    // V0.5.8 F1 will replace this with the real photo-import card.
-    Column().width(0).height(0);
+    Column({ space: 12 }) {
+      Text('导入课本单词').fontSize(18).fontWeight(FontWeight.Medium);
+      Text('拍照或从相册选择课本图片，模型会识别课文里的单词，由您确认后入库。')
+        .fontSize(13)
+        .fontColor('#666666');
+
+      Row({ space: 12 }) {
+        Button('📷 拍照')
+          .id('ParentAdminPickCameraButton')
+          .layoutWeight(1)
+          .height(48)
+          .fontSize(15)
+          .backgroundColor(this.importBusy ? '#F0F0F0' : '#1D3557')
+          .fontColor(this.importBusy ? '#999999' : '#FFFFFF')
+          .enabled(!this.importBusy)
+          .onClick((): void => {
+            this.onPickPhoto(PICK_SOURCE_CAMERA).catch((err: BusinessError): void => {
+              console.error(`ParentAdminPage.onPickPhoto(camera) failed: ${JSON.stringify(err)}`);
+            });
+          });
+        Button('🖼️ 从相册')
+          .id('ParentAdminPickGalleryButton')
+          .layoutWeight(1)
+          .height(48)
+          .fontSize(15)
+          .backgroundColor(this.importBusy ? '#F0F0F0' : '#457B9D')
+          .fontColor(this.importBusy ? '#999999' : '#FFFFFF')
+          .enabled(!this.importBusy)
+          .onClick((): void => {
+            this.onPickPhoto(PICK_SOURCE_GALLERY).catch((err: BusinessError): void => {
+              console.error(`ParentAdminPage.onPickPhoto(gallery) failed: ${JSON.stringify(err)}`);
+            });
+          });
+      }
+      .width('100%');
+
+      if (this.importBusy) {
+        Row({ space: 8 }) {
+          LoadingProgress().width(20).height(20).color('#457B9D');
+          Text('上传 / 识别中… 通常 10–30 秒')
+            .id('ParentAdminImportProgress')
+            .fontSize(13)
+            .fontColor('#666666');
+        }
+        .width('100%');
+      }
+
+      if (this.importError.length > 0) {
+        Row({ space: 8 }) {
+          Text(this.importError)
+            .id('ParentAdminImportError')
+            .fontSize(13)
+            .fontColor('#C0392B')
+            .layoutWeight(1);
+          Button('重试')
+            .id('ParentAdminImportRetry')
+            .height(32)
+            .fontSize(13)
+            .backgroundColor('#EAF2F8')
+            .fontColor('#457B9D')
+            .onClick((): void => {
+              this.importError = '';
+            });
+        }
+        .width('100%');
+      }
+
+      if (this.lastImportedId.length > 0) {
+        Row({ space: 8 }) {
+          Text(`✓ 已识别 ${this.lastImportedWordCount} 个单词，请确认`)
+            .id('ParentAdminImportSuccess')
+            .fontSize(13)
+            .fontColor('#1E7E34')
+            .layoutWeight(1);
+          Button('去复核 →')
+            .id('ParentAdminGotoReviewButton')
+            .height(32)
+            .fontSize(13)
+            .backgroundColor('#1E7E34')
+            .fontColor('#FFFFFF')
+            .onClick((): void => this.gotoReview(this.lastImportedId));
+        }
+        .width('100%');
+      }
+    }
+    .width('100%')
+    .padding(16)
+    .backgroundColor('#F7F9FC')
+    .borderRadius(12)
+    .alignItems(HorizontalAlign.Start);
   }
 
   @Builder
   private draftListCard(): void {
-    // V0.5.8 F2 will replace this with the pending-drafts list.
-    Column().width(0).height(0);
+    Column({ space: 8 }) {
+      Text(`待复核草稿 (${this.pendingDrafts.length})`)
+        .id('ParentAdminPendingTitle')
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium);
+
+      if (this.pendingDrafts.length === 0) {
+        Text('（暂无待复核草稿）')
+          .id('ParentAdminPendingEmpty')
+          .fontSize(13)
+          .fontColor('#888888');
+      } else {
+        ForEach(this.pendingDrafts, (d: LessonDraftDto): void => {
+          this.draftRow(d);
+        }, (d: LessonDraftDto): string => d.id);
+      }
+    }
+    .width('100%')
+    .padding(16)
+    .backgroundColor('#F7F9FC')
+    .borderRadius(12)
+    .alignItems(HorizontalAlign.Start);
+  }
+
+  @Builder
+  private draftRow(d: LessonDraftDto): void {
+    Row({ space: 8 }) {
+      Text(this.formatTimestamp(d.created_at))
+        .id(`LessonDraftRow_${d.id}`)
+        .fontSize(13)
+        .fontColor('#3F2F1A')
+        .layoutWeight(1);
+      Button('复核 →')
+        .id(`LessonDraftReviewLink_${d.id}`)
+        .height(32)
+        .fontSize(13)
+        .backgroundColor('#457B9D')
+        .fontColor('#FFFFFF')
+        .onClick((): void => this.gotoReview(d.id));
+    }
+    .width('100%')
+    .padding({ top: 8, bottom: 8 });
   }
 
   @Builder
   private publishCard(): void {
+    // V0.5.8: pack publish stays a *separate* one-tap action so the parent
+    // can import multiple lesson photos before triggering a release. See
+    // spec §1 in docs/superpowers/specs/2026-05-01-v0.5.8-parent-admin-revamp-design.md.
     Column({ space: 12 }) {
       Text('发布新版本词包').fontSize(18).fontWeight(FontWeight.Medium);
       Text('从最新词库快照打包并发布。客户端需要在配置页手动同步后才能看到新版本。')
