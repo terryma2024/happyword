@@ -230,15 +230,19 @@ export default function parentAdminFlowUiTest(): void {
       expect(passwordInput === null).assertTrue();
 
       // Back button on ParentAdminPage routes back to ConfigPage.
-      // ConfigPage's outer Scroll preserves its position across
-      // navigations, so we anchor on the row we already scrolled to
-      // (ConfigParentAdminButton) rather than ConfigTitle which
-      // sits above the fold.
+      // V0.5.8: ParentAdminPage locks portrait on entry and restores
+      // AUTO_ROTATION_LANDSCAPE on aboutToDisappear, so the back-pop
+      // triggers an orientation flip that resets ConfigPage's outer
+      // Scroll to the top. Anchor the assertion on ConfigTitle (which
+      // always stays in view) instead of ConfigParentAdminButton, and
+      // dismiss ConfigPage with pressBack rather than ConfigCancelButton
+      // because the latter sits at the bottom of the form and is below
+      // the fold after the rotation reset.
       await clickByIdShared(driver, 'ParentAdminBack');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('ConfigParentAdminButton'));
+      await driver.delayMs(1500);
+      await driver.assertComponentExist(ON.id('ConfigTitle'));
 
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await driver.pressBack();
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
