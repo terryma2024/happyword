@@ -37,6 +37,7 @@ import cloudSyncServiceTest from './CloudSyncService.test';
 import cloudWishlistServiceTest from './CloudWishlistService.test';
 import parentRedemptionPollTest from './ParentRedemptionPoll.test';
 import deviceUnbindClientTest from './DeviceUnbindClient.test';
+import photoPickerServiceTest from './PhotoPickerService.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -78,4 +79,5 @@ export default function testsuite() {
   cloudWishlistServiceTest();
   parentRedemptionPollTest();
   deviceUnbindClientTest();
+  photoPickerServiceTest();
 }
