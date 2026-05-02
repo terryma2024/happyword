@@ -58,7 +58,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.5.6 | 词条插画 + 发音 MP3 | `POST /admin/assets/words/{id}/{illustration,audio}` 上传 Blob；schema_v4→v5 加 `illustrationUrl?` / `audioUrl?`；客户端新 `RemoteAssetCache`，`PronunciationService` 命中 mp3 优先；BattlePage / TodayPlanPage 命中 illustrationUrl 渲染 `Image(url)` 替代 emoji | 必需 |
 | V0.5.7 | 收尾（监控 + 文档 + rawfile 退化） | `/admin/stats`、OpenAI usage 日志、`backup_pack.py`；客户端 cache 命中即跳过 rawfile（rawfile 仅作首次冷装兜底）；admin 操作手册 + 运维 runbook | 必需 |
 | V0.5.8 | 家长管理后台改版（已完成）     | "管理员控制台"重命名为"家长管理后台"；进入即锁定竖屏 + 离开恢复横屏；删除 JWT 登录闸（`Depends(current_admin_user)` 移出全部 admin 路由，V0.6 改为家长账户隔离）；以"📷 拍照 / 🖼️ 从相册"上传课本图替代手填发布流：`LessonImagePicker`（gallery + camera）+ `MultipartBuilder`（RFC-7578 单图 + 头注入防护）+ `ParentApiClient.importLesson` POST `/api/v1/admin/lessons/import` → vision → 草稿；新 `LessonDraftReviewPage`：原图缩略 + 主题标签 + 候选词列表（保留 / 编辑 / 弃用）+ 全部确认 / 全部拒绝；保留独立"发布新版本词包"按钮，让家长能批量积累草稿后再一次性发布 | 必需 |
-| V0.6   | 家长账户与设备绑定版       | 家长账号、孩子档案、二维码绑定设备、云端学习同步、云端愿望单（含 V0.5.8 留下的 admin 路由家长账户隔离）                            | 必需       |
+| V0.6   | 家长账户与设备绑定版       | 家长账号、孩子档案、二维码绑定设备、云端学习同步、云端愿望单（含 V0.5.8 留下的 admin 路由家长账户隔离）；V0.6.x ScanBindingPage 增「📷 从图库选择二维码」入口，让家长把网页 QR 截图发到孩子设备完成绑定（@kit.ScanKit `detectBarcode.decode` 静态解码 + 共享 `PhotoPickerService`） | 必需       |
 | V0.7   | AI 剧情与语境学习版      | 句子填词、主题剧情、LLM 生成剧情草稿、个性化冒险                                | 必需       |
 | V0.8   | 战斗音频混音与 BGM 版 | 新增 `BattleAudioMixer`，让战斗 BGM、combo/攻击/受伤音效、单词朗读按优先级共存；用 duck + 单次恢复策略解决 TTS 抢焦点问题 | 无 |
 | V0.9   | Cocos2D 战斗美术化重构版 | 用 Cocos Creator 重写战斗表现层，支持更完整的角色、怪物、动画、特效和多美术主题           | 可选       |
@@ -982,7 +982,7 @@ V0.6 的目标是把产品从单设备本地游戏升级为可由家长管理的
 
 - 家长账号，支持基础登录。
 - 孩子档案，支持昵称、年龄、学习阶段和词包选择。
-- 设备二维码绑定，客户端展示二维码，家长端扫码绑定设备。
+- 设备二维码绑定，家长端展示二维码，客户端用 `@kit.ScanKit` 扫码绑定；客户端同时支持「打开扫码器」、「📷 从图库选择二维码」（V0.6.x 增量，支持家长把 QR 截图发到孩子设备完成绑定）和「无法扫码？手动输入短码」三条路径。
 - 学习记录云同步，支持更换设备或多设备查看。
 - 家长端学习报告，展示完成天数、掌握词数、错词分类、复习完成率。
 - 云端魔法愿望单，家长可配置兑换项、所需魔法币和确认状态。
