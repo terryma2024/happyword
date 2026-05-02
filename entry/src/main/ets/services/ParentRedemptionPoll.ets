@@ -1,11 +1,9 @@
-import { RedemptionDecision } from './CloudWishlistService';
-
-/** Test seam: a thin interface CloudWishlistService implements so tests
- *  don't need to construct the real service (which depends on CloudCredentials,
- *  ParentFetchAdapter, baseUrl). */
-export interface RedemptionPollSource {
-  pollDecisions(): Promise<RedemptionDecision[]>;
-}
+// `RedemptionPollSource` and `RedemptionDecision` both live in
+// CloudWishlistService.ets so ArkTS strict mode (`arkts-no-structural-typing`)
+// accepts `new ParentRedemptionPoll(cloudWishlistService)` — the service
+// declares `implements RedemptionPollSource` directly. Tests should import
+// `RedemptionPollSource` from CloudWishlistService.ets going forward.
+import { RedemptionDecision, RedemptionPollSource } from './CloudWishlistService';
 
 /**
  * V0.6.6 — periodic poller that drives `CloudWishlistService.pollDecisions`

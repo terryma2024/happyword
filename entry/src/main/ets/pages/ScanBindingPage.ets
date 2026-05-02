@@ -90,7 +90,11 @@ struct ScanBindingPage {
       });
   }
 
-  private get reasonHint(): string {
+  // Note: using a method (not a TS getter) because ArkUI's `@Entry`/
+  // `@Component` struct rendering does not invoke TS property getters
+  // inside `build()`; the access surfaces as undefined and crashes
+  // with "Cannot read property length of undefined".
+  private reasonHint(): string {
     if (this.failureReason === 'TOKEN_EXPIRED') {
       return '二维码已过期，请让家长在网页重新生成。';
     }
@@ -139,50 +143,66 @@ struct ScanBindingPage {
     Column() {
       Row() {
         Text('扫码绑定家长账号')
+          .id('ScanBindingTitle')
           .fontSize(20).fontWeight(FontWeight.Bold).fontColor('#1f2937')
         Blank()
-        Button('返回').fontSize(14).backgroundColor('#e2e8f0').fontColor('#1f2937')
+        Button('返回')
+          .id('ScanBindingTopBack')
+          .fontSize(14).backgroundColor('#e2e8f0').fontColor('#1f2937')
           .onClick(() => router.back())
       }
       .width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
 
       if (this.state === 'bound') {
         Column() {
-          Text('🎉').fontSize(48)
+          Text('🎉')
+            .id('ScanBindingSuccessEmoji')
+            .fontSize(48)
           Text(`绑定成功，${this.childNickname || '宝贝'}！`)
+            .id('ScanBindingSuccessLabel')
             .fontSize(18).fontWeight(FontWeight.Bold).margin({ top: 8 })
-          Button('返回首页').margin({ top: 24 }).onClick(() => router.back())
+          Button('返回首页')
+            .id('ScanBindingSuccessBack')
+            .margin({ top: 24 })
+            .onClick(() => router.back())
         }.width('100%').padding(24)
       } else if (this.manualMode) {
         Column({ space: 12 }) {
           Text('输入家长网页显示的 6 位短码').fontSize(14).fontColor('#475569')
           TextInput({ placeholder: '000000', text: this.manualCode })
+            .id('ScanBindingManualInput')
             .type(InputType.Number).maxLength(6)
             .fontSize(28).textAlign(TextAlign.Center)
             .width('60%').margin({ top: 8 })
             .onChange((v: string) => { this.manualCode = v; })
           Button(this.busy ? '正在验证…' : '提交')
+            .id('ScanBindingManualSubmit')
             .enabled(!this.busy && this.manualCode.length === 6)
             .onClick(() => this.onSubmitShortCode())
-          Button('返回扫码').backgroundColor('#e2e8f0').fontColor('#1f2937')
+          Button('返回扫码')
+            .id('ScanBindingManualBackToScan')
+            .backgroundColor('#e2e8f0').fontColor('#1f2937')
             .onClick(() => { this.manualMode = false; this.manualCode = ''; })
-          if (this.reasonHint.length > 0) {
-            Text(this.reasonHint).fontColor('#dc2626').fontSize(13).margin({ top: 8 })
+          if (this.reasonHint().length > 0) {
+            Text(this.reasonHint()).fontColor('#dc2626').fontSize(13).margin({ top: 8 })
           }
         }.width('100%').padding(24)
       } else {
         Column({ space: 12 }) {
           Text('请扫描家长网页 /parent/devices/add 显示的二维码')
+            .id('ScanBindingIdlePrompt')
             .fontSize(14).fontColor('#475569').textAlign(TextAlign.Center)
           Button(this.busy ? '正在打开扫码器…' : '打开扫码器')
+            .id('ScanBindingScannerButton')
             .enabled(!this.busy && this.service !== undefined)
             .margin({ top: 16 })
             .onClick(() => this.onScanTap())
           Button('无法扫码？手动输入短码')
+            .id('ScanBindingManualToggle')
             .backgroundColor('#e2e8f0').fontColor('#1f2937')
             .onClick(() => { this.manualMode = true; })
-          if (this.reasonHint.length > 0) {
-            Text(this.reasonHint).fontColor('#dc2626').fontSize(13).margin({ top: 16 })
+          if (this.reasonHint().length > 0) {
+            Text(this.reasonHint()).fontColor('#dc2626').fontSize(13).margin({ top: 16 })
           }
         }.width('100%').padding(24)
       }

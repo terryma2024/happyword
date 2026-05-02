@@ -18,6 +18,7 @@ import configFlowUiTest from './ConfigFlow.ui.test';
 import configSyncFlowUiTest from './ConfigSyncFlow.ui.test';
 import parentAdminFlowUiTest from './ParentAdminFlow.ui.test';
 import lessonDraftReviewFlowUiTest from './LessonDraftReviewFlow.ui.test';
+import parentBindingFlowV06UiTest from './ParentBindingFlowV06.ui.test';
 
 /**
  * V0.5.8: route every HTTP call from the test ability through the
@@ -127,4 +128,12 @@ export default function testsuite() {
   // to main_pages.json without breaking app boot. Real edit / approve
   // / reject coverage lives in ParentApiClient unit tests.
   lessonDraftReviewFlowUiTest();
+  // V0.6 — parent-account binding lifecycle on ConfigPage.
+  // Drives unbound → ScanBindingPage → manual short-code redeem →
+  // bound state → unbind via parent PIN → unbound again, all through
+  // the local mock at 127.0.0.1:8123. Runs LAST because it leaves
+  // AppStorage in a parent-PIN-set state that downstream suites
+  // would have to clean up; placing it at the tail keeps every other
+  // suite's assumptions intact.
+  parentBindingFlowV06UiTest();
 }

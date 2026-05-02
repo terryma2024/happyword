@@ -50,6 +50,21 @@ export class RedemptionDecision {
   decidedAtMs: number = 0;
 }
 
+/**
+ * V0.6.6 — minimal seam consumed by ParentRedemptionPoll. CloudWishlistService
+ * implements this directly; tests can supply a stub without dragging in the
+ * full service constructor (CloudCredentials / ParentFetchAdapter / baseUrl).
+ *
+ * Defined here (not in ParentRedemptionPoll.ets) so CloudWishlistService can
+ * declare `implements RedemptionPollSource` without creating a circular
+ * import — ArkTS strict mode (`arkts-no-structural-typing`) refuses to pass
+ * the service to `new ParentRedemptionPoll(svc)` unless the implements
+ * relationship is declared explicitly.
+ */
+export interface RedemptionPollSource {
+  pollDecisions(): Promise<RedemptionDecision[]>;
+}
+
 interface RawCloudWishlistItem {
   item_id?: string;
   child_profile_id?: string;
@@ -115,7 +130,7 @@ class RedemptionRequestBody {
   wishlist_item_id: string = '';
 }
 
-export class CloudWishlistService {
+export class CloudWishlistService implements RedemptionPollSource {
   private readonly credentials: CloudCredentials;
   private readonly adapter: ParentFetchAdapter;
   private readonly baseUrl: string;

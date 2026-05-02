@@ -1,9 +1,9 @@
 import { describe, it, expect } from '@ohos/hypium';
+import { ParentRedemptionPoll } from '../main/ets/services/ParentRedemptionPoll';
 import {
-  ParentRedemptionPoll,
+  RedemptionDecision,
   RedemptionPollSource,
-} from '../main/ets/services/ParentRedemptionPoll';
-import { RedemptionDecision } from '../main/ets/services/CloudWishlistService';
+} from '../main/ets/services/CloudWishlistService';
 
 class FakeSource implements RedemptionPollSource {
   decisionsQueue: RedemptionDecision[][] = [];

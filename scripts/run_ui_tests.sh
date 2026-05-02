@@ -34,6 +34,22 @@ MOCK_LOG="${REPO_ROOT}/build-tmp/mock_ui_server.log"
 MOCK_PID_FILE="${REPO_ROOT}/build-tmp/mock_ui_server.pid"
 SUITE_FILTER=""
 DO_REBUILD=0
+# When more than one device is registered with hdc (e.g. the OpenHarmony
+# emulator over TCP plus a USB phone), every hdc subcommand fails with
+# "ExecuteCommand need connect-key?". Set HDC_TARGET in the environment
+# (or rely on auto-detection in step 1) so we can pass `-t <key>`
+# consistently.
+HDC_TARGET="${HDC_TARGET:-}"
+
+# Wrapper that injects `-t <key>` whenever HDC_TARGET is non-empty.
+# Defined up here so the cleanup trap can use it too.
+hdc_t() {
+  if [[ -n "${HDC_TARGET}" ]]; then
+    hdc -t "${HDC_TARGET}" "$@"
+  else
+    hdc "$@"
+  fi
+}
 
 mkdir -p "$(dirname "${MOCK_LOG}")"
 
@@ -88,12 +104,12 @@ cleanup() {
   # forward and reverse tasks in one list; we filter for our port and
   # strip out the "tcp:8123 tcp:8123" tail which `hdc fport rm` wants.
   if command -v hdc >/dev/null 2>&1; then
-    hdc fport ls 2>/dev/null \
+    hdc_t fport ls 2>/dev/null \
       | awk -v p=":${MOCK_PORT}" '$0 ~ p {print $0}' \
       | while read -r line; do
           taskstr="$(echo "${line}" | sed -nE 's/.*(tcp:[0-9]+ tcp:[0-9]+).*/\1/p')"
           if [[ -n "${taskstr}" ]]; then
-            hdc fport rm "${taskstr}" >/dev/null 2>&1 || true
+            hdc_t fport rm "${taskstr}" >/dev/null 2>&1 || true
           fi
         done
   fi
@@ -117,6 +133,17 @@ if [[ -z "${TARGETS}" || "${TARGETS}" == *"[Empty]"* ]]; then
   exit 1
 fi
 echo "[run_ui_tests] hdc target(s): ${TARGETS}"
+
+# If multiple targets are present and HDC_TARGET wasn't pinned by the
+# caller, prefer a 127.0.0.1:* TCP target (the emulator) over a USB key.
+TARGET_COUNT="$(printf '%s\n' "${TARGETS}" | wc -l | tr -d ' ')"
+if [[ -z "${HDC_TARGET}" && "${TARGET_COUNT}" -gt 1 ]]; then
+  TCP_TARGET="$(printf '%s\n' "${TARGETS}" | grep -E '^127\.0\.0\.1:' | head -n1 || true)"
+  if [[ -n "${TCP_TARGET}" ]]; then
+    HDC_TARGET="${TCP_TARGET}"
+    echo "[run_ui_tests] multiple targets visible, auto-selecting ${HDC_TARGET}"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # 2. Boot mock server
@@ -160,7 +187,7 @@ fi
 # resolves http://127.0.0.1:8123 to the mock running on the developer's
 # Mac.
 echo "[run_ui_tests] hdc rport tcp:${MOCK_PORT} tcp:${MOCK_PORT}"
-hdc rport "tcp:${MOCK_PORT}" "tcp:${MOCK_PORT}"
+hdc_t rport "tcp:${MOCK_PORT}" "tcp:${MOCK_PORT}"
 
 # Note on lesson-import fixture: HarmonyOS NEXT's selinux blocks the
 # bundle UID from reading every shell-writable path on disk
@@ -192,9 +219,9 @@ if [[ "${DO_REBUILD}" -eq 1 ]]; then
     exit 1
   fi
   echo "[run_ui_tests] installing ${HAP_DEFAULT}"
-  hdc install -r "${HAP_DEFAULT}"
+  hdc_t install -r "${HAP_DEFAULT}"
   echo "[run_ui_tests] installing ${HAP_TEST}"
-  hdc install -r "${HAP_TEST}"
+  hdc_t install -r "${HAP_TEST}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -213,7 +240,11 @@ fi
 # take 35-45s in cold start, even though every individual step is fast
 # (the test is wide, not slow). 60000ms buys a safe margin without
 # masking real hangs.
-TEST_CMD=(hdc shell aa test
+TEST_CMD=(hdc)
+if [[ -n "${HDC_TARGET}" ]]; then
+  TEST_CMD+=(-t "${HDC_TARGET}")
+fi
+TEST_CMD+=(shell aa test
   -b com.terryma.wordmagicgame
   -m entry_test
   -s unittest OpenHarmonyTestRunner

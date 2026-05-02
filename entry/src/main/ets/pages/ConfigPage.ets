@@ -280,11 +280,16 @@ struct ConfigPage {
             .onClick((): void => this.onUnbindTap());
         }
         .alignItems(VerticalAlign.Center).margin({ top: 8 });
-        if (this.unbindToastText.length > 0) {
-          Text(this.unbindToastText)
-            .id('ConfigUnbindToast')
-            .fontSize(12).fontColor('#B91C1C').margin({ top: 4 });
-        }
+      }
+      // Toast lives OUTSIDE the bindingPresent gate so the success
+      // message ("已解除设备绑定") remains visible after `runUnbind`
+      // refreshes the state and `bindingPresent` flips to false. The
+      // empty-state error message ("请先在「家长密码」中设置 6 位 PIN")
+      // also needs to surface even when there is no binding.
+      if (this.unbindToastText.length > 0) {
+        Text(this.unbindToastText)
+          .id('ConfigUnbindToast')
+          .fontSize(12).fontColor('#B91C1C').margin({ top: 4 });
       }
     }
     .width('100%').alignItems(HorizontalAlign.Start).margin({ bottom: 16 });
