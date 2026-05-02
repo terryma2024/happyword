@@ -49,6 +49,14 @@ struct ScanBindingPage {
   @State private manualMode: boolean = false;
   @State private manualCode: string = '';
   @State private busy: boolean = false;
+  /**
+   * Mirror of `this.service !== undefined`. ArkUI only re-renders when
+   * @State (or sibling decorated) fields change; assigning to a plain
+   * private field inside `bootstrapService().then(...)` does NOT trigger
+   * a rebuild, so without this flag the "打开扫码器" button stays gated
+   * on its initial false value forever and clicks become silent no-ops.
+   */
+  @State private serviceReady: boolean = false;
 
   private service?: DeviceBindingService;
 
@@ -84,9 +92,11 @@ struct ScanBindingPage {
           }
         });
         this.service = svc;
+        this.serviceReady = true;
       })
       .catch((err: BusinessError) => {
         console.error(`ScanBindingPage.bootstrap failed: ${JSON.stringify(err)}`);
+        this.serviceReady = false;
       });
   }
 
@@ -177,7 +187,7 @@ struct ScanBindingPage {
             .onChange((v: string) => { this.manualCode = v; })
           Button(this.busy ? '正在验证…' : '提交')
             .id('ScanBindingManualSubmit')
-            .enabled(!this.busy && this.manualCode.length === 6)
+            .enabled(!this.busy && this.serviceReady && this.manualCode.length === 6)
             .onClick(() => this.onSubmitShortCode())
           Button('返回扫码')
             .id('ScanBindingManualBackToScan')
@@ -194,7 +204,7 @@ struct ScanBindingPage {
             .fontSize(14).fontColor('#475569').textAlign(TextAlign.Center)
           Button(this.busy ? '正在打开扫码器…' : '打开扫码器')
             .id('ScanBindingScannerButton')
-            .enabled(!this.busy && this.service !== undefined)
+            .enabled(!this.busy && this.serviceReady)
             .margin({ top: 16 })
             .onClick(() => this.onScanTap())
           Button('无法扫码？手动输入短码')

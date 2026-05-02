@@ -257,6 +257,27 @@ export default function parentBindingFlowV06UiTest(): void {
       await driver.assertComponentExist(ON.id('ScanBindingScannerButton'));
       await driver.assertComponentExist(ON.id('ScanBindingManualToggle'));
 
+      // The scanner button MUST become enabled once bootstrapService
+      // resolves — it gates on the @State `serviceReady` mirror of
+      // `this.service !== undefined`. A regression to a plain field
+      // (which ArkUI does not track for re-render) leaves the button
+      // gated false forever and clicks become silent no-ops on real
+      // devices. Poll up to 5 s for the bootstrap promise.
+      let scannerEnabled: boolean = false;
+      for (let attempt: number = 0; attempt < 20; attempt++) {
+        const c: Component | null =
+          await driver.findComponent(ON.id('ScanBindingScannerButton'));
+        if (c !== null) {
+          const enabled: boolean = await c.isEnabled();
+          if (enabled) {
+            scannerEnabled = true;
+            break;
+          }
+        }
+        await driver.delayMs(250);
+      }
+      expect(scannerEnabled).assertTrue();
+
       // Switch to manual mode and assert the input + submit appear.
       await clickByIdShared(driver, 'ScanBindingManualToggle');
       await driver.delayMs(600);

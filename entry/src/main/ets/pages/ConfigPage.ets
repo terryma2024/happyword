@@ -292,7 +292,7 @@ struct ConfigPage {
           .fontSize(12).fontColor('#B91C1C').margin({ top: 4 });
       }
     }
-    .width('100%').alignItems(HorizontalAlign.Start).margin({ bottom: 16 });
+    .width('100%').alignItems(HorizontalAlign.Center).margin({ bottom: 16 });
   }
 
   private openScanBinding(): void {

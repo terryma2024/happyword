@@ -1511,6 +1511,11 @@ struct BattlePage {
               // never blocks the UI thread on a cast.
               altAssetPath: 'character/magican_fight.svg',
               altActive: this.playerFighting,
+              // V0.6.x: swap to the "被攻击" pose for the duration of
+              // each hurt-pulse window. CharacterCard owns the timing
+              // (true on impact, false on settle) so this prop is just
+              // the asset path — no extra state plumbing here.
+              hurtAssetPath: 'character/magican_beaten.svg',
             });
           }
           .id('PlayerArea')
