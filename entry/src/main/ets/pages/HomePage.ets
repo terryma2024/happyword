@@ -22,6 +22,7 @@ import { CoinSnapshot } from '../models/CoinSnapshot';
 import { getTodayPreferences, TodayPreferences } from '../services/TodayPreferences';
 import { WordPackCache, WordPackCacheRecord } from '../services/WordPackCache';
 import { CategoryCatalog, CategoryRow } from '../services/CategoryCatalog';
+import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 
 /**
  * Review-mode gating threshold. Mirrors spec §15 Track D: kids need at
@@ -66,6 +67,10 @@ struct HomePage {
   @State private categoryCatalogVersion: number = 0;
   private categoryCatalog: CategoryCatalog = new CategoryCatalog();
   private wordPackCache: WordPackCache = new WordPackCache();
+  // V0.6.2: top-right child badge ("🌙 <nickname>") when the device is bound
+  // to a parent account. Refreshed on aboutToAppear/onPageShow.
+  @State private boundChildNickname: string = '';
+  private cloudCreds: CloudCredentials = new CloudCredentials();
 
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -91,7 +96,16 @@ struct HomePage {
       .catch((err: BusinessError): void => {
         console.error(`HomePage: WordPackCache.init failed: ${JSON.stringify(err)}`);
       });
+    this.cloudCreds.init(ctx).then((): Promise<void> => this.refreshBoundChild())
+      .catch((err: BusinessError): void => {
+        console.error(`HomePage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
+      });
     this.refreshWrongCount();
+  }
+
+  private async refreshBoundChild(): Promise<void> {
+    const snap: CloudCredentialsSnapshot = await this.cloudCreds.load();
+    this.boundChildNickname = snap.isBound() ? (snap.nickname.length > 0 ? snap.nickname : '宝贝') : '';
   }
 
   onPageShow(): void {
@@ -107,6 +121,9 @@ struct HomePage {
     // player returns to the home screen.
     this.refreshCategoryCatalog().catch((err: BusinessError): void => {
       console.error(`HomePage: refreshCategoryCatalog failed: ${JSON.stringify(err)}`);
+    });
+    this.refreshBoundChild().catch((err: BusinessError): void => {
+      console.error(`HomePage: refreshBoundChild failed: ${JSON.stringify(err)}`);
     });
   }
 
@@ -300,6 +317,15 @@ struct HomePage {
       .margin({ top: 96 });
 
       Row({ space: 12 }) {
+        if (this.boundChildNickname.length > 0) {
+          Text(`🌙 ${this.boundChildNickname}`)
+            .id('HomeBoundChildBadge')
+            .fontSize(14)
+            .fontColor('#0369A1')
+            .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+            .backgroundColor('#E0F2FE')
+            .borderRadius(20);
+        }
         Text(`✨ ${this.coinBalance}`)
           .id('HomeCoinBalance')
           .fontSize(16)

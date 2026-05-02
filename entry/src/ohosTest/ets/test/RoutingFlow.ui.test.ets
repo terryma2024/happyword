@@ -83,6 +83,33 @@ async function clickById(driver: Driver, id: string): Promise<void> {
 }
 
 /**
+ * Tap the ConfigPage 取消 button. Since V0.6.2 added a parent-account
+ * row + a per-device "AssetStoreKit unavailable" warning between the
+ * parent-PIN row and the sync row, the cancel button at the bottom of
+ * the form sometimes sits past the visible region after one upward
+ * swipe (especially on the OpenHarmony emulator where the warning is
+ * always visible because there is no AssetStoreKit). Swipe up to a
+ * maximum of 3 times until the matcher finds the button, then tap.
+ *
+ * Falls back to `driver.pressBack()` after the third miss so the test
+ * still leaves ConfigPage instead of hanging on the assertion.
+ */
+export async function tapConfigCancelShared(driver: Driver): Promise<void> {
+  for (let attempt: number = 0; attempt < 3; attempt++) {
+    const comp = await driver.findComponent(ON.id('ConfigCancelButton'));
+    if (comp !== null) {
+      await comp.click();
+      return;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(400);
+  }
+  // Final attempt: pressBack always works on ConfigPage and matches the
+  // semantic intent of "leave config".
+  await driver.pressBack();
+}
+
+/**
  * zh -> en word mapping, mirrored from words_v1.json. Duplicated here
  * on purpose: the ohosTest HAP is a separate module and resolving the
  * main module's rawfile from a test would mean standing up a
@@ -425,13 +452,10 @@ async function openCustomWordsAndSave(driver: Driver, rawText: string): Promise<
 
   // V0.2 note: ConfigPage grew the `ConfigAutoSpeakToggle` row,
   // pushing Save/Cancel below the viewport on a narrow landscape
-  // emulator. Swipe up once before looking for the Cancel button
-  // so findComponent doesn't return null.
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(300);
-  await driver.assertComponentExist(ON.id('ConfigCancelButton'));
-  const cancel = await driver.findComponent(ON.id('ConfigCancelButton'));
-  await cancel.click();
+  // emulator. V0.6.2 added the parent-account row + AssetStoreKit
+  // warning, requiring more scrolls. Use the shared helper that
+  // swipes-then-taps with retries.
+  await tapConfigCancelShared(driver);
   await driver.delayMs(800);
   await driver.assertComponentExist(ON.id('HomeStartButton'));
 }

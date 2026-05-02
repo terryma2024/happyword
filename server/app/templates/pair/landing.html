@@ -1,0 +1,15 @@
+{% extends "_base.html" %}
+{% block title %}配对二维码{% endblock %}
+{% block content %}
+<section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 max-w-md mx-auto text-center">
+  <h1 class="text-2xl font-semibold text-slate-900 mb-4">配对二维码</h1>
+  <p id="pair-landing-instructions" class="text-sm text-slate-700 mb-4">
+    您看到这个页面是因为本二维码是为「快乐背单词」app 设计的。
+    请用 WordMagic app 扫码绑定家长账号。
+  </p>
+  <div class="text-xs text-slate-400">
+    短码（家长后台同时显示）：
+    <span class="font-mono">{{ token_short }}</span>
+  </div>
+</section>
+{% endblock %}

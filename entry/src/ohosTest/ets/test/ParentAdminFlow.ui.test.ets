@@ -4,7 +4,7 @@ import { Want, common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
 import { LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY } from '../../../main/ets/services/LessonImagePicker';
-import { clickByIdShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
 
 /**
  * V0.5.8 acceptance: parent admin backend + parent-PIN gate.
@@ -98,7 +98,7 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   }
   await driver.delayMs(1500);
 
-  await clickByIdShared(driver, 'ConfigCancelButton');
+  await tapConfigCancelShared(driver);
   await driver.delayMs(800);
   await returnToHome(driver);
 }
@@ -257,7 +257,7 @@ export default function parentAdminFlowUiTest(): void {
       const label: string = await btn.getText();
       expect(label.indexOf('家长管理后台') >= 0).assertTrue();
 
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
@@ -311,7 +311,7 @@ export default function parentAdminFlowUiTest(): void {
         await driver.findComponent(ON.id('ParentPinDialog'));
       expect(dialog === null).assertTrue();
 
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();

@@ -18,7 +18,11 @@
     },
     {
       "name": "permission_camera_reason",
-      "value": "Needed for parents to upload textbook photos for word recognition."
+      "value": "Needed for parents to upload textbook photos and to scan the parent-account QR code."
+    },
+    {
+      "name": "permission_persistent_id_reason",
+      "value": "Stores a stable device id so the parent binding survives app reinstall."
     }
   ]
 }

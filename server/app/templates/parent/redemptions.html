@@ -1,0 +1,36 @@
+{% extends "_base.html" %}
+{% block title %}兑换审批{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header class="flex items-center justify-between">
+    <h1 class="text-2xl font-semibold text-slate-900">兑换审批</h1>
+    <a href="/parent/" class="text-sm text-slate-500 hover:text-slate-700">← 返回首页</a>
+  </header>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-3">待处理</h2>
+    <div id="pending-list" class="space-y-2">
+      {% if pending %}
+        {% for row in pending %}
+          {% include "partials/redemption_row.html" %}
+        {% endfor %}
+      {% else %}
+        <p class="text-sm text-slate-500">暂无待审批的兑换申请。</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-3">最近处理</h2>
+    <div id="recent-list" class="space-y-2">
+      {% if recent %}
+        {% for row in recent %}
+          {% include "partials/redemption_row.html" %}
+        {% endfor %}
+      {% else %}
+        <p class="text-sm text-slate-500">暂无历史记录。</p>
+      {% endif %}
+    </div>
+  </section>
+</section>
+{% endblock %}

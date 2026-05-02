@@ -27,6 +27,16 @@ import parentApiClientTest from './ParentApiClient.test';
 import orientationTest from './Orientation.test';
 import multipartBuilderTest from './MultipartBuilder.test';
 import lessonImagePickerTest from './LessonImagePicker.test';
+import cloudCredentialsTest from './CloudCredentials.test';
+import deviceIdProviderTest from './DeviceIdProvider.test';
+import deviceBindingServiceTest from './DeviceBindingService.test';
+import bindingApiClientTest from './BindingApiClient.test';
+import familyPackMergeTest from './FamilyPackMerge.test';
+import familyPackServiceTest from './FamilyPackService.test';
+import cloudSyncServiceTest from './CloudSyncService.test';
+import cloudWishlistServiceTest from './CloudWishlistService.test';
+import parentRedemptionPollTest from './ParentRedemptionPoll.test';
+import deviceUnbindClientTest from './DeviceUnbindClient.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -58,4 +68,14 @@ export default function testsuite() {
   orientationTest();
   multipartBuilderTest();
   lessonImagePickerTest();
+  cloudCredentialsTest();
+  deviceIdProviderTest();
+  deviceBindingServiceTest();
+  bindingApiClientTest();
+  familyPackMergeTest();
+  familyPackServiceTest();
+  cloudSyncServiceTest();
+  cloudWishlistServiceTest();
+  parentRedemptionPollTest();
+  deviceUnbindClientTest();
 }

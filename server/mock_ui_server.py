@@ -2,7 +2,7 @@
 
 Why
 ---
-The on-device UI tests in ``entry/src/ohosTest`` exercise three flows
+The on-device UI tests in ``entry/src/ohosTest`` exercise these flows
 that previously made live HTTP requests to ``https://happyword.vercel.app``:
 
 * ``ConfigPage`` — pack-sync round-trip (``GET /api/v1/packs/latest.json``).
@@ -10,6 +10,11 @@ that previously made live HTTP requests to ``https://happyword.vercel.app``:
   + photo import (``GET /api/v1/admin/stats``, ``GET /admin/lesson-drafts``,
   ``POST /admin/packs/publish``, ``POST /admin/lessons/import``).
 * ``LessonDraftReviewPage`` — load / patch / approve / reject lesson drafts.
+* (V0.6) ``ScanBindingPage`` / ``ConfigPage`` parent-account row —
+  short-code redeem (``POST /api/v1/pair/redeem``) and device unbind
+  (``POST /api/v1/child/unbind``). Cloud sync / wishlist / redemption
+  endpoints are also stubbed so that any cold-start network call from a
+  bound device returns deterministic empty payloads.
 
 Hitting prod from a flaky emulator network produces non-deterministic
 failures and pollutes the prod database. This mock is the deterministic
@@ -39,11 +44,11 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, Header, Response, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, Response, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -172,6 +177,17 @@ def _fresh_draft(draft_id: str = FIXTURE_DRAFT_ID) -> dict[str, Any]:
 _drafts: dict[str, dict[str, Any]] = {}
 _published_versions: list[int] = [PACK_VERSION]
 
+# V0.6 binding state. The mock accepts any 6-digit short code or any
+# non-empty token, mints a deterministic device JWT, and tracks the
+# binding so subsequent /child/* calls can be authorized.
+_PAIR_BINDING_ID: str = "ui-mock-bind-001"
+_PAIR_FAMILY_ID: str = "ui-mock-fam-001"
+_PAIR_CHILD_PROFILE_ID: str = "ui-mock-child-001"
+_PAIR_NICKNAME: str = "测试宝贝"
+_PAIR_AVATAR_EMOJI: str = "🦁"
+_PAIR_DEVICE_TOKEN: str = "ui-mock-device-jwt"
+_active_bindings: set[str] = set()
+
 
 def _reset_state() -> None:
     """Re-seed module state between integration tests.
@@ -184,6 +200,7 @@ def _reset_state() -> None:
     _drafts[FIXTURE_DRAFT_ID] = _fresh_draft()
     _published_versions.clear()
     _published_versions.append(PACK_VERSION)
+    _active_bindings.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -193,11 +210,33 @@ def _reset_state() -> None:
 
 def _now_iso() -> str:
     """Return current time in ISO-8601 with timezone (mock pretends UTC)."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class PublishIn(BaseModel):
     notes: str | None = None
+
+
+class PairRedeemIn(BaseModel):
+    """Mirror of server `PairRedeemIn`. Either token or short_code is required."""
+
+    device_id: str
+    token: str | None = None
+    short_code: str | None = None
+
+
+def _is_authorized(authorization: str | None) -> bool:
+    """Return True if the Bearer token matches the active mock device JWT.
+
+    The mock keeps things permissive — any well-formed Bearer header
+    that matches the minted token (`_PAIR_DEVICE_TOKEN`) and corresponds
+    to an active binding is accepted. Test ergonomics matter more than
+    crypto: real auth is exercised by the server pytest suite.
+    """
+    if authorization is None or not authorization.startswith("Bearer "):
+        return False
+    token = authorization[len("Bearer "):]
+    return token == _PAIR_DEVICE_TOKEN and _PAIR_BINDING_ID in _active_bindings
 
 
 def create_app() -> FastAPI:
@@ -399,6 +438,177 @@ def create_app() -> FastAPI:
     # outage).
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # V0.6 device pairing + child binding
+    # ------------------------------------------------------------------
+    # Behaviour:
+    #  - POST /api/v1/pair/redeem succeeds when ``device_id`` is non-empty
+    #    AND (``token`` is non-empty OR ``short_code`` is exactly 6 digits).
+    #    On success it adds the binding to ``_active_bindings`` and mints
+    #    the deterministic device JWT defined above.
+    #  - Specific short codes can simulate failures so the UI test can
+    #    cover the error-banner path:
+    #      "000000" → 410 TOKEN_EXPIRED
+    #      "111111" → 409 TOKEN_REDEEMED
+    #      "222222" → 422 TOKEN_INVALID
+    #  - POST /api/v1/child/unbind clears the binding when the Bearer
+    #    token matches; returns 404 BINDING_REVOKED when already cleared.
+
+    def _err(status: int, code: str, message: str) -> HTTPException:
+        return HTTPException(
+            status_code=status,
+            detail={"error": {"code": code, "message": message}},
+        )
+
+    @app.post("/api/v1/pair/redeem")
+    async def pair_redeem(body: PairRedeemIn) -> dict[str, Any]:
+        if not body.device_id:
+            raise _err(422, "DEVICE_ID_REQUIRED", "device_id missing")
+        token: str = (body.token or "").strip()
+        short: str = (body.short_code or "").strip()
+        if not token and not short:
+            raise _err(422, "TOKEN_OR_SHORTCODE_REQUIRED", "token or short_code required")
+        if short:
+            if short == "000000":
+                raise _err(410, "TOKEN_EXPIRED", "short code expired")
+            if short == "111111":
+                raise _err(409, "TOKEN_REDEEMED", "short code already redeemed")
+            if short == "222222":
+                raise _err(422, "TOKEN_INVALID", "short code malformed")
+            if not (len(short) == 6 and short.isdigit()):
+                raise _err(422, "TOKEN_INVALID", "short code must be 6 digits")
+        _active_bindings.add(_PAIR_BINDING_ID)
+        return {
+            "binding_id": _PAIR_BINDING_ID,
+            "family_id": _PAIR_FAMILY_ID,
+            "child_profile_id": _PAIR_CHILD_PROFILE_ID,
+            "nickname": _PAIR_NICKNAME,
+            "avatar_emoji": _PAIR_AVATAR_EMOJI,
+            "device_token": _PAIR_DEVICE_TOKEN,
+        }
+
+    @app.post("/api/v1/child/unbind")
+    async def child_unbind(
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if authorization is None or not authorization.startswith("Bearer "):
+            raise _err(401, "UNAUTHORIZED", "missing bearer token")
+        token = authorization[len("Bearer "):]
+        if token != _PAIR_DEVICE_TOKEN:
+            raise _err(401, "UNAUTHORIZED", "invalid token")
+        if _PAIR_BINDING_ID not in _active_bindings:
+            raise _err(404, "BINDING_REVOKED", "binding already revoked")
+        _active_bindings.discard(_PAIR_BINDING_ID)
+        return {"ok": True}
+
+    @app.get("/api/v1/child/me")
+    async def child_me(
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return {
+            "binding_id": _PAIR_BINDING_ID,
+            "family_id": _PAIR_FAMILY_ID,
+            "child_profile_id": _PAIR_CHILD_PROFILE_ID,
+            "nickname": _PAIR_NICKNAME,
+            "avatar_emoji": _PAIR_AVATAR_EMOJI,
+        }
+
+    # ------------------------------------------------------------------
+    # V0.6.3 family pack overlay (always empty so client falls through
+    # to the global pack catalog and gameplay tests stay deterministic).
+    # ------------------------------------------------------------------
+
+    @app.get("/api/v1/child/family-packs/active.json")
+    async def child_family_packs(
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return {"family_id": _PAIR_FAMILY_ID, "packs": [], "etag": ""}
+
+    # ------------------------------------------------------------------
+    # V0.6.4 cloud sync (LWW). Always accepts pushes; pull returns no
+    # server-side updates so client state is authoritative in tests.
+    # ------------------------------------------------------------------
+
+    @app.post("/api/v1/child/sync/word-stats")
+    async def child_sync_word_stats(
+        body: dict[str, Any],
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        # Echo back accept count for any words the client claimed to push.
+        items = body.get("items") or []
+        return {
+            "accepted": len(items),
+            "rejected": 0,
+            "pulls": [],
+            "server_now": _now_iso(),
+        }
+
+    @app.get("/api/v1/child/sync/word-stats")
+    async def child_pull_word_stats(
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return {"items": [], "server_now": _now_iso()}
+
+    # ------------------------------------------------------------------
+    # V0.6.6 cloud wishlist + redemption polling
+    # ------------------------------------------------------------------
+
+    @app.get("/api/v1/child/wishlist")
+    async def child_wishlist(
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return {"items": []}
+
+    @app.post("/api/v1/child/wishlist/sync-custom")
+    async def child_wishlist_sync_custom(
+        body: dict[str, Any],
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return {"accepted": len(body.get("items") or [])}
+
+    @app.post("/api/v1/child/redemption-requests", status_code=201)
+    async def child_create_redemption(
+        body: dict[str, Any],
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return {
+            "request_id": "ui-mock-rdm-001",
+            "wishlist_item_id": body.get("wishlist_item_id", ""),
+            "cost_coins_at_request": body.get("cost_coins", 0),
+            "status": "pending",
+            "requested_at": _now_iso(),
+        }
+
+    @app.get("/api/v1/child/redemption-requests")
+    async def child_list_redemptions(
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return {"items": []}
+
+    @app.get("/api/v1/child/redemption-requests/poll")
+    async def child_poll_redemptions(
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return {"decisions": [], "server_now": _now_iso()}
+
     @app.get("/__mock_state__")
     async def mock_state() -> dict[str, Any]:
         """Internal: dump current state for debugging from the host shell.
@@ -410,6 +620,7 @@ def create_app() -> FastAPI:
         return {
             "drafts": _drafts,
             "published_versions": _published_versions,
+            "active_bindings": sorted(_active_bindings),
         }
 
     return app

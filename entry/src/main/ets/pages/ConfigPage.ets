@@ -25,6 +25,13 @@ import {
   SyncStatus,
 } from '../services/WordPackSyncService';
 import { ParentPinDialog } from '../components/ParentPinDialog';
+import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
+import { DeviceUnbindClient, DeviceUnbindOutcome } from '../services/DeviceUnbindClient';
+import { RealParentFetchAdapter } from '../services/ParentApiClient';
+import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
+import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
+import { router } from '@kit.ArkUI';
 
 /**
  * ConfigPage exposes five battle knobs plus a custom-words category.
@@ -42,6 +49,21 @@ struct ConfigPage {
   @State private syncStatusText: string = '';
   @State private syncToastText: string = '';
   @State private syncBusy: boolean = false;
+  // V0.6.2: parent-account binding state. Reloaded on aboutToAppear / onPageShow
+  // so the row reflects the latest binding without forcing a page rebuild.
+  @State private bindingNickname: string = '';
+  @State private bindingPresent: boolean = false;
+  @State private bindingDeviceIdSource: string = '';
+  // V0.6.4: cloud-sync UI state. The last-sync display tracks the most
+  // recent successful syncOnce attempt so parents can confirm the
+  // device is in touch with the server.
+  @State private cloudSyncBusy: boolean = false;
+  @State private cloudSyncStatusText: string = '';
+  @State private cloudSyncToastText: string = '';
+  @State private unbindBusy: boolean = false;
+  @State private unbindToastText: string = '';
+  private cloudCreds: CloudCredentials = new CloudCredentials();
+  private unbindToastTimer: number = -1;
   private syncToastTimer: number = -1;
   private wordPackCache: WordPackCache = new WordPackCache();
   private builtinEntries: WordEntry[] = [];
@@ -70,6 +92,18 @@ struct ConfigPage {
       .catch((err: BusinessError): void => {
         console.error(`ConfigPage: WordPackCache.init failed: ${JSON.stringify(err)}`);
       });
+
+    this.cloudCreds.init(ctx).then((): Promise<void> => this.refreshBindingState())
+      .catch((err: BusinessError): void => {
+        console.error(`ConfigPage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
+      });
+  }
+
+  private async refreshBindingState(): Promise<void> {
+    const snap: CloudCredentialsSnapshot = await this.cloudCreds.load();
+    this.bindingPresent = snap.isBound();
+    this.bindingNickname = snap.nickname.length > 0 ? snap.nickname : '宝贝';
+    this.bindingDeviceIdSource = snap.deviceIdSource;
   }
 
   onPageShow(): void {
@@ -86,6 +120,11 @@ struct ConfigPage {
       this.showValidationHint = false;
       this.forceRerender();
     }
+    // V0.6.2: refresh binding state in case ScanBindingPage / BoundDeviceInfoPage
+    // changed it.
+    this.refreshBindingState().catch((err: BusinessError): void => {
+      console.error(`ConfigPage.onPageShow: refreshBindingState failed: ${JSON.stringify(err)}`);
+    });
   }
 
   private forceRerender(): void {
@@ -199,6 +238,253 @@ struct ConfigPage {
     }
     .alignItems(HorizontalAlign.Start)
     .margin({ bottom: 16 });
+  }
+
+  @Builder
+  private parentAccountRow() {
+    Column() {
+      Row() {
+        Text('家长账户').fontSize(18).width(120);
+        if (this.bindingPresent) {
+          Button(`孩子档案：${this.bindingNickname}`)
+            .id('ConfigBoundDeviceInfoButton')
+            .width(220).height(40).fontSize(15)
+            .backgroundColor('#E0F2FE').fontColor('#0369A1')
+            .borderWidth(2).borderColor('#0EA5E9')
+            .onClick((): void => this.openBoundDeviceInfo());
+        } else {
+          Button('绑定家长账号')
+            .id('ConfigBindParentButton')
+            .width(220).height(40).fontSize(15)
+            .backgroundColor('#FFF4D0').fontColor('#B8860B')
+            .borderWidth(2).borderColor('#FFB400')
+            .onClick((): void => this.openScanBinding());
+        }
+      }
+      .alignItems(VerticalAlign.Center);
+      if (this.bindingDeviceIdSource === 'preferences_fallback') {
+        Text('⚠ 此设备未启用 AssetStoreKit，重装后将丢失家长绑定。')
+          .id('ConfigPersistentIdWarning')
+          .fontSize(12).fontColor('#B45309').margin({ top: 4 });
+      }
+      if (this.bindingPresent) {
+        Row() {
+          Text(' ').width(120);
+          Button(this.unbindBusy ? '解除中…' : '解除设备绑定')
+            .id('ConfigUnbindBindingButton')
+            .width(220).height(40).fontSize(15)
+            .backgroundColor(this.unbindBusy ? '#E5E7EB' : '#FEE2E2')
+            .fontColor(this.unbindBusy ? '#6B7280' : '#B91C1C')
+            .borderWidth(2).borderColor(this.unbindBusy ? '#9CA3AF' : '#FCA5A5')
+            .enabled(!this.unbindBusy)
+            .onClick((): void => this.onUnbindTap());
+        }
+        .alignItems(VerticalAlign.Center).margin({ top: 8 });
+      }
+      // Toast lives OUTSIDE the bindingPresent gate so the success
+      // message ("已解除设备绑定") remains visible after `runUnbind`
+      // refreshes the state and `bindingPresent` flips to false. The
+      // empty-state error message ("请先在「家长密码」中设置 6 位 PIN")
+      // also needs to surface even when there is no binding.
+      if (this.unbindToastText.length > 0) {
+        Text(this.unbindToastText)
+          .id('ConfigUnbindToast')
+          .fontSize(12).fontColor('#B91C1C').margin({ top: 4 });
+      }
+    }
+    .width('100%').alignItems(HorizontalAlign.Center).margin({ bottom: 16 });
+  }
+
+  private openScanBinding(): void {
+    router.pushUrl({ url: 'pages/ScanBindingPage' }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage.openScanBinding: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private openBoundDeviceInfo(): void {
+    router.pushUrl({ url: 'pages/BoundDeviceInfoPage' }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage.openBoundDeviceInfo: ${JSON.stringify(err)}`);
+    });
+  }
+
+  /**
+   * V0.6.7 — opens a parent-PIN gate, then calls /api/v1/child/unbind on
+   * confirm. The PIN dialog reuses the existing component so the UX
+   * mirrors `进入家长后台` (open parent admin).
+   */
+  private onUnbindTap(): void {
+    if (this.unbindBusy) {
+      return;
+    }
+    const stored: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    const expected: string = stored !== undefined ? stored.parentPin : '';
+    if (expected.length !== 6) {
+      this.showUnbindToast('请先在「家长密码」中设置 6 位 PIN');
+      return;
+    }
+    let ctrl: CustomDialogController | null = null;
+    ctrl = new CustomDialogController({
+      builder: ParentPinDialog({
+        expectedPin: expected,
+        title: '解除设备绑定需要家长密码',
+        onConfirm: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+          this.runUnbind();
+        },
+        onCancel: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+        },
+      }),
+      autoCancel: true,
+      customStyle: true,
+    });
+    ctrl.open();
+  }
+
+  private runUnbind(): void {
+    this.unbindBusy = true;
+    const adapter: RealParentFetchAdapter = new RealParentFetchAdapter();
+    const baseUrl: string = effectiveServerBaseUrl();
+    const client: DeviceUnbindClient = new DeviceUnbindClient(this.cloudCreds, adapter, baseUrl);
+    client.unbind().then((out: DeviceUnbindOutcome): void => {
+      this.unbindBusy = false;
+      if (out.ok) {
+        this.showUnbindToast('已解除设备绑定');
+        // Detach cloud sync / wishlist services that may still hold the
+        // old binding so HomePage falls back to local-only mode.
+        const recorder: LearningRecorder = getLearningRecorder();
+        recorder.attachCloudSync(undefined);
+        this.refreshBindingState().catch((err: BusinessError): void => {
+          console.error(`ConfigPage.runUnbind.refresh failed: ${JSON.stringify(err)}`);
+        });
+      } else {
+        this.showUnbindToast(`解除失败 (HTTP ${out.status})`);
+      }
+    }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage.runUnbind failed: ${JSON.stringify(err)}`);
+      this.unbindBusy = false;
+      this.showUnbindToast('解除失败 (网络错误)');
+    });
+  }
+
+  private showUnbindToast(text: string): void {
+    this.unbindToastText = text;
+    if (this.unbindToastTimer !== -1) {
+      clearTimeout(this.unbindToastTimer);
+    }
+    this.unbindToastTimer = setTimeout((): void => {
+      this.unbindToastText = '';
+      this.unbindToastTimer = -1;
+    }, 4000);
+  }
+
+  @Builder
+  private cloudSyncRow() {
+    if (this.bindingPresent) {
+      Column() {
+        Row() {
+          Text('学习记录').fontSize(18).width(120);
+          Button(this.cloudSyncBusy ? '同步中…' : '立即同步学习记录')
+            .id('ConfigCloudSyncButton')
+            .width(220).height(40).fontSize(15)
+            .backgroundColor(this.cloudSyncBusy ? '#E5E7EB' : '#E0F2FE')
+            .fontColor(this.cloudSyncBusy ? '#6B7280' : '#0369A1')
+            .borderWidth(2).borderColor(this.cloudSyncBusy ? '#9CA3AF' : '#0EA5E9')
+            .enabled(!this.cloudSyncBusy)
+            .onClick((): void => this.onCloudSyncTap());
+        }
+        .alignItems(VerticalAlign.Center);
+        if (this.cloudSyncStatusText.length > 0) {
+          Text(this.cloudSyncStatusText)
+            .id('ConfigCloudSyncStatus')
+            .fontSize(12).fontColor('#6B7280').margin({ top: 4 });
+        }
+        if (this.cloudSyncToastText.length > 0) {
+          Text(this.cloudSyncToastText)
+            .id('ConfigCloudSyncToast')
+            .fontSize(12).fontColor('#0369A1').margin({ top: 4 });
+        }
+      }
+      .width('100%').alignItems(HorizontalAlign.Start).margin({ bottom: 16 });
+    }
+  }
+
+  private onCloudSyncTap(): void {
+    if (this.cloudSyncBusy) {
+      return;
+    }
+    const recorder: LearningRecorder = getLearningRecorder();
+    const svc: CloudSyncLike | undefined = recorder.getCloudSync();
+    if (svc === undefined) {
+      this.applyCloudSyncToast('尚未启用云端同步');
+      return;
+    }
+    this.beginCloudSync();
+    svc.syncOnce().then((out: CloudSyncResult): void => {
+      this.applyCloudSyncOutcome(
+        ConfigPage.formatCloudSyncStatus(out),
+        ConfigPage.formatCloudSyncToast(out),
+      );
+    }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage.onCloudSyncTap failed: ${JSON.stringify(err)}`);
+      this.applyCloudSyncToast('同步失败 (内部错误)');
+    }).then((): void => {
+      this.endCloudSync();
+    });
+  }
+
+  private beginCloudSync(): void {
+    this.cloudSyncBusy = true;
+    this.cloudSyncToastText = '';
+  }
+
+  private endCloudSync(): void {
+    this.cloudSyncBusy = false;
+    this.forceRerender();
+  }
+
+  private applyCloudSyncToast(text: string): void {
+    this.cloudSyncToastText = text;
+  }
+
+  private applyCloudSyncOutcome(statusText: string, toastText: string): void {
+    this.cloudSyncStatusText = statusText;
+    this.cloudSyncToastText = toastText;
+  }
+
+  private static formatCloudSyncStatus(out: CloudSyncResult): string {
+    if (out.serverNowMs <= 0) {
+      return '上次同步时间未知';
+    }
+    return `上次成功同步 ${ConfigPage.formatLocalMs(out.serverNowMs)}`;
+  }
+
+  private static formatCloudSyncToast(out: CloudSyncResult): string {
+    switch (out.status) {
+      case 'unbound': return '未绑定家长账号，请先在“家长账户”中绑定';
+      case 'no_changes': return '没有新的学习记录';
+      case 'pushed': return `已上传 ${out.pushed} 条学习记录`;
+      case 'pulled': return `已合并 ${out.pulled} 条服务器记录`;
+      case 'pushed_and_pulled':
+        return `已上传 ${out.pushed} 条 / 合并 ${out.pulled} 条服务器记录`;
+      case 'network_error': return '同步失败：网络异常，请稍后重试';
+      default: return '同步完成';
+    }
+  }
+
+  private static formatLocalMs(ms: number): string {
+    const d: Date = new Date(ms);
+    const yyyy: number = d.getFullYear();
+    const mm: string = String(d.getMonth() + 1).padStart(2, '0');
+    const dd: string = String(d.getDate()).padStart(2, '0');
+    const hh: string = String(d.getHours()).padStart(2, '0');
+    const mn: string = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${mn}`;
   }
 
   @Builder
@@ -595,6 +881,8 @@ struct ConfigPage {
         this.autoSpeakRow();
         this.categoryRow();
         this.parentPinRow();
+        this.parentAccountRow();
+        this.cloudSyncRow();
         this.syncRow();
         this.adminRow();
 
