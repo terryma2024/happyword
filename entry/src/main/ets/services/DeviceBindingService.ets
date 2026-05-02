@@ -1,5 +1,9 @@
 import { CloudCredentials, CloudCredentialsSnapshot } from './CloudCredentials';
 import { DeviceIdProvider, DeviceIdResult } from './DeviceIdProvider';
+import {
+  BarcodeImageDecoderLike,
+  NoBarcodeFoundError,
+} from './BarcodeImageDecoder';
 
 /**
  * V0.6.2 — orchestrates the parent-binding state machine.
@@ -108,6 +112,7 @@ export function extractTokenFromQrPayload(payload: string): string {
 
 export class DeviceBindingService {
   private readonly scanner: BarcodeScannerLike;
+  private readonly decoder: BarcodeImageDecoderLike;
   private readonly http: BindingHttpClientLike;
   private readonly deviceIdProvider: DeviceIdProvider;
   private readonly credentials: CloudCredentials;
@@ -116,11 +121,13 @@ export class DeviceBindingService {
 
   constructor(
     scanner: BarcodeScannerLike,
+    decoder: BarcodeImageDecoderLike,
     http: BindingHttpClientLike,
     deviceIdProvider: DeviceIdProvider,
     credentials: CloudCredentials,
   ) {
     this.scanner = scanner;
+    this.decoder = decoder;
     this.http = http;
     this.deviceIdProvider = deviceIdProvider;
     this.credentials = credentials;
@@ -145,6 +152,42 @@ export class DeviceBindingService {
         this.transition('idle');
         return;
       }
+      this.fail('NETWORK');
+      return;
+    }
+    const token: string = extractTokenFromQrPayload(payload);
+    if (token.length < 4 || token.length > 64) {
+      this.fail('TOKEN_INVALID');
+      return;
+    }
+    await this.redeem(token, '');
+  }
+
+  /**
+   * V0.6.x — gallery-QR path. Decode the QR from a saved image,
+   * extract the pair token, and feed it into the existing redeem
+   * state machine. Decoder failure / parser failure / token-length
+   * failure all surface as TOKEN_INVALID so the UI shares the same
+   * red-text hint as the manual short-code error path.
+   *
+   * Server-side errors (TOKEN_EXPIRED / TOKEN_REDEEMED / NETWORK)
+   * are mapped by the existing `redeem()` private method and need
+   * no extra handling here.
+   */
+  async startFromGalleryImage(uri: string): Promise<void> {
+    this.transition('scanning');
+    let payload: string = '';
+    try {
+      payload = await this.decoder.decodeFromUri(uri);
+    } catch (err) {
+      if (err instanceof NoBarcodeFoundError) {
+        this.fail('TOKEN_INVALID');
+        return;
+      }
+      // BarcodeImageDecoder normalises every SDK failure to
+      // NoBarcodeFoundError; anything else getting here is a defect
+      // (e.g. a stub decoder violating the contract) — treat it as
+      // network/unknown so the UI doesn't pretend the image was bad.
       this.fail('NETWORK');
       return;
     }

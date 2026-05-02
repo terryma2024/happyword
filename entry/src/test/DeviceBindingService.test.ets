@@ -16,6 +16,10 @@ import {
   DeviceBindingService,
   extractTokenFromQrPayload,
 } from '../main/ets/services/DeviceBindingService';
+import {
+  BarcodeImageDecoderLike,
+  NoBarcodeFoundError,
+} from '../main/ets/services/BarcodeImageDecoder';
 import { StringPreferencesLike } from '../main/ets/services/WrongAnswerStore';
 
 class MemPrefs implements StringPreferencesLike {
@@ -51,6 +55,26 @@ class StubScanner implements BarcodeScannerLike {
       throw new Error('scan failed');
     }
     return this.next;
+  }
+}
+
+class StubDecoder implements BarcodeImageDecoderLike {
+  payload: string = '';
+  shouldThrowNoBarcode: boolean = false;
+  shouldThrowOther: boolean = false;
+  calls: number = 0;
+  lastUri: string = '';
+
+  async decodeFromUri(uri: string): Promise<string> {
+    this.calls += 1;
+    this.lastUri = uri;
+    if (this.shouldThrowNoBarcode) {
+      throw new NoBarcodeFoundError('stub: no barcode in image');
+    }
+    if (this.shouldThrowOther) {
+      throw new Error('stub: SDK boom');
+    }
+    return this.payload;
   }
 }
 
@@ -99,13 +123,18 @@ class StateRecorder {
   }
 }
 
-async function makeService(scanner: StubScanner, http: StubHttp): Promise<DeviceBindingService> {
+async function makeService(
+  scanner: StubScanner,
+  http: StubHttp,
+  decoder?: StubDecoder,
+): Promise<DeviceBindingService> {
   const provider: DeviceIdProvider = new DeviceIdProvider();
   provider.injectAssetStore(new StubAsset());
   provider.injectPreferences(new MemPrefs());
   const cc: CloudCredentials = new CloudCredentials();
   cc.injectPreferences(new MemPrefs());
-  return new DeviceBindingService(scanner, http, provider, cc);
+  const dec: BarcodeImageDecoderLike = decoder ?? new StubDecoder();
+  return new DeviceBindingService(scanner, dec, http, provider, cc);
 }
 
 export default function deviceBindingServiceTest(): void {
@@ -241,6 +270,81 @@ export default function deviceBindingServiceTest(): void {
       svc.setListener(rec.listener());
       await svc.redeemShortCode('12');
       expect(rec.lastReason).assertEqual('TOKEN_INVALID');
+    });
+  });
+
+  describe('DeviceBindingService.startFromGalleryImage', () => {
+    it('redeemsOnValidPairUrl', 0, async () => {
+      const decoder: StubDecoder = new StubDecoder();
+      decoder.payload = 'https://happyword.vercel.app/p/abc12345';
+      const http: StubHttp = new StubHttp();
+      http.result = makeOkResult();
+      const svc: DeviceBindingService =
+        await makeService(new StubScanner(), http, decoder);
+      const rec: StateRecorder = new StateRecorder();
+      svc.setListener(rec.listener());
+      await svc.startFromGalleryImage('file:///x/qr.png');
+      expect(rec.states[0]).assertEqual('scanning');
+      expect(rec.states[1]).assertEqual('redeeming');
+      expect(rec.states[rec.states.length - 1]).assertEqual('bound');
+      expect(decoder.calls).assertEqual(1);
+      expect(decoder.lastUri).assertEqual('file:///x/qr.png');
+      expect(http.lastArgs?.token).assertEqual('abc12345');
+      expect(http.lastArgs?.shortCode).assertEqual('');
+    });
+
+    it('failsTokenInvalidWhenDecoderThrowsNoBarcode', 0, async () => {
+      const decoder: StubDecoder = new StubDecoder();
+      decoder.shouldThrowNoBarcode = true;
+      const http: StubHttp = new StubHttp();
+      const svc: DeviceBindingService =
+        await makeService(new StubScanner(), http, decoder);
+      const rec: StateRecorder = new StateRecorder();
+      svc.setListener(rec.listener());
+      await svc.startFromGalleryImage('file:///x/notqr.png');
+      expect(rec.states[rec.states.length - 1]).assertEqual('failed');
+      expect(rec.lastReason).assertEqual('TOKEN_INVALID');
+    });
+
+    it('failsTokenInvalidWhenPayloadHasNoSlashP', 0, async () => {
+      const decoder: StubDecoder = new StubDecoder();
+      decoder.payload = 'hello world';
+      const http: StubHttp = new StubHttp();
+      const svc: DeviceBindingService =
+        await makeService(new StubScanner(), http, decoder);
+      const rec: StateRecorder = new StateRecorder();
+      svc.setListener(rec.listener());
+      await svc.startFromGalleryImage('file:///x/wrong.png');
+      expect(rec.lastReason).assertEqual('TOKEN_INVALID');
+    });
+
+    it('failsTokenInvalidOnTokenLengthOutOfRange', 0, async () => {
+      const decoder: StubDecoder = new StubDecoder();
+      // Token of length 1 — below MIN_TOKEN_LEN (4) check inside the
+      // service. extractTokenFromQrPayload still returns 'x'; the
+      // length guard is what flips the failure.
+      decoder.payload = 'https://x/p/x';
+      const http: StubHttp = new StubHttp();
+      const svc: DeviceBindingService =
+        await makeService(new StubScanner(), http, decoder);
+      const rec: StateRecorder = new StateRecorder();
+      svc.setListener(rec.listener());
+      await svc.startFromGalleryImage('file:///x/short.png');
+      expect(rec.lastReason).assertEqual('TOKEN_INVALID');
+    });
+
+    it('mapsServerExpiredThroughExistingRedeemPath', 0, async () => {
+      const decoder: StubDecoder = new StubDecoder();
+      decoder.payload = 'https://x/p/expired12345';
+      const http: StubHttp = new StubHttp();
+      http.err = new BindingHttpError('TOKEN_EXPIRED', 'gone', 410);
+      const svc: DeviceBindingService =
+        await makeService(new StubScanner(), http, decoder);
+      const rec: StateRecorder = new StateRecorder();
+      svc.setListener(rec.listener());
+      await svc.startFromGalleryImage('file:///x/expired.png');
+      expect(rec.states[rec.states.length - 1]).assertEqual('failed');
+      expect(rec.lastReason).assertEqual('TOKEN_EXPIRED');
     });
   });
 }

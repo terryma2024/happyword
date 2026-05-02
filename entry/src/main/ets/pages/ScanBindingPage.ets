@@ -10,6 +10,16 @@ import {
   CancelledScanError,
   DeviceBindingService,
 } from '../services/DeviceBindingService';
+import {
+  BarcodeImageDecoderLike,
+  RealBarcodeImageDecoder,
+  SCAN_BINDING_PHOTO_PICKER_OVERRIDE_URI_KEY,
+} from '../services/BarcodeImageDecoder';
+import {
+  IPhotoPickerAdapter,
+  PickedFileRef,
+  RealPhotoPickerAdapter,
+} from '../services/PhotoPickerService';
 import { DeviceIdProvider } from '../services/DeviceIdProvider';
 import { BindingApiClient } from '../services/BindingApiClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
@@ -59,6 +69,7 @@ struct ScanBindingPage {
   @State private serviceReady: boolean = false;
 
   private service?: DeviceBindingService;
+  private galleryPicker?: IPhotoPickerAdapter;
 
   aboutToAppear(): void {
     this.bootstrapService();
@@ -73,11 +84,19 @@ struct ScanBindingPage {
       new RealParentFetchAdapter(),
       baseUrl,
     );
+    // V0.6.x — gallery-QR picker + decoder. Both adapters are constructed
+    // synchronously here (independent of the async provider/credentials
+    // init below) so the picker reference can be saved alongside the
+    // service when bootstrap completes.
+    const galleryPicker: IPhotoPickerAdapter =
+      new RealPhotoPickerAdapter(ctx, SCAN_BINDING_PHOTO_PICKER_OVERRIDE_URI_KEY);
+    const decoder: BarcodeImageDecoderLike = new RealBarcodeImageDecoder();
 
     Promise.all([provider.init(ctx), credentials.init(ctx)])
       .then(() => {
         const svc: DeviceBindingService = new DeviceBindingService(
           new RealScanKitScanner(),
+          decoder,
           httpClient,
           provider,
           credentials,
@@ -92,6 +111,7 @@ struct ScanBindingPage {
           }
         });
         this.service = svc;
+        this.galleryPicker = galleryPicker;
         this.serviceReady = true;
       })
       .catch((err: BusinessError) => {
@@ -144,6 +164,30 @@ struct ScanBindingPage {
     this.failureReason = '';
     try {
       await this.service.redeemShortCode(this.manualCode);
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /**
+   * V0.6.x — open the system gallery, decode the picked image, and
+   * feed the resulting payload into the same redeem path the camera
+   * scanner uses. User cancel (picker returns null) silently returns
+   * to idle with no error message; decoder / parser failures surface
+   * as TOKEN_INVALID via DeviceBindingService.startFromGalleryImage.
+   */
+  private async onPickQrTap(): Promise<void> {
+    if (this.service === undefined || this.galleryPicker === undefined || this.busy) {
+      return;
+    }
+    this.busy = true;
+    this.failureReason = '';
+    try {
+      const ref: PickedFileRef | null = await this.galleryPicker.selectGallery();
+      if (ref === null) {
+        return;
+      }
+      await this.service.startFromGalleryImage(ref.uri);
     } finally {
       this.busy = false;
     }
@@ -207,6 +251,10 @@ struct ScanBindingPage {
             .enabled(!this.busy && this.serviceReady)
             .margin({ top: 16 })
             .onClick(() => this.onScanTap())
+          Button('📷 从图库选择二维码')
+            .id('ScanBindingGalleryButton')
+            .enabled(!this.busy && this.serviceReady)
+            .onClick(() => this.onPickQrTap())
           Button('无法扫码？手动输入短码')
             .id('ScanBindingManualToggle')
             .backgroundColor('#e2e8f0').fontColor('#1f2937')
