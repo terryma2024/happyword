@@ -14,6 +14,7 @@ from tests.e2e._utils.db import MongoDB, inject_otp_code
 
 
 @pytest.mark.e2e
+@pytest.mark.smoke
 async def test_request_code_returns_202(
     http: httpx.Client, mongo: MongoDB, run_id: str
 ) -> None:

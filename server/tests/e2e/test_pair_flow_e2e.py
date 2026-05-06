@@ -11,6 +11,7 @@ from tests.e2e._utils.auth import ParentSession
 
 
 @pytest.mark.e2e
+@pytest.mark.smoke
 def test_pair_create_returns_token_and_short_code(
     http: httpx.Client, parent: ParentSession
 ) -> None:

@@ -37,6 +37,7 @@ def _stat(
 
 
 @pytest.mark.e2e
+@pytest.mark.smoke
 def test_sync_empty_returns_empty_arrays(
     http: httpx.Client, device: DeviceSession
 ) -> None:

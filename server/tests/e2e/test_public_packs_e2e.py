@@ -5,6 +5,7 @@ import pytest
 
 
 @pytest.mark.e2e
+@pytest.mark.smoke
 def test_packs_latest_returns_etag_and_304_round_trip(http: httpx.Client) -> None:
     """PUB-2 + PUB-4: latest.json returns 200 + ETag; If-None-Match → 304."""
     r = http.get("/api/v1/packs/latest.json")
