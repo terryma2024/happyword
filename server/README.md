@@ -181,6 +181,37 @@ green so first-time setup is non-blocking.
 are the credentials FastAPI's startup hook uses to bootstrap the admin
 row in `users` (which the reset script preserves).
 
+## After a merge to main (`server-cd.yml`)
+
+Every push to `main` that touches `server/**` triggers `server-cd.yml`,
+which:
+
+1. Waits up to 8 minutes for the Vercel production deploy URL.
+2. Runs the 5-case smoke subset (`pytest -v -m smoke`) against
+   `happyword_staging` (NOT a fresh DB — smoke is non-destructive and
+   namespace-safe).
+3. On failure, posts a Slack alert to `#happyword-ci`. Does not
+   auto-revert; humans investigate the deploy itself, not the merged
+   PR (the PR was already gated on full E2E before merge).
+
+The 5 smoke cases live in their existing `tests/e2e/` files, tagged
+with `@pytest.mark.smoke`:
+- health liveness
+- public packs ETag round-trip
+- parent OTP request-code
+- pair create + short-code
+- child word-stats sync (empty payload)
+
+To debug a failed staging smoke locally:
+
+```bash
+cd server
+export E2E_BASE_URL="https://happyword.vercel.app"
+export E2E_MONGODB_URI="mongodb+srv://.../happyword_staging"
+export E2E_MONGO_DB_NAME="happyword_staging"
+uv run pytest -v -m smoke
+```
+
 ## Deploy
 
 See [V0.5 spec §9](../docs/superpowers/specs/2026-04-30-v0.5-content-backend-design.md#9-vercel-部署拓扑).
