@@ -12,6 +12,8 @@ import { CloudWishlistService } from '../services/CloudWishlistService';
 import { ParentRedemptionPoll } from '../services/ParentRedemptionPoll';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { initBackendEnvPrefs } from '../services/BackendEnv';
+import { initPreviewManifestService } from '../services/PreviewManifestService';
 import { StringPreferencesLike } from '../services/WrongAnswerStore';
 
 const DOMAIN = 0x0000;
@@ -88,6 +90,12 @@ export default class EntryAbility extends UIAbility {
     // until onForeground starts it.
     this.installCloudWishlist(this.context).catch((err: BusinessError): void => {
       hilog.warn(DOMAIN, 'testTag', 'CloudWishlist wiring failed: %{public}s', JSON.stringify(err));
+    });
+    initBackendEnvPrefs(this.context).catch((err: BusinessError): void => {
+      hilog.warn(DOMAIN, 'testTag', 'BackendEnv init failed: %{public}s', JSON.stringify(err));
+    });
+    initPreviewManifestService(this.context).catch((err: BusinessError): void => {
+      hilog.warn(DOMAIN, 'testTag', 'PreviewManifest init failed: %{public}s', JSON.stringify(err));
     });
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }

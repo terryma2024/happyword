@@ -14,6 +14,7 @@
     "pages/ParentAdminPage",
     "pages/LessonDraftReviewPage",
     "pages/ScanBindingPage",
-    "pages/BoundDeviceInfoPage"
+    "pages/BoundDeviceInfoPage",
+    "pages/DevMenuPage"
   ]
 }

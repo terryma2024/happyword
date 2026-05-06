@@ -29,6 +29,7 @@ import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCre
 import { DeviceUnbindClient, DeviceUnbindOutcome } from '../services/DeviceUnbindClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import BuildProfile from 'BuildProfile';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
 import { router } from '@kit.ArkUI';
@@ -346,17 +347,23 @@ struct ConfigPage {
     ctrl.open();
   }
 
-  private runUnbind(): void {
-    this.unbindBusy = true;
+  private async runUnbind(): Promise<void> {
+    if (this.unbindBusy) {
+      return;
+    }
+    this.getUIContext().animateTo({ duration: 0 }, (): void => {
+      this.unbindBusy = true;
+    });
     const adapter: RealParentFetchAdapter = new RealParentFetchAdapter();
     const baseUrl: string = effectiveServerBaseUrl();
     const client: DeviceUnbindClient = new DeviceUnbindClient(this.cloudCreds, adapter, baseUrl);
-    client.unbind().then((out: DeviceUnbindOutcome): void => {
-      this.unbindBusy = false;
+    try {
+      const out: DeviceUnbindOutcome = await client.unbind();
+      this.getUIContext().animateTo({ duration: 0 }, (): void => {
+        this.unbindBusy = false;
+      });
       if (out.ok) {
         this.showUnbindToast('已解除设备绑定');
-        // Detach cloud sync / wishlist services that may still hold the
-        // old binding so HomePage falls back to local-only mode.
         const recorder: LearningRecorder = getLearningRecorder();
         recorder.attachCloudSync(undefined);
         this.refreshBindingState().catch((err: BusinessError): void => {
@@ -365,11 +372,13 @@ struct ConfigPage {
       } else {
         this.showUnbindToast(`解除失败 (HTTP ${out.status})`);
       }
-    }).catch((err: BusinessError): void => {
+    } catch (err) {
       console.error(`ConfigPage.runUnbind failed: ${JSON.stringify(err)}`);
-      this.unbindBusy = false;
+      this.getUIContext().animateTo({ duration: 0 }, (): void => {
+        this.unbindBusy = false;
+      });
       this.showUnbindToast('解除失败 (网络错误)');
-    });
+    }
   }
 
   private showUnbindToast(text: string): void {
@@ -500,6 +509,28 @@ struct ConfigPage {
         .borderWidth(2)
         .borderColor('#FFB400')
         .onClick((): void => this.openParentAdmin());
+    }
+    .margin({ bottom: 16 })
+    .alignItems(VerticalAlign.Center);
+  }
+
+  @Builder
+  private devMenuRow() {
+    Row() {
+      Text('Developer').fontSize(18).width(120);
+      Button('Backend environment')
+        .id('ConfigDevMenuButton')
+        .width(220).height(40)
+        .fontSize(15)
+        .backgroundColor('#EAF2F8')
+        .fontColor('#457B9D')
+        .borderWidth(2)
+        .borderColor('#457B9D')
+        .onClick((): void => {
+          router.pushUrl({ url: 'pages/DevMenuPage' }).catch((err: BusinessError): void => {
+            console.error(`ConfigPage DevMenu push failed: ${JSON.stringify(err)}`);
+          });
+        });
     }
     .margin({ bottom: 16 })
     .alignItems(VerticalAlign.Center);
@@ -885,6 +916,9 @@ struct ConfigPage {
         this.cloudSyncRow();
         this.syncRow();
         this.adminRow();
+        if (BuildProfile.BUILD_MODE_NAME === 'debug') {
+          this.devMenuRow();
+        }
 
         if (this.showValidationHint) {
           Text('单词池太小（少于 3 个），请启用更多类别或添加自定义词')

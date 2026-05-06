@@ -32,7 +32,7 @@ import parentBindingFlowV06UiTest from './ParentBindingFlowV06.ui.test';
  * `testsuite()` guarantees the first page never sees the prod URL.
  *
  * Production / release builds NEVER write this key. They land on
- * PROD_BASE_URL through the same `effectiveServerBaseUrl()` call,
+ * STAGING_BASE_URL through the same `effectiveServerBaseUrl()` call,
  * which falls back to `pickServerBaseUrl(BuildProfile.BUILD_MODE_NAME)`
  * when the override is absent or empty.
  *

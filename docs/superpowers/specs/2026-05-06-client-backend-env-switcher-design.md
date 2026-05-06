@@ -1,6 +1,6 @@
 # Client Backend Env Switcher Design
 
-> **Status:** approved 2026-05-06 — implementation pending.
+> **Status:** landed 2026-05-06 — implementation in `entry/` + `docs/preview-urls.json` + `preview-manifest.yml`. Confirm GitHub Actions secrets and Vercel preview deployments if the manifest stays empty for new PRs.
 > **Companion spec:** [server QA pipeline design](2026-05-06-server-qa-pipeline-design.md) (defines the three logical environments — preview / staging / prod — that this client switcher targets).
 > **Successor (after this spec is approved):** an implementation plan at `docs/superpowers/plans/2026-05-06-client-backend-env-switcher-plan.md`.
 

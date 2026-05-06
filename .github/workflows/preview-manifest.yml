@@ -1,0 +1,55 @@
+name: preview-manifest
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: preview-manifest
+  cancel-in-progress: false
+
+jobs:
+  update_manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Octokit
+        run: npm install --no-save @octokit/rest
+
+      - name: Update manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node server/scripts/update_preview_manifest.mjs "$GITHUB_EVENT_PATH" "$GITHUB_TOKEN"
+
+      - name: Commit + push if changed
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add docs/preview-urls.json
+          if git diff --staged --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          if [ -n "$PR_NUMBER" ]; then
+            git commit -m "chore: refresh preview-urls.json (PR #${PR_NUMBER})"
+          else
+            git commit -m "chore: refresh preview-urls.json"
+          fi
+          git push origin main
