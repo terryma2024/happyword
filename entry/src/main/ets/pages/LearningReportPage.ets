@@ -1,5 +1,6 @@
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
+import display from '@ohos.display';
 import { WordRepository } from '../services/WordRepository';
 import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
@@ -19,7 +20,17 @@ import {
  * No persistence here; the source of truth is `LearningRecorder`.
  * No charts in this version — V0.4.5 lays the groundwork; richer
  * visuals (trend lines, heatmaps) are future-V0.4.x work.
+ *
+ * Responsive layout (added 2026-05-06): on pad-class screens (shorter
+ * edge ≥ 600 vp, MatePad/foldable) the cards are capped to ~720 vp
+ * and horizontally centred in the scroll viewport so the content
+ * doesn't stretch edge-to-edge across the whole tablet. Phones keep
+ * the legacy full-width rendering. Mirrors MonsterCodexPage's pad
+ * adaptation pattern to keep the visual language consistent.
  */
+const PAD_BREAKPOINT_VP: number = 600;
+const PAD_CONTENT_WIDTH_VP: number = 720;
+
 @Entry
 @Component
 struct LearningReportPage {
@@ -36,8 +47,24 @@ struct LearningReportPage {
   @State private categories: CategoryReport[] = [];
   @State private weakCategories: CategoryReport[] = [];
   @State private loaded: boolean = false;
+  /**
+   * Shorter screen edge in vp. Phone-class default keeps the first
+   * frame compact if the display query throws. Mirrors
+   * MonsterCodexPage's pad-detection seam.
+   */
+  @State private shortEdgeVp: number = 360;
 
   aboutToAppear(): void {
+    try {
+      const d: display.Display = display.getDefaultDisplaySync();
+      const widthVp: number = this.getUIContext().px2vp(d.width);
+      const heightVp: number = this.getUIContext().px2vp(d.height);
+      this.shortEdgeVp = Math.min(widthVp, heightVp);
+    } catch (err) {
+      const e: BusinessError = err as BusinessError;
+      console.error(`LearningReportPage: display query failed: ${JSON.stringify(e)}`);
+      // Keep the phone-class default; the page is still usable.
+    }
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
       const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
@@ -52,6 +79,17 @@ struct LearningReportPage {
       console.error(`LearningReportPage: bootstrap failed: ${JSON.stringify(err)}`);
       this.loaded = true;
     });
+  }
+
+  private isPad(): boolean {
+    return this.shortEdgeVp >= PAD_BREAKPOINT_VP;
+  }
+
+  /** Width applied to the inner card column. On phones we keep the
+   *  legacy full-width behaviour; on pads we cap so cards don't
+   *  stretch edge-to-edge across the whole tablet viewport. */
+  private contentWidth(): Length {
+    return this.isPad() ? PAD_CONTENT_WIDTH_VP : '100%';
   }
 
   private populateView(repo: WordRepository, recorder: LearningRecorder): void {
@@ -76,20 +114,29 @@ struct LearningReportPage {
     Column() {
       this.topBar();
       Scroll() {
-        Column({ space: 12 }) {
-          this.accuracyCard();
-          this.statesCard();
-          this.reviewCard();
-          if (this.weakCategories.length > 0) {
-            this.weakCard();
+        // Outer Column fills the scroll viewport horizontally and
+        // alignItems-centers the inner cards Column. On pads
+        // `contentWidth()` returns a fixed vp value (< 100% of the
+        // landscape MatePad), creating the visual margin; on phones
+        // it returns '100%' and the centering is a no-op.
+        Column() {
+          Column({ space: 12 }) {
+            this.accuracyCard();
+            this.statesCard();
+            this.reviewCard();
+            if (this.weakCategories.length > 0) {
+              this.weakCard();
+            }
+            this.categoryBreakdown();
+            if (this.loaded && this.totalSeen === 0) {
+              this.emptyState();
+            }
           }
-          this.categoryBreakdown();
-          if (this.loaded && this.totalSeen === 0) {
-            this.emptyState();
-          }
+          .width(this.contentWidth())
+          .padding({ left: 16, right: 16, bottom: 24 });
         }
         .width('100%')
-        .padding({ left: 16, right: 16, bottom: 24 });
+        .alignItems(HorizontalAlign.Center);
       }
       .layoutWeight(1)
       .scrollBar(BarState.Auto);
