@@ -83,6 +83,10 @@ hdc install entry/build/default/outputs/default/entry-default-signed.hap
 
 The detailed build, test, device, and log workflow lives in [`.cursor/dev-commands.md`](.cursor/dev-commands.md).
 
+## Server
+
+The Python/FastAPI content backend (词库管理、家长账户、设备配对、家庭包等) lives under [`server/`](server/). For local dev, offline + E2E tests, and Vercel 部署说明，见 [`server/README.md`](server/README.md)。设计规范见 [V0.5 后端设计](docs/superpowers/specs/2026-04-30-v0.5-content-backend-design.md)。
+
 ## Roadmap
 
 The product roadmap is tracked in [`docs/WordMagicGame_roadmap.md`](docs/WordMagicGame_roadmap.md). Current major directions include battle audio mixing with BGM, richer learning reports, backend content tooling, parent account/device binding, AI-assisted story content, and a later Cocos2D battle presentation rewrite.
