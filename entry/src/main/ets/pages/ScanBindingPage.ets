@@ -27,10 +27,17 @@ import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 
 class RealScanKitScanner implements BarcodeScannerLike {
   async scan(): Promise<string> {
+    // V0.6.x — `enableAlbum: true` exposes ScanKit's built-in album
+    // button in the system scan UI, in addition to the dedicated
+    // ScanBindingGalleryButton on the page itself. Both paths funnel
+    // into the same redeem state machine: when the user picks an
+    // image from inside the system scan modal, ScanKit decodes it
+    // server-side and returns the QR string through the same
+    // `startScanForResult` Promise as a camera-captured scan would.
     const opts: scanBarcode.ScanOptions = {
       scanTypes: [scanCore.ScanType.QR_CODE],
       enableMultiMode: false,
-      enableAlbum: false,
+      enableAlbum: true,
     };
     try {
       const r: scanBarcode.ScanResult = await scanBarcode.startScanForResult(

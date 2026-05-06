@@ -1,11 +1,16 @@
 # V0.6.x — Scan Binding 从图库选择二维码 — 设计
 
 - **Date:** 2026-05-02
-- **Status:** Design-for-implementation; revision 1
+- **Status:** Implemented; revision 2 — `enableAlbum:true` 翻盘，与 dedicated button 并存（用户决策）
 - **Roadmap:** [WordMagicGame_roadmap.md §13 V0.6](../../WordMagicGame_roadmap.md)
 - **Parent design:** [`2026-05-01-v0.6-parent-account-design.md`](2026-05-01-v0.6-parent-account-design.md) §3.2 设备绑定 / `ScanBindingPage`
 - **Tech stack additions:** `@kit.ScanKit` 静态图解码 API（`scanBarcode.decode`，已在 SDK 中，无新增依赖）；`qrcode[pil]` 已在 server 侧用于家长 web QR 渲染，复用作为 ohosTest 固件生成器
 - **Out-of-scope:** 修改 V0.5.8 lesson-import 路径上的 `LessonImagePicker` 行为契约；动态从孩子的相册读 QR（孩子设备上的相册一般没有 QR 截图，本特性的真实使用者是「家长把 QR 截图发给孩子」场景）；多张图批量解码
+
+## Revision history
+
+- **r2 (2026-05-06):** `enableAlbum:true` 翻盘 — `RealScanKitScanner` 的 `scanBarcode.startScanForResult` 选项从 `enableAlbum:false` 改为 `enableAlbum:true`，与 V0.6.x 上线的 dedicated `ScanBindingGalleryButton` 并存。两条路径都走同一条 redeem 状态机：用户在系统扫码 UI 内点系统自带的相册按钮选图，ScanKit 直接 in-process 解码并通过 `startScanForResult` Promise 返回 QR 字符串，与摄像头扫到的字符串走同一个 `extractTokenFromQrPayload` → `redeem(token, '')` 链路；UI 自动化继续只覆盖 dedicated button 路径（系统扫码 UI 在不同 ROM 版本控件不稳，无法 Hypium 驱动）。决策原因：用户希望最大化「家长把 QR 截图发到孩子设备」场景下的入口可发现性，可接受 system 扫码 UI 内多一个内置入口的视觉冗余。
+- **r1 (2026-05-02):** 初版（dedicated button + `PhotoPickerService` 抽离 + `BarcodeImageDecoder` seam + ohosTest 固件），`enableAlbum:false`。
 
 ---
 
@@ -46,7 +51,7 @@ V0.6.2 上线了 `ScanBindingPage`，提供两条绑定路径：
 | 与 `LessonImagePicker` 关系 | **抽离公共 `PhotoPickerService`**（仅 gallery 半边），让 `LessonImagePicker` 与新 ScanBinding 路径共用 picker 适配器，但**保留独立的 AppStorage override key**（lesson 用 `LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY`，scan-binding 用 `SCAN_BINDING_PHOTO_PICKER_OVERRIDE_URI_KEY`） | 避免重复 ~50 行 picker 适配器；同时两个 override key 物理隔离，避免某次 ohosTest 写过 lesson key 后污染 scan-binding 测试。Camera 半边由 lesson 独占，不进 PhotoPickerService |
 | ohosTest 解码层注入 | 新增 `SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY` AppStorage 短路 — 测试时 `RealBarcodeImageDecoder.decodeFromUri` 命中 override 直接返回字符串，不调真实 `scanBarcode.decode` | `scanBarcode.decode` 在 OpenHarmony 模拟器上对任意应用沙箱下的图片 URI 鉴权不稳（与 V0.5.8 选 `LessonImagePicker` 加 picker override 同因），且我们已经持有 QR 的 raw 内容（在生成 fixture 时），把 raw 内容作为 override 字符串能让端到端测试只断言「上层调度正确 + redeem 链路通」而不绑死系统 ScanKit 的实现细节 |
 | 测试固件 | 新增 `entry/src/ohosTest/resources/rawfile/scan_binding_qr_fixture.png`（PNG，内容编码 `https://happyword.vercel.app/p/uitestqr01`），由 `tools/generate_scan_binding_qr_fixture.py` 用 `qrcode` 库生成 | PNG 体积约 800B，可重新生成、可入 git，与 lesson_import_fixture.jpg 同栈位置；token 用 `uitestqr01` 是固定字符串，10 位长度满足 server `MIN_TOKEN_LEN=4 / MAX_TOKEN_LEN=64` 校验，mock server `/api/v1/pair/redeem` 已对任意非空 token 返回成功 |
-| 是否同步打开 `enableAlbum:true` | **不打开** | C 选项（dedicated button + enableAlbum 双备）会让用户在「打开扫码器」点完后还能走系统相册路径，但那条路径不可测且 UI 重复；先用 dedicated button 单点上线，观察后再决定是否补 enableAlbum |
+| 是否同步打开 `enableAlbum:true` | **r1 不打开 / r2 打开** | r1 选了「先用 dedicated button 单点上线」（dedicated button + enableAlbum 双备会让 UI 重复且系统扫码 UI 控件不可被 Hypium 测）。r2 用户翻盘要求两条都开 — dedicated button 在 idle 列里给「我没在拍照」的用户最直接的入口，`enableAlbum:true` 在已经点开扫码器的用户场景里给「这才想起来 QR 是张截图」的用户兜底；UI 自动化只覆盖 dedicated button，系统扫码 UI 内的 album 按钮按 production smoke 验收 |
 | 固件生成脚本入仓位置 | `tools/generate_scan_binding_qr_fixture.py` | `tools/` 下已经有 `recraft/` 等内容生成脚本，约定一致；固件由脚本可重生但 PNG 同时入仓（保证 ohosTest HAP 打包不依赖运行 Python） |
 
 ---
