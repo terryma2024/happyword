@@ -108,10 +108,28 @@ jobs:
       - name: Sync dependencies
         run: uv sync --dev
 
+      - name: Compute per-PR Mongo DB name
+        id: db_name
+        run: |
+          # Use PR number when available; fall back to a slugged branch name
+          # for branch-pushes-without-PR (rare, but `vercel deploy --target
+          # preview` from a feature branch with no open PR triggers this).
+          PR_NUM="${{ github.event.pull_request.number }}"
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          BRANCH_SLUG=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/_/g' | sed -E 's/^_|_$//g' | cut -c -32)
+          if [ -n "$PR_NUM" ]; then
+            DB="happyword_pr_${PR_NUM}_e2e"
+          else
+            DB="happyword_branch_${BRANCH_SLUG}_e2e"
+          fi
+          echo "db_name=$DB" >> "$GITHUB_OUTPUT"
+          echo "Per-PR DB: $DB"
+
       - name: Reset E2E database (truncate test collections)
         env:
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
-          E2E_MONGO_DB_NAME: ${{ secrets.E2E_MONGO_DB_NAME }}
+          E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
         run: |
           if [ -z "$E2E_MONGODB_URI" ] || [ -z "$E2E_MONGO_DB_NAME" ]; then
             echo "::warning::E2E_MONGODB_URI / E2E_MONGO_DB_NAME not configured; skipping DB reset (E2E tests requiring mongo will skip)."
@@ -123,7 +141,7 @@ jobs:
         env:
           E2E_BASE_URL: ${{ steps.detect_preview.outputs.preview_url || steps.vercel_deploy.outputs.preview-url }}
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
-          E2E_MONGO_DB_NAME: ${{ secrets.E2E_MONGO_DB_NAME }}
+          E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
         run: uv run pytest -v -m e2e
