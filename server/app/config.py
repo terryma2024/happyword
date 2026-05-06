@@ -1,8 +1,26 @@
+import os
+import re
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _resolve_db_name(template: str, *, pr: str, branch: str) -> str:
+    """Substitute Vercel-injected `{pr}` / `{branch}` placeholders in a Mongo DB name.
+
+    Behaviour:
+    - Literal templates (no placeholder) pass through unchanged.
+    - `{pr}` substitutes `pr` when non-empty, else `branch_<slug>`.
+    - `{branch}` always substitutes the slugged branch name.
+    - Slugs lowercase, collapse non-alphanumerics to `_`, trim leading/trailing
+      `_`, then truncate to 32 chars so the final DB name stays well under
+      Mongo's 64-byte limit even with prefix/suffix.
+    """
+    safe_branch = re.sub(r"[^a-z0-9]+", "_", branch.lower()).strip("_")[:32]
+    pr_value = pr or f"branch_{safe_branch}"
+    return template.format(pr=pr_value, branch=safe_branch)
 
 
 class Settings(BaseSettings):
@@ -17,6 +35,16 @@ class Settings(BaseSettings):
     # `MONGO_URI` is kept as an alias so existing .env.local files keep working.
     mongo_uri: str = Field(validation_alias=AliasChoices("MONGODB_URI", "MONGO_URI"))
     mongo_db_name: str
+
+    @field_validator("mongo_db_name", mode="after")
+    @classmethod
+    def _expand_db_name(cls, raw: str) -> str:
+        return _resolve_db_name(
+            raw,
+            pr=os.environ.get("VERCEL_GIT_PULL_REQUEST_ID", ""),
+            branch=os.environ.get("VERCEL_GIT_COMMIT_REF", "local"),
+        )
+
     jwt_secret: str
     jwt_expire_hours: int = 24
     admin_bootstrap_user: str
