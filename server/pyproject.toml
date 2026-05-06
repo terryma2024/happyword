@@ -41,6 +41,8 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "e2e: external HTTP tests against a deployed server (skipped unless E2E_BASE_URL is set)",
+    "smoke: subset of `e2e` runnable against staging without a DB reset (5 cases, ~10s)",
+    "openai: tests that call the real OpenAI API (cost-conscious lanes can `pytest -m 'e2e and not openai'`)",
 ]
 # Project rule: every commit must run pytest with 0 errors and 0 warnings.
 # Default to errors so any new warning fails the suite. Narrow ignores below
