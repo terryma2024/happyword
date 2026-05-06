@@ -1,6 +1,6 @@
 # Server QA Pipeline Design
 
-> **Status:** approved 2026-05-06 — implementation pending.
+> **Status:** landed 2026-05-06 — implementation complete in-repo (Vercel preview `MONGO_DB_NAME` + CI/CD workflows require secrets / dashboard follow-up).
 > **Predecessors:** [server E2E test design](2026-05-06-server-e2e-test-design.md), [server Vercel E2E CI plan](../plans/2026-05-06-server-vercel-e2e-ci.md).
 > **Successor (after this spec is approved):** an implementation plan written via the `superpowers:writing-plans` skill.
 

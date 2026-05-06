@@ -15,6 +15,41 @@ The HarmonyOS emulator reaches the host machine at `http://10.0.2.2:8000` —
 this is the default for the client's debug build (see
 `entry/src/main/ets/services/RemoteWordPackConfig.ets`).
 
+## Quality assurance pipeline
+
+Four layers of testing, gated on each PR + every merge to `main`. Full
+design in [`docs/superpowers/specs/2026-05-06-server-qa-pipeline-design.md`](../docs/superpowers/specs/2026-05-06-server-qa-pipeline-design.md).
+
+```
+                          ┌────────────────── developer machine ──────────────────┐
+                          │                                                        │
+   Layer 1 (sec):  uv run pytest                  (offline, mongomock)             │
+   Layer 2 (~25s): docker mongo:7 + uvicorn + reset_db + pytest -m e2e (52 cases)  │
+                          │                                                        │
+                          └─────────────────────────────┬──────────────────────────┘
+                                                        ▼ git push origin <branch>
+
+                        ┌───────────────── PR opened on GitHub ─────────────────┐
+                        │                                                        │
+   Layer 3 (CI gate):    server-ci.yml                                            │
+                          ├── server / pytest        (offline)        REQUIRED ───┼──► merge gate
+                          └── server / e2e (preview)                  REQUIRED ───┤
+                                ├─ wait for Vercel preview URL                    │
+                                ├─ reset DB happyword_pr_<pr>_e2e on Atlas        │
+                                └─ uv run pytest -m e2e (52 cases)                │
+                        │                                                        │
+                        └────────────────────────────┬───────────────────────────┘
+                                                     ▼ green → human merges to main
+
+                        ┌──────────── push: main ─────────────────────────────────┐
+                        │                                                          │
+   Layer 4 (smoke):      server-cd.yml                                             │
+                          ├─ wait for Vercel production deploy (= staging today)   │
+                          └─ uv run pytest -v -m smoke   (5 cases, ~10s, no reset) │
+                          │                                                       │
+                          └────────────── manual promote later → real prod ───────┘
+```
+
 ## Tests
 
 ```bash
