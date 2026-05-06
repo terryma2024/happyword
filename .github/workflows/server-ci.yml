@@ -146,3 +146,27 @@ jobs:
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
         run: uv run pytest -v -m e2e
 
+      - name: Slack alert on E2E failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL not configured; skipping alert."
+            exit 0
+          fi
+          PAYLOAD=$(jq -n \
+            --arg pr "${{ github.event.pull_request.number }}" \
+            --arg url "${{ github.event.pull_request.html_url }}" \
+            --arg sha "${{ github.event.pull_request.head.sha }}" \
+            '{
+              text: ("server-ci E2E FAILED on PR #" + $pr),
+              blocks: [
+                { type: "section", text: { type: "mrkdwn",
+                  text: ("*server-ci E2E failed*\nPR #" + $pr + "\n" + $url + "\nSHA: `" + $sha + "`")
+                }}
+              ]
+            }')
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
+
