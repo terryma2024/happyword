@@ -1,3 +1,4 @@
+import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -55,6 +56,8 @@ from app.services.auth_service import hash_password
 from app.services.category_service import seed_manual_categories
 from app.services.email_provider import build_email_provider
 
+logger = logging.getLogger(__name__)
+
 
 async def bootstrap_admin_user(username: str, password: str) -> None:
     """Idempotent: create the admin row only if username does not exist."""
@@ -103,6 +106,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # V0.6.1: build the configured EmailProvider once and hang it off app state
     # so router deps can resolve it without re-reading settings on every request.
     app.state.email_provider = build_email_provider(settings)
+    # V0.7 QA-pipeline observability: log the resolved Mongo DB name (URI is
+    # intentionally omitted to avoid leaking creds). Lets ops see at a glance
+    # whether a preview deploy landed on the expected `happyword_pr_<N>_e2e`.
+    logger.info("Mongo DB name resolved to %s", settings.mongo_db_name)
     await bootstrap_admin_user(
         username=settings.admin_bootstrap_user,
         password=settings.admin_bootstrap_pass,
