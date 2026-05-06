@@ -56,7 +56,7 @@ from app.services.auth_service import hash_password
 from app.services.category_service import seed_manual_categories
 from app.services.email_provider import build_email_provider
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 
 async def bootstrap_admin_user(username: str, password: str) -> None:
