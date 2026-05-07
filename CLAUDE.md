@@ -32,3 +32,77 @@
 - `pyproject.toml` sets `filterwarnings = ["error", ...]` so any new warning fails the suite.
 - If a warning comes from a third-party dependency we cannot fix, add a *narrow* `ignore:...` entry to `[tool.pytest.ini_options].filterwarnings` with a comment explaining the source and why we cannot resolve it upstream.
 - Never use a blanket `ignore` (e.g. `ignore::DeprecationWarning`) — always pin by message + module.
+
+## Cursor Cloud specific instructions
+
+This section captures non-obvious caveats for cloud agents working on the
+**`server/`** Python backend. The HarmonyOS client (`entry/`) is **not** set up
+on cloud agent VMs — those workflows still require DevEco Studio + HarmonyOS
+SDK on a developer machine. If a task touches the client, escalate / run it
+locally instead of in the cloud agent.
+
+### Server scope (what cloud agents can do here)
+- `cd server && uv sync` — refresh deps. Already covered by the cloud agent
+  update script, so this typically only matters when iterating manually after
+  editing `pyproject.toml`.
+- `cd server && uv run pytest` — full suite is **offline**. MongoDB is mocked
+  via `mongomock-motor`, HTTP via stubs. No services need to be running.
+  Project rule: must finish with **0 errors, 0 warnings**.
+- `cd server && uv run ruff check .` and `uv run mypy .` — lint / type-check.
+  Both currently report a small number of pre-existing findings (e.g. in
+  `server/mock_ui_server.py`, `server/scripts/`, and a few `tests/`
+  files); only fix the ones in files you actually touch.
+- `cd server && uv run ruff check . --fix` — apply ruff auto-fixes.
+
+### Running the server locally (uvicorn)
+Tests don't need MongoDB, but **`uv run uvicorn app.main:app` does**, because
+the FastAPI lifespan opens a real Mongo connection via Motor + Beanie
+(`init_beanie` + `bootstrap_admin_user`). The cloud agent VM snapshot ships
+with **MongoDB 8.0** already installed (apt), but **not** running, because the
+VM has no systemd. Start it manually before running the server:
+
+```sh
+mongod --dbpath /var/lib/mongodb \
+       --logpath /var/log/mongodb/mongod.log \
+       --bind_ip 127.0.0.1 --port 27017 --fork
+```
+
+The data dir `/var/lib/mongodb` and log dir `/var/log/mongodb` are owned by
+`ubuntu:ubuntu` so no `sudo` is needed once the VM is up.
+
+Then create `server/.env.local` (already gitignored — see
+`server/.env.local.example` for the schema) with at minimum:
+
+```
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGO_DB_NAME=happyword_dev
+JWT_SECRET=<any-32-char-string-for-local-dev>
+ADMIN_BOOTSTRAP_USER=admin
+ADMIN_BOOTSTRAP_PASS=<choose-a-local-password>
+```
+
+`OPENAI_API_KEY` and `BLOB_READ_WRITE_TOKEN` are optional — LLM /
+asset-upload endpoints will return config errors without them, but everything
+else (auth, words, packs, public `/api/v1/packs/latest.json`) works fine.
+
+Start the dev server (foreground or via tmux):
+
+```sh
+cd server && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+### Public health endpoint is namespaced
+The health route is `GET /api/v1/health`, **not** `/health`. The unprefixed
+path returns 404 (this surprised me on first run).
+
+### Mock UI server (separate from main server)
+`server/mock_ui_server.py` is a **separate** stub-only FastAPI app used by the
+HarmonyOS `ohosTest` UI suite (`scripts/run_ui_tests.sh`). It listens on port
+8123, has no MongoDB dependency, and is irrelevant when developing the main
+backend. Don't confuse it with `app.main:app`.
+
+### Vercel deployment
+The `server/` app is also deployed as Vercel serverless functions
+(`server/vercel.json` + `server/api/index.py` → `app.main:app`). Local
+development does **not** require the Vercel CLI; only deployment does. See
+`tools/vercel/` for the deploy/smoke shell scripts.
