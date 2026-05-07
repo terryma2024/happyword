@@ -30,6 +30,37 @@ Docs: https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import httpx
+
+# Substring that appears in the body of the Vercel deployment-protection
+# auth page (served as 401 with ``content-type: text/html``). Matching either
+# the page <title> or the link to ``vercel.com/sso-api`` is sufficient — both
+# are stable parts of the SSO redirect template that ships with Vercel
+# Authentication / Password Protection.
+_PROTECTION_PAGE_MARKERS = (
+    "<title>Authentication Required</title>",
+    "vercel.com/sso-api",
+)
+
+
+def looks_like_protection_page(response: httpx.Response) -> bool:
+    """Return True if the response is Vercel's deployment-protection HTML.
+
+    Used by the session-level preflight in ``conftest.py`` to turn the
+    "every API call returns the SSO page" failure mode into a single,
+    actionable pytest error, instead of leaking 50 copies of the auth
+    page into the test report.
+    """
+    if response.status_code != 401:
+        return False
+    ctype = response.headers.get("content-type", "")
+    if "text/html" not in ctype.lower():
+        return False
+    body = response.text
+    return any(marker in body for marker in _PROTECTION_PAGE_MARKERS)
 
 
 def vercel_bypass_headers() -> dict[str, str]:

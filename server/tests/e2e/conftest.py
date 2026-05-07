@@ -21,7 +21,10 @@ from tests.e2e._utils.auth import (
     parent_login,
 )
 from tests.e2e._utils.db import MongoDB
-from tests.e2e._utils.vercel import vercel_bypass_headers
+from tests.e2e._utils.vercel import (
+    looks_like_protection_page,
+    vercel_bypass_headers,
+)
 
 
 def _strip_env(name: str) -> str:
@@ -33,7 +36,54 @@ def base_url() -> str:
     url = _strip_env("E2E_BASE_URL")
     if not url:
         pytest.skip("E2E_BASE_URL is not set")
-    return url.rstrip("/")
+    url = url.rstrip("/")
+
+    # Preflight: probe the unauthenticated /api/v1/health endpoint once and,
+    # if Vercel's deployment-protection HTML page comes back, fail the entire
+    # session with a single actionable error instead of letting all 50 e2e
+    # cases each emit a multi-KB SSO HTML dump. Symptom we are guarding
+    # against: VERCEL_AUTOMATION_BYPASS_SECRET repo secret is missing or
+    # invalid, so the bypass header is empty/wrong and every API call is
+    # intercepted at the edge. See server/README.md → "CI integration" for
+    # how to mint the secret.
+    headers = vercel_bypass_headers()
+    try:
+        with httpx.Client(
+            base_url=url,
+            timeout=10.0,
+            follow_redirects=False,
+            headers=headers,
+        ) as probe:
+            resp = probe.get("/api/v1/health")
+    except httpx.HTTPError:
+        # Network / DNS / TLS failures are surfaced naturally by the per-test
+        # fixtures; do not pre-empt them here.
+        return url
+    if looks_like_protection_page(resp):
+        bypass_set = bool(headers)
+        msg = (
+            "Vercel deployment protection is intercepting every request to "
+            f"{url} with the SSO HTML page (HTTP 401). "
+        )
+        if not bypass_set:
+            msg += (
+                "The E2E_VERCEL_PROTECTION_BYPASS env var is empty — add the "
+                "VERCEL_AUTOMATION_BYPASS_SECRET repo secret in GitHub "
+                "(mint it under Vercel project → Settings → Deployment "
+                "Protection → 'Protection Bypass for Automation'). "
+                "See server/README.md → 'CI integration' for the full list "
+                "of required secrets."
+            )
+        else:
+            msg += (
+                "The bypass header is set but Vercel still rejected the "
+                "request — the secret is likely stale or doesn't match the "
+                "current 'Protection Bypass for Automation' value. Re-mint "
+                "it in Vercel project settings and update the "
+                "VERCEL_AUTOMATION_BYPASS_SECRET repo secret."
+            )
+        pytest.fail(msg, pytrace=False)
+    return url
 
 
 @pytest.fixture(scope="session")
@@ -113,9 +163,7 @@ def device(
 ) -> DeviceSession:
     test_slug = request.node.name.replace("[", "_").replace("]", "_")
     device_id = f"e2e-{run_id}-{test_slug}"
-    return device_redeem(
-        base_url=base_url, parent_http=http, device_id=device_id
-    )
+    return device_redeem(base_url=base_url, parent_http=http, device_id=device_id)
 
 
 # Re-export the session dataclasses so tests can ``from .conftest import …``

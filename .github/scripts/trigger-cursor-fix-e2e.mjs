@@ -162,6 +162,20 @@ function classifyFailure({ snippet, present }) {
       re: /(httpx\.ConnectError|httpx\.ReadTimeout|gateway timeout|bad gateway|service unavailable).{0,200}(httpx\.ConnectError|httpx\.ReadTimeout|gateway timeout|bad gateway|service unavailable)/is,
     },
     {
+      // Preview has Deployment Protection (Vercel Authentication / Password
+      // Protection / Trusted IPs) enabled, AND the runner did not present a
+      // valid `x-vercel-protection-bypass` header — so every API call is
+      // intercepted with a 401 + the Vercel SSO HTML page. Symptom in the
+      // pytest log: every test errors/fails with a `<title>Authentication
+      // Required</title>` payload. No code change can fix this — the operator
+      // must add the `VERCEL_AUTOMATION_BYPASS_SECRET` repo secret (minted in
+      // Vercel project settings → Deployment Protection → "Protection Bypass
+      // for Automation"), which the workflow already forwards to pytest as
+      // `E2E_VERCEL_PROTECTION_BYPASS`. See server/README.md → "CI integration".
+      name: "Vercel deployment protection blocking requests (missing/invalid VERCEL_AUTOMATION_BYPASS_SECRET)",
+      re: /<title>Authentication Required<\/title>[\s\S]{0,4000}(vercel\.com\/sso-api|x-vercel-protection-bypass|Vercel Authentication)/i,
+    },
+    {
       name: "No tests collected",
       re: /(no tests ran in|0 (test cases?|items) collected|collected 0 items)/i,
     },
