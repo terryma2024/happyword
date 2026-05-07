@@ -121,9 +121,9 @@ function buildPrompt(logSnippet) {
     `1. Diagnose the failure from the log above; reproduce locally if reasonable.`,
     `2. Distinguish a real bug from environment / flake (preview not ready, Mongo reset issues, missing E2E secrets). Do NOT modify CI secrets or workflow files unless the failure is clearly caused by a wrong workflow definition.`,
     `3. Apply the smallest fix that makes the failing E2E case(s) pass while keeping the rest of the suite green. Prefer fixing production code over weakening assertions.`,
-    `4. Open a pull request **targeting branch \`${PR_HEAD_REF}\`** (NOT main). Reference PR #${PR_NUMBER} in the description and include a one-paragraph root-cause summary.`,
+    `4. **Commit your changes directly to branch \`${PR_HEAD_REF}\` and push.** Do NOT create a new branch and do NOT open a new pull request — the fix must land as additional commits on the existing PR #${PR_NUMBER}. Use a clear commit message that includes a one-sentence root-cause summary and references PR #${PR_NUMBER}.`,
     ``,
-    `If the failure is purely environmental and no code change can resolve it, open the PR with a brief written explanation and a TODO checklist instead of forcing a code change.`,
+    `If the failure is purely environmental and no code change can resolve it, push a single commit that adds a brief written explanation (e.g. updates a comment in the failing test or a TODO note in the PR description area), still on \`${PR_HEAD_REF}\`. Never open a separate PR.`,
   ].join("\n");
 }
 
@@ -146,7 +146,7 @@ async function postMarkerComment({ agentId, runId }) {
     `- Cursor run: \`${runId ?? "unknown"}\``,
     ``,
     `Open the agent: ${url}`,
-    `When ready, the agent will open a follow-up PR against \`${PR_HEAD_REF}\`.`,
+    `When ready, the agent will commit & push the fix **directly to \`${PR_HEAD_REF}\`** (no new PR).`,
     ``,
     `_This run is debounced — re-running the workflow on the same commit will not start a second agent._`,
   ].join("\n");
@@ -172,7 +172,14 @@ async function main() {
   // otherwise `agent.send` is undefined (we'd be calling it on a Promise).
   // Schema (per @cursor/sdk options.d.ts CloudAgentOptions):
   //   repos[]: { url, startingRef?, prUrl? }
-  //   autoCreatePR / skipReviewerRequest live at cloud-level, NOT per-repo.
+  //   workOnCurrentBranch / autoCreatePR / skipReviewerRequest live at
+  //   cloud-level, NOT per-repo.
+  //
+  // We deliberately:
+  //   - workOnCurrentBranch: true  → commit directly to PR_HEAD_REF instead
+  //                                  of cutting a new branch.
+  //   - autoCreatePR:        false → do NOT open a new PR; the fix lands as
+  //                                  another commit on the existing PR.
   const agent = await Agent.create({
     apiKey: CURSOR_API_KEY,
     cloud: {
@@ -183,8 +190,8 @@ async function main() {
           prUrl: PR_URL,
         },
       ],
-      autoCreatePR: true,
-      // Quiet PR notifications — humans review the resulting PR explicitly.
+      workOnCurrentBranch: true,
+      autoCreatePR: false,
       skipReviewerRequest: true,
     },
   });

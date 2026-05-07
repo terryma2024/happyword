@@ -219,7 +219,9 @@ When `server / e2e (preview)` **fails on a same-repo PR**, a follow-up job
 1. Reads the failing pytest log (uploaded as the `e2e-pytest-log` artifact).
 2. Investigates the failure on a freshly cloned copy of this repo at the PR's
    head ref.
-3. Opens a follow-up PR **targeting the PR branch** (not `main`) with the fix.
+3. **Commits the fix directly back to the PR branch** (`workOnCurrentBranch:
+   true`, `autoCreatePR: false`) — no separate PR is opened. The next CI run
+   on the PR re-evaluates the fix.
 
 To enable it, add one repository secret:
 
@@ -227,8 +229,8 @@ To enable it, add one repository secret:
 | ---------------- | ---------------------------------------------------------------------------------------- |
 | `CURSOR_API_KEY` | [Cursor Dashboard → Cloud agents](https://cursor.com/dashboard/cloud-agents) → API keys. |
 
-The Cursor GitHub App must be installed on the repo so the agent can push a
-branch and open a PR. Without `CURSOR_API_KEY` the autofix job runs but
+The Cursor GitHub App must be installed on the repo so the agent can push
+commits to the PR branch. Without `CURSOR_API_KEY` the autofix job runs but
 prints a single `::warning::` and exits — it does not block CI.
 
 Debounce: the job posts a hidden marker comment on the PR
