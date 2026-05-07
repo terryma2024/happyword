@@ -53,11 +53,19 @@ def _preview_protection_preflight(base_url: str) -> None:
     CI job (52 ERRORs) into a clean skipped outcome that leaves the rest
     of server-ci green while still surfacing the actionable hint.
     """
+    # Vercel Functions on a cold start can take 20+ seconds to serve the
+    # first request (Python venv create + uv install + 25 router imports +
+    # Beanie init_beanie + bootstrap_admin + seed_categories run serially in
+    # the FastAPI lifespan). 60s comfortably covers that and matches the
+    # Pro plan's function maxDuration ceiling. This preflight is also our
+    # warm-up: by absorbing the cold start here once per session, the
+    # per-test ``http`` fixture below sees a warm function and rarely
+    # bumps into its own timeout.
     try:
         resp = httpx.get(
             f"{base_url}/api/v1/health",
             headers=vercel_bypass_headers(),
-            timeout=15.0,
+            timeout=60.0,
             follow_redirects=False,
         )
     except httpx.HTTPError:
@@ -100,9 +108,16 @@ def http(base_url: str) -> Iterator[httpx.Client]:
     driver is waved through to the real Function instead of being
     intercepted by Vercel's SSO HTML page.
     """
+    # 60s = Vercel Pro plan's function maxDuration ceiling. Headroom
+    # mainly protects against (a) the rare cold start that the autouse
+    # ``_preview_protection_preflight`` warm-up didn't catch (e.g. when
+    # Vercel rotates the underlying container mid-suite) and (b) tests
+    # that intentionally exercise heavy endpoints like the 250-item
+    # bulk-sync path. 15s was the previous value and produced
+    # ``httpx.ReadTimeout`` on every cold-start collision.
     with httpx.Client(
         base_url=base_url,
-        timeout=15.0,
+        timeout=60.0,
         follow_redirects=False,
         headers=vercel_bypass_headers(),
     ) as client:
