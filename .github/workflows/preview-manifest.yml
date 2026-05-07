@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -39,10 +39,10 @@ jobs:
           mkdir -p server/scripts
           git checkout pr-head -- server/scripts/update_preview_manifest.mjs
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install Octokit
         run: npm install --no-save @octokit/rest

@@ -2,7 +2,7 @@
 
 ## update_preview_manifest.mjs
 
-Node 20 script invoked by `.github/workflows/preview-manifest.yml` to keep `docs/preview-urls.json` in sync with open PRs. It lives next to other automation scripts even though it is JavaScript, not Python.
+Node.js script invoked by `.github/workflows/preview-manifest.yml` (CI uses Node 24 via `actions/setup-node`) to keep `docs/preview-urls.json` in sync with open PRs. It lives next to other automation scripts even though it is JavaScript, not Python.
 
 It **polls** the GitHub Deployments API (Vercel often finishes after the workflow step starts). Tune with `PREVIEW_MANIFEST_POLL_INTERVAL_MS` (default `30000`) and `PREVIEW_MANIFEST_POLL_MAX_ATTEMPTS` (default `30`).
 
