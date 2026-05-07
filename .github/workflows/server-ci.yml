@@ -50,6 +50,25 @@ jobs:
       run:
         working-directory: server
     steps:
+      # Always runs: downstream steps are gated on HAS_VERCEL_TOKEN. Without VERCEL_TOKEN
+      # (or on fork PRs where secrets are unavailable), every other step is skipped and the
+      # job still shows green — this step explains why.
+      - name: E2E preview gate (why steps may be skipped)
+        run: |
+          set -euo pipefail
+          echo "HAS_VERCEL_TOKEN=${HAS_VERCEL_TOKEN}"
+          if [ "${HAS_VERCEL_TOKEN}" = "true" ]; then
+            echo "Vercel token is configured; E2E preview steps will run."
+            exit 0
+          fi
+          HEAD_REPO="${{ github.event.pull_request.head.repo.full_name }}"
+          THIS_REPO="${{ github.repository }}"
+          if [ "$HEAD_REPO" != "$THIS_REPO" ]; then
+            echo "::warning::server / e2e (preview) skipped: secrets are not passed to workflows for pull requests from forks (head repo: ${HEAD_REPO}). Push the branch to this repository or run E2E locally."
+          else
+            echo "::warning::server / e2e (preview) skipped: add repository secret VERCEL_TOKEN (and Vercel org/project IDs for fallback deploy). Without it, preview URL detection / deploy cannot run."
+          fi
+
       - name: Checkout
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         uses: actions/checkout@v5
