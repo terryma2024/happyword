@@ -1,5 +1,42 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-07T11:49:06.867Z",
-  "previews": []
+  "updated_at": "2026-05-07T12:05:58.773Z",
+  "previews": [
+    {
+      "pr": 42,
+      "title": "ci(preview-manifest): rebuild from Vercel deployments instead of PR webhook",
+      "branch": "cursor/manifest-from-vercel",
+      "url": "https://happyword-o9madhwoc-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "b055fd2",
+      "updated_at": "2026-05-07T12:05:58.015Z"
+    },
+    {
+      "pr": 41,
+      "title": "ci: bump github-script/upload-artifact/download-artifact to Node 24",
+      "branch": "cursor/bump-actions-to-node24",
+      "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "d3bdcd3",
+      "updated_at": "2026-05-07T12:05:58.280Z"
+    },
+    {
+      "pr": 40,
+      "title": "fix(server): redirect / to /parent/ so apex domain is not a 404 JSON",
+      "branch": "cursor/root-redirect-to-parent-shell",
+      "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "e6abbc1",
+      "updated_at": "2026-05-07T12:05:58.511Z"
+    },
+    {
+      "pr": 30,
+      "title": "V0.6: Parent account + family-scoped device binding",
+      "branch": "feat/v0.6-parent-account",
+      "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "69fc795",
+      "updated_at": "2026-05-07T12:05:58.773Z"
+    }
+  ]
 }
