@@ -179,7 +179,20 @@ jobs:
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
-        run: uv run pytest -v -m e2e
+        # Tee output to a log file so the cursor_autofix_e2e job can ingest it via artifact.
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          uv run pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
+
+      - name: Upload E2E pytest log
+        if: ${{ always() && env.HAS_VERCEL_TOKEN == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-pytest-log
+          path: server/artifacts/e2e-pytest.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Slack alert on E2E failure
         if: ${{ failure() && env.HAS_VERCEL_TOKEN == 'true' }}
@@ -205,3 +218,71 @@ jobs:
           curl -sS -X POST -H 'Content-Type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
+  cursor_autofix_e2e:
+    name: cursor / autofix e2e (preview)
+    runs-on: ubuntu-latest
+    needs: server_e2e
+    # Only run when E2E job actually FAILED (not when skipped because secrets are missing)
+    # AND the PR is from this repo (forks have no secrets, so the autofix would no-op).
+    if: ${{ always() && needs.server_e2e.result == 'failure' && github.event.pull_request.head.repo.full_name == github.repository }}
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      # secrets cannot appear in `if:` — evaluate once into env, then gate steps on it.
+      HAS_CURSOR_KEY: ${{ secrets.CURSOR_API_KEY != '' }}
+    steps:
+      - name: Cursor autofix gate (why steps may be skipped)
+        run: |
+          set -euo pipefail
+          echo "HAS_CURSOR_KEY=${HAS_CURSOR_KEY}"
+          if [ "${HAS_CURSOR_KEY}" != "true" ]; then
+            echo "::warning::cursor / autofix e2e (preview) skipped: add repository secret CURSOR_API_KEY (Cursor Dashboard → Cloud agents → API key) to enable automatic Cloud Agent fixes."
+          fi
+
+      - name: Checkout
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        uses: actions/checkout@v5
+
+      - name: Download E2E pytest log
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: e2e-pytest-log
+          path: artifacts
+
+      - name: Setup Node.js
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Install @cursor/sdk
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        run: |
+          set -euo pipefail
+          # Isolated node_modules — no package.json change in the repo.
+          mkdir -p .cursor-sdk-tmp
+          cd .cursor-sdk-tmp
+          npm init -y >/dev/null
+          npm install --silent --no-audit --no-fund --no-progress @cursor/sdk
+
+      - name: Trigger Cursor Cloud autofix
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          REPO_URL: ${{ github.event.repository.clone_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          E2E_LOG_FILE: artifacts/e2e-pytest.log
+        # node_modules lives in .cursor-sdk-tmp; run node from there so it resolves @cursor/sdk.
+        run: |
+          set -euo pipefail
+          cd .cursor-sdk-tmp
+          node "$GITHUB_WORKSPACE/.github/scripts/trigger-cursor-fix-e2e.mjs"

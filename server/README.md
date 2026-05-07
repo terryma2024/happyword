@@ -211,6 +211,30 @@ If the Mongo secrets are absent the reset step prints a CI warning and
 skips, and the E2E tests requiring Mongo also skip cleanly — the job stays
 green so first-time setup is non-blocking.
 
+#### Optional: Cursor Cloud autofix on E2E failure
+
+When `server / e2e (preview)` **fails on a same-repo PR**, a follow-up job
+**`cursor / autofix e2e (preview)`** can spawn a Cursor Cloud Agent that:
+
+1. Reads the failing pytest log (uploaded as the `e2e-pytest-log` artifact).
+2. Investigates the failure on a freshly cloned copy of this repo at the PR's
+   head ref.
+3. Opens a follow-up PR **targeting the PR branch** (not `main`) with the fix.
+
+To enable it, add one repository secret:
+
+| Secret           | Where to get it                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| `CURSOR_API_KEY` | [Cursor Dashboard → Cloud agents](https://cursor.com/dashboard/cloud-agents) → API keys. |
+
+The Cursor GitHub App must be installed on the repo so the agent can push a
+branch and open a PR. Without `CURSOR_API_KEY` the autofix job runs but
+prints a single `::warning::` and exits — it does not block CI.
+
+Debounce: the job posts a hidden marker comment on the PR
+(`<!-- cursor-autofix-triggered:<sha> -->`). Re-running the workflow on the
+same commit will not spawn a second Cursor agent.
+
 `E2E_ADMIN_USER` / `E2E_ADMIN_PASS` MUST match the deployment's
 `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` Vercel env vars — those
 are the credentials FastAPI's startup hook uses to bootstrap the admin
