@@ -39,6 +39,7 @@ import parentRedemptionPollTest from './ParentRedemptionPoll.test';
 import deviceUnbindClientTest from './DeviceUnbindClient.test';
 import photoPickerServiceTest from './PhotoPickerService.test';
 import barcodeImageDecoderTest from './BarcodeImageDecoder.test';
+import versionTripleTapTest from './VersionTripleTap.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -82,4 +83,5 @@ export default function testsuite() {
   deviceUnbindClientTest();
   photoPickerServiceTest();
   barcodeImageDecoderTest();
+  versionTripleTapTest();
 }
