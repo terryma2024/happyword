@@ -179,6 +179,15 @@ jobs:
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          # When the Vercel project has Deployment Protection enabled (Vercel
+          # Authentication / Password / Trusted IPs), every API call from this
+          # runner is intercepted with a 401 + an SSO HTML page. The driver
+          # forwards this as the `x-vercel-protection-bypass` header so the
+          # request is waved through to the real Function. Empty value =
+          # no header is sent (safe for unprotected previews / local runs).
+          # Mint the secret in: Project → Settings → Deployment Protection →
+          # "Protection Bypass for Automation".
+          E2E_VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         # Tee output to a log file so the cursor_autofix_e2e job can ingest it via artifact.
         run: |
           set -o pipefail

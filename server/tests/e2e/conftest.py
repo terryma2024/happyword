@@ -21,6 +21,7 @@ from tests.e2e._utils.auth import (
     parent_login,
 )
 from tests.e2e._utils.db import MongoDB
+from tests.e2e._utils.vercel import vercel_bypass_headers
 
 
 def _strip_env(name: str) -> str:
@@ -47,11 +48,18 @@ def http(base_url: str) -> Iterator[httpx.Client]:
 
     Function scope means each test starts with a clean cookie jar — the
     parent fixture re-attaches the session cookie when needed.
+
+    When the deployed target is a Vercel preview with deployment
+    protection turned on, ``E2E_VERCEL_PROTECTION_BYPASS`` injects the
+    ``x-vercel-protection-bypass`` header on every request so the test
+    driver is waved through to the real Function instead of being
+    intercepted by Vercel's SSO HTML page.
     """
     with httpx.Client(
         base_url=base_url,
         timeout=15.0,
         follow_redirects=False,
+        headers=vercel_bypass_headers(),
     ) as client:
         yield client
 

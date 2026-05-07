@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import httpx
 
 from tests.e2e._utils.db import MongoDB, inject_otp_code
+from tests.e2e._utils.vercel import vercel_bypass_headers
 
 KNOWN_OTP_CODE = "123456"
 
@@ -120,7 +121,11 @@ def device_redeem(
         )
     token = r.json()["token"]
 
-    with httpx.Client(base_url=base_url, timeout=15.0) as anon:
+    with httpx.Client(
+        base_url=base_url,
+        timeout=15.0,
+        headers=vercel_bypass_headers(),
+    ) as anon:
         r = anon.post(
             "/api/v1/pair/redeem",
             json={"token": token, "device_id": device_id},

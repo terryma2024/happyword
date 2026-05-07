@@ -98,6 +98,7 @@ uv run pytest -v -m e2e
 | `E2E_MONGO_DB_NAME` | DB name. Safety guard requires the name to end with `_e2e`, `_test`, or `_ci` and never contain `prod`. |
 | `E2E_ADMIN_USER`    | Bootstrap admin username for `/api/v1/auth/login`.                                                      |
 | `E2E_ADMIN_PASS`    | Bootstrap admin password.                                                                               |
+| `E2E_VERCEL_PROTECTION_BYPASS` | Optional. Vercel "Protection Bypass for Automation" secret — required when the preview has Deployment Protection (SSO / password / trusted-IP) enabled. The driver attaches it as the `x-vercel-protection-bypass` header on every request. Empty / unset = no header sent (correct for local or unprotected previews). |
 
 
 ### Local run (against a local server + Dockerised Mongo)
@@ -210,6 +211,16 @@ Vercel ones — `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`):
 If the Mongo secrets are absent the reset step prints a CI warning and
 skips, and the E2E tests requiring Mongo also skip cleanly — the job stays
 green so first-time setup is non-blocking.
+
+If the Vercel project has **Deployment Protection** turned on (Vercel
+Authentication, Password Protection, or Trusted IPs), also add the
+`VERCEL_AUTOMATION_BYPASS_SECRET` repository secret. The workflow forwards
+it to pytest as `E2E_VERCEL_PROTECTION_BYPASS`, which the driver attaches
+as the `x-vercel-protection-bypass` header on every request. Without it,
+every API call from CI is intercepted with a 401 + SSO HTML page and the
+whole suite fails with `assert 401 == 200`. Mint the secret in:
+*Project → Settings → Deployment Protection → "Protection Bypass for
+Automation"*.
 
 #### Optional: Cursor Cloud autofix on E2E failure
 
