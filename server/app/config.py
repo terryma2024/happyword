@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 from functools import lru_cache
@@ -5,6 +6,18 @@ from typing import Literal
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# MongoDB Atlas rejects database names longer than 38 bytes (it surfaces this
+# at runtime as `AtlasError 8000: Database name … is too long. Max database
+# name length is 38 bytes.`, which crashes the FastAPI lifespan hook on the
+# very first Beanie call). Stay under the cap; pre-Atlas Mongo's own 64-byte
+# limit is looser, so this is the binding constraint in production.
+_ATLAS_MAX_DB_NAME_BYTES = 38
+
+
+def _slug_branch(branch: str) -> str:
+    """Lowercase, collapse non-alphanumerics to `_`, trim outer `_`."""
+    return re.sub(r"[^a-z0-9]+", "_", branch.lower()).strip("_")
 
 
 def _resolve_db_name(template: str, *, pr: str, branch: str) -> str:
@@ -14,13 +27,26 @@ def _resolve_db_name(template: str, *, pr: str, branch: str) -> str:
     - Literal templates (no placeholder) pass through unchanged.
     - `{pr}` substitutes `pr` when non-empty, else `branch_<slug>`.
     - `{branch}` always substitutes the slugged branch name.
-    - Slugs lowercase, collapse non-alphanumerics to `_`, trim leading/trailing
-      `_`, then truncate to 32 chars so the final DB name stays well under
-      Mongo's 64-byte limit even with prefix/suffix.
+    - When the assembled name would exceed Atlas's 38-byte cap (e.g. a preview
+      deploy off a long branch with no open PR yet, like
+      `cursor/bump-actions-to-node24` resolving to
+      `happyword_pr_branch_cursor_bump_actions_to_node24_e2e` = 53 bytes), we
+      degrade to a deterministic `br_<sha1[:8]>` slug instead of crashing on
+      startup. Same branch ⇒ same hash ⇒ same DB across redeploys, so no
+      per-restart database churn.
     """
-    safe_branch = re.sub(r"[^a-z0-9]+", "_", branch.lower()).strip("_")[:32]
+    safe_branch = _slug_branch(branch)
     pr_value = pr or f"branch_{safe_branch}"
-    return template.format(pr=pr_value, branch=safe_branch)
+    full = template.format(pr=pr_value, branch=safe_branch)
+    if len(full) <= _ATLAS_MAX_DB_NAME_BYTES:
+        return full
+
+    # The readable form would be rejected by Atlas. Hash the *raw* branch (not
+    # the slug) so two branches that slug to the same value still get distinct
+    # DBs. SHA-1 is fine here — we only need collision resistance, not crypto.
+    branch_hash = hashlib.sha1(branch.encode("utf-8")).hexdigest()[:8]
+    short_pr = pr or f"br_{branch_hash}"
+    return template.format(pr=short_pr, branch=branch_hash)
 
 
 class Settings(BaseSettings):
