@@ -86,6 +86,64 @@ def base_url() -> str:
     return url
 
 
+def _is_vercel_auth_page(resp: httpx.Response) -> bool:
+    """True if ``resp`` is Vercel's deployment-protection SSO interstitial.
+
+    Vercel intercepts protected previews with a 401 + an HTML page that
+    includes the ``x-vercel-protection-bypass`` documentation marker.
+    Whenever that page leaks back, every API call collapses to
+    ``assert 401 == 200`` and the suite produces a wall of unrelated
+    failures. Detecting it once and skipping is much more readable.
+    """
+    if resp.status_code != 401:
+        return False
+    content_type = resp.headers.get("content-type", "")
+    if "text/html" not in content_type:
+        return False
+    body = resp.text
+    return (
+        "x-vercel-protection-bypass" in body
+        or "Authentication Required" in body
+    )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _preview_protection_preflight(base_url: str) -> None:
+    """Detect "Vercel Deployment Protection blocks the runner" up-front.
+
+    Runs once per session. Hits the public health endpoint with the same
+    bypass headers tests use; if Vercel's SSO HTML page comes back, the
+    bypass secret is missing or wrong (CI secret
+    ``VERCEL_AUTOMATION_BYPASS_SECRET`` not configured) and *every* test
+    would otherwise fail with confusing ``401`` responses. Skip the
+    whole suite with an actionable message instead.
+    """
+    try:
+        resp = httpx.get(
+            f"{base_url}/api/v1/health",
+            headers=vercel_bypass_headers(),
+            timeout=15.0,
+            follow_redirects=False,
+        )
+    except httpx.HTTPError:
+        return
+    if _is_vercel_auth_page(resp):
+        bypass_set = bool(_strip_env("E2E_VERCEL_PROTECTION_BYPASS"))
+        hint = (
+            "the secret is set but Vercel rejected it (rotated / wrong project?)"
+            if bypass_set
+            else "the secret is empty — set the GitHub Actions repo secret "
+            "VERCEL_AUTOMATION_BYPASS_SECRET (Project → Settings → "
+            "Deployment Protection → Protection Bypass for Automation)"
+        )
+        pytest.skip(
+            "Vercel Deployment Protection is intercepting requests to "
+            f"{base_url}; {hint}. "
+            "See server/tests/e2e/_utils/vercel.py for details.",
+            allow_module_level=True,
+        )
+
+
 @pytest.fixture(scope="session")
 def run_id() -> str:
     """Per-session UUID prefix to namespace all fabricated identifiers."""
