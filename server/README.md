@@ -205,9 +205,11 @@ changes under `server/`**:
   Detects (or deploys as fallback) a Vercel preview URL, runs
    `scripts/e2e_reset_db.py`, then `uv run pytest -v -m e2e`.
 
-Required GitHub secrets to enable the E2E job (in addition to the standard
-Vercel ones — `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`):
-`E2E_MONGODB_URI`, `E2E_MONGO_DB_NAME`, `E2E_ADMIN_USER`, `E2E_ADMIN_PASS`.
+> **For the full list of CI secrets** (Vercel, Mongo, Slack, Cursor) and
+> step-by-step instructions on how to obtain each one, see the dedicated
+> page: [`docs/ci-secrets.md`](../docs/ci-secrets.md). The notes below only
+> cover what is unique to the E2E pipeline.
+
 If the Mongo secrets are absent the reset step prints a CI warning and
 skips, and the E2E tests requiring Mongo also skip cleanly — the job stays
 green so first-time setup is non-blocking.
@@ -234,15 +236,11 @@ When `server / e2e (preview)` **fails on a same-repo PR**, a follow-up job
    true`, `autoCreatePR: false`) — no separate PR is opened. The next CI run
    on the PR re-evaluates the fix.
 
-To enable it, add one repository secret:
-
-| Secret           | Where to get it                                                                          |
-| ---------------- | ---------------------------------------------------------------------------------------- |
-| `CURSOR_API_KEY` | [Cursor Dashboard → Cloud agents](https://cursor.com/dashboard/cloud-agents) → API keys. |
-
-The Cursor GitHub App must be installed on the repo so the agent can push
-commits to the PR branch. Without `CURSOR_API_KEY` the autofix job runs but
-prints a single `::warning::` and exits — it does not block CI.
+To enable it, add the repository secret **`CURSOR_API_KEY`** and install
+the Cursor GitHub App on the repo. See
+[`docs/ci-secrets.md` — `CURSOR_API_KEY`](../docs/ci-secrets.md#cursor_api_key)
+for both. Without `CURSOR_API_KEY` the autofix job runs but prints a single
+`::warning::` and exits — it does not block CI.
 
 **Guards** (all in `.github/scripts/trigger-cursor-fix-e2e.mjs`):
 
