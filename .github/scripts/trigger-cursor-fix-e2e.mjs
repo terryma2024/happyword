@@ -127,17 +127,25 @@ function buildPrompt(logSnippet) {
   ].join("\n");
 }
 
+function agentWebUrl(agentId) {
+  // Cursor Cloud Agents detail URL pattern (cursor.com/agents/<id>).
+  // If Cursor changes this path, update here; the dashboard root always works
+  // as a fallback.
+  return agentId ? `https://cursor.com/agents/${agentId}` : `https://cursor.com/dashboard/cloud-agents`;
+}
+
 async function postMarkerComment({ agentId, runId }) {
+  const url = agentWebUrl(agentId);
   const body = [
     MARKER,
     `🤖 **Cursor Cloud autofix triggered** for failing \`server / e2e (preview)\` job.`,
     ``,
     `- Failed Actions run: ${RUN_URL}`,
     `- Head SHA: \`${PR_HEAD_SHA}\``,
-    `- Cursor agent: \`${agentId ?? "unknown"}\``,
+    `- Cursor agent: [\`${agentId ?? "unknown"}\`](${url})`,
     `- Cursor run: \`${runId ?? "unknown"}\``,
     ``,
-    `Track progress in the [Cursor Cloud Agents dashboard](https://cursor.com/dashboard/cloud-agents).`,
+    `Open the agent: ${url}`,
     `When ready, the agent will open a follow-up PR against \`${PR_HEAD_REF}\`.`,
     ``,
     `_This run is debounced — re-running the workflow on the same commit will not start a second agent._`,
@@ -187,7 +195,26 @@ async function main() {
     const run = await agent.send(prompt);
     agentId = agent.agentId ?? null;
     runId = run?.id ?? null;
+    const url = agentWebUrl(agentId);
     console.log(`Spawned Cursor Cloud agent agentId=${agentId} runId=${runId}`);
+    console.log(`Track progress: ${url}`);
+    // Surface the URL in the GitHub Actions step summary so it shows up at the
+    // top of the failed run page next to the workflow log.
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      const summary = [
+        `### Cursor Cloud autofix dispatched`,
+        ``,
+        `- Agent: [\`${agentId}\`](${url})`,
+        `- Run: \`${runId}\``,
+        `- Failed CI run: ${RUN_URL}`,
+        ``,
+      ].join("\n");
+      try {
+        fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+      } catch {
+        /* best-effort */
+      }
+    }
     // Intentionally do NOT call run.wait(): a cloud E2E autofix can take many
     // minutes; we want CI to exit quickly. The cloud-side run keeps executing
     // independently. The IDs above are recorded in the PR comment for tracking.
@@ -199,7 +226,15 @@ async function main() {
   console.log("Posted marker comment on PR.");
 }
 
-main().catch((err) => {
-  console.error(`Cursor autofix trigger failed: ${err?.stack ?? err}`);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    // Force exit: the SDK may keep open background watchers / keep-alive
+    // sockets even after agent.close() / asyncDispose, which would block Node
+    // from exiting and hang the CI step indefinitely. We have no further work,
+    // so exit explicitly with success.
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error(`Cursor autofix trigger failed: ${err?.stack ?? err}`);
+    process.exit(1);
+  });
