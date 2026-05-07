@@ -1,7 +1,16 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-07T04:52:42.709Z",
+  "updated_at": "2026-05-07T04:53:03.883Z",
   "previews": [
+    {
+      "pr": 38,
+      "title": "docs(server): record PR #37 e2e-preview failure on the still-missing VERCEL_AUTO",
+      "branch": "cursor/e2e-still-blocked-on-secret-pr37-a5cb",
+      "url": "https://happyword-de4y1esvf-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "4ccaf88",
+      "updated_at": "2026-05-07T04:53:03.883Z"
+    },
     {
       "pr": 30,
       "title": "V0.6: Parent account + family-scoped device binding",
