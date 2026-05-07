@@ -34,7 +34,7 @@ on:
         required: false
         type: string
       max_rounds:
-        description: "Override MAX_ROUNDS for this dispatch (default 10). Use to temporarily raise the per-PR cap without editing the script."
+        description: "Override MAX_ROUNDS for this dispatch (default 20). Use to temporarily lower or raise the per-PR cap without editing the script."
         required: false
         type: string
         default: ""
@@ -162,6 +162,6 @@ jobs:
           TRIGGER_SOURCE: manual
           TRIGGER_REASON: ${{ inputs.reason }}
           FORCE_TRIGGER: ${{ inputs.force && '1' || '0' }}
-          # Empty string falls back to the script's default (10).
+          # Empty string falls back to the script's default (20).
           MAX_ROUNDS: ${{ inputs.max_rounds }}
         run: node .github/scripts/trigger-cursor-fix-e2e.mjs

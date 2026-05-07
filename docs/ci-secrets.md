@@ -9,15 +9,17 @@ end-to-end. If you only want one section, jump straight to
 
 | Workflow | File | Trigger | Purpose |
 | --- | --- | --- | --- |
-| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself | Offline pytest, then E2E pytest against a Vercel Preview, then auto-fix on failure |
+| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself | Offline pytest → E2E pytest against a Vercel Preview → branches: success ⇒ refresh `docs/preview-urls.json`; failure ⇒ Cursor autofix |
 | `server-cd` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Push to `main` touching `server/**` | Wait for Vercel **production** deploy, run staging smoke (`pytest -m smoke`) |
 | `cursor-autofix-e2e` | [`.github/workflows/cursor-autofix-e2e.yml`](../.github/workflows/cursor-autofix-e2e.yml) | `workflow_dispatch` | Manually trigger a Cursor Cloud Agent for an open PR |
-| `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR open/sync/reopen/close + dispatch | Refresh `docs/preview-urls.json` (gated on `server-ci` success) |
+| `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR `closed` + dispatch | Cleanup-on-close + manual repair for `docs/preview-urls.json` (the open-PR refresh path now lives in the `update_manifest` job inside `server-ci`) |
 | `atlas-cleanup` | [`.github/workflows/atlas-cleanup.yml`](../.github/workflows/atlas-cleanup.yml) | Cron Mon 09:00 UTC + dispatch | Drop stale per-PR Mongo Atlas DBs older than 14 days |
 | `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Cron Mon 10:00 UTC + dispatch | Keep only the newest Vercel deployment per non-`main` branch (production alias preserved) |
 
-`server-ci` is the most important one — it gates `preview-manifest`, and its
-failure is what triggers the Cursor autofix path.
+`server-ci` is the most important one — its `server_e2e` job branches into
+either the manifest refresh (`update_manifest`) or the Cursor autofix path
+(`cursor_autofix_e2e`) depending on the E2E result. `preview-manifest.yml`
+now only handles cleanup-on-close and manual repair runs.
 
 ## All secrets, in one table
 
@@ -301,11 +303,14 @@ For someone forking this repo and wanting CI fully working:
   presence and freshness first.
 - **Scope.** All current secrets are **repository-level**. None are tied to
   a GitHub Environment, so a workflow re-run will not require approval.
-- **Cursor autofix loop.** The autofix script enforces `MAX_ROUNDS = 10`
-  per PR (counted across SHAs). If you hit the cap on a long-running PR,
+- **Cursor autofix loop.** The autofix script enforces `MAX_ROUNDS = 20`
+  per PR (counted across SHAs; raised from 10 after long-lived branches
+  hit the cap mid-debug). If you hit the cap on a long-running PR, either
   delete some of the `<!-- cursor-autofix-triggered:* -->` marker comments
-  on the PR or raise `MAX_ROUNDS` in
-  [`.github/scripts/trigger-cursor-fix-e2e.mjs`](../.github/scripts/trigger-cursor-fix-e2e.mjs).
+  on the PR, raise `DEFAULT_MAX_ROUNDS` in
+  [`.github/scripts/trigger-cursor-fix-e2e.mjs`](../.github/scripts/trigger-cursor-fix-e2e.mjs),
+  or pass a one-off override via the `cursor-autofix-e2e` workflow's
+  `max_rounds` input.
 - **Per-PR DB hygiene.** `atlas-cleanup` drops `happyword_pr_<N>_e2e` DBs
   older than 14 days. If you keep a PR open longer, the next CI run on it
   re-creates the DB from scratch — no manual action needed.

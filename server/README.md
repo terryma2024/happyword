@@ -247,10 +247,13 @@ for both. Without `CURSOR_API_KEY` the autofix job runs but prints a single
 1. **Per-SHA debounce** — a hidden marker comment
    (`<!-- cursor-autofix-triggered:<sha> -->`) is posted on the PR. Re-running
    the workflow on the same commit is a no-op.
-2. **Per-PR round cap** — `MAX_ROUNDS = 10`. Once that many marker comments
-   exist on the PR (auto + manual combined), further dispatches are blocked
-   and a single `Cursor Cloud autofix paused` warning is posted. Reset by
-   removing some marker comments, or raise `MAX_ROUNDS` in the script.
+2. **Per-PR round cap** — `MAX_ROUNDS = 20` (`DEFAULT_MAX_ROUNDS` in
+   [`.github/scripts/trigger-cursor-fix-e2e.mjs`](../.github/scripts/trigger-cursor-fix-e2e.mjs)).
+   Once that many marker comments exist on the PR (auto + manual combined),
+   further dispatches are blocked and a single `Cursor Cloud autofix paused`
+   warning is posted. Reset by removing some marker comments, raising
+   `DEFAULT_MAX_ROUNDS` in the script, or passing `max_rounds=<N>` to the
+   `cursor-autofix-e2e` `workflow_dispatch` for a one-off override.
 3. **Unfixable-failure filter** — the script scans the pytest log for clearly
    environmental indicators (`E2E_BASE_URL` empty, Vercel preview unavailable,
    Mongo unreachable, repeated 502/503/504s, no tests collected) and skips
