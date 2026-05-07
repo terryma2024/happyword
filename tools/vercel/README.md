@@ -107,10 +107,25 @@ billing — drop it. Live config is in [`server/vercel.json`](../../server/verce
     { "source": "/(.*)",     "destination": "/api/index.py" }
   ],
   "functions": {
-    "api/index.py": { "maxDuration": 60 }
+    "api/index.py": {
+      "runtime": "@vercel/python@6.38.0",
+      "maxDuration": 60
+    }
   }
 }
 ```
+
+> **Why pin `runtime` explicitly?** When you drop the legacy `builds`
+> array, you lose the implicit `use: "@vercel/python"` directive that
+> told Vercel to compile `api/index.py` with the Python runtime. With
+> only the modernized `functions` block and no `runtime` field, recent
+> Vercel CLIs simply *don't deploy any function* — every URL on the
+> resulting preview/prod deployment returns Vercel's edge `404
+> NOT_FOUND` page. The bug is silent because the GitHub Vercel check
+> still goes green. Pinning the runtime restores the legacy-equivalent
+> "this `.py` file is a Python serverless function" wiring. See
+> https://github.com/vercel/vercel/discussions/11191 for the upstream
+> trip-wire.
 
 ### 4. Project root directory must be `null`, not `server`
 
