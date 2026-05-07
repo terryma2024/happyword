@@ -239,9 +239,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
-      # listDeployments + listDeploymentStatuses (used by update_preview_manifest.mjs to resolve the Vercel preview URL).
-      deployments: read
-    timeout-minutes: 35
+    timeout-minutes: 10
     # The closed-event cleanup half of preview-manifest.yml runs in parallel
     # for some lifecycle events (e.g. a closing PR that also synchronizes).
     # Same `concurrency: preview-manifest` group as that workflow forces them
@@ -276,28 +274,50 @@ jobs:
       - name: Install Octokit
         run: npm install --no-save @octokit/rest
 
-      - name: Update manifest
+      - name: Rebuild manifest from Vercel
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PREVIEW_MANIFEST_POLL_INTERVAL_MS: '30000'
-          PREVIEW_MANIFEST_POLL_MAX_ATTEMPTS: '30'
-        run: node server/scripts/update_preview_manifest.mjs "$GITHUB_EVENT_PATH" "$GITHUB_TOKEN"
+          # GITHUB_REPOSITORY is auto-set by Actions to "<owner>/<repo>".
+        run: node server/scripts/update_preview_manifest.mjs
 
-      - name: Commit + push if changed
+      - name: Commit + push if URL set changed
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-          git add docs/preview-urls.json
-          if git diff --staged --quiet; then
-            echo "No changes."
+          set -euo pipefail
+          # Gate the commit on the SET OF PREVIEW URLS, not the entire file.
+          # The script always rewrites `updated_at` timestamps and per-row
+          # `head_sha` strings on every run; if we used `git diff --staged
+          # --quiet` we'd produce a noisy "refresh" commit on every PR sync
+          # even when no preview deployment actually appeared or vanished.
+          # Compare sorted URL lists from main's HEAD vs the freshly-written
+          # file and only commit when those differ.
+          NEW_URLS=$(jq -r '(.previews // []) | map(.url) | sort[]' docs/preview-urls.json)
+          OLD_URLS=$(git show HEAD:docs/preview-urls.json 2>/dev/null \
+            | jq -r '(.previews // []) | map(.url) | sort[]' 2>/dev/null \
+            || echo '')
+          if [ "$NEW_URLS" = "$OLD_URLS" ]; then
+            echo "URL set unchanged; skipping commit."
+            echo "$NEW_URLS" | sed 's/^/  /'
             exit 0
           fi
+          echo "URL set changed:"
+          diff <(echo "$OLD_URLS") <(echo "$NEW_URLS") | sed 's/^/  /' || true
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          # Path-specific add + commit so we can never accidentally sweep up
+          # other files staged by earlier steps (notably the
+          # `Sync manifest updater from PR head` step's `git checkout pr-head
+          # -- server/scripts/update_preview_manifest.mjs`, which silently
+          # populates the index for that path).
+          git add -- docs/preview-urls.json
           if [ -n "$PR_NUMBER" ]; then
-            git commit -m "chore: refresh preview-urls.json (PR #${PR_NUMBER})"
+            git commit -m "chore: refresh preview-urls.json (PR #${PR_NUMBER})" -- docs/preview-urls.json
           else
-            git commit -m "chore: refresh preview-urls.json"
+            git commit -m "chore: refresh preview-urls.json" -- docs/preview-urls.json
           fi
           git push origin main
 

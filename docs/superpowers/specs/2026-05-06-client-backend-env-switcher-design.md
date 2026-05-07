@@ -220,57 +220,27 @@ Field invariants (validated client-side; bad rows skipped, not fatal):
 - `updated_at` is the manifest-write time, NOT the deploy time. The client's "last refreshed" footer uses this.
 - The `previews` array length is capped at 50; older entries are pruned by the workflow.
 
-### 5.3 The `preview-manifest.yml` workflow
+### 5.3 The manifest-refresh workflows
 
-New `.github/workflows/preview-manifest.yml`:
+The manifest is rebuilt by `server/scripts/update_preview_manifest.mjs`, which sources truth from the **Vercel deployments API** (NOT GitHub PR webhook payloads). On every run it:
 
-```
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-  workflow_dispatch:        # manual repair button
+1. Lists every Vercel deployment for the project.
+2. Groups by `meta.githubCommitRef` and picks the newest READY non-production deployment per non-protected branch.
+3. Looks up the matching PR via `GET /repos/<owner>/<repo>/pulls?head=<owner>:<branch>&state=all`, sorted by `created_at desc`.
+4. Emits `{pr, title, branch, url (the canonical Vercel hash URL), author, head_sha, updated_at}` per branch with a PR; sorts `pr desc`; truncates to 50; writes file.
 
-permissions:
-  contents: write           # to commit the JSON to main
-  pull-requests: read
+Two workflows call it, sharing the `concurrency: preview-manifest` group so writes to `docs/preview-urls.json` serialise:
 
-concurrency:
-  group: preview-manifest    # serialise mutations to docs/preview-urls.json
-  cancel-in-progress: false
-
-jobs:
-  update_manifest:
-    runs-on: ubuntu-latest
-    steps:
-      - actions/checkout@v4 (ref: main)
-      - actions/setup-node@v4 (node 20)
-      - run: a small script (server/scripts/update_preview_manifest.mjs) that:
-          1. read docs/preview-urls.json (or empty list if missing)
-          2. on opened/synchronize/reopened:
-              - resolve the deploy URL via the same github-script pattern
-                we already use in server-ci.yml (gh deployments + statuses
-                with state=success and environment_url)
-              - if found, upsert {pr, title, branch, url, author, head_sha,
-                updated_at} into the previews array
-              - if not found yet (deploy still pending), schedule a re-run
-                via `gh workflow run preview-manifest.yml --ref main`
-                in 60s, exit 0
-          3. on closed:
-              - remove the row whose pr matches
-          4. dedup, sort by pr desc, truncate to 50
-          5. update_at = now (UTC ISO)
-          6. write file
-      - git add docs/preview-urls.json
-      - git diff --staged --quiet || git commit -m "chore: refresh preview-urls.json (PR #${{ github.event.pull_request.number }})"
-      - git push origin main
-```
+- **`.github/workflows/server-ci.yml` → `update_manifest` job** — runs on every PR open/synchronize/reopen, gated on `server_e2e` success. Restricted to in-repo PRs (forks can't push back to `main`). The "happy path" that picks up new previews after a green E2E.
+- **`.github/workflows/preview-manifest.yml`** — runs on PR `closed` and on `workflow_dispatch`. No e2e gate (the PR is closed; e2e won't run again, but the merged-PR's preview may still be alive on Vercel and should stay in the manifest until pruned).
 
 Key choices:
 - All mutations land on `main` in their own commit. Path-filtered CI workflows ignore `docs/**` so this doesn't trigger `server-ci.yml` or `server-cd.yml`.
-- Concurrency-grouped so two simultaneous PR events serialise on the manifest file.
-- Self-rescheduling when the Vercel deploy URL hasn't appeared yet — exits 0 and re-fires itself in 60 s. Cap at 5 retries (15 min total) before giving up; the workflow logs a warning and the dropdown will simply not show that PR until the next sync.
-- Script is **node-based** (not Python) because GitHub Actions ships node natively and we already use `actions/github-script@v7` in the same shape elsewhere.
-- `workflow_dispatch` stays as a manual repair button — if the file ever drifts, run it once with no PR-event payload and the script rebuilds the entire `previews` array by walking all open PRs.
+- **Commit gate**: both workflows commit the regenerated file only when the **set of `previews[].url` values** differs between main's HEAD and the freshly-written file. `updated_at` and per-row `head_sha` drift (which the script always rewrites on every run, even when nothing material changed) is intentionally ignored, so a noisy "refresh" commit is not produced on every PR sync. The `git commit` invocation also uses an explicit `-- docs/preview-urls.json` pathspec so it never sweeps up other files staged earlier in the workflow.
+- The script is fully **idempotent** — every invocation rebuilds the manifest from current Vercel + GitHub state. There is no per-event upsert/remove bookkeeping. This makes the manifest self-healing: if a workflow run is missed, the next one reconciles automatically.
+- A merged PR whose Vercel preview is still alive remains in the manifest until the weekly `vercel-prune.yml` cron deletes the deployment. No separate cleanup-on-merge step is needed.
+- Script is **node-based** (not Python) because GitHub Actions ships node natively and the Vercel API helper already lives in `server/scripts/vercel_prune_branch_deployments.mjs`.
+- `workflow_dispatch` is a real manual repair button — running it without any PR payload triggers a full rebuild, useful when the file drifts (e.g. failed workflow run, hand-edited commit).
 
 ### 5.4 Client-side fetch + cache
 
@@ -362,7 +332,7 @@ Steps:
 | DevMenu accidentally compiled into release build | low | Single `if (BuildProfile.BUILD_MODE_NAME === 'debug')` gate — covered by ohosTest using the existing build-mode override pattern. CI would also catch any ConfigPage UI snapshot drift in release-mode tests. |
 | Manifest JSON becomes stale (workflow fails silently) | medium | Workflow failure posts to `#happyword-ci`; client shows "上次同步" timestamp prominently so testers notice >24h staleness. |
 | Vercel preview deploy still pending when manifest workflow runs | high | Self-reschedule pattern in §5.3 (60 s retry, 5 attempts, 15 min total). |
-| Client routes traffic to a closed-PR URL still in cache | low | Cache TTL = 5 min. Closed-PR rows are removed by the workflow within seconds of the close event. Worst case: user picks a stale URL → 404 → DevMenu's pre-apply HEAD validation refuses to switch. |
+| Client routes traffic to a stale (Vercel-pruned) URL still in cache | low | Cache TTL = 5 min. Manifest rows are recomputed from the Vercel deployments API on every refresh, so a row vanishes within one PR-event cycle of the deployment being pruned. Worst case: user picks a row whose deployment was just pruned → 404 → DevMenu's pre-apply HEAD validation refuses to switch. |
 | Manifest URL list grows unbounded | low | Workflow caps at 50 newest, prunes older. |
 | Debug-build APK leaked externally has DevMenu enabled | low | Same risk profile as today's debug builds. Acceptable for V0.6. |
 | Release build mistakenly built with `BUILD_MODE_NAME` not set to `release` | low | Existing `pickServerBaseUrlExplicit` test pattern covers unknown modes by defaulting to staging — extended to cover the new resolver. |
@@ -380,7 +350,7 @@ The env-switcher is "live" when ALL hold:
 - [ ] Phases A–D all merged.
 - [ ] Release build's `effectiveServerBaseUrl()` is provably hard-locked to `STAGING_BASE_URL` (ohosTest passes; manual confirmation by stripping debug guard temporarily fails the test, then reinstated).
 - [ ] Debug build can switch to Local / Preview / Staging via DevMenu, with hard-reset working (verified by inspecting Preferences after Apply).
-- [ ] `docs/preview-urls.json` updates within 5 min of a PR open and within 30 s of a PR close (measured during Phase C smoke).
+- [ ] `docs/preview-urls.json` reflects current Vercel deployments after every green E2E (open/sync/reopen) and after every PR close. A merged PR whose Vercel preview is still alive STAYS in the manifest; it disappears only after `vercel-prune.yml` deletes the deployment. (Measured during Phase C smoke.)
 - [ ] Tester following `docs/superpowers/runbooks/dev-menu-runbook.md` succeeds without developer assistance.
 - [ ] Root `README.md` has the env-switcher section.
 - [ ] CLAUDE.md / AGENTS.md note added.
