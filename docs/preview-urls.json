@@ -1,5 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-07T09:39:06.576Z",
-  "previews": []
+  "updated_at": "2026-05-07T10:47:39.021Z",
+  "previews": [
+    {
+      "pr": 40,
+      "title": "fix(server): redirect / to /parent/ so apex domain is not a 404 JSON",
+      "branch": "cursor/root-redirect-to-parent-shell",
+      "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "e6abbc1",
+      "updated_at": "2026-05-07T10:47:39.021Z"
+    }
+  ]
 }
