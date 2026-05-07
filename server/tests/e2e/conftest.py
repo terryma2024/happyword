@@ -28,12 +28,71 @@ def _strip_env(name: str) -> str:
     return os.environ.get(name, "").strip()
 
 
+def _looks_like_vercel_sso_challenge(resp: httpx.Response) -> bool:
+    """Return True iff the response is the Vercel deployment-protection
+    SSO HTML page (HTTP 401 + ``text/html`` + the "Authentication Required"
+    challenge body, optionally with the documented ``vercel-sso-api`` /
+    ``sso-api`` redirect markers).
+
+    Used by the session-level preflight to convert the wall of confusing
+    fixture errors that follow into one actionable failure.
+    """
+    if resp.status_code != 401:
+        return False
+    ctype = resp.headers.get("content-type", "")
+    if "text/html" not in ctype.lower():
+        return False
+    body = resp.text or ""
+    return ("Authentication Required" in body) or ("/sso-api?" in body)
+
+
 @pytest.fixture(scope="session")
 def base_url() -> str:
     url = _strip_env("E2E_BASE_URL")
     if not url:
         pytest.skip("E2E_BASE_URL is not set")
-    return url.rstrip("/")
+    url = url.rstrip("/")
+
+    # Preflight: detect Vercel deployment-protection SSO challenge once,
+    # up-front, and surface it as a single, actionable failure instead of
+    # 50+ confusing JSONDecodeError / 401-HTML stack traces in fixtures.
+    # ``make_client`` already attaches the bypass headers when
+    # ``VERCEL_AUTOMATION_BYPASS_SECRET`` is set, so a successful preflight
+    # confirms the bypass path is wired correctly end-to-end.
+    try:
+        with make_client(url, timeout=10.0) as probe:
+            resp = probe.get("/api/v1/health")
+    except httpx.HTTPError as exc:
+        pytest.fail(
+            f"E2E preflight: could not reach {url}/api/v1/health "
+            f"({exc!r}). The preview deployment may not be ready, or "
+            "the URL is wrong. Check the 'Detect Vercel preview URL' step "
+            "and the deployment dashboard."
+        )
+
+    if _looks_like_vercel_sso_challenge(resp):
+        bypass_set = bool(_strip_env("VERCEL_AUTOMATION_BYPASS_SECRET"))
+        if bypass_set:
+            pytest.fail(
+                f"E2E preflight: target {url} is protected by Vercel "
+                "Authentication and rejected the bypass headers — the "
+                "VERCEL_AUTOMATION_BYPASS_SECRET we sent is invalid or "
+                "no longer matches the value configured under Vercel "
+                "Project → Settings → Deployment Protection → Protection "
+                "Bypass for Automation. Regenerate the token and update "
+                "the GitHub repo secret of the same name."
+            )
+        pytest.fail(
+            f"E2E preflight: target {url} is protected by Vercel "
+            "Authentication (the SSO HTML challenge was returned for "
+            "/api/v1/health) and VERCEL_AUTOMATION_BYPASS_SECRET is not "
+            "set. Add the GitHub repo secret of that name (Vercel → "
+            "Project → Settings → Deployment Protection → Protection "
+            "Bypass for Automation), or disable Vercel Authentication on "
+            "Preview deployments. See server/README.md → 'Required "
+            "environment variables'."
+        )
+    return url
 
 
 @pytest.fixture(scope="session")
@@ -106,9 +165,7 @@ def device(
 ) -> DeviceSession:
     test_slug = request.node.name.replace("[", "_").replace("]", "_")
     device_id = f"e2e-{run_id}-{test_slug}"
-    return device_redeem(
-        base_url=base_url, parent_http=http, device_id=device_id
-    )
+    return device_redeem(base_url=base_url, parent_http=http, device_id=device_id)
 
 
 # Re-export the session dataclasses so tests can ``from .conftest import …``
