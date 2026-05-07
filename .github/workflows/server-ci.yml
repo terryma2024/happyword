@@ -263,8 +263,9 @@ jobs:
         run: |
           set -euo pipefail
           # Isolated node_modules — no package.json change in the repo.
-          mkdir -p .cursor-sdk-tmp
-          cd .cursor-sdk-tmp
+          # Name must not start with "." (npm rejects it as a package name).
+          mkdir -p cursor-sdk-tmp
+          cd cursor-sdk-tmp
           npm init -y >/dev/null
           npm install --silent --no-audit --no-fund --no-progress @cursor/sdk
 
@@ -281,8 +282,8 @@ jobs:
           REPO_URL: ${{ github.event.repository.clone_url }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           E2E_LOG_FILE: artifacts/e2e-pytest.log
-        # node_modules lives in .cursor-sdk-tmp; run node from there so it resolves @cursor/sdk.
+        # node_modules lives in cursor-sdk-tmp; run node from there so it resolves @cursor/sdk.
         run: |
           set -euo pipefail
-          cd .cursor-sdk-tmp
+          cd cursor-sdk-tmp
           node "$GITHUB_WORKSPACE/.github/scripts/trigger-cursor-fix-e2e.mjs"
