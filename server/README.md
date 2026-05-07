@@ -88,6 +88,31 @@ To run **only** E2E tests (after configuring env vars):
 uv run pytest -v -m e2e
 ```
 
+### Troubleshooting: "E2E preflight: target … is protected by Vercel Authentication"
+
+If every test fails at fixture setup with a message that begins with
+`Failed: E2E preflight: target https://… is protected by Vercel Authentication`,
+the suite is doing its job — the session-scoped `base_url` fixture detected
+the Vercel SSO HTML challenge page on `/api/v1/health` and stopped the run
+early so the cause is visible in one annotation instead of cascading
+through 50+ fixture errors. Two repair paths, depending on the exact
+wording:
+
+- **"…and `VERCEL_AUTOMATION_BYPASS_SECRET` is not set"** → the GitHub
+  repo secret of that name is missing. Generate a token under **Vercel →
+  Project → Settings → Deployment Protection → Protection Bypass for
+  Automation**, then add it to **GitHub → Settings → Secrets and
+  variables → Actions** as `VERCEL_AUTOMATION_BYPASS_SECRET`. Re-run the
+  failed Actions job. (Or disable Vercel Authentication on Preview
+  deployments — less secure but no GitHub-side change required.)
+- **"…rejected the bypass headers — the `VERCEL_AUTOMATION_BYPASS_SECRET`
+  we sent is invalid"** → the secret is set but stale. Regenerate the
+  token in the same Vercel screen and update the GitHub secret to the
+  new value.
+
+See [Vercel docs](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation)
+for the bypass token contract.
+
 ### Required environment variables
 
 
