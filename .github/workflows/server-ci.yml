@@ -84,7 +84,7 @@ jobs:
       - name: Detect Vercel preview URL from deployment status
         id: detect_preview
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -196,7 +196,7 @@ jobs:
 
       - name: Upload E2E pytest log
         if: ${{ always() && env.HAS_VERCEL_TOKEN == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-pytest-log
           path: server/artifacts/e2e-pytest.log
@@ -329,7 +329,7 @@ jobs:
 
       - name: Download E2E pytest log
         if: ${{ env.HAS_CURSOR_KEY == 'true' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         continue-on-error: true
         with:
           name: e2e-pytest-log
