@@ -54,7 +54,15 @@ const {
   FORCE_TRIGGER = "0",
 } = process.env;
 
-const MAX_ROUNDS = Number(process.env.MAX_ROUNDS ?? 10);
+// Treat unset / empty-string / non-numeric as "use default 10". Necessary
+// because the manual workflow passes MAX_ROUNDS="" when the user leaves the
+// input blank — and Number("") === 0 would silently block every dispatch.
+const _maxRoundsRaw = (process.env.MAX_ROUNDS ?? "").trim();
+const _maxRoundsParsed = Number(_maxRoundsRaw);
+const MAX_ROUNDS =
+  _maxRoundsRaw === "" || !Number.isFinite(_maxRoundsParsed) || _maxRoundsParsed < 1
+    ? 10
+    : Math.floor(_maxRoundsParsed);
 const FORCE = FORCE_TRIGGER === "1" || FORCE_TRIGGER.toLowerCase() === "true";
 const SOURCE = TRIGGER_SOURCE === "manual" ? "manual" : "auto";
 
