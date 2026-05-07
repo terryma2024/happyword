@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Wire a debug-only `v0.6.0(YYMMDDHHmmss)` label onto HomePage's top-left, make a triple-tap (≤1000ms window) navigate to `DevMenuPage` with PREVIEW pre-selected, and re-render the `DevMenuPage` manifest list as cards showing **title** (max 3 lines) and **`#PR(sha)`** centered. Bumping `AppScope/app.json5` `versionName` from `1.0.0` → `0.6.0` is part of this plan (matches the V0.6 in-flight major version in [`docs/WordMagicGame_roadmap.md`](../../WordMagicGame_roadmap.md)).
+**Goal:** Wire a debug-only `v0.6.0(YYMMDDHHmm)` label onto HomePage's top-left (minute precision — seconds dropped), make a triple-tap (≤1000ms window) navigate to `DevMenuPage` with PREVIEW pre-selected, and re-render the `DevMenuPage` manifest list as cards showing **title** (max 3 lines) and **`#PR(sha)`** centered. Bumping `AppScope/app.json5` `versionName` from `1.0.0` → `0.6.0` is part of this plan (matches the V0.6 in-flight major version in [`docs/WordMagicGame_roadmap.md`](../../WordMagicGame_roadmap.md)).
 
 **Architecture:** Two new pure helper modules (`VersionTripleTap`, `BuildInfo`) keep the counting and timestamp formatting unit-testable. `HomePage` mounts the version `Text` (gated on `BuildProfile.BUILD_MODE_NAME === 'debug'`), holds a `VersionTripleTap` instance, and pushes `pages/DevMenuPage` with `params: { presetEnv: 'preview' }` on the third tap. `DevMenuPage` replaces its existing single-line manifest button rows with a `@Builder previewCard` and reads `router.getParams()` after `hydrate()` to honour the preset.
 
@@ -246,9 +246,9 @@ import { formatBuildTimestamp, formatVersionLabel, VersionInfo } from '../main/e
 
 export default function buildInfoTest(): void {
   describe('formatBuildTimestamp', () => {
-    it('produces12CharDigitString', 0, () => {
+    it('produces10CharDigitString', 0, () => {
       const out: string = formatBuildTimestamp(0);
-      expect(out.length).assertEqual(12);
+      expect(out.length).assertEqual(10);
       // Every char is a digit.
       for (let i: number = 0; i < out.length; i++) {
         const code: number = out.charCodeAt(i);
@@ -258,23 +258,25 @@ export default function buildInfoTest(): void {
 
     it('roundtripsViaDateConstructor', 0, () => {
       // Use a Date built locally so the assertion is timezone-stable.
-      // 2026-05-07 20:52:00 local time.
-      const d: Date = new Date(2026, 4, 7, 20, 52, 0);
+      // 2026-05-07 20:52:34 local time — seconds intentionally non-zero
+      // so the assertion proves they're dropped, not coincidentally :00.
+      const d: Date = new Date(2026, 4, 7, 20, 52, 34);
       const out: string = formatBuildTimestamp(d.getTime());
-      // YY=26, MM=05, DD=07, HH=20, mm=52, ss=00 → '260507205200'.
-      expect(out).assertEqual('260507205200');
+      // YY=26, MM=05, DD=07, HH=20, mm=52 → '2605072052'.
+      // Seconds (34) are intentionally absent.
+      expect(out).assertEqual('2605072052');
     });
   });
 
   describe('formatVersionLabel', () => {
     it('composesLabel', 0, () => {
-      const info: VersionInfo = { versionName: '0.6.0', timestamp: '260507205200' };
-      expect(formatVersionLabel(info)).assertEqual('v0.6.0(260507205200)');
+      const info: VersionInfo = { versionName: '0.6.0', timestamp: '2605072052' };
+      expect(formatVersionLabel(info)).assertEqual('v0.6.0(2605072052)');
     });
 
     it('preservesFallbackVersionName', 0, () => {
-      const info: VersionInfo = { versionName: '?.?.?', timestamp: '260507205200' };
-      expect(formatVersionLabel(info)).assertEqual('v?.?.?(260507205200)');
+      const info: VersionInfo = { versionName: '?.?.?', timestamp: '2605072052' };
+      expect(formatVersionLabel(info)).assertEqual('v?.?.?(2605072052)');
     });
   });
 }
@@ -297,15 +299,18 @@ import { BusinessError } from '@ohos.base';
 
 export interface VersionInfo {
   versionName: string;
-  /** YYMMDDHHmmss, local time. */
+  /** YYMMDDHHmm, local time, minute precision. */
   timestamp: string;
 }
 
 const FALLBACK_VERSION_NAME: string = '?.?.?';
 
 /**
- * Format an epoch millis value as YYMMDDHHmmss in the device's
- * local time. Pure function — deterministic given an input ms.
+ * Format an epoch millis value as YYMMDDHHmm in the device's local
+ * time. Pure function — deterministic given an input ms. Seconds are
+ * intentionally dropped: minute precision is enough to identify which
+ * install corresponds to which build, and avoids visual churn from
+ * re-installs within the same minute.
  */
 export function formatBuildTimestamp(epochMs: number): string {
   const d: Date = new Date(epochMs);
@@ -314,8 +319,7 @@ export function formatBuildTimestamp(epochMs: number): string {
   const dd: string = String(d.getDate()).padStart(2, '0');
   const hh: string = String(d.getHours()).padStart(2, '0');
   const mn: string = String(d.getMinutes()).padStart(2, '0');
-  const ss: string = String(d.getSeconds()).padStart(2, '0');
-  return `${yy}${mm}${dd}${hh}${mn}${ss}`;
+  return `${yy}${mm}${dd}${hh}${mn}`;
 }
 
 /**
@@ -378,7 +382,7 @@ Expected: hypium report shows `formatBuildTimestamp` (2 it blocks) and `formatVe
 git add entry/src/main/ets/services/BuildInfo.ets \
         entry/src/test/BuildInfo.test.ets \
         entry/src/test/List.test.ets
-git commit -m "feat(client): BuildInfo service — read versionName + updateTime, format YYMMDDHHmmss"
+git commit -m "feat(client): BuildInfo service — read versionName + updateTime, format YYMMDDHHmm"
 ```
 
 ---
@@ -993,7 +997,7 @@ Expected: `TestFinished-ResultCode: 0`, `OHOS_REPORT_CODE: 0`. All earlier suite
 - [ ] **Step 5: Manual smoke (optional but recommended)**
 
 1. `hdc install` the latest debug HAP.
-2. Open the app — confirm the top-left shows `v0.6.0(YYMMDDHHmmss)` in small grey text.
+2. Open the app — confirm the top-left shows `v0.6.0(YYMMDDHHmm)` in small grey text (10-char timestamp, minute precision).
 3. Triple-tap quickly (≤1s) → DevMenuPage opens with PREVIEW radio pre-selected and a card list rendered.
 4. Tap a card → it highlights blue. Tap Apply → toast `Environment updated. Re-bind parent account if needed.` and you land back on HomePage.
 5. Re-open DevMenuPage from `Settings → Developer → Backend environment` → confirm the env reflects what was just selected (cards still appear if PREVIEW).

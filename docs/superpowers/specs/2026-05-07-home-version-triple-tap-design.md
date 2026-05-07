@@ -11,7 +11,7 @@ Add a hidden, debug-only entry point on the HarmonyOS home screen that takes a d
 
 The change has three user-visible parts:
 
-1. A small grey `v0.6.0(260507205200)` label in the top-left of the home screen.
+1. A small grey `v0.6.0(2605072052)` label in the top-left of the home screen.
 2. Triple-tap on that label (within 1000 ms) navigates to `DevMenuPage` with PREVIEW pre-selected.
 3. The manifest preview list inside `DevMenuPage` is re-rendered as cards showing **title** (max 3 lines), **`#PR(sha)`** centered.
 
@@ -31,7 +31,7 @@ Release builds: zero new UI, zero new code path. The label, the tap handler, and
 Top-left of the screen, padded `{ left: 16, top: 16 }`. The existing `HomePage`'s outer Stack uses `Alignment.TopEnd` to anchor the icon row at top-right; we add a parallel `Column { Text }` that overrides alignment to `HorizontalAlign.Start` so the version label sits on the opposite side of the same horizontal band.
 
 - Style: `fontSize(11)`, `fontColor('#999999')` — small, easy to ignore, but readable.
-- Content: `v{versionName}({timestamp})` e.g. `v0.6.0(260507205200)`.
+- Content: `v{versionName}({timestamp})` e.g. `v0.6.0(2605072052)`. Timestamp is `YYMMDDHHmm` (10 chars) — minute precision is enough to identify which install corresponds to which build, and dropping seconds avoids visually noisy churn from re-installs within the same minute.
 - ID: `HomeVersionLabel` (used by UI tests and the tap detector).
 - Visibility: `if (BuildProfile.BUILD_MODE_NAME === 'debug')`. Release builds render no widget at all (no transparent invisible widget — the entire `if` block is omitted).
 
@@ -153,7 +153,7 @@ import { BusinessError } from '@ohos.base';
 
 export interface VersionInfo {
   versionName: string;     // e.g. '0.6.0' or '?.?.?' on lookup failure
-  timestamp: string;       // YYMMDDHHmmss
+  timestamp: string;       // YYMMDDHHmm (minute precision)
 }
 
 const FALLBACK_VERSION_NAME = '?.?.?';
@@ -165,8 +165,7 @@ export function formatBuildTimestamp(epochMs: number): string {
   const dd = String(d.getDate()).padStart(2, '0');
   const hh = String(d.getHours()).padStart(2, '0');
   const mn = String(d.getMinutes()).padStart(2, '0');
-  const ss = String(d.getSeconds()).padStart(2, '0');
-  return `${yy}${mm}${dd}${hh}${mn}${ss}`;
+  return `${yy}${mm}${dd}${hh}${mn}`;
 }
 
 export async function readVersionInfo(): Promise<VersionInfo> {
@@ -258,7 +257,7 @@ The Apply button, audit log, paste field, env radio, and history list are unchan
 ```
 HomePage.aboutToAppear
   → readVersionInfo() → bundleManager.getBundleInfoForSelf
-  → versionLabel = "v0.6.0(260507205200)"
+  → versionLabel = "v0.6.0(2605072052)"
 
 User triple-taps HomeVersionLabel
   → versionTap.onTap(Date.now()) returns true on tap 3
@@ -308,7 +307,7 @@ For the dev/QA loop this is targeted at — "did my last `hdc install` actually 
 `BuildInfo.test.ets` — 2 cases:
 
 1. `formatBuildTimestamp(0)` produces a 12-char string of digits with the expected components for epoch 0 in local time.
-2. `formatBuildTimestamp(specificMs)` produces the expected `YYMMDDHHmmss` string for a known timestamp (e.g. 2026-05-07T20:52:00 → `260507205200` in local time).
+2. `formatBuildTimestamp(specificMs)` produces the expected `YYMMDDHHmm` string for a known timestamp (e.g. 2026-05-07T20:52:34 → `2605072052` in local time — seconds are intentionally dropped).
 
 ### 7.2 On-device UI (`entry/src/ohosTest/ets/test/`)
 
@@ -345,7 +344,7 @@ The existing `HomeToolbarLocked.ui.test.ets` is unaffected — it doesn't use `H
 
 ## 10. Acceptance criteria
 
-- [ ] Open a debug build → home screen shows `v0.6.0(YYMMDDHHmmss)` in the top-left, grey, 11pt.
+- [ ] Open a debug build → home screen shows `v0.6.0(YYMMDDHHmm)` in the top-left, grey, 11pt.
 - [ ] Open a release build → no version label, no new behaviour anywhere.
 - [ ] Triple-tap (≤1000ms gaps) the label in debug → land on `DevMenuPage` with PREVIEW selected and the card list visible.
 - [ ] Each card shows the title (up to 3 lines, ellipsised), then `#PR(sha)` centered.
