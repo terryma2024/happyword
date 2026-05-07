@@ -31,7 +31,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Sync dependencies
         run: uv sync --dev
@@ -113,7 +113,7 @@ jobs:
 
       - name: Install uv
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Sync dependencies
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
