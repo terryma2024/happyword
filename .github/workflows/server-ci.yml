@@ -239,9 +239,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
-      # listDeployments + listDeploymentStatuses (used by update_preview_manifest.mjs to resolve the Vercel preview URL).
-      deployments: read
-    timeout-minutes: 35
+    timeout-minutes: 10
     # The closed-event cleanup half of preview-manifest.yml runs in parallel
     # for some lifecycle events (e.g. a closing PR that also synchronizes).
     # Same `concurrency: preview-manifest` group as that workflow forces them
@@ -276,12 +274,14 @@ jobs:
       - name: Install Octokit
         run: npm install --no-save @octokit/rest
 
-      - name: Update manifest
+      - name: Rebuild manifest from Vercel
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PREVIEW_MANIFEST_POLL_INTERVAL_MS: '30000'
-          PREVIEW_MANIFEST_POLL_MAX_ATTEMPTS: '30'
-        run: node server/scripts/update_preview_manifest.mjs "$GITHUB_EVENT_PATH" "$GITHUB_TOKEN"
+          # GITHUB_REPOSITORY is auto-set by Actions to "<owner>/<repo>".
+        run: node server/scripts/update_preview_manifest.mjs
 
       - name: Commit + push if changed
         env:

@@ -27,4 +27,9 @@ The app caches `docs/preview-urls.json` from the GitHub `main` branch. Use **Ref
 
 ## Automation
 
-`.github/workflows/preview-manifest.yml` updates `docs/preview-urls.json` when PRs open, sync, reopen, or close. Manual runs use **workflow_dispatch** (no PR payload → script exits without changing the file).
+`docs/preview-urls.json` is rebuilt from Vercel's deployments API by `server/scripts/update_preview_manifest.mjs`. Two workflows trigger the rebuild:
+
+- `.github/workflows/server-ci.yml` (`update_manifest` job) — on PR open/sync/reopen, gated on `server_e2e` success.
+- `.github/workflows/preview-manifest.yml` — on PR close, and via **workflow_dispatch** for manual repair / backfill (now performs a full rebuild rather than no-op).
+
+A merged PR whose preview deployment hasn't been pruned by the weekly `vercel-prune.yml` cron stays in the manifest, because the source of truth is "what's alive on Vercel right now", not "what PR is currently open".

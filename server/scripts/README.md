@@ -2,16 +2,43 @@
 
 ## update_preview_manifest.mjs
 
-Node.js script invoked by two callers (CI uses Node 24 via `actions/setup-node`) to keep `docs/preview-urls.json` in sync with open PRs:
+Idempotent rebuild of `docs/preview-urls.json` from **Vercel deployments** as the source of truth, cross-referenced with GitHub for PR metadata. Each run lists every Vercel deployment for the project, groups by `meta.githubCommitRef`, picks the newest READY non-production deployment per non-protected branch, looks up the matching PR via `GET /repos/<owner>/<repo>/pulls?head=<owner>:<branch>&state=all`, and emits one manifest row per branch.
 
-- The `update_manifest` job inside `.github/workflows/server-ci.yml` runs on every PR open/synchronize/reopen, gated on `server_e2e` success — this is the "happy path" that adds / refreshes a PR's entry after a green E2E.
-- `.github/workflows/preview-manifest.yml` runs on PR `closed` (cleanup) and on `workflow_dispatch` (manual repair / backfill).
+Manifest rows survive across the PR lifecycle as long as the underlying Vercel deployment is alive. A merged PR whose preview deployment hasn't been pruned yet (the weekly `vercel-prune.yml` cron sweeps Mon 10:00 UTC) is still in the manifest — testers can keep pointing the HarmonyOS DevMenu at it. The row vanishes automatically the next time the workflow runs after Vercel deletes the deployment; no separate cleanup job is needed.
+
+**Triggers (Node 24 via `actions/setup-node`)**:
+
+- `update_manifest` job in `.github/workflows/server-ci.yml` — runs on every PR open/synchronize/reopen, gated on `server_e2e` success. The "happy path" that picks up new previews after a green E2E.
+- `.github/workflows/preview-manifest.yml` — runs on PR `closed` (so the manifest reconciles when a PR's branch goes away or stays alive) and on `workflow_dispatch` (manual repair / backfill, now actually works).
 
 Both workflows share the same `concurrency: preview-manifest` group so they serialize on `docs/preview-urls.json`. The script lives next to other automation scripts even though it is JavaScript, not Python.
 
-It **polls** the GitHub Deployments API (Vercel often finishes after the workflow step starts). Tune with `PREVIEW_MANIFEST_POLL_INTERVAL_MS` (default `30000`) and `PREVIEW_MANIFEST_POLL_MAX_ATTEMPTS` (default `30`).
+**Required env**:
 
-**Preview URL shape (this repo on Vercel):** hostnames look like `happyword-git-<branch-slug>-terrymas-projects.vercel.app`, e.g. `happyword-git-feat-v06-parent-account-terrymas-projects.vercel.app` — `https://`, ends with `.vercel.app`, and usually contains `-git-` after the project slug. The updater accepts any successful `https://*.vercel.app` deployment for the PR commit SHA and prefers rows whose URL still contains `-git-` when several exist.
+| Variable | Purpose |
+| --- | --- |
+| `VERCEL_TOKEN` | Vercel API token (Account → Settings → Tokens). Same secret as `vercel-prune.yml` and `server-ci.yml`'s deploy fallback. |
+| `VERCEL_PROJECT_ID` | Vercel project id, e.g. `prj_…`. |
+| `VERCEL_ORG_ID` | Vercel team / org id, e.g. `team_…`. Optional on personal accounts. |
+| `GITHUB_TOKEN` | GitHub token with `pull-requests: read`. |
+| `GITHUB_REPOSITORY` | `owner/repo`. Auto-set inside GitHub Actions. |
+
+**Optional env**:
+
+- `PREVIEW_MANIFEST_OUTPUT_PATH` — override the output path (default `docs/preview-urls.json`). Used by tests / dry-runs.
+- `PREVIEW_MANIFEST_MAX_DEPLOYMENT_PAGES` — safety cap on Vercel pagination (default 50 × 100 = 5000 deployments).
+
+**Preview URL shape (this repo on Vercel)**: hostnames look like `happyword-<hash>-terrymas-projects.vercel.app` (`https://`, ends in `.vercel.app`). The script emits the deployment's canonical hash URL, NOT the mutable `-git-<branch>-` alias — that way each manifest row pins to a specific commit and doesn't silently drift to a newer deployment when a tester clicks through.
+
+**Local dry-run** (against the real APIs):
+
+```bash
+VERCEL_TOKEN=$(jq -r .token "$HOME/Library/Application Support/com.vercel.cli/auth.json") \
+VERCEL_PROJECT_ID=prj_… VERCEL_ORG_ID=team_… \
+GITHUB_TOKEN=$(gh auth token) GITHUB_REPOSITORY=terryma2024/happyword \
+PREVIEW_MANIFEST_OUTPUT_PATH=/tmp/preview-urls.json \
+node server/scripts/update_preview_manifest.mjs
+```
 
 ## vercel_should_skip_build.sh
 

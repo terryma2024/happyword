@@ -2,19 +2,22 @@ name: preview-manifest
 
 # Cleanup-on-close + manual repair entrypoint for `docs/preview-urls.json`.
 #
-# The "happy path" — refreshing the manifest entry for an open PR after a
-# successful preview deployment — lives in `server-ci.yml` as the
-# `update_manifest` job (it depends on `server_e2e` success). This file is
-# intentionally pared down to handle ONLY:
+# The "happy path" — refreshing the manifest after a successful preview
+# deployment for an OPEN PR — lives in `server-ci.yml` as the
+# `update_manifest` job (gated on `server_e2e` success). This file handles
+# the two cases server-ci doesn't cover:
 #
-#   - PR closed → drop the entry from the manifest (server-ci doesn't fire on
-#                 `closed`, so we'd otherwise leak stale entries).
-#   - workflow_dispatch → manual repair / backfill of the manifest.
+#   - PR closed → rebuild the manifest. The closed PR's preview may still
+#                 be alive on Vercel until the weekly prune cron deletes
+#                 it, in which case it (correctly) STAYS in the manifest.
+#                 If Vercel has already pruned it, the rebuild naturally
+#                 drops the row. No e2e gate — the PR is closed and won't
+#                 be running e2e anymore.
+#   - workflow_dispatch → manual repair / backfill button. Same script,
+#                 fully idempotent rebuild.
 #
-# PRs that don't touch `server/` never get a Vercel preview (server's
-# `vercel.json` ignoreCommand short-circuits the build), so they don't need a
-# manifest entry while open — that's why we no longer poll-and-create on
-# `opened`/`synchronize`/`reopened` here.
+# Source of truth for both: Vercel's deployments API. See
+# `server/scripts/update_preview_manifest.mjs` for the rebuild logic.
 
 on:
   pull_request:
@@ -24,8 +27,6 @@ on:
 permissions:
   contents: write
   pull-requests: read
-  # listDeployments + listDeploymentStatuses (used by manual repair runs).
-  deployments: read
 
 # Same group name as the `update_manifest` job in server-ci.yml so the two
 # workflows serialize on `docs/preview-urls.json` even when a PR closes
@@ -37,9 +38,21 @@ concurrency:
 jobs:
   update_manifest:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 10
+    # secrets cannot appear in `if:` — evaluate once into env so steps can gate.
+    env:
+      HAS_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
     steps:
+      - name: Vercel manifest gate (why steps may be skipped)
+        run: |
+          set -euo pipefail
+          echo "HAS_VERCEL_TOKEN=${HAS_VERCEL_TOKEN}"
+          if [ "${HAS_VERCEL_TOKEN}" != "true" ]; then
+            echo "::warning::preview-manifest skipped: add repository secret VERCEL_TOKEN (Vercel → Account → Settings → Tokens) so the manifest can be rebuilt from Vercel deployments."
+          fi
+
       - name: Checkout main
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         uses: actions/checkout@v5
         with:
           ref: main
@@ -50,21 +63,27 @@ jobs:
       # no PR head. Just use whatever lives on `main`.
 
       - name: Setup Node 24
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         uses: actions/setup-node@v5
         with:
           node-version: '24'
 
       - name: Install Octokit
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         run: npm install --no-save @octokit/rest
 
-      - name: Update manifest
+      - name: Rebuild manifest from Vercel
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PREVIEW_MANIFEST_POLL_INTERVAL_MS: '30000'
-          PREVIEW_MANIFEST_POLL_MAX_ATTEMPTS: '30'
-        run: node server/scripts/update_preview_manifest.mjs "$GITHUB_EVENT_PATH" "$GITHUB_TOKEN"
+          # GITHUB_REPOSITORY is auto-set by Actions to "<owner>/<repo>".
+        run: node server/scripts/update_preview_manifest.mjs
 
       - name: Commit + push if changed
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
@@ -78,6 +97,6 @@ jobs:
           if [ -n "$PR_NUMBER" ]; then
             git commit -m "chore: refresh preview-urls.json (PR #${PR_NUMBER})"
           else
-            git commit -m "chore: refresh preview-urls.json"
+            git commit -m "chore: refresh preview-urls.json (manual rebuild)"
           fi
           git push origin main
