@@ -41,37 +41,54 @@ async function tripleTapVersion(driver: Driver): Promise<void> {
 }
 
 /**
- * V0.6 acceptance — DevMenuPage's manifest list is rendered as
- * cards, not single-line buttons. Cards have id
- * DevMenuPreviewCard_<pr>, contain the title text, and a centered
- * "#<pr>(<sha7>)" footer.
+ * V0.6.1 acceptance — DevMenuPage is now a unified 2-column card grid
+ * with Local + Staging cards as the first two slots, followed by one
+ * card per manifest preview. Cards are tap-to-apply: tapping any card
+ * fires the env-switch pipeline (probe / reset / save / audit / toast)
+ * and replaceUrl()s back to HomePage.
  *
  * Network-dependent: the manifest URL is a hard-coded
  * raw.githubusercontent.com path that is NOT rewritten by the mock
- * UI server. If the device is offline the test asserts only the
- * gentler invariant that DevMenuPage rendered (Apply button visible).
+ * UI server. The Local + Staging cards are static so they're
+ * present even offline; preview cards are probed defensively.
  */
 export default function devMenuCardListUiTest(): void {
   describe('DevMenuCardList', () => {
-    it('cardsRenderTitleAndPrSha', 0, async (done: Function) => {
+    it('localAndStagingCardsAlwaysPresent', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await tripleTapVersion(driver);
       // Confirm we're on DevMenuPage. The "Developer options" header
-      // is unique to this page and visible without scrolling, unlike
-      // the Apply button which lives below the manifest card list.
+      // is unique to this page and visible without scrolling.
       const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer options'));
       expect(devMenuHeader !== null).assertTrue();
-      // Look for ANY card by id pattern. We probe known PR numbers
-      // recorded in docs/preview-urls.json at spec time (42, 41, 40,
-      // 30); if none are present (e.g. offline), we accept the
-      // weaker assertion that DevMenu rendered. The card's
-      // `DevMenuPreviewCard_<pr>` id is attached to the outer Column
-      // built by the @Builder; the title + `#PR(sha)` footer Texts
-      // are unconditional children of that Column, so the card's
-      // existence is sufficient signal that the format is in place
-      // (the exact 7-char sha is content-dependent and would flake
-      // every time the manifest churns).
+
+      // V0.6.1 invariant: Local + Staging cards are static, always
+      // rendered regardless of manifest fetch outcome. They're the
+      // first two slots in the card grid.
+      const localCard: Component | null = await driver.findComponent(ON.id('DevMenuLocalCard'));
+      expect(localCard !== null).assertTrue();
+      const stagingCard: Component | null = await driver.findComponent(ON.id('DevMenuStagingCard'));
+      expect(stagingCard !== null).assertTrue();
+
+      // Refresh button still exists, now pinned top-right.
+      const refresh: Component | null = await driver.findComponent(ON.text('Refresh manifest'));
+      expect(refresh !== null).assertTrue();
+
+      // Cleanup.
+      await driver.pressBack();
+      await driver.delayMs(500);
+      done();
+    });
+
+    it('previewCardsRenderWhenManifestAvailable', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+      await tripleTapVersion(driver);
+      // Look for ANY preview card by id pattern. We probe known PR
+      // numbers recorded in docs/preview-urls.json at spec time (42,
+      // 41, 40, 30); if none are present (e.g. offline), we accept
+      // the weaker assertion that DevMenu rendered.
       const probePrs: number[] = [42, 41, 40, 30];
       let foundAnyCard: boolean = false;
       for (const pr of probePrs) {
@@ -82,43 +99,36 @@ export default function devMenuCardListUiTest(): void {
         }
       }
       // No hard expect on foundAnyCard — offline runs legitimately
-      // see zero cards. The cardTapSelectsWithoutNavigating case
-      // below provides the stronger assertion that, when at least
-      // one card IS rendered, tapping it does not navigate away.
-      console.info(`DevMenuCardList: foundAnyCard=${foundAnyCard}`);
+      // see zero preview cards. Logged for debugging.
+      console.info(`DevMenuCardList: foundAnyPreviewCard=${foundAnyCard}`);
       // Cleanup.
       await driver.pressBack();
       await driver.delayMs(500);
       done();
     });
 
-    it('cardTapSelectsWithoutNavigating', 0, async (done: Function) => {
+    it('stagingCardTapNavigatesBackToHome', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await tripleTapVersion(driver);
-      // Reuse the same PR probe.
-      const probePrs: number[] = [42, 41, 40, 30];
-      let cardId: string | null = null;
-      for (const pr of probePrs) {
-        const c: Component | null = await driver.findComponent(ON.id(`DevMenuPreviewCard_${pr}`));
-        if (c !== null) {
-          cardId = `DevMenuPreviewCard_${pr}`;
-          break;
-        }
-      }
-      if (cardId !== null) {
-        await clickByIdShared(driver, cardId);
-        await driver.delayMs(300);
-        // Still on DevMenuPage — header text is the stable in-viewport signal.
-        const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer options'));
-        expect(devMenuHeader !== null).assertTrue();
-        // Card tap must NOT navigate back to HomePage.
-        const homeStart: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
-        expect(homeStart === null).assertTrue();
-      }
-      // Cleanup — back to HomePage so the next suite starts clean.
-      await driver.pressBack();
-      await driver.delayMs(500);
+      // Sanity: we landed on DevMenuPage.
+      const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer options'));
+      expect(devMenuHeader !== null).assertTrue();
+
+      // V0.6.1: tapping any card runs the env-switch pipeline and
+      // replaceUrl()s back to HomePage. Use Staging because it
+      // skips the health probe (Local would too, but Staging is
+      // the safe default the suite can converge on between tests).
+      await clickByIdShared(driver, 'DevMenuStagingCard');
+      await driver.delayMs(2000); // allow reset + save + audit + nav
+
+      // Back on HomePage — the version label is the most stable
+      // top-of-screen anchor available in debug builds.
+      const versionLabel: Component | null = await driver.findComponent(ON.id('HomeVersionLabel'));
+      expect(versionLabel !== null).assertTrue();
+      // DevMenu header should be gone after replaceUrl.
+      const devMenuHeaderAfter: Component | null = await driver.findComponent(ON.text('Developer options'));
+      expect(devMenuHeaderAfter === null).assertTrue();
       done();
     });
   });

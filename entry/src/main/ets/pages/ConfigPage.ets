@@ -29,7 +29,6 @@ import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCre
 import { DeviceUnbindClient, DeviceUnbindOutcome } from '../services/DeviceUnbindClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
-import BuildProfile from 'BuildProfile';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
 import { router } from '@kit.ArkUI';
@@ -419,7 +418,7 @@ struct ConfigPage {
             .fontSize(12).fontColor('#0369A1').margin({ top: 4 });
         }
       }
-      .width('100%').alignItems(HorizontalAlign.Start).margin({ bottom: 16 });
+      .width('100%').alignItems(HorizontalAlign.Center).margin({ bottom: 16 });
     }
   }
 
@@ -509,28 +508,6 @@ struct ConfigPage {
         .borderWidth(2)
         .borderColor('#FFB400')
         .onClick((): void => this.openParentAdmin());
-    }
-    .margin({ bottom: 16 })
-    .alignItems(VerticalAlign.Center);
-  }
-
-  @Builder
-  private devMenuRow() {
-    Row() {
-      Text('Developer').fontSize(18).width(120);
-      Button('Backend environment')
-        .id('ConfigDevMenuButton')
-        .width(220).height(40)
-        .fontSize(15)
-        .backgroundColor('#EAF2F8')
-        .fontColor('#457B9D')
-        .borderWidth(2)
-        .borderColor('#457B9D')
-        .onClick((): void => {
-          router.pushUrl({ url: 'pages/DevMenuPage' }).catch((err: BusinessError): void => {
-            console.error(`ConfigPage DevMenu push failed: ${JSON.stringify(err)}`);
-          });
-        });
     }
     .margin({ bottom: 16 })
     .alignItems(VerticalAlign.Center);
@@ -916,9 +893,6 @@ struct ConfigPage {
         this.cloudSyncRow();
         this.syncRow();
         this.adminRow();
-        if (BuildProfile.BUILD_MODE_NAME === 'debug') {
-          this.devMenuRow();
-        }
 
         if (this.showValidationHint) {
           Text('单词池太小（少于 3 个），请启用更多类别或添加自定义词')

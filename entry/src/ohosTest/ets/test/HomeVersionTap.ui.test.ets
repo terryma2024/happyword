@@ -63,9 +63,8 @@ export default function homeVersionTapUiTest(): void {
       await driver.delayMs(2000);
       // DevMenuPage signal: the "Developer options" header at the
       // top of the page is unique to DevMenuPage and visible without
-      // scrolling. The Apply button is below the fold once cards
-      // populate the manifest list, so findComponent(ON.text('Apply'))
-      // can return null even when navigation succeeded.
+      // scrolling. (V0.6.1: Apply button is gone — every card is
+      // tap-to-apply now — so we can't anchor on Apply text.)
       const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer options'));
       expect(devMenuHeader !== null).assertTrue();
       // HomeStartButton must NOT be present any more.
