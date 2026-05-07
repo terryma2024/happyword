@@ -39,21 +39,24 @@ jobs:
     name: server / e2e (preview)
     runs-on: ubuntu-latest
     needs: server_pytest
-    if: ${{ secrets.VERCEL_TOKEN != '' }}
+    # secrets.* is not allowed in job-level `if` — gate each step instead (same semantics).
     defaults:
       run:
         working-directory: server
     steps:
       - name: Checkout
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Detect Vercel preview URL from deployment status
         id: detect_preview
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -92,7 +95,7 @@ jobs:
 
       - name: Deploy Vercel preview (fallback)
         id: vercel_deploy
-        if: ${{ steps.detect_preview.outputs.preview_url == '' }}
+        if: ${{ secrets.VERCEL_TOKEN != '' && steps.detect_preview.outputs.preview_url == '' }}
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -103,13 +106,16 @@ jobs:
           vercel-args: ""
 
       - name: Install uv
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         uses: astral-sh/setup-uv@v3
 
       - name: Sync dependencies
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         run: uv sync --dev
 
       - name: Compute per-PR Mongo DB name
         id: db_name
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         run: |
           # Use PR number when available; fall back to a slugged branch name
           # for branch-pushes-without-PR (rare, but `vercel deploy --target
@@ -127,6 +133,7 @@ jobs:
           echo "Per-PR DB: $DB"
 
       - name: Reset E2E database (truncate test collections)
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         env:
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
@@ -138,6 +145,7 @@ jobs:
           uv run python scripts/e2e_reset_db.py
 
       - name: Run E2E pytest subset
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         env:
           E2E_BASE_URL: ${{ steps.detect_preview.outputs.preview_url || steps.vercel_deploy.outputs.preview-url }}
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
@@ -147,7 +155,7 @@ jobs:
         run: uv run pytest -v -m e2e
 
       - name: Slack alert on E2E failure
-        if: failure()
+        if: ${{ failure() && secrets.VERCEL_TOKEN != '' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
