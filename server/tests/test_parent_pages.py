@@ -35,6 +35,22 @@ async def html_client(db: object) -> AsyncIterator[tuple[AsyncClient, object]]:
 
 
 @pytest.mark.asyncio
+async def test_root_redirects_to_parent_shell(
+    html_client: tuple[AsyncClient, object],
+) -> None:
+    """Bare-domain visits should land on the parent shell, not a 404 JSON.
+
+    Regression guard: without an explicit `/` handler FastAPI returns
+    `{"detail":"Not Found"}` at the apex (visible at e.g.
+    https://happyword.vercel.app/), which looks like a broken deploy.
+    """
+    ac, _ = html_client
+    r = await ac.get("/")
+    assert r.status_code in (303, 307, 308)
+    assert r.headers["location"] == "/parent/"
+
+
+@pytest.mark.asyncio
 async def test_login_page_has_email_form(
     html_client: tuple[AsyncClient, object],
 ) -> None:

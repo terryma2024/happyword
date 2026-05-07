@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from beanie import init_beanie
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -137,6 +138,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> RedirectResponse:
+    """Redirect bare-domain visits to the parent web shell.
+
+    Without this route a hit to e.g. https://happyword.vercel.app/ falls
+    through to FastAPI's default 404 handler and returns
+    `{"detail":"Not Found"}`, which looks broken to anyone landing on the
+    domain. The parent shell is the only public HTML surface this server
+    has, so `/` -> `/parent/` (which itself redirects to `/parent/login`
+    for anonymous users) is the most useful landing experience.
+    """
+    return RedirectResponse(url="/parent/", status_code=307)
+
 
 app.include_router(auth_router.router)
 app.include_router(parent_auth_router.router)
