@@ -236,6 +236,7 @@ Two workflows call it, sharing the `concurrency: preview-manifest` group so writ
 
 Key choices:
 - All mutations land on `main` in their own commit. Path-filtered CI workflows ignore `docs/**` so this doesn't trigger `server-ci.yml` or `server-cd.yml`.
+- **Commit gate**: both workflows commit the regenerated file only when the **set of `previews[].url` values** differs between main's HEAD and the freshly-written file. `updated_at` and per-row `head_sha` drift (which the script always rewrites on every run, even when nothing material changed) is intentionally ignored, so a noisy "refresh" commit is not produced on every PR sync. The `git commit` invocation also uses an explicit `-- docs/preview-urls.json` pathspec so it never sweeps up other files staged earlier in the workflow.
 - The script is fully **idempotent** — every invocation rebuilds the manifest from current Vercel + GitHub state. There is no per-event upsert/remove bookkeeping. This makes the manifest self-healing: if a workflow run is missed, the next one reconciles automatically.
 - A merged PR whose Vercel preview is still alive remains in the manifest until the weekly `vercel-prune.yml` cron deletes the deployment. No separate cleanup-on-merge step is needed.
 - Script is **node-based** (not Python) because GitHub Actions ships node natively and the Vercel API helper already lives in `server/scripts/vercel_prune_branch_deployments.mjs`.

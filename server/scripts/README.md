@@ -6,6 +6,8 @@ Idempotent rebuild of `docs/preview-urls.json` from **Vercel deployments** as th
 
 Manifest rows survive across the PR lifecycle as long as the underlying Vercel deployment is alive. A merged PR whose preview deployment hasn't been pruned yet (the weekly `vercel-prune.yml` cron sweeps Mon 10:00 UTC) is still in the manifest — testers can keep pointing the HarmonyOS DevMenu at it. The row vanishes automatically the next time the workflow runs after Vercel deletes the deployment; no separate cleanup job is needed.
 
+**Commit gate**: both calling workflows commit the regenerated manifest **only when the SET of `previews[].url` values differs** between main's HEAD and the freshly-written file. Per-row `updated_at` timestamps and `head_sha` drift from a force-push to the same branch are intentionally ignored — those produce a stable file content for the same set of live previews, so committing on every PR sync would be pure noise. The gate is implemented in shell with `jq -r '(.previews // []) | map(.url) | sort[]'`; the `git commit` call uses the explicit `-- docs/preview-urls.json` pathspec so it can never sweep up other files staged by earlier workflow steps (e.g. `Sync manifest updater from PR head`).
+
 **Triggers (Node 24 via `actions/setup-node`)**:
 
 - `update_manifest` job in `.github/workflows/server-ci.yml` — runs on every PR open/synchronize/reopen, gated on `server_e2e` success. The "happy path" that picks up new previews after a green E2E.
