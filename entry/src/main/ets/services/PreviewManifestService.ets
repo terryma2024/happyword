@@ -53,6 +53,7 @@ function sanitiseTitle(raw: string): string {
   return raw.replace(/[\r\n]+/g, ' ').slice(0, TITLE_MAX);
 }
 
+/** Vercel previews use hosts like happyword-git-<branch>-terrymas-projects.vercel.app */
 function isValidUrl(url: string): boolean {
   return url.startsWith('https://') && url.endsWith('.vercel.app');
 }
