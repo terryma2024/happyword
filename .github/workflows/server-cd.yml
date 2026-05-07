@@ -76,6 +76,11 @@ jobs:
           E2E_BASE_URL: ${{ steps.wait_deploy.outputs.url }}
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
+          # Forward the Vercel deployment-protection bypass secret so the
+          # smoke tests can hit production behind Vercel Authentication.
+          # Optional: when unset the tests assume the target is reachable
+          # without SSO. See server/README.md.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: uv run pytest -v -m smoke
 
       - name: Slack alert on smoke failure

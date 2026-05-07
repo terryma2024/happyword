@@ -179,6 +179,14 @@ jobs:
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          # Vercel "Protection Bypass for Automation" secret. Required when
+          # the project has Vercel Authentication enabled on Preview
+          # deployments — without it, every E2E request hits the SSO HTML
+          # page and fails with 401. Optional secret: when unset the tests
+          # call the preview directly (works only if protection is off).
+          # See server/README.md "Required environment variables" and
+          # https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         # Tee output to a log file so the cursor_autofix_e2e job can ingest it via artifact.
         run: |
           set -o pipefail

@@ -6,10 +6,13 @@ These talk to the deployed server only — no in-process FastAPI imports.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-import httpx
-
+from tests.e2e._utils.client import make_client
 from tests.e2e._utils.db import MongoDB, inject_otp_code
+
+if TYPE_CHECKING:
+    import httpx
 
 KNOWN_OTP_CODE = "123456"
 
@@ -120,7 +123,7 @@ def device_redeem(
         )
     token = r.json()["token"]
 
-    with httpx.Client(base_url=base_url, timeout=15.0) as anon:
+    with make_client(base_url) as anon:
         r = anon.post(
             "/api/v1/pair/redeem",
             json={"token": token, "device_id": device_id},

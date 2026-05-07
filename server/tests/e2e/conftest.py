@@ -20,6 +20,7 @@ from tests.e2e._utils.auth import (
     device_redeem,
     parent_login,
 )
+from tests.e2e._utils.client import make_client
 from tests.e2e._utils.db import MongoDB
 
 
@@ -47,12 +48,12 @@ def http(base_url: str) -> Iterator[httpx.Client]:
 
     Function scope means each test starts with a clean cookie jar — the
     parent fixture re-attaches the session cookie when needed.
+
+    Built via ``make_client`` so the Vercel deployment-protection bypass
+    headers are attached automatically when
+    ``VERCEL_AUTOMATION_BYPASS_SECRET`` is set in CI.
     """
-    with httpx.Client(
-        base_url=base_url,
-        timeout=15.0,
-        follow_redirects=False,
-    ) as client:
+    with make_client(base_url) as client:
         yield client
 
 

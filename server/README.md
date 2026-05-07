@@ -91,13 +91,14 @@ uv run pytest -v -m e2e
 ### Required environment variables
 
 
-| Variable            | Purpose                                                                                                 |
-| ------------------- | ------------------------------------------------------------------------------------------------------- |
-| `E2E_BASE_URL`      | Base URL of the deployed server, e.g. a Vercel preview URL.                                             |
-| `E2E_MONGODB_URI`   | Mongo connection string used by reset/inject helpers. **Must be a dedicated test cluster.**             |
-| `E2E_MONGO_DB_NAME` | DB name. Safety guard requires the name to end with `_e2e`, `_test`, or `_ci` and never contain `prod`. |
-| `E2E_ADMIN_USER`    | Bootstrap admin username for `/api/v1/auth/login`.                                                      |
-| `E2E_ADMIN_PASS`    | Bootstrap admin password.                                                                               |
+| Variable                            | Purpose                                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `E2E_BASE_URL`                      | Base URL of the deployed server, e.g. a Vercel preview URL.                                                                                                                                                                                                                                                              |
+| `E2E_MONGODB_URI`                   | Mongo connection string used by reset/inject helpers. **Must be a dedicated test cluster.**                                                                                                                                                                                                                              |
+| `E2E_MONGO_DB_NAME`                 | DB name. Safety guard requires the name to end with `_e2e`, `_test`, or `_ci` and never contain `prod`.                                                                                                                                                                                                                  |
+| `E2E_ADMIN_USER`                    | Bootstrap admin username for `/api/v1/auth/login`.                                                                                                                                                                                                                                                                       |
+| `E2E_ADMIN_PASS`                    | Bootstrap admin password.                                                                                                                                                                                                                                                                                                |
+| `VERCEL_AUTOMATION_BYPASS_SECRET`   | **Optional.** Vercel "Protection Bypass for Automation" secret. Required when the target deployment has Vercel Authentication / SSO enabled (the default for Preview deployments on Hobby projects). When set, every E2E request automatically attaches the `x-vercel-protection-bypass` and `x-vercel-set-bypass-cookie` headers, otherwise the SSO redirect makes every test return a 401 HTML page. Generate the token in **Vercel → Project → Settings → Deployment Protection → Protection Bypass for Automation**. See [Vercel docs](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation). |
 
 
 ### Local run (against a local server + Dockerised Mongo)
@@ -210,6 +211,15 @@ Vercel ones — `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`):
 If the Mongo secrets are absent the reset step prints a CI warning and
 skips, and the E2E tests requiring Mongo also skip cleanly — the job stays
 green so first-time setup is non-blocking.
+
+If the project has **Vercel Authentication enabled on Preview deployments**
+(the default on Hobby projects — preview URLs return an SSO HTML page on
+every request), also add `VERCEL_AUTOMATION_BYPASS_SECRET` (Vercel →
+Project → Settings → Deployment Protection → Protection Bypass for
+Automation). Without it every E2E test fails at the network layer with a
+401 HTML response, regardless of whether the application code is correct.
+The workflow already pipes the secret through to the test step; only the
+secret value needs to be set on the GitHub repo.
 
 #### Optional: Cursor Cloud autofix on E2E failure
 
