@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-07T05:49:23.431Z",
+  "updated_at": "2026-05-07T09:37:16.277Z",
   "previews": [
     {
       "pr": 30,
       "title": "V0.6: Parent account + family-scoped device binding",
       "branch": "feat/v0.6-parent-account",
-      "url": "https://happyword-i38rjlm84-terrymas-projects.vercel.app",
+      "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
       "author": "terryma2024",
-      "head_sha": "7d3d7d4",
-      "updated_at": "2026-05-07T04:52:42.709Z"
+      "head_sha": "69fc795",
+      "updated_at": "2026-05-07T09:37:16.276Z"
     }
   ]
 }
