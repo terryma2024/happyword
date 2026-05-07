@@ -1,10 +1,12 @@
 # TODO — E2E preview job is blocked on a missing repo secret
 
 **Status:** open. The `server / e2e (preview)` GitHub Actions job has now
-failed identically on at least two consecutive runs (PR #33 → run
-[`25476007013`](https://github.com/terryma2024/happyword/actions/runs/25476007013)
-and PR #35 → run
-[`25476206872`](https://github.com/terryma2024/happyword/actions/runs/25476206872))
+failed identically on at least three consecutive runs (PR #33 → run
+[`25476007013`](https://github.com/terryma2024/happyword/actions/runs/25476007013),
+PR #35 → run
+[`25476206872`](https://github.com/terryma2024/happyword/actions/runs/25476206872),
+and PR #36 → run
+[`25476415304`](https://github.com/terryma2024/happyword/actions/runs/25476415304))
 for the same purely-environmental reason: the GitHub repository secret
 `VERCEL_AUTOMATION_BYPASS_SECRET` is unset, the Vercel preview deployment
 of the PR is protected by Vercel Authentication (SSO), and so every E2E
@@ -62,4 +64,4 @@ inside an Actions run. Leaving this file in place is also a signal to
 the autofix agent that the next failure for the same reason should
 just acknowledge the blocker instead of opening another doc-only PR.
 
-Refs: PR #33, PR #35.
+Refs: PR #33, PR #35, PR #36.
