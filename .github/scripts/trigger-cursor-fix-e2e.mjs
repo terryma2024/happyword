@@ -162,16 +162,20 @@ async function main() {
   // inside a CI job that's about to exit.
   // Note: Agent.create is async in @cursor/sdk >=1.0 — it must be awaited;
   // otherwise `agent.send` is undefined (we'd be calling it on a Promise).
+  // Schema (per @cursor/sdk options.d.ts CloudAgentOptions):
+  //   repos[]: { url, startingRef?, prUrl? }
+  //   autoCreatePR / skipReviewerRequest live at cloud-level, NOT per-repo.
   const agent = await Agent.create({
     apiKey: CURSOR_API_KEY,
     cloud: {
       repos: [
         {
           url: REPO_URL,
-          ref: PR_HEAD_REF,
-          autoCreatePR: true,
+          startingRef: PR_HEAD_REF,
+          prUrl: PR_URL,
         },
       ],
+      autoCreatePR: true,
       // Quiet PR notifications — humans review the resulting PR explicitly.
       skipReviewerRequest: true,
     },
