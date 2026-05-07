@@ -14,6 +14,7 @@ end-to-end. If you only want one section, jump straight to
 | `cursor-autofix-e2e` | [`.github/workflows/cursor-autofix-e2e.yml`](../.github/workflows/cursor-autofix-e2e.yml) | `workflow_dispatch` | Manually trigger a Cursor Cloud Agent for an open PR |
 | `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR open/sync/reopen/close + dispatch | Refresh `docs/preview-urls.json` (gated on `server-ci` success) |
 | `atlas-cleanup` | [`.github/workflows/atlas-cleanup.yml`](../.github/workflows/atlas-cleanup.yml) | Cron Mon 09:00 UTC + dispatch | Drop stale per-PR Mongo Atlas DBs older than 14 days |
+| `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Cron Mon 10:00 UTC + dispatch | Keep only the newest Vercel deployment per non-`main` branch (production alias preserved) |
 
 `server-ci` is the most important one — it gates `preview-manifest`, and its
 failure is what triggers the Cursor autofix path.

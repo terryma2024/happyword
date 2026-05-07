@@ -11,3 +11,35 @@ It **polls** the GitHub Deployments API (Vercel often finishes after the workflo
 ## vercel_should_skip_build.sh
 
 Referenced from `server/vercel.json` as `ignoreCommand`. When the Vercel project **Root Directory** is `server/`, exit **0** skips a deployment if `VERCEL_GIT_PREVIOUS_SHA`..`VERCEL_GIT_COMMIT_SHA` touches no files under that directory; exit **1** runs the build. If the Vercel project root is the **repository** root instead, do not use this file as-is: use `git diff ... -- server/` in a small wrapper or set the Root Directory to `server/`.
+
+## vercel_prune_branch_deployments.mjs
+
+Cleans up old Vercel deployments. For every non-protected branch (default: not `main`/`master`) it keeps **only the newest deployment** (by `created`) and deletes the rest. Protected branches are left untouched, and any deployment currently aliased to the production domain is always preserved (resolved via `/v9/projects/<id>.targets.production.id`).
+
+Reads `projectId`/`orgId` from `server/.vercel/project.json` and authenticates with the `VERCEL_TOKEN` env var (the same token the CI uses — see [`docs/ci-secrets.md`](../../docs/ci-secrets.md#vercel_token)). Runs in **dry-run by default** — pass `--apply` to actually delete.
+
+```bash
+# Show what would be deleted (no changes):
+VERCEL_TOKEN=… node server/scripts/vercel_prune_branch_deployments.mjs
+
+# Actually delete:
+VERCEL_TOKEN=… node server/scripts/vercel_prune_branch_deployments.mjs --apply
+
+# Treat additional branches as protected:
+VERCEL_TOKEN=… node server/scripts/vercel_prune_branch_deployments.mjs \
+  --keep-branches main,master,release \
+  --apply
+
+# Machine-readable plan (CI-friendly):
+VERCEL_TOKEN=… node server/scripts/vercel_prune_branch_deployments.mjs --json
+```
+
+Pure Node 18+ — uses native `fetch`, no extra deps. Pass `--include-no-git` to also prune deployments missing git metadata (manual `vercel deploy` etc.); off by default because we can't tell which manual deploys are intentional.
+
+Project / team can be supplied three ways (CLI flag > env var > linked checkout):
+
+1. `--project prj_… --team team_…`
+2. `VERCEL_PROJECT_ID` / `VERCEL_ORG_ID` env (matches the secret names already used by `server-ci`)
+3. `server/.vercel/project.json` (gitignored; written by `vercel link`)
+
+A weekly cron — [`.github/workflows/vercel-prune.yml`](../../.github/workflows/vercel-prune.yml), Mon 10:00 UTC — invokes this script with `--apply`. Use the workflow's `workflow_dispatch` for an ad-hoc dry-run from the GitHub UI.
