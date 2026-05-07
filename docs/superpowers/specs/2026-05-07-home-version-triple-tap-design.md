@@ -351,3 +351,205 @@ The existing `HomeToolbarLocked.ui.test.ets` is unaffected — it doesn't use `H
 - [ ] Tapping a card highlights it; tapping Apply commits and replaces the route to HomePage with the new env active.
 - [ ] All new unit + UI tests pass; existing tests untouched.
 - [ ] CodeLinter clean on all changed files.
+
+---
+
+## 11. v0.6.1 revision — unified card grid, tap-to-apply, no Apply gate
+
+After the original v0.6 design landed, hands-on use with the dev menu produced
+a clearer UX. Two concerns drove the revision:
+
+1. The split between **Local / Preview / Staging radio buttons** and the
+   **manifest card list** was redundant — both expressed the same idea ("pick
+   an environment") in two different visual languages.
+2. The separate **Apply** button added a deliberate but ceremonial step to a
+   gesture-gated dev affordance. The triple-tap is already the safety gate; a
+   second confirmation is not earning its keep.
+
+### 11.1 Goal of the revision
+
+Collapse all three environment choices (Local, Staging, every Preview URL)
+into a single uniform **2-column card grid**. Every card is tap-to-apply: the
+existing safety pipeline (`probeHealth` for Preview, `resetForEnvSwitch`,
+`saveBackendEnv`, `savePreviewUrl`, audit log, toast, `replaceUrl` back to
+`HomePage`) fires on the tap itself. Drop the paste-URL field, the recent-URL
+history list (and its `loadHistory`/`saveHistory`/`pushHistory` calls), the
+Apply button, and the `pendingEnv`/`applying` two-step state machine.
+
+### 11.2 Layout (top-down)
+
+```
+┌─────────────────────────────────────────────────┐
+│  ← Back     Developer options    [Refresh ▾]    │  ← Header row, refresh moved to right
+├─────────────────────────────────────────────────┤
+│  Backend environment (debug builds only)         │
+│                                                  │
+│  ┌─────────────┐  ┌─────────────┐                │
+│  │   Local     │  │   Staging   │                │
+│  │ http://10…  │  │ https://…   │                │
+│  └─────────────┘  └─────────────┘                │
+│  ┌─────────────┐  ┌─────────────┐                │
+│  │ ci(preview…)│  │ feat: split…│                │
+│  │ #42(ca12420)│  │ #41(b9efabc)│                │
+│  └─────────────┘  └─────────────┘                │
+│  …                                               │
+│                                                  │
+│  Release builds always use staging: …            │
+│  Recent switches                                 │
+│  20:52: staging -> preview https://…             │
+└─────────────────────────────────────────────────┘
+```
+
+- The header row pins **Refresh manifest** to the right with `flexBasis(0)` /
+  `layoutWeight(1)` Spacer between title and the button. `Refreshing…` busy
+  state stays on the same button.
+- Each grid row is a `Row({ space: 12 })` containing two `previewCard` /
+  `envCard` children, each `.layoutWeight(1)`. The grid is built by a small
+  helper that chunks `[Local, Staging, ...manifest.previews]` into
+  consecutive pairs. Trailing odd card pads with an empty layoutWeight(1)
+  Column so widths stay symmetric.
+- IDs:
+  - Local card → `DevMenuLocalCard`
+  - Staging card → `DevMenuStagingCard`
+  - Preview cards → `DevMenuPreviewCard_<pr>` (unchanged)
+
+### 11.3 Card content & selection
+
+| Card     | Title (bold, max 3 lines) | Footer (centered, fontSize 13, #555) |
+|----------|---------------------------|--------------------------------------|
+| Local    | `Local`                   | `LOCAL_BASE_URL`                     |
+| Staging  | `Staging`                 | `STAGING_BASE_URL`                   |
+| Preview  | `row.title`               | `#${row.pr}(${row.head_sha.slice(0,7)})` |
+
+Selection ring: a card is highlighted (`#CDE8FF` fill + `#457B9D` border) iff
+it matches the **currently active** env+url:
+
+- Local card highlighted iff `currentEnv === LOCAL`.
+- Staging card highlighted iff `currentEnv === STAGING`.
+- Preview card highlighted iff `currentEnv === PREVIEW && currentPreviewUrl === row.url`.
+
+There is no "pending" state — taps either fail (toast) or commit and navigate
+back. While a tap is in flight, the tapped card uses a `applying` border
+treatment (`#9CA3AF` border + dimmed background) and all other cards become
+non-interactive (re-entrancy guard).
+
+### 11.4 Tap behaviour
+
+Every card delegates to one private async method:
+
+```typescript
+private async onCardTap(env: BackendEnv, previewUrl: string): Promise<void> {
+  if (this.applying) return;
+  this.applying = true;
+  try {
+    if (env === BackendEnv.PREVIEW) {
+      const ok: boolean = await this.probeHealth(previewUrl);
+      if (!ok) {
+        this.showToast('Cannot reach /api/v1/health on that URL');
+        return;
+      }
+    }
+    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    await resetForEnvSwitch(ctx);
+    await saveBackendEnv(env);
+    await savePreviewUrl(env === BackendEnv.PREVIEW ? previewUrl : '');
+    const row: AuditRow = {
+      ts: Date.now(), from: this.currentEnv, to: env, preview_url: previewUrl,
+    };
+    await appendAuditLog(row);
+    this.currentEnv = env;
+    this.showToast('Environment updated. Re-bind parent account if needed.');
+    router.replaceUrl({ url: 'pages/HomePage' });
+  } finally {
+    this.applying = false;
+  }
+}
+```
+
+`previewUrl` is `''` for Local/Staging (their fixed URL is derived inside the
+relevant code paths from `metaFor(env).defaultUrl`). The historical
+`previewChosenUrl()` helper, the `pasteUrl` field, the `pendingEnv` field,
+the `selectedManifestUrl` field, and the `pushHistory`/`loadHistory`/
+`saveHistory` calls are all removed.
+
+### 11.5 Removed surface
+
+- `Or paste preview URL` `TextInput` and the `Recent URLs` list and
+  associated `pushHistory` write — manifest is the only source of preview
+  URLs going forward.
+- The dedicated env-pick `Row({ space: 8 })` with three Buttons (Local /
+  Preview / Staging) — replaced by Local + Staging cards inside the grid.
+- The `Apply` button + the `pendingEnv` / `applying` Apply-button machinery.
+- `DevMenuPage` removes its dependency on `loadHistory`, `saveHistory`,
+  `pushHistory` from `BackendEnv.ets`. The functions themselves stay
+  exported (no UI consumer right now, but cheap to retain — they may be
+  reused for a future "URL history" view).
+
+### 11.6 ConfigPage cleanup (companion change)
+
+Two unrelated-but-co-shipped fixes:
+
+1. **Drop `devMenuRow()`**: `ConfigPage.ets` no longer renders the
+   `Developer → Backend environment` button. The triple-tap on
+   `HomeVersionLabel` is the only entry point. The `devMenuRow()` builder is
+   deleted entirely. `DevMenuPage` itself stays routable for tests.
+2. **Center-align `cloudSyncRow()`**: change its outer `Column`'s
+   `.alignItems(HorizontalAlign.Start)` (currently line 422 in `ConfigPage.ets`)
+   to `.alignItems(HorizontalAlign.Center)`. The peer settings rows
+   (`adminRow`, `parentPinRow`, `categoryRow`, …) are bare `Row()`s of width
+   `120 + 220 = 340 dp`, centered by the parent page Column. `cloudSyncRow`
+   is one of two builders wrapped in a full-width `Column` for sub-content
+   (status + toast Texts), and its outer Column was set to Start, breaking
+   visual alignment. Setting it to Center fixes the row to align with peers.
+
+### 11.7 Tests updated for v0.6.1
+
+`DevMenuCardList.ui.test.ets`:
+
+1. After entry, at least one of `DevMenuLocalCard`, `DevMenuStagingCard`,
+   `DevMenuPreviewCard_*` is visible. (The card-list-renders-something
+   smoke test.)
+2. New: `DevMenuLocalCard` and `DevMenuStagingCard` are present in
+   debug-built ohosTest (always true since manifest fetch can be stubbed
+   but the static cards always render).
+3. Updated tap test: tapping `DevMenuStagingCard` triggers nav back to
+   `HomePage` (assert by waiting for `HomeVersionLabel`). Replaces the
+   previous "tapping highlights a card" assertion which is no longer
+   meaningful since taps always either commit or surface a toast.
+4. The previous "Apply button works" smoke is removed — Apply is gone.
+
+`HomeVersionTap.ui.test.ets` is unchanged: it asserts `Developer options`
+visibility on `DevMenuPage`, which still holds.
+
+### 11.8 Risks new to v0.6.1
+
+- **Tap-to-apply lowers friction below the previous Apply gate.** Mitigated
+  by (a) the triple-tap entry already being a deliberate gesture, (b) the
+  toast confirmation, and (c) the `replaceUrl` snap back to HomePage which
+  visibly proves the switch happened.
+- **Health-probe latency bleeds into the tap response.** Up to 2 seconds for
+  Preview cards. Mitigated by the in-tap busy border and the `applying`
+  re-entrancy guard. Local + Staging taps are sub-50ms.
+- **Lost paste-URL escape hatch.** A developer wanting to point at a
+  preview URL not yet in the manifest must regenerate the manifest (the
+  top-right `Refresh` button now sits a finger-tap away). If the URL is
+  not in any open PR, they must open a PR first. Documented in §10.
+
+### 11.9 Acceptance criteria — v0.6.1
+
+- [ ] `DevMenuPage` shows a 2-column grid with cards in order: Local,
+      Staging, then one card per manifest preview.
+- [ ] No paste-URL `TextInput`, no recent URLs list, no Apply button on
+      `DevMenuPage`.
+- [ ] `Refresh manifest` button sits at the top-right of the header row.
+- [ ] Tapping any card commits the env switch (audit log gains a row,
+      toast appears, page replaces back to `HomePage`).
+- [ ] Tapping a Preview card whose URL fails the health probe surfaces the
+      "Cannot reach /api/v1/health" toast and **does not** change env.
+- [ ] `ConfigPage` no longer shows a `Developer` row.
+- [ ] `ConfigPage`'s `学习记录` row sits at the same horizontal position as
+      its peer rows (Bind parent / Parent PIN / etc.), not pushed to the
+      left edge.
+- [ ] All updated unit + UI tests pass; existing tests untouched.
+- [ ] CodeLinter clean on `DevMenuPage.ets`, `ConfigPage.ets`, and the
+      updated UI test files.
