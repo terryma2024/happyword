@@ -27,6 +27,17 @@ import {
 import { resetForEnvSwitch } from '../services/SessionResetService';
 import { STAGING_BASE_URL } from '../services/RemoteWordPackConfig';
 
+/**
+ * Route params bag for `pages/DevMenuPage`. Mirrors the class
+ * declaration in HomePage.ets — ArkTS strict mode rejects inline
+ * object literals (arkts-no-untyped-obj-literals), so callers and
+ * consumers each declare the same shape and pass / cast a typed
+ * instance. Same pattern as LessonReviewRouteParams elsewhere.
+ */
+class DevMenuRouteParams {
+  presetEnv: string = '';
+}
+
 @Entry
 @Component
 struct DevMenuPage {
@@ -49,7 +60,20 @@ struct DevMenuPage {
   }
 
   aboutToAppear(): void {
-    this.hydrate().catch((err: BusinessError): void => {
+    // Honour the `presetEnv` route param AFTER hydrate() resolves —
+    // hydrate() loads the persisted env into pendingEnv, so applying
+    // the route override afterwards wins without a flicker. Pattern
+    // mirrors LessonDraftReviewPage's typed-route-params handoff.
+    this.hydrate().then((): void => {
+      const raw: object | undefined =
+        router.getParams() as object | undefined;
+      if (raw !== undefined) {
+        const params: DevMenuRouteParams = raw as DevMenuRouteParams;
+        if (params.presetEnv === 'preview') {
+          this.pendingEnv = BackendEnv.PREVIEW;
+        }
+      }
+    }).catch((err: BusinessError): void => {
       console.error(`DevMenuPage.hydrate failed: ${JSON.stringify(err)}`);
     });
   }
@@ -149,6 +173,49 @@ struct DevMenuPage {
     }
   }
 
+  /**
+   * Manifest entry rendered as a tappable card. Tapping selects the
+   * card's url (clearing any pasted-URL override) but does NOT apply
+   * the env switch — the existing "Apply" button still drives the
+   * health-probe + session-reset path so all the V0.5 safety gates
+   * stay intact. Title is allowed up to 3 lines (ellipsized after
+   * that), and the `#PR(short-sha)` footer is centred on a single
+   * line. The 7-char short-sha guard handles `head_sha` strings that
+   * are already shorter than 7 chars (the manifest already stores
+   * 7-char shas, but the guard prevents an out-of-range substring
+   * exception if the field shape ever drifts).
+   */
+  @Builder
+  private previewCard(row: ManifestRow): void {
+    Column({ space: 8 }) {
+      Text(row.title)
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#222222')
+        .width('100%')
+        .maxLines(3)
+        .textOverflow({ overflow: TextOverflow.Ellipsis });
+
+      Row() {
+        Text(`#${row.pr}(${row.head_sha.length > 7 ? row.head_sha.substring(0, 7) : row.head_sha})`)
+          .fontSize(13)
+          .fontColor('#555555');
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.Center);
+    }
+    .id(`DevMenuPreviewCard_${row.pr}`)
+    .width('100%')
+    .padding(12)
+    .borderRadius(12)
+    .backgroundColor(this.selectedManifestUrl === row.url ? '#CDE8FF' : '#F5F5F5')
+    .border({ width: 1, color: this.selectedManifestUrl === row.url ? '#457B9D' : '#E0E0E0' })
+    .onClick((): void => {
+      this.selectedManifestUrl = row.url;
+      this.pasteUrl = '';
+    });
+  }
+
   build(): void {
     Column() {
       Row() {
@@ -194,21 +261,13 @@ struct DevMenuPage {
         }
         if (this.manifest !== null && this.manifest.previews.length > 0) {
           Scroll() {
-            Column({ space: 6 }) {
+            Column({ space: 8 }) {
               ForEach(this.manifest.previews, (row: ManifestRow) => {
-                Button(`#${row.pr} ${row.title}`)
-                  .fontSize(12)
-                  .height(32)
-                  .width('100%')
-                  .backgroundColor(this.selectedManifestUrl === row.url ? '#CDE8FF' : '#F5F5F5')
-                  .onClick((): void => {
-                    this.selectedManifestUrl = row.url;
-                    this.pasteUrl = '';
-                  });
+                this.previewCard(row);
               }, (row: ManifestRow) => `${row.pr}-${row.url}`);
-            };
+            }
           }
-          .height(140)
+          .height(320)
           .margin({ bottom: 8 });
         }
 
