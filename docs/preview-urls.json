@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-07T12:19:52.468Z",
+  "updated_at": "2026-05-07T12:38:55.233Z",
   "previews": [
     {
       "pr": 42,
       "title": "ci(preview-manifest): rebuild from Vercel deployments instead of PR webhook",
       "branch": "cursor/manifest-from-vercel",
-      "url": "https://happyword-mg0sqryv4-terrymas-projects.vercel.app",
+      "url": "https://happyword-pty6a2kvv-terrymas-projects.vercel.app",
       "author": "terryma2024",
-      "head_sha": "b8bb069",
-      "updated_at": "2026-05-07T12:19:51.629Z"
+      "head_sha": "ca12420",
+      "updated_at": "2026-05-07T12:38:54.203Z"
     },
     {
       "pr": 41,
@@ -18,7 +18,7 @@
       "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "d3bdcd3",
-      "updated_at": "2026-05-07T12:19:51.926Z"
+      "updated_at": "2026-05-07T12:38:54.586Z"
     },
     {
       "pr": 40,
@@ -27,7 +27,7 @@
       "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "e6abbc1",
-      "updated_at": "2026-05-07T12:19:52.230Z"
+      "updated_at": "2026-05-07T12:38:54.888Z"
     },
     {
       "pr": 30,
@@ -36,7 +36,7 @@
       "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "69fc795",
-      "updated_at": "2026-05-07T12:19:52.468Z"
+      "updated_at": "2026-05-07T12:38:55.233Z"
     }
   ]
 }
