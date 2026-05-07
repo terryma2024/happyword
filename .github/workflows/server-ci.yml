@@ -260,14 +260,22 @@ jobs:
 
       - name: Install @cursor/sdk
         if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        # Install at the workspace root so Node's ESM resolver — which walks up
+        # from the .mjs file (cwd is ignored for ESM) — finds node_modules/@cursor/sdk
+        # at $GITHUB_WORKSPACE. Use --prefix to avoid altering any committed package.json.
         run: |
           set -euo pipefail
-          # Isolated node_modules — no package.json change in the repo.
-          # Name must not start with "." (npm rejects it as a package name).
-          mkdir -p cursor-sdk-tmp
-          cd cursor-sdk-tmp
-          npm init -y >/dev/null
-          npm install --silent --no-audit --no-fund --no-progress @cursor/sdk
+          if [ ! -f package.json ]; then
+            # Minimal package.json — never committed; only lives on the runner.
+            cat > package.json <<'JSON'
+          {
+            "name": "happyword-cursor-autofix-runner",
+            "version": "0.0.0",
+            "private": true
+          }
+          JSON
+          fi
+          npm install --silent --no-audit --no-fund --no-progress --no-save @cursor/sdk
 
       - name: Trigger Cursor Cloud autofix
         if: ${{ env.HAS_CURSOR_KEY == 'true' }}
@@ -282,8 +290,4 @@ jobs:
           REPO_URL: ${{ github.event.repository.clone_url }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           E2E_LOG_FILE: artifacts/e2e-pytest.log
-        # node_modules lives in cursor-sdk-tmp; run node from there so it resolves @cursor/sdk.
-        run: |
-          set -euo pipefail
-          cd cursor-sdk-tmp
-          node "$GITHUB_WORKSPACE/.github/scripts/trigger-cursor-fix-e2e.mjs"
+        run: node .github/scripts/trigger-cursor-fix-e2e.mjs
