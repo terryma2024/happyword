@@ -23,6 +23,9 @@ import { getTodayPreferences, TodayPreferences } from '../services/TodayPreferen
 import { WordPackCache, WordPackCacheRecord } from '../services/WordPackCache';
 import { CategoryCatalog, CategoryRow } from '../services/CategoryCatalog';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
+import BuildProfile from 'BuildProfile';
+import { VersionTripleTap } from '../services/VersionTripleTap';
+import { formatVersionLabel, readVersionInfo, VersionInfo } from '../services/BuildInfo';
 
 /**
  * Review-mode gating threshold. Mirrors spec §15 Track D: kids need at
@@ -31,6 +34,16 @@ import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCre
  */
 const REVIEW_MIN_WRONG_IDS: number = 3;
 const REVIEW_WINDOW_SIZE: number = 12;
+
+/**
+ * Route params bag for `pages/DevMenuPage`. ArkTS strict mode rejects
+ * inline object literals (arkts-no-untyped-obj-literals), so we use
+ * a small class with default-initialised public fields and pass an
+ * instance — same pattern as LessonReviewRouteParams elsewhere.
+ */
+class DevMenuRouteParams {
+  presetEnv: string = '';
+}
 
 @Entry
 @Component
@@ -71,6 +84,10 @@ struct HomePage {
   // to a parent account. Refreshed on aboutToAppear/onPageShow.
   @State private boundChildNickname: string = '';
   private cloudCreds: CloudCredentials = new CloudCredentials();
+  // Debug-only top-left version label. Empty in release builds — the
+  // hydration call in aboutToAppear is gated on BuildProfile.BUILD_MODE_NAME.
+  @State private versionLabel: string = '';
+  private versionTap: VersionTripleTap = new VersionTripleTap();
 
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -101,6 +118,13 @@ struct HomePage {
         console.error(`HomePage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
       });
     this.refreshWrongCount();
+    if (BuildProfile.BUILD_MODE_NAME === 'debug') {
+      readVersionInfo().then((v: VersionInfo): void => {
+        this.versionLabel = formatVersionLabel(v);
+      }).catch((err: BusinessError): void => {
+        console.error(`HomePage.readVersionInfo failed: ${JSON.stringify(err)}`);
+      });
+    }
   }
 
   private async refreshBoundChild(): Promise<void> {
@@ -439,6 +463,36 @@ struct HomePage {
           });
       }
       .margin({ top: 16, right: 16 });
+
+      // Debug-only version label, top-left. Wrapped in a
+      // Column().alignItems(HorizontalAlign.Start).width('100%') so it
+      // ignores the outer Stack's TopEnd alignment and anchors left.
+      // Triple-tap (≤1000ms window) navigates to DevMenuPage with the
+      // PREVIEW environment pre-selected. Production / release builds
+      // never render or hydrate this — see aboutToAppear gate.
+      if (BuildProfile.BUILD_MODE_NAME === 'debug') {
+        Column() {
+          Text(this.versionLabel)
+            .id('HomeVersionLabel')
+            .fontSize(11)
+            .fontColor('#999999')
+            .padding({ left: 16, top: 16, right: 16, bottom: 8 })
+            .onClick((): void => {
+              if (this.versionTap.onTap(Date.now())) {
+                const params: DevMenuRouteParams = new DevMenuRouteParams();
+                params.presetEnv = 'preview';
+                this.getUIContext().getRouter().pushUrl({
+                  url: 'pages/DevMenuPage',
+                  params: params,
+                }).catch((err: BusinessError): void => {
+                  console.error(`HomePage: pushUrl DevMenuPage (triple-tap) failed: ${JSON.stringify(err)}`);
+                });
+              }
+            });
+        }
+        .alignItems(HorizontalAlign.Start)
+        .width('100%');
+      }
     }
     .alignContent(Alignment.TopEnd)
     .width('100%')
