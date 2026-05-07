@@ -18,6 +18,7 @@ concurrency:
 jobs:
   update_manifest:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -49,6 +50,8 @@ jobs:
       - name: Update manifest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_MANIFEST_POLL_INTERVAL_MS: '30000'
+          PREVIEW_MANIFEST_POLL_MAX_ATTEMPTS: '30'
         run: node server/scripts/update_preview_manifest.mjs "$GITHUB_EVENT_PATH" "$GITHUB_TOKEN"
 
       - name: Commit + push if changed

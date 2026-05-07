@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "ignoreCommand": "bash ./scripts/vercel_should_skip_build.sh",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)",     "destination": "/api/index.py" }
