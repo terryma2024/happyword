@@ -54,6 +54,8 @@ jobs:
       # (or on fork PRs where secrets are unavailable), every other step is skipped and the
       # job still shows green — this step explains why.
       - name: E2E preview gate (why steps may be skipped)
+        # Run from repo root: job default is `server/`, which does not exist before Checkout.
+        working-directory: .
         run: |
           set -euo pipefail
           echo "HAS_VERCEL_TOKEN=${HAS_VERCEL_TOKEN}"
