@@ -21,6 +21,7 @@ from tests.e2e._utils.auth import (
     parent_login,
 )
 from tests.e2e._utils.db import MongoDB
+from tests.e2e._utils.vercel import ENV_VAR as BYPASS_ENV_VAR
 from tests.e2e._utils.vercel import make_client
 
 
@@ -28,12 +29,62 @@ def _strip_env(name: str) -> str:
     return os.environ.get(name, "").strip()
 
 
+def _looks_like_vercel_sso(resp: httpx.Response) -> bool:
+    """Heuristic: does ``resp`` look like a Vercel deployment-protection
+    SSO challenge rather than an actual API response?
+
+    Vercel intercepts anonymous traffic to protected previews with a
+    401/403 HTML page whose body contains ``Authentication Required`` and
+    a redirect to ``vercel.com/sso-api``. We only want to match on those
+    very specific markers so a real API 401 (e.g. ``/parent/me`` without
+    cookie) still fails the test as intended.
+    """
+    if resp.status_code not in (401, 403):
+        return False
+    ctype = resp.headers.get("content-type", "").lower()
+    if "text/html" not in ctype:
+        return False
+    body = resp.text
+    return "Authentication Required" in body and "vercel.com/sso-api" in body
+
+
 @pytest.fixture(scope="session")
 def base_url() -> str:
     url = _strip_env("E2E_BASE_URL")
     if not url:
         pytest.skip("E2E_BASE_URL is not set")
-    return url.rstrip("/")
+    url = url.rstrip("/")
+
+    # Reachability probe: when the Vercel preview has Deployment
+    # Protection enabled and the bypass token is missing/invalid, every
+    # subsequent test would fail with a confusing
+    # ``AssertionError: ...failed (401): <!doctype html>...`` instead of a
+    # clean diagnostic. Detect the SSO challenge once and skip the whole
+    # session with an actionable hint, matching the convention used by
+    # the other env-driven fixtures below.
+    try:
+        with make_client(base_url=url, timeout=10.0, follow_redirects=False) as probe:
+            health = probe.get("/api/v1/health")
+    except httpx.RequestError as exc:
+        pytest.skip(f"E2E_BASE_URL {url!r} is unreachable: {exc}")
+    if _looks_like_vercel_sso(health):
+        bypass_set = bool(_strip_env(BYPASS_ENV_VAR))
+        hint = (
+            "the token is rejected by the edge (rotated / wrong project?)"
+            if bypass_set
+            else (
+                f"{BYPASS_ENV_VAR} is empty — add the "
+                "VERCEL_AUTOMATION_BYPASS_SECRET repository secret "
+                "(Vercel Project → Settings → Deployment Protection → "
+                "Protection Bypass for Automation) so the test runner "
+                "can attach the x-vercel-protection-bypass header"
+            )
+        )
+        pytest.skip(
+            "Vercel Deployment Protection is intercepting anonymous "
+            f"requests to {url} with an SSO challenge: {hint}."
+        )
+    return url
 
 
 @pytest.fixture(scope="session")
@@ -106,9 +157,7 @@ def device(
 ) -> DeviceSession:
     test_slug = request.node.name.replace("[", "_").replace("]", "_")
     device_id = f"e2e-{run_id}-{test_slug}"
-    return device_redeem(
-        base_url=base_url, parent_http=http, device_id=device_id
-    )
+    return device_redeem(base_url=base_url, parent_http=http, device_id=device_id)
 
 
 # Re-export the session dataclasses so tests can ``from .conftest import …``
