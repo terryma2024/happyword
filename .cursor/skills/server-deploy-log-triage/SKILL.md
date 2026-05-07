@@ -74,6 +74,7 @@ The Vercel REST API endpoint `/v3/deployments/<id>/events` returns BUILD events 
 | Pydantic `ValidationError: ... field required` on `Settings` class | A required env var (no default in `app/config.py:Settings`) is missing on this target. The required ones with no defaults: `MONGODB_URI`/`MONGO_URI`, `MONGO_DB_NAME`, `JWT_SECRET`, `ADMIN_BOOTSTRAP_USER`, `ADMIN_BOOTSTRAP_PASS`. Compare `vercel env ls` against this list. |
 | `pymongo.errors.ServerSelectionTimeoutError` | `MONGODB_URI` exists but DB is unreachable from this region or credentials are stale. |
 | `KeyError: 'pr'` from `template.format(...)` | `MONGO_DB_NAME` was set to a literal string with stray `{...}` characters but no actual `{pr}`/`{branch}` placeholder. Use the literal `happyword` form for production, the `happyword_pr_{pr}_e2e` template for preview. |
+| `pymongo.errors.OperationFailure: Database name … is too long. Max database name length is 38 bytes.` (`AtlasError 8000`) | Atlas caps DB names at 38 bytes. `_resolve_db_name` now degrades long branches to a `br_<sha1[:8]>` slug automatically, so seeing this error means either the literal `MONGO_DB_NAME` was set > 38 chars, or the deploy is running an older build from before that fallback. Bump or redeploy. |
 | Long stack ending in `motor` / `beanie` from `app.main:lifespan` | DB init exploded; everything else after is collateral. |
 
 ## C. GitHub Actions e2e log
