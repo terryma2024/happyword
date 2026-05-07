@@ -160,7 +160,9 @@ async function main() {
   // We must explicitly pass `cloud:` — if both `local:` and `cloud:` are
   // omitted the SDK silently defaults to a local runtime, which is useless
   // inside a CI job that's about to exit.
-  const agent = Agent.create({
+  // Note: Agent.create is async in @cursor/sdk >=1.0 — it must be awaited;
+  // otherwise `agent.send` is undefined (we'd be calling it on a Promise).
+  const agent = await Agent.create({
     apiKey: CURSOR_API_KEY,
     cloud: {
       repos: [
