@@ -7,11 +7,11 @@
         "material": {
           "certpath": "/Users/bytedance/.ohos/config/default_happyword_gh8haRt7ih8VVaUCIIlpa8TGTVhjXGA10md7E_mMPXo=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B2F150F37BA46F9F4A40E2BEA1D50A97FEB9B6B35CD767269A24B9F9309B512D6D4B97D5025DE93",
+          "keyPassword": "0000001B3E5CC2AD26BF57AF7DB24649A3621F8892F2DB058866BAAF3A0CD596C19A404F0F46EEEA8C6B53",
           "profile": "/Users/bytedance/.ohos/config/default_happyword_gh8haRt7ih8VVaUCIIlpa8TGTVhjXGA10md7E_mMPXo=.p7b",
           "signAlg": "SHA256withECDSA",
           "storeFile": "/Users/bytedance/.ohos/config/default_happyword_gh8haRt7ih8VVaUCIIlpa8TGTVhjXGA10md7E_mMPXo=.p12",
-          "storePassword": "0000001BDE0DA74129984701FB6B50A04C5B0E13FE7119FB927379E2AB11F949947D0E353D41360F2CB1CE"
+          "storePassword": "0000001B98A2D1F0FD178CF9884A38F4380ED454BFA75123286E91C45E9EF81AEABEF14451CDD526C536E2"
         }
       }
     ],

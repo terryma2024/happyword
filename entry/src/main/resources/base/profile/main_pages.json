@@ -12,6 +12,9 @@
     "pages/TodayPlanPage",
     "pages/LearningReportPage",
     "pages/ParentAdminPage",
-    "pages/LessonDraftReviewPage"
+    "pages/LessonDraftReviewPage",
+    "pages/ScanBindingPage",
+    "pages/BoundDeviceInfoPage",
+    "pages/DevMenuPage"
   ]
 }

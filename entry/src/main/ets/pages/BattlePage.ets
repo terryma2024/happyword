@@ -450,6 +450,16 @@ struct BattlePage {
       console.error(`BattlePage: AudioService.dispose failed: ${JSON.stringify(err)}`);
     });
     this.tts.dispose();
+    // V0.6.4: fire-and-forget cloud sync once a battle ends so the
+    // learning deltas land on the server before the parent reloads
+    // their dashboard. The CloudSyncService is intentionally tolerant
+    // of unbound or offline state so we never need to await/guard.
+    const sync = this.recorder.getCloudSync();
+    if (sync !== undefined) {
+      sync.syncOnce().catch((err: BusinessError): void => {
+        console.error(`BattlePage: cloud sync failed: ${JSON.stringify(err)}`);
+      });
+    }
   }
 
   /**
@@ -1501,6 +1511,11 @@ struct BattlePage {
               // never blocks the UI thread on a cast.
               altAssetPath: 'character/magican_fight.svg',
               altActive: this.playerFighting,
+              // V0.6.x: swap to the "被攻击" pose for the duration of
+              // each hurt-pulse window. CharacterCard owns the timing
+              // (true on impact, false on settle) so this prop is just
+              // the asset path — no extra state plumbing here.
+              hurtAssetPath: 'character/magican_beaten.svg',
             });
           }
           .id('PlayerArea')

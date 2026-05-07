@@ -1,0 +1,28 @@
+{# A single inbox message row. Inputs in template scope:
+   m { msg_id, kind, title, body_md, created_at, read_at, related_resource }
+#}
+<li class="inbox-msg border rounded-md p-3
+           {% if not m.read_at %}border-rose-200 bg-rose-50 inbox-msg-unread{% else %}border-slate-200 bg-slate-50 inbox-msg-read{% endif %}"
+    data-msg-id="{{ m.msg_id }}"
+    data-kind="{{ m.kind }}">
+  <div class="flex items-start justify-between gap-3">
+    <div class="flex-1 space-y-1">
+      <p class="text-sm font-semibold text-slate-900">
+        {% if not m.read_at %}<span class="text-rose-600 mr-1">●</span>{% endif %}
+        {{ m.title }}
+      </p>
+      <p class="text-xs text-slate-500">
+        {{ m.created_at.strftime('%Y-%m-%d %H:%M') }} · {{ m.kind }}
+      </p>
+      <p class="text-sm text-slate-700 whitespace-pre-line">{{ m.body_md }}</p>
+    </div>
+    {% if not m.read_at %}
+      <form method="post" action="/api/v1/parent/inbox/{{ m.msg_id }}/read" class="inline">
+        <button type="submit"
+                class="text-xs px-2 py-1 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700">
+          标记已读
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</li>

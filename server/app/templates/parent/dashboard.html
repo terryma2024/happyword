@@ -1,0 +1,73 @@
+{% extends "_base.html" %}
+{% block title %}首页{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header>
+    <h1 class="text-2xl font-semibold text-slate-900">
+      欢迎，{{ user.display_name or user.email.split('@')[0] }}
+    </h1>
+    <p class="text-sm text-slate-500 mt-1">{{ user.email }}</p>
+  </header>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-slate-900">已绑定的设备</h2>
+      <a href="/parent/devices/add"
+         class="text-sm bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded-md font-medium">
+        ➕ 添加新设备
+      </a>
+    </div>
+    <div id="devices-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% if bindings %}
+        {% for b in bindings %}
+          {% set child = children_by_id.get(b.child_profile_id) %}
+          <a href="/parent/devices/{{ b.binding_id }}"
+             class="block bg-slate-50 border border-slate-200 rounded-lg p-4 hover:border-sky-400 hover:bg-sky-50 transition">
+            <p class="text-base font-semibold text-slate-900">
+              {% if child %}{{ child.avatar_emoji }} {{ child.nickname }}{% else %}（未关联档案）{% endif %}
+            </p>
+            <p class="text-xs text-slate-500 mt-2 font-mono">
+              {{ b.binding_id }} · 设备尾号 {{ b.device_id[-4:] }}
+            </p>
+            <p class="text-xs text-sky-700 mt-2">查看学习报告 →</p>
+          </a>
+        {% endfor %}
+      {% else %}
+        <p class="text-sm text-slate-500 col-span-full">
+          还没有绑定的设备。点击右上角「添加新设备」生成二维码，让孩子的设备扫码加入家庭。
+        </p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-slate-900">待审批的兑换申请</h2>
+      <a href="/parent/redemptions" class="text-sm text-sky-600 hover:underline">
+        查看全部 →
+      </a>
+    </div>
+    <div id="redemption-inbox" class="space-y-2">
+      {% if pending_redemptions %}
+        {% for row in pending_redemptions %}
+          {% include "partials/redemption_row.html" %}
+        {% endfor %}
+      {% else %}
+        <p id="no-pending-redemptions" class="text-sm text-slate-500">
+          暂无待审批的兑换申请。
+        </p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-2">下一步</h2>
+    <ul class="text-sm text-slate-600 space-y-1 list-disc pl-5">
+      <li>查看每台设备的学习报告（V0.6.5）。</li>
+      <li>创建家庭词包，按课本单元教学（V0.6.3）。</li>
+      <li>审批孩子的礼品兑换（V0.6.6）。</li>
+      <li>账号设置 / 删除账号（V0.6.7 · 计划中）。</li>
+    </ul>
+  </section>
+</section>
+{% endblock %}

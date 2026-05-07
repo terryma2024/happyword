@@ -21,6 +21,7 @@
 - Keep UI components small and reusable
 - Explain any build.gradle-like or hvigor changes before editing
 - For all feature development and bugfix tasks, use the applicable Superpowers workflow before implementing changes.
+- Debug builds only: **Settings → Developer → Backend environment** opens the DevMenu for switching staging / local / preview API routing; release builds must not expose this entry.
 
 ## Asset retention policy
 - **Never delete resource files (SVG / PNG / audio / fonts / image source) when they become unused at runtime.** Move them under `assets/` instead — e.g. `assets/icons/` for design-source SVGs whose rasterized PNGs ship in `entry/src/main/resources/rawfile/`. This keeps the design source available for re-rasterization, redesign, rollback, or A/B comparison.

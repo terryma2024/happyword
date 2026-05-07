@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
-import { clickByIdShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -87,7 +87,7 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   await driver.delayMs(1500);
 
   // commitOrReset routes back to ConfigPage. Cancel out to Home.
-  await clickByIdShared(driver, 'ConfigCancelButton');
+  await tapConfigCancelShared(driver);
   await driver.delayMs(800);
   await returnToHome(driver);
 }

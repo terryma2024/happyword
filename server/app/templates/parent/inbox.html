@@ -1,0 +1,30 @@
+{% extends "_base.html" %}
+{% block title %}消息中心{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header class="flex items-center justify-between">
+    <h1 class="text-2xl font-semibold text-slate-900">
+      消息中心
+      {% if unread_count %}
+        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-md text-xs
+                     font-semibold bg-rose-100 text-rose-700 inbox-unread-badge">
+          {{ unread_count }} 未读
+        </span>
+      {% endif %}
+    </h1>
+    <a href="/parent/" class="text-sm text-slate-500 hover:text-slate-700">← 返回首页</a>
+  </header>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    {% if messages %}
+      <ul id="inbox-list" class="space-y-3">
+        {% for m in messages %}
+          {% include "partials/inbox_msg.html" %}
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p id="inbox-empty" class="text-sm text-slate-500">暂无消息。</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

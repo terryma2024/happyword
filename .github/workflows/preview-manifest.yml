@@ -1,0 +1,83 @@
+name: preview-manifest
+
+# Cleanup-on-close + manual repair entrypoint for `docs/preview-urls.json`.
+#
+# The "happy path" — refreshing the manifest entry for an open PR after a
+# successful preview deployment — lives in `server-ci.yml` as the
+# `update_manifest` job (it depends on `server_e2e` success). This file is
+# intentionally pared down to handle ONLY:
+#
+#   - PR closed → drop the entry from the manifest (server-ci doesn't fire on
+#                 `closed`, so we'd otherwise leak stale entries).
+#   - workflow_dispatch → manual repair / backfill of the manifest.
+#
+# PRs that don't touch `server/` never get a Vercel preview (server's
+# `vercel.json` ignoreCommand short-circuits the build), so they don't need a
+# manifest entry while open — that's why we no longer poll-and-create on
+# `opened`/`synchronize`/`reopened` here.
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: read
+  # listDeployments + listDeploymentStatuses (used by manual repair runs).
+  deployments: read
+
+# Same group name as the `update_manifest` job in server-ci.yml so the two
+# workflows serialize on `docs/preview-urls.json` even when a PR closes
+# during an in-flight CI run.
+concurrency:
+  group: preview-manifest
+  cancel-in-progress: false
+
+jobs:
+  update_manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # `closed` events come from a PR head that may be deleted, so we can't
+      # always pull the script from the PR ref. Manual dispatch likewise has
+      # no PR head. Just use whatever lives on `main`.
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Install Octokit
+        run: npm install --no-save @octokit/rest
+
+      - name: Update manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_MANIFEST_POLL_INTERVAL_MS: '30000'
+          PREVIEW_MANIFEST_POLL_MAX_ATTEMPTS: '30'
+        run: node server/scripts/update_preview_manifest.mjs "$GITHUB_EVENT_PATH" "$GITHUB_TOKEN"
+
+      - name: Commit + push if changed
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add docs/preview-urls.json
+          if git diff --staged --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          if [ -n "$PR_NUMBER" ]; then
+            git commit -m "chore: refresh preview-urls.json (PR #${PR_NUMBER})"
+          else
+            git commit -m "chore: refresh preview-urls.json"
+          fi
+          git push origin main

@@ -20,6 +20,7 @@ import {
 } from '../utils/orientation';
 import {
   LessonImagePicker,
+  RealLessonCameraAdapter,
   RealPhotoFileReader,
   RealPhotoPickerAdapter,
 } from '../services/LessonImagePicker';
@@ -72,6 +73,7 @@ struct ParentAdminPage {
   );
   private picker: LessonImagePicker = new LessonImagePicker(
     new RealPhotoPickerAdapter(this.getUIContext().getHostContext() as common.UIAbilityContext),
+    new RealLessonCameraAdapter(this.getUIContext().getHostContext() as common.UIAbilityContext),
     new RealPhotoFileReader(),
   );
 

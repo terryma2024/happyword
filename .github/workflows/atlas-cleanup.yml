@@ -1,0 +1,44 @@
+name: atlas-cleanup
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"        # every Monday 09:00 UTC
+  workflow_dispatch:           # manual repair / one-off cleanup
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  drop_stale_pr_dbs:
+    name: drop stale per-PR Atlas DBs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Sync dependencies
+        run: uv sync --dev
+
+      - name: Drop stale per-PR DBs (>14 days)
+        env:
+          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+        run: |
+          if [ -z "$E2E_MONGODB_URI" ]; then
+            echo "::warning::E2E_MONGODB_URI not configured; skipping cleanup."
+            exit 0
+          fi
+          uv run python scripts/e2e_drop_old_pr_dbs.py \
+            --pattern '^happyword_pr_\d+_e2e$' \
+            --older-than-days 14 \
+            | tee >(grep -E '^(Candidates|Dropped)' >> "$GITHUB_STEP_SUMMARY")

@@ -1,24 +1,30 @@
 import { describe, it, expect } from '@ohos/hypium';
 import {
-  IPhotoFileReader,
   IPhotoPickerAdapter,
+  PickedFileRef,
+} from '../main/ets/services/PhotoPickerService';
+import {
+  ILessonCameraAdapter,
+  IPhotoFileReader,
   LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY,
   LessonImagePicker,
-  PickedFileRef,
   readPickerOverrideUri,
 } from '../main/ets/services/LessonImagePicker';
 import { PickedImage } from '../main/ets/services/ParentApiClient';
 
 class StubPicker implements IPhotoPickerAdapter {
   galleryResult: PickedFileRef | null = null;
-  cameraResult: PickedFileRef | null = null;
   galleryCalls: number = 0;
-  cameraCalls: number = 0;
 
   async selectGallery(): Promise<PickedFileRef | null> {
     this.galleryCalls += 1;
     return this.galleryResult;
   }
+}
+
+class StubCamera implements ILessonCameraAdapter {
+  cameraResult: PickedFileRef | null = null;
+  cameraCalls: number = 0;
 
   async selectCamera(): Promise<PickedFileRef | null> {
     this.cameraCalls += 1;
@@ -56,8 +62,9 @@ export default function lessonImagePickerTest(): void {
   describe('LessonImagePicker', () => {
     it('pickFromGallery returns null on user cancel', 0, async () => {
       const p: StubPicker = new StubPicker();
+      const c: StubCamera = new StubCamera();
       const r: StubReader = new StubReader();
-      const lp: LessonImagePicker = new LessonImagePicker(p, r);
+      const lp: LessonImagePicker = new LessonImagePicker(p, c, r);
       const out: PickedImage | null = await lp.pickFromGallery();
       expect(out === null).assertTrue();
       expect(p.galleryCalls).assertEqual(1);
@@ -66,8 +73,9 @@ export default function lessonImagePickerTest(): void {
     it('pickFromGallery returns PickedImage on success with sniffed mime', 0, async () => {
       const p: StubPicker = new StubPicker();
       p.galleryResult = makeRef('file:///x/lesson.jpg');
+      const c: StubCamera = new StubCamera();
       const r: StubReader = new StubReader();
-      const lp: LessonImagePicker = new LessonImagePicker(p, r);
+      const lp: LessonImagePicker = new LessonImagePicker(p, c, r);
       const out: PickedImage | null = await lp.pickFromGallery();
       expect(out !== null).assertTrue();
       if (out !== null) {
@@ -80,9 +88,10 @@ export default function lessonImagePickerTest(): void {
 
     it('pickFromCamera sniffs png from .png extension', 0, async () => {
       const p: StubPicker = new StubPicker();
-      p.cameraResult = makeRef('file:///x/page.png');
+      const c: StubCamera = new StubCamera();
+      c.cameraResult = makeRef('file:///x/page.png');
       const r: StubReader = new StubReader();
-      const lp: LessonImagePicker = new LessonImagePicker(p, r);
+      const lp: LessonImagePicker = new LessonImagePicker(p, c, r);
       const out: PickedImage | null = await lp.pickFromCamera();
       expect(out !== null).assertTrue();
       if (out !== null) {
@@ -93,8 +102,9 @@ export default function lessonImagePickerTest(): void {
     it('pickFromGallery returns null for unsupported extension', 0, async () => {
       const p: StubPicker = new StubPicker();
       p.galleryResult = makeRef('file:///x/doc.pdf');
+      const c: StubCamera = new StubCamera();
       const r: StubReader = new StubReader();
-      const lp: LessonImagePicker = new LessonImagePicker(p, r);
+      const lp: LessonImagePicker = new LessonImagePicker(p, c, r);
       const out: PickedImage | null = await lp.pickFromGallery();
       expect(out === null).assertTrue();
     });
@@ -102,8 +112,9 @@ export default function lessonImagePickerTest(): void {
     it('uri without slash uses raw uri as filename', 0, async () => {
       const p: StubPicker = new StubPicker();
       p.galleryResult = makeRef('lesson.webp');
+      const c: StubCamera = new StubCamera();
       const r: StubReader = new StubReader();
-      const lp: LessonImagePicker = new LessonImagePicker(p, r);
+      const lp: LessonImagePicker = new LessonImagePicker(p, c, r);
       const out: PickedImage | null = await lp.pickFromGallery();
       expect(out !== null).assertTrue();
       if (out !== null) {
@@ -115,8 +126,9 @@ export default function lessonImagePickerTest(): void {
     it('case-insensitively recognizes .JPEG', 0, async () => {
       const p: StubPicker = new StubPicker();
       p.galleryResult = makeRef('file:///x/Photo.JPEG');
+      const c: StubCamera = new StubCamera();
       const r: StubReader = new StubReader();
-      const lp: LessonImagePicker = new LessonImagePicker(p, r);
+      const lp: LessonImagePicker = new LessonImagePicker(p, c, r);
       const out: PickedImage | null = await lp.pickFromGallery();
       expect(out !== null).assertTrue();
       if (out !== null) {
@@ -126,17 +138,17 @@ export default function lessonImagePickerTest(): void {
 
     /**
      * V0.5.8 ohosTest harness: AppStorage[LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY]
-     * carries the on-device path of a fixture image pushed by
-     * `scripts/run_ui_tests.sh` via `hdc file send`. The
-     * `readPickerOverrideUri` helper is the ONE source of truth that
-     * `RealPhotoPickerAdapter.{selectGallery,selectCamera}` consult
-     * before invoking the system PhotoViewPicker / cameraPicker.
+     * carries the on-device path of a fixture image. The
+     * `readPickerOverrideUri` helper (no-arg, lesson-key-bound wrapper
+     * around the shared PhotoPickerService.readPickerOverrideUri(key))
+     * is the ONE source of truth that LessonImagePicker's lesson-side
+     * picker adapters consult before invoking the system pickers.
      *
      * We pin the key string and the parse semantics here because:
      *   - the key is shared with the ohosTest harness in
-     *     `entry/src/ohosTest/ets/test/List.test.ets` — a typo / rename
-     *     would silently fall back to the real system picker and the
-     *     UI tests would freeze at the dialog;
+     *     `entry/src/ohosTest/ets/test/ParentAdminFlow.ui.test.ets` —
+     *     a typo / rename would silently fall back to the real system
+     *     picker and the UI tests would freeze at the dialog;
      *   - whitespace trimming matters because hdc-driven shell scripts
      *     occasionally append trailing newlines when piping a path.
      */

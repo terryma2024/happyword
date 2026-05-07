@@ -1,6 +1,6 @@
 [project]
 name = "happyword-server"
-version = "0.5.1"
+version = "0.6.7"
 description = "Content backend for WordMagicGame (HarmonyOS NEXT client)"
 requires-python = ">=3.12"
 dependencies = [
@@ -17,6 +17,11 @@ dependencies = [
     "httpx>=0.27",
     "uvicorn[standard]>=0.32",
     "python-multipart>=0.0.20",
+    "aiosmtplib>=5.1.0",
+    "jinja2>=3.1.6",
+    "itsdangerous>=2.2.0",
+    "email-validator>=2.3.0",
+    "qrcode[pil]>=8.2",
 ]
 
 [dependency-groups]
@@ -27,11 +32,32 @@ dev = [
     "ruff>=0.7",
     "mypy>=1.13",
     "types-python-jose>=3.3",
+    "beautifulsoup4>=4.14.3",
+    "types-qrcode>=8.2.0.20260408",
 ]
+
+# Tell Vercel's FastAPI Framework Preset which `app = FastAPI()` to load.
+# Without this, the preset auto-discovery walks `app.py | index.py |
+# server.py | main.py` in `./`, `src/`, `app/`, `api/` looking for a
+# top-level `app`, and BOTH `api/index.py` (re-export) and `app/main.py`
+# (real definition) match. Which entrypoint wins is undocumented, and
+# the ambiguity surfaces as silently-broken deployments where every
+# URL returns Vercel's edge `404 NOT_FOUND` page even though the
+# Vercel check is green. Pin to the canonical re-export at
+# `api/index.py` so the resulting Vercel Function exposes the same
+# routes that `uvicorn app.main:app` serves locally.
+# Docs: https://vercel.com/docs/functions/runtimes/python#python-entrypoints
+[tool.vercel]
+entrypoint = "api.index:app"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "e2e: external HTTP tests against a deployed server (skipped unless E2E_BASE_URL is set)",
+    "smoke: subset of `e2e` runnable against staging without a DB reset (5 cases, ~10s)",
+    "openai: tests that call the real OpenAI API (cost-conscious lanes can `pytest -m 'e2e and not openai'`)",
+]
 # Project rule: every commit must run pytest with 0 errors and 0 warnings.
 # Default to errors so any new warning fails the suite. Narrow ignores below
 # must always pin both the message prefix and the originating module, with a

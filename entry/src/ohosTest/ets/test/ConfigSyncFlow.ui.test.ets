@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
-import { clickByIdShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
 
 /**
  * V0.5 client follow-up (VC0.5.B) acceptance for the manual word-
@@ -191,7 +191,7 @@ export default function configSyncFlowUiTest(): void {
         status.indexOf(CACHED_STATUS_PREFIX) >= 0;
       expect(looksValid).assertTrue();
 
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
@@ -234,7 +234,7 @@ export default function configSyncFlowUiTest(): void {
         expect(schemaVersion >= 1).assertTrue();
       }
 
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
@@ -265,7 +265,7 @@ export default function configSyncFlowUiTest(): void {
       // Leave and re-enter — the cancel button on the bottom row
       // remains in view because the Scroll position from the swipe
       // above is preserved.
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
 
@@ -277,7 +277,7 @@ export default function configSyncFlowUiTest(): void {
       expect(cached.length > 0).assertTrue();
       expect(cached.indexOf(CACHED_STATUS_PREFIX) >= 0).assertTrue();
 
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
@@ -321,7 +321,7 @@ export default function configSyncFlowUiTest(): void {
       const status: string = await statusComp.getText();
       expect(status.indexOf(CACHED_STATUS_PREFIX) >= 0).assertTrue();
 
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();

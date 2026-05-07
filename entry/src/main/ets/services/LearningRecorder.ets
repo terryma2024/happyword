@@ -9,6 +9,7 @@ import {
   MASTERY_DELTA_WRONG,
 } from './WrongAnswerStore';
 import { MemoryScheduler, MemoryState } from './MemoryScheduler';
+import { CloudSyncLike } from './CloudSyncTypes';
 
 const DEBOUNCE_MS: number = 100;
 
@@ -52,6 +53,7 @@ export class LearningRecorder {
   private recordSequence: number = 0;
   private statSequence: Map<string, number> = new Map<string, number>();
   private scheduler: MemoryScheduler;
+  private cloudSync?: CloudSyncLike;
 
   constructor(store?: WrongAnswerStore, scheduler?: MemoryScheduler) {
     this.store = store !== undefined ? store : new WrongAnswerStore();
@@ -78,6 +80,18 @@ export class LearningRecorder {
     }
     this.sessionStartLearnedIds = this.computeLearnedIdSet();
     this.ready = true;
+  }
+
+  /** V0.6.4: register the cloud-sync companion. Pass `undefined` to
+   *  detach (used by tests + by binding-removed flow). */
+  attachCloudSync(svc?: CloudSyncLike): void {
+    this.cloudSync = svc;
+  }
+
+  /** V0.6.4: read-only accessor used by pages that want to peek at the
+   *  attached sync service (e.g. ConfigPage's manual-sync button). */
+  getCloudSync(): CloudSyncLike | undefined {
+    return this.cloudSync;
   }
 
   /** Used by unit tests to install a pre-configured store. */
@@ -169,6 +183,36 @@ export class LearningRecorder {
     return this.snapshot.stats.slice();
   }
 
+  /** V0.6.4: cloud-sync read accessor. Mirrors `statsForTest` but
+   *  exposed under a non-test name so production code (CloudSyncService)
+   *  can call it without an obvious smell. */
+  allStats(): WordStat[] {
+    return this.snapshot.stats.slice();
+  }
+
+  /** V0.6.4: apply a single LWW pull from the cloud sync service.
+   *  Replaces the matching wordId entry when `lastAnsweredMs` strictly
+   *  exceeds the local one, otherwise the call is a no-op. The mutation
+   *  is debounced through the same timer as `recordAnswer` so the
+   *  on-disk snapshot eventually reflects the cloud pull. */
+  applyCloudPull(stat: WordStat): boolean {
+    const idx: number = this.snapshot.stats.findIndex(
+      (s: WordStat): boolean => s.wordId === stat.wordId,
+    );
+    if (idx < 0) {
+      this.snapshot.stats.push(stat);
+      this.scheduleSave();
+      return true;
+    }
+    const local: WordStat = this.snapshot.stats[idx];
+    if (stat.lastAnsweredMs <= local.lastAnsweredMs) {
+      return false;
+    }
+    this.snapshot.stats[idx] = stat;
+    this.scheduleSave();
+    return true;
+  }
+
   /**
    * Return the most-recent `limit` wordIds whose latest outcome was
    * wrong. De-duplicated and ordered most-recent-first so the review
@@ -238,6 +282,14 @@ export class LearningRecorder {
       await this.store.save(this.snapshot);
     } catch (err) {
       console.error(`LearningRecorder.flushNow failed: ${JSON.stringify(err as BusinessError)}`);
+    }
+    // V0.6.4 fire-and-forget cloud sync. Failures are swallowed by the
+    // sync service itself, so we deliberately don't await the promise:
+    // a parent web reload should not block the flush.
+    if (this.cloudSync !== undefined) {
+      this.cloudSync.syncOnce().catch((err: BusinessError): void => {
+        console.error(`LearningRecorder.flushNow cloud sync: ${JSON.stringify(err)}`);
+      });
     }
   }
 

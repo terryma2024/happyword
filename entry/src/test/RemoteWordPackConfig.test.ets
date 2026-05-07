@@ -6,54 +6,48 @@ import {
   resolveServerBaseUrl,
   effectiveServerBaseUrl,
   SERVER_BASE_URL_OVERRIDE_KEY,
-  DEV_BASE_URL,
+  LOCAL_BASE_URL,
+  STAGING_BASE_URL,
   PROD_BASE_URL,
-  USE_LOCAL_DEV_SERVER,
+  BACKEND_ENV_CACHE_KEY,
+  BACKEND_PREVIEW_URL_CACHE_KEY,
 } from '../main/ets/services/RemoteWordPackConfig';
 
 export default function remoteWordPackConfigTest() {
   describe('RemoteWordPackConfig', () => {
-    it('localDevServerToggleDefaultsOff', 0, () => {
-      expect(USE_LOCAL_DEV_SERVER).assertEqual(false);
+    it('localUrlIsEmulatorHostLoopback', 0, () => {
+      expect(LOCAL_BASE_URL).assertEqual('http://10.0.2.2:8000');
     });
-    it('debugBuildHitsProdByDefault', 0, () => {
-      expect(pickServerBaseUrl('debug')).assertEqual(PROD_BASE_URL);
+    it('stagingUrlIsVercelDomain', 0, () => {
+      expect(STAGING_BASE_URL).assertEqual('https://happyword.vercel.app');
     });
-    it('releaseBuildHitsProd', 0, () => {
-      expect(pickServerBaseUrl('release')).assertEqual(PROD_BASE_URL);
+    it('prodUrlReservedEmpty', 0, () => {
+      expect(PROD_BASE_URL === '').assertTrue();
     });
-    it('unknownBuildModeFallsBackToProd', 0, () => {
-      expect(pickServerBaseUrl('something-else')).assertEqual(PROD_BASE_URL);
+
+    it('releaseAlwaysLandsOnStagingWhenProdUnset', 0, () => {
+      expect(pickServerBaseUrlExplicit('release', '', '')).assertEqual(STAGING_BASE_URL);
+      expect(pickServerBaseUrlExplicit('release', 'local', '')).assertEqual(STAGING_BASE_URL);
+      expect(pickServerBaseUrlExplicit('release', 'preview', 'http://x')).assertEqual(STAGING_BASE_URL);
     });
-    it('explicitDebugWithLocalDevServerOnPicksDevUrl', 0, () => {
-      expect(pickServerBaseUrlExplicit('debug', true)).assertEqual(DEV_BASE_URL);
+    it('debugWithEmptyEnvDefaultsToStaging', 0, () => {
+      expect(pickServerBaseUrlExplicit('debug', '', '')).assertEqual(STAGING_BASE_URL);
     });
-    it('explicitDebugWithLocalDevServerOffPicksProd', 0, () => {
-      expect(pickServerBaseUrlExplicit('debug', false)).assertEqual(PROD_BASE_URL);
+    it('debugLocalReturnsLocalUrl', 0, () => {
+      expect(pickServerBaseUrlExplicit('debug', 'local', '')).assertEqual(LOCAL_BASE_URL);
     });
-    it('explicitReleaseAlwaysIgnoresLocalDevServerToggle', 0, () => {
-      expect(pickServerBaseUrlExplicit('release', true)).assertEqual(PROD_BASE_URL);
-      expect(pickServerBaseUrlExplicit('release', false)).assertEqual(PROD_BASE_URL);
+    it('debugPreviewWithUrlReturnsPreviewUrl', 0, () => {
+      expect(pickServerBaseUrlExplicit('debug', 'preview', 'https://pr-42.vercel.app'))
+        .assertEqual('https://pr-42.vercel.app');
     });
-    it('devUrlIsEmulatorHostLoopback', 0, () => {
-      expect(DEV_BASE_URL).assertEqual('http://10.0.2.2:8000');
+    it('debugPreviewWithEmptyFallsBackToStaging', 0, () => {
+      expect(pickServerBaseUrlExplicit('debug', 'preview', '')).assertEqual(STAGING_BASE_URL);
     });
-    it('prodUrlIsVercelDomain', 0, () => {
-      expect(PROD_BASE_URL).assertEqual('https://happyword.vercel.app');
+    it('debugProdFallsBackToStagingUntilProdIsLive', 0, () => {
+      expect(pickServerBaseUrlExplicit('debug', 'prod', '')).assertEqual(STAGING_BASE_URL);
     });
-    it('buildLatestPackUrlAppendsCorrectPath', 0, () => {
-      expect(buildLatestPackUrl(PROD_BASE_URL)).assertEqual(
-        'https://happyword.vercel.app/api/v1/packs/latest.json',
-      );
-    });
-    it('buildLatestPackUrlReturnsEmptyForEmptyBase', 0, () => {
-      expect(buildLatestPackUrl('')).assertEqual('');
-    });
+
     it('overrideKeyIsStableForGrep', 0, () => {
-      // The ohosTest harness writes this exact key in beforeAll. If
-      // we ever rename it, both production resolveServerBaseUrl and
-      // List.test.ets must move together — this assertion guards
-      // against half-renames that silently leak prod traffic.
       expect(SERVER_BASE_URL_OVERRIDE_KEY).assertEqual('serverBaseUrlOverride');
     });
     it('resolveServerBaseUrlReturnsOverrideWhenPresent', 0, () => {
@@ -63,32 +57,44 @@ export default function remoteWordPackConfigTest() {
         .assertEqual('http://127.0.0.1:8123');
     });
     it('resolveServerBaseUrlIgnoresEmptyOverride', 0, () => {
-      expect(resolveServerBaseUrl('', 'debug')).assertEqual(PROD_BASE_URL);
-      expect(resolveServerBaseUrl('', 'release')).assertEqual(PROD_BASE_URL);
+      AppStorage.delete(BACKEND_ENV_CACHE_KEY);
+      AppStorage.delete(BACKEND_PREVIEW_URL_CACHE_KEY);
+      expect(resolveServerBaseUrl('', 'debug')).assertEqual(STAGING_BASE_URL);
+      expect(resolveServerBaseUrl('', 'release')).assertEqual(STAGING_BASE_URL);
     });
     it('resolveServerBaseUrlIgnoresUndefinedOverride', 0, () => {
-      expect(resolveServerBaseUrl(undefined, 'debug')).assertEqual(PROD_BASE_URL);
-      expect(resolveServerBaseUrl(undefined, 'release')).assertEqual(PROD_BASE_URL);
+      AppStorage.delete(BACKEND_ENV_CACHE_KEY);
+      AppStorage.delete(BACKEND_PREVIEW_URL_CACHE_KEY);
+      expect(resolveServerBaseUrl(undefined, 'debug')).assertEqual(STAGING_BASE_URL);
+      expect(resolveServerBaseUrl(undefined, 'release')).assertEqual(STAGING_BASE_URL);
     });
+
     it('effectiveServerBaseUrlReadsAppStorageOverride', 0, () => {
-      // Sanity: with no override written, production builds land on
-      // PROD_BASE_URL. We avoid mutating AppStorage from the unit
-      // test process to keep the assertion deterministic across
-      // suite ordering — see the beforeAll write in
-      // entry/src/ohosTest/ets/test/List.test.ets for the mocked path.
       AppStorage.delete(SERVER_BASE_URL_OVERRIDE_KEY);
-      expect(effectiveServerBaseUrl()).assertEqual(PROD_BASE_URL);
-
-      // Write the override and confirm the next read picks it up.
-      AppStorage.setOrCreate<string>(
-        SERVER_BASE_URL_OVERRIDE_KEY,
-        'http://127.0.0.1:8123',
-      );
+      AppStorage.delete(BACKEND_ENV_CACHE_KEY);
+      AppStorage.delete(BACKEND_PREVIEW_URL_CACHE_KEY);
+      expect(effectiveServerBaseUrl()).assertEqual(STAGING_BASE_URL);
+      AppStorage.setOrCreate<string>(SERVER_BASE_URL_OVERRIDE_KEY, 'http://127.0.0.1:8123');
       expect(effectiveServerBaseUrl()).assertEqual('http://127.0.0.1:8123');
-
-      // Clean up so the rest of the unit-test suite stays on PROD.
       AppStorage.delete(SERVER_BASE_URL_OVERRIDE_KEY);
-      expect(effectiveServerBaseUrl()).assertEqual(PROD_BASE_URL);
+      expect(effectiveServerBaseUrl()).assertEqual(STAGING_BASE_URL);
+    });
+
+    it('debugLocalEnvFromAppStorageRoutesToLocalUrl', 0, () => {
+      AppStorage.delete(SERVER_BASE_URL_OVERRIDE_KEY);
+      AppStorage.setOrCreate<string>(BACKEND_ENV_CACHE_KEY, 'local');
+      AppStorage.setOrCreate<string>(BACKEND_PREVIEW_URL_CACHE_KEY, '');
+      expect(pickServerBaseUrl('debug')).assertEqual(LOCAL_BASE_URL);
+      AppStorage.delete(BACKEND_ENV_CACHE_KEY);
+      AppStorage.delete(BACKEND_PREVIEW_URL_CACHE_KEY);
+    });
+
+    it('buildLatestPackUrlAppendsCorrectPath', 0, () => {
+      expect(buildLatestPackUrl(STAGING_BASE_URL))
+        .assertEqual('https://happyword.vercel.app/api/v1/packs/latest.json');
+    });
+    it('buildLatestPackUrlReturnsEmptyForEmptyBase', 0, () => {
+      expect(buildLatestPackUrl('')).assertEqual('');
     });
   });
 }

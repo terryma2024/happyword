@@ -1,0 +1,53 @@
+{# Renders one pending or recently-decided redemption request row.
+   Inputs (in template context): row { request_id, child_nickname, item_display_name,
+   cost_coins_at_request, requested_at, status, decided_at, decision_note }.
+#}
+<article class="redemption-row flex items-center justify-between border border-slate-200 rounded-md p-3"
+         data-request-id="{{ row.request_id }}"
+         data-status="{{ row.status }}">
+  <div class="space-y-1">
+    <p class="text-sm font-semibold text-slate-900">
+      {{ row.child_nickname }} 申请兑换：{{ row.item_display_name }}
+    </p>
+    <p class="text-xs text-slate-500">
+      花费 <span class="font-mono">{{ row.cost_coins_at_request }}</span> 金币 ·
+      申请时间 {{ row.requested_at_label }}
+      {% if row.status != 'pending' and row.decided_at_label %}
+        · 处理时间 {{ row.decided_at_label }}
+      {% endif %}
+    </p>
+    {% if row.decision_note %}
+      <p class="text-xs text-slate-600">备注：{{ row.decision_note }}</p>
+    {% endif %}
+  </div>
+  <div class="flex items-center space-x-2">
+    {% if row.status == 'pending' %}
+      <form method="post"
+            action="/parent/redemptions/{{ row.request_id }}/approve"
+            class="inline">
+        <button type="submit"
+                class="text-xs bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-md font-medium"
+                id="approve-{{ row.request_id }}">
+          ✅ 批准
+        </button>
+      </form>
+      <form method="post"
+            action="/parent/redemptions/{{ row.request_id }}/reject"
+            class="inline">
+        <button type="submit"
+                class="text-xs bg-rose-100 text-rose-700 hover:bg-rose-200 px-3 py-1.5 rounded-md font-medium"
+                id="reject-{{ row.request_id }}">
+          ❌ 拒绝
+        </button>
+      </form>
+    {% else %}
+      <span class="text-xs px-2 py-1 rounded-md
+                   {% if row.status == 'approved' %}bg-emerald-100 text-emerald-700
+                   {% elif row.status == 'rejected' %}bg-rose-100 text-rose-700
+                   {% else %}bg-slate-100 text-slate-600{% endif %}">
+        {% if row.status == 'approved' %}已批准{% elif row.status == 'rejected' %}已拒绝
+        {% elif row.status == 'expired' %}已过期{% else %}{{ row.status }}{% endif %}
+      </span>
+    {% endif %}
+  </div>
+</article>

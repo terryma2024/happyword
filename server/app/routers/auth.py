@@ -14,7 +14,13 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 @router.post("/login", response_model=LoginResponse)
 async def login(req: LoginRequest) -> LoginResponse:
     user = await User.find_one(User.username == req.username)
-    if user is None or not verify_password(req.password, user.password_hash):
+    # Parent users have password_hash=None and must use /api/v1/parent/auth/* — reject
+    # them here so the admin login endpoint can never be tricked into a None compare.
+    if (
+        user is None
+        or user.password_hash is None
+        or not verify_password(req.password, user.password_hash)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": {"code": "UNAUTHORIZED", "message": "Invalid credentials"}},

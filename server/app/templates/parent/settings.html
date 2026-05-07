@@ -1,0 +1,66 @@
+{% extends "_base.html" %}
+{% block title %}账号设置{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header class="flex items-center justify-between">
+    <h1 class="text-2xl font-semibold text-slate-900">账号设置</h1>
+    <a href="/parent/" class="text-sm text-slate-500 hover:text-slate-700">← 返回首页</a>
+  </header>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-3">账号信息</h2>
+    <dl class="text-sm text-slate-700 space-y-2">
+      <div class="flex"><dt class="w-32 text-slate-500">邮箱</dt><dd>{{ user.email }}</dd></div>
+      <div class="flex"><dt class="w-32 text-slate-500">家庭 ID</dt><dd class="font-mono">{{ user.family_id or '（尚未创建）' }}</dd></div>
+      <div class="flex"><dt class="w-32 text-slate-500">时区</dt><dd>{{ user.timezone }}</dd></div>
+    </dl>
+  </section>
+
+  <section id="delete-section" class="bg-white border border-rose-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-rose-700 mb-2">删除账号</h2>
+    {% if user.scheduled_deletion_at %}
+      <p class="text-sm text-slate-700 mb-3">
+        账号已计划于 <strong>{{ user.scheduled_deletion_at.strftime('%Y-%m-%d %H:%M') }}</strong>
+        删除（剩余 <span id="grace-days-remaining">{{ grace_days_remaining }}</span> 天）。在
+        删除时间到期前可以撤销。
+      </p>
+      <form method="post" action="/parent/account/cancel-delete">
+        <button type="submit"
+                id="cancel-delete-btn"
+                class="bg-emerald-600 text-white hover:bg-emerald-700 text-sm
+                       px-4 py-2 rounded-md font-medium">
+          撤销删除
+        </button>
+      </form>
+    {% else %}
+      <p class="text-sm text-slate-700 mb-3">
+        删除账号会在 {{ grace_days_total }} 天宽限期后清除你和所有绑定设备的全部数据。
+        在宽限期内可以撤销。
+      </p>
+      <form method="post" action="/parent/account/delete">
+        <button type="submit"
+                id="delete-btn"
+                class="bg-rose-600 text-white hover:bg-rose-700 text-sm
+                       px-4 py-2 rounded-md font-medium">
+          删除账号
+        </button>
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-2">导出数据</h2>
+    <p class="text-sm text-slate-600 mb-3">
+      导出当前家庭账号下的孩子档案、设备绑定、愿望清单、兑换记录和消息（JSON 格式）。
+    </p>
+    <form method="post" action="/api/v1/parent/account/export">
+      <button type="submit"
+              id="export-btn"
+              class="bg-sky-600 text-white hover:bg-sky-700 text-sm
+                     px-4 py-2 rounded-md font-medium">
+        下载 JSON
+      </button>
+    </form>
+  </section>
+</section>
+{% endblock %}

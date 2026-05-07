@@ -1,0 +1,316 @@
+# CI configuration & secrets
+
+Single source of truth for everything you need to set on a fork (or fresh
+installation) of this repository to make the GitHub Actions workflows work
+end-to-end. If you only want one section, jump straight to
+[Bring-up checklist](#bring-up-checklist).
+
+## Workflows at a glance
+
+| Workflow | File | Trigger | Purpose |
+| --- | --- | --- | --- |
+| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself | Offline pytest → E2E pytest against a Vercel Preview → branches: success ⇒ refresh `docs/preview-urls.json`; failure ⇒ Cursor autofix |
+| `server-cd` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Push to `main` touching `server/**` | Wait for Vercel **production** deploy, run staging smoke (`pytest -m smoke`) |
+| `cursor-autofix-e2e` | [`.github/workflows/cursor-autofix-e2e.yml`](../.github/workflows/cursor-autofix-e2e.yml) | `workflow_dispatch` | Manually trigger a Cursor Cloud Agent for an open PR |
+| `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR `closed` + dispatch | Cleanup-on-close + manual repair for `docs/preview-urls.json` (the open-PR refresh path now lives in the `update_manifest` job inside `server-ci`) |
+| `atlas-cleanup` | [`.github/workflows/atlas-cleanup.yml`](../.github/workflows/atlas-cleanup.yml) | Cron Mon 09:00 UTC + dispatch | Drop stale per-PR Mongo Atlas DBs older than 14 days |
+| `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Cron Mon 10:00 UTC + dispatch | Keep only the newest Vercel deployment per non-`main` branch (production alias preserved) |
+
+`server-ci` is the most important one — its `server_e2e` job branches into
+either the manifest refresh (`update_manifest`) or the Cursor autofix path
+(`cursor_autofix_e2e`) depending on the E2E result. `preview-manifest.yml`
+now only handles cleanup-on-close and manual repair runs.
+
+## All secrets, in one table
+
+`Required` means the workflow's main job will not actually do work without it
+(it usually still completes green via gate steps that print warnings, so the
+**absence does not block CI**, it just disables that path).
+
+| Secret | Required by | Optional? | Effect when missing |
+| --- | --- | --- | --- |
+| `GITHUB_TOKEN` | every workflow | **Auto-provided.** No setup. | n/a |
+| [`VERCEL_TOKEN`](#vercel_token) | `server-ci` | optional | `server / e2e (preview)` job is skipped (warning only) |
+| [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | `server-ci` (fallback deploy) | optional | E2E job tries the auto-deploy fallback and fails if no preview was detected on the SHA |
+| [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | `server-ci` (fallback deploy) | optional | same as above |
+| [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | `server-ci` E2E | optional | E2E hits the **Vercel deployment protection** login page and every request fails |
+| [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `server-cd`, `atlas-cleanup` | optional | E2E DB reset + Mongo-dependent tests skip; cron cleanup is a no-op |
+| [`E2E_ADMIN_USER`](#e2e_admin_user--e2e_admin_pass), [`E2E_ADMIN_PASS`](#e2e_admin_user--e2e_admin_pass) | `server-ci` E2E | optional | E2E tests that need an admin login skip |
+| [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-cd` | optional | `pytest -m smoke` runs without a DB target → likely fails |
+| [`SLACK_WEBHOOK_URL`](#slack_webhook_url) | `server-ci`, `server-cd` | optional | Failure alert step prints a warning; CI itself unaffected |
+| [`CURSOR_API_KEY`](#cursor_api_key) | `server-ci` (autofix), `cursor-autofix-e2e` | optional | The whole `cursor / autofix e2e` path warns once and exits — no agent is spawned |
+
+## Setting secrets in the repo
+
+**GitHub → repo → Settings → Secrets and variables → Actions → New repository secret.**
+
+- Names are **case-sensitive** and must match exactly.
+- Repository secrets are visible to **all workflows** in the repo.
+- Secrets are **not exposed** to workflows triggered by PRs from forks. If
+  you accept fork PRs, expect those PRs to skip every gated step.
+- Use **Environments** (Settings → Environments) only if you want
+  per-environment scoping or required-reviewer gating; the current workflows
+  do not use environments.
+
+## How to obtain each secret
+
+### `VERCEL_TOKEN`
+
+A Vercel API token used to:
+
+1. let `actions/github-script` query the Vercel deployment status API,
+2. let the **fallback deploy** step (`amondnet/vercel-action@v25`) deploy
+   the PR if no preview was created.
+
+**Get it:**
+
+1. Sign in at <https://vercel.com> with an account that has access to the
+   target Vercel team / project.
+2. Profile → **Account Settings** → **Tokens**.
+3. **Create Token**, name it (e.g. `github-actions-happyword`), scope to
+   the project's team, set an expiry that matches your rotation policy.
+4. Copy the token **immediately** (only shown once).
+5. Save it as repo secret `VERCEL_TOKEN`.
+
+### `VERCEL_ORG_ID` & `VERCEL_PROJECT_ID`
+
+Only needed for the **fallback deploy** path (when a Vercel Preview was not
+detected for the head SHA — typically because Vercel is misconfigured or
+slow). The detect-only path doesn't need them.
+
+**Get them** (after `VERCEL_TOKEN` is set):
+
+```bash
+cd server
+npx vercel link        # interactive: pick Team + Project
+cat .vercel/project.json   # → { "orgId": "...", "projectId": "..." }
+```
+
+Save:
+
+- `VERCEL_ORG_ID` ← `orgId`
+- `VERCEL_PROJECT_ID` ← `projectId`
+
+(`server/.vercel/` is gitignored.)
+
+### `VERCEL_AUTOMATION_BYPASS_SECRET`
+
+If your Vercel project has [Deployment Protection]
+(<https://vercel.com/docs/security/deployment-protection>) enabled (default
+for Pro accounts), every preview URL is gated by Vercel's SSO login page —
+which the E2E tests cannot pass.
+
+**Get it:**
+
+1. Vercel project → **Settings → Deployment Protection** → enable
+   **Protection Bypass for Automation**.
+2. Click **Generate Secret**, copy the value.
+3. Save as repo secret `VERCEL_AUTOMATION_BYPASS_SECRET`.
+
+The E2E test driver passes this to every request as
+`x-vercel-protection-bypass: <secret>` (see
+[`server/tests/e2e/conftest.py`](../server/tests/e2e/conftest.py)).
+
+### `E2E_MONGODB_URI`
+
+Mongo connection string used by:
+
+- `server / e2e` to reset the per-PR test DB before the suite, and to inject
+  OTP codes for verification flows;
+- `server-cd` staging smoke;
+- `atlas-cleanup` weekly cron to drop stale per-PR DBs.
+
+**Must be a dedicated test cluster** — the reset script refuses to run
+against any DB whose name doesn't end in `_e2e` / `_test` / `_ci`, and
+refuses any name that contains `prod`. Still, do not point this at your
+production cluster credentials.
+
+**Get it (Mongo Atlas):**
+
+1. <https://cloud.mongodb.com> → create a Project + a dedicated **test**
+   cluster (M0 free tier is enough).
+2. **Database Access** → create a user with `readWriteAnyDatabase` on this
+   cluster (the per-PR DB names are dynamic, so a single-DB role won't fit).
+3. **Network Access** → either add `0.0.0.0/0` (open; OK for an isolated
+   test cluster) or use a VPC peering / IP allowlist that includes GitHub
+   Hosted Runner IPs. GitHub does not publish stable runner IP ranges, so
+   most teams just use `0.0.0.0/0` on the test cluster.
+4. **Connect → Drivers**, copy the `mongodb+srv://...` URI, fill in the
+   user / password.
+5. Save as `E2E_MONGODB_URI`.
+
+The per-PR DB name is computed inside the workflow from the PR number
+(`happyword_pr_<N>_e2e`); you do **not** set `E2E_MONGO_DB_NAME` as a
+secret for `server-ci`.
+
+### `E2E_ADMIN_USER` & `E2E_ADMIN_PASS`
+
+Bootstrap admin credentials the E2E tests use to call admin-only endpoints
+(`/api/v1/auth/login`). They must match the `ADMIN_BOOTSTRAP_USER` /
+`ADMIN_BOOTSTRAP_PASS` env vars you set on the Vercel **Preview**
+deployment, since the FastAPI startup hook seeds the admin row from those.
+
+**Pick any two strings** (treat as secrets), and:
+
+1. Save them as repo secrets `E2E_ADMIN_USER` / `E2E_ADMIN_PASS`.
+2. Save the **same** values as `ADMIN_BOOTSTRAP_USER` /
+   `ADMIN_BOOTSTRAP_PASS` on the Vercel project under **Settings →
+   Environment variables → Preview**.
+
+### `E2E_STAGING_DB_NAME`
+
+Static DB name that the post-merge **staging smoke** (`server-cd`) connects
+to — typically `happyword_staging`. The DB sits inside the same Atlas
+cluster pointed at by `E2E_MONGODB_URI`. The reset script's `_e2e/_test/_ci`
+suffix rule does not apply to smoke (smoke is read-mostly), but the name
+must still avoid `prod`.
+
+**Get it:** decide on a name (e.g. `happyword_staging`) and save it.
+
+### `SLACK_WEBHOOK_URL`
+
+Slack [Incoming Webhook](https://api.slack.com/messaging/webhooks) URL used
+by the failure alert steps in `server-ci` (E2E failure on a PR) and
+`server-cd` (post-merge smoke failure).
+
+**Get it:**
+
+1. <https://api.slack.com/apps> → **Create New App** → **From scratch**.
+2. Pick the Slack workspace.
+3. **Incoming Webhooks** → toggle **Activate Incoming Webhooks**.
+4. **Add New Webhook to Workspace** → choose the alert channel (e.g.
+   `#happyword-ci`).
+5. Copy the URL `https://hooks.slack.com/services/T.../B.../...` and save
+   as `SLACK_WEBHOOK_URL`.
+
+If your team already has a CI-alert Slack App, ask the admin to add a
+webhook for your channel under that app and reuse the URL.
+
+### `CURSOR_API_KEY`
+
+Lets `server-ci` (auto, on failed E2E) and `cursor-autofix-e2e` (manual)
+spawn a [Cursor Cloud Agent](https://cursor.com/docs/background-agent/api/overview)
+that commits a fix to the PR branch.
+
+**Get it:**
+
+1. <https://cursor.com/dashboard/cloud-agents> → **API keys**.
+2. Create a key. **Service-account keys** are recommended for CI; user keys
+   work but follow the user's permissions.
+3. Save as `CURSOR_API_KEY`.
+
+**Also required:** the **Cursor GitHub App** must be installed on the
+repository (or the org) so the agent can push commits to the PR's head
+branch. Install at <https://github.com/apps/cursor-com>. Without it the
+agent's `git push` fails.
+
+If you protect the PR branch (Settings → Branches → Branch protection
+rules), the agent's push will be rejected. The current setup assumes only
+`main` is protected.
+
+## Vercel-side environment variables
+
+Secrets above only let CI **talk to** Vercel. The deployed FastAPI server
+itself needs its own env vars on **Vercel → Project → Settings →
+Environment Variables**. Set these on **Preview** (used by E2E) and
+**Production** (used by the staging smoke):
+
+| Variable | Purpose | Notes |
+| --- | --- | --- |
+| `MONGODB_URI` | App's Mongo URI | **Must be the same Atlas cluster** as `E2E_MONGODB_URI`, or the per-PR reset and the API will work on different DBs and E2E will drift. |
+| `MONGO_DB_NAME` | App's DB name | For Preview: leave it templated/per-PR (see [`server/.env.local.example`](../server/.env.local.example)). For Production: `happyword_staging` (matches `E2E_STAGING_DB_NAME`). |
+| `JWT_SECRET` | JWT signing | Generate `openssl rand -base64 32`. Must be ≥32 bytes. |
+| `JWT_EXPIRE_HOURS` | Token TTL | e.g. `24`. |
+| `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` | Seed admin row at startup | **Must equal** `E2E_ADMIN_USER` / `E2E_ADMIN_PASS`. |
+| `OPENAI_API_KEY` | LLM features | Leave **empty** for E2E previews (E2E never calls real OpenAI). |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_HOST` / `SMTP_PORT` | Email | Leave **`SMTP_USERNAME` blank** on Preview so E2E uses DB OTP injection instead of real email. |
+| `CORS_ALLOW_ORIGINS` | CORS | `*` for non-production; lock down for production. |
+| `LOG_LEVEL` | Logging | `info`. |
+
+The exhaustive server env reference is in
+[`server/.env.local.example`](../server/.env.local.example).
+
+## Bring-up checklist
+
+For someone forking this repo and wanting CI fully working:
+
+1. **Vercel**
+
+   - [ ] Import the repo into Vercel; let it run a Preview deploy on a PR.
+   - [ ] Settings → Environment Variables → fill in every row of the
+         [Vercel-side env table](#vercel-side-environment-variables) for
+         **Preview** and **Production**.
+   - [ ] Settings → Deployment Protection → enable **Protection Bypass for
+         Automation**, copy the secret.
+   - [ ] Run `cd server && npx vercel link` to capture `orgId` /
+         `projectId`.
+
+2. **Mongo Atlas**
+
+   - [ ] Create a dedicated test cluster.
+   - [ ] Create a user with `readWriteAnyDatabase` on it.
+   - [ ] Network Access → allow `0.0.0.0/0` (or explicit allowlist).
+   - [ ] Copy the connection string.
+
+3. **Slack** *(optional but recommended)*
+
+   - [ ] Create / reuse a Slack App with Incoming Webhooks for your alert
+         channel.
+
+4. **Cursor** *(optional)*
+
+   - [ ] Install the Cursor GitHub App on the repo.
+   - [ ] Mint a `CURSOR_API_KEY` from the Cursor dashboard.
+
+5. **GitHub repo secrets** (Settings → Secrets and variables → Actions):
+
+   | Secret | Value source |
+   | --- | --- |
+   | `VERCEL_TOKEN` | Vercel Account Settings → Tokens |
+   | `VERCEL_ORG_ID` | `server/.vercel/project.json` `.orgId` |
+   | `VERCEL_PROJECT_ID` | `server/.vercel/project.json` `.projectId` |
+   | `VERCEL_AUTOMATION_BYPASS_SECRET` | Vercel project → Deployment Protection |
+   | `E2E_MONGODB_URI` | Atlas connect string |
+   | `E2E_ADMIN_USER` | freely chosen, mirrors Vercel `ADMIN_BOOTSTRAP_USER` |
+   | `E2E_ADMIN_PASS` | freely chosen, mirrors Vercel `ADMIN_BOOTSTRAP_PASS` |
+   | `E2E_STAGING_DB_NAME` | e.g. `happyword_staging` |
+   | `SLACK_WEBHOOK_URL` | Slack Incoming Webhook URL |
+   | `CURSOR_API_KEY` | Cursor Dashboard → Cloud agents → API keys |
+
+6. **Smoke test**
+
+   - [ ] Open a tiny PR that touches `server/`. `server-ci` should run
+         `pytest`, then `e2e (preview)`. Check that `Reset E2E database`
+         no longer prints the `E2E_MONGODB_URI not configured` warning.
+   - [ ] Force an E2E failure (e.g. break an assertion). Watch
+         `cursor / autofix e2e (preview)` spawn an agent and post a comment
+         linking to the [Cursor Cloud Agents dashboard](https://cursor.com/dashboard/cloud-agents).
+   - [ ] Merge a `server/**` change to `main`. Watch `server-cd` poll for
+         the production deploy and run `pytest -m smoke`.
+   - [ ] Wait until Monday 09:00 UTC (or trigger `atlas-cleanup` manually)
+         to confirm the cleanup script connects.
+
+## Operational notes
+
+- **Forks & PRs from forks.** GitHub does not pass repository secrets to
+  workflows for PRs from forks (`pull_request` event). Every gated step in
+  this repo will skip — the workflow stays green and prints a warning.
+  Push the branch into this repository and open the PR from there to
+  exercise the full pipeline.
+- **Rotation.** Vercel tokens, Cursor keys, and Slack webhooks expire or
+  get invalidated. The first symptom is silent skipping (the gate steps
+  print warnings). When a workflow stops doing E2E or autofix, check secret
+  presence and freshness first.
+- **Scope.** All current secrets are **repository-level**. None are tied to
+  a GitHub Environment, so a workflow re-run will not require approval.
+- **Cursor autofix loop.** The autofix script enforces `MAX_ROUNDS = 20`
+  per PR (counted across SHAs; raised from 10 after long-lived branches
+  hit the cap mid-debug). If you hit the cap on a long-running PR, either
+  delete some of the `<!-- cursor-autofix-triggered:* -->` marker comments
+  on the PR, raise `DEFAULT_MAX_ROUNDS` in
+  [`.github/scripts/trigger-cursor-fix-e2e.mjs`](../.github/scripts/trigger-cursor-fix-e2e.mjs),
+  or pass a one-off override via the `cursor-autofix-e2e` workflow's
+  `max_rounds` input.
+- **Per-PR DB hygiene.** `atlas-cleanup` drops `happyword_pr_<N>_e2e` DBs
+  older than 14 days. If you keep a PR open longer, the next CI run on it
+  re-creates the DB from scratch — no manual action needed.

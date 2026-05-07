@@ -1,0 +1,103 @@
+name: server-cd
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - ".github/workflows/server-cd.yml"
+
+concurrency:
+  group: server-cd
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  staging_smoke:
+    name: server / staging smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Sync dependencies
+        run: uv sync --dev
+
+      - name: Wait for Vercel production deploy
+        id: wait_deploy
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = context.sha;
+            // Poll deployment statuses for up to 8 minutes.
+            const deadline = Date.now() + 8 * 60 * 1000;
+            while (Date.now() < deadline) {
+              const deployments = await github.paginate(
+                github.rest.repos.listDeployments,
+                { owner, repo, sha, per_page: 100 }
+              );
+              for (const d of deployments.sort((a, b) => b.id - a.id)) {
+                const statuses = await github.paginate(
+                  github.rest.repos.listDeploymentStatuses,
+                  { owner, repo, deployment_id: d.id, per_page: 100 }
+                );
+                for (const s of statuses) {
+                  const url = s.environment_url || s.target_url;
+                  if (s.state === "success" && url && !url.includes("git-")) {
+                    // Production deploys have a short alias URL (no `git-`
+                    // segment that preview deploys carry).
+                    core.info(`Production URL: ${url}`);
+                    core.setOutput("url", url);
+                    return;
+                  }
+                }
+              }
+              await new Promise(r => setTimeout(r, 15000));
+            }
+            core.setFailed("No production deploy URL appeared within 8 minutes.");
+
+      - name: Run staging smoke
+        env:
+          E2E_BASE_URL: ${{ steps.wait_deploy.outputs.url }}
+          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
+        run: uv run pytest -v -m smoke
+
+      - name: Slack alert on smoke failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL not configured; skipping alert."
+            exit 0
+          fi
+          PAYLOAD=$(jq -n \
+            --arg sha "${{ github.sha }}" \
+            --arg url "${{ github.event.head_commit.url }}" \
+            --arg msg "${{ github.event.head_commit.message }}" \
+            '{
+              text: "server-cd staging smoke FAILED",
+              blocks: [
+                { type: "section", text: { type: "mrkdwn",
+                  text: ("*Staging smoke failed after merge to main*\nSHA: `" + $sha + "`\n" + $url + "\n```" + $msg + "```")
+                }}
+              ]
+            }')
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"

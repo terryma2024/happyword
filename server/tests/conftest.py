@@ -14,6 +14,13 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "testadmin")
     monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "testpw1234")
     monkeypatch.setenv("OPENAI_API_KEY", "")
+    # V0.6.1: ensure SMTP is unconfigured in the default test env so
+    # GmailSmtpProvider.send no-ops with a warning instead of trying to talk
+    # to Gmail. Tests that need to assert email behaviour install a recording
+    # provider via dependency injection (see test fixtures).
+    monkeypatch.setenv("SMTP_USERNAME", "")
+    monkeypatch.setenv("SMTP_PASSWORD", "")
+    monkeypatch.setenv("SMTP_FROM_EMAIL", "")
     # ensure each test starts with a fresh Settings cache
     from app.config import get_settings
 
@@ -23,10 +30,24 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 async def db() -> AsyncIterator[object]:
     """Beanie-initialized mongomock database for tests."""
+    from app.models.audit_log import AuditLog  # noqa: PLC0415
     from app.models.category import Category  # noqa: PLC0415
+    from app.models.child_profile import ChildProfile  # noqa: PLC0415
+    from app.models.cloud_wishlist_item import CloudWishlistItem  # noqa: PLC0415
+    from app.models.device_binding import DeviceBinding  # noqa: PLC0415
+    from app.models.email_verification import EmailVerification  # noqa: PLC0415
+    from app.models.family import Family  # noqa: PLC0415
+    from app.models.family_pack_definition import FamilyPackDefinition  # noqa: PLC0415
+    from app.models.family_pack_draft import FamilyPackDraft  # noqa: PLC0415
+    from app.models.family_pack_pointer import FamilyPackPointer  # noqa: PLC0415
+    from app.models.family_word_pack import FamilyWordPack  # noqa: PLC0415
     from app.models.lesson_import_draft import LessonImportDraft  # noqa: PLC0415
     from app.models.llm_draft import LlmDraft  # noqa: PLC0415
     from app.models.pack_pointer import PackPointer  # noqa: PLC0415
+    from app.models.pair_token import PairToken  # noqa: PLC0415
+    from app.models.parent_inbox_msg import ParentInboxMsg  # noqa: PLC0415
+    from app.models.redemption_request import RedemptionRequest  # noqa: PLC0415
+    from app.models.synced_word_stat import SyncedWordStat  # noqa: PLC0415
     from app.models.user import User  # noqa: PLC0415 - lazy to avoid early import
     from app.models.word import Word  # noqa: PLC0415
     from app.models.word_pack import WordPack  # noqa: PLC0415
@@ -42,6 +63,20 @@ async def db() -> AsyncIterator[object]:
             LlmDraft,
             Category,
             LessonImportDraft,
+            Family,
+            EmailVerification,
+            PairToken,
+            DeviceBinding,
+            ChildProfile,
+            FamilyPackDefinition,
+            FamilyPackDraft,
+            FamilyPackPointer,
+            FamilyWordPack,
+            SyncedWordStat,
+            CloudWishlistItem,
+            RedemptionRequest,
+            ParentInboxMsg,
+            AuditLog,
         ],
     )
     yield mock["happyword_test"]

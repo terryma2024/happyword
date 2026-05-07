@@ -15,6 +15,41 @@ The HarmonyOS emulator reaches the host machine at `http://10.0.2.2:8000` —
 this is the default for the client's debug build (see
 `entry/src/main/ets/services/RemoteWordPackConfig.ets`).
 
+## Quality assurance pipeline
+
+Four layers of testing, gated on each PR + every merge to `main`. Full
+design in [`docs/superpowers/specs/2026-05-06-server-qa-pipeline-design.md`](../docs/superpowers/specs/2026-05-06-server-qa-pipeline-design.md).
+
+```
+                          ┌────────────────── developer machine ──────────────────┐
+                          │                                                        │
+   Layer 1 (sec):  uv run pytest                  (offline, mongomock)             │
+   Layer 2 (~25s): docker mongo:7 + uvicorn + reset_db + pytest -m e2e (52 cases)  │
+                          │                                                        │
+                          └─────────────────────────────┬──────────────────────────┘
+                                                        ▼ git push origin <branch>
+
+                        ┌───────────────── PR opened on GitHub ─────────────────┐
+                        │                                                        │
+   Layer 3 (CI gate):    server-ci.yml                                            │
+                          ├── server / pytest        (offline)        REQUIRED ───┼──► merge gate
+                          └── server / e2e (preview)                  REQUIRED ───┤
+                                ├─ wait for Vercel preview URL                    │
+                                ├─ reset DB happyword_pr_<pr>_e2e on Atlas        │
+                                └─ uv run pytest -m e2e (52 cases)                │
+                        │                                                        │
+                        └────────────────────────────┬───────────────────────────┘
+                                                     ▼ green → human merges to main
+
+                        ┌──────────── push: main ─────────────────────────────────┐
+                        │                                                          │
+   Layer 4 (smoke):      server-cd.yml                                             │
+                          ├─ wait for Vercel production deploy (= staging today)   │
+                          └─ uv run pytest -v -m smoke   (5 cases, ~10s, no reset) │
+                          │                                                       │
+                          └────────────── manual promote later → real prod ───────┘
+```
+
 ## Tests
 
 ```bash
@@ -24,7 +59,257 @@ uv run ruff format --check .
 uv run mypy app
 ```
 
-All tests run offline — Mongo is mocked by `mongomock-motor`, HTTP by injected `HttpRequester` stubs on the client side.
+The default suite is **offline** — Mongo is mocked by `mongomock-motor`, HTTP by
+injected `HttpRequester` stubs on the client side. Every commit that touches
+`server/` MUST run `uv run pytest` with **0 errors and 0 warnings** (see
+`[AGENTS.md](../AGENTS.md)` → "Server discipline"). `pyproject.toml` sets
+`filterwarnings = ["error", ...]` so any new warning fails the suite.
+
+## End-to-end tests (E2E)
+
+E2E tests live under `[tests/e2e/](tests/e2e/)` and exercise a **deployed**
+server over HTTP — no in-process FastAPI imports, no `mongomock`. Their
+contract and full case catalogue is in
+`[docs/superpowers/specs/2026-05-06-server-e2e-test-design.md](../docs/superpowers/specs/2026-05-06-server-e2e-test-design.md)`;
+the CI plan is in
+`[docs/superpowers/plans/2026-05-06-server-vercel-e2e-ci.md](../docs/superpowers/plans/2026-05-06-server-vercel-e2e-ci.md)`.
+
+### Marker + skip-safety
+
+Every E2E test is decorated with `@pytest.mark.e2e`. The `e2e` marker is
+declared in `[tool.pytest.ini_options].markers`. Fixtures (`base_url`, `mongo`,
+`admin_token`, `parent`, `device`) call `pytest.skip(...)` whenever a required
+environment variable is missing, so the offline `uv run pytest` command stays
+green: you'll see the E2E cases as `skipped`, never failed.
+
+To run **only** E2E tests (after configuring env vars):
+
+```bash
+uv run pytest -v -m e2e
+```
+
+### Required environment variables
+
+
+| Variable            | Purpose                                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------------------------- |
+| `E2E_BASE_URL`      | Base URL of the deployed server, e.g. a Vercel preview URL.                                             |
+| `E2E_MONGODB_URI`   | Mongo connection string used by reset/inject helpers. **Must be a dedicated test cluster.**             |
+| `E2E_MONGO_DB_NAME` | DB name. Safety guard requires the name to end with `_e2e`, `_test`, or `_ci` and never contain `prod`. |
+| `E2E_ADMIN_USER`    | Bootstrap admin username for `/api/v1/auth/login`.                                                      |
+| `E2E_ADMIN_PASS`    | Bootstrap admin password.                                                                               |
+| `E2E_VERCEL_PROTECTION_BYPASS` | Optional. Vercel "Protection Bypass for Automation" secret — required when the preview has Deployment Protection (SSO / password / trusted-IP) enabled. The driver attaches it as the `x-vercel-protection-bypass` header on every request. Empty / unset = no header sent (correct for local or unprotected previews). |
+
+
+### Local run (against a local server + Dockerised Mongo)
+
+```bash
+# 1. Mongo (any dedicated DB whose name ends with _e2e/_test/_ci is fine).
+docker run -d --name happyword-e2e-mongo -p 27017:27017 mongo:7
+
+# 2. Backend env. ADMIN_BOOTSTRAP_USER / _PASS are auto-promoted to an admin
+#    row at FastAPI startup; the same credentials become E2E_ADMIN_USER /
+#    E2E_ADMIN_PASS for the test driver.
+cat > server/.env.local <<'EOF'
+MONGODB_URI=mongodb://localhost:27017
+MONGO_DB_NAME=happyword_e2e
+JWT_SECRET=local-e2e-jwt-secret-32bytes-aaaaaa
+JWT_EXPIRE_HOURS=24
+ADMIN_BOOTSTRAP_USER=e2e-admin
+ADMIN_BOOTSTRAP_PASS=e2e-admin-pass-1234
+OPENAI_API_KEY=
+CORS_ALLOW_ORIGINS=*
+LOG_LEVEL=info
+EOF
+
+# 3. Server. The startup hook seeds the 5 manual category rows and the
+#    bootstrap admin user; both are preserved by `e2e_reset_db.py`.
+cd server
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+
+# 4. E2E driver env + fresh-slate DB + suite.
+export E2E_BASE_URL=http://127.0.0.1:8000
+export E2E_MONGODB_URI=mongodb://localhost:27017
+export E2E_MONGO_DB_NAME=happyword_e2e
+export E2E_ADMIN_USER=e2e-admin
+export E2E_ADMIN_PASS=e2e-admin-pass-1234
+
+uv run python scripts/e2e_reset_db.py   # truncates 19 dynamic collections
+uv run pytest -v -m e2e                  # 52 cases, all green
+```
+
+### Local run (against a remote Vercel preview)
+
+Same shell commands, but skip steps 1–3 and point the env vars at the
+preview URL plus a dedicated Mongo Atlas test DB:
+
+```bash
+export E2E_BASE_URL="https://<preview>.vercel.app"
+export E2E_MONGODB_URI="mongodb+srv://.../happyword_e2e"
+export E2E_MONGO_DB_NAME="happyword_e2e"
+export E2E_ADMIN_USER="<matches ADMIN_BOOTSTRAP_USER on the deployment>"
+export E2E_ADMIN_PASS="<matches ADMIN_BOOTSTRAP_PASS on the deployment>"
+
+uv run python scripts/e2e_reset_db.py
+uv run pytest -v -m e2e
+```
+
+### Data isolation strategy
+
+Two layers, in this order:
+
+1. **Suite-level reset** — `scripts/e2e_reset_db.py` truncates the **dynamic**
+  collections at the start of a CI run. It refuses to operate unless the DB
+   name ends with `_e2e`/`_test`/`_ci` and rejects any name containing `prod`.
+   It deliberately does NOT touch `users` or `categories` because those are
+   bootstrapped at FastAPI startup (admin row + 5 manual category seeds), and
+   the test driver expects both to be present. Parent rows accumulate in
+   `users` over time but each test namespaces its parent email by `run_id`,
+   so they cannot collide; periodic manual cleanup is fine.
+2. **Per-test namespacing** — every test ID-derived value is namespaced by the
+  session-scoped `run_id` UUID (e.g. `f"e2e-{run_id}-foo"` for word IDs,
+   `f"E2E {run_id} ..."` for pack names). Two concurrent CI runs against the
+   same DB never collide.
+
+OTP flows are tested via **DB injection**, not by intercepting email: the
+`inject_otp_code` helper in `tests/e2e/_utils/db.py` overwrites
+`email_verifications.code_hash` with `bcrypt("123456")` after `request-code`,
+so the production verification code path stays unmodified.
+
+### Conventions for new E2E tests
+
+- File name: `tests/e2e/test_<area>_e2e.py`. One file per domain.
+- Every test starts with `@pytest.mark.e2e`.
+- Use the shared fixtures (`http`, `parent`, `device`, `admin_token`, `mongo`,
+`run_id`) from `tests/e2e/conftest.py`. Don't construct your own `httpx.Client`
+unless the test specifically needs an anonymous one (e.g. `pair/redeem` from a
+fresh device — see `device_redeem` in `_utils/auth.py`).
+- All ID-shaped fields MUST embed `run_id`. Never hard-code values like
+`"test-word-1"` — they will collide with parallel runs.
+- For family-pack `custom` word IDs, derive the prefix the same way the
+service does:
+  ```python
+  prefix = f"fam-{parent.family_id.removeprefix('fam-')[:8]}-"
+  ```
+- **Never** call real OpenAI, email providers, or production webhooks. The
+spec lists the forbidden surfaces; if you need a model response, mock it at
+the `LLMClient` boundary in the deployment build (out of scope for E2E).
+
+### CI integration
+
+The `.github/workflows/server-ci.yml` workflow has two jobs, both gated on
+changes under `server/`**:
+
+1. `server / pytest` — required on every PR. Runs the offline suite.
+2. `server / e2e (preview)` — runs only when `secrets.VERCEL_TOKEN` is set.
+  Detects (or deploys as fallback) a Vercel preview URL, runs
+   `scripts/e2e_reset_db.py`, then `uv run pytest -v -m e2e`.
+
+> **For the full list of CI secrets** (Vercel, Mongo, Slack, Cursor) and
+> step-by-step instructions on how to obtain each one, see the dedicated
+> page: [`docs/ci-secrets.md`](../docs/ci-secrets.md). The notes below only
+> cover what is unique to the E2E pipeline.
+
+If the Mongo secrets are absent the reset step prints a CI warning and
+skips, and the E2E tests requiring Mongo also skip cleanly — the job stays
+green so first-time setup is non-blocking.
+
+If the Vercel project has **Deployment Protection** turned on (Vercel
+Authentication, Password Protection, or Trusted IPs), also add the
+`VERCEL_AUTOMATION_BYPASS_SECRET` repository secret. The workflow forwards
+it to pytest as `E2E_VERCEL_PROTECTION_BYPASS`, which the driver attaches
+as the `x-vercel-protection-bypass` header on every request. Without it,
+every API call from CI is intercepted with a 401 + SSO HTML page and the
+whole suite fails with `assert 401 == 200`. Mint the secret in:
+*Project → Settings → Deployment Protection → "Protection Bypass for
+Automation"*.
+
+#### Optional: Cursor Cloud autofix on E2E failure
+
+When `server / e2e (preview)` **fails on a same-repo PR**, a follow-up job
+**`cursor / autofix e2e (preview)`** can spawn a Cursor Cloud Agent that:
+
+1. Reads the failing pytest log (uploaded as the `e2e-pytest-log` artifact).
+2. Investigates the failure on a freshly cloned copy of this repo at the PR's
+   head ref.
+3. **Commits the fix directly back to the PR branch** (`workOnCurrentBranch:
+   true`, `autoCreatePR: false`) — no separate PR is opened. The next CI run
+   on the PR re-evaluates the fix.
+
+To enable it, add the repository secret **`CURSOR_API_KEY`** and install
+the Cursor GitHub App on the repo. See
+[`docs/ci-secrets.md` — `CURSOR_API_KEY`](../docs/ci-secrets.md#cursor_api_key)
+for both. Without `CURSOR_API_KEY` the autofix job runs but prints a single
+`::warning::` and exits — it does not block CI.
+
+**Guards** (all in `.github/scripts/trigger-cursor-fix-e2e.mjs`):
+
+1. **Per-SHA debounce** — a hidden marker comment
+   (`<!-- cursor-autofix-triggered:<sha> -->`) is posted on the PR. Re-running
+   the workflow on the same commit is a no-op.
+2. **Per-PR round cap** — `MAX_ROUNDS = 20` (`DEFAULT_MAX_ROUNDS` in
+   [`.github/scripts/trigger-cursor-fix-e2e.mjs`](../.github/scripts/trigger-cursor-fix-e2e.mjs)).
+   Once that many marker comments exist on the PR (auto + manual combined),
+   further dispatches are blocked and a single `Cursor Cloud autofix paused`
+   warning is posted. Reset by removing some marker comments, raising
+   `DEFAULT_MAX_ROUNDS` in the script, or passing `max_rounds=<N>` to the
+   `cursor-autofix-e2e` `workflow_dispatch` for a one-off override.
+3. **Unfixable-failure filter** — the script scans the pytest log for clearly
+   environmental indicators (`E2E_BASE_URL` empty, Vercel preview unavailable,
+   Mongo unreachable, repeated 502/503/504s, no tests collected) and skips
+   dispatch with an explanation comment instead of burning a Cursor run on a
+   failure no code change can fix.
+
+**Manual override** (`.github/workflows/cursor-autofix-e2e.yml`,
+`workflow_dispatch`):
+
+Trigger from **Actions → cursor-autofix-e2e → Run workflow** with:
+
+| Input       | Purpose                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------ |
+| `pr_number` | PR number to dispatch the agent for (required).                                                        |
+| `reason`    | Optional free-text reason, recorded in the PR comment for audit.                                       |
+| `force`     | If `true`, bypass the per-SHA debounce and the unfixable filter (still respects the round cap).        |
+| `run_id`    | Optional Actions run ID of a failed `server-ci` run; the `e2e-pytest-log` artifact is pulled from it. |
+
+If `run_id` is omitted, the workflow auto-detects the latest completed
+`server-ci` run for the PR's head SHA and downloads the log from there.
+
+`E2E_ADMIN_USER` / `E2E_ADMIN_PASS` MUST match the deployment's
+`ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` Vercel env vars — those
+are the credentials FastAPI's startup hook uses to bootstrap the admin
+row in `users` (which the reset script preserves).
+
+## After a merge to main (`server-cd.yml`)
+
+Every push to `main` that touches `server/**` triggers `server-cd.yml`,
+which:
+
+1. Waits up to 8 minutes for the Vercel production deploy URL.
+2. Runs the 5-case smoke subset (`pytest -v -m smoke`) against
+   `happyword_staging` (NOT a fresh DB — smoke is non-destructive and
+   namespace-safe).
+3. On failure, posts a Slack alert to `#happyword-ci`. Does not
+   auto-revert; humans investigate the deploy itself, not the merged
+   PR (the PR was already gated on full E2E before merge).
+
+The 5 smoke cases live in their existing `tests/e2e/` files, tagged
+with `@pytest.mark.smoke`:
+- health liveness
+- public packs ETag round-trip
+- parent OTP request-code
+- pair create + short-code
+- child word-stats sync (empty payload)
+
+To debug a failed staging smoke locally:
+
+```bash
+cd server
+export E2E_BASE_URL="https://happyword.vercel.app"
+export E2E_MONGODB_URI="mongodb+srv://.../happyword_staging"
+export E2E_MONGO_DB_NAME="happyword_staging"
+uv run pytest -v -m smoke
+```
 
 ## Deploy
 
@@ -36,3 +321,4 @@ vercel link
 vercel env add MONGODB_URI     # or use the Marketplace integration which injects it; repeat for the rest in §9.3
 vercel --prod
 ```
+

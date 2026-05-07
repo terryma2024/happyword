@@ -67,6 +67,17 @@ export struct CharacterCard {
   @Prop altActive: boolean = false;
 
   /**
+   * Optional "被攻击" (taking-a-hit) portrait. Mounted alongside
+   * the idle and fight poses; activates automatically during the
+   * hurt-pulse animation window (set true on hit, cleared after
+   * the settle step) so callers only need to pass the asset path
+   * — they do NOT bump a separate "active" flag. Empty path leaves
+   * the layer absent (zero cost for monsters / cards that don't
+   * have a beaten pose).
+   */
+  @Prop hurtAssetPath: string = '';
+
+  /**
    * Monotonically-increasing counters. Each observed change plays a
    * short animation and returns to rest; BattlePage never has to
    * reset the counter. Zero is the initial "no hit yet" value.
@@ -82,6 +93,13 @@ export struct CharacterCard {
   @State private hurtOverlayOpacity: number = 0;
   @State private castGlowOpacity: number = 0;
   @State private castRotate: number = 0;
+  /**
+   * Tracks whether the "beaten" portrait should be visible. Driven by
+   * the hurt-pulse lifecycle (true at impact, false at settle). Plain
+   * `@State` because it must trigger a rebuild so the third image
+   * layer's opacity binding picks the new value up.
+   */
+  @State private hurtPoseActive: boolean = false;
 
   /** Timers scheduled by onXxxPulseChanged — cleared on teardown. */
   private pulseTimers: number[] = [];
@@ -118,6 +136,11 @@ export struct CharacterCard {
     // one coming from the left -> recoils to the right (+X).
     const recoil: number = this.kind === CharacterKind.Mage ? -12 : 12;
 
+    // Swap to the "被攻击" pose for the duration of the hit animation.
+    // No-op when `hurtAssetPath` is empty (the third Image layer is
+    // gated on the same field below).
+    this.hurtPoseActive = true;
+
     ui.animateTo({ duration: 60, curve: Curve.EaseOut }, () => {
       this.avatarScale = 0.92;
       this.hurtOverlayOpacity = 0.7;
@@ -149,6 +172,13 @@ export struct CharacterCard {
         this.avatarTranslateX = 0;
       });
     }, 270);
+    // Restore the idle pose once the settle animation completes
+    // (270 ms shake tail + 130 ms settle = 400 ms). Done as a separate
+    // scheduled callback rather than an animateTo binding because the
+    // pose swap is a discrete opacity flip, not a tweened property.
+    this.scheduleTimer((): void => {
+      this.hurtPoseActive = false;
+    }, 400);
   }
 
   /**
@@ -237,6 +267,21 @@ export struct CharacterCard {
     return this.kind === CharacterKind.Mage ? '#A9C9EC' : '#E8A5A5';
   }
 
+  /**
+   * Idle layer is hidden whenever a higher-priority pose (hurt or
+   * alt/fight) is active and its asset is configured. Returns 0 in
+   * that case so the secondary Image fully replaces it; otherwise 1.
+   */
+  private idlePoseOpacity(): number {
+    if (this.hurtAssetPath.length > 0 && this.hurtPoseActive) {
+      return 0;
+    }
+    if (this.altAssetPath.length > 0 && this.altActive) {
+      return 0;
+    }
+    return 1;
+  }
+
   // Shared avatar height — both mage and slime render into this vertical
   // footprint so the card can be given a single predictable content height
   // regardless of which character occupies it. 84vp is comfortable on both
@@ -274,13 +319,16 @@ export struct CharacterCard {
         .justifyContent(FlexAlign.Center)
         .alignItems(HorizontalAlign.Center);
 
+        // Pose precedence (top wins): hurt > alt (fight) > idle.
+        // The idle layer is only visible when neither the hurt nor
+        // the alt pose is active — otherwise it would bleed through.
         Image($rawfile(this.assetPath))
           .objectFit(ImageFit.Contain)
           .width(96)
           .height(CharacterCard.AVATAR_HEIGHT)
           .syncLoad(true)
           .interpolation(ImageInterpolation.High)
-          .opacity(this.altAssetPath.length > 0 && this.altActive ? 0 : 1);
+          .opacity(this.idlePoseOpacity());
 
         // V0.4.8: stacked alt portrait for the player's mid-cast fight
         // pose. Mounted at construction so the SVG is decoded once;
@@ -294,7 +342,23 @@ export struct CharacterCard {
             .height(CharacterCard.AVATAR_HEIGHT)
             .syncLoad(true)
             .interpolation(ImageInterpolation.High)
-            .opacity(this.altActive ? 1 : 0)
+            // Hide the fight pose during the hurt window so the beaten
+            // pose isn't visually stacked behind it.
+            .opacity(this.altActive && !this.hurtPoseActive ? 1 : 0)
+            .hitTestBehavior(HitTestMode.None);
+        }
+
+        // "被攻击" pose. Same mount-once-toggle-opacity pattern as the
+        // alt fight pose; gated on hurtPoseActive which the hurt-pulse
+        // animation flips true on impact and false on settle.
+        if (this.hurtAssetPath.length > 0) {
+          Image($rawfile(this.hurtAssetPath))
+            .objectFit(ImageFit.Contain)
+            .width(96)
+            .height(CharacterCard.AVATAR_HEIGHT)
+            .syncLoad(true)
+            .interpolation(ImageInterpolation.High)
+            .opacity(this.hurtPoseActive ? 1 : 0)
             .hitTestBehavior(HitTestMode.None);
         }
 

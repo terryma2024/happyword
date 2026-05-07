@@ -83,6 +83,23 @@ hdc install entry/build/default/outputs/default/entry-default-signed.hap
 
 The detailed build, test, device, and log workflow lives in [`.cursor/dev-commands.md`](.cursor/dev-commands.md).
 
+### Debug: backend environment
+
+Debug builds can switch API base URL at runtime (local machine, Vercel preview, or staging). Open **Settings → Developer → Backend environment**. Release builds omit this entry. See [DevMenu runbook](docs/superpowers/runbooks/dev-menu-runbook.md) and the [design spec](docs/superpowers/specs/2026-05-06-client-backend-env-switcher-design.md).
+
+## Server
+
+The Python/FastAPI content backend (词库管理、家长账户、设备配对、家庭包等) lives under [`server/`](server/). For local dev, offline + E2E tests, and Vercel 部署说明，见 [`server/README.md`](server/README.md)。设计规范见 [V0.5 后端设计](docs/superpowers/specs/2026-04-30-v0.5-content-backend-design.md)。
+
+## CI / GitHub Actions
+
+The `server-ci` / `server-cd` / `cursor-autofix-e2e` / `preview-manifest` /
+`atlas-cleanup` workflows expect a small set of GitHub Actions secrets
+(Vercel, Mongo Atlas, Slack, Cursor). All of them are documented — with
+**how to obtain each value and what breaks when one is missing** — in
+[`docs/ci-secrets.md`](docs/ci-secrets.md). Read that page first when
+forking the repo or bringing up CI from scratch.
+
 ## Roadmap
 
 The product roadmap is tracked in [`docs/WordMagicGame_roadmap.md`](docs/WordMagicGame_roadmap.md). Current major directions include battle audio mixing with BGM, richer learning reports, backend content tooling, parent account/device binding, AI-assisted story content, and a later Cocos2D battle presentation rewrite.

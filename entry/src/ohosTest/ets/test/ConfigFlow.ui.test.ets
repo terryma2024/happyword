@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
-import { clickByIdShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -87,7 +87,7 @@ export default function configFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
 
       // Bail out of ConfigPage cleanly.
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(600);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
@@ -130,7 +130,7 @@ export default function configFlowUiTest(): void {
       const label: string = await btn.getText();
       expect(label.indexOf('修改') >= 0).assertTrue();
 
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(600);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
@@ -174,7 +174,7 @@ export default function configFlowUiTest(): void {
       // to) rather than ConfigTitle to avoid Scroll-position artefacts.
       await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
 
-      await clickByIdShared(driver, 'ConfigCancelButton');
+      await tapConfigCancelShared(driver);
       await driver.delayMs(600);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();

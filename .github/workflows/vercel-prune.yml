@@ -1,0 +1,122 @@
+name: vercel-prune
+
+# Weekly cleanup of Vercel preview deployments. For every non-protected branch
+# (default: not main / master) we keep ONLY the newest deployment and delete
+# the rest. The production-aliased deployment is always preserved.
+#
+# See: server/scripts/vercel_prune_branch_deployments.mjs
+
+on:
+  schedule:
+    # Monday 10:00 UTC = 18:00 Beijing. Spaced ~1h after atlas-cleanup so the
+    # two scheduled jobs don't both peak the runner pool at the same minute.
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run only (print plan, don't delete)."
+        required: false
+        type: boolean
+        default: false
+      keep_branches:
+        description: "Comma-separated branches to preserve entirely."
+        required: false
+        type: string
+        default: "main,master"
+      include_no_git:
+        description: "Also prune deployments missing git metadata (manual `vercel deploy`s)."
+        required: false
+        type: boolean
+        default: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# A second prune run while one is in flight would race against the same
+# `dpl_…` ids — let GitHub serialize them.
+concurrency:
+  group: vercel-prune
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    name: prune non-main branch deployments
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # secrets cannot appear in `if:` — evaluate once into env, then gate steps on it.
+      HAS_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
+    steps:
+      - name: Vercel prune gate (why steps may be skipped)
+        run: |
+          set -euo pipefail
+          echo "HAS_VERCEL_TOKEN=${HAS_VERCEL_TOKEN}"
+          if [ "${HAS_VERCEL_TOKEN}" != "true" ]; then
+            echo "::warning::vercel-prune skipped: add repository secret VERCEL_TOKEN (Vercel → Account → Settings → Tokens) to enable cleanup."
+          fi
+
+      - name: Checkout
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Show plan (dry-run)
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          KEEP_BRANCHES: ${{ inputs.keep_branches || 'main,master' }}
+          INCLUDE_NO_GIT: ${{ inputs.include_no_git == true }}
+        run: |
+          set -euo pipefail
+          ARGS=( --keep-branches "$KEEP_BRANCHES" )
+          if [ "$INCLUDE_NO_GIT" = "true" ]; then ARGS+=( --include-no-git ); fi
+          echo "Running plan with: ${ARGS[*]}"
+          # Always show the human-readable plan first so the run log is greppable.
+          node server/scripts/vercel_prune_branch_deployments.mjs "${ARGS[@]}" \
+            | tee plan.txt
+          {
+            echo "## Vercel prune plan"
+            echo
+            echo '```'
+            cat plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply prune
+        # Skip apply when the operator chose dry-run from workflow_dispatch.
+        # Scheduled runs always apply (inputs.dry_run is empty -> false).
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && inputs.dry_run != true }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          KEEP_BRANCHES: ${{ inputs.keep_branches || 'main,master' }}
+          INCLUDE_NO_GIT: ${{ inputs.include_no_git == true }}
+        run: |
+          set -euo pipefail
+          ARGS=( --keep-branches "$KEEP_BRANCHES" --apply )
+          if [ "$INCLUDE_NO_GIT" = "true" ]; then ARGS+=( --include-no-git ); fi
+          echo "Applying with: ${ARGS[*]}"
+          node server/scripts/vercel_prune_branch_deployments.mjs "${ARGS[@]}" \
+            | tee apply.txt
+          {
+            echo
+            echo "## Vercel prune apply result"
+            echo
+            echo '```'
+            cat apply.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Note (dry-run only, no apply)
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && inputs.dry_run == true }}
+        run: |
+          echo "::notice::Dry-run requested via workflow_dispatch — no deployments were deleted."

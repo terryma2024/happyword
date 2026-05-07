@@ -6,12 +6,13 @@
 #
 # Pipeline:
 #   1. Sanity-check that an emulator / device is reachable via hdc.
-#   2. Boot server/mock_ui_server.py on host port 8123.
-#   3. Reverse-forward the device's 127.0.0.1:8123 to the host's
+#   2. Wake and unlock the pinned USB device when it is on the lock screen.
+#   3. Boot server/mock_ui_server.py on host port 8123.
+#   4. Reverse-forward the device's 127.0.0.1:8123 to the host's
 #      127.0.0.1:8123 via `hdc rport`.
-#   4. (Optionally) build + reinstall the test HAP if --rebuild is set.
-#   5. Run `hdc shell aa test ...` (the standard ohosTest entry).
-#   6. Always tear down: kill the mock server, drop the rport mapping.
+#   5. (Optionally) build + reinstall the test HAP if --rebuild is set.
+#   6. Run `hdc shell aa test ...` (the standard ohosTest entry).
+#   7. Always tear down: kill the mock server, drop the rport mapping.
 #
 # Usage:
 #   scripts/run_ui_tests.sh                  # run with already-built HAPs
@@ -34,6 +35,74 @@ MOCK_LOG="${REPO_ROOT}/build-tmp/mock_ui_server.log"
 MOCK_PID_FILE="${REPO_ROOT}/build-tmp/mock_ui_server.pid"
 SUITE_FILTER=""
 DO_REBUILD=0
+# When more than one device is registered with hdc (e.g. the OpenHarmony
+# emulator over TCP plus a USB phone), every hdc subcommand fails with
+# "ExecuteCommand need connect-key?". Set HDC_TARGET in the environment
+# (or rely on auto-detection in step 1) so we can pass `-t <key>`
+# consistently.
+HDC_TARGET="${HDC_TARGET:-}"
+UNLOCK_DEVICE_TARGET="5FFBB25926205346"
+UNLOCK_DEVICE_PASSWORD="${UI_TEST_UNLOCK_PASSWORD:-666888}"
+UNLOCK_SWIPE_FROM_X="${UI_TEST_UNLOCK_SWIPE_FROM_X:-540}"
+UNLOCK_SWIPE_FROM_Y="${UI_TEST_UNLOCK_SWIPE_FROM_Y:-1900}"
+UNLOCK_SWIPE_TO_X="${UI_TEST_UNLOCK_SWIPE_TO_X:-540}"
+UNLOCK_SWIPE_TO_Y="${UI_TEST_UNLOCK_SWIPE_TO_Y:-320}"
+UNLOCK_SWIPE_VELOCITY="${UI_TEST_UNLOCK_SWIPE_VELOCITY:-1200}"
+
+# Wrapper that injects `-t <key>` whenever HDC_TARGET is non-empty.
+# Defined up here so the cleanup trap can use it too.
+hdc_t() {
+  if [[ -n "${HDC_TARGET}" ]]; then
+    hdc -t "${HDC_TARGET}" "$@"
+  else
+    hdc "$@"
+  fi
+}
+
+target_list_contains() {
+  local target="$1"
+  printf '%s\n' "${TARGETS}" | grep -Fxq "${target}"
+}
+
+should_unlock_target_device() {
+  [[ "${HDC_TARGET}" == "${UNLOCK_DEVICE_TARGET}" ]]
+}
+
+device_layout_text() {
+  hdc_t shell uitest dumpLayout 2>/dev/null | tr -d '\r' || true
+}
+
+layout_looks_locked() {
+  local layout="$1"
+  [[ "${layout}" =~ (锁屏|锁定|解锁|输入密码|密码|PIN|pin|Password|password) ]]
+}
+
+unlock_target_device_if_needed() {
+  if ! should_unlock_target_device; then
+    return 0
+  fi
+
+  echo "[run_ui_tests] preparing USB device ${UNLOCK_DEVICE_TARGET}: wake screen and prevent sleep"
+  hdc_t shell power-shell wakeup >/dev/null 2>&1 || \
+    hdc_t shell uitest uiInput keyEvent Power >/dev/null 2>&1 || true
+  hdc_t shell power-shell setmode 602 >/dev/null 2>&1 || true
+  sleep 0.8
+
+  hdc_t shell uitest uiInput swipe \
+    "${UNLOCK_SWIPE_FROM_X}" "${UNLOCK_SWIPE_FROM_Y}" \
+    "${UNLOCK_SWIPE_TO_X}" "${UNLOCK_SWIPE_TO_Y}" \
+    "${UNLOCK_SWIPE_VELOCITY}" >/dev/null 2>&1 || true
+  sleep 0.8
+
+  local layout
+  layout="$(device_layout_text)"
+  if layout_looks_locked "${layout}"; then
+    echo "[run_ui_tests] lock screen detected on ${UNLOCK_DEVICE_TARGET}; unlocking before UI tests"
+    hdc_t shell uitest uiInput text "${UNLOCK_DEVICE_PASSWORD}" >/dev/null 2>&1 || true
+    hdc_t shell uitest uiInput keyEvent Enter >/dev/null 2>&1 || true
+    sleep 1
+  fi
+}
 
 mkdir -p "$(dirname "${MOCK_LOG}")"
 
@@ -88,12 +157,12 @@ cleanup() {
   # forward and reverse tasks in one list; we filter for our port and
   # strip out the "tcp:8123 tcp:8123" tail which `hdc fport rm` wants.
   if command -v hdc >/dev/null 2>&1; then
-    hdc fport ls 2>/dev/null \
+    hdc_t fport ls 2>/dev/null \
       | awk -v p=":${MOCK_PORT}" '$0 ~ p {print $0}' \
       | while read -r line; do
           taskstr="$(echo "${line}" | sed -nE 's/.*(tcp:[0-9]+ tcp:[0-9]+).*/\1/p')"
           if [[ -n "${taskstr}" ]]; then
-            hdc fport rm "${taskstr}" >/dev/null 2>&1 || true
+            hdc_t fport rm "${taskstr}" >/dev/null 2>&1 || true
           fi
         done
   fi
@@ -118,8 +187,25 @@ if [[ -z "${TARGETS}" || "${TARGETS}" == *"[Empty]"* ]]; then
 fi
 echo "[run_ui_tests] hdc target(s): ${TARGETS}"
 
+# If multiple targets are present and HDC_TARGET wasn't pinned by the
+# caller, prefer the known USB device for these UI tests; otherwise keep
+# the historical emulator preference.
+TARGET_COUNT="$(printf '%s\n' "${TARGETS}" | wc -l | tr -d ' ')"
+if [[ -z "${HDC_TARGET}" ]] && target_list_contains "${UNLOCK_DEVICE_TARGET}"; then
+  HDC_TARGET="${UNLOCK_DEVICE_TARGET}"
+  echo "[run_ui_tests] auto-selecting USB target ${HDC_TARGET}"
+elif [[ -z "${HDC_TARGET}" && "${TARGET_COUNT}" -gt 1 ]]; then
+  TCP_TARGET="$(printf '%s\n' "${TARGETS}" | grep -E '^127\.0\.0\.1:' | head -n1 || true)"
+  if [[ -n "${TCP_TARGET}" ]]; then
+    HDC_TARGET="${TCP_TARGET}"
+    echo "[run_ui_tests] multiple targets visible, auto-selecting ${HDC_TARGET}"
+  fi
+fi
+
+unlock_target_device_if_needed
+
 # ---------------------------------------------------------------------------
-# 2. Boot mock server
+# 3. Boot mock server
 # ---------------------------------------------------------------------------
 
 # If the port is busy, fail loudly — we never want to "fall through" to a
@@ -160,7 +246,7 @@ fi
 # resolves http://127.0.0.1:8123 to the mock running on the developer's
 # Mac.
 echo "[run_ui_tests] hdc rport tcp:${MOCK_PORT} tcp:${MOCK_PORT}"
-hdc rport "tcp:${MOCK_PORT}" "tcp:${MOCK_PORT}"
+hdc_t rport "tcp:${MOCK_PORT}" "tcp:${MOCK_PORT}"
 
 # Note on lesson-import fixture: HarmonyOS NEXT's selinux blocks the
 # bundle UID from reading every shell-writable path on disk
@@ -192,9 +278,9 @@ if [[ "${DO_REBUILD}" -eq 1 ]]; then
     exit 1
   fi
   echo "[run_ui_tests] installing ${HAP_DEFAULT}"
-  hdc install -r "${HAP_DEFAULT}"
+  hdc_t install -r "${HAP_DEFAULT}"
   echo "[run_ui_tests] installing ${HAP_TEST}"
-  hdc install -r "${HAP_TEST}"
+  hdc_t install -r "${HAP_TEST}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -213,7 +299,11 @@ fi
 # take 35-45s in cold start, even though every individual step is fast
 # (the test is wide, not slow). 60000ms buys a safe margin without
 # masking real hangs.
-TEST_CMD=(hdc shell aa test
+TEST_CMD=(hdc)
+if [[ -n "${HDC_TARGET}" ]]; then
+  TEST_CMD+=(-t "${HDC_TARGET}")
+fi
+TEST_CMD+=(shell aa test
   -b com.terryma.wordmagicgame
   -m entry_test
   -s unittest OpenHarmonyTestRunner

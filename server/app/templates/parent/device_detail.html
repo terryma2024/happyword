@@ -1,0 +1,125 @@
+{% extends "_base.html" %}
+{% block title %}{{ child.nickname }} 的学习报告{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header>
+    <a href="/parent/" class="text-sm text-sky-700 hover:underline">← 返回家长首页</a>
+    <h1 class="text-2xl font-semibold text-slate-900 mt-2">
+      {{ child.nickname }} 的学习报告
+    </h1>
+    <p class="text-sm text-slate-500 mt-1">
+      绑定 ID：<code class="font-mono">{{ binding.binding_id }}</code> · 设备 ID
+      尾号：<code class="font-mono">{{ binding.device_id[-4:] }}</code>
+    </p>
+    <p class="text-sm text-slate-500 mt-1">
+      报告生成时间：{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }} ·
+      回看窗口：{{ report.lookback_days }} 天 ·
+      上次设备同步：{% if report.last_synced_at %}{{ report.last_synced_at.strftime('%Y-%m-%d %H:%M') }}{% else %}尚未同步{% endif %}
+    </p>
+  </header>
+
+  <section class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500">总词量</p>
+      <p id="report-total" class="text-2xl font-semibold text-slate-900 mt-1">{{ report.total_words }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500">已掌握</p>
+      <p id="report-mastered" class="text-2xl font-semibold text-emerald-700 mt-1">{{ report.mastered_count }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500">正确率</p>
+      <p id="report-accuracy" class="text-2xl font-semibold text-sky-700 mt-1">{{ report.accuracy_pct }}%</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500">今日复习完成</p>
+      <p id="report-review-done" class="text-2xl font-semibold text-amber-700 mt-1">
+        {{ report.today_review_done }}/{{ report.today_review_due }}
+      </p>
+    </div>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-4">薄弱类别</h2>
+    {% if report.weak_categories %}
+      <ul id="report-weak-categories" class="space-y-2 text-sm text-slate-700">
+        {% for c in report.weak_categories %}
+          <li class="flex items-center justify-between border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+            <span>{{ c.display_name }}</span>
+            <span class="font-mono text-slate-500">
+              {{ c.accuracy_pct }}% · 已练习 {{ c.total_seen }} 次
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p id="report-weak-categories" class="text-sm text-slate-500">
+        还没有足够的练习数据。
+      </p>
+    {% endif %}
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6"
+           id="device-wishlist">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-slate-900">愿望清单</h2>
+      <a href="/parent/redemptions" class="text-sm text-sky-600 hover:underline">
+        管理兑换审批 →
+      </a>
+    </div>
+    {% if wishlist_items %}
+      <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        {% for it in wishlist_items %}
+          <li class="border border-slate-200 rounded-md p-3 flex items-center justify-between">
+            <div>
+              <p class="font-semibold text-slate-900">
+                {{ it.icon_emoji }} {{ it.display_name }}
+              </p>
+              <p class="text-xs text-slate-500 mt-1 font-mono">
+                {{ it.cost_coins }} 金币 · {{ it.state }}
+                {% if not it.is_parent_curated %} · 来自孩子设备{% endif %}
+              </p>
+            </div>
+            <span class="text-xs px-2 py-1 rounded-md
+                         {% if it.state == 'active' %}bg-emerald-100 text-emerald-700
+                         {% elif it.state == 'redeemed' %}bg-slate-100 text-slate-600
+                         {% else %}bg-rose-100 text-rose-700{% endif %}">
+              {% if it.state == 'active' %}激活{% elif it.state == 'redeemed' %}已兑换{% else %}已归档{% endif %}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-slate-500">还没有愿望。在「兑换审批」页面或下个版本的清单管理界面添加。</p>
+    {% endif %}
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-4">分类详情</h2>
+    {% if report.categories %}
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
+            <th class="py-2">类别</th>
+            <th class="py-2">已练习</th>
+            <th class="py-2">答对</th>
+            <th class="py-2">正确率</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in report.categories %}
+            <tr class="border-b border-slate-100 last:border-0">
+              <td class="py-2">{{ c.display_name }}</td>
+              <td class="py-2 font-mono">{{ c.total_seen }}</td>
+              <td class="py-2 font-mono">{{ c.total_correct }}</td>
+              <td class="py-2 font-mono">{{ c.accuracy_pct }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-sm text-slate-500">暂无类别数据。</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

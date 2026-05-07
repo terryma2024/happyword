@@ -1,0 +1,20 @@
+/* V0.6.1 — minimal supplemental CSS for the parent web shell.
+ * Tailwind CDN handles the bulk; this file is for tiny tweaks Tailwind
+ * cannot express directly (e.g. focus-visible polishing, custom selection).
+ */
+
+::selection {
+  background-color: #c7d2fe; /* indigo-200 */
+  color: #1e1b4b;            /* indigo-950 */
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum";
+}
+
+/* The OTP input deserves nicer focus framing than Tailwind's default ring. */
+input[name="code"]:focus {
+  letter-spacing: 0.4em;
+}
