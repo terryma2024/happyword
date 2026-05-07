@@ -1,9 +1,4 @@
 {
   "version": 2,
-  "ignoreCommand": "bash ./scripts/vercel_should_skip_build.sh",
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60
-    }
-  }
+  "ignoreCommand": "bash ./scripts/vercel_should_skip_build.sh"
 }
