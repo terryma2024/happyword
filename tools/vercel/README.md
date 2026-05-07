@@ -93,39 +93,52 @@ DEPLOY_AUTHOR_NAME='You' \
     bash tools/vercel/deploy-prod.sh
 ```
 
-### 3. `vercel.json` schema
+### 3. `vercel.json` schema (modern Framework Preset, no `runtime` pin)
 
-Modern CLI rejects `builds` + `functions` together. Use `rewrites`
-+ `functions`. `memory` on `functions` is ignored under Active CPU
-billing — drop it. Live config is in [`server/vercel.json`](../../server/vercel.json):
+Modern CLI rejects the legacy `builds` + `functions` combo. The
+**FastAPI Framework Preset** does the build for us as long as
+`fastapi` is listed in `pyproject.toml` and a supported entrypoint
+exists — the resulting deployment is a single Vercel Function that
+catch-all-routes everything to the FastAPI app. We do **not** need
+`rewrites` (the preset auto-installs them) and we must **not** set a
+`runtime` value for the built-in Python runtime — `runtime:` in
+`functions` is reserved for community runtimes
+([docs](https://vercel.com/docs/functions/configuring-functions/runtime#other-runtimes)),
+and `"@vercel/python@..."` there fails silently: the deployment goes
+green but every URL returns Vercel's edge `404 NOT_FOUND` page.
+
+Live config is in [`server/vercel.json`](../../server/vercel.json):
 
 ```jsonc
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
-    { "source": "/(.*)",     "destination": "/api/index.py" }
-  ],
+  "ignoreCommand": "bash ./scripts/vercel_should_skip_build.sh",
   "functions": {
     "api/index.py": {
-      "runtime": "@vercel/python@6.38.0",
       "maxDuration": 60
     }
   }
 }
 ```
 
-> **Why pin `runtime` explicitly?** When you drop the legacy `builds`
-> array, you lose the implicit `use: "@vercel/python"` directive that
-> told Vercel to compile `api/index.py` with the Python runtime. With
-> only the modernized `functions` block and no `runtime` field, recent
-> Vercel CLIs simply *don't deploy any function* — every URL on the
-> resulting preview/prod deployment returns Vercel's edge `404
-> NOT_FOUND` page. The bug is silent because the GitHub Vercel check
-> still goes green. Pinning the runtime restores the legacy-equivalent
-> "this `.py` file is a Python serverless function" wiring. See
-> https://github.com/vercel/vercel/discussions/11191 for the upstream
-> trip-wire.
+`memory` on `functions` is ignored under Active CPU billing — drop it.
+The `functions` block here only carries `maxDuration` (Pro plan
+allows up to 300s; we cap at 60); the runtime itself is auto-detected.
+
+The companion knob is in [`server/pyproject.toml`](../../server/pyproject.toml):
+
+```toml
+[tool.vercel]
+entrypoint = "api.index:app"
+```
+
+The preset's auto-discovery walks `app.py | index.py | server.py |
+main.py` in `./`, `src/`, `app/`, `api/` looking for a top-level `app`
+([docs](https://vercel.com/docs/functions/runtimes/python#python-entrypoints)).
+Both `api/index.py` (re-export) and `app/main.py` (real definition)
+match — without `tool.vercel.entrypoint` it is undefined which one
+wins, and the loser's routes vanish. Pinning to the re-export
+mirrors `uvicorn app.main:app` 1-for-1.
 
 ### 4. Project root directory must be `null`, not `server`
 

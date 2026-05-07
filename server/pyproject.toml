@@ -36,6 +36,20 @@ dev = [
     "types-qrcode>=8.2.0.20260408",
 ]
 
+# Tell Vercel's FastAPI Framework Preset which `app = FastAPI()` to load.
+# Without this, the preset auto-discovery walks `app.py | index.py |
+# server.py | main.py` in `./`, `src/`, `app/`, `api/` looking for a
+# top-level `app`, and BOTH `api/index.py` (re-export) and `app/main.py`
+# (real definition) match. Which entrypoint wins is undocumented, and
+# the ambiguity surfaces as silently-broken deployments where every
+# URL returns Vercel's edge `404 NOT_FOUND` page even though the
+# Vercel check is green. Pin to the canonical re-export at
+# `api/index.py` so the resulting Vercel Function exposes the same
+# routes that `uvicorn app.main:app` serves locally.
+# Docs: https://vercel.com/docs/functions/runtimes/python#python-entrypoints
+[tool.vercel]
+entrypoint = "api.index:app"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
