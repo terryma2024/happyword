@@ -18,7 +18,7 @@ concurrency:
 jobs:
   update_manifest:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Checkout main
         uses: actions/checkout@v5
@@ -47,7 +47,63 @@ jobs:
       - name: Install Octokit
         run: npm install --no-save @octokit/rest
 
+      # Gate manifest commits on server-ci's pytest + e2e jobs. Closed PRs are
+      # always allowed to clean up their entry, regardless of CI state. PRs
+      # that did not touch server paths produce no server-ci run; after a
+      # short grace window we treat that as "not_triggered" and proceed.
+      - name: Wait for server-ci success
+        id: wait_ci
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          POLL_INTERVAL: '30'
+          MAX_ATTEMPTS: '30'              # 15 min total
+          NOT_TRIGGERED_THRESHOLD: '6'    # 3 min: assume server-ci was not triggered
+        run: |
+          set -euo pipefail
+          not_found_count=0
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            run_json=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/server-ci.yml/runs?head_sha=${HEAD_SHA}&per_page=1" \
+              2>/dev/null || echo '{"workflow_runs":[]}')
+            count=$(echo "$run_json" | jq '.workflow_runs | length')
+            if [ "$count" -eq 0 ]; then
+              not_found_count=$((not_found_count + 1))
+              echo "attempt ${attempt}/${MAX_ATTEMPTS}: no server-ci run for ${HEAD_SHA} yet (not_found=${not_found_count}/${NOT_TRIGGERED_THRESHOLD})"
+              if [ "$not_found_count" -ge "$NOT_TRIGGERED_THRESHOLD" ]; then
+                echo "ci_passed=not_triggered" >> "$GITHUB_OUTPUT"
+                echo "::notice::No server-ci run after ${not_found_count} polls — assuming PR did not touch server paths; proceeding with manifest update."
+                exit 0
+              fi
+              sleep "$POLL_INTERVAL"
+              continue
+            fi
+            not_found_count=0
+            status=$(echo "$run_json" | jq -r '.workflow_runs[0].status')
+            conclusion=$(echo "$run_json" | jq -r '.workflow_runs[0].conclusion // "null"')
+            run_id=$(echo "$run_json" | jq -r '.workflow_runs[0].id')
+            echo "attempt ${attempt}/${MAX_ATTEMPTS}: server-ci run=${run_id} status=${status} conclusion=${conclusion}"
+            if [ "$status" = "completed" ]; then
+              if [ "$conclusion" = "success" ]; then
+                echo "ci_passed=true" >> "$GITHUB_OUTPUT"
+                echo "::notice::server-ci passed for ${HEAD_SHA} — proceeding with manifest update."
+                exit 0
+              fi
+              echo "ci_passed=false" >> "$GITHUB_OUTPUT"
+              echo "::warning::server-ci concluded '${conclusion}' for ${HEAD_SHA} — skipping manifest update to avoid noisy commits on docs/preview-urls.json."
+              exit 0
+            fi
+            sleep "$POLL_INTERVAL"
+          done
+          echo "ci_passed=timeout" >> "$GITHUB_OUTPUT"
+          echo "::warning::server-ci did not complete within $((POLL_INTERVAL * MAX_ATTEMPTS))s for ${HEAD_SHA} — skipping manifest update."
+
       - name: Update manifest
+        if: |
+          github.event.action == 'closed'
+          || steps.wait_ci.outputs.ci_passed == 'true'
+          || steps.wait_ci.outputs.ci_passed == 'not_triggered'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PREVIEW_MANIFEST_POLL_INTERVAL_MS: '30000'
@@ -55,6 +111,10 @@ jobs:
         run: node server/scripts/update_preview_manifest.mjs "$GITHUB_EVENT_PATH" "$GITHUB_TOKEN"
 
       - name: Commit + push if changed
+        if: |
+          github.event.action == 'closed'
+          || steps.wait_ci.outputs.ci_passed == 'true'
+          || steps.wait_ci.outputs.ci_passed == 'not_triggered'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
