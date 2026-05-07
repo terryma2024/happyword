@@ -298,7 +298,7 @@ For the dev/QA loop this is targeted at — "did my last `hdc install` actually 
 
 `VersionTripleTap.test.ets` — 5 cases, all using fixed fake `nowMs` arguments:
 
-1. Three taps inside the 1000ms window all return `[false, false, true]`.
+1. Three taps inside the 1500ms window all return `[false, false, true]`.
 2. After firing on tap 3, tap 4 (5ms later) returns `false` — the counter resets after firing.
 3. Two fast taps then a 1500ms gap then one more tap returns `[false, false, false]` — gap reset.
 4. Custom window (`new VersionTripleTap(500)`) — three taps at 0/200/400 fire; three taps at 0/300/700 don't (700-300 > 500).
@@ -329,7 +329,7 @@ The existing `HomeToolbarLocked.ui.test.ets` is unaffected — it doesn't use `H
 ## 8. Risks & mitigations
 
 - **Children tap the version label.** In debug it navigates to DevMenu, which they can't usefully break. In release the label and handler are absent. **Risk: low.**
-- **Triple-tap accidental fire.** The 1000ms window plus a 11pt grey label off in the corner means children very rarely hit it. Adults will. Acceptable.
+- **Triple-tap accidental fire.** The 1500ms window plus a 11pt grey label off in the corner means children very rarely hit it. Adults will. Acceptable. (1500ms — not 1000ms — was chosen during D1 verification: each `comp.click()` round-trip on a slow OpenHarmony emulator can drift toward ~400ms, so a 1000ms inter-tap window was occasionally too tight to register three taps as "consecutive". 1500ms is comfortable on real devices and robust against the emulator.)
 - **`bundleManager.getBundleInfoForSelf` failing.** Wrapped in try/catch with a `?.?.?` fallback. Label still renders, just without identity.
 - **Param-based PREVIEW pre-select racing with hydrate.** Avoided by applying the param **after** `hydrate()` resolves (see §3.4 code).
 - **Stack overlap on narrow screens.** The version label is `padding({ left: 16, right: 16 })` and the icon row is `margin({ right: 16 })` from the right edge. Even on the narrowest supported phone, the icon row's leftmost icon is well to the right of the label's rightmost glyph. No overlap.
@@ -346,7 +346,7 @@ The existing `HomeToolbarLocked.ui.test.ets` is unaffected — it doesn't use `H
 
 - [ ] Open a debug build → home screen shows `v0.6.0(YYMMDDHHmm)` in the top-left, grey, 11pt.
 - [ ] Open a release build → no version label, no new behaviour anywhere.
-- [ ] Triple-tap (≤1000ms gaps) the label in debug → land on `DevMenuPage` with PREVIEW selected and the card list visible.
+- [ ] Triple-tap (≤1500ms gaps between taps) the label in debug → land on `DevMenuPage` with PREVIEW selected and the card list visible.
 - [ ] Each card shows the title (up to 3 lines, ellipsised), then `#PR(sha)` centered.
 - [ ] Tapping a card highlights it; tapping Apply commits and replaces the route to HomePage with the new env active.
 - [ ] All new unit + UI tests pass; existing tests untouched.

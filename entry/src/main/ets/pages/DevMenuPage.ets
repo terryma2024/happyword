@@ -217,6 +217,12 @@ struct DevMenuPage {
   }
 
   build(): void {
+    // V0.6: outer Scroll wrapper. The page now hosts a manifest card
+    // list that can render multiple ~70 dp cards before reaching
+    // Apply, easily overflowing a single screen. The Scroll keeps
+    // every control reachable (and matches the previous default
+    // behaviour where the page was just barely fitting).
+    Scroll() {
     Column() {
       Row() {
         Button('Back')
@@ -260,14 +266,15 @@ struct DevMenuPage {
           Text('Loading manifest...').fontSize(12).fontColor('#888888');
         }
         if (this.manifest !== null && this.manifest.previews.length > 0) {
-          Scroll() {
-            Column({ space: 8 }) {
-              ForEach(this.manifest.previews, (row: ManifestRow) => {
-                this.previewCard(row);
-              }, (row: ManifestRow) => `${row.pr}-${row.url}`);
-            }
+          // No inner Scroll — the page-level Scroll handles overflow,
+          // and nested Scroll-in-Scroll fights for touch events on
+          // ArkUI which makes individual card taps unreliable.
+          Column({ space: 8 }) {
+            ForEach(this.manifest.previews, (row: ManifestRow) => {
+              this.previewCard(row);
+            }, (row: ManifestRow) => `${row.pr}-${row.url}`);
           }
-          .height(320)
+          .width('100%')
           .margin({ bottom: 8 });
         }
 
@@ -342,8 +349,11 @@ struct DevMenuPage {
       }
     }
     .width('100%')
-    .height('100%')
     .padding(16)
     .alignItems(HorizontalAlign.Start);
+    }
+    .width('100%')
+    .height('100%')
+    .scrollBar(BarState.Auto);
   }
 }

@@ -6,6 +6,8 @@ import reviewModeUiTest from './ReviewMode.ui.test';
 import magicAttackUiTest from './MagicAttack.ui.test';
 import v03AdventureUiTest from './V03Adventure.ui.test';
 import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
+import homeVersionTapUiTest from './HomeVersionTap.ui.test';
+import devMenuCardListUiTest from './DevMenuCardList.ui.test';
 import fillLetterFlowUiTest from './FillLetterFlow.ui.test';
 import spellQuestionFlowUiTest from './SpellQuestionFlow.ui.test';
 import monsterCodexFlowUiTest from './MonsterCodexFlow.ui.test';
@@ -63,6 +65,17 @@ export default function testsuite() {
   // surfaced when recentWrongCount < 3, which would silently flip to
   // navigation once the recorder has accrued ≥3 wrongs.
   homeToolbarLockedUiTest();
+  // V0.6: debug-only version label + triple-tap → DevMenu navigation.
+  // Order-independent: these tests press Back at the tail so HomePage
+  // is reachable for the next suite. Placed right after
+  // homeToolbarLockedUiTest because both are "home toolbar / top
+  // chrome" smoke tests and grouping them surfaces top-screen
+  // regressions early.
+  homeVersionTapUiTest();
+  // V0.6: DevMenuPage card layout + tap-selects-without-navigating.
+  // Network-dependent on raw.githubusercontent.com (manifest URL).
+  // Asserts only the weaker "DevMenu rendered" invariant when offline.
+  devMenuCardListUiTest();
   // MonsterCodexFlow is order-independent: the codex page reads only
   // a frozen static array (MONSTER_CODEX) and does not touch the
   // recorder. Runs second to surface failures fast — codex regressions

@@ -7,13 +7,18 @@
  *  - Subsequent taps inside the window: increment.
  *  - On the 3rd tap: return true and zero the counter so a 4th tap
  *    does not re-fire.
+ *
+ * Default window is 1500ms — chosen so on-device UI tests on slow
+ * emulators (where each `comp.click()` round-trip can drift toward
+ * ~400ms) still register three taps as "consecutive", while staying
+ * tight enough on real devices to feel like a deliberate gesture.
  */
 export class VersionTripleTap {
   private count: number = 0;
   private lastTapMs: number = 0;
   private readonly windowMs: number;
 
-  constructor(windowMs: number = 1000) {
+  constructor(windowMs: number = 1500) {
     this.windowMs = windowMs;
   }
 

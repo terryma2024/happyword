@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Wire a debug-only `v0.6.0(YYMMDDHHmm)` label onto HomePage's top-left (minute precision — seconds dropped), make a triple-tap (≤1000ms window) navigate to `DevMenuPage` with PREVIEW pre-selected, and re-render the `DevMenuPage` manifest list as cards showing **title** (max 3 lines) and **`#PR(sha)`** centered. Bumping `AppScope/app.json5` `versionName` from `1.0.0` → `0.6.0` is part of this plan (matches the V0.6 in-flight major version in [`docs/WordMagicGame_roadmap.md`](../../WordMagicGame_roadmap.md)).
+**Goal:** Wire a debug-only `v0.6.0(YYMMDDHHmm)` label onto HomePage's top-left (minute precision — seconds dropped), make a triple-tap (≤1500ms window between taps) navigate to `DevMenuPage` with PREVIEW pre-selected, and re-render the `DevMenuPage` manifest list as cards showing **title** (max 3 lines) and **`#PR(sha)`** centered. Bumping `AppScope/app.json5` `versionName` from `1.0.0` → `0.6.0` is part of this plan (matches the V0.6 in-flight major version in [`docs/WordMagicGame_roadmap.md`](../../WordMagicGame_roadmap.md)).
 
 **Architecture:** Two new pure helper modules (`VersionTripleTap`, `BuildInfo`) keep the counting and timestamp formatting unit-testable. `HomePage` mounts the version `Text` (gated on `BuildProfile.BUILD_MODE_NAME === 'debug'`), holds a `VersionTripleTap` instance, and pushes `pages/DevMenuPage` with `params: { presetEnv: 'preview' }` on the third tap. `DevMenuPage` replaces its existing single-line manifest button rows with a `@Builder previewCard` and reads `router.getParams()` after `hydrate()` to honour the preset.
 
@@ -169,7 +169,7 @@ export class VersionTripleTap {
   private lastTapMs: number = 0;
   private readonly windowMs: number;
 
-  constructor(windowMs: number = 1000) {
+  constructor(windowMs: number = 1500) {
     this.windowMs = windowMs;
   }
 
