@@ -40,6 +40,7 @@ import deviceUnbindClientTest from './DeviceUnbindClient.test';
 import photoPickerServiceTest from './PhotoPickerService.test';
 import barcodeImageDecoderTest from './BarcodeImageDecoder.test';
 import versionTripleTapTest from './VersionTripleTap.test';
+import buildInfoTest from './BuildInfo.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -84,4 +85,5 @@ export default function testsuite() {
   photoPickerServiceTest();
   barcodeImageDecoderTest();
   versionTripleTapTest();
+  buildInfoTest();
 }
