@@ -6,18 +6,29 @@ HTTP 401 + an HTML auth page — the test suite would then fail with
 ``assert 401 == 200`` across the board.
 
 To let an automated client through, Vercel issues a per-project
-**Protection Bypass for Automation** secret. When supplied as a
-request header (``x-vercel-protection-bypass: <secret>``) — optionally
-together with ``x-vercel-set-bypass-cookie: true`` so the same client
-reuses the bypass cookie on subsequent requests — the deployment
+**Protection Bypass for Automation** secret. When supplied as the
+request header ``x-vercel-protection-bypass: <secret>``, the deployment
 protection layer waves the request through to the real Function.
 
+We deliberately do **NOT** send the optional ``x-vercel-set-bypass-cookie``
+header. Per Vercel docs, that header instructs the edge to set a
+``_vercel_jwt`` bypass cookie via a **307 redirect with a Set-Cookie
+header**. Because the test client uses ``follow_redirects=False`` (so
+that auth flows like ``/parent/auth/verify-code`` see real ``Set-Cookie``
+responses and not whatever the redirect target returns), every API call
+would short-circuit at the cookie-setting redirect and tests would
+see ``307 Redirecting...`` instead of the expected status code. Sending
+the bypass header on every request is enough — we don't need a cookie
+because every ``httpx.Client`` in the suite is configured with the
+header from this helper, and short-lived anonymous clients constructed
+inside helper code (``device_redeem``, the pair-flow tests) also
+attach the header explicitly.
+
 Usage in the suite is uniform: ``vercel_bypass_headers()`` returns
-either an empty dict (no bypass configured / not needed) or the two
-headers above. It is folded into the shared ``http`` fixture in
-``conftest.py`` and into every short-lived anonymous ``httpx.Client``
-constructed by helper code (e.g. ``device_redeem``, the pair-flow
-tests).
+either an empty dict (no bypass configured / not needed) or just the
+single ``x-vercel-protection-bypass`` header. It is folded into the
+shared ``http`` fixture in ``conftest.py`` and into every short-lived
+anonymous ``httpx.Client`` constructed by helper code.
 
 The bypass secret comes from the ``E2E_VERCEL_PROTECTION_BYPASS``
 environment variable. When unset, the helper is a no-op so local
@@ -70,16 +81,17 @@ def vercel_bypass_headers() -> dict[str, str]:
     "Protection Bypass for Automation" secret minted by Vercel under
     *Project → Settings → Deployment Protection*.
 
-    The companion ``x-vercel-set-bypass-cookie: true`` header tells the
-    Vercel edge to drop a ``_vercel_jwt`` cookie on the response so the
-    same ``httpx.Client`` reuses it on subsequent requests instead of
-    re-authenticating per call (which would also re-issue cookies that
-    can collide with the app's own ``Set-Cookie``).
+    Only the ``x-vercel-protection-bypass`` header is returned —
+    intentionally NOT ``x-vercel-set-bypass-cookie``. The latter would
+    make Vercel respond with a 307 redirect carrying ``Set-Cookie``
+    (see module docstring), and our test driver uses
+    ``follow_redirects=False`` so it would never reach the actual
+    Function. Sending the bypass header on every individual request
+    waves it straight through to the upstream handler.
     """
     secret = os.environ.get("E2E_VERCEL_PROTECTION_BYPASS", "").strip()
     if not secret:
         return {}
     return {
         "x-vercel-protection-bypass": secret,
-        "x-vercel-set-bypass-cookie": "true",
     }
