@@ -1,5 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-07T11:40:10.284Z",
-  "previews": []
+  "updated_at": "2026-05-07T11:44:13.991Z",
+  "previews": [
+    {
+      "pr": 41,
+      "title": "ci: bump github-script/upload-artifact/download-artifact to Node 24",
+      "branch": "cursor/bump-actions-to-node24",
+      "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "d3bdcd3",
+      "updated_at": "2026-05-07T11:44:13.990Z"
+    }
+  ]
 }
