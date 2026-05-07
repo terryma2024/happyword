@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 from tests.e2e._utils.auth import ParentSession
+from tests.e2e._utils.vercel import make_client
 
 
 @pytest.mark.e2e
@@ -38,7 +39,7 @@ def test_pair_status_pending_then_redeemed(
     assert status.status_code == 200
     assert status.json()["status"] == "pending"
 
-    with httpx.Client(base_url=base_url, timeout=15.0) as anon:
+    with make_client(base_url=base_url, timeout=15.0) as anon:
         redeem = anon.post(
             "/api/v1/pair/redeem",
             json={"token": token, "device_id": f"e2e-{run_id}-redeem-1"},
@@ -63,7 +64,7 @@ def test_pair_double_redeem_returns_409(
     create = http.post("/api/v1/parent/pair/create")
     token = create.json()["token"]
 
-    with httpx.Client(base_url=base_url, timeout=15.0) as anon:
+    with make_client(base_url=base_url, timeout=15.0) as anon:
         first = anon.post(
             "/api/v1/pair/redeem",
             json={"token": token, "device_id": f"e2e-{run_id}-d1"},
@@ -83,7 +84,7 @@ def test_pair_redeem_unknown_token_returns_404(
     http: httpx.Client, base_url: str, run_id: str
 ) -> None:
     """PAIR-3 (anon variant): unknown token → 404 TOKEN_INVALID."""
-    with httpx.Client(base_url=base_url, timeout=15.0) as anon:
+    with make_client(base_url=base_url, timeout=15.0) as anon:
         r = anon.post(
             "/api/v1/pair/redeem",
             json={

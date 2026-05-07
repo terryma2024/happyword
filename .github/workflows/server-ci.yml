@@ -179,6 +179,14 @@ jobs:
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          # Vercel "Protection Bypass for Automation" secret (Project →
+          # Settings → Deployment Protection). When set, the test client
+          # injects the `x-vercel-protection-bypass` header so requests
+          # reach the FastAPI function instead of the SSO redirect that
+          # otherwise replies 401 to every /api/v1/* call. Empty when the
+          # secret is not configured — leave the deployment public to opt
+          # out.
+          E2E_VERCEL_BYPASS_TOKEN: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         # Tee output to a log file so the cursor_autofix_e2e job can ingest it via artifact.
         run: |
           set -o pipefail

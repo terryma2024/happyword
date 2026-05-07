@@ -21,6 +21,7 @@ from tests.e2e._utils.auth import (
     parent_login,
 )
 from tests.e2e._utils.db import MongoDB
+from tests.e2e._utils.vercel import make_client
 
 
 def _strip_env(name: str) -> str:
@@ -48,7 +49,7 @@ def http(base_url: str) -> Iterator[httpx.Client]:
     Function scope means each test starts with a clean cookie jar — the
     parent fixture re-attaches the session cookie when needed.
     """
-    with httpx.Client(
+    with make_client(
         base_url=base_url,
         timeout=15.0,
         follow_redirects=False,
