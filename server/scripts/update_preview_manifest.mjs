@@ -105,6 +105,7 @@ async function resolveDeployUrlWithPoll(owner, repo, sha, token, prNumber) {
   return null;
 }
 
+/** Typical hostname: happyword-git-<branch>-terrymas-projects.vercel.app */
 function isVercelPreviewUrl(url) {
   return (
     typeof url === 'string' && url.startsWith('https://') && url.includes('.vercel.app')
