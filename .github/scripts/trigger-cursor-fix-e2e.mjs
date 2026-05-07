@@ -1,12 +1,19 @@
 #!/usr/bin/env node
-// Triggered by .github/workflows/server-ci.yml when `server / e2e (preview)` fails.
-// Spawns a Cursor Cloud Agent against this repo + PR branch with the failing
-// pytest log as context, asks it to open a fix PR targeting the PR branch.
+// Triggered by:
+//   - .github/workflows/server-ci.yml (auto, when `server / e2e (preview)` fails)
+//   - .github/workflows/cursor-autofix-e2e.yml (manual, workflow_dispatch)
 //
-// Debounce: posts a hidden marker comment on the PR. If a comment with the
-// same marker for the same head SHA already exists, the run no-ops. This
-// guarantees one Cursor Cloud Agent per (PR, commit SHA), even if the workflow
-// is re-run.
+// Spawns a Cursor Cloud Agent against the PR's head branch and asks it to
+// commit the fix back to that branch (no new PR).
+//
+// Guards:
+//   1. Per-SHA debounce — at most one Cursor agent per (PR, head SHA), keyed
+//      by a hidden marker comment. Bypass via FORCE_TRIGGER=1.
+//   2. Per-PR round cap (MAX_ROUNDS) — once that many marker comments exist
+//      on the PR (auto + manual combined), refuse to trigger another agent.
+//   3. Unfixable failure filter — if the pytest log clearly indicates an
+//      environmental / deployment problem, refuse to trigger and explain why.
+//      Bypass via FORCE_TRIGGER=1.
 
 import fs from "node:fs";
 import process from "node:process";
@@ -42,9 +49,20 @@ const {
   REPO_URL,
   RUN_URL,
   E2E_LOG_FILE = "artifacts/e2e-pytest.log",
+  TRIGGER_SOURCE = "auto",
+  TRIGGER_REASON = "",
+  FORCE_TRIGGER = "0",
 } = process.env;
 
+const MAX_ROUNDS = Number(process.env.MAX_ROUNDS ?? 10);
+const FORCE = FORCE_TRIGGER === "1" || FORCE_TRIGGER.toLowerCase() === "true";
+const SOURCE = TRIGGER_SOURCE === "manual" ? "manual" : "auto";
+
 const MARKER = `<!-- cursor-autofix-triggered:${PR_HEAD_SHA} -->`;
+// Loose marker — matches any prior trigger on this PR regardless of SHA.
+// Used for round-cap counting.
+const MARKER_RE = /<!--\s*cursor-autofix-triggered:[^>]+-->/g;
+
 const LOG_RESOLVED = fs.existsSync(E2E_LOG_FILE)
   ? E2E_LOG_FILE
   : `${process.env.GITHUB_WORKSPACE ?? ".."}/${E2E_LOG_FILE}`;
@@ -68,18 +86,28 @@ async function gh(pathname, init = {}) {
   return res.json();
 }
 
-async function alreadyTriggered() {
-  // Paginate manually: GitHub returns max 100 per page; PRs rarely exceed a few hundred comments.
-  for (let page = 1; page <= 5; page += 1) {
-    const comments = await gh(
+async function listAllComments() {
+  const out = [];
+  for (let page = 1; page <= 10; page += 1) {
+    const batch = await gh(
       `/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100&page=${page}`
     );
-    if (comments.some((c) => typeof c.body === "string" && c.body.includes(MARKER))) {
-      return true;
-    }
-    if (comments.length < 100) break;
+    out.push(...batch);
+    if (batch.length < 100) break;
   }
-  return false;
+  return out;
+}
+
+function countMarkers(comments) {
+  let total = 0;
+  let sameSha = 0;
+  for (const c of comments) {
+    const body = typeof c.body === "string" ? c.body : "";
+    const matches = body.match(MARKER_RE) ?? [];
+    total += matches.length;
+    if (body.includes(MARKER)) sameSha += 1;
+  }
+  return { total, sameSha };
 }
 
 function readLogSnippet() {
@@ -89,13 +117,62 @@ function readLogSnippet() {
   const MAX = 24 * 1024;
   try {
     const raw = fs.readFileSync(LOG_RESOLVED, "utf8");
-    if (raw.length <= MAX) return raw;
+    if (raw.length <= MAX) return { snippet: raw, present: true };
     const head = raw.slice(0, 6 * 1024);
     const tail = raw.slice(-(MAX - head.length));
-    return `${head}\n... [TRUNCATED ${raw.length - MAX} bytes from middle] ...\n${tail}`;
+    return {
+      snippet: `${head}\n... [TRUNCATED ${raw.length - MAX} bytes from middle] ...\n${tail}`,
+      present: true,
+    };
   } catch (err) {
-    return `(could not read pytest log at ${LOG_RESOLVED}: ${err.message})`;
+    return {
+      snippet: `(could not read pytest log at ${LOG_RESOLVED}: ${err.message})`,
+      present: false,
+    };
   }
+}
+
+// Conservative classifier: only return unfixable when the log clearly screams
+// "environment / deployment problem" — never on assertion failures or bugs.
+// Bypass with FORCE_TRIGGER=1.
+function classifyFailure({ snippet, present }) {
+  if (!present) {
+    return { fixable: true, reason: null };
+  }
+
+  const indicators = [
+    {
+      name: "E2E_BASE_URL not configured",
+      re: /E2E_BASE_URL[^\n]{0,80}(not\s+set|empty|missing|undefined|''|""|=$)/i,
+    },
+    {
+      name: "Vercel preview URL unavailable",
+      re: /(no preview url|preview url is empty|preview not ready|preview deployment.{0,40}(not ready|failed))/i,
+    },
+    {
+      name: "Vercel deployment failure (server-side)",
+      re: /(vercel deployment.{0,30}failed|vercel.{0,40}internal (server )?error|deployment_error)/i,
+    },
+    {
+      name: "MongoDB unreachable (env-side)",
+      re: /(ServerSelectionTimeoutError|MongoNetworkError|pymongo\.errors\.NetworkTimeout|ECONNREFUSED.{0,80}27017|connection refused.{0,40}mongo)/i,
+    },
+    {
+      name: "Backend totally unreachable (502/503/504 on every call)",
+      re: /(httpx\.ConnectError|httpx\.ReadTimeout|gateway timeout|bad gateway|service unavailable).{0,200}(httpx\.ConnectError|httpx\.ReadTimeout|gateway timeout|bad gateway|service unavailable)/is,
+    },
+    {
+      name: "No tests collected",
+      re: /(no tests ran in|0 (test cases?|items) collected|collected 0 items)/i,
+    },
+  ];
+
+  for (const ind of indicators) {
+    if (ind.re.test(snippet)) {
+      return { fixable: false, reason: ind.name };
+    }
+  }
+  return { fixable: true, reason: null };
 }
 
 function buildPrompt(logSnippet) {
@@ -106,6 +183,7 @@ function buildPrompt(logSnippet) {
     `Branch: \`${PR_HEAD_REF}\``,
     `Head SHA: \`${PR_HEAD_SHA}\``,
     `Failed Actions run: ${RUN_URL}`,
+    `Trigger source: ${SOURCE}${TRIGGER_REASON ? ` (${TRIGGER_REASON})` : ""}`,
     ``,
     `Repository layout:`,
     `- E2E tests live under \`server/tests/e2e/\` (pytest, marker \`@pytest.mark.e2e\`).`,
@@ -134,37 +212,66 @@ function agentWebUrl(agentId) {
   return agentId ? `https://cursor.com/agents/${agentId}` : `https://cursor.com/dashboard/cloud-agents`;
 }
 
-async function postMarkerComment({ agentId, runId }) {
-  const url = agentWebUrl(agentId);
-  const body = [
-    MARKER,
-    `🤖 **Cursor Cloud autofix triggered** for failing \`server / e2e (preview)\` job.`,
-    ``,
-    `- Failed Actions run: ${RUN_URL}`,
-    `- Head SHA: \`${PR_HEAD_SHA}\``,
-    `- Cursor agent: [\`${agentId ?? "unknown"}\`](${url})`,
-    `- Cursor run: \`${runId ?? "unknown"}\``,
-    ``,
-    `Open the agent: ${url}`,
-    `When ready, the agent will commit & push the fix **directly to \`${PR_HEAD_REF}\`** (no new PR).`,
-    ``,
-    `_This run is debounced — re-running the workflow on the same commit will not start a second agent._`,
-  ].join("\n");
+async function postPrComment(body) {
   await gh(`/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments`, {
     method: "POST",
     body: JSON.stringify({ body }),
   });
 }
 
-async function main() {
-  if (await alreadyTriggered()) {
-    console.log(`Cursor autofix already triggered for SHA ${PR_HEAD_SHA}; skipping.`);
-    return;
+async function postMarkerComment({ agentId, runId, roundsAfter }) {
+  const url = agentWebUrl(agentId);
+  const body = [
+    MARKER,
+    `🤖 **Cursor Cloud autofix triggered** (${SOURCE}, round ${roundsAfter}/${MAX_ROUNDS}) for failing \`server / e2e (preview)\` job.`,
+    ``,
+    `- Failed Actions run: ${RUN_URL}`,
+    `- Head SHA: \`${PR_HEAD_SHA}\``,
+    `- Cursor agent: [\`${agentId ?? "unknown"}\`](${url})`,
+    `- Cursor run: \`${runId ?? "unknown"}\``,
+    TRIGGER_REASON ? `- Manual reason: ${TRIGGER_REASON}` : null,
+    ``,
+    `Open the agent: ${url}`,
+    `When ready, the agent will commit & push the fix **directly to \`${PR_HEAD_REF}\`** (no new PR).`,
+    ``,
+    `_Per-SHA debounce active — re-running the workflow on the same commit will not start a second agent (override with \`force=true\` in manual dispatch)._`,
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
+  await postPrComment(body);
+}
+
+function logCiSummary({ kind, agentId, runId, reason }) {
+  if (!process.env.GITHUB_STEP_SUMMARY) return;
+  const url = agentWebUrl(agentId);
+  let lines;
+  if (kind === "dispatched") {
+    lines = [
+      `### Cursor Cloud autofix dispatched (${SOURCE})`,
+      ``,
+      `- Agent: [\`${agentId}\`](${url})`,
+      `- Run: \`${runId}\``,
+      `- Source CI run: ${RUN_URL}`,
+      `- PR: ${PR_URL} (head \`${PR_HEAD_SHA}\`)`,
+      ``,
+    ];
+  } else {
+    lines = [
+      `### Cursor Cloud autofix skipped (${kind})`,
+      ``,
+      `- Reason: ${reason}`,
+      `- PR: ${PR_URL} (head \`${PR_HEAD_SHA}\`)`,
+      ``,
+    ];
   }
+  try {
+    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n"));
+  } catch {
+    /* best-effort */
+  }
+}
 
-  const logSnippet = readLogSnippet();
-  const prompt = buildPrompt(logSnippet);
-
+async function dispatchAgent(prompt) {
   // We must explicitly pass `cloud:` — if both `local:` and `cloud:` are
   // omitted the SDK silently defaults to a local runtime, which is useless
   // inside a CI job that's about to exit.
@@ -202,34 +309,77 @@ async function main() {
     const run = await agent.send(prompt);
     agentId = agent.agentId ?? null;
     runId = run?.id ?? null;
-    const url = agentWebUrl(agentId);
-    console.log(`Spawned Cursor Cloud agent agentId=${agentId} runId=${runId}`);
-    console.log(`Track progress: ${url}`);
-    // Surface the URL in the GitHub Actions step summary so it shows up at the
-    // top of the failed run page next to the workflow log.
-    if (process.env.GITHUB_STEP_SUMMARY) {
-      const summary = [
-        `### Cursor Cloud autofix dispatched`,
-        ``,
-        `- Agent: [\`${agentId}\`](${url})`,
-        `- Run: \`${runId}\``,
-        `- Failed CI run: ${RUN_URL}`,
-        ``,
-      ].join("\n");
-      try {
-        fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
-      } catch {
-        /* best-effort */
-      }
-    }
     // Intentionally do NOT call run.wait(): a cloud E2E autofix can take many
     // minutes; we want CI to exit quickly. The cloud-side run keeps executing
-    // independently. The IDs above are recorded in the PR comment for tracking.
+    // independently.
   } finally {
     await agent[Symbol.asyncDispose]?.();
   }
+  return { agentId, runId };
+}
 
-  await postMarkerComment({ agentId, runId });
+async function main() {
+  const comments = await listAllComments();
+  const { total: priorRounds, sameSha } = countMarkers(comments);
+  console.log(
+    `PR #${PR_NUMBER}: ${priorRounds} prior autofix round(s); ${sameSha} for current SHA. Cap=${MAX_ROUNDS}, force=${FORCE}, source=${SOURCE}.`
+  );
+
+  // Round cap (per PR, across all SHAs).
+  if (priorRounds >= MAX_ROUNDS) {
+    const reason = `MAX_ROUNDS (${MAX_ROUNDS}) reached on PR #${PR_NUMBER}; ${priorRounds} agent(s) already triggered.`;
+    console.log(`Skipping: ${reason}`);
+    logCiSummary({ kind: "round-cap", reason });
+    if (priorRounds === MAX_ROUNDS) {
+      await postPrComment(
+        [
+          `⚠️ **Cursor Cloud autofix paused** — round cap reached (${MAX_ROUNDS}).`,
+          ``,
+          `Re-enable by removing some \`<!-- cursor-autofix-triggered:* -->\` marker comments above, or raise \`MAX_ROUNDS\` in \`.github/scripts/trigger-cursor-fix-e2e.mjs\`.`,
+        ].join("\n")
+      );
+    }
+    return;
+  }
+
+  // Per-SHA debounce.
+  if (sameSha > 0 && !FORCE) {
+    console.log(`Skipping: agent already dispatched for SHA ${PR_HEAD_SHA}; use FORCE_TRIGGER=1 to override.`);
+    logCiSummary({
+      kind: "duplicate-sha",
+      reason: `Already triggered for SHA ${PR_HEAD_SHA}.`,
+    });
+    return;
+  }
+
+  // Unfixable filter.
+  const log = readLogSnippet();
+  const verdict = classifyFailure(log);
+  if (!verdict.fixable && !FORCE) {
+    const reason = `Log indicates environmental issue: ${verdict.reason}.`;
+    console.log(`Skipping: ${reason}`);
+    logCiSummary({ kind: "unfixable", reason });
+    await postPrComment(
+      [
+        `🛑 **Cursor Cloud autofix skipped** for SHA \`${PR_HEAD_SHA}\` — the failure looks environmental, not a code bug.`,
+        ``,
+        `- Detected indicator: **${verdict.reason}**`,
+        `- Source CI run: ${RUN_URL}`,
+        ``,
+        `Investigate the deployment / CI configuration. To force a Cursor agent anyway, use the manual dispatch with \`force=true\`.`,
+      ].join("\n")
+    );
+    return;
+  }
+
+  const prompt = buildPrompt(log.snippet);
+  const { agentId, runId } = await dispatchAgent(prompt);
+
+  console.log(`Spawned Cursor Cloud agent agentId=${agentId} runId=${runId}`);
+  console.log(`Track progress: ${agentWebUrl(agentId)}`);
+  logCiSummary({ kind: "dispatched", agentId, runId });
+
+  await postMarkerComment({ agentId, runId, roundsAfter: priorRounds + 1 });
   console.log("Posted marker comment on PR.");
 }
 

@@ -1,0 +1,160 @@
+name: cursor-autofix-e2e
+
+# Manual entry point for the Cursor Cloud E2E autofix loop.
+# Use when:
+#   - the auto-trigger inside server-ci.yml was skipped (e.g. unfixable
+#     filter classified the failure as environmental, or the round cap was
+#     reached) but you still want to force a Cursor agent;
+#   - you want to retry on the same head SHA after fixing the underlying
+#     environment issue;
+#   - you want to attach a custom reason for an audit trail.
+#
+# This workflow does NOT re-run the E2E suite; it only re-dispatches the
+# Cursor Cloud Agent. The agent will commit & push the fix to the PR's
+# head branch, which retriggers server-ci.yml as usual.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to dispatch the Cursor agent for."
+        required: true
+        type: string
+      reason:
+        description: "Optional reason for the manual run (recorded in the PR comment)."
+        required: false
+        type: string
+      force:
+        description: "Bypass the per-SHA debounce and the unfixable-failure filter."
+        required: false
+        type: boolean
+        default: false
+      run_id:
+        description: "Optional Actions run ID of a failed `server-ci` run; the e2e-pytest-log artifact will be downloaded from there if provided."
+        required: false
+        type: string
+
+jobs:
+  cursor_autofix_e2e_manual:
+    name: cursor / autofix e2e (manual)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+    env:
+      HAS_CURSOR_KEY: ${{ secrets.CURSOR_API_KEY != '' }}
+    steps:
+      - name: Cursor autofix gate
+        run: |
+          set -euo pipefail
+          echo "HAS_CURSOR_KEY=${HAS_CURSOR_KEY}"
+          if [ "${HAS_CURSOR_KEY}" != "true" ]; then
+            echo "::error::CURSOR_API_KEY is not configured. Add it under Settings → Secrets and variables → Actions, then re-run."
+            exit 1
+          fi
+
+      - name: Checkout
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        uses: actions/checkout@v5
+
+      - name: Resolve PR metadata
+        id: pr
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          json=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")
+          head_ref=$(echo "$json" | jq -r '.head.ref')
+          head_sha=$(echo "$json" | jq -r '.head.sha')
+          html_url=$(echo "$json" | jq -r '.html_url')
+          echo "head_ref=$head_ref" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "html_url=$html_url" >> "$GITHUB_OUTPUT"
+          echo "Resolved PR #${PR_NUMBER}: head=$head_ref @ $head_sha"
+
+      - name: Resolve source server-ci run
+        id: srcrun
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_RUN_ID}" ]; then
+            run_id="${INPUT_RUN_ID}"
+            echo "Using user-provided run_id=$run_id"
+          else
+            # Find latest completed server-ci run for the PR's head SHA.
+            run_id=$(gh run list \
+              --repo "${GITHUB_REPOSITORY}" \
+              --workflow server-ci \
+              --status completed \
+              --branch "${{ steps.pr.outputs.head_ref }}" \
+              --limit 20 \
+              --json databaseId,headSha \
+              | jq -r --arg sha "$HEAD_SHA" 'map(select(.headSha == $sha)) | .[0].databaseId // empty')
+            if [ -z "$run_id" ]; then
+              echo "::warning::No completed server-ci run found for SHA ${HEAD_SHA}; the agent will run without a pytest log."
+            else
+              echo "Auto-detected source run_id=$run_id"
+            fi
+          fi
+          echo "run_id=${run_id}" >> "$GITHUB_OUTPUT"
+          if [ -n "$run_id" ]; then
+            echo "run_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${run_id}" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download E2E pytest log from source run
+        if: ${{ env.HAS_CURSOR_KEY == 'true' && steps.srcrun.outputs.run_id != '' }}
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: e2e-pytest-log
+          path: artifacts
+          run-id: ${{ steps.srcrun.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Install @cursor/sdk
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        run: |
+          set -euo pipefail
+          if [ ! -f package.json ]; then
+            cat > package.json <<'JSON'
+          {
+            "name": "happyword-cursor-autofix-runner",
+            "version": "0.0.0",
+            "private": true
+          }
+          JSON
+          fi
+          npm install --silent --no-audit --no-fund --no-progress --no-save @cursor/sdk
+
+      - name: Trigger Cursor Cloud autofix (manual)
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_URL: ${{ steps.pr.outputs.html_url }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PR_HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          REPO_URL: ${{ github.event.repository.clone_url }}
+          RUN_URL: ${{ steps.srcrun.outputs.run_url }}
+          E2E_LOG_FILE: artifacts/e2e-pytest.log
+          TRIGGER_SOURCE: manual
+          TRIGGER_REASON: ${{ inputs.reason }}
+          FORCE_TRIGGER: ${{ inputs.force && '1' || '0' }}
+        run: node .github/scripts/trigger-cursor-fix-e2e.mjs

@@ -244,9 +244,35 @@ The Cursor GitHub App must be installed on the repo so the agent can push
 commits to the PR branch. Without `CURSOR_API_KEY` the autofix job runs but
 prints a single `::warning::` and exits — it does not block CI.
 
-Debounce: the job posts a hidden marker comment on the PR
-(`<!-- cursor-autofix-triggered:<sha> -->`). Re-running the workflow on the
-same commit will not spawn a second Cursor agent.
+**Guards** (all in `.github/scripts/trigger-cursor-fix-e2e.mjs`):
+
+1. **Per-SHA debounce** — a hidden marker comment
+   (`<!-- cursor-autofix-triggered:<sha> -->`) is posted on the PR. Re-running
+   the workflow on the same commit is a no-op.
+2. **Per-PR round cap** — `MAX_ROUNDS = 10`. Once that many marker comments
+   exist on the PR (auto + manual combined), further dispatches are blocked
+   and a single `Cursor Cloud autofix paused` warning is posted. Reset by
+   removing some marker comments, or raise `MAX_ROUNDS` in the script.
+3. **Unfixable-failure filter** — the script scans the pytest log for clearly
+   environmental indicators (`E2E_BASE_URL` empty, Vercel preview unavailable,
+   Mongo unreachable, repeated 502/503/504s, no tests collected) and skips
+   dispatch with an explanation comment instead of burning a Cursor run on a
+   failure no code change can fix.
+
+**Manual override** (`.github/workflows/cursor-autofix-e2e.yml`,
+`workflow_dispatch`):
+
+Trigger from **Actions → cursor-autofix-e2e → Run workflow** with:
+
+| Input       | Purpose                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------ |
+| `pr_number` | PR number to dispatch the agent for (required).                                                        |
+| `reason`    | Optional free-text reason, recorded in the PR comment for audit.                                       |
+| `force`     | If `true`, bypass the per-SHA debounce and the unfixable filter (still respects the round cap).        |
+| `run_id`    | Optional Actions run ID of a failed `server-ci` run; the `e2e-pytest-log` artifact is pulled from it. |
+
+If `run_id` is omitted, the workflow auto-detects the latest completed
+`server-ci` run for the PR's head SHA and downloads the log from there.
 
 `E2E_ADMIN_USER` / `E2E_ADMIN_PASS` MUST match the deployment's
 `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` Vercel env vars — those
