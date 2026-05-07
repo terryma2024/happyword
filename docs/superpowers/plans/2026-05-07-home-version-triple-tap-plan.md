@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Wire a debug-only `v1.0.0(YYMMDDHHmmss)` label onto HomePage's top-left, make a triple-tap (≤1000ms window) navigate to `DevMenuPage` with PREVIEW pre-selected, and re-render the `DevMenuPage` manifest list as cards showing **title** (max 3 lines) and **`#PR(sha)`** centered.
+**Goal:** Wire a debug-only `v0.6.0(YYMMDDHHmmss)` label onto HomePage's top-left, make a triple-tap (≤1000ms window) navigate to `DevMenuPage` with PREVIEW pre-selected, and re-render the `DevMenuPage` manifest list as cards showing **title** (max 3 lines) and **`#PR(sha)`** centered. Bumping `AppScope/app.json5` `versionName` from `1.0.0` → `0.6.0` is part of this plan (matches the V0.6 in-flight major version in [`docs/WordMagicGame_roadmap.md`](../../WordMagicGame_roadmap.md)).
 
 **Architecture:** Two new pure helper modules (`VersionTripleTap`, `BuildInfo`) keep the counting and timestamp formatting unit-testable. `HomePage` mounts the version `Text` (gated on `BuildProfile.BUILD_MODE_NAME === 'debug'`), holds a `VersionTripleTap` instance, and pushes `pages/DevMenuPage` with `params: { presetEnv: 'preview' }` on the third tap. `DevMenuPage` replaces its existing single-line manifest button rows with a `@Builder previewCard` and reads `router.getParams()` after `hydrate()` to honour the preset.
 
@@ -16,6 +16,7 @@
 
 | File | Status | Responsibility |
 |---|---|---|
+| `AppScope/app.json5` | modify | Bump `versionName: "1.0.0"` → `"0.6.0"` to match the V0.6 in-flight major version on the roadmap. |
 | `entry/src/main/ets/services/VersionTripleTap.ets` | **create** | Pure stateful counter — `onTap(nowMs)` returns true on the third tap inside the configured window. |
 | `entry/src/test/VersionTripleTap.test.ets` | **create** | Hypium unit tests for the counter (5 cases). |
 | `entry/src/main/ets/services/BuildInfo.ets` | **create** | `formatBuildTimestamp(epochMs)`, `readVersionInfo()` (async via `bundleManager`), `formatVersionLabel(info)`. |
@@ -32,6 +33,40 @@ No new `BackendEnv`, `PreviewManifestService`, `RemoteWordPackConfig`, or build 
 ---
 
 ## Phase A — Pure helpers (no device, no UI)
+
+### Task A0: Bump `versionName` to track the roadmap
+
+**Files:**
+- Modify: `AppScope/app.json5`
+
+This is a config bump only. Doing it first means every later phase sees the correct value when it reads `bundleManager.getBundleInfoForSelf().versionName`.
+
+- [ ] **Step 1: Edit `AppScope/app.json5`**
+
+Change line 6:
+
+```diff
+-    "versionName": "1.0.0",
++    "versionName": "0.6.0",
+```
+
+`versionCode` stays at `1000000` — bumping it is a separate concern (publish-time, not source-of-truth). The 7-digit code already encodes a minor channel, and we don't need to renumber until we cut a real release.
+
+- [ ] **Step 2: Sanity-check the build still compiles**
+
+```sh
+hvigorw assembleHap
+```
+Expected: exit 0. The change is a JSON value swap; if it breaks, something else is wrong.
+
+- [ ] **Step 3: Commit**
+
+```sh
+git add AppScope/app.json5
+git commit -m "chore(client): bump versionName to 0.6.0 to track V0.6 in-flight roadmap milestone"
+```
+
+---
 
 ### Task A1: `VersionTripleTap` service + tests
 
@@ -233,8 +268,8 @@ export default function buildInfoTest(): void {
 
   describe('formatVersionLabel', () => {
     it('composesLabel', 0, () => {
-      const info: VersionInfo = { versionName: '1.0.0', timestamp: '260507205200' };
-      expect(formatVersionLabel(info)).assertEqual('v1.0.0(260507205200)');
+      const info: VersionInfo = { versionName: '0.6.0', timestamp: '260507205200' };
+      expect(formatVersionLabel(info)).assertEqual('v0.6.0(260507205200)');
     });
 
     it('preservesFallbackVersionName', 0, () => {
@@ -958,7 +993,7 @@ Expected: `TestFinished-ResultCode: 0`, `OHOS_REPORT_CODE: 0`. All earlier suite
 - [ ] **Step 5: Manual smoke (optional but recommended)**
 
 1. `hdc install` the latest debug HAP.
-2. Open the app — confirm the top-left shows `v1.0.0(YYMMDDHHmmss)` in small grey text.
+2. Open the app — confirm the top-left shows `v0.6.0(YYMMDDHHmmss)` in small grey text.
 3. Triple-tap quickly (≤1s) → DevMenuPage opens with PREVIEW radio pre-selected and a card list rendered.
 4. Tap a card → it highlights blue. Tap Apply → toast `Environment updated. Re-bind parent account if needed.` and you land back on HomePage.
 5. Re-open DevMenuPage from `Settings → Developer → Backend environment` → confirm the env reflects what was just selected (cards still appear if PREVIEW).
