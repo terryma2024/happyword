@@ -149,6 +149,61 @@ input_text_id() {
   "${HDC[@]}" shell uitest uiInput inputText "$x" "$y" "$text" >/dev/null
 }
 
+# Returns the length of the originalText attribute on the node with the
+# given id. Password TextInputs report originalText as a string of "*"
+# whose length equals the actual character count, which is what we need
+# to know how many backspaces to send. Prints 0 if the field is empty
+# or the id is not found.
+input_text_length_id() {
+  local f="$1"
+  local id="$2"
+  perl -0777 -e '
+    my ($file, $id) = @ARGV;
+    open(my $fh, "<", $file) or die "open $file: $!";
+    local $/;
+    my $txt = <$fh>;
+    if ($txt =~ /"id"\s*:\s*"\Q$id\E"[^{}]*?"originalText"\s*:\s*"([^"]*)"/s) {
+      print length($1); exit 0;
+    }
+    if ($txt =~ /"originalText"\s*:\s*"([^"]*)"[^{}]*?"id"\s*:\s*"\Q$id\E"/s) {
+      print length($1); exit 0;
+    }
+    print 0;
+  ' "$f" "$id"
+}
+
+# Clears an existing TextInput by tapping it for focus, then
+# Ctrl+A (KEYCODE_CTRL_LEFT 2072 + KEYCODE_A 2017) to select-all,
+# then a single KEYCODE_DEL (2055) to wipe the selection. This is
+# far more reliable than streaming one backspace per visible char
+# (the IME drops keys when many keyEvents are sent back-to-back in
+# a single hdc shell session, leaving stale characters behind).
+clear_input_id() {
+  local id="$1"
+  local f
+  f="$(layout_dump)"
+  local bounds
+  bounds="$(find_bounds_by_id "$f" "$id" || true)"
+  if [[ -z "$bounds" ]]; then
+    echo "[setup_bypass_secret] cannot find id in layout: $id" >&2
+    return 1
+  fi
+  local current_len
+  current_len="$(input_text_length_id "$f" "$id")"
+  if [[ "${current_len:-0}" == "0" ]]; then
+    return 0
+  fi
+  echo "[setup_bypass_secret] clearing existing ${current_len}-character input"
+  local x y
+  read -r x y < <(center_of_bounds "$bounds")
+  "${HDC[@]}" shell "uitest uiInput click $x $y" >/dev/null
+  sleep 0.3
+  "${HDC[@]}" shell "uitest uiInput keyEvent 2072 2017" >/dev/null
+  sleep 0.2
+  "${HDC[@]}" shell "uitest uiInput keyEvent 2055" >/dev/null
+  sleep 0.3
+}
+
 # === Lock-screen handling ============================================
 #
 # `layout_dump` above filters by app bundle, which returns nothing while
@@ -299,6 +354,12 @@ click_id "DevMenuBypassSecretButton"
 sleep 1
 
 echo "[setup_bypass_secret] filling secret (redacted) and saving"
+# `aboutToAppear` in BypassSecretPage pre-fills the input with whatever
+# is currently saved, and `uitest uiInput inputText` *appends* — so we
+# must clear the field before typing or the new secret would be
+# concatenated onto the old one (multiple re-runs would compound the
+# previously-saved value into garbage).
+clear_input_id "BypassSecretPageInput"
 input_text_id "BypassSecretPageInput" "$secret"
 sleep 0.5
 click_id "BypassSecretPageSaveButton"
