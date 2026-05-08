@@ -42,7 +42,7 @@ async def test_root_redirects_to_parent_shell(
 
     Regression guard: without an explicit `/` handler FastAPI returns
     `{"detail":"Not Found"}` at the apex (visible at e.g.
-    https://happyword.vercel.app/), which looks like a broken deploy.
+    https://happyword.cool/), which looks like a broken deploy.
     """
     ac, _ = html_client
     r = await ac.get("/")

@@ -5,7 +5,7 @@ This is the operator-facing runbook for the FastAPI service at
 operator UI is the terminal until the admin web app lands in V0.6.
 
 > Conventions used throughout
-> - `${API}` — the deployed base URL (e.g. `https://happyword.vercel.app`).
+> - `${API}` — the deployed base URL (e.g. `https://happyword.cool`).
 > - `${ADMIN_USER}` / `${ADMIN_PASS}` — the admin credentials seeded via
 >   `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` env vars.
 > - Replace `<…>` placeholders before pasting.

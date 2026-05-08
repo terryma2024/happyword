@@ -206,7 +206,7 @@ async function waitForBindEntryButton(driver: Driver, maxMs: number): Promise<bo
  */
 const SCAN_QR_FIXTURE_NAME: string = 'scan_binding_qr_fixture.png';
 const SCAN_QR_FIXTURE_PAYLOAD: string =
-  'https://happyword.vercel.app/p/uitestqr01';
+  'https://happyword.cool/p/uitestqr01';
 
 async function ensureScanBindingQrFixtureOnDevice(): Promise<string> {
   const appCtx: common.Context = DELEGATOR.getAppContext();

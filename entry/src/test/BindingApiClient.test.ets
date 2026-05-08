@@ -49,7 +49,7 @@ class StubAdapter implements ParentFetchAdapter {
   }
 }
 
-const BASE: string = 'https://happyword.vercel.app';
+const BASE: string = 'https://happyword.cool';
 
 function fake(status: number, body: string): ParentFetchResult {
   const r: ParentFetchResult = new ParentFetchResult();

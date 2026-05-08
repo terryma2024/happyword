@@ -71,7 +71,7 @@ export class BindingRedeemArgs {
 }
 
 /** Minimal contract for `@kit.ScanKit`'s scan API. Returns the raw scanned
- *  string (e.g. "https://happyword.vercel.app/p/abc123"). Tests inject a
+ *  string (e.g. "https://happyword.cool/p/abc123"). Tests inject a
  *  stub that returns canned values. */
 export interface BarcodeScannerLike {
   scan(): Promise<string>;

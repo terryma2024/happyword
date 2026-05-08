@@ -35,7 +35,7 @@ design in [`docs/superpowers/specs/2026-05-06-server-qa-pipeline-design.md`](../
                           ├── server / pytest        (offline)        REQUIRED ───┼──► merge gate
                           └── server / e2e (preview)                  REQUIRED ───┤
                                 ├─ wait for Vercel preview URL                    │
-                                ├─ reset DB happyword_pr_<pr>_e2e on Atlas        │
+                                ├─ reset resolved preview DB on Atlas             │
                                 └─ uv run pytest -m e2e (52 cases)                │
                         │                                                        │
                         └────────────────────────────┬───────────────────────────┘
@@ -305,7 +305,7 @@ To debug a failed staging smoke locally:
 
 ```bash
 cd server
-export E2E_BASE_URL="https://happyword.vercel.app"
+export E2E_BASE_URL="https://happyword.cool"
 export E2E_MONGODB_URI="mongodb+srv://.../happyword_staging"
 export E2E_MONGO_DB_NAME="happyword_staging"
 uv run pytest -v -m smoke

@@ -484,7 +484,7 @@ class TodaySessionPlan {
 
 | 模块                       | 公开 API                                                                                | 职责                                     |
 | ------------------------ | ------------------------------------------------------------------------------------- | -------------------------------------- |
-| `RemoteWordPackConfig`   | `SERVER_BASE_URL`、`pickServerBaseUrl()`、`latestPackUrl()`、`effectiveServerBaseUrl()`、`SERVER_BASE_URL_OVERRIDE_KEY` | 默认 `https://happyword.vercel.app`；ohosTest 通过 AppStorage `serverBaseUrlOverride` 注入 mock 地址（V0.5.8） |
+| `RemoteWordPackConfig`   | `SERVER_BASE_URL`、`pickServerBaseUrl()`、`latestPackUrl()`、`effectiveServerBaseUrl()`、`SERVER_BASE_URL_OVERRIDE_KEY` | 默认 `https://happyword.cool`；ohosTest 通过 AppStorage `serverBaseUrlOverride` 注入 mock 地址（V0.5.8） |
 | `RemoteWordPackService`  | `fetchLatest(url, ifNoneMatch?)`                                                      | HTTP GET + ETag                        |
 | `WordPackCache`          | `init() / read() / readRecord() / write() / writeRecord() / touchFetchedAt()`         | 词包本地缓存 + ETag                          |
 | `WordPackBootstrapper`   | static `forContext(ctx)` + `bootstrap()`                                              | 冷启动：cache 优先，fallback rawfile，**不发网络** |

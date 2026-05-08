@@ -6,6 +6,7 @@ import {
   BackendEnv,
   appendAuditLog,
   AuditRow,
+  initBackendEnvPrefs,
   loadBackendEnv,
   loadBypassSecret,
   loadPreviewUrl,
@@ -24,7 +25,8 @@ import {
   PreviewManifest,
 } from '../services/PreviewManifestService';
 import { resetForEnvSwitch } from '../services/SessionResetService';
-import { STAGING_BASE_URL } from '../services/RemoteWordPackConfig';
+import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import BuildProfile from 'BuildProfile';
 import { BypassSecretDialog } from '../components/BypassSecretDialog';
 
 /**
@@ -90,17 +92,17 @@ struct DevMenuPage {
   // this session, hide the line.
   @State private lastProbeStatus: string = '';
   // Cached Vercel "Protection Bypass for Automation" secret. Hydrated
-  // from prefs in `aboutToAppear`; updated when the user enters /
-  // changes it via `BypassSecretDialog`. AppStorage is the source of
-  // truth for outgoing HTTP calls (see BackendHeaders.ets); this
-  // local mirror exists so the dialog can pre-fill the existing
-  // value when the user re-opens it.
+  // from prefs in `aboutToAppear`; updated via `BypassSecretPage` or
+  // first-time Preview flow (`BypassSecretDialog`). AppStorage is the
+  // source of truth for outgoing HTTP calls (see BackendHeaders.ets).
   @State private bypassSecret: string = '';
   // Local handle to the current dialog — held so the closure-driven
   // close path (mirrors AddCustomWishDialog) works regardless of
   // whether the auto-bound controller field on the dialog struct
   // wires up correctly under customStyle: true.
   private bypassDialog: CustomDialogController | null = null;
+  /** Debug-only footer on Developer Options — env / preview / bypass / API base. */
+  @State private routingDebugText: string = '';
 
   private showToast(msg: string): void {
     try {
@@ -122,11 +124,46 @@ struct DevMenuPage {
     });
   }
 
+  onPageShow(): void {
+    this.refreshRoutingDebugPanel();
+  }
+
+  /**
+   * Developer Options bottom strip (debug builds): single line showing the
+   * effective API base URL — the value every outgoing HTTP call resolves to.
+   */
+  private refreshRoutingDebugPanel(): void {
+    if (BuildProfile.BUILD_MODE_NAME !== 'debug') {
+      this.routingDebugText = '';
+      return;
+    }
+    this.routingDebugText = `API base: ${effectiveServerBaseUrl()}`;
+  }
+
+  /**
+   * Manifest rows and prefs sometimes differ by a trailing slash only.
+   * Normalise so the active preview card highlights correctly.
+   */
+  private normalizeDeploymentUrl(url: string): string {
+    let u: string = url.trim();
+    while (u.endsWith('/')) {
+      u = u.substring(0, u.length - 1);
+    }
+    return u;
+  }
+
   private async hydrate(): Promise<void> {
+    try {
+      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      await initBackendEnvPrefs(ctx);
+    } catch (err) {
+      console.error(`DevMenuPage.initBackendEnvPrefs: ${JSON.stringify(err as BusinessError)}`);
+    }
     this.manifest = getCached();
     this.currentEnv = await loadBackendEnv();
     this.currentPreviewUrl = await loadPreviewUrl();
     this.bypassSecret = await loadBypassSecret();
+    this.refreshRoutingDebugPanel();
     this.refreshManifest(false).catch((err: BusinessError): void => {
       console.error(`DevMenuPage.refreshManifest: ${JSON.stringify(err)}`);
     });
@@ -141,8 +178,10 @@ struct DevMenuPage {
   /**
    * Probe `<url>/api/v1/health` and return both the gating boolean
    * (HTTP 200) and a verbose status string for the on-screen debug
-   * line. Timeout is 5s — emulator's HTTPS handshake to vercel.app
-   * routinely exceeds 2s on a cold connection.
+   * line. Timeout is 10s — first-hit TLS handshake to *.vercel.app from
+   * the OpenHarmony emulator (cold DNS / cold TCP / cold edge) often
+   * exceeds 5s; once the host has warmed the path, subsequent requests
+   * complete in well under a second.
    *
    * The optional `bypassSecret` is folded into an
    * `x-vercel-protection-bypass` header when non-empty (mirrors the
@@ -171,8 +210,8 @@ struct DevMenuPage {
       const resp: http.HttpResponse = await req.request(fullUrl, {
         method: http.RequestMethod.GET,
         header: headers,
-        connectTimeout: 5000,
-        readTimeout: 5000,
+        connectTimeout: 10000,
+        readTimeout: 10000,
       });
       out.ok = resp.responseCode === 200;
       out.message = `${fullUrl} → HTTP ${resp.responseCode}`;
@@ -216,41 +255,6 @@ struct DevMenuPage {
     this.applyEnv(env, previewUrl, this.bypassSecret).catch((err: BusinessError): void => {
       console.error(`onCardTap.applyEnv failed: ${JSON.stringify(err)}`);
     });
-  }
-
-  /**
-   * Standalone "Edit bypass secret" path. Opens the dialog with the
-   * current cached secret pre-filled and persists the new value on
-   * submit WITHOUT triggering a probe or env switch — useful when
-   * the user just wants to fix a stale / rotated secret.
-   */
-  private openBypassEditDialog(): void {
-    let ctrl: CustomDialogController | null = null;
-    ctrl = new CustomDialogController({
-      builder: BypassSecretDialog({
-        initialSecret: this.bypassSecret,
-        onSubmit: (secret: string): void => {
-          if (ctrl !== null) {
-            ctrl.close();
-          }
-          this.bypassSecret = secret;
-          saveBypassSecret(secret).then((): void => {
-            this.showToast('Bypass secret saved');
-          }).catch((err: BusinessError): void => {
-            console.error(`saveBypassSecret failed: ${JSON.stringify(err)}`);
-          });
-        },
-        onCancel: (): void => {
-          if (ctrl !== null) {
-            ctrl.close();
-          }
-        },
-      }),
-      autoCancel: true,
-      customStyle: true,
-    });
-    this.bypassDialog = ctrl;
-    ctrl.open();
   }
 
   /**
@@ -372,7 +376,7 @@ struct DevMenuPage {
       // a performance smell because every read ticks the ArkUI
       // observation counter even when the value is unchanged.
       const isPreviewActive: boolean = this.currentEnv === BackendEnv.PREVIEW;
-      const activePreviewUrl: string = this.currentPreviewUrl;
+      const activeNorm: string = this.normalizeDeploymentUrl(this.currentPreviewUrl);
       for (const row of this.manifest.previews) {
         const c: CardProps = new CardProps();
         c.id = `DevMenuPreviewCard_${row.pr}`;
@@ -383,7 +387,8 @@ struct DevMenuPage {
         c.footer = `#${row.pr}(${sha})`;
         c.env = BackendEnv.PREVIEW;
         c.previewUrl = row.url;
-        c.highlighted = isPreviewActive && activePreviewUrl === row.url;
+        c.highlighted =
+          isPreviewActive && activeNorm === this.normalizeDeploymentUrl(row.url);
         out.push(c);
       }
     }
@@ -426,20 +431,22 @@ struct DevMenuPage {
         .layoutWeight(1)
         .height(96);
     } else {
-      Column({ space: 8 }) {
+      // Fixed-height card so 1-line and 2-line titles render the same row
+      // size; title pinned to top, footer pinned to bottom via SpaceBetween.
+      Column() {
         Text(props.title)
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
           .fontColor('#222222')
           .width('100%')
-          .maxLines(3)
+          .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis });
 
         Row() {
           Text(props.footer)
             .fontSize(13)
             .fontColor('#555555')
-            .maxLines(2)
+            .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis });
         }
         .width('100%')
@@ -447,7 +454,9 @@ struct DevMenuPage {
       }
       .id(props.id)
       .layoutWeight(1)
+      .height(96)
       .padding(12)
+      .justifyContent(FlexAlign.SpaceBetween)
       .borderRadius(12)
       .backgroundColor(props.highlighted ? '#CDE8FF' : '#F5F5F5')
       .border({
@@ -477,12 +486,22 @@ struct DevMenuPage {
             .onClick((): void => {
               router.back();
             });
-          Text('Developer options')
+          Text('Developer Options')
             .fontSize(20)
             .fontWeight(FontWeight.Bold)
             .margin({ left: 16 });
           Blank();
-          Button(this.manifestBusy ? 'Refreshing...' : 'Refresh manifest')
+          Button('Bypass Secret')
+            .id('DevMenuBypassSecretButton')
+            .fontSize(13)
+            .height(36)
+            .margin({ right: 10 })
+            .enabled(!this.applying)
+            .onClick((): void => {
+              router.pushUrl({ url: 'pages/BypassSecretPage' });
+            });
+          Button(this.manifestBusy ? 'Refreshing...' : 'Refresh Manifest')
+            .id('DevMenuRefreshManifestButton')
             .fontSize(13)
             .height(36)
             .enabled(!this.manifestBusy && !this.applying)
@@ -513,10 +532,14 @@ struct DevMenuPage {
             .width('100%')
             .alignItems(VerticalAlign.Top);
           }, (pair: CardProps[], idx: number) => {
-            // Stable key per pair: combine the two card ids so a
-            // changing manifest forces a re-key only on actually
-            // shifted rows.
-            return `pair-${idx}-${pair[0].id}-${pair[1].id}`;
+            // Include `highlighted` in the key: when the active env / preview
+            // URL flips, the keys change and ArkUI tears down + recreates
+            // the affected card nodes so the new background colour and ring
+            // are applied (otherwise ForEach reuses the existing node and
+            // leaves stale paint).
+            const a: CardProps = pair[0];
+            const b: CardProps = pair[1];
+            return `pair-${idx}-${a.id}-${a.highlighted ? '1' : '0'}-${b.id}-${b.highlighted ? '1' : '0'}`;
           });
         }
         .width('100%')
@@ -534,29 +557,6 @@ struct DevMenuPage {
             .margin({ bottom: 16 });
         }
 
-        Text(`Release builds always use staging: ${STAGING_BASE_URL}`)
-          .fontSize(11)
-          .fontColor('#999999')
-          .margin({ top: 8 });
-
-        // Bypass-secret editor — shown whenever a secret is cached so
-        // the user can update it after a Vercel rotation without
-        // having to tap a Preview card and trigger an env switch.
-        // First-time entry happens implicitly on Preview card tap
-        // (see `openBypassDialog`).
-        if (this.bypassSecret.length > 0) {
-          Button('Edit Vercel bypass secret')
-            .id('DevMenuEditBypassSecretButton')
-            .fontSize(13)
-            .height(36)
-            .margin({ top: 12 })
-            .backgroundColor('#F1F2F4')
-            .fontColor('#1D3557')
-            .onClick((): void => {
-              this.openBypassEditDialog();
-            });
-        }
-
         if (this.lastProbeStatus.length > 0) {
           // Pinned debug line — shows the most recent /api/v1/health
           // probe URL + outcome. Stays visible even after a failed
@@ -572,6 +572,16 @@ struct DevMenuPage {
             .fontSize(11)
             .fontColor('#444444')
             .width('100%');
+        }
+
+        if (BuildProfile.BUILD_MODE_NAME === 'debug' && this.routingDebugText.length > 0) {
+          Text(this.routingDebugText)
+            .id('DevMenuRoutingDebug')
+            .fontSize(11)
+            .fontColor('#888888')
+            .width('100%')
+            .textAlign(TextAlign.Start)
+            .margin({ top: 16 });
         }
       }
       .width('100%')

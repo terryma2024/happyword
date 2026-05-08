@@ -2,7 +2,7 @@
 #
 # Orchestrate the HarmonyOS ohosTest UI automation suite against a
 # locally-hosted FastAPI mock so the device never has to touch
-# happyword.vercel.app during automation.
+# happyword.cool during automation.
 #
 # Pipeline:
 #   1. Sanity-check that an emulator / device is reachable via hdc.

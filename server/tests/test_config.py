@@ -35,6 +35,24 @@ def test_settings_accepts_legacy_mongo_uri_alias(monkeypatch: pytest.MonkeyPatch
     assert s.mongo_uri == "mongodb://legacy:27017"
 
 
+def test_settings_expands_preview_db_from_cli_pr_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fallback CLI previews pass PR metadata through HappyWord-specific env vars."""
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGO_DB_NAME", "happyword_pr_{pr}_e2e")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "admin")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "pw")
+    monkeypatch.delenv("VERCEL_GIT_PULL_REQUEST_ID", raising=False)
+    monkeypatch.setenv("HAPPYWORD_PREVIEW_PR_ID", "45")
+    monkeypatch.setenv("HAPPYWORD_PREVIEW_BRANCH", "cursor/devmenu-bypass-secret-automation")
+
+    s = Settings()  # type: ignore[call-arg]
+
+    assert s.mongo_db_name == "happyword_pr_45_e2e"
+
+
 def test_settings_defaults_when_optional_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     for k in (
         "MONGODB_URI",

@@ -554,7 +554,7 @@ Companion to [`2026-05-06-client-backend-env-switcher-design.md`](2026-05-06-cli
 
 ### 12.1 Client
 
-- **`PREVIEW_MANIFEST_ORIGIN`** / **`PREVIEW_MANIFEST_JSON_URL`** in `RemoteWordPackConfig.ets` pin DevMenu manifest fetches to **`https://happyword.vercel.app/api/v1/preview-urls.json`**, regardless of the currently selected `BackendEnv` or preview deployment.
+- **`PREVIEW_MANIFEST_ORIGIN`** / **`PREVIEW_MANIFEST_JSON_URL`** in `RemoteWordPackConfig.ets` pin DevMenu manifest fetches to **`https://happyword.cool/api/v1/preview-urls.json`**, regardless of the currently selected `BackendEnv` or preview deployment.
 - **`PreviewManifestService`** issues a plain GET with **no** `x-vercel-protection-bypass` header — listing PR previews never depends on Vercel Deployment Protection secrets.
 
 ### 12.2 Server

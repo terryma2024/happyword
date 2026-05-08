@@ -8,7 +8,7 @@ import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
  * pack sync entry on ConfigPage.
  *
  * The four cases here drive the real production
- * `https://happyword.vercel.app/api/v1/packs/latest.json` endpoint
+ * `https://happyword.cool/api/v1/packs/latest.json` endpoint
  * (the build is wired to PROD by default — see
  * RemoteWordPackConfig.ets) so they double as a smoke test for the
  * server side. They REQUIRE a valid pack to be published —

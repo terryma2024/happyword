@@ -13,7 +13,7 @@ Release builds do not show the version label tap target.
 
 The DevMenu loads PR preview rows from:
 
-`GET https://happyword.vercel.app/api/v1/preview-urls.json`
+`GET https://happyword.cool/api/v1/preview-urls.json`
 
 That URL is **fixed** in code (`PREVIEW_MANIFEST_JSON_URL` in `RemoteWordPackConfig.ets`). It does **not** follow the backend environment you selected, and the GET carries **no** `x-vercel-protection-bypass` header — you only need normal HTTPS reachability to production.
 
@@ -25,7 +25,7 @@ Use **Refresh manifest** (top-right on DevMenu) after CI publishes an updated Bl
 | --- | --- |
 | **Local** | Machine reachable from the device or emulator (e.g. `10.0.2.2` for Android-style emulator loopback). |
 | **Preview** | A Vercel preview deployment. Pick a row from the manifest cards (`*.vercel.app` URLs embedded in the JSON above). |
-| **Staging** | Default shared hosted URL (`https://happyword.vercel.app`) for normal API traffic. |
+| **Staging** | Default shared hosted URL (`https://happyword.cool`) for normal API traffic. |
 | **Production** | Reserved; disabled until a production URL ships in a future release. |
 
 Tapping a card **applies** the environment immediately (health probe for Preview only, session reset, toast, navigation back to Home). There is no separate Apply button.
@@ -41,4 +41,4 @@ A merged PR whose preview deployment hasn't been pruned by the weekly `vercel-pr
 
 The GitHub file remains the audit copy. Runtime distribution goes through Vercel Blob when `BLOB_READ_WRITE_TOKEN` is configured in GitHub Actions. The FastAPI backend must have `PREVIEW_MANIFEST_BLOB_URL` set to the public Blob URL printed by the manifest rebuild job.
 
-**Server contract:** `GET /api/v1/preview-urls.json` is intentionally **unauthenticated** at the application layer (public router — no JWT, cookies, or API keys). Vercel Deployment Protection on *preview* deployments does not apply to this URL because the client always calls **production** `happyword.vercel.app` for the manifest.
+**Server contract:** `GET /api/v1/preview-urls.json` is intentionally **unauthenticated** at the application layer (public router — no JWT, cookies, or API keys). Vercel Deployment Protection on *preview* deployments does not apply to this URL because the client always calls **production** `happyword.cool` for the manifest.

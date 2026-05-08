@@ -140,7 +140,7 @@ async function makeService(
 export default function deviceBindingServiceTest(): void {
   describe('DeviceBindingService.parseQrUrl', () => {
     it('extractsTokenFromValidPayload', 0, () => {
-      expect(extractTokenFromQrPayload('https://happyword.vercel.app/p/abc123def456'))
+      expect(extractTokenFromQrPayload('https://happyword.cool/p/abc123def456'))
         .assertEqual('abc123def456');
     });
     it('handlesQueryAndFragment', 0, () => {
@@ -155,7 +155,7 @@ export default function deviceBindingServiceTest(): void {
   describe('DeviceBindingService.start', () => {
     it('happyPathTransitionsScanningRedeemingBound', 0, async () => {
       const scanner: StubScanner = new StubScanner();
-      scanner.next = 'https://happyword.vercel.app/p/abc123def456';
+      scanner.next = 'https://happyword.cool/p/abc123def456';
       const http: StubHttp = new StubHttp();
       http.result = makeOkResult();
       const svc: DeviceBindingService = await makeService(scanner, http);
@@ -276,7 +276,7 @@ export default function deviceBindingServiceTest(): void {
   describe('DeviceBindingService.startFromGalleryImage', () => {
     it('redeemsOnValidPairUrl', 0, async () => {
       const decoder: StubDecoder = new StubDecoder();
-      decoder.payload = 'https://happyword.vercel.app/p/abc12345';
+      decoder.payload = 'https://happyword.cool/p/abc12345';
       const http: StubHttp = new StubHttp();
       http.result = makeOkResult();
       const svc: DeviceBindingService =

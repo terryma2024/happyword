@@ -77,7 +77,7 @@ class MemPrefs implements StringPreferencesLike {
   async flush(): Promise<void> {}
 }
 
-const BASE: string = 'https://happyword.vercel.app';
+const BASE: string = 'https://happyword.cool';
 const URL_LATEST: string = `${BASE}/api/v1/child/family-packs/latest.json`;
 const TOKEN: string = 'device.jwt.token';
 const CACHE_KEY: string = 'family_packs_v1';

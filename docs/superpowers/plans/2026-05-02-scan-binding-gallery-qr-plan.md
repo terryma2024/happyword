@@ -455,12 +455,12 @@ export default function barcodeImageDecoderTest(): void {
     it('decodeFromUri returns override payload when key is set', 0, async () => {
       AppStorage.setOrCreate<string>(
         SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY,
-        'https://happyword.vercel.app/p/uitestqr01',
+        'https://happyword.cool/p/uitestqr01',
       );
       try {
         const dec: RealBarcodeImageDecoder = new RealBarcodeImageDecoder();
         const out: string = await dec.decodeFromUri('file:///does/not/exist.png');
-        expect(out).assertEqual('https://happyword.vercel.app/p/uitestqr01');
+        expect(out).assertEqual('https://happyword.cool/p/uitestqr01');
       } finally {
         AppStorage.delete(SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY);
       }
@@ -676,7 +676,7 @@ Add a new `describe` block:
 describe('DeviceBindingService.startFromGalleryImage', () => {
   it('redeemsOnValidPairUrl', 0, async () => {
     const decoder: StubDecoder = new StubDecoder();
-    decoder.payload = 'https://happyword.vercel.app/p/abc12345';
+    decoder.payload = 'https://happyword.cool/p/abc12345';
     const http: StubHttp = new StubHttp();
     http.result = makeOkResult();
     const svc: DeviceBindingService = await makeService(new StubScanner(), decoder, http);
@@ -985,7 +985,7 @@ import qrcode
 from qrcode.constants import ERROR_CORRECT_M
 from qrcode.image.pil import PilImage
 
-PAYLOAD: str = "https://happyword.vercel.app/p/uitestqr01"
+PAYLOAD: str = "https://happyword.cool/p/uitestqr01"
 OUT: Path = (
     Path(__file__).resolve().parent.parent
     / "entry"
@@ -1018,7 +1018,7 @@ cd /Users/bytedance/Projects/happyword/server
 uv run python ../tools/generate_scan_binding_qr_fixture.py
 ```
 
-Expected: `wrote /Users/bytedance/Projects/happyword/entry/src/ohosTest/resources/rawfile/scan_binding_qr_fixture.png (XXX bytes) encoding https://happyword.vercel.app/p/uitestqr01`. PNG file should exist.
+Expected: `wrote /Users/bytedance/Projects/happyword/entry/src/ohosTest/resources/rawfile/scan_binding_qr_fixture.png (XXX bytes) encoding https://happyword.cool/p/uitestqr01`. PNG file should exist.
 
 - [ ] **Step 3: Add the new ohosTest case + helper**
 
@@ -1040,7 +1040,7 @@ Add the helper near the top of the file (alongside other helpers):
 const DELEGATOR = abilityDelegatorRegistry.getAbilityDelegator();
 const SCAN_QR_FIXTURE_NAME: string = 'scan_binding_qr_fixture.png';
 const SCAN_QR_FIXTURE_PAYLOAD: string =
-  'https://happyword.vercel.app/p/uitestqr01';
+  'https://happyword.cool/p/uitestqr01';
 
 /**
  * Materialise the scan-binding QR fixture into the app sandbox.

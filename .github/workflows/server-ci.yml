@@ -123,14 +123,44 @@ jobs:
       - name: Deploy Vercel preview (fallback)
         id: vercel_deploy
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.detect_preview.outputs.preview_url == '' }}
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: server
-          # Preview deploy (not production)
-          vercel-args: ""
+        # Run from the repo root because the Vercel project already has
+        # `server` configured as its root directory.
+        working-directory: .
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_META_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+          VERCEL_META_COMMIT_REF: ${{ github.event.pull_request.head.ref }}
+          VERCEL_META_ORG: ${{ github.repository_owner }}
+          VERCEL_META_REPO: ${{ github.event.repository.name }}
+          HAPPYWORD_PREVIEW_PR_ID: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          DEPLOY_LOG="$(mktemp)"
+          npx --yes vercel@latest deploy --yes \
+            --token "$VERCEL_TOKEN" \
+            --meta githubCommitSha="$VERCEL_META_COMMIT_SHA" \
+            --meta githubCommitRef="$VERCEL_META_COMMIT_REF" \
+            --meta githubOrg="$VERCEL_META_ORG" \
+            --meta githubRepo="$VERCEL_META_REPO" \
+            --env HAPPYWORD_PREVIEW_PR_ID="$HAPPYWORD_PREVIEW_PR_ID" \
+            --env HAPPYWORD_PREVIEW_BRANCH="$VERCEL_META_COMMIT_REF" \
+            2>&1 | tee "$DEPLOY_LOG"
+          PREVIEW_URL="$(python3 - "$DEPLOY_LOG" <<'PY'
+          import re
+          import sys
+
+          text = open(sys.argv[1], encoding="utf-8").read()
+          urls = re.findall(r"https://[^\s\]]+", text)
+          preview_urls = [url for url in urls if ".vercel.app" in url]
+          if not preview_urls:
+              raise SystemExit("Vercel deploy output did not include a preview URL")
+          print(preview_urls[-1].rstrip("."))
+          PY
+          )"
+          echo "preview-url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: $PREVIEW_URL"
 
       - name: Install uv
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
@@ -140,24 +170,20 @@ jobs:
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         run: uv sync --dev
 
-      - name: Compute per-PR Mongo DB name
+      - name: Compute preview Mongo DB name
         id: db_name
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         run: |
-          # Use PR number when available; fall back to a slugged branch name
-          # for branch-pushes-without-PR (rare, but `vercel deploy --target
-          # preview` from a feature branch with no open PR triggers this).
-          PR_NUM="${{ github.event.pull_request.number }}"
+          # Mirror app.config's runtime expansion. Vercel preview deployments
+          # for PRs expose the PR id to the function runtime; branch refs still
+          # provide a deterministic fallback when that id is unavailable.
           BRANCH="${{ github.head_ref || github.ref_name }}"
-          BRANCH_SLUG=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' \
-            | sed -E 's/[^a-z0-9]+/_/g' | sed -E 's/^_|_$//g' | cut -c -32)
-          if [ -n "$PR_NUM" ]; then
-            DB="happyword_pr_${PR_NUM}_e2e"
-          else
-            DB="happyword_branch_${BRANCH_SLUG}_e2e"
-          fi
+          DB=$(MONGO_DB_NAME='happyword_pr_{pr}_e2e' \
+            VERCEL_GIT_PULL_REQUEST_ID='${{ github.event.pull_request.number }}' \
+            VERCEL_GIT_COMMIT_REF="$BRANCH" \
+            uv run python -m scripts.resolve_preview_db_name)
           echo "db_name=$DB" >> "$GITHUB_OUTPUT"
-          echo "Per-PR DB: $DB"
+          echo "Preview DB: $DB"
 
       - name: Reset E2E database (truncate test collections)
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}

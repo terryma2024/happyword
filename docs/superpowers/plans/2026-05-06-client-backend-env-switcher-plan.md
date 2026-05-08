@@ -4,7 +4,7 @@
 
 **Goal:** Implement the client-side backend env switcher described in [the env-switcher design spec](../specs/2026-05-06-client-backend-env-switcher-design.md). Debug builds gain a DevMenu page that lets a tester point the HarmonyOS app at Local / a PR Preview / Staging without rebuilding. Release builds remain hard-locked to staging.
 
-**Architecture:** A new `BackendEnv` enum + Preferences-backed resolver replaces the boolean `USE_LOCAL_DEV_SERVER` toggle. A `PreviewManifestService` fetches the preview list from **`PREVIEW_MANIFEST_JSON_URL`** (`https://happyword.vercel.app/api/v1/preview-urls.json` — Blob-backed public FastAPI proxy; repo file on `main` is the CI audit copy). Switching environments hard-resets cloud session state by design.
+**Architecture:** A new `BackendEnv` enum + Preferences-backed resolver replaces the boolean `USE_LOCAL_DEV_SERVER` toggle. A `PreviewManifestService` fetches the preview list from **`PREVIEW_MANIFEST_JSON_URL`** (`https://happyword.cool/api/v1/preview-urls.json` — Blob-backed public FastAPI proxy; repo file on `main` is the CI audit copy). Switching environments hard-resets cloud session state by design.
 
 **Revision (2026-05-08):** Aligns with design spec §10 — manifest HTTP never follows `effectiveServerBaseUrl()` or bypass headers. Server `GET /api/v1/preview-urls.json` is intentionally unauthenticated (see `public_packs.py` module docstring).
 
@@ -90,7 +90,7 @@ import BuildProfile from 'BuildProfile';
  * `hdc fport tcp:8000 tcp:8000`, use `http://127.0.0.1:8000`.
  */
 export const LOCAL_BASE_URL: string = 'http://10.0.2.2:8000';
-export const STAGING_BASE_URL: string = 'https://happyword.vercel.app';
+export const STAGING_BASE_URL: string = 'https://happyword.cool';
 export const PROD_BASE_URL: string | null = null;          // V0.7+ reserved
 
 /** Cap for a single fetch round-trip; exceeded => fallback to cache. */
@@ -220,7 +220,7 @@ export default function remoteWordPackConfigTest() {
       expect(LOCAL_BASE_URL).assertEqual('http://10.0.2.2:8000');
     });
     it('stagingUrlIsVercelDomain', 0, () => {
-      expect(STAGING_BASE_URL).assertEqual('https://happyword.vercel.app');
+      expect(STAGING_BASE_URL).assertEqual('https://happyword.cool');
     });
     it('prodUrlIsReservedAsNull', 0, () => {
       // V0.7+ will flip this to a real URL. Until then resolvers fall
@@ -296,7 +296,7 @@ export default function remoteWordPackConfigTest() {
 
     it('buildLatestPackUrlAppendsCorrectPath', 0, () => {
       expect(buildLatestPackUrl(STAGING_BASE_URL))
-        .assertEqual('https://happyword.vercel.app/api/v1/packs/latest.json');
+        .assertEqual('https://happyword.cool/api/v1/packs/latest.json');
     });
     it('buildLatestPackUrlReturnsEmptyForEmptyBase', 0, () => {
       expect(buildLatestPackUrl('')).assertEqual('');
@@ -356,7 +356,7 @@ hdc list targets   # confirm a device
 hdc install entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
-Launch the app and observe in DevEco that any HTTP call still goes to `https://happyword.vercel.app`. (The DevMenu doesn't exist yet — pure rename smoke.)
+Launch the app and observe in DevEco that any HTTP call still goes to `https://happyword.cool`. (The DevMenu doesn't exist yet — pure rename smoke.)
 
 ---
 
@@ -823,7 +823,7 @@ import { common } from '@kit.AbilityKit';
 // Production manifest endpoint only — same origin as `PREVIEW_MANIFEST_JSON_URL`
 // in RemoteWordPackConfig.ets (no raw.githubusercontent.com; no rewrite via DevMenu base URL).
 const MANIFEST_URL: string =
-  'https://happyword.vercel.app/api/v1/preview-urls.json';
+  'https://happyword.cool/api/v1/preview-urls.json';
 const PREFS_NAME: string = 'wm_dev_menu';
 const CACHE_KEY: string = 'preview_manifest_cache';
 const CACHE_TTL_MS: number = 5 * 60 * 1000;
@@ -1480,7 +1480,7 @@ hdc install entry/build/default/outputs/default/entry-default-signed.hap
 1. Open Settings page → "开发者选项" row visible (debug build only).
 2. Pick `本地`, Apply. Confirm next launch routes to `http://10.0.2.2:8000` (force-close + reopen + observe in DevEco logs).
 3. Pick `PR 预览`, paste a known preview URL (or rely on Phase C dropdown). Apply. Observe routing change.
-4. Pick `Staging`. Apply. Observe routing back to `https://happyword.vercel.app`.
+4. Pick `Staging`. Apply. Observe routing back to `https://happyword.cool`.
 5. After each Apply, confirm parent login + device binding ask to re-link.
 
 - [ ] **Step 3: Build a release-mode HAP (Optional)**
@@ -1758,7 +1758,7 @@ page that opens a DevMenu allowing the tester to point the app at:
 - 本地 (`http://10.0.2.2:8000`)
 - PR 预览 (any open PR's Vercel preview URL — picked from a dropdown
   populated by `docs/preview-urls.json` or pasted manually)
-- Staging (`https://happyword.vercel.app`)
+- Staging (`https://happyword.cool`)
 
 Release builds **never** see this row and are hard-locked to staging.
 Switching environments hard-resets cloud session state (re-login + re-pair

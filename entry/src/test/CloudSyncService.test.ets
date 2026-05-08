@@ -11,7 +11,7 @@ import {
 } from '../main/ets/services/WrongAnswerStore';
 import { ParentFetchAdapter, ParentFetchResult } from '../main/ets/services/ParentApiClient';
 
-const BASE: string = 'https://happyword.vercel.app';
+const BASE: string = 'https://happyword.cool';
 const SYNC_PATH: string = '/api/v1/child/word-stats/sync';
 
 class MemPrefs implements StringPreferencesLike {

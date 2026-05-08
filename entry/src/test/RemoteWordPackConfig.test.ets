@@ -20,13 +20,13 @@ export default function remoteWordPackConfigTest() {
     it('localUrlIsEmulatorHostLoopback', 0, () => {
       expect(LOCAL_BASE_URL).assertEqual('http://10.0.2.2:8000');
     });
-    it('stagingUrlIsVercelDomain', 0, () => {
-      expect(STAGING_BASE_URL).assertEqual('https://happyword.vercel.app');
+    it('stagingUrlIsProdApexDomain', 0, () => {
+      expect(STAGING_BASE_URL).assertEqual('https://happyword.cool');
     });
     it('previewManifestAlwaysUsesProdOriginNotBackendEnv', 0, () => {
-      expect(PREVIEW_MANIFEST_ORIGIN).assertEqual('https://happyword.vercel.app');
+      expect(PREVIEW_MANIFEST_ORIGIN).assertEqual('https://happyword.cool');
       expect(PREVIEW_MANIFEST_JSON_URL).assertEqual(
-        'https://happyword.vercel.app/api/v1/preview-urls.json',
+        'https://happyword.cool/api/v1/preview-urls.json',
       );
     });
     it('prodUrlReservedEmpty', 0, () => {
@@ -99,7 +99,7 @@ export default function remoteWordPackConfigTest() {
 
     it('buildLatestPackUrlAppendsCorrectPath', 0, () => {
       expect(buildLatestPackUrl(STAGING_BASE_URL))
-        .assertEqual('https://happyword.vercel.app/api/v1/packs/latest.json');
+        .assertEqual('https://happyword.cool/api/v1/packs/latest.json');
     });
     it('buildLatestPackUrlReturnsEmptyForEmptyBase', 0, () => {
       expect(buildLatestPackUrl('')).assertEqual('');

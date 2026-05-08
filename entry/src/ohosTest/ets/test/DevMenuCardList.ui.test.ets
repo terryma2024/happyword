@@ -48,7 +48,7 @@ async function tripleTapVersion(driver: Driver): Promise<void> {
  * and replaceUrl()s back to HomePage.
  *
  * Network-dependent: manifest fetch uses **`PREVIEW_MANIFEST_JSON_URL`**
- * (`https://happyword.vercel.app/api/v1/preview-urls.json`) — **not** rewritten
+ * (`https://happyword.cool/api/v1/preview-urls.json`) — **not** rewritten
  * by the mock UI server. The Local + Staging cards are static so they're
  * present even offline; preview cards are probed defensively.
  */

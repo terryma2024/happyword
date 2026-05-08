@@ -15,7 +15,7 @@ import BuildProfile from 'BuildProfile';
  * port forwarding (see project README).
  */
 export const LOCAL_BASE_URL: string = 'http://10.0.2.2:8000';
-export const STAGING_BASE_URL: string = 'https://happyword.vercel.app';
+export const STAGING_BASE_URL: string = 'https://happyword.cool';
 /** Reserved — empty string means “not configured”; non-empty enables prod routing. */
 export const PROD_BASE_URL: string = '';
 
@@ -25,7 +25,7 @@ export const PROD_BASE_URL: string = '';
  * or `x-vercel-protection-bypass`. The JSON lists PR preview URLs; the manifest
  * endpoint itself is served from stable prod (`GET /api/v1/preview-urls.json`).
  */
-export const PREVIEW_MANIFEST_ORIGIN: string = 'https://happyword.vercel.app';
+export const PREVIEW_MANIFEST_ORIGIN: string = 'https://happyword.cool';
 
 export const PREVIEW_MANIFEST_JSON_URL: string =
   `${PREVIEW_MANIFEST_ORIGIN}/api/v1/preview-urls.json`;
