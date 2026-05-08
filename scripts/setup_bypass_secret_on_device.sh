@@ -4,23 +4,33 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/setup_bypass_secret_on_device.sh --target <hdc-target>
+  scripts/setup_bypass_secret_on_device.sh --target <hdc-target> [--no-unlock]
 
 Reads VERCEL_AUTOMATION_BYPASS_SECRET from ~/.env, opens the app DevMenu,
 navigates to the BypassSecret page, fills the secret, and saves.
 
+If the device is locked when the script runs, it will automatically
+wake the screen, reveal the PIN bouncer, and enter the PIN read from
+PWD_<target> in ~/.env. Pass --no-unlock to skip auto-unlock (the
+device must already be unlocked in that case).
+
 Notes:
   - Requires a debug build with DevMenu enabled.
-  - Does NOT print the secret.
+  - Does NOT print the secret or the PIN.
 EOF
 }
 
 TARGET=""
+UNLOCK_IF_LOCKED=1
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --target)
       TARGET="${2:-}"
       shift 2
+      ;;
+    --no-unlock)
+      UNLOCK_IF_LOCKED=0
+      shift
       ;;
     -h|--help)
       usage
@@ -139,7 +149,144 @@ input_text_id() {
   "${HDC[@]}" shell uitest uiInput inputText "$x" "$y" "$text" >/dev/null
 }
 
+# === Lock-screen handling ============================================
+#
+# `layout_dump` above filters by app bundle, which returns nothing while
+# the lock screen is up (our app is not foreground). The helpers below
+# dump the full screen and recognise HarmonyOS lock-screen / PIN-bouncer
+# UI by stable component IDs.
+
+layout_dump_full() {
+  local remote="/data/local/tmp/hw_layout_full.json"
+  local localf="/tmp/hw_layout_full_${TARGET//[:\\/]/_}.json"
+  : > "$localf" || true
+  "${HDC[@]}" shell uitest dumpLayout -p "$remote" >/dev/null 2>&1 || true
+  "${HDC[@]}" file recv "$remote" "$localf" >/dev/null 2>&1 || true
+  echo "$localf"
+}
+
+# Returns 0 if the screen lock or PIN bouncer is showing, 1 otherwise.
+is_screen_locked() {
+  local f
+  f="$(layout_dump_full)"
+  if [[ ! -s "$f" ]]; then
+    return 0
+  fi
+  grep -q -E 'ScreenLockRootComponent|BouncerView|MainPageView_Screen_Lock_Home' "$f"
+}
+
+# Power key + bottom-edge swipe-up in a single hdc shell session, so the
+# swipe lands while the screen is fresh-on and before the lock-screen
+# auto-times back out. Coordinates target the centre of the unfolded
+# Mate-X-class large screen (2800x1840) which is what we ship to today;
+# they fall safely inside any smaller HarmonyOS portrait/landscape
+# screen we have observed.
+wake_and_show_bouncer() {
+  "${HDC[@]}" shell "uitest uiInput keyEvent Power; sleep 0.4; uitest uiInput swipe 1400 1700 1400 200 400" >/dev/null
+  sleep 1.0
+}
+
+# Reads a PIN-bouncer layout JSON and prints "<digit> <cx> <cy>" lines
+# for keys 0..9. The bouncer hides plain `text` on each digit key for
+# security but keeps the digit in the `originalText` attribute on the
+# same node, so we match originalText against bounds in either order.
+find_pin_digit_centers() {
+  local layout="$1"
+  perl -0777 -e '
+    open(my $fh, "<", $ARGV[0]) or die "open $ARGV[0]: $!";
+    local $/;
+    my $t = <$fh>;
+    my %seen;
+    while ($t =~ /\{[^{}]*?"originalText"\s*:\s*"([0-9])"[^{}]*?"bounds"\s*:\s*"\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/sg) {
+      next if $seen{$1}++;
+      printf "%s %d %d\n", $1, int(($2+$4)/2), int(($3+$5)/2);
+    }
+    while ($t =~ /\{[^{}]*?"bounds"\s*:\s*"\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^{}]*?"originalText"\s*:\s*"([0-9])"/sg) {
+      next if $seen{$5}++;
+      printf "%s %d %d\n", $5, int(($1+$3)/2), int(($2+$4)/2);
+    }
+  ' "$layout"
+}
+
+# Taps each digit of $1 using the map file at $2 (one "<digit> <cx> <cy>"
+# per line). Sent in a single hdc shell session so the PIN bouncer does
+# not fade or time out between taps.
+tap_pin_digits() {
+  local pin="$1"
+  local map_file="$2"
+  local cmd=""
+  local i d xy
+  for (( i=0; i<${#pin}; i++ )); do
+    d="${pin:$i:1}"
+    xy="$(awk -v d="$d" '$1==d { print $2" "$3; exit }' "$map_file")"
+    if [[ -z "$xy" ]]; then
+      echo "[setup_bypass_secret] no coordinate for digit ${d} in PIN keypad" >&2
+      return 1
+    fi
+    cmd+="uitest uiInput click ${xy}; sleep 0.18; "
+  done
+  "${HDC[@]}" shell "$cmd" >/dev/null
+}
+
+maybe_unlock_screen() {
+  if (( UNLOCK_IF_LOCKED == 0 )); then
+    return 0
+  fi
+  if ! is_screen_locked; then
+    return 0
+  fi
+
+  local pin
+  pin="$(/bin/bash -c "set -a; [ -f \"$ENV_FILE\" ] && source \"$ENV_FILE\"; printf '%s' \"\${PWD_${TARGET}:-}\"")"
+  if [[ -z "$pin" ]]; then
+    echo "[setup_bypass_secret] device ${TARGET} is locked" >&2
+    echo "[setup_bypass_secret] add 'PWD_${TARGET}=<pin>' to ${ENV_FILE} to enable auto-unlock," >&2
+    echo "[setup_bypass_secret] or unlock the device manually and rerun with --no-unlock." >&2
+    exit 2
+  fi
+
+  echo "[setup_bypass_secret] device locked → revealing PIN bouncer"
+  wake_and_show_bouncer
+
+  local layout
+  layout="$(layout_dump_full)"
+  if ! grep -q -E 'BouncerView|numKeyBoard' "$layout"; then
+    echo "[setup_bypass_secret] PIN bouncer not visible after first attempt; retrying"
+    wake_and_show_bouncer
+    layout="$(layout_dump_full)"
+  fi
+  if ! grep -q -E 'BouncerView|numKeyBoard' "$layout"; then
+    echo "[setup_bypass_secret] could not bring up the PIN bouncer; unlock the device manually and retry" >&2
+    exit 1
+  fi
+
+  local map_file="/tmp/hw_pinmap_${TARGET//[:\\/]/_}.txt"
+  find_pin_digit_centers "$layout" > "$map_file"
+  if [[ "$(wc -l < "$map_file" | tr -d ' ')" -lt 10 ]]; then
+    echo "[setup_bypass_secret] failed to locate all 10 PIN digits in layout (got $(wc -l < "$map_file" | tr -d ' '))" >&2
+    exit 1
+  fi
+
+  echo "[setup_bypass_secret] entering ${#pin}-digit PIN"
+  tap_pin_digits "$pin" "$map_file"
+  sleep 1.5
+
+  if is_screen_locked; then
+    echo "[setup_bypass_secret] device still locked after PIN entry (wrong PIN, or unlock UI changed)" >&2
+    exit 1
+  fi
+  echo "[setup_bypass_secret] unlocked"
+}
+
+# === Main flow =======================================================
+
+maybe_unlock_screen
+
 echo "[setup_bypass_secret] starting app on ${TARGET}"
+# Force-stop first so we always cold-start on the Home page; otherwise
+# a warm process left on (e.g.) BypassSecretPage from a previous run
+# would not return to Home and the subsequent triple-tap would miss.
+"${HDC[@]}" shell aa force-stop "$BUNDLE" >/dev/null 2>&1 || true
 "${HDC[@]}" shell aa start -a EntryAbility -b "$BUNDLE" >/dev/null
 sleep 2
 
