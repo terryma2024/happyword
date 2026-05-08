@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-08T01:44:39.555Z",
+  "updated_at": "2026-05-08T02:25:02.631Z",
   "previews": [
     {
       "pr": 44,
       "title": "chore(vercel): remove ignoreCommand from server vercel.json",
       "branch": "cursor/vercel-json-remove-ignore-command",
-      "url": "https://happyword-8ve6rrnjn-terrymas-projects.vercel.app",
+      "url": "https://happyword-9k495u58r-terrymas-projects.vercel.app",
       "author": "terryma2024",
-      "head_sha": "de96fe1",
-      "updated_at": "2026-05-08T01:44:38.586Z"
+      "head_sha": "4769b4e",
+      "updated_at": "2026-05-08T02:25:01.260Z"
     },
     {
       "pr": 43,
@@ -18,7 +18,7 @@
       "url": "https://happyword-7cacsgu0n-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "fa8d0bd",
-      "updated_at": "2026-05-08T01:44:38.717Z"
+      "updated_at": "2026-05-08T02:25:01.523Z"
     },
     {
       "pr": 42,
@@ -27,7 +27,7 @@
       "url": "https://happyword-pty6a2kvv-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "ca12420",
-      "updated_at": "2026-05-08T01:44:39.001Z"
+      "updated_at": "2026-05-08T02:25:01.811Z"
     },
     {
       "pr": 41,
@@ -36,7 +36,7 @@
       "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "d3bdcd3",
-      "updated_at": "2026-05-08T01:44:39.150Z"
+      "updated_at": "2026-05-08T02:25:02.082Z"
     },
     {
       "pr": 40,
@@ -45,7 +45,7 @@
       "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "e6abbc1",
-      "updated_at": "2026-05-08T01:44:39.340Z"
+      "updated_at": "2026-05-08T02:25:02.374Z"
     },
     {
       "pr": 30,
@@ -54,7 +54,7 @@
       "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "69fc795",
-      "updated_at": "2026-05-08T01:44:39.555Z"
+      "updated_at": "2026-05-08T02:25:02.631Z"
     }
   ]
 }
