@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-08T12:16:41.397Z",
+  "updated_at": "2026-05-08T13:07:25.865Z",
   "previews": [
     {
       "pr": 49,
       "title": "fix(parent-admin): unstick lesson-import flow (page=1 + client-side image compre",
       "branch": "cursor/065e79df",
-      "url": "https://happyword-gwm5itbf3-terrymas-projects.vercel.app",
+      "url": "https://happyword-m1gralm7l-terrymas-projects.vercel.app",
       "author": "terryma2024",
-      "head_sha": "8424c59",
-      "updated_at": "2026-05-08T12:16:38.640Z"
+      "head_sha": "86aab2d",
+      "updated_at": "2026-05-08T13:07:22.856Z"
     },
     {
       "pr": 48,
@@ -18,7 +18,7 @@
       "url": "https://happyword-caex3591r-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "6c294f5",
-      "updated_at": "2026-05-08T12:16:38.972Z"
+      "updated_at": "2026-05-08T13:07:23.055Z"
     },
     {
       "pr": 47,
@@ -27,7 +27,7 @@
       "url": "https://happyword-97phnxkvd-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "e4798b5",
-      "updated_at": "2026-05-08T12:16:39.199Z"
+      "updated_at": "2026-05-08T13:07:23.343Z"
     },
     {
       "pr": 46,
@@ -36,7 +36,7 @@
       "url": "https://happyword-ja7fxbgy1-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "6b18455",
-      "updated_at": "2026-05-08T12:16:39.452Z"
+      "updated_at": "2026-05-08T13:07:23.604Z"
     },
     {
       "pr": 45,
@@ -45,7 +45,7 @@
       "url": "https://happyword-ibhhrg9bc-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "24e1ab8",
-      "updated_at": "2026-05-08T12:16:39.679Z"
+      "updated_at": "2026-05-08T13:07:23.872Z"
     },
     {
       "pr": 44,
@@ -54,7 +54,7 @@
       "url": "https://happyword-9k495u58r-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "4769b4e",
-      "updated_at": "2026-05-08T12:16:40.126Z"
+      "updated_at": "2026-05-08T13:07:24.500Z"
     },
     {
       "pr": 43,
@@ -63,7 +63,7 @@
       "url": "https://happyword-7cacsgu0n-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "fa8d0bd",
-      "updated_at": "2026-05-08T12:16:40.317Z"
+      "updated_at": "2026-05-08T13:07:24.786Z"
     },
     {
       "pr": 42,
@@ -72,7 +72,7 @@
       "url": "https://happyword-pty6a2kvv-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "ca12420",
-      "updated_at": "2026-05-08T12:16:40.596Z"
+      "updated_at": "2026-05-08T13:07:25.042Z"
     },
     {
       "pr": 41,
@@ -81,7 +81,7 @@
       "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "d3bdcd3",
-      "updated_at": "2026-05-08T12:16:40.856Z"
+      "updated_at": "2026-05-08T13:07:25.296Z"
     },
     {
       "pr": 40,
@@ -90,7 +90,7 @@
       "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "e6abbc1",
-      "updated_at": "2026-05-08T12:16:41.090Z"
+      "updated_at": "2026-05-08T13:07:25.610Z"
     },
     {
       "pr": 30,
@@ -99,7 +99,7 @@
       "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "69fc795",
-      "updated_at": "2026-05-08T12:16:41.397Z"
+      "updated_at": "2026-05-08T13:07:25.865Z"
     }
   ]
 }
