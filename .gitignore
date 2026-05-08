@@ -7,6 +7,10 @@
 # Git worktrees (project-local isolated workspaces)
 .worktrees/
 
+# Superpowers brainstorm runtime artifacts (local-only)
+# `docs/superpowers/...` is project documentation and stays tracked.
+.superpowers/
+
 # Gradle files (legacy / hybrid templates)
 .gradle/
 build/
