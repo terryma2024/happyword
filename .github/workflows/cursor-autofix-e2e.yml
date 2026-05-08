@@ -12,6 +12,11 @@ name: cursor-autofix-e2e
 # This workflow does NOT re-run the E2E suite; it only re-dispatches the
 # Cursor Cloud Agent. The agent will commit & push the fix to the PR's
 # head branch, which retriggers server-ci.yml as usual.
+#
+# Prompt (`.github/scripts/trigger-cursor-fix-e2e.mjs`): instructs the agent to
+# stop after one push; further fixes are handled by the next CI run or another
+# manual dispatch. Commit messages must include the Cursor Cloud agent URL for
+# this run when available.
 
 on:
   workflow_dispatch:

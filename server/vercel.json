@@ -1,4 +1,3 @@
 {
-  "version": 2,
-  "ignoreCommand": "bash ./scripts/vercel_should_skip_build.sh"
+  "version": 2
 }
