@@ -74,16 +74,17 @@ center_of_bounds() {
 find_bounds_by_id() {
   local file="$1"
   local id="$2"
-  perl -0777 -ne '
-    my ($id)=@ARGV;
-    my $txt=$_;
-    # Find the first occurrence of "id":"<id>" and then the nearest "bounds":"[...]"
+  perl -0777 -e '
+    my ($file, $id) = @ARGV;
+    open(my $fh, "<", $file) or die "open $file: $!";
+    local $/;
+    my $txt = <$fh>;
     if ($txt =~ /"id"\s*:\s*"\Q$id\E"[^}]*?"bounds"\s*:\s*"(\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\])"/s) {
       print $1;
       exit 0;
     }
     exit 1;
-  ' "$id" "$file"
+  ' "$file" "$id"
 }
 
 click_id() {
