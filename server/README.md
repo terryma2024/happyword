@@ -35,7 +35,7 @@ design in [`docs/superpowers/specs/2026-05-06-server-qa-pipeline-design.md`](../
                           ├── server / pytest        (offline)        REQUIRED ───┼──► merge gate
                           └── server / e2e (preview)                  REQUIRED ───┤
                                 ├─ wait for Vercel preview URL                    │
-                                ├─ reset DB happyword_pr_<pr>_e2e on Atlas        │
+                                ├─ reset resolved preview DB on Atlas             │
                                 └─ uv run pytest -m e2e (52 cases)                │
                         │                                                        │
                         └────────────────────────────┬───────────────────────────┘

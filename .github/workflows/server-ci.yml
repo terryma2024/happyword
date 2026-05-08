@@ -140,24 +140,21 @@ jobs:
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         run: uv sync --dev
 
-      - name: Compute per-PR Mongo DB name
+      - name: Compute preview Mongo DB name
         id: db_name
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         run: |
-          # Use PR number when available; fall back to a slugged branch name
-          # for branch-pushes-without-PR (rare, but `vercel deploy --target
-          # preview` from a feature branch with no open PR triggers this).
-          PR_NUM="${{ github.event.pull_request.number }}"
+          # Mirror app.config's runtime expansion. Vercel's deployment metadata
+          # may know the PR number while the Python runtime only receives the
+          # branch ref, so the E2E reset/injection target must follow the same
+          # branch-hash fallback the app uses.
           BRANCH="${{ github.head_ref || github.ref_name }}"
-          BRANCH_SLUG=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' \
-            | sed -E 's/[^a-z0-9]+/_/g' | sed -E 's/^_|_$//g' | cut -c -32)
-          if [ -n "$PR_NUM" ]; then
-            DB="happyword_pr_${PR_NUM}_e2e"
-          else
-            DB="happyword_branch_${BRANCH_SLUG}_e2e"
-          fi
+          DB=$(MONGO_DB_NAME='happyword_pr_{pr}_e2e' \
+            VERCEL_GIT_PULL_REQUEST_ID='' \
+            VERCEL_GIT_COMMIT_REF="$BRANCH" \
+            uv run python -m scripts.resolve_preview_db_name)
           echo "db_name=$DB" >> "$GITHUB_OUTPUT"
-          echo "Per-PR DB: $DB"
+          echo "Preview DB: $DB"
 
       - name: Reset E2E database (truncate test collections)
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
