@@ -123,6 +123,9 @@ jobs:
       - name: Deploy Vercel preview (fallback)
         id: vercel_deploy
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.detect_preview.outputs.preview_url == '' }}
+        # Run from the repo root because the Vercel project already has
+        # `server` configured as its root directory.
+        working-directory: .
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
