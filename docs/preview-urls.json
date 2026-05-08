@@ -1,15 +1,24 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-08T00:40:22.775Z",
+  "updated_at": "2026-05-08T01:44:39.555Z",
   "previews": [
+    {
+      "pr": 44,
+      "title": "chore(vercel): remove ignoreCommand from server vercel.json",
+      "branch": "cursor/vercel-json-remove-ignore-command",
+      "url": "https://happyword-8ve6rrnjn-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "de96fe1",
+      "updated_at": "2026-05-08T01:44:38.586Z"
+    },
     {
       "pr": 43,
       "title": "feat(client): debug version triple-tap → DevMenuPage v0.6.1 unified card grid",
       "branch": "feature/home-version-triple-tap",
-      "url": "https://happyword-g7g78jgcl-terrymas-projects.vercel.app",
+      "url": "https://happyword-7cacsgu0n-terrymas-projects.vercel.app",
       "author": "terryma2024",
-      "head_sha": "4f7a8a9",
-      "updated_at": "2026-05-08T00:40:21.840Z"
+      "head_sha": "fa8d0bd",
+      "updated_at": "2026-05-08T01:44:38.717Z"
     },
     {
       "pr": 42,
@@ -18,7 +27,7 @@
       "url": "https://happyword-pty6a2kvv-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "ca12420",
-      "updated_at": "2026-05-08T00:40:22.068Z"
+      "updated_at": "2026-05-08T01:44:39.001Z"
     },
     {
       "pr": 41,
@@ -27,7 +36,7 @@
       "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "d3bdcd3",
-      "updated_at": "2026-05-08T00:40:22.288Z"
+      "updated_at": "2026-05-08T01:44:39.150Z"
     },
     {
       "pr": 40,
@@ -36,7 +45,7 @@
       "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "e6abbc1",
-      "updated_at": "2026-05-08T00:40:22.533Z"
+      "updated_at": "2026-05-08T01:44:39.340Z"
     },
     {
       "pr": 30,
@@ -45,7 +54,7 @@
       "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "69fc795",
-      "updated_at": "2026-05-08T00:40:22.775Z"
+      "updated_at": "2026-05-08T01:44:39.555Z"
     }
   ]
 }
