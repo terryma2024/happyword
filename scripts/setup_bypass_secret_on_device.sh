@@ -53,7 +53,7 @@ BUNDLE="com.terryma.wordmagicgame"
 layout_dump() {
   local remote="/data/local/tmp/hw_layout.json"
   local localf="/tmp/hw_layout_${TARGET//[:\\/]/_}.json"
-  "${HDC[@]}" shell uitest dumpLayout -p "$remote" >/dev/null
+  "${HDC[@]}" shell uitest dumpLayout -b "$BUNDLE" -p "$remote" >/dev/null
   "${HDC[@]}" file recv "$remote" "$localf" >/dev/null
   echo "$localf"
 }
