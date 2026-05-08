@@ -107,6 +107,23 @@ click_id() {
   "${HDC[@]}" shell uitest uiInput click "$x" "$y" >/dev/null
 }
 
+# Dumps the layout once, locates `id`, and emits three rapid clicks at its center.
+# Used for triple-tap gestures where re-dumping between taps would exceed the gesture window.
+triple_click_id_fast() {
+  local id="$1"
+  local f
+  f="$(layout_dump)"
+  local bounds
+  bounds="$(find_bounds_by_id "$f" "$id" || true)"
+  if [[ -z "$bounds" ]]; then
+    echo "[setup_bypass_secret] cannot find id in layout: $id" >&2
+    return 1
+  fi
+  local x y
+  read -r x y < <(center_of_bounds "$bounds")
+  "${HDC[@]}" shell "uitest uiInput click $x $y; uitest uiInput click $x $y; uitest uiInput click $x $y" >/dev/null
+}
+
 input_text_id() {
   local id="$1"
   local text="$2"
@@ -127,11 +144,7 @@ echo "[setup_bypass_secret] starting app on ${TARGET}"
 sleep 2
 
 echo "[setup_bypass_secret] opening DevMenu (triple-tap version label)"
-click_id "HomeVersionLabel"
-sleep 0.2
-click_id "HomeVersionLabel"
-sleep 0.2
-click_id "HomeVersionLabel"
+triple_click_id_fast "HomeVersionLabel"
 sleep 2
 
 echo "[setup_bypass_secret] opening BypassSecret page"
