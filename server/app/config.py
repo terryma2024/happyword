@@ -67,8 +67,10 @@ class Settings(BaseSettings):
     def _expand_db_name(cls, raw: str) -> str:
         return _resolve_db_name(
             raw,
-            pr=os.environ.get("VERCEL_GIT_PULL_REQUEST_ID", ""),
-            branch=os.environ.get("VERCEL_GIT_COMMIT_REF", "local"),
+            pr=os.environ.get("VERCEL_GIT_PULL_REQUEST_ID")
+            or os.environ.get("HAPPYWORD_PREVIEW_PR_ID", ""),
+            branch=os.environ.get("VERCEL_GIT_COMMIT_REF")
+            or os.environ.get("HAPPYWORD_PREVIEW_BRANCH", "local"),
         )
 
     jwt_secret: str

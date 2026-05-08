@@ -134,6 +134,7 @@ jobs:
           VERCEL_META_COMMIT_REF: ${{ github.event.pull_request.head.ref }}
           VERCEL_META_ORG: ${{ github.repository_owner }}
           VERCEL_META_REPO: ${{ github.event.repository.name }}
+          HAPPYWORD_PREVIEW_PR_ID: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           DEPLOY_LOG="$(mktemp)"
@@ -143,6 +144,8 @@ jobs:
             --meta githubCommitRef="$VERCEL_META_COMMIT_REF" \
             --meta githubOrg="$VERCEL_META_ORG" \
             --meta githubRepo="$VERCEL_META_REPO" \
+            --env HAPPYWORD_PREVIEW_PR_ID="$HAPPYWORD_PREVIEW_PR_ID" \
+            --env HAPPYWORD_PREVIEW_BRANCH="$VERCEL_META_COMMIT_REF" \
             2>&1 | tee "$DEPLOY_LOG"
           PREVIEW_URL="$(python3 - "$DEPLOY_LOG" <<'PY'
           import re
