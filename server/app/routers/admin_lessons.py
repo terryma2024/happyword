@@ -24,7 +24,14 @@ from app.services.llm_service import LlmCallError, LlmConfigError
 router = APIRouter(prefix="/api/v1/admin", tags=["admin-lessons"])
 
 
-_MAX_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MiB
+# V0.7: Vercel's edge enforces a hard 4.5 MB request-body cap on
+# serverless functions independent of this handler — anything larger
+# is silently dropped before the function is invoked, so accepting
+# more here only papers over the real failure mode (the user sees
+# `网络异常` instead of a clear 413). The client-side compressor in
+# `entry/src/main/ets/services/ImageCompressor.ets` targets ~4 MB so
+# this 4.5 MB cap is just a defensive belt-and-braces check.
+_MAX_IMAGE_BYTES = 4_500_000
 _ACCEPTED_MIME = frozenset({"image/jpeg", "image/png", "image/webp"})
 
 
@@ -78,8 +85,13 @@ async def import_lesson(
             "Uploaded image is empty",
         )
     if len(payload) > _MAX_IMAGE_BYTES:
+        # `HTTP_413_REQUEST_ENTITY_TOO_LARGE` is deprecated in starlette
+        # (renamed to `HTTP_413_CONTENT_TOO_LARGE` per RFC 9110); the
+        # numeric value is unchanged. Use the modern alias so the
+        # `filterwarnings=["error"]` test config doesn't trip when this
+        # branch fires from a regression test.
         raise _err(
-            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status.HTTP_413_CONTENT_TOO_LARGE,
             "IMAGE_TOO_LARGE",
             f"Image is {len(payload)} bytes; max {_MAX_IMAGE_BYTES}",
         )

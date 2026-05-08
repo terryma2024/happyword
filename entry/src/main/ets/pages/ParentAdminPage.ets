@@ -24,6 +24,12 @@ import {
   RealPhotoFileReader,
   RealPhotoPickerAdapter,
 } from '../services/LessonImagePicker';
+import {
+  COMPRESS_TARGET_BYTES,
+  IImageCompressor,
+  ImageCompressionError,
+  RealImageCompressor,
+} from '../services/ImageCompressor';
 
 /**
  * ParentAdminPage — V0.5.8.
@@ -76,6 +82,11 @@ struct ParentAdminPage {
     new RealLessonCameraAdapter(this.getUIContext().getHostContext() as common.UIAbilityContext),
     new RealPhotoFileReader(),
   );
+  // V0.7: photo gallery originals are routinely 5–10 MB on modern
+  // phones, but Vercel's edge enforces a hard 4.5 MB request-body cap.
+  // Compressing here lets uploads succeed without touching the server
+  // limit. See docstring on `RealImageCompressor` for the strategy.
+  private compressor: IImageCompressor = new RealImageCompressor();
 
   aboutToAppear(): void {
     lockPortrait(this.orientation).catch((err: BusinessError): void => {
@@ -187,7 +198,13 @@ struct ParentAdminPage {
       if (file === null) {
         return;
       }
-      const draft: LessonDraftDto = await this.client.importLesson(file);
+      // Always run through the compressor; it short-circuits when the
+      // image already fits, otherwise it re-encodes to JPEG under the
+      // Vercel edge body cap. Throws ImageCompressionError on failure
+      // (handled by the catch below via humanizeImportError).
+      const upload: PickedImage =
+        await this.compressor.compress(file, COMPRESS_TARGET_BYTES);
+      const draft: LessonDraftDto = await this.client.importLesson(upload);
       this.lastImportedId = draft.id;
       this.lastImportedWordCount = draft.extracted.words.length;
       await this.refreshPendingDrafts();
@@ -205,10 +222,25 @@ struct ParentAdminPage {
   }
 
   private static humanizeImportError(e: object): string {
+    if (e instanceof ImageCompressionError) {
+      const ce: ImageCompressionError = e as ImageCompressionError;
+      if (ce.code === 'DECODE_FAILED') {
+        return '图片解析失败，请换一张图片';
+      }
+      if (ce.code === 'NOT_ACHIEVABLE') {
+        return '图片过大无法压缩到上传限制以内，请换一张图片';
+      }
+      // ENCODE_FAILED / SCALE_FAILED — surface a generic message.
+      return '图片压缩失败，请稍后重试';
+    }
     if (e instanceof LessonImportError) {
       const err: LessonImportError = e as LessonImportError;
       if (err.code === 'TOO_LARGE') {
-        return '图片超过 8 MB，请压缩后重试';
+        // Only fires if the post-compression buffer still exceeds the
+        // client-side IMPORT_MAX_BYTES guard (4.5 MB to match Vercel's
+        // edge cap). The compressor's NOT_ACHIEVABLE branch above
+        // handles "we couldn't shrink it" with a clearer message.
+        return '图片过大，请换一张图片';
       }
       if (err.code === 'BAD_MIME') {
         return '仅支持 JPG / PNG / WebP 图片';

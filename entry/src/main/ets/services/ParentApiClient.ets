@@ -261,7 +261,14 @@ export class LessonImportError extends Error {
   }
 }
 
-const IMPORT_MAX_BYTES: number = 8 * 1024 * 1024;
+// V0.7: Vercel's edge enforces a hard 4.5 MB request-body cap on
+// serverless functions independent of the FastAPI handler. The cap
+// here is a defensive belt-and-braces check after the client-side
+// compressor has already targeted ~4 MB; anything larger arriving
+// from a code path that bypassed the compressor would be silently
+// dropped at the edge and surface to the user as `网络异常`. Reject
+// it locally with a clearer error instead.
+const IMPORT_MAX_BYTES: number = 4_500_000;
 const IMPORT_TIMEOUT_MS: number = 60_000;
 const ALLOWED_MIMES: string[] = ['image/jpeg', 'image/png', 'image/webp'];
 

@@ -127,6 +127,30 @@ async def test_lesson_import_rejects_empty_body(client: "AsyncClient", admin: Us
     assert resp.status_code == 400
 
 
+@pytest.mark.asyncio
+async def test_lesson_import_rejects_oversize_payload(
+    client: "AsyncClient", admin: User
+) -> None:
+    """Belt-and-braces guard for the 4.5 MB cap (`_MAX_IMAGE_BYTES`).
+
+    Vercel's edge already enforces the same limit so in production
+    these requests never reach the FastAPI handler, but the cap stays
+    in the router so dev / mock-server traffic still gets a clear 413
+    instead of OOM-ing on a stray multi-megabyte upload. The client-
+    side compressor in `entry/src/main/ets/services/ImageCompressor`
+    targets ~4 MB to keep real uploads well below this line.
+    """
+    payload = b"\xff\xd8\xff\xe0" + b"x" * (4_500_001 - 4)
+    resp = await client.post(
+        "/api/v1/admin/lessons/import",
+        headers=_bearer(admin.username),
+        files={"image": ("big.jpg", BytesIO(payload), "image/jpeg")},
+    )
+    assert resp.status_code == 413
+    body = resp.json()
+    assert body["detail"]["error"]["code"] == "IMAGE_TOO_LARGE"
+
+
 # ---------------------------------------------------------------------------
 # Happy path
 # ---------------------------------------------------------------------------

@@ -51,7 +51,9 @@ async def scan_words(
         )
     if len(blob) > _MAX_IMAGE_BYTES:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            # Renamed in starlette / RFC 9110; `HTTP_413_REQUEST_ENTITY_TOO_LARGE`
+            # is deprecated and trips `filterwarnings=["error"]` in tests.
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail={
                 "error": {
                     "code": "IMAGE_TOO_LARGE",
