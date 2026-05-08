@@ -202,7 +202,12 @@ function classifyFailure({ snippet, present }) {
   return { fixable: true, reason: null };
 }
 
-function buildPrompt(logSnippet) {
+function buildPrompt(logSnippet, agentDashboardUrl) {
+  const agentLine =
+    typeof agentDashboardUrl === "string" && agentDashboardUrl.length > 0
+      ? `Cursor agent (this run): ${agentDashboardUrl}`
+      : `Cursor agent URL: use the link posted on PR #${PR_NUMBER} by the autofix workflow (“Open the agent”), or the Actions step summary.`;
+
   return [
     `An end-to-end (E2E) test job failed for an open pull request. Investigate and fix the failures.`,
     ``,
@@ -226,9 +231,12 @@ function buildPrompt(logSnippet) {
     `1. Diagnose the failure from the log above; reproduce locally if reasonable.`,
     `2. Distinguish a real bug from environment / flake (preview not ready, Mongo reset issues, missing E2E secrets). Do NOT modify CI secrets or workflow files unless the failure is clearly caused by a wrong workflow definition.`,
     `3. Apply the smallest fix that makes the failing E2E case(s) pass while keeping the rest of the suite green. Prefer fixing production code over weakening assertions.`,
-    `4. **Commit your changes directly to branch \`${PR_HEAD_REF}\` and push.** Do NOT create a new branch and do NOT open a new pull request — the fix must land as additional commits on the existing PR #${PR_NUMBER}. Use a clear commit message that includes a one-sentence root-cause summary and references PR #${PR_NUMBER}.`,
+    `4. **Commit your changes directly to branch \`${PR_HEAD_REF}\` and push.** Do NOT create a new branch and do NOT open a new pull request — the fix must land as additional commits on the existing PR #${PR_NUMBER}.`,
+    `5. **After you push to the remote, stop.** Do not run another fix loop, extra commits, or follow-up pushes in this agent session for the same failure. If E2E is still red, GitHub Actions will run again (or a maintainer can re-trigger \`cursor-autofix-e2e\`) and a new agent round will handle the next iteration.`,
+    `6. **Commit message:** include a one-sentence root cause summary, reference PR #${PR_NUMBER}, and **include this exact line** (copy the URL verbatim):`,
+    `   \`${agentLine}\``,
     ``,
-    `If the failure is purely environmental and no code change can resolve it, push a single commit that adds a brief written explanation (e.g. updates a comment in the failing test or a TODO note in the PR description area), still on \`${PR_HEAD_REF}\`. Never open a separate PR.`,
+    `If the failure is purely environmental and no code change can resolve it, push a single commit that adds a brief written explanation (e.g. updates a comment in the failing test or a TODO note in the PR description area), still on \`${PR_HEAD_REF}\`, using the same commit-message footer with the Cursor agent line above. Never open a separate PR.`,
   ].join("\n");
 }
 
@@ -298,7 +306,7 @@ function logCiSummary({ kind, agentId, runId, reason }) {
   }
 }
 
-async function dispatchAgent(prompt) {
+async function dispatchAgent(logSnippet) {
   // We must explicitly pass `cloud:` — if both `local:` and `cloud:` are
   // omitted the SDK silently defaults to a local runtime, which is useless
   // inside a CI job that's about to exit.
@@ -333,8 +341,14 @@ async function dispatchAgent(prompt) {
   let agentId = null;
   let runId = null;
   try {
-    const run = await agent.send(prompt);
+    // Build prompt after create so we can embed the dashboard URL in instructions
+    // (commit footer) when the SDK exposes agentId immediately.
     agentId = agent.agentId ?? null;
+    const dashboardUrl = agentId ? agentWebUrl(agentId) : "";
+    const prompt = buildPrompt(logSnippet, dashboardUrl);
+
+    const run = await agent.send(prompt);
+    agentId = agent.agentId ?? agentId;
     runId = run?.id ?? null;
     // Intentionally do NOT call run.wait(): a cloud E2E autofix can take many
     // minutes; we want CI to exit quickly. The cloud-side run keeps executing
@@ -399,8 +413,7 @@ async function main() {
     return;
   }
 
-  const prompt = buildPrompt(log.snippet);
-  const { agentId, runId } = await dispatchAgent(prompt);
+  const { agentId, runId } = await dispatchAgent(log.snippet);
 
   console.log(`Spawned Cursor Cloud agent agentId=${agentId} runId=${runId}`);
   console.log(`Track progress: ${agentWebUrl(agentId)}`);
