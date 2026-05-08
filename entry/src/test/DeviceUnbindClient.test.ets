@@ -7,7 +7,7 @@ import { CloudCredentials, CloudCredentialsSnapshot } from '../main/ets/services
 import { ParentFetchAdapter, ParentFetchResult } from '../main/ets/services/ParentApiClient';
 import { StringPreferencesLike } from '../main/ets/services/WrongAnswerStore';
 
-const BASE: string = 'https://happyword.vercel.app';
+const BASE: string = 'https://happyword.cool';
 
 class MemPrefs implements StringPreferencesLike {
   store: Map<string, string> = new Map<string, string>();

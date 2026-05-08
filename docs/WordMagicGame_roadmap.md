@@ -50,7 +50,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.4.6 | 更多主题区域（已完成）       | 词库 +20 词覆盖 `animal` / `ocean` 两个新分类；新增 `animal-safari` (Phoenix + Unicorn 共享) / `ocean-realm` (Kraken 独占) 区域；`home-cottage` 的 Kraken 迁出兑现 V0.3.8 承诺；regionPicker 横向 Scroll 容纳 5 chips；boss 共享允许多 region 共用旋转池 | 无 |
 | V0.4.7 | 自定义愿望单条目（已完成）   | `MagicWish.isCustom` + 快照 v2；`WishlistStore.addCustomWish/removeCustomWish` 带名称/币数/emoji 校验；`WishlistPage` 头部 `+ 添加` 按钮 + 自定义卡 ✕ 删除按钮，均过家长 PIN 闸；新增 `AddCustomWishDialog` 三段表单；不接真实支付 | 无 |
 | V0.4.8 | 视觉与音效抛光（已完成）     | 6 项小修补：HomePage 工具栏 review/codex/wand→gift/gear 与 WishlistPage scroll 五个 SVG 加 `.syncLoad(true)` 修复返回后图标占位符闪烁；HomeWishlistButton 由 wand → 礼盒（Recraft V4 重生）；launcher PNG 改自 `rawfile/icons/start_icon.svg`（`tools/recraft/start-icon-to-launcher.sh`）；战斗中魔法师施法瞬间叠加 `magican_fight.svg` 替身（CharacterCard 走 `altAssetPath` + opacity 切换）；魔法弹圆形 → 椭圆 + 中心单词；答错时叠加 `player_hurt.ogg` 受伤音效（小女生音色，Mixkit License + ffmpeg pitch shift）。**战斗 BGM 因 TTS 强制焦点抢占无法稳定共存（详见 §V0.4.8.7 deferred 段），整套 BGM 改动已回退，明确留到 V0.9 战斗音频混音与 BGM 版** | 无 |
-| V0.5.1 | 内容后台 Walking Skeleton（已完成） | 端到端最薄链路：`server/` Python 3.12 + FastAPI + Beanie + JWT + admin bootstrap；部署 Vercel + MongoDB Atlas Marketplace；客户端 `RemoteWordPackConfig` / `WordPackCache` / `RemoteWordPackService` / `WordPackBootstrapper` 三段冷启动；prod URL `https://happyword.vercel.app` 全链路 smoke 通过 | 必需 |
+| V0.5.1 | 内容后台 Walking Skeleton（已完成） | 端到端最薄链路：`server/` Python 3.12 + FastAPI + Beanie + JWT + admin bootstrap；部署 Vercel + MongoDB Atlas Marketplace；客户端 `RemoteWordPackConfig` / `WordPackCache` / `RemoteWordPackService` / `WordPackBootstrapper` 三段冷启动；prod URL `https://happyword.cool` 全链路 smoke 通过 | 必需 |
 | V0.5.2 | 词条 CRUD + rawfile 迁移 | `POST/PUT/DELETE /admin/words/{id}`；`scripts/seed_from_rawfile.py` 把 V0.4.6 50 词一次性灌入 MongoDB；客户端零改动 | 必需 |
 | V0.5.3 | 版本化词包发布 + 回滚 | `WordPack` 快照 + `PackPointer` 指针；`POST /admin/packs/publish` + `rollback`；`/packs/latest.json` ETag / If-None-Match 304；客户端 cache 加 `cachedEtag`/`cachedVersion` | 必需 |
 | V0.5.4 | LLM 单词级草稿（干扰项 + 例句） | `POST /admin/llm/drafts/words` + 审核 approve/reject；OpenAI gpt-4o-mini；schema_v1→v2 加 `distractors?` / `example.{en,zh}?`；客户端类型层兼容、战斗端不使用 | 必需 |
@@ -803,7 +803,7 @@ V0.5 拆分为 7 个子版本顺序推进：
 - **LLM**：OpenAI SDK，**仅服务端调用**；客户端永远不直接接触 LLM API。所有生成内容必须经审核才能进入儿童端。
 - **词包发布**：版本化 JSON（`/packs/latest.json` + 历史快照），客户端按 ETag / `If-None-Match` 走 304。schema_version 字段从 v1 渐进演进到 v5（V0.5.4 加 LLM 字段、V0.5.5 加 categories、V0.5.6 加 illustration/audio）。
 - **客户端集成边界**：V0.5.1 一次性新增 4 个服务类，后续 V0.5.x 只在这些类内部追加字段，不再扩 API：
-    - `RemoteWordPackConfig`：dev / prod `SERVER_BASE_URL`，dev 走 host loopback `http://10.0.2.2:8000`，prod 走 `https://happyword.vercel.app`；通过 `BuildProfile.BUILD_MODE_NAME` 判定。
+    - `RemoteWordPackConfig`：dev / prod `SERVER_BASE_URL`，dev 走 host loopback `http://10.0.2.2:8000`，prod 走 `https://happyword.cool`；通过 `BuildProfile.BUILD_MODE_NAME` 判定。
     - `WordPackCache`：preferences 持久化 JSON 词包 + ETag + version。
     - `RemoteWordPackService`：`@kit.NetworkKit` HTTP 包装，错误归一为 `RemoteFetchResult`。
     - `WordPackBootstrapper`：编排 cache → rawfile → 远端 async refresh 三段冷启动；HomePage / BattlePage / TodayPlanPage / LearningReportPage / ConfigPage 五个 page 都接它。
@@ -822,13 +822,13 @@ V0.5 拆分为 7 个子版本顺序推进：
     1. **Stage 1（同步）**：`WordPackCache` 命中即立即返回缓存；
     2. **Stage 2（同步）**：缓存未命中走 `WordRepository.loadFromRawfile(ctx)` 兜底，保证全离线首次安装也能玩；
     3. **Stage 3（异步）**：背景 `RemoteWordPackService.fetchLatest()`，成功则写入缓存供下次冷启使用，失败静默降级（仅 hilog warning）。
-- **生产烟雾测试**：`https://happyword.vercel.app/api/v1/{health,auth/login,auth/me,packs/latest.json}` 全链路 200；MongoDB 中已 seed 一条 `fruit-apple` 词条作为 prod 烟雾参照。
+- **生产烟雾测试**：`https://happyword.cool/api/v1/{health,auth/login,auth/me,packs/latest.json}` 全链路 200；MongoDB 中已 seed 一条 `fruit-apple` 词条作为 prod 烟雾参照。
 
 **验收**
 
 - pytest 26/26 通过、0 errors / 0 warnings；ruff / format / mypy（`mypy app`）全清；no-device hvigor unit 测试 +21 case 通过（`RemoteWordPackConfig` / `WordPackCache` / `RemoteWordPackService` / `WordPackBootstrapper`）。
 - Vercel 生产 admin 登录拿到 JWT、`/auth/me` 返回 `{username:'admin', role:'admin', last_login_at: ...}`、`/packs/latest.json` 返回 1 词包并包含 `fruit-apple`。
-- 客户端 `SERVER_BASE_URL` 在 debug build 走 `http://10.0.2.2:8000`、release build 走 `https://happyword.vercel.app`。
+- 客户端 `SERVER_BASE_URL` 在 debug build 走 `http://10.0.2.2:8000`、release build 走 `https://happyword.cool`。
 - 客户端 BootstrapDeps 4 个分支（cache hit / rawfile fallback / 远端 200 写入 cache / 远端 5xx 静默降级）都有单测覆盖。
 
 **踩过的生产坑（写进文档供 V0.5.2+ 参考）**

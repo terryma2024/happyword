@@ -305,7 +305,7 @@ To debug a failed staging smoke locally:
 
 ```bash
 cd server
-export E2E_BASE_URL="https://happyword.vercel.app"
+export E2E_BASE_URL="https://happyword.cool"
 export E2E_MONGODB_URI="mongodb+srv://.../happyword_staging"
 export E2E_MONGO_DB_NAME="happyword_staging"
 uv run pytest -v -m smoke

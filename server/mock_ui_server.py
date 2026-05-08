@@ -3,7 +3,7 @@
 Why
 ---
 The on-device UI tests in ``entry/src/ohosTest`` exercise these flows
-that previously made live HTTP requests to ``https://happyword.vercel.app``:
+that previously made live HTTP requests to ``https://happyword.cool``:
 
 * ``ConfigPage`` — pack-sync round-trip (``GET /api/v1/packs/latest.json``).
 * ``ParentAdminPage`` — stats + pending lesson drafts + publish notes
@@ -258,7 +258,7 @@ def create_app() -> FastAPI:
         title="HappyWord Mock UI Server",
         version="0.5.8-mock",
         description=(
-            "Deterministic stand-in for happyword.vercel.app used by "
+            "Deterministic stand-in for happyword.cool used by "
             "HarmonyOS ohosTest UI automation. Localhost only — no auth."
         ),
     )

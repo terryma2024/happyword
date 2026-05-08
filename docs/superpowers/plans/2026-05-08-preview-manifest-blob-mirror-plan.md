@@ -82,7 +82,7 @@ Document `BLOB_READ_WRITE_TOKEN`, `PREVIEW_MANIFEST_BLOB_URL`, and optional `PRE
 
 - [ ] **Step 1: Pin manifest fetch to production origin**
 
-Use **`PREVIEW_MANIFEST_JSON_URL`** from `RemoteWordPackConfig.ets` (today `https://happyword.vercel.app/api/v1/preview-urls.json`). Do **not** derive the URL from `effectiveServerBaseUrl()`, `STAGING_BASE_URL` alone, or `BackendHeaders` / bypass — DevMenu must load the PR list even when the device is pointed at a Preview deployment. Rows inside the JSON still carry per-PR `*.vercel.app` URLs for actual API traffic after the user picks a card.
+Use **`PREVIEW_MANIFEST_JSON_URL`** from `RemoteWordPackConfig.ets` (today `https://happyword.cool/api/v1/preview-urls.json`). Do **not** derive the URL from `effectiveServerBaseUrl()`, `STAGING_BASE_URL` alone, or `BackendHeaders` / bypass — DevMenu must load the PR list even when the device is pointed at a Preview deployment. Rows inside the JSON still carry per-PR `*.vercel.app` URLs for actual API traffic after the user picks a card.
 
 ### Task 5: Verification
 

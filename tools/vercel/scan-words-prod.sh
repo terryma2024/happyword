@@ -23,7 +23,7 @@ set -u
 cd "$(dirname "$0")/../.."
 REPO_ROOT="$(pwd)"
 
-PROD_URL="${1:-https://happyword.vercel.app}"
+PROD_URL="${1:-https://happyword.cool}"
 ADMIN_USER="${ADMIN_USER:-admin}"
 FIXTURE_PATH="${FIXTURE_PATH:-$REPO_ROOT/server/tests/fixture_scan_words.jpg}"
 MIN_MATCH="${MIN_MATCH:-10}"

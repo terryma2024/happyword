@@ -1,7 +1,7 @@
 """Apex-domain landing E2E (PUB-6): / -> /parent/ -> /parent/login.
 
 Regression guard for the Vercel deploy returning ``{"detail":"Not Found"}``
-at the apex (e.g. ``https://happyword.vercel.app/``). The unit test in
+at the apex (e.g. ``https://happyword.cool/``). The unit test in
 ``tests/test_parent_pages.py`` exercises the in-process ASGI app and
 cannot catch deployment-layer breakage — a Vercel rewrite that
 short-circuits ``/``, the FastAPI preset loading the wrong entrypoint

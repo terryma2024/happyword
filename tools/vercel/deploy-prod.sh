@@ -126,7 +126,7 @@ if [[ $DEPLOY_EXIT -eq 0 ]]; then
     echo "[deploy-prod] OK exit=$DEPLOY_EXIT"
     if [[ -n "${DEPLOY_URL:-}" ]]; then
         echo "[deploy-prod] deployment url: $DEPLOY_URL"
-        echo "[deploy-prod] alias:          https://happyword.vercel.app"
+        echo "[deploy-prod] alias:          https://happyword.cool"
         echo "[deploy-prod] full log:       $DEPLOY_LOG"
     fi
 else
