@@ -23,10 +23,18 @@ from app.models.word import Word
 from app.services import llm_service
 from app.services.llm_service import LlmCallError, LlmConfigError
 
+# NOTE: the literal token "JSON" must appear somewhere in this prompt
+# (or the user message). When `response_format={"type": "json_object"}`
+# is set on `chat.completions.create`, OpenAI's server-side guardrail
+# rejects the request with `BadRequestError: 'messages' must contain
+# the word 'json' in some form` if the prompt omits it. Removing the
+# word here will silently re-break the import flow with a bare 500;
+# `tests/test_lesson_service.py::test_lesson_system_prompt_mentions_json`
+# guards against that.
 _LESSON_SYSTEM_PROMPT = (
     "You are an English-vocabulary extractor for primary-school "
     "teachers. The user uploads a photo of one textbook page or "
-    "tutorial sheet. Return:\n"
+    "tutorial sheet. Return a JSON object with these fields:\n"
     "  * `category_id`: a kebab-case slug summarising the page's "
     '    overall theme (e.g. "school-supplies", "weather", '
     '    "animals-jungle"). Lowercase ASCII only.\n'
@@ -73,6 +81,8 @@ async def extract_lesson_payload(image_bytes: bytes, mime: str) -> tuple[str, di
     """
     import base64  # noqa: PLC0415
 
+    import openai  # noqa: PLC0415
+
     from app.config import get_settings  # noqa: PLC0415
 
     settings = get_settings()
@@ -86,21 +96,30 @@ async def extract_lesson_payload(image_bytes: bytes, mime: str) -> tuple[str, di
     encoded = base64.b64encode(image_bytes).decode("ascii")
     image_url = f"data:{mime};base64,{encoded}"
 
-    completion = await client.chat.completions.create(
-        model=settings.openai_model_vision,
-        messages=[
-            {"role": "system", "content": _LESSON_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Extract the lesson metadata + words."},
-                    {"type": "image_url", "image_url": {"url": image_url}},
-                ],
-            },
-        ],
-        response_format={"type": "json_object"},
-        temperature=0,
-    )
+    try:
+        completion = await client.chat.completions.create(
+            model=settings.openai_model_vision,
+            messages=[
+                {"role": "system", "content": _LESSON_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Extract the lesson metadata + words."},
+                        {"type": "image_url", "image_url": {"url": image_url}},
+                    ],
+                },
+            ],
+            response_format={"type": "json_object"},
+            temperature=0,
+        )
+    except openai.OpenAIError as exc:
+        # Without this catch, OpenAI client exceptions (BadRequestError,
+        # AuthenticationError, RateLimitError, APIConnectionError, …)
+        # bubble past the router's narrow `except LlmCallError` and the
+        # user gets Starlette's bare `Internal Server Error` 500 instead
+        # of the structured 502 LLM_CALL_FAILED. Wrap once here so every
+        # OpenAI failure travels the same blessed path.
+        raise LlmCallError(f"OpenAI vision call failed: {exc}") from exc
     content = completion.choices[0].message.content
     if not content:
         raise LlmCallError("OpenAI vision returned no JSON content")
