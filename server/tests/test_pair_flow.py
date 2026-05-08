@@ -207,6 +207,22 @@ async def test_redeem_unknown_token_returns_404(
 
 
 @pytest.mark.asyncio
+async def test_redeem_non_hex_unknown_token_returns_404(
+    parent_client: tuple[AsyncClient, str],
+) -> None:
+    ac, _ = parent_client
+    rd = await ac.post(
+        "/api/v1/pair/redeem",
+        json={
+            "token": "no-such-token-local-padding",
+            "device_id": "dev-unknown-nonhex",
+        },
+    )
+    assert rd.status_code == 404
+    assert rd.json()["detail"]["error"]["code"] == "TOKEN_INVALID"
+
+
+@pytest.mark.asyncio
 async def test_delete_pair_token_cancels_it(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
