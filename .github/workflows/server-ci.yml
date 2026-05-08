@@ -120,11 +120,17 @@ jobs:
             core.info("No preview URL found in deployment statuses.");
             core.setOutput("preview_url", "");
 
-      - name: Deploy Vercel preview (fallback)
+      - name: Deploy Vercel preview (E2E-controlled)
         id: vercel_deploy
-        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.detect_preview.outputs.preview_url == '' }}
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         # Run from the repo root because the Vercel project already has
         # `server` configured as its root directory.
+        # Do not rely on a detected branch preview for E2E: if that deployment
+        # was created before the PR existed, Vercel leaves
+        # VERCEL_GIT_PULL_REQUEST_ID empty at runtime and the app resolves a
+        # branch-fallback Mongo DB while the test runner resets happyword_pr_N_e2e.
+        # This CLI deployment injects stable PR metadata so both sides use the
+        # same isolated database.
         working-directory: .
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -200,7 +206,7 @@ jobs:
       - name: Run E2E pytest subset
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         env:
-          E2E_BASE_URL: ${{ steps.detect_preview.outputs.preview_url || steps.vercel_deploy.outputs.preview-url }}
+          E2E_BASE_URL: ${{ steps.vercel_deploy.outputs.preview-url || steps.detect_preview.outputs.preview_url }}
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
