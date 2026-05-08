@@ -21,3 +21,10 @@ def test_vercel_crons_are_hobby_compatible() -> None:
         minute, hour = fields[:2]
         assert _SINGLE_CRON_VALUE.match(minute), f"{schedule} runs more than daily"
         assert _SINGLE_CRON_VALUE.match(hour), f"{schedule} runs more than daily"
+
+
+def test_vercel_config_uses_fastapi_framework_preset() -> None:
+    """The FastAPI preset rejects legacy per-file function config here."""
+    config = json.loads((_SERVER_ROOT / "vercel.json").read_text(encoding="utf-8"))
+
+    assert "functions" not in config
