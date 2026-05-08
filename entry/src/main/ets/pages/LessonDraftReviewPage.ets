@@ -103,11 +103,21 @@ struct LessonDraftReviewPage {
     }
     try {
       const d: LessonDraftDto = await this.client.getLessonDraft(this.draftId);
-      this.applyDraft(d);
+      // V0.7: a draft can land here in `extracting` or `extract_failed`
+      // when the parent admin clicks an in-progress upload from the
+      // home card. There's nothing for them to review yet, so toast
+      // and bounce back rather than crash on the (null) `extracted`
+      // deref inside `applyDraft`.
       if (d.status !== 'pending') {
-        this.showToast('草稿已复核');
+        this.showToast(
+          d.status === 'extracting'
+            ? 'AI 还在识别，请稍后刷新'
+            : '草稿已复核',
+        );
         this.scheduleBack(BACK_AFTER_TOAST_MS);
+        return;
       }
+      this.applyDraft(d);
     } catch (err) {
       this.error = LessonDraftReviewPage.humanizeError(err);
     }
@@ -121,9 +131,19 @@ struct LessonDraftReviewPage {
     // `!== undefined` but obviously cannot be dereferenced — guard
     // against both shapes so a freshly-imported draft (always null
     // edits) renders the original extraction instead of crashing.
+    //
+    // V0.7: `loadDraft` only calls `applyDraft` for `status==pending`
+    // drafts, which always have `extracted` populated by the cron.
+    // Guard anyway so a future caller (e.g. a manual refresh after
+    // successful approval lands the row in `approved`) cannot crash.
+    const extracted: LessonExtractedDto | undefined = d.extracted;
+    if (extracted === undefined || extracted === null) {
+      this.error = '当前草稿暂无可复核内容';
+      return;
+    }
     const edited: LessonExtractedDto | undefined = d.edited_extracted;
     const src: LessonExtractedDto =
-      edited !== undefined && edited !== null ? edited : d.extracted;
+      edited !== undefined && edited !== null ? edited : extracted;
     const initEdits: LessonExtractedWord[] = [];
     const initKeep: boolean[] = [];
     const initEdited: boolean[] = [];
@@ -139,7 +159,7 @@ struct LessonDraftReviewPage {
     this.edits = initEdits;
     this.keepFlags = initKeep;
     this.editedFlags = initEdited;
-    this.categoryLabel = src.label_zh.length > 0 ? src.label_zh : d.extracted.label_zh;
+    this.categoryLabel = src.label_zh.length > 0 ? src.label_zh : extracted.label_zh;
   }
 
   private showToast(msg: string): void {
@@ -214,15 +234,27 @@ struct LessonDraftReviewPage {
       this.error = '请至少保留一个单词';
       return;
     }
+    // V0.7: `extracted` is optional on the DTO since the import
+    // endpoint returns a draft in `status="extracting"`. The
+    // approve UI is only reachable for pending drafts, so this
+    // branch should never fire in practice — but guarding lets
+    // mypy-equivalent ArkTS strict-null checks pass and gives a
+    // clean error if someone wires the button up to a different
+    // draft state in the future.
+    const extracted: LessonExtractedDto | undefined = d.extracted;
+    if (extracted === undefined || extracted === null) {
+      this.error = '当前草稿暂无可复核内容';
+      return;
+    }
     this.busy = true;
     this.error = '';
     try {
       const edited: LessonExtractedDto = new LessonExtractedDto();
-      edited.category_id = d.extracted.category_id;
-      edited.label_en = d.extracted.label_en;
+      edited.category_id = extracted.category_id;
+      edited.label_en = extracted.label_en;
       edited.label_zh =
-        this.categoryLabel.length > 0 ? this.categoryLabel : d.extracted.label_zh;
-      edited.story_zh = d.extracted.story_zh;
+        this.categoryLabel.length > 0 ? this.categoryLabel : extracted.label_zh;
+      edited.story_zh = extracted.story_zh;
       edited.words = kept;
 
       await this.client.patchLessonDraft(this.draftId, edited);

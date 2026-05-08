@@ -250,17 +250,55 @@ export default function parentApiClientTest(): void {
       ad.responses.set(
         `GET ${BASE}/api/v1/admin/lesson-drafts/draft-1`,
         fakeOk(
-          '{"id":"draft-1","source_image_url":"https://blob/lesson.jpg","extracted":{"category_id":"unit-1","label_en":"Unit 1","label_zh":"第一单元","story_zh":null,"words":[{"word":"apple","meaningZh":"苹果","difficulty":1}]},"edited_extracted":null,"status":"pending","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":"gpt-4o","prompt_version":1,"approval_summary":null}',
+          '{"id":"draft-1","source_image_url":"https://blob/lesson.jpg","extracted":{"category_id":"unit-1","label_en":"Unit 1","label_zh":"第一单元","story_zh":null,"words":[{"word":"apple","meaningZh":"苹果","difficulty":1}]},"edited_extracted":null,"status":"pending","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":"gpt-4o","prompt_version":1,"approval_summary":null,"extract_attempts":1,"extract_last_attempted_at":"2026-05-01T00:00:30Z","extract_last_error_code":null,"extract_last_error_message":null}',
         ),
       );
       const c: ParentApiClient = new ParentApiClient(ad, BASE);
       const draft: LessonDraftDto = await c.getLessonDraft('draft-1');
       expect(draft.id).assertEqual('draft-1');
       expect(draft.status).assertEqual('pending');
-      expect(draft.extracted.label_zh).assertEqual('第一单元');
-      expect(draft.extracted.words.length).assertEqual(1);
-      expect(draft.extracted.words[0].word).assertEqual('apple');
-      expect(draft.extracted.words[0].meaningZh).assertEqual('苹果');
+      expect(draft.extracted !== undefined).assertTrue();
+      if (draft.extracted !== undefined) {
+        expect(draft.extracted.label_zh).assertEqual('第一单元');
+        expect(draft.extracted.words.length).assertEqual(1);
+        expect(draft.extracted.words[0].word).assertEqual('apple');
+        expect(draft.extracted.words[0].meaningZh).assertEqual('苹果');
+      }
+    });
+
+    it('parsesExtractingDraft', 0, async () => {
+      // V0.7 contract: drafts that just landed via the import endpoint
+      // come back with `status="extracting"`, `extracted=null`, and
+      // `model=null` — the cron extractor populates them later. The DTO
+      // parser must accept those `null` fields and surface them as
+      // `undefined` so callers can branch on `extracted !== undefined`.
+      const ad: StubAdapter = new StubAdapter();
+      ad.responses.set(
+        `GET ${BASE}/api/v1/admin/lesson-drafts/draft-2`,
+        fakeOk(
+          '{"id":"draft-2","source_image_url":"https://blob/x.jpg","extracted":null,"edited_extracted":null,"status":"extracting","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":null,"prompt_version":1,"approval_summary":null,"extract_attempts":0,"extract_last_attempted_at":null,"extract_last_error_code":null,"extract_last_error_message":null}',
+        ),
+      );
+      const c: ParentApiClient = new ParentApiClient(ad, BASE);
+      const draft: LessonDraftDto = await c.getLessonDraft('draft-2');
+      expect(draft.status).assertEqual('extracting');
+      expect(draft.extracted === null || draft.extracted === undefined).assertTrue();
+      expect(draft.extract_attempts).assertEqual(0);
+    });
+
+    it('parsesExtractFailedDraft', 0, async () => {
+      const ad: StubAdapter = new StubAdapter();
+      ad.responses.set(
+        `GET ${BASE}/api/v1/admin/lesson-drafts/draft-3`,
+        fakeOk(
+          '{"id":"draft-3","source_image_url":"https://blob/y.jpg","extracted":null,"edited_extracted":null,"status":"extract_failed","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":null,"prompt_version":1,"approval_summary":null,"extract_attempts":3,"extract_last_attempted_at":"2026-05-01T00:03:00Z","extract_last_error_code":"LLM_CALL_FAILED","extract_last_error_message":"OpenAI vision call failed: HTTP 502"}',
+        ),
+      );
+      const c: ParentApiClient = new ParentApiClient(ad, BASE);
+      const draft: LessonDraftDto = await c.getLessonDraft('draft-3');
+      expect(draft.status).assertEqual('extract_failed');
+      expect(draft.extract_attempts).assertEqual(3);
+      expect(draft.extract_last_error_code).assertEqual('LLM_CALL_FAILED');
     });
   });
 
@@ -332,7 +370,7 @@ export default function parentApiClientTest(): void {
       ad.responses.set(
         `GET ${BASE}/api/v1/admin/lesson-drafts?status=pending&page=1&size=10`,
         fakeOk(
-          '{"items":[{"id":"draft-1","source_image_url":"u","extracted":{"category_id":"c","label_en":"a","label_zh":"b","story_zh":null,"words":[]},"edited_extracted":null,"status":"pending","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":"gpt-4o","prompt_version":1,"approval_summary":null}],"total":1,"page":1,"size":10}',
+          '{"items":[{"id":"draft-1","source_image_url":"u","extracted":{"category_id":"c","label_en":"a","label_zh":"b","story_zh":null,"words":[]},"edited_extracted":null,"status":"pending","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":"gpt-4o","prompt_version":1,"approval_summary":null,"extract_attempts":1,"extract_last_attempted_at":"2026-05-01T00:00:30Z","extract_last_error_code":null,"extract_last_error_message":null}],"total":1,"page":1,"size":10}',
         ),
       );
       const c: ParentApiClient = new ParentApiClient(ad, BASE);
@@ -340,6 +378,33 @@ export default function parentApiClientTest(): void {
       expect(page.items.length).assertEqual(1);
       expect(page.items[0].id).assertEqual('draft-1');
       expect(page.total).assertEqual(1);
+    });
+  });
+
+  describe('ParentApiClient.listLessonDraftsByStatus', () => {
+    // V0.7: parent admin needs to surface drafts in the new
+    // `extracting` and `extract_failed` buckets, not just `pending`.
+    // This test pins the URL the client builds for an arbitrary
+    // status filter — the server URL-decodes whatever we send, so
+    // we just need to make sure the value lands in the query string
+    // verbatim and the parsed page surfaces the new debug fields
+    // (`extract_attempts`, `extract_last_error_code`, ...).
+    it('encodesStatusFilterAndParsesDebugFields', 0, async () => {
+      const ad: StubAdapter = new StubAdapter();
+      ad.responses.set(
+        `GET ${BASE}/api/v1/admin/lesson-drafts?status=extract_failed&page=1&size=20`,
+        fakeOk(
+          '{"items":[{"id":"draft-9","source_image_url":"u","extracted":null,"edited_extracted":null,"status":"extract_failed","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":null,"prompt_version":1,"approval_summary":null,"extract_attempts":3,"extract_last_attempted_at":"2026-05-01T00:03:00Z","extract_last_error_code":"LLM_CALL_FAILED","extract_last_error_message":"OpenAI vision call failed: HTTP 502"}],"total":1,"page":1,"size":20}',
+        ),
+      );
+      const c: ParentApiClient = new ParentApiClient(ad, BASE);
+      const page: LessonDraftListPage =
+        await c.listLessonDraftsByStatus('extract_failed', 1, 20);
+      expect(page.items.length).assertEqual(1);
+      const it0: LessonDraftDto = page.items[0];
+      expect(it0.status).assertEqual('extract_failed');
+      expect(it0.extract_attempts).assertEqual(3);
+      expect(it0.extract_last_error_code).assertEqual('LLM_CALL_FAILED');
     });
   });
 
@@ -393,9 +458,12 @@ export default function parentApiClientTest(): void {
         async request(url: string, opts: object): Promise<http.HttpResponse> {
           this.lastUrl = url;
           this.lastOpts = opts;
+          // V0.7: import is fast-path; the server returns a draft in
+          // `status="extracting"` with `extracted` and `model` null.
+          // The cron extractor fills those in later.
           return fakeHttp(
             201,
-            '{"id":"draft-9","source_image_url":"https://blob/x.jpg","extracted":{"category_id":"unit-9","label_en":"Unit 9","label_zh":"第九单元","story_zh":null,"words":[{"word":"cat","meaningZh":"猫","difficulty":1}]},"edited_extracted":null,"status":"pending","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":"gpt-4o","prompt_version":1,"approval_summary":null}',
+            '{"id":"draft-9","source_image_url":"https://blob/x.jpg","extracted":null,"edited_extracted":null,"status":"extracting","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":null,"prompt_version":1,"approval_summary":null,"extract_attempts":0,"extract_last_attempted_at":null,"extract_last_error_code":null,"extract_last_error_message":null}',
           );
         }
       }
@@ -419,7 +487,11 @@ export default function parentApiClientTest(): void {
 
       const out: LessonDraftDto = await c.importLesson(img);
       expect(out.id).assertEqual('draft-9');
-      expect(out.extracted.words[0].word).assertEqual('cat');
+      // V0.7 fast-path: no LLM call inside the import handler, so the
+      // response is in `status="extracting"` with no `extracted`
+      // payload yet — callers must NOT deref `out.extracted.words`.
+      expect(out.status).assertEqual('extracting');
+      expect(out.extracted === null || out.extracted === undefined).assertTrue();
       expect(stub.lastUrl).assertEqual(`${BASE}/api/v1/admin/lessons/import`);
     });
 

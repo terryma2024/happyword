@@ -1,3 +1,14 @@
 {
-  "version": 2
+  "version": 2,
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/v1/admin/cron/extract-pending",
+      "schedule": "* * * * *"
+    }
+  ]
 }

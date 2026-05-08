@@ -16,11 +16,17 @@ import { PickedImage } from '../main/ets/services/ParentApiClient';
  * off-device unit-test harness; that path is exercised on-device via
  * ohosTest when a real photo is uploaded through ParentAdminFlow.
  */
+// Use a concrete `ImageCompressionError | null` instead of the
+// nominal-broader `Error | null`: ArkTS's strict-typing rule
+// `arkts-no-structural-typing` rejects the assignment of a subclass
+// instance to a field declared as `Error`. Narrowing here keeps the
+// stub honest (only the production error class can be thrown) and
+// avoids the compile failure at the assignment site.
 class CapturingCompressor implements IImageCompressor {
   lastInput: PickedImage | null = null;
   lastMaxBytes: number = -1;
   toReturn: PickedImage = new PickedImage();
-  toThrow: Error | null = null;
+  toThrow: ImageCompressionError | null = null;
 
   async compress(picked: PickedImage, maxBytes: number): Promise<PickedImage> {
     this.lastInput = picked;

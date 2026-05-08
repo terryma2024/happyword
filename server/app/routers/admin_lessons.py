@@ -1,9 +1,20 @@
-"""Admin lesson photo import endpoints (V0.5.5).
+"""Admin lesson photo import endpoints (V0.5.5; V0.7 async-extract refactor).
 
 NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
 network can call these endpoints. Per-family auth returns in V0.6, when
 each draft will be scoped to the parent account that uploaded it. Until
 then the `reviewer` field is hard-coded to "parent".
+
+NOTE (V0.7): the import endpoint here is the **fast path only** —
+upload the image to blob storage, insert a draft in
+`status="extracting"`, and return immediately. The slow OpenAI vision
+extraction runs in `app.routers.admin_cron` on a 1-minute Vercel cron.
+The synchronous version repeatedly tripped the simulator's QEMU NAT
+idle timeout (the user-facing symptom was a `网络异常，请检查重试`
+toast even though the upload had landed); see git log around the
+revert of `e50cf97`. Decoupling upload from extraction also gives the
+operator a debug surface (`extract_last_error_*` on the draft) when
+the LLM call fails — the synchronous flow had nowhere to record that.
 """
 
 from datetime import UTC, datetime
@@ -19,7 +30,6 @@ from app.schemas.admin_lesson import (
     LessonDraftPatchIn,
 )
 from app.services import lesson_service
-from app.services.llm_service import LlmCallError, LlmConfigError
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin-lessons"])
 
@@ -54,11 +64,15 @@ def _to_out(d: LessonImportDraft) -> LessonDraftOut:
         model=d.model,
         prompt_version=d.prompt_version,
         approval_summary=d.approval_summary,
+        extract_attempts=d.extract_attempts,
+        extract_last_attempted_at=d.extract_last_attempted_at,
+        extract_last_error_code=d.extract_last_error_code,
+        extract_last_error_message=d.extract_last_error_message,
     )
 
 
 # ---------------------------------------------------------------------------
-# Import (POST multipart)
+# Import (POST multipart) — V0.7 fast-path: validate + blob upload only.
 # ---------------------------------------------------------------------------
 
 
@@ -70,6 +84,16 @@ def _to_out(d: LessonImportDraft) -> LessonDraftOut:
 async def import_lesson(
     image: UploadFile = File(..., description="Textbook page photo (JPEG/PNG/WebP)."),
 ) -> LessonDraftOut:
+    """Fast-path import: validate the upload, persist the original
+    image to Vercel Blob, and create a draft row in
+    `status="extracting"`. The OpenAI vision extraction runs
+    asynchronously on a Vercel cron (see `app.routers.admin_cron`).
+
+    The handler intentionally does NOT call `extract_lesson_payload`
+    here — the call could take 8–15s on a real OpenAI request, well
+    over the simulator's ~900ms QEMU NAT idle timeout. Keeping the
+    handler under ~1s is the whole point of the V0.7 split.
+    """
     mime = (image.content_type or "").lower()
     if mime not in _ACCEPTED_MIME:
         raise _err(
@@ -97,22 +121,11 @@ async def import_lesson(
         )
 
     blob_url = await lesson_service.upload_lesson_image(payload, mime)
-    try:
-        model_name, extracted = await lesson_service.extract_lesson_payload(payload, mime)
-    except LlmConfigError as exc:
-        raise _err(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "LLM_NOT_CONFIGURED",
-            str(exc),
-        ) from exc
-    except LlmCallError as exc:
-        raise _err(status.HTTP_502_BAD_GATEWAY, "LLM_CALL_FAILED", str(exc)) from exc
-
     draft = LessonImportDraft(
         source_image_url=blob_url,
-        extracted=extracted,
-        status="pending",
-        model=model_name,
+        extracted=None,
+        status="extracting",
+        model=None,
         prompt_version=1,
     )
     await draft.insert()

@@ -68,9 +68,19 @@ struct ParentAdminPage {
   @State private publishNotes: string = '';
   @State private importBusy: boolean = false;
   @State private importError: string = '';
+  // V0.7: the import endpoint returns a draft in `status="extracting"`
+  // — `extracted` and `model` are populated asynchronously by the
+  // server-side cron (~1 min), so there's no word count to surface
+  // here. We keep `lastImportedId` so the success banner can deep-
+  // link the operator into the draft's review page once they refresh.
   @State private lastImportedId: string = '';
-  @State private lastImportedWordCount: number = 0;
+  // Three buckets (manually refreshed):
+  //   pending         — 待复核 (parent admin to approve / reject)
+  //   extracting      — 待 AI 识别 (cron job will eventually flip → pending)
+  //   extract_failed  — 识别失败 N 次后放弃 (operator to investigate)
   @State private pendingDrafts: LessonDraftDto[] = [];
+  @State private extractingDrafts: LessonDraftDto[] = [];
+  @State private failedDrafts: LessonDraftDto[] = [];
   private toastTimer: number = -1;
   private serverBaseUrl: string = effectiveServerBaseUrl();
   private client: ParentApiClient = ParentApiClient.withRealHttp(this.serverBaseUrl);
@@ -155,9 +165,21 @@ struct ParentAdminPage {
       // Pages are 1-indexed on the server (Query(1, ge=1)); passing 0 here
       // makes the GET return HTTP 422 and the pending list silently stays
       // empty. See server/app/routers/admin_lessons.py::list_lesson_drafts.
-      const page: LessonDraftListPage =
-        await this.client.listPendingLessonDrafts(1, PENDING_PAGE_SIZE);
-      this.pendingDrafts = page.items;
+      //
+      // V0.7: fetch all three async-extract buckets so the stats card
+      // and the failure-triage list stay in sync with reality on each
+      // manual refresh. Pure POJO calls — `Promise.all` keeps wall-
+      // clock cost ≈ one slowest request rather than three serial.
+      // ArkTS rejects destructuring variable declarations
+      // (arkts-no-destruct-decls), so we index into the result array.
+      const pages: LessonDraftListPage[] = await Promise.all([
+        this.client.listLessonDraftsByStatus('pending', 1, PENDING_PAGE_SIZE),
+        this.client.listLessonDraftsByStatus('extracting', 1, PENDING_PAGE_SIZE),
+        this.client.listLessonDraftsByStatus('extract_failed', 1, PENDING_PAGE_SIZE),
+      ]);
+      this.pendingDrafts = pages[0].items;
+      this.extractingDrafts = pages[1].items;
+      this.failedDrafts = pages[2].items;
     } catch (err) {
       const be: BusinessError = err as BusinessError;
       console.error(`ParentAdminPage.refreshPendingDrafts failed: ${JSON.stringify(be)}`);
@@ -206,7 +228,10 @@ struct ParentAdminPage {
         await this.compressor.compress(file, COMPRESS_TARGET_BYTES);
       const draft: LessonDraftDto = await this.client.importLesson(upload);
       this.lastImportedId = draft.id;
-      this.lastImportedWordCount = draft.extracted.words.length;
+      // V0.7: the import endpoint no longer runs the LLM, so
+      // `draft.extracted` is undefined here — the cron will populate
+      // it asynchronously and a manual refresh will pull it in.
+      // Don't deref `.words.length`; it would crash with a null deref.
       await this.refreshPendingDrafts();
     } catch (err) {
       this.importError = ParentAdminPage.humanizeImportError(err);
@@ -218,7 +243,6 @@ struct ParentAdminPage {
   private resetImportState(): void {
     this.importError = '';
     this.lastImportedId = '';
-    this.lastImportedWordCount = 0;
   }
 
   private static humanizeImportError(e: object): string {
@@ -332,6 +356,9 @@ struct ParentAdminPage {
         this.statsCard();
         this.lessonImportCard();
         this.draftListCard();
+        if (this.failedDrafts.length > 0) {
+          this.failedDraftListCard();
+        }
         this.publishCard();
 
         if (this.toast.length > 0) {
@@ -382,7 +409,16 @@ struct ParentAdminPage {
         this.statsLine('最新版本', this.formatLatestVersion());
         this.statsLine('最近发布时间', this.formatLastPublishedAt());
         this.statsLine('待审 LLM 草稿', `${this.stats.llmDraftPending}`);
-        this.statsLine('待审课本图', `${this.stats.lessonImportDraftPending}`);
+        // V0.7: the import flow is async — split the lesson-import
+        // count by status so the operator sees both the cron backlog
+        // and the parent-review queue at a glance. Counts come from
+        // the per-status list endpoints (refreshed alongside the
+        // pending-drafts list, see refreshPendingDrafts).
+        this.statsLine('待 AI 识别', `${this.extractingDrafts.length}`);
+        this.statsLine('待复核课本图', `${this.pendingDrafts.length}`);
+        if (this.failedDrafts.length > 0) {
+          this.statsLine('识别失败', `${this.failedDrafts.length}`);
+        }
       } else {
         Text(this.busy ? '加载中…' : '尚无数据')
           .id('ParentAdminStatsEmpty')
@@ -479,19 +515,15 @@ struct ParentAdminPage {
       }
 
       if (this.lastImportedId.length > 0) {
+        // V0.7: the LLM extraction runs in a 1-minute Vercel cron, so
+        // the just-uploaded draft is in `status="extracting"`. Tell
+        // the operator to refresh after ~1 min and then go review.
         Row({ space: 8 }) {
-          Text(`✓ 已识别 ${this.lastImportedWordCount} 个单词，请确认`)
+          Text('✓ 已上传，AI 识别中…1 分钟后点"刷新"查看')
             .id('ParentAdminImportSuccess')
             .fontSize(13)
             .fontColor('#1E7E34')
             .layoutWeight(1);
-          Button('去复核 →')
-            .id('ParentAdminGotoReviewButton')
-            .height(32)
-            .fontSize(13)
-            .backgroundColor('#1E7E34')
-            .fontColor('#FFFFFF')
-            .onClick((): void => this.gotoReview(this.lastImportedId));
         }
         .width('100%');
       }
@@ -547,6 +579,64 @@ struct ParentAdminPage {
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 });
+  }
+
+  // V0.7: surface drafts whose async LLM extraction was abandoned
+  // after MAX_EXTRACT_ATTEMPTS failures. We render the timestamp and
+  // the persisted error code/message so the operator can triage
+  // (bad image vs. OPENAI_API_KEY misconfig vs. transient outage)
+  // without having to dig through Vercel logs. There's no retry
+  // affordance here yet — V0.8 will add a "重新识别" button that
+  // resets `extract_attempts` and flips status back to extracting.
+  @Builder
+  private failedDraftListCard(): void {
+    Column({ space: 8 }) {
+      Text(`识别失败 (${this.failedDrafts.length})`)
+        .id('ParentAdminFailedTitle')
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium)
+        .fontColor('#C0392B');
+      Text('AI 已多次尝试仍未识别成功，请联系管理员检查后端日志。')
+        .fontSize(13)
+        .fontColor('#666666');
+      ForEach(this.failedDrafts, (d: LessonDraftDto): void => {
+        this.failedDraftRow(d);
+      }, (d: LessonDraftDto): string => d.id);
+    }
+    .width('100%')
+    .padding(16)
+    .backgroundColor('#FBEAEA')
+    .borderRadius(12)
+    .alignItems(HorizontalAlign.Start);
+  }
+
+  @Builder
+  private failedDraftRow(d: LessonDraftDto): void {
+    Column({ space: 4 }) {
+      Row({ space: 8 }) {
+        Text(this.formatTimestamp(d.created_at))
+          .id(`LessonDraftFailedRow_${d.id}`)
+          .fontSize(13)
+          .fontColor('#3F2F1A')
+          .layoutWeight(1);
+        Text(`${d.extract_attempts} 次`)
+          .fontSize(12)
+          .fontColor('#888888');
+      }
+      .width('100%');
+      Text(this.formatFailureReason(d))
+        .fontSize(12)
+        .fontColor('#C0392B');
+    }
+    .width('100%')
+    .padding({ top: 8, bottom: 8 })
+    .alignItems(HorizontalAlign.Start);
+  }
+
+  private formatFailureReason(d: LessonDraftDto): string {
+    const code: string = d.extract_last_error_code ?? 'UNKNOWN';
+    const msg: string = d.extract_last_error_message ?? '(no message)';
+    return `[${code}] ${msg}`;
   }
 
   @Builder

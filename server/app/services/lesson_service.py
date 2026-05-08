@@ -87,6 +87,35 @@ async def upload_lesson_image(image_bytes: bytes, mime: str) -> str:
     return await blob_service.upload_lesson_image(image_bytes, mime)
 
 
+_DEFAULT_FETCH_MIME = "image/jpeg"
+
+
+async def fetch_lesson_image(url: str) -> tuple[bytes, str]:
+    """Re-download a previously-uploaded lesson image as (bytes, mime).
+
+    Used by the V0.7 cron extractor (`app.routers.admin_cron`) which
+    runs in a separate Vercel function from the import handler and
+    therefore cannot just keep the bytes in memory. Tests own this
+    seam — they monkeypatch this function so the cron path stays
+    network-free.
+
+    The returned MIME is sniffed from the response's `content-type`
+    header; if the server omits it (some Blob CDN responses do under
+    HEAD redirects) we fall back to image/jpeg, which is benign because
+    OpenAI's vision endpoint accepts whatever MIME we hand it as long
+    as the bytes look like a real image.
+    """
+    import httpx  # noqa: PLC0415
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(url)
+        resp.raise_for_status()
+        mime = resp.headers.get("content-type", _DEFAULT_FETCH_MIME).split(";")[0].strip()
+        if not mime.startswith("image/"):
+            mime = _DEFAULT_FETCH_MIME
+        return resp.content, mime
+
+
 async def extract_lesson_payload(image_bytes: bytes, mime: str) -> tuple[str, dict[str, Any]]:
     """Run the OpenAI vision call and return (model, structured payload).
 
@@ -156,8 +185,25 @@ async def extract_lesson_payload(image_bytes: bytes, mime: str) -> tuple[str, di
 
 
 def _effective_extracted(draft: LessonImportDraft) -> dict[str, Any]:
-    """Return the admin-edited payload if present, else the raw extraction."""
-    return draft.edited_extracted or draft.extracted
+    """Return the admin-edited payload if present, else the raw extraction.
+
+    V0.7: `draft.extracted` is `dict | None` while a draft is in
+    `extracting` / `extract_failed`. The approval flow is gated on
+    `_ensure_pending`, so by the time we get here `extracted` is
+    always populated; the assertion guards against future callers
+    wiring this up to a non-pending draft and getting a confusing
+    `None.get(...)` error inside the upsert loop.
+    """
+    if draft.edited_extracted is not None:
+        return draft.edited_extracted
+    if draft.extracted is None:
+        msg = (
+            f"approve_lesson_draft called on draft {draft.id} with "
+            f"status={draft.status!r} but no extracted payload — this "
+            f"is a programmer error; only pending drafts are approvable."
+        )
+        raise RuntimeError(msg)
+    return draft.extracted
 
 
 async def approve_lesson_draft(draft: LessonImportDraft, *, reviewer: str) -> dict[str, Any]:
