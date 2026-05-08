@@ -8,7 +8,7 @@
   "crons": [
     {
       "path": "/api/v1/admin/cron/extract-pending",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

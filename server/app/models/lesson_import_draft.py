@@ -8,7 +8,7 @@ A single lesson-import workflow:
    client never waits on OpenAI Vision (the synchronous version
    tripped the simulator's NAT idle timeout, see git log around
    `e50cf97`).
-2. Vercel cron (`POST /admin/cron/extract-pending`, every minute)
+2. Vercel cron (`POST /admin/cron/extract-pending`, scheduled)
    atomically claims one `extracting` draft, calls
    `lesson_service.extract_lesson_payload`, and either:
      • on success, writes `extracted` + `model` and flips status to

@@ -8,7 +8,7 @@ then the `reviewer` field is hard-coded to "parent".
 NOTE (V0.7): the import endpoint here is the **fast path only** —
 upload the image to blob storage, insert a draft in
 `status="extracting"`, and return immediately. The slow OpenAI vision
-extraction runs in `app.routers.admin_cron` on a 1-minute Vercel cron.
+extraction runs in `app.routers.admin_cron` on a scheduled Vercel cron.
 The synchronous version repeatedly tripped the simulator's QEMU NAT
 idle timeout (the user-facing symptom was a `网络异常，请检查重试`
 toast even though the upload had landed); see git log around the

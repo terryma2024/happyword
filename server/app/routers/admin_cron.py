@@ -16,7 +16,7 @@ the flow:
   1. ``POST /api/v1/admin/lessons/import`` — fast path. Uploads the
      image to Blob, inserts a draft in ``status="extracting"``,
      returns immediately.
-  2. **This router** — runs once a minute via Vercel cron, claims
+  2. **This router** — runs on the scheduled Vercel cron, claims
      one ``extracting`` draft, calls ``extract_lesson_payload``, and
      either flips the draft to ``pending`` (待复核) or records a
      structured error and (after ``MAX_EXTRACT_ATTEMPTS`` failures)
@@ -41,10 +41,8 @@ Behaviour summary (matches `tests/test_admin_cron.py`):
   leave the row in ``extracting`` so the next tick retries.
 * No ``extracting`` draft to claim → return ``claimed=0`` and do
   not call the LLM (or the blob fetch).
-* Process at most one draft per tick. Vercel cron schedule is
-  ``* * * * *`` (every minute) so even 60 backed-up drafts drain in
-  an hour. Doing more than one per tick risks blowing through the
-  60s function timeout when OpenAI is slow.
+* Process at most one draft per tick. Keeping each tick bounded avoids
+  blowing through the 60s function timeout when OpenAI is slow.
 """
 
 from __future__ import annotations
@@ -67,7 +65,7 @@ router = APIRouter(prefix="/api/v1/admin/cron", tags=["admin-cron"])
 
 
 # Cap on extraction retries before a draft flips to `extract_failed`.
-# Three attempts ≈ three minutes of cron coverage for a transient
+# Three attempts ≈ three scheduled ticks of cron coverage for a transient
 # upstream blip; beyond that the failure is almost certainly
 # structural (bad image, prompt regression, persistent OpenAI 5xx)
 # and surfacing it to the operator beats burning more quota.
@@ -195,7 +193,7 @@ async def extract_pending(
         model_name, extracted = await lesson_service.extract_lesson_payload(image_bytes, mime)
     except LlmConfigError as exc:
         # Operator hasn't set OPENAI_API_KEY (or equivalent). Retrying
-        # every minute would spam logs and waste quota; mark the row
+        # on every scheduled tick would spam logs and waste quota; mark the row
         # terminal so the parent admin UI shows it immediately.
         logger.warning("Cron extract: LlmConfigError on draft %s: %s", draft.id, exc)
         await _record_failure(draft, error_code="LLM_NOT_CONFIGURED", exc=exc, terminal=True)

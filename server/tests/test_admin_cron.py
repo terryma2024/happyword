@@ -263,7 +263,7 @@ async def test_cron_extract_config_error_is_terminal(
     client: "AsyncClient", db: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`LlmConfigError` means the operator hasn't wired up
-    `OPENAI_API_KEY`; retrying every minute would just spam logs and
+    `OPENAI_API_KEY`; retrying on every scheduled tick would just spam logs and
     waste cron budget. Treat as terminal so the failed draft surfaces
     in the parent admin UI immediately."""
     _stub_blob_fetch(monkeypatch)
@@ -315,8 +315,7 @@ async def test_cron_extract_picks_never_attempted_first(
     """Two extracting drafts: one already attempted twice and recently
     failed, one fresh. The fresh draft (extract_attempts=0) wins,
     because (a) starvation guard and (b) the previous failure already
-    waited at least one cron tick — a draft with 2 attempts has been
-    around for ≥2 minutes."""
+    waited at least one cron tick."""
     _stub_blob_fetch(monkeypatch)
     _stub_extractor_returns(monkeypatch, _FIXED_EXTRACTED)
 
