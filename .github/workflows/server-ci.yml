@@ -145,12 +145,11 @@ jobs:
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         run: |
           # The Vercel deployment status we consume here points at the deployed
-          # Function runtime, where `VERCEL_GIT_PULL_REQUEST_ID` is not reliably
-          # present. Mirror the app's runtime fallback (`pr=""`) so the reset
-          # script and direct Mongo E2E helpers target the same DB the preview
-          # writes to.
-          BRANCH="${{ github.head_ref || github.ref_name }}"
-          DB=$(BRANCH="$BRANCH" uv run python - <<'PY'
+          # Function runtime, where Vercel system env vars are not reliably
+          # exposed. Mirror the app process defaults instead of GitHub's PR
+          # context so the reset script and direct Mongo E2E helpers target the
+          # same DB the preview writes to.
+          DB=$(uv run python - <<'PY'
           import os
 
           from app.config import _resolve_db_name
@@ -158,8 +157,8 @@ jobs:
           print(
               _resolve_db_name(
                   "happyword_pr_{pr}_e2e",
-                  pr="",
-                  branch=os.environ["BRANCH"],
+                  pr=os.environ.get("VERCEL_GIT_PULL_REQUEST_ID", ""),
+                  branch=os.environ.get("VERCEL_GIT_COMMIT_REF", "local"),
               )
           )
           PY
