@@ -219,13 +219,15 @@ async def test_lesson_import_streams_heartbeat_then_draft(
     )
     assert resp.status_code == 200, resp.text
     raw = resp.text
-    # First byte is a heartbeat whitespace (asserted strictly so
-    # nobody silently strips it during a future refactor).
-    assert raw.startswith(" "), repr(raw[:20])
+    # First chunk is a 4 KiB whitespace primer (asserted strictly so
+    # nobody silently shrinks it during a future refactor — the
+    # primer size is what bypasses Vercel's serverless response
+    # buffer and keeps the simulator's NAT entry alive).
+    assert raw.startswith(" " * 4096), repr(raw[:32])
     # Strip the leading run of heartbeats; what remains MUST be the
     # JSON success body.
     payload = raw.lstrip()
-    assert payload.startswith("{"), repr(payload[:20])
+    assert payload.startswith("{"), repr(payload[:32])
     body = resp.json()
     assert body["status"] == "pending"
     assert "_error" not in body
