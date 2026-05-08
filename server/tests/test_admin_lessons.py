@@ -33,7 +33,10 @@ if TYPE_CHECKING:
     from httpx import AsyncClient
 
 
-_FIXED_EXTRACTED = {
+# Annotated as `dict[str, object]` so mypy accepts it as the second
+# argument to `_stub_lesson_extractor`; otherwise inference produces an
+# invariant `dict[str, Sequence[Collection[str]]]` that doesn't match.
+_FIXED_EXTRACTED: dict[str, object] = {
     "category_id": "school-supplies",
     "label_en": "School Supplies",
     "label_zh": "学校用品",
@@ -253,6 +256,43 @@ async def test_approve_skips_existing_word_ids(
     assert pencil is not None
     assert pencil.meaningZh == "管理员手填的铅笔"
     assert pencil.difficulty == 2
+
+
+@pytest.mark.asyncio
+async def test_list_lesson_drafts_rejects_page_zero(client: "AsyncClient") -> None:
+    """Pagination is 1-indexed (`Query(1, ge=1)`); a page=0 request must
+    fail validation with HTTP 422 rather than silently returning page 1.
+
+    Regression guard for the V0.5.8 ParentAdminPage refresh that called
+    `listPendingLessonDrafts(0, ...)` and silently swallowed the 422 — the
+    pending-drafts list looked permanently empty even when fresh imports
+    landed. See `entry/src/main/ets/pages/ParentAdminPage.ets`.
+    """
+    resp = await client.get("/api/v1/admin/lesson-drafts?page=0&size=50")
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_list_lesson_drafts_accepts_page_one(
+    client: "AsyncClient", admin: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Happy-path companion to the page=0 guard above: a page=1 request
+    returns 200 and includes the freshly-imported draft in `items`."""
+    _stub_blob_upload(monkeypatch)
+    _stub_lesson_extractor(monkeypatch, _FIXED_EXTRACTED)
+    headers = _bearer(admin.username)
+    create = await client.post(
+        "/api/v1/admin/lessons/import",
+        headers=headers,
+        files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
+    )
+    draft_id = create.json()["id"]
+
+    resp = await client.get("/api/v1/admin/lesson-drafts?page=1&size=50")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["page"] == 1
+    assert any(item["id"] == draft_id for item in body["items"])
 
 
 @pytest.mark.asyncio

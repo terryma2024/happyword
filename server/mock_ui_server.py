@@ -327,19 +327,26 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/admin/lesson-drafts")
     async def admin_list_drafts(
         status: str | None = None,
-        page: int = 0,
+        page: int = 1,
         size: int = 20,
     ) -> dict[str, Any]:
+        # Mirror the prod contract in `app/routers/admin_lessons.py`:
+        # `page` is 1-indexed (`Query(1, ge=1)`) and the slice is
+        # `(page - 1) * size`. Earlier the mock used 0-indexing, which
+        # masked a real-server bug where the client passed `page=0` and
+        # got HTTP 422 from the prod validator.
         filtered = list(_drafts.values())
         if status is not None:
             filtered = [d for d in filtered if d["status"] == status]
-        start = max(0, page) * max(1, size)
-        end = start + max(1, size)
+        normalized_page = max(1, page)
+        normalized_size = max(1, size)
+        start = (normalized_page - 1) * normalized_size
+        end = start + normalized_size
         return {
             "items": filtered[start:end],
             "total": len(filtered),
-            "page": page,
-            "size": size,
+            "page": normalized_page,
+            "size": normalized_size,
         }
 
     @app.get("/api/v1/admin/lesson-drafts/{draft_id}")

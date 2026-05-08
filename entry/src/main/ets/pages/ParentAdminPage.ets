@@ -141,8 +141,11 @@ struct ParentAdminPage {
 
   private async refreshPendingDrafts(): Promise<void> {
     try {
+      // Pages are 1-indexed on the server (Query(1, ge=1)); passing 0 here
+      // makes the GET return HTTP 422 and the pending list silently stays
+      // empty. See server/app/routers/admin_lessons.py::list_lesson_drafts.
       const page: LessonDraftListPage =
-        await this.client.listPendingLessonDrafts(0, PENDING_PAGE_SIZE);
+        await this.client.listPendingLessonDrafts(1, PENDING_PAGE_SIZE);
       this.pendingDrafts = page.items;
     } catch (err) {
       const be: BusinessError = err as BusinessError;
