@@ -90,11 +90,9 @@ struct DevMenuPage {
   // this session, hide the line.
   @State private lastProbeStatus: string = '';
   // Cached Vercel "Protection Bypass for Automation" secret. Hydrated
-  // from prefs in `aboutToAppear`; updated when the user enters /
-  // changes it via `BypassSecretDialog`. AppStorage is the source of
-  // truth for outgoing HTTP calls (see BackendHeaders.ets); this
-  // local mirror exists so the dialog can pre-fill the existing
-  // value when the user re-opens it.
+  // from prefs in `aboutToAppear`; updated via `BypassSecretPage` or
+  // first-time Preview flow (`BypassSecretDialog`). AppStorage is the
+  // source of truth for outgoing HTTP calls (see BackendHeaders.ets).
   @State private bypassSecret: string = '';
   // Local handle to the current dialog — held so the closure-driven
   // close path (mirrors AddCustomWishDialog) works regardless of
@@ -216,41 +214,6 @@ struct DevMenuPage {
     this.applyEnv(env, previewUrl, this.bypassSecret).catch((err: BusinessError): void => {
       console.error(`onCardTap.applyEnv failed: ${JSON.stringify(err)}`);
     });
-  }
-
-  /**
-   * Standalone "Edit bypass secret" path. Opens the dialog with the
-   * current cached secret pre-filled and persists the new value on
-   * submit WITHOUT triggering a probe or env switch — useful when
-   * the user just wants to fix a stale / rotated secret.
-   */
-  private openBypassEditDialog(): void {
-    let ctrl: CustomDialogController | null = null;
-    ctrl = new CustomDialogController({
-      builder: BypassSecretDialog({
-        initialSecret: this.bypassSecret,
-        onSubmit: (secret: string): void => {
-          if (ctrl !== null) {
-            ctrl.close();
-          }
-          this.bypassSecret = secret;
-          saveBypassSecret(secret).then((): void => {
-            this.showToast('Bypass secret saved');
-          }).catch((err: BusinessError): void => {
-            console.error(`saveBypassSecret failed: ${JSON.stringify(err)}`);
-          });
-        },
-        onCancel: (): void => {
-          if (ctrl !== null) {
-            ctrl.close();
-          }
-        },
-      }),
-      autoCancel: true,
-      customStyle: true,
-    });
-    this.bypassDialog = ctrl;
-    ctrl.open();
   }
 
   /**
@@ -547,24 +510,6 @@ struct DevMenuPage {
           .fontSize(11)
           .fontColor('#999999')
           .margin({ top: 8 });
-
-        // Bypass-secret editor — shown whenever a secret is cached so
-        // the user can update it after a Vercel rotation without
-        // having to tap a Preview card and trigger an env switch.
-        // First-time entry happens implicitly on Preview card tap
-        // (see `openBypassDialog`).
-        if (this.bypassSecret.length > 0) {
-          Button('Edit Vercel bypass secret')
-            .id('DevMenuEditBypassSecretButton')
-            .fontSize(13)
-            .height(36)
-            .margin({ top: 12 })
-            .backgroundColor('#F1F2F4')
-            .fontColor('#1D3557')
-            .onClick((): void => {
-              this.openBypassEditDialog();
-            });
-        }
 
         if (this.lastProbeStatus.length > 0) {
           // Pinned debug line — shows the most recent /api/v1/health
