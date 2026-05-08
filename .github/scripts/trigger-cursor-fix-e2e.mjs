@@ -7,13 +7,21 @@
 // commit the fix back to that branch (no new PR).
 //
 // Guards:
-//   1. Per-SHA debounce — at most one Cursor agent per (PR, head SHA), keyed
-//      by a hidden marker comment. Bypass via FORCE_TRIGGER=1.
+//   1. Per-SHA debounce — at most one *new* Cursor agent per (PR, head SHA),
+//      keyed by a hidden marker comment. Bypass via FORCE_TRIGGER=1, or when
+//      the latest commit message embeds a resumable cloud agent id (see
+//      Agent.resume below).
 //   2. Per-PR round cap (MAX_ROUNDS) — once that many marker comments exist
 //      on the PR (auto + manual combined), refuse to trigger another agent.
 //   3. Unfixable failure filter — if the pytest log clearly indicates an
 //      environmental / deployment problem, refuse to trigger and explain why.
 //      Bypass via FORCE_TRIGGER=1.
+//
+// Resume (SDK): Agent.resume(agentId, { apiKey }) reattaches to an existing
+// cloud agent (ids typically `bc-…`); agent.send(...) appends a follow-up task.
+// We parse `https://cursor.com/agents/<id>` from the tip commit on PR_HEAD_REF
+// (footer added by the prior autofix). If Agent.get succeeds and the agent is
+// not permanently deleted, we resume instead of Agent.create.
 
 import fs from "node:fs";
 import process from "node:process";
@@ -247,6 +255,44 @@ function agentWebUrl(agentId) {
   return agentId ? `https://cursor.com/agents/${agentId}` : `https://cursor.com/dashboard/cloud-agents`;
 }
 
+/** Latest commit message on the PR head branch (GitHub REST). */
+async function getLatestCommitMessage(branch) {
+  const commits = await gh(
+    `/repos/${GITHUB_REPOSITORY}/commits?sha=${encodeURIComponent(branch)}&per_page=1`
+  );
+  if (!Array.isArray(commits) || commits.length === 0) {
+    return "";
+  }
+  const msg = commits[0]?.commit?.message;
+  return typeof msg === "string" ? msg : "";
+}
+
+/**
+ * Extract cloud agent id from autofix commit footer or any cursor.com/agents URL.
+ * IDs are typically `bc-…` for cloud (SDK routes by prefix).
+ */
+function parseAgentIdFromCommitMessage(message) {
+  if (!message || typeof message !== "string") {
+    return null;
+  }
+  const m = message.match(/cursor\.com\/agents\/([^\s)\]]+)/i);
+  return m ? m[1].trim() : null;
+}
+
+/** True if the agent still exists in Cursor Cloud (get succeeds). Archived counts as resumable (we unarchive on dispatch). */
+async function probeResumableAgent(agentId) {
+  if (!agentId) {
+    return false;
+  }
+  try {
+    await Agent.get(agentId, { apiKey: CURSOR_API_KEY });
+    return true;
+  } catch (e) {
+    console.log(`probeResumableAgent(${agentId}): not available — ${e?.message ?? e}`);
+    return false;
+  }
+}
+
 async function postPrComment(body) {
   await gh(`/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments`, {
     method: "POST",
@@ -306,7 +352,38 @@ function logCiSummary({ kind, agentId, runId, reason }) {
   }
 }
 
-async function dispatchAgent(logSnippet) {
+/**
+ * Append a new prompt to an existing cloud agent (same conversation / workspace).
+ * Preflight: Agent.get + Agent.unarchive when archived.
+ */
+async function dispatchResumeAgent(logSnippet, agentId) {
+  try {
+    const info = await Agent.get(agentId, { apiKey: CURSOR_API_KEY });
+    if (info.archived) {
+      await Agent.unarchive(agentId, { apiKey: CURSOR_API_KEY });
+    }
+
+    const agent = await Agent.resume(agentId, {
+      apiKey: CURSOR_API_KEY,
+    });
+
+    let runId = null;
+    try {
+      const dashboardUrl = agentWebUrl(agentId);
+      const prompt = buildPrompt(logSnippet, dashboardUrl);
+      const run = await agent.send(prompt);
+      runId = run?.id ?? null;
+    } finally {
+      await agent[Symbol.asyncDispose]?.();
+    }
+    return { agentId, runId };
+  } catch (e) {
+    console.log(`dispatchResumeAgent: failed for ${agentId} (${e?.message ?? e}); falling back to create`);
+    return null;
+  }
+}
+
+async function dispatchCreateAgent(logSnippet) {
   // We must explicitly pass `cloud:` — if both `local:` and `cloud:` are
   // omitted the SDK silently defaults to a local runtime, which is useless
   // inside a CI job that's about to exit.
@@ -366,6 +443,24 @@ async function main() {
     `PR #${PR_NUMBER}: ${priorRounds} prior autofix round(s); ${sameSha} for current SHA. Cap=${MAX_ROUNDS}, force=${FORCE}, source=${SOURCE}.`
   );
 
+  let reuseAgentId = null;
+  let resumeEligible = false;
+  try {
+    const commitMsg = await getLatestCommitMessage(PR_HEAD_REF);
+    reuseAgentId = parseAgentIdFromCommitMessage(commitMsg);
+    if (reuseAgentId) {
+      console.log(`Tip commit on ${PR_HEAD_REF} references agent id ${reuseAgentId}`);
+      resumeEligible = await probeResumableAgent(reuseAgentId);
+      if (resumeEligible) {
+        console.log(
+          `SDK Agent.get succeeded — will try Agent.resume + send (append task) instead of creating a new agent.`
+        );
+      }
+    }
+  } catch (e) {
+    console.log(`Latest-commit probe skipped: ${e?.message ?? e}`);
+  }
+
   // Round cap (per PR, across all SHAs).
   if (priorRounds >= MAX_ROUNDS) {
     const reason = `MAX_ROUNDS (${MAX_ROUNDS}) reached on PR #${PR_NUMBER}; ${priorRounds} agent(s) already triggered.`;
@@ -383,8 +478,9 @@ async function main() {
     return;
   }
 
-  // Per-SHA debounce.
-  if (sameSha > 0 && !FORCE) {
+  // Per-SHA debounce (new Agent.create only). Appending to an existing agent via
+  // Agent.resume bypasses this — typical when E2E is still red after a prior push.
+  if (sameSha > 0 && !FORCE && !resumeEligible) {
     console.log(`Skipping: agent already dispatched for SHA ${PR_HEAD_SHA}; use FORCE_TRIGGER=1 to override.`);
     logCiSummary({
       kind: "duplicate-sha",
@@ -413,9 +509,20 @@ async function main() {
     return;
   }
 
-  const { agentId, runId } = await dispatchAgent(log.snippet);
+  let dispatched = null;
+  if (resumeEligible && reuseAgentId) {
+    dispatched = await dispatchResumeAgent(log.snippet, reuseAgentId);
+    if (dispatched) {
+      console.log(`Resumed Cursor Cloud agent agentId=${dispatched.agentId} runId=${dispatched.runId}`);
+    }
+  }
+  if (!dispatched) {
+    dispatched = await dispatchCreateAgent(log.snippet);
+    console.log(`Spawned new Cursor Cloud agent agentId=${dispatched.agentId} runId=${dispatched.runId}`);
+  }
 
-  console.log(`Spawned Cursor Cloud agent agentId=${agentId} runId=${runId}`);
+  const { agentId, runId } = dispatched;
+
   console.log(`Track progress: ${agentWebUrl(agentId)}`);
   logCiSummary({ kind: "dispatched", agentId, runId });
 
