@@ -144,13 +144,12 @@ jobs:
         id: db_name
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         run: |
-          # Mirror app.config's runtime expansion. Vercel's deployment metadata
-          # may know the PR number while the Python runtime only receives the
-          # branch ref, so the E2E reset/injection target must follow the same
-          # branch-hash fallback the app uses.
+          # Mirror app.config's runtime expansion. Vercel preview deployments
+          # for PRs expose the PR id to the function runtime; branch refs still
+          # provide a deterministic fallback when that id is unavailable.
           BRANCH="${{ github.head_ref || github.ref_name }}"
           DB=$(MONGO_DB_NAME='happyword_pr_{pr}_e2e' \
-            VERCEL_GIT_PULL_REQUEST_ID='' \
+            VERCEL_GIT_PULL_REQUEST_ID='${{ github.event.pull_request.number }}' \
             VERCEL_GIT_COMMIT_REF="$BRANCH" \
             uv run python -m scripts.resolve_preview_db_name)
           echo "db_name=$DB" >> "$GITHUB_OUTPUT"
