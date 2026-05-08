@@ -43,6 +43,18 @@ def test_lesson_system_prompt_mentions_json() -> None:
     )
 
 
+def test_lesson_system_prompt_requests_example_en() -> None:
+    """Prompt must keep asking for the per-word ``example_en`` field
+    used downstream for cloze (fill-in-the-blank) exercises. Dropping
+    this would silently regress the parent-admin import contract: the
+    LessonImportDraft would still validate (the field is optional in
+    storage) but cloze generation would have no source sentence."""
+    assert "example_en" in lesson_service._LESSON_SYSTEM_PROMPT, (
+        "_LESSON_SYSTEM_PROMPT must request `example_en` per word — "
+        "downstream cloze generation depends on it."
+    )
+
+
 @pytest.mark.asyncio
 async def test_extract_lesson_payload_wraps_openai_error(
     monkeypatch: pytest.MonkeyPatch,
