@@ -482,6 +482,14 @@ struct DevMenuPage {
             .fontWeight(FontWeight.Bold)
             .margin({ left: 16 });
           Blank();
+          Button('BypassSecret')
+            .id('DevMenuBypassSecretButton')
+            .fontSize(13)
+            .height(36)
+            .enabled(!this.applying)
+            .onClick((): void => {
+              router.pushUrl({ url: 'pages/BypassSecretPage' });
+            });
           Button(this.manifestBusy ? 'Refreshing...' : 'Refresh manifest')
             .fontSize(13)
             .height(36)

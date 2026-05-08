@@ -4,7 +4,7 @@ import { loadBypassSecret, saveBypassSecret } from '../services/BackendEnv';
 
 @Entry
 @Component
-export struct BypassSecretPage {
+struct BypassSecretPage {
   @State private secret: string = '';
   @State private errorMessage: string = '';
 
