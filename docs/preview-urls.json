@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-08T08:51:26.840Z",
+  "updated_at": "2026-05-08T10:56:05.743Z",
   "previews": [
     {
       "pr": 47,
       "title": "fix(server): redeem pair token by prefix so QR scan binding works",
       "branch": "cursor/93cd3bd3",
-      "url": "https://happyword-lbepkadzq-terrymas-projects.vercel.app",
+      "url": "https://happyword-97phnxkvd-terrymas-projects.vercel.app",
       "author": "terryma2024",
-      "head_sha": "ab3563c",
-      "updated_at": "2026-05-08T08:51:24.228Z"
+      "head_sha": "e4798b5",
+      "updated_at": "2026-05-08T10:56:03.753Z"
     },
     {
       "pr": 46,
@@ -18,7 +18,7 @@
       "url": "https://happyword-ja7fxbgy1-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "6b18455",
-      "updated_at": "2026-05-08T08:51:24.512Z"
+      "updated_at": "2026-05-08T10:56:03.926Z"
     },
     {
       "pr": 45,
@@ -27,7 +27,7 @@
       "url": "https://happyword-ibhhrg9bc-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "24e1ab8",
-      "updated_at": "2026-05-08T08:51:24.809Z"
+      "updated_at": "2026-05-08T10:56:04.134Z"
     },
     {
       "pr": 44,
@@ -36,7 +36,7 @@
       "url": "https://happyword-9k495u58r-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "4769b4e",
-      "updated_at": "2026-05-08T08:51:25.412Z"
+      "updated_at": "2026-05-08T10:56:04.613Z"
     },
     {
       "pr": 43,
@@ -45,7 +45,7 @@
       "url": "https://happyword-7cacsgu0n-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "fa8d0bd",
-      "updated_at": "2026-05-08T08:51:25.699Z"
+      "updated_at": "2026-05-08T10:56:04.847Z"
     },
     {
       "pr": 42,
@@ -54,7 +54,7 @@
       "url": "https://happyword-pty6a2kvv-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "ca12420",
-      "updated_at": "2026-05-08T08:51:25.990Z"
+      "updated_at": "2026-05-08T10:56:05.070Z"
     },
     {
       "pr": 41,
@@ -63,7 +63,7 @@
       "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "d3bdcd3",
-      "updated_at": "2026-05-08T08:51:26.302Z"
+      "updated_at": "2026-05-08T10:56:05.326Z"
     },
     {
       "pr": 40,
@@ -72,7 +72,7 @@
       "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "e6abbc1",
-      "updated_at": "2026-05-08T08:51:26.589Z"
+      "updated_at": "2026-05-08T10:56:05.488Z"
     },
     {
       "pr": 30,
@@ -81,7 +81,7 @@
       "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "69fc795",
-      "updated_at": "2026-05-08T08:51:26.840Z"
+      "updated_at": "2026-05-08T10:56:05.743Z"
     }
   ]
 }
