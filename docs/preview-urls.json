@@ -1,7 +1,16 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-07T12:38:55.233Z",
+  "updated_at": "2026-05-08T00:40:22.775Z",
   "previews": [
+    {
+      "pr": 43,
+      "title": "feat(client): debug version triple-tap → DevMenuPage v0.6.1 unified card grid",
+      "branch": "feature/home-version-triple-tap",
+      "url": "https://happyword-g7g78jgcl-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "4f7a8a9",
+      "updated_at": "2026-05-08T00:40:21.840Z"
+    },
     {
       "pr": 42,
       "title": "ci(preview-manifest): rebuild from Vercel deployments instead of PR webhook",
@@ -9,7 +18,7 @@
       "url": "https://happyword-pty6a2kvv-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "ca12420",
-      "updated_at": "2026-05-07T12:38:54.203Z"
+      "updated_at": "2026-05-08T00:40:22.068Z"
     },
     {
       "pr": 41,
@@ -18,7 +27,7 @@
       "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "d3bdcd3",
-      "updated_at": "2026-05-07T12:38:54.586Z"
+      "updated_at": "2026-05-08T00:40:22.288Z"
     },
     {
       "pr": 40,
@@ -27,7 +36,7 @@
       "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "e6abbc1",
-      "updated_at": "2026-05-07T12:38:54.888Z"
+      "updated_at": "2026-05-08T00:40:22.533Z"
     },
     {
       "pr": 30,
@@ -36,7 +45,7 @@
       "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "69fc795",
-      "updated_at": "2026-05-07T12:38:55.233Z"
+      "updated_at": "2026-05-08T00:40:22.775Z"
     }
   ]
 }
