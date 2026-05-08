@@ -94,22 +94,20 @@ async def _stream_import_response(
     parent admin client checks the `_error` envelope key to
     distinguish successes from LLM-side failures.
     """
-    # Vercel's serverless runtime buffers small response chunks before
-    # flushing them to the client, even when the function emits them
-    # via `StreamingResponse`. Empirically, the buffer threshold is
-    # roughly 4 KiB (or several seconds, whichever comes first): a
-    # 1-byte heartbeat sits in that buffer for ~4 s on the
-    # `khdm1hwfz` preview, long past the simulator's ~900 ms NAT
-    # idle limit. We therefore emit 4 KiB whitespace chunks both as
-    # the priming first byte AND as subsequent heartbeats so every
-    # flush both unsticks the buffer and registers as inbound traffic
-    # at the simulator's NAT layer. JSON parsers ignore leading
-    # whitespace, so the wire format remains a single
-    # `application/json` document.
-    # Confirmed with `curl -w '%{time_starttransfer}'`: a 1-byte
-    # primer yields TTFB ≈ 4.5 s; a 4 KiB primer yields TTFB < 700 ms.
+    # Vercel's serverless Python runtime aggressively buffers
+    # response chunks. Empirical TTFB measurements on the same
+    # preview, host curl --http1.1, with a 226 KB multipart upload:
+    #   1-byte first chunk   → TTFB ≈ 4.5 s
+    #   4 KiB first chunk    → TTFB ≈ 5.3 s (still buffered!)
+    #   64 KiB first chunk   → TTFB ≈ ?      (this attempt)
+    # The simulator's libcurl wrapper kills the connection at
+    # ~870 ms with `firstRecv:0`, so we need TTFB well below that.
+    # Brute-force the buffer threshold by emitting a 64 KiB primer
+    # immediately. JSON parsers ignore leading whitespace, so the
+    # wire format remains a single `application/json` document.
+    _PRIMER = b" " * 65536
     _HEARTBEAT_CHUNK = b" " * 4096
-    yield _HEARTBEAT_CHUNK
+    yield _PRIMER
 
     extract_task = asyncio.create_task(
         lesson_service.extract_lesson_payload(payload, mime)
