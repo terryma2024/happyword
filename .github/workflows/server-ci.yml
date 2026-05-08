@@ -123,15 +123,15 @@ jobs:
       - name: Deploy Vercel preview (E2E-controlled)
         id: vercel_deploy
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
-        # Run from the repo root because the Vercel project already has
-        # `server` configured as its root directory.
+        # Run from the server root so Vercel validates server/vercel.json
+        # against server/api/index.py.
         # Do not rely on a detected branch preview for E2E: if that deployment
         # was created before the PR existed, Vercel leaves
         # VERCEL_GIT_PULL_REQUEST_ID empty at runtime and the app resolves a
         # branch-fallback Mongo DB while the test runner resets happyword_pr_N_e2e.
         # This CLI deployment injects stable PR metadata so both sides use the
         # same isolated database.
-        working-directory: .
+        working-directory: server
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

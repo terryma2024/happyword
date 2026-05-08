@@ -28,6 +28,7 @@ def test_e2e_uses_cli_preview_deployment_with_pr_metadata() -> None:
 
     deploy_step = _step_with_id(workflow, "vercel_deploy")
     assert "if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}" in deploy_step
+    assert "working-directory: server" in deploy_step
     assert "steps.detect_preview.outputs.preview_url == ''" not in deploy_step
 
     e2e_step = _step_named(workflow, "Run E2E pytest subset")
