@@ -20,7 +20,7 @@ struct BypassSecretPage {
 
   build(): void {
     Column({ space: 12 }) {
-      Text('Bypass secret')
+      Text('Bypass Secret')
         .id('BypassSecretPageTitle')
         .fontSize(20)
         .fontWeight(FontWeight.Bold);
