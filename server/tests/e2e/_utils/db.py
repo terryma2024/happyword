@@ -13,6 +13,15 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 MongoDB = AsyncIOMotorDatabase[dict[str, object]]
 
 
+def _missing_otp_row_message(db: MongoDB, email: str) -> str:
+    return (
+        f"No email_verifications row for {email!r} in E2E DB {db.name!r}. "
+        "The request-code endpoint returned 202, so this usually means the "
+        "GitHub E2E_MONGODB_URI / E2E_MONGO_DB_NAME secrets do not point at "
+        "the same Mongo URI and DB name used by the Vercel preview deployment."
+    )
+
+
 async def inject_otp_code(
     db: MongoDB,
     *,
@@ -32,7 +41,7 @@ async def inject_otp_code(
     row = await db["email_verifications"].find_one(
         {"email": email}, sort=[("created_at", -1)]
     )
-    assert row is not None, f"No email_verifications row for {email!r}"
+    assert row is not None, _missing_otp_row_message(db, email)
     code_hash = bcrypt.hashpw(plain_code.encode("utf-8"), bcrypt.gensalt()).decode(
         "utf-8"
     )

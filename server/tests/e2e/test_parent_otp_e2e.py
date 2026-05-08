@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from tests.e2e._utils.auth import KNOWN_OTP_CODE, ParentSession, parent_login
-from tests.e2e._utils.db import MongoDB, inject_otp_code
+from tests.e2e._utils.db import MongoDB, _missing_otp_row_message, inject_otp_code
 
 
 @pytest.mark.e2e
@@ -27,7 +27,7 @@ async def test_request_code_returns_202(
     assert body["expires_in_minutes"] > 0
     # Row should exist now.
     row = await mongo["email_verifications"].find_one({"email": email})
-    assert row is not None
+    assert row is not None, _missing_otp_row_message(mongo, email)
 
 
 @pytest.mark.e2e
