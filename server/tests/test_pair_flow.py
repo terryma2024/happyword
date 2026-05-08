@@ -121,6 +121,30 @@ async def test_redeem_token_creates_binding_and_returns_device_token(
 
 
 @pytest.mark.asyncio
+async def test_redeem_with_qr_token_prefix(
+    parent_client: tuple[AsyncClient, str],
+) -> None:
+    """Mirror the production QR flow: client extracts the 12-char prefix
+    from `/p/<prefix>` (see `_qr_payload_url`) and posts that, not the full
+    32-char hex token. Without prefix-aware lookup this regresses to a
+    404 TOKEN_INVALID even though the token row is healthy and pending.
+    """
+    ac, family_id = parent_client
+    r = await ac.post("/api/v1/parent/pair/create")
+    full_token = r.json()["token"]
+    qr_url = r.json()["qr_payload_url"]
+    token_prefix = qr_url.rsplit("/p/", 1)[-1]
+    assert len(token_prefix) == 12
+    assert full_token.startswith(token_prefix)
+    rd = await ac.post(
+        "/api/v1/pair/redeem",
+        json={"token": token_prefix, "device_id": "dev-qrprefix01"},
+    )
+    assert rd.status_code == 200, rd.text
+    assert rd.json()["family_id"] == family_id
+
+
+@pytest.mark.asyncio
 async def test_redeem_short_code(parent_client: tuple[AsyncClient, str]) -> None:
     ac, _ = parent_client
     r = await ac.post("/api/v1/parent/pair/create")
@@ -177,6 +201,22 @@ async def test_redeem_unknown_token_returns_404(
     ac, _ = parent_client
     rd = await ac.post(
         "/api/v1/pair/redeem", json={"token": "0" * 32, "device_id": "dev-unknown"}
+    )
+    assert rd.status_code == 404
+    assert rd.json()["detail"]["error"]["code"] == "TOKEN_INVALID"
+
+
+@pytest.mark.asyncio
+async def test_redeem_non_hex_unknown_token_returns_404(
+    parent_client: tuple[AsyncClient, str],
+) -> None:
+    ac, _ = parent_client
+    rd = await ac.post(
+        "/api/v1/pair/redeem",
+        json={
+            "token": "no-such-token-local-padding",
+            "device_id": "dev-unknown-nonhex",
+        },
     )
     assert rd.status_code == 404
     assert rd.json()["detail"]["error"]["code"] == "TOKEN_INVALID"

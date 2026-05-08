@@ -24,8 +24,12 @@ class PairStatusOut(BaseModel):
 
 
 class PairRedeemIn(BaseModel):
-    token: str | None = None
-    short_code: str | None = None
+    # Token may be a 12-char QR prefix (from `/p/<prefix>`, see
+    # `pair._qr_payload_url`) or the full 32-char hex token. Keep the
+    # schema lenient so unknown token-like values consistently map to the
+    # public TOKEN_INVALID contract instead of leaking validation details.
+    token: str | None = Field(default=None, min_length=8, max_length=64)
+    short_code: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
     device_id: str = Field(min_length=8, max_length=128)
 
 

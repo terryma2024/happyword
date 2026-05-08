@@ -18,8 +18,11 @@ Configuration (spec §V0.6.2):
   cross-family rebind always creates a fresh child.
 """
 
+import re
 import secrets
 from datetime import UTC, datetime, timedelta
+
+from beanie.operators import RegEx
 
 from app.models.child_profile import ChildProfile
 from app.models.device_binding import DeviceBinding
@@ -27,6 +30,18 @@ from app.models.pair_token import PairToken, PairTokenStatus
 from app.services.auth_service import create_device_token
 
 PAIR_TOKEN_TTL_SECONDS = 3 * 60
+
+# Length of the token prefix the server embeds in the public `/p/<prefix>`
+# QR URL (see `pair._qr_payload_url`). The HarmonyOS client extracts this
+# prefix from the scanned URL and posts it back to `/api/v1/pair/redeem`
+# as `token`, so redeem lookup must accept either the 12-char prefix or
+# the full 32-char hex token (the latter is used by the parent web's own
+# status / cancel calls and by tests / CLI tools).
+PAIR_TOKEN_QR_PREFIX_LEN = 12
+# Lowercase hex; `re.escape` is a no-op for these chars but we still
+# validate before splicing into the regex pattern as a defence-in-depth
+# guard in case the schema validation is ever loosened.
+_TOKEN_HEX_RE = re.compile(r"^[0-9a-f]{12,32}$")
 
 
 class PairServiceError(Exception):
@@ -154,7 +169,15 @@ async def redeem(
     if not token and not short_code:
         raise PairTokenInvalid
     if token:
-        pt = await PairToken.find_one(PairToken.token == token)
+        # Accept either the 12-char QR prefix or the full 32-char token via
+        # an anchored regex prefix match. The `token` field has a unique
+        # index, so a 32-char input still resolves to an indexed equality
+        # lookup; for a 12-char prefix Mongo can use the same index range
+        # scan. With 48 bits of entropy in the prefix and at most a handful
+        # of active tokens per family, prefix collisions are negligible.
+        if not _TOKEN_HEX_RE.match(token):
+            raise PairTokenInvalid
+        pt = await PairToken.find_one(RegEx(PairToken.token, pattern=f"^{token}"))
     else:
         pt = await PairToken.find_one(PairToken.short_code == short_code)
     if pt is None:
