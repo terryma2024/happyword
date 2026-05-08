@@ -79,7 +79,13 @@ find_bounds_by_id() {
     open(my $fh, "<", $file) or die "open $file: $!";
     local $/;
     my $txt = <$fh>;
+    # The dumpLayout JSON does not guarantee key order inside the attributes object.
+    # Match either bounds-after-id or bounds-before-id within the same object.
     if ($txt =~ /"id"\s*:\s*"\Q$id\E"[^}]*?"bounds"\s*:\s*"(\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\])"/s) {
+      print $1;
+      exit 0;
+    }
+    if ($txt =~ /"bounds"\s*:\s*"(\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\])"[^}]*?"id"\s*:\s*"\Q$id\E"/s) {
       print $1;
       exit 0;
     }
