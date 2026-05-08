@@ -94,27 +94,13 @@ async def _stream_import_response(
     parent admin client checks the `_error` envelope key to
     distinguish successes from LLM-side failures.
     """
-    # Vercel's serverless runtime buffers small response chunks before
-    # flushing them to the client, even when the function emits them
-    # via `StreamingResponse`. Empirically, the buffer threshold is
-    # roughly 4 KiB (or several seconds, whichever comes first): a
-    # 1-byte heartbeat sits in that buffer for ~4 s on the
-    # `khdm1hwfz` preview, long past the simulator's ~900 ms NAT
-    # idle limit. We therefore emit 4 KiB whitespace chunks both as
-    # the priming first byte AND as subsequent heartbeats so every
-    # flush both unsticks the buffer and registers as inbound traffic
-    # at the simulator's NAT layer. JSON parsers ignore leading
-    # whitespace, so the wire format remains a single
-    # `application/json` document.
-    # Confirmed with `curl -w '%{time_starttransfer}'`: a 1-byte
-    # primer yields TTFB ≈ 4.5 s; a 4 KiB primer yields TTFB < 700 ms.
-    _HEARTBEAT_CHUNK = b" " * 4096
-    yield _HEARTBEAT_CHUNK
+    yield b" "  # immediate first byte: opens the stream so the simulator's NAT
+    # entry sees inbound traffic before the OpenAI roundtrip starts.
 
     extract_task = asyncio.create_task(
         lesson_service.extract_lesson_payload(payload, mime)
     )
-    # Heartbeat loop: yield a 4 KiB whitespace chunk every
+    # Heartbeat loop: yield a single space byte every
     # `_IMPORT_HEARTBEAT_S` until the extraction task settles. We
     # loop on `asyncio.wait_for(asyncio.shield(extract_task), ...)`
     # rather than `extract_task.done()` because if the task completes
@@ -126,7 +112,7 @@ async def _stream_import_response(
         try:
             await asyncio.wait_for(asyncio.shield(extract_task), timeout=_IMPORT_HEARTBEAT_S)
         except TimeoutError:
-            yield _HEARTBEAT_CHUNK
+            yield b" "
             continue
         except (LlmConfigError, LlmCallError):
             # Task is done with an exception; fall through to the
