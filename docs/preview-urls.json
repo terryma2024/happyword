@@ -1,7 +1,16 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-08T02:25:02.631Z",
+  "updated_at": "2026-05-08T07:27:00.080Z",
   "previews": [
+    {
+      "pr": 45,
+      "title": "DevMenu: BypassSecret page + hdc init automation + happyword.cool rename",
+      "branch": "cursor/devmenu-bypass-secret-automation",
+      "url": "https://happyword-ibhhrg9bc-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "24e1ab8",
+      "updated_at": "2026-05-08T07:26:58.759Z"
+    },
     {
       "pr": 44,
       "title": "chore(vercel): remove ignoreCommand from server vercel.json",
@@ -9,7 +18,7 @@
       "url": "https://happyword-9k495u58r-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "4769b4e",
-      "updated_at": "2026-05-08T02:25:01.260Z"
+      "updated_at": "2026-05-08T07:26:59.102Z"
     },
     {
       "pr": 43,
@@ -18,7 +27,7 @@
       "url": "https://happyword-7cacsgu0n-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "fa8d0bd",
-      "updated_at": "2026-05-08T02:25:01.523Z"
+      "updated_at": "2026-05-08T07:26:59.280Z"
     },
     {
       "pr": 42,
@@ -27,7 +36,7 @@
       "url": "https://happyword-pty6a2kvv-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "ca12420",
-      "updated_at": "2026-05-08T02:25:01.811Z"
+      "updated_at": "2026-05-08T07:26:59.524Z"
     },
     {
       "pr": 41,
@@ -36,7 +45,7 @@
       "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "d3bdcd3",
-      "updated_at": "2026-05-08T02:25:02.082Z"
+      "updated_at": "2026-05-08T07:26:59.693Z"
     },
     {
       "pr": 40,
@@ -45,7 +54,7 @@
       "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "e6abbc1",
-      "updated_at": "2026-05-08T02:25:02.374Z"
+      "updated_at": "2026-05-08T07:26:59.930Z"
     },
     {
       "pr": 30,
@@ -54,7 +63,7 @@
       "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "69fc795",
-      "updated_at": "2026-05-08T02:25:02.631Z"
+      "updated_at": "2026-05-08T07:27:00.080Z"
     }
   ]
 }
