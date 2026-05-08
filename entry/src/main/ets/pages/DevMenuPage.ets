@@ -486,6 +486,7 @@ struct DevMenuPage {
             .id('DevMenuBypassSecretButton')
             .fontSize(13)
             .height(36)
+            .margin({ right: 10 })
             .enabled(!this.applying)
             .onClick((): void => {
               router.pushUrl({ url: 'pages/BypassSecretPage' });
