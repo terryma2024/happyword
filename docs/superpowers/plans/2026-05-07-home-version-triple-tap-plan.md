@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Wire a debug-only `v0.6.0(YYMMDDHHmm)` label onto HomePage's top-left (minute precision — seconds dropped), make a triple-tap (≤1500ms window between taps) navigate to `DevMenuPage` with PREVIEW pre-selected, and re-render the `DevMenuPage` manifest list as cards showing **title** (max 3 lines) and **`#PR(sha)`** centered. Bumping `AppScope/app.json5` `versionName` from `1.0.0` → `0.6.0` is part of this plan (matches the V0.6 in-flight major version in [`docs/WordMagicGame_roadmap.md`](../../WordMagicGame_roadmap.md)).
+**Goal:** Wire a debug-only `v0.6.0(YYMMDDHHmm)` label onto HomePage's top-left (minute precision — seconds dropped), make a triple-tap (**1500ms** `VersionTripleTap` window) navigate to `DevMenuPage`, and render backend picks as **cards** (**v0.6.1+ unified grid** — Local, Staging, manifest previews — tap-to-apply per spec §11). Bumping `AppScope/app.json5` `versionName` from `1.0.0` → `0.6.0` is part of this plan (matches the V0.6 in-flight major version in [`docs/WordMagicGame_roadmap.md`](../../WordMagicGame_roadmap.md)).
 
-**Architecture:** Two new pure helper modules (`VersionTripleTap`, `BuildInfo`) keep the counting and timestamp formatting unit-testable. `HomePage` mounts the version `Text` (gated on `BuildProfile.BUILD_MODE_NAME === 'debug'`), holds a `VersionTripleTap` instance, and pushes `pages/DevMenuPage` with `params: { presetEnv: 'preview' }` on the third tap. `DevMenuPage` replaces its existing single-line manifest button rows with a `@Builder previewCard` and reads `router.getParams()` after `hydrate()` to honour the preset.
+**Architecture:** Two new pure helper modules (`VersionTripleTap`, `BuildInfo`) keep the counting and timestamp formatting unit-testable. `HomePage` mounts the version `Text` (gated on `BuildProfile.BUILD_MODE_NAME === 'debug'`), holds a `VersionTripleTap` instance, and pushes `pages/DevMenuPage` with `params: { presetEnv: 'preview' }` on the third tap (param kept for compatibility). **`DevMenuPage`** implements the **unified card grid + tap-to-apply** flow — see spec **§11** and live `DevMenuPage.ets` (Phase C in this plan is archival).
 
-**Tech Stack:** ArkTS / HarmonyOS NEXT, ArkUI declarative components, `@ohos/hypium` v1 unit tests, `@kit.TestKit` (`Driver`, `ON`) UI tests, `@ohos.bundle.bundleManager`, project-existing `BackendEnv` / `PreviewManifestService` (untouched).
+**Tech Stack:** ArkTS / HarmonyOS NEXT, ArkUI declarative components, `@ohos/hypium` v1 unit tests, `@kit.TestKit` (`Driver`, `ON`) UI tests, `@ohos.bundle.bundleManager`, project-existing `BackendEnv` / `PreviewManifestService` / **`PREVIEW_MANIFEST_JSON_URL`** (manifest origin pinned to production — §12 of this spec).
 
 **Spec:** [`docs/superpowers/specs/2026-05-07-home-version-triple-tap-design.md`](../specs/2026-05-07-home-version-triple-tap-design.md)
 
@@ -23,12 +23,12 @@
 | `entry/src/test/BuildInfo.test.ets` | **create** | Unit tests for `formatBuildTimestamp` (2 cases). |
 | `entry/src/test/List.test.ets` | modify | Register the two new test suites. |
 | `entry/src/main/ets/pages/HomePage.ets` | modify | Add top-left version `Text`, hold `VersionTripleTap` instance, push `DevMenuPage` on triple-tap. Debug-only. |
-| `entry/src/main/ets/pages/DevMenuPage.ets` | modify | Replace the inner manifest renderer with a `@Builder previewCard`; honour `router.getParams().presetEnv === 'preview'` after `hydrate()`. Bump scroll height 140 → 320. |
-| `entry/src/ohosTest/ets/test/HomeVersionTap.ui.test.ets` | **create** | UI test: label exists; triple-tap navigates to DevMenu; gap > 1s does not fire. |
-| `entry/src/ohosTest/ets/test/DevMenuCardList.ui.test.ets` | **create** | UI test: cards render `#PR(sha)` and title; tap selects without navigating; Apply still works (smoke). |
+| `entry/src/main/ets/pages/DevMenuPage.ets` | modify | Unified card grid (Local, Staging, manifest previews); tap-to-apply via `onCardTap`; Preview probes may use bypass-secret dialog. See live `DevMenuPage.ets` — `presetEnv` from HomePage triple-tap is kept on the route for compatibility but not read in `aboutToAppear`. |
+| `entry/src/ohosTest/ets/test/HomeVersionTap.ui.test.ets` | **create** | UI test: label exists; triple-tap navigates to DevMenu (assert **`Developer options`** header — Apply removed in v0.6.1); gap exceeding **1500ms** window does not fire. |
+| `entry/src/ohosTest/ets/test/DevMenuCardList.ui.test.ets` | **create** | UI test: Local + Staging cards always present; optional preview cards when manifest loads; **staging card tap** runs apply pipeline and returns to Home (`replaceUrl`). Manifest GET uses **`PREVIEW_MANIFEST_JSON_URL`** only. |
 | `entry/src/ohosTest/ets/test/List.test.ets` | modify | Register both new UI suites. Order matters — see Task D3. |
 
-No new `BackendEnv`, `PreviewManifestService`, `RemoteWordPackConfig`, or build profile changes. The plan adds two service modules, modifies two pages, and adds two UI test files.
+No new `BackendEnv`, `PreviewManifestService`, `RemoteWordPackConfig`, or build profile changes beyond what the backend-env-switcher spec records (**`PREVIEW_MANIFEST_JSON_URL`** pinning). The plan adds two service modules, modifies two pages, and adds two UI test files.
 
 ---
 
@@ -491,149 +491,52 @@ git commit -m "feat(client): HomePage version label + triple-tap → DevMenuPage
 
 ## Phase C — DevMenuPage card refactor
 
-### Task C1: DevMenuPage replaces preview list with card builder + reads `presetEnv`
+> **Revision 2026-05-08:** The collapsible section below records the **v0.6.0** “preview-only cards + `presetEnv` + Apply” migration. **Shipped main** is **v0.6.1+**: unified Local / Staging / Preview card grid, **tap-to-apply** (`onCardTap`), optional **bypass-secret** dialog for Preview probes, manifest fetch **only** via **`PREVIEW_MANIFEST_JSON_URL`**, and **`presetEnv` not consumed** in `aboutToAppear`. Canonical implementation: `entry/src/main/ets/pages/DevMenuPage.ets`; boundary notes: design spec §12.
+
+### Task C1: DevMenuPage — align with live `DevMenuPage.ets`
 
 **Files:**
-- Modify: `entry/src/main/ets/pages/DevMenuPage.ets`
 
-This task touches two regions of `DevMenuPage.ets`. We do it in one task because both edits land in the same file and reviewing the file diff together is cheaper than reviewing two micro-PRs.
+- Canonical: `entry/src/main/ets/pages/DevMenuPage.ets`
 
-- [ ] **Step 1: Honour `presetEnv` after hydrate**
+- [ ] **Step 1: Confirm behaviour matches spec §12**
 
-Replace the existing `aboutToAppear` (lines 51–55):
+Unified card grid; Preview rows use `DevMenuPreviewCard_<pr>`; card tap runs env switch / probe / audit / toast; no separate Apply control.
 
-```typescript
-  aboutToAppear(): void {
-    this.hydrate().catch((err: BusinessError): void => {
-      console.error(`DevMenuPage.hydrate failed: ${JSON.stringify(err)}`);
-    });
-  }
-```
-
-with:
-
-```typescript
-  aboutToAppear(): void {
-    this.hydrate().then((): void => {
-      const params: Record<string, string> | undefined =
-        router.getParams() as Record<string, string> | undefined;
-      if (params !== undefined && params['presetEnv'] === 'preview') {
-        this.pendingEnv = BackendEnv.PREVIEW;
-      }
-    }).catch((err: BusinessError): void => {
-      console.error(`DevMenuPage.hydrate failed: ${JSON.stringify(err)}`);
-    });
-  }
-```
-
-`router` is already imported (line 1).
-
-- [ ] **Step 2: Add the `previewCard` @Builder**
-
-After the existing `private async onApply(): Promise<void> { ... }` method (line 150), and before `build(): void`, add the builder:
-
-```typescript
-  @Builder
-  private previewCard(row: ManifestRow): void {
-    Column({ space: 8 }) {
-      Text(row.title)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#222222')
-        .width('100%')
-        .maxLines(3)
-        .textOverflow({ overflow: TextOverflow.Ellipsis });
-
-      Row() {
-        Text(`#${row.pr}(${row.head_sha.length > 7 ? row.head_sha.substring(0, 7) : row.head_sha})`)
-          .fontSize(13)
-          .fontColor('#555555');
-      }
-      .width('100%')
-      .justifyContent(FlexAlign.Center);
-    }
-    .id(`DevMenuPreviewCard_${row.pr}`)
-    .width('100%')
-    .padding(12)
-    .borderRadius(12)
-    .backgroundColor(this.selectedManifestUrl === row.url ? '#CDE8FF' : '#F5F5F5')
-    .border({ width: 1, color: this.selectedManifestUrl === row.url ? '#457B9D' : '#E0E0E0' })
-    .onClick((): void => {
-      this.selectedManifestUrl = row.url;
-      this.pasteUrl = '';
-    });
-  }
-```
-
-The 7-char short-sha guard handles `head_sha` strings that are already shorter than 7 chars (the manifest already stores 7-char shas, but the guard prevents an out-of-range substring exception if the field shape ever drifts).
-
-- [ ] **Step 3: Replace the inner manifest renderer**
-
-Replace lines 195–213 — the block:
-
-```typescript
-        if (this.manifest !== null && this.manifest.previews.length > 0) {
-          Scroll() {
-            Column({ space: 6 }) {
-              ForEach(this.manifest.previews, (row: ManifestRow) => {
-                Button(`#${row.pr} ${row.title}`)
-                  .fontSize(12)
-                  .height(32)
-                  .width('100%')
-                  .backgroundColor(this.selectedManifestUrl === row.url ? '#CDE8FF' : '#F5F5F5')
-                  .onClick((): void => {
-                    this.selectedManifestUrl = row.url;
-                    this.pasteUrl = '';
-                  });
-              }, (row: ManifestRow) => `${row.pr}-${row.url}`);
-            };
-          }
-          .height(140)
-          .margin({ bottom: 8 });
-        }
-```
-
-with:
-
-```typescript
-        if (this.manifest !== null && this.manifest.previews.length > 0) {
-          Scroll() {
-            Column({ space: 8 }) {
-              ForEach(this.manifest.previews, (row: ManifestRow) => {
-                this.previewCard(row);
-              }, (row: ManifestRow) => `${row.pr}-${row.url}`);
-            }
-          }
-          .height(320)
-          .margin({ bottom: 8 });
-        }
-```
-
-- [ ] **Step 4: Build the HAP and run codelinter**
+- [ ] **Step 2: Build the HAP and run codelinter**
 
 ```sh
 hvigorw assembleHap
 ```
-Expected: exit 0.
 
 ```sh
 codelinter -c ./code-linter.json5 . --fix
 ```
-Expected: exit 0, no errors.
 
-- [ ] **Step 5: Run no-device unit tests**
+- [ ] **Step 3: Run no-device unit tests**
 
 ```sh
 hvigorw -p module=entry@default test
 ```
-Expected: all suites pass; no regressions.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Commit** (when changing DevMenu in this branch)
 
 ```sh
 git add entry/src/main/ets/pages/DevMenuPage.ets
-git commit -m "feat(client): DevMenuPage manifest list as cards (title + #PR(sha)) + presetEnv route param"
+git commit -m "feat(client): DevMenuPage unified env cards + tap-to-apply"
 ```
+
+<details>
+<summary>Archived steps (v0.6.0 preview-only list — superseded)</summary>
+
+### Task C1 (archived): preview list → `previewCard` + `presetEnv`
+
+**Files:**
+- Modify: `entry/src/main/ets/pages/DevMenuPage.ets`
+
+- [ ] **Step 1: Honour `presetEnv` after hydrate** … **Step 3: Replace inner manifest renderer** — see git history / pre-v0.6.1 plan revisions for full snippets (`previewCard` @Builder, scroll height 320).
+
+</details>
 
 ---
 
@@ -648,103 +551,13 @@ UI tests run in `ohosTest`, which always builds in debug mode, so `BuildProfile.
 
 - [ ] **Step 1: Write the UI test file**
 
-Create `entry/src/ohosTest/ets/test/HomeVersionTap.ui.test.ets`:
+Create `entry/src/ohosTest/ets/test/HomeVersionTap.ui.test.ets`. **Do not paste stale snippets here** — the canonical source is checked in at [`entry/src/ohosTest/ets/test/HomeVersionTap.ui.test.ets`](../../../entry/src/ohosTest/ets/test/HomeVersionTap.ui.test.ets).
 
-```typescript
-import { describe, it, expect } from '@ohos/hypium';
-import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
-import { Want } from '@kit.AbilityKit';
-import { clickByIdShared } from './RoutingFlow.ui.test';
+**Invariants to preserve when editing:**
 
-const BUNDLE: string = 'com.terryma.wordmagicgame';
-const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
-  abilityDelegatorRegistry.getAbilityDelegator();
-
-async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
-}
-
-async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
-    }
-    await driver.pressBack();
-    await driver.delayMs(500);
-  }
-}
-
-/**
- * V0.7.x acceptance — debug-only version label triple-tap navigates
- * to DevMenuPage. Always runs in debug (ohosTest = debug build), so
- * the gate is always open here. Three cases:
- *   1. label exists,
- *   2. triple-tap navigates,
- *   3. spaced taps (gap > 1s) do not navigate.
- *
- * The two navigating cases end on DevMenuPage; both press Back at
- * the tail so subsequent suites still start on HomePage.
- */
-export default function homeVersionTapUiTest(): void {
-  describe('HomeVersionTap', () => {
-    it('versionLabelExistsOnHome', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-      await returnToHome(driver);
-      await driver.assertComponentExist(ON.id('HomeVersionLabel'));
-      done();
-    });
-
-    it('tripleTapNavigatesToDevMenu', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-      await returnToHome(driver);
-      // Three taps inside ~600ms (well under the 1000ms window).
-      await clickByIdShared(driver, 'HomeVersionLabel');
-      await driver.delayMs(150);
-      await clickByIdShared(driver, 'HomeVersionLabel');
-      await driver.delayMs(150);
-      await clickByIdShared(driver, 'HomeVersionLabel');
-      await driver.delayMs(800);
-      // DevMenuPage exposes the env-radio + paste field. The Apply
-      // button is the most stable single ID since it's always
-      // rendered regardless of pendingEnv. We assert one widget that
-      // belongs to DevMenuPage and one widget unique to HomePage is
-      // gone (the AdventureCard CTA).
-      const apply: Component | null = await driver.findComponent(ON.text('Apply'));
-      expect(apply !== null).assertTrue();
-      const homeStart: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
-      expect(homeStart === null).assertTrue();
-      // Cleanup so the next case starts on HomePage.
-      await driver.pressBack();
-      await driver.delayMs(500);
-      done();
-    });
-
-    it('gapExceedingWindowDoesNotFire', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-      await returnToHome(driver);
-      await clickByIdShared(driver, 'HomeVersionLabel');
-      await driver.delayMs(150);
-      await clickByIdShared(driver, 'HomeVersionLabel');
-      // 1500ms wait > 1000ms window — counter resets.
-      await driver.delayMs(1500);
-      await clickByIdShared(driver, 'HomeVersionLabel');
-      await driver.delayMs(800);
-      // Still on HomePage.
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // The DevMenu Apply button must NOT be present.
-      const apply: Component | null = await driver.findComponent(ON.text('Apply'));
-      expect(apply === null).assertTrue();
-      done();
-    });
-  });
-}
-```
+- Triple-tap uses **one cached `Component`** for three `.click()` calls so slow emulators stay inside **`VersionTripleTap`'s 1500ms** window.
+- After navigation, assert **`Developer options`** (v0.6.1 removed **Apply**).
+- Gap case: **2500ms** wait between taps 2 and 3 so the counter resets (`> 1500ms` window).
 
 - [ ] **Step 2: Build and install the test HAP**
 
@@ -764,133 +577,19 @@ Wait until Task D3 to run on device — both new UI tests will be wired together
 **Files:**
 - Create: `entry/src/ohosTest/ets/test/DevMenuCardList.ui.test.ets`
 
-The mock UI server (`server/mock_ui_server.py`, port 8123) does **not** stub `https://raw.githubusercontent.com/...`. The manifest fetch in this UI test will hit the real GitHub raw URL — that's fine because `PreviewManifestService.fetchManifest` lives outside the `effectiveServerBaseUrl` rewriting (it has a hard-coded URL constant), and the manifest is a static file in this very repo. If the device has no network, the fetch returns the cached value (or null on first ever boot). The test tolerates both: it asserts only that **either** a card is present **or** a "No manifest" status text is present, and asserts the cards' shape only when at least one is visible.
-
-**Coverage note:** spec §7.2 lists four cases for this file; this task automates cases 1–3 (card visible, format `#PR(sha)`, tap-selects-without-navigating). Case 4 ("Tapping Apply after card selection still works") is intentionally **moved to the manual smoke in Task E1 Step 5 (item 4)** because Apply executes a real `/api/v1/health` probe against the selected `.vercel.app` URL — those URLs rotate out as PRs land, so an automated assertion would flake within weeks of authoring. The manual step keeps the spec covered with stable signal.
+Manifest GET for DevMenu uses **`PREVIEW_MANIFEST_JSON_URL`** only (production); UI tests still inject the mock base URL for **`effectiveServerBaseUrl()`** traffic — see `List.test.ets` header.
 
 - [ ] **Step 1: Write the UI test file**
 
-Create `entry/src/ohosTest/ets/test/DevMenuCardList.ui.test.ets`:
+Create `entry/src/ohosTest/ets/test/DevMenuCardList.ui.test.ets`. **Canonical source:** [`entry/src/ohosTest/ets/test/DevMenuCardList.ui.test.ets`](../../../entry/src/ohosTest/ets/test/DevMenuCardList.ui.test.ets).
 
-```typescript
-import { describe, it, expect } from '@ohos/hypium';
-import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
-import { Want } from '@kit.AbilityKit';
-import { clickByIdShared } from './RoutingFlow.ui.test';
+**Suites (3 `it` blocks):**
 
-const BUNDLE: string = 'com.terryma.wordmagicgame';
-const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
-  abilityDelegatorRegistry.getAbilityDelegator();
+1. `localAndStagingCardsAlwaysPresent` — `DevMenuLocalCard` / `DevMenuStagingCard`; `Refresh manifest`.
+2. `previewCardsRenderWhenManifestAvailable` — optional `DevMenuPreviewCard_<pr>` probe; never hard-fails when offline.
+3. `stagingCardTapNavigatesBackToHome` — tap-to-apply returns to `HomeVersionLabel`; DevMenu header absent after `replaceUrl`.
 
-async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
-}
-
-async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
-    }
-    await driver.pressBack();
-    await driver.delayMs(500);
-  }
-}
-
-async function tripleTapVersion(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeVersionLabel');
-  await driver.delayMs(150);
-  await clickByIdShared(driver, 'HomeVersionLabel');
-  await driver.delayMs(150);
-  await clickByIdShared(driver, 'HomeVersionLabel');
-  await driver.delayMs(1500); // allow manifest fetch + render
-}
-
-/**
- * V0.7.x acceptance — DevMenuPage's manifest list is rendered as
- * cards, not single-line buttons. Cards have id
- * DevMenuPreviewCard_<pr>, contain the title text, and a centered
- * "#<pr>(<sha7>)" footer.
- *
- * Network-dependent: the manifest URL is a hard-coded
- * raw.githubusercontent.com path that is NOT rewritten by the mock
- * UI server. If the device is offline the test asserts only the
- * gentler invariant that DevMenuPage rendered (Apply button visible).
- */
-export default function devMenuCardListUiTest(): void {
-  describe('DevMenuCardList', () => {
-    it('cardsRenderTitleAndPrSha', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-      await returnToHome(driver);
-      await tripleTapVersion(driver);
-      // Confirm we're on DevMenuPage (Apply button is the stable signal).
-      const apply: Component | null = await driver.findComponent(ON.text('Apply'));
-      expect(apply !== null).assertTrue();
-      // Look for ANY card by id pattern. We probe known PR numbers
-      // recorded in docs/preview-urls.json at spec time (42, 41, 40,
-      // 30); if none are present (e.g. offline), we accept the
-      // weaker assertion that DevMenu rendered.
-      const probePrs: number[] = [42, 41, 40, 30];
-      let found: Component | null = null;
-      for (const pr of probePrs) {
-        const c: Component | null = await driver.findComponent(ON.id(`DevMenuPreviewCard_${pr}`));
-        if (c !== null) {
-          found = c;
-          break;
-        }
-      }
-      if (found !== null) {
-        const txt: string = await found.getText();
-        // Card text concatenates title and "#<pr>(<sha>)" via ArkUI.
-        // We only assert the footer pattern is present in the
-        // composed text, since title text is content-dependent.
-        expect(txt.indexOf('#') >= 0).assertTrue();
-        expect(txt.indexOf('(') >= 0).assertTrue();
-        expect(txt.indexOf(')') >= 0).assertTrue();
-      }
-      // Cleanup.
-      await driver.pressBack();
-      await driver.delayMs(500);
-      done();
-    });
-
-    it('cardTapSelectsWithoutNavigating', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
-      await returnToHome(driver);
-      await tripleTapVersion(driver);
-      // Reuse the same PR probe.
-      const probePrs: number[] = [42, 41, 40, 30];
-      let cardId: string | null = null;
-      for (const pr of probePrs) {
-        const c: Component | null = await driver.findComponent(ON.id(`DevMenuPreviewCard_${pr}`));
-        if (c !== null) {
-          cardId = `DevMenuPreviewCard_${pr}`;
-          break;
-        }
-      }
-      if (cardId !== null) {
-        await clickByIdShared(driver, cardId);
-        await driver.delayMs(300);
-        // Still on DevMenuPage (Apply still visible).
-        const apply: Component | null = await driver.findComponent(ON.text('Apply'));
-        expect(apply !== null).assertTrue();
-        // Card tap must NOT navigate back to HomePage.
-        const homeStart: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
-        expect(homeStart === null).assertTrue();
-      }
-      // Cleanup — back to HomePage so the next suite starts clean.
-      await driver.pressBack();
-      await driver.delayMs(500);
-      done();
-    });
-  });
-}
-```
+**Triple-open helper:** cache `HomeVersionLabel` `Component` + three `.click()` (same rationale as `HomeVersionTap`).
 
 - [ ] **Step 2: Build the test HAP**
 
@@ -919,16 +618,15 @@ import devMenuCardListUiTest from './DevMenuCardList.ui.test';
 Inside `testsuite()`, **after** `homeToolbarLockedUiTest();` (line 65) and **before** `monsterCodexFlowUiTest();` (line 70), add:
 
 ```typescript
-  // V0.7.x: debug-only version label + triple-tap → DevMenu navigation.
+  // V0.6: debug-only version label + triple-tap → DevMenu navigation.
   // Order-independent: these tests press Back at the tail so HomePage
   // is reachable for the next suite. Placed right after
   // homeToolbarLockedUiTest because both are "home toolbar / top
   // chrome" smoke tests and grouping them surfaces top-screen
   // regressions early.
   homeVersionTapUiTest();
-  // V0.7.x: DevMenuPage card layout + tap-selects-without-navigating.
-  // Network-dependent on raw.githubusercontent.com (manifest URL).
-  // Asserts only the weaker "DevMenu rendered" invariant when offline.
+  // V0.6: DevMenuPage unified card grid (Local / Staging / previews).
+  // Tap-to-apply; manifest GET uses PREVIEW_MANIFEST_JSON_URL only (not the mock base URL).
   devMenuCardListUiTest();
 ```
 
@@ -944,7 +642,7 @@ Expected: at least one device line. If empty, start the emulator from DevEco or 
 ```sh
 scripts/run_ui_tests.sh
 ```
-Expected output ends with `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0`. The new suites should report `HomeVersionTap` (3 it blocks) and `DevMenuCardList` (2 it blocks) all passing. No regressions in earlier suites.
+Expected output ends with `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0`. The new suites should report `HomeVersionTap` (3 `it` blocks) and `DevMenuCardList` (3 `it` blocks) all passing. No regressions in earlier suites.
 
 If the run fails with `execute timeout 5000ms`, check that `scripts/run_ui_tests.sh` invokes `aa test` with `-s timeout 30000` (it does today — see [`.cursor/dev-commands.md`](../../../.cursor/dev-commands.md) §4).
 
@@ -998,14 +696,14 @@ Expected: `TestFinished-ResultCode: 0`, `OHOS_REPORT_CODE: 0`. All earlier suite
 
 1. `hdc install` the latest debug HAP.
 2. Open the app — confirm the top-left shows `v0.6.0(YYMMDDHHmm)` in small grey text (10-char timestamp, minute precision).
-3. Triple-tap quickly (≤1s) → DevMenuPage opens with PREVIEW radio pre-selected and a card list rendered.
-4. Tap a card → it highlights blue. Tap Apply → toast `Environment updated. Re-bind parent account if needed.` and you land back on HomePage.
-5. Re-open DevMenuPage from `Settings → Developer → Backend environment` → confirm the env reflects what was just selected (cards still appear if PREVIEW).
+3. Triple-tap quickly (within **`VersionTripleTap`'s 1500ms** window) → DevMenuPage opens with the unified card grid (Local, Staging, manifest previews).
+4. Tap **Staging** (or Local) — env applies immediately (**tap-to-apply**; there is no **Apply** button). Expect toast `Environment updated. Re-bind parent account if needed.` and navigation back to HomePage. Preview cards may prompt for the Vercel bypass secret on first use, then probe `/api/v1/health` on the selected `.vercel.app` URL.
+5. Re-open DevMenuPage from `Settings → Developer → Backend environment` → confirm the env reflects what was just selected.
 6. Build a release HAP (`hvigorw -p product=default --mode module -p module=entry@default assembleHap` with the release product) → install on device → confirm **no** version label is visible at top-left and tapping where it would have been does nothing.
 
 - [ ] **Step 6: Final acceptance review**
 
-Walk through `docs/superpowers/specs/2026-05-07-home-version-triple-tap-design.md` §10 (Acceptance criteria) and tick each box. If any item fails, file a follow-up before declaring the work complete.
+Walk through `docs/superpowers/specs/2026-05-07-home-version-triple-tap-design.md` §10 where still applicable, plus **§11.9** (v0.6.1 acceptance) and **§12** (manifest URL). Tick each box. If any item fails, file a follow-up before declaring the work complete.
 
 No commit on this task — verification only.
 
@@ -1017,5 +715,5 @@ No commit on this task — verification only.
 - **No new dependencies:** all the APIs used (`bundleManager`, `router`, `Driver`, `ON`, `Component`, `@ohos/hypium`) are already in `oh-package.json5`.
 - **Debug-only gating:** every new HomePage code path (the `if (BuildProfile.BUILD_MODE_NAME === 'debug')` checks in steps B1.3 and B1.4) is the safety net that keeps release builds untouched. Do not remove the gate even if codelinter complains about an "unused state" — release builds will inline-elide the dead branch.
 - **`router.getParams()` typing:** ArkTS treats route params as `Object`. The cast `params as Record<string, string>` is the project convention; see `entry/src/main/ets/pages/ScanBindingPage.ets` for prior art if you need a reference.
-- **CodeLinter quirks:** the project enforces `avoid-overusing-custom-component-check` — that's why the spec uses `@Builder previewCard(row)` rather than a separate `@Component`. Don't refactor the builder into a struct without checking the rule first.
-- **Mock UI server irrelevance:** `server/mock_ui_server.py` is for `effectiveServerBaseUrl()`-driven traffic. The manifest URL is a hard-coded `raw.githubusercontent.com` constant inside `PreviewManifestService.ets`, so the mock plays no role here.
+- **CodeLinter quirks:** the project enforces `avoid-overusing-custom-component-check` — prefer `@Builder` helpers over extra `@Component` structs when adding DevMenu UI. See live `DevMenuPage.ets`.
+- **Mock UI server irrelevance:** `server/mock_ui_server.py` is for `effectiveServerBaseUrl()`-driven traffic. The manifest URL is **`PREVIEW_MANIFEST_JSON_URL`** inside `PreviewManifestService.ets`, so the mock plays no role here.

@@ -15,6 +15,8 @@ Manifest rows survive across the PR lifecycle as long as the underlying Vercel d
 
 Both workflows share the same `concurrency: preview-manifest` group so they serialize on `docs/preview-urls.json`. The script lives next to other automation scripts even though it is JavaScript, not Python.
 
+**Blob mirror**: after writing the repo-tracked audit copy, the script also uploads the same JSON to Vercel Blob when `BLOB_READ_WRITE_TOKEN` is present. The default object path is `preview/preview-urls.json`, with deterministic overwrite and a 60-second cache. The public FastAPI endpoint `GET /api/v1/preview-urls.json` should be configured with the returned public Blob URL via `PREVIEW_MANIFEST_BLOB_URL`, so clients can fetch the manifest from the app backend instead of `raw.githubusercontent.com`.
+
 **Required env**:
 
 | Variable | Purpose |
@@ -29,6 +31,10 @@ Both workflows share the same `concurrency: preview-manifest` group so they seri
 
 - `PREVIEW_MANIFEST_OUTPUT_PATH` — override the output path (default `docs/preview-urls.json`). Used by tests / dry-runs.
 - `PREVIEW_MANIFEST_MAX_DEPLOYMENT_PAGES` — safety cap on Vercel pagination (default 50 × 100 = 5000 deployments).
+- `BLOB_READ_WRITE_TOKEN` — enables the Vercel Blob mirror upload.
+- `PREVIEW_MANIFEST_BLOB_PATH` — override the Blob object path (default `preview/preview-urls.json`).
+- `PREVIEW_MANIFEST_BLOB_CACHE_SECONDS` — override Blob cache seconds (default `60`).
+- `PREVIEW_MANIFEST_BLOB_URL` — FastAPI runtime env var, set on the Vercel server project after the first upload prints `Uploaded Blob mirror: <url>`.
 
 **Preview URL shape (this repo on Vercel)**: hostnames look like `happyword-<hash>-terrymas-projects.vercel.app` (`https://`, ends in `.vercel.app`). The script emits the deployment's canonical hash URL, NOT the mutable `-git-<branch>-` alias — that way each manifest row pins to a specific commit and doesn't silently drift to a newer deployment when a tester clicks through.
 
@@ -41,6 +47,8 @@ GITHUB_TOKEN=$(gh auth token) GITHUB_REPOSITORY=terryma2024/happyword \
 PREVIEW_MANIFEST_OUTPUT_PATH=/tmp/preview-urls.json \
 node server/scripts/update_preview_manifest.mjs
 ```
+
+Add `BLOB_READ_WRITE_TOKEN=…` to the dry-run to test the Blob upload path. The script prints the public URL; set that exact value as the Vercel project env var `PREVIEW_MANIFEST_BLOB_URL` for Production and Preview deployments.
 
 ## vercel_should_skip_build.sh
 

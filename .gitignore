@@ -10,6 +10,7 @@
 # Gradle files (legacy / hybrid templates)
 .gradle/
 build/
+build-tmp/
 
 # Local configuration file (sdk path, etc)
 local.properties

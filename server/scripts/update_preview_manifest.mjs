@@ -46,6 +46,9 @@ const PREVIEWS_CAP = 50;
 const TITLE_MAX = 80;
 const PROTECTED_BRANCHES = new Set(['main', 'master']);
 const VERCEL_API = 'https://api.vercel.com';
+const BLOB_API = 'https://blob.vercel-storage.com';
+const DEFAULT_BLOB_PATH = 'preview/preview-urls.json';
+const DEFAULT_BLOB_CACHE_SECONDS = 60;
 
 function mustEnv(name) {
   const v = process.env[name];
@@ -156,6 +159,45 @@ function deployUrl(d) {
   return url.startsWith('https://') ? url : `https://${url}`;
 }
 
+async function uploadManifestToBlob({ payload, token }) {
+  if (!token) {
+    console.log('BLOB_READ_WRITE_TOKEN not set; skipping Blob mirror upload.');
+    return null;
+  }
+
+  const blobPath = process.env.PREVIEW_MANIFEST_BLOB_PATH || DEFAULT_BLOB_PATH;
+  const cacheSeconds = Number(
+    process.env.PREVIEW_MANIFEST_BLOB_CACHE_SECONDS || DEFAULT_BLOB_CACHE_SECONDS,
+  );
+  const url = `${BLOB_API}/${blobPath.replace(/^\/+/, '')}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      access: 'public',
+      'x-api-version': '7',
+      'x-content-type': 'application/json',
+      'x-add-random-suffix': '0',
+      'x-allow-overwrite': '1',
+      'x-cache-control-max-age': String(cacheSeconds),
+    },
+    body: payload,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    const snippet = body.length > 400 ? `${body.slice(0, 400)}…` : body;
+    throw new Error(`Vercel Blob PUT ${blobPath} → ${res.status}: ${snippet}`);
+  }
+
+  const body = await res.json();
+  const publicUrl = body.url;
+  if (typeof publicUrl !== 'string' || !publicUrl) {
+    throw new Error(`Vercel Blob did not return a public URL for ${blobPath}`);
+  }
+  console.log(`Uploaded Blob mirror: ${publicUrl}`);
+  return publicUrl;
+}
+
 async function buildManifestRows({
   vercelToken,
   projectId,
@@ -235,8 +277,13 @@ async function main() {
     updated_at: new Date().toISOString(),
     previews,
   };
-  await writeFile(outputPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  const payload = `${JSON.stringify(manifest, null, 2)}\n`;
+  await writeFile(outputPath, payload);
   console.log(`Wrote ${outputPath} with ${manifest.previews.length} previews.`);
+  await uploadManifestToBlob({
+    payload,
+    token: process.env.BLOB_READ_WRITE_TOKEN || '',
+  });
 }
 
 // Allow `import { pickNewestPerBranch }` from a unit test without invoking main.

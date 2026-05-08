@@ -19,9 +19,28 @@ export const STAGING_BASE_URL: string = 'https://happyword.vercel.app';
 /** Reserved — empty string means “not configured”; non-empty enables prod routing. */
 export const PROD_BASE_URL: string = '';
 
+/**
+ * DevMenu preview-manifest fetch origin — **always** the production Vercel app,
+ * independent of `BackendEnv`, `effectiveServerBaseUrl()`, preview deployments,
+ * or `x-vercel-protection-bypass`. The JSON lists PR preview URLs; the manifest
+ * endpoint itself is served from stable prod (`GET /api/v1/preview-urls.json`).
+ */
+export const PREVIEW_MANIFEST_ORIGIN: string = 'https://happyword.vercel.app';
+
+export const PREVIEW_MANIFEST_JSON_URL: string =
+  `${PREVIEW_MANIFEST_ORIGIN}/api/v1/preview-urls.json`;
+
 /** AppStorage mirrors written by BackendEnv — read synchronously by pickServerBaseUrl. */
 export const BACKEND_ENV_CACHE_KEY: string = 'backend_env_cache';
 export const BACKEND_PREVIEW_URL_CACHE_KEY: string = 'backend_preview_url_cache';
+/**
+ * Mirror of the user-entered Vercel "Protection Bypass for Automation"
+ * secret. Read synchronously by `BackendHeaders.vercelBypassHeader()`
+ * so every outgoing request can attach `x-vercel-protection-bypass`
+ * without `await`-ing prefs. Only meaningful in debug builds + when
+ * env=preview; release builds never write this key.
+ */
+export const BACKEND_BYPASS_SECRET_CACHE_KEY: string = 'backend_bypass_secret_cache';
 
 /** Cap for a single fetch round-trip; exceeded => fallback to cache. */
 export const REMOTE_FETCH_TIMEOUT_MS: number = 8000;

@@ -5,22 +5,24 @@
 **Scope:** debug builds only — release builds render nothing new and have no new code path
 **Builds on:** [`2026-05-06-client-backend-env-switcher-design.md`](2026-05-06-client-backend-env-switcher-design.md) (existing `DevMenuPage`, `BackendEnv`, `PreviewManifestService`)
 
+> **Document map (2026-05-08):** §§1–10 retain **v0.6.0** drafting (card layout, triple-tap). **Shipped DevMenu behaviour** is **§11 (v0.6.1 unified grid + tap-to-apply)** and **§12 (v0.6.2 manifest URL / bypass boundary)**. If an earlier section disagrees with §11–12, treat §11–12 as normative.
+
 ## 1. Goal
 
-Add a hidden, debug-only entry point on the HarmonyOS home screen that takes a developer / QA tester from "I want to swap the backend to PR #42's preview deployment" to "swapped" in three taps + one Apply tap. Today this requires four screen transitions (Home → Config scroll → "Backend environment" → DevMenu → pick → Apply); the change collapses the first three into a triple-tap on a small version label that already needs to exist for build identification.
+Add a hidden, debug-only entry point on the HarmonyOS home screen that takes a developer / QA tester from "I want to swap the backend to PR #42's preview deployment" to "swapped" in **three taps on the version label** plus **one tap on the target env card** (v0.6.1+ tap-to-apply — §11). The original v0.6.0 draft kept a separate Apply button; that path was superseded. Today this shortcut avoids extra navigation versus Config → Developer → Backend environment.
 
 The change has three user-visible parts:
 
 1. A small grey `v0.6.0(2605072052)` label in the top-left of the home screen.
-2. Triple-tap on that label (within 1000 ms) navigates to `DevMenuPage` with PREVIEW pre-selected.
-3. The manifest preview list inside `DevMenuPage` is re-rendered as cards showing **title** (max 3 lines), **`#PR(sha)`** centered.
+2. Triple-tap on that label (within **`VersionTripleTap`'s 1500ms** window) navigates to `DevMenuPage`. `HomePage` still passes `presetEnv: 'preview'` for forward compatibility; **`DevMenuPage` may not read it** — see live `DevMenuPage.ets`.
+3. The manifest preview list inside `DevMenuPage` is rendered as cards (**unified grid with Local + Staging + previews** in v0.6.1 — §11) showing **title** (max 3 lines), **`#PR(sha)`** centered on preview rows.
 
-Release builds: zero new UI, zero new code path. The label, the tap handler, and the param-driven pre-select are all gated on `BuildProfile.BUILD_MODE_NAME === 'debug'`.
+Release builds: zero new UI, zero new code path. The label, the tap handler, and the route param are debug-gated (`BuildProfile.BUILD_MODE_NAME === 'debug'`).
 
 ## 2. Non-goals
 
-- **No change to env switching semantics.** The existing Apply pipeline (health probe → `resetForEnvSwitch` → `saveBackendEnv` → audit log → `router.replaceUrl`) stays. Card tap = select; Apply = commit. We're not building a tap-and-go switcher — too easy to misclick.
-- **No change to the manifest fetcher / cache / TTL.** `PreviewManifestService` is untouched.
+- **Env switching semantics:** The commit pipeline (health probe for Preview when applicable → `resetForEnvSwitch` → `saveBackendEnv` → audit log → `router.replaceUrl`) is unchanged — **v0.6.1 runs it from `onCardTap`** instead of a separate Apply control (§11).
+- **No change to the manifest fetcher / cache / TTL** beyond what §12 records (`PREVIEW_MANIFEST_JSON_URL` pinning). The list renderer and `ManifestRow` shape are unchanged.
 - **No new manifest fields.** We render `pr`, `title`, `head_sha` from the existing `ManifestRow`. `branch`, `author`, `updated_at` stay in the JSON for future use but are not shown on the card.
 - **No build-time timestamp injection.** We use the bundle's install/update time at runtime (`bundleManager.getBundleInfoForSelf().updateTime`). See §6 for the rationale and the alternative we rejected.
 
@@ -82,13 +84,15 @@ Card styling:
 - Footer (`#PR(sha)`): `Text(\`#${row.pr}(${row.head_sha.slice(0, 7)})\`)` inside a `Row().width('100%').justifyContent(FlexAlign.Center)`. `fontSize(13)`, `fontColor('#555555')`. The 7-char short-sha matches the conventional git short-SHA length and is sliced from the full `head_sha` already stored in the manifest.
 - ID: each card gets `id(\`DevMenuPreviewCard_${row.pr}\`)` so UI tests can target by PR number.
 
-Tap-on-card behaviour: identical to today — sets `selectedManifestUrl = row.url` and clears `pasteUrl`. **No** auto-Apply. The Apply button at the bottom of the page is the commit point.
+Tap-on-card behaviour (**v0.6.0 draft**): card tap only updated selection; Apply committed.
+
+**Shipped (v0.6.1+):** any card tap runs **`onCardTap`** → full commit pipeline (Preview may prompt for bypass secret, then `probeHealth`, etc.) → toast → `replaceUrl` Home. See **§11**.
 
 The card list lives inside the same `Scroll() { Column { ForEach } }` shell that exists today, with the outer Column gaining `space: 8` between cards. **List height bumped from today's `140 dp` (sized for single-line buttons) to `320 dp`** — each 3-line card is ~90–110 dp tall, so 320 dp shows roughly three cards at a time and the rest scroll. The new height is a lone-line change next to the existing `.height(140)`.
 
-### 3.4 PREVIEW pre-select on entry
+### 3.4 PREVIEW pre-select on entry (**v0.6.0 draft — superseded**)
 
-`DevMenuPage.hydrate()` reads `loadBackendEnv()` from preferences and assigns it to `pendingEnv`. To honour a `?presetEnv=preview` route param without racing the hydrate write, we apply the param **after** `hydrate()` resolves:
+The following applied **`pendingEnv` after `hydrate()`** when the route carried `presetEnv=preview`. **Current `DevMenuPage`** intentionally does **not** consume this param (comment in source); the unified grid shows every env without a radio pre-select. Kept here as historical context only:
 
 ```typescript
 async aboutToAppear(): Promise<void> {
@@ -100,7 +104,7 @@ async aboutToAppear(): Promise<void> {
 }
 ```
 
-Entering DevMenu via the existing ConfigPage button passes no params → `pendingEnv` stays at the persisted value, behaviour unchanged.
+Entering DevMenu via Settings still works; `HomePage` triple-tap still passes `presetEnv` for forward compatibility.
 
 ## 4. Architecture
 
@@ -114,7 +118,7 @@ export class VersionTripleTap {
   private lastTapMs: number = 0;
   private readonly windowMs: number;
 
-  constructor(windowMs: number = 1000) {
+  constructor(windowMs: number = 1500) {
     this.windowMs = windowMs;
   }
 
@@ -240,19 +244,23 @@ if (BuildProfile.BUILD_MODE_NAME === 'debug') {
 
 Stack alignment: the outer Stack's `.alignContent(Alignment.TopEnd)` is already set; this new Column has `width('100%')` so it spans the row, and the inner `Text` is anchored left by the Column's `HorizontalAlign.Start`. The right-side icon Row is unaffected — Stack layers all its children, so the version label sits behind/beside the icon row without overlap (the icon row uses `margin({ top: 16, right: 16 })` and starts at the right edge; the version label is at the left edge with `padding({ left: 16 })`).
 
-### 4.4 `DevMenuPage.ets` — modifications
+### 4.4 `DevMenuPage.ets` — modifications (**v0.6.0 draft**)
 
-Three localized changes:
+Three localized changes in the original proposal:
 
-1. **`aboutToAppear`** — apply the `presetEnv` param after `hydrate()` resolves (see §3.4).
-2. **Replace lines 195–213** — the inner manifest renderer:
-   - Today: a `Button(\`#${row.pr} ${row.title}\`)` per row, inside a `Scroll().height(140)`.
-   - New: a `@Builder` private method `previewCard(row: ManifestRow)` containing the Column-based card layout from §3.3, plus the wrapping `Scroll().height(320)` (raised from 140 to fit 3-line cards). `margin({ bottom: 8 })` on the Scroll stays the same.
+1. **`aboutToAppear`** — apply the `presetEnv` param after `hydrate()` resolves (see §3.4 — superseded in main).
+2. **Replace lines 195–213** — the inner manifest renderer per §3.3 (`previewCard` @Builder pattern).
 3. **Card key** — the `ForEach` keyExtractor stays `(row: ManifestRow) => \`${row.pr}-${row.url}\``.
 
-The Apply button, audit log, paste field, env radio, and history list are unchanged.
+**v0.6.1+ replaces this with** the unified card grid + `onCardTap` — see **§11**. The Apply button, standalone paste row, and env radios described in early drafts are gone in shipped UI.
+
+### 4.5 Shipped layout pointer
+
+Normative structure: **§11.5–11.7** (grid, tap-to-apply, tests).
 
 ## 5. Data flow
+
+**v0.6.0 draft** (select + Apply):
 
 ```
 HomePage.aboutToAppear
@@ -265,17 +273,16 @@ User triple-taps HomeVersionLabel
 
 DevMenuPage.aboutToAppear
   → hydrate() reads prefs, manifest cache, audit log, history
-  → reads router params; sees presetEnv='preview' → pendingEnv = PREVIEW
-  → render: preview env selected, cards visible, manifest list scrollable
+  → (draft) reads router params; presetEnv → pendingEnv = PREVIEW
 
-User taps a card (DevMenuPreviewCard_42)
-  → selectedManifestUrl = row.url
-  → pasteUrl = ''
-  → re-render highlights the tapped card
+User taps a card
+  → selection only
 
 User taps Apply
-  → onApply() (unchanged): probeHealth → resetForEnvSwitch → saveBackendEnv → audit → replaceUrl('pages/HomePage')
+  → probeHealth → resetForEnvSwitch → saveBackendEnv → audit → replaceUrl Home
 ```
+
+**Shipped v0.6.1+:** card tap runs the commit pipeline immediately (`onCardTap`); no Apply step. Router `presetEnv` may be ignored — **§11.4**. Manifest fetch is pinned — **§12**.
 
 ## 6. Build timestamp: rationale
 
@@ -311,18 +318,13 @@ For the dev/QA loop this is targeted at — "did my last `hdc install` actually 
 
 ### 7.2 On-device UI (`entry/src/ohosTest/ets/test/`)
 
-`HomeVersionTap.ui.test.ets`:
+Normative case list: **§11.7**. Summary:
 
-1. `HomeVersionLabel` is present in debug builds (always true under ohosTest, which builds in debug).
-2. Triple-tap on `HomeVersionLabel` (3 taps with ≤500ms between) navigates to `DevMenuPage` (assert by checking for `ConfigDevMenuButton`'s absence and a known DevMenu widget's presence).
-3. Two taps then a 1.5s wait then one tap does **not** navigate (HomePage still visible).
+`HomeVersionTap.ui.test.ets` — label present; triple-tap navigates (assert **`Developer options`** text — Apply was removed); gap **\> 1500ms** between taps resets counter (`VersionTripleTap` default window).
 
-`DevMenuCardList.ui.test.ets`:
+`DevMenuCardList.ui.test.ets` — Local + Staging cards always visible; preview cards optional (network); **staging card tap** returns to Home after tap-to-apply.
 
-1. After entry, at least one `DevMenuPreviewCard_*` is visible (uses the seeded manifest cache or the live fetch with a generous timeout).
-2. The card text contains `#${pr}(${head_sha.slice(0,7)})` exactly — guards against future regressions on the format.
-3. Tapping a card highlights it (assert backgroundColor change) and does **not** navigate.
-4. Tapping Apply after card selection still works (smoke).
+Manifest GET in tests: **`PREVIEW_MANIFEST_JSON_URL`** only — **§12** (not the UI-test mock base URL).
 
 The existing `HomeToolbarLocked.ui.test.ets` is unaffected — it doesn't use `HomeVersionLabel`.
 
@@ -331,7 +333,7 @@ The existing `HomeToolbarLocked.ui.test.ets` is unaffected — it doesn't use `H
 - **Children tap the version label.** In debug it navigates to DevMenu, which they can't usefully break. In release the label and handler are absent. **Risk: low.**
 - **Triple-tap accidental fire.** The 1500ms window plus a 11pt grey label off in the corner means children very rarely hit it. Adults will. Acceptable. (1500ms — not 1000ms — was chosen during D1 verification: each `comp.click()` round-trip on a slow OpenHarmony emulator can drift toward ~400ms, so a 1000ms inter-tap window was occasionally too tight to register three taps as "consecutive". 1500ms is comfortable on real devices and robust against the emulator.)
 - **`bundleManager.getBundleInfoForSelf` failing.** Wrapped in try/catch with a `?.?.?` fallback. Label still renders, just without identity.
-- **Param-based PREVIEW pre-select racing with hydrate.** Avoided by applying the param **after** `hydrate()` resolves (see §3.4 code).
+- **`presetEnv` route param:** Early drafts applied it after `hydrate()` (§3.4). **Shipped `DevMenuPage` does not read it** — no PREVIEW pre-select race; see §3.4 note.
 - **Stack overlap on narrow screens.** The version label is `padding({ left: 16, right: 16 })` and the icon row is `margin({ right: 16 })` from the right edge. Even on the narrowest supported phone, the icon row's leftmost icon is well to the right of the label's rightmost glyph. No overlap.
 
 ## 9. Out of scope (deferred)
@@ -506,20 +508,12 @@ Two unrelated-but-co-shipped fixes:
 
 `DevMenuCardList.ui.test.ets`:
 
-1. After entry, at least one of `DevMenuLocalCard`, `DevMenuStagingCard`,
-   `DevMenuPreviewCard_*` is visible. (The card-list-renders-something
-   smoke test.)
-2. New: `DevMenuLocalCard` and `DevMenuStagingCard` are present in
-   debug-built ohosTest (always true since manifest fetch can be stubbed
-   but the static cards always render).
-3. Updated tap test: tapping `DevMenuStagingCard` triggers nav back to
-   `HomePage` (assert by waiting for `HomeVersionLabel`). Replaces the
-   previous "tapping highlights a card" assertion which is no longer
-   meaningful since taps always either commit or surface a toast.
+1. `localAndStagingCardsAlwaysPresent` — `DevMenuLocalCard` and `DevMenuStagingCard` render even when the manifest fetch fails; `Refresh manifest` visible.
+2. `previewCardsRenderWhenManifestAvailable` — probes known `DevMenuPreviewCard_<pr>` ids; **never hard-fails** offline (logs only).
+3. `stagingCardTapNavigatesBackToHome` — tap-to-apply returns to `HomePage` (assert `HomeVersionLabel`). Replaces the old "highlight without navigating" + Apply smoke.
 4. The previous "Apply button works" smoke is removed — Apply is gone.
 
-`HomeVersionTap.ui.test.ets` is unchanged: it asserts `Developer options`
-visibility on `DevMenuPage`, which still holds.
+`HomeVersionTap.ui.test.ets`: triple-tap uses a **cached `HomeVersionLabel` `Component`** for three `.click()` calls; asserts **`Developer options`** on success; gap case uses **2500ms** wait vs **1500ms** window.
 
 ### 11.8 Risks new to v0.6.1
 
@@ -553,3 +547,20 @@ visibility on `DevMenuPage`, which still holds.
 - [ ] All updated unit + UI tests pass; existing tests untouched.
 - [ ] CodeLinter clean on `DevMenuPage.ets`, `ConfigPage.ets`, and the
       updated UI test files.
+
+## 12. v0.6.2 revision — preview manifest from production only (no bypass)
+
+Companion to [`2026-05-06-client-backend-env-switcher-design.md`](2026-05-06-client-backend-env-switcher-design.md) §10.
+
+### 12.1 Client
+
+- **`PREVIEW_MANIFEST_ORIGIN`** / **`PREVIEW_MANIFEST_JSON_URL`** in `RemoteWordPackConfig.ets` pin DevMenu manifest fetches to **`https://happyword.vercel.app/api/v1/preview-urls.json`**, regardless of the currently selected `BackendEnv` or preview deployment.
+- **`PreviewManifestService`** issues a plain GET with **no** `x-vercel-protection-bypass` header — listing PR previews never depends on Vercel Deployment Protection secrets.
+
+### 12.2 Server
+
+- **`GET /api/v1/preview-urls.json`** remains **credential-free** at the FastAPI layer (public router + service docstrings). This aligns with the client’s ability to refresh the manifest without storing a bypass token for that request.
+
+### 12.3 Scope boundary
+
+- Selecting a **Preview** card for app traffic may still require deployment-protection bypass for **`/api/v1/health`** and subsequent API calls — that path is separate from manifest discovery (see env-switcher spec §10).

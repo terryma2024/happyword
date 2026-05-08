@@ -1,6 +1,7 @@
 import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@ohos.base';
 import { REMOTE_FETCH_TIMEOUT_MS } from './RemoteWordPackConfig';
+import { withBypassHeaders } from './BackendHeaders';
 
 export class RemoteFetchResult {
   status: number = 0;
@@ -30,7 +31,8 @@ class RealHttpRequester implements HttpRequester {
     try {
       const resp: http.HttpResponse = await req.request(url, {
         method: http.RequestMethod.GET,
-        header: headers,
+        // Auto-attach Vercel deployment-protection bypass when env=preview.
+        header: withBypassHeaders(headers),
         connectTimeout: timeoutMs,
         readTimeout: timeoutMs,
       });

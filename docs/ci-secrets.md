@@ -33,6 +33,7 @@ now only handles cleanup-on-close and manual repair runs.
 | [`VERCEL_TOKEN`](#vercel_token) | `server-ci` | optional | `server / e2e (preview)` job is skipped (warning only) |
 | [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | `server-ci` (fallback deploy) | optional | E2E job tries the auto-deploy fallback and fails if no preview was detected on the SHA |
 | [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | `server-ci` (fallback deploy) | optional | same as above |
+| [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `server-ci`, `preview-manifest` | optional | `docs/preview-urls.json` is committed, but the Vercel Blob mirror is skipped |
 | [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | `server-ci` E2E | optional | E2E hits the **Vercel deployment protection** login page and every request fails |
 | [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `server-cd`, `atlas-cleanup` | optional | E2E DB reset + Mongo-dependent tests skip; cron cleanup is a no-op |
 | [`E2E_ADMIN_USER`](#e2e_admin_user--e2e_admin_pass), [`E2E_ADMIN_PASS`](#e2e_admin_user--e2e_admin_pass) | `server-ci` E2E | optional | E2E tests that need an admin login skip |
@@ -77,6 +78,24 @@ A Vercel API token used to:
 Only needed for the **fallback deploy** path (when a Vercel Preview was not
 detected for the head SHA — typically because Vercel is misconfigured or
 slow). The detect-only path doesn't need them.
+
+### `BLOB_READ_WRITE_TOKEN`
+
+Used by `server/scripts/update_preview_manifest.mjs` to mirror
+`docs/preview-urls.json` to Vercel Blob at `preview/preview-urls.json`.
+Without it, the GitHub audit copy still updates, but the runtime mirror at
+`GET /api/v1/preview-urls.json` will serve stale data until the next successful
+Blob-backed rebuild.
+
+**Get it:**
+
+1. In the Vercel project, create or open the Blob store used by `happyword`.
+2. Copy the read-write token and save it as repo secret `BLOB_READ_WRITE_TOKEN`.
+3. Run `preview-manifest` manually once and copy the log line
+   `Uploaded Blob mirror: <url>`.
+4. Save that URL as the Vercel project env var `PREVIEW_MANIFEST_BLOB_URL` for
+   Production and Preview. The backend endpoint returns `503` until this env var
+   is set.
 
 **Get them** (after `VERCEL_TOKEN` is set):
 

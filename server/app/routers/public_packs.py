@@ -1,11 +1,27 @@
-"""Public read-only pack endpoint with ETag / If-None-Match (V0.5.3)."""
+"""Public read-only API surface (no authentication).
+
+These routes intentionally omit JWT bearer, admin cookies, parent sessions,
+and device tokens — callers include HarmonyOS DevMenu, anonymous browsers,
+and CI. **Do not** add ``Depends(...)`` auth here without excluding these paths
+from any future global middleware.
+
+Exposed paths:
+
+- ``GET /api/v1/health`` — liveness.
+- ``GET /api/v1/preview-urls.json`` — proxies the public Blob mirror of the QA
+  preview manifest (same trust model as ``latest.json``).
+- ``GET /api/v1/packs/latest.json`` — published pack JSON with ETag.
+
+Deployment Protection on Vercel preview deployments is orthogonal (platform
+gate before the function); the FastAPI handler itself must remain credential-free.
+"""
 
 import json
 import time
 
 from fastapi import APIRouter, Header, Response
 
-from app.services import pack_service
+from app.services import pack_service, preview_manifest_service
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
 
@@ -13,6 +29,18 @@ router = APIRouter(prefix="/api/v1", tags=["public"])
 @router.get("/health")
 async def health() -> dict[str, object]:
     return {"ok": True, "ts": int(time.time())}
+
+
+@router.get("/preview-urls.json")
+async def preview_manifest(
+    if_none_match: str | None = Header(None, alias="If-None-Match"),
+) -> Response:
+    """Public QA preview manifest (proxied from Vercel Blob).
+
+    **Unauthenticated** — no Authorization header, cookies, or API keys required.
+    Safe for DevMenu and scripted clients to fetch directly.
+    """
+    return await preview_manifest_service.fetch_preview_manifest(if_none_match)
 
 
 @router.get("/packs/latest.json")

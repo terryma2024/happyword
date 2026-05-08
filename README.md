@@ -2,6 +2,8 @@
 
 快乐背单词是一个面向儿童的 HarmonyOS NEXT 英语单词学习小游戏。游戏把单词练习包装成“小魔法师对战怪物”的轻量冒险：孩子在横屏战斗中识别单词、补全拼写、积累魔法币，并通过每日计划和学习报告持续复习。
 
+**路线图（里程碑与后续方向）：** [`docs/WordMagicGame_roadmap.md`](docs/WordMagicGame_roadmap.md)
+
 ## Screenshots
 
 | 首页与今日冒险 | 战斗答题 |
@@ -49,6 +51,8 @@ docs/
   WordMagicGame_roadmap.md
 ```
 
+Documentation: [overall spec](docs/WordMagicGame_overall_spec.md) · [roadmap](docs/WordMagicGame_roadmap.md)
+
 ## Local Development
 
 Install dependencies:
@@ -81,11 +85,25 @@ Install the built HAP:
 hdc install entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
+Run **no-device unit tests** (`entry/src/test/`):
+
+```bash
+hvigorw -p module=entry@default test
+```
+
+Run **on-device UI / Instrument tests** (`entry/src/ohosTest/`) with the project orchestrator — starts `server/mock_ui_server.py`, sets up `hdc rport`, installs HAPs, and runs `aa test`:
+
+```bash
+scripts/run_ui_tests.sh
+```
+
+Expect `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0` when the suite passes. You need a connected device or emulator (`hdc list targets`).
+
 The detailed build, test, device, and log workflow lives in [`.cursor/dev-commands.md`](.cursor/dev-commands.md).
 
 ### Debug: backend environment
 
-Debug builds can switch API base URL at runtime (local machine, Vercel preview, or staging). Open **Settings → Developer → Backend environment**. Release builds omit this entry. See [DevMenu runbook](docs/superpowers/runbooks/dev-menu-runbook.md) and the [design spec](docs/superpowers/specs/2026-05-06-client-backend-env-switcher-design.md).
+Debug builds can switch API base URL at runtime (local machine, a Vercel preview deployment, or staging). Open the developer menu by **triple-tapping** the small grey **version label** at the **top-left of the home screen** (there is no Settings entry). The menu shows a card grid — **tap a card to apply** immediately (Preview runs a health probe first and may ask for a Vercel protection-bypass secret). The preview PR list is always fetched from production **`https://happyword.vercel.app/api/v1/preview-urls.json`**, independent of the env you selected. Release builds hide the label and this flow. See [DevMenu runbook](docs/superpowers/runbooks/dev-menu-runbook.md), [backend env switcher spec](docs/superpowers/specs/2026-05-06-client-backend-env-switcher-design.md), and [triple-tap / DevMenu UI spec](docs/superpowers/specs/2026-05-07-home-version-triple-tap-design.md).
 
 ## Server
 
@@ -102,4 +120,6 @@ forking the repo or bringing up CI from scratch.
 
 ## Roadmap
 
-The product roadmap is tracked in [`docs/WordMagicGame_roadmap.md`](docs/WordMagicGame_roadmap.md). Current major directions include battle audio mixing with BGM, richer learning reports, backend content tooling, parent account/device binding, AI-assisted story content, and a later Cocos2D battle presentation rewrite.
+The product roadmap — milestones, version threads, and planned work — lives in **[`docs/WordMagicGame_roadmap.md`](docs/WordMagicGame_roadmap.md)**. For product intent and scope, see also **[`docs/WordMagicGame_overall_spec.md`](docs/WordMagicGame_overall_spec.md)**.
+
+Current major directions include battle audio mixing with BGM, richer learning reports, backend content tooling, parent account/device binding, AI-assisted story content, and a later Cocos2D battle presentation rewrite.

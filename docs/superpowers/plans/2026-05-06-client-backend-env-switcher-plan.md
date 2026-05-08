@@ -4,7 +4,9 @@
 
 **Goal:** Implement the client-side backend env switcher described in [the env-switcher design spec](../specs/2026-05-06-client-backend-env-switcher-design.md). Debug builds gain a DevMenu page that lets a tester point the HarmonyOS app at Local / a PR Preview / Staging without rebuilding. Release builds remain hard-locked to staging.
 
-**Architecture:** A new `BackendEnv` enum + Preferences-backed resolver replaces the boolean `USE_LOCAL_DEV_SERVER` toggle. A `PreviewManifestService` fetches `docs/preview-urls.json` from `main` (kept current by a new `preview-manifest.yml` GitHub workflow) to populate the DevMenu's PR-preview dropdown. Switching environments hard-resets cloud session state by design.
+**Architecture:** A new `BackendEnv` enum + Preferences-backed resolver replaces the boolean `USE_LOCAL_DEV_SERVER` toggle. A `PreviewManifestService` fetches the preview list from **`PREVIEW_MANIFEST_JSON_URL`** (`https://happyword.vercel.app/api/v1/preview-urls.json` — Blob-backed public FastAPI proxy; repo file on `main` is the CI audit copy). Switching environments hard-resets cloud session state by design.
+
+**Revision (2026-05-08):** Aligns with design spec §10 — manifest HTTP never follows `effectiveServerBaseUrl()` or bypass headers. Server `GET /api/v1/preview-urls.json` is intentionally unauthenticated (see `public_packs.py` module docstring).
 
 **Tech Stack:** ArkTS, HarmonyOS NEXT, `@ohos/hypium` (unit tests), `@ohos.data.preferences`, AppStorage, `@ohos.net.http`, Node 20 (manifest workflow script), GitHub Actions.
 
@@ -818,8 +820,10 @@ import preferences from '@ohos.data.preferences';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 
+// Production manifest endpoint only — same origin as `PREVIEW_MANIFEST_JSON_URL`
+// in RemoteWordPackConfig.ets (no raw.githubusercontent.com; no rewrite via DevMenu base URL).
 const MANIFEST_URL: string =
-  'https://raw.githubusercontent.com/terryma2024/happyword/main/docs/preview-urls.json';
+  'https://happyword.vercel.app/api/v1/preview-urls.json';
 const PREFS_NAME: string = 'wm_dev_menu';
 const CACHE_KEY: string = 'preview_manifest_cache';
 const CACHE_TTL_MS: number = 5 * 60 * 1000;

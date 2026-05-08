@@ -9,6 +9,8 @@ import {
   LOCAL_BASE_URL,
   STAGING_BASE_URL,
   PROD_BASE_URL,
+  PREVIEW_MANIFEST_ORIGIN,
+  PREVIEW_MANIFEST_JSON_URL,
   BACKEND_ENV_CACHE_KEY,
   BACKEND_PREVIEW_URL_CACHE_KEY,
 } from '../main/ets/services/RemoteWordPackConfig';
@@ -20,6 +22,12 @@ export default function remoteWordPackConfigTest() {
     });
     it('stagingUrlIsVercelDomain', 0, () => {
       expect(STAGING_BASE_URL).assertEqual('https://happyword.vercel.app');
+    });
+    it('previewManifestAlwaysUsesProdOriginNotBackendEnv', 0, () => {
+      expect(PREVIEW_MANIFEST_ORIGIN).assertEqual('https://happyword.vercel.app');
+      expect(PREVIEW_MANIFEST_JSON_URL).assertEqual(
+        'https://happyword.vercel.app/api/v1/preview-urls.json',
+      );
     });
     it('prodUrlReservedEmpty', 0, () => {
       expect(PROD_BASE_URL === '').assertTrue();

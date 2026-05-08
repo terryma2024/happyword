@@ -72,9 +72,8 @@ export default function testsuite() {
   // chrome" smoke tests and grouping them surfaces top-screen
   // regressions early.
   homeVersionTapUiTest();
-  // V0.6: DevMenuPage card layout + tap-selects-without-navigating.
-  // Network-dependent on raw.githubusercontent.com (manifest URL).
-  // Asserts only the weaker "DevMenu rendered" invariant when offline.
+  // V0.6: DevMenuPage unified card grid (Local / Staging / previews).
+  // Tap-to-apply; manifest GET uses PREVIEW_MANIFEST_JSON_URL only (not the mock base URL).
   devMenuCardListUiTest();
   // MonsterCodexFlow is order-independent: the codex page reads only
   // a frozen static array (MONSTER_CODEX) and does not touch the

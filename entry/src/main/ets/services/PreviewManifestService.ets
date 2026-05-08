@@ -2,9 +2,11 @@ import http from '@ohos.net.http';
 import preferences from '@ohos.data.preferences';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
+import { PREVIEW_MANIFEST_JSON_URL } from './RemoteWordPackConfig';
 
-const MANIFEST_URL: string =
-  'https://raw.githubusercontent.com/terryma2024/happyword/main/docs/preview-urls.json';
+/** Cached DevMenu manifest — fetched only from {@link PREVIEW_MANIFEST_JSON_URL}
+ *  (production `happyword.vercel.app`), never from preview deployments or with bypass headers. */
+
 const PREFS_NAME: string = 'wm_dev_menu';
 const CACHE_KEY: string = 'preview_manifest_cache';
 const CACHE_TTL_MS: number = 5 * 60 * 1000;
@@ -136,7 +138,7 @@ export async function fetchManifest(force: boolean): Promise<PreviewManifest | n
   }
   const req: http.HttpRequest = http.createHttp();
   try {
-    const resp: http.HttpResponse = await req.request(MANIFEST_URL, {
+    const resp: http.HttpResponse = await req.request(PREVIEW_MANIFEST_JSON_URL, {
       method: http.RequestMethod.GET,
       readTimeout: 5000,
       connectTimeout: 5000,

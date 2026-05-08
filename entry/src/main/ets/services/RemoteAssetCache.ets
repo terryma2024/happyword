@@ -3,6 +3,7 @@ import { http } from '@kit.NetworkKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
 import { buffer } from '@kit.ArkTS';
+import { vercelBypassHeader } from './BackendHeaders';
 
 /**
  * RemoteAssetCache — lazy on-disk LRU cache for word illustration / audio URLs
@@ -287,8 +288,14 @@ class RealAssetFetcher implements AssetHttpFetcher {
   async fetchBinary(url: string): Promise<ArrayBuffer | undefined> {
     const req: http.HttpRequest = http.createHttp();
     try {
+      // Asset URLs may live on the same Vercel preview as the API
+      // (e.g. /api/v1/assets/<id>). Attach the bypass header when
+      // env=preview so deployment protection lets binary fetches
+      // through. No-op for Local / Staging / Prod.
+      const bypass: Record<string, string> = vercelBypassHeader();
       const resp: http.HttpResponse = await req.request(url, {
         method: http.RequestMethod.GET,
+        header: bypass,
         connectTimeout: FETCH_TIMEOUT_MS,
         readTimeout: FETCH_TIMEOUT_MS,
         expectDataType: http.HttpDataType.ARRAY_BUFFER,

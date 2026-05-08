@@ -47,9 +47,9 @@ async function tripleTapVersion(driver: Driver): Promise<void> {
  * fires the env-switch pipeline (probe / reset / save / audit / toast)
  * and replaceUrl()s back to HomePage.
  *
- * Network-dependent: the manifest URL is a hard-coded
- * raw.githubusercontent.com path that is NOT rewritten by the mock
- * UI server. The Local + Staging cards are static so they're
+ * Network-dependent: manifest fetch uses **`PREVIEW_MANIFEST_JSON_URL`**
+ * (`https://happyword.vercel.app/api/v1/preview-urls.json`) — **not** rewritten
+ * by the mock UI server. The Local + Staging cards are static so they're
  * present even offline; preview cards are probed defensively.
  */
 export default function devMenuCardListUiTest(): void {

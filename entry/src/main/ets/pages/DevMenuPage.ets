@@ -6,13 +6,17 @@ import {
   BackendEnv,
   appendAuditLog,
   AuditRow,
-  loadAuditLog,
   loadBackendEnv,
+  loadBypassSecret,
   loadPreviewUrl,
   metaFor,
   saveBackendEnv,
+  saveBypassSecret,
   savePreviewUrl,
 } from '../services/BackendEnv';
+import {
+  buildVercelBypassHeader,
+} from '../services/BackendHeaders';
 import {
   fetchManifest,
   getCached,
@@ -21,6 +25,7 @@ import {
 } from '../services/PreviewManifestService';
 import { resetForEnvSwitch } from '../services/SessionResetService';
 import { STAGING_BASE_URL } from '../services/RemoteWordPackConfig';
+import { BypassSecretDialog } from '../components/BypassSecretDialog';
 
 /**
  * Route params bag for `pages/DevMenuPage`. Mirrors the class
@@ -58,6 +63,19 @@ class CardProps {
   highlighted: boolean = false;
 }
 
+/**
+ * Outcome bag for `probeHealth`. The boolean drives the apply-or-block
+ * gate; the message is a human-readable line that the dev menu pins
+ * at the bottom of the page so the user can see the exact URL hit
+ * and the HTTP code (or transport error) that came back. Helps
+ * disambiguate "URL is wrong" from "deployment is auth-gated"
+ * (Vercel preview protection returns 401, which we surface verbatim).
+ */
+class ProbeResult {
+  ok: boolean = false;
+  message: string = '';
+}
+
 @Entry
 @Component
 struct DevMenuPage {
@@ -66,7 +84,23 @@ struct DevMenuPage {
   @State private manifest: PreviewManifest | null = null;
   @State private manifestBusy: boolean = false;
   @State private applying: boolean = false;
-  @State private auditLines: string[] = [];
+  // Last probe attempt — pinned at the bottom of the page so failed
+  // probes show the exact URL + status code instead of just the
+  // generic "Cannot reach" toast. Empty string = no probe attempted
+  // this session, hide the line.
+  @State private lastProbeStatus: string = '';
+  // Cached Vercel "Protection Bypass for Automation" secret. Hydrated
+  // from prefs in `aboutToAppear`; updated when the user enters /
+  // changes it via `BypassSecretDialog`. AppStorage is the source of
+  // truth for outgoing HTTP calls (see BackendHeaders.ets); this
+  // local mirror exists so the dialog can pre-fill the existing
+  // value when the user re-opens it.
+  @State private bypassSecret: string = '';
+  // Local handle to the current dialog — held so the closure-driven
+  // close path (mirrors AddCustomWishDialog) works regardless of
+  // whether the auto-bound controller field on the dialog struct
+  // wires up correctly under customStyle: true.
+  private bypassDialog: CustomDialogController | null = null;
 
   private showToast(msg: string): void {
     try {
@@ -92,14 +126,7 @@ struct DevMenuPage {
     this.manifest = getCached();
     this.currentEnv = await loadBackendEnv();
     this.currentPreviewUrl = await loadPreviewUrl();
-    const audits: AuditRow[] = await loadAuditLog();
-    const lines: string[] = [];
-    const max: number = Math.min(audits.length, 10);
-    for (let i = audits.length - max; i < audits.length; i++) {
-      const r: AuditRow = audits[i];
-      lines.push(`${r.ts}: ${r.from} -> ${r.to} ${r.preview_url}`);
-    }
-    this.auditLines = lines;
+    this.bypassSecret = await loadBypassSecret();
     this.refreshManifest(false).catch((err: BusinessError): void => {
       console.error(`DevMenuPage.refreshManifest: ${JSON.stringify(err)}`);
     });
@@ -111,45 +138,175 @@ struct DevMenuPage {
     this.manifestBusy = false;
   }
 
-  private async probeHealth(url: string): Promise<boolean> {
+  /**
+   * Probe `<url>/api/v1/health` and return both the gating boolean
+   * (HTTP 200) and a verbose status string for the on-screen debug
+   * line. Timeout is 5s — emulator's HTTPS handshake to vercel.app
+   * routinely exceeds 2s on a cold connection.
+   *
+   * The optional `bypassSecret` is folded into an
+   * `x-vercel-protection-bypass` header when non-empty (mirrors the
+   * server-side e2e driver in `server/tests/e2e/_utils/vercel.py`).
+   * Without it, Vercel preview deployments return HTTP 401 + an HTML
+   * SSO page; with it, the platform layer waves the request through
+   * to the FastAPI function which returns 200.
+   *
+   * Note we pass the secret in directly rather than reading the
+   * AppStorage mirror — the user's just-entered secret has not yet
+   * been persisted at the moment this method is called from
+   * `onCardTap`, so we can't rely on `vercelBypassHeader()`.
+   */
+  private async probeHealth(url: string, bypassSecret: string): Promise<ProbeResult> {
+    const fullUrl: string = `${url}/api/v1/health`;
     const req: http.HttpRequest = http.createHttp();
+    const out: ProbeResult = new ProbeResult();
     try {
-      const resp: http.HttpResponse = await req.request(`${url}/api/v1/health`, {
+      // Direct call to buildVercelBypassHeader (the pure helper) —
+      // bypasses the AppStorage read because the secret may not yet
+      // be persisted at this point in the flow.
+      const headers: Record<string, string> = buildVercelBypassHeader(
+        BackendEnv.PREVIEW,
+        bypassSecret,
+      );
+      const resp: http.HttpResponse = await req.request(fullUrl, {
         method: http.RequestMethod.GET,
-        connectTimeout: 2000,
-        readTimeout: 2000,
+        header: headers,
+        connectTimeout: 5000,
+        readTimeout: 5000,
       });
-      return resp.responseCode === 200;
-    } catch (_err) {
-      return false;
+      out.ok = resp.responseCode === 200;
+      out.message = `${fullUrl} → HTTP ${resp.responseCode}`;
+    } catch (err) {
+      out.ok = false;
+      const be: BusinessError = err as BusinessError;
+      const reason: string = be.message !== undefined && be.message.length > 0
+        ? be.message
+        : JSON.stringify(err);
+      out.message = `${fullUrl} → unreachable (${reason})`;
     } finally {
       req.destroy();
     }
+    return out;
   }
 
   /**
-   * V0.6.1 unified tap handler. Replaces the old `onApply` button
-   * path. Re-entrancy is guarded by `applying`; while a tap is in
-   * flight every card is rendered with `enabled(false)` so a
-   * second-finger double-tap can't fire a parallel pipeline.
+   * V0.6.2 unified tap handler. Routes Preview cards through the
+   * bypass-secret prompt (when no secret is yet stored) before
+   * running the safety pipeline; Local / Staging / Prod skip the
+   * prompt and the probe.
    *
-   * Safety pipeline preserved from V0.5: probeHealth (Preview only)
-   * → resetForEnvSwitch → saveBackendEnv → savePreviewUrl → audit
-   * row → toast → replaceUrl back to HomePage. Local / Staging skip
-   * the probe (their URL is fixed by `metaFor(env).defaultUrl` and
-   * health is not the dev menu's concern for those modes).
+   * Safety pipeline (Preview only): bypass-secret prompt (if needed)
+   * → probeHealth with secret → resetForEnvSwitch → saveBackendEnv
+   * → savePreviewUrl → saveBypassSecret → audit row → toast →
+   * replaceUrl back to HomePage. Re-entrancy is guarded by
+   * `applying`; while a tap is in flight every card is rendered
+   * with `enabled(false)` so a second-finger double-tap can't fire
+   * a parallel pipeline.
    */
-  private async onCardTap(env: BackendEnv, previewUrl: string): Promise<void> {
+  private onCardTap(env: BackendEnv, previewUrl: string): void {
     if (this.applying) {
       return;
     }
+    if (env === BackendEnv.PREVIEW && this.bypassSecret.length === 0) {
+      // Defer apply until the user enters the secret. Dialog's
+      // onSubmit closure resumes the pipeline.
+      this.openBypassDialog(previewUrl);
+      return;
+    }
+    this.applyEnv(env, previewUrl, this.bypassSecret).catch((err: BusinessError): void => {
+      console.error(`onCardTap.applyEnv failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  /**
+   * Standalone "Edit bypass secret" path. Opens the dialog with the
+   * current cached secret pre-filled and persists the new value on
+   * submit WITHOUT triggering a probe or env switch — useful when
+   * the user just wants to fix a stale / rotated secret.
+   */
+  private openBypassEditDialog(): void {
+    let ctrl: CustomDialogController | null = null;
+    ctrl = new CustomDialogController({
+      builder: BypassSecretDialog({
+        initialSecret: this.bypassSecret,
+        onSubmit: (secret: string): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+          this.bypassSecret = secret;
+          saveBypassSecret(secret).then((): void => {
+            this.showToast('Bypass secret saved');
+          }).catch((err: BusinessError): void => {
+            console.error(`saveBypassSecret failed: ${JSON.stringify(err)}`);
+          });
+        },
+        onCancel: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+        },
+      }),
+      autoCancel: true,
+      customStyle: true,
+    });
+    this.bypassDialog = ctrl;
+    ctrl.open();
+  }
+
+  /**
+   * Open the bypass-secret prompt for the given preview URL. On
+   * submit, persist the secret and resume the apply pipeline; on
+   * cancel, leave state untouched (no env switch).
+   */
+  private openBypassDialog(previewUrl: string): void {
+    let ctrl: CustomDialogController | null = null;
+    ctrl = new CustomDialogController({
+      builder: BypassSecretDialog({
+        initialSecret: this.bypassSecret,
+        onSubmit: (secret: string): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+          this.bypassSecret = secret;
+          this.applyEnv(BackendEnv.PREVIEW, previewUrl, secret).catch((err: BusinessError): void => {
+            console.error(`openBypassDialog.applyEnv failed: ${JSON.stringify(err)}`);
+          });
+        },
+        onCancel: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+        },
+      }),
+      autoCancel: true,
+      customStyle: true,
+    });
+    this.bypassDialog = ctrl;
+    ctrl.open();
+  }
+
+  /**
+   * Run the actual env-switch pipeline. Extracted from `onCardTap`
+   * so the post-prompt resume path (after `BypassSecretDialog`
+   * confirms) and the no-prompt path (Local / Staging / cached
+   * Preview secret) share one code path.
+   */
+  private async applyEnv(
+    env: BackendEnv,
+    previewUrl: string,
+    bypassSecret: string,
+  ): Promise<void> {
     this.applying = true;
     try {
       let urlForAudit: string = previewUrl;
       if (env === BackendEnv.PREVIEW) {
-        const ok: boolean = await this.probeHealth(previewUrl);
-        if (!ok) {
-          this.showToast('Cannot reach /api/v1/health on that URL');
+        // Surface the URL we're about to probe BEFORE the request so
+        // the user sees something even if the call hangs to timeout.
+        this.lastProbeStatus = `Probing ${previewUrl}/api/v1/health…`;
+        const result: ProbeResult = await this.probeHealth(previewUrl, bypassSecret);
+        this.lastProbeStatus = result.message;
+        if (!result.ok) {
+          this.showToast('Cannot reach /api/v1/health — see status at bottom');
           return;
         }
       }
@@ -158,6 +315,9 @@ struct DevMenuPage {
       await saveBackendEnv(env);
       if (env === BackendEnv.PREVIEW) {
         await savePreviewUrl(previewUrl);
+        // Persist the secret only after a successful 200 probe so a
+        // mistyped secret never gets cached.
+        await saveBypassSecret(bypassSecret);
       } else {
         await savePreviewUrl('');
         urlForAudit = '';
@@ -297,9 +457,7 @@ struct DevMenuPage {
       .enabled(!this.applying)
       .opacity(this.applying ? 0.6 : 1.0)
       .onClick((): void => {
-        this.onCardTap(props.env, props.previewUrl).catch((err: BusinessError): void => {
-          console.error(`onCardTap: ${JSON.stringify(err)}`);
-        });
+        this.onCardTap(props.env, props.previewUrl);
       });
     }
   }
@@ -381,16 +539,39 @@ struct DevMenuPage {
           .fontColor('#999999')
           .margin({ top: 8 });
 
-        if (this.auditLines.length > 0) {
-          Text('Recent switches')
-            .fontSize(14)
-            .margin({ top: 16, bottom: 8 });
-          ForEach(this.auditLines, (line: string, idx: number) => {
-            Text(line)
-              .fontSize(10)
-              .fontColor('#777777')
-              .margin({ bottom: 4 });
-          }, (line: string, idx: number) => `${idx}`);
+        // Bypass-secret editor — shown whenever a secret is cached so
+        // the user can update it after a Vercel rotation without
+        // having to tap a Preview card and trigger an env switch.
+        // First-time entry happens implicitly on Preview card tap
+        // (see `openBypassDialog`).
+        if (this.bypassSecret.length > 0) {
+          Button('Edit Vercel bypass secret')
+            .id('DevMenuEditBypassSecretButton')
+            .fontSize(13)
+            .height(36)
+            .margin({ top: 12 })
+            .backgroundColor('#F1F2F4')
+            .fontColor('#1D3557')
+            .onClick((): void => {
+              this.openBypassEditDialog();
+            });
+        }
+
+        if (this.lastProbeStatus.length > 0) {
+          // Pinned debug line — shows the most recent /api/v1/health
+          // probe URL + outcome. Stays visible even after a failed
+          // tap so the user can verify which URL was hit (Vercel
+          // preview deployments often return 401, which the toast
+          // alone does not disambiguate from a typo'd URL).
+          Text('Last health probe')
+            .fontSize(12)
+            .fontColor('#666666')
+            .margin({ top: 16, bottom: 4 });
+          Text(this.lastProbeStatus)
+            .id('DevMenuLastProbeStatus')
+            .fontSize(11)
+            .fontColor('#444444')
+            .width('100%');
         }
       }
       .width('100%')
