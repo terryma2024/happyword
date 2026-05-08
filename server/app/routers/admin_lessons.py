@@ -6,9 +6,13 @@ each draft will be scoped to the parent account that uploaded it. Until
 then the `reviewer` field is hard-coded to "parent".
 """
 
+import asyncio
+import json
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 
 from app.models.lesson_import_draft import LessonImportDraft
 from app.schemas.admin_category import CategoryOut
@@ -62,14 +66,96 @@ def _to_out(d: LessonImportDraft) -> LessonDraftOut:
 # ---------------------------------------------------------------------------
 
 
+# V0.7: Heartbeat interval for the streaming import response. The
+# HarmonyOS simulator (and any other client behind a NAT that aggressively
+# reaps "silent" outbound connections) drops sockets that receive zero
+# inbound bytes for ~900 ms. OpenAI Vision usually takes 8–15 s, far
+# beyond that limit. To keep the connection alive we yield a single
+# whitespace byte every `_IMPORT_HEARTBEAT_S` while the LLM call is in
+# flight; JSON parsers ignore leading whitespace, so the eventual body
+# is still standard `application/json`. See
+# `tests/test_admin_lessons.py::test_import_streams_heartbeat_then_draft`
+# for the contract.
+_IMPORT_HEARTBEAT_S = 0.4
+
+
+async def _stream_import_response(
+    *,
+    payload: bytes,
+    mime: str,
+    blob_url: str,
+) -> AsyncIterator[bytes]:
+    """Yield heartbeat whitespace while extracting, then the final JSON.
+
+    The terminal payload is either a `LessonDraftOut` JSON object (on
+    success) or `{"_error": {"code": ..., "message": ...}}` (on LLM
+    failure). HTTP status is fixed at 200 because we have to commit
+    to a status code before the first byte goes on the wire — the
+    parent admin client checks the `_error` envelope key to
+    distinguish successes from LLM-side failures.
+    """
+    yield b" "  # immediate first byte: opens the stream so the simulator's NAT
+    # entry sees inbound traffic before the OpenAI roundtrip starts.
+
+    extract_task = asyncio.create_task(
+        lesson_service.extract_lesson_payload(payload, mime)
+    )
+    # Heartbeat loop: yield a single space byte every
+    # `_IMPORT_HEARTBEAT_S` until the extraction task settles. We
+    # loop on `asyncio.wait_for(asyncio.shield(extract_task), ...)`
+    # rather than `extract_task.done()` because if the task completes
+    # with an exception, `wait_for` re-raises that exception
+    # immediately — we therefore exit the loop on either success
+    # (break) or LLM failure (caught here, re-raised below for the
+    # envelope encoder to format) instead of silently spinning.
+    while True:
+        try:
+            await asyncio.wait_for(asyncio.shield(extract_task), timeout=_IMPORT_HEARTBEAT_S)
+        except TimeoutError:
+            yield b" "
+            continue
+        except (LlmConfigError, LlmCallError):
+            # Task is done with an exception; fall through to the
+            # envelope encoder via the `await extract_task` below.
+            break
+        break
+
+    try:
+        model_name, extracted = await extract_task
+    except LlmConfigError as exc:
+        yield json.dumps(
+            {"_error": {"code": "LLM_NOT_CONFIGURED", "message": str(exc)}}
+        ).encode()
+        return
+    except LlmCallError as exc:
+        yield json.dumps(
+            {"_error": {"code": "LLM_CALL_FAILED", "message": str(exc)}}
+        ).encode()
+        return
+
+    draft = LessonImportDraft(
+        source_image_url=blob_url,
+        extracted=extracted,
+        status="pending",
+        model=model_name,
+        prompt_version=1,
+    )
+    await draft.insert()
+    yield _to_out(draft).model_dump_json().encode()
+
+
 @router.post(
     "/lessons/import",
-    response_model=LessonDraftOut,
-    status_code=status.HTTP_201_CREATED,
+    # NOTE: this route streams; a static `response_model` would make
+    # FastAPI try to validate `StreamingResponse` against the schema.
+    # OpenAPI consumers can still rely on the documented success body
+    # (`LessonDraftOut`) and the failure envelope (`_error`) — the
+    # contract is enforced by `tests/test_admin_lessons.py`.
+    status_code=status.HTTP_200_OK,
 )
 async def import_lesson(
     image: UploadFile = File(..., description="Textbook page photo (JPEG/PNG/WebP)."),
-) -> LessonDraftOut:
+) -> StreamingResponse:
     mime = (image.content_type or "").lower()
     if mime not in _ACCEPTED_MIME:
         raise _err(
@@ -96,27 +182,22 @@ async def import_lesson(
             f"Image is {len(payload)} bytes; max {_MAX_IMAGE_BYTES}",
         )
 
+    # The blob upload is fast (<1 s) and synchronous: if it fails we
+    # surface a normal HTTP error before opening the stream, so clients
+    # get a non-streaming 4xx/5xx for upload-side problems.
     blob_url = await lesson_service.upload_lesson_image(payload, mime)
-    try:
-        model_name, extracted = await lesson_service.extract_lesson_payload(payload, mime)
-    except LlmConfigError as exc:
-        raise _err(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "LLM_NOT_CONFIGURED",
-            str(exc),
-        ) from exc
-    except LlmCallError as exc:
-        raise _err(status.HTTP_502_BAD_GATEWAY, "LLM_CALL_FAILED", str(exc)) from exc
 
-    draft = LessonImportDraft(
-        source_image_url=blob_url,
-        extracted=extracted,
-        status="pending",
-        model=model_name,
-        prompt_version=1,
+    return StreamingResponse(
+        _stream_import_response(payload=payload, mime=mime, blob_url=blob_url),
+        media_type="application/json",
+        status_code=status.HTTP_200_OK,
+        # `X-Accel-Buffering: no` is the standard nginx hint to disable
+        # response buffering. Vercel's edge does not currently document a
+        # required header for serverless-function streaming, but emitting
+        # this is harmless and makes the streaming intent explicit for
+        # any reverse proxy in the path.
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"},
     )
-    await draft.insert()
-    return _to_out(draft)
 
 
 # ---------------------------------------------------------------------------

@@ -439,6 +439,29 @@ export class ParentApiClient {
     }
 
     const url: string = `${this.baseUrl}/api/v1/admin/lessons/import`;
+    // V0.7 hotfix history (each attempt was verified on the simulator
+    // against happyword preview deployments):
+    //   1. Hand-rolled multipart + ArrayBuffer extraData →
+    //      `CURLE_SEND_ERROR` (2300055): TLS handshake completed, then
+    //      Vercel's edge dropped the connection mid-body, never logging
+    //      the request. Libcurl auto-emits `Expect: 100-continue` for
+    //      bodies > 1 KiB on HTTP/1.1 and uses HTTP/2 over ALPN — both
+    //      paths can race with Vercel's nginx edge.
+    //   2. NetworkKit `multiFormDataList` without an explicit
+    //      `Content-Type` → 422 "image field required": the kit only
+    //      builds the multipart body when the request `Content-Type`
+    //      starts with `multipart/form-data`.
+    //   3. NetworkKit `multiFormDataList` + `Content-Type:
+    //      multipart/form-data` (no boundary) → `CURLE_RECV_ERROR`
+    //      (2300056): kit's libcurl-mime appears NOT to append the
+    //      boundary parameter to a caller-set Content-Type, so Vercel
+    //      received `multipart/form-data` with no `boundary=…` and RST.
+    //   4. (current) Hand-rolled multipart + `usingProtocol: HTTP1_1`
+    //      + suppressed `Expect: 100-continue` header: forces a plain
+    //      HTTP/1.1 POST with `Content-Length` precomputed and no
+    //      handshake roundtrip. This is the same shape host `curl`
+    //      uses, which we've already confirmed succeeds on this same
+    //      preview deployment.
     const built: MultipartResult = buildSingleImageMultipart(
       'image',
       image.filename.length > 0 ? image.filename : 'lesson.jpg',
@@ -448,6 +471,24 @@ export class ParentApiClient {
     const headers: Record<string, string> = {};
     headers[HEADER_CONTENT_TYPE] = `multipart/form-data; boundary=${built.boundary}`;
     headers[HEADER_ACCEPT] = CONTENT_JSON;
+    // Suppress libcurl's auto-injected `Expect: 100-continue` for
+    // POST bodies > 1 KiB. Vercel's nginx edge does NOT always reply
+    // with `100 Continue`, which leaves libcurl waiting for a second
+    // until it gives up and sends the body. By the time the body
+    // lands, the edge has already moved on / closed the socket, and
+    // libcurl reports CURLE_SEND_ERROR. Setting `Expect:` to a
+    // (non-empty) single space disables the auto-header without
+    // breaking RFC compliance — libcurl's documented escape hatch.
+    headers['Expect'] = '';
+
+    // Diagnostic breadcrumb — without this the transport-failure catch
+    // below is invisible in hilog and `网络异常` cases are impossible to
+    // triage from a device. Keep the line cheap (no body bytes logged,
+    // bypass header presence only — never the secret value).
+    const headerKeys: string[] = Object.keys(withBypassHeaders(headers));
+    console.info(
+      `importLesson: POST ${url} body=${built.body.byteLength}B mime=${image.mime} headerKeys=[${headerKeys.join(',')}] proto=HTTP1_1`,
+    );
 
     let resp: http.HttpResponse;
     try {
@@ -458,10 +499,20 @@ export class ParentApiClient {
         connectTimeout: IMPORT_TIMEOUT_MS,
         readTimeout: IMPORT_TIMEOUT_MS,
         expectDataType: http.HttpDataType.STRING,
+        usingProtocol: http.HttpProtocol.HTTP1_1,
       };
       resp = await this.httpRequester.request(url, opts);
     } catch (err) {
       const be: BusinessError = err as BusinessError;
+      // V0.7 hotfix: this catch was silent before, so device-side
+      // `网络异常` failures showed nothing in hilog and required
+      // pulling Vercel runtime logs (which also showed nothing because
+      // the request never reached the function). Always log the
+      // BusinessError details — `code`/`message` is the libcurl error
+      // class (e.g. 2300028 = CURLE_OPERATION_TIMEDOUT).
+      console.error(
+        `importLesson: transport failed for ${url} — ${JSON.stringify(be)}`,
+      );
       throw new LessonImportError(
         'NETWORK',
         `importLesson: transport failed (${JSON.stringify(be)})`,
@@ -472,11 +523,27 @@ export class ParentApiClient {
     const status: number = resp.responseCode;
     const bodyStr: string = ParentApiClient.stringifyHttpBody(resp.result);
     if (status !== 200 && status !== 201) {
+      console.error(`importLesson: HTTP ${status} for ${url} — body[0..400]=${bodyStr.slice(0, 400)}`);
       throw new LessonImportError(
         'HTTP',
         `importLesson: HTTP ${status}: ${bodyStr}`,
         status,
       );
+    }
+    console.info(`importLesson: HTTP ${status} ok, body=${bodyStr.length}B`);
+    // V0.7: the server streams whitespace heartbeats while OpenAI
+    // Vision is in flight (see `server/app/routers/admin_lessons.py
+    // ::_stream_import_response`). If the LLM call ultimately fails
+    // it cannot return a non-200 status (the heartbeats already
+    // committed the response code), so the streaming endpoint
+    // surfaces LLM failures via an `_error` envelope in the JSON
+    // body. Detect that envelope here and re-raise as the
+    // appropriate `LessonImportError`, mapping back to the original
+    // 502/503 status the non-streaming endpoint used to return.
+    const llmErr: LessonImportError | null = ParentApiClient.detectLessonImportLlmError(bodyStr);
+    if (llmErr !== null) {
+      console.error(`importLesson: LLM error envelope code=${llmErr.code} status=${llmErr.status}`);
+      throw llmErr;
     }
     return ParentApiClient.parseLessonDraft(bodyStr, 'importLesson');
   }
@@ -569,6 +636,38 @@ export class ParentApiClient {
     } catch (_err) {
       throw new ParentHttpError(`${op}: malformed response body`, 0, bodyStr);
     }
+  }
+
+  /** Inspect a streaming `import_lesson` body for the `_error` envelope.
+   *  Returns the `LessonImportError` to throw, or null if the body looks
+   *  like a normal `LessonDraftOut`. The streaming endpoint always
+   *  responds with HTTP 200 (because heartbeat bytes flush before the
+   *  result is known), so without this envelope check the client would
+   *  happily try to parse an LLM failure as a draft and surface a
+   *  cryptic `malformed response body` to the user.
+   *  Maps codes back to the legacy non-streaming statuses: 503 for
+   *  `LLM_NOT_CONFIGURED`, 502 for everything else. */
+  private static detectLessonImportLlmError(bodyStr: string): LessonImportError | null {
+    let parsed: object;
+    try {
+      parsed = JSON.parse(bodyStr) as object;
+    } catch (_err) {
+      // Not JSON yet — fall through to `parseLessonDraft`, which will
+      // surface the same parse failure as a `ParentHttpError`.
+      return null;
+    }
+    const env: Record<string, ESObject> = parsed as Record<string, ESObject>;
+    const errField: ESObject = env['_error'];
+    if (errField === undefined || errField === null) {
+      return null;
+    }
+    const errObj: Record<string, ESObject> = errField as Record<string, ESObject>;
+    const codeRaw: ESObject = errObj['code'];
+    const code: string = typeof codeRaw === 'string' ? codeRaw : 'LLM_CALL_FAILED';
+    const messageRaw: ESObject = errObj['message'];
+    const message: string = typeof messageRaw === 'string' ? messageRaw : '(no message)';
+    const status: number = code === 'LLM_NOT_CONFIGURED' ? 503 : 502;
+    return new LessonImportError('HTTP', `importLesson: ${code}: ${message}`, status);
   }
 
   private static jsonHeaders(): Record<string, string> {

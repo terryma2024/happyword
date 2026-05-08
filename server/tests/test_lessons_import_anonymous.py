@@ -65,7 +65,9 @@ async def test_import_succeeds_without_auth(
         "/api/v1/admin/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg" * 100), "image/jpeg")},
     )
-    assert resp.status_code == 201, resp.text
+    # V0.7: streaming endpoint commits to HTTP 200 before the LLM
+    # call resolves; the success body is unchanged otherwise.
+    assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["status"] == "pending"
     assert body["extracted"]["category_id"] == "lesson-import-anon"
@@ -82,7 +84,7 @@ async def test_patch_then_approve_anonymously_records_parent_reviewer(
         "/api/v1/admin/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
-    assert create.status_code == 201, create.text
+    assert create.status_code == 200, create.text  # V0.7 streaming
     draft_id = create.json()["id"]
 
     edited = {

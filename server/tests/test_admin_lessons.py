@@ -167,13 +167,102 @@ async def test_lesson_import_returns_draft_pending(
         headers=_bearer(admin.username),
         files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg" * 100), "image/jpeg")},
     )
-    assert resp.status_code == 201, resp.text
+    # V0.7: the endpoint now streams whitespace heartbeats while
+    # OpenAI Vision runs (see admin_lessons.py docstring) and commits
+    # to HTTP 200 before the result is known. The success body is the
+    # same `LessonDraftOut` JSON it always was, just preceded by
+    # whitespace bytes — `httpx.Response.json()` ignores them.
+    assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["status"] == "pending"
     assert body["source_image_url"] == "stub://lessons/fake.jpg"
     assert body["extracted"]["category_id"] == "school-supplies"
     assert len(body["extracted"]["words"]) == 3
     assert body["model"] == "gpt-4o-stub"
+    assert "_error" not in body
+
+
+@pytest.mark.asyncio
+async def test_lesson_import_streams_heartbeat_then_draft(
+    client: "AsyncClient", admin: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The streaming endpoint MUST emit at least one whitespace
+    heartbeat byte before the LLM call completes; otherwise the
+    HarmonyOS simulator's NAT entry is reaped (~900 ms idle limit)
+    and the upload surfaces as `网络异常`.
+
+    We force the heartbeat path by making the fake extractor sleep
+    longer than `_IMPORT_HEARTBEAT_S`. The leading bytes of the
+    response body must therefore be whitespace, with the JSON
+    payload appearing only after.
+    """
+    import asyncio as _asyncio
+
+    from app.routers import admin_lessons as _router_mod
+    from app.services import lesson_service as _ls
+
+    _stub_blob_upload(monkeypatch)
+
+    async def _slow_extract(image_bytes: bytes, mime: str) -> tuple[str, dict[str, object]]:
+        # Sleep for ~3× the heartbeat interval so the streamer is
+        # forced to emit multiple heartbeat bytes before the result
+        # is available.
+        await _asyncio.sleep(_router_mod._IMPORT_HEARTBEAT_S * 3)
+        return "gpt-4o-stub", _FIXED_EXTRACTED
+
+    monkeypatch.setattr(_ls, "extract_lesson_payload", _slow_extract)
+
+    resp = await client.post(
+        "/api/v1/admin/lessons/import",
+        headers=_bearer(admin.username),
+        files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg" * 50), "image/jpeg")},
+    )
+    assert resp.status_code == 200, resp.text
+    raw = resp.text
+    # First byte is a heartbeat whitespace (asserted strictly so
+    # nobody silently strips it during a future refactor).
+    assert raw.startswith(" "), repr(raw[:20])
+    # Strip the leading run of heartbeats; what remains MUST be the
+    # JSON success body.
+    payload = raw.lstrip()
+    assert payload.startswith("{"), repr(payload[:20])
+    body = resp.json()
+    assert body["status"] == "pending"
+    assert "_error" not in body
+
+
+@pytest.mark.asyncio
+async def test_lesson_import_streams_error_envelope_on_llm_failure(
+    client: "AsyncClient", admin: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When the LLM call raises after streaming has begun, we cannot
+    flip to a 5xx status code (heartbeats already committed 200).
+    The endpoint MUST instead surface the failure via the
+    `{"_error": {"code": ..., "message": ...}}` envelope so the
+    parent admin client can re-raise it as a `LessonImportError`.
+    """
+    from app.services import lesson_service as _ls
+    from app.services.llm_service import LlmCallError
+
+    _stub_blob_upload(monkeypatch)
+
+    async def _fail_extract(image_bytes: bytes, mime: str) -> tuple[str, dict[str, object]]:
+        raise LlmCallError("vision endpoint hung up")
+
+    monkeypatch.setattr(_ls, "extract_lesson_payload", _fail_extract)
+
+    resp = await client.post(
+        "/api/v1/admin/lessons/import",
+        headers=_bearer(admin.username),
+        files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg" * 50), "image/jpeg")},
+    )
+    # Heartbeats committed 200 before we knew the outcome; the
+    # envelope inside the body is the real signal.
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert "_error" in body, body
+    assert body["_error"]["code"] == "LLM_CALL_FAILED"
+    assert "vision endpoint hung up" in body["_error"]["message"]
 
 
 @pytest.mark.asyncio
