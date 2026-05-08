@@ -1,0 +1,47 @@
+<h2>DevMenu header changes</h2>
+<p class="subtitle">Goal: add a <b>PassCode</b> button left of <b>Refresh manifest</b>.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Developer options (header row)</div>
+  <div class="mockup-body">
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;">
+      <div style="padding:8px 12px;border-radius:10px;background:#f3f4f6;border:1px solid #e5e7eb;font-weight:600;">Back</div>
+      <div style="font-size:18px;font-weight:800;color:#111827;">Developer options</div>
+      <div style="flex:1"></div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div style="padding:8px 12px;border-radius:10px;background:#f3f4f6;border:1px solid #e5e7eb;font-weight:600;">PassCode</div>
+        <div style="padding:8px 12px;border-radius:10px;background:#f3f4f6;border:1px solid #e5e7eb;font-weight:600;">Refresh manifest</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;color:#374151;font-size:13px;line-height:1.35">
+      <ul style="margin:0;padding-left:18px">
+        <li><b>PassCode</b> opens the <b>ByPassCode</b> entry page.</li>
+        <li>If already set, the entry page shows the current value (masked) and allows overwrite.</li>
+        <li>When tapping a preview card:
+          <ul style="margin:6px 0 0 0;padding-left:18px">
+            <li>If passcode <b>not</b> set: prompt for it (same as today’s bypass secret flow).</li>
+            <li>If passcode is set: switch immediately (no prompt).</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="ok" onclick="toggleSelect(this)">
+    <div class="letter">OK</div>
+    <div class="content">
+      <h3>Header layout looks right</h3>
+      <p>Proceed with this placement and behavior.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tweak" onclick="toggleSelect(this)">
+    <div class="letter">T</div>
+    <div class="content">
+      <h3>Need tweaks</h3>
+      <p>Spacing / naming / order / another location.</p>
+    </div>
+  </div>
+</div>
+
