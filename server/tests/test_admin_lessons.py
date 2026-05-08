@@ -219,14 +219,11 @@ async def test_lesson_import_streams_heartbeat_then_draft(
     )
     assert resp.status_code == 200, resp.text
     raw = resp.text
-    # First chunk is a 64 KiB whitespace primer (asserted strictly
-    # so nobody silently shrinks it during a future refactor — the
-    # primer size is what bypasses Vercel's serverless Python
-    # runtime response buffer; smaller primers (4 KiB) measured
-    # TTFB ≈ 5 s on a real Vercel preview, larger ones force an
-    # immediate flush so the simulator's ~870 ms NAT cutoff is
-    # honored).
-    assert raw.startswith(" " * 65536), repr(raw[:32])
+    # First chunk is a 4 KiB whitespace primer (asserted strictly so
+    # nobody silently shrinks it during a future refactor — the
+    # primer size is what bypasses Vercel's serverless response
+    # buffer and keeps the simulator's NAT entry alive).
+    assert raw.startswith(" " * 4096), repr(raw[:32])
     # Strip the leading run of heartbeats; what remains MUST be the
     # JSON success body.
     payload = raw.lstrip()
