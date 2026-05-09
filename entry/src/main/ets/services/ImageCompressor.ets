@@ -166,7 +166,7 @@ export class RealImageCompressor implements IImageCompressor {
   ): Promise<ArrayBuffer> {
     const opts: image.PackingOption = { format: 'image/jpeg', quality };
     try {
-      return await packer.packing(pm, opts);
+      return await packer.packToData(pm, opts);
     } catch (e) {
       const be: BusinessError = e as BusinessError;
       throw new ImageCompressionError(

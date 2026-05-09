@@ -8,7 +8,7 @@
 ## Commands
 - **Phased build/test commands, log paths, and device rules:** [`.cursor/dev-commands.md`](.cursor/dev-commands.md) (source of truth for the Harmony autofix skills).
 - Install deps: ohpm install
-- Build debug HAP: hvigorw assembleHap
+- Build debug HAP: hvigorw assembleHap (compile output must have zero `ArkTS:WARN`; see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) **ArkTS compiler warnings**)
 - After a successful HAP build, run CodeLinter (see [`.cursor/dev-commands.md`](.cursor/dev-commands.md)): `codelinter -c ./code-linter.json5 . --fix`
 - Build module: hvigorw --mode module -p module=entry assembleHap
 - Connect device: hdc list targets

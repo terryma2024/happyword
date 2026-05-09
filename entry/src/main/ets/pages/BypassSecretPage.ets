@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import { loadBypassSecret, saveBypassSecret } from '../services/BackendEnv';
 
@@ -53,7 +52,9 @@ struct BypassSecretPage {
           .height(40)
           .backgroundColor('#F1F2F4')
           .fontColor('#1D3557')
-          .onClick((): void => router.back());
+          .onClick((): void => {
+            this.getUIContext().getRouter().back();
+          });
 
         Button('Save')
           .id('BypassSecretPageSaveButton')
@@ -68,7 +69,7 @@ struct BypassSecretPage {
               return;
             }
             saveBypassSecret(trimmed).then((): void => {
-              router.back();
+              this.getUIContext().getRouter().back();
             }).catch((err: BusinessError): void => {
               console.error(`BypassSecretPage.save failed: ${JSON.stringify(err)}`);
               this.errorMessage = 'Failed to save';

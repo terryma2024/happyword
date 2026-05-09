@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { DeviceIdProvider, DeviceIdResult } from '../services/DeviceIdProvider';
@@ -15,7 +14,8 @@ struct BoundDeviceInfoPage {
   private provider: DeviceIdProvider = new DeviceIdProvider();
 
   aboutToAppear(): void {
-    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
     Promise.all([this.credentials.init(ctx), this.provider.init(ctx)])
       .then(() => Promise.all([this.credentials.load(), this.provider.get()]))
       .then((tuple: [CloudCredentialsSnapshot, DeviceIdResult]) => {
@@ -50,7 +50,7 @@ struct BoundDeviceInfoPage {
       // V0.6.2: local clear only; server-side revoke ships in V0.6.7. Parents
       // can also revoke from the parent web (DELETE /api/v1/parent/children/:id).
       await this.credentials.clearBinding();
-      router.back();
+      this.getUIContext().getRouter().back();
     } finally {
       this.busy = false;
     }
@@ -62,7 +62,9 @@ struct BoundDeviceInfoPage {
         Text('家长账户').fontSize(20).fontWeight(FontWeight.Bold).fontColor('#1f2937')
         Blank()
         Button('返回').fontSize(14).backgroundColor('#e2e8f0').fontColor('#1f2937')
-          .onClick(() => router.back())
+          .onClick((): void => {
+            this.getUIContext().getRouter().back();
+          })
       }
       .width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
 

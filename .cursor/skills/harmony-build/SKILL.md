@@ -13,7 +13,8 @@ description: Runs OHPM and Hvigor build steps for this HarmonyOS repo using the 
 ## Steps
 
 1. `ohpm install` from **project root** (unless manifest says already satisfied).
-2. `hvigorw assembleHap` (assumes `hvigorw` is installed and available on `PATH`; or use the manifest’s module-scoped `assembleHap`).
+2. `hvigorw assembleHap` (assumes `hvigorw` is installed and available on `PATH`; or use the manifest’s module-scoped `assembleHap`, e.g. `hvigorw -p module=entry@default assembleHap`).
+3. **Zero ArkTS warnings:** confirm the compile log has no `ArkTS:WARN` lines (see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) **ArkTS compiler warnings**). Fix deprecations before claiming green.
 
 ## On success
 
