@@ -595,6 +595,9 @@ struct DevMenuPage {
     }
     .width('100%')
     .height('100%')
-    .scrollBar(BarState.Auto);
+    .scrollBar(BarState.Auto)
+    .backgroundColor('#FFFFFF')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
+      SafeAreaEdge.START, SafeAreaEdge.END]);
   }
 }

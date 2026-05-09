@@ -83,6 +83,9 @@ struct CustomWordsPage {
     .height('100%')
     .padding({ top: 24, bottom: 24, left: 40, right: 40 })
     .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center);
+    .alignItems(HorizontalAlign.Center)
+    .backgroundColor('#FFFFFF')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
+      SafeAreaEdge.START, SafeAreaEdge.END]);
   }
 }

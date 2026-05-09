@@ -172,7 +172,12 @@ struct BoundDeviceInfoPage {
         } else if (!this.snap.isBound()) {
           Text('当前未绑定家长账号。').fontSize(14).fontColor('#64748b').padding(24)
         } else {
-          Column({ space: 12 }) {
+          // V0.6.9 — tightened row rhythm: outer padding 24 → 16,
+          // inter-row Column space 12 → 4, per-row vertical padding
+          // 8 → 6 (so between two rows: 28dp → 16dp). The unbind
+          // button keeps a clear top margin so it doesn't crowd the
+          // last info row.
+          Column({ space: 4 }) {
             this.editableNicknameRow()
             this.row('Family ID', this.snap.familyId)
             this.row('Binding ID', this.snap.bindingId)
@@ -189,10 +194,14 @@ struct BoundDeviceInfoPage {
             Text('提示：V0.6.2 仅在本机清除凭据，需在家长网页 → 设备列表 中删除以撤销。')
               .fontSize(12).fontColor('#64748b').margin({ top: 8 })
           }
-          .width('100%').padding(24)
+          .width('100%').padding(16)
         }
       }
-      .width('100%').height('100%').backgroundColor('#f8fafc')
+      // Background lives on the root Stack (below) so it can
+      // expandSafeArea; the inner Column stays full size but the
+      // page bg paints under the system gesture / home-indicator strip
+      // in landscape (otherwise a grey default shows through).
+      .width('100%').height('100%')
 
       if (this.nicknameToastText.length > 0) {
         Text(this.nicknameToastText)
@@ -205,7 +214,11 @@ struct BoundDeviceInfoPage {
           .margin({ top: 80, right: 16 })
       }
     }
-    .width('100%').height('100%')
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#f8fafc')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
+      SafeAreaEdge.START, SafeAreaEdge.END])
   }
 
   @Builder
@@ -223,7 +236,7 @@ struct BoundDeviceInfoPage {
         .margin({ left: 8 })
         .onClick((): void => this.openEditNickname())
     }
-    .width('100%').padding({ top: 8, bottom: 8 })
+    .width('100%').padding({ top: 6, bottom: 6 })
   }
 
   @Builder
@@ -233,6 +246,6 @@ struct BoundDeviceInfoPage {
       Text(value).fontSize(14).fontColor('#1f2937').textAlign(TextAlign.End)
         .layoutWeight(1)
     }
-    .width('100%').padding({ top: 8, bottom: 8 })
+    .width('100%').padding({ top: 6, bottom: 6 })
   }
 }

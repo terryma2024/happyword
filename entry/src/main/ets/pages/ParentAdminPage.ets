@@ -376,7 +376,9 @@ struct ParentAdminPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#FFFFFF');
+    .backgroundColor('#FFFFFF')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
+      SafeAreaEdge.START, SafeAreaEdge.END]);
   }
 
   @Builder

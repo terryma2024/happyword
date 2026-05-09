@@ -345,13 +345,22 @@ struct HomePage {
 
       Row({ space: 12 }) {
         if (this.boundChildNickname.length > 0) {
+          // V0.6.9: tapping the badge jumps to BoundDeviceInfoPage
+          // (孩子档案), where the kid can edit the nickname. Same
+          // route ConfigPage's "孩子档案" entry uses, so back-nav
+          // and refresh-on-show behave identically.
           Text(`🌙 ${this.boundChildNickname}`)
             .id('HomeBoundChildBadge')
             .fontSize(14)
             .fontColor('#0369A1')
             .padding({ left: 10, right: 10, top: 6, bottom: 6 })
             .backgroundColor('#E0F2FE')
-            .borderRadius(20);
+            .borderRadius(20)
+            .onClick((): void => {
+              this.getUIContext().getRouter().pushUrl({ url: 'pages/BoundDeviceInfoPage' }).catch((err: BusinessError): void => {
+                console.error(`HomePage: pushUrl BoundDeviceInfoPage failed: ${JSON.stringify(err)}`);
+              });
+            });
         }
         Text(`✨ ${this.coinBalance}`)
           .id('HomeCoinBalance')
@@ -499,7 +508,10 @@ struct HomePage {
     }
     .alignContent(Alignment.TopEnd)
     .width('100%')
-    .height('100%');
+    .height('100%')
+    .backgroundColor('#FFFFFF')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
+      SafeAreaEdge.START, SafeAreaEdge.END]);
   }
 
   /**
