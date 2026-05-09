@@ -214,6 +214,9 @@ jobs:
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          # Must match Vercel Preview `CRON_SECRET` for POST .../cron/extract-pending.
+          # If unset, `test_lesson_import_cron_e2e` is collected but skips.
+          E2E_CRON_SECRET: ${{ secrets.E2E_CRON_SECRET }}
           # When the Vercel project has Deployment Protection enabled (Vercel
           # Authentication / Password / Trusted IPs), every API call from this
           # runner is intercepted with a 401 + an SSO HTML page. The driver

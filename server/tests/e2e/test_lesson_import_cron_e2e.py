@@ -40,6 +40,7 @@ def _fixture_jpg_bytes() -> bytes:
     return path.read_bytes()
 
 
+@pytest.mark.e2e
 @pytest.mark.anyio
 async def test_import_then_trigger_extract_pending_is_reentrant(
     http: httpx.Client,

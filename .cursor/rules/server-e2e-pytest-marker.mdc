@@ -1,0 +1,24 @@
+---
+description: E2E tests must use pytest.mark.e2e so CI (-m e2e) collects them
+globs: server/tests/e2e/**/*.py
+alwaysApply: false
+---
+
+# E2E pytest marker (SOP)
+
+GitHub Actions **server / e2e (preview)** runs:
+
+`uv run pytest -v -m e2e`
+
+Only tests marked with **`@pytest.mark.e2e`** are collected. Tests without this marker **do not run in CI** and **will not appear** in the Action log.
+
+## Required for every E2E test
+
+- Add **`@pytest.mark.e2e`** on each test function (or use module-level `pytestmark = pytest.mark.e2e` if the whole file is E2E-only).
+- Async E2E tests can combine markers, e.g. `@pytest.mark.e2e` then `@pytest.mark.anyio` (or rely on `pytest-asyncio` like sibling tests — match existing files in `server/tests/e2e/`).
+- Optional subset: **`@pytest.mark.smoke`** for tests included in `pytest -m smoke` (staging); keep **`e2e`** regardless unless the test is intentionally not part of preview E2E.
+
+## Reference
+
+- Marker definition: `server/pyproject.toml` → `[tool.pytest.ini_options].markers`
+- Workflow: `.github/workflows/server-ci.yml` → step "Run E2E pytest subset"

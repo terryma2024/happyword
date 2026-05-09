@@ -38,6 +38,7 @@ now only handles cleanup-on-close and manual repair runs.
 | _operator_ [**`VERCEL_CRON_SECRET`**](#vercel_cron_secret-lesson-import-extraction-cron) | workstation `~/.env` | optional | Mirrors Vercel **`CRON_SECRET`** for [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh); not a GitHub Actions secret |
 | [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `server-cd`, `atlas-cleanup` | optional | E2E DB reset + Mongo-dependent tests skip; cron cleanup is a no-op |
 | [`E2E_ADMIN_USER`](#e2e_admin_user--e2e_admin_pass), [`E2E_ADMIN_PASS`](#e2e_admin_user--e2e_admin_pass) | `server-ci` E2E | optional | E2E tests that need an admin login skip |
+| [`E2E_CRON_SECRET`](#e2e_cron_secret) | `server-ci` E2E | optional | [`test_lesson_import_cron_e2e`](../server/tests/e2e/test_lesson_import_cron_e2e.py) skips if unset; must equal Preview **`CRON_SECRET`** |
 | [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-cd` | optional | `pytest -m smoke` runs without a DB target → likely fails |
 | [`SLACK_WEBHOOK_URL`](#slack_webhook_url) | `server-ci`, `server-cd` | optional | Failure alert step prints a warning; CI itself unaffected |
 | [`CURSOR_API_KEY`](#cursor_api_key) | `server-ci` (autofix), `cursor-autofix-e2e` | optional | The whole `cursor / autofix e2e` path warns once and exits — no agent is spawned |
@@ -189,6 +190,15 @@ bash tools/vercel/trigger-cron.sh --url-fragment 9y7uijs1p --job extract-pending
 
 Further detail: Cursor skill **`vercel-trigger-cron`** and
 [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh).
+
+### `E2E_CRON_SECRET`
+
+Repository secret used only by GitHub Actions: the E2E job exports it so
+[`server/tests/e2e/test_lesson_import_cron_e2e.py`](../server/tests/e2e/test_lesson_import_cron_e2e.py)
+can call **`POST /api/v1/admin/cron/extract-pending`** with
+**`Authorization: Bearer …`**. Use the **same value** as Vercel **Preview**
+environment variable **`CRON_SECRET`** (see [`VERCEL_CRON_SECRET` §](#vercel_cron_secret-lesson-import-extraction-cron)).
+When this secret is not configured, the test is **skipped** (the suite stays green).
 
 ### `E2E_MONGODB_URI`
 
