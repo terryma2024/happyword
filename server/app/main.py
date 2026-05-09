@@ -44,6 +44,7 @@ from app.routers import admin_stats as admin_stats_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
 from app.routers import child_family_pack as child_family_pack_router
+from app.routers import child_profile as child_profile_router
 from app.routers import child_wishlist as child_wishlist_router
 from app.routers import child_word_stats as child_word_stats_router
 from app.routers import pair as pair_router
@@ -167,6 +168,7 @@ app.include_router(parent_account_router.html_router)
 app.include_router(child_family_pack_router.router)
 app.include_router(child_word_stats_router.router)
 app.include_router(child_wishlist_router.router)
+app.include_router(child_profile_router.router)
 app.include_router(pair_router.router)
 app.include_router(public_packs_router.router)
 app.include_router(admin_llm_router.router)
