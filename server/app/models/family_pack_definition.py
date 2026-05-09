@@ -8,7 +8,7 @@ spec recommends one per textbook unit.
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Any
 
 from beanie import Document, Indexed
 
@@ -23,6 +23,11 @@ class FamilyPackDefinition(Document):
     family_id: Annotated[str, Indexed()]
     name: str
     description: str | None = None
+    # V0.6.5 — scene metadata (bgPrimary/bgAccent/bossName/bossCandidates/
+    # monsterPlan/storyZh) used by global packs to drive the battle scene.
+    # Family packs ship empty {} and fall back to a deterministic default
+    # scene on the client side (see spec §5.4).
+    scene: dict[str, Any] = {}
     state: FamilyPackState = FamilyPackState.ACTIVE
     created_at: datetime
     updated_at: datetime

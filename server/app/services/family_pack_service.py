@@ -27,6 +27,11 @@ from app.models.family_word_pack import FamilyWordPack
 
 GLOBAL_PACK_SCHEMA_VERSION: int = 5
 
+# V0.6.5 — global packs reuse this stack with a reserved family_id sentinel.
+# Real Family.id values are 24-char ObjectId hex strings, so the
+# underscore-padded literal cannot collide. See spec §5.3 + §11.
+GLOBAL_PACK_FAMILY_ID: str = "__global__"
+
 
 class FamilyPackError(Exception):
     """Base for service errors translated to HTTP responses by routers."""
