@@ -32,13 +32,13 @@ Tapping a card **applies** the environment immediately (health probe for Preview
 
 ## Automation / server
 
-`docs/preview-urls.json` is rebuilt from Vercel's deployments API by `server/scripts/update_preview_manifest.mjs`. Two workflows trigger the rebuild:
+The public preview manifest at `preview/preview-urls.json` in Vercel Blob is rebuilt from Vercel's deployments API by `server/scripts/update_preview_manifest.mjs`. Two workflows trigger the rebuild:
 
 - `.github/workflows/server-ci.yml` (`update_manifest` job) — on PR open/sync/reopen, gated on `server_e2e` success.
-- `.github/workflows/preview-manifest.yml` — on PR close, and via **workflow_dispatch** for manual repair / backfill (now performs a full rebuild rather than no-op).
+- `.github/workflows/preview-manifest.yml` — on PR close, and via **workflow_dispatch** for manual repair / backfill.
 
 A merged PR whose preview deployment hasn't been pruned by the weekly `vercel-prune.yml` cron stays in the manifest, because the source of truth is "what's alive on Vercel right now", not "what PR is currently open".
 
-The GitHub file remains the audit copy. Runtime distribution goes through Vercel Blob when `BLOB_READ_WRITE_TOKEN` is configured in GitHub Actions. The FastAPI backend must have `PREVIEW_MANIFEST_BLOB_URL` set to the public Blob URL printed by the manifest rebuild job.
+The Blob is the only output: the historical repo-tracked audit copy at `docs/preview-urls.json` was retired in 2026-05 because the bot-commit churn on `main` had no readers — the FastAPI proxy already served traffic out of Blob. `BLOB_READ_WRITE_TOKEN` must therefore be configured in GitHub Actions for the rebuild jobs to do anything (otherwise they skip with a warning), and the FastAPI backend must have `PREVIEW_MANIFEST_BLOB_URL` set to the public Blob URL printed by the manifest rebuild job.
 
 **Server contract:** `GET /api/v1/preview-urls.json` is intentionally **unauthenticated** at the application layer (public router — no JWT, cookies, or API keys). Vercel Deployment Protection on *preview* deployments does not apply to this URL because the client always calls **production** `happyword.cool` for the manifest.

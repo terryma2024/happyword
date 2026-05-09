@@ -9,10 +9,10 @@ end-to-end. If you only want one section, jump straight to
 
 | Workflow | File | Trigger | Purpose |
 | --- | --- | --- | --- |
-| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself | Offline pytest → E2E pytest against a Vercel Preview → branches: success ⇒ refresh `docs/preview-urls.json`; failure ⇒ Cursor autofix |
+| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself | Offline pytest → E2E pytest against a Vercel Preview → branches: success ⇒ rebuild Vercel Blob preview manifest; failure ⇒ Cursor autofix |
 | `server-cd` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Push to `main` touching `server/**` | Wait for Vercel **production** deploy, run staging smoke (`pytest -m smoke`) |
 | `cursor-autofix-e2e` | [`.github/workflows/cursor-autofix-e2e.yml`](../.github/workflows/cursor-autofix-e2e.yml) | `workflow_dispatch` | Manually trigger a Cursor Cloud Agent for an open PR |
-| `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR `closed` + dispatch | Cleanup-on-close + manual repair for `docs/preview-urls.json` (the open-PR refresh path now lives in the `update_manifest` job inside `server-ci`) |
+| `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR `closed` + dispatch | Cleanup-on-close + manual repair for the Vercel Blob preview manifest (the open-PR refresh path lives in the `update_manifest` job inside `server-ci`) |
 | `atlas-cleanup` | [`.github/workflows/atlas-cleanup.yml`](../.github/workflows/atlas-cleanup.yml) | Cron Mon 09:00 UTC + dispatch | Drop stale per-PR Mongo Atlas DBs older than 14 days |
 | `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Cron Mon 10:00 UTC + dispatch | Keep only the newest Vercel deployment per non-`main` branch (production alias preserved) |
 
@@ -33,7 +33,7 @@ now only handles cleanup-on-close and manual repair runs.
 | [`VERCEL_TOKEN`](#vercel_token) | `server-ci` | optional | `server / e2e (preview)` job is skipped (warning only) |
 | [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | `server-ci` (fallback deploy) | optional | E2E job tries the auto-deploy fallback and fails if no preview was detected on the SHA |
 | [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | `server-ci` (fallback deploy) | optional | same as above |
-| [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `server-ci`, `preview-manifest` | optional | `docs/preview-urls.json` is committed, but the Vercel Blob mirror is skipped |
+| [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `server-ci`, `preview-manifest` | **required** for the manifest rebuild path | The `update_manifest` jobs skip with a warning; `GET /api/v1/preview-urls.json` keeps serving whatever is currently in Blob (or `503` until the env var is wired up the first time) |
 | [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | `server-ci` E2E | optional | E2E hits the **Vercel deployment protection** login page and every request fails |
 | _operator_ [**`VERCEL_CRON_SECRET`**](#vercel_cron_secret-lesson-import-extraction-cron) | workstation `~/.env` | optional | Mirrors Vercel **`CRON_SECRET`** for [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh); not a GitHub Actions secret |
 | [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `server-cd`, `atlas-cleanup` | optional | E2E DB reset + Mongo-dependent tests skip; cron cleanup is a no-op |
@@ -83,11 +83,13 @@ slow). The detect-only path doesn't need them.
 
 ### `BLOB_READ_WRITE_TOKEN`
 
-Used by `server/scripts/update_preview_manifest.mjs` to mirror
-`docs/preview-urls.json` to Vercel Blob at `preview/preview-urls.json`.
-Without it, the GitHub audit copy still updates, but the runtime mirror at
-`GET /api/v1/preview-urls.json` will serve stale data until the next successful
-Blob-backed rebuild.
+Used by `server/scripts/update_preview_manifest.mjs` to publish the public
+preview manifest to Vercel Blob at `preview/preview-urls.json`. The Blob is
+the **only** output of the script — there is no repo-tracked audit copy any
+more, so without this token the rebuild jobs skip with a warning and the
+runtime endpoint `GET /api/v1/preview-urls.json` keeps serving whatever is
+currently in Blob (or returns `503` until the env var is wired up the first
+time).
 
 **Get it:**
 

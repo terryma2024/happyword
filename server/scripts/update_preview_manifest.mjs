@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Build `docs/preview-urls.json` from Vercel deployments (the source of truth)
- * and cross-reference each branch with GitHub to attach PR metadata.
+ * Build the public preview manifest from Vercel deployments (the source of
+ * truth) and upload it to Vercel Blob. The Blob object is the runtime
+ * source for the public FastAPI proxy `GET /api/v1/preview-urls.json`
+ * (see `server/app/services/preview_manifest_service.py`).
  *
  * Per non-protected branch with a successful Vercel preview deployment:
  *   - Pick the newest READY non-production deployment.
@@ -19,26 +21,34 @@
  * automatically after the weekly `vercel-prune.yml` cron deletes a deployment;
  * no separate cleanup is needed.
  *
+ * Historical note: this script used to ALSO write a copy of the manifest to
+ * `docs/preview-urls.json` and the calling workflows committed that copy
+ * back to `main`. That produced unnecessary churn on `main` (one bot commit
+ * per PR sync that touched the URL set) without buying anything — runtime
+ * traffic always read from Blob via the FastAPI proxy. The audit copy was
+ * deleted in `chore: drop docs/preview-urls.json` (2026-05); the Blob is
+ * now the single source of truth.
+ *
  * Usage:
  *   node server/scripts/update_preview_manifest.mjs
  *
  * Required env:
- *   VERCEL_TOKEN       — Vercel API token (Account → Settings → Tokens).
- *   VERCEL_PROJECT_ID  — Vercel project id (e.g. prj_…).
- *   GITHUB_TOKEN       — GitHub token with `pull-requests: read`.
- *   GITHUB_REPOSITORY  — `owner/repo` (auto-set in GitHub Actions).
+ *   VERCEL_TOKEN           — Vercel API token (Account → Settings → Tokens).
+ *   VERCEL_PROJECT_ID      — Vercel project id (e.g. prj_…).
+ *   GITHUB_TOKEN           — GitHub token with `pull-requests: read`.
+ *   GITHUB_REPOSITORY      — `owner/repo` (auto-set in GitHub Actions).
+ *   BLOB_READ_WRITE_TOKEN  — Vercel Blob read/write token (Project → Storage).
  *
  * Optional env:
- *   VERCEL_ORG_ID                       — Vercel team / org id; required on team
- *                                         accounts so Vercel API resolves the
- *                                         project under the right scope.
- *   PREVIEW_MANIFEST_OUTPUT_PATH        — override output path (default
- *                                         `docs/preview-urls.json`); set in unit
- *                                         tests / dry-runs to redirect output.
+ *   VERCEL_ORG_ID                        — Vercel team / org id; required on team
+ *                                          accounts so Vercel API resolves the
+ *                                          project under the right scope.
+ *   PREVIEW_MANIFEST_BLOB_PATH           — override the Blob object path
+ *                                          (default `preview/preview-urls.json`).
+ *   PREVIEW_MANIFEST_BLOB_CACHE_SECONDS  — Blob `cache-control: max-age` (default 60).
  *   PREVIEW_MANIFEST_MAX_DEPLOYMENT_PAGES — safety cap on Vercel pagination
- *                                         (default 50 × 100 = 5000 deployments).
+ *                                          (default 50 × 100 = 5000 deployments).
  */
-import { writeFile } from 'node:fs/promises';
 import { Octokit } from '@octokit/rest';
 
 const SCHEMA_VERSION = 1;
@@ -160,11 +170,6 @@ function deployUrl(d) {
 }
 
 async function uploadManifestToBlob({ payload, token }) {
-  if (!token) {
-    console.log('BLOB_READ_WRITE_TOKEN not set; skipping Blob mirror upload.');
-    return null;
-  }
-
   const blobPath = process.env.PREVIEW_MANIFEST_BLOB_PATH || DEFAULT_BLOB_PATH;
   const cacheSeconds = Number(
     process.env.PREVIEW_MANIFEST_BLOB_CACHE_SECONDS || DEFAULT_BLOB_CACHE_SECONDS,
@@ -253,6 +258,7 @@ async function main() {
   const teamId = process.env.VERCEL_ORG_ID || null;
   const ghToken = mustEnv('GITHUB_TOKEN');
   const ghRepo = mustEnv('GITHUB_REPOSITORY');
+  const blobToken = mustEnv('BLOB_READ_WRITE_TOKEN');
   const [owner, repo] = ghRepo.split('/');
   if (!owner || !repo) {
     console.error(
@@ -260,8 +266,6 @@ async function main() {
     );
     process.exit(2);
   }
-  const outputPath =
-    process.env.PREVIEW_MANIFEST_OUTPUT_PATH || 'docs/preview-urls.json';
 
   const previews = await buildManifestRows({
     vercelToken,
@@ -278,12 +282,8 @@ async function main() {
     previews,
   };
   const payload = `${JSON.stringify(manifest, null, 2)}\n`;
-  await writeFile(outputPath, payload);
-  console.log(`Wrote ${outputPath} with ${manifest.previews.length} previews.`);
-  await uploadManifestToBlob({
-    payload,
-    token: process.env.BLOB_READ_WRITE_TOKEN || '',
-  });
+  console.log(`Built manifest with ${manifest.previews.length} previews.`);
+  await uploadManifestToBlob({ payload, token: blobToken });
 }
 
 // Allow `import { pickNewestPerBranch }` from a unit test without invoking main.
