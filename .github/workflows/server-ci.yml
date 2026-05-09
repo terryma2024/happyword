@@ -74,9 +74,15 @@ jobs:
             echo "::warning::server / e2e (preview) skipped: add repository secret VERCEL_TOKEN (and Vercel org/project IDs for fallback deploy). Without it, preview URL detection / deploy cannot run."
           fi
 
+      # Default PR checkout is the temporary **merge commit** (`refs/pull/…/merge`),
+      # whose message is “Merge … into …”. `vercel deploy` then shows that ugly title.
+      # Checkout the PR **head** SHA so the deployment matches Git/Vercel auto-deploys
+      # (readable `git log -1 --pretty=%s`).
       - name: Checkout
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
