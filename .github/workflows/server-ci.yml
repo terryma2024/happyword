@@ -13,6 +13,9 @@ concurrency:
 env:
   # Until every composite action ships Node 24, opt in per GitHub deprecation notice.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # 53.3.0 depends on unpublished @vercel/cli-config@0.1.0, so keep CI on
+  # the newest installable CLI until the npm release is fixed upstream.
+  VERCEL_CLI_VERSION: "53.2.0"
 
 jobs:
   server_pytest:
@@ -144,7 +147,7 @@ jobs:
         run: |
           set -euo pipefail
           DEPLOY_LOG="$(mktemp)"
-          npx --yes vercel@latest deploy --yes \
+          npx --yes "vercel@${VERCEL_CLI_VERSION}" deploy --yes \
             --token "$VERCEL_TOKEN" \
             --meta githubCommitSha="$VERCEL_META_COMMIT_SHA" \
             --meta githubCommitRef="$VERCEL_META_COMMIT_REF" \
