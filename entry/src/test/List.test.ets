@@ -46,6 +46,7 @@ import versionTripleTapTest from './VersionTripleTap.test';
 import buildInfoTest from './BuildInfo.test';
 import backendHeadersTest from './BackendHeaders.test';
 import packTest from './Pack.test';
+import builtinPackLoaderTest from './BuiltinPackLoader.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -96,4 +97,5 @@ export default function testsuite() {
   buildInfoTest();
   backendHeadersTest();
   packTest();
+  builtinPackLoaderTest();
 }
