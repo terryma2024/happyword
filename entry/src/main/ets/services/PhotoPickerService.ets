@@ -1,5 +1,5 @@
-import { picker } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
+import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { BusinessError } from '@ohos.base';
 
 /**
@@ -12,6 +12,9 @@ import { BusinessError } from '@ohos.base';
  *
  * Camera picking stays inside LessonImagePicker — only one feature
  * uses it, so the shared service stays gallery-only.
+ *
+ * Gallery UI uses `@kit.MediaLibraryKit` / `photoAccessHelper.PhotoViewPicker`
+ * (not the deprecated `picker` types from `@kit.CoreFileKit`).
  *
  * See `docs/superpowers/specs/2026-05-02-scan-binding-gallery-qr-design.md`.
  */
@@ -84,11 +87,11 @@ export class RealPhotoPickerAdapter implements IPhotoPickerAdapter {
   // cancel by the caller).
   private static async invokeGalleryPicker(): Promise<string | null> {
     try {
-      const opts: picker.PhotoSelectOptions =
+      const opts: photoAccessHelper.PhotoSelectOptions =
         RealPhotoPickerAdapter.makeGalleryOpts();
-      const photoPicker: picker.PhotoViewPicker =
+      const photoPicker: photoAccessHelper.PhotoViewPicker =
         RealPhotoPickerAdapter.newPhotoViewPicker();
-      const res: picker.PhotoSelectResult =
+      const res: photoAccessHelper.PhotoSelectResult =
         await RealPhotoPickerAdapter.runPhotoSelect(photoPicker, opts);
       const uris: Array<string> | undefined = res.photoUris;
       if (uris === undefined || uris.length === 0) {
@@ -102,10 +105,11 @@ export class RealPhotoPickerAdapter implements IPhotoPickerAdapter {
     }
   }
 
-  private static makeGalleryOpts(): picker.PhotoSelectOptions {
+  private static makeGalleryOpts(): photoAccessHelper.PhotoSelectOptions {
     try {
-      const opts: picker.PhotoSelectOptions = new picker.PhotoSelectOptions();
-      opts.MIMEType = picker.PhotoViewMIMETypes.IMAGE_TYPE;
+      const opts: photoAccessHelper.PhotoSelectOptions =
+        new photoAccessHelper.PhotoSelectOptions();
+      opts.MIMEType = photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE;
       opts.maxSelectNumber = 1;
       return opts;
     } catch (e) {
@@ -114,9 +118,9 @@ export class RealPhotoPickerAdapter implements IPhotoPickerAdapter {
     }
   }
 
-  private static newPhotoViewPicker(): picker.PhotoViewPicker {
+  private static newPhotoViewPicker(): photoAccessHelper.PhotoViewPicker {
     try {
-      return new picker.PhotoViewPicker();
+      return new photoAccessHelper.PhotoViewPicker();
     } catch (e) {
       const be: BusinessError = e as BusinessError;
       throw new Error(`newPhotoViewPicker failed: ${JSON.stringify(be)}`);
@@ -124,9 +128,9 @@ export class RealPhotoPickerAdapter implements IPhotoPickerAdapter {
   }
 
   private static async runPhotoSelect(
-    p: picker.PhotoViewPicker,
-    opts: picker.PhotoSelectOptions,
-  ): Promise<picker.PhotoSelectResult> {
+    p: photoAccessHelper.PhotoViewPicker,
+    opts: photoAccessHelper.PhotoSelectOptions,
+  ): Promise<photoAccessHelper.PhotoSelectResult> {
     try {
       return await p.select(opts);
     } catch (e) {

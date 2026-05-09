@@ -6,6 +6,18 @@
  * is always preserved, regardless of branch. Deployments without git metadata
  * (manual `vercel deploy`, etc.) are skipped — we can't safely group them.
  *
+ * When run inside a git checkout with `origin`, the script lists remote heads
+ * (`git ls-remote --heads <remote>`). Any deployment group whose branch name is
+ * absent from that list is treated as orphaned (branch deleted on the host) and
+ * **all** deployments in that group are deleted — except the production-aliased
+ * uid, which is always preserved. If git is unavailable or
+ * `--skip-remote-branch-check` is passed, only the usual per-branch "keep
+ * newest" / protected-branch rules apply.
+ *
+ * `--prune-main` treats the **`main`** branch like a non-protected branch: keep
+ * only the newest deployment (still preserving the production-aliased uid).
+ * Other entries in `--keep-branches` (e.g. `master`) are unchanged.
+ *
  * Usage:
  *   node server/scripts/vercel_prune_branch_deployments.mjs           # dry-run
  *   node server/scripts/vercel_prune_branch_deployments.mjs --apply   # actually delete
@@ -21,6 +33,12 @@
  *   --include-no-git              Also prune deployments missing git metadata
  *                                 (group them under the synthetic branch
  *                                 "<no-git>"). Off by default.
+ *   --skip-remote-branch-check    Do not call git; never treat branches as
+ *                                 deleted-on-remote (CI without checkout, etc.).
+ *   --git-remote <name>           Remote for ls-remote (default: origin, or
+ *                                 VERCEL_PRUNE_GIT_REMOTE).
+ *   --prune-main                  On branch main only: keep newest deployment;
+ *                                 delete older mains (production alias preserved).
  *   --json                        Emit machine-readable summary on stdout
  *                                 instead of the human-friendly table.
  *
@@ -38,9 +56,13 @@
  *   2  missing required input (token, project)
  */
 
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+
+const execFileAsync = promisify(execFile);
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 // server/scripts/ → server/ → repo root
@@ -56,6 +78,12 @@ function parseArgs(argv) {
     project: null,
     team: null,
     includeNoGit: false,
+    skipRemoteBranchCheck: false,
+    gitRemote:
+      (typeof process.env.VERCEL_PRUNE_GIT_REMOTE === 'string' &&
+        process.env.VERCEL_PRUNE_GIT_REMOTE.trim()) ||
+      'origin',
+    pruneMain: false,
     json: false,
   };
   for (let i = 2; i < argv.length; i += 1) {
@@ -64,8 +92,14 @@ function parseArgs(argv) {
       case '--apply':
         args.apply = true;
         break;
+      case '--prune-main':
+        args.pruneMain = true;
+        break;
       case '--include-no-git':
         args.includeNoGit = true;
+        break;
+      case '--skip-remote-branch-check':
+        args.skipRemoteBranchCheck = true;
         break;
       case '--json':
         args.json = true;
@@ -75,6 +109,9 @@ function parseArgs(argv) {
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean);
+        break;
+      case '--git-remote':
+        args.gitRemote = String(argv[++i] || '').trim() || 'origin';
         break;
       case '--project':
         args.project = argv[++i] || null;
@@ -100,7 +137,8 @@ function printHelpAndExit(code) {
   console.log(
     [
       'Usage: vercel_prune_branch_deployments.mjs [--apply] [--keep-branches a,b] [--project ID]',
-      '       [--team ID] [--include-no-git] [--json]',
+      '       [--team ID] [--include-no-git] [--skip-remote-branch-check] [--git-remote origin]',
+      '       [--prune-main] [--json]',
       '',
       'See file header for full docs. Requires VERCEL_TOKEN env.',
     ].join('\n'),
@@ -200,6 +238,49 @@ async function findProductionAliasedUid({ projectId, teamId, token }) {
   return null;
 }
 
+/**
+ * Returns a Set of branch names currently present on `gitRemote`, or `null` if
+ * git is unavailable / ls-remote failed (caller falls back to legacy rules only).
+ */
+async function loadRemoteBranchNames({ cwd, remote }) {
+  try {
+    await execFileAsync('git', ['rev-parse', '--is-inside-work-tree'], {
+      cwd,
+    });
+  } catch {
+    return null;
+  }
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['ls-remote', '--heads', remote],
+      { cwd, maxBuffer: 50 * 1024 * 1024 },
+    );
+    const names = new Set();
+    for (const line of stdout.split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      const tab = line.indexOf('\t');
+      if (tab === -1) continue;
+      const ref = line.slice(tab + 1).trim();
+      const prefix = 'refs/heads/';
+      if (!ref.startsWith(prefix)) continue;
+      names.add(ref.slice(prefix.length));
+    }
+    if (names.size === 0) {
+      console.warn(
+        `[warn] git ls-remote --heads ${remote} returned no refs — refusing orphan-branch deletion.`,
+      );
+      return null;
+    }
+    return names;
+  } catch (err) {
+    console.warn(
+      `[warn] git ls-remote failed (${remote}): ${err.message}; orphan-branch deletion skipped.`,
+    );
+    return null;
+  }
+}
+
 function groupByBranch(deployments, includeNoGit) {
   const groups = new Map();
   for (const d of deployments) {
@@ -270,14 +351,34 @@ async function main() {
       `Project: ${projectId}` +
         (teamId ? ` (team ${teamId})` : '') +
         `\nKeep-branches: ${[...keepSet].join(', ') || '(none)'}` +
+        (args.pruneMain && keepSet.has('main')
+          ? '\n--prune-main: branch `main` keeps only its newest deployment (prod alias preserved)'
+          : '') +
         `\nMode: ${args.apply ? 'APPLY (will delete)' : 'dry-run (use --apply to delete)'}`,
     );
   }
 
-  const [deployments, prodUid] = await Promise.all([
+  const skipGit = args.skipRemoteBranchCheck;
+  const [deployments, prodUid, remoteBranches] = await Promise.all([
     listAllDeployments({ projectId, teamId, token }),
     findProductionAliasedUid({ projectId, teamId, token }),
+    skipGit
+      ? Promise.resolve(null)
+      : loadRemoteBranchNames({ cwd: REPO_ROOT, remote: args.gitRemote }),
   ]);
+
+  if (!args.json && !skipGit) {
+    if (remoteBranches) {
+      console.log(
+        `Git ${args.gitRemote}: ${remoteBranches.size} remote branch heads — ` +
+          'Vercel branches not in this set are treated as deleted and fully removed.',
+      );
+    } else {
+      console.warn(
+        '[warn] Remote branch list unavailable — orphan-branch deletion skipped.',
+      );
+    }
+  }
 
   const groups = groupByBranch(deployments, args.includeNoGit);
 
@@ -285,6 +386,9 @@ async function main() {
     project: projectId,
     team: teamId,
     productionUid: prodUid,
+    remoteBranchCheck: Boolean(remoteBranches),
+    gitRemote: args.gitRemote,
+    pruneMain: args.pruneMain,
     branches: [],
     deleteUids: [],
     keepUids: [],
@@ -294,12 +398,24 @@ async function main() {
     a[0].localeCompare(b[0]),
   )) {
     const isProtected = keepSet.has(branch);
+    const pruneMainApplied =
+      args.pruneMain && branch === 'main' && keepSet.has('main');
+    const effectiveProtected = isProtected && !pruneMainApplied;
     const newest = list[0];
     const olderUids = list.slice(1).map((d) => d.uid);
     let toDelete = [];
     let toKeep = [];
 
-    if (isProtected) {
+    const branchDeletedRemote =
+      remoteBranches !== null &&
+      branch !== '<no-git>' &&
+      !remoteBranches.has(branch);
+
+    if (branchDeletedRemote) {
+      // Branch no longer exists on origin — remove every preview deployment for it.
+      toDelete = list.map((d) => d.uid);
+      toKeep = [];
+    } else if (effectiveProtected) {
       // Keep ALL deployments on protected branches — they may be production
       // rollback candidates or shared previews.
       toKeep = list.map((d) => d.uid);
@@ -319,6 +435,9 @@ async function main() {
     plan.branches.push({
       branch,
       protected: isProtected,
+      effectiveProtected,
+      pruneMainApplied,
+      branchDeletedRemote,
       total: list.length,
       keep: toKeep.length,
       delete: toDelete.length,
@@ -382,14 +501,21 @@ function printPlan(plan) {
   console.log('');
   // Header
   const head = ['Branch', 'Total', 'Keep', 'Delete', 'Status', 'Newest URL'];
-  const rows = plan.branches.map((b) => [
-    b.branch,
-    String(b.total),
-    String(b.keep),
-    String(b.delete),
-    b.protected ? 'protected' : b.delete > 0 ? 'prune' : 'clean',
-    b.newest?.url || '-',
-  ]);
+  const rows = plan.branches.map((b) => {
+    let status = 'clean';
+    if (b.branchDeletedRemote) status = 'deleted-remote';
+    else if (b.effectiveProtected) status = 'protected';
+    else if (b.pruneMainApplied && b.delete > 0) status = 'prune-main';
+    else if (b.delete > 0) status = 'prune';
+    return [
+      b.branch,
+      String(b.total),
+      String(b.keep),
+      String(b.delete),
+      status,
+      b.newest?.url || '-',
+    ];
+  });
   const widths = head.map((h, i) =>
     Math.max(h.length, ...rows.map((r) => r[i].length)),
   );

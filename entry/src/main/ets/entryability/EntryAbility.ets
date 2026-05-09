@@ -4,6 +4,7 @@ import { window } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
 import preferences from '@ohos.data.preferences';
 import { GameConfig, GAME_CONFIG_STORAGE_KEY } from '../models/GameConfig';
+import { hydrateGameConfigFromPrefs } from '../services/GameConfigPersistence';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { DeviceIdProvider } from '../services/DeviceIdProvider';
 import { CloudCredentials } from '../services/CloudCredentials';
@@ -149,12 +150,22 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
-    windowStage.loadContent('pages/HomePage', (err) => {
-      if (err.code) {
-        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
-        return;
-      }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+    const loadHome = (): void => {
+      windowStage.loadContent('pages/HomePage', (err) => {
+        if (err.code) {
+          hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
+          return;
+        }
+        hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      });
+    };
+
+    // Restore GameConfig (parent PIN, timers, etc.) before any page reads AppStorage.
+    hydrateGameConfigFromPrefs(this.context).then((): void => {
+      loadHome();
+    }).catch((err: BusinessError): void => {
+      hilog.warn(DOMAIN, 'testTag', 'hydrateGameConfigFromPrefs failed: %{public}s', JSON.stringify(err));
+      loadHome();
     });
   }
 

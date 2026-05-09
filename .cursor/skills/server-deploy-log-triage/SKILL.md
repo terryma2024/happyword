@@ -106,12 +106,42 @@ gh run view "$RUN_ID" --json jobs --jq '.jobs[] | "\(.conclusion // .status)  \(
 
 ## D. Helper recipes
 
-### Vercel API token (for REST calls)
+### Local secrets (`~/.env`)
+
+Keep **Vercel-related secrets** on disk in `~/.env`: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, **`VERCEL_CRON_SECRET`** (workstation mirror of the Vercel env var `CRON_SECRET`, for [`tools/vercel/trigger-cron.sh`](../../../tools/vercel/trigger-cron.sh)), and any other `VERCEL_*` keys tools expect. Never commit this file.
+
+The `while read` loop below exports **only `VERCEL_*` lines**. For the cron bearer, store **`VERCEL_CRON_SECRET`** in `~/.env` and rely on **`bash tools/vercel/trigger-cron.sh`**, which resolves it in an isolated subshell. See skill **`vercel-trigger-cron`** and **`docs/ci-secrets.md`** → **`VERCEL_CRON_SECRET`**.
+
+**Load quietly** — stdin redirection from the file via `while read … < "$ENV_PATH"` so values are **not** echoed to the terminal and do not show up in transcript-friendly commands. Do **not** `cat ~/.env`, `tee ~/.env`, `echo "$VERCEL_TOKEN"`, or paste secret lines into chats/logs.
 
 ```bash
-export VERCEL_TOKEN=$(jq -r '.token' "$HOME/Library/Application Support/com.vercel.cli/auth.json")
-PROJECT="prj_wNf5COzkaBd0pB4DwVGkyJAscdMx"
-TEAM="team_uTnxV2IGIWwTxXGYl1nrO2xf"
+ENV_PATH="${HOME}/.env"
+if [[ -r "$ENV_PATH" ]]; then
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" ]] && continue
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^VERCEL_[A-Za-z0-9_]+= ]] || continue
+    export "$line"
+  done < "$ENV_PATH"
+fi
+```
+
+After loading, read `PROJECT` / `TEAM` from `server/.vercel/project.json` if needed (`jq -r '.projectId'`, `.orgId`) — those IDs are not secret like tokens. (Avoid `cat ~/.env | …`; keep secrets off the tty.)
+
+**zsh only:** if you prefer filtering through a pipe without subshell export bugs, process substitution works — `while … done < <(grep -E '^VERCEL_' ~/.env)` — do **not** use this form with macOS `/bin/bash` 3.2 (no `< <(...)` support); use the `while read … < "$ENV_PATH"` loop instead.
+
+### Vercel API token (for REST calls)
+
+Prefer **`VERCEL_TOKEN` in `~/.env`** loaded via the snippet above.
+
+Fallback when no token is on disk (macOS Vercel CLI login): assignment captures CLI metadata **without** printing the token **unless** `set -x` is on — disable xtrace first (`set +x`).
+
+```bash
+set +x
+export VERCEL_TOKEN="$(jq -r '.token' "$HOME/Library/Application Support/com.vercel.cli/auth.json")"
+# PROJECT / TEAM: prefer ~/.env or server/.vercel/project.json — avoid hardcoding in shared snippets
+PROJECT="$(jq -r '.projectId' server/.vercel/project.json)"
+TEAM="$(jq -r '.orgId' server/.vercel/project.json)"
 ```
 
 ### Decrypt env values for a target (uses CLI auth, not the REST token)
@@ -125,13 +155,15 @@ grep '^MY_KEY=' /tmp/vercel_<env>.env
 
 ### Find the deployment-protection bypass secret
 
+The API returns sensitive values — **do not** pipe this into `tee`, CI logs, or agent-visible transcripts. Run locally and copy the token straight into `~/.env` as `VERCEL_AUTOMATION_BYPASS_SECRET=…`.
+
 ```bash
 curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
   "https://api.vercel.com/v9/projects/$PROJECT?teamId=$TEAM" \
   | python3 -c "import json,sys; d=json.load(sys.stdin); print({k:v for k,v in (d.get('protectionBypass') or {}).items()})"
 ```
 
-The key in the returned dict (e.g. `FPIev…SE1`) is the bypass token. Use as:
+The key in the returned dict (e.g. `FPIev…SE1`) is the bypass token. Prefer storing it in `~/.env` rather than exporting inline in logged shells. Use as:
 
 ```bash
 curl -sI -H "x-vercel-protection-bypass: <token>" "https://<host>/<path>"

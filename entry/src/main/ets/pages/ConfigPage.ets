@@ -28,11 +28,10 @@ import { ParentPinDialog } from '../components/ParentPinDialog';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { DeviceUnbindClient, DeviceUnbindOutcome } from '../services/DeviceUnbindClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
+import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
-import { router } from '@kit.ArkUI';
-
 /**
  * ConfigPage exposes five battle knobs plus a custom-words category.
  * All non-custom edits happen on a local @State draft and are only
@@ -296,13 +295,13 @@ struct ConfigPage {
   }
 
   private openScanBinding(): void {
-    router.pushUrl({ url: 'pages/ScanBindingPage' }).catch((err: BusinessError): void => {
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/ScanBindingPage' }).catch((err: BusinessError): void => {
       console.error(`ConfigPage.openScanBinding: ${JSON.stringify(err)}`);
     });
   }
 
   private openBoundDeviceInfo(): void {
-    router.pushUrl({ url: 'pages/BoundDeviceInfoPage' }).catch((err: BusinessError): void => {
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/BoundDeviceInfoPage' }).catch((err: BusinessError): void => {
       console.error(`ConfigPage.openBoundDeviceInfo: ${JSON.stringify(err)}`);
     });
   }
@@ -682,6 +681,7 @@ struct ConfigPage {
     merged.autoSpeak = this.draft.autoSpeak;
 
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
+    persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, merged);
     this.getUIContext().getRouter().back();
   }
 

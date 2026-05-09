@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import http from '@ohos.net.http';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
@@ -154,7 +153,8 @@ struct DevMenuPage {
 
   private async hydrate(): Promise<void> {
     try {
-      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const ctx: common.UIAbilityContext =
+        this.getUIContext().getHostContext() as common.UIAbilityContext;
       await initBackendEnvPrefs(ctx);
     } catch (err) {
       console.error(`DevMenuPage.initBackendEnvPrefs: ${JSON.stringify(err as BusinessError)}`);
@@ -314,7 +314,8 @@ struct DevMenuPage {
           return;
         }
       }
-      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const ctx: common.UIAbilityContext =
+        this.getUIContext().getHostContext() as common.UIAbilityContext;
       await resetForEnvSwitch(ctx);
       await saveBackendEnv(env);
       if (env === BackendEnv.PREVIEW) {
@@ -336,7 +337,9 @@ struct DevMenuPage {
       this.currentEnv = env;
       this.currentPreviewUrl = env === BackendEnv.PREVIEW ? previewUrl : '';
       this.showToast('Environment updated. Re-bind parent account if needed.');
-      router.replaceUrl({ url: 'pages/HomePage' });
+      this.getUIContext().getRouter().replaceUrl({ url: 'pages/HomePage' }).catch((err: BusinessError): void => {
+        console.error(`DevMenuPage.replaceUrl HomePage failed: ${JSON.stringify(err)}`);
+      });
     } finally {
       this.applying = false;
     }
@@ -484,7 +487,7 @@ struct DevMenuPage {
             .fontSize(14)
             .height(36)
             .onClick((): void => {
-              router.back();
+              this.getUIContext().getRouter().back();
             });
           Text('Developer Options')
             .fontSize(20)
@@ -498,7 +501,9 @@ struct DevMenuPage {
             .margin({ right: 10 })
             .enabled(!this.applying)
             .onClick((): void => {
-              router.pushUrl({ url: 'pages/BypassSecretPage' });
+              this.getUIContext().getRouter().pushUrl({ url: 'pages/BypassSecretPage' }).catch((err: BusinessError): void => {
+                console.error(`DevMenuPage.pushUrl BypassSecretPage failed: ${JSON.stringify(err)}`);
+              });
             });
           Button(this.manifestBusy ? 'Refreshing...' : 'Refresh Manifest')
             .id('DevMenuRefreshManifestButton')

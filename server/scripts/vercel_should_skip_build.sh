@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Used by Vercel "ignoreCommand" (see server/vercel.json). Exit 0 = skip this
+# Used by Vercel "ignoreCommand" (optional in repo-root vercel.json). Exit 0 = skip this
 # deployment; exit 1 = run the build. Only meaningful when the Vercel project
 # Root Directory is set to this `server/` folder.
 #

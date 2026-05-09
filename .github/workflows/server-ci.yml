@@ -13,6 +13,9 @@ concurrency:
 env:
   # Until every composite action ships Node 24, opt in per GitHub deprecation notice.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # 53.3.0 depends on unpublished @vercel/cli-config@0.1.0, so keep CI on
+  # the newest installable CLI until the npm release is fixed upstream.
+  VERCEL_CLI_VERSION: "53.2.0"
 
 jobs:
   server_pytest:
@@ -71,9 +74,15 @@ jobs:
             echo "::warning::server / e2e (preview) skipped: add repository secret VERCEL_TOKEN (and Vercel org/project IDs for fallback deploy). Without it, preview URL detection / deploy cannot run."
           fi
 
+      # Default PR checkout is the temporary **merge commit** (`refs/pull/…/merge`),
+      # whose message is “Merge … into …”. `vercel deploy` then shows that ugly title.
+      # Checkout the PR **head** SHA so the deployment matches Git/Vercel auto-deploys
+      # (readable `git log -1 --pretty=%s`).
       - name: Checkout
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
@@ -120,11 +129,17 @@ jobs:
             core.info("No preview URL found in deployment statuses.");
             core.setOutput("preview_url", "");
 
-      - name: Deploy Vercel preview (fallback)
+      - name: Deploy Vercel preview (E2E-controlled)
         id: vercel_deploy
-        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.detect_preview.outputs.preview_url == '' }}
-        # Run from the repo root because the Vercel project already has
-        # `server` configured as its root directory.
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
+        # Run from the repo root because the linked Vercel project already
+        # has `server` configured as its Root Directory.
+        # Do not rely on a detected branch preview for E2E: if that deployment
+        # was created before the PR existed, Vercel leaves
+        # VERCEL_GIT_PULL_REQUEST_ID empty at runtime and the app resolves a
+        # branch-fallback Mongo DB while the test runner resets happyword_pr_N_e2e.
+        # This CLI deployment injects stable PR metadata so both sides use the
+        # same isolated database.
         working-directory: .
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -138,7 +153,7 @@ jobs:
         run: |
           set -euo pipefail
           DEPLOY_LOG="$(mktemp)"
-          npx --yes vercel@latest deploy --yes \
+          npx --yes "vercel@${VERCEL_CLI_VERSION}" deploy --yes \
             --token "$VERCEL_TOKEN" \
             --meta githubCommitSha="$VERCEL_META_COMMIT_SHA" \
             --meta githubCommitRef="$VERCEL_META_COMMIT_REF" \
@@ -200,11 +215,14 @@ jobs:
       - name: Run E2E pytest subset
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         env:
-          E2E_BASE_URL: ${{ steps.detect_preview.outputs.preview_url || steps.vercel_deploy.outputs.preview-url }}
+          E2E_BASE_URL: ${{ steps.vercel_deploy.outputs.preview-url || steps.detect_preview.outputs.preview_url }}
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          # Must match Vercel Preview `CRON_SECRET` for POST .../cron/extract-pending.
+          # If unset, `test_lesson_import_cron_e2e` is collected but skips.
+          E2E_CRON_SECRET: ${{ secrets.E2E_CRON_SECRET }}
           # When the Vercel project has Deployment Protection enabled (Vercel
           # Authentication / Password / Trusted IPs), every API call from this
           # runner is intercepted with a 401 + an SSO HTML page. The driver

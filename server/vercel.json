@@ -1,3 +1,16 @@
 {
-  "version": 2
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "**": false
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/v1/admin/cron/extract-pending",
+      "schedule": "* * * * *"
+    }
+  ]
 }

@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { BusinessError } from '@ohos.base';
@@ -26,6 +25,12 @@ import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 
 class RealScanKitScanner implements BarcodeScannerLike {
+  private ctx: common.UIAbilityContext;
+
+  constructor(ctx: common.UIAbilityContext) {
+    this.ctx = ctx;
+  }
+
   async scan(): Promise<string> {
     // V0.6.x — `enableAlbum: true` exposes ScanKit's built-in album
     // button in the system scan UI, in addition to the dedicated
@@ -41,7 +46,7 @@ class RealScanKitScanner implements BarcodeScannerLike {
     };
     try {
       const r: scanBarcode.ScanResult = await scanBarcode.startScanForResult(
-        getContext(this) as common.UIAbilityContext,
+        this.ctx,
         opts,
       );
       return r.originalValue;
@@ -83,7 +88,8 @@ struct ScanBindingPage {
   }
 
   private bootstrapService(): void {
-    const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
     const provider: DeviceIdProvider = new DeviceIdProvider();
     const credentials: CloudCredentials = new CloudCredentials();
     const baseUrl: string = effectiveServerBaseUrl();
@@ -102,7 +108,7 @@ struct ScanBindingPage {
     Promise.all([provider.init(ctx), credentials.init(ctx)])
       .then(() => {
         const svc: DeviceBindingService = new DeviceBindingService(
-          new RealScanKitScanner(),
+          new RealScanKitScanner(ctx),
           decoder,
           httpClient,
           provider,
@@ -210,7 +216,9 @@ struct ScanBindingPage {
         Button('返回')
           .id('ScanBindingTopBack')
           .fontSize(14).backgroundColor('#e2e8f0').fontColor('#1f2937')
-          .onClick(() => router.back())
+          .onClick((): void => {
+            this.getUIContext().getRouter().back();
+          })
       }
       .width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
 
@@ -225,7 +233,9 @@ struct ScanBindingPage {
           Button('返回首页')
             .id('ScanBindingSuccessBack')
             .margin({ top: 24 })
-            .onClick(() => router.back())
+            .onClick((): void => {
+            this.getUIContext().getRouter().back();
+          })
         }.width('100%').padding(24)
       } else if (this.manualMode) {
         Column({ space: 12 }) {

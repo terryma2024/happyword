@@ -1,4 +1,4 @@
-"""V0.5.8 — anonymous lesson-import lifecycle.
+"""V0.5.8 → V0.7 — anonymous lesson-import lifecycle.
 
 These tests pin the V0.5.8 contract that admin auth has been temporarily
 removed from the lesson-import endpoints (auth returns in V0.6 as a
@@ -6,10 +6,18 @@ per-family JWT). The full import → patch → approve flow now succeeds
 with **no** Authorization header, and the persisted `reviewer` field is
 the literal "parent".
 
+V0.7 split: the import endpoint is now fast-path only — a draft is
+created in `status="extracting"`. The cron router is what flips the
+draft to `pending`. To keep the patch / approve / reject coverage in
+this file we mutate the draft directly to simulate a successful cron
+extraction. The cron router itself is exercised in
+`tests/test_admin_cron.py`.
+
 If you re-introduce auth on these routes, this whole file should fail
 loudly. That's the point.
 """
 
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import TYPE_CHECKING
 
@@ -23,7 +31,7 @@ if TYPE_CHECKING:
     from httpx import AsyncClient
 
 
-_FIXED_EXTRACTED = {
+_FIXED_EXTRACTED: dict[str, object] = {
     "category_id": "lesson-import-anon",
     "label_en": "Lesson Anon",
     "label_zh": "匿名课文",
@@ -35,15 +43,15 @@ _FIXED_EXTRACTED = {
 }
 
 
-def _stub_lesson_extractor(monkeypatch: pytest.MonkeyPatch) -> None:
+def _install_extractor_tripwire(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Belt-and-braces: the import endpoint MUST NOT call the LLM."""
     from app.services import lesson_service
 
-    async def _fake(image_bytes: bytes, mime: str) -> tuple[str, dict[str, object]]:
-        assert image_bytes  # we received the body
-        assert mime in ("image/jpeg", "image/png", "image/webp")
-        return "gpt-4o-stub", _FIXED_EXTRACTED
+    async def _explode(image_bytes: bytes, mime: str) -> tuple[str, dict[str, object]]:
+        msg = "extract_lesson_payload was called from the anon import path"
+        raise AssertionError(msg)
 
-    monkeypatch.setattr(lesson_service, "extract_lesson_payload", _fake)
+    monkeypatch.setattr(lesson_service, "extract_lesson_payload", _explode)
 
 
 def _stub_blob_upload(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -55,21 +63,39 @@ def _stub_blob_upload(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(lesson_service, "upload_lesson_image", _fake)
 
 
+async def _promote_to_pending(draft_id: str) -> None:
+    from beanie import PydanticObjectId  # noqa: PLC0415
+
+    draft = await LessonImportDraft.get(PydanticObjectId(draft_id))
+    assert draft is not None
+    draft.extracted = _FIXED_EXTRACTED  # type: ignore[assignment]
+    draft.model = "gpt-4o-stub"
+    draft.status = "pending"
+    draft.extract_attempts = 1
+    draft.extract_last_attempted_at = datetime.now(tz=UTC)
+    await draft.save()
+
+
 @pytest.mark.asyncio
 async def test_import_succeeds_without_auth(
     client: "AsyncClient", monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """V0.7 contract: anonymous import returns 201 with
+    `status="extracting"`, `extracted=None`, and the OpenAI vision call
+    is not made."""
     _stub_blob_upload(monkeypatch)
-    _stub_lesson_extractor(monkeypatch)
+    _install_extractor_tripwire(monkeypatch)
     resp = await client.post(
         "/api/v1/admin/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg" * 100), "image/jpeg")},
     )
     assert resp.status_code == 201, resp.text
     body = resp.json()
-    assert body["status"] == "pending"
-    assert body["extracted"]["category_id"] == "lesson-import-anon"
+    assert body["status"] == "extracting"
+    assert body["extracted"] is None
+    assert body["model"] is None
     assert body["reviewer"] is None  # not reviewed yet
+    assert body["extract_attempts"] == 0
 
 
 @pytest.mark.asyncio
@@ -77,13 +103,14 @@ async def test_patch_then_approve_anonymously_records_parent_reviewer(
     client: "AsyncClient", monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _stub_blob_upload(monkeypatch)
-    _stub_lesson_extractor(monkeypatch)
+    _install_extractor_tripwire(monkeypatch)
     create = await client.post(
         "/api/v1/admin/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     assert create.status_code == 201, create.text
     draft_id = create.json()["id"]
+    await _promote_to_pending(draft_id)
 
     edited = {
         **_FIXED_EXTRACTED,
@@ -119,12 +146,13 @@ async def test_reject_anonymously_records_parent_reviewer(
     client: "AsyncClient", monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _stub_blob_upload(monkeypatch)
-    _stub_lesson_extractor(monkeypatch)
+    _install_extractor_tripwire(monkeypatch)
     create = await client.post(
         "/api/v1/admin/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     draft_id = create.json()["id"]
+    await _promote_to_pending(draft_id)
 
     rej = await client.post(f"/api/v1/admin/lesson-drafts/{draft_id}/reject")
     assert rej.status_code == 200, rej.text

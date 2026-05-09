@@ -9,6 +9,7 @@
 - **Phased build/test commands, log paths, and device rules:** [`.cursor/dev-commands.md`](.cursor/dev-commands.md) (source of truth for the Harmony autofix skills).
 - Install deps: ohpm install
 - Build debug HAP: hvigorw assembleHap
+- The HAP build log must have **no** `ArkTS:WARN` lines (deprecated APIs); see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) **ArkTS compiler warnings**.
 - After a successful HAP build, run CodeLinter (see [`.cursor/dev-commands.md`](.cursor/dev-commands.md)): `codelinter -c ./code-linter.json5 . --fix`
 - Build module: hvigorw --mode module -p module=entry assembleHap
 - Connect device: hdc list targets
@@ -104,6 +105,6 @@ backend. Don't confuse it with `app.main:app`.
 
 ### Vercel deployment
 The `server/` app is also deployed as Vercel serverless functions
-(`server/vercel.json` + `server/api/index.py` → `app.main:app`). Local
+(`server/vercel.json` + `server/api/index.py` → `app.main:app`; Vercel Root Directory = `server`). Local
 development does **not** require the Vercel CLI; only deployment does. See
 `tools/vercel/` for the deploy/smoke shell scripts.

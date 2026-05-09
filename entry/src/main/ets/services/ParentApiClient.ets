@@ -207,18 +207,29 @@ export class LessonApproveSummaryDto {
   skipped_words: object[] = [];
 }
 
+/** V0.7: `status` widens to include `extracting` (待 AI 识别) and
+ *  `extract_failed` (识别失败) — see server/app/models/lesson_import_draft.py.
+ *  `extracted` and `model` are absent on `extracting` / `extract_failed`
+ *  drafts because the cron extractor hasn't (or couldn't) populate them
+ *  yet. The `extract_*` debug fields surface the cron's last attempt
+ *  so the parent admin UI can show a triage hint instead of a bare
+ *  failure. */
 export class LessonDraftDto {
   id: string = '';
   source_image_url: string = '';
-  extracted: LessonExtractedDto = new LessonExtractedDto();
+  extracted?: LessonExtractedDto;
   edited_extracted?: LessonExtractedDto;
-  status: string = 'pending';
+  status: string = 'extracting';
   reviewer?: string;
-  model: string = '';
+  model?: string;
   prompt_version: number = 1;
   created_at: string = '';
   reviewed_at?: string;
   approval_summary?: LessonApproveSummaryDto;
+  extract_attempts: number = 0;
+  extract_last_attempted_at?: string;
+  extract_last_error_code?: string;
+  extract_last_error_message?: string;
 }
 
 export class LessonDraftListPage {
@@ -261,8 +272,19 @@ export class LessonImportError extends Error {
   }
 }
 
-const IMPORT_MAX_BYTES: number = 8 * 1024 * 1024;
-const IMPORT_TIMEOUT_MS: number = 60_000;
+// V0.7: Vercel's edge enforces a hard 4.5 MB request-body cap on
+// serverless functions independent of the FastAPI handler. The cap
+// here is a defensive belt-and-braces check after the client-side
+// compressor has already targeted ~4 MB; anything larger arriving
+// from a code path that bypassed the compressor would be silently
+// dropped at the edge and surface to the user as `网络异常`. Reject
+// it locally with a clearer error instead.
+const IMPORT_MAX_BYTES: number = 4_500_000;
+// Large multipart uploads on cellular / emulator NAT can exceed 60s end-to-end:
+// client → Vercel (TLS + full body) → Blob PUT → Mongo insert → JSON response.
+// Keep this comfortably above worst-case so `http.request` does not throw before
+// the handler returns (symptom: toast `网络异常`).
+const IMPORT_TIMEOUT_MS: number = 180_000;
 const ALLOWED_MIMES: string[] = ['image/jpeg', 'image/png', 'image/webp'];
 
 /** Injection seam for the binary multipart upload — stubbed in tests
@@ -483,13 +505,17 @@ export class ParentApiClient {
   }
 
   /** Persist the parent's edits before approval. Body shape is
-   *  `{ "edited_extracted": {...} }` matching `LessonDraftPatchIn`. */
+   *  `{ "edited_extracted": {...} }` matching `LessonDraftPatchIn`.
+   *
+   *  Uses **PUT** (not PATCH): HarmonyOS NetStack only exposes GET/POST/PUT/
+   *  DELETE on `http.RequestMethod`; casting `"PATCH"` fails at runtime and
+   *  yields HTTP 0. Server accepts the same JSON body on PUT and PATCH. */
   async patchLessonDraft(draftId: string, edited: LessonExtractedDto): Promise<LessonDraftDto> {
     const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}`;
     const headers: Record<string, string> = ParentApiClient.jsonHeaders();
     const payload: Record<string, LessonExtractedDto> = { 'edited_extracted': edited };
     const body: string = JSON.stringify(payload);
-    const res: ParentFetchResult = await this.adapter.patch(url, headers, body);
+    const res: ParentFetchResult = await this.adapter.put(url, headers, body);
     ParentApiClient.assertOk(res, 'patchLessonDraft');
     return ParentApiClient.parseLessonDraft(res.body, 'patchLessonDraft');
   }
@@ -519,17 +545,23 @@ export class ParentApiClient {
     return ParentApiClient.parseLessonDraft(res.body, 'rejectLessonDraft');
   }
 
-  /** List drafts filtered by status (default 'pending'). */
-  async listPendingLessonDrafts(page: number, size: number): Promise<LessonDraftListPage> {
+  /** List drafts filtered by status. Server-side pagination is 1-indexed. */
+  async listLessonDraftsByStatus(
+    statusFilter: string,
+    page: number,
+    size: number,
+  ): Promise<LessonDraftListPage> {
     const url: string =
-      `${this.baseUrl}/api/v1/admin/lesson-drafts?status=pending&page=${page}&size=${size}`;
+      `${this.baseUrl}/api/v1/admin/lesson-drafts?status=${encodeURIComponent(statusFilter)}` +
+      `&page=${page}&size=${size}`;
+    const op: string = `listLessonDraftsByStatus(${statusFilter})`;
     const res: ParentFetchResult = await this.adapter.get(url, ParentApiClient.acceptJsonHeaders());
-    ParentApiClient.assertOk(res, 'listPendingLessonDrafts');
+    ParentApiClient.assertOk(res, op);
     let parsed: RawLessonDraftListPage;
     try {
       parsed = JSON.parse(res.body) as RawLessonDraftListPage;
     } catch (_err) {
-      throw new ParentHttpError('listPendingLessonDrafts: malformed response body', res.status, res.body);
+      throw new ParentHttpError(`${op}: malformed response body`, res.status, res.body);
     }
     const out: LessonDraftListPage = new LessonDraftListPage();
     out.total = typeof parsed.total === 'number' ? parsed.total : 0;
@@ -540,10 +572,18 @@ export class ParentApiClient {
         // Items are LessonDraftOut JSON objects — re-stringify a single
         // item and reuse the same parser used for single-draft endpoints.
         const item: object = parsed.items[i];
-        out.items.push(ParentApiClient.parseLessonDraft(JSON.stringify(item), 'listPendingLessonDrafts'));
+        out.items.push(ParentApiClient.parseLessonDraft(JSON.stringify(item), op));
       }
     }
     return out;
+  }
+
+  /** Backwards-compatible thin wrapper. V0.7 callers should prefer
+   *  `listLessonDraftsByStatus` directly so the cron-pending /
+   *  extract-failed buckets can be queried alongside the
+   *  parent-review queue. */
+  async listPendingLessonDrafts(page: number, size: number): Promise<LessonDraftListPage> {
+    return this.listLessonDraftsByStatus('pending', page, size);
   }
 
   private static stringifyHttpBody(result: string | Object | ArrayBuffer): string {

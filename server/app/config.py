@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from_email: str = ""
-    smtp_from_name: str = "快乐背单词"
+    smtp_from_name: str = "魔法背单词"
     smtp_starttls: bool = True
     smtp_timeout_seconds: float = 10.0
 

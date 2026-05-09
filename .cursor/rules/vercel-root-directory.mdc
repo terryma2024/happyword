@@ -1,0 +1,19 @@
+---
+description: Canonical Vercel root directory and vercel.json location for this repo
+globs: server/**/*, tools/vercel/**/*, vercel.json
+alwaysApply: true
+---
+
+# Vercel project root (do not guess)
+
+The **happyword** server project on Vercel is configured with:
+
+**Project Settings → General → Root Directory = `server`** (subdirectory of the Git repo, **not** the repository root).
+
+Therefore:
+
+- The **only** `vercel.json` that Git-triggered builds and the dashboard use is **`server/vercel.json`**.
+- A **`vercel.json` at the repository root is ignored** by this project’s deployment root — do not add one unless you change Root Directory in Vercel.
+- Scripts and docs must reference **`server/vercel.json`**, not `/vercel.json`, when describing deployment config.
+
+If Root Directory were ever changed to blank (repo root), `vercel.json` would need to live at the repo root instead — that is **not** the current production setting.

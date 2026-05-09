@@ -27,6 +27,7 @@ import parentApiClientTest from './ParentApiClient.test';
 import orientationTest from './Orientation.test';
 import multipartBuilderTest from './MultipartBuilder.test';
 import lessonImagePickerTest from './LessonImagePicker.test';
+import imageCompressorTest from './ImageCompressor.test';
 import cloudCredentialsTest from './CloudCredentials.test';
 import deviceIdProviderTest from './DeviceIdProvider.test';
 import deviceBindingServiceTest from './DeviceBindingService.test';
@@ -73,6 +74,7 @@ export default function testsuite() {
   orientationTest();
   multipartBuilderTest();
   lessonImagePickerTest();
+  imageCompressorTest();
   cloudCredentialsTest();
   deviceIdProviderTest();
   deviceBindingServiceTest();

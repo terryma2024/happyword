@@ -33,15 +33,30 @@ class LessonDraftOut(BaseModel):
 
     id: str
     source_image_url: str
-    extracted: dict[str, Any]
+    # V0.7: `extracted` and `model` are populated by the async cron
+    # extractor (see app/models/lesson_import_draft.py). They are
+    # None while status=="extracting" or "extract_failed".
+    extracted: dict[str, Any] | None
     edited_extracted: dict[str, Any] | None
-    status: Literal["pending", "approved", "rejected"]
+    status: Literal[
+        "extracting",
+        "pending",
+        "approved",
+        "rejected",
+        "extract_failed",
+    ]
     created_at: datetime
     reviewed_at: datetime | None
     reviewer: str | None
-    model: str
+    model: str | None
     prompt_version: int
     approval_summary: dict[str, Any] | None
+    # Extraction telemetry (V0.7) — exposed so the parent admin UI
+    # can show a retry / failure banner for `extract_failed` drafts.
+    extract_attempts: int = 0
+    extract_last_attempted_at: datetime | None = None
+    extract_last_error_code: str | None = None
+    extract_last_error_message: str | None = None
 
 
 class LessonDraftListOut(BaseModel):

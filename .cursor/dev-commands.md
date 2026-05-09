@@ -18,9 +18,15 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 |------|---------|----------------|
 | Install deps | `ohpm install` | Exit 0, `oh_modules` resolvable |
 | Assemble HAP (debug) | `hvigorw assembleHap` | Exit 0, `.hap` under `entry/build/...` (path may vary) |
-| (Optional) single module | `hvigorw --mode module -p module=entry assembleHap` | Exit 0 |
+| (Optional) single module | `hvigorw -p module=entry@default assembleHap` or `hvigorw --mode module -p module=entry assembleHap` | Exit 0 |
 
 **Working directory:** project root.
+
+### ArkTS compiler warnings (mandatory)
+
+The `:CompileArkTS` step must emit **zero** `ArkTS:WARN` lines before a Harmony-side change is considered merge-ready. Typical causes: deprecated module-level `router` / `getContext`, legacy `@kit.CoreFileKit` picker types, `ImagePacker.packing`, etc. Migrate to `this.getUIContext().getRouter()`, `this.getUIContext().getHostContext()`, `@kit.MediaLibraryKit` / `photoAccessHelper`, `ImagePacker#packToData`, and related SDK replacements.
+
+**Verify:** after assembleHap, `hvigorw … 2>&1 | grep 'ArkTS:WARN'` must print nothing (exit code 1 from grep is OK). Agents fix warnings at the source; do not silence the compiler for convenience.
 
 ### CodeLinter (after successful build) — `harmony-codelinter`
 
