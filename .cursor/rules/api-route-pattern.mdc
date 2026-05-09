@@ -1,0 +1,58 @@
+---
+description: API route prefix convention for FastAPI server + parent web shell
+globs: server/app/routers/**/*.py, server/app/main.py, docs/WordMagicGame_overall_spec.md, docs/superpowers/specs/**/*.md, docs/superpowers/plans/**/*.md
+alwaysApply: true
+---
+
+# API route prefix convention (V0.6.5+)
+
+Every new HTTP surface added to this repo MUST live under exactly one of three top-level prefixes. The audience determines the prefix; pick the prefix first, design the handler second.
+
+| Prefix                          | Audience                                              | Auth                                                                                                      | Examples                                                                                       |
+| ------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `/api/v1/admin/**`              | System administrators                                 | `current_admin_user` FastAPI dependency (session-cookie based). Long-lived admin tokens deferred.         | `/api/v1/admin/words`, `/api/v1/admin/packs`, `/api/v1/admin/global-packs`, `/api/v1/admin/cron` |
+| `/api/v1/public/**`             | Anonymous (any caller)                                | None. Vercel deployment-protection still gates preview deploys; production is fully public.              | `/api/v1/public/health`, `/api/v1/public/packs/latest.json`, `/api/v1/public/global-packs/latest.json`, future AB-flag manifests |
+| `/api/v1/family/{family_id}/**` | Members of one family (parents + bound child devices) | Per-family auth (parent session OR child Bearer device-token belonging to `family_id`). Auth deferred until later version; for now, accept the path param as decorative. | `/api/v1/family/{family_id}/family-packs`, `/api/v1/family/{family_id}/inbox`, `/api/v1/family/{family_id}/account` |
+
+## Rule of thumb
+
+1. If the resource is per-family or per-device-bound → `/api/v1/family/{family_id}/...`
+2. Else, if it requires admin context (cross-tenant management, system content authoring) → `/api/v1/admin/...`
+3. Else, if it is anonymous-readable platform content → `/api/v1/public/...`
+4. Otherwise, **stop and discuss** — you probably haven't named the audience precisely.
+
+## Web (HTML) pages mirror the same pattern
+
+- `/admin/**` — system admin web shells (e.g. global-pack authoring UI in v0.6.6+).
+- `/public/**` — anonymous landing pages (e.g. preview-urls dashboards).
+- `/family/{family_id}/**` — parent web shell scoped to a family (will eventually replace today's `/parent/**` once we wire `family_id` into the parent session).
+
+## What about pre-login endpoints?
+
+Endpoints that fire **before** any session exists (e.g. parent login, OTP exchange) belong under `/api/v1/public/auth/...`. Once a session exists, subsequent calls hop to `/api/v1/family/{family_id}/...` (parent) or `/api/v1/admin/...` (admin).
+
+## Legacy routes (V0.6.4 and earlier) — frozen, not extended
+
+These routers do **not** match the convention. They are kept for backwards compatibility with shipped v0.6.x clients but **must not** be extended:
+
+- `/api/v1/auth/*` — admin auth (move new admin auth endpoints to `/api/v1/admin/auth/*`)
+- `/api/v1/health`, `/api/v1/packs/latest.json` — public endpoints colocated under bare `/api/v1` (move new ones to `/api/v1/public/...`)
+- `/api/v1/parent/*` — parent-side family resources (move new ones to `/api/v1/family/{family_id}/...`)
+- `/api/v1/child/*` — child-device family resources (move new ones to `/api/v1/family/{family_id}/...`)
+- `/parent/*` HTML shells — parent web pages (move new ones to `/family/{family_id}/...`)
+
+V0.6.5 ships **path aliases** that surface the new URL shape on top of every legacy route (see the v0.6.5 plan, `attach_legacy_aliases(app)` in `server/app/routers/legacy_route_aliases.py`). The legacy URLs continue to serve the same handlers. Aliases are **not in /docs** (`include_in_schema=False`). Removal of legacy URLs is scheduled for v0.6.6+ after every shipped client has migrated to the new shape.
+
+## Enforcement
+
+When adding a new `APIRouter(prefix=...)` line:
+
+- The prefix MUST start with `/api/v1/admin`, `/api/v1/public`, or `/api/v1/family/{family_id}` (HTML routers: `/admin`, `/public`, or `/family/{family_id}`).
+- If you find yourself wanting to put a new endpoint under `/api/v1/parent/...` or `/api/v1/child/...`, stop — that's a legacy zone. Add it under `/api/v1/family/{family_id}/...` and (if needed) request a follow-up alias from the matching legacy route.
+- Update [docs/WordMagicGame_overall_spec.md](docs/WordMagicGame_overall_spec.md) §13.3 (route table) and §13.7 (route prefix convention) in the same PR.
+
+## When this rule does NOT apply
+
+- Static asset paths served by Vercel (e.g. `/_next/...`, `/favicon.ico`).
+- Vercel cron entrypoints under `/api/v1/admin/cron/*` already follow the rule.
+- Internal `/__mock_state__/*` debug endpoints in `server/mock_ui_server.py` (test fixture only, not a production surface).
