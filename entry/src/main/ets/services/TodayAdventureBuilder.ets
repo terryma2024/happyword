@@ -13,6 +13,7 @@ import {
   WORD_PLAN_MULTIPLIER,
 } from '../models/AdventureRegion';
 import { MonsterKind } from '../data/MonsterCatalog';
+import { Pack } from '../models/Pack';
 
 export type RandomFn = () => number;
 
@@ -57,6 +58,27 @@ export class TodayAdventureBuilder {
   constructor(rng?: RandomFn, scheduler?: MemoryScheduler) {
     this.rng = rng !== undefined ? rng : defaultRng;
     this.scheduler = scheduler !== undefined ? scheduler : new MemoryScheduler();
+  }
+
+  /**
+   * V0.6.5.1 — pack-direct entry point. Synthesises an AdventureRegion
+   * from `pack.scene` and uses `pack.words` as the candidate pool.
+   * Sets `plan.regionId = pack.id` so BattlePage / ResultPage can
+   * resolve the active pack from AppStorage on the home → battle hop.
+   *
+   * The legacy `build(region, repo, …)` path stays in place for
+   * review-mode and any caller that still talks in regions.
+   */
+  buildFromPack(
+    pack: Pack,
+    recorder: LearningRecorder,
+    nowMs: number,
+    isFirstToday: boolean,
+  ): TodaySessionPlan {
+    const region: AdventureRegion = regionFromPack(pack);
+    const repo: WordRepository = new WordRepository();
+    repo.setEntries(pack.words);
+    return this.build(region, repo, recorder, nowMs, isFirstToday);
   }
 
   build(
@@ -309,4 +331,24 @@ export function describeMonsterKind(kind: MonsterKind): string {
   if (kind === MonsterKind.Elite) return '精英';
   if (kind === MonsterKind.Boss) return '首领';
   return '常规';
+}
+
+/**
+ * V0.6.5.1 — runtime adapter from a unified Pack to the legacy
+ * AdventureRegion shape consumed by TodayAdventureBuilder.build,
+ * ResultPage's banner, etc. Visual fields come from the pack's
+ * scene metadata; `themeWordCategories` is intentionally empty so
+ * `gatherCandidates` falls back to `repo.all()` (= pack.words).
+ */
+export function regionFromPack(pack: Pack): AdventureRegion {
+  const r: AdventureRegion = new AdventureRegion();
+  r.id = pack.id;
+  r.displayName = pack.name.length > 0 ? pack.name : pack.id;
+  r.themeWordCategories = [];
+  r.bgPrimary = pack.scene.bgPrimary;
+  r.bgAccent = pack.scene.bgAccent;
+  r.bossName = pack.scene.bossName;
+  r.monsterPlan = pack.scene.monsterPlan;
+  r.bossCandidates = pack.scene.bossCandidates.slice();
+  return r;
 }

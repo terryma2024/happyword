@@ -28,6 +28,7 @@ import {
   GAME_MODE_TODAY,
   TODAY_PLAN_STORAGE_KEY,
   TODAY_LAST_COMPLETED_DAY_KEY,
+  TODAY_ACTIVE_PACK_KEY,
   cloneGameConfig,
   computeFinalPool
 } from '../models/GameConfig';
@@ -35,6 +36,10 @@ import { formatDayKeyLocal } from '../models/CoinSnapshot';
 import { TodaySessionPlan, WordSource } from '../models/AdventureRegion';
 import { AdventureRegion } from '../models/AdventureRegion';
 import { getRegionById } from '../data/AdventureCatalog';
+import { Pack } from '../models/Pack';
+import { PackSelectionService, PerfectAdventureResult } from '../services/PackSelectionService';
+import { LibraryCandidateProvider } from '../services/PackHomeIntegration';
+import { PackLibrary } from '../services/PackLibrary';
 import { CoinAccount, getCoinAccount, COIN_REASON_TODAY_FIRST } from '../services/CoinAccount';
 import { CoinSnapshot, DAILY_CAP } from '../models/CoinSnapshot';
 import { WordEntry } from '../models/WordEntry';
@@ -163,6 +168,16 @@ struct BattlePage {
    */
   private isTodayMode: boolean = false;
   private todayPlan: TodaySessionPlan | undefined = undefined;
+  /**
+   * V0.6.5.1: the Pack handed off by HomePage when launching today's
+   * adventure via a chip. When present, BattlePage builds its
+   * bundleRepo from `pack.words` directly so PlanQuestionSource can
+   * resolve every wordId in the plan even when the bundled rawfile no
+   * longer carries the same category. `undefined` means we are on
+   * the legacy fallback path (review mode, normal mode, or HomePage
+   * was on a synthetic fallback Pack at chip-tap time).
+   */
+  private activePack: Pack | undefined = undefined;
   /**
    * Per-wordId answer counters captured during the live battle.
    * navigateToResult uses this to compute review-pool accuracy
@@ -355,11 +370,24 @@ struct BattlePage {
           AppStorage.get<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY);
         if (plan !== undefined && plan.wordPlan.length > 0) {
           this.todayPlan = plan;
-          // Today battles use the bundled repo (not the review pool)
-          // so PlanQuestionSource can resolve plan word ids regardless
-          // of the player's category filters.
+          // V0.6.5.1: prefer the Pack handed over by HomePage as the
+          // source of truth for the bundleRepo. Pack.words is the
+          // exhaustive set the plan was built against, so
+          // PlanQuestionSource can always resolve every wordId even
+          // when the bundled rawfile no longer carries the same
+          // category (e.g. a family pack with custom words).
+          const handoff: Pack | undefined = AppStorage.get<Pack>(TODAY_ACTIVE_PACK_KEY);
+          let bundleEntries: WordEntry[];
+          if (handoff !== undefined && handoff.words.length > 0) {
+            this.activePack = handoff;
+            bundleEntries = handoff.words.slice();
+          } else {
+            // Legacy fallback: HomePage was on a synthetic Pack with
+            // no words, so use the global rawfile-loaded repo.
+            bundleEntries = repo.all();
+          }
           const bundleRepo: WordRepository = new WordRepository();
-          bundleRepo.setEntries(repo.all());
+          bundleRepo.setEntries(bundleEntries);
           const fillGen: FillLetterGenerator = new FillLetterGenerator();
           const spellGen: SpellGenerator = new SpellGenerator();
           const planChoiceGen: QuestionGenerator = new QuestionGenerator(bundleRepo);
@@ -1226,6 +1254,41 @@ struct BattlePage {
     this.coinAccount.flushNow().catch((err: BusinessError): void => {
       console.error(`BattlePage: CoinAccount.flushNow failed: ${JSON.stringify(err)}`);
     });
+    // V0.6.5.1: perfect-adventure rotation hook. Fires only when the
+    // session was launched from a real Pack chip (this.activePack
+    // populated) AND the player won with all 3 stars (no mistakes
+    // per spec §4.4). The actual rotation decision (counter +
+    // pinned check + candidate provider) lives in PackSelectionService.
+    if (this.activePack !== undefined &&
+        result.status === BattleStatus.Won &&
+        result.stars >= 3) {
+      this.recordPerfectAdventure(this.activePack.id);
+    }
+  }
+
+  /**
+   * V0.6.5.1 — fire-and-forget perfect-adventure recorder. Runs
+   * asynchronously after the synchronous result-page navigation has
+   * already been posted, so the player never waits on the prefs
+   * write. Errors are logged but never block.
+   */
+  private recordPerfectAdventure(packId: string): void {
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    (async (): Promise<void> => {
+      try {
+        const lib: PackLibrary = await WordPackBootstrapper.bootstrapPackLibrary(ctx);
+        const sel: PackSelectionService = new PackSelectionService();
+        await sel.init(ctx, lib.builtinIds());
+        const provider: LibraryCandidateProvider = new LibraryCandidateProvider(lib);
+        const out: PerfectAdventureResult =
+          await sel.recordPerfectAdventure(packId, provider);
+        if (out.rotated) {
+          console.info(`BattlePage: pack rotation ${out.swappedOutId} -> ${out.swappedInId}`);
+        }
+      } catch (err) {
+        console.error(`BattlePage: recordPerfectAdventure failed: ${JSON.stringify(err as BusinessError)}`);
+      }
+    })();
   }
 
   private formatTime(totalSeconds: number): string {

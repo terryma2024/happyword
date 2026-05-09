@@ -60,6 +60,12 @@ export const TODAY_PLAN_STORAGE_KEY: string = 'todayPlan';
 export const TODAY_LAST_COMPLETED_DAY_KEY: string = 'todayLastCompletedDayKey';
 /** AppStorage key for the selected Today Adventure region id (V0.3.5). */
 export const TODAY_REGION_ID_KEY: string = 'todayRegionId';
+/**
+ * V0.6.5.1: AppStorage key for the in-flight Pack handed off from HomePage
+ * to BattlePage when launching today's adventure. Mirrors the same
+ * "produce-once consume-once" hand-off as TODAY_PLAN_STORAGE_KEY.
+ */
+export const TODAY_ACTIVE_PACK_KEY: string = 'todayActivePack';
 
 export const TIMER_CHOICES: number[] = [3, 15, 30, 60, 120, 300, 600];
 
