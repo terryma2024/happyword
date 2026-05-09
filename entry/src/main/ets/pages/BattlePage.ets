@@ -38,6 +38,7 @@ import { getRegionById } from '../data/AdventureCatalog';
 import { CoinAccount, getCoinAccount, COIN_REASON_TODAY_FIRST } from '../services/CoinAccount';
 import { CoinSnapshot, DAILY_CAP } from '../models/CoinSnapshot';
 import { WordEntry } from '../models/WordEntry';
+import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question, QuestionKind } from '../models/Question';
@@ -518,6 +519,7 @@ struct BattlePage {
     const next: GameConfig = cloneGameConfig(storedCfg);
     next.mode = GAME_MODE_NORMAL;
     AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, next);
+    persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, next);
   }
 
   /**

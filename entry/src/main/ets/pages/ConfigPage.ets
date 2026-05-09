@@ -28,6 +28,7 @@ import { ParentPinDialog } from '../components/ParentPinDialog';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { DeviceUnbindClient, DeviceUnbindOutcome } from '../services/DeviceUnbindClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
+import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
@@ -680,6 +681,7 @@ struct ConfigPage {
     merged.autoSpeak = this.draft.autoSpeak;
 
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
+    persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, merged);
     this.getUIContext().getRouter().back();
   }
 

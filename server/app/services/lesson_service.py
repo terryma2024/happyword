@@ -38,8 +38,14 @@ _LESSON_SYSTEM_PROMPT = (
     "  * `category_id`: a kebab-case slug summarising the page's "
     '    overall theme (e.g. "school-supplies", "weather", '
     '    "animals-jungle"). Lowercase ASCII only.\n'
-    "  * `label_en` / `label_zh`: short human-readable labels (≤4 "
-    "    English words / ≤6 Chinese characters).\n"
+    "  * `label_en`: **Primary lesson/theme title — English only.** "
+    "    1–4 short English words naming the unit topic exactly as a "
+    "    teacher would write it on the board (e.g. Clothing, My "
+    "    School Bag). ASCII letters and spaces only; no Chinese here.\n"
+    "  * `label_zh`: Short Chinese translation of the **same** theme "
+    "    as `label_en` (typically ≤6 characters). Must describe the "
+    "    identical topic; do not put the English-only heading here "
+    "    instead of in `label_en`.\n"
     "  * `story_zh`: an 80-150 character fairy-tale-flavoured Chinese "
     "    intro for HomePage region cards. Optional.\n"
     "  * `words`: array of objects, one per memorisable headword. "

@@ -55,16 +55,16 @@ async def send_otp_email(
     expires_in_minutes: int,
 ) -> None:
     """Send the parent-account OTP. Body is Chinese-only by spec r3 lock-in #1."""
-    subject = f"快乐背单词 - 验证码 {code}"
+    subject = f"魔法背单词 - 验证码 {code}"
     text = (
-        f"您的快乐背单词验证码是：{code}\n\n"
+        f"您的魔法背单词验证码是：{code}\n\n"
         f"验证码有效期 {expires_in_minutes} 分钟。如非本人操作，请忽略本邮件。\n\n"
         "如果未在收件箱看到本邮件，请检查垃圾邮件文件夹，并将本发件地址加入通讯录，避免后续邮件被拦截。\n"
     )
     html = (
         '<div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;'
         'margin:0 auto;padding:24px;color:#222">'
-        '<h2 style="margin:0 0 16px;font-size:18px">快乐背单词</h2>'
+        '<h2 style="margin:0 0 16px;font-size:18px">魔法背单词</h2>'
         '<p style="font-size:14px;color:#444;margin:0 0 8px">您的验证码：</p>'
         '<p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#111;'
         f'margin:8px 0">{code}</p>'
@@ -136,7 +136,7 @@ async def send_redemption_email(
     html = (
         '<div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;'
         'margin:0 auto;padding:24px;color:#222">'
-        '<h2 style="margin:0 0 16px;font-size:18px">快乐背单词</h2>'
+        '<h2 style="margin:0 0 16px;font-size:18px">魔法背单词</h2>'
         f"<p>{child_nickname} 想兑换 <strong>{item_display_name}</strong>"
         f"（{cost_coins} 金币）。</p>"
         '<p style="margin:16px 0">'

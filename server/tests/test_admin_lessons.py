@@ -239,6 +239,37 @@ async def test_patch_lesson_draft_updates_edited(
 
 
 @pytest.mark.asyncio
+async def test_put_lesson_draft_updates_edited_same_as_patch(
+    client: "AsyncClient", admin: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """HarmonyOS client saves drafts with PUT (PATCH yields HTTP 0). Same body."""
+    _stub_blob_upload(monkeypatch)
+    _install_extractor_tripwire(monkeypatch)
+    headers = _bearer(admin.username)
+    create = await client.post(
+        "/api/v1/admin/lessons/import",
+        headers=headers,
+        files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
+    )
+    draft_id = create.json()["id"]
+    await _promote_to_pending(draft_id, _FIXED_EXTRACTED)
+
+    edited = {
+        **_FIXED_EXTRACTED,
+        "words": [{"word": "glue", "meaningZh": "胶水", "difficulty": 1}],
+    }
+    put = await client.put(
+        f"/api/v1/admin/lesson-drafts/{draft_id}",
+        json={"edited_extracted": edited},
+        headers=headers,
+    )
+    assert put.status_code == 200, put.text
+    body = put.json()
+    assert body["edited_extracted"]["words"][0]["word"] == "glue"
+    assert body["status"] == "pending"
+
+
+@pytest.mark.asyncio
 async def test_patch_lesson_draft_rejected_while_extracting(
     client: "AsyncClient", admin: User, monkeypatch: pytest.MonkeyPatch
 ) -> None:

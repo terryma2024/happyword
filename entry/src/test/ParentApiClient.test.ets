@@ -306,7 +306,7 @@ export default function parentApiClientTest(): void {
     it('sendsEditedExtractedAsJsonBody', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `PATCH ${BASE}/api/v1/admin/lesson-drafts/draft-1`,
+        `PUT ${BASE}/api/v1/admin/lesson-drafts/draft-1`,
         fakeOk(
           '{"id":"draft-1","source_image_url":"u","extracted":{"category_id":"c","label_en":"a","label_zh":"b","story_zh":null,"words":[]},"edited_extracted":{"category_id":"c","label_en":"a","label_zh":"b","story_zh":null,"words":[{"word":"banana","meaningZh":"香蕉","difficulty":2}]},"status":"pending","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":"gpt-4o","prompt_version":1,"approval_summary":null}',
         ),
@@ -322,7 +322,7 @@ export default function parentApiClientTest(): void {
       w.difficulty = 2;
       edited.words.push(w);
       const out: LessonDraftDto = await c.patchLessonDraft('draft-1', edited);
-      expect(ad.lastMethod).assertEqual('PATCH');
+      expect(ad.lastMethod).assertEqual('PUT');
       expect(ad.lastBody.indexOf('"edited_extracted"') >= 0).assertTrue();
       expect(ad.lastBody.indexOf('banana') >= 0).assertTrue();
       expect(out.edited_extracted !== undefined).assertTrue();

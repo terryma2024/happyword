@@ -1,8 +1,10 @@
+import { common } from '@kit.AbilityKit';
 import {
   GameConfig,
   GAME_CONFIG_STORAGE_KEY,
   cloneGameConfig
 } from '../models/GameConfig';
+import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 
 /**
  * CustomWordsPage — owns `GameConfig.customWordsRaw` end to end.
@@ -28,6 +30,7 @@ struct CustomWordsPage {
     const merged: GameConfig = cloneGameConfig(current);
     merged.customWordsRaw = this.rawText;
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
+    persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, merged);
     this.getUIContext().getRouter().back();
   }
 

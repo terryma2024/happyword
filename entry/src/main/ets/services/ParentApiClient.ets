@@ -280,7 +280,11 @@ export class LessonImportError extends Error {
 // dropped at the edge and surface to the user as `网络异常`. Reject
 // it locally with a clearer error instead.
 const IMPORT_MAX_BYTES: number = 4_500_000;
-const IMPORT_TIMEOUT_MS: number = 60_000;
+// Large multipart uploads on cellular / emulator NAT can exceed 60s end-to-end:
+// client → Vercel (TLS + full body) → Blob PUT → Mongo insert → JSON response.
+// Keep this comfortably above worst-case so `http.request` does not throw before
+// the handler returns (symptom: toast `网络异常`).
+const IMPORT_TIMEOUT_MS: number = 180_000;
 const ALLOWED_MIMES: string[] = ['image/jpeg', 'image/png', 'image/webp'];
 
 /** Injection seam for the binary multipart upload — stubbed in tests
@@ -501,13 +505,17 @@ export class ParentApiClient {
   }
 
   /** Persist the parent's edits before approval. Body shape is
-   *  `{ "edited_extracted": {...} }` matching `LessonDraftPatchIn`. */
+   *  `{ "edited_extracted": {...} }` matching `LessonDraftPatchIn`.
+   *
+   *  Uses **PUT** (not PATCH): HarmonyOS NetStack only exposes GET/POST/PUT/
+   *  DELETE on `http.RequestMethod`; casting `"PATCH"` fails at runtime and
+   *  yields HTTP 0. Server accepts the same JSON body on PUT and PATCH. */
   async patchLessonDraft(draftId: string, edited: LessonExtractedDto): Promise<LessonDraftDto> {
     const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}`;
     const headers: Record<string, string> = ParentApiClient.jsonHeaders();
     const payload: Record<string, LessonExtractedDto> = { 'edited_extracted': edited };
     const body: string = JSON.stringify(payload);
-    const res: ParentFetchResult = await this.adapter.patch(url, headers, body);
+    const res: ParentFetchResult = await this.adapter.put(url, headers, body);
     ParentApiClient.assertOk(res, 'patchLessonDraft');
     return ParentApiClient.parseLessonDraft(res.body, 'patchLessonDraft');
   }

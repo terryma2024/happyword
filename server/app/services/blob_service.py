@@ -61,7 +61,7 @@ async def upload_object(path: str, payload: bytes, mime: str) -> str:
         "x-content-type": mime,
         "x-add-random-suffix": "0",
     }
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.put(url, content=payload, headers=headers)
         resp.raise_for_status()
         body: dict[str, Any] = resp.json()

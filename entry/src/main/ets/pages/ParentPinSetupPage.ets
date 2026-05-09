@@ -1,8 +1,10 @@
+import { common } from '@kit.AbilityKit';
 import {
   GameConfig,
   GAME_CONFIG_STORAGE_KEY,
   cloneGameConfig,
 } from '../models/GameConfig';
+import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import {
   PIN_LENGTH,
   pushDigit,
@@ -195,6 +197,7 @@ struct ParentPinSetupPage {
         cloneGameConfig(stored !== undefined ? stored : new GameConfig());
       next.parentPin = this.firstBuf;
       AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, next);
+      persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, next);
       this.getUIContext().getRouter().back();
       return;
     }

@@ -357,6 +357,7 @@ def create_app() -> FastAPI:
         return draft
 
     @app.patch("/api/v1/admin/lesson-drafts/{draft_id}")
+    @app.put("/api/v1/admin/lesson-drafts/{draft_id}")
     async def admin_patch_draft(
         draft_id: str,
         body: dict[str, Any],

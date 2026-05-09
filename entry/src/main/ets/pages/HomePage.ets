@@ -17,6 +17,7 @@ import { TodayAdventureBuilder, localDayKey } from '../services/TodayAdventureBu
 import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
 import { AdventureRegion, TodaySessionPlan, MonsterSlot } from '../models/AdventureRegion';
 import { describeMonsterKind } from '../services/TodayAdventureBuilder';
+import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
 import { CoinSnapshot } from '../models/CoinSnapshot';
 import { getTodayPreferences, TodayPreferences } from '../services/TodayPreferences';
@@ -257,6 +258,7 @@ struct HomePage {
       storedCfg !== undefined ? storedCfg : new GameConfig());
     cfg.mode = GAME_MODE_REVIEW;
     AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
+    persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, cfg);
     this.getUIContext().getRouter().pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
       console.error(`HomePage: pushUrl BattlePage (review) failed: ${JSON.stringify(err)}`);
     });
@@ -286,6 +288,7 @@ struct HomePage {
           storedCfg !== undefined ? storedCfg : new GameConfig());
         cfg.mode = GAME_MODE_TODAY;
         AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
+        persistGameConfigBestEffort(ctx, cfg);
         router.pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
           console.error(`HomePage: pushUrl BattlePage (today) failed: ${JSON.stringify(err)}`);
         });

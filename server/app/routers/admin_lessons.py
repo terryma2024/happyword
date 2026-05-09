@@ -198,6 +198,7 @@ def _ensure_pending(draft: LessonImportDraft) -> None:
 
 
 @router.patch("/lesson-drafts/{draft_id}", response_model=LessonDraftOut)
+@router.put("/lesson-drafts/{draft_id}", response_model=LessonDraftOut)
 async def patch_lesson_draft(
     draft_id: str,
     body: LessonDraftPatchIn,
