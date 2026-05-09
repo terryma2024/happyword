@@ -3,24 +3,18 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 _SERVER_ROOT = Path(__file__).resolve().parents[1]
-_SINGLE_CRON_VALUE = re.compile(r"^\d+$")
 
 
-def test_vercel_crons_are_hobby_compatible() -> None:
-    """Vercel Hobby preview deploys reject cron jobs that run more than daily."""
+def test_vercel_extract_pending_cron_is_every_minute() -> None:
+    """Lesson extraction cron runs once per minute (requires Vercel Pro — Hobby caps at daily)."""
     config = json.loads((_SERVER_ROOT / "vercel.json").read_text(encoding="utf-8"))
-
-    for cron in config.get("crons", []):
-        schedule = cron["schedule"]
-        fields = schedule.split()
-        assert len(fields) == 5
-        minute, hour = fields[:2]
-        assert _SINGLE_CRON_VALUE.match(minute), f"{schedule} runs more than daily"
-        assert _SINGLE_CRON_VALUE.match(hour), f"{schedule} runs more than daily"
+    crons = config.get("crons", [])
+    assert len(crons) == 1
+    assert crons[0]["path"] == "/api/v1/admin/cron/extract-pending"
+    assert crons[0]["schedule"] == "* * * * *"
 
 
 def test_vercel_config_uses_fastapi_framework_preset() -> None:
