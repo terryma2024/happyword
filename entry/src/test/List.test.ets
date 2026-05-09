@@ -49,6 +49,7 @@ import packTest from './Pack.test';
 import builtinPackLoaderTest from './BuiltinPackLoader.test';
 import globalPackServiceTest from './GlobalPackService.test';
 import packLibraryTest from './PackLibrary.test';
+import packSelectionServiceTest from './PackSelectionService.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -102,4 +103,5 @@ export default function testsuite() {
   builtinPackLoaderTest();
   globalPackServiceTest();
   packLibraryTest();
+  packSelectionServiceTest();
 }
