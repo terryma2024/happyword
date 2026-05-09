@@ -98,8 +98,10 @@ struct BoundDeviceInfoPage {
     switch (err.code) {
       case 'INVALID_NICKNAME':
         return '名字不能为空';
+      case 'BINDING_NOT_FOUND':
+        return '当前后端未找到绑定记录。若在开发者菜单切换过服务器，请改回配对时的环境或重新扫码。';
       case 'BINDING_REVOKED':
-        return '绑定已被撤销，请重新扫码';
+        return '绑定已被撤销，请在家长网页确认设备状态或重新扫码配对。';
       case 'NETWORK':
         return '网络错误，请稍后重试';
       case 'NOT_BOUND':
@@ -173,29 +175,37 @@ struct BoundDeviceInfoPage {
         } else if (!this.snap.isBound()) {
           Text('当前未绑定家长账号。').fontSize(14).fontColor('#64748b').padding(24)
         } else {
-          // V0.6.9 — tightened row rhythm: outer padding 24 → 16,
-          // inter-row Column space 12 → 4, per-row vertical padding
-          // 8 → 6 (so between two rows: 28dp → 16dp). The unbind
-          // button keeps a clear top margin so it doesn't crowd the
-          // last info row.
-          Column({ space: 4 }) {
-            this.editableNicknameRow()
-            this.row('Family ID', this.snap.familyId)
-            this.row('Binding ID', this.snap.bindingId)
-            this.row('Device ID 末四位', this.deviceIdSuffix)
-            this.row('Device ID 来源', this.deviceIdSource === 'asset_store'
-              ? 'AssetStoreKit (持久)'
-              : '本地 preferences (重装即丢)')
-            this.row('绑定时间', this.formatPairedAt())
+          // Landscape / tablet: avoid label–––huge gap–––value; keep a
+          // readable column centered with capped width (matches DevEco preview).
+          Column() {
+            Column({ space: 4 }) {
+              this.editableNicknameRow()
+              this.row('Family ID', this.snap.familyId)
+              this.row('Binding ID', this.snap.bindingId)
+              this.row('Device ID 末四位', this.deviceIdSuffix)
+              this.row('Device ID 来源', this.deviceIdSource === 'asset_store'
+                ? 'AssetStoreKit (持久)'
+                : '本地 preferences (重装即丢)')
+              this.row('绑定时间', this.formatPairedAt())
 
-            Button(this.busy ? '正在解除…' : '解除绑定 (本地)')
-              .backgroundColor('#dc2626').fontColor('#ffffff')
-              .enabled(!this.busy).margin({ top: 16 })
-              .onClick(() => this.onUnbind())
-            Text('提示：V0.6.2 仅在本机清除凭据，需在家长网页 → 设备列表 中删除以撤销。')
-              .fontSize(12).fontColor('#64748b').margin({ top: 8 })
+              Button(this.busy ? '正在解除…' : '解除绑定 (本地)')
+                .width('100%')
+                .backgroundColor('#dc2626').fontColor('#ffffff')
+                .enabled(!this.busy).margin({ top: 16 })
+                .onClick(() => this.onUnbind())
+              Text('提示：V0.6.2 仅在本机清除凭据，需在家长网页 → 设备列表 中删除以撤销。')
+                .fontSize(12).fontColor('#64748b').margin({ top: 8 })
+                .width('100%')
+            }
+            .width('100%')
+            .constraintSize({ maxWidth: 520 })
+            .padding(16)
+            .backgroundColor('#FFFFFF')
+            .borderRadius(12)
           }
-          .width('100%').padding(16)
+          .width('100%')
+          .padding({ left: 16, right: 16 })
+          .alignItems(HorizontalAlign.Center)
         }
       }
       // Background lives on the root Stack (below) so it can
@@ -225,10 +235,10 @@ struct BoundDeviceInfoPage {
   @Builder
   editableNicknameRow(): void {
     Row() {
-      Text('孩子档案').fontSize(14).fontColor('#64748b').width(140)
+      Text('孩子档案').fontSize(14).fontColor('#64748b').width(112)
       Text(`${this.snap.avatarEmoji || '🦄'} ${this.snap.nickname || '宝贝'}`)
         .id('BoundDeviceInfoNicknameValue')
-        .fontSize(14).fontColor('#1f2937').textAlign(TextAlign.End)
+        .fontSize(14).fontColor('#1f2937').textAlign(TextAlign.Start)
         .layoutWeight(1)
       Button('✏️ 编辑')
         .id('BoundDeviceInfoNicknameEditButton')
@@ -243,8 +253,8 @@ struct BoundDeviceInfoPage {
   @Builder
   row(label: string, value: string) {
     Row() {
-      Text(label).fontSize(14).fontColor('#64748b').width(140)
-      Text(value).fontSize(14).fontColor('#1f2937').textAlign(TextAlign.End)
+      Text(label).fontSize(14).fontColor('#64748b').width(112)
+      Text(value).fontSize(14).fontColor('#1f2937').textAlign(TextAlign.Start)
         .layoutWeight(1)
     }
     .width('100%').padding({ top: 6, bottom: 6 })

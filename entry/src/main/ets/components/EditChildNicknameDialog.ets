@@ -108,7 +108,6 @@ export struct EditChildNicknameDialog {
   }
 
   build(): void {
-    const emojiChoices: string[] = buildChildAvatarEmojiChoices(this.initialAvatarEmoji);
     Column({ space: 16 }) {
       Text('修改孩子的名字')
         .fontSize(20)
@@ -144,7 +143,7 @@ export struct EditChildNicknameDialog {
           .fontColor('#888888');
         Scroll() {
           Row({ space: 10 }) {
-            ForEach(emojiChoices, (emoji: string): void => {
+            ForEach(buildChildAvatarEmojiChoices(this.initialAvatarEmoji), (emoji: string): void => {
               Button() {
                 Text(emoji)
                   .fontSize(22);

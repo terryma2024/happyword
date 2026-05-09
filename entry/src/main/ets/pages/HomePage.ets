@@ -81,9 +81,11 @@ struct HomePage {
   @State private categoryCatalogVersion: number = 0;
   private categoryCatalog: CategoryCatalog = new CategoryCatalog();
   private wordPackCache: WordPackCache = new WordPackCache();
-  // V0.6.2: top-right child badge ("🌙 <nickname>") when the device is bound
-  // to a parent account. Refreshed on aboutToAppear/onPageShow.
+  // V0.6.2: top-right child badge ("<avatarEmoji> <nickname>") when the device
+  // is bound to a parent account. Emoji matches CloudCredentials (same as
+  // BoundDeviceInfoPage). Refreshed on aboutToAppear/onPageShow.
   @State private boundChildNickname: string = '';
+  @State private boundChildAvatarEmoji: string = '🦄';
   private cloudCreds: CloudCredentials = new CloudCredentials();
   // Debug-only top-left version label. Empty in release builds — the
   // hydration call in aboutToAppear is gated on BuildProfile.BUILD_MODE_NAME.
@@ -130,7 +132,13 @@ struct HomePage {
 
   private async refreshBoundChild(): Promise<void> {
     const snap: CloudCredentialsSnapshot = await this.cloudCreds.load();
-    this.boundChildNickname = snap.isBound() ? (snap.nickname.length > 0 ? snap.nickname : '宝贝') : '';
+    if (snap.isBound()) {
+      this.boundChildNickname = snap.nickname.length > 0 ? snap.nickname : '宝贝';
+      this.boundChildAvatarEmoji = snap.avatarEmoji.length > 0 ? snap.avatarEmoji : '🦄';
+    } else {
+      this.boundChildNickname = '';
+      this.boundChildAvatarEmoji = '🦄';
+    }
   }
 
   onPageShow(): void {
@@ -312,13 +320,14 @@ struct HomePage {
             .id('HomeTitle')
             .fontSize(32)
             .fontWeight(FontWeight.Bold)
-            .margin({ bottom: 24 });
+            .margin({ bottom: 8 });
 
           this.adventureCard();
         }
         .width('100%')
         .alignItems(HorizontalAlign.Center)
-        .padding({ left: 24, right: 24, top: 72, bottom: 24 });
+        // Extra top inset so HomeTitle clears notch / status bar in landscape.
+        .padding({ left: 24, right: 24, top: 96, bottom: 24 });
       }
       .width('100%')
       .height('100%')
@@ -349,7 +358,7 @@ struct HomePage {
           // (孩子档案), where the kid can edit the nickname. Same
           // route ConfigPage's "孩子档案" entry uses, so back-nav
           // and refresh-on-show behave identically.
-          Text(`🌙 ${this.boundChildNickname}`)
+          Text(`${this.boundChildAvatarEmoji} ${this.boundChildNickname}`)
             .id('HomeBoundChildBadge')
             .fontSize(14)
             .fontColor('#0369A1')
