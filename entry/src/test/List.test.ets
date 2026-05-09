@@ -48,6 +48,7 @@ import backendHeadersTest from './BackendHeaders.test';
 import packTest from './Pack.test';
 import builtinPackLoaderTest from './BuiltinPackLoader.test';
 import globalPackServiceTest from './GlobalPackService.test';
+import packLibraryTest from './PackLibrary.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -100,4 +101,5 @@ export default function testsuite() {
   packTest();
   builtinPackLoaderTest();
   globalPackServiceTest();
+  packLibraryTest();
 }
