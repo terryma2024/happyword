@@ -45,6 +45,7 @@ import barcodeImageDecoderTest from './BarcodeImageDecoder.test';
 import versionTripleTapTest from './VersionTripleTap.test';
 import buildInfoTest from './BuildInfo.test';
 import backendHeadersTest from './BackendHeaders.test';
+import packTest from './Pack.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -94,4 +95,5 @@ export default function testsuite() {
   versionTripleTapTest();
   buildInfoTest();
   backendHeadersTest();
+  packTest();
 }
