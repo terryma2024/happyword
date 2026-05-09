@@ -1,7 +1,16 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-09T12:59:03.994Z",
+  "updated_at": "2026-05-09T15:18:59.453Z",
   "previews": [
+    {
+      "pr": 50,
+      "title": "feat: editable child nickname on bound device",
+      "branch": "cursor/c1198e1b",
+      "url": "https://happyword-gcuiseh2m-terrymas-projects.vercel.app",
+      "author": "terryma2024",
+      "head_sha": "65901ec",
+      "updated_at": "2026-05-09T15:18:59.030Z"
+    },
     {
       "pr": 49,
       "title": "fix(parent-admin): unstick lesson-import flow (page=1 + client-side image compre",
@@ -9,7 +18,7 @@
       "url": "https://happyword-29bzjj8he-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "ce19156",
-      "updated_at": "2026-05-09T12:59:03.717Z"
+      "updated_at": "2026-05-09T15:18:59.219Z"
     },
     {
       "pr": 43,
@@ -18,7 +27,7 @@
       "url": "https://happyword-7cacsgu0n-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "fa8d0bd",
-      "updated_at": "2026-05-09T12:59:03.994Z"
+      "updated_at": "2026-05-09T15:18:59.453Z"
     }
   ]
 }
