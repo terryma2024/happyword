@@ -86,7 +86,7 @@ export default function devMenuCardListUiTest(): void {
       await returnToHome(driver);
       await tripleTapVersion(driver);
       // Look for ANY preview card by id pattern. We probe known PR
-      // numbers recorded in docs/preview-urls.json at spec time (42,
+      // numbers recorded in the preview manifest at spec time (42,
       // 41, 40, 30); if none are present (e.g. offline), we accept
       // the weaker assertion that DevMenu rendered.
       const probePrs: number[] = [42, 41, 40, 30];
