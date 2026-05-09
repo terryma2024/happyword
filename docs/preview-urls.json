@@ -1,60 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-09T02:59:35.951Z",
+  "updated_at": "2026-05-09T06:01:04.513Z",
   "previews": [
     {
       "pr": 49,
       "title": "fix(parent-admin): unstick lesson-import flow (page=1 + client-side image compre",
       "branch": "cursor/065e79df",
-      "url": "https://happyword-1j4ed6g4a-terrymas-projects.vercel.app",
+      "url": "https://happyword-h3229yisi-terrymas-projects.vercel.app",
       "author": "terryma2024",
-      "head_sha": "2a4d8a6",
-      "updated_at": "2026-05-09T02:59:34.114Z"
-    },
-    {
-      "pr": 48,
-      "title": "[codex] Design V0.8 backoffice and vocabulary roadmap",
-      "branch": "codex/server-admin",
-      "url": "https://happyword-caex3591r-terrymas-projects.vercel.app",
-      "author": "terryma2024",
-      "head_sha": "6c294f5",
-      "updated_at": "2026-05-09T02:59:34.249Z"
-    },
-    {
-      "pr": 47,
-      "title": "fix(server): redeem pair token by prefix so QR scan binding works",
-      "branch": "cursor/93cd3bd3",
-      "url": "https://happyword-97phnxkvd-terrymas-projects.vercel.app",
-      "author": "terryma2024",
-      "head_sha": "e4798b5",
-      "updated_at": "2026-05-09T02:59:34.457Z"
-    },
-    {
-      "pr": 46,
-      "title": "scripts(setup_bypass_secret): auto-unlock, cold-start, clear-before-fill",
-      "branch": "cursor/setup-bypass-secret-auto-unlock",
-      "url": "https://happyword-ja7fxbgy1-terrymas-projects.vercel.app",
-      "author": "terryma2024",
-      "head_sha": "6b18455",
-      "updated_at": "2026-05-09T02:59:34.660Z"
-    },
-    {
-      "pr": 45,
-      "title": "DevMenu: BypassSecret page + hdc init automation + happyword.cool rename",
-      "branch": "cursor/devmenu-bypass-secret-automation",
-      "url": "https://happyword-ibhhrg9bc-terrymas-projects.vercel.app",
-      "author": "terryma2024",
-      "head_sha": "24e1ab8",
-      "updated_at": "2026-05-09T02:59:34.798Z"
-    },
-    {
-      "pr": 44,
-      "title": "chore(vercel): remove ignoreCommand from server vercel.json",
-      "branch": "cursor/vercel-json-remove-ignore-command",
-      "url": "https://happyword-9k495u58r-terrymas-projects.vercel.app",
-      "author": "terryma2024",
-      "head_sha": "4769b4e",
-      "updated_at": "2026-05-09T02:59:35.101Z"
+      "head_sha": "e95802d",
+      "updated_at": "2026-05-09T06:01:04.195Z"
     },
     {
       "pr": 43,
@@ -63,7 +18,7 @@
       "url": "https://happyword-7cacsgu0n-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "fa8d0bd",
-      "updated_at": "2026-05-09T02:59:35.242Z"
+      "updated_at": "2026-05-09T06:01:04.353Z"
     },
     {
       "pr": 42,
@@ -72,34 +27,7 @@
       "url": "https://happyword-pty6a2kvv-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "ca12420",
-      "updated_at": "2026-05-09T02:59:35.434Z"
-    },
-    {
-      "pr": 41,
-      "title": "ci: bump github-script/upload-artifact/download-artifact to Node 24",
-      "branch": "cursor/bump-actions-to-node24",
-      "url": "https://happyword-mdg6neg84-terrymas-projects.vercel.app",
-      "author": "terryma2024",
-      "head_sha": "d3bdcd3",
-      "updated_at": "2026-05-09T02:59:35.633Z"
-    },
-    {
-      "pr": 40,
-      "title": "fix(server): redirect / to /parent/ so apex domain is not a 404 JSON",
-      "branch": "cursor/root-redirect-to-parent-shell",
-      "url": "https://happyword-7kty27mm3-terrymas-projects.vercel.app",
-      "author": "terryma2024",
-      "head_sha": "e6abbc1",
-      "updated_at": "2026-05-09T02:59:35.757Z"
-    },
-    {
-      "pr": 30,
-      "title": "V0.6: Parent account + family-scoped device binding",
-      "branch": "feat/v0.6-parent-account",
-      "url": "https://happyword-gbdtrk4pu-terrymas-projects.vercel.app",
-      "author": "terryma2024",
-      "head_sha": "69fc795",
-      "updated_at": "2026-05-09T02:59:35.951Z"
+      "updated_at": "2026-05-09T06:01:04.513Z"
     }
   ]
 }
