@@ -108,7 +108,9 @@ gh run view "$RUN_ID" --json jobs --jq '.jobs[] | "\(.conclusion // .status)  \(
 
 ### Local secrets (`~/.env`)
 
-Keep **Vercel-related secrets** on disk in `~/.env`: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, and any other `VERCEL_*` keys tools expect. Never commit this file.
+Keep **Vercel-related secrets** on disk in `~/.env`: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, **`VERCEL_CRON_SECRET`** (workstation mirror of the Vercel env var `CRON_SECRET`, for [`tools/vercel/trigger-cron.sh`](../../../tools/vercel/trigger-cron.sh)), and any other `VERCEL_*` keys tools expect. Never commit this file.
+
+The `while read` loop below exports **only `VERCEL_*` lines**. For the cron bearer, store **`VERCEL_CRON_SECRET`** in `~/.env` and rely on **`bash tools/vercel/trigger-cron.sh`**, which resolves it in an isolated subshell. See skill **`vercel-trigger-cron`** and **`docs/ci-secrets.md`** → **`VERCEL_CRON_SECRET`**.
 
 **Load quietly** — stdin redirection from the file via `while read … < "$ENV_PATH"` so values are **not** echoed to the terminal and do not show up in transcript-friendly commands. Do **not** `cat ~/.env`, `tee ~/.env`, `echo "$VERCEL_TOKEN"`, or paste secret lines into chats/logs.
 

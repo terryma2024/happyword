@@ -7,7 +7,7 @@ description: Health-check every active Vercel Preview deployment listed in the l
 
 ## Local secrets (`~/.env`)
 
-Store **all Vercel-related local secrets** in `~/.env` (`VERCEL_AUTOMATION_BYPASS_SECRET`, optional `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`, etc.). Never commit this file.
+Store **all Vercel-related local secrets** in `~/.env` (`VERCEL_AUTOMATION_BYPASS_SECRET`, optional `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`, **`VERCEL_CRON_SECRET`** for manual cron triggering — see skill **`vercel-trigger-cron`**, etc.). Never commit this file.
 
 **Do not** print secrets: avoid `cat ~/.env`, logging raw env lines, or `echo "$VERCEL_*"` in shells that might be traced. `preview-health.sh` already reads the bypass secret via `ENV_FILE` (default `~/.env`) without echoing values.
 

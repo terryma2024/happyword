@@ -9,7 +9,7 @@ description: Clean up old Vercel preview deployments for the happyword server pr
 
 Keep **Vercel-related secrets on disk only** in `~/.env` (never commit this file). Typical keys:
 
-`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, and any other `VERCEL_*` names your tooling expects.
+`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, **`VERCEL_CRON_SECRET`** (for skill **`vercel-trigger-cron`**), and any other `VERCEL_*` names your tooling expects.
 
 **Load without leaking values.** Prefer stdin redirection from `~/.env` with the loop below (works with macOS `/bin/bash` 3.2). Do **not** use `cat ~/.env`, `type ~/.env`, `echo "$VERCEL_TOKEN"`, or log raw env lines. Optional **zsh / bash 4+**: `done < <(grep -E '^VERCEL_' ~/.env)` — never mix secrets into pipes that echo or tee.
 

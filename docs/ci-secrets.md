@@ -35,6 +35,7 @@ now only handles cleanup-on-close and manual repair runs.
 | [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | `server-ci` (fallback deploy) | optional | same as above |
 | [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `server-ci`, `preview-manifest` | optional | `docs/preview-urls.json` is committed, but the Vercel Blob mirror is skipped |
 | [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | `server-ci` E2E | optional | E2E hits the **Vercel deployment protection** login page and every request fails |
+| _operator_ [**`VERCEL_CRON_SECRET`**](#vercel_cron_secret-lesson-import-extraction-cron) | workstation `~/.env` | optional | Mirrors Vercel **`CRON_SECRET`** for [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh); not a GitHub Actions secret |
 | [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `server-cd`, `atlas-cleanup` | optional | E2E DB reset + Mongo-dependent tests skip; cron cleanup is a no-op |
 | [`E2E_ADMIN_USER`](#e2e_admin_user--e2e_admin_pass), [`E2E_ADMIN_PASS`](#e2e_admin_user--e2e_admin_pass) | `server-ci` E2E | optional | E2E tests that need an admin login skip |
 | [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-cd` | optional | `pytest -m smoke` runs without a DB target → likely fails |
@@ -129,6 +130,65 @@ which the E2E tests cannot pass.
 The E2E test driver passes this to every request as
 `x-vercel-protection-bypass: <secret>` (see
 [`server/tests/e2e/conftest.py`](../server/tests/e2e/conftest.py)).
+
+### `VERCEL_CRON_SECRET` (lesson import extraction cron)
+
+**What it does**
+
+The deployed server route **`POST /api/v1/admin/cron/extract-pending`** (see
+[`server/app/routers/admin_cron.py`](../server/app/routers/admin_cron.py)) claims one
+lesson-import draft stuck in **`status="extracting"`**, calls the vision LLM,
+and promotes it to **`pending`** or records failure. Only callers that present
+matching **`Authorization: Bearer <secret>`** are allowed.
+
+**On Vercel**
+
+1. Generate a strong random secret (same idea as a webhook signing key):
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. Add **`CRON_SECRET`** under **Project → Settings → Environment Variables**
+   for **Production** (required for scheduled cron) and **Preview** (needed if you
+   manually hit a preview URL).
+
+3. Scheduled invocations configured in **`server/vercel.json`** `crons[].path`
+   are sent by Vercel with that Bearer token when **`CRON_SECRET`** is defined
+   for the deployment.
+
+Without **`CRON_SECRET`** on the server, the route rejects every request (**401 /
+`CRON_SECRET_NOT_CONFIGURED`**), including legitimate cron ticks.
+
+**On your workstation**
+
+Put the **same literal value** in **`~/.env`** as `VERCEL_CRON_SECRET=…` next to other
+operator secrets (**never commit** `~/.env`). Then run from the repo root:
+
+```bash
+bash tools/vercel/trigger-cron.sh
+```
+
+Trigger a specific job by name (suffix after `/api/v1/admin/cron/`):
+
+```bash
+bash tools/vercel/trigger-cron.sh --job extract-pending
+```
+
+Override the target host when calling a Preview:
+
+```bash
+bash tools/vercel/trigger-cron.sh --url https://your-preview.vercel.app --job extract-pending
+```
+
+Or just the URL fragment (happyword-<frag>-terrymas-projects.vercel.app):
+
+```bash
+bash tools/vercel/trigger-cron.sh --url-fragment 9y7uijs1p --job extract-pending
+```
+
+Further detail: Cursor skill **`vercel-trigger-cron`** and
+[`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh).
 
 ### `E2E_MONGODB_URI`
 
@@ -241,6 +301,7 @@ Environment Variables**. Set these on **Preview** (used by E2E) and
 | `JWT_SECRET` | JWT signing | Generate `openssl rand -base64 32`. Must be ≥32 bytes. |
 | `JWT_EXPIRE_HOURS` | Token TTL | e.g. `24`. |
 | `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` | Seed admin row at startup | **Must equal** `E2E_ADMIN_USER` / `E2E_ADMIN_PASS`. |
+| `CRON_SECRET` | Bearer for **`POST /api/v1/admin/cron/extract-pending`** | Required for lesson-import async extraction cron + manual trigger script. **`openssl rand -hex 32`**. Preview + Production. See [`VERCEL_CRON_SECRET` §](#vercel_cron_secret-lesson-import-extraction-cron). |
 | `OPENAI_API_KEY` | LLM features | Leave **empty** for E2E previews (E2E never calls real OpenAI). |
 | `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_HOST` / `SMTP_PORT` | Email | Leave **`SMTP_USERNAME` blank** on Preview so E2E uses DB OTP injection instead of real email. |
 | `CORS_ALLOW_ORIGINS` | CORS | `*` for non-production; lock down for production. |
@@ -258,7 +319,9 @@ For someone forking this repo and wanting CI fully working:
    - [ ] Import the repo into Vercel; let it run a Preview deploy on a PR.
    - [ ] Settings → Environment Variables → fill in every row of the
          [Vercel-side env table](#vercel-side-environment-variables) for
-         **Preview** and **Production**.
+         **Preview** and **Production** (**`CRON_SECRET`** is required for
+         `/api/v1/admin/cron/extract-pending` — see
+         [**`VERCEL_CRON_SECRET` §**](#vercel_cron_secret-lesson-import-extraction-cron)).
    - [ ] Settings → Deployment Protection → enable **Protection Bypass for
          Automation**, copy the secret.
    - [ ] Run `cd server && npx vercel link` to capture `orgId` /
@@ -333,3 +396,8 @@ For someone forking this repo and wanting CI fully working:
 - **Per-PR DB hygiene.** `atlas-cleanup` drops `happyword_pr_<N>_e2e` DBs
   older than 14 days. If you keep a PR open longer, the next CI run on it
   re-creates the DB from scratch — no manual action needed.
+- **Lesson extract cron.** Vercel only runs declarative Cron against
+  **Production**. To tick extraction from your machine or smoke a Preview, use
+  **`bash tools/vercel/trigger-cron.sh`** with workstation
+  **`VERCEL_CRON_SECRET`** in **`~/.env`** (matching the target deployment's
+  Vercel `CRON_SECRET`). Details in **`VERCEL_CRON_SECRET` §**.
