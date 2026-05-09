@@ -100,34 +100,27 @@ function headersWith(name: string, value: string): Map<string, string> {
   return m;
 }
 
-const SAMPLE_BODY: string = JSON.stringify({
-  schema_version: 5,
-  merged_at: '2026-05-01T08:00:00Z',
-  packs: [
-    {
-      pack_id: 'fruit-forest-global',
-      name: 'Fruit Forest Global',
-      description: '水果森林（global）',
-      version: 3,
-      schema_version: 5,
-      published_at: '2026-05-01T07:30:00Z',
-      scene: {
-        bgPrimary: '#FFF6E0',
-        bgAccent: '#FFD49A',
-        bossName: 'Orchard Sentinel',
-        bossCandidates: [4, 5, 6],
-        monsterPlan: [
-          { kind: 'normal', catalogIndex: 0 },
-          { kind: 'boss', catalogIndex: 4 },
-        ],
-      },
-      words: [
-        { id: 'gpk-apple', word: 'apple', meaningZh: '苹果', category: 'fruit', difficulty: 1 },
-        { id: 'gpk-banana', word: 'banana', meaningZh: '香蕉', category: 'fruit', difficulty: 1 },
-      ],
-    },
-  ],
-});
+// String literal — ArkTS strict mode rejects untyped object literals,
+// so the SAMPLE_BODY is hand-built as a JSON string.
+const SAMPLE_BODY: string =
+  '{"schema_version":5,"merged_at":"2026-05-01T08:00:00Z",' +
+  '"packs":[{"pack_id":"fruit-forest-global",' +
+  '"name":"Fruit Forest Global",' +
+  '"description":"水果森林（global）",' +
+  '"version":3,"schema_version":5,' +
+  '"published_at":"2026-05-01T07:30:00Z",' +
+  '"scene":{"bgPrimary":"#FFF6E0","bgAccent":"#FFD49A",' +
+  '"bossName":"Orchard Sentinel","bossCandidates":[4,5,6],' +
+  '"monsterPlan":[{"kind":"normal","catalogIndex":0},' +
+  '{"kind":"boss","catalogIndex":4}]},' +
+  '"words":[' +
+  '{"id":"gpk-apple","word":"apple","meaningZh":"苹果","category":"fruit","difficulty":1},' +
+  '{"id":"gpk-banana","word":"banana","meaningZh":"香蕉","category":"fruit","difficulty":1}' +
+  ']}]}';
+
+const SKIP_BODY: string =
+  '{"packs":[{"name":"no-id"},' +
+  '{"pack_id":"good","name":"good","words":[]}]}';
 
 class Harness {
   svc: GlobalPackService;
@@ -173,20 +166,14 @@ export default function GlobalPackServiceTest() {
     });
 
     it('skips packs without pack_id', 0, () => {
-      const body: string = JSON.stringify({
-        packs: [
-          { name: 'no-id' },
-          { pack_id: 'good', name: 'good', words: [] },
-        ],
-      });
-      const packs: Pack[] = GlobalPackService.parsePacks(body);
+      const packs: Pack[] = GlobalPackService.parsePacks(SKIP_BODY);
       expect(packs.length).assertEqual(1);
       expect(packs[0].id).assertEqual('good');
     });
   });
 
   describe('GlobalPackService.ensureLatest', () => {
-    it('writes cache + returns Pack[] on 200', async (done: () => void) => {
+    it('writes cache + returns Pack[] on 200', 0, async (done: () => void) => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(SAMPLE_BODY));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"v1"'));
@@ -198,7 +185,7 @@ export default function GlobalPackServiceTest() {
       done();
     });
 
-    it('honours 304 by returning cached packs', async (done: () => void) => {
+    it('honours 304 by returning cached packs', 0, async (done: () => void) => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(SAMPLE_BODY));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"v1"'));
@@ -210,7 +197,7 @@ export default function GlobalPackServiceTest() {
       done();
     });
 
-    it('clears cache + returns empty on 204', async (done: () => void) => {
+    it('clears cache + returns empty on 204', 0, async (done: () => void) => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(SAMPLE_BODY));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"v1"'));
@@ -223,7 +210,7 @@ export default function GlobalPackServiceTest() {
       done();
     });
 
-    it('falls back to cache on network error', async (done: () => void) => {
+    it('falls back to cache on network error', 0, async (done: () => void) => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(SAMPLE_BODY));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"v1"'));
@@ -235,7 +222,7 @@ export default function GlobalPackServiceTest() {
       done();
     });
 
-    it('warmFromCache hydrates memoryPacks from prefs', async (done: () => void) => {
+    it('warmFromCache hydrates memoryPacks from prefs', 0, async (done: () => void) => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(SAMPLE_BODY));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"v1"'));
@@ -249,7 +236,7 @@ export default function GlobalPackServiceTest() {
       done();
     });
 
-    it('does not send Authorization header (anonymous endpoint)', async (done: () => void) => {
+    it('does not send Authorization header (anonymous endpoint)', 0, async (done: () => void) => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(SAMPLE_BODY));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"v1"'));
@@ -260,7 +247,7 @@ export default function GlobalPackServiceTest() {
   });
 
   describe('GlobalPackService.peekRemoteEtag', () => {
-    it('returns ETag from HEAD response', async (done: () => void) => {
+    it('returns ETag from HEAD response', 0, async (done: () => void) => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(200));
       h.adapter.setResponseHeaders(`HEAD ${URL_LATEST}`, headersWith('ETag', '"v9"'));
@@ -269,7 +256,7 @@ export default function GlobalPackServiceTest() {
       done();
     });
 
-    it('returns empty string on 204', async (done: () => void) => {
+    it('returns empty string on 204', 0, async (done: () => void) => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(204));
       const etag: string | null = await h.svc.peekRemoteEtag();
@@ -277,7 +264,7 @@ export default function GlobalPackServiceTest() {
       done();
     });
 
-    it('returns null on 5xx', async (done: () => void) => {
+    it('returns null on 5xx', 0, async (done: () => void) => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(500));
       const etag: string | null = await h.svc.peekRemoteEtag();

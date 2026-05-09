@@ -70,7 +70,7 @@ export default function PackSelectionServiceTest() {
       done();
     });
 
-    it('reload from prefs restores active + pinned + perfect counts', async (done: () => void) => {
+    it('reload from prefs restores active + pinned + perfect counts', 0, async (done: () => void) => {
       const prefs: MemPrefs = new MemPrefs();
       const svc1: PackSelectionService = new PackSelectionService();
       svc1.injectPreferences(prefs);
