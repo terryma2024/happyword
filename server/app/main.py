@@ -186,5 +186,15 @@ app.include_router(admin_cron_router.router)
 app.include_router(admin_assets_router.router)
 app.include_router(admin_stats_router.router)
 
+# V0.6.5 — surface new-pattern aliases onto every legacy route. MUST run
+# AFTER every include_router call so we can see all legacy routes.
+# See .cursor/rules/api-route-pattern.mdc and the v0.6.5 plan Task 27.
+from app.routers.legacy_route_aliases import (  # noqa: E402
+    attach_legacy_aliases,
+)
+
+_alias_count = attach_legacy_aliases(app)
+logger.info("v0.6.5 attached %d legacy route aliases", _alias_count)
+
 # V0.6.1: serve the parent web shell's static assets.
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
