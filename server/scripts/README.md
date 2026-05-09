@@ -56,7 +56,7 @@ Referenced from `server/vercel.json` as `ignoreCommand`. When the Vercel project
 
 ## vercel_prune_branch_deployments.mjs
 
-Cleans up old Vercel deployments. For every non-protected branch (default: not `main`/`master`) it keeps **only the newest deployment** (by `created`) and deletes the rest. Protected branches are left untouched, and any deployment currently aliased to the production domain is always preserved (resolved via `/v9/projects/<id>.targets.production.id`).
+Cleans up old Vercel deployments. For every non-protected branch (default: not `main`/`master`) it keeps **only the newest deployment** (by `created`) and deletes the rest. **If the script runs from a git checkout**, it runs `git ls-remote --heads origin` (override remote with `--git-remote` or `VERCEL_PRUNE_GIT_REMOTE`): any Vercel deployment group whose branch name is **not** among those remote heads is treated as a **deleted branch** and **all** deployments for that branch are removed (still preserving the production-aliased deployment when present). Pass `--skip-remote-branch-check` to disable this (no git / wrong cwd). Protected branches are left untouched when the branch still exists remotely; if a protected branch disappears from the remote, its previews are removed too—except the production alias. Any deployment currently aliased to the production domain is always preserved (resolved via `/v9/projects/<id>.targets.production.id`).
 
 Reads `projectId`/`orgId` from `server/.vercel/project.json` and authenticates with the `VERCEL_TOKEN` env var (the same token the CI uses — see [`docs/ci-secrets.md`](../../docs/ci-secrets.md#vercel_token)). Runs in **dry-run by default** — pass `--apply` to actually delete.
 
@@ -77,6 +77,8 @@ VERCEL_TOKEN=… node server/scripts/vercel_prune_branch_deployments.mjs --json
 ```
 
 Pure Node 18+ — uses native `fetch`, no extra deps. Pass `--include-no-git` to also prune deployments missing git metadata (manual `vercel deploy` etc.); off by default because we can't tell which manual deploys are intentional.
+
+Pass **`--prune-main`** when `main` is in `--keep-branches` (the default) but you still want **only the newest** `main` deployment kept — older `main` previews are deleted like any non-protected branch (production-aliased deployment is still preserved). Other protected branches (e.g. `master`) stay fully preserved unless you remove them from `--keep-branches`.
 
 Project / team can be supplied three ways (CLI flag > env var > linked checkout):
 

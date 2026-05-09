@@ -5,6 +5,26 @@ description: Health-check every active Vercel Preview deployment listed in the l
 
 # vercel-preview-health
 
+## Local secrets (`~/.env`)
+
+Store **all Vercel-related local secrets** in `~/.env` (`VERCEL_AUTOMATION_BYPASS_SECRET`, optional `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`, etc.). Never commit this file.
+
+**Do not** print secrets: avoid `cat ~/.env`, logging raw env lines, or `echo "$VERCEL_*"` in shells that might be traced. `preview-health.sh` already reads the bypass secret via `ENV_FILE` (default `~/.env`) without echoing values.
+
+To export every `VERCEL_*=` line into your shell **silently** before other CLI work:
+
+```bash
+ENV_PATH="${HOME}/.env"
+if [[ -r "$ENV_PATH" ]]; then
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" ]] && continue
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^VERCEL_[A-Za-z0-9_]+= ]] || continue
+    export "$line"
+  done < "$ENV_PATH"
+fi
+```
+
 ## Canonical tool
 
 Use **`tools/vercel/preview-health.sh`** from the **repository root**.
@@ -31,7 +51,7 @@ MANIFEST_URL=https://staging.example/preview-urls.json \
 | Requirement | How to satisfy |
 | --- | --- |
 | `jq` on `PATH` | `brew install jq` |
-| `VERCEL_AUTOMATION_BYPASS_SECRET` | Either export it, or have `VERCEL_AUTOMATION_BYPASS_SECRET=…` in `~/.env`. Pulled from Vercel project settings → Deployment Protection → Bypass for Automation. Same secret used by `scripts/setup_bypass_secret_on_device.sh` and the `E2E_VERCEL_PROTECTION_BYPASS` GitHub secret. See `docs/ci-secrets.md`. |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | Put `VERCEL_AUTOMATION_BYPASS_SECRET=…` in `~/.env` (preferred), or export it without printing the value. Source: Vercel project settings → Deployment Protection → Bypass for Automation. Same secret used by `scripts/setup_bypass_secret_on_device.sh` and the `E2E_VERCEL_PROTECTION_BYPASS` GitHub secret. See `docs/ci-secrets.md`. |
 | Network egress to `*.vercel.app` and `happyword.cool` | n/a |
 
 If the bypass secret is missing the script still runs but warns once and reports every preview as `[FAIL 401]` — this is **not** a real preview outage.

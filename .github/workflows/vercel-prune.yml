@@ -2,7 +2,8 @@ name: vercel-prune
 
 # Weekly cleanup of Vercel preview deployments. For every non-protected branch
 # (default: not main / master) we keep ONLY the newest deployment and delete
-# the rest. The production-aliased deployment is always preserved.
+# the rest. Branches that no longer exist on origin (git ls-remote) delete ALL
+# deployments for that branch. The production-aliased deployment is always preserved.
 #
 # See: server/scripts/vercel_prune_branch_deployments.mjs
 
