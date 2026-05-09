@@ -32,6 +32,15 @@ import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
+import { Pack } from '../models/Pack';
+import {
+  HomeIntegrationBundle,
+  loadHomeIntegration,
+} from '../services/PackHomeIntegration';
+import { MAX_ACTIVE_PACKS } from '../services/PackSelectionService';
+import { GlobalPackService, GlobalPackEnsureResult } from '../services/GlobalPackService';
+import { FamilyPackService, FamilyPackEnsureResult } from '../services/FamilyPackService';
+import { PackNetworkFetchAdapter } from '../services/PackNetworkFetchAdapter';
 /**
  * ConfigPage exposes five battle knobs plus a custom-words category.
  * All non-custom edits happen on a local @State draft and are only
@@ -67,6 +76,22 @@ struct ConfigPage {
   private wordPackCache: WordPackCache = new WordPackCache();
   private builtinEntries: WordEntry[] = [];
   private adminPinDialog: CustomDialogController | null = null;
+  /**
+   * V0.6.5.1 — pack-picker state. Loaded async by aboutToAppear via
+   * `loadHomeIntegration`; until then `availablePacks` is empty and
+   * the section renders a "loading" placeholder. Bumping
+   * `packPickerVersion` after every active-set / pin / sync edit
+   * forces the @Builder closures to re-render.
+   */
+  @State private availablePacks: Pack[] = [];
+  @State private activePackIds: string[] = [];
+  @State private pinnedPackIds: string[] = [];
+  @State private packPickerVersion: number = 0;
+  @State private packSyncBusy: boolean = false;
+  @State private packSyncStatusText: string = '';
+  @State private packSyncToastText: string = '';
+  private packPickerToastTimer: number = -1;
+  private homeIntegration: HomeIntegrationBundle = new HomeIntegrationBundle();
 
   aboutToAppear(): void {
     const stored: GameConfig | undefined =
@@ -96,6 +121,26 @@ struct ConfigPage {
       .catch((err: BusinessError): void => {
         console.error(`ConfigPage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
       });
+
+    // V0.6.5.1: bootstrap the unified pack library + selection so the
+    // 📦 picker section can render. Errors are logged but never
+    // throw — the legacy categoryRow keeps the page usable.
+    loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
+      this.homeIntegration = bundle;
+      this.refreshPackPickerState();
+    }).catch((err: BusinessError): void => {
+      console.error(`ConfigPage: loadHomeIntegration failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  /** Mirror selection state into @State so ArkUI re-renders the picker. */
+  private refreshPackPickerState(): void {
+    this.availablePacks = this.homeIntegration.library.allPacks();
+    this.activePackIds = this.homeIntegration.selection.getActiveIds();
+    this.pinnedPackIds = this.homeIntegration.selection.pinnedIdsList();
+    const limit: number = MAX_ACTIVE_PACKS;
+    this.packSyncStatusText = `已激活 ${this.activePackIds.length} / ${limit}`;
+    this.packPickerVersion = this.packPickerVersion + 1;
   }
 
   private async refreshBindingState(): Promise<void> {
@@ -818,6 +863,240 @@ struct ConfigPage {
     .alignItems(VerticalAlign.Center);
   }
 
+  // V0.6.5.1 — pack picker handlers and renderer.
+
+  /** Toggle a pack in/out of the active selection. Enforces the 5-pack cap. */
+  private async togglePackActive(packId: string): Promise<void> {
+    const idx: number = this.activePackIds.indexOf(packId);
+    let next: string[];
+    if (idx >= 0) {
+      next = this.activePackIds.slice();
+      next.splice(idx, 1);
+    } else {
+      if (this.activePackIds.length >= MAX_ACTIVE_PACKS) {
+        this.showPackToast(`最多可激活 ${MAX_ACTIVE_PACKS} 个词包，请先取消其他词包`);
+        return;
+      }
+      next = this.activePackIds.slice();
+      next.push(packId);
+    }
+    try {
+      await this.homeIntegration.selection.setActiveIds(next);
+      this.refreshPackPickerState();
+    } catch (err) {
+      console.error(`ConfigPage.togglePackActive failed: ${JSON.stringify(err as BusinessError)}`);
+      this.showPackToast('保存失败，请重试');
+    }
+  }
+
+  private async togglePackPin(packId: string): Promise<void> {
+    if (this.activePackIds.indexOf(packId) < 0) {
+      this.showPackToast('只有已激活的词包才能 📌 固定');
+      return;
+    }
+    try {
+      await this.homeIntegration.selection.togglePin(packId);
+      this.refreshPackPickerState();
+    } catch (err) {
+      console.error(`ConfigPage.togglePackPin failed: ${JSON.stringify(err as BusinessError)}`);
+      this.showPackToast('保存失败，请重试');
+    }
+  }
+
+  /**
+   * Sync global + family packs, then refresh the picker. Best-effort:
+   * each service's `ensureLatest` returns a structured outcome and
+   * never throws. Family-pack sync only fires when the device is
+   * bound — otherwise the row is skipped silently.
+   */
+  private async onPackSyncTap(): Promise<void> {
+    if (this.packSyncBusy) return;
+    this.packSyncBusy = true;
+    this.packSyncToastText = '';
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const baseUrl: string = effectiveServerBaseUrl();
+    const adapter: PackNetworkFetchAdapter = new PackNetworkFetchAdapter();
+    const gps: GlobalPackService = new GlobalPackService(adapter, baseUrl);
+    const fps: FamilyPackService = new FamilyPackService(adapter, baseUrl);
+    let globalsUpdated: boolean = false;
+    let familyUpdated: boolean = false;
+    let familyAttempted: boolean = false;
+    try {
+      await gps.init(ctx);
+      const gOut: GlobalPackEnsureResult = await gps.ensureLatest();
+      globalsUpdated = gOut.status === 'updated';
+    } catch (err) {
+      console.error(`ConfigPage.onPackSyncTap (global) failed: ${JSON.stringify(err as BusinessError)}`);
+    }
+    try {
+      const snap: CloudCredentialsSnapshot = await this.cloudCreds.load();
+      if (snap.deviceToken.length > 0) {
+        familyAttempted = true;
+        await fps.init(ctx);
+        const fOut: FamilyPackEnsureResult = await fps.ensureLatest(snap.deviceToken);
+        familyUpdated = fOut.status === 'updated' || fOut.status === 'cleared';
+      }
+    } catch (err) {
+      console.error(`ConfigPage.onPackSyncTap (family) failed: ${JSON.stringify(err as BusinessError)}`);
+    }
+
+    // Re-load the merged library so newly fetched packs appear in the
+    // picker without a full page navigation. Selection is preserved.
+    try {
+      this.homeIntegration = await loadHomeIntegration(ctx);
+      this.refreshPackPickerState();
+    } catch (err) {
+      console.error(`ConfigPage.onPackSyncTap reload failed: ${JSON.stringify(err as BusinessError)}`);
+    }
+    this.packSyncBusy = false;
+    this.showPackToast(ConfigPage.formatPackSyncToast(globalsUpdated, familyUpdated, familyAttempted));
+    this.forceRerender();
+  }
+
+  private static formatPackSyncToast(g: boolean, f: boolean, fAttempted: boolean): string {
+    if (g && f) return '✅ 已同步全局 + 家庭词包';
+    if (g && !fAttempted) return '✅ 已同步全局词包';
+    if (g && fAttempted && !f) return '✅ 已同步全局词包 (家庭无更新)';
+    if (!g && f) return '✅ 已同步家庭词包';
+    if (!g && !f && fAttempted) return '已是最新';
+    return '已是最新 (仅全局可同步，未绑定家长账号)';
+  }
+
+  private showPackToast(text: string): void {
+    this.packSyncToastText = text;
+    if (this.packPickerToastTimer >= 0) {
+      clearTimeout(this.packPickerToastTimer);
+    }
+    this.packPickerToastTimer = setTimeout((): void => {
+      this.packSyncToastText = '';
+      this.packPickerToastTimer = -1;
+      this.forceRerender();
+    }, 2400);
+  }
+
+  /** Look up a pack id's display label, prefer Chinese override. */
+  private packPickerLabel(p: Pack): string {
+    if (p.labelZh.length > 0) return p.labelZh;
+    if (p.name.length > 0) return p.name;
+    return p.id;
+  }
+
+  private packSourceTag(p: Pack): string {
+    if (p.source === 'builtin') return '内置';
+    if (p.source === 'global') return '官方';
+    return '家庭';
+  }
+
+  private packSourceColor(p: Pack): string {
+    if (p.source === 'builtin') return '#9CA3AF';
+    if (p.source === 'global') return '#0EA5E9';
+    return '#10B981';
+  }
+
+  private packCheckedColor(active: boolean): string {
+    return active ? '#FFB400' : '#9CA3AF';
+  }
+
+  @Builder
+  private packPickerSection() {
+    Column({ space: 8 }) {
+      Row() {
+        Text('📦 我的词包').fontSize(18).width(120);
+        Text(this.packSyncStatusText)
+          .id('ConfigPackPickerStatus')
+          .fontSize(13).fontColor('#6B7280');
+        Blank().layoutWeight(1);
+        Button(this.packSyncBusy ? '同步中…' : '🔄 同步词包')
+          .id('ConfigPackSyncButton')
+          .height(36).fontSize(14)
+          .padding({ left: 12, right: 12 })
+          .backgroundColor(this.packSyncBusy ? '#F0F0F0' : '#EAF2F8')
+          .fontColor(this.packSyncBusy ? '#999999' : '#457B9D')
+          .enabled(!this.packSyncBusy)
+          .onClick((): void => {
+            this.onPackSyncTap().catch((err: BusinessError): void => {
+              console.error(`ConfigPage.onPackSyncTap promise failed: ${JSON.stringify(err)}`);
+            });
+          });
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center);
+
+      if (this.availablePacks.length === 0) {
+        Text(this.packPickerVersion >= 0 ? '正在加载词包…' : '')
+          .id('ConfigPackPickerLoading')
+          .fontSize(13).fontColor('#9CA3AF');
+      } else {
+        ForEach(this.availablePacks, (p: Pack): void => {
+          this.packRow(p);
+        }, (p: Pack): string => p.id);
+      }
+
+      if (this.packSyncToastText.length > 0) {
+        Text(this.packSyncToastText)
+          .id('ConfigPackSyncToast')
+          .fontSize(13).fontColor('#1D3557')
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor('#FFF4D0')
+          .borderRadius(6);
+      }
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+    .padding({ top: 12, bottom: 12 })
+    .margin({ bottom: 16 })
+    .borderRadius(12)
+    .backgroundColor('#FAFAFA');
+  }
+
+  @Builder
+  private packRow(p: Pack) {
+    Row({ space: 8 }) {
+      // Active checkbox — tappable text glyph. Reuses the chip-style
+      // visual language so the row stays compact on narrow phones.
+      Button(this.activePackIds.indexOf(p.id) >= 0 ? '✓' : ' ')
+        .id(`ConfigPackToggle_${p.id}`)
+        .width(36).height(36).fontSize(18)
+        .backgroundColor(this.packCheckedColor(this.activePackIds.indexOf(p.id) >= 0))
+        .fontColor('#FFFFFF')
+        .borderRadius(8)
+        .onClick((): void => {
+          this.togglePackActive(p.id).catch((err: BusinessError): void => {
+            console.error(`ConfigPage.togglePackActive promise failed: ${JSON.stringify(err)}`);
+          });
+        });
+
+      Text(this.packPickerLabel(p))
+        .id(`ConfigPackLabel_${p.id}`)
+        .fontSize(15).fontColor('#1F2937')
+        .layoutWeight(1);
+
+      Text(this.packSourceTag(p))
+        .id(`ConfigPackSource_${p.id}`)
+        .fontSize(11).fontColor('#FFFFFF')
+        .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+        .backgroundColor(this.packSourceColor(p))
+        .borderRadius(4);
+
+      // Pin toggle — only meaningful when pack is active. A pinned
+      // pack is exempt from the perfect-rotation auto-swap.
+      Button(this.pinnedPackIds.indexOf(p.id) >= 0 ? '📌' : '·')
+        .id(`ConfigPackPin_${p.id}`)
+        .width(36).height(36).fontSize(16)
+        .backgroundColor(this.pinnedPackIds.indexOf(p.id) >= 0 ? '#FEF3C7' : '#F3F4F6')
+        .fontColor(this.pinnedPackIds.indexOf(p.id) >= 0 ? '#B45309' : '#9CA3AF')
+        .borderRadius(8)
+        .onClick((): void => {
+          this.togglePackPin(p.id).catch((err: BusinessError): void => {
+            console.error(`ConfigPage.togglePackPin promise failed: ${JSON.stringify(err)}`);
+          });
+        });
+    }
+    .width('100%')
+    .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+    .alignItems(VerticalAlign.Center);
+  }
+
   @Builder
   private categoryRow() {
     Row() {
@@ -887,6 +1166,7 @@ struct ConfigPage {
 
         this.timerRow();
         this.autoSpeakRow();
+        this.packPickerSection();
         this.categoryRow();
         this.parentPinRow();
         this.parentAccountRow();

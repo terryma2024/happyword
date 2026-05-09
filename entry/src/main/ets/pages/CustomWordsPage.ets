@@ -12,6 +12,17 @@ import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
  * multi-line `中文:英文` pairs, and on Save merges the edited text
  * back into the stored GameConfig without touching other fields
  * (spec §4.5 / §3.4).
+ *
+ * V0.6.5.1 — deprecated. The three-layer pack model (built-in / global /
+ * family) replaces the legacy "custom words" category: parents who want
+ * to upload their own vocabulary should bind a parent account and use
+ *  设置 → 进入家长后台 → 上传课本 → 复核 — that flow produces a
+ *  family pack visible in 设置 → 📦 我的词包. We still ship the
+ * raw-text editor for backwards-compat: existing AppStorage snapshots
+ * with `customWordsRaw` content keep working, and the UI test
+ *  configCustomWordsOnly_oneShotVictory still drives this page. A
+ * deprecation banner above the editor nudges new parents toward the
+ * supported flow without breaking the legacy save path.
  */
 @Entry
 @Component
@@ -45,6 +56,24 @@ struct CustomWordsPage {
         .fontSize(28)
         .fontWeight(FontWeight.Bold)
         .margin({ bottom: 8 });
+
+      // V0.6.5.1: legacy entry point. Surface a soft deprecation hint
+      // at the top so new parents follow the family-pack flow instead.
+      Column({ space: 4 }) {
+        Text('⚠ 此页已不推荐使用')
+          .fontSize(13)
+          .fontColor('#B45309')
+          .fontWeight(FontWeight.Medium);
+        Text('家长可绑定账号后，从「家长后台 → 上传课本」上传词包，效果更好且支持图文。')
+          .fontSize(12)
+          .fontColor('#7C2D12');
+      }
+      .id('CustomWordsDeprecationBanner')
+      .alignItems(HorizontalAlign.Start)
+      .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+      .backgroundColor('#FEF3C7')
+      .borderRadius(8)
+      .margin({ bottom: 12 });
 
       Text('格式：中文:英文，每行一个')
         .fontSize(14)
