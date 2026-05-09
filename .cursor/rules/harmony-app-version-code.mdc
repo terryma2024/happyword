@@ -1,0 +1,41 @@
+---
+description: Encoding for AppScope versionCode vs versionName (HarmonyOS entry app)
+globs: AppScope/**/*, **/app.json5
+alwaysApply: true
+---
+
+# HarmonyOS client — `versionCode` ↔ `versionName`
+
+Source of truth for the shipped app label and upgrade integer is **`AppScope/app.json5`** (`versionName`, `versionCode`). `BuildProfile` mirrors these at build time.
+
+## Encoding (current release line `0.minor.patch`)
+
+For **HarmonyOS NEXT / WordMagicGame** releases on the **`0.*.*`** major line, **`versionCode` is derived from semver as a single monotonic integer**:
+
+```text
+versionCode = 1_000_000 + minor × 1_000 + patch
+```
+
+So the decimal digits read as **`1 | MMM | PPP`** padded: leading `1`, then **minor** (up to 3 digits), then **patch** (up to 3 digits). No separate major digit — major stays **0** for this scheme.
+
+| `versionName` | `versionCode` |
+|----------------|---------------|
+| `0.6.1` | `1006001` |
+| `0.6.3` | `1006003` |
+
+**Examples:**
+
+- `0.6.0` → `1006000`
+- `0.6.12` → `1006012` (patch two digits → still fits in the patch field)
+
+**Constraints:** `minor` and `patch` must each be **0–999** with this formula.
+
+## When bumping a release
+
+1. Set **`versionName`** to the target semver string (e.g. `0.6.4`).
+2. Set **`versionCode`** with the formula above (e.g. `1006004`).
+3. **`versionCode` must strictly increase** over any build already installed on devices (store / side-load).
+
+## Out of scope / future
+
+If **`versionName` ever moves to major `1+`**, do **not** reuse this formula blindly — extend or replace this rule with a new encoding and migrate `versionCode` in one intentional jump.

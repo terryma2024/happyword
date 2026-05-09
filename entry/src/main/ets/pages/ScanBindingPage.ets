@@ -282,6 +282,10 @@ struct ScanBindingPage {
         }.width('100%').padding(24)
       }
     }
-    .width('100%').height('100%').backgroundColor('#f8fafc')
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#f8fafc')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
+      SafeAreaEdge.START, SafeAreaEdge.END]);
   }
 }

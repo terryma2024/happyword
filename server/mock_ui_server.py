@@ -183,8 +183,14 @@ _published_versions: list[int] = [PACK_VERSION]
 _PAIR_BINDING_ID: str = "ui-mock-bind-001"
 _PAIR_FAMILY_ID: str = "ui-mock-fam-001"
 _PAIR_CHILD_PROFILE_ID: str = "ui-mock-child-001"
-_PAIR_NICKNAME: str = "测试宝贝"
-_PAIR_AVATAR_EMOJI: str = "🦁"
+# V0.6.8: nickname / avatar_emoji are mutable so the new device-side
+# `PUT /api/v1/child/profile` endpoint can write them back. The
+# `_DEFAULT_*` constants are the redeem-time seed and the value
+# `_reset_state()` restores between integration runs.
+_PAIR_NICKNAME_DEFAULT: str = "测试宝贝"
+_PAIR_AVATAR_EMOJI_DEFAULT: str = "🦁"
+_pair_nickname: str = _PAIR_NICKNAME_DEFAULT
+_pair_avatar_emoji: str = _PAIR_AVATAR_EMOJI_DEFAULT
 _PAIR_DEVICE_TOKEN: str = "ui-mock-device-jwt"
 _active_bindings: set[str] = set()
 
@@ -196,11 +202,14 @@ def _reset_state() -> None:
     the app directly (none today) can call it explicitly to get a
     deterministic baseline.
     """
+    global _pair_nickname, _pair_avatar_emoji
     _drafts.clear()
     _drafts[FIXTURE_DRAFT_ID] = _fresh_draft()
     _published_versions.clear()
     _published_versions.append(PACK_VERSION)
     _active_bindings.clear()
+    _pair_nickname = _PAIR_NICKNAME_DEFAULT
+    _pair_avatar_emoji = _PAIR_AVATAR_EMOJI_DEFAULT
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +232,14 @@ class PairRedeemIn(BaseModel):
     device_id: str
     token: str | None = None
     short_code: str | None = None
+
+
+class ChildProfileUpdateIn(BaseModel):
+    """V0.6.8 — body for `PUT /api/v1/child/profile`. Mirror of
+    `app/schemas/child_self.ChildSelfProfileUpdateIn`."""
+
+    nickname: str
+    avatar_emoji: str | None = None
 
 
 def _is_authorized(authorization: str | None) -> bool:
@@ -490,8 +507,8 @@ def create_app() -> FastAPI:
             "binding_id": _PAIR_BINDING_ID,
             "family_id": _PAIR_FAMILY_ID,
             "child_profile_id": _PAIR_CHILD_PROFILE_ID,
-            "nickname": _PAIR_NICKNAME,
-            "avatar_emoji": _PAIR_AVATAR_EMOJI,
+            "nickname": _pair_nickname,
+            "avatar_emoji": _pair_avatar_emoji,
             "device_token": _PAIR_DEVICE_TOKEN,
         }
 
@@ -519,8 +536,39 @@ def create_app() -> FastAPI:
             "binding_id": _PAIR_BINDING_ID,
             "family_id": _PAIR_FAMILY_ID,
             "child_profile_id": _PAIR_CHILD_PROFILE_ID,
-            "nickname": _PAIR_NICKNAME,
-            "avatar_emoji": _PAIR_AVATAR_EMOJI,
+            "nickname": _pair_nickname,
+            "avatar_emoji": _pair_avatar_emoji,
+        }
+
+    # V0.6.8: device-side self-edit of the child nickname. Mirrors
+    # `app/routers/child_profile.py::put_self_profile`. The mock keeps
+    # the nickname in module-global state so subsequent /child/me +
+    # /pair/redeem calls see the updated value, and `_reset_state()`
+    # restores the default between mock-server lifetimes.
+    @app.put("/api/v1/child/profile")
+    async def child_profile_put(
+        body: ChildProfileUpdateIn,
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> dict[str, Any]:
+        global _pair_nickname, _pair_avatar_emoji
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        trimmed: str = body.nickname.strip()
+        if not trimmed:
+            raise _err(400, "INVALID_NICKNAME", "Nickname must not be empty")
+        # Mirror server-side cap to keep the mock and the prod handler
+        # behaviourally identical.
+        _pair_nickname = trimmed[:32]
+        if body.avatar_emoji is not None:
+            ae = body.avatar_emoji.strip()
+            if ae:
+                _pair_avatar_emoji = ae[:8]
+        return {
+            "profile_id": _PAIR_CHILD_PROFILE_ID,
+            "family_id": _PAIR_FAMILY_ID,
+            "nickname": _pair_nickname,
+            "avatar_emoji": _pair_avatar_emoji,
+            "updated_at": _now_iso(),
         }
 
     # ------------------------------------------------------------------
@@ -629,6 +677,8 @@ def create_app() -> FastAPI:
             "drafts": _drafts,
             "published_versions": _published_versions,
             "active_bindings": sorted(_active_bindings),
+            "pair_nickname": _pair_nickname,
+            "pair_avatar_emoji": _pair_avatar_emoji,
         }
 
     return app

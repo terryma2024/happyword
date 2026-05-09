@@ -21,6 +21,7 @@ import configSyncFlowUiTest from './ConfigSyncFlow.ui.test';
 import parentAdminFlowUiTest from './ParentAdminFlow.ui.test';
 import lessonDraftReviewFlowUiTest from './LessonDraftReviewFlow.ui.test';
 import parentBindingFlowV06UiTest from './ParentBindingFlowV06.ui.test';
+import boundDeviceInfoFlowUiTest from './BoundDeviceInfoFlow.ui.test';
 
 /**
  * V0.5.8: route every HTTP call from the test ability through the
@@ -148,4 +149,11 @@ export default function testsuite() {
   // would have to clean up; placing it at the tail keeps every other
   // suite's assumptions intact.
   parentBindingFlowV06UiTest();
+  // V0.6.8 — device-side child-nickname edit on `BoundDeviceInfoPage`.
+  // Self-contained: drives a short-code redeem on the mock, opens the
+  // bound-device info page, taps ✏️ 编辑, replaces the input, saves,
+  // and asserts that the row + the ConfigPage button label both
+  // refresh to the new nickname. Runs after ParentBindingFlowV06 (which
+  // leaves the device unbound) so we start clean.
+  boundDeviceInfoFlowUiTest();
 }

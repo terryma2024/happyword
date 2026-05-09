@@ -163,6 +163,38 @@ async def test_device_binding_dep_rejects_revoked_token(
 
 
 @pytest.mark.asyncio
+async def test_device_binding_dep_unknown_binding_yields_not_found() -> None:
+    """JWT references a binding_id that does not exist → BINDING_NOT_FOUND (not revoked).
+
+    Typical client cause: DevMenu API host points at preview/staging while the
+    token was minted against another deployment's database."""
+    from fastapi import Depends, FastAPI
+
+    from app.deps import current_device_binding
+    from app.services.auth_service import create_device_token
+
+    app = FastAPI()
+
+    @app.get("/__test/me")
+    async def _me(
+        b=Depends(current_device_binding),  # type: ignore[no-untyped-def]
+    ) -> dict:
+        return {"binding_id": b.binding_id}
+
+    transport = ASGITransport(app=app)
+    fake_token = create_device_token(
+        binding_id="bind-never-exists-xxxxxxxx",
+        child_profile_id="child-never-exists-xxxxxxxx",
+    )
+    async with AsyncClient(transport=transport, base_url="http://test") as tc:
+        r = await tc.get(
+            "/__test/me", headers={"Authorization": f"Bearer {fake_token}"}
+        )
+    assert r.status_code == 404
+    assert r.json()["detail"]["error"]["code"] == "BINDING_NOT_FOUND"
+
+
+@pytest.mark.asyncio
 async def test_devices_add_cancel_form_redirects_home(
     parent_with_device: tuple[AsyncClient, str, str],
 ) -> None:

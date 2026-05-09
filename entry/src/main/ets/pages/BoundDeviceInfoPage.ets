@@ -1,6 +1,17 @@
 import { common } from '@kit.AbilityKit';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { DeviceIdProvider, DeviceIdResult } from '../services/DeviceIdProvider';
+import {
+  ChildProfileApiClient,
+  ChildProfileHttpError,
+  UpdatedChildProfile,
+} from '../services/ChildProfileApiClient';
+import { RealParentFetchAdapter } from '../services/ParentApiClient';
+import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import {
+  EditChildNicknameDialog,
+  NicknameSubmitResult,
+} from '../components/EditChildNicknameDialog';
 
 @Entry
 @Component
@@ -10,8 +21,11 @@ struct BoundDeviceInfoPage {
   @State private deviceIdSource: string = '';
   @State private busy: boolean = false;
   @State private ready: boolean = false;
+  @State private nicknameToastText: string = '';
+  private nicknameToastTimer: number = -1;
   private credentials: CloudCredentials = new CloudCredentials();
   private provider: DeviceIdProvider = new DeviceIdProvider();
+  private editDialog: CustomDialogController | null = null;
 
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext =
@@ -56,53 +70,193 @@ struct BoundDeviceInfoPage {
     }
   }
 
+  private openEditNickname(): void {
+    this.editDialog = new CustomDialogController({
+      builder: EditChildNicknameDialog({
+        initialNickname: this.snap.nickname,
+        initialAvatarEmoji: this.snap.avatarEmoji,
+        onSubmit: (trimmed: string, avatarEmoji: string): Promise<NicknameSubmitResult> => {
+          return this.persistNickname(trimmed, avatarEmoji);
+        },
+        onCancel: (): void => {
+          // No-op: dialog dismisses itself.
+        },
+      }),
+      autoCancel: true,
+      customStyle: true,
+    });
+    this.editDialog.open();
+  }
+
+  /**
+   * Maps server-side error codes (returned by ChildProfileApiClient as
+   * `ChildProfileHttpError.code`) to a Chinese user-facing message.
+   * Unknown codes fall back to the HTTP status, mirroring the unbind
+   * toast in ConfigPage.
+   */
+  private mapNicknameErrorToMessage(err: ChildProfileHttpError): string {
+    switch (err.code) {
+      case 'INVALID_NICKNAME':
+        return '名字不能为空';
+      case 'BINDING_NOT_FOUND':
+        return '当前后端未找到绑定记录。若在开发者菜单切换过服务器，请改回配对时的环境或重新扫码。';
+      case 'BINDING_REVOKED':
+        return '绑定已被撤销，请在家长网页确认设备状态或重新扫码配对。';
+      case 'NETWORK':
+        return '网络错误，请稍后重试';
+      case 'NOT_BOUND':
+        return '当前未绑定，请先扫码';
+      default:
+        return `保存失败 (HTTP ${err.status || '?'})`;
+    }
+  }
+
+  /**
+   * Sends the PUT, mirrors the server-canonical value into local
+   * preferences on success so the HomePage badge + ConfigPage button
+   * pick it up on next onPageShow. Returns a NicknameSubmitResult so
+   * the dialog can either close itself or surface the inline error.
+   */
+  private async persistNickname(trimmed: string, avatarEmoji: string): Promise<NicknameSubmitResult> {
+    const adapter: RealParentFetchAdapter = new RealParentFetchAdapter();
+    const baseUrl: string = effectiveServerBaseUrl();
+    const client: ChildProfileApiClient = new ChildProfileApiClient(adapter, baseUrl);
+    try {
+      const updated: UpdatedChildProfile =
+        await client.updateProfile(this.snap.deviceToken, trimmed, avatarEmoji);
+      const next: CloudCredentialsSnapshot = new CloudCredentialsSnapshot();
+      next.deviceToken = this.snap.deviceToken;
+      next.bindingId = this.snap.bindingId;
+      next.familyId = this.snap.familyId;
+      next.childProfileId = this.snap.childProfileId;
+      next.nickname = updated.nickname;
+      next.avatarEmoji = updated.avatarEmoji.length > 0 ? updated.avatarEmoji : avatarEmoji;
+      next.pairedAtMs = this.snap.pairedAtMs;
+      next.deviceIdSource = this.snap.deviceIdSource;
+      await this.credentials.saveBinding(next);
+      this.snap = next;
+      this.showNicknameToast('已保存');
+      return { ok: true };
+    } catch (err) {
+      const httpErr: ChildProfileHttpError = err instanceof ChildProfileHttpError
+        ? err
+        : new ChildProfileHttpError('UNKNOWN', String(err), 0);
+      console.error(`BoundDeviceInfoPage.persistNickname failed: ${httpErr.code} ${httpErr.status}`);
+      return { ok: false, message: this.mapNicknameErrorToMessage(httpErr) };
+    }
+  }
+
+  private showNicknameToast(text: string): void {
+    this.nicknameToastText = text;
+    if (this.nicknameToastTimer !== -1) {
+      clearTimeout(this.nicknameToastTimer);
+    }
+    this.nicknameToastTimer = setTimeout((): void => {
+      this.nicknameToastText = '';
+      this.nicknameToastTimer = -1;
+    }, 1500);
+  }
+
   build() {
-    Column() {
-      Row() {
-        Text('家长账户').fontSize(20).fontWeight(FontWeight.Bold).fontColor('#1f2937')
-        Blank()
-        Button('返回').fontSize(14).backgroundColor('#e2e8f0').fontColor('#1f2937')
-          .onClick((): void => {
-            this.getUIContext().getRouter().back();
-          })
-      }
-      .width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
-
-      if (!this.ready) {
-        Text('加载中…').fontSize(14).fontColor('#64748b').padding(24)
-      } else if (!this.snap.isBound()) {
-        Text('当前未绑定家长账号。').fontSize(14).fontColor('#64748b').padding(24)
-      } else {
-        Column({ space: 12 }) {
-          this.row('孩子档案', `${this.snap.avatarEmoji || '🦄'} ${this.snap.nickname || '宝贝'}`)
-          this.row('Family ID', this.snap.familyId)
-          this.row('Binding ID', this.snap.bindingId)
-          this.row('Device ID 末四位', this.deviceIdSuffix)
-          this.row('Device ID 来源', this.deviceIdSource === 'asset_store'
-            ? 'AssetStoreKit (持久)'
-            : '本地 preferences (重装即丢)')
-          this.row('绑定时间', this.formatPairedAt())
-
-          Button(this.busy ? '正在解除…' : '解除绑定 (本地)')
-            .backgroundColor('#dc2626').fontColor('#ffffff')
-            .enabled(!this.busy).margin({ top: 16 })
-            .onClick(() => this.onUnbind())
-          Text('提示：V0.6.2 仅在本机清除凭据，需在家长网页 → 设备列表 中删除以撤销。')
-            .fontSize(12).fontColor('#64748b').margin({ top: 8 })
+    Stack({ alignContent: Alignment.TopEnd }) {
+      Column() {
+        Row() {
+          Text('家长账户').fontSize(20).fontWeight(FontWeight.Bold).fontColor('#1f2937')
+          Blank()
+          Button('返回').fontSize(14).backgroundColor('#e2e8f0').fontColor('#1f2937')
+            .onClick((): void => {
+              this.getUIContext().getRouter().back();
+            })
         }
-        .width('100%').padding(24)
+        .width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
+
+        if (!this.ready) {
+          Text('加载中…').fontSize(14).fontColor('#64748b').padding(24)
+        } else if (!this.snap.isBound()) {
+          Text('当前未绑定家长账号。').fontSize(14).fontColor('#64748b').padding(24)
+        } else {
+          // Landscape / tablet: avoid label–––huge gap–––value; keep a
+          // readable column centered with capped width (matches DevEco preview).
+          Column() {
+            Column({ space: 4 }) {
+              this.editableNicknameRow()
+              this.row('Family ID', this.snap.familyId)
+              this.row('Binding ID', this.snap.bindingId)
+              this.row('Device ID 末四位', this.deviceIdSuffix)
+              this.row('Device ID 来源', this.deviceIdSource === 'asset_store'
+                ? 'AssetStoreKit (持久)'
+                : '本地 preferences (重装即丢)')
+              this.row('绑定时间', this.formatPairedAt())
+
+              Button(this.busy ? '正在解除…' : '解除绑定 (本地)')
+                .width('100%')
+                .backgroundColor('#dc2626').fontColor('#ffffff')
+                .enabled(!this.busy).margin({ top: 16 })
+                .onClick(() => this.onUnbind())
+              Text('提示：V0.6.2 仅在本机清除凭据，需在家长网页 → 设备列表 中删除以撤销。')
+                .fontSize(12).fontColor('#64748b').margin({ top: 8 })
+                .width('100%')
+            }
+            .width('100%')
+            .constraintSize({ maxWidth: 520 })
+            .padding(16)
+            .backgroundColor('#FFFFFF')
+            .borderRadius(12)
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16 })
+          .alignItems(HorizontalAlign.Center)
+        }
+      }
+      // Background lives on the root Stack (below) so it can
+      // expandSafeArea; the inner Column stays full size but the
+      // page bg paints under the system gesture / home-indicator strip
+      // in landscape (otherwise a grey default shows through).
+      .width('100%').height('100%')
+
+      if (this.nicknameToastText.length > 0) {
+        Text(this.nicknameToastText)
+          .id('BoundDeviceInfoNicknameToast')
+          .fontSize(14)
+          .fontColor('#ffffff')
+          .backgroundColor('#1f2937')
+          .borderRadius(12)
+          .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+          .margin({ top: 80, right: 16 })
       }
     }
-    .width('100%').height('100%').backgroundColor('#f8fafc')
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#f8fafc')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
+      SafeAreaEdge.START, SafeAreaEdge.END])
+  }
+
+  @Builder
+  editableNicknameRow(): void {
+    Row() {
+      Text('孩子档案').fontSize(14).fontColor('#64748b').width(112)
+      Text(`${this.snap.avatarEmoji || '🦄'} ${this.snap.nickname || '宝贝'}`)
+        .id('BoundDeviceInfoNicknameValue')
+        .fontSize(14).fontColor('#1f2937').textAlign(TextAlign.Start)
+        .layoutWeight(1)
+      Button('✏️ 编辑')
+        .id('BoundDeviceInfoNicknameEditButton')
+        .fontSize(12).height(28)
+        .backgroundColor('#e2e8f0').fontColor('#1f2937')
+        .margin({ left: 8 })
+        .onClick((): void => this.openEditNickname())
+    }
+    .width('100%').padding({ top: 6, bottom: 6 })
   }
 
   @Builder
   row(label: string, value: string) {
     Row() {
-      Text(label).fontSize(14).fontColor('#64748b').width(140)
-      Text(value).fontSize(14).fontColor('#1f2937').textAlign(TextAlign.End)
+      Text(label).fontSize(14).fontColor('#64748b').width(112)
+      Text(value).fontSize(14).fontColor('#1f2937').textAlign(TextAlign.Start)
         .layoutWeight(1)
     }
-    .width('100%').padding({ top: 8, bottom: 8 })
+    .width('100%').padding({ top: 6, bottom: 6 })
   }
 }

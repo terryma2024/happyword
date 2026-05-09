@@ -181,13 +181,23 @@ async def current_device_binding(
     binding = await DeviceBinding.find_one(
         DeviceBinding.binding_id == typed.identifier
     )
-    if binding is None or binding.revoked_at is not None:
+    if binding is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "BINDING_NOT_FOUND",
+                    "message": "No device binding for this token (wrong API host or stale pairing).",
+                }
+            },
+        )
+    if binding.revoked_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "error": {
                     "code": "BINDING_REVOKED",
-                    "message": "This device binding is revoked or not found",
+                    "message": "This device binding has been revoked",
                 }
             },
         )
