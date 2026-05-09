@@ -239,6 +239,7 @@ class ChildProfileUpdateIn(BaseModel):
     `app/schemas/child_self.ChildSelfProfileUpdateIn`."""
 
     nickname: str
+    avatar_emoji: str | None = None
 
 
 def _is_authorized(authorization: str | None) -> bool:
@@ -549,7 +550,7 @@ def create_app() -> FastAPI:
         body: ChildProfileUpdateIn,
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
-        global _pair_nickname
+        global _pair_nickname, _pair_avatar_emoji
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
         trimmed: str = body.nickname.strip()
@@ -558,6 +559,10 @@ def create_app() -> FastAPI:
         # Mirror server-side cap to keep the mock and the prod handler
         # behaviourally identical.
         _pair_nickname = trimmed[:32]
+        if body.avatar_emoji is not None:
+            ae = body.avatar_emoji.strip()
+            if ae:
+                _pair_avatar_emoji = ae[:8]
         return {
             "profile_id": _PAIR_CHILD_PROFILE_ID,
             "family_id": _PAIR_FAMILY_ID,

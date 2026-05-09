@@ -3,9 +3,9 @@
 Mounted under `/api/v1/child` and authenticated by the device JWT via
 `current_device_binding` (same precedent as `child_wishlist.post_unbind`).
 
-Today the only editable field is `nickname` — kids set their own
-display name from `BoundDeviceInfoPage` on the HarmonyOS client. Avatar
-editing stays on the parent web (`PUT /api/v1/parent/children/{id}`).
+Kids set display name and pick an avatar emoji from `BoundDeviceInfoPage`
+(HarmonyOS). Parents can still override from the web
+(`PUT /api/v1/parent/children/{id}`).
 """
 
 from __future__ import annotations
@@ -54,6 +54,7 @@ async def put_self_profile(
             profile_id=binding.child_profile_id,
             family_id=binding.family_id,
             nickname=payload.nickname,
+            avatar_emoji=payload.avatar_emoji,
         )
     except ChildProfileNotFound as e:
         # Should be unreachable in practice: current_device_binding

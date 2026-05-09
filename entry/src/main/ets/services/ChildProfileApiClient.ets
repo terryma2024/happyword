@@ -3,7 +3,7 @@ import { ParentFetchAdapter, ParentFetchResult } from './ParentApiClient';
 /**
  * V0.6.8 — thin HTTP client for `PUT /api/v1/child/profile`, the
  * device-token-authenticated self-edit endpoint that lets the bound
- * device update the child's display nickname from
+ * device update the child's display nickname and avatar emoji from
  * `BoundDeviceInfoPage`.
  *
  * Mirrors the slim shape of `BindingApiClient` and `DeviceUnbindClient`
@@ -73,7 +73,11 @@ export class ChildProfileApiClient {
     this.baseUrl = ChildProfileApiClient.trimTrailingSlash(baseUrl);
   }
 
-  async updateNickname(deviceToken: string, nickname: string): Promise<UpdatedChildProfile> {
+  async updateProfile(
+    deviceToken: string,
+    nickname: string,
+    avatarEmoji: string,
+  ): Promise<UpdatedChildProfile> {
     if (deviceToken.length === 0) {
       throw new ChildProfileHttpError('NOT_BOUND', 'no device token', 0);
     }
@@ -83,7 +87,9 @@ export class ChildProfileApiClient {
     headers[HEADER_ACCEPT] = CONTENT_JSON;
     headers[HEADER_AUTH] = `Bearer ${deviceToken}`;
 
-    const payload: Record<string, string> = { 'nickname': nickname };
+    const payload: Record<string, string> = {};
+    payload['nickname'] = nickname;
+    payload['avatar_emoji'] = avatarEmoji;
     const body: string = JSON.stringify(payload);
 
     let res: ParentFetchResult;

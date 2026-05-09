@@ -74,8 +74,9 @@ struct BoundDeviceInfoPage {
     this.editDialog = new CustomDialogController({
       builder: EditChildNicknameDialog({
         initialNickname: this.snap.nickname,
-        onSubmit: (trimmed: string): Promise<NicknameSubmitResult> => {
-          return this.persistNickname(trimmed);
+        initialAvatarEmoji: this.snap.avatarEmoji,
+        onSubmit: (trimmed: string, avatarEmoji: string): Promise<NicknameSubmitResult> => {
+          return this.persistNickname(trimmed, avatarEmoji);
         },
         onCancel: (): void => {
           // No-op: dialog dismisses itself.
@@ -114,20 +115,20 @@ struct BoundDeviceInfoPage {
    * pick it up on next onPageShow. Returns a NicknameSubmitResult so
    * the dialog can either close itself or surface the inline error.
    */
-  private async persistNickname(trimmed: string): Promise<NicknameSubmitResult> {
+  private async persistNickname(trimmed: string, avatarEmoji: string): Promise<NicknameSubmitResult> {
     const adapter: RealParentFetchAdapter = new RealParentFetchAdapter();
     const baseUrl: string = effectiveServerBaseUrl();
     const client: ChildProfileApiClient = new ChildProfileApiClient(adapter, baseUrl);
     try {
       const updated: UpdatedChildProfile =
-        await client.updateNickname(this.snap.deviceToken, trimmed);
+        await client.updateProfile(this.snap.deviceToken, trimmed, avatarEmoji);
       const next: CloudCredentialsSnapshot = new CloudCredentialsSnapshot();
       next.deviceToken = this.snap.deviceToken;
       next.bindingId = this.snap.bindingId;
       next.familyId = this.snap.familyId;
       next.childProfileId = this.snap.childProfileId;
       next.nickname = updated.nickname;
-      next.avatarEmoji = this.snap.avatarEmoji;
+      next.avatarEmoji = updated.avatarEmoji.length > 0 ? updated.avatarEmoji : avatarEmoji;
       next.pairedAtMs = this.snap.pairedAtMs;
       next.deviceIdSource = this.snap.deviceIdSource;
       await this.credentials.saveBinding(next);
@@ -138,7 +139,7 @@ struct BoundDeviceInfoPage {
       const httpErr: ChildProfileHttpError = err instanceof ChildProfileHttpError
         ? err
         : new ChildProfileHttpError('UNKNOWN', String(err), 0);
-      console.error(`BoundDeviceInfoPage.updateNickname failed: ${httpErr.code} ${httpErr.status}`);
+      console.error(`BoundDeviceInfoPage.persistNickname failed: ${httpErr.code} ${httpErr.status}`);
       return { ok: false, message: this.mapNicknameErrorToMessage(httpErr) };
     }
   }

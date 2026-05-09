@@ -63,7 +63,7 @@ class StubAdapter implements ParentFetchAdapter {
 }
 
 export default function childProfileApiClientTest(): void {
-  describe('ChildProfileApiClient.updateNickname', () => {
+  describe('ChildProfileApiClient.updateProfile', () => {
     it('parsesSuccessAndAttachesBearer', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.enqueue(
@@ -71,7 +71,8 @@ export default function childProfileApiClientTest(): void {
         '{"profile_id":"child-deadbeef","family_id":"fam-12345678","nickname":"小明","avatar_emoji":"🦄","updated_at":"2026-05-08T10:00:00Z"}',
       );
       const c: ChildProfileApiClient = new ChildProfileApiClient(ad, BASE);
-      const out: UpdatedChildProfile = await c.updateNickname('jwt.body.sig', '  小明  ');
+      const out: UpdatedChildProfile =
+        await c.updateProfile('jwt.body.sig', '  小明  ', '🦄');
       expect(out.profileId).assertEqual('child-deadbeef');
       expect(out.nickname).assertEqual('小明');
       expect(out.familyId).assertEqual('fam-12345678');
@@ -79,6 +80,8 @@ export default function childProfileApiClientTest(): void {
       expect(ad.requests[0].auth).assertEqual('Bearer jwt.body.sig');
       // Body is sent verbatim; service strips on the server side.
       expect(ad.requests[0].body.indexOf('  小明  ')).assertLargerOrEqual(0);
+      expect(ad.requests[0].body.indexOf('avatar_emoji')).assertLargerOrEqual(0);
+      expect(ad.requests[0].body.indexOf('🦄')).assertLargerOrEqual(0);
     });
 
     it('throwsInvalidNicknameOn400', 0, async () => {
@@ -90,7 +93,7 @@ export default function childProfileApiClientTest(): void {
       const c: ChildProfileApiClient = new ChildProfileApiClient(ad, BASE);
       let caught: ChildProfileHttpError | null = null;
       try {
-        await c.updateNickname('jwt.body.sig', '   ');
+        await c.updateProfile('jwt.body.sig', '   ', '🦄');
       } catch (err) {
         caught = err as ChildProfileHttpError;
       }
@@ -108,7 +111,7 @@ export default function childProfileApiClientTest(): void {
       const c: ChildProfileApiClient = new ChildProfileApiClient(ad, BASE);
       let caught: ChildProfileHttpError | null = null;
       try {
-        await c.updateNickname('jwt.body.sig', '小明');
+        await c.updateProfile('jwt.body.sig', '小明', '🦄');
       } catch (err) {
         caught = err as ChildProfileHttpError;
       }
@@ -123,7 +126,7 @@ export default function childProfileApiClientTest(): void {
       const c: ChildProfileApiClient = new ChildProfileApiClient(ad, BASE);
       let caught: ChildProfileHttpError | null = null;
       try {
-        await c.updateNickname('jwt.body.sig', '小明');
+        await c.updateProfile('jwt.body.sig', '小明', '🦄');
       } catch (err) {
         caught = err as ChildProfileHttpError;
       }
@@ -136,7 +139,7 @@ export default function childProfileApiClientTest(): void {
       const c: ChildProfileApiClient = new ChildProfileApiClient(ad, BASE);
       let caught: ChildProfileHttpError | null = null;
       try {
-        await c.updateNickname('', '小明');
+        await c.updateProfile('', '小明', '🦄');
       } catch (err) {
         caught = err as ChildProfileHttpError;
       }
@@ -152,7 +155,7 @@ export default function childProfileApiClientTest(): void {
       const c: ChildProfileApiClient = new ChildProfileApiClient(ad, BASE);
       let caught: ChildProfileHttpError | null = null;
       try {
-        await c.updateNickname('jwt.body.sig', '小明');
+        await c.updateProfile('jwt.body.sig', '小明', '🦄');
       } catch (err) {
         caught = err as ChildProfileHttpError;
       }

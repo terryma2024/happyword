@@ -3,6 +3,8 @@ import {
   validateChildNickname,
   CHILD_NICKNAME_MAX_CHARS,
   NicknameValidation,
+  buildChildAvatarEmojiChoices,
+  CHILD_AVATAR_EMOJI_BACKUP_POOL,
 } from '../main/ets/components/EditChildNicknameDialog';
 
 export default function editChildNicknameDialogTest(): void {
@@ -39,6 +41,30 @@ export default function editChildNicknameDialogTest(): void {
     it('acceptsTypicalChineseName', 0, () => {
       const v: NicknameValidation = validateChildNickname('小明');
       expect(v.ok).assertEqual(true);
+    });
+  });
+
+  describe('buildChildAvatarEmojiChoices', () => {
+    it('returnsTenUniqueWithCurrentFirst', 0, () => {
+      const choices: string[] = buildChildAvatarEmojiChoices('🐻');
+      expect(choices.length).assertEqual(10);
+      expect(choices[0]).assertEqual('🐻');
+      const seen: Record<string, boolean> = {};
+      for (let i = 0; i < choices.length; i++) {
+        const e: string = choices[i];
+        expect(seen[e] === true).assertEqual(false);
+        seen[e] = true;
+      }
+    });
+
+    it('usesFallbackWhenInitialEmpty', 0, () => {
+      const choices: string[] = buildChildAvatarEmojiChoices('');
+      expect(choices.length).assertEqual(10);
+      expect(choices[0]).assertEqual('🦄');
+    });
+
+    it('backupPoolLargeEnoughForDistinctFill', 0, () => {
+      expect(CHILD_AVATAR_EMOJI_BACKUP_POOL.length).assertLargerOrEqual(9);
     });
   });
 }

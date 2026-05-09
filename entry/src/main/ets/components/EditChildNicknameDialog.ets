@@ -5,7 +5,7 @@
  * tests, plus the `@CustomDialog` struct that drives the UI.
  *
  * Submit semantics:
- *   - `onSubmit(trimmed)` returns a `NicknameSubmitResult`. The dialog
+ *   - `onSubmit(trimmed, avatarEmoji)` returns a `NicknameSubmitResult`. The dialog
  *     manages its own busy-state, inline error message, and close-on-
  *     success — so the parent only needs to drive the network call and
  *     return either `{ ok: true }` or `{ ok: false, message: '...' }`.
@@ -17,6 +17,11 @@
  */
 
 export const CHILD_NICKNAME_MAX_CHARS: number = 32;
+
+/** Reserve pool used after the child's current emoji to fill 10 choices. */
+export const CHILD_AVATAR_EMOJI_BACKUP_POOL: string[] = [
+  '🦄', '🐻', '🐰', '🦁', '🐼', '🦊', '🐶', '🐱', '🐨', '🐧',
+];
 
 export interface NicknameValidation {
   ok: boolean;
@@ -43,11 +48,43 @@ export function validateChildNickname(input: string): NicknameValidation {
   return out;
 }
 
+function emojiInList(list: string[], e: string): boolean {
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] === e) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Build exactly 10 tap targets: current avatar first, then cute presets
+ * without duplicates until the row is full.
+ */
+export function buildChildAvatarEmojiChoices(initial: string): string[] {
+  const FALLBACK: string = '🦄';
+  const trimmed: string = initial.trim();
+  const first: string = trimmed.length > 0 ? trimmed : FALLBACK;
+  const out: string[] = [];
+  const pushUnique = (e: string): void => {
+    if (e.length === 0 || emojiInList(out, e)) {
+      return;
+    }
+    out.push(e);
+  };
+  pushUnique(first);
+  for (let i = 0; i < CHILD_AVATAR_EMOJI_BACKUP_POOL.length && out.length < 10; i++) {
+    pushUnique(CHILD_AVATAR_EMOJI_BACKUP_POOL[i]);
+  }
+  return out;
+}
+
 @CustomDialog
 export struct EditChildNicknameDialog {
   controller?: CustomDialogController;
   initialNickname: string = '';
-  onSubmit: (trimmed: string) => Promise<NicknameSubmitResult> = async () => {
+  initialAvatarEmoji: string = '';
+  onSubmit: (trimmed: string, avatarEmoji: string) => Promise<NicknameSubmitResult> = async () => {
     return { ok: true };
   };
   onCancel: () => void = () => {};
@@ -55,12 +92,23 @@ export struct EditChildNicknameDialog {
   @State private nickname: string = '';
   @State private errorMessage: string = '';
   @State private busy: boolean = false;
+  @State private selectedEmoji: string = '';
 
   aboutToAppear(): void {
     this.nickname = this.initialNickname;
+    const choices: string[] = buildChildAvatarEmojiChoices(this.initialAvatarEmoji);
+    const trimmedInit: string = this.initialAvatarEmoji.trim();
+    if (trimmedInit.length > 0 && emojiInList(choices, trimmedInit)) {
+      this.selectedEmoji = trimmedInit;
+    } else if (choices.length > 0) {
+      this.selectedEmoji = choices[0];
+    } else {
+      this.selectedEmoji = '🦄';
+    }
   }
 
   build(): void {
+    const emojiChoices: string[] = buildChildAvatarEmojiChoices(this.initialAvatarEmoji);
     Column({ space: 16 }) {
       Text('修改孩子的名字')
         .fontSize(20)
@@ -86,6 +134,42 @@ export struct EditChildNicknameDialog {
             this.nickname = value;
             this.errorMessage = '';
           });
+      }
+      .alignItems(HorizontalAlign.Start)
+      .width('100%');
+
+      Column({ space: 8 }) {
+        Text('头像')
+          .fontSize(14)
+          .fontColor('#888888');
+        Scroll() {
+          Row({ space: 10 }) {
+            ForEach(emojiChoices, (emoji: string): void => {
+              Button() {
+                Text(emoji)
+                  .fontSize(22);
+              }
+              .id(`EditChildNicknameEmoji_${emoji}`)
+              .width(44)
+              .height(44)
+              .padding(0)
+              .backgroundColor(this.selectedEmoji === emoji ? '#CDE8FF' : '#F1F2F4')
+              .borderRadius(12)
+              .border({
+                width: this.selectedEmoji === emoji ? 2 : 1,
+                color: this.selectedEmoji === emoji ? '#457B9D' : '#E0E0E0',
+              })
+              .enabled(!this.busy)
+              .onClick((): void => {
+                this.selectedEmoji = emoji;
+              });
+            }, (emoji: string): string => emoji);
+          }
+          .padding({ left: 2, right: 2 });
+        }
+        .scrollable(ScrollDirection.Horizontal)
+        .scrollBar(BarState.Off)
+        .width('100%');
       }
       .alignItems(HorizontalAlign.Start)
       .width('100%');
@@ -130,10 +214,8 @@ export struct EditChildNicknameDialog {
   }
 
   private async handleSubmit(): Promise<void> {
-    // Snapshot @State reads into locals once, then derive everything
-    // from those (perf rule hp-arkui-use-local-var-to-replace-state-var
-    // discourages repeated `this.<state>` reads in non-build methods).
     const current: string = this.nickname;
+    const emojiPick: string = this.selectedEmoji;
     const v: NicknameValidation = validateChildNickname(current);
     if (!v.ok) {
       this.errorMessage = v.message;
@@ -144,7 +226,8 @@ export struct EditChildNicknameDialog {
     let nextError: string = '';
     let close: boolean = false;
     try {
-      const result: NicknameSubmitResult = await this.onSubmit(current.trim());
+      const result: NicknameSubmitResult =
+        await this.onSubmit(current.trim(), emojiPick);
       if (result.ok) {
         close = true;
       } else if (result.message !== undefined && result.message.length > 0) {

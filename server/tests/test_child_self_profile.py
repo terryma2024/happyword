@@ -97,6 +97,28 @@ async def test_device_can_update_own_nickname(
 
 
 @pytest.mark.asyncio
+async def test_device_can_update_avatar_emoji(
+    parent_with_device: tuple[AsyncClient, str, str, str],
+) -> None:
+    ac, _binding_id, child_id, device_token = parent_with_device
+
+    r = await ac.put(
+        "/api/v1/child/profile",
+        json={"nickname": "小明", "avatar_emoji": "🐻"},
+        headers={"Authorization": f"Bearer {device_token}"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["profile_id"] == child_id
+    assert body["nickname"] == "小明"
+    assert body["avatar_emoji"] == "🐻"
+
+    profile = await ChildProfile.find_one(ChildProfile.profile_id == child_id)
+    assert profile is not None
+    assert profile.avatar_emoji == "🐻"
+
+
+@pytest.mark.asyncio
 async def test_device_blank_nickname_is_400(
     parent_with_device: tuple[AsyncClient, str, str, str],
 ) -> None:
