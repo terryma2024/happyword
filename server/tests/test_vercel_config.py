@@ -18,15 +18,15 @@ def test_vercel_extract_pending_cron_is_every_minute() -> None:
 
 
 def test_vercel_config_uses_fastapi_framework_preset() -> None:
-    """FastAPI via `@vercel/python` must not use legacy ``builds``.
+    """FastAPI via ``@vercel/python`` must not use legacy ``builds``.
 
-    A minimal ``functions`` map for ``api/index.py`` + ``maxDuration`` is
-    allowed — Vercel merges it with the framework preset so cron / heavy
-    routes stay under the Pro 60s ceiling (see ``admin_cron``).
+    Do **not** add a ``functions`` map for ``api/index.py`` + ``maxDuration``:
+    the Python framework preset builds a function bundle whose names do not
+    match that path, so Vercel fails the deployment with "pattern … doesn't
+    match any Serverless Functions". Set **Function max duration** (e.g. 60s
+    on Pro) in the Vercel project dashboard instead.
     """
     config = json.loads((_SERVER_ROOT / "vercel.json").read_text(encoding="utf-8"))
 
     assert "builds" not in config
-    functions = config.get("functions")
-    if functions is not None:
-        assert functions == {"api/index.py": {"maxDuration": 60}}
+    assert "functions" not in config
