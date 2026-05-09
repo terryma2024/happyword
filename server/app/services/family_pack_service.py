@@ -326,6 +326,19 @@ def _build_entry(
         entry["category"] = payload["category"]
     if isinstance(payload.get("difficulty"), int):
         entry["difficulty"] = payload["difficulty"]
+    # V0.6.5 — global packs (admin-authored) frequently carry full metadata
+    # (translations, audio, illustration, distractors). Propagate optional
+    # fields onto the published entry so child clients can render them.
+    for src, dst in (
+        ("distractors", "distractors"),
+        ("example_en", "exampleEn"),
+        ("example_zh", "exampleZh"),
+        ("illustration_url", "illustrationUrl"),
+        ("audio_url", "audioUrl"),
+    ):
+        value = payload.get(src)
+        if value is not None:
+            entry[dst] = value
     return entry
 
 
