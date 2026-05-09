@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-09T06:01:04.513Z",
+  "updated_at": "2026-05-09T06:21:14.071Z",
   "previews": [
     {
       "pr": 49,
       "title": "fix(parent-admin): unstick lesson-import flow (page=1 + client-side image compre",
       "branch": "cursor/065e79df",
-      "url": "https://happyword-h3229yisi-terrymas-projects.vercel.app",
+      "url": "https://happyword-9y7uijs1p-terrymas-projects.vercel.app",
       "author": "terryma2024",
-      "head_sha": "e95802d",
-      "updated_at": "2026-05-09T06:01:04.195Z"
+      "head_sha": "dd4e016",
+      "updated_at": "2026-05-09T06:21:13.761Z"
     },
     {
       "pr": 43,
@@ -18,7 +18,7 @@
       "url": "https://happyword-7cacsgu0n-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "fa8d0bd",
-      "updated_at": "2026-05-09T06:01:04.353Z"
+      "updated_at": "2026-05-09T06:21:13.923Z"
     },
     {
       "pr": 42,
@@ -27,7 +27,7 @@
       "url": "https://happyword-pty6a2kvv-terrymas-projects.vercel.app",
       "author": "terryma2024",
       "head_sha": "ca12420",
-      "updated_at": "2026-05-09T06:01:04.513Z"
+      "updated_at": "2026-05-09T06:21:14.071Z"
     }
   ]
 }
