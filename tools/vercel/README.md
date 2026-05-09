@@ -12,7 +12,7 @@ intentionally a fast way to remember **why** we do it that way.
 | [`deploy-prod.sh`](deploy-prod.sh) | Deploy `server/` to production. Sets repo-local `user.email = zjumty@gmail.com` (the Vercel team's recognized email) on first run, then verifies HEAD's author matches before deploying. | After every `server/` change you want live. |
 | [`smoke-prod.sh`](smoke-prod.sh) | 4 curl probes: `/health`, `/auth/login`, `/auth/me`, `/packs/latest.json`. Exits non-zero on first failure. | Right after `deploy-prod.sh`, also any time prod is acting up. |
 | [`preview-health.sh`](preview-health.sh) | Fetch the live preview manifest from `https://happyword.cool/api/v1/preview-urls.json` and probe `/api/v1/health` on every PR preview behind Vercel Deployment Protection. Reads `VERCEL_AUTOMATION_BYPASS_SECRET` from `~/.env`. Exits non-zero if any preview fails. | Before merging anything, after a fleet-wide redeploy, or when triaging "is my preview alive?". |
-| [`trigger-cron.sh`](trigger-cron.sh) | Trigger one or more cron HTTP endpoints declared in `server/vercel.json` (default: all). Adds `Authorization: Bearer $VERCEL_CRON_SECRET`. Reads `VERCEL_CRON_SECRET` from env or `~/.env`. Target defaults to `https://happyword.cool`; can target a preview by full `--url`, `--url-fragment`, or `--deployment-id`. | When imports sit in `extracting`, to verify cron auth on Prod/Preview, or any time you need a manual tick (Vercel Cron is Production-only). See `docs/ci-secrets.md` → `VERCEL_CRON_SECRET`. |
+| [`trigger-cron.sh`](trigger-cron.sh) | Trigger one or more cron HTTP endpoints declared in [`server/vercel.json`](../../server/vercel.json) (default: all). Adds `Authorization: Bearer $VERCEL_CRON_SECRET`. Reads `VERCEL_CRON_SECRET` from env or `~/.env`. Target defaults to `https://happyword.cool`; can target a preview by full `--url`, `--url-fragment`, or `--deployment-id`. | When imports sit in `extracting`, to verify cron auth on Prod/Preview, or any time you need a manual tick (Vercel Cron is Production-only). See `docs/ci-secrets.md` → `VERCEL_CRON_SECRET`. |
 | [`deploy-status.sh`](deploy-status.sh) | List recent deployments via REST API, **including the `errorMessage` the CLI hides**. Optional build event dump. | Anytime `deploy-prod.sh` exits non-zero or you need to investigate a previous failure. |
 | [`env-bootstrap.sh`](env-bootstrap.sh) | Idempotently push the deterministic env vars (`MONGO_DB_NAME`, `JWT_SECRET`, `ADMIN_BOOTSTRAP_PASS`, …) to a target scope. Auto-generates JWT secret + admin password when missing. | Initial project setup, or onboarding a new staging/preview scope. |
 
@@ -32,6 +32,13 @@ bash tools/vercel/smoke-prod.sh
 If a deploy ever fails, run `bash tools/vercel/deploy-status.sh` first
 — the real reason almost always shows up in the `ERROR_MESSAGE` column
 that the CLI's "deploy_failed" message buries.
+
+## Project fact (do not guess)
+
+The linked Vercel project uses **Project Settings → General → Root Directory =
+`server`**. Only **`server/vercel.json`** is used for builds, `crons`, and
+`git.deploymentEnabled`. A `vercel.json` at the Git repository root is **not**
+read by this project. Details: [`.cursor/rules/vercel-root-directory.mdc`](../../.cursor/rules/vercel-root-directory.mdc).
 
 ## Design decisions (the `why`)
 
@@ -109,23 +116,27 @@ catch-all-routes everything to the FastAPI app. We do **not** need
 and `"@vercel/python@..."` there fails silently: the deployment goes
 green but every URL returns Vercel's edge `404 NOT_FOUND` page.
 
-Live config is in [`server/vercel.json`](../../server/vercel.json):
+Live config is in [`server/vercel.json`](../../server/vercel.json) (Vercel’s
+deploy root is the **`server/`** subdirectory — see **Project fact** above). Do
+**not** add a `functions` + `api/index.py` map for `maxDuration`: the FastAPI
+preset does not match that pattern at build time. Set function max duration in
+the Vercel dashboard instead.
+
+Current shape (abbreviated):
 
 ```jsonc
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "ignoreCommand": "bash ./scripts/vercel_should_skip_build.sh",
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60
-    }
-  }
+  "git": {
+    "deploymentEnabled": { "main": true, "**": false }
+  },
+  "crons": [{ "path": "/api/v1/admin/cron/extract-pending", "schedule": "* * * * *" }]
 }
 ```
 
-`memory` on `functions` is ignored under Active CPU billing — drop it.
-The `functions` block here only carries `maxDuration` (Pro plan
-allows up to 300s; we cap at 60); the runtime itself is auto-detected.
+Use `**` (not `*`) for “all branches except `main`”: minimatch `*` does not
+cross `/`, so slashy branch names would still get previews.
 
 The companion knob is in [`server/pyproject.toml`](../../server/pyproject.toml):
 
@@ -142,27 +153,18 @@ match — without `tool.vercel.entrypoint` it is undefined which one
 wins, and the loser's routes vanish. Pinning to the re-export
 mirrors `uvicorn app.main:app` 1-for-1.
 
-### 4. Project root directory must be `null`, not `server`
+### 4. Root Directory is `server` (production setting)
 
-If you run `cd server && vercel deploy --prod`, the CLI uses your CWD
-as the deploy root. If the linked project's "Root Directory" setting
-is also `server/`, Vercel concatenates them and dies with:
+This repo’s Vercel project keeps **Root Directory = `server`**. That matches
+`deploy-prod.sh` (runs from `server/`) and makes **`server/vercel.json`** the
+single source of truth.
 
-```
-The provided path "~/Projects/happyword/server/server" does not exist.
-```
-
-Fix once via the dashboard (Project Settings → General → Root
-Directory → blank) or via API:
-
-```bash
-. tools/vercel/api.sh
-cd server
-vercel_api PATCH "/v9/projects/$(vercel_proj_id)" '{"rootDirectory":null}'
-```
-
-`deploy-prod.sh` always runs from `server/`, so the linked Root
-Directory must stay `null`.
+If you ever see a CLI error about `.../server/server` not existing, it usually
+means **Root Directory and working directory were both set to include
+`server/` twice** — fix in the dashboard or align `vercel link` / CLI cwd with
+[`vercel-root-directory.mdc`](../../.cursor/rules/vercel-root-directory.mdc). Do
+not flip Root Directory to blank without **moving** `vercel.json` to the
+repository root and updating this doc.
 
 ### 5. `MONGODB_URI` vs `MONGO_URI`
 

@@ -105,6 +105,6 @@ backend. Don't confuse it with `app.main:app`.
 
 ### Vercel deployment
 The `server/` app is also deployed as Vercel serverless functions
-(`server/vercel.json` + `server/api/index.py` → `app.main:app`). Local
+(`server/vercel.json` + `server/api/index.py` → `app.main:app`; Vercel Root Directory = `server`). Local
 development does **not** require the Vercel CLI; only deployment does. See
 `tools/vercel/` for the deploy/smoke shell scripts.

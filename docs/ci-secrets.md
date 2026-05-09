@@ -154,7 +154,7 @@ matching **`Authorization: Bearer <secret>`** are allowed.
    for **Production** (required for scheduled cron) and **Preview** (needed if you
    manually hit a preview URL).
 
-3. Scheduled invocations configured in **`server/vercel.json`** `crons[].path`
+3. Scheduled invocations configured in **`server/vercel.json`** `crons[].path` (Vercel Root Directory = `server`)
    are sent by Vercel with that Bearer token when **`CRON_SECRET`** is defined
    for the deployment.
 

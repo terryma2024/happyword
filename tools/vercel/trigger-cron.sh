@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tools/vercel/trigger-cron.sh
 #
-# Manually invoke Vercel Cron HTTP endpoints declared in server/vercel.json.
+# Manually invoke Vercel Cron HTTP endpoints declared in server/vercel.json (Vercel Root Directory is server/).
 # Vercel Cron only runs on Production; use this to tick jobs from your laptop
 # or in CI.
 #
@@ -245,7 +245,7 @@ resolve_base_url() {
 
 list_cron_paths() {
   if [[ ! -f "$VERCEL_JSON_PATH" ]]; then
-    echo "[cron-trigger] FATAL: missing vercel.json at $VERCEL_JSON_PATH" >&2
+    echo "[cron-trigger] FATAL: missing server/vercel.json at $VERCEL_JSON_PATH" >&2
     exit 3
   fi
   python3 -c "import json;import sys;d=json.load(open('$VERCEL_JSON_PATH'));print('\n'.join([c['path'] for c in (d.get('crons') or [])]))"
@@ -271,7 +271,7 @@ select_paths() {
     fi
     out+=("/api/v1/admin/cron/${job}")
   done
-  # Validate each selected path exists in vercel.json
+  # Validate each selected path exists in server/vercel.json
   local path
   for path in "${out[@]}"; do
     if ! printf '%s\n' "$all_paths" | grep -Fxq "$path"; then

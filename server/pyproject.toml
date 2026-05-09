@@ -48,7 +48,7 @@ dev = [
 # routes that `uvicorn app.main:app` serves locally.
 # Docs: https://vercel.com/docs/functions/runtimes/python#python-entrypoints
 #
-# Do not set ``maxDuration`` for ``api/index.py`` in ``vercel.json`` — the
+# Do not set ``maxDuration`` for ``api/index.py`` in ``server/vercel.json`` — the
 # FastAPI framework preset does not expose that path for ``functions`` globs
 # (deploy fails validation). Set Project Settings → Functions → max duration
 # on Vercel (e.g. 60s on Pro) so cron extraction stays within the limit.

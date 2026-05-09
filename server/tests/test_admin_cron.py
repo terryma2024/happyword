@@ -10,7 +10,7 @@ Behaviour we pin:
 1. **Auth** — without a matching `Authorization: Bearer $CRON_SECRET`
    header the route returns 401 and the LLM is not called. Vercel
    cron schedules attach this header automatically (see
-   server/vercel.json), and an unauthenticated public hit must never
+   repo-root ``vercel.json``), and an unauthenticated public hit must never
    be able to drain the queue / spam OpenAI.
 2. **Success path** — exactly one `extracting` draft gets claimed,
    the LLM seam returns a payload, and the draft flips to `pending`

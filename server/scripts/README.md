@@ -52,7 +52,7 @@ Add `BLOB_READ_WRITE_TOKEN=…` to the dry-run to test the Blob upload path. The
 
 ## vercel_should_skip_build.sh
 
-Referenced from `server/vercel.json` as `ignoreCommand`. When the Vercel project **Root Directory** is `server/`, exit **0** skips a deployment if `VERCEL_GIT_PREVIOUS_SHA`..`VERCEL_GIT_COMMIT_SHA` touches no files under that directory; exit **1** runs the build. If the Vercel project root is the **repository** root instead, do not use this file as-is: use `git diff ... -- server/` in a small wrapper or set the Root Directory to `server/`.
+Optional `ignoreCommand` can live in repo-root `vercel.json`. When the Vercel project **Root Directory** is `server/`, exit **0** skips a deployment if `VERCEL_GIT_PREVIOUS_SHA`..`VERCEL_GIT_COMMIT_SHA` touches no files under that directory; exit **1** runs the build. If the Vercel project root is the **repository** root instead, do not use this file as-is: use `git diff ... -- server/` in a small wrapper or set the Root Directory to `server/`.
 
 ## vercel_prune_branch_deployments.mjs
 
