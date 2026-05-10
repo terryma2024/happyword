@@ -122,17 +122,24 @@ async function scrollPackRowIntoView(driver: Driver, packId: string): Promise<vo
   try {
     const toggleId: string = `PackToggle_${packId}`;
     const labelId: string = `PackLabel_${packId}`;
-    for (let attempt: number = 0; attempt < 6; attempt++) {
+    // V0.6.7.8: builtins (fruit-forest … home-cottage) render above
+    // synced globals (space-station). Tests that first scroll DOWN to
+    // assert the global row must be able to scroll BACK UP to reach a
+    // builtin toggle — upward-only swipes never moved the viewport back,
+    // producing `PackToggle_home-cottage` not exist. Alternate swipe
+    // directions each attempt so rows above and below the current window
+    // are both reachable within a bounded loop.
+    for (let attempt: number = 0; attempt < 14; attempt++) {
       const toggle: Component | null = await driver.findComponent(ON.id(toggleId));
       const label: Component | null = await driver.findComponent(ON.id(labelId));
       if (toggle !== null || label !== null) {
         return;
       }
-      // Swipe within the pack list. The Scroll container fills most
-      // of the viewport (header + status row at top, optional toast
-      // at bottom), so a centred upward swipe always advances the
-      // visible pack window.
-      await driver.swipe(1400, 1100, 1400, 400, 600);
+      if ((attempt % 2) === 0) {
+        await driver.swipe(1400, 1100, 1400, 400, 600);
+      } else {
+        await driver.swipe(1400, 400, 1400, 1100, 600);
+      }
       await driver.delayMs(400);
     }
   } catch (err) {

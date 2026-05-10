@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { abilityDelegatorRegistry, Driver, ON } from '@kit.TestKit';
+import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
 
 /**
@@ -96,6 +96,32 @@ export async function tapConfigCancelShared(driver: Driver): Promise<void> {
     // Final attempt: pressBack always works on ConfigPage and matches the
     // semantic intent of "leave config".
     await driver.pressBack();
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/**
+ * Scroll ConfigPage until `ConfigParentPinButton` is fully visible
+ * (not a clipped sliver). Shared by ConfigFlow, ParentBindingFlow, and
+ * ParentAdminFlow — see ConfigFlow.ui.test.ets for the full rationale.
+ */
+export async function scrollToParentPinButton(driver: Driver): Promise<void> {
+  const VIEWPORT_EDGE_PADDING: number = 100;
+  try {
+    for (let attempt: number = 0; attempt < 6; attempt++) {
+      const btn: Component | null =
+        await driver.findComponent(ON.id('ConfigParentPinButton'));
+      if (btn !== null) {
+        const boundsRect = await btn.getBounds();
+        const heightPx: number = boundsRect.bottom - boundsRect.top;
+        if (heightPx >= VIEWPORT_EDGE_PADDING) {
+          return;
+        }
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
+    }
   } catch (err) {
     throw err as Error;
   }
