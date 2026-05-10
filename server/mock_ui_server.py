@@ -5,7 +5,16 @@ Why
 The on-device UI tests in ``entry/src/ohosTest`` exercise these flows
 that previously made live HTTP requests to ``https://happyword.cool``:
 
-* ``ConfigPage`` — pack-sync round-trip (``GET /api/v1/packs/latest.json``).
+* ``ConfigPage`` — legacy pack-sync round-trip
+  (``GET /api/v1/packs/latest.json``); kept for app cold-start so
+  ``WordPackSyncService`` doesn't 404.
+* (V0.6.5) ``PackManagerPage`` — three-layer pack sync. The 🔄 同步词包
+  button hits both
+  ``GET /api/v1/public/global-packs/latest.json`` (anonymous) and
+  ``GET /api/v1/child/family-packs/latest.json`` (Bearer device JWT).
+  Each returns a single fixture pack so the UI test can verify the
+  rows render with English names and the HomePage chip row grows when
+  a synced pack is activated.
 * ``ParentAdminPage`` — stats + pending lesson drafts + publish notes
   + photo import (``GET /api/v1/admin/stats``, ``GET /admin/lesson-drafts``,
   ``POST /admin/packs/publish``, ``POST /admin/lessons/import``).
@@ -124,6 +133,124 @@ FIXTURE_PACK_PAYLOAD: dict[str, Any] = {
     "schema_version": 5,
     "published_at": PACK_PUBLISHED_AT,
     "words": _load_prod_catalog_words(),
+}
+
+# ---------------------------------------------------------------------------
+# V0.6.7.6 — three-layer pack fixtures used by `PackManagerFlow`'s sync
+# coverage. The shapes mirror `app/schemas/global_pack.py::GlobalLatestOut`
+# and `app/services/family_pack_service.py::FamilyMergedOut`. The pack ids
+# (`space-station`, `family-snacks`) are deliberately distinct from the 5
+# built-in pack ids so the chip row on HomePage can grow when one of these
+# is activated, instead of overwriting an existing builtin slot.
+# ---------------------------------------------------------------------------
+
+GLOBAL_PACK_VERSION: int = 1
+GLOBAL_PACK_ETAG: str = f'"global-{GLOBAL_PACK_VERSION}"'
+GLOBAL_PACK_MERGED_AT: str = "2026-05-01T00:00:00+00:00"
+GLOBAL_PACK_PUBLISHED_AT: str = "2026-04-30T08:00:00+00:00"
+GLOBAL_PACK_ID: str = "space-station"
+GLOBAL_PACK_NAME: str = "Space Station"
+GLOBAL_PACK_DESCRIPTION_ZH: str = "太空站"
+
+FIXTURE_GLOBAL_PACK_PAYLOAD: dict[str, Any] = {
+    "schema_version": 1,
+    "merged_at": GLOBAL_PACK_MERGED_AT,
+    "packs": [
+        {
+            "pack_id": GLOBAL_PACK_ID,
+            "name": GLOBAL_PACK_NAME,
+            "description": GLOBAL_PACK_DESCRIPTION_ZH,
+            "version": GLOBAL_PACK_VERSION,
+            "schema_version": 1,
+            "published_at": GLOBAL_PACK_PUBLISHED_AT,
+            "scene": {
+                "bgPrimary": "#0F172A",
+                "bgAccent": "#1E293B",
+                "bossName": "Comet Captain",
+                "bossCandidates": [0, 1, 2],
+                "monsterPlan": [
+                    {"kind": "normal", "catalogIndex": 0},
+                    {"kind": "normal", "catalogIndex": 1},
+                    {"kind": "boss", "catalogIndex": 2},
+                ],
+                "storyZh": "在太空站里学习单词",
+            },
+            "words": [
+                {
+                    "id": "space-station-rocket",
+                    "word": "rocket",
+                    "meaningZh": "火箭",
+                    "category": "space",
+                    "difficulty": 2,
+                    "distractors": ["pocket", "racket", "socket"],
+                },
+                {
+                    "id": "space-station-planet",
+                    "word": "planet",
+                    "meaningZh": "行星",
+                    "category": "space",
+                    "difficulty": 2,
+                    "distractors": ["plant", "planer", "panel"],
+                },
+                {
+                    "id": "space-station-comet",
+                    "word": "comet",
+                    "meaningZh": "彗星",
+                    "category": "space",
+                    "difficulty": 2,
+                    "distractors": ["come", "covet", "cement"],
+                },
+            ],
+        },
+    ],
+}
+
+FAMILY_PACK_VERSION: int = 1
+FAMILY_PACK_ETAG: str = f'"family-{FAMILY_PACK_VERSION}"'
+FAMILY_PACK_MERGED_AT: str = "2026-05-01T01:00:00+00:00"
+FAMILY_PACK_PUBLISHED_AT: str = "2026-04-30T09:00:00+00:00"
+FAMILY_PACK_ID: str = "family-snacks"
+FAMILY_PACK_NAME: str = "Family Snacks"
+
+FIXTURE_FAMILY_PACK_PAYLOAD: dict[str, Any] = {
+    "schema_version": 1,
+    "family_id": "ui-mock-fam-001",
+    "merged_at": FAMILY_PACK_MERGED_AT,
+    "packs": [
+        {
+            "pack_id": FAMILY_PACK_ID,
+            "name": FAMILY_PACK_NAME,
+            "version": FAMILY_PACK_VERSION,
+            "schema_version": 1,
+            "published_at": FAMILY_PACK_PUBLISHED_AT,
+            "words": [
+                {
+                    "id": "family-snacks-cookie",
+                    "word": "cookie",
+                    "meaningZh": "饼干",
+                    "category": "snack",
+                    "difficulty": 1,
+                    "distractors": ["cooker", "cooling", "corner"],
+                },
+                {
+                    "id": "family-snacks-candy",
+                    "word": "candy",
+                    "meaningZh": "糖果",
+                    "category": "snack",
+                    "difficulty": 1,
+                    "distractors": ["cane", "candle", "canal"],
+                },
+                {
+                    "id": "family-snacks-yogurt",
+                    "word": "yogurt",
+                    "meaningZh": "酸奶",
+                    "category": "snack",
+                    "difficulty": 2,
+                    "distractors": ["yoga", "youth", "you"],
+                },
+            ],
+        },
+    ],
 }
 
 # Shape mirrors server/app/schemas/admin_lesson.py::LessonDraftOut.
@@ -301,6 +428,33 @@ def create_app() -> FastAPI:
             media_type="application/json",
             headers={"ETag": PACK_ETAG},
         )
+
+    # V0.6.5 three-layer pack model: anonymous merged-JSON envelope used
+    # by `services/GlobalPackService.ets`. The on-device flow is
+    #   PackManagerSyncButton tap → ensureLatest()
+    #     → GET /api/v1/public/global-packs/latest.json
+    # which lifts each pack into the V0.6.5 `Pack` shape (English `name`,
+    # `description` → `labelZh`, source = 'global'). The fixture contains
+    # ONE pack (`space-station` / "Space Station") so PackManagerFlow can
+    # assert the post-sync row count = 5 (builtins) + 1 (global), and so
+    # toggling that pack on observably grows the HomePage chip row.
+    @app.get("/api/v1/public/global-packs/latest.json")
+    async def public_global_packs(
+        if_none_match: str | None = Header(None, alias="If-None-Match"),
+    ) -> Response:
+        if if_none_match is not None and if_none_match == GLOBAL_PACK_ETAG:
+            return Response(status_code=304, headers={"ETag": GLOBAL_PACK_ETAG})
+        body = json.dumps(FIXTURE_GLOBAL_PACK_PAYLOAD, ensure_ascii=False)
+        return Response(
+            status_code=200,
+            content=body,
+            media_type="application/json",
+            headers={"ETag": GLOBAL_PACK_ETAG},
+        )
+
+    @app.head("/api/v1/public/global-packs/latest.json")
+    async def public_global_packs_head() -> Response:
+        return Response(status_code=200, headers={"ETag": GLOBAL_PACK_ETAG})
 
     # ------------------------------------------------------------------
     # Admin: stats
@@ -572,17 +726,46 @@ def create_app() -> FastAPI:
         }
 
     # ------------------------------------------------------------------
-    # V0.6.3 family pack overlay (always empty so client falls through
-    # to the global pack catalog and gameplay tests stay deterministic).
+    # V0.6.3 / V0.6.5 family pack overlay.
+    #
+    # The PRODUCTION server route is `/api/v1/child/family-packs/latest.json`
+    # (see `app/routers/child_family_pack.py::get_family_packs`). Earlier
+    # versions of this mock served the same payload at `…/active.json`,
+    # which the client never actually called; the V0.6.5 three-layer
+    # rewrite of `services/FamilyPackService.ets` standardised on
+    # `latest.json` to match the public global-packs naming and to align
+    # with `PackManagerSyncButton`'s sync flow.
+    #
+    # V0.6.7.6: serves a single fixture pack (`family-snacks` /
+    # "Family Snacks") gated by the device JWT minted by
+    # `/api/v1/pair/redeem`. Returns 401 when the caller is not bound,
+    # 304 on ETag match, and 200 with the merged-JSON envelope otherwise.
     # ------------------------------------------------------------------
 
-    @app.get("/api/v1/child/family-packs/active.json")
+    @app.get("/api/v1/child/family-packs/latest.json")
     async def child_family_packs(
         authorization: str | None = Header(None, alias="Authorization"),
-    ) -> dict[str, Any]:
+        if_none_match: str | None = Header(None, alias="If-None-Match"),
+    ) -> Response:
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
-        return {"family_id": _PAIR_FAMILY_ID, "packs": [], "etag": ""}
+        if if_none_match is not None and if_none_match == FAMILY_PACK_ETAG:
+            return Response(status_code=304, headers={"ETag": FAMILY_PACK_ETAG})
+        body = json.dumps(FIXTURE_FAMILY_PACK_PAYLOAD, ensure_ascii=False)
+        return Response(
+            status_code=200,
+            content=body,
+            media_type="application/json",
+            headers={"ETag": FAMILY_PACK_ETAG},
+        )
+
+    @app.head("/api/v1/child/family-packs/latest.json")
+    async def child_family_packs_head(
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> Response:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return Response(status_code=200, headers={"ETag": FAMILY_PACK_ETAG})
 
     # ------------------------------------------------------------------
     # V0.6.4 cloud sync (LWW). Always accepts pushes; pull returns no

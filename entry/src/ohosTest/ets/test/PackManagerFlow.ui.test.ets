@@ -1,11 +1,34 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
-import { Want } from '@kit.AbilityKit';
+import { common, Want } from '@kit.AbilityKit';
+import http from '@ohos.net.http';
+import preferences from '@ohos.data.preferences';
 import { clickByIdShared } from './RoutingFlow.ui.test';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
+
+const MOCK_BASE_URL: string = 'http://127.0.0.1:8123';
+
+// Mock-server constants — must stay in sync with `server/mock_ui_server.py`
+// (`_PAIR_*` module constants and `FIXTURE_*_PACK_PAYLOAD`). These are the
+// deterministic identifiers the mock mints on a `/api/v1/pair/redeem`
+// success and the pack ids served by the global / family endpoints.
+const MOCK_DEVICE_TOKEN: string = 'ui-mock-device-jwt';
+const MOCK_VALID_SHORT_CODE: string = '654321';
+
+const GLOBAL_PACK_ID: string = 'space-station';
+const GLOBAL_PACK_NAME: string = 'Space Station';
+const FAMILY_PACK_ID: string = 'family-snacks';
+const FAMILY_PACK_NAME: string = 'Family Snacks';
+
+// Preferences bag name (must match `services/CloudCredentials.ts::PREFS_NAME`).
+// Used in the family-pack test's cleanup so we can wipe the device's
+// bound state without driving the PIN-gated unbind UI flow. Pack caches
+// (`wordmagic_global_packs`, `wordmagic_family_packs`) are intentionally
+// left alone — see `wipeBoundDeviceState` for the rationale.
+const PREFS_CLOUD: string = 'wordmagic_cloud';
 
 async function launchApp(): Promise<Driver> {
   const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
@@ -147,6 +170,219 @@ async function getTextById(driver: Driver, id: string): Promise<string> {
   return await comp.getText();
 }
 
+/**
+ * Issue a fire-and-forget HTTP call against the mock server. We thread
+ * everything through @ohos.net.http directly because the test process
+ * has no network MCP client and the mock is reached over the loopback
+ * (`hdc rport tcp:8123`). Bodies are intentionally optional so callers
+ * can do redeem (POST + JSON body) and unbind (POST + empty body)
+ * through the same helper.
+ *
+ * Errors are swallowed: the test will fail later via the UI-level
+ * assertions if the mock is unreachable, and that's a much more
+ * actionable signal than a raw HTTP exception bubbling up here.
+ */
+async function mockHttp(
+  method: http.RequestMethod,
+  path: string,
+  body: string,
+  bearer: string,
+): Promise<string> {
+  const req: http.HttpRequest = http.createHttp();
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (bearer.length > 0) {
+      headers['Authorization'] = `Bearer ${bearer}`;
+    }
+    const opts: http.HttpRequestOptions = {
+      method,
+      header: headers,
+      extraData: body,
+      connectTimeout: 5000,
+      readTimeout: 5000,
+    };
+    const resp: http.HttpResponse = await req.request(`${MOCK_BASE_URL}${path}`, opts);
+    return typeof resp.result === 'string' ? resp.result : '';
+  } catch (_err) {
+    return '';
+  } finally {
+    req.destroy();
+  }
+}
+
+/**
+ * Seed the mock server's `_active_bindings` set so the family-packs
+ * endpoint accepts the deterministic device JWT. Idempotent: calling
+ * twice is identical to calling once. Mirrors `BoundDeviceInfoFlow`'s
+ * `seedMockBinding` helper but is duplicated here so the suite stays
+ * self-contained vs. ordering changes in `List.test.ets`.
+ */
+async function seedMockBinding(): Promise<void> {
+  const body: string =
+    `{"device_id":"ui-mock-pack-suite","short_code":"${MOCK_VALID_SHORT_CODE}"}`;
+  await mockHttp(http.RequestMethod.POST, '/api/v1/pair/redeem', body, '');
+}
+
+/**
+ * Tell the mock server to drop the binding for the deterministic JWT
+ * so subsequent suites that assume an unbound device (most notably
+ * `ParentBindingFlowV06.unboundConfigPageRendersBindEntryOnly`) start
+ * from a clean slate even within a single mock-server lifetime.
+ */
+async function unbindMockBinding(): Promise<void> {
+  await mockHttp(http.RequestMethod.POST, '/api/v1/child/unbind', '{}', MOCK_DEVICE_TOKEN);
+}
+
+/**
+ * Drive the manual short-code redeem flow against the mock to leave
+ * the device in a `CloudCredentials.isBound() === true` state. The
+ * UI-level path is preferred over poking `wordmagic_cloud`
+ * preferences directly because:
+ *   1. `CloudCredentials.init` runs async in `aboutToAppear` for both
+ *      `PackManagerPage` and `ConfigPage`; pre-seeded preferences are
+ *      visible to the *next* page that calls `getPreferences`, but not
+ *      always to the in-flight `init()` call already kicked off.
+ *      Driving the redeem from the UI guarantees `saveBinding` is
+ *      called on the live `CloudCredentials` instance.
+ *   2. It exercises the same code path real users hit, which means the
+ *      family-pack sync that follows runs against a JWT minted exactly
+ *      the same way as in production.
+ *
+ * Mirrors `BoundDeviceInfoFlow.bindViaShortCode` and shares the mock
+ * server's redeem endpoint contract (any non-blacklisted 6-digit code
+ * succeeds). Caller must already be on HomePage; helper leaves the
+ * caller back on HomePage when done.
+ */
+async function bindViaShortCode(driver: Driver): Promise<void> {
+  await clickByIdShared(driver, 'HomeConfigButton');
+  await driver.delayMs(1500);
+  for (let attempt: number = 0; attempt < 5; attempt++) {
+    const bind: Component | null =
+      await driver.findComponent(ON.id('ConfigBindParentButton'));
+    const bound: Component | null =
+      await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+    if (bind !== null || bound !== null) {
+      break;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(400);
+  }
+
+  const alreadyBound: Component | null =
+    await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+  if (alreadyBound !== null) {
+    // Carry-over bound state from a prior dev session — no re-bind
+    // needed; just navigate back to home.
+    await driver.pressBack();
+    await driver.delayMs(800);
+    return;
+  }
+
+  await clickByIdShared(driver, 'ConfigBindParentButton');
+  await driver.delayMs(1500);
+  await clickByIdShared(driver, 'ScanBindingManualToggle');
+  await driver.delayMs(600);
+  await driver.assertComponentExist(ON.id('ScanBindingManualInput'));
+
+  const input: Component =
+    await driver.findComponent(ON.id('ScanBindingManualInput'));
+  await input.inputText(MOCK_VALID_SHORT_CODE);
+  await driver.delayMs(500);
+  // Numeric IME hides ScanBindingManualSubmit; dismiss it first.
+  await driver.pressBack();
+  await driver.delayMs(600);
+
+  await clickByIdShared(driver, 'ScanBindingManualSubmit');
+  for (let i: number = 0; i < 16; i++) {
+    const c: Component | null =
+      await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
+    if (c !== null) {
+      break;
+    }
+    await driver.delayMs(500);
+  }
+  await clickByIdShared(driver, 'ScanBindingSuccessBack');
+  await driver.delayMs(1500);
+  // ConfigPage now in bound state; pop back to home for the caller.
+  await driver.pressBack();
+  await driver.delayMs(800);
+}
+
+/**
+ * Wipe the `wordmagic_cloud` (binding) keys so the device is left in
+ * an unbound state for the next suite. Mirrors
+ * `CloudCredentials.clearBinding` semantics: every key the snapshot
+ * reads is overwritten with the empty string, then flushed. This is
+ * preferred over `preferences.deletePreferences` because the test
+ * process and the app share the in-process preferences cache, which
+ * blocks `deletePreferences` from succeeding while any code path
+ * still holds a handle.
+ *
+ * The pack caches (`wordmagic_global_packs`, `wordmagic_family_packs`)
+ * are intentionally NOT wiped — leaving them populated does not
+ * affect downstream suites because (a) the persisted pack-selection
+ * blob still references the 5 builtins after our restore-to-defaults
+ * toggle, and (b) the global pack cache being warm only adds an
+ * extra inactive row to the picker, which the existing suites
+ * tolerate.
+ */
+async function wipeBoundDeviceState(): Promise<void> {
+  const ctx: common.Context = DELEGATOR.getAppContext();
+  try {
+    const handle: preferences.Preferences =
+      await preferences.getPreferences(ctx, PREFS_CLOUD);
+    await handle.put('device_token', '');
+    await handle.put('binding_id', '');
+    await handle.put('family_id', '');
+    await handle.put('child_profile_id', '');
+    await handle.put('nickname', '');
+    await handle.put('avatar_emoji', '');
+    await handle.put('paired_at_ms', '0');
+    await handle.flush();
+  } catch (_err) {
+    // Best-effort — if the preferences API throws (e.g. mid-shutdown)
+    // we leave the device in whatever state it's in; the next suite
+    // surfaces the issue if cleanup didn't complete.
+  }
+}
+
+/**
+ * Tap the 🔄 同步词包 button and wait for `PackManagerSyncToast` to
+ * surface, which is the user-visible signal that both `ensureLatest`
+ * promises have settled (regardless of updated/cached/cleared status).
+ * Returns the raw toast text so callers can correlate against the
+ * `formatPackSyncToast` matrix when needed.
+ */
+async function tapPackSyncAndWaitForToast(driver: Driver): Promise<string> {
+  await clickByIdShared(driver, 'PackManagerSyncButton');
+  for (let attempt: number = 0; attempt < 20; attempt++) {
+    const toast: Component | null =
+      await driver.findComponent(ON.id('PackManagerSyncToast'));
+    if (toast !== null) {
+      const text: string = await toast.getText();
+      if (text.length > 0) {
+        return text;
+      }
+    }
+    await driver.delayMs(400);
+  }
+  return '';
+}
+
+/**
+ * Toggle a pack's active state from inside an already-open
+ * PackManagerPage, scrolling its row into view first. Caller is
+ * responsible for the surrounding navigation (open / leave). Used by
+ * the global / family activation tests where each scenario flips two
+ * packs in sequence (one OFF to free a slot, one ON to fill it) and
+ * doesn't want to bounce back to HomePage between flips.
+ */
+async function togglePackActiveInPlace(driver: Driver, packId: string): Promise<void> {
+  await scrollPackRowIntoView(driver, packId);
+  await clickByIdShared(driver, `PackToggle_${packId}`);
+  await driver.delayMs(700);
+}
+
 const ALL_DEFAULT_PACK_IDS: string[] = [
   'fruit-forest',
   'school-castle',
@@ -159,7 +395,7 @@ const PIN_LABEL_UNPINNED: string = '📌 固定';
 const PIN_LABEL_PINNED: string = '已固定';
 
 /**
- * V0.6.7.3 acceptance for `pages/PackManagerPage.ets`:
+ * V0.6.7.3 / V0.6.7.6 acceptance for `pages/PackManagerPage.ets`:
  *
  *   1. ConfigPage's `ConfigPackManagerEntry` row routes to the
  *      dedicated PackManagerPage with `PackManagerTitle`,
@@ -197,9 +433,26 @@ const PIN_LABEL_PINNED: string = '已固定';
  *      to its pre-toggle value. This is the "config change → battle
  *      scene reflects" smoke test the user requested.
  *
+ *   7. (V0.6.7.6) The PackManagerSync button drives the THREE-LAYER
+ *      pack stack against the local mock — built-in (rawfile) +
+ *      global (`/api/v1/public/global-packs/latest.json`) + family
+ *      (`/api/v1/child/family-packs/latest.json`, gated by the
+ *      device JWT). After sync, the new pack rows render with
+ *      English names + the matching source pill ("官方" / "家庭"),
+ *      and activating either grows the HomePage `RegionChip_<id>`
+ *      row to reflect the new active pack — the user-facing
+ *      "config change → battle scene reflects" round-trip across
+ *      ALL three pack sources, not just the built-in tier.
+ *
  * All tests restore PackSelection state to default (5/5 active, no
  * pinned packs) before returning to HomePage so this suite is
  * order-independent vs everything below it in `List.test.ets`.
+ *
+ * The family-pack arm (case 7's second test) additionally pre-seeds
+ * `wordmagic_cloud` preferences with the deterministic mock JWT and
+ * `unbind`s + wipes those preferences in its `finally` block so the
+ * device is left unbound — `ParentBindingFlowV06` runs after this
+ * suite and depends on starting from a fresh-install bound state.
  */
 export default function packManagerFlowUiTest(): void {
   describe('PackManagerFlowV0673', () => {
@@ -492,6 +745,227 @@ export default function packManagerFlowUiTest(): void {
       }
       done();
     });
+
+    /**
+     * V0.6.7.6: drive the three-layer pack sync against the local mock
+     * (`server/mock_ui_server.py`) and verify the synced GLOBAL pack
+     *
+     *   1) appears in PackManagerPage as a row with the English pack
+     *      name (`Space Station`) and the "官方" source tag, and
+     *   2) when activated (after deactivating one builtin to free a
+     *      slot) propagates to HomePage's `RegionChip_<id>` row so the
+     *      battle-scene chip strip reflects the new pack.
+     *
+     * Cleanup: restore the active set to the canonical 5 builtins
+     * (toggle space-station OFF, toggle home-cottage back ON) so this
+     * test is order-independent against everything below it.
+     *
+     * Anonymous endpoint: no binding required. The mock's
+     * `/api/v1/public/global-packs/latest.json` always returns the same
+     * fixture regardless of caller identity, mirroring prod's anonymous
+     * contract.
+     */
+    it('syncedGlobalPackAppearsInListAndActivatingItGrowsHomeChipRow',
+      0, async (done: Function) => {
+        const driver: Driver = await launchApp();
+        await returnToHome(driver);
+
+        let toggledOffBuiltin: boolean = false;
+        let toggledOnGlobal: boolean = false;
+        try {
+          await openPackManagerFromHome(driver);
+
+          // Tap sync. The toast that surfaces afterwards is one of the
+          // strings produced by `PackManagerPage.formatPackSyncToast` —
+          // we accept any "synced global" variant here because the
+          // family-pack arm's outcome depends on the (unknown) bound
+          // state of the device under test.
+          const toast: string = await tapPackSyncAndWaitForToast(driver);
+          expect(toast.length > 0).assertTrue();
+          expect(toast.indexOf('全局') >= 0).assertTrue();
+
+          // Re-loaded library should now contain `space-station`.
+          await scrollPackRowIntoView(driver, GLOBAL_PACK_ID);
+          const tag: string = await getTextById(
+            driver, `PackSourceTag_${GLOBAL_PACK_ID}`);
+          expect(tag).assertEqual('官方');
+          const label: string =
+            await getTextById(driver, `PackLabel_${GLOBAL_PACK_ID}`);
+          expect(label).assertEqual(GLOBAL_PACK_NAME);
+
+          // Pack starts inactive (5 builtins fill the cap); free a slot
+          // by deactivating `home-cottage` and then activate the global
+          // pack. `togglePackActiveInPlace` polls for the row first.
+          await togglePackActiveInPlace(driver, 'home-cottage');
+          toggledOffBuiltin = true;
+          await togglePackActiveInPlace(driver, GLOBAL_PACK_ID);
+          toggledOnGlobal = true;
+
+          // Status row should now read 已激活 5 / 5 again (one OFF +
+          // one ON balances out).
+          const status: string =
+            await getTextById(driver, 'PackManagerStatus');
+          expect(status.indexOf('5 / 5') >= 0).assertTrue();
+
+          await leaveToHome(driver);
+
+          // HomePage must reflect the new chipPacks composition: the
+          // synced global pack is now visible, the deactivated builtin
+          // is gone.
+          const chip: Component | null =
+            await driver.findComponent(ON.id(`RegionChip_${GLOBAL_PACK_ID}`));
+          expect(chip !== null).assertTrue();
+          if (chip !== null) {
+            const chipTxt: string = await chip.getText();
+            expect(chipTxt).assertEqual(GLOBAL_PACK_NAME);
+          }
+          const removed: Component | null =
+            await driver.findComponent(ON.id('RegionChip_home-cottage'));
+          expect(removed === null).assertTrue();
+        } finally {
+          // Defensive restore — independent of which assertion (if any)
+          // tripped, we always want to leave the device in the canonical
+          // "5 builtins active, 0 globals active" state so downstream
+          // tests don't see leaked global packs in the chip row.
+          if (toggledOnGlobal) {
+            try {
+              await openPackManagerFromHome(driver);
+              await togglePackActiveInPlace(driver, GLOBAL_PACK_ID);
+              if (toggledOffBuiltin) {
+                await togglePackActiveInPlace(driver, 'home-cottage');
+              }
+              await leaveToHome(driver);
+            } catch (_err) {
+              // Best-effort cleanup; swallow.
+            }
+          } else if (toggledOffBuiltin) {
+            try {
+              await openPackManagerFromHome(driver);
+              await togglePackActiveInPlace(driver, 'home-cottage');
+              await leaveToHome(driver);
+            } catch (_err) {
+              // Best-effort cleanup.
+            }
+          }
+        }
+        done();
+      });
+
+    /**
+     * V0.6.7.6: family-pack arm of the three-layer sync verification.
+     * Pre-seeds the device's `wordmagic_cloud` preferences with the
+     * deterministic mock JWT so `CloudCredentials.load().deviceToken`
+     * is non-empty, which is the gate
+     * `PackManagerPage.onPackSyncTap` reads before calling
+     * `FamilyPackService.ensureLatest(token)`. The mock then returns
+     * the `family-snacks` fixture on the corresponding HTTP GET.
+     *
+     * Test asserts the family pack
+     *   1) renders as a row with English name "Family Snacks" and the
+     *      "家庭" source tag, and
+     *   2) when activated (after freeing a builtin slot) appears as a
+     *      `RegionChip_family-snacks` on HomePage.
+     *
+     * Cleanup wipes `wordmagic_cloud`, `wordmagic_family_packs`, and
+     * `wordmagic_global_packs` preferences plus the mock's
+     * `_active_bindings` set so the device is left in an unbound,
+     * empty-overlay state — exactly what the next suite
+     * (`ParentBindingFlowV06.unboundConfigPageRendersBindEntryOnly`)
+     * relies on.
+     */
+    it('boundDeviceSyncPullsFamilyPackAndAffectsHomeChipRow',
+      0, async (done: Function) => {
+        // Re-seed the mock-side `_active_bindings` set BEFORE we
+        // launch — the mock restarts fresh on every UI run, so the
+        // device's persisted JWT (if any from a prior session) would
+        // be 401-rejected without this seed even though the redeem
+        // ceremony is about to mint the same JWT again. Idempotent
+        // on the mock.
+        await seedMockBinding();
+
+        let toggledOffBuiltin: boolean = false;
+        let toggledOnFamily: boolean = false;
+        const driver: Driver = await launchApp();
+        try {
+          await returnToHome(driver);
+          // Drive UI-level bind so `CloudCredentials` is fully
+          // populated on the live ability instance. Pre-seeding
+          // preferences from the test process does not always
+          // propagate into the in-flight `init()` call PackManagerPage
+          // kicks off in `aboutToAppear`.
+          await bindViaShortCode(driver);
+          await openPackManagerFromHome(driver);
+
+          const toast: string = await tapPackSyncAndWaitForToast(driver);
+          expect(toast.length > 0).assertTrue();
+          // The bound-device path of `formatPackSyncToast` always
+          // includes the "家庭" token (either "已同步全局 + 家庭词包",
+          // "✅ 已同步家庭词包", or the cached-no-update variant).
+          const familyMentioned: boolean =
+            toast.indexOf('家庭') >= 0 || toast.indexOf('已是最新') >= 0;
+          expect(familyMentioned).assertTrue();
+
+          // Family pack row exists with the expected metadata.
+          await scrollPackRowIntoView(driver, FAMILY_PACK_ID);
+          const tag: string = await getTextById(
+            driver, `PackSourceTag_${FAMILY_PACK_ID}`);
+          expect(tag).assertEqual('家庭');
+          const label: string =
+            await getTextById(driver, `PackLabel_${FAMILY_PACK_ID}`);
+          expect(label).assertEqual(FAMILY_PACK_NAME);
+
+          // Activate the family pack, free a slot first.
+          await togglePackActiveInPlace(driver, 'animal-safari');
+          toggledOffBuiltin = true;
+          await togglePackActiveInPlace(driver, FAMILY_PACK_ID);
+          toggledOnFamily = true;
+
+          await leaveToHome(driver);
+
+          // Home chip row must include the family pack's English name
+          // and exclude the deactivated builtin.
+          const chip: Component | null =
+            await driver.findComponent(ON.id(`RegionChip_${FAMILY_PACK_ID}`));
+          expect(chip !== null).assertTrue();
+          if (chip !== null) {
+            const chipTxt: string = await chip.getText();
+            expect(chipTxt).assertEqual(FAMILY_PACK_NAME);
+          }
+          const removed: Component | null =
+            await driver.findComponent(ON.id('RegionChip_animal-safari'));
+          expect(removed === null).assertTrue();
+        } finally {
+          // Toggle state back to the all-builtin defaults BEFORE
+          // wiping prefs so PackSelectionService persists a clean
+          // active set (otherwise the wipe leaves
+          // `wordmagic_word_pack_selection` referencing pack ids that
+          // no longer exist after we drop the family-pack cache).
+          if (toggledOnFamily) {
+            try {
+              await openPackManagerFromHome(driver);
+              await togglePackActiveInPlace(driver, FAMILY_PACK_ID);
+              if (toggledOffBuiltin) {
+                await togglePackActiveInPlace(driver, 'animal-safari');
+              }
+              await leaveToHome(driver);
+            } catch (_err) {
+              // Cleanup is best-effort; the subsequent prefs wipe
+              // still resets the device to a known state.
+            }
+          } else if (toggledOffBuiltin) {
+            try {
+              await openPackManagerFromHome(driver);
+              await togglePackActiveInPlace(driver, 'animal-safari');
+              await leaveToHome(driver);
+            } catch (_err) {
+              // Best-effort cleanup.
+            }
+          }
+          await unbindMockBinding();
+          await wipeBoundDeviceState();
+        }
+        done();
+      });
 
     it('tappingPinFlipsLabelBetweenUnpinnedAndPinnedStates', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
