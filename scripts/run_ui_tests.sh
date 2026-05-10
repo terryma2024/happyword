@@ -14,6 +14,9 @@
 #   6. Run `hdc shell aa test ...` (the standard ohosTest entry).
 #   7. Always tear down: kill the mock server, drop the rport mapping.
 #
+# DevMenu / triple-tap developer tooling is not covered here — manual QA on
+# debug builds only (see .cursor/dev-commands.md §4).
+#
 # Usage:
 #   scripts/run_ui_tests.sh                  # run with already-built HAPs
 #   scripts/run_ui_tests.sh --rebuild        # rebuild + reinstall first
@@ -269,13 +272,8 @@ hdc_t rport "tcp:${MOCK_PORT}" "tcp:${MOCK_PORT}"
 if [[ "${DO_REBUILD}" -eq 1 ]]; then
   echo "[run_ui_tests] rebuilding HAPs"
   (cd "${HARMONY_ROOT}" && hvigorw assembleHap --no-daemon)
-  # assembleOhosTest is not a stable cross-SDK task name; target the ohosTest
-  # variant explicitly (see .cursor/dev-commands.md section 4).
-  (cd "${HARMONY_ROOT}" && hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon)
-
-  echo "[run_ui_tests] uninstall bundle (clear persisted prefs for deterministic UI tests)"
-  hdc_t uninstall com.terryma.wordmagicgame 2>/dev/null || true
-  sleep 1
+  (cd "${HARMONY_ROOT}" && hvigorw assembleOhosTest --no-daemon || \
+    hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon)
 
   HAP_DEFAULT="$(find "${HARMONY_ROOT}/entry/build" -name 'entry-default-signed.hap' | head -1 || true)"
   HAP_TEST="$(find "${HARMONY_ROOT}/entry/build" -name 'entry-ohosTest-signed.hap' | head -1 || true)"

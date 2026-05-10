@@ -2,6 +2,8 @@ import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { application, Want, common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import http from '@ohos.net.http';
+import preferences from '@ohos.data.preferences';
 import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
 import {
   SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY,
@@ -55,6 +57,81 @@ async function createEntryTestModuleContext(): Promise<common.Context> {
 const KNOWN_PIN: string = '123456';
 const VALID_SHORT_CODE: string = '345678';
 
+// Must match `PackManagerFlow.ui.test.ets` / `server/mock_ui_server.py` — after
+// PackManager seeds a mock redeem, the device prefs + mock server must be
+// reset before `unboundConfigPageRendersBindEntryOnly`.
+const MOCK_BASE_URL: string = 'http://127.0.0.1:8123';
+const MOCK_DEVICE_TOKEN: string = 'ui-mock-device-jwt';
+const PREFS_CLOUD: string = 'wordmagic_cloud';
+
+async function mockHttp(
+  method: http.RequestMethod,
+  path: string,
+  body: string,
+  bearer: string,
+): Promise<string> {
+  try {
+    const req: http.HttpRequest = http.createHttp();
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (bearer.length > 0) {
+        headers['Authorization'] = `Bearer ${bearer}`;
+      }
+      const opts: http.HttpRequestOptions = {
+        method,
+        header: headers,
+        extraData: body,
+        connectTimeout: 5000,
+        readTimeout: 5000,
+      };
+      const resp: http.HttpResponse = await req.request(`${MOCK_BASE_URL}${path}`, opts);
+      return typeof resp.result === 'string' ? resp.result : '';
+    } catch (_err) {
+      return '';
+    } finally {
+      try {
+        req.destroy();
+      } catch (_err) {
+        // Best-effort destroy.
+      }
+    }
+  } catch (_err) {
+    return '';
+  }
+}
+
+async function unbindMockBinding(): Promise<void> {
+  await mockHttp(http.RequestMethod.POST, '/api/v1/child/unbind', '{}', MOCK_DEVICE_TOKEN);
+}
+
+async function wipeBoundDeviceState(): Promise<void> {
+  try {
+    const ctx: common.Context = DELEGATOR.getAppContext();
+    const handle: preferences.Preferences =
+      await preferences.getPreferences(ctx, PREFS_CLOUD);
+    await handle.put('device_token', '');
+    await handle.put('binding_id', '');
+    await handle.put('family_id', '');
+    await handle.put('child_profile_id', '');
+    await handle.put('nickname', '');
+    await handle.put('avatar_emoji', '');
+    await handle.put('paired_at_ms', '0');
+    await handle.flush();
+  } catch (_err) {
+    // Best-effort — same rationale as PackManagerFlow.wipeBoundDeviceState.
+  }
+}
+
+/**
+ * ParentBindingFlow runs after PackManagerFlow. PackManager may leave both
+ * the mock server's binding slot and `wordmagic_cloud` prefs populated; the
+ * first unbound-only case must start clean.
+ */
+async function resetMockAndPrefsToUnbound(): Promise<void> {
+  await unbindMockBinding();
+  await wipeBoundDeviceState();
+}
+
 async function launchApp(): Promise<Driver> {
   // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
   // helper body in try/catch+rethrow to silence the warning while
@@ -72,7 +149,7 @@ async function launchApp(): Promise<Driver> {
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
-    for (let i: number = 0; i < 6; i++) {
+    for (let i: number = 0; i < 12; i++) {
       const home: Component | null =
         await driver.findComponent(ON.id('HomeStartButton'));
       if (home !== null) {
@@ -349,6 +426,7 @@ export default function parentBindingFlowUiTest(): void {
      * was removed; unbind lives on BoundDeviceInfoPage now.)
      */
     it('unboundConfigPageRendersBindEntryOnly', 0, async (done: Function) => {
+      await resetMockAndPrefsToUnbound();
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfigPage(driver);

@@ -26,6 +26,7 @@
 - Keep UI components small and reusable
 - For all feature development and bugfix tasks, use the applicable Superpowers workflow before implementing changes.
 - Debug builds only: **Settings → Developer → Backend environment** opens the DevMenu for switching staging / local / preview API routing; release builds must not expose this entry.
+- **ohosTest UI automation** excludes DevMenu and the version-label triple-tap path — developers exercise those manually; see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) section 4.
 
 ## Asset retention policy
 - **Never delete resource files (SVG / PNG / audio / fonts / image source) when they become unused at runtime.** Move them under `assets/` instead — e.g. `assets/icons/` for design-source SVGs whose rasterized PNGs ship in `harmonyos/entry/src/main/resources/rawfile/`. This keeps the design source available for re-rasterization, redesign, rollback, or A/B comparison.

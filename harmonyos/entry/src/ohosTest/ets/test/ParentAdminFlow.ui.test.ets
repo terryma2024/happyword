@@ -4,7 +4,7 @@ import { application, Want, common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
 import { LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY } from '../../../main/ets/services/LessonImagePicker';
-import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
 
 /**
  * V0.5.8 acceptance: parent admin backend + parent-PIN gate.
@@ -29,21 +29,6 @@ const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
-/**
- * `application.createModuleContext` requires a stage-model UIAbilityContext.
- * `getAppContext()` returns an ApplicationContext and throws "must be a
- * context of stageMode" on API 12+.
- */
-async function createEntryTestModuleContext(): Promise<common.Context> {
-  try {
-    const ability = await DELEGATOR.getCurrentTopAbility();
-    const uiCtx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
-    return await application.createModuleContext(uiCtx, 'entry_test');
-  } catch (err) {
-    throw err as Error;
-  }
-}
-
 /** PIN value committed by configFlowUiTest's twoStep test. */
 const KNOWN_PIN: string = '123456';
 
@@ -64,7 +49,7 @@ async function launchApp(): Promise<Driver> {
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
-    for (let i: number = 0; i < 5; i++) {
+    for (let i: number = 0; i < 12; i++) {
       const home: Component | null =
         await driver.findComponent(ON.id('HomeStartButton'));
       if (home !== null) {
@@ -119,34 +104,6 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
 }
 
 /**
- * ParentPinSetupPage wraps the keypad in a Scroll; on cold starts the
- * digit buttons can sit below the first viewport frame until layout settles.
- */
-async function waitForParentPinSetupKeypad(driver: Driver, maxMs: number): Promise<boolean> {
-  try {
-    const stepMs: number = 300;
-    let waited: number = 0;
-    let nudge: number = 0;
-    while (waited < maxMs) {
-      const k: Component | null =
-        await driver.findComponent(ON.id('ParentPinSetupKey_1'));
-      if (k !== null) {
-        return true;
-      }
-      nudge += 1;
-      if (nudge % 4 === 0) {
-        await driver.swipe(360, 880, 360, 420, 550);
-      }
-      await driver.delayMs(stepMs);
-      waited += stepMs;
-    }
-    return false;
-  } catch (err) {
-    throw err as Error;
-  }
-}
-
-/**
  * Idempotent PIN seeder. Mirrors WishlistFlow.ui.test.ets's
  * ensureParentPin so this suite can run independently of
  * configFlowUiTest's ordering. Re-committing the same PIN is a no-op
@@ -158,12 +115,20 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   try {
     await clickByIdShared(driver, 'HomeConfigButton');
     await driver.delayMs(1500);
-    await scrollToParentPinButton(driver);
-    await clickByIdShared(driver, 'ConfigParentPinButton');
-    const keypadReady: boolean = await waitForParentPinSetupKeypad(driver, 12000);
-    if (!keypadReady) {
-      throw new Error('ParentPinSetup keypad not reachable');
+    // V0.6.5.1: scroll iteratively until the parent-PIN button is on
+    // screen — the packPickerSection between autoSpeak and parentPin
+    // can push the row off the fold.
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const btn: Component | null =
+        await driver.findComponent(ON.id('ConfigParentPinButton'));
+      if (btn !== null) {
+        break;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(300);
     }
+    await clickByIdShared(driver, 'ConfigParentPinButton');
+    await driver.delayMs(1200);
 
     for (let i: number = 0; i < pin.length; i++) {
       await tapPinSetupKey(driver, pin.charAt(i));
@@ -305,7 +270,10 @@ async function ensureLessonImportFixtureOnDevice(): Promise<string> {
     // resourceManager. `appCtx.resourceManager` only sees the main
     // module's (entry) resources — calling getRawFileContent through
     // the app context fails with "GetRawFileContent failed".
-    const moduleCtx: common.Context = await createEntryTestModuleContext();
+    // application.createModuleContext is the post-API-12 replacement for
+    // the deprecated `Context.createModuleContext(moduleName)` overload.
+    const moduleCtx: common.Context =
+      await application.createModuleContext(appCtx, 'entry_test');
     const bytes: Uint8Array = await moduleCtx.resourceManager.getRawFileContent(
       'lesson_import_fixture.jpg',
     );
