@@ -342,6 +342,8 @@ HomePage ─┬─ HomeStartButton (todayPack) ─→ BattlePage(today, AppStora
 
 `shared/` 是辅助契约目录，只能放 OpenAPI、JSON Schema、错误码、同步协议和 golden fixtures；不得放会被三端直接 import 的客户端运行时代码。跨端一致性通过契约测试和 fixtures 维持，而不是通过共享 UI / 业务 SDK 维持。
 
+`shared/contracts/` is the contract checkpoint for API shape, sync protocols, and error semantics. A server API change is not cross-client-ready until the generated OpenAPI snapshot and the relevant domain/protocol docs have been updated.
+
 ### 7.1 HarmonyOS 客户端架构原则
 
 - 页面只负责渲染 + 路由 + 用户输入；规则全部进 `models/` + `services/`。
