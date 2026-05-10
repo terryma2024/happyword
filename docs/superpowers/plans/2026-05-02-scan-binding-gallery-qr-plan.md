@@ -86,7 +86,7 @@ photoPickerServiceTest();
 - [ ] **Step 2: Run the new test to verify it fails**
 
 ```bash
-cd /Users/bytedance/Projects/happyword
+cd <repo-root>
 hvigorw -p module=entry@default test --no-daemon 2>&1 | tail -30
 ```
 
@@ -1014,11 +1014,11 @@ if __name__ == "__main__":
 - [ ] **Step 2: Run the script to generate the fixture**
 
 ```bash
-cd /Users/bytedance/Projects/happyword/server
+cd <repo-root>/server
 uv run python ../tools/generate_scan_binding_qr_fixture.py
 ```
 
-Expected: `wrote /Users/bytedance/Projects/happyword/entry/src/ohosTest/resources/rawfile/scan_binding_qr_fixture.png (XXX bytes) encoding https://happyword.cool/p/uitestqr01`. PNG file should exist.
+Expected: `wrote <repo-root>/entry/src/ohosTest/resources/rawfile/scan_binding_qr_fixture.png (XXX bytes) encoding https://happyword.cool/p/uitestqr01`. PNG file should exist.
 
 - [ ] **Step 3: Add the new ohosTest case + helper**
 

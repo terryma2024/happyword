@@ -3,7 +3,7 @@
 Read this file before running HarmonyOS build or test commands. **Do not invent `hvigorw` flags**; if a command fails, align with DevEco’s task names for the installed SDK and update this file.
 
 - **last_verified_deveco:** (fill when confirmed, e.g. `5.0.x`)
-- **repo_root:** repository root (`/Users/bytedance/Projects/happyword`)
+- **repo_root:** repository root (`<repo-root>`)
 - **harmony_project_root:** `harmonyos/` (where `oh-package.json5`, `build-profile.json5`, and `hvigorfile.ts` live)
 
 ## Conventions
