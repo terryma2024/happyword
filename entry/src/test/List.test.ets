@@ -45,6 +45,11 @@ import barcodeImageDecoderTest from './BarcodeImageDecoder.test';
 import versionTripleTapTest from './VersionTripleTap.test';
 import buildInfoTest from './BuildInfo.test';
 import backendHeadersTest from './BackendHeaders.test';
+import packTest from './Pack.test';
+import builtinPackLoaderTest from './BuiltinPackLoader.test';
+import globalPackServiceTest from './GlobalPackService.test';
+import packLibraryTest from './PackLibrary.test';
+import packSelectionServiceTest from './PackSelectionService.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -94,4 +99,9 @@ export default function testsuite() {
   versionTripleTapTest();
   buildInfoTest();
   backendHeadersTest();
+  packTest();
+  builtinPackLoaderTest();
+  globalPackServiceTest();
+  packLibraryTest();
+  packSelectionServiceTest();
 }

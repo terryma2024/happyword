@@ -37,6 +37,7 @@ from app.routers import admin_assets as admin_assets_router
 from app.routers import admin_categories as admin_categories_router
 from app.routers import admin_cron as admin_cron_router
 from app.routers import admin_drafts as admin_drafts_router
+from app.routers import admin_global_pack as admin_global_pack_router
 from app.routers import admin_lessons as admin_lessons_router
 from app.routers import admin_llm as admin_llm_router
 from app.routers import admin_packs as admin_packs_router
@@ -54,6 +55,7 @@ from app.routers import parent_auth as parent_auth_router
 from app.routers import parent_family_pack as parent_family_pack_router
 from app.routers import parent_inbox as parent_inbox_router
 from app.routers import parent_pages as parent_pages_router
+from app.routers import public_global_pack as public_global_pack_router
 from app.routers import public_packs as public_packs_router
 from app.services.auth_service import hash_password
 from app.services.category_service import seed_manual_categories
@@ -171,6 +173,9 @@ app.include_router(child_wishlist_router.router)
 app.include_router(child_profile_router.router)
 app.include_router(pair_router.router)
 app.include_router(public_packs_router.router)
+# V0.6.5 — three-layer pack model: public global packs + admin CRUD.
+app.include_router(public_global_pack_router.router)
+app.include_router(admin_global_pack_router.router)
 app.include_router(admin_llm_router.router)
 app.include_router(admin_words_router.router)
 app.include_router(admin_packs_router.router)
@@ -180,6 +185,16 @@ app.include_router(admin_lessons_router.router)
 app.include_router(admin_cron_router.router)
 app.include_router(admin_assets_router.router)
 app.include_router(admin_stats_router.router)
+
+# V0.6.5 — surface new-pattern aliases onto every legacy route. MUST run
+# AFTER every include_router call so we can see all legacy routes.
+# See .cursor/rules/api-route-pattern.mdc and the v0.6.5 plan Task 27.
+from app.routers.legacy_route_aliases import (  # noqa: E402
+    attach_legacy_aliases,
+)
+
+_alias_count = attach_legacy_aliases(app)
+logger.info("v0.6.5 attached %d legacy route aliases", _alias_count)
 
 # V0.6.1: serve the parent web shell's static assets.
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

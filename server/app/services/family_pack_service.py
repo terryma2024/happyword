@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from dataclasses import dataclass
+from dataclasses import field as dataclasses_field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -26,6 +27,11 @@ from app.models.family_pack_pointer import FamilyPackPointer
 from app.models.family_word_pack import FamilyWordPack
 
 GLOBAL_PACK_SCHEMA_VERSION: int = 5
+
+# V0.6.5 — global packs reuse this stack with a reserved family_id sentinel.
+# Real Family.id values are 24-char ObjectId hex strings, so the
+# underscore-padded literal cannot collide. See spec §5.3 + §11.
+GLOBAL_PACK_FAMILY_ID: str = "__global__"
 
 
 class FamilyPackError(Exception):
@@ -93,7 +99,18 @@ async def create_definition(
     name: str,
     description: str | None,
     parent_user_id: str,
+    scene: dict[str, Any] | None = None,
+    pack_id: str | None = None,
 ) -> FamilyPackDefinition:
+    """Create a new pack definition.
+
+    V0.6.5 additive params (always optional, never break v0.6.4 callers):
+    - `scene`: per-pack scene metadata for the battle screen. Defaults to
+      empty dict; family packs always omit, global packs (caller passes
+      `family_id == GLOBAL_PACK_FAMILY_ID`) populate it.
+    - `pack_id`: caller-supplied id (e.g. `gpk-fruit-forest` for global
+      packs). Defaults to the legacy `_gen_pack_id()` shape `pck-<8hex>`.
+    """
     name = name.strip()
     if len(name) == 0:
         raise InvalidPayload("name must not be blank")
@@ -110,12 +127,13 @@ async def create_definition(
         raise NameTaken(name)
 
     now = _utcnow()
-    pack_id = _gen_pack_id()
+    resolved_pack_id = pack_id or _gen_pack_id()
     definition = FamilyPackDefinition(
-        pack_id=pack_id,
+        pack_id=resolved_pack_id,
         family_id=family_id,
         name=name,
         description=description,
+        scene=scene or {},
         state=FamilyPackState.ACTIVE,
         created_at=now,
         updated_at=now,
@@ -145,7 +163,13 @@ async def patch_definition(
     family_id: str,
     name: str | None,
     description: str | None,
+    scene: dict[str, Any] | None = None,
 ) -> FamilyPackDefinition:
+    """Patch a pack definition.
+
+    V0.6.5 — `scene` is additive: caller passes the new dict to fully
+    replace the stored value, or leaves it `None` to keep the current one.
+    """
     definition = await get_definition_for_family(pack_id=pack_id, family_id=family_id)
 
     if name is not None:
@@ -164,6 +188,9 @@ async def patch_definition(
 
     if description is not None:
         definition.description = description
+
+    if scene is not None:
+        definition.scene = scene
 
     definition.updated_at = _utcnow()
     await definition.save()
@@ -247,11 +274,18 @@ async def get_or_create_draft(
 def _build_entry(
     *, word_id: str, payload: dict[str, Any], custom_prefix: str
 ) -> dict[str, Any]:
+    """Validate + normalise a single draft word entry.
+
+    V0.6.5 — `custom_prefix=""` short-circuits the `fam-<8hex>-` enforcement
+    so admins authoring global packs can use natural ids like `fruit-apple`.
+    The caller (`upsert_draft_word`) passes an empty prefix when the
+    definition's `family_id == GLOBAL_PACK_FAMILY_ID`.
+    """
     source = payload["source"]
     if source == "hidden":
         return {"id": word_id, "hidden": True}
     if source == "custom":
-        if not word_id.startswith(custom_prefix):
+        if custom_prefix and not word_id.startswith(custom_prefix):
             raise InvalidPayload(f"custom id must start with '{custom_prefix}'")
         word = payload.get("word")
         meaning_zh = payload.get("meaning_zh")
@@ -280,7 +314,7 @@ def _build_entry(
                 entry[dst] = value
         return entry
     # source == "global"
-    if word_id.startswith(custom_prefix):
+    if custom_prefix and word_id.startswith(custom_prefix):
         raise InvalidPayload("global source cannot use a `fam-` id")
     # Parent may also override individual fields when sourcing from global.
     entry = {"id": word_id}
@@ -292,6 +326,19 @@ def _build_entry(
         entry["category"] = payload["category"]
     if isinstance(payload.get("difficulty"), int):
         entry["difficulty"] = payload["difficulty"]
+    # V0.6.5 — global packs (admin-authored) frequently carry full metadata
+    # (translations, audio, illustration, distractors). Propagate optional
+    # fields onto the published entry so child clients can render them.
+    for src, dst in (
+        ("distractors", "distractors"),
+        ("example_en", "exampleEn"),
+        ("example_zh", "exampleZh"),
+        ("illustration_url", "illustrationUrl"),
+        ("audio_url", "audioUrl"),
+    ):
+        value = payload.get(src)
+        if value is not None:
+            entry[dst] = value
     return entry
 
 
@@ -315,7 +362,12 @@ async def upsert_draft_word(
             f"draft already at limit {settings.family_pack_max_words}"
         )
 
-    custom_prefix = CustomIdContract(family_id=definition.family_id).prefix
+    if definition.family_id == GLOBAL_PACK_FAMILY_ID:
+        # V0.6.5 — global packs use natural word ids; bypass the fam-prefix
+        # contract so admin authoring stays ergonomic.
+        custom_prefix = ""
+    else:
+        custom_prefix = CustomIdContract(family_id=definition.family_id).prefix
     entry = _build_entry(
         word_id=word_id, payload=payload, custom_prefix=custom_prefix
     )
@@ -378,6 +430,19 @@ async def publish(
     if len(draft.words) > settings.family_pack_max_words:
         raise WordLimitExceeded(definition.pack_id)
 
+    # V0.6.5 — global packs (family_id sentinel) never publish words tagged
+    # with `category=='test'`. Family packs keep the legacy permissive
+    # behaviour because parent-side test categories are intentional study
+    # material on a per-child basis. See spec §11 "test contamination".
+    if definition.family_id == GLOBAL_PACK_FAMILY_ID:
+        snapshot_words = [w for w in draft.words if w.get("category") != "test"]
+        if not snapshot_words:
+            raise EmptyPack(
+                f"global pack {definition.pack_id} has no non-test words"
+            )
+    else:
+        snapshot_words = list(draft.words)
+
     pointer = await FamilyPackPointer.find_one(
         FamilyPackPointer.pack_definition_id == definition.pack_id
     )
@@ -388,7 +453,7 @@ async def publish(
         pack_definition_id=definition.pack_id,
         family_id=definition.family_id,
         version=next_version,
-        words=list(draft.words),
+        words=snapshot_words,
         schema_version=GLOBAL_PACK_SCHEMA_VERSION,
         published_at=now,
         published_by_parent_id=parent_user_id,
@@ -469,6 +534,11 @@ class MergedSlice:
     version: int
     schema_version: int
     words: list[dict[str, Any]]
+    # V0.6.5 — additive fields used by the public global-pack endpoint
+    # (and by the parent merged JSON if it ever wants to render scene/desc).
+    description: str | None = None
+    scene: dict[str, Any] = dataclasses_field(default_factory=dict)
+    published_at: datetime | None = None
 
 
 async def collect_merged(
@@ -515,6 +585,9 @@ async def collect_merged(
                 version=pack.version,
                 schema_version=pack.schema_version,
                 words=list(pack.words),
+                description=definition.description,
+                scene=dict(definition.scene),
+                published_at=pack.published_at,
             )
         )
         pairs.append((pack_id, pack.version))
