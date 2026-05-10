@@ -1,0 +1,34 @@
+{
+  "status": 200,
+  "headers": {
+    "ETag": "\"global-v1\""
+  },
+  "body": {
+    "schema_version": 1,
+    "merged_at": "2026-05-10T12:03:34Z",
+    "packs": [
+      {
+        "pack_id": "space-station",
+        "name": "Space Station",
+        "description": "Space themed practice pack",
+        "scene": {
+          "bgPrimary": "#102A43",
+          "bgAccent": "#F0B429",
+          "bossName": "Star Wizard"
+        },
+        "version": 1,
+        "schema_version": 1,
+        "published_at": "2026-05-10T12:03:34Z",
+        "words": [
+          {
+            "id": "space-star",
+            "word": "star",
+            "meaningZh": "星星",
+            "category": "space",
+            "difficulty": 1
+          }
+        ]
+      }
+    ]
+  }
+}
