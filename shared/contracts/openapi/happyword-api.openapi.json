@@ -117,6 +117,169 @@
         "title": "AudioOut",
         "type": "object"
       },
+      "Body_create_pack_page_parent_packs_post": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Body_create_pack_page_parent_packs_post",
+        "type": "object"
+      },
+      "Body_draft_add_custom_word_parent_packs__pack_id__draft_add_custom_post": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "difficulty": {
+            "title": "Difficulty",
+            "type": "integer"
+          },
+          "example_en": {
+            "default": "",
+            "title": "Example En",
+            "type": "string"
+          },
+          "example_zh": {
+            "default": "",
+            "title": "Example Zh",
+            "type": "string"
+          },
+          "meaning_zh": {
+            "title": "Meaning Zh",
+            "type": "string"
+          },
+          "suffix": {
+            "title": "Suffix",
+            "type": "string"
+          },
+          "word": {
+            "title": "Word",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suffix",
+          "word",
+          "meaning_zh",
+          "category",
+          "difficulty"
+        ],
+        "title": "Body_draft_add_custom_word_parent_packs__pack_id__draft_add_custom_post",
+        "type": "object"
+      },
+      "Body_draft_batch_json_parent_packs__pack_id__draft_batch_json_post": {
+        "properties": {
+          "batch_json": {
+            "title": "Batch Json",
+            "type": "string"
+          }
+        },
+        "required": [
+          "batch_json"
+        ],
+        "title": "Body_draft_batch_json_parent_packs__pack_id__draft_batch_json_post",
+        "type": "object"
+      },
+      "Body_draft_delete_word_parent_packs__pack_id__draft_delete_word_post": {
+        "properties": {
+          "word_id": {
+            "title": "Word Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "word_id"
+        ],
+        "title": "Body_draft_delete_word_parent_packs__pack_id__draft_delete_word_post",
+        "type": "object"
+      },
+      "Body_draft_edit_submit_parent_packs__pack_id__draft_edit_post": {
+        "properties": {
+          "action": {
+            "default": "",
+            "title": "Action",
+            "type": "string"
+          },
+          "category": {
+            "default": "",
+            "title": "Category",
+            "type": "string"
+          },
+          "difficulty": {
+            "default": "",
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "example_en": {
+            "default": "",
+            "title": "Example En",
+            "type": "string"
+          },
+          "example_zh": {
+            "default": "",
+            "title": "Example Zh",
+            "type": "string"
+          },
+          "meaning_zh": {
+            "default": "",
+            "title": "Meaning Zh",
+            "type": "string"
+          },
+          "word": {
+            "default": "",
+            "title": "Word",
+            "type": "string"
+          },
+          "word_id": {
+            "title": "Word Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "word_id"
+        ],
+        "title": "Body_draft_edit_submit_parent_packs__pack_id__draft_edit_post",
+        "type": "object"
+      },
+      "Body_import_image_submit_parent_packs__pack_id__import_post": {
+        "properties": {
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_import_image_submit_parent_packs__pack_id__import_post",
+        "type": "object"
+      },
+      "Body_import_image_to_pack_api_v1_parent_family_packs__pack_id__import_image_post": {
+        "properties": {
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_import_image_to_pack_api_v1_parent_family_packs__pack_id__import_image_post",
+        "type": "object"
+      },
       "Body_import_lesson_api_v1_admin_lessons_import_post": {
         "properties": {
           "image": {
@@ -174,6 +337,17 @@
           "code"
         ],
         "title": "Body_post_verify_code_form_parent_auth_verify_code_post",
+        "type": "object"
+      },
+      "Body_publish_page_parent_packs__pack_id__publish_post": {
+        "properties": {
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          }
+        },
+        "title": "Body_publish_page_parent_packs__pack_id__publish_post",
         "type": "object"
       },
       "Body_scan_words_api_v1_admin_llm_scan_words_post": {
@@ -1354,6 +1528,223 @@
         "title": "FamilyPackDraftOut",
         "type": "object"
       },
+      "FamilyPackDraftWordBatchError": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "row_index": {
+            "title": "Row Index",
+            "type": "integer"
+          },
+          "word_id": {
+            "title": "Word Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row_index",
+          "word_id",
+          "code",
+          "message"
+        ],
+        "title": "FamilyPackDraftWordBatchError",
+        "type": "object"
+      },
+      "FamilyPackDraftWordBatchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/FamilyPackDraftWordBatchRowIn"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "FamilyPackDraftWordBatchIn",
+        "type": "object"
+      },
+      "FamilyPackDraftWordBatchOut": {
+        "properties": {
+          "accepted_count": {
+            "title": "Accepted Count",
+            "type": "integer"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/FamilyPackDraftOut"
+          },
+          "error_count": {
+            "title": "Error Count",
+            "type": "integer"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/FamilyPackDraftWordBatchError"
+            },
+            "title": "Errors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "accepted_count",
+          "error_count",
+          "draft",
+          "errors"
+        ],
+        "title": "FamilyPackDraftWordBatchOut",
+        "type": "object"
+      },
+      "FamilyPackDraftWordBatchRowIn": {
+        "additionalProperties": false,
+        "properties": {
+          "audio_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difficulty"
+          },
+          "distractors": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distractors"
+          },
+          "example_en": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example En"
+          },
+          "example_zh": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example Zh"
+          },
+          "illustration_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Illustration Url"
+          },
+          "meaning_zh": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning Zh"
+          },
+          "source": {
+            "enum": [
+              "global",
+              "custom",
+              "hidden"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "word": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Word"
+          },
+          "word_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Word Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "word_id"
+        ],
+        "title": "FamilyPackDraftWordBatchRowIn",
+        "type": "object"
+      },
       "FamilyPackDraftWordIn": {
         "additionalProperties": false,
         "description": "Body of `PUT /api/v1/parent/family-packs/{id}/draft/words/{word_id}`.\n\n`source` selects the entry shape:\n- `global`: this draft pulls (or re-pulls) a global admin word; only the\n  `id` (the path param) matters; server stores the latest global view.\n- `custom`: parent supplies the full entry. The path `word_id` MUST\n  start with `fam-<family_id_8>-` (validated by the service).\n- `hidden`: parent wants this global id hidden; we persist\n  `{ id: <word_id>, hidden: true }` only.",
@@ -1486,6 +1877,46 @@
           "source"
         ],
         "title": "FamilyPackDraftWordIn",
+        "type": "object"
+      },
+      "FamilyPackImportImageOut": {
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/FamilyPackDraftOut"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/FamilyPackDraftWordBatchError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "imported_count": {
+            "title": "Imported Count",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "source_image_url": {
+            "title": "Source Image Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack_id",
+          "source_image_url",
+          "imported_count",
+          "model",
+          "draft",
+          "errors"
+        ],
+        "title": "FamilyPackImportImageOut",
         "type": "object"
       },
       "FamilyPackListItem": {
@@ -6233,6 +6664,140 @@
         ]
       }
     },
+    "/api/v1/child/packs/latest.json": {
+      "get": {
+        "operationId": "get_child_packs_latest_api_v1_child_packs_latest_json_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "if-none-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Family-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Family-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Child Packs Latest",
+        "tags": [
+          "child-family-pack"
+        ]
+      },
+      "head": {
+        "operationId": "head_child_packs_latest_api_v1_child_packs_latest_json_head",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "if-none-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Family-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Family-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Head Child Packs Latest",
+        "tags": [
+          "child-family-pack"
+        ]
+      }
+    },
     "/api/v1/child/profile": {
       "put": {
         "operationId": "put_self_profile_api_v1_child_profile_put",
@@ -8032,6 +8597,152 @@
           }
         ],
         "summary": "Upsert Draft Word",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/parent/family-packs/{pack_id}/draft/words:batch-upsert": {
+      "post": {
+        "operationId": "batch_upsert_draft_words_api_v1_parent_family_packs__pack_id__draft_words_batch_upsert_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPackDraftWordBatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDraftWordBatchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Batch Upsert Draft Words",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/parent/family-packs/{pack_id}/import-image": {
+      "post": {
+        "operationId": "import_image_to_pack_api_v1_parent_family_packs__pack_id__import_image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_image_to_pack_api_v1_parent_family_packs__pack_id__import_image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackImportImageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Image To Pack",
         "tags": [
           "parent-family-pack"
         ]
@@ -9852,6 +10563,598 @@
         "summary": "Get Login",
         "tags": [
           "parent-web"
+        ]
+      }
+    },
+    "/parent/packs": {
+      "get": {
+        "operationId": "list_packs_page_parent_packs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Packs Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      },
+      "post": {
+        "operationId": "create_pack_page_parent_packs_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_pack_page_parent_packs_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Pack Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/new": {
+      "get": {
+        "operationId": "new_pack_page_parent_packs_new_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "New Pack Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/{pack_id}": {
+      "get": {
+        "operationId": "detail_page_parent_packs__pack_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detail Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/{pack_id}/draft/add-custom": {
+      "post": {
+        "operationId": "draft_add_custom_word_parent_packs__pack_id__draft_add_custom_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_draft_add_custom_word_parent_packs__pack_id__draft_add_custom_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft Add Custom Word",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/{pack_id}/draft/batch-json": {
+      "post": {
+        "operationId": "draft_batch_json_parent_packs__pack_id__draft_batch_json_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_draft_batch_json_parent_packs__pack_id__draft_batch_json_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft Batch Json",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/{pack_id}/draft/delete-word": {
+      "post": {
+        "operationId": "draft_delete_word_parent_packs__pack_id__draft_delete_word_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_draft_delete_word_parent_packs__pack_id__draft_delete_word_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft Delete Word",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/{pack_id}/draft/edit": {
+      "get": {
+        "operationId": "draft_edit_page_parent_packs__pack_id__draft_edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "word_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Word Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft Edit Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      },
+      "post": {
+        "operationId": "draft_edit_submit_parent_packs__pack_id__draft_edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_draft_edit_submit_parent_packs__pack_id__draft_edit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft Edit Submit",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/{pack_id}/import": {
+      "get": {
+        "operationId": "import_page_parent_packs__pack_id__import_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      },
+      "post": {
+        "operationId": "import_image_submit_parent_packs__pack_id__import_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_image_submit_parent_packs__pack_id__import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Image Submit",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/{pack_id}/publish": {
+      "post": {
+        "operationId": "publish_page_parent_packs__pack_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_publish_page_parent_packs__pack_id__publish_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Publish Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/{pack_id}/rollback": {
+      "post": {
+        "operationId": "rollback_pack_page_parent_packs__pack_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rollback Pack Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/parent/packs/{pack_id}/versions": {
+      "get": {
+        "operationId": "versions_page_parent_packs__pack_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Versions Page",
+        "tags": [
+          "parent-packs-html"
         ]
       }
     },

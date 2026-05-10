@@ -54,6 +54,7 @@ from app.routers import parent_api as parent_api_router
 from app.routers import parent_auth as parent_auth_router
 from app.routers import parent_family_pack as parent_family_pack_router
 from app.routers import parent_inbox as parent_inbox_router
+from app.routers import parent_packs_pages as parent_packs_pages_router
 from app.routers import parent_pages as parent_pages_router
 from app.routers import public_global_pack as public_global_pack_router
 from app.routers import public_packs as public_packs_router
@@ -163,6 +164,7 @@ app.include_router(parent_auth_router.router)
 app.include_router(parent_api_router.router)
 app.include_router(parent_family_pack_router.router)
 app.include_router(parent_pages_router.router)
+app.include_router(parent_packs_pages_router.router)
 app.include_router(parent_inbox_router.router)
 app.include_router(parent_inbox_router.html_router)
 app.include_router(parent_account_router.router)

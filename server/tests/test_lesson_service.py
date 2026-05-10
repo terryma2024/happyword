@@ -43,6 +43,13 @@ def test_lesson_system_prompt_mentions_json() -> None:
     )
 
 
+def test_lesson_system_prompt_requests_example_zh() -> None:
+    """Bilingual review in parent UI — prompt should ask for optional ``example_zh``."""
+    assert "example_zh" in lesson_service._LESSON_SYSTEM_PROMPT, (
+        "_LESSON_SYSTEM_PROMPT must request optional `example_zh` per word."
+    )
+
+
 def test_lesson_system_prompt_requests_example_en() -> None:
     """Prompt must keep asking for the per-word ``example_en`` field
     used downstream for cloze (fill-in-the-blank) exercises. Dropping

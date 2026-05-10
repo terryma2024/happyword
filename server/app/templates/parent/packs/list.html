@@ -1,0 +1,25 @@
+{% extends "_base.html" %}
+{% block title %}词库{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header class="flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">词库</h1>
+      <p class="text-sm text-slate-500 mt-1">管理这个家庭自己的课本词库和补充词。</p>
+    </div>
+    <a href="/parent/packs/new" class="text-sm bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded-md font-medium">
+      新建词库
+    </a>
+  </header>
+
+  <section id="packs-list" class="bg-white border border-slate-200 rounded-lg shadow-sm divide-y divide-slate-100">
+    {% if summaries %}
+      {% for summary in summaries %}
+        {% include "partials/pack_row.html" %}
+      {% endfor %}
+    {% else %}
+      <p class="text-sm text-slate-500 p-6">还没有词库。新建一个词库后，可以上传课本图片或手动录入单词。</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

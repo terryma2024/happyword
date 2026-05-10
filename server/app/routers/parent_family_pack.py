@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 
 from app.config import get_settings
 from app.deps import current_parent_user
@@ -18,7 +18,11 @@ from app.schemas.family_pack import (
     FamilyPackDefinitionOut,
     FamilyPackDetailOut,
     FamilyPackDraftOut,
+    FamilyPackDraftWordBatchError,
+    FamilyPackDraftWordBatchIn,
+    FamilyPackDraftWordBatchOut,
     FamilyPackDraftWordIn,
+    FamilyPackImportImageOut,
     FamilyPackListItem,
     FamilyPackListOut,
     FamilyPackPatchIn,
@@ -29,7 +33,9 @@ from app.schemas.family_pack import (
     FamilyPackVersionListItem,
     FamilyPackVersionListOut,
 )
+from app.services import family_pack_import_service
 from app.services import family_pack_service as svc
+from app.services.llm_service import LlmCallError, LlmConfigError
 
 if TYPE_CHECKING:
     from app.models.family_pack_definition import FamilyPackDefinition
@@ -39,6 +45,9 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(prefix="/api/v1/parent/family-packs", tags=["parent-family-pack"])
+
+_MAX_IMAGE_BYTES = 8 * 1024 * 1024
+_ACCEPTED_IMAGE_MIME = frozenset({"image/jpeg", "image/png", "image/webp"})
 
 
 def _serialize_definition(d: FamilyPackDefinition) -> FamilyPackDefinitionOut:
@@ -296,6 +305,104 @@ async def delete_draft_word(
 
 
 @router.post(
+    "/{pack_id}/draft/words:batch-upsert",
+    response_model=FamilyPackDraftWordBatchOut,
+)
+async def batch_upsert_draft_words(
+    pack_id: str,
+    body: FamilyPackDraftWordBatchIn,
+    response: Response,
+    user: User = Depends(current_parent_user),
+) -> FamilyPackDraftWordBatchOut:
+    family_id = user.family_id or ""
+    definition = await _load_definition_or_404(pack_id, family_id)
+    rows = [row.model_dump() for row in body.rows]
+    draft, errors = await svc.batch_upsert_draft_words(
+        definition=definition,
+        rows=rows,
+        parent_user_id=user.username,
+    )
+    response.status_code = (
+        status.HTTP_207_MULTI_STATUS if errors else status.HTTP_200_OK
+    )
+    return FamilyPackDraftWordBatchOut(
+        accepted_count=len(rows) - len(errors),
+        error_count=len(errors),
+        draft=_serialize_draft(draft),
+        errors=[FamilyPackDraftWordBatchError(**e) for e in errors],
+    )
+
+
+@router.post(
+    "/{pack_id}/import-image",
+    response_model=FamilyPackImportImageOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_image_to_pack(
+    pack_id: str,
+    image: UploadFile = File(...),
+    user: User = Depends(current_parent_user),
+) -> FamilyPackImportImageOut:
+    mime = (image.content_type or "").lower()
+    if mime not in _ACCEPTED_IMAGE_MIME:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail={
+                "error": {
+                    "code": "UNSUPPORTED_MEDIA_TYPE",
+                    "message": f"Unsupported image type {mime!r}",
+                }
+            },
+        )
+    payload = await image.read()
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "EMPTY_BODY", "message": "Uploaded image is empty"}},
+        )
+    if len(payload) > _MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail={
+                "error": {
+                    "code": "IMAGE_TOO_LARGE",
+                    "message": f"Image is {len(payload)} bytes",
+                }
+            },
+        )
+
+    definition = await _load_definition_or_404(pack_id, user.family_id or "")
+    try:
+        source_image_url, model_name, imported_count, draft, errors = (
+            await family_pack_import_service.import_image_to_draft(
+                definition=definition,
+                payload=payload,
+                mime=mime,
+                parent_user_id=user.username,
+            )
+        )
+    except LlmConfigError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": {"code": "LLM_NOT_CONFIGURED", "message": str(exc)}},
+        ) from exc
+    except LlmCallError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"error": {"code": "LLM_CALL_FAILED", "message": str(exc)}},
+        ) from exc
+
+    return FamilyPackImportImageOut(
+        pack_id=pack_id,
+        source_image_url=source_image_url,
+        imported_count=imported_count,
+        model=model_name,
+        draft=_serialize_draft(draft),
+        errors=[FamilyPackDraftWordBatchError(**e) for e in errors],
+    )
+
+
+@router.post(
     "/{pack_id}/publish",
     response_model=FamilyPackPublishOut,
     status_code=status.HTTP_201_CREATED,
@@ -317,6 +424,17 @@ async def publish_pack(
         raise _conflict(
             "WORD_LIMIT_EXCEEDED",
             f"Pack exceeds {get_settings().family_pack_max_words}-word cap",
+        ) from exc
+    except svc.DraftValidationFailed as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": {
+                    "code": exc.code,
+                    "message": str(exc),
+                    "rows": exc.errors,
+                }
+            },
         ) from exc
     return FamilyPackPublishOut(
         pack_id=pack_id,

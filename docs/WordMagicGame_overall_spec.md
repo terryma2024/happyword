@@ -732,6 +732,9 @@ Idle ──[家长 PIN 通过]──> Confirmed
 | `admin_stats.py`      | `/api/v1/admin`              | `GET /stats`                                                                        |
 | `family_packs.py`（V0.6 + V0.6.5）   | `/api/v1/family/{family_id}/family-packs` | `GET /latest.json`（家长 / 设备 token，ETag/304）+ `POST` 上传 / `PATCH` 编辑 / `POST /{pack_id}/publish` / `DELETE` |
 | `parent_account.py` 等 V0.6 路由 | `/api/v1/parent/**` | 家长账户：注册 / 登录 / 设备绑定 / 短码 + QR 兑换 / 解绑 |
+| `parent_family_pack.py`（V0.8.1） | `/api/v1/parent/family-packs` | 原有 family pack CRUD / draft / publish；**增量** `POST /{pack_id}/draft/words:batch-upsert`、`POST /{pack_id}/import-image`（multipart，写入草稿） |
+| `child_family_pack.py`（V0.8.1） | `/api/v1/child` | `GET/HEAD /family-packs/latest.json`（仅 family 合并，沿用 V0.6.3）；**新增** `GET/HEAD /packs/latest.json`（global + family 合并，`ChildPacksMergedOut`，可选 `X-Family-Id` → `403 TENANT_MISMATCH`） |
+| `parent_packs_pages.py`（V0.8.1） | `/parent/packs` | 家长 Web 词库工作台 HTML（cookie 软跳转登录）；导入表单直传 `import-image` API |
 | `legacy_route_aliases.py`（V0.6.5）  | —                          | 把 V0.6.5 之前不合规的旧路径以 `include_in_schema=False` 别名重定向到 `/api/v1/{admin,public,family}/**` 新路径，保留旧 URL 给现有客户端 |
 
 > **V0.5.8 起所有 `admin_*` 路由不再要求 JWT bearer**：`Depends(current_admin_user)` 统一移除，家长设备直接调用。代价是单个家庭的设备目前都看到全局数据；V0.6 + V0.6.5 计划用家长账户 / family_id 做行级隔离（家长 / 设备 token 已经在 `/api/v1/family/{family_id}/**` 上线，admin 路由的鉴权重接入留给后续版本）。

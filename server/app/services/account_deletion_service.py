@@ -282,12 +282,39 @@ async def export_account_data(
     inbox = await ParentInboxMsg.find(
         ParentInboxMsg.parent_user_id == user.username
     ).to_list()
+
+    pack_defs: list[FamilyPackDefinition] = []
+    pack_pointers: list[FamilyPackPointer] = []
+    pack_drafts: list[FamilyPackDraft] = []
+    published_packs: list[FamilyWordPack] = []
+    if family_id:
+        pack_defs = await FamilyPackDefinition.find(
+            FamilyPackDefinition.family_id == family_id
+        ).to_list()
+        pack_pointers = await FamilyPackPointer.find(
+            FamilyPackPointer.family_id == family_id
+        ).to_list()
+        pack_drafts = await FamilyPackDraft.find(
+            FamilyPackDraft.family_id == family_id
+        ).to_list()
+        published_packs = await FamilyWordPack.find(
+            FamilyWordPack.family_id == family_id
+        ).to_list()
+
     snapshot: dict[str, list[dict[str, object]]] = {
         "child_profiles": [_profile_dict(p) for p in profiles],
         "device_bindings": [_binding_dict(b) for b in bindings],
         "wishlist_items": [_wishlist_dict(w) for w in wishlist],
         "redemption_requests": [_redemption_dict(r) for r in redemptions],
         "inbox_messages": [_inbox_dict(m) for m in inbox],
+        "family_pack_definitions": [
+            _family_pack_definition_dict(d) for d in pack_defs
+        ],
+        "family_pack_pointers": [_family_pack_pointer_dict(p) for p in pack_pointers],
+        "family_pack_drafts": [_family_pack_draft_dict(d) for d in pack_drafts],
+        "family_pack_published_snapshots": [
+            _family_word_pack_dict(w) for w in published_packs
+        ],
     }
     return snapshot
 
@@ -338,4 +365,52 @@ def _inbox_dict(m: ParentInboxMsg) -> dict[str, object]:
         "title": m.title,
         "body_md": m.body_md,
         "created_at": m.created_at.isoformat(),
+    }
+
+
+def _family_pack_definition_dict(d: FamilyPackDefinition) -> dict[str, object]:
+    return {
+        "pack_id": d.pack_id,
+        "family_id": d.family_id,
+        "name": d.name,
+        "description": d.description,
+        "scene": dict(d.scene),
+        "state": d.state.value,
+        "created_at": d.created_at.isoformat(),
+        "updated_at": d.updated_at.isoformat(),
+        "archived_at": d.archived_at.isoformat() if d.archived_at else None,
+        "created_by_parent_id": d.created_by_parent_id,
+    }
+
+
+def _family_pack_pointer_dict(p: FamilyPackPointer) -> dict[str, object]:
+    return {
+        "pack_definition_id": p.pack_definition_id,
+        "family_id": p.family_id,
+        "current_version": p.current_version,
+        "previous_version": p.previous_version,
+        "updated_at": p.updated_at.isoformat(),
+    }
+
+
+def _family_pack_draft_dict(d: FamilyPackDraft) -> dict[str, object]:
+    return {
+        "pack_definition_id": d.pack_definition_id,
+        "family_id": d.family_id,
+        "words": list(d.words),
+        "updated_at": d.updated_at.isoformat(),
+        "updated_by_parent_id": d.updated_by_parent_id,
+    }
+
+
+def _family_word_pack_dict(w: FamilyWordPack) -> dict[str, object]:
+    return {
+        "pack_definition_id": w.pack_definition_id,
+        "family_id": w.family_id,
+        "version": w.version,
+        "schema_version": w.schema_version,
+        "words": list(w.words),
+        "published_at": w.published_at.isoformat(),
+        "published_by_parent_id": w.published_by_parent_id,
+        "notes": w.notes,
     }
