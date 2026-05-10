@@ -12,7 +12,6 @@ import { CloudSyncService } from '../services/CloudSyncService';
 import { CloudWishlistService } from '../services/CloudWishlistService';
 import { ParentRedemptionPoll } from '../services/ParentRedemptionPoll';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
-import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { initBackendEnvPrefs } from '../services/BackendEnv';
 import { initPreviewManifestService } from '../services/PreviewManifestService';
 import { StringPreferencesLike } from '../services/WrongAnswerStore';
@@ -80,19 +79,23 @@ export default class EntryAbility extends UIAbility {
       .catch((err: BusinessError): void => {
         hilog.warn(DOMAIN, 'testTag', 'DeviceIdProvider.warmup failed: %{public}s', JSON.stringify(err));
       });
-    // V0.6.4: assemble the cloud-sync companion and attach it to the
-    // singleton recorder so flushNow / aboutToDisappear / onBackground
-    // can fire-and-forget without re-discovering credentials.
-    this.installCloudSync(this.context).catch((err: BusinessError): void => {
-      hilog.warn(DOMAIN, 'testTag', 'CloudSync wiring failed: %{public}s', JSON.stringify(err));
-    });
-    // V0.6.6: pre-build the cloud wishlist + redemption poller so the
-    // redemption overlay survives navigation. The poller stays idle
-    // until onForeground starts it.
-    this.installCloudWishlist(this.context).catch((err: BusinessError): void => {
-      hilog.warn(DOMAIN, 'testTag', 'CloudWishlist wiring failed: %{public}s', JSON.stringify(err));
-    });
-    initBackendEnvPrefs(this.context).catch((err: BusinessError): void => {
+    // Backend env prefs MUST load before CloudSync / CloudWishlist wiring —
+    // otherwise `effectiveServerBaseUrl()` reads empty AppStorage on cold
+    // start and both services pin staging forever (Preview DevMenu ignored).
+    initBackendEnvPrefs(this.context).then((): void => {
+      // V0.6.4: assemble the cloud-sync companion and attach it to the
+      // singleton recorder so flushNow / aboutToDisappear / onBackground
+      // can fire-and-forget without re-discovering credentials.
+      this.installCloudSync(this.context).catch((err: BusinessError): void => {
+        hilog.warn(DOMAIN, 'testTag', 'CloudSync wiring failed: %{public}s', JSON.stringify(err));
+      });
+      // V0.6.6: pre-build the cloud wishlist + redemption poller so the
+      // redemption overlay survives navigation. The poller stays idle
+      // until onForeground starts it.
+      this.installCloudWishlist(this.context).catch((err: BusinessError): void => {
+        hilog.warn(DOMAIN, 'testTag', 'CloudWishlist wiring failed: %{public}s', JSON.stringify(err));
+      });
+    }).catch((err: BusinessError): void => {
       hilog.warn(DOMAIN, 'testTag', 'BackendEnv init failed: %{public}s', JSON.stringify(err));
     });
     initPreviewManifestService(this.context).catch((err: BusinessError): void => {
@@ -109,7 +112,7 @@ export default class EntryAbility extends UIAbility {
       recorder,
       creds,
       new RealParentFetchAdapter(),
-      effectiveServerBaseUrl(),
+      (): string => CloudSyncService.defaultBaseUrlResolver(),
     );
     try {
       const handle: preferences.Preferences = await preferences.getPreferences(ctx, SYNC_PREFS_NAME);
@@ -127,7 +130,7 @@ export default class EntryAbility extends UIAbility {
     const svc: CloudWishlistService = new CloudWishlistService(
       creds,
       new RealParentFetchAdapter(),
-      effectiveServerBaseUrl(),
+      (): string => CloudWishlistService.defaultBaseUrlResolver(),
     );
     try {
       const handle: preferences.Preferences = await preferences.getPreferences(
