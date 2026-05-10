@@ -6,8 +6,6 @@ import reviewModeUiTest from './ReviewMode.ui.test';
 import magicAttackUiTest from './MagicAttack.ui.test';
 import adventureFlowUiTest from './AdventureFlow.ui.test';
 import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
-import homeVersionTapUiTest from './HomeVersionTap.ui.test';
-import devMenuCardListUiTest from './DevMenuCardList.ui.test';
 import fillLetterFlowUiTest from './FillLetterFlow.ui.test';
 import spellQuestionFlowUiTest from './SpellQuestionFlow.ui.test';
 import monsterCodexFlowUiTest from './MonsterCodexFlow.ui.test';
@@ -66,37 +64,31 @@ export default function testsuite() {
   // surfaced when recentWrongCount < 3, which would silently flip to
   // navigation once the recorder has accrued ≥3 wrongs.
   homeToolbarLockedUiTest();
-  // V0.6: debug-only version label + triple-tap → DevMenu navigation.
-  // Order-independent: these tests press Back at the tail so HomePage
-  // is reachable for the next suite. Placed right after
-  // homeToolbarLockedUiTest because both are "home toolbar / top
-  // chrome" smoke tests and grouping them surfaces top-screen
-  // regressions early.
-  homeVersionTapUiTest();
-  // V0.6: DevMenuPage unified card grid (Local / Staging / previews).
-  // Tap-to-apply; manifest GET uses PREVIEW_MANIFEST_JSON_URL only (not the mock base URL).
-  devMenuCardListUiTest();
+  // DevMenuPage + version-label triple-tap are intentionally NOT in ohosTest —
+  // developer data/env tooling; validate manually on debug builds (see
+  // `.cursor/dev-commands.md` §4).
   // MonsterCodexFlow is order-independent: the codex page reads only
   // a frozen static array (MONSTER_CODEX) and does not touch the
-  // recorder. Runs second to surface failures fast — codex regressions
-  // shouldn't be hidden behind 6+ minutes of unrelated suites.
+  // recorder. Runs early to surface failures fast — codex regressions
+  // shouldn't be hidden behind long unrelated suites.
   monsterCodexFlowUiTest();
   routingFlowUiTest();
   critSpectacleUiTest();
   speakerButtonUiTest();
   reviewModeUiTest();
   magicAttackUiTest();
-  adventureFlowUiTest();
-  // FillLetterFlow taps correct answers driven by a static catalog
-  // map (see the file's header comment) so it stays deterministic
-  // even after earlier suites populated the LearningRecorder. Runs
-  // last so any monster-defeated stat seeded here does not pollute
-  // the assumptions the other suites bake in.
+  // FillLetterFlow / SpellQuestionFlow must run BEFORE AdventureFlow.
+  // AdventureFlow completes today's adventure session (todayCompleted /
+  // plan consumption); FillLetter's generator assumes the fruit-forest
+  // spelling prompts still match the bundled words_v1-derived catalog in
+  // the test file — after a full adventure, slot patterns can drift or
+  // wordForPattern() fails to resolve (hypium: singleLetterFill…).
   fillLetterFlowUiTest();
   // V0.4.1: drives a Boss Spell question end-to-end on the same
   // fruit-forest plan as FillLetterFlow. Reuses the static zh→en
   // catalog so the suite stays deterministic.
   spellQuestionFlowUiTest();
+  adventureFlowUiTest();
   // V0.4.4: read-only daily plan page. Navigation-only test —
   // verifies HomePlanButton → TodayPlanPage → back works and the
   // page renders its essential ids. Order-independent vs the

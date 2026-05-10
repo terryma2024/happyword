@@ -87,6 +87,8 @@ Run **after** the HAP build step succeeds. Uses the Harmony project’s `harmony
 
 **Scope:** `harmonyos/entry/src/ohosTest/**`, UiTest / Instrument as configured in `entry` target `ohosTest`.
 
+**DevMenu / developer tooling (policy):** Do **not** add or register Hypium coverage for `DevMenuPage`, the debug **version-label triple-tap** entry path, preview-manifest cards, or other backend-env switching UI. These are **manual QA on debug builds** only (`Settings → Developer → Backend environment` / triple-tap). Keep them out of `List.test.ets` so CI stays stable and does not depend on manifest fetch or triple-tap timing.
+
 | Step | Command | Success signal |
 |------|---------|----------------|
 | Install HAP | `hdc install harmonyos/entry/build/default/outputs/default/entry-default-signed.hap` | Install success in hdc output |

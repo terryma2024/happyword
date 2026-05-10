@@ -14,6 +14,9 @@
 #   6. Run `hdc shell aa test ...` (the standard ohosTest entry).
 #   7. Always tear down: kill the mock server, drop the rport mapping.
 #
+# DevMenu / triple-tap developer tooling is not covered here — manual QA on
+# debug builds only (see .cursor/dev-commands.md §4).
+#
 # Usage:
 #   scripts/run_ui_tests.sh                  # run with already-built HAPs
 #   scripts/run_ui_tests.sh --rebuild        # rebuild + reinstall first
