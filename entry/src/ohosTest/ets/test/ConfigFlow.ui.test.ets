@@ -7,51 +7,216 @@ const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
+// V0.6.7.7: timer-cleanup id used by the custom-dialog tests below
+// to restore the canonical 5m default after touching the timer state.
+// The corresponding chip preset ('5m' = 300s) is rendered by
+// `pages/ConfigPage.timerRow` for every TIMER_CHOICES entry.
+const DEFAULT_TIMER_CHIP_ID: string = 'ConfigTimer300s';
+
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function openConfig(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeConfigButton');
-  await driver.delayMs(1500);
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
  * V0.6.5.1: scroll iteratively until ConfigParentPinButton is on
- * screen. The 📦 packPickerSection between autoSpeak and parentPin
- * can require multiple swipes on the landscape emulator viewport.
+ * screen. The packPickerSection between autoSpeak and parentPin can
+ * require multiple swipes on the landscape emulator viewport.
+ *
+ * V0.6.7.7 — strengthen the visibility check. Pre-V0.6.7.7 this
+ * helper exited on the first non-null `findComponent`, which on the
+ * emulator returns the button even when its visible bounds are a
+ * 25-pixel sliver at Y ≈ 1235 (the button is rendered, but most of
+ * it is clipped by the Scroll viewport that ends at Y = 1260). Tap
+ * coordinates derived from those clipped bounds land at the very
+ * bottom of the screen and the system rejects them — every test
+ * that depends on ConfigParentPinButton (the three pin-setup flows
+ * below) then fails to navigate. We now keep swiping while the
+ * button's reported bottom is within VIEWPORT_EDGE_PADDING of the
+ * dump's vertical extent, which is robust against the leftover
+ * cloud-sync-row state from prior pack-binding suites that pushes
+ * the button further down.
  */
 async function scrollToParentPinButton(driver: Driver): Promise<void> {
-  for (let attempt: number = 0; attempt < 5; attempt++) {
-    const btn: Component | null =
-      await driver.findComponent(ON.id('ConfigParentPinButton'));
-    if (btn !== null) {
-      return;
+  // The OpenHarmony emulator dumps land button bounds as a 25-pixel
+  // clipped slice (Y top = ~1235, Y bottom = 1260) when the row is
+  // pinned to the very bottom of the visible Scroll. 100px padding
+  // guarantees the button has enough hit-test margin.
+  const VIEWPORT_EDGE_PADDING: number = 100;
+  try {
+    for (let attempt: number = 0; attempt < 6; attempt++) {
+      const btn: Component | null =
+        await driver.findComponent(ON.id('ConfigParentPinButton'));
+      if (btn !== null) {
+        const boundsRect = await btn.getBounds();
+        // `getBounds` returns the in-tree (clipped) bounds; if the
+        // bottom edge sits within the padding distance from the
+        // dump's vertical extent (the visible viewport ends at the
+        // largest reported Y), the button is partially clipped and
+        // we need to keep scrolling. Use a generous heuristic — the
+        // total clipped height — instead of a hard-coded viewport
+        // height because the emulator size can shift across runs.
+        const heightPx: number = boundsRect.bottom - boundsRect.top;
+        if (heightPx >= VIEWPORT_EDGE_PADDING) {
+          return;
+        }
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
     }
-    await driver.swipe(1400, 1100, 1400, 300, 600);
-    await driver.delayMs(300);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
-  await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
-  await driver.delayMs(80);
+  try {
+    await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
+    await driver.delayMs(80);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/**
+ * V0.6.7.7: drive the 自定义 timer dialog end-to-end. Caller is
+ * responsible for already being on `ConfigPage` (the 自定义 button
+ * lives in the timer row near the top of the form, so no scroll is
+ * needed on the landscape emulator viewport). On return the page is
+ * still ConfigPage with the chosen seconds applied to the @State
+ * draft — caller must tap `ConfigSaveButton` separately to persist.
+ *
+ * The numeric IME pops up over the 确定 button on the emulator the
+ * same way it does for `ScanBindingPage` / `EditChildNicknameDialog`,
+ * so we dismiss it with `pressBack()` after typing before clicking
+ * the confirm button.
+ */
+async function setCustomTimerSeconds(driver: Driver, seconds: number): Promise<void> {
+  try {
+    await driver.assertComponentExist(ON.id('ConfigTimerCustom'));
+    await clickByIdShared(driver, 'ConfigTimerCustom');
+    await driver.delayMs(600);
+    await driver.assertComponentExist(ON.id('CustomTimerDialog'));
+    await driver.assertComponentExist(ON.id('CustomTimerDialogInput'));
+    const input: Component =
+      await driver.findComponent(ON.id('CustomTimerDialogInput'));
+    // `inputText` replaces existing content per the platform
+    // contract documented in CustomWishlistFlow.typeInto. The dialog
+    // pre-populates the field with the live `draft.startingSeconds`
+    // (e.g. "300" on a fresh launch), so a plain inputText call
+    // overwrites that with the desired value.
+    await input.inputText(`${seconds}`);
+    await driver.delayMs(300);
+    // Numeric IME hides the 确定 button on the narrow landscape
+    // viewport — drop it before tapping confirm.
+    await driver.pressBack();
+    await driver.delayMs(500);
+    await clickByIdShared(driver, 'CustomTimerDialogConfirmButton');
+    await driver.delayMs(700);
+    // Belt-and-suspenders: poll until the dialog is gone before the
+    // caller goes on to tap ConfigSaveButton.
+    for (let i: number = 0; i < 10; i++) {
+      const dlg: Component | null =
+        await driver.findComponent(ON.id('CustomTimerDialog'));
+      if (dlg === null) {
+        return;
+      }
+      await driver.delayMs(200);
+    }
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/**
+ * V0.6.7.7: scroll the ConfigPage Scroll until ConfigSaveButton is
+ * visible and tap it. Mirrors `tapConfigCancelShared`'s defensive
+ * "swipe up to 3 times then pressBack as last resort" loop, but
+ * targets the 保存 button instead of 取消. Necessary because the
+ * Save / Cancel row sits below the form fold on the narrow landscape
+ * viewport (especially when the device is bound, which adds the
+ * AssetStoreKit warning + 学习记录 row).
+ */
+async function tapConfigSaveButton(driver: Driver): Promise<void> {
+  try {
+    for (let attempt: number = 0; attempt < 4; attempt++) {
+      const comp: Component | null =
+        await driver.findComponent(ON.id('ConfigSaveButton'));
+      if (comp !== null) {
+        await comp.click();
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
+    }
+    // Fallback: a stale Scroll position can leave Save permanently
+    // off-screen on the emulator. Surface a clear error rather than
+    // silently pressBack — pressBack would discard the test's edits.
+    throw new Error('ConfigSaveButton remained off-screen after 4 swipes');
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/**
+ * V0.6.7.7: cleanup helper. After a custom-timer test we restore the
+ * canonical 5m chip + 保存 so subsequent suites running in the same
+ * `aa test` invocation see the expected default battle length. Mirrors
+ * the defensive try/finally pattern in PackManagerFlow's pack-toggle
+ * tests.
+ *
+ * Caller can be anywhere in the navigation tree; the helper drives
+ * Home → Config → tap chip → 保存 → Home itself, including IME
+ * dismissal for emulator robustness.
+ */
+async function restoreDefaultTimerChip(driver: Driver): Promise<void> {
+  try {
+    await returnToHome(driver);
+    await openConfig(driver);
+    await driver.assertComponentExist(ON.id(DEFAULT_TIMER_CHIP_ID));
+    await clickByIdShared(driver, DEFAULT_TIMER_CHIP_ID);
+    await driver.delayMs(300);
+    await tapConfigSaveButton(driver);
+    await driver.delayMs(800);
+    await returnToHome(driver);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -71,7 +236,7 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
  * the AppStorage state.
  */
 export default function configFlowUiTest(): void {
-  describe('ConfigFlowV039', () => {
+  describe('ConfigFlow', () => {
     it('configParentPinButtonNavigatesToSetupPage', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
@@ -147,6 +312,137 @@ export default function configFlowUiTest(): void {
       await tapConfigCancelShared(driver);
       await driver.delayMs(600);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      done();
+    });
+
+    /**
+     * V0.6.7.7: 自定义 timer dialog flow — open the dialog from the
+     * timer row, type a 3-second value, confirm, and verify that the
+     * chip label flips to `✓自定义 (3s)`. Saves the config and re-
+     * opens ConfigPage to confirm the value persisted into the
+     * AppStorage / preferences layer (sanitizeTimer no longer
+     * snap-rounds custom seconds to a TIMER_CHOICES preset post-
+     * V0.6.7.7).
+     *
+     * Cleanup restores the default 5m chip in a `finally` so the test
+     * is order-independent — without this, downstream battle suites
+     * (RoutingFlow.mainFlow_homeBattleResultHome) would inherit the 3s
+     * timer and time out before their first `BattleOptionA` tap.
+     */
+    it('customTimerDialogAcceptsThreeSecondsAndUpdatesChip', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+
+      let didTouchTimer: boolean = false;
+      try {
+        await openConfig(driver);
+        await setCustomTimerSeconds(driver, 3);
+        didTouchTimer = true;
+
+        // Custom button now reads `✓自定义 (3s)`.
+        const customBtn: Component =
+          await driver.findComponent(ON.id('ConfigTimerCustom'));
+        const label: string = await customBtn.getText();
+        expect(label.indexOf('✓自定义') >= 0).assertTrue();
+        expect(label.indexOf('3s') >= 0).assertTrue();
+
+        // Preset chips must NOT be highlighted; verify by reading the
+        // 30s chip's text — without `✓` it was just `30s`.
+        const chip30: Component =
+          await driver.findComponent(ON.id('ConfigTimer30s'));
+        const chip30Text: string = await chip30.getText();
+        expect(chip30Text.indexOf('✓') < 0).assertTrue();
+
+        // Save and pop back to Home. ConfigSaveButton is below the
+        // form fold on a narrow landscape viewport, so use the
+        // swipe-then-tap helper rather than a bare clickByIdShared.
+        await tapConfigSaveButton(driver);
+        await driver.delayMs(800);
+        await driver.assertComponentExist(ON.id('HomeStartButton'));
+
+        // Re-open ConfigPage; the custom button should still show 3s
+        // since `GameConfigPersistence.sanitizeTimer` now leaves
+        // arbitrary values in `[TIMER_CUSTOM_MIN, TIMER_CUSTOM_MAX]`
+        // alone. A regression that re-introduced the snap-to-chip
+        // behaviour from <V0.6.7.7 would surface here as a "30s"
+        // (nearest chip) label.
+        await openConfig(driver);
+        await driver.assertComponentExist(ON.id('ConfigTimerCustom'));
+        const customBtn2: Component =
+          await driver.findComponent(ON.id('ConfigTimerCustom'));
+        const label2: string = await customBtn2.getText();
+        expect(label2.indexOf('3s') >= 0).assertTrue();
+
+        await tapConfigCancelShared(driver);
+        await driver.delayMs(600);
+        await driver.assertComponentExist(ON.id('HomeStartButton'));
+      } finally {
+        if (didTouchTimer) {
+          try {
+            await restoreDefaultTimerChip(driver);
+          } catch (_err) {
+            // Best-effort cleanup; if the suite is already failing
+            // we don't want the cleanup itself to hide the original
+            // assertion failure.
+          }
+        }
+      }
+      done();
+    });
+
+    /**
+     * V0.6.7.7: validation path — typing a non-numeric value into the
+     * custom dialog should surface `CustomTimerDialogError` and leave
+     * the dialog open (no implicit close). Mirrors the validator unit
+     * tests in `entry/src/test/CustomTimerDialog.test.ets` but ensures
+     * the @State wiring inside the @CustomDialog struct surfaces the
+     * error to the live UI (a regression where `errorMessage` was
+     * cleared too eagerly would only surface here).
+     *
+     * Uses `0` as the rejected value rather than letters because the
+     * numeric IME makes alphabetic input awkward; both still hit the
+     * same error path (`'最少 1 秒'` / `'请输入正整数秒数'`).
+     */
+    it('customTimerDialogRejectsZeroAndKeepsDialogOpen', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+
+      try {
+        await openConfig(driver);
+        await driver.assertComponentExist(ON.id('ConfigTimerCustom'));
+        await clickByIdShared(driver, 'ConfigTimerCustom');
+        await driver.delayMs(600);
+        await driver.assertComponentExist(ON.id('CustomTimerDialog'));
+
+        const input: Component =
+          await driver.findComponent(ON.id('CustomTimerDialogInput'));
+        await input.inputText('0');
+        await driver.delayMs(300);
+        await driver.pressBack();
+        await driver.delayMs(500);
+        await clickByIdShared(driver, 'CustomTimerDialogConfirmButton');
+        await driver.delayMs(700);
+
+        // The dialog must still be on screen (no close on validation
+        // failure) and the error message must be visible.
+        await driver.assertComponentExist(ON.id('CustomTimerDialog'));
+        await driver.assertComponentExist(ON.id('CustomTimerDialogError'));
+
+        // Cancel out of the dialog without submitting.
+        await clickByIdShared(driver, 'CustomTimerDialogCancelButton');
+        await driver.delayMs(500);
+        const dialogGone: Component | null =
+          await driver.findComponent(ON.id('CustomTimerDialog'));
+        expect(dialogGone === null).assertTrue();
+
+        // Cancel out of ConfigPage without saving so we don't
+        // accidentally persist any previously-set value.
+        await tapConfigCancelShared(driver);
+        await driver.delayMs(600);
+        await driver.assertComponentExist(ON.id('HomeStartButton'));
+      } catch (err) {
+        throw err as Error;
+      }
       done();
     });
 

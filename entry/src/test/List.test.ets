@@ -40,6 +40,7 @@ import parentRedemptionPollTest from './ParentRedemptionPoll.test';
 import deviceUnbindClientTest from './DeviceUnbindClient.test';
 import childProfileApiClientTest from './ChildProfileApiClient.test';
 import editChildNicknameDialogTest from './EditChildNicknameDialog.test';
+import customTimerDialogTest from './CustomTimerDialog.test';
 import photoPickerServiceTest from './PhotoPickerService.test';
 import barcodeImageDecoderTest from './BarcodeImageDecoder.test';
 import versionTripleTapTest from './VersionTripleTap.test';
@@ -94,6 +95,7 @@ export default function testsuite() {
   deviceUnbindClientTest();
   childProfileApiClientTest();
   editChildNicknameDialogTest();
+  customTimerDialogTest();
   photoPickerServiceTest();
   barcodeImageDecoderTest();
   versionTripleTapTest();

@@ -272,7 +272,7 @@ struct PackManagerPage {
         .id('PackManagerStatus')
         .fontSize(14).fontColor('#6B7280');
       Blank().layoutWeight(1);
-      Text('开关：切换激活 · 固定：防止满分自动轮换')
+      Text('固定：防止满分自动轮换 · 开关：切换激活')
         .fontSize(12).fontColor('#9CA3AF');
     }
     .width('100%')

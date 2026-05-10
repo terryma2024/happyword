@@ -11,6 +11,7 @@ import {
   cloneGameConfig
 } from '../models/GameConfig';
 import { ParentPinDialog } from '../components/ParentPinDialog';
+import { CustomTimerDialog } from '../components/CustomTimerDialog';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
@@ -60,6 +61,11 @@ struct ConfigPage {
   @State private cloudSyncToastText: string = '';
   private cloudCreds: CloudCredentials = new CloudCredentials();
   private adminPinDialog: CustomDialogController | null = null;
+  // V0.6.7.7: 自定义 timer dialog controller. Created lazily on first
+  // tap so the @State `draft.startingSeconds` snapshot fed into the
+  // dialog reflects the live value, not whatever was on screen during
+  // aboutToAppear. See `openCustomTimerDialog` for the wiring.
+  private customTimerDialog: CustomDialogController | null = null;
   /**
    * V0.6.7 — pack-picker entry row state. The inline picker moved to
    * `pages/PackManagerPage`; here we only need the active count to
@@ -422,7 +428,7 @@ struct ConfigPage {
 
   private onSave(): void {
     // V0.6.6: ConfigPage no longer owns the word pool, so there is no
-    // pool-size validation. The pack picker (📦 我的词包) enforces
+    // pool-size validation. The pack picker (我的词包) enforces
     // its own min/max active-set rules; on save we just persist the
     // battle knobs.
     const storedNow: GameConfig | undefined =
@@ -495,24 +501,88 @@ struct ConfigPage {
     return this.draft.startingSeconds === seconds ? `✓${base}` : base;
   }
 
+  /**
+   * V0.6.7.7: the 自定义 button is "selected" whenever
+   * `draft.startingSeconds` is NOT one of the four preset chips. Its
+   * label echoes the live custom value (e.g. `✓自定义 (3s)`) so the
+   * parent can see at a glance what was dialled in without re-opening
+   * the dialog. Same `✓` prefix convention as the preset chips so UI
+   * tests can read selection state via `getText()`.
+   */
+  private isCustomTimer(): boolean {
+    return TIMER_CHOICES.indexOf(this.draft.startingSeconds) < 0;
+  }
+
+  private customTimerButtonLabel(): string {
+    if (this.isCustomTimer()) {
+      return `✓自定义 (${this.timerLabel(this.draft.startingSeconds)})`;
+    }
+    return '自定义';
+  }
+
   @Builder
   private timerRow() {
     Row() {
       Text('倒计时').fontSize(18).width(120);
       Row({ space: 8 }) {
+        // V0.6.7.7: chips dropped the old `width(64)` because at
+        // fontSize(16) the active prefix `✓` plus a 3-char body like
+        // `5m` / `10m` overflowed and rendered as `✓...` / `1...`.
+        // Padding-based intrinsic sizing (matching the 自定义 button
+        // below) lets every chip take exactly the room its label
+        // needs while keeping the row compact.
         ForEach(TIMER_CHOICES, (sec: number) => {
           Button(this.timerChipLabel(sec))
             .id(this.timerChipId(sec))
-            .width(64).height(40)
+            .height(40)
+            .padding({ left: 12, right: 12 })
             .fontSize(16)
             .backgroundColor(this.draft.startingSeconds === sec ? '#FFB400' : '#EAF2F8')
             .fontColor(this.draft.startingSeconds === sec ? '#FFFFFF' : '#457B9D')
             .onClick((): void => this.selectTimer(sec));
         }, (sec: number) => `${sec}`);
+        // V0.6.7.7: 自定义 button — opens CustomTimerDialog so the
+        // parent can dial in any positive integer in [TIMER_CUSTOM_MIN,
+        // TIMER_CUSTOM_MAX] seconds. UI tests rely on this for the
+        // 3s-fast-timeout flow (see PackManagerFlow's battle-timeout
+        // companion test).
+        Button(this.customTimerButtonLabel())
+          .id('ConfigTimerCustom')
+          .height(40)
+          .padding({ left: 12, right: 12 })
+          .fontSize(16)
+          .backgroundColor(this.isCustomTimer() ? '#FFB400' : '#EAF2F8')
+          .fontColor(this.isCustomTimer() ? '#FFFFFF' : '#457B9D')
+          .onClick((): void => this.openCustomTimerDialog());
       };
     }
     .margin({ bottom: 12 })
     .alignItems(VerticalAlign.Center);
+  }
+
+  /**
+   * V0.6.7.7: open the 自定义 dialog, seeded with the current
+   * draft.startingSeconds. The controller is rebuilt on every tap
+   * because @CustomDialog props are captured at construction time —
+   * a stale controller would feed the dialog an old initialSeconds
+   * if the parent picked a chip after the previous open.
+   */
+  private openCustomTimerDialog(): void {
+    let ctrl: CustomDialogController | null = null;
+    ctrl = new CustomDialogController({
+      builder: CustomTimerDialog({
+        initialSeconds: this.draft.startingSeconds,
+        onSubmit: (seconds: number): void => {
+          this.draft.startingSeconds = seconds;
+          this.forceRerender();
+        },
+        onCancel: (): void => {},
+      }),
+      autoCancel: true,
+      customStyle: true,
+    });
+    this.customTimerDialog = ctrl;
+    ctrl.open();
   }
 
   @Builder
@@ -564,7 +634,11 @@ struct ConfigPage {
   @Builder
   private packPickerSection() {
     Row() {
-      Text('📦 我的词包').fontSize(18).width(120);
+      // V0.6.7.7: dropped the leading 📦 to match the rest of the
+      // ConfigPage row labels (玩家血量 / 怪物血量 / 怪物数量 /
+      // 倒计时 / 发音播放 / 家长密码 / 家长账户 / 学习记录 / 家长)
+      // — none of those carry a leading emoji.
+      Text('我的词包').fontSize(18).width(120);
       Row() {
         Text(this.packPickerStatusText.length > 0
           ? this.packPickerStatusText

@@ -1451,7 +1451,21 @@ export default function localUnitTest() {
       expect(MONSTER_COUNT_MAX).assertEqual(10);
       expect(MIN_POOL_SIZE).assertEqual(3);
       expect(TIMER_CHOICES.indexOf(DEFAULT_STARTING_SECONDS) >= 0).assertTrue();
-      expect(TIMER_CHOICES.indexOf(3) >= 0).assertTrue();
+      // V0.6.7.7: TIMER_CHOICES was trimmed from
+      // [3, 15, 30, 60, 120, 300, 600] to [30, 180, 300, 600]. The 3s
+      // / 15s / 1m / 2m fast presets are now reachable only through
+      // the 自定义 dialog, so the chip array must NOT include 3 any
+      // more (a regression that re-added a debug 3s chip would let
+      // parents tap it directly and bypass the dialog gate).
+      expect(TIMER_CHOICES.length).assertEqual(4);
+      expect(TIMER_CHOICES.indexOf(30) >= 0).assertTrue();
+      expect(TIMER_CHOICES.indexOf(180) >= 0).assertTrue();
+      expect(TIMER_CHOICES.indexOf(300) >= 0).assertTrue();
+      expect(TIMER_CHOICES.indexOf(600) >= 0).assertTrue();
+      expect(TIMER_CHOICES.indexOf(3) < 0).assertTrue();
+      expect(TIMER_CHOICES.indexOf(15) < 0).assertTrue();
+      expect(TIMER_CHOICES.indexOf(60) < 0).assertTrue();
+      expect(TIMER_CHOICES.indexOf(120) < 0).assertTrue();
     });
   });
 

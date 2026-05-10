@@ -67,7 +67,30 @@ export const TODAY_REGION_ID_KEY: string = 'todayRegionId';
  */
 export const TODAY_ACTIVE_PACK_KEY: string = 'todayActivePack';
 
-export const TIMER_CHOICES: number[] = [3, 15, 30, 60, 120, 300, 600];
+/**
+ * V0.6.7.7: timer chip presets shown in `pages/ConfigPage.timerRow`.
+ * Trimmed from the prior `[3, 15, 30, 60, 120, 300, 600]` set to a
+ * small parent-friendly menu (30s, 3m, 5m, 10m). The previous fast
+ * options (3s / 15s / 1m / 2m) were removed because they were
+ * developer / QA shortcuts that confused first-time parents — now
+ * exercised through the new 自定义 dialog (any positive integer in
+ * [TIMER_CUSTOM_MIN, TIMER_CUSTOM_MAX] seconds), which UI tests use
+ * to inject 3s for fast-timeout scenarios. Keep this array sorted in
+ * ascending order so `ConfigPage.timerLabel`'s `${seconds}s` /
+ * `${seconds / 60}m` formatter renders predictably.
+ */
+export const TIMER_CHOICES: number[] = [30, 180, 300, 600];
+
+/**
+ * V0.6.7.7: bounds for the 自定义 (custom seconds) dialog. The lower
+ * bound is intentionally 1 — UI tests rely on injecting 3s to drive
+ * fast `BattleEngine.tick` timeouts; allowing 0 would let parents
+ * disable the timer entirely and break `BattleEngine.startingSeconds`
+ * which expects a positive countdown. The upper bound (3600s = 1h) is
+ * a defensive ceiling so a typo doesn't persist a multi-hour battle.
+ */
+export const TIMER_CUSTOM_MIN: number = 1;
+export const TIMER_CUSTOM_MAX: number = 3600;
 
 export const HP_MIN: number = 1;
 export const HP_MAX: number = 10;
