@@ -1,0 +1,23 @@
+{
+  "accepted": [
+    "space-star"
+  ],
+  "rejected": [],
+  "server_pulls": [
+    {
+      "word_id": "space-star",
+      "seen_count": 3,
+      "correct_count": 2,
+      "wrong_count": 1,
+      "last_answered_ms": 1778399999000,
+      "last_correct_ms": 1778399999000,
+      "next_review_ms": 1778486400000,
+      "memory_state": "learning",
+      "consecutive_correct": 1,
+      "consecutive_wrong": 0,
+      "mastery": 0.4,
+      "updated_at": "2026-05-10T12:03:34Z"
+    }
+  ],
+  "server_now_ms": 1778400000000
+}
