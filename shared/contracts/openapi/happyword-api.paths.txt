@@ -32,6 +32,7 @@
 /api/v1/auth/login
 /api/v1/auth/me
 /api/v1/child/family-packs/latest.json
+/api/v1/child/packs/latest.json
 /api/v1/child/profile
 /api/v1/child/redemption-requests
 /api/v1/child/redemption-requests/poll
@@ -60,6 +61,8 @@
 /api/v1/parent/family-packs/{pack_id}/archive
 /api/v1/parent/family-packs/{pack_id}/draft
 /api/v1/parent/family-packs/{pack_id}/draft/words/{word_id}
+/api/v1/parent/family-packs/{pack_id}/draft/words:batch-upsert
+/api/v1/parent/family-packs/{pack_id}/import-image
 /api/v1/parent/family-packs/{pack_id}/publish
 /api/v1/parent/family-packs/{pack_id}/rollback
 /api/v1/parent/family-packs/{pack_id}/unarchive
@@ -92,6 +95,17 @@
 /parent/devices/{binding_id}
 /parent/inbox
 /parent/login
+/parent/packs
+/parent/packs/new
+/parent/packs/{pack_id}
+/parent/packs/{pack_id}/draft/add-custom
+/parent/packs/{pack_id}/draft/batch-json
+/parent/packs/{pack_id}/draft/delete-word
+/parent/packs/{pack_id}/draft/edit
+/parent/packs/{pack_id}/import
+/parent/packs/{pack_id}/publish
+/parent/packs/{pack_id}/rollback
+/parent/packs/{pack_id}/versions
 /parent/redemptions
 /parent/redemptions/{request_id}/approve
 /parent/redemptions/{request_id}/reject

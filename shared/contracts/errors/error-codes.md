@@ -13,7 +13,9 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `CHILD_NOT_FOUND` | 404 | Child profile / parent children | Child profile is missing or not owned by the caller. |
 | `CODE_EXPIRED` | 410 | Parent auth | Verification code expired. |
 | `CRON_SECRET_NOT_CONFIGURED` | 503 | Admin cron | Cron secret is not configured. |
+| `DRAFT_VALIDATION_FAILED` | 422 | Family packs | Draft rows failed validation before publish (details in payload `rows`). |
 | `DUPLICATE_ID` | 409 | Admin words | Word id already exists. |
+| `EMPTY_BODY` | 400 | Admin assets / parent family pack import | Uploaded body is empty (image/audio/import). |
 | `EMPTY_PACK` | 409 | Family/global packs | Pack publish attempted without publishable words. |
 | `EMPTY_UPLOAD` | 400 | Admin LLM | Uploaded image body is empty. |
 | `FAMILY_MISMATCH` | 403 | Child word stats | Device is attempting to access a different family. |
@@ -36,6 +38,7 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `REDEMPTION_NOT_FOUND` | 404 | Parent redemptions | Redemption request does not exist. |
 | `REQUEST_NOT_FOUND` | 404 | Redemption service | Redemption request does not exist. |
 | `ROLE_MISMATCH` | 403 | Parent auth | Email belongs to a non-parent account. |
+| `TENANT_MISMATCH` | 403 | Child family packs | `X-Family-Id` hint does not match the device binding’s family. |
 | `TOKEN_EXPIRED` | 410 | Pairing | Pair token expired. |
 | `TOKEN_INVALID` | 404 | Pairing | Pair token or short code does not exist. |
 | `TOKEN_REDEEMED` | 409 | Pairing | Pair token was already redeemed. |
