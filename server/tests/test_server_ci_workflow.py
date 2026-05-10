@@ -48,4 +48,5 @@ def test_e2e_prunes_stale_preview_dbs_before_reset() -> None:
     assert workflow.index(prune_step) < workflow.index(reset_step)
     assert "scripts/e2e_drop_old_pr_dbs.py" in prune_step
     assert "--drop-empty" in prune_step
+    assert "--ignore-drop-errors" in prune_step
     assert '--exclude "$E2E_MONGO_DB_NAME"' in prune_step

@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import PyMongoError
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Iterable
@@ -73,6 +74,8 @@ async def drop_stale(
     dry_run: bool,
     drop_empty: bool = False,
     exclude_names: Iterable[str] = (),
+    ignore_drop_errors: bool = False,
+    ignored_drop_errors: list[str] | None = None,
     age_resolver: Callable[[object, str], Awaitable[datetime | None]] = _db_age,
 ) -> tuple[list[str], list[str]]:
     """Returns (dropped, candidates). `dropped` is empty when `dry_run`."""
@@ -93,8 +96,16 @@ async def drop_stale(
             age is not None and age < cutoff
         )
         if should_drop and not dry_run:
-            await client.drop_database(name)  # type: ignore[attr-defined]
-            dropped.append(name)
+            try:
+                await client.drop_database(name)  # type: ignore[attr-defined]
+            except PyMongoError as exc:
+                if not ignore_drop_errors:
+                    raise
+                if ignored_drop_errors is not None:
+                    ignored_drop_errors.append(f"{name}: {exc}")
+                continue
+            else:
+                dropped.append(name)
     return dropped, candidates
 
 
@@ -119,6 +130,11 @@ async def _amain(argv: list[str]) -> int:
         default=[],
         help="DB name to protect from dropping; may be passed multiple times.",
     )
+    parser.add_argument(
+        "--ignore-drop-errors",
+        action="store_true",
+        help="Continue when a matching stale DB cannot be dropped.",
+    )
     args = parser.parse_args(argv)
 
     uri = os.environ.get("E2E_MONGODB_URI", "").strip()
@@ -129,6 +145,7 @@ async def _amain(argv: list[str]) -> int:
     client: AsyncIOMotorClient[dict[str, object]] = AsyncIOMotorClient(uri)
     try:
         try:
+            ignored_drop_errors: list[str] = []
             dropped, candidates = await drop_stale(
                 client,
                 pattern=args.pattern,
@@ -136,6 +153,8 @@ async def _amain(argv: list[str]) -> int:
                 dry_run=args.dry_run,
                 drop_empty=args.drop_empty,
                 exclude_names=args.exclude_names,
+                ignore_drop_errors=args.ignore_drop_errors,
+                ignored_drop_errors=ignored_drop_errors,
             )
         except UnsafePattern as exc:
             print(f"Refusing: {exc}", file=sys.stderr)
@@ -143,6 +162,11 @@ async def _amain(argv: list[str]) -> int:
 
         print(f"Candidates ({len(candidates)}): {candidates}")
         print(f"Dropped     ({len(dropped)}): {dropped}")
+        if ignored_drop_errors:
+            print(
+                f"Ignored drop errors ({len(ignored_drop_errors)}): "
+                f"{ignored_drop_errors}"
+            )
         if args.dry_run and candidates:
             print("(dry-run: nothing dropped)")
         return 0

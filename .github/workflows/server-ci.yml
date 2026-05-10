@@ -214,7 +214,8 @@ jobs:
             --pattern '^happyword_pr_\d+_e2e$' \
             --older-than-days 2 \
             --drop-empty \
-            --exclude "$E2E_MONGO_DB_NAME"
+            --exclude "$E2E_MONGO_DB_NAME" \
+            --ignore-drop-errors
 
       - name: Reset E2E database (truncate test collections)
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
