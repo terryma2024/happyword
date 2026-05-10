@@ -11,7 +11,8 @@ that previously made live HTTP requests to ``https://happyword.cool``:
 * (V0.6.5) ``PackManagerPage`` — three-layer pack sync. The 🔄 同步词包
   button hits both
   ``GET /api/v1/public/global-packs/latest.json`` (anonymous) and
-  ``GET /api/v1/child/family-packs/latest.json`` (Bearer device JWT).
+  ``GET /api/v1/family/{family_id}/family-packs/latest.json`` (Bearer device
+  JWT; legacy ``…/child/family-packs/latest.json`` still stubbed).
   Each returns a single fixture pack so the UI test can verify the
   rows render with English names and the HomePage chip row grows when
   a synced pack is activated.
@@ -728,7 +729,8 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------
     # V0.6.3 / V0.6.5 family pack overlay.
     #
-    # The PRODUCTION server route is `/api/v1/child/family-packs/latest.json`
+    # Production serves merged JSON at legacy `/api/v1/child/family-packs/latest.json`
+    # and the route-pattern alias `/api/v1/family/{family_id}/family-packs/latest.json`.
     # (see `app/routers/child_family_pack.py::get_family_packs`). Earlier
     # versions of this mock served the same payload at `…/active.json`,
     # which the client never actually called; the V0.6.5 three-layer
@@ -742,10 +744,9 @@ def create_app() -> FastAPI:
     # 304 on ETag match, and 200 with the merged-JSON envelope otherwise.
     # ------------------------------------------------------------------
 
-    @app.get("/api/v1/child/family-packs/latest.json")
-    async def child_family_packs(
-        authorization: str | None = Header(None, alias="Authorization"),
-        if_none_match: str | None = Header(None, alias="If-None-Match"),
+    async def _family_packs_latest_get(
+        authorization: str | None,
+        if_none_match: str | None,
     ) -> Response:
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
@@ -759,13 +760,40 @@ def create_app() -> FastAPI:
             headers={"ETag": FAMILY_PACK_ETAG},
         )
 
+    async def _family_packs_latest_head(authorization: str | None) -> Response:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return Response(status_code=200, headers={"ETag": FAMILY_PACK_ETAG})
+
+    @app.get("/api/v1/child/family-packs/latest.json")
+    async def child_family_packs(
+        authorization: str | None = Header(None, alias="Authorization"),
+        if_none_match: str | None = Header(None, alias="If-None-Match"),
+    ) -> Response:
+        return await _family_packs_latest_get(authorization, if_none_match)
+
+    @app.get("/api/v1/family/{family_id}/family-packs/latest.json")
+    async def family_alias_family_packs(
+        family_id: str,
+        authorization: str | None = Header(None, alias="Authorization"),
+        if_none_match: str | None = Header(None, alias="If-None-Match"),
+    ) -> Response:
+        _ = family_id  # decorative — mirrors production alias routes
+        return await _family_packs_latest_get(authorization, if_none_match)
+
     @app.head("/api/v1/child/family-packs/latest.json")
     async def child_family_packs_head(
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> Response:
-        if not _is_authorized(authorization):
-            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
-        return Response(status_code=200, headers={"ETag": FAMILY_PACK_ETAG})
+        return await _family_packs_latest_head(authorization)
+
+    @app.head("/api/v1/family/{family_id}/family-packs/latest.json")
+    async def family_alias_family_packs_head(
+        family_id: str,
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> Response:
+        _ = family_id
+        return await _family_packs_latest_head(authorization)
 
     # ------------------------------------------------------------------
     # V0.6.4 cloud sync (LWW). Always accepts pushes; pull returns no

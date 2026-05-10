@@ -155,7 +155,8 @@ struct PackManagerPage {
       if (snap.deviceToken.length > 0) {
         familyAttempted = true;
         await fps.init(ctx);
-        const fOut: FamilyPackEnsureResult = await fps.ensureLatest(snap.deviceToken);
+        const fOut: FamilyPackEnsureResult =
+          await fps.ensureLatest(snap.deviceToken, snap.familyId);
         familyUpdated = fOut.status === 'updated' || fOut.status === 'cleared';
       }
     } catch (err) {
