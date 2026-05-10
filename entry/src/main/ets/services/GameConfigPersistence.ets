@@ -11,7 +11,8 @@ import preferences from '@ohos.data.preferences';
 import {
   GameConfig,
   GAME_CONFIG_STORAGE_KEY,
-  TIMER_CHOICES,
+  TIMER_CUSTOM_MIN,
+  TIMER_CUSTOM_MAX,
   HP_MIN,
   HP_MAX,
   MONSTER_COUNT_MIN,
@@ -32,18 +33,25 @@ function clampInt(n: number, lo: number, hi: number): number {
   return n;
 }
 
+/**
+ * V0.6.7.7: clamp persisted seconds into the legal custom range
+ * [TIMER_CUSTOM_MIN, TIMER_CUSTOM_MAX] rather than snapping to the
+ * nearest TIMER_CHOICES preset. Pre-V0.6.7.7 we forced rehydrated
+ * values onto one of the seven preset chips (3 / 15 / 30 / 60 / 120 /
+ * 300 / 600); after V0.6.7.7 the 自定义 dialog can persist arbitrary
+ * positive integers (e.g. 3 for fast UI tests) and we must NOT collapse
+ * them back to a chip on rehydrate. Sub-second / negative values still
+ * clamp to TIMER_CUSTOM_MIN as a defensive floor since BattleEngine
+ * requires a positive countdown.
+ */
 function sanitizeTimer(seconds: number): number {
-  const choices: number[] = TIMER_CHOICES;
-  let best: number = choices[0];
-  let bestDist: number = Math.abs(seconds - best);
-  for (let i: number = 1; i < choices.length; i++) {
-    const d: number = Math.abs(seconds - choices[i]);
-    if (d < bestDist) {
-      bestDist = d;
-      best = choices[i];
-    }
+  if (seconds < TIMER_CUSTOM_MIN) {
+    return TIMER_CUSTOM_MIN;
   }
-  return best;
+  if (seconds > TIMER_CUSTOM_MAX) {
+    return TIMER_CUSTOM_MAX;
+  }
+  return seconds;
 }
 
 /** Serializes {@link GameConfig} fields — keep in sync with {@link cloneGameConfig}. */
@@ -53,8 +61,6 @@ export function gameConfigToJson(cfg: GameConfig): string {
     monsterMaxHp: cfg.monsterMaxHp,
     monstersTotal: cfg.monstersTotal,
     startingSeconds: cfg.startingSeconds,
-    enabledCategories: cfg.enabledCategories.slice(),
-    customWordsRaw: cfg.customWordsRaw,
     autoSpeak: cfg.autoSpeak,
     mode: cfg.mode,
     parentPin: cfg.parentPin,
@@ -83,22 +89,10 @@ export function gameConfigFromJson(raw: string): GameConfig {
   if (typeof ss === 'number') {
     out.startingSeconds = sanitizeTimer(Math.floor(ss));
   }
-  const ec: Object | undefined = rec['enabledCategories'];
-  if (Array.isArray(ec)) {
-    const arr: string[] = [];
-    for (let i: number = 0; i < ec.length; i++) {
-      if (typeof ec[i] === 'string') {
-        arr.push(ec[i] as string);
-      }
-    }
-    if (arr.length > 0) {
-      out.enabledCategories = arr;
-    }
-  }
-  const cw: Object | undefined = rec['customWordsRaw'];
-  if (typeof cw === 'string') {
-    out.customWordsRaw = cw;
-  }
+  // V0.6.6: legacy `enabledCategories` / `customWordsRaw` keys are
+  // ignored on rehydrate. Older devices upgrading from <= v0.6.5
+  // simply lose those fields silently — the three-layer pack model
+  // owns word selection now.
   const ap: Object | undefined = rec['autoSpeak'];
   if (typeof ap === 'boolean') {
     out.autoSpeak = ap;

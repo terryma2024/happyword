@@ -8,11 +8,18 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -21,20 +28,28 @@ async function launchApp(): Promise<Driver> {
  * on the HomePage even if a previous suite left the app mid-flow.
  */
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function openCodex(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeCodexButton');
-  await driver.delayMs(1500);
+  try {
+    await clickByIdShared(driver, 'HomeCodexButton');
+    await driver.delayMs(1500);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -52,13 +67,21 @@ async function openCodex(driver: Driver): Promise<void> {
  *  - CodexBackButton returns to HomePage; HomeStartButton is reachable.
  */
 async function clickNextAndDelay(driver: Driver, ms: number): Promise<void> {
-  await clickByIdShared(driver, 'CodexNext');
-  await driver.delayMs(ms);
+  try {
+    await clickByIdShared(driver, 'CodexNext');
+    await driver.delayMs(ms);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function clickPrevAndDelay(driver: Driver, ms: number): Promise<void> {
-  await clickByIdShared(driver, 'CodexPrev');
-  await driver.delayMs(ms);
+  try {
+    await clickByIdShared(driver, 'CodexPrev');
+    await driver.delayMs(ms);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 export default function monsterCodexFlowUiTest(): void {

@@ -8,38 +8,61 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function openWishlist(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeWishlistButton');
-  await driver.delayMs(1500);
+  try {
+    await clickByIdShared(driver, 'HomeWishlistButton');
+    await driver.delayMs(1500);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
-  await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
-  await driver.delayMs(80);
+  try {
+    await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
+    await driver.delayMs(80);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
-  await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
-  await driver.delayMs(80);
+  try {
+    await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
+    await driver.delayMs(80);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -48,32 +71,50 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
  * via GameConfig in AppStorage.
  */
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
-  await clickByIdShared(driver, 'HomeConfigButton');
-  await driver.delayMs(1500);
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(300);
-  await clickByIdShared(driver, 'ConfigParentPinButton');
-  await driver.delayMs(1200);
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+    // V0.6.5.1: scroll iteratively until ConfigParentPinButton is on
+    // screen — the 📦 packPickerSection added in V0.6.5.1 means a
+    // single swipe is no longer guaranteed to expose the row.
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const btn: Component | null =
+        await driver.findComponent(ON.id('ConfigParentPinButton'));
+      if (btn !== null) {
+        break;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(300);
+    }
+    await clickByIdShared(driver, 'ConfigParentPinButton');
+    await driver.delayMs(1200);
 
-  for (let i: number = 0; i < pin.length; i++) {
-    await tapPinSetupKey(driver, pin.charAt(i));
-  }
-  await driver.delayMs(400);
-  for (let i: number = 0; i < pin.length; i++) {
-    await tapPinSetupKey(driver, pin.charAt(i));
-  }
-  await driver.delayMs(1500);
+    for (let i: number = 0; i < pin.length; i++) {
+      await tapPinSetupKey(driver, pin.charAt(i));
+    }
+    await driver.delayMs(400);
+    for (let i: number = 0; i < pin.length; i++) {
+      await tapPinSetupKey(driver, pin.charAt(i));
+    }
+    await driver.delayMs(1500);
 
-  await tapConfigCancelShared(driver);
-  await driver.delayMs(800);
-  await returnToHome(driver);
+    await tapConfigCancelShared(driver);
+    await driver.delayMs(800);
+    await returnToHome(driver);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function enterPin(driver: Driver, pin: string): Promise<void> {
-  for (let i: number = 0; i < pin.length; i++) {
-    await tapPinDialogKey(driver, pin.charAt(i));
+  try {
+    for (let i: number = 0; i < pin.length; i++) {
+      await tapPinDialogKey(driver, pin.charAt(i));
+    }
+    await driver.delayMs(400);
+  } catch (err) {
+    throw err as Error;
   }
-  await driver.delayMs(400);
 }
 
 /**
@@ -82,14 +123,18 @@ async function enterPin(driver: Driver, pin: string): Promise<void> {
  * still has the dialog open on return.
  */
 async function openAddCustomDialog(driver: Driver, pin: string): Promise<void> {
-  await openWishlist(driver);
-  await driver.assertComponentExist(ON.id('WishlistAddCustomButton'));
-  await clickByIdShared(driver, 'WishlistAddCustomButton');
-  await driver.delayMs(800);
-  await driver.assertComponentExist(ON.id('ParentPinDialog'));
-  await enterPin(driver, pin);
-  await driver.delayMs(800);
-  await driver.assertComponentExist(ON.id('AddCustomWishDialog'));
+  try {
+    await openWishlist(driver);
+    await driver.assertComponentExist(ON.id('WishlistAddCustomButton'));
+    await clickByIdShared(driver, 'WishlistAddCustomButton');
+    await driver.delayMs(800);
+    await driver.assertComponentExist(ON.id('ParentPinDialog'));
+    await enterPin(driver, pin);
+    await driver.delayMs(800);
+    await driver.assertComponentExist(ON.id('AddCustomWishDialog'));
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -102,12 +147,16 @@ async function openAddCustomDialog(driver: Driver, pin: string): Promise<void> {
  * @CustomDialog stays open.
  */
 async function typeInto(driver: Driver, id: string, text: string): Promise<void> {
-  await driver.assertComponentExist(ON.id(id));
-  const input = await driver.findComponent(ON.id(id));
-  await input.inputText(text);
-  await driver.delayMs(300);
-  await driver.pressBack();
-  await driver.delayMs(400);
+  try {
+    await driver.assertComponentExist(ON.id(id));
+    const input = await driver.findComponent(ON.id(id));
+    await input.inputText(text);
+    await driver.delayMs(300);
+    await driver.pressBack();
+    await driver.delayMs(400);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -131,12 +180,12 @@ async function typeInto(driver: Driver, id: string, text: string): Promise<void>
  * via promptAction.showDialog) cannot be fully driven in uitest:
  * the system AlertDialog window is opaque to component lookups by
  * id. The PIN gate that prefaces it IS exercised by
- * WishlistFlowV039 + the ParentPinDialog unit tests, and the
+ * WishlistFlow + the ParentPinDialog unit tests, and the
  * underlying `WishlistStore.removeCustomWish` is unit-tested in
  * WishlistStore.test.
  */
 export default function customWishlistFlowUiTest(): void {
-  describe('CustomWishlistFlowV047', () => {
+  describe('CustomWishlistFlow', () => {
     it('addCustomButtonRendersOnWishlistAndDefaultsHaveNoRemove', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);

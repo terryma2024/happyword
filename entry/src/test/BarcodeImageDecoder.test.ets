@@ -10,7 +10,7 @@ export default function barcodeImageDecoderTest(): void {
   describe('BarcodeImageDecoder', () => {
     /**
      * The override-key constants are read by the ohosTest harness in
-     * `entry/src/ohosTest/ets/test/ParentBindingFlowV06.ui.test.ets`.
+     * `entry/src/ohosTest/ets/test/ParentBindingFlow.ui.test.ets`.
      * Renaming either key requires a coordinated change across that
      * harness, so we pin the literal string values here.
      */

@@ -13,11 +13,18 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
  * "App died" in the runner output.
  */
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -30,24 +37,28 @@ async function launchApp(): Promise<Driver> {
  * and avoids the force-stop death spiral.
  */
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i = 0; i < 5; i++) {
-    const home = await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i = 0; i < 5; i++) {
+      const home = await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 /**
- * V0.3 acceptance UI suite. Smoke-tests the new HomePage cluster
+ * Today-adventure UI suite. Smoke-tests the HomePage cluster
  * (adventure card, coin pill, wishlist button), the today-adventure
  * launch path (plan-driven battle starts with a prompt), the wishlist
- * page surface, and asserts the V0.2 free-practice path is unbroken.
+ * page surface, and asserts the free-practice path is unbroken.
  */
-export default function v03AdventureUiTest(): void {
-  describe('V0.3 today adventure flow', () => {
+export default function adventureFlowUiTest(): void {
+  describe('AdventureFlow', () => {
     it('homePageShowsAdventureCardAndCoinPill', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);

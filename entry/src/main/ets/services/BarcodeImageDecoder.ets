@@ -25,7 +25,7 @@ import { BusinessError } from '@ohos.base';
 /** AppStorage key the ohosTest harness writes to override the picker
  *  short-circuit URI for ScanBindingPage's gallery-QR path. Lives
  *  alongside the decoder key so a single import grabs both into
- *  ParentBindingFlowV06.ui.test.ets. */
+ *  ParentBindingFlow.ui.test.ets. */
 export const SCAN_BINDING_PHOTO_PICKER_OVERRIDE_URI_KEY: string =
   'scanBindingPhotoPickerOverrideUri';
 

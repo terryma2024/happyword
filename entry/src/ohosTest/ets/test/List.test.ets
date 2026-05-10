@@ -4,7 +4,7 @@ import critSpectacleUiTest from './CritSpectacle.ui.test';
 import speakerButtonUiTest from './SpeakerButton.ui.test';
 import reviewModeUiTest from './ReviewMode.ui.test';
 import magicAttackUiTest from './MagicAttack.ui.test';
-import v03AdventureUiTest from './V03Adventure.ui.test';
+import adventureFlowUiTest from './AdventureFlow.ui.test';
 import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
 import homeVersionTapUiTest from './HomeVersionTap.ui.test';
 import devMenuCardListUiTest from './DevMenuCardList.ui.test';
@@ -17,11 +17,11 @@ import regionPickerFlowUiTest from './RegionPickerFlow.ui.test';
 import wishlistFlowUiTest from './WishlistFlow.ui.test';
 import customWishlistFlowUiTest from './CustomWishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
-import configSyncFlowUiTest from './ConfigSyncFlow.ui.test';
 import parentAdminFlowUiTest from './ParentAdminFlow.ui.test';
 import lessonDraftReviewFlowUiTest from './LessonDraftReviewFlow.ui.test';
-import parentBindingFlowV06UiTest from './ParentBindingFlowV06.ui.test';
+import parentBindingFlowUiTest from './ParentBindingFlow.ui.test';
 import boundDeviceInfoFlowUiTest from './BoundDeviceInfoFlow.ui.test';
+import packManagerFlowUiTest from './PackManagerFlow.ui.test';
 
 /**
  * V0.5.8: route every HTTP call from the test ability through the
@@ -61,7 +61,7 @@ export default function testsuite() {
   // and `testsuite()` runs synchronously. See
   // `ParentAdminFlow.ui.test.ets::ensureLessonImportFixtureOnDevice`.
   // HomeToolbarLocked must run before any suite that seeds wrong
-  // answers into LearningRecorder (ReviewMode / MagicAttack / V03 etc.)
+  // answers into LearningRecorder (ReviewMode / MagicAttack / AdventureFlow etc.)
   // — its lockedReviewShowsToastAndStays case asserts the toast is
   // surfaced when recentWrongCount < 3, which would silently flip to
   // navigation once the recorder has accrued ≥3 wrongs.
@@ -86,7 +86,7 @@ export default function testsuite() {
   speakerButtonUiTest();
   reviewModeUiTest();
   magicAttackUiTest();
-  v03AdventureUiTest();
+  adventureFlowUiTest();
   // FillLetterFlow taps correct answers driven by a static catalog
   // map (see the file's header comment) so it stays deterministic
   // even after earlier suites populated the LearningRecorder. Runs
@@ -126,10 +126,17 @@ export default function testsuite() {
   // mid-PIN-entry side-effect).
   customWishlistFlowUiTest();
   configFlowUiTest();
-  // V0.5 client follow-up (VC0.5.B): manual word-pack sync entry on
-  // ConfigPage. Order-independent; relies only on the cache slot
-  // schema and the production /packs/latest.json endpoint.
-  configSyncFlowUiTest();
+  // V0.6.7: the manual `词库同步` row was removed from ConfigPage —
+  // pack synchronisation is now handled by `pages/PackManagerPage`
+  // (📦 我的词包 → 🔄 同步词包), which drives the three-layer
+  // GlobalPackService + FamilyPackService stack. The legacy
+  // `configSyncFlowUiTest` (CACHED_STATUS_PREFIX / ConfigSyncButton)
+  // was deleted with that surface.
+  // V0.6.7.3: PackManagerPage routing + 固定 button conditional-render
+  // contract. Each test restores PackSelection to default (5/5
+  // active, none pinned) before returning to HomePage so this suite
+  // is order-independent vs everything below it.
+  packManagerFlowUiTest();
   // V0.5.8: parent admin backend behind parent PIN (auth removed,
   // photo lesson import added). Re-seeds the PIN to KNOWN_PIN inside
   // each case so we don't depend on configFlowUiTest's twoStep
@@ -148,12 +155,12 @@ export default function testsuite() {
   // AppStorage in a parent-PIN-set state that downstream suites
   // would have to clean up; placing it at the tail keeps every other
   // suite's assumptions intact.
-  parentBindingFlowV06UiTest();
+  parentBindingFlowUiTest();
   // V0.6.8 — device-side child-nickname edit on `BoundDeviceInfoPage`.
   // Self-contained: drives a short-code redeem on the mock, opens the
   // bound-device info page, taps ✏️ 编辑, replaces the input, saves,
   // and asserts that the row + the ConfigPage button label both
-  // refresh to the new nickname. Runs after ParentBindingFlowV06 (which
+  // refresh to the new nickname. Runs after ParentBindingFlow (which
   // leaves the device unbound) so we start clean.
   boundDeviceInfoFlowUiTest();
 }

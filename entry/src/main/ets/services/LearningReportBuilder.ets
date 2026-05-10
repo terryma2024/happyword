@@ -1,28 +1,34 @@
 import { WordEntry } from '../models/WordEntry';
-import { WordRepository } from './WordRepository';
+import { Pack } from '../models/Pack';
+import { PackLibrary } from './PackLibrary';
 import { LearningRecorder } from './LearningRecorder';
 import { MemoryScheduler, MemoryState } from './MemoryScheduler';
 import { WordStat } from './WrongAnswerStore';
 import { localStartOfDay } from './TodayPlanService';
 
 /**
- * One category row in the learning report. The page renders these
- * verbatim — both as "weak categories" highlights and as a full
- * breakdown table when the kid scrolls.
+ * One pack row in the learning report. The page renders these
+ * verbatim into the pack-breakdown table. Replaces V0.4.5's
+ * CategoryReport (the category dimension has zero remaining UX
+ * surface since V0.6.6 removed the category picker from
+ * ConfigPage; HomePage chips, PackManagerPage, and BattlePage
+ * today-mode all key on packs).
  */
-export class CategoryReport {
-  category: string = '';
-  displayName: string = '';
+export class PackReport {
+  packId: string = '';
+  name: string = '';
   totalSeen: number = 0;
   totalCorrect: number = 0;
   /** 0..100, rounded to integer. 0 when totalSeen === 0. */
   accuracyPct: number = 0;
+  /** Mirrors PackSelectionService.getActiveIds().has(packId). */
+  active: boolean = false;
 }
 
 /**
  * Aggregate snapshot of learning progress so far. Pure data, no
- * methods that mutate. The page reads each field directly into ArkUI
- * components.
+ * methods that mutate. The page reads each field directly into
+ * ArkUI components.
  */
 export class LearningReport {
   totalWords: number = 0;
@@ -38,32 +44,24 @@ export class LearningReport {
   reviewDoneTodayCount: number = 0;
   /** 0..100. `done / max(due, done)` so it never exceeds 100. */
   reviewCompletionPct: number = 0;
-  categories: CategoryReport[] = [];
   /**
-   * Up to 3 weakest categories (lowest accuracy first). Excludes
-   * categories with zero seen words. Empty when no data.
+   * One row per pack. Order: active packs first (in selection
+   * order), then inactive-but-seen packs sorted by accuracyPct
+   * ascending. See LearningReportBuilder.build for the rules.
    */
-  weakCategories: CategoryReport[] = [];
+  packs: PackReport[] = [];
 }
 
 /**
- * Display label for a category id. Localised here rather than
- * embedded in `WordEntry` so the report layer can iterate without
- * needing a translation map injected from outside.
- */
-export function describeCategory(category: string): string {
-  if (category === 'fruit') return '水果';
-  if (category === 'place') return '地点';
-  if (category === 'home') return '家庭';
-  if (category === 'animal') return '动物';
-  if (category === 'ocean') return '海洋';
-  return category;
-}
-
-/**
- * Pure builder for the V0.4.5 learning report. No persistence,
- * no I/O — feed it the loaded repo + initialised recorder and
- * receive a `LearningReport`.
+ * Pure builder for the V0.6.7.8 learning report. No persistence,
+ * no I/O — feed it the in-memory PackLibrary, the active-id list,
+ * and the initialised recorder; receive a `LearningReport`.
+ *
+ * V0.4.5 keyed reports by category; the V0.6.7.8 rewrite keys by
+ * pack to align with the V0.6.5 three-layer pack model. See
+ * docs/superpowers/specs/2026-05-10-learning-report-by-pack-design.md
+ * for the rules around per-pack independent counting and top-level
+ * dedup-by-stat-iteration.
  */
 export class LearningReportBuilder {
   private scheduler: MemoryScheduler;
@@ -72,62 +70,61 @@ export class LearningReportBuilder {
     this.scheduler = scheduler !== undefined ? scheduler : new MemoryScheduler();
   }
 
-  build(repo: WordRepository, recorder: LearningRecorder, nowMs: number): LearningReport {
-    const all: WordEntry[] = repo.all();
+  build(
+    library: PackLibrary,
+    activeIds: string[],
+    recorder: LearningRecorder,
+    nowMs: number,
+  ): LearningReport {
     const stats: WordStat[] = recorder.statsForTest();
     const statByWordId: Map<string, WordStat> = new Map<string, WordStat>();
-    for (let i = 0; i < stats.length; i++) {
+    for (let i: number = 0; i < stats.length; i++) {
       statByWordId.set(stats[i].wordId, stats[i]);
     }
 
     const startOfDay: number = localStartOfDay(nowMs);
-    const report: LearningReport = new LearningReport();
-    report.totalWords = all.length;
+    const allPacks: Pack[] = library.allPacks();
+    const activeSet: Set<string> = new Set<string>();
+    for (let i: number = 0; i < activeIds.length; i++) activeSet.add(activeIds[i]);
 
-    // Per-category aggregator. Map preserves insertion order so the
-    // category list comes out in the same order as the bundled
-    // dictionary, which matches user expectation.
-    const catMap: Map<string, CategoryReport> = new Map<string, CategoryReport>();
-    for (let i = 0; i < all.length; i++) {
-      const w: WordEntry = all[i];
-      if (!catMap.has(w.category)) {
-        const cat: CategoryReport = new CategoryReport();
-        cat.category = w.category;
-        cat.displayName = describeCategory(w.category);
-        catMap.set(w.category, cat);
-      }
+    // Collect every wordId that is reachable from the library union.
+    // Stats whose wordId is not in this set are orphaned (the pack
+    // that owned them was removed) and are ignored at the top level.
+    const knownWordIds: Set<string> = new Set<string>();
+    for (let i: number = 0; i < allPacks.length; i++) {
+      const ws: WordEntry[] = allPacks[i].words;
+      for (let j: number = 0; j < ws.length; j++) knownWordIds.add(ws[j].id);
     }
 
+    const report: LearningReport = new LearningReport();
+    report.totalWords = knownWordIds.size;
+
+    // ----- Top-level totals + state buckets: iterate STATS once.
+    // Each stat record is unique-per-wordId by construction
+    // (LearningRecorder guarantees this), so summing here naturally
+    // dedupes across packs that share a word. Stats whose wordId is
+    // orphaned (no pack contains it anymore) are skipped.
     let totalSeen: number = 0;
     let totalCorrect: number = 0;
-    let newCount: number = 0;
     let learningCount: number = 0;
     let familiarCount: number = 0;
     let masteredCount: number = 0;
     let reviewDue: number = 0;
     let reviewDoneToday: number = 0;
-
-    for (let i = 0; i < all.length; i++) {
-      const w: WordEntry = all[i];
-      const stat: WordStat | undefined = statByWordId.get(w.id);
-      const cat: CategoryReport = catMap.get(w.category) as CategoryReport;
-      if (stat === undefined) {
-        newCount += 1;
-        continue;
-      }
+    let newFromStats: number = 0;
+    for (let i: number = 0; i < stats.length; i++) {
+      const stat: WordStat = stats[i];
+      if (!knownWordIds.has(stat.wordId)) continue;
       totalSeen += stat.seenCount;
       totalCorrect += stat.correctCount;
-      cat.totalSeen += stat.seenCount;
-      cat.totalCorrect += stat.correctCount;
       const state: MemoryState = this.scheduler.classify(stat, nowMs);
       if (state === MemoryState.New) {
-        newCount += 1;
+        newFromStats += 1;
       } else if (state === MemoryState.Mastered) {
         masteredCount += 1;
       } else if (state === MemoryState.Familiar) {
         familiarCount += 1;
       } else if (state === MemoryState.Review) {
-        // Review state means due — count toward review pool.
         reviewDue += 1;
         learningCount += 1;
       } else {
@@ -151,12 +148,18 @@ export class LearningReportBuilder {
       }
     }
 
+    // Words in the library union with no stat record are "new".
+    let unseenInLibrary: number = 0;
+    knownWordIds.forEach((id: string): void => {
+      if (!statByWordId.has(id)) unseenInLibrary += 1;
+    });
+
     report.totalSeen = totalSeen;
     report.totalCorrect = totalCorrect;
     report.accuracyPct = totalSeen > 0
       ? Math.round((totalCorrect * 100) / totalSeen)
       : 0;
-    report.newCount = newCount;
+    report.newCount = newFromStats + unseenInLibrary;
     report.learningCount = learningCount;
     report.familiarCount = familiarCount;
     report.masteredCount = masteredCount;
@@ -167,49 +170,73 @@ export class LearningReportBuilder {
       ? Math.round((reviewDoneToday * 100) / denom)
       : 0;
 
-    // Finalise per-category accuracy rounding then build weakCats.
-    const cats: CategoryReport[] = [];
-    catMap.forEach((cat: CategoryReport): void => {
-      cat.accuracyPct = cat.totalSeen > 0
-        ? Math.round((cat.totalCorrect * 100) / cat.totalSeen)
-        : 0;
-      cats.push(cat);
-    });
-    report.categories = cats;
-    report.weakCategories = pickWeakCategories(cats, 3);
-    return report;
-  }
-}
-
-/**
- * Sort `cats` by accuracy ascending and return up to `n` entries,
- * skipping those with no data. Stable order across calls (iteration
- * order from the parent Map preserves dictionary order, then
- * sort ties keep that order).
- */
-function pickWeakCategories(cats: CategoryReport[], n: number): CategoryReport[] {
-  const eligible: CategoryReport[] = [];
-  for (let i = 0; i < cats.length; i++) {
-    if (cats[i].totalSeen > 0) {
-      eligible.push(cats[i]);
-    }
-  }
-  // Selection sort to keep stable behaviour deterministic across
-  // ArkTS environments. Plain Array.prototype.sort is stable in
-  // modern engines but we don't want to rely on that.
-  const sorted: CategoryReport[] = eligible.slice();
-  for (let i = 0; i < sorted.length; i++) {
-    let minIdx: number = i;
-    for (let j = i + 1; j < sorted.length; j++) {
-      if (sorted[j].accuracyPct < sorted[minIdx].accuracyPct) {
-        minIdx = j;
+    // ----- Per-pack rows: iterate each pack's words, look up stats.
+    // A word in N active packs counts toward each row independently
+    // (per-pack independent counting); the top-level above already
+    // deduped via the stats-list iteration so this can't double-
+    // count globally.
+    const allRows: PackReport[] = [];
+    for (let i: number = 0; i < allPacks.length; i++) {
+      const pack: Pack = allPacks[i];
+      const isActive: boolean = activeSet.has(pack.id);
+      const row: PackReport = new PackReport();
+      row.packId = pack.id;
+      row.name = pack.name;
+      row.active = isActive;
+      for (let j: number = 0; j < pack.words.length; j++) {
+        const stat: WordStat | undefined = statByWordId.get(pack.words[j].id);
+        if (stat !== undefined) {
+          row.totalSeen += stat.seenCount;
+          row.totalCorrect += stat.correctCount;
+        }
+      }
+      if (isActive || row.totalSeen > 0) {
+        row.accuracyPct = row.totalSeen > 0
+          ? Math.round((row.totalCorrect * 100) / row.totalSeen)
+          : 0;
+        allRows.push(row);
       }
     }
-    if (minIdx !== i) {
-      const tmp: CategoryReport = sorted[i];
-      sorted[i] = sorted[minIdx];
-      sorted[minIdx] = tmp;
+
+    // Sort: active first (in activeIds order), then inactive by
+    // accuracy ascending. Use simple O(n) lookups since n is small
+    // (active <= MAX_ACTIVE_PACKS = 5; inactive depends on family
+    // pack count, typically < 10).
+    const orderedActive: PackReport[] = [];
+    for (let i: number = 0; i < activeIds.length; i++) {
+      for (let j: number = 0; j < allRows.length; j++) {
+        if (allRows[j].active && allRows[j].packId === activeIds[i]) {
+          orderedActive.push(allRows[j]);
+          break;
+        }
+      }
     }
+    const inactiveRows: PackReport[] = [];
+    for (let i: number = 0; i < allRows.length; i++) {
+      if (!allRows[i].active) inactiveRows.push(allRows[i]);
+    }
+    // Selection sort by accuracyPct ascending — keeps stable ordering
+    // across ArkTS environments (Array.sort stability is undefined
+    // for our oldest supported runtime).
+    for (let i: number = 0; i < inactiveRows.length; i++) {
+      let minIdx: number = i;
+      for (let j: number = i + 1; j < inactiveRows.length; j++) {
+        if (inactiveRows[j].accuracyPct < inactiveRows[minIdx].accuracyPct) {
+          minIdx = j;
+        }
+      }
+      if (minIdx !== i) {
+        const tmp: PackReport = inactiveRows[i];
+        inactiveRows[i] = inactiveRows[minIdx];
+        inactiveRows[minIdx] = tmp;
+      }
+    }
+    for (let i: number = 0; i < orderedActive.length; i++) {
+      report.packs.push(orderedActive[i]);
+    }
+    for (let i: number = 0; i < inactiveRows.length; i++) {
+      report.packs.push(inactiveRows[i]);
+    }
+    return report;
   }
-  return sorted.slice(0, n);
 }

@@ -128,7 +128,7 @@ export default function cloudSyncServiceTest(): void {
       cc.injectPreferences(new MemPrefs());
       const recorder: LearningRecorder = makeRecorderWith([ws('w1', 1000, 1, 0)]);
       const adapter: CapturingAdapter = new CapturingAdapter();
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('unbound');
       expect(adapter.posts.length).assertEqual(0);
@@ -145,7 +145,7 @@ export default function cloudSyncServiceTest(): void {
         '{"accepted":["w1"],"rejected":[],"server_pulls":[],"server_now_ms":6000}',
       );
       const prefs: MemPrefs = new MemPrefs();
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('pushed');
@@ -171,7 +171,7 @@ export default function cloudSyncServiceTest(): void {
         200,
         '{"accepted":["w2"],"rejected":[],"server_pulls":[],"server_now_ms":9500}',
       );
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.pushed).assertEqual(1);
@@ -194,7 +194,7 @@ export default function cloudSyncServiceTest(): void {
       // Pretend we already shipped w1 above its checkpoint, so the only
       // delta in this run is the inbound pull.
       prefs.store.set('sync_checkpoint_ms', '2000');
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('pulled');
@@ -219,7 +219,7 @@ export default function cloudSyncServiceTest(): void {
       );
       const prefs: MemPrefs = new MemPrefs();
       prefs.store.set('sync_checkpoint_ms', '9500');
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.pulled).assertEqual(0);
@@ -238,7 +238,7 @@ export default function cloudSyncServiceTest(): void {
         200,
         '{"accepted":["w1"],"rejected":[],"server_pulls":[{"word_id":"w2","seen_count":1,"correct_count":1,"wrong_count":0,"last_answered_ms":8000,"last_correct_ms":8000,"next_review_ms":12000,"memory_state":"new","consecutive_correct":1,"consecutive_wrong":0,"mastery":0.2}],"server_now_ms":9100}',
       );
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(new MemPrefs());
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('pushed_and_pulled');
@@ -253,7 +253,7 @@ export default function cloudSyncServiceTest(): void {
       adapter.enqueue(200, '{"accepted":[],"rejected":[],"server_pulls":[],"server_now_ms":2000}');
       const prefs: MemPrefs = new MemPrefs();
       prefs.store.set('sync_checkpoint_ms', '5000');
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('no_changes');
@@ -270,7 +270,7 @@ export default function cloudSyncServiceTest(): void {
       adapter.failNetwork = true;
       const prefs: MemPrefs = new MemPrefs();
       prefs.store.set('sync_checkpoint_ms', '1000');
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('network_error');
@@ -284,7 +284,7 @@ export default function cloudSyncServiceTest(): void {
       adapter.enqueue(503, 'busy');
       const prefs: MemPrefs = new MemPrefs();
       prefs.store.set('sync_checkpoint_ms', '7000');
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('network_error');
@@ -304,7 +304,7 @@ export default function cloudSyncServiceTest(): void {
       adapter.enqueue(200, '{"accepted":[],"rejected":[],"server_pulls":[],"server_now_ms":9300}');
       adapter.enqueue(200, '{"accepted":[],"rejected":[],"server_pulls":[],"server_now_ms":9400}');
       const prefs: MemPrefs = new MemPrefs();
-      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, BASE);
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('pushed');

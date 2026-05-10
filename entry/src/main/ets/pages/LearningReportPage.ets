@@ -1,25 +1,30 @@
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import display from '@ohos.display';
-import { WordRepository } from '../services/WordRepository';
 import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import {
   LearningReportBuilder,
   LearningReport,
-  CategoryReport,
+  PackReport,
 } from '../services/LearningReportBuilder';
+import {
+  HomeIntegrationBundle,
+  loadHomeIntegration,
+} from '../services/PackHomeIntegration';
 
 /**
- * V0.4.5 — local learning report. Pure read-only view of:
+ * V0.6.7.8 — local learning report. Pure read-only view of:
  *   - overall accuracy (correct / seen)
  *   - mastered word count
  *   - today's review completion (done-today / due)
- *   - per-category breakdown + weakest 1-3 categories
+ *   - per-pack breakdown table (V0.4.5 keyed reports by category;
+ *     V0.6.7.8 rewrites them around the three-layer pack model so
+ *     the parent's mental model matches the rest of the app)
  *
  * No persistence here; the source of truth is `LearningRecorder`.
- * No charts in this version — V0.4.5 lays the groundwork; richer
- * visuals (trend lines, heatmaps) are future-V0.4.x work.
+ * No charts in this version — V0.4.5 laid the groundwork; richer
+ * visuals (trend lines, heatmaps) remain future work.
  *
  * Responsive layout (added 2026-05-06): on pad-class screens (shorter
  * edge ≥ 600 vp, MatePad/foldable) the cards are capped to ~720 vp
@@ -44,8 +49,7 @@ struct LearningReportPage {
   @State private reviewDoneTodayCount: number = 0;
   @State private reviewDueCount: number = 0;
   @State private reviewCompletionPct: number = 0;
-  @State private categories: CategoryReport[] = [];
-  @State private weakCategories: CategoryReport[] = [];
+  @State private packs: PackReport[] = [];
   @State private loaded: boolean = false;
   /**
    * Shorter screen edge in vp. Phone-class default keeps the first
@@ -66,17 +70,26 @@ struct LearningReportPage {
       // Keep the phone-class default; the page is still usable.
     }
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
-      const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
+    // V0.6.7.8: report aggregates per-pack, so we need the same
+    // (PackLibrary + PackSelectionService) bundle that HomePage and
+    // PackManagerPage already build via loadHomeIntegration. Run
+    // bootstrap (recorder hydration deps + word cache warmup) and
+    // loadHomeIntegration (library + selection) in parallel — both
+    // are idempotent and read the same preferences / rawfile state.
+    Promise.all([
+      WordPackBootstrapper.forContext(ctx),
+      loadHomeIntegration(ctx),
+    ]).then((results: [BootstrapDeps, HomeIntegrationBundle]): void => {
+      const bundle: HomeIntegrationBundle = results[1];
       const recorder: LearningRecorder = getLearningRecorder();
       recorder.init(ctx).then((): void => {
-        this.populateView(repo, recorder);
+        this.populateView(bundle, recorder);
       }).catch((err: BusinessError): void => {
         console.error(`LearningReportPage: recorder.init failed: ${JSON.stringify(err)}`);
-        this.populateView(repo, recorder);
+        this.populateView(bundle, recorder);
       });
     }).catch((err: BusinessError): void => {
-      console.error(`LearningReportPage: bootstrap failed: ${JSON.stringify(err)}`);
+      console.error(`LearningReportPage: bootstrap or loadHomeIntegration failed: ${JSON.stringify(err)}`);
       this.loaded = true;
     });
   }
@@ -92,9 +105,13 @@ struct LearningReportPage {
     return this.isPad() ? PAD_CONTENT_WIDTH_VP : '100%';
   }
 
-  private populateView(repo: WordRepository, recorder: LearningRecorder): void {
-    const report: LearningReport =
-      new LearningReportBuilder().build(repo, recorder, Date.now());
+  private populateView(bundle: HomeIntegrationBundle, recorder: LearningRecorder): void {
+    const report: LearningReport = new LearningReportBuilder().build(
+      bundle.library,
+      bundle.selection.getActiveIds(),
+      recorder,
+      Date.now(),
+    );
     this.accuracyPct = report.accuracyPct;
     this.totalSeen = report.totalSeen;
     this.totalCorrect = report.totalCorrect;
@@ -105,8 +122,7 @@ struct LearningReportPage {
     this.reviewDoneTodayCount = report.reviewDoneTodayCount;
     this.reviewDueCount = report.reviewDueCount;
     this.reviewCompletionPct = report.reviewCompletionPct;
-    this.categories = report.categories;
-    this.weakCategories = report.weakCategories;
+    this.packs = report.packs;
     this.loaded = true;
   }
 
@@ -124,10 +140,7 @@ struct LearningReportPage {
             this.accuracyCard();
             this.statesCard();
             this.reviewCard();
-            if (this.weakCategories.length > 0) {
-              this.weakCard();
-            }
-            this.categoryBreakdown();
+            this.packBreakdown();
             if (this.loaded && this.totalSeen === 0) {
               this.emptyState();
             }
@@ -293,19 +306,19 @@ struct LearningReportPage {
   }
 
   @Builder
-  private weakCard() {
+  private packBreakdown() {
     Column({ space: 8 }) {
-      Text('需要加强的分类')
+      Text('词包详情')
         .fontSize(16)
         .fontWeight(FontWeight.Bold)
         .fontColor('#1D3557');
-      ForEach(this.weakCategories, (cat: CategoryReport): void => {
-        this.weakRow(cat);
-      }, (cat: CategoryReport): string => `weak-${cat.category}`);
+      ForEach(this.packs, (p: PackReport): void => {
+        this.packRow(p);
+      }, (p: PackReport): string => `pack-${p.packId}`);
     }
     .width('100%')
-    .id('LearningReportWeakSection')
     .padding(16)
+    .id('LearningReportPackSection')
     .backgroundColor('#FFFFFF')
     .borderRadius(16)
     .alignItems(HorizontalAlign.Start)
@@ -313,54 +326,21 @@ struct LearningReportPage {
   }
 
   @Builder
-  private weakRow(cat: CategoryReport) {
+  private packRow(p: PackReport) {
     Row() {
-      Text(cat.displayName)
+      Text(p.name)
         .fontSize(14)
         .fontColor('#1D3557');
       Blank();
-      Text(`${cat.accuracyPct}%`)
-        .fontSize(14)
-        .fontColor(cat.accuracyPct >= 60 ? '#2A9D8F' : '#E63946');
-    }
-    .width('100%');
-  }
-
-  @Builder
-  private categoryBreakdown() {
-    Column({ space: 8 }) {
-      Text('分类详情')
-        .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1D3557');
-      ForEach(this.categories, (cat: CategoryReport): void => {
-        this.categoryRow(cat);
-      }, (cat: CategoryReport): string => `cat-${cat.category}`);
-    }
-    .width('100%')
-    .padding(16)
-    .id('LearningReportCategorySection')
-    .backgroundColor('#FFFFFF')
-    .borderRadius(16)
-    .alignItems(HorizontalAlign.Start)
-    .border({ width: 1, color: '#E0E0E0' });
-  }
-
-  @Builder
-  private categoryRow(cat: CategoryReport) {
-    Row() {
-      Text(cat.displayName)
-        .fontSize(14)
-        .fontColor('#1D3557');
-      Blank();
-      Text(`${cat.totalCorrect} / ${cat.totalSeen}`)
+      Text(`${p.totalCorrect} / ${p.totalSeen}`)
         .fontSize(13)
         .fontColor('#5A4A35')
         .margin({ right: 12 });
-      Text(cat.totalSeen > 0 ? `${cat.accuracyPct}%` : '—')
+      Text(p.totalSeen > 0 ? `${p.accuracyPct}%` : '—')
         .fontSize(13)
         .fontColor('#5A4A35');
     }
+    .id(`pack-${p.packId}`)
     .width('100%');
   }
 

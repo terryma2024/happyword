@@ -8,30 +8,44 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags any direct @kit call as "Function may throw
+  // exceptions. Special handling is required." — wrap the body in
+  // try/catch+rethrow so the warning is silenced while preserving the
+  // test failure semantics (a thrown ability-launch / driver-delay
+  // error still propagates up to hypium's per-`it` handler).
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
  * Navigate back to HomePage after a previous suite left the app
- * mid-flow. Mirrors V03Adventure.ui.test's returnToHome — press
+ * mid-flow. Mirrors AdventureFlow.ui.test's returnToHome — press
  * back up to 5 times until HomeStartButton resolves. Each `it`
  * block in this suite must start on HomePage so HomeReviewButton
  * is reachable; without this, the suite is order-dependent on
  * whoever ran before us in List.test.ets.
  */
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  // See `launchApp` rationale for why the body is wrapped in try/catch.
+  try {
+    for (let i = 0; i < 5; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 

@@ -78,7 +78,9 @@ class MemPrefs implements StringPreferencesLike {
 }
 
 const BASE: string = 'https://happyword.cool';
-const URL_LATEST: string = `${BASE}/api/v1/child/family-packs/latest.json`;
+const FAMILY_ID: string = 'fam-testfamily';
+const URL_LATEST: string =
+  `${BASE}/api/v1/family/${encodeURIComponent(FAMILY_ID)}/family-packs/latest.json`;
 const TOKEN: string = 'device.jwt.token';
 const CACHE_KEY: string = 'family_packs_v1';
 
@@ -131,7 +133,7 @@ export default function familyPackServiceTest() {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
-      const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN);
+      const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       expect(r.status).assertEqual('updated');
       expect(r.blob !== null).assertTrue();
       expect(r.blob?.packs.length).assertEqual(1);
@@ -143,9 +145,9 @@ export default function familyPackServiceTest() {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
-      await h.svc.ensureLatest(TOKEN);
+      await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       h.adapter.responses.set(`GET ${URL_LATEST}`, status(304));
-      const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN);
+      const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       expect(r.status).assertEqual('not_modified');
       expect(r.blob !== null).assertTrue();
       expect(h.adapter.lastHeaders['If-None-Match']).assertEqual('"e1"');
@@ -155,9 +157,9 @@ export default function familyPackServiceTest() {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
-      await h.svc.ensureLatest(TOKEN);
+      await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       h.adapter.responses.set(`GET ${URL_LATEST}`, status(204));
-      const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN);
+      const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       expect(r.status).assertEqual('cleared');
       expect(r.blob).assertEqual(null);
       expect(h.svc.currentBlob()).assertEqual(null);
@@ -168,9 +170,9 @@ export default function familyPackServiceTest() {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
-      await h.svc.ensureLatest(TOKEN);
+      await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       h.adapter.errorOn.add(`GET ${URL_LATEST}`);
-      const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN);
+      const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       expect(r.status).assertEqual('cached_fallback');
       expect(r.blob !== null).assertTrue();
     });
@@ -184,25 +186,36 @@ export default function familyPackServiceTest() {
       expect(h.adapter.lastUrl).assertEqual('');
     });
 
+    it('ensureLatest_blank_family_id_falls_back_to_legacy_child_path', 0, async () => {
+      const h: Harness = buildSvc();
+      const legacyUrl: string = `${BASE}/api/v1/child/family-packs/latest.json`;
+      h.adapter.responses.set(`GET ${legacyUrl}`, ok(fakeBody('pck-legacy', 'Leg')));
+      h.adapter.setResponseHeaders(`GET ${legacyUrl}`, headersWith('ETag', '"e-legacy"'));
+      const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, '');
+      expect(r.status).assertEqual('updated');
+      expect(h.adapter.lastUrl).assertEqual(legacyUrl);
+      expect(h.svc.currentBlob()?.packs[0].packId).assertEqual('pck-legacy');
+    });
+
     it('peekRemoteEtag_returns_header_only', 0, async () => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(200));
       h.adapter.setResponseHeaders(`HEAD ${URL_LATEST}`, headersWith('etag', '"e2"'));
-      const e: string | null = await h.svc.peekRemoteEtag(TOKEN);
+      const e: string | null = await h.svc.peekRemoteEtag(TOKEN, FAMILY_ID);
       expect(e).assertEqual('"e2"');
     });
 
     it('peekRemoteEtag_204_returns_empty_string_marker', 0, async () => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(204));
-      const e: string | null = await h.svc.peekRemoteEtag(TOKEN);
+      const e: string | null = await h.svc.peekRemoteEtag(TOKEN, FAMILY_ID);
       expect(e).assertEqual('');
     });
 
     it('peekRemoteEtag_error_returns_null', 0, async () => {
       const h: Harness = buildSvc();
       h.adapter.errorOn.add(`HEAD ${URL_LATEST}`);
-      const e: string | null = await h.svc.peekRemoteEtag(TOKEN);
+      const e: string | null = await h.svc.peekRemoteEtag(TOKEN, FAMILY_ID);
       expect(e).assertEqual(null);
     });
 
@@ -210,20 +223,20 @@ export default function familyPackServiceTest() {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
-      await h.svc.ensureLatest(TOKEN);
+      await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(200));
       h.adapter.setResponseHeaders(`HEAD ${URL_LATEST}`, headersWith('ETag', '"e-different"'));
-      expect(await h.svc.isRemoteStale(TOKEN)).assertTrue();
+      expect(await h.svc.isRemoteStale(TOKEN, FAMILY_ID)).assertTrue();
     });
 
     it('isRemoteStale_false_when_etag_matches', 0, async () => {
       const h: Harness = buildSvc();
       h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
       h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
-      await h.svc.ensureLatest(TOKEN);
+      await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(200));
       h.adapter.setResponseHeaders(`HEAD ${URL_LATEST}`, headersWith('ETag', '"e1"'));
-      expect(await h.svc.isRemoteStale(TOKEN)).assertFalse();
+      expect(await h.svc.isRemoteStale(TOKEN, FAMILY_ID)).assertFalse();
     });
 
     it('warmFromCache_rehydrates_in_memory_blob', 0, async () => {

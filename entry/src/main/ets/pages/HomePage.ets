@@ -8,14 +8,16 @@ import {
   TODAY_PLAN_STORAGE_KEY,
   TODAY_LAST_COMPLETED_DAY_KEY,
   TODAY_REGION_ID_KEY,
+  TODAY_ACTIVE_PACK_KEY,
   cloneGameConfig
 } from '../models/GameConfig';
 import { getLearningRecorder } from '../services/LearningRecorder';
 import { WordRepository } from '../services/WordRepository';
 import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
-import { TodayAdventureBuilder, localDayKey } from '../services/TodayAdventureBuilder';
+import { TodayAdventureBuilder, localDayKey, regionFromPack } from '../services/TodayAdventureBuilder';
 import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
 import { AdventureRegion, TodaySessionPlan, MonsterSlot } from '../models/AdventureRegion';
+import { Pack } from '../models/Pack';
 import { describeMonsterKind } from '../services/TodayAdventureBuilder';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
@@ -27,6 +29,12 @@ import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCre
 import BuildProfile from 'BuildProfile';
 import { VersionTripleTap } from '../services/VersionTripleTap';
 import { formatVersionLabel, readVersionInfo, VersionInfo } from '../services/BuildInfo';
+import {
+  HomeIntegrationBundle,
+  fallbackPacks,
+  loadHomeIntegration,
+  resolveActivePacks,
+} from '../services/PackHomeIntegration';
 
 /**
  * Review-mode gating threshold. Mirrors spec §15 Track D: kids need at
@@ -57,7 +65,24 @@ struct HomePage {
    */
   @State private recentWrongCount: number = 0;
   @State private todayCompleted: boolean = false;
+  /**
+   * V0.6.5.1: the chip row's currently-selected Pack. `todayRegion` is
+   * derived from this on every render so the legacy region-shaped UI
+   * fields (bgPrimary, bgAccent, monsterPlan, bossName) keep working.
+   * Initial value is the first bundled fallback Pack (Fruit Forest);
+   * `loadHomeIntegration` swaps in the real PackLibrary asynchronously.
+   */
+  @State private chipPacks: Pack[] = fallbackPacks();
+  @State private todayPack: Pack = fallbackPacks()[0];
   @State private todayRegion: AdventureRegion = ADVENTURE_REGIONS[0];
+  /**
+   * Bumped on every successful loadHomeIntegration / setActiveIds /
+   * togglePin / pruneAgainstLibrary call. ArkUI does not track through
+   * helper methods, so the @Builder closures read this field to force
+   * a re-render after async chip-set changes.
+   */
+  @State private packLibraryVersion: number = 0;
+  private homeIntegration: HomeIntegrationBundle = new HomeIntegrationBundle();
   @State private coinBalance: number = 0;
   /**
    * v0.3.6: when the locked review button is tapped (fewer than 3
@@ -120,6 +145,16 @@ struct HomePage {
       .catch((err: BusinessError): void => {
         console.error(`HomePage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
       });
+    // V0.6.5.1: load the unified PackLibrary + selection on first
+    // appearance. The chip row falls back to the bundled
+    // ADVENTURE_REGIONS until this resolves so the first paint is
+    // never empty.
+    loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
+      this.homeIntegration = bundle;
+      this.applyActivePacks();
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage: loadHomeIntegration failed: ${JSON.stringify(err)}`);
+    });
     this.refreshWrongCount();
     if (BuildProfile.BUILD_MODE_NAME === 'debug') {
       readVersionInfo().then((v: VersionInfo): void => {
@@ -158,6 +193,28 @@ struct HomePage {
     this.refreshBoundChild().catch((err: BusinessError): void => {
       console.error(`HomePage: refreshBoundChild failed: ${JSON.stringify(err)}`);
     });
+    // V0.6.5.1: ConfigPage / PackManagerPage may have changed the
+    // active set or pinned a pack while we were away. Re-apply on
+    // every page-show so the chip row reflects the latest selection.
+    //
+    // V0.6.7.4: PackManagerPage / ConfigPage build their own
+    // `loadHomeIntegration` bundle, so the `selection` instance
+    // they mutate is *not* the same `PackSelectionService` HomePage
+    // cached in `aboutToAppear`. Calling `applyActivePacks()` alone
+    // would read stale activeIds and toggling packs in the manager
+    // would have no visible effect on the chip row or AdventureCard.
+    // Reload the bundle on every onPageShow — `loadHomeIntegration`
+    // re-reads the (typically warm) PackLibrary plus a single
+    // preferences blob via PackSelectionService.init, so the cost is
+    // small but the propagation guarantee is now correct.
+    const ctxShow: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    loadHomeIntegration(ctxShow).then((bundle: HomeIntegrationBundle): void => {
+      this.homeIntegration = bundle;
+      this.applyActivePacks();
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage: loadHomeIntegration on show failed: ${JSON.stringify(err)}`);
+    });
   }
 
   aboutToDisappear(): void {
@@ -189,17 +246,19 @@ struct HomePage {
   }
 
   /**
-   * V0.5.E overlay: prefer the server `labelZh` for the given region id
-   * when available, otherwise fall back to the bundled `displayName`.
+   * V0.6.7.5: HomePage labels — the `AdventureCardTitle` heading and
+   * the chip row — now follow PackManagerPage's English convention
+   * (V0.6.7 spec: 词包名字用英文). `region.displayName` is sourced
+   * from `pack.name` via `regionFromPack`, so the heading is
+   * deterministically the English pack name regardless of whether
+   * the server pushed a `categoryCatalog` overlay.
+   *
+   * The legacy V0.5.E `categoryCatalog` Chinese overlay is no longer
+   * consulted from this path; the cache + sync machinery is kept so
+   * the storyZh body copy in `regionStory` and any future Chinese-
+   * label use-case still has a hook.
    */
   private regionLabel(region: AdventureRegion): string {
-    // Read this.categoryCatalogVersion here so any @State-bound caller
-    // re-runs when setRows() bumps the version. ArkUI does not track
-    // through helper methods, so the caller must read the @State too.
-    const overlay: CategoryRow | undefined = this.categoryCatalog.getById(region.id);
-    if (overlay !== undefined && overlay.labelZh.length > 0) {
-      return overlay.labelZh;
-    }
     return region.displayName;
   }
 
@@ -227,9 +286,43 @@ struct HomePage {
         AppStorage.get<string>(TODAY_LAST_COMPLETED_DAY_KEY);
       this.todayCompleted = stored !== undefined && stored === todayKey;
     }
+    // V0.6.5.1: persisted region id is now a pack id. Keep the legacy
+    // AdventureRegion lookup as a render fallback before
+    // loadHomeIntegration resolves; once it does, applyActivePacks
+    // overwrites todayPack / todayRegion with the canonical Pack.
     const storedRegionId: string | undefined = AppStorage.get<string>(TODAY_REGION_ID_KEY);
     const id: string = storedRegionId !== undefined ? storedRegionId : DEFAULT_REGION_ID;
     this.todayRegion = getRegionById(id);
+  }
+
+  /**
+   * Recompute `chipPacks` (the active subset) and `todayPack` /
+   * `todayRegion` from the home-integration bundle. Idempotent — safe
+   * to call from `aboutToAppear`, `onPageShow`, or after a chip tap.
+   * Bumps `packLibraryVersion` so @Builder closures re-render.
+   */
+  private applyActivePacks(): void {
+    const active: Pack[] = resolveActivePacks(this.homeIntegration);
+    if (active.length === 0) {
+      // Library not yet loaded or selection is empty after a delete.
+      // Fall back to the bundled regions so the chip row never empties.
+      this.chipPacks = fallbackPacks();
+    } else {
+      this.chipPacks = active;
+    }
+    const persistedId: string | undefined = AppStorage.get<string>(TODAY_REGION_ID_KEY);
+    let chosen: Pack = this.chipPacks[0];
+    if (persistedId !== undefined) {
+      for (let i = 0; i < this.chipPacks.length; i++) {
+        if (this.chipPacks[i].id === persistedId) {
+          chosen = this.chipPacks[i];
+          break;
+        }
+      }
+    }
+    this.todayPack = chosen;
+    this.todayRegion = regionFromPack(chosen);
+    this.packLibraryVersion = this.packLibraryVersion + 1;
   }
 
   private reviewEnabled(): boolean {
@@ -275,36 +368,49 @@ struct HomePage {
   private enterTodayAdventure(): void {
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     const router = this.getUIContext().getRouter();
-    WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
-      const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
+    const pack: Pack = this.todayPack;
+    const recorder = getLearningRecorder();
+    recorder.init(ctx).then(async (): Promise<void> => {
       const builder: TodayAdventureBuilder = new TodayAdventureBuilder();
-      const region: AdventureRegion = this.todayRegion;
-      const recorder = getLearningRecorder();
-      // Init ensures the recorder snapshot is hydrated so the
-      // builder sees real review/learning words, not an empty list.
-      recorder.init(ctx).then((): void => {
-        // Use the persisted coin-account flag — it is the
-        // authoritative record of whether the player has finished
-        // today's adventure (BattlePage flips it on completion).
-        const isFirstToday: boolean = !this.coins.todayAdventureCompleted();
-        const plan: TodaySessionPlan =
-          builder.build(region, repo, recorder, Date.now(), isFirstToday);
-        AppStorage.setOrCreate<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY, plan);
-        const storedCfg: GameConfig | undefined =
-          AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
-        const cfg: GameConfig = cloneGameConfig(
-          storedCfg !== undefined ? storedCfg : new GameConfig());
-        cfg.mode = GAME_MODE_TODAY;
-        AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
-        persistGameConfigBestEffort(ctx, cfg);
-        router.pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
-          console.error(`HomePage: pushUrl BattlePage (today) failed: ${JSON.stringify(err)}`);
-        });
-      }).catch((err: BusinessError): void => {
-        console.error(`HomePage.enterTodayAdventure recorder.init failed: ${JSON.stringify(err)}`);
+      const isFirstToday: boolean = !this.coins.todayAdventureCompleted();
+      let plan: TodaySessionPlan;
+      let activePack: Pack | undefined = undefined;
+      if (pack.words.length > 0) {
+        // V0.6.5.1 happy path: pack carries its own words (any of the
+        // 5 builtins, or a global / family pack with words). Build
+        // the plan straight from the pack so BattlePage can resolve
+        // every word id against `pack.words`.
+        plan = builder.buildFromPack(pack, recorder, Date.now(), isFirstToday);
+        activePack = pack;
+      } else {
+        // Synthetic fallback Pack (no words) — happens if a chip is
+        // tapped before loadHomeIntegration resolves. Fall back to
+        // the legacy region+repo path so the battle still launches.
+        const deps: BootstrapDeps = await WordPackBootstrapper.forContext(ctx);
+        const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
+        const region: AdventureRegion = this.todayRegion;
+        plan = builder.build(region, repo, recorder, Date.now(), isFirstToday);
+      }
+      AppStorage.setOrCreate<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY, plan);
+      if (activePack !== undefined) {
+        AppStorage.setOrCreate<Pack>(TODAY_ACTIVE_PACK_KEY, activePack);
+      } else {
+        // Clear any stale value so BattlePage doesn't read a previous
+        // session's pack when we're on the legacy fallback path.
+        AppStorage.delete(TODAY_ACTIVE_PACK_KEY);
+      }
+      const storedCfg: GameConfig | undefined =
+        AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+      const cfg: GameConfig = cloneGameConfig(
+        storedCfg !== undefined ? storedCfg : new GameConfig());
+      cfg.mode = GAME_MODE_TODAY;
+      AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
+      persistGameConfigBestEffort(ctx, cfg);
+      router.pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
+        console.error(`HomePage: pushUrl BattlePage (today) failed: ${JSON.stringify(err)}`);
       });
     }).catch((err: BusinessError): void => {
-      console.error(`HomePage.enterTodayAdventure bootstrap failed: ${JSON.stringify(err)}`);
+      console.error(`HomePage.enterTodayAdventure recorder.init failed: ${JSON.stringify(err)}`);
     });
   }
 
@@ -592,30 +698,45 @@ struct HomePage {
     .border({ width: 1, color: this.todayRegion.bgAccent });
   }
 
+  /**
+   * V0.6.7.5: chip label is the English `p.name` to match
+   * PackManagerPage. Previously this preferred `p.labelZh` (Chinese)
+   * and fell through to the category-catalog overlay, which produced
+   * the mixed-language chip row reported as a bug — `animal-safari`
+   * / `ocean-realm` had global overrides with empty `description`
+   * (so labelZh was blanked) and rendered in English, while the
+   * rest stayed in Chinese. Locking the chip text to `p.name` makes
+   * the row deterministic and consistent with the 我的词包 page.
+   */
+  private packChipLabel(p: Pack): string {
+    if (p.name.length > 0) return p.name;
+    return p.id;
+  }
+
   @Builder
   private regionPicker() {
-    // V0.4.6: 5 regions overflow narrow phone widths — wrap the chip
-    // row in a horizontal Scroll so the picker scrolls cleanly to
-    // surface every region while keeping each `RegionChip_*` id
-    // tappable. Width budget: 5 × ~80 dp + 4 × 10 dp ≈ 440 dp.
+    // V0.6.5.1: chip set is now driven by PackSelectionService.getActiveIds()
+    // resolved through the merged PackLibrary; chip ids stay stable
+    // (RegionChip_<id>) so existing UI tests keep targeting them.
     Scroll() {
       Row({ space: 10 }) {
-        ForEach(ADVENTURE_REGIONS, (r: AdventureRegion): void => {
-          Button(this.categoryCatalogVersion >= 0 ? this.regionLabel(r) : r.displayName)
-            .id(`RegionChip_${r.id}`)
+        ForEach(this.chipPacks, (p: Pack): void => {
+          Button(this.packLibraryVersion >= 0 ? this.packChipLabel(p) : p.name)
+            .id(`RegionChip_${p.id}`)
             .fontSize(13)
             .height(32)
             .padding({ left: 12, right: 12 })
-            .backgroundColor(r.id === this.todayRegion.id ? '#E63946' : '#FFFFFF')
-            .fontColor(r.id === this.todayRegion.id ? '#FFFFFF' : '#3F2F1A')
+            .backgroundColor(p.id === this.todayPack.id ? '#E63946' : '#FFFFFF')
+            .fontColor(p.id === this.todayPack.id ? '#FFFFFF' : '#3F2F1A')
             .borderRadius(16)
-            .border({ width: 1, color: r.id === this.todayRegion.id ? '#E63946' : '#DDDDDD' })
+            .border({ width: 1, color: p.id === this.todayPack.id ? '#E63946' : '#DDDDDD' })
             .onClick((): void => {
-              AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, r.id);
-              this.todayRegion = r;
-              this.todayPrefs.saveRegionId(r.id);
+              AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, p.id);
+              this.todayPack = p;
+              this.todayRegion = regionFromPack(p);
+              this.todayPrefs.saveRegionId(p.id);
             });
-        }, (r: AdventureRegion): string => r.id);
+        }, (p: Pack): string => p.id);
       }
       .padding({ right: 4 });
     }

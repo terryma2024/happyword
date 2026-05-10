@@ -9,7 +9,7 @@ import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
  *
  * Coverage (single self-contained case):
  *   1. Establish a bound state via short-code redeem against the local
- *      mock (mirrors `ParentBindingFlowV06.shortCodeRedeemFlipsConfig
+ *      mock (mirrors `ParentBindingFlow.shortCodeRedeemFlipsConfig
  *      ToBound`).
  *   2. From ConfigPage tap `ConfigBoundDeviceInfoButton` → reach
  *      `BoundDeviceInfoPage`.
@@ -116,119 +116,163 @@ async function seedMockBinding(): Promise<void> {
 }
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1200);
-  // When this suite runs in isolation via `--suite BoundDeviceInfoFlow`
-  // the app is cold-launching for the first time. The fixed 1200 ms
-  // delay above is enough when other suites have already warmed it up
-  // (the canonical schedule in List.test.ets), but on a cold start the
-  // splash → HomePage transition can take several seconds on the
-  // emulator. Poll for HomeStartButton (up to 12 s) so the helper
-  // works in both modes.
-  for (let i: number = 0; i < 24; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      break;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1200);
+    // When this suite runs in isolation via `--suite BoundDeviceInfoFlow`
+    // the app is cold-launching for the first time. The fixed 1200 ms
+    // delay above is enough when other suites have already warmed it up
+    // (the canonical schedule in List.test.ets), but on a cold start the
+    // splash → HomePage transition can take several seconds on the
+    // emulator. Poll for HomeStartButton (up to 12 s) so the helper
+    // works in both modes.
+    for (let i: number = 0; i < 24; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        break;
+      }
+      await driver.delayMs(500);
     }
-    await driver.delayMs(500);
+    return driver;
+  } catch (err) {
+    throw err as Error;
   }
-  return driver;
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 12; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 12; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function openConfigPage(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeConfigButton');
-  await driver.delayMs(1500);
-  for (let attempt: number = 0; attempt < 3; attempt++) {
-    const c: Component | null = await driver.findComponent(ON.id('ConfigTitle'));
-    if (c !== null) {
-      return;
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+    for (let attempt: number = 0; attempt < 3; attempt++) {
+      const c: Component | null = await driver.findComponent(ON.id('ConfigTitle'));
+      if (c !== null) {
+        return;
+      }
+      await driver.swipe(1400, 300, 1400, 1100, 600);
+      await driver.delayMs(400);
     }
-    await driver.swipe(1400, 300, 1400, 1100, 600);
-    await driver.delayMs(400);
+    await driver.assertComponentExist(ON.id('ConfigTitle'));
+  } catch (err) {
+    throw err as Error;
   }
-  await driver.assertComponentExist(ON.id('ConfigTitle'));
 }
 
 async function scrollConfigToParentAccountRow(driver: Driver): Promise<void> {
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(400);
+  // V0.6.5.1: the 📦 packPickerSection added 5+ pack rows between
+  // autoSpeak and the parent-account row, so a single swipe may
+  // not be enough to expose ConfigBoundDeviceInfoButton or
+  // ConfigBindParentButton. Iterate up to 5 times.
+  try {
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const bind: Component | null =
+        await driver.findComponent(ON.id('ConfigBindParentButton'));
+      const bound: Component | null =
+        await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+      if (bind !== null || bound !== null) {
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
+    }
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function exitConfigPage(driver: Driver): Promise<void> {
-  await tapConfigCancelShared(driver);
-  await driver.delayMs(800);
+  try {
+    await tapConfigCancelShared(driver);
+    await driver.delayMs(800);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /** Drive the redeem path via the mock to leave the device bound. */
 async function bindViaShortCode(driver: Driver): Promise<void> {
-  await openConfigPage(driver);
-  await scrollConfigToParentAccountRow(driver);
+  try {
+    await openConfigPage(driver);
+    await scrollConfigToParentAccountRow(driver);
 
-  // Bind row should be present; if already bound (e.g. an earlier run
-  // left the device in the bound state) skip the redeem step.
-  const bound: Component | null =
-    await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
-  if (bound !== null) {
-    return;
-  }
-  await clickByIdShared(driver, 'ConfigBindParentButton');
-  await driver.delayMs(1500);
-  await clickByIdShared(driver, 'ScanBindingManualToggle');
-  await driver.delayMs(600);
-  await driver.assertComponentExist(ON.id('ScanBindingManualInput'));
-
-  const input: Component =
-    await driver.findComponent(ON.id('ScanBindingManualInput'));
-  await input.inputText(VALID_SHORT_CODE);
-  await driver.delayMs(500);
-  // Numeric IME hides the submit button on the emulator.
-  await driver.pressBack();
-  await driver.delayMs(600);
-
-  await clickByIdShared(driver, 'ScanBindingManualSubmit');
-  let foundSuccess: boolean = false;
-  for (let i: number = 0; i < 16; i++) {
-    const c: Component | null =
-      await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
-    if (c !== null) {
-      foundSuccess = true;
-      break;
+    // Bind row should be present; if already bound (e.g. an earlier run
+    // left the device in the bound state) skip the redeem step.
+    const bound: Component | null =
+      await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+    if (bound !== null) {
+      return;
     }
+    await clickByIdShared(driver, 'ConfigBindParentButton');
+    await driver.delayMs(1500);
+    await clickByIdShared(driver, 'ScanBindingManualToggle');
+    await driver.delayMs(600);
+    await driver.assertComponentExist(ON.id('ScanBindingManualInput'));
+
+    const input: Component =
+      await driver.findComponent(ON.id('ScanBindingManualInput'));
+    await input.inputText(VALID_SHORT_CODE);
     await driver.delayMs(500);
+    // Numeric IME hides the submit button on the emulator.
+    await driver.pressBack();
+    await driver.delayMs(600);
+
+    await clickByIdShared(driver, 'ScanBindingManualSubmit');
+    let foundSuccess: boolean = false;
+    for (let i: number = 0; i < 16; i++) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
+      if (c !== null) {
+        foundSuccess = true;
+        break;
+      }
+      await driver.delayMs(500);
+    }
+    expect(foundSuccess).assertTrue();
+    await clickByIdShared(driver, 'ScanBindingSuccessBack');
+    await driver.delayMs(1500);
+  } catch (err) {
+    throw err as Error;
   }
-  expect(foundSuccess).assertTrue();
-  await clickByIdShared(driver, 'ScanBindingSuccessBack');
-  await driver.delayMs(1500);
 }
 
 async function waitForBoundButton(driver: Driver, maxMs: number): Promise<boolean> {
-  const stepMs: number = 250;
-  let waited: number = 0;
-  while (waited < maxMs) {
-    const c: Component | null =
-      await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
-    if (c !== null) {
-      return true;
+  try {
+    const stepMs: number = 250;
+    let waited: number = 0;
+    while (waited < maxMs) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+      if (c !== null) {
+        return true;
+      }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
     }
-    await driver.delayMs(stepMs);
-    waited += stepMs;
+    return false;
+  } catch (err) {
+    throw err as Error;
   }
-  return false;
 }
 
 async function waitForNicknameValueText(
@@ -236,22 +280,26 @@ async function waitForNicknameValueText(
   expected: string,
   maxMs: number,
 ): Promise<string> {
-  const stepMs: number = 300;
-  let waited: number = 0;
-  let last: string = '';
-  while (waited < maxMs) {
-    const c: Component | null =
-      await driver.findComponent(ON.id('BoundDeviceInfoNicknameValue'));
-    if (c !== null) {
-      last = await c.getText();
-      if (last.indexOf(expected) >= 0) {
-        return last;
+  try {
+    const stepMs: number = 300;
+    let waited: number = 0;
+    let last: string = '';
+    while (waited < maxMs) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('BoundDeviceInfoNicknameValue'));
+      if (c !== null) {
+        last = await c.getText();
+        if (last.indexOf(expected) >= 0) {
+          return last;
+        }
       }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
     }
-    await driver.delayMs(stepMs);
-    waited += stepMs;
+    return last;
+  } catch (err) {
+    throw err as Error;
   }
-  return last;
 }
 
 async function waitForBoundButtonText(
@@ -259,22 +307,26 @@ async function waitForBoundButtonText(
   expected: string,
   maxMs: number,
 ): Promise<string> {
-  const stepMs: number = 300;
-  let waited: number = 0;
-  let last: string = '';
-  while (waited < maxMs) {
-    const c: Component | null =
-      await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
-    if (c !== null) {
-      last = await c.getText();
-      if (last.indexOf(expected) >= 0) {
-        return last;
+  try {
+    const stepMs: number = 300;
+    let waited: number = 0;
+    let last: string = '';
+    while (waited < maxMs) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+      if (c !== null) {
+        last = await c.getText();
+        if (last.indexOf(expected) >= 0) {
+          return last;
+        }
       }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
     }
-    await driver.delayMs(stepMs);
-    waited += stepMs;
+    return last;
+  } catch (err) {
+    throw err as Error;
   }
-  return last;
 }
 
 export default function boundDeviceInfoFlowUiTest(): void {

@@ -1,5 +1,6 @@
 import { CloudCredentials, CloudCredentialsSnapshot } from './CloudCredentials';
 import { ParentFetchAdapter, ParentFetchResult } from './ParentApiClient';
+import { effectiveServerBaseUrl } from './RemoteWordPackConfig';
 import { StringPreferencesLike } from './WrongAnswerStore';
 
 /**
@@ -133,7 +134,7 @@ class RedemptionRequestBody {
 export class CloudWishlistService implements RedemptionPollSource {
   private readonly credentials: CloudCredentials;
   private readonly adapter: ParentFetchAdapter;
-  private readonly baseUrl: string;
+  private readonly resolveBaseUrl: () => string;
   private prefs?: StringPreferencesLike;
   private nowMs: () => number = (): number => Date.now();
   private cached: CloudWishlistItem[] = [];
@@ -143,11 +144,16 @@ export class CloudWishlistService implements RedemptionPollSource {
   constructor(
     credentials: CloudCredentials,
     adapter: ParentFetchAdapter,
-    baseUrl: string,
+    resolveBaseUrl: () => string,
   ) {
     this.credentials = credentials;
     this.adapter = adapter;
-    this.baseUrl = CloudWishlistService.trim(baseUrl);
+    this.resolveBaseUrl = resolveBaseUrl;
+  }
+
+  /** Same routing as CloudSync — tests inject a constant lambda. */
+  static defaultBaseUrlResolver(): string {
+    return CloudWishlistService.trim(effectiveServerBaseUrl());
   }
 
   injectPreferences(p: StringPreferencesLike): void {
@@ -231,7 +237,8 @@ export class CloudWishlistService implements RedemptionPollSource {
     if (!snap.isBound() || snap.deviceToken.length === 0) {
       return false;
     }
-    const url: string = `${this.baseUrl}/api/v1/child/wishlist`;
+    const base: string = CloudWishlistService.trim(this.resolveBaseUrl());
+    const url: string = `${base}/api/v1/child/wishlist`;
     const headers: Record<string, string> = {};
     headers[HEADER_ACCEPT] = CONTENT_JSON;
     headers[HEADER_AUTH] = `Bearer ${snap.deviceToken}`;
@@ -284,7 +291,8 @@ export class CloudWishlistService implements RedemptionPollSource {
     if (!snap.isBound() || snap.deviceToken.length === 0) {
       return '';
     }
-    const url: string = `${this.baseUrl}/api/v1/child/redemption-requests`;
+    const baseReq: string = CloudWishlistService.trim(this.resolveBaseUrl());
+    const url: string = `${baseReq}/api/v1/child/redemption-requests`;
     const headers: Record<string, string> = {};
     headers[HEADER_CONTENT_TYPE] = CONTENT_JSON;
     headers[HEADER_ACCEPT] = CONTENT_JSON;
@@ -353,8 +361,9 @@ export class CloudWishlistService implements RedemptionPollSource {
       return [];
     }
     const sinceMs: number = await this.readSince();
+    const basePoll: string = CloudWishlistService.trim(this.resolveBaseUrl());
     const url: string =
-      `${this.baseUrl}/api/v1/child/redemption-requests/poll?since_ms=${sinceMs}`;
+      `${basePoll}/api/v1/child/redemption-requests/poll?since_ms=${sinceMs}`;
     const headers: Record<string, string> = {};
     headers[HEADER_ACCEPT] = CONTENT_JSON;
     headers[HEADER_AUTH] = `Bearer ${snap.deviceToken}`;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
-import { Want, common } from '@kit.AbilityKit';
+import { application, Want, common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
 import {
@@ -13,9 +13,8 @@ import {
  *
  * Coverage:
  *   1. unboundConfigPageRendersBindEntryOnly — fresh install: only
- *      `ConfigBindParentButton` is rendered; `ConfigBoundDeviceInfoButton`,
- *      `ConfigUnbindBindingButton`, and `ConfigCloudSyncButton` are
- *      absent (gated by `bindingPresent`).
+ *      `ConfigBindParentButton` is rendered; `ConfigBoundDeviceInfoButton`
+ *      and `ConfigCloudSyncButton` are absent (gated by `bindingPresent`).
  *   2. tapBindOpensScanBindingPage — tap the bind row; ScanBindingPage
  *      idle UI renders (打开扫码器 + 无法扫码？手动输入短码), and the
  *      back button returns to ConfigPage with the unbound row still
@@ -23,12 +22,15 @@ import {
  *   3. shortCodeRedeemFlipsConfigToBound — open ScanBindingPage, switch
  *      to manual entry, type a 6-digit short code, submit; the success
  *      panel appears (绑定成功). Back to ConfigPage; the bound rows
- *      (`ConfigBoundDeviceInfoButton`, `ConfigUnbindBindingButton`,
- *      `ConfigCloudSyncButton`) are now visible.
- *   4. unbindWithPinFlipsBackToUnbound — seed the parent PIN, tap
- *      `ConfigUnbindBindingButton`, type the PIN into ParentPinDialog;
- *      the unbind toast appears and ConfigPage flips back to showing
- *      `ConfigBindParentButton` with the bound rows hidden.
+ *      (`ConfigBoundDeviceInfoButton`, `ConfigCloudSyncButton`) are now
+ *      visible.
+ *   4. unbindFromBoundDeviceInfoPageFlipsBackToUnbound — seed the parent
+ *      PIN, tap `ConfigBoundDeviceInfoButton` to open BoundDeviceInfoPage,
+ *      tap `BoundDeviceInfoUnbindButton`, type the PIN into ParentPinDialog;
+ *      the unbind toast appears, the page auto-routes back, and ConfigPage
+ *      flips back to showing `ConfigBindParentButton` with the bound rows
+ *      hidden. (V0.6.7.2: the unbind row moved from ConfigPage to
+ *      BoundDeviceInfoPage.)
  *
  * All HTTP traffic is routed through the local mock at 127.0.0.1:8123
  * (see server/mock_ui_server.py: `/api/v1/pair/redeem` accepts any
@@ -44,70 +46,112 @@ const KNOWN_PIN: string = '123456';
 const VALID_SHORT_CODE: string = '345678';
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1200);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1200);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 6; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 6; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function openConfigPage(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeConfigButton');
-  await driver.delayMs(1500);
-  // ConfigPage's outer Scroll() may carry over an offset from a
-  // previous visit (HarmonyOS preserves scroll state across re-render
-  // of the same page when the navigation is push/pop on the same
-  // ability). Try to find the title; if not, swipe DOWN to reveal it.
-  for (let attempt: number = 0; attempt < 3; attempt++) {
-    const c: Component | null = await driver.findComponent(ON.id('ConfigTitle'));
-    if (c !== null) {
-      return;
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+    // ConfigPage's outer Scroll() may carry over an offset from a
+    // previous visit (HarmonyOS preserves scroll state across re-render
+    // of the same page when the navigation is push/pop on the same
+    // ability). Try to find the title; if not, swipe DOWN to reveal it.
+    for (let attempt: number = 0; attempt < 3; attempt++) {
+      const c: Component | null = await driver.findComponent(ON.id('ConfigTitle'));
+      if (c !== null) {
+        return;
+      }
+      await driver.swipe(1400, 300, 1400, 1100, 600);
+      await driver.delayMs(400);
     }
-    await driver.swipe(1400, 300, 1400, 1100, 600);
-    await driver.delayMs(400);
+    await driver.assertComponentExist(ON.id('ConfigTitle'));
+  } catch (err) {
+    throw err as Error;
   }
-  await driver.assertComponentExist(ON.id('ConfigTitle'));
 }
 
 /**
- * The parent-account row sits between `ConfigParentPinButton` and the
- * sync row, well below the fold on the landscape OpenHarmony emulator.
- * One upward swipe brings it into view; mirrors the pattern used by
- * `openConfigAndScrollToSync` in ConfigSyncFlow.ui.test.ets.
+ * The parent-account row sits below `ConfigParentPinButton` and above
+ * the sync row, well below the fold on the landscape OpenHarmony
+ * emulator. V0.6.5.1 inserted the 📦 packPickerSection (5+ pack rows)
+ * between autoSpeak and parentPin, so a single upward swipe is no
+ * longer enough — iterate until the bind/bound button is on screen,
+ * up to 5 attempts.
  */
 async function scrollConfigToParentAccountRow(driver: Driver): Promise<void> {
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(400);
+  try {
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const bind: Component | null =
+        await driver.findComponent(ON.id('ConfigBindParentButton'));
+      const bound: Component | null =
+        await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+      if (bind !== null || bound !== null) {
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
+    }
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function exitConfigPage(driver: Driver): Promise<void> {
-  // The form may have been scrolled up; tapConfigCancelShared performs
-  // additional swipes if needed before tapping 取消.
-  await tapConfigCancelShared(driver);
-  await driver.delayMs(800);
-  await driver.assertComponentExist(ON.id('HomeStartButton'));
+  try {
+    // The form may have been scrolled up; tapConfigCancelShared performs
+    // additional swipes if needed before tapping 取消.
+    await tapConfigCancelShared(driver);
+    await driver.delayMs(800);
+    await driver.assertComponentExist(ON.id('HomeStartButton'));
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
-  await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
-  await driver.delayMs(80);
+  try {
+    await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
+    await driver.delayMs(80);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
-  await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
-  await driver.delayMs(80);
+  try {
+    await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
+    await driver.delayMs(80);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -117,39 +161,43 @@ async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
  * and routes back to ConfigPage either way.
  */
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
-  await openConfigPage(driver);
-  // Scroll until the parent-PIN button is in view. The form grew with
-  // V0.6.2/.4/.7 additions so a single swipe is no longer guaranteed.
-  for (let attempt: number = 0; attempt < 4; attempt++) {
-    const c: Component | null =
-      await driver.findComponent(ON.id('ConfigParentPinButton'));
-    if (c !== null) {
-      break;
+  try {
+    await openConfigPage(driver);
+    // Scroll until the parent-PIN button is in view. The form grew with
+    // V0.6.2/.4/.7 additions so a single swipe is no longer guaranteed.
+    for (let attempt: number = 0; attempt < 4; attempt++) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('ConfigParentPinButton'));
+      if (c !== null) {
+        break;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
     }
-    await driver.swipe(1400, 1100, 1400, 300, 600);
-    await driver.delayMs(400);
-  }
-  await clickByIdShared(driver, 'ConfigParentPinButton');
-  await driver.delayMs(1500);
-  for (let i: number = 0; i < pin.length; i++) {
-    await tapPinSetupKey(driver, pin.charAt(i));
-  }
-  await driver.delayMs(500);
-  for (let i: number = 0; i < pin.length; i++) {
-    await tapPinSetupKey(driver, pin.charAt(i));
-  }
-  await driver.delayMs(1800);
-  // commitOrReset routes back to ConfigPage on success — same scroll
-  // behaviour, so re-find ConfigTitle defensively.
-  for (let attempt: number = 0; attempt < 3; attempt++) {
-    const c: Component | null = await driver.findComponent(ON.id('ConfigTitle'));
-    if (c !== null) {
-      break;
+    await clickByIdShared(driver, 'ConfigParentPinButton');
+    await driver.delayMs(1500);
+    for (let i: number = 0; i < pin.length; i++) {
+      await tapPinSetupKey(driver, pin.charAt(i));
     }
-    await driver.swipe(1400, 300, 1400, 1100, 600);
-    await driver.delayMs(400);
+    await driver.delayMs(500);
+    for (let i: number = 0; i < pin.length; i++) {
+      await tapPinSetupKey(driver, pin.charAt(i));
+    }
+    await driver.delayMs(1800);
+    // commitOrReset routes back to ConfigPage on success — same scroll
+    // behaviour, so re-find ConfigTitle defensively.
+    for (let attempt: number = 0; attempt < 3; attempt++) {
+      const c: Component | null = await driver.findComponent(ON.id('ConfigTitle'));
+      if (c !== null) {
+        break;
+      }
+      await driver.swipe(1400, 300, 1400, 1100, 600);
+      await driver.delayMs(400);
+    }
+    await exitConfigPage(driver);
+  } catch (err) {
+    throw err as Error;
   }
-  await exitConfigPage(driver);
 }
 
 /**
@@ -159,33 +207,41 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
  * await chain). Returns true if the button surfaces in time.
  */
 async function waitForBoundButton(driver: Driver, maxMs: number): Promise<boolean> {
-  const stepMs: number = 250;
-  let waited: number = 0;
-  while (waited < maxMs) {
-    const c: Component | null =
-      await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
-    if (c !== null) {
-      return true;
+  try {
+    const stepMs: number = 250;
+    let waited: number = 0;
+    while (waited < maxMs) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+      if (c !== null) {
+        return true;
+      }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
     }
-    await driver.delayMs(stepMs);
-    waited += stepMs;
+    return false;
+  } catch (err) {
+    throw err as Error;
   }
-  return false;
 }
 
 async function waitForBindEntryButton(driver: Driver, maxMs: number): Promise<boolean> {
-  const stepMs: number = 250;
-  let waited: number = 0;
-  while (waited < maxMs) {
-    const c: Component | null =
-      await driver.findComponent(ON.id('ConfigBindParentButton'));
-    if (c !== null) {
-      return true;
+  try {
+    const stepMs: number = 250;
+    let waited: number = 0;
+    while (waited < maxMs) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('ConfigBindParentButton'));
+      if (c !== null) {
+        return true;
+      }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
     }
-    await driver.delayMs(stepMs);
-    waited += stepMs;
+    return false;
+  } catch (err) {
+    throw err as Error;
   }
-  return false;
 }
 
 /**
@@ -209,52 +265,64 @@ const SCAN_QR_FIXTURE_PAYLOAD: string =
   'https://happyword.cool/p/uitestqr01';
 
 async function ensureScanBindingQrFixtureOnDevice(): Promise<string> {
-  const appCtx: common.Context = DELEGATOR.getAppContext();
-  const dest: string = `${appCtx.tempDir}/${SCAN_QR_FIXTURE_NAME}`;
-  if (fs.accessSync(dest)) {
-    return dest;
-  }
-  const moduleCtx: common.Context = appCtx.createModuleContext('entry_test');
-  const bytes: Uint8Array = await moduleCtx.resourceManager.getRawFileContent(
-    SCAN_QR_FIXTURE_NAME,
-  );
-  const file: fs.File = await fs.open(
-    dest,
-    fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC,
-  );
   try {
-    await fs.write(file.fd, bytes.buffer);
-  } finally {
-    await fs.close(file);
+    const appCtx: common.Context = DELEGATOR.getAppContext();
+    const dest: string = `${appCtx.tempDir}/${SCAN_QR_FIXTURE_NAME}`;
+    if (fs.accessSync(dest)) {
+      return dest;
+    }
+    // application.createModuleContext is the post-API-12 replacement for
+    // the deprecated `Context.createModuleContext(moduleName)` overload.
+    const moduleCtx: common.Context =
+      await application.createModuleContext(appCtx, 'entry_test');
+    const bytes: Uint8Array = await moduleCtx.resourceManager.getRawFileContent(
+      SCAN_QR_FIXTURE_NAME,
+    );
+    const file: fs.File = await fs.open(
+      dest,
+      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC,
+    );
+    try {
+      await fs.write(file.fd, bytes.buffer);
+    } finally {
+      await fs.close(file);
+    }
+    return dest;
+  } catch (err) {
+    throw err as Error;
   }
-  return dest;
 }
 
 async function waitForUnbindToast(driver: Driver, maxMs: number): Promise<string> {
-  const stepMs: number = 250;
-  let waited: number = 0;
-  while (waited < maxMs) {
-    const c: Component | null =
-      await driver.findComponent(ON.id('ConfigUnbindToast'));
-    if (c !== null) {
-      const t: string = await c.getText();
-      if (t.length > 0) {
-        return t;
+  try {
+    const stepMs: number = 250;
+    let waited: number = 0;
+    while (waited < maxMs) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('BoundDeviceInfoUnbindToast'));
+      if (c !== null) {
+        const t: string = await c.getText();
+        if (t.length > 0) {
+          return t;
+        }
       }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
     }
-    await driver.delayMs(stepMs);
-    waited += stepMs;
+    return '';
+  } catch (err) {
+    throw err as Error;
   }
-  return '';
 }
 
-export default function parentBindingFlowV06UiTest(): void {
-  describe('ParentBindingFlowV06', () => {
+export default function parentBindingFlowUiTest(): void {
+  describe('ParentBindingFlow', () => {
     /**
      * Fresh install ConfigPage: only the unbound entry button renders.
      * The bound-only buttons (`ConfigBoundDeviceInfoButton`,
-     * `ConfigUnbindBindingButton`, `ConfigCloudSyncButton`) are gated
-     * by `bindingPresent` and must be absent on first launch.
+     * `ConfigCloudSyncButton`) are gated by `bindingPresent` and must
+     * be absent on first launch. (V0.6.7.2: `ConfigUnbindBindingButton`
+     * was removed; unbind lives on BoundDeviceInfoPage now.)
      */
     it('unboundConfigPageRendersBindEntryOnly', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
@@ -270,10 +338,6 @@ export default function parentBindingFlowV06UiTest(): void {
       const bound: Component | null =
         await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
       expect(bound === null).assertTrue();
-
-      const unbind: Component | null =
-        await driver.findComponent(ON.id('ConfigUnbindBindingButton'));
-      expect(unbind === null).assertTrue();
 
       const cloudSync: Component | null =
         await driver.findComponent(ON.id('ConfigCloudSyncButton'));
@@ -407,9 +471,10 @@ export default function parentBindingFlowV06UiTest(): void {
 
       // The parent-account row should be in view (scroll preserved).
       // Bound state replaces "绑定家长账号" with the bound info button.
+      // V0.6.7.2: `ConfigUnbindBindingButton` no longer exists — unbind
+      // lives on BoundDeviceInfoPage (孩子档案页) instead.
       const haveBound: boolean = await waitForBoundButton(driver, 8000);
       expect(haveBound).assertTrue();
-      await driver.assertComponentExist(ON.id('ConfigUnbindBindingButton'));
       await driver.assertComponentExist(ON.id('ConfigCloudSyncButton'));
 
       await exitConfigPage(driver);
@@ -418,15 +483,20 @@ export default function parentBindingFlowV06UiTest(): void {
 
     /**
      * Following the bound state from the previous case, seed the parent
-     * PIN, then tap the unbind button. ParentPinDialog appears; correct
-     * PIN auto-confirms and runs the unbind. After the toast appears
-     * the page flips back to the unbound rendering.
+     * PIN, then drive the unbind flow from `pages/BoundDeviceInfoPage`
+     * (孩子档案页 — opened by tapping `ConfigBoundDeviceInfoButton`).
+     * ParentPinDialog appears; correct PIN auto-confirms and runs the
+     * unbind. After the success toast surfaces, the page auto-pops back
+     * to ConfigPage and the bound rows disappear.
+     *
+     * V0.6.7.2: the unbind row used to live on ConfigPage; this test
+     * was rewritten to reflect the new single-source-of-truth layout.
      *
      * Order dependency: this case relies on `shortCodeRedeemFlipsConfig
      * ToBound` having left the device bound. List.test.ets schedules
      * the suite in declared order so this is safe.
      */
-    it('unbindWithPinFlipsBackToUnbound', 0, async (done: Function) => {
+    it('unbindFromBoundDeviceInfoPageFlipsBackToUnbound', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
 
@@ -439,9 +509,13 @@ export default function parentBindingFlowV06UiTest(): void {
       if (!haveBound) {
         throw new Error('UNBIND-T1: bound info button not found at start');
       }
-      await driver.assertComponentExist(ON.id('ConfigUnbindBindingButton'));
 
-      await clickByIdShared(driver, 'ConfigUnbindBindingButton');
+      // Open BoundDeviceInfoPage by tapping the bound child profile entry.
+      await clickByIdShared(driver, 'ConfigBoundDeviceInfoButton');
+      await driver.delayMs(1500);
+      await driver.assertComponentExist(ON.id('BoundDeviceInfoUnbindButton'));
+
+      await clickByIdShared(driver, 'BoundDeviceInfoUnbindButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ParentPinDialog'));
 
@@ -458,8 +532,9 @@ export default function parentBindingFlowV06UiTest(): void {
         throw new Error(`UNBIND-T3: unexpected toast text: ${toast}`);
       }
 
-      // ConfigPage flips back to unbound — bind entry returns,
-      // bound-only buttons disappear.
+      // BoundDeviceInfoPage auto-pops back to ConfigPage ~600 ms after
+      // the toast surfaces; ConfigPage's onPageShow then reloads the
+      // binding state and flips the row to "绑定家长账号" (unbound).
       const haveBind: boolean = await waitForBindEntryButton(driver, 8000);
       if (!haveBind) {
         throw new Error('UNBIND-T4: bind entry did not return after unbind');
@@ -468,11 +543,6 @@ export default function parentBindingFlowV06UiTest(): void {
         await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
       if (bound !== null) {
         throw new Error('UNBIND-T5: bound info button still visible after unbind');
-      }
-      const unbind: Component | null =
-        await driver.findComponent(ON.id('ConfigUnbindBindingButton'));
-      if (unbind !== null) {
-        throw new Error('UNBIND-T6: unbind button still visible after unbind');
       }
 
       await exitConfigPage(driver);

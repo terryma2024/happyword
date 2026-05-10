@@ -1,6 +1,7 @@
 import { LearningRecorder } from './LearningRecorder';
 import { CloudCredentials, CloudCredentialsSnapshot } from './CloudCredentials';
 import { ParentFetchAdapter, ParentFetchResult } from './ParentApiClient';
+import { effectiveServerBaseUrl } from './RemoteWordPackConfig';
 import { StringPreferencesLike, WordStat } from './WrongAnswerStore';
 import { CloudSyncLike, CloudSyncResult } from './CloudSyncTypes';
 
@@ -67,7 +68,11 @@ export class CloudSyncService implements CloudSyncLike {
   private readonly recorder: LearningRecorder;
   private readonly credentials: CloudCredentials;
   private readonly adapter: ParentFetchAdapter;
-  private readonly baseUrl: string;
+  /**
+   * Resolved on every sync POST so DevMenu Preview URL / env switches apply
+   * without restarting the app. Tests inject a constant lambda.
+   */
+  private readonly resolveBaseUrl: () => string;
   private nowMs: () => number = (): number => Date.now();
   private prefs?: StringPreferencesLike;
   private inFlight: boolean = false;
@@ -76,12 +81,17 @@ export class CloudSyncService implements CloudSyncLike {
     recorder: LearningRecorder,
     credentials: CloudCredentials,
     adapter: ParentFetchAdapter,
-    baseUrl: string,
+    resolveBaseUrl: () => string,
   ) {
     this.recorder = recorder;
     this.credentials = credentials;
     this.adapter = adapter;
-    this.baseUrl = CloudSyncService.trimTrailingSlash(baseUrl);
+    this.resolveBaseUrl = resolveBaseUrl;
+  }
+
+  /** Default resolver — production EntryAbility passes this wrapper. */
+  static defaultBaseUrlResolver(): string {
+    return CloudSyncService.trimTrailingSlash(effectiveServerBaseUrl());
   }
 
   injectPreferences(p: StringPreferencesLike): void {
@@ -180,7 +190,8 @@ export class CloudSyncService implements CloudSyncLike {
     items: WordStat[],
     syncedThroughMs: number,
   ): Promise<RawSyncOut | null> {
-    const url: string = `${this.baseUrl}/api/v1/child/word-stats/sync`;
+    const base: string = CloudSyncService.trimTrailingSlash(this.resolveBaseUrl());
+    const url: string = `${base}/api/v1/child/word-stats/sync`;
     const headers: Record<string, string> = {};
     headers[HEADER_CONTENT_TYPE] = CONTENT_JSON;
     headers[HEADER_ACCEPT] = CONTENT_JSON;

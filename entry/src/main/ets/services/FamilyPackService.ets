@@ -8,6 +8,12 @@ import { FamilyPacksBlob, parseFamilyPacksBlob } from './FamilyPackMerge';
 /**
  * V0.6.3 — client cache + HTTP wrapper for the merged family-pack JSON.
  *
+ * Route-pattern alignment: GET/HEAD target switches from legacy
+ * `/api/v1/child/family-packs/latest.json` to the route-pattern canonical
+ * `/api/v1/family/{family_id}/family-packs/latest.json` when `familyId` is
+ * non-empty (same handler on server; path param is decorative until v0.6.6
+ * enforcement). Empty `familyId` keeps the legacy URL for unusually old prefs.
+ *
  * The cache lives in its own preferences bag (`wordmagic_family_packs`)
  * so we never mix it with the global `word_pack_cache` slot. A successful
  * `ensureLatest` writes an envelope `{ etag, body, fetchedAtMs }`; a 204
@@ -101,6 +107,19 @@ export class FamilyPackService {
     this.nowMs = now;
   }
 
+  /**
+   * Canonical family-pack JSON endpoint per `.cursor/rules/api-route-pattern.mdc`.
+   * Legacy `/api/v1/child/...` remains only when `familyId` is blank.
+   */
+  private familyPacksLatestUrl(familyId: string): string {
+    const id: string = familyId.trim();
+    if (id.length === 0) {
+      return `${this.baseUrl}/api/v1/child/family-packs/latest.json`;
+    }
+    const encoded: string = encodeURIComponent(id);
+    return `${this.baseUrl}/api/v1/family/${encoded}/family-packs/latest.json`;
+  }
+
   async init(ctx: common.UIAbilityContext): Promise<void> {
     if (this.prefs !== undefined) {
       return;
@@ -133,14 +152,15 @@ export class FamilyPackService {
   }
 
   /** Pull (or revalidate) the latest merged JSON. Never throws. */
-  async ensureLatest(deviceToken: string): Promise<FamilyPackEnsureResult> {
+  async ensureLatest(deviceToken: string, familyId?: string): Promise<FamilyPackEnsureResult> {
     const out: FamilyPackEnsureResult = new FamilyPackEnsureResult();
     if (deviceToken.length === 0) {
       // Unbound; nothing to do.
       out.status = 'no_data';
       return out;
     }
-    const url: string = `${this.baseUrl}/api/v1/child/family-packs/latest.json`;
+    const fid: string = familyId !== undefined ? familyId : '';
+    const url: string = this.familyPacksLatestUrl(fid);
     const headers: Record<string, string> = {};
     headers[HEADER_AUTH] = `Bearer ${deviceToken}`;
 
@@ -201,11 +221,12 @@ export class FamilyPackService {
   }
 
   /** HEAD-only ETag probe. Returns null on error; never throws. */
-  async peekRemoteEtag(deviceToken: string): Promise<string | null> {
+  async peekRemoteEtag(deviceToken: string, familyId?: string): Promise<string | null> {
     if (deviceToken.length === 0) {
       return null;
     }
-    const url: string = `${this.baseUrl}/api/v1/child/family-packs/latest.json`;
+    const fid: string = familyId !== undefined ? familyId : '';
+    const url: string = this.familyPacksLatestUrl(fid);
     const headers: Record<string, string> = {};
     headers[HEADER_AUTH] = `Bearer ${deviceToken}`;
     try {
@@ -227,8 +248,8 @@ export class FamilyPackService {
 
   /** True when the server reports a different ETag from what we cached.
    *  Returns false on network error or when both sides agree. */
-  async isRemoteStale(deviceToken: string): Promise<boolean> {
-    const remote: string | null = await this.peekRemoteEtag(deviceToken);
+  async isRemoteStale(deviceToken: string, familyId?: string): Promise<boolean> {
+    const remote: string | null = await this.peekRemoteEtag(deviceToken, familyId);
     if (remote === null) {
       return false;
     }

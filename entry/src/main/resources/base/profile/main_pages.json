@@ -4,7 +4,6 @@
     "pages/BattlePage",
     "pages/ResultPage",
     "pages/ConfigPage",
-    "pages/CustomWordsPage",
     "pages/WishlistPage",
     "pages/MonsterCodexPage",
     "pages/ParentPinSetupPage",
@@ -16,6 +15,7 @@
     "pages/BypassSecretPage",
     "pages/ScanBindingPage",
     "pages/BoundDeviceInfoPage",
-    "pages/DevMenuPage"
+    "pages/DevMenuPage",
+    "pages/PackManagerPage"
   ]
 }

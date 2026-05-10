@@ -5,7 +5,7 @@ import { Want } from '@kit.AbilityKit';
 /**
  * UI suite for the FillLetter battle gameplay (single-letter and
  * two-letter variants). The pre-existing
- * V03Adventure/intermediateFillLetterAtomicFlow case taps options
+ * AdventureFlow/intermediateFillLetterAtomicFlow case taps options
  * in A/B/C rotation and only asserts the medium step-0 → step-1
  * transition; it has been a known flake since v0.3.5 because the
  * tap policy is blind to which option is correct and the question
@@ -55,21 +55,32 @@ const WORD_EN: string[] = [
 ];
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
@@ -117,19 +128,23 @@ function wordForPattern(slots: string[]): string {
 }
 
 async function readLetterSlots(driver: Driver, max: number = 16): Promise<string[]> {
-  const slots: string[] = [];
-  for (let i: number = 0; i < max; i++) {
-    const slot: Component | null = await driver.findComponent(ON.id(`LetterSlotText_${i}`));
-    if (slot === null) {
-      if (slots.length > 0) {
-        break;
+  try {
+    const slots: string[] = [];
+    for (let i: number = 0; i < max; i++) {
+      const slot: Component | null = await driver.findComponent(ON.id(`LetterSlotText_${i}`));
+      if (slot === null) {
+        if (slots.length > 0) {
+          break;
+        }
+        continue;
       }
-      continue;
+      const text: string = await slot.getText();
+      slots.push(text);
     }
-    const text: string = await slot.getText();
-    slots.push(text);
+    return slots;
+  } catch (err) {
+    throw err as Error;
   }
-  return slots;
 }
 
 function countUnderscores(slots: string[]): number {
@@ -143,19 +158,27 @@ function countUnderscores(slots: string[]): number {
 }
 
 async function getPromptText(driver: Driver): Promise<string> {
-  const p: Component | null = await driver.findComponent(ON.id('BattlePrompt'));
-  if (p === null) {
-    return '';
+  try {
+    const p: Component | null = await driver.findComponent(ON.id('BattlePrompt'));
+    if (p === null) {
+      return '';
+    }
+    return await p.getText();
+  } catch (err) {
+    throw err as Error;
   }
-  return await p.getText();
 }
 
 async function readFeedback(driver: Driver): Promise<string> {
-  const fb: Component | null = await driver.findComponent(ON.id('BattleFeedback'));
-  if (fb === null) {
-    return '';
+  try {
+    const fb: Component | null = await driver.findComponent(ON.id('BattleFeedback'));
+    if (fb === null) {
+      return '';
+    }
+    return await fb.getText();
+  } catch (err) {
+    throw err as Error;
   }
-  return await fb.getText();
 }
 
 /**
@@ -166,19 +189,23 @@ async function readFeedback(driver: Driver): Promise<string> {
  * the plan can emit).
  */
 async function tapOptionWithText(driver: Driver, target: string): Promise<boolean> {
-  const ids: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
-  for (let i: number = 0; i < ids.length; i++) {
-    const btn: Component | null = await driver.findComponent(ON.id(ids[i]));
-    if (btn === null) {
-      continue;
+  try {
+    const ids: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
+    for (let i: number = 0; i < ids.length; i++) {
+      const btn: Component | null = await driver.findComponent(ON.id(ids[i]));
+      if (btn === null) {
+        continue;
+      }
+      const text: string = await btn.getText();
+      if (text === target) {
+        await btn.click();
+        return true;
+      }
     }
-    const text: string = await btn.getText();
-    if (text === target) {
-      await btn.click();
-      return true;
-    }
+    return false;
+  } catch (err) {
+    throw err as Error;
   }
-  return false;
 }
 
 /**
@@ -188,32 +215,40 @@ async function tapOptionWithText(driver: Driver, target: string): Promise<boolea
  * after v0.3.6.
  */
 async function startFruitForestBattle(driver: Driver): Promise<void> {
-  const fruit: Component | null = await driver.findComponent(ON.id('RegionChip_fruit-forest'));
-  if (fruit !== null) {
-    await fruit.click();
-    await driver.delayMs(300);
+  try {
+    const fruit: Component | null = await driver.findComponent(ON.id('RegionChip_fruit-forest'));
+    if (fruit !== null) {
+      await fruit.click();
+      await driver.delayMs(300);
+    }
+    const cta: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
+    expect(cta !== null).assertTrue();
+    if (cta !== null) {
+      await cta.click();
+    }
+    await driver.delayMs(1500);
+    await driver.assertComponentExist(ON.id('BattleTitle'));
+  } catch (err) {
+    throw err as Error;
   }
-  const cta: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
-  expect(cta !== null).assertTrue();
-  if (cta !== null) {
-    await cta.click();
-  }
-  await driver.delayMs(1500);
-  await driver.assertComponentExist(ON.id('BattleTitle'));
 }
 
 async function exitToHome(driver: Driver): Promise<void> {
-  const finish: Component | null = await driver.findComponent(ON.id('BattleFinishButton'));
-  if (finish !== null) {
-    await finish.click();
-    await driver.delayMs(800);
+  try {
+    const finish: Component | null = await driver.findComponent(ON.id('BattleFinishButton'));
+    if (finish !== null) {
+      await finish.click();
+      await driver.delayMs(800);
+    }
+    const homeBtn: Component | null = await driver.findComponent(ON.id('ResultHomeButton'));
+    if (homeBtn !== null) {
+      await homeBtn.click();
+      await driver.delayMs(800);
+    }
+    await returnToHome(driver);
+  } catch (err) {
+    throw err as Error;
   }
-  const homeBtn: Component | null = await driver.findComponent(ON.id('ResultHomeButton'));
-  if (homeBtn !== null) {
-    await homeBtn.click();
-    await driver.delayMs(800);
-  }
-  await returnToHome(driver);
 }
 
 export default function fillLetterFlowUiTest(): void {

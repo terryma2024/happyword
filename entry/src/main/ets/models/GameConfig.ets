@@ -1,5 +1,3 @@
-import { WordEntry } from './WordEntry';
-
 /**
  * Player-facing battle knobs (spec §3.1). Defaults mirror the engine
  * constants in BattleEngine.ets so cold-launch with no explicit save
@@ -8,21 +6,23 @@ import { WordEntry } from './WordEntry';
  * Invariants:
  *   - playerMaxHp / monsterMaxHp / monstersTotal are integers in [1, 10].
  *   - startingSeconds is one of TIMER_CHOICES.
- *   - enabledCategories is a non-empty subset of
- *     KNOWN_CATEGORIES ∪ {CUSTOM_CATEGORY_KEY}.
- *   - customWordsRaw is arbitrary text — parsed lazily by parseCustomWords.
  *
  * GameConfig is a value object — ConfigPage's Save button always writes
  * a freshly-constructed instance (via cloneGameConfig + field edits)
  * because @StorageProp does not refire on same-reference updates.
+ *
+ * V0.6.6 cleanup: the legacy `enabledCategories` / `customWordsRaw`
+ * fields and their `KNOWN_CATEGORIES` / `CUSTOM_CATEGORY_KEY` /
+ * `parseCustomWords` / `computeFinalPool` helpers were removed —
+ * the three-layer pack model (built-in / global / family) replaces
+ * them end to end. Today's adventure consumes the active Pack.words
+ * directly; non-today battles use the merged built-in repo pool.
  */
 export class GameConfig {
   playerMaxHp: number = 5;
   monsterMaxHp: number = 3;
   monstersTotal: number = 5;
   startingSeconds: number = 300;
-  enabledCategories: string[] = ['fruit', 'place', 'home'];
-  customWordsRaw: string = '';
   /**
    * V0.2: auto-play English pronunciation on each new question. Default
    * on — pronunciation is only useful if it happens without the user
@@ -30,7 +30,7 @@ export class GameConfig {
    */
   autoSpeak: boolean = true;
   /**
-   * V0.2: battle mode — 'normal' uses the configured category pool,
+   * V0.2: battle mode — 'normal' uses the built-in word repository,
    * 'review' sources prompts from the wrong-answer store (T14). Stays
    * 'normal' on fresh AppStorage; HomePage's review button flips it
    * to 'review' before routing to BattlePage, and BattlePage resets
@@ -60,21 +60,49 @@ export const TODAY_PLAN_STORAGE_KEY: string = 'todayPlan';
 export const TODAY_LAST_COMPLETED_DAY_KEY: string = 'todayLastCompletedDayKey';
 /** AppStorage key for the selected Today Adventure region id (V0.3.5). */
 export const TODAY_REGION_ID_KEY: string = 'todayRegionId';
+/**
+ * V0.6.5.1: AppStorage key for the in-flight Pack handed off from HomePage
+ * to BattlePage when launching today's adventure. Mirrors the same
+ * "produce-once consume-once" hand-off as TODAY_PLAN_STORAGE_KEY.
+ */
+export const TODAY_ACTIVE_PACK_KEY: string = 'todayActivePack';
 
-export const TIMER_CHOICES: number[] = [3, 15, 30, 60, 120, 300, 600];
+/**
+ * V0.6.7.7: timer chip presets shown in `pages/ConfigPage.timerRow`.
+ * Trimmed from the prior `[3, 15, 30, 60, 120, 300, 600]` set to a
+ * small parent-friendly menu (30s, 3m, 5m, 10m). The previous fast
+ * options (3s / 15s / 1m / 2m) were removed because they were
+ * developer / QA shortcuts that confused first-time parents — now
+ * exercised through the new 自定义 dialog (any positive integer in
+ * [TIMER_CUSTOM_MIN, TIMER_CUSTOM_MAX] seconds), which UI tests use
+ * to inject 3s for fast-timeout scenarios. Keep this array sorted in
+ * ascending order so `ConfigPage.timerLabel`'s `${seconds}s` /
+ * `${seconds / 60}m` formatter renders predictably.
+ */
+export const TIMER_CHOICES: number[] = [30, 180, 300, 600];
+
+/**
+ * V0.6.7.7: bounds for the 自定义 (custom seconds) dialog. The lower
+ * bound is intentionally 1 — UI tests rely on injecting 3s to drive
+ * fast `BattleEngine.tick` timeouts; allowing 0 would let parents
+ * disable the timer entirely and break `BattleEngine.startingSeconds`
+ * which expects a positive countdown. The upper bound (3600s = 1h) is
+ * a defensive ceiling so a typo doesn't persist a multi-hour battle.
+ */
+export const TIMER_CUSTOM_MIN: number = 1;
+export const TIMER_CUSTOM_MAX: number = 3600;
 
 export const HP_MIN: number = 1;
 export const HP_MAX: number = 10;
 export const MONSTER_COUNT_MIN: number = 1;
 export const MONSTER_COUNT_MAX: number = 10;
 
-export const KNOWN_CATEGORIES: string[] = ['fruit', 'place', 'home'];
-export const CUSTOM_CATEGORY_KEY: string = 'custom';
-
 /**
- * Mirrors QuestionGenerator.MIN_REPO_SIZE. Duplicated here so ConfigPage
- * validation can reason about "final pool" size without reaching into
- * engine internals. Kept in sync by unit test defaultsMatchEngineDefaults.
+ * Mirrors QuestionGenerator.MIN_REPO_SIZE. Used by review-mode pool
+ * narrowing (BattlePage.buildReviewPool) and other validation paths
+ * that need to reason about "this pool is too small to play". Kept
+ * in sync with engine internals by the unit test
+ * defaultsMatchEngineDefaults.
  */
 export const MIN_POOL_SIZE: number = 3;
 
@@ -85,8 +113,6 @@ export function cloneGameConfig(src: GameConfig): GameConfig {
   c.monsterMaxHp = src.monsterMaxHp;
   c.monstersTotal = src.monstersTotal;
   c.startingSeconds = src.startingSeconds;
-  c.enabledCategories = src.enabledCategories.slice();
-  c.customWordsRaw = src.customWordsRaw;
   c.autoSpeak = src.autoSpeak;
   c.mode = src.mode;
   // V0.3.9: legacy AppStorage snapshots written before parentPin
@@ -94,69 +120,4 @@ export function cloneGameConfig(src: GameConfig): GameConfig {
   // the rest of the codebase can rely on a string contract.
   c.parentPin = (typeof src.parentPin === 'string') ? src.parentPin : '';
   return c;
-}
-
-/**
- * Parse raw CustomWordsPage text into WordEntry[]. Tolerant:
- *   - Accepts ':' (ASCII) and '：' (fullwidth); first occurrence wins.
- *   - Silently skips blank / malformed lines.
- *   - Assigns sequential ids 'custom-0', 'custom-1', ... over valid lines.
- */
-export function parseCustomWords(raw: string): WordEntry[] {
-  const out: WordEntry[] = [];
-  if (raw.length === 0) {
-    return out;
-  }
-  const lines: string[] = raw.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed: string = lines[i].trim();
-    if (trimmed.length === 0) {
-      continue;
-    }
-    let sep: number = trimmed.indexOf(':');
-    if (sep < 0) {
-      sep = trimmed.indexOf('：');
-    }
-    if (sep <= 0 || sep >= trimmed.length - 1) {
-      continue;
-    }
-    const zh: string = trimmed.substring(0, sep).trim();
-    const en: string = trimmed.substring(sep + 1).trim();
-    if (zh.length === 0 || en.length === 0) {
-      continue;
-    }
-    const e: WordEntry = new WordEntry();
-    e.id = `custom-${out.length}`;
-    e.word = en;
-    e.meaningZh = zh;
-    e.category = CUSTOM_CATEGORY_KEY;
-    e.difficulty = 1;
-    out.push(e);
-  }
-  return out;
-}
-
-/**
- * Single source of truth for the battle-time word pool. Used by both
- * BattlePage (runtime) and ConfigPage (Save-time validation) so the
- * two can never disagree on pool size.
- */
-export function computeFinalPool(
-  allBuiltin: WordEntry[],
-  enabledCategories: string[],
-  customWordsRaw: string
-): WordEntry[] {
-  const out: WordEntry[] = [];
-  for (let i = 0; i < allBuiltin.length; i++) {
-    if (enabledCategories.indexOf(allBuiltin[i].category) >= 0) {
-      out.push(allBuiltin[i]);
-    }
-  }
-  if (enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0) {
-    const customs: WordEntry[] = parseCustomWords(customWordsRaw);
-    for (let i = 0; i < customs.length; i++) {
-      out.push(customs[i]);
-    }
-  }
-  return out;
 }

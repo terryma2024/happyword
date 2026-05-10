@@ -113,7 +113,7 @@ function makeUnboundCreds(): CloudCredentials {
 
 function makeService(adapter: CapturingAdapter, prefs: MemPrefs, bound: boolean): CloudWishlistService {
   const cc: CloudCredentials = bound ? makeBoundCreds() : makeUnboundCreds();
-  const svc: CloudWishlistService = new CloudWishlistService(cc, adapter, BASE);
+  const svc: CloudWishlistService = new CloudWishlistService(cc, adapter, (): string => BASE);
   svc.injectPreferences(prefs);
   svc.injectClock((): number => 1746068001234);
   return svc;
