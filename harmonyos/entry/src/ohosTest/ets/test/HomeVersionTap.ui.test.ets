@@ -76,7 +76,7 @@ export default function homeVersionTapUiTest(): void {
       // top of the page is unique to DevMenuPage and visible without
       // scrolling. (V0.6.1: Apply button is gone — every card is
       // tap-to-apply now — so we can't anchor on Apply text.)
-      const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer options'));
+      const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer Options'));
       expect(devMenuHeader !== null).assertTrue();
       // HomeStartButton must NOT be present any more.
       const homeStart: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
@@ -103,7 +103,7 @@ export default function homeVersionTapUiTest(): void {
       // Still on HomePage.
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       // DevMenuPage's header text must NOT be present.
-      const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer options'));
+      const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer Options'));
       expect(devMenuHeader === null).assertTrue();
       done();
     });

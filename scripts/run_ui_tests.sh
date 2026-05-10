@@ -269,8 +269,13 @@ hdc_t rport "tcp:${MOCK_PORT}" "tcp:${MOCK_PORT}"
 if [[ "${DO_REBUILD}" -eq 1 ]]; then
   echo "[run_ui_tests] rebuilding HAPs"
   (cd "${HARMONY_ROOT}" && hvigorw assembleHap --no-daemon)
-  (cd "${HARMONY_ROOT}" && hvigorw assembleOhosTest --no-daemon || \
-    hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon)
+  # assembleOhosTest is not a stable cross-SDK task name; target the ohosTest
+  # variant explicitly (see .cursor/dev-commands.md section 4).
+  (cd "${HARMONY_ROOT}" && hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon)
+
+  echo "[run_ui_tests] uninstall bundle (clear persisted prefs for deterministic UI tests)"
+  hdc_t uninstall com.terryma.wordmagicgame 2>/dev/null || true
+  sleep 1
 
   HAP_DEFAULT="$(find "${HARMONY_ROOT}/entry/build" -name 'entry-default-signed.hap' | head -1 || true)"
   HAP_TEST="$(find "${HARMONY_ROOT}/entry/build" -name 'entry-ohosTest-signed.hap' | head -1 || true)"

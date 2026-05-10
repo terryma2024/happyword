@@ -75,7 +75,7 @@ export default function devMenuCardListUiTest(): void {
       await tripleTapVersion(driver);
       // Confirm we're on DevMenuPage. The "Developer options" header
       // is unique to this page and visible without scrolling.
-      const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer options'));
+      const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer Options'));
       expect(devMenuHeader !== null).assertTrue();
 
       // V0.6.1 invariant: Local + Staging cards are static, always
@@ -127,7 +127,7 @@ export default function devMenuCardListUiTest(): void {
       await returnToHome(driver);
       await tripleTapVersion(driver);
       // Sanity: we landed on DevMenuPage.
-      const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer options'));
+      const devMenuHeader: Component | null = await driver.findComponent(ON.text('Developer Options'));
       expect(devMenuHeader !== null).assertTrue();
 
       // V0.6.1: tapping any card runs the env-switch pipeline and
@@ -142,7 +142,7 @@ export default function devMenuCardListUiTest(): void {
       const versionLabel: Component | null = await driver.findComponent(ON.id('HomeVersionLabel'));
       expect(versionLabel !== null).assertTrue();
       // DevMenu header should be gone after replaceUrl.
-      const devMenuHeaderAfter: Component | null = await driver.findComponent(ON.text('Developer options'));
+      const devMenuHeaderAfter: Component | null = await driver.findComponent(ON.text('Developer Options'));
       expect(devMenuHeaderAfter === null).assertTrue();
       done();
     });

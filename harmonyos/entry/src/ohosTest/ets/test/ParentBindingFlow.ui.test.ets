@@ -2,7 +2,7 @@ import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { application, Want, common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
-import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
 import {
   SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY,
   SCAN_BINDING_PHOTO_PICKER_OVERRIDE_URI_KEY,
@@ -41,6 +41,16 @@ import {
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
+
+async function createEntryTestModuleContext(): Promise<common.Context> {
+  try {
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const uiCtx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
+    return await application.createModuleContext(uiCtx, 'entry_test');
+  } catch (err) {
+    throw err as Error;
+  }
+}
 
 const KNOWN_PIN: string = '123456';
 const VALID_SHORT_CODE: string = '345678';
@@ -145,6 +155,30 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
   }
 }
 
+async function waitForParentPinSetupKeypad(driver: Driver, maxMs: number): Promise<boolean> {
+  try {
+    const stepMs: number = 300;
+    let waited: number = 0;
+    let nudge: number = 0;
+    while (waited < maxMs) {
+      const k: Component | null =
+        await driver.findComponent(ON.id('ParentPinSetupKey_1'));
+      if (k !== null) {
+        return true;
+      }
+      nudge += 1;
+      if (nudge % 4 === 0) {
+        await driver.swipe(360, 880, 360, 420, 550);
+      }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
+    }
+    return false;
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
   try {
     await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
@@ -163,19 +197,12 @@ async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   try {
     await openConfigPage(driver);
-    // Scroll until the parent-PIN button is in view. The form grew with
-    // V0.6.2/.4/.7 additions so a single swipe is no longer guaranteed.
-    for (let attempt: number = 0; attempt < 4; attempt++) {
-      const c: Component | null =
-        await driver.findComponent(ON.id('ConfigParentPinButton'));
-      if (c !== null) {
-        break;
-      }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
-      await driver.delayMs(400);
-    }
+    await scrollToParentPinButton(driver);
     await clickByIdShared(driver, 'ConfigParentPinButton');
-    await driver.delayMs(1500);
+    const keypadReady: boolean = await waitForParentPinSetupKeypad(driver, 12000);
+    if (!keypadReady) {
+      throw new Error('ParentPinSetup keypad not reachable');
+    }
     for (let i: number = 0; i < pin.length; i++) {
       await tapPinSetupKey(driver, pin.charAt(i));
     }
@@ -271,10 +298,7 @@ async function ensureScanBindingQrFixtureOnDevice(): Promise<string> {
     if (fs.accessSync(dest)) {
       return dest;
     }
-    // application.createModuleContext is the post-API-12 replacement for
-    // the deprecated `Context.createModuleContext(moduleName)` overload.
-    const moduleCtx: common.Context =
-      await application.createModuleContext(appCtx, 'entry_test');
+    const moduleCtx: common.Context = await createEntryTestModuleContext();
     const bytes: Uint8Array = await moduleCtx.resourceManager.getRawFileContent(
       SCAN_QR_FIXTURE_NAME,
     );

@@ -1,7 +1,8 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
-import { Want } from '@kit.AbilityKit';
+import { Want, common } from '@kit.AbilityKit';
 import { clickByIdShared } from './RoutingFlow.ui.test';
+import { getLearningRecorder } from '../../../main/ets/services/LearningRecorder';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -32,6 +33,27 @@ async function launchApp(): Promise<Driver> {
  * is reachable; without this, the suite is order-dependent on
  * whoever ran before us in List.test.ets.
  */
+/**
+ * Clears persisted wrong-answer stats then revisits HomePage so
+ * `onPageShow` recomputes `recentWrongCount`. Without this, a device
+ * sandbox left over from a prior run can unlock the review button and
+ * break the locked-review toast assertion.
+ */
+async function resetWrongAnswersAndRefreshHome(driver: Driver): Promise<void> {
+  try {
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const ctx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
+    await getLearningRecorder().init(ctx);
+    await getLearningRecorder().clear();
+    await clickByIdShared(driver, 'HomeCodexButton');
+    await driver.delayMs(800);
+    await driver.pressBack();
+    await driver.delayMs(800);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 async function returnToHome(driver: Driver): Promise<void> {
   // See `launchApp` rationale for why the body is wrapped in try/catch.
   try {
@@ -73,6 +95,7 @@ export default function homeToolbarLockedUiTest(): void {
     it('lockedReviewShowsToastAndStays', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetWrongAnswersAndRefreshHome(driver);
       await clickByIdShared(driver, 'HomeReviewButton');
       await driver.delayMs(300);
       await driver.assertComponentExist(ON.id('HomeReviewLockedToast'));

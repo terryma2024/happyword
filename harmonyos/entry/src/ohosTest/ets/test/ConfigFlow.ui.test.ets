@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
-import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -53,61 +53,34 @@ async function openConfig(driver: Driver): Promise<void> {
   }
 }
 
-/**
- * V0.6.5.1: scroll iteratively until ConfigParentPinButton is on
- * screen. The packPickerSection between autoSpeak and parentPin can
- * require multiple swipes on the landscape emulator viewport.
- *
- * V0.6.7.7 — strengthen the visibility check. Pre-V0.6.7.7 this
- * helper exited on the first non-null `findComponent`, which on the
- * emulator returns the button even when its visible bounds are a
- * 25-pixel sliver at Y ≈ 1235 (the button is rendered, but most of
- * it is clipped by the Scroll viewport that ends at Y = 1260). Tap
- * coordinates derived from those clipped bounds land at the very
- * bottom of the screen and the system rejects them — every test
- * that depends on ConfigParentPinButton (the three pin-setup flows
- * below) then fails to navigate. We now keep swiping while the
- * button's reported bottom is within VIEWPORT_EDGE_PADDING of the
- * dump's vertical extent, which is robust against the leftover
- * cloud-sync-row state from prior pack-binding suites that pushes
- * the button further down.
- */
-async function scrollToParentPinButton(driver: Driver): Promise<void> {
-  // The OpenHarmony emulator dumps land button bounds as a 25-pixel
-  // clipped slice (Y top = ~1235, Y bottom = 1260) when the row is
-  // pinned to the very bottom of the visible Scroll. 100px padding
-  // guarantees the button has enough hit-test margin.
-  const VIEWPORT_EDGE_PADDING: number = 100;
+async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
   try {
-    for (let attempt: number = 0; attempt < 6; attempt++) {
-      const btn: Component | null =
-        await driver.findComponent(ON.id('ConfigParentPinButton'));
-      if (btn !== null) {
-        const boundsRect = await btn.getBounds();
-        // `getBounds` returns the in-tree (clipped) bounds; if the
-        // bottom edge sits within the padding distance from the
-        // dump's vertical extent (the visible viewport ends at the
-        // largest reported Y), the button is partially clipped and
-        // we need to keep scrolling. Use a generous heuristic — the
-        // total clipped height — instead of a hard-coded viewport
-        // height because the emulator size can shift across runs.
-        const heightPx: number = boundsRect.bottom - boundsRect.top;
-        if (heightPx >= VIEWPORT_EDGE_PADDING) {
-          return;
-        }
-      }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
-      await driver.delayMs(400);
-    }
+    await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
+    await driver.delayMs(80);
   } catch (err) {
     throw err as Error;
   }
 }
 
-async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
+async function waitForParentPinSetupKeypad(driver: Driver, maxMs: number): Promise<boolean> {
   try {
-    await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
-    await driver.delayMs(80);
+    const stepMs: number = 300;
+    let waited: number = 0;
+    let nudge: number = 0;
+    while (waited < maxMs) {
+      const k: Component | null =
+        await driver.findComponent(ON.id('ParentPinSetupKey_1'));
+      if (k !== null) {
+        return true;
+      }
+      nudge += 1;
+      if (nudge % 4 === 0) {
+        await driver.swipe(360, 880, 360, 420, 550);
+      }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
+    }
+    return false;
   } catch (err) {
     throw err as Error;
   }
@@ -249,7 +222,8 @@ export default function configFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
 
       await clickByIdShared(driver, 'ConfigParentPinButton');
-      await driver.delayMs(1200);
+      const keypadNavOk: boolean = await waitForParentPinSetupKeypad(driver, 12000);
+      expect(keypadNavOk).assertTrue();
       await driver.assertComponentExist(ON.id('ParentPinSetupTitle'));
       await driver.assertComponentExist(ON.id('ParentPinSetupStepLabel'));
       await driver.assertComponentExist(ON.id('ParentPinSetupKeypad'));
@@ -279,7 +253,8 @@ export default function configFlowUiTest(): void {
       await openConfig(driver);
       await scrollToParentPinButton(driver);
       await clickByIdShared(driver, 'ConfigParentPinButton');
-      await driver.delayMs(1200);
+      const keypadReady: boolean = await waitForParentPinSetupKeypad(driver, 12000);
+      expect(keypadReady).assertTrue();
 
       // Step 1: 1 2 3 4 5 6
       await tapPinSetupKey(driver, '1');
@@ -452,7 +427,8 @@ export default function configFlowUiTest(): void {
       await openConfig(driver);
       await scrollToParentPinButton(driver);
       await clickByIdShared(driver, 'ConfigParentPinButton');
-      await driver.delayMs(1200);
+      const keypadMismatch: boolean = await waitForParentPinSetupKeypad(driver, 12000);
+      expect(keypadMismatch).assertTrue();
 
       await tapPinSetupKey(driver, '1');
       await tapPinSetupKey(driver, '1');
