@@ -1,7 +1,7 @@
 # WordMagicGame 产品与架构设计规格
 
-> 文档状态：当前版本基线（V0.6.7.7 — ConfigPage 倒计时自定义 + 我的词包行精简）
-> 适用版本：V0.1 原型 → V0.6.7.7
+> 文档状态：当前版本基线（V0.6.7.8 — 学习报告按词包统计）
+> 适用版本：V0.1 原型 → V0.6.7.8
 > 客户端目标平台：HarmonyOS NEXT，ArkTS / ArkUI，DevEco Studio 托管工程
 > 服务端：Python 3.12，FastAPI + Beanie(MongoDB)，部署在 Vercel Serverless（项目 Root Directory = `server`）
 > 详细演进时间线见 [`WordMagicGame_roadmap.md`](WordMagicGame_roadmap.md)；本文记录"现在跑的代码长什么样"。
@@ -315,7 +315,7 @@ HomePage ─┬─ HomeStartButton (todayPack) ─→ BattlePage(today, AppStora
 | RedemptionHistoryPage | 倒序展示 `RedemptionRecord` 列表，最多 50 条滚动保留。                                                          |
 | MonsterCodexPage    | 横向翻页查看 `MONSTER_CODEX` 中所有怪物 / boss 立绘 + 描述。                                                     |
 | TodayPlanPage       | 只读预览今日 10 个词的"复习 / 学习中 / 新词"分桶 + 完成进度（每个 wordId 一行）。                                            |
-| LearningReportPage  | 全量统计：正确率、已掌握词、新词数、复习词数、薄弱单词分组、按类目正确率分布。                                                       |
+| LearningReportPage  | 全量统计：总正确率、四态计数（掌握 / 熟悉 / 学习中 / 新词）、今日复习完成率，以及按词包（pack）分组的正确率行（V0.4.5 按 category 分组；V0.6.7.8 重写为按 pack 分组以匹配三层词包模型，活跃包按选择顺序在前、未激活但有作答的包按正确率升序在后）。 |
 | ParentPinSetupPage  | 6 位 PIN 两步一致校验，写回 `GameConfig.parentPin`。                                                        |
 | ParentAdminPage     | V0.5.8 家长管理后台（PIN 闸后入）：竖屏概览（用户数 / 词条数 / 类别数 / 已发布版本数 / 最新版本 / 待审 LLM 草稿 / 待审课本图）；📷 拍照 / 🖼️ 从相册导入课本图；待复核草稿列表；一键发布新词包。**已下线 JWT 登录卡片**，V0.6 以家长账户做数据隔离。 |
 | LessonDraftReviewPage | V0.5.8 课本单词复核页（PIN 后续传）：展示原图 + 可改主题标签 + 候选词列表（保留 / 编辑 / 弃用），编辑弹窗校验非空 trim，"全部确认"先 PATCH 再 /approve、"全部拒绝" /reject；409 ALREADY_REVIEWED 自动 back。 |
@@ -569,7 +569,7 @@ class TodaySessionPlan {
 | `TodayPreferences`       | `init() / loadRegionId() / saveRegionId()`                              | 区域 id 持久化                     |
 | `TodayAdventureBuilder`  | `build(region, repo, recorder, nowMs, isFirstToday) → TodaySessionPlan` + `buildFromPack(pack, recorder, nowMs, isFirstToday) → TodaySessionPlan`（V0.6.5.1） | 主算法见 §11                      |
 | `TodayPlanService`       | `build()`                                                               | TodayPlanPage 的只读视图模型         |
-| `LearningReportBuilder`  | `build()`                                                               | LearningReportPage 的只读视图模型    |
+| `LearningReportBuilder`  | `build(library, activeIds, recorder, nowMs)`                            | LearningReportPage 的只读视图模型；V0.6.7.8 改为接受 `PackLibrary` + `activeIds`，输出按词包分组的 `PackReport[]` 替代旧的 `CategoryReport[]` |
 
 ### 10.4 服务端协同（V0.5）
 
