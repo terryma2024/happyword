@@ -133,13 +133,21 @@ export class WordPackBootstrapper {
     // returns and reuse GlobalPackService.parsePacks. Family packs come
     // out with `source = 'global'` from that parser; rewrite to 'family'
     // post-hoc.
+    // V0.6.7.3 codelinter (@performance/reuse-date-instances-check):
+    // hoist a single Date instance out of the loop and use setTime()
+    // per pack instead of `new Date(ms)` each iteration. Family pack
+    // counts are small (≤ MAX_ACTIVE_PACKS×N), but the rule fires
+    // unconditionally on `new Date(...)` inside any loop body.
     const parts: string[] = [];
+    const dateScratch: Date = new Date(0);
     for (let i = 0; i < blob.packs.length; i++) {
       const p: FamilyPackEntry = blob.packs[i];
       const wordsJson: string = JSON.stringify(p.words);
-      const publishedIso: string = p.publishedAtMs > 0
-        ? new Date(p.publishedAtMs).toISOString()
-        : '';
+      let publishedIso: string = '';
+      if (p.publishedAtMs > 0) {
+        dateScratch.setTime(p.publishedAtMs);
+        publishedIso = dateScratch.toISOString();
+      }
       const piece: string =
         '{"pack_id":' + JSON.stringify(p.packId) + ',' +
         '"name":' + JSON.stringify(p.name) + ',' +

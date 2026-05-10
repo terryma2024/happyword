@@ -21,6 +21,7 @@ import parentAdminFlowUiTest from './ParentAdminFlow.ui.test';
 import lessonDraftReviewFlowUiTest from './LessonDraftReviewFlow.ui.test';
 import parentBindingFlowV06UiTest from './ParentBindingFlowV06.ui.test';
 import boundDeviceInfoFlowUiTest from './BoundDeviceInfoFlow.ui.test';
+import packManagerFlowUiTest from './PackManagerFlow.ui.test';
 
 /**
  * V0.5.8: route every HTTP call from the test ability through the
@@ -131,6 +132,11 @@ export default function testsuite() {
   // GlobalPackService + FamilyPackService stack. The legacy
   // `configSyncFlowUiTest` (CACHED_STATUS_PREFIX / ConfigSyncButton)
   // was deleted with that surface.
+  // V0.6.7.3: PackManagerPage routing + 固定 button conditional-render
+  // contract. Each test restores PackSelection to default (5/5
+  // active, none pinned) before returning to HomePage so this suite
+  // is order-independent vs everything below it.
+  packManagerFlowUiTest();
   // V0.5.8: parent admin backend behind parent PIN (auth removed,
   // photo lesson import added). Re-seeds the PIN to KNOWN_PIN inside
   // each case so we don't depend on configFlowUiTest's twoStep

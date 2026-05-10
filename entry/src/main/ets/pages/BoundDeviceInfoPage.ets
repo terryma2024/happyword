@@ -121,36 +121,50 @@ struct BoundDeviceInfoPage {
     if (this.busy) {
       return;
     }
+    // V0.6.7.3 codelinter (@performance/hp-arkui-use-local-var-to-replace-state-var):
+    // single try/finally ensures `this.busy` is written from exactly
+    // one site (`true` at entry, `false` in finally) rather than the
+    // earlier two-site try/catch pattern that the rule flagged. The
+    // resulting outcome (success/HTTP error / thrown error) is kept
+    // in a local variable and only fed to `showUnbindToast` after the
+    // finally block has cleared the busy flag.
     this.busy = true;
     const adapter: RealParentFetchAdapter = new RealParentFetchAdapter();
     const baseUrl: string = effectiveServerBaseUrl();
     const client: DeviceUnbindClient =
       new DeviceUnbindClient(this.credentials, adapter, baseUrl);
+    let outcome: DeviceUnbindOutcome | null = null;
+    let networkError: boolean = false;
     try {
-      const out: DeviceUnbindOutcome = await client.unbind();
-      this.busy = false;
-      if (out.ok) {
-        // DeviceUnbindClient already cleared local credentials on 200/404.
-        // Detach the recorder's cloud-sync handler so subsequent battles
-        // don't try to push to a now-revoked binding.
-        const recorder: LearningRecorder = getLearningRecorder();
-        recorder.attachCloudSync(undefined);
-        this.showUnbindToast('已解除设备绑定');
-        // Route back to ConfigPage; its onPageShow will re-run
-        // refreshBindingState and flip the page to the unbound layout.
-        // A short delay lets the toast surface for ~600 ms before the
-        // page pops, matching the ConfigPage UX it replaces.
-        setTimeout((): void => {
-          this.getUIContext().getRouter().back();
-        }, 600);
-      } else {
-        this.showUnbindToast(`解除失败 (HTTP ${out.status})`);
-      }
+      outcome = await client.unbind();
     } catch (err) {
       console.error(`BoundDeviceInfoPage.runUnbind failed: ${JSON.stringify(err)}`);
+      networkError = true;
+    } finally {
       this.busy = false;
-      this.showUnbindToast('解除失败 (网络错误)');
     }
+
+    if (networkError || outcome === null) {
+      this.showUnbindToast('解除失败 (网络错误)');
+      return;
+    }
+    if (!outcome.ok) {
+      this.showUnbindToast(`解除失败 (HTTP ${outcome.status})`);
+      return;
+    }
+    // DeviceUnbindClient already cleared local credentials on 200/404.
+    // Detach the recorder's cloud-sync handler so subsequent battles
+    // don't try to push to a now-revoked binding.
+    const recorder: LearningRecorder = getLearningRecorder();
+    recorder.attachCloudSync(undefined);
+    this.showUnbindToast('已解除设备绑定');
+    // Route back to ConfigPage; its onPageShow will re-run
+    // refreshBindingState and flip the page to the unbound layout.
+    // A short delay lets the toast surface for ~600 ms before the
+    // page pops, matching the ConfigPage UX it replaces.
+    setTimeout((): void => {
+      this.getUIContext().getRouter().back();
+    }, 600);
   }
 
   private showUnbindToast(text: string): void {
