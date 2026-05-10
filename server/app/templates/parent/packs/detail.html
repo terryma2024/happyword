@@ -1,0 +1,51 @@
+{% extends "_base.html" %}
+{% block title %}{{ definition.name }}{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header class="flex items-start justify-between gap-4">
+    <div>
+      <a href="/parent/packs" class="text-sm text-sky-700 hover:underline">返回词库</a>
+      <h1 class="text-2xl font-semibold text-slate-900 mt-2">{{ definition.name }}</h1>
+      <p class="text-sm text-slate-500 mt-1">{{ definition.description or "无描述" }}</p>
+    </div>
+    <a href="/parent/packs/{{ definition.pack_id }}/import" class="text-sm bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded-md font-medium">
+      图片导入
+    </a>
+  </header>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900">发布状态</h2>
+    <p class="text-sm text-slate-600 mt-2">
+      {% if pointer %}当前版本 v{{ pointer.current_version }}{% else %}尚未发布{% endif %}
+      · 草稿 {{ draft.word_count }} / {{ draft.max_words }} 词
+    </p>
+    <form method="post" action="/parent/packs/{{ definition.pack_id }}/publish" class="mt-4 flex items-center gap-2">
+      <input name="notes" class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="发布说明" />
+      <button type="submit" class="bg-sky-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-sky-700">发布词库</button>
+    </form>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-4">草稿词条</h2>
+    <table id="draft-word-table" class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-xs text-slate-500">
+          <th class="py-2 pr-3">ID</th>
+          <th class="py-2 pr-3">英文</th>
+          <th class="py-2 pr-3">中文</th>
+          <th class="py-2 pr-3">分类</th>
+          <th class="py-2 pr-3">难度</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for word in draft.words %}
+          {% include "partials/draft_word_row.html" %}
+        {% else %}
+          <tr><td colspan="5" class="py-6 text-sm text-slate-500">草稿为空。可以先图片导入，或后续用批量粘贴录入。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="text-xs text-slate-500 mt-4">Import images or use the JSON batch-upsert API to edit draft rows.</p>
+  </section>
+</section>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "_base.html" %}
+{% block title %}发布历史{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header>
+    <a href="/parent/packs/{{ definition.pack_id }}" class="text-sm text-sky-700 hover:underline">返回 {{ definition.name }}</a>
+    <h1 class="text-2xl font-semibold text-slate-900 mt-2">发布历史</h1>
+  </header>
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm divide-y divide-slate-100">
+    {% for snap in snapshots %}
+      <div class="p-4">
+        <p class="font-semibold text-slate-900">v{{ snap.version }} · {{ snap.words|length }} 词</p>
+        <p class="text-xs text-slate-500 mt-1">{{ snap.published_at }} · {{ snap.notes or "无发布说明" }}</p>
+      </div>
+    {% else %}
+      <p class="text-sm text-slate-500 p-6">还没有发布版本。</p>
+    {% endfor %}
+  </section>
+</section>
+{% endblock %}

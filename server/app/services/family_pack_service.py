@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 from beanie.odm.enums import SortDirection
 
 from app.config import get_settings
+from app.services import pack_service
 from app.models.family_pack_definition import FamilyPackDefinition, FamilyPackState
 from app.models.family_pack_draft import FamilyPackDraft
 from app.models.family_pack_pointer import FamilyPackPointer
@@ -388,6 +389,40 @@ async def upsert_draft_word(
     return draft
 
 
+async def batch_upsert_draft_words(
+    *,
+    definition: FamilyPackDefinition,
+    rows: list[dict[str, Any]],
+    parent_user_id: str,
+) -> tuple[FamilyPackDraft, list[dict[str, Any]]]:
+    """Apply many draft upserts; collect per-row errors without aborting."""
+    errors: list[dict[str, Any]] = []
+    draft = await get_or_create_draft(
+        definition=definition, parent_user_id=parent_user_id
+    )
+
+    for idx, row in enumerate(rows):
+        word_id = str(row.get("word_id", ""))
+        payload = {k: v for k, v in row.items() if k != "word_id"}
+        try:
+            draft = await upsert_draft_word(
+                definition=definition,
+                word_id=word_id,
+                payload=payload,
+                parent_user_id=parent_user_id,
+            )
+        except FamilyPackError as exc:
+            errors.append(
+                {
+                    "row_index": idx,
+                    "word_id": word_id,
+                    "code": exc.code,
+                    "message": str(exc),
+                }
+            )
+    return draft, errors
+
+
 async def remove_draft_word(
     *,
     definition: FamilyPackDefinition,
@@ -600,6 +635,69 @@ def _etag_from_pairs(pairs: Iterable[tuple[str, int]]) -> str:
     fingerprint = "|".join(f"{pid}:{ver}" for pid, ver in sorted_pairs)
     digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
     return f'"{digest}"'
+
+
+def _merge_words(
+    global_words: list[dict[str, Any]], family_slices: list[MergedSlice]
+) -> list[dict[str, Any]]:
+    """Apply global baseline, then family overlays (hide / override)."""
+    merged: dict[str, dict[str, Any]] = {}
+    for word in global_words:
+        word_id = word.get("id")
+        if isinstance(word_id, str):
+            merged[word_id] = dict(word)
+    for family_slice in family_slices:
+        for word in family_slice.words:
+            word_id = word.get("id")
+            if not isinstance(word_id, str):
+                continue
+            if word.get("hidden") is True:
+                merged.pop(word_id, None)
+                continue
+            merged[word_id] = dict(word)
+    return [merged[k] for k in sorted(merged)]
+
+
+def _child_etag(*, global_version: int, family_pairs: list[tuple[str, int]]) -> str:
+    family_part = "|".join(f"{pid}:{ver}" for pid, ver in sorted(family_pairs))
+    raw = f"global:{global_version}|family:{family_part}"
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return f'"{digest}"'
+
+
+@dataclass(frozen=True)
+class ChildMergedVocabulary:
+    schema_version: int
+    family_id: str
+    global_version: int
+    family_versions: dict[str, int]
+    words: list[dict[str, Any]]
+    slices: list[MergedSlice]
+    etag: str
+
+
+async def collect_child_vocabulary(*, family_id: str) -> ChildMergedVocabulary:
+    """Merge published global pack JSON with this family's published packs."""
+    global_version, global_payload = await pack_service.get_current_pack_payload()
+    family_slices, _fam_only_etag = await collect_merged(family_id=family_id)
+    family_versions = {s.pack_id: s.version for s in family_slices}
+    global_words = list(global_payload.get("words", []))
+    words = _merge_words(global_words=global_words, family_slices=family_slices)
+    family_pairs = [(s.pack_id, s.version) for s in family_slices]
+    gv = int(global_payload.get("version", global_version))
+    schema_version = max(
+        [int(global_payload.get("schema_version", GLOBAL_PACK_SCHEMA_VERSION))]
+        + [s.schema_version for s in family_slices],
+    )
+    return ChildMergedVocabulary(
+        schema_version=schema_version,
+        family_id=family_id,
+        global_version=gv,
+        family_versions=family_versions,
+        words=words,
+        slices=family_slices,
+        etag=_child_etag(global_version=gv, family_pairs=family_pairs),
+    )
 
 
 # ---------------------------------------------------------------------------

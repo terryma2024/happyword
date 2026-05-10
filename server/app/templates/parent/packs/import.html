@@ -1,0 +1,15 @@
+{% extends "_base.html" %}
+{% block title %}图片导入{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header>
+    <a href="/parent/packs/{{ definition.pack_id }}" class="text-sm text-sky-700 hover:underline">返回 {{ definition.name }}</a>
+    <h1 class="text-2xl font-semibold text-slate-900 mt-2">图片导入</h1>
+    <p class="text-sm text-slate-500 mt-1">上传课本页或练习册图片，识别结果会进入草稿。</p>
+  </header>
+  <form method="post" action="/api/v1/parent/family-packs/{{ definition.pack_id }}/import-image" enctype="multipart/form-data" class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-4">
+    <input type="file" name="image" accept="image/png,image/jpeg,image/webp" required class="block w-full text-sm" />
+    <button type="submit" class="bg-sky-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-sky-700">导入到草稿</button>
+  </form>
+</section>
+{% endblock %}

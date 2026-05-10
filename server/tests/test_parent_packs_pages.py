@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import pytest
+from bs4 import BeautifulSoup
+from httpx import ASGITransport, AsyncClient
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+
+@pytest.fixture
+async def parent_client(db: object) -> AsyncIterator[AsyncClient]:
+    from app.main import app
+    from app.services.auth_service import create_session_token
+    from app.services.family_service import create_family_for_parent
+
+    _, user = await create_family_for_parent(email="packs-page@example.com")
+    token = create_session_token(role="parent", identifier=user.username)
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        cookies={"wm_session": token},
+        follow_redirects=False,
+    ) as ac:
+        yield ac
+
+
+@pytest.mark.asyncio
+async def test_parent_packs_requires_login(db: object) -> None:
+    from app.main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        follow_redirects=False,
+    ) as ac:
+        resp = await ac.get("/parent/packs")
+
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/parent/login"
+
+
+@pytest.mark.asyncio
+async def test_parent_packs_list_renders_empty_state(parent_client: AsyncClient) -> None:
+    resp = await parent_client.get("/parent/packs")
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.text, "html.parser")
+    assert soup.find(id="packs-list") is not None
+    assert "还没有词库" in resp.text
+    assert "/parent/packs/new" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_create_pack_form_redirects_to_detail(parent_client: AsyncClient) -> None:
+    resp = await parent_client.post(
+        "/parent/packs",
+        data={"name": "三年级上 Unit 1", "description": "课本第一单元"},
+    )
+    assert resp.status_code == 303
+    assert resp.headers["location"].startswith("/parent/packs/pck-")
+
+
+@pytest.mark.asyncio
+async def test_pack_detail_renders_draft_table(parent_client: AsyncClient) -> None:
+    created = await parent_client.post("/api/v1/parent/family-packs", json={"name": "Detail"})
+    pack_id = created.json()["pack_id"]
+    resp = await parent_client.get(f"/parent/packs/{pack_id}")
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.text, "html.parser")
+    assert soup.find(id="draft-word-table") is not None
+    assert "发布词库" in resp.text
+    assert f"/parent/packs/{pack_id}/import" in resp.text
