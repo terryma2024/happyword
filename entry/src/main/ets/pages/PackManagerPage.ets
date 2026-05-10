@@ -23,6 +23,12 @@ import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
  * `loadHomeIntegration` cold-start, same `togglePackActive` /
  * `togglePackPin` / `onPackSyncTap` flow — so existing PackSelection
  * Service tests continue to apply unchanged.
+ *
+ * V0.6.7.3: the 📌 pin button now only renders for already-active
+ * packs (the previous "·" placeholder on inactive rows looked like
+ * noise and tapping it only ever produced an error toast). Inactive
+ * rows fall back to a `Blank` spacer so the Toggle column stays
+ * aligned across all rows.
  */
 @Entry
 @Component
@@ -101,6 +107,10 @@ struct PackManagerPage {
   }
 
   private async togglePackPin(packId: string): Promise<void> {
+    // V0.6.7.3: the pin button is now only rendered for active packs
+    // (see `packRow`), so this branch is unreachable from the UI.
+    // Kept as a defensive guard for future callers (e.g. a possible
+    // long-press gesture on inactive rows) and unit tests.
     if (this.activePackIds.indexOf(packId) < 0) {
       this.showPackToast('只有已激活的词包才能 📌 固定');
       return;
@@ -262,7 +272,7 @@ struct PackManagerPage {
         .id('PackManagerStatus')
         .fontSize(14).fontColor('#6B7280');
       Blank().layoutWeight(1);
-      Text('点击右侧开关切换激活；📌 防止满分自动轮换')
+      Text('开关：切换激活 · 固定：防止满分自动轮换')
         .fontSize(12).fontColor('#9CA3AF');
     }
     .width('100%')
@@ -289,19 +299,35 @@ struct PackManagerPage {
         .fontColor('#1F2937')
         .layoutWeight(1);
 
-      // Pin toggle — only meaningful when pack is active. A pinned
-      // pack is exempt from the perfect-rotation auto-swap.
-      Button(this.isPinned(p.id) ? '📌' : '·')
-        .id(`PackPin_${p.id}`)
-        .width(36).height(36).fontSize(16)
-        .backgroundColor(this.isPinned(p.id) ? '#FEF3C7' : '#F3F4F6')
-        .fontColor(this.isPinned(p.id) ? '#B45309' : '#9CA3AF')
-        .borderRadius(8)
-        .onClick((): void => {
-          this.togglePackPin(p.id).catch((err: BusinessError): void => {
-            console.error(`PackManagerPage.togglePackPin promise failed: ${JSON.stringify(err)}`);
+      // V0.6.7.3: pin toggle is rendered ONLY for already-active packs.
+      // Pinning an inactive pack was a no-op anyway (togglePackPin
+      // bails with a toast), and the prior "·" placeholder on inactive
+      // rows just looked like noise. For inactive packs we drop in a
+      // matching-size Blank so the Toggle column stays vertically
+      // aligned with the active rows.
+      //
+      // The button uses an explicit text label ("📌 固定" / "已固定")
+      // rather than a bare emoji icon — the 📌 glyph alone rendered
+      // illegibly small inside a 36-vp square in earlier screenshots
+      // and looked indistinguishable from the dim "·" placeholder it
+      // was meant to replace. The yellow background (#FEF3C7) plus the
+      // copy change make the pinned state unambiguous at a glance.
+      if (this.isActive(p.id)) {
+        Button(this.isPinned(p.id) ? '已固定' : '📌 固定')
+          .id(`PackPin_${p.id}`)
+          .height(36).fontSize(13)
+          .padding({ left: 10, right: 10 })
+          .backgroundColor(this.isPinned(p.id) ? '#FEF3C7' : '#F3F4F6')
+          .fontColor(this.isPinned(p.id) ? '#B45309' : '#6B7280')
+          .borderRadius(8)
+          .onClick((): void => {
+            this.togglePackPin(p.id).catch((err: BusinessError): void => {
+              console.error(`PackManagerPage.togglePackPin promise failed: ${JSON.stringify(err)}`);
+            });
           });
-        });
+      } else {
+        Blank().height(36);
+      }
 
       // V0.6.7: replaces the prior dim "✓ / blank" button with a
       // platform-style switch. `Toggle` fires `onChange` whenever the
