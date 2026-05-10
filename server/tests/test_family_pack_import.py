@@ -34,8 +34,21 @@ async def test_import_image_writes_draft_only(
                 "title": "Unit 1",
                 "category": {"id": "unit1", "labelZh": "第一单元"},
                 "words": [
-                    {"word": "apple", "meaningZh": "苹果", "category": "fruit", "difficulty": 1},
-                    {"word": "banana", "meaningZh": "香蕉", "category": "fruit", "difficulty": 1},
+                    {
+                        "word": "apple",
+                        "meaningZh": "苹果",
+                        "category": "fruit",
+                        "difficulty": 1,
+                        "example_en": "I eat an apple.",
+                        "example_zh": "我吃了一个苹果。",
+                    },
+                    {
+                        "word": "banana",
+                        "meaningZh": "香蕉",
+                        "category": "fruit",
+                        "difficulty": 1,
+                        "example_en": "This is a banana.",
+                    },
                 ],
             },
         )
@@ -66,6 +79,40 @@ async def test_import_image_writes_draft_only(
     assert detail.json()["pointer"] is None
     ids = {w["id"] for w in detail.json()["draft"]["words"]}
     assert ids == {f"{prefix}apple", f"{prefix}banana"}
+    by_id = {w["id"]: w for w in detail.json()["draft"]["words"]}
+    assert by_id[f"{prefix}apple"].get("exampleEn") == "I eat an apple."
+    assert by_id[f"{prefix}apple"].get("exampleZh") == "我吃了一个苹果。"
+    assert by_id[f"{prefix}banana"].get("exampleEn") == "This is a banana."
+
+
+def test_extracted_words_to_rows_maps_example_fields(db: object) -> None:
+    from app.services.family_pack_import_service import extracted_words_to_rows
+
+    rows = extracted_words_to_rows(
+        family_id="fam-aaaaaaaa",
+        extracted={
+            "category_id": "zoo",
+            "words": [
+                {
+                    "word": "cat",
+                    "meaningZh": "猫",
+                    "difficulty": 2,
+                    "example_en": "The cat sleeps.",
+                    "example_zh": "猫在睡觉。",
+                },
+                {
+                    "word": "dog",
+                    "meaningZh": "狗",
+                    "difficulty": 2,
+                    "example": {"en": "A dog runs.", "zh": "狗在跑。"},
+                },
+            ],
+        },
+    )
+    assert rows[0]["example_en"] == "The cat sleeps."
+    assert rows[0]["example_zh"] == "猫在睡觉。"
+    assert rows[1]["example_en"] == "A dog runs."
+    assert rows[1]["example_zh"] == "狗在跑。"
 
 
 @pytest.mark.asyncio

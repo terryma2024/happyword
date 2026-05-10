@@ -425,6 +425,17 @@ async def publish_pack(
             "WORD_LIMIT_EXCEEDED",
             f"Pack exceeds {get_settings().family_pack_max_words}-word cap",
         ) from exc
+    except svc.DraftValidationFailed as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": {
+                    "code": exc.code,
+                    "message": str(exc),
+                    "rows": exc.errors,
+                }
+            },
+        ) from exc
     return FamilyPackPublishOut(
         pack_id=pack_id,
         version=snapshot.version,

@@ -2,16 +2,95 @@
 {% block title %}{{ definition.name }}{% endblock %}
 {% block content %}
 <section class="space-y-6">
-  <header class="flex items-start justify-between gap-4">
+  <header class="flex items-start justify-between gap-4 flex-wrap">
     <div>
       <a href="/parent/packs" class="text-sm text-sky-700 hover:underline">返回词库</a>
       <h1 class="text-2xl font-semibold text-slate-900 mt-2">{{ definition.name }}</h1>
       <p class="text-sm text-slate-500 mt-1">{{ definition.description or "无描述" }}</p>
+      <p class="text-sm mt-2">
+        <a href="/parent/packs/{{ definition.pack_id }}/versions" class="text-sky-700 hover:underline">发布历史</a>
+      </p>
     </div>
     <a href="/parent/packs/{{ definition.pack_id }}/import" class="text-sm bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded-md font-medium">
       图片导入
     </a>
   </header>
+
+  {% if import_ok %}
+    <div class="rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 px-4 py-3 text-sm">
+      图片已识别，词条已写入草稿。
+    </div>
+  {% endif %}
+
+  {% if import_hint == "no_words" %}
+    <div class="rounded-md border border-amber-200 bg-amber-50 text-amber-950 px-4 py-3 text-sm">
+      未从图片中识别到词条。可换一张更清晰的照片，或稍后重试。
+    </div>
+  {% endif %}
+
+  {% if publish_error %}
+    <div class="rounded-md border border-rose-200 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
+      {% if publish_error == "empty_pack" %}
+        草稿为空，无法发布。请先添加词条。
+      {% elif publish_error == "word_limit" %}
+        草稿词条数超过服务器允许的上限。
+      {% elif publish_error == "validation" %}
+        请先修正下列自定义词条后再发布。
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if publish_row_errors and publish_row_errors|length > 0 %}
+    <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+      <p class="font-semibold mb-2">逐条校验</p>
+      <ul class="list-disc pl-5 space-y-1">
+        {% for e in publish_row_errors %}
+          <li>
+            第 {{ e.row_index }} 行 · <span class="font-mono text-xs">{{ e.word_id }}</span>
+            — {{ e.message }}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if batch_error %}
+    <div class="rounded-md border border-rose-200 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
+      {% if batch_error == "invalid_json" %}
+        JSON 无法解析。请粘贴包含顶层 <code class="font-mono text-xs">rows</code> 数组的有效 JSON。
+      {% elif batch_error == "rows_missing" %}
+        需要形如 <code class="font-mono text-xs">{"rows":[...]}</code>，且至少包含一行对象。
+      {% elif batch_error == "row_errors" %}
+        部分批量行校验失败（见下方）。
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if batch_row_errors and batch_row_errors|length > 0 %}
+    <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+      <p class="font-semibold mb-2">批量写入错误</p>
+      <ul class="list-disc pl-5 space-y-1">
+        {% for e in batch_row_errors %}
+          <li>
+            第 {{ e.row_index }} 行 · <span class="font-mono text-xs">{{ e.word_id }}</span>
+            — {{ e.code }}：{{ e.message }}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if add_word_error %}
+    <div class="rounded-md border border-rose-200 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
+      {% if add_word_error == "suffix_required" %}
+        请填写自定义词条 ID 的后缀（家庭前缀会自动拼接）。
+      {% elif add_word_error == "pack_full" %}
+        草稿已满，请先删除词条或联系管理员提高上限。
+      {% elif add_word_error == "invalid_payload" %}
+        无法保存该行，请检查分类、难度（1–5）及必填字段。
+      {% endif %}
+    </div>
+  {% endif %}
 
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
     <h2 class="text-lg font-semibold text-slate-900">发布状态</h2>
@@ -25,27 +104,74 @@
     </form>
   </section>
 
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-4">
+    <h2 class="text-lg font-semibold text-slate-900">添加自定义词条</h2>
+    <p class="text-xs text-slate-500">
+      自定义词条 ID 由家庭前缀与您下方填写的后缀组成（与 JSON API 约定一致）。
+    </p>
+    <form method="post" action="/parent/packs/{{ definition.pack_id }}/draft/add-custom" class="grid gap-3 md:grid-cols-2">
+      <label class="text-sm text-slate-700">后缀（接在家庭前缀之后）
+        <input name="suffix" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="apple-1" />
+      </label>
+      <label class="text-sm text-slate-700">英文
+        <input name="word" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      </label>
+      <label class="text-sm text-slate-700">中文释义
+        <input name="meaning_zh" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      </label>
+      <label class="text-sm text-slate-700">分类
+        <input name="category" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      </label>
+      <label class="text-sm text-slate-700">难度（1–5）
+        <input name="difficulty" type="number" min="1" max="5" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      </label>
+      <label class="text-sm text-slate-700 md:col-span-2">例句（英文，可选）
+        <input name="example_en" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="与图片导入 / LLM 解析字段 example_en 一致" />
+      </label>
+      <label class="text-sm text-slate-700 md:col-span-2">例句（中文，可选）
+        <input name="example_zh" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="对应 example_zh" />
+      </label>
+      <div class="md:col-span-2 flex justify-end">
+        <button type="submit" class="bg-slate-900 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-slate-800">加入草稿</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-3">
+    <h2 class="text-lg font-semibold text-slate-900">批量粘贴（JSON）</h2>
+    <p class="text-xs text-slate-500">
+      请求体与接口 <code class="font-mono text-xs">POST /api/v1/parent/family-packs/{id}/draft/words:batch-upsert</code> 一致，例如：
+      <code class="font-mono text-xs block mt-2 bg-slate-50 border border-slate-200 rounded px-2 py-2">{"rows":[{"word_id":"…","source":"custom","word":"…","meaning_zh":"…","category":"…","difficulty":3,"example_en":"I see an apple.","example_zh":"我看见一个苹果。"}]}</code>
+    </p>
+    <form method="post" action="/parent/packs/{{ definition.pack_id }}/draft/batch-json" class="space-y-3">
+      <textarea name="batch_json" rows="8" class="w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-mono" placeholder='{"rows":[]}'></textarea>
+      <button type="submit" class="bg-sky-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-sky-700">应用批量写入</button>
+    </form>
+  </section>
+
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
     <h2 class="text-lg font-semibold text-slate-900 mb-4">草稿词条</h2>
     <table id="draft-word-table" class="w-full text-sm">
       <thead>
         <tr class="text-left text-xs text-slate-500">
-          <th class="py-2 pr-3">ID</th>
+          <th class="py-2 pr-3">词条 ID</th>
           <th class="py-2 pr-3">英文</th>
           <th class="py-2 pr-3">中文</th>
           <th class="py-2 pr-3">分类</th>
           <th class="py-2 pr-3">难度</th>
+          <th class="py-2 pr-3 max-w-[10rem]">例句（英）</th>
+          <th class="py-2 pr-3 max-w-[10rem]">例句（中）</th>
+          <th class="py-2 pr-3 text-right">操作</th>
         </tr>
       </thead>
       <tbody>
         {% for word in draft.words %}
           {% include "partials/draft_word_row.html" %}
         {% else %}
-          <tr><td colspan="5" class="py-6 text-sm text-slate-500">草稿为空。可以先图片导入，或后续用批量粘贴录入。</td></tr>
+          <tr><td colspan="8" class="py-6 text-sm text-slate-500">草稿为空。可先图片导入，或使用上方表单 / 批量 JSON。</td></tr>
         {% endfor %}
       </tbody>
     </table>
-    <p class="text-xs text-slate-500 mt-4">Import images or use the JSON batch-upsert API to edit draft rows.</p>
   </section>
 </section>
 {% endblock %}

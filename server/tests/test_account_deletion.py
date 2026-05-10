@@ -180,6 +180,50 @@ async def test_audit_log_records_delete_commit(
 
 
 @pytest.mark.asyncio
+async def test_export_includes_published_family_word_packs(
+    parent_with_device: tuple[AsyncClient, str, str, str, str],
+) -> None:
+    ac, _username, family_id, _child, _binding = parent_with_device
+    assert family_id
+    created = await ac.post("/api/v1/parent/family-packs", json={"name": "Export Pack"})
+    assert created.status_code == 201
+    pack_id = created.json()["pack_id"]
+    prefix = f"fam-{family_id.removeprefix('fam-')[:8]}-"
+    wid = f"{prefix}hello"
+    put = await ac.put(
+        f"/api/v1/parent/family-packs/{pack_id}/draft/words/{wid}",
+        json={
+            "source": "custom",
+            "word": "hello",
+            "meaning_zh": "你好",
+            "category": "greeting",
+            "difficulty": 2,
+        },
+    )
+    assert put.status_code == 200
+    pub = await ac.post(
+        f"/api/v1/parent/family-packs/{pack_id}/publish",
+        json={"notes": "v1"},
+    )
+    assert pub.status_code == 201
+
+    r = await ac.post("/api/v1/parent/account/export")
+    assert r.status_code == 200
+    body = r.json()
+    data = body["data"]
+    assert "family_pack_published_snapshots" in data
+    assert len(data["family_pack_published_snapshots"]) == 1
+    snap = data["family_pack_published_snapshots"][0]
+    assert snap["pack_definition_id"] == pack_id
+    assert snap["version"] == 1
+    assert any(w.get("id") == wid for w in snap["words"])
+    assert "family_pack_definitions" in data
+    assert any(d["pack_id"] == pack_id for d in data["family_pack_definitions"])
+    assert "family_pack_drafts" in data
+    assert "family_pack_pointers" in data
+
+
+@pytest.mark.asyncio
 async def test_export_returns_json_with_summary(
     parent_with_device: tuple[AsyncClient, str, str, str, str],
 ) -> None:

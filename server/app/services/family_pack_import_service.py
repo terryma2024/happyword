@@ -44,16 +44,27 @@ def extracted_words_to_rows(*, family_id: str, extracted: dict[str, Any]) -> lis
             continue
         difficulty = item.get("difficulty", 1)
         category_val = item.get("category")
-        rows.append(
-            {
-                "word_id": f"{prefix}{_slug_word(word)}",
-                "source": "custom",
-                "word": word.strip(),
-                "meaning_zh": meaning.strip(),
-                "category": category_val if isinstance(category_val, str) else cat_id,
-                "difficulty": difficulty if isinstance(difficulty, int) else 1,
-            }
-        )
+        row: dict[str, Any] = {
+            "word_id": f"{prefix}{_slug_word(word)}",
+            "source": "custom",
+            "word": word.strip(),
+            "meaning_zh": meaning.strip(),
+            "category": category_val if isinstance(category_val, str) else cat_id,
+            "difficulty": difficulty if isinstance(difficulty, int) else 1,
+        }
+        ex_en = item.get("example_en") or item.get("exampleEn")
+        ex_zh = item.get("example_zh") or item.get("exampleZh")
+        nested_ex = item.get("example")
+        if isinstance(nested_ex, dict):
+            if ex_en is None:
+                ex_en = nested_ex.get("en")
+            if ex_zh is None:
+                ex_zh = nested_ex.get("zh")
+        if isinstance(ex_en, str) and ex_en.strip():
+            row["example_en"] = ex_en.strip()
+        if isinstance(ex_zh, str) and ex_zh.strip():
+            row["example_zh"] = ex_zh.strip()
+        rows.append(row)
     return rows
 
 

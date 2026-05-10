@@ -69,6 +69,14 @@ class InvalidPayload(FamilyPackError):
     code = "INVALID_PAYLOAD"
 
 
+class DraftValidationFailed(FamilyPackError):
+    code = "DRAFT_VALIDATION_FAILED"
+
+    def __init__(self, errors: list[dict[str, Any]]) -> None:
+        self.errors = errors
+        super().__init__(f"{len(errors)} draft row(s) invalid for publish")
+
+
 @dataclass(frozen=True)
 class CustomIdContract:
     """Helper holding the `fam-<family_id_8>-` custom-id contract."""
@@ -450,6 +458,72 @@ async def remove_draft_word(
 # ---------------------------------------------------------------------------
 
 
+def _publish_validation_errors_for_family(
+    *,
+    family_id: str,
+    words: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Block publish when custom (`fam-…-`) draft rows are incomplete."""
+    prefix = CustomIdContract(family_id=family_id).prefix
+    out: list[dict[str, Any]] = []
+    for idx, w in enumerate(words):
+        wid = w.get("id")
+        if not isinstance(wid, str) or not wid:
+            out.append(
+                {
+                    "row_index": idx,
+                    "word_id": "",
+                    "message": "each entry needs a string id",
+                }
+            )
+            continue
+        if w.get("hidden") is True:
+            continue
+        if not wid.startswith(prefix):
+            continue
+        word = w.get("word")
+        mz = w.get("meaningZh")
+        cat = w.get("category")
+        diff = w.get("difficulty")
+        if not isinstance(word, str) or not word.strip():
+            out.append(
+                {
+                    "row_index": idx,
+                    "word_id": wid,
+                    "message": "custom entry needs non-empty English word",
+                }
+            )
+            continue
+        if not isinstance(mz, str) or not mz.strip():
+            out.append(
+                {
+                    "row_index": idx,
+                    "word_id": wid,
+                    "message": "custom entry needs non-empty Chinese meaning",
+                }
+            )
+            continue
+        if not isinstance(cat, str) or not cat.strip():
+            out.append(
+                {
+                    "row_index": idx,
+                    "word_id": wid,
+                    "message": "custom entry needs category",
+                }
+            )
+            continue
+        if not isinstance(diff, int) or diff < 1 or diff > 5:
+            out.append(
+                {
+                    "row_index": idx,
+                    "word_id": wid,
+                    "message": "custom entry needs difficulty 1–5",
+                }
+            )
+            continue
+    return out
+
+
 async def publish(
     *,
     definition: FamilyPackDefinition,
@@ -464,6 +538,14 @@ async def publish(
         raise EmptyPack(definition.pack_id)
     if len(draft.words) > settings.family_pack_max_words:
         raise WordLimitExceeded(definition.pack_id)
+
+    if definition.family_id != GLOBAL_PACK_FAMILY_ID:
+        row_errors = _publish_validation_errors_for_family(
+            family_id=definition.family_id,
+            words=draft.words,
+        )
+        if row_errors:
+            raise DraftValidationFailed(row_errors)
 
     # V0.6.5 — global packs (family_id sentinel) never publish words tagged
     # with `category=='test'`. Family packs keep the legacy permissive

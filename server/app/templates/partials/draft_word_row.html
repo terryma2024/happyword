@@ -1,7 +1,26 @@
 <tr class="border-t border-slate-100">
+  {% set _nest = word.get("example") %}
+  {% set ex_en = word.get("exampleEn") or word.get("example_en") or (_nest.get("en", "") if _nest is mapping else "") %}
+  {% set ex_zh = word.get("exampleZh") or word.get("example_zh") or (_nest.get("zh", "") if _nest is mapping else "") %}
   <td class="py-2 pr-3 font-mono text-xs text-slate-600">{{ word.get("id", "") }}</td>
   <td class="py-2 pr-3">{{ word.get("word", "") }}</td>
   <td class="py-2 pr-3">{{ word.get("meaningZh", "") }}</td>
   <td class="py-2 pr-3">{{ word.get("category", "") }}</td>
   <td class="py-2 pr-3">{{ word.get("difficulty", "") }}</td>
+  <td class="py-2 pr-3 max-w-[12rem] text-xs text-slate-700 align-top">
+    <span class="line-clamp-2" title="{{ ex_en }}">{{ ex_en }}</span>
+  </td>
+  <td class="py-2 pr-3 max-w-[12rem] text-xs text-slate-700 align-top">
+    <span class="line-clamp-2" title="{{ ex_zh }}">{{ ex_zh }}</span>
+  </td>
+  <td class="py-2 pr-3 text-right whitespace-nowrap space-x-2">
+    <form method="get" action="/parent/packs/{{ definition.pack_id }}/draft/edit" class="inline">
+      <input type="hidden" name="word_id" value="{{ word.get('id', '') }}" />
+      <button type="submit" class="text-xs text-sky-700 hover:underline">编辑</button>
+    </form>
+    <form method="post" action="/parent/packs/{{ definition.pack_id }}/draft/delete-word" class="inline">
+      <input type="hidden" name="word_id" value="{{ word.get('id', '') }}" />
+      <button type="submit" class="text-xs text-rose-700 hover:underline">删除</button>
+    </form>
+  </td>
 </tr>

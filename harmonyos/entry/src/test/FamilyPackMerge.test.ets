@@ -189,6 +189,19 @@ export default function familyPackMergeTest() {
       expect((first as FamilyPackEntry).publishedAtMs > 0).assertTrue();
     });
 
+    it('parseFamilyPacksBlob_tolerates_v081_child_merged_extras', 0, () => {
+      const body: string =
+        '{"schema_version":5,"family_id":"fam-12345678","global_version":42,' +
+        '"family_versions":{"pck-aaa":1},"merged_at":"2026-05-01T08:00:00Z",' +
+        '"words":[{"id":"apple","word":"apple","meaningZh":"苹果"}],' +
+        '"packs":[{"pack_id":"pck-aaa","name":"水果","version":1,"schema_version":5,' +
+        '"words":[{"id":"apple","meaningZh":"苹果"}]}]}';
+      const blobOut: FamilyPacksBlob | null = parseFamilyPacksBlob(body, '"etag-2"');
+      expect(blobOut !== null).assertTrue();
+      expect(blobOut?.packs.length).assertEqual(1);
+      expect(blobOut?.packs[0].packId).assertEqual('pck-aaa');
+    });
+
     it('parseFamilyPacksBlob_returns_null_for_garbage', 0, () => {
       expect(parseFamilyPacksBlob('not json', '"e"')).assertEqual(null);
       expect(parseFamilyPacksBlob('', '"e"')).assertEqual(null);

@@ -298,6 +298,30 @@ async def test_publish_empty_draft_409(db: object) -> None:
 
 
 @pytest.mark.asyncio
+async def test_publish_rejects_incomplete_custom_row(db: object) -> None:
+    family_id, parent = await _new_family()
+    d = await svc.create_definition(
+        family_id=family_id, name="Bad draft", description=None, parent_user_id=parent
+    )
+    draft = await svc.get_or_create_draft(definition=d, parent_user_id=parent)
+    prefix = svc.CustomIdContract(family_id=family_id).prefix
+    draft.words = [
+        {
+            "id": f"{prefix}x",
+            "word": "   ",
+            "meaningZh": "苹果",
+            "category": "fruit",
+            "difficulty": 2,
+        }
+    ]
+    await draft.save()
+    with pytest.raises(svc.DraftValidationFailed) as exc:
+        await svc.publish(definition=d, parent_user_id=parent, notes=None)
+    messages = " ".join(str(e.get("message", "")) for e in exc.value.errors)
+    assert "English word" in messages
+
+
+@pytest.mark.asyncio
 async def test_publish_first_version_creates_pointer(db: object) -> None:
     family_id, parent = await _new_family()
     d = await svc.create_definition(

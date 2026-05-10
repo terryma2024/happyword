@@ -79,8 +79,7 @@ class MemPrefs implements StringPreferencesLike {
 
 const BASE: string = 'https://happyword.cool';
 const FAMILY_ID: string = 'fam-testfamily';
-const URL_LATEST: string =
-  `${BASE}/api/v1/family/${encodeURIComponent(FAMILY_ID)}/family-packs/latest.json`;
+const URL_MERGED: string = `${BASE}/api/v1/child/packs/latest.json`;
 const TOKEN: string = 'device.jwt.token';
 const CACHE_KEY: string = 'family_packs_v1';
 
@@ -131,22 +130,23 @@ export default function familyPackServiceTest() {
   describe('FamilyPackService', () => {
     it('ensureLatest_no_cache_writes_and_returns_blob', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
-      h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, ok(fakeBody('pck-1', 'A')));
+      h.adapter.setResponseHeaders(`GET ${URL_MERGED}`, headersWith('ETag', '"e1"'));
       const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       expect(r.status).assertEqual('updated');
       expect(r.blob !== null).assertTrue();
       expect(r.blob?.packs.length).assertEqual(1);
       expect(h.svc.currentBlob()?.packs[0].packId).assertEqual('pck-1');
       expect((h.prefs.store.get(CACHE_KEY) ?? '').length > 0).assertTrue();
+      expect(h.adapter.lastHeaders['X-Family-Id']).assertEqual(FAMILY_ID);
     });
 
     it('ensureLatest_with_matching_etag_returns_not_modified', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
-      h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, ok(fakeBody('pck-1', 'A')));
+      h.adapter.setResponseHeaders(`GET ${URL_MERGED}`, headersWith('ETag', '"e1"'));
       await h.svc.ensureLatest(TOKEN, FAMILY_ID);
-      h.adapter.responses.set(`GET ${URL_LATEST}`, status(304));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, status(304));
       const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       expect(r.status).assertEqual('not_modified');
       expect(r.blob !== null).assertTrue();
@@ -155,10 +155,10 @@ export default function familyPackServiceTest() {
 
     it('ensureLatest_204_clears_cache', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
-      h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, ok(fakeBody('pck-1', 'A')));
+      h.adapter.setResponseHeaders(`GET ${URL_MERGED}`, headersWith('ETag', '"e1"'));
       await h.svc.ensureLatest(TOKEN, FAMILY_ID);
-      h.adapter.responses.set(`GET ${URL_LATEST}`, status(204));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, status(204));
       const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       expect(r.status).assertEqual('cleared');
       expect(r.blob).assertEqual(null);
@@ -168,10 +168,10 @@ export default function familyPackServiceTest() {
 
     it('ensureLatest_network_error_returns_cached_fallback', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
-      h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, ok(fakeBody('pck-1', 'A')));
+      h.adapter.setResponseHeaders(`GET ${URL_MERGED}`, headersWith('ETag', '"e1"'));
       await h.svc.ensureLatest(TOKEN, FAMILY_ID);
-      h.adapter.errorOn.add(`GET ${URL_LATEST}`);
+      h.adapter.errorOn.add(`GET ${URL_MERGED}`);
       const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, FAMILY_ID);
       expect(r.status).assertEqual('cached_fallback');
       expect(r.blob !== null).assertTrue();
@@ -179,63 +179,63 @@ export default function familyPackServiceTest() {
 
     it('ensureLatest_unbound_no_token_no_op', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, ok(fakeBody('pck-1', 'A')));
       const r: FamilyPackEnsureResult = await h.svc.ensureLatest('');
       expect(r.status).assertEqual('no_data');
       expect(r.blob).assertEqual(null);
       expect(h.adapter.lastUrl).assertEqual('');
     });
 
-    it('ensureLatest_blank_family_id_falls_back_to_legacy_child_path', 0, async () => {
+    it('ensureLatest_blank_family_id_uses_merged_child_path_without_hint_header', 0, async () => {
       const h: Harness = buildSvc();
-      const legacyUrl: string = `${BASE}/api/v1/child/family-packs/latest.json`;
-      h.adapter.responses.set(`GET ${legacyUrl}`, ok(fakeBody('pck-legacy', 'Leg')));
-      h.adapter.setResponseHeaders(`GET ${legacyUrl}`, headersWith('ETag', '"e-legacy"'));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, ok(fakeBody('pck-legacy', 'Leg')));
+      h.adapter.setResponseHeaders(`GET ${URL_MERGED}`, headersWith('ETag', '"e-legacy"'));
       const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, '');
       expect(r.status).assertEqual('updated');
-      expect(h.adapter.lastUrl).assertEqual(legacyUrl);
+      expect(h.adapter.lastUrl).assertEqual(URL_MERGED);
+      expect(h.adapter.lastHeaders['X-Family-Id'] === undefined || h.adapter.lastHeaders['X-Family-Id'] === '').assertTrue();
       expect(h.svc.currentBlob()?.packs[0].packId).assertEqual('pck-legacy');
     });
 
     it('peekRemoteEtag_returns_header_only', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(200));
-      h.adapter.setResponseHeaders(`HEAD ${URL_LATEST}`, headersWith('etag', '"e2"'));
+      h.adapter.responses.set(`HEAD ${URL_MERGED}`, status(200));
+      h.adapter.setResponseHeaders(`HEAD ${URL_MERGED}`, headersWith('etag', '"e2"'));
       const e: string | null = await h.svc.peekRemoteEtag(TOKEN, FAMILY_ID);
       expect(e).assertEqual('"e2"');
     });
 
     it('peekRemoteEtag_204_returns_empty_string_marker', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(204));
+      h.adapter.responses.set(`HEAD ${URL_MERGED}`, status(204));
       const e: string | null = await h.svc.peekRemoteEtag(TOKEN, FAMILY_ID);
       expect(e).assertEqual('');
     });
 
     it('peekRemoteEtag_error_returns_null', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.errorOn.add(`HEAD ${URL_LATEST}`);
+      h.adapter.errorOn.add(`HEAD ${URL_MERGED}`);
       const e: string | null = await h.svc.peekRemoteEtag(TOKEN, FAMILY_ID);
       expect(e).assertEqual(null);
     });
 
     it('isRemoteStale_true_when_etag_differs', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
-      h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, ok(fakeBody('pck-1', 'A')));
+      h.adapter.setResponseHeaders(`GET ${URL_MERGED}`, headersWith('ETag', '"e1"'));
       await h.svc.ensureLatest(TOKEN, FAMILY_ID);
-      h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(200));
-      h.adapter.setResponseHeaders(`HEAD ${URL_LATEST}`, headersWith('ETag', '"e-different"'));
+      h.adapter.responses.set(`HEAD ${URL_MERGED}`, status(200));
+      h.adapter.setResponseHeaders(`HEAD ${URL_MERGED}`, headersWith('ETag', '"e-different"'));
       expect(await h.svc.isRemoteStale(TOKEN, FAMILY_ID)).assertTrue();
     });
 
     it('isRemoteStale_false_when_etag_matches', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`GET ${URL_LATEST}`, ok(fakeBody('pck-1', 'A')));
-      h.adapter.setResponseHeaders(`GET ${URL_LATEST}`, headersWith('ETag', '"e1"'));
+      h.adapter.responses.set(`GET ${URL_MERGED}`, ok(fakeBody('pck-1', 'A')));
+      h.adapter.setResponseHeaders(`GET ${URL_MERGED}`, headersWith('ETag', '"e1"'));
       await h.svc.ensureLatest(TOKEN, FAMILY_ID);
-      h.adapter.responses.set(`HEAD ${URL_LATEST}`, status(200));
-      h.adapter.setResponseHeaders(`HEAD ${URL_LATEST}`, headersWith('ETag', '"e1"'));
+      h.adapter.responses.set(`HEAD ${URL_MERGED}`, status(200));
+      h.adapter.setResponseHeaders(`HEAD ${URL_MERGED}`, headersWith('ETag', '"e1"'));
       expect(await h.svc.isRemoteStale(TOKEN, FAMILY_ID)).assertFalse();
     });
 
