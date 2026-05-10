@@ -12,10 +12,7 @@ import {
 } from '../models/GameConfig';
 import { ParentPinDialog } from '../components/ParentPinDialog';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
-import { DeviceUnbindClient, DeviceUnbindOutcome } from '../services/DeviceUnbindClient';
-import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
-import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
 import {
@@ -41,6 +38,10 @@ import { MAX_ACTIVE_PACKS } from '../services/PackSelectionService';
  * synchronisation is now consolidated under PackManagerPage's
  * 🔄 同步词包 button, which drives the three-layer
  * GlobalPackService + FamilyPackService stack.
+ *
+ * V0.6.7.2: the 解除设备绑定 row was removed too — its full
+ * PIN-gated server unbind moved into BoundDeviceInfoPage
+ * (孩子档案页), reachable via ConfigBoundDeviceInfoButton above.
  */
 @Entry
 @Component
@@ -57,10 +58,7 @@ struct ConfigPage {
   @State private cloudSyncBusy: boolean = false;
   @State private cloudSyncStatusText: string = '';
   @State private cloudSyncToastText: string = '';
-  @State private unbindBusy: boolean = false;
-  @State private unbindToastText: string = '';
   private cloudCreds: CloudCredentials = new CloudCredentials();
-  private unbindToastTimer: number = -1;
   private adminPinDialog: CustomDialogController | null = null;
   /**
    * V0.6.7 — pack-picker entry row state. The inline picker moved to
@@ -170,30 +168,10 @@ struct ConfigPage {
           .id('ConfigPersistentIdWarning')
           .fontSize(12).fontColor('#B45309').margin({ top: 4 });
       }
-      if (this.bindingPresent) {
-        Row() {
-          Text(' ').width(120);
-          Button(this.unbindBusy ? '解除中…' : '解除设备绑定')
-            .id('ConfigUnbindBindingButton')
-            .width(220).height(40).fontSize(15)
-            .backgroundColor(this.unbindBusy ? '#E5E7EB' : '#FEE2E2')
-            .fontColor(this.unbindBusy ? '#6B7280' : '#B91C1C')
-            .borderWidth(2).borderColor(this.unbindBusy ? '#9CA3AF' : '#FCA5A5')
-            .enabled(!this.unbindBusy)
-            .onClick((): void => this.onUnbindTap());
-        }
-        .alignItems(VerticalAlign.Center).margin({ top: 8 });
-      }
-      // Toast lives OUTSIDE the bindingPresent gate so the success
-      // message ("已解除设备绑定") remains visible after `runUnbind`
-      // refreshes the state and `bindingPresent` flips to false. The
-      // empty-state error message ("请先在「家长密码」中设置 6 位 PIN")
-      // also needs to surface even when there is no binding.
-      if (this.unbindToastText.length > 0) {
-        Text(this.unbindToastText)
-          .id('ConfigUnbindToast')
-          .fontSize(12).fontColor('#B91C1C').margin({ top: 4 });
-      }
+      // V0.6.7.2 — 解除设备绑定 lives on BoundDeviceInfoPage now (孩子档案页),
+      // reachable via ConfigBoundDeviceInfoButton above. Removing the
+      // duplicate ConfigPage row keeps a single canonical entry point and
+      // avoids the prior "(本地)" vs "服务端 unbind" divergence.
     }
     .width('100%').alignItems(HorizontalAlign.Center).margin({ bottom: 16 });
   }
@@ -208,90 +186,6 @@ struct ConfigPage {
     this.getUIContext().getRouter().pushUrl({ url: 'pages/BoundDeviceInfoPage' }).catch((err: BusinessError): void => {
       console.error(`ConfigPage.openBoundDeviceInfo: ${JSON.stringify(err)}`);
     });
-  }
-
-  /**
-   * V0.6.7 — opens a parent-PIN gate, then calls /api/v1/child/unbind on
-   * confirm. The PIN dialog reuses the existing component so the UX
-   * mirrors `进入家长后台` (open parent admin).
-   */
-  private onUnbindTap(): void {
-    if (this.unbindBusy) {
-      return;
-    }
-    const stored: GameConfig | undefined =
-      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
-    const expected: string = stored !== undefined ? stored.parentPin : '';
-    if (expected.length !== 6) {
-      this.showUnbindToast('请先在「家长密码」中设置 6 位 PIN');
-      return;
-    }
-    let ctrl: CustomDialogController | null = null;
-    ctrl = new CustomDialogController({
-      builder: ParentPinDialog({
-        expectedPin: expected,
-        title: '解除设备绑定需要家长密码',
-        onConfirm: (): void => {
-          if (ctrl !== null) {
-            ctrl.close();
-          }
-          this.runUnbind();
-        },
-        onCancel: (): void => {
-          if (ctrl !== null) {
-            ctrl.close();
-          }
-        },
-      }),
-      autoCancel: true,
-      customStyle: true,
-    });
-    ctrl.open();
-  }
-
-  private async runUnbind(): Promise<void> {
-    if (this.unbindBusy) {
-      return;
-    }
-    this.getUIContext().animateTo({ duration: 0 }, (): void => {
-      this.unbindBusy = true;
-    });
-    const adapter: RealParentFetchAdapter = new RealParentFetchAdapter();
-    const baseUrl: string = effectiveServerBaseUrl();
-    const client: DeviceUnbindClient = new DeviceUnbindClient(this.cloudCreds, adapter, baseUrl);
-    try {
-      const out: DeviceUnbindOutcome = await client.unbind();
-      this.getUIContext().animateTo({ duration: 0 }, (): void => {
-        this.unbindBusy = false;
-      });
-      if (out.ok) {
-        this.showUnbindToast('已解除设备绑定');
-        const recorder: LearningRecorder = getLearningRecorder();
-        recorder.attachCloudSync(undefined);
-        this.refreshBindingState().catch((err: BusinessError): void => {
-          console.error(`ConfigPage.runUnbind.refresh failed: ${JSON.stringify(err)}`);
-        });
-      } else {
-        this.showUnbindToast(`解除失败 (HTTP ${out.status})`);
-      }
-    } catch (err) {
-      console.error(`ConfigPage.runUnbind failed: ${JSON.stringify(err)}`);
-      this.getUIContext().animateTo({ duration: 0 }, (): void => {
-        this.unbindBusy = false;
-      });
-      this.showUnbindToast('解除失败 (网络错误)');
-    }
-  }
-
-  private showUnbindToast(text: string): void {
-    this.unbindToastText = text;
-    if (this.unbindToastTimer !== -1) {
-      clearTimeout(this.unbindToastTimer);
-    }
-    this.unbindToastTimer = setTimeout((): void => {
-      this.unbindToastText = '';
-      this.unbindToastTimer = -1;
-    }, 4000);
   }
 
   @Builder

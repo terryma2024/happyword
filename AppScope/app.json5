@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.terryma.wordmagicgame",
     "vendor": "example",
-    "versionCode": 1006009,
-    "versionName": "0.6.7.1",
+    "versionCode": 1006010,
+    "versionName": "0.6.7.2",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }

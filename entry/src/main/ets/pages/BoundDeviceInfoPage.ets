@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit';
+import { BusinessError } from '@ohos.base';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { DeviceIdProvider, DeviceIdResult } from '../services/DeviceIdProvider';
 import {
@@ -7,7 +8,14 @@ import {
   UpdatedChildProfile,
 } from '../services/ChildProfileApiClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
+import { DeviceUnbindClient, DeviceUnbindOutcome } from '../services/DeviceUnbindClient';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
+import {
+  GameConfig,
+  GAME_CONFIG_STORAGE_KEY,
+} from '../models/GameConfig';
+import { ParentPinDialog } from '../components/ParentPinDialog';
 import {
   EditChildNicknameDialog,
   NicknameSubmitResult,
@@ -22,10 +30,13 @@ struct BoundDeviceInfoPage {
   @State private busy: boolean = false;
   @State private ready: boolean = false;
   @State private nicknameToastText: string = '';
+  @State private unbindToastText: string = '';
   private nicknameToastTimer: number = -1;
+  private unbindToastTimer: number = -1;
   private credentials: CloudCredentials = new CloudCredentials();
   private provider: DeviceIdProvider = new DeviceIdProvider();
   private editDialog: CustomDialogController | null = null;
+  private unbindPinDialog: CustomDialogController | null = null;
 
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext =
@@ -55,19 +66,102 @@ struct BoundDeviceInfoPage {
     return d.toLocaleString();
   }
 
-  private async onUnbind(): Promise<void> {
+  /**
+   * V0.6.7.2 — opens a parent-PIN gate, then calls
+   * `POST /api/v1/child/unbind` on confirm. The PIN dialog reuses the
+   * shared `ParentPinDialog` component so the UX mirrors the
+   * `进入家长后台` flow. On success `DeviceUnbindClient` clears the
+   * local credentials, we detach the cloud-sync handler, and route
+   * back to ConfigPage (which re-renders into the unbound state via
+   * its `onPageShow` → `refreshBindingState` pass).
+   *
+   * Moved from ConfigPage in V0.6.7.2 — previously this page only
+   * cleared local credentials with a "(本地)" suffix; the proper
+   * server-side revocation lived behind the now-removed
+   * `ConfigUnbindBindingButton` row.
+   */
+  private onUnbindTap(): void {
+    if (this.busy) {
+      return;
+    }
+    const stored: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    const expected: string = stored !== undefined ? stored.parentPin : '';
+    if (expected.length !== 6) {
+      this.showUnbindToast('请先在「家长密码」中设置 6 位 PIN');
+      return;
+    }
+    let ctrl: CustomDialogController | null = null;
+    ctrl = new CustomDialogController({
+      builder: ParentPinDialog({
+        expectedPin: expected,
+        title: '解除设备绑定需要家长密码',
+        onConfirm: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+          this.runUnbind().catch((err: BusinessError): void => {
+            console.error(`BoundDeviceInfoPage.runUnbind promise failed: ${JSON.stringify(err)}`);
+          });
+        },
+        onCancel: (): void => {
+          if (ctrl !== null) {
+            ctrl.close();
+          }
+        },
+      }),
+      autoCancel: true,
+      customStyle: true,
+    });
+    this.unbindPinDialog = ctrl;
+    ctrl.open();
+  }
+
+  private async runUnbind(): Promise<void> {
     if (this.busy) {
       return;
     }
     this.busy = true;
+    const adapter: RealParentFetchAdapter = new RealParentFetchAdapter();
+    const baseUrl: string = effectiveServerBaseUrl();
+    const client: DeviceUnbindClient =
+      new DeviceUnbindClient(this.credentials, adapter, baseUrl);
     try {
-      // V0.6.2: local clear only; server-side revoke ships in V0.6.7. Parents
-      // can also revoke from the parent web (DELETE /api/v1/parent/children/:id).
-      await this.credentials.clearBinding();
-      this.getUIContext().getRouter().back();
-    } finally {
+      const out: DeviceUnbindOutcome = await client.unbind();
       this.busy = false;
+      if (out.ok) {
+        // DeviceUnbindClient already cleared local credentials on 200/404.
+        // Detach the recorder's cloud-sync handler so subsequent battles
+        // don't try to push to a now-revoked binding.
+        const recorder: LearningRecorder = getLearningRecorder();
+        recorder.attachCloudSync(undefined);
+        this.showUnbindToast('已解除设备绑定');
+        // Route back to ConfigPage; its onPageShow will re-run
+        // refreshBindingState and flip the page to the unbound layout.
+        // A short delay lets the toast surface for ~600 ms before the
+        // page pops, matching the ConfigPage UX it replaces.
+        setTimeout((): void => {
+          this.getUIContext().getRouter().back();
+        }, 600);
+      } else {
+        this.showUnbindToast(`解除失败 (HTTP ${out.status})`);
+      }
+    } catch (err) {
+      console.error(`BoundDeviceInfoPage.runUnbind failed: ${JSON.stringify(err)}`);
+      this.busy = false;
+      this.showUnbindToast('解除失败 (网络错误)');
     }
+  }
+
+  private showUnbindToast(text: string): void {
+    this.unbindToastText = text;
+    if (this.unbindToastTimer !== -1) {
+      clearTimeout(this.unbindToastTimer);
+    }
+    this.unbindToastTimer = setTimeout((): void => {
+      this.unbindToastText = '';
+      this.unbindToastTimer = -1;
+    }, 4000);
   }
 
   private openEditNickname(): void {
@@ -188,14 +282,18 @@ struct BoundDeviceInfoPage {
                 : '本地 preferences (重装即丢)')
               this.row('绑定时间', this.formatPairedAt())
 
-              Button(this.busy ? '正在解除…' : '解除绑定 (本地)')
+              Button(this.busy ? '正在解除…' : '解除设备绑定')
+                .id('BoundDeviceInfoUnbindButton')
                 .width('100%')
                 .backgroundColor('#dc2626').fontColor('#ffffff')
                 .enabled(!this.busy).margin({ top: 16 })
-                .onClick(() => this.onUnbind())
-              Text('提示：V0.6.2 仅在本机清除凭据，需在家长网页 → 设备列表 中删除以撤销。')
-                .fontSize(12).fontColor('#64748b').margin({ top: 8 })
-                .width('100%')
+                .onClick((): void => this.onUnbindTap())
+              if (this.unbindToastText.length > 0) {
+                Text(this.unbindToastText)
+                  .id('BoundDeviceInfoUnbindToast')
+                  .fontSize(12).fontColor('#B91C1C').margin({ top: 8 })
+                  .width('100%')
+              }
             }
             .width('100%')
             .constraintSize({ maxWidth: 520 })

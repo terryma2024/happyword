@@ -13,9 +13,8 @@ import {
  *
  * Coverage:
  *   1. unboundConfigPageRendersBindEntryOnly — fresh install: only
- *      `ConfigBindParentButton` is rendered; `ConfigBoundDeviceInfoButton`,
- *      `ConfigUnbindBindingButton`, and `ConfigCloudSyncButton` are
- *      absent (gated by `bindingPresent`).
+ *      `ConfigBindParentButton` is rendered; `ConfigBoundDeviceInfoButton`
+ *      and `ConfigCloudSyncButton` are absent (gated by `bindingPresent`).
  *   2. tapBindOpensScanBindingPage — tap the bind row; ScanBindingPage
  *      idle UI renders (打开扫码器 + 无法扫码？手动输入短码), and the
  *      back button returns to ConfigPage with the unbound row still
@@ -23,12 +22,15 @@ import {
  *   3. shortCodeRedeemFlipsConfigToBound — open ScanBindingPage, switch
  *      to manual entry, type a 6-digit short code, submit; the success
  *      panel appears (绑定成功). Back to ConfigPage; the bound rows
- *      (`ConfigBoundDeviceInfoButton`, `ConfigUnbindBindingButton`,
- *      `ConfigCloudSyncButton`) are now visible.
- *   4. unbindWithPinFlipsBackToUnbound — seed the parent PIN, tap
- *      `ConfigUnbindBindingButton`, type the PIN into ParentPinDialog;
- *      the unbind toast appears and ConfigPage flips back to showing
- *      `ConfigBindParentButton` with the bound rows hidden.
+ *      (`ConfigBoundDeviceInfoButton`, `ConfigCloudSyncButton`) are now
+ *      visible.
+ *   4. unbindFromBoundDeviceInfoPageFlipsBackToUnbound — seed the parent
+ *      PIN, tap `ConfigBoundDeviceInfoButton` to open BoundDeviceInfoPage,
+ *      tap `BoundDeviceInfoUnbindButton`, type the PIN into ParentPinDialog;
+ *      the unbind toast appears, the page auto-routes back, and ConfigPage
+ *      flips back to showing `ConfigBindParentButton` with the bound rows
+ *      hidden. (V0.6.7.2: the unbind row moved from ConfigPage to
+ *      BoundDeviceInfoPage.)
  *
  * All HTTP traffic is routed through the local mock at 127.0.0.1:8123
  * (see server/mock_ui_server.py: `/api/v1/pair/redeem` accepts any
@@ -246,7 +248,7 @@ async function waitForUnbindToast(driver: Driver, maxMs: number): Promise<string
   let waited: number = 0;
   while (waited < maxMs) {
     const c: Component | null =
-      await driver.findComponent(ON.id('ConfigUnbindToast'));
+      await driver.findComponent(ON.id('BoundDeviceInfoUnbindToast'));
     if (c !== null) {
       const t: string = await c.getText();
       if (t.length > 0) {
@@ -264,8 +266,9 @@ export default function parentBindingFlowV06UiTest(): void {
     /**
      * Fresh install ConfigPage: only the unbound entry button renders.
      * The bound-only buttons (`ConfigBoundDeviceInfoButton`,
-     * `ConfigUnbindBindingButton`, `ConfigCloudSyncButton`) are gated
-     * by `bindingPresent` and must be absent on first launch.
+     * `ConfigCloudSyncButton`) are gated by `bindingPresent` and must
+     * be absent on first launch. (V0.6.7.2: `ConfigUnbindBindingButton`
+     * was removed; unbind lives on BoundDeviceInfoPage now.)
      */
     it('unboundConfigPageRendersBindEntryOnly', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
@@ -281,10 +284,6 @@ export default function parentBindingFlowV06UiTest(): void {
       const bound: Component | null =
         await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
       expect(bound === null).assertTrue();
-
-      const unbind: Component | null =
-        await driver.findComponent(ON.id('ConfigUnbindBindingButton'));
-      expect(unbind === null).assertTrue();
 
       const cloudSync: Component | null =
         await driver.findComponent(ON.id('ConfigCloudSyncButton'));
@@ -418,9 +417,10 @@ export default function parentBindingFlowV06UiTest(): void {
 
       // The parent-account row should be in view (scroll preserved).
       // Bound state replaces "绑定家长账号" with the bound info button.
+      // V0.6.7.2: `ConfigUnbindBindingButton` no longer exists — unbind
+      // lives on BoundDeviceInfoPage (孩子档案页) instead.
       const haveBound: boolean = await waitForBoundButton(driver, 8000);
       expect(haveBound).assertTrue();
-      await driver.assertComponentExist(ON.id('ConfigUnbindBindingButton'));
       await driver.assertComponentExist(ON.id('ConfigCloudSyncButton'));
 
       await exitConfigPage(driver);
@@ -429,15 +429,20 @@ export default function parentBindingFlowV06UiTest(): void {
 
     /**
      * Following the bound state from the previous case, seed the parent
-     * PIN, then tap the unbind button. ParentPinDialog appears; correct
-     * PIN auto-confirms and runs the unbind. After the toast appears
-     * the page flips back to the unbound rendering.
+     * PIN, then drive the unbind flow from `pages/BoundDeviceInfoPage`
+     * (孩子档案页 — opened by tapping `ConfigBoundDeviceInfoButton`).
+     * ParentPinDialog appears; correct PIN auto-confirms and runs the
+     * unbind. After the success toast surfaces, the page auto-pops back
+     * to ConfigPage and the bound rows disappear.
+     *
+     * V0.6.7.2: the unbind row used to live on ConfigPage; this test
+     * was rewritten to reflect the new single-source-of-truth layout.
      *
      * Order dependency: this case relies on `shortCodeRedeemFlipsConfig
      * ToBound` having left the device bound. List.test.ets schedules
      * the suite in declared order so this is safe.
      */
-    it('unbindWithPinFlipsBackToUnbound', 0, async (done: Function) => {
+    it('unbindFromBoundDeviceInfoPageFlipsBackToUnbound', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
 
@@ -450,9 +455,13 @@ export default function parentBindingFlowV06UiTest(): void {
       if (!haveBound) {
         throw new Error('UNBIND-T1: bound info button not found at start');
       }
-      await driver.assertComponentExist(ON.id('ConfigUnbindBindingButton'));
 
-      await clickByIdShared(driver, 'ConfigUnbindBindingButton');
+      // Open BoundDeviceInfoPage by tapping the bound child profile entry.
+      await clickByIdShared(driver, 'ConfigBoundDeviceInfoButton');
+      await driver.delayMs(1500);
+      await driver.assertComponentExist(ON.id('BoundDeviceInfoUnbindButton'));
+
+      await clickByIdShared(driver, 'BoundDeviceInfoUnbindButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ParentPinDialog'));
 
@@ -469,8 +478,9 @@ export default function parentBindingFlowV06UiTest(): void {
         throw new Error(`UNBIND-T3: unexpected toast text: ${toast}`);
       }
 
-      // ConfigPage flips back to unbound — bind entry returns,
-      // bound-only buttons disappear.
+      // BoundDeviceInfoPage auto-pops back to ConfigPage ~600 ms after
+      // the toast surfaces; ConfigPage's onPageShow then reloads the
+      // binding state and flips the row to "绑定家长账号" (unbound).
       const haveBind: boolean = await waitForBindEntryButton(driver, 8000);
       if (!haveBind) {
         throw new Error('UNBIND-T4: bind entry did not return after unbind');
@@ -479,11 +489,6 @@ export default function parentBindingFlowV06UiTest(): void {
         await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
       if (bound !== null) {
         throw new Error('UNBIND-T5: bound info button still visible after unbind');
-      }
-      const unbind: Component | null =
-        await driver.findComponent(ON.id('ConfigUnbindBindingButton'));
-      if (unbind !== null) {
-        throw new Error('UNBIND-T6: unbind button still visible after unbind');
       }
 
       await exitConfigPage(driver);
