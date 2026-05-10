@@ -15,6 +15,7 @@
     "pages/BypassSecretPage",
     "pages/ScanBindingPage",
     "pages/BoundDeviceInfoPage",
-    "pages/DevMenuPage"
+    "pages/DevMenuPage",
+    "pages/PackManagerPage"
   ]
 }
