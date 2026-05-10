@@ -200,6 +200,22 @@ jobs:
           echo "db_name=$DB" >> "$GITHUB_OUTPUT"
           echo "Preview DB: $DB"
 
+      - name: Prune stale E2E PR databases
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
+        env:
+          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
+        run: |
+          if [ -z "$E2E_MONGODB_URI" ] || [ -z "$E2E_MONGO_DB_NAME" ]; then
+            echo "::warning::E2E_MONGODB_URI / E2E_MONGO_DB_NAME not configured; skipping stale PR DB cleanup."
+            exit 0
+          fi
+          uv run python scripts/e2e_drop_old_pr_dbs.py \
+            --pattern '^happyword_pr_\d+_e2e$' \
+            --older-than-days 2 \
+            --drop-empty \
+            --exclude "$E2E_MONGO_DB_NAME"
+
       - name: Reset E2E database (truncate test collections)
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         env:

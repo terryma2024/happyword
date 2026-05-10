@@ -96,6 +96,36 @@ async def test_drop_stale_drops_only_old_matching() -> None:
 
 
 @pytest.mark.asyncio
+async def test_drop_stale_can_drop_empty_dbs_but_excludes_current() -> None:
+    """Failed preview startups can leave empty PR DBs that still consume collections."""
+    client = MagicMock()
+    client.list_database_names = AsyncMock(
+        return_value=[
+            "happyword_pr_60_e2e",
+            "happyword_pr_61_e2e",
+            "happyword_staging",
+        ]
+    )
+    client.drop_database = AsyncMock()
+
+    async def fake_age(_client: object, _name: str) -> datetime | None:
+        return None
+
+    dropped, candidates = await drop_stale(
+        client,
+        pattern=r"^happyword_pr_\d+_e2e$",
+        older_than_days=14,
+        dry_run=False,
+        drop_empty=True,
+        exclude_names={"happyword_pr_61_e2e"},
+        age_resolver=fake_age,
+    )
+    assert candidates == ["happyword_pr_60_e2e", "happyword_pr_61_e2e"]
+    assert dropped == ["happyword_pr_60_e2e"]
+    client.drop_database.assert_awaited_once_with("happyword_pr_60_e2e")
+
+
+@pytest.mark.asyncio
 async def test_unsafe_pattern_raises() -> None:
     """`drop_stale` raises `UnsafePattern` for unsafe regex inputs."""
     client = MagicMock()

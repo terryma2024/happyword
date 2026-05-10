@@ -37,3 +37,15 @@ def test_e2e_uses_cli_preview_deployment_with_pr_metadata() -> None:
         "steps.detect_preview.outputs.preview_url }}"
         in e2e_step
     )
+
+
+def test_e2e_prunes_stale_preview_dbs_before_reset() -> None:
+    """Per-PR Atlas DB cleanup must run before reset to stay under collection caps."""
+    workflow = _server_ci_workflow()
+
+    prune_step = _step_named(workflow, "Prune stale E2E PR databases")
+    reset_step = _step_named(workflow, "Reset E2E database (truncate test collections)")
+    assert workflow.index(prune_step) < workflow.index(reset_step)
+    assert "scripts/e2e_drop_old_pr_dbs.py" in prune_step
+    assert "--drop-empty" in prune_step
+    assert '--exclude "$E2E_MONGO_DB_NAME"' in prune_step
