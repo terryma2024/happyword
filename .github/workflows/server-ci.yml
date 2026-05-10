@@ -214,6 +214,7 @@ jobs:
             --pattern '^happyword_pr_\d+_e2e$' \
             --older-than-days 2 \
             --drop-empty \
+            --drop-collections-on-drop-error \
             --exclude "$E2E_MONGO_DB_NAME" \
             --ignore-drop-errors
 

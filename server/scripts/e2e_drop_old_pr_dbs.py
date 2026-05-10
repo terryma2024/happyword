@@ -6,6 +6,7 @@ Usage::
         --pattern '^happyword_pr_\\d+_e2e$' \\
         --older-than-days 14 \\
         --drop-empty \\
+        --drop-collections-on-drop-error \\
         --exclude happyword_pr_61_e2e \\
         [--dry-run]
 
@@ -66,6 +67,15 @@ async def _db_age(client: object, name: str) -> datetime | None:
     return latest
 
 
+async def _drop_all_collections(client: object, name: str) -> int:
+    """Drop every collection in one DB, returning how many were dropped."""
+    db = client[name]  # type: ignore[index]
+    collection_names = await db.list_collection_names()
+    for coll in collection_names:
+        await db.drop_collection(coll)
+    return len(collection_names)
+
+
 async def drop_stale(
     client: object,  # AsyncIOMotorClient OR test mock — duck-typed
     *,
@@ -74,6 +84,7 @@ async def drop_stale(
     dry_run: bool,
     drop_empty: bool = False,
     exclude_names: Iterable[str] = (),
+    drop_collections_on_drop_error: bool = False,
     ignore_drop_errors: bool = False,
     ignored_drop_errors: list[str] | None = None,
     age_resolver: Callable[[object, str], Awaitable[datetime | None]] = _db_age,
@@ -99,6 +110,21 @@ async def drop_stale(
             try:
                 await client.drop_database(name)  # type: ignore[attr-defined]
             except PyMongoError as exc:
+                if drop_collections_on_drop_error:
+                    try:
+                        dropped_count = await _drop_all_collections(client, name)
+                    except PyMongoError as coll_exc:
+                        if not ignore_drop_errors:
+                            raise
+                        if ignored_drop_errors is not None:
+                            ignored_drop_errors.append(
+                                f"{name}: dropDatabase failed: {exc}; "
+                                f"dropCollection failed: {coll_exc}"
+                            )
+                        continue
+                    if dropped_count > 0:
+                        dropped.append(name)
+                    continue
                 if not ignore_drop_errors:
                     raise
                 if ignored_drop_errors is not None:
@@ -131,6 +157,11 @@ async def _amain(argv: list[str]) -> int:
         help="DB name to protect from dropping; may be passed multiple times.",
     )
     parser.add_argument(
+        "--drop-collections-on-drop-error",
+        action="store_true",
+        help="If dropDatabase is denied, drop every collection in the stale DB.",
+    )
+    parser.add_argument(
         "--ignore-drop-errors",
         action="store_true",
         help="Continue when a matching stale DB cannot be dropped.",
@@ -153,6 +184,7 @@ async def _amain(argv: list[str]) -> int:
                 dry_run=args.dry_run,
                 drop_empty=args.drop_empty,
                 exclude_names=args.exclude_names,
+                drop_collections_on_drop_error=args.drop_collections_on_drop_error,
                 ignore_drop_errors=args.ignore_drop_errors,
                 ignored_drop_errors=ignored_drop_errors,
             )

@@ -158,6 +158,40 @@ async def test_drop_stale_can_ignore_unauthorized_drop_errors() -> None:
 
 
 @pytest.mark.asyncio
+async def test_drop_stale_falls_back_to_dropping_collections() -> None:
+    """Dropping collections frees Atlas quota when dropDatabase is disallowed."""
+    stale_db = MagicMock()
+    stale_db.list_collection_names = AsyncMock(return_value=["words", "word_packs"])
+    stale_db.drop_collection = AsyncMock()
+
+    client = MagicMock()
+    client.list_database_names = AsyncMock(return_value=["happyword_pr_30_e2e"])
+    client.drop_database = AsyncMock(
+        side_effect=OperationFailure("user is not allowed to do action [dropDatabase]")
+    )
+    client.__getitem__.return_value = stale_db
+
+    async def fake_age(_client: object, _name: str) -> datetime | None:
+        return None
+
+    dropped, candidates = await drop_stale(
+        client,
+        pattern=r"^happyword_pr_\d+_e2e$",
+        older_than_days=14,
+        dry_run=False,
+        drop_empty=True,
+        drop_collections_on_drop_error=True,
+        age_resolver=fake_age,
+    )
+
+    assert candidates == ["happyword_pr_30_e2e"]
+    assert dropped == ["happyword_pr_30_e2e"]
+    stale_db.list_collection_names.assert_awaited_once()
+    stale_db.drop_collection.assert_any_await("words")
+    stale_db.drop_collection.assert_any_await("word_packs")
+
+
+@pytest.mark.asyncio
 async def test_unsafe_pattern_raises() -> None:
     """`drop_stale` raises `UnsafePattern` for unsafe regex inputs."""
     client = MagicMock()
