@@ -1,0 +1,528 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0229DC3FF1FA96BF049D43B5 /* AppMetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */; };
+		4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6288AB79A566478B8CD0BC1F /* Assets.xcassets */; };
+		5CE532062EAAC36F72958B4D /* AppMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9157DCBBBBB134DAFBFB0F /* AppMetadata.swift */; };
+		9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F904781ED9F4E18758477D /* ContentView.swift */; };
+		B3504CF00EF29F88A237A5D9 /* WordMagicGameUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */; };
+		EC97934170054F8599E61696 /* WordMagicGameApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6701AF4311EDEC1FCAF0A8 /* WordMagicGameApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1C94BF7DF2FC41756261C131 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 308CA988F2EC1595AF577EC6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 94CF8178381884C0E1171296;
+			remoteInfo = WordMagicGame;
+		};
+		6FC088BF636111D8318EC9E1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 308CA988F2EC1595AF577EC6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 94CF8178381884C0E1171296;
+			remoteInfo = WordMagicGame;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		00F904781ED9F4E18758477D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordMagicGameUITests.swift; sourceTree = "<group>"; };
+		47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetadataTests.swift; sourceTree = "<group>"; };
+		4AF7C75746693A30D0733A5A /* WordMagicGameTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WordMagicGameTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4DD3AB20492B28D8947B85F7 /* WordMagicGameUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WordMagicGameUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4E24CB33D609FA08E8E9B075 /* WordMagicGame.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WordMagicGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6288AB79A566478B8CD0BC1F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7B6701AF4311EDEC1FCAF0A8 /* WordMagicGameApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordMagicGameApp.swift; sourceTree = "<group>"; };
+		9B9157DCBBBBB134DAFBFB0F /* AppMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetadata.swift; sourceTree = "<group>"; };
+		BAA403A88DE9B94849CC1EAD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		07DEB62B40AC8911F7F5BBBE = {
+			isa = PBXGroup;
+			children = (
+				FB938AB1385E89DF347BDD36 /* WordMagicGame */,
+				39EFEB36D216D63AD384B077 /* WordMagicGameTests */,
+				91144466FE6FE0F30DABF0B7 /* WordMagicGameUITests */,
+				3ED0C934BFF8B5C965783B0C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		39EFEB36D216D63AD384B077 /* WordMagicGameTests */ = {
+			isa = PBXGroup;
+			children = (
+				47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */,
+			);
+			path = WordMagicGameTests;
+			sourceTree = "<group>";
+		};
+		3ED0C934BFF8B5C965783B0C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4E24CB33D609FA08E8E9B075 /* WordMagicGame.app */,
+				4AF7C75746693A30D0733A5A /* WordMagicGameTests.xctest */,
+				4DD3AB20492B28D8947B85F7 /* WordMagicGameUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8802B20086E02B0E30479EF3 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9B9157DCBBBBB134DAFBFB0F /* AppMetadata.swift */,
+				00F904781ED9F4E18758477D /* ContentView.swift */,
+				7B6701AF4311EDEC1FCAF0A8 /* WordMagicGameApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		91144466FE6FE0F30DABF0B7 /* WordMagicGameUITests */ = {
+			isa = PBXGroup;
+			children = (
+				38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */,
+			);
+			path = WordMagicGameUITests;
+			sourceTree = "<group>";
+		};
+		D572375ED00048FDCE2D0329 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				6288AB79A566478B8CD0BC1F /* Assets.xcassets */,
+				BAA403A88DE9B94849CC1EAD /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		FB938AB1385E89DF347BDD36 /* WordMagicGame */ = {
+			isa = PBXGroup;
+			children = (
+				8802B20086E02B0E30479EF3 /* App */,
+				D572375ED00048FDCE2D0329 /* Resources */,
+			);
+			path = WordMagicGame;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1458092D17CE1DB1277327B6 /* WordMagicGameTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 87513D47902A773643EEC6AD /* Build configuration list for PBXNativeTarget "WordMagicGameTests" */;
+			buildPhases = (
+				6E1C96A10D9EDD14D7D185F7 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D39DAD6C156CDCB17848D599 /* PBXTargetDependency */,
+			);
+			name = WordMagicGameTests;
+			packageProductDependencies = (
+			);
+			productName = WordMagicGameTests;
+			productReference = 4AF7C75746693A30D0733A5A /* WordMagicGameTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		94CF8178381884C0E1171296 /* WordMagicGame */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DC9F4433C51227398F0397D2 /* Build configuration list for PBXNativeTarget "WordMagicGame" */;
+			buildPhases = (
+				749CB0506EE2490C44A8A780 /* Sources */,
+				3B7CA9554EF5E7947F2742B5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WordMagicGame;
+			packageProductDependencies = (
+			);
+			productName = WordMagicGame;
+			productReference = 4E24CB33D609FA08E8E9B075 /* WordMagicGame.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F4054FCFDC163FFBEC563CA5 /* WordMagicGameUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7F5B5E1705BFFEF5525E91F4 /* Build configuration list for PBXNativeTarget "WordMagicGameUITests" */;
+			buildPhases = (
+				56725DBB58CCDA9CAF1E8260 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B15DEC41EB261ABD62B22E59 /* PBXTargetDependency */,
+			);
+			name = WordMagicGameUITests;
+			packageProductDependencies = (
+			);
+			productName = WordMagicGameUITests;
+			productReference = 4DD3AB20492B28D8947B85F7 /* WordMagicGameUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		308CA988F2EC1595AF577EC6 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					F4054FCFDC163FFBEC563CA5 = {
+						TestTargetID = 94CF8178381884C0E1171296;
+					};
+				};
+			};
+			buildConfigurationList = 05C336E23565BF990FADBED0 /* Build configuration list for PBXProject "WordMagicGame" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 07DEB62B40AC8911F7F5BBBE;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3ED0C934BFF8B5C965783B0C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				94CF8178381884C0E1171296 /* WordMagicGame */,
+				1458092D17CE1DB1277327B6 /* WordMagicGameTests */,
+				F4054FCFDC163FFBEC563CA5 /* WordMagicGameUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3B7CA9554EF5E7947F2742B5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		56725DBB58CCDA9CAF1E8260 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B3504CF00EF29F88A237A5D9 /* WordMagicGameUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6E1C96A10D9EDD14D7D185F7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0229DC3FF1FA96BF049D43B5 /* AppMetadataTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		749CB0506EE2490C44A8A780 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5CE532062EAAC36F72958B4D /* AppMetadata.swift in Sources */,
+				9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */,
+				EC97934170054F8599E61696 /* WordMagicGameApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B15DEC41EB261ABD62B22E59 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 94CF8178381884C0E1171296 /* WordMagicGame */;
+			targetProxy = 1C94BF7DF2FC41756261C131 /* PBXContainerItemProxy */;
+		};
+		D39DAD6C156CDCB17848D599 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 94CF8178381884C0E1171296 /* WordMagicGame */;
+			targetProxy = 6FC088BF636111D8318EC9E1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0D3A03265ACBA5FF9A0CF58C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.terryma.wordmagicgame.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WordMagicGame.app/WordMagicGame";
+			};
+			name = Release;
+		};
+		27EE0CE7D806318E4C5BB841 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.terryma.wordmagicgame.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = WordMagicGame;
+			};
+			name = Release;
+		};
+		AAEF59441B13D02C38AF9588 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.terryma.wordmagicgame.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = WordMagicGame;
+			};
+			name = Debug;
+		};
+		BFA224B0704B138BED7443F4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1006016;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.6.7.8;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		D314E953FD272B83D24B1E81 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.terryma.wordmagicgame.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WordMagicGame.app/WordMagicGame";
+			};
+			name = Debug;
+		};
+		DA0577C2BD25FAC3814B7BCD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = WordMagicGame/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.terryma.wordmagicgame;
+				PRODUCT_NAME = WordMagicGame;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DB9BCEFB9C344FDDBA5CE8DE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1006016;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.6.7.8;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		DEEE2914441FCF54B94D14CC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = WordMagicGame/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.terryma.wordmagicgame;
+				PRODUCT_NAME = WordMagicGame;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		05C336E23565BF990FADBED0 /* Build configuration list for PBXProject "WordMagicGame" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DB9BCEFB9C344FDDBA5CE8DE /* Debug */,
+				BFA224B0704B138BED7443F4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7F5B5E1705BFFEF5525E91F4 /* Build configuration list for PBXNativeTarget "WordMagicGameUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAEF59441B13D02C38AF9588 /* Debug */,
+				27EE0CE7D806318E4C5BB841 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		87513D47902A773643EEC6AD /* Build configuration list for PBXNativeTarget "WordMagicGameTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D314E953FD272B83D24B1E81 /* Debug */,
+				0D3A03265ACBA5FF9A0CF58C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DC9F4433C51227398F0397D2 /* Build configuration list for PBXNativeTarget "WordMagicGame" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DA0577C2BD25FAC3814B7BCD /* Debug */,
+				DEEE2914441FCF54B94D14CC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 308CA988F2EC1595AF577EC6 /* Project object */;
+}

@@ -13,6 +13,7 @@
 
 # Gradle files (legacy / hybrid templates)
 .gradle/
+.build/
 build/
 build-tmp/
 
