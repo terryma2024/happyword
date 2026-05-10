@@ -4,7 +4,7 @@ import critSpectacleUiTest from './CritSpectacle.ui.test';
 import speakerButtonUiTest from './SpeakerButton.ui.test';
 import reviewModeUiTest from './ReviewMode.ui.test';
 import magicAttackUiTest from './MagicAttack.ui.test';
-import v03AdventureUiTest from './V03Adventure.ui.test';
+import adventureFlowUiTest from './AdventureFlow.ui.test';
 import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
 import homeVersionTapUiTest from './HomeVersionTap.ui.test';
 import devMenuCardListUiTest from './DevMenuCardList.ui.test';
@@ -19,7 +19,7 @@ import customWishlistFlowUiTest from './CustomWishlistFlow.ui.test';
 import configFlowUiTest from './ConfigFlow.ui.test';
 import parentAdminFlowUiTest from './ParentAdminFlow.ui.test';
 import lessonDraftReviewFlowUiTest from './LessonDraftReviewFlow.ui.test';
-import parentBindingFlowV06UiTest from './ParentBindingFlowV06.ui.test';
+import parentBindingFlowUiTest from './ParentBindingFlow.ui.test';
 import boundDeviceInfoFlowUiTest from './BoundDeviceInfoFlow.ui.test';
 import packManagerFlowUiTest from './PackManagerFlow.ui.test';
 
@@ -61,7 +61,7 @@ export default function testsuite() {
   // and `testsuite()` runs synchronously. See
   // `ParentAdminFlow.ui.test.ets::ensureLessonImportFixtureOnDevice`.
   // HomeToolbarLocked must run before any suite that seeds wrong
-  // answers into LearningRecorder (ReviewMode / MagicAttack / V03 etc.)
+  // answers into LearningRecorder (ReviewMode / MagicAttack / AdventureFlow etc.)
   // — its lockedReviewShowsToastAndStays case asserts the toast is
   // surfaced when recentWrongCount < 3, which would silently flip to
   // navigation once the recorder has accrued ≥3 wrongs.
@@ -86,7 +86,7 @@ export default function testsuite() {
   speakerButtonUiTest();
   reviewModeUiTest();
   magicAttackUiTest();
-  v03AdventureUiTest();
+  adventureFlowUiTest();
   // FillLetterFlow taps correct answers driven by a static catalog
   // map (see the file's header comment) so it stays deterministic
   // even after earlier suites populated the LearningRecorder. Runs
@@ -155,12 +155,12 @@ export default function testsuite() {
   // AppStorage in a parent-PIN-set state that downstream suites
   // would have to clean up; placing it at the tail keeps every other
   // suite's assumptions intact.
-  parentBindingFlowV06UiTest();
+  parentBindingFlowUiTest();
   // V0.6.8 — device-side child-nickname edit on `BoundDeviceInfoPage`.
   // Self-contained: drives a short-code redeem on the mock, opens the
   // bound-device info page, taps ✏️ 编辑, replaces the input, saves,
   // and asserts that the row + the ConfigPage button label both
-  // refresh to the new nickname. Runs after ParentBindingFlowV06 (which
+  // refresh to the new nickname. Runs after ParentBindingFlow (which
   // leaves the device unbound) so we start clean.
   boundDeviceInfoFlowUiTest();
 }

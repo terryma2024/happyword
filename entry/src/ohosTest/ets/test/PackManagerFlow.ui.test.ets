@@ -31,22 +31,33 @@ const FAMILY_PACK_NAME: string = 'Family Snacks';
 const PREFS_CLOUD: string = 'wordmagic_cloud';
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
@@ -57,33 +68,41 @@ async function returnToHome(driver: Driver): Promise<void> {
  * across emulator skins.
  */
 async function scrollToPackManagerEntry(driver: Driver): Promise<void> {
-  for (let attempt: number = 0; attempt < 5; attempt++) {
-    const btn: Component | null =
-      await driver.findComponent(ON.id('ConfigPackManagerEntry'));
-    if (btn !== null) {
-      return;
+  try {
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const btn: Component | null =
+        await driver.findComponent(ON.id('ConfigPackManagerEntry'));
+      if (btn !== null) {
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(300);
     }
-    await driver.swipe(1400, 1100, 1400, 300, 600);
-    await driver.delayMs(300);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function openPackManagerFromHome(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeConfigButton');
-  await driver.delayMs(1500);
-  await scrollToPackManagerEntry(driver);
-  await clickByIdShared(driver, 'ConfigPackManagerEntry');
-  await driver.delayMs(1500);
-  // Anchor on the page title so subsequent assertions are robust to
-  // a slightly slow first cold-load (PackManagerPage.aboutToAppear
-  // calls loadHomeIntegration which is async).
-  for (let attempt: number = 0; attempt < 5; attempt++) {
-    const title: Component | null =
-      await driver.findComponent(ON.id('PackManagerTitle'));
-    if (title !== null) {
-      return;
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+    await scrollToPackManagerEntry(driver);
+    await clickByIdShared(driver, 'ConfigPackManagerEntry');
+    await driver.delayMs(1500);
+    // Anchor on the page title so subsequent assertions are robust to
+    // a slightly slow first cold-load (PackManagerPage.aboutToAppear
+    // calls loadHomeIntegration which is async).
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const title: Component | null =
+        await driver.findComponent(ON.id('PackManagerTitle'));
+      if (title !== null) {
+        return;
+      }
+      await driver.delayMs(500);
     }
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
@@ -100,20 +119,24 @@ async function openPackManagerFromHome(driver: Driver): Promise<void> {
  * "toggle-off then assert pin gone" case in test 3.
  */
 async function scrollPackRowIntoView(driver: Driver, packId: string): Promise<void> {
-  const toggleId: string = `PackToggle_${packId}`;
-  const labelId: string = `PackLabel_${packId}`;
-  for (let attempt: number = 0; attempt < 6; attempt++) {
-    const toggle: Component | null = await driver.findComponent(ON.id(toggleId));
-    const label: Component | null = await driver.findComponent(ON.id(labelId));
-    if (toggle !== null || label !== null) {
-      return;
+  try {
+    const toggleId: string = `PackToggle_${packId}`;
+    const labelId: string = `PackLabel_${packId}`;
+    for (let attempt: number = 0; attempt < 6; attempt++) {
+      const toggle: Component | null = await driver.findComponent(ON.id(toggleId));
+      const label: Component | null = await driver.findComponent(ON.id(labelId));
+      if (toggle !== null || label !== null) {
+        return;
+      }
+      // Swipe within the pack list. The Scroll container fills most
+      // of the viewport (header + status row at top, optional toast
+      // at bottom), so a centred upward swipe always advances the
+      // visible pack window.
+      await driver.swipe(1400, 1100, 1400, 400, 600);
+      await driver.delayMs(400);
     }
-    // Swipe within the pack list. The Scroll container fills most
-    // of the viewport (header + status row at top, optional toast
-    // at bottom), so a centred upward swipe always advances the
-    // visible pack window.
-    await driver.swipe(1400, 1100, 1400, 400, 600);
-    await driver.delayMs(400);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
@@ -126,22 +149,26 @@ async function scrollPackRowIntoView(driver: Driver, packId: string): Promise<vo
  * onPageShow → loadHomeIntegration cold load.
  */
 async function leaveToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 6; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      // Give HomePage.onPageShow → applyActivePacks one tick to
-      // re-resolve chipPacks / todayPack / todayRegion before the
-      // caller inspects RegionChip_* / AdventureCardTitle. Without
-      // this delay the chip ForEach can still be rendering the
-      // previous pack set.
-      await driver.delayMs(400);
-      return;
+  try {
+    for (let i: number = 0; i < 6; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        // Give HomePage.onPageShow → applyActivePacks one tick to
+        // re-resolve chipPacks / todayPack / todayRegion before the
+        // caller inspects RegionChip_* / AdventureCardTitle. Without
+        // this delay the chip ForEach can still be rendering the
+        // previous pack set.
+        await driver.delayMs(400);
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(800);
     }
-    await driver.pressBack();
-    await driver.delayMs(800);
+    await driver.assertComponentExist(ON.id('HomeStartButton'));
+  } catch (err) {
+    throw err as Error;
   }
-  await driver.assertComponentExist(ON.id('HomeStartButton'));
 }
 
 /**
@@ -151,23 +178,31 @@ async function leaveToHome(driver: Driver): Promise<void> {
  * stays focused on its assertions, not the navigation plumbing.
  */
 async function togglePackAndReturnHome(driver: Driver, packId: string): Promise<void> {
-  await openPackManagerFromHome(driver);
-  await scrollPackRowIntoView(driver, packId);
-  await clickByIdShared(driver, `PackToggle_${packId}`);
-  // The toggle persists synchronously to AppStorage via
-  // PackSelectionService.setActiveIds; the @State refresh in
-  // PackManagerPage and HomePage's eventual onPageShow are async
-  // but already covered by leaveToHome's polling + 400ms grace.
-  await driver.delayMs(600);
-  await leaveToHome(driver);
+  try {
+    await openPackManagerFromHome(driver);
+    await scrollPackRowIntoView(driver, packId);
+    await clickByIdShared(driver, `PackToggle_${packId}`);
+    // The toggle persists synchronously to AppStorage via
+    // PackSelectionService.setActiveIds; the @State refresh in
+    // PackManagerPage and HomePage's eventual onPageShow are async
+    // but already covered by leaveToHome's polling + 400ms grace.
+    await driver.delayMs(600);
+    await leaveToHome(driver);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function getTextById(driver: Driver, id: string): Promise<string> {
-  const comp: Component | null = await driver.findComponent(ON.id(id));
-  if (comp === null) {
-    return '';
+  try {
+    const comp: Component | null = await driver.findComponent(ON.id(id));
+    if (comp === null) {
+      return '';
+    }
+    return await comp.getText();
+  } catch (err) {
+    throw err as Error;
   }
-  return await comp.getText();
 }
 
 /**
@@ -188,25 +223,35 @@ async function mockHttp(
   body: string,
   bearer: string,
 ): Promise<string> {
-  const req: http.HttpRequest = http.createHttp();
   try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (bearer.length > 0) {
-      headers['Authorization'] = `Bearer ${bearer}`;
+    const req: http.HttpRequest = http.createHttp();
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (bearer.length > 0) {
+        headers['Authorization'] = `Bearer ${bearer}`;
+      }
+      const opts: http.HttpRequestOptions = {
+        method,
+        header: headers,
+        extraData: body,
+        connectTimeout: 5000,
+        readTimeout: 5000,
+      };
+      const resp: http.HttpResponse = await req.request(`${MOCK_BASE_URL}${path}`, opts);
+      return typeof resp.result === 'string' ? resp.result : '';
+    } catch (_err) {
+      return '';
+    } finally {
+      try {
+        req.destroy();
+      } catch (_err) {
+        // Best-effort destroy.
+      }
     }
-    const opts: http.HttpRequestOptions = {
-      method,
-      header: headers,
-      extraData: body,
-      connectTimeout: 5000,
-      readTimeout: 5000,
-    };
-    const resp: http.HttpResponse = await req.request(`${MOCK_BASE_URL}${path}`, opts);
-    return typeof resp.result === 'string' ? resp.result : '';
   } catch (_err) {
+    // Outer guard: http.createHttp itself can throw on resource
+    // exhaustion. Swallow — caller treats empty response as failure.
     return '';
-  } finally {
-    req.destroy();
   }
 }
 
@@ -218,19 +263,27 @@ async function mockHttp(
  * self-contained vs. ordering changes in `List.test.ets`.
  */
 async function seedMockBinding(): Promise<void> {
-  const body: string =
-    `{"device_id":"ui-mock-pack-suite","short_code":"${MOCK_VALID_SHORT_CODE}"}`;
-  await mockHttp(http.RequestMethod.POST, '/api/v1/pair/redeem', body, '');
+  try {
+    const body: string =
+      `{"device_id":"ui-mock-pack-suite","short_code":"${MOCK_VALID_SHORT_CODE}"}`;
+    await mockHttp(http.RequestMethod.POST, '/api/v1/pair/redeem', body, '');
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
  * Tell the mock server to drop the binding for the deterministic JWT
  * so subsequent suites that assume an unbound device (most notably
- * `ParentBindingFlowV06.unboundConfigPageRendersBindEntryOnly`) start
+ * `ParentBindingFlow.unboundConfigPageRendersBindEntryOnly`) start
  * from a clean slate even within a single mock-server lifetime.
  */
 async function unbindMockBinding(): Promise<void> {
-  await mockHttp(http.RequestMethod.POST, '/api/v1/child/unbind', '{}', MOCK_DEVICE_TOKEN);
+  try {
+    await mockHttp(http.RequestMethod.POST, '/api/v1/child/unbind', '{}', MOCK_DEVICE_TOKEN);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -254,58 +307,62 @@ async function unbindMockBinding(): Promise<void> {
  * caller back on HomePage when done.
  */
 async function bindViaShortCode(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeConfigButton');
-  await driver.delayMs(1500);
-  for (let attempt: number = 0; attempt < 5; attempt++) {
-    const bind: Component | null =
-      await driver.findComponent(ON.id('ConfigBindParentButton'));
-    const bound: Component | null =
-      await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
-    if (bind !== null || bound !== null) {
-      break;
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const bind: Component | null =
+        await driver.findComponent(ON.id('ConfigBindParentButton'));
+      const bound: Component | null =
+        await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+      if (bind !== null || bound !== null) {
+        break;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
     }
-    await driver.swipe(1400, 1100, 1400, 300, 600);
-    await driver.delayMs(400);
-  }
 
-  const alreadyBound: Component | null =
-    await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
-  if (alreadyBound !== null) {
-    // Carry-over bound state from a prior dev session — no re-bind
-    // needed; just navigate back to home.
+    const alreadyBound: Component | null =
+      await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+    if (alreadyBound !== null) {
+      // Carry-over bound state from a prior dev session — no re-bind
+      // needed; just navigate back to home.
+      await driver.pressBack();
+      await driver.delayMs(800);
+      return;
+    }
+
+    await clickByIdShared(driver, 'ConfigBindParentButton');
+    await driver.delayMs(1500);
+    await clickByIdShared(driver, 'ScanBindingManualToggle');
+    await driver.delayMs(600);
+    await driver.assertComponentExist(ON.id('ScanBindingManualInput'));
+
+    const input: Component =
+      await driver.findComponent(ON.id('ScanBindingManualInput'));
+    await input.inputText(MOCK_VALID_SHORT_CODE);
+    await driver.delayMs(500);
+    // Numeric IME hides ScanBindingManualSubmit; dismiss it first.
+    await driver.pressBack();
+    await driver.delayMs(600);
+
+    await clickByIdShared(driver, 'ScanBindingManualSubmit');
+    for (let i: number = 0; i < 16; i++) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
+      if (c !== null) {
+        break;
+      }
+      await driver.delayMs(500);
+    }
+    await clickByIdShared(driver, 'ScanBindingSuccessBack');
+    await driver.delayMs(1500);
+    // ConfigPage now in bound state; pop back to home for the caller.
     await driver.pressBack();
     await driver.delayMs(800);
-    return;
+  } catch (err) {
+    throw err as Error;
   }
-
-  await clickByIdShared(driver, 'ConfigBindParentButton');
-  await driver.delayMs(1500);
-  await clickByIdShared(driver, 'ScanBindingManualToggle');
-  await driver.delayMs(600);
-  await driver.assertComponentExist(ON.id('ScanBindingManualInput'));
-
-  const input: Component =
-    await driver.findComponent(ON.id('ScanBindingManualInput'));
-  await input.inputText(MOCK_VALID_SHORT_CODE);
-  await driver.delayMs(500);
-  // Numeric IME hides ScanBindingManualSubmit; dismiss it first.
-  await driver.pressBack();
-  await driver.delayMs(600);
-
-  await clickByIdShared(driver, 'ScanBindingManualSubmit');
-  for (let i: number = 0; i < 16; i++) {
-    const c: Component | null =
-      await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
-    if (c !== null) {
-      break;
-    }
-    await driver.delayMs(500);
-  }
-  await clickByIdShared(driver, 'ScanBindingSuccessBack');
-  await driver.delayMs(1500);
-  // ConfigPage now in bound state; pop back to home for the caller.
-  await driver.pressBack();
-  await driver.delayMs(800);
 }
 
 /**
@@ -327,8 +384,8 @@ async function bindViaShortCode(driver: Driver): Promise<void> {
  * tolerate.
  */
 async function wipeBoundDeviceState(): Promise<void> {
-  const ctx: common.Context = DELEGATOR.getAppContext();
   try {
+    const ctx: common.Context = DELEGATOR.getAppContext();
     const handle: preferences.Preferences =
       await preferences.getPreferences(ctx, PREFS_CLOUD);
     await handle.put('device_token', '');
@@ -354,19 +411,23 @@ async function wipeBoundDeviceState(): Promise<void> {
  * `formatPackSyncToast` matrix when needed.
  */
 async function tapPackSyncAndWaitForToast(driver: Driver): Promise<string> {
-  await clickByIdShared(driver, 'PackManagerSyncButton');
-  for (let attempt: number = 0; attempt < 20; attempt++) {
-    const toast: Component | null =
-      await driver.findComponent(ON.id('PackManagerSyncToast'));
-    if (toast !== null) {
-      const text: string = await toast.getText();
-      if (text.length > 0) {
-        return text;
+  try {
+    await clickByIdShared(driver, 'PackManagerSyncButton');
+    for (let attempt: number = 0; attempt < 20; attempt++) {
+      const toast: Component | null =
+        await driver.findComponent(ON.id('PackManagerSyncToast'));
+      if (toast !== null) {
+        const text: string = await toast.getText();
+        if (text.length > 0) {
+          return text;
+        }
       }
+      await driver.delayMs(400);
     }
-    await driver.delayMs(400);
+    return '';
+  } catch (err) {
+    throw err as Error;
   }
-  return '';
 }
 
 /**
@@ -378,9 +439,13 @@ async function tapPackSyncAndWaitForToast(driver: Driver): Promise<string> {
  * doesn't want to bounce back to HomePage between flips.
  */
 async function togglePackActiveInPlace(driver: Driver, packId: string): Promise<void> {
-  await scrollPackRowIntoView(driver, packId);
-  await clickByIdShared(driver, `PackToggle_${packId}`);
-  await driver.delayMs(700);
+  try {
+    await scrollPackRowIntoView(driver, packId);
+    await clickByIdShared(driver, `PackToggle_${packId}`);
+    await driver.delayMs(700);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 const ALL_DEFAULT_PACK_IDS: string[] = [
@@ -451,11 +516,11 @@ const PIN_LABEL_PINNED: string = '已固定';
  * The family-pack arm (case 7's second test) additionally pre-seeds
  * `wordmagic_cloud` preferences with the deterministic mock JWT and
  * `unbind`s + wipes those preferences in its `finally` block so the
- * device is left unbound — `ParentBindingFlowV06` runs after this
+ * device is left unbound — `ParentBindingFlow` runs after this
  * suite and depends on starting from a fresh-install bound state.
  */
 export default function packManagerFlowUiTest(): void {
-  describe('PackManagerFlowV0673', () => {
+  describe('PackManagerFlow', () => {
     it('navigatesFromConfigAndRendersHeaderStatusAndSync', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
@@ -870,7 +935,7 @@ export default function packManagerFlowUiTest(): void {
      * `wordmagic_global_packs` preferences plus the mock's
      * `_active_bindings` set so the device is left in an unbound,
      * empty-overlay state — exactly what the next suite
-     * (`ParentBindingFlowV06.unboundConfigPageRendersBindEntryOnly`)
+     * (`ParentBindingFlow.unboundConfigPageRendersBindEntryOnly`)
      * relies on.
      */
     it('boundDeviceSyncPullsFamilyPackAndAffectsHomeChipRow',

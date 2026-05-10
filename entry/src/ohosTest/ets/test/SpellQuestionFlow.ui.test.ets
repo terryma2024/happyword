@@ -43,21 +43,32 @@ const WORD_EN: string[] = [
 ];
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
@@ -71,35 +82,47 @@ function enForZh(zh: string): string {
 }
 
 async function getPromptText(driver: Driver): Promise<string> {
-  const p: Component | null = await driver.findComponent(ON.id('BattlePrompt'));
-  if (p === null) {
-    return '';
+  try {
+    const p: Component | null = await driver.findComponent(ON.id('BattlePrompt'));
+    if (p === null) {
+      return '';
+    }
+    return await p.getText();
+  } catch (err) {
+    throw err as Error;
   }
-  return await p.getText();
 }
 
 async function readFeedback(driver: Driver): Promise<string> {
-  const fb: Component | null = await driver.findComponent(ON.id('BattleFeedback'));
-  if (fb === null) {
-    return '';
+  try {
+    const fb: Component | null = await driver.findComponent(ON.id('BattleFeedback'));
+    if (fb === null) {
+      return '';
+    }
+    return await fb.getText();
+  } catch (err) {
+    throw err as Error;
   }
-  return await fb.getText();
 }
 
 async function readLetterSlots(driver: Driver, max: number = 16): Promise<string[]> {
-  const slots: string[] = [];
-  for (let i: number = 0; i < max; i++) {
-    const slot: Component | null = await driver.findComponent(ON.id(`LetterSlotText_${i}`));
-    if (slot === null) {
-      if (slots.length > 0) {
-        break;
+  try {
+    const slots: string[] = [];
+    for (let i: number = 0; i < max; i++) {
+      const slot: Component | null = await driver.findComponent(ON.id(`LetterSlotText_${i}`));
+      if (slot === null) {
+        if (slots.length > 0) {
+          break;
+        }
+        continue;
       }
-      continue;
+      const text: string = await slot.getText();
+      slots.push(text);
     }
-    const text: string = await slot.getText();
-    slots.push(text);
+    return slots;
+  } catch (err) {
+    throw err as Error;
   }
-  return slots;
 }
 
 function countUnderscores(slots: string[]): number {
@@ -137,48 +160,60 @@ function wordForPattern(slots: string[]): string {
 }
 
 async function tapOptionWithText(driver: Driver, target: string): Promise<boolean> {
-  const ids: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
-  for (let i: number = 0; i < ids.length; i++) {
-    const btn: Component | null = await driver.findComponent(ON.id(ids[i]));
-    if (btn === null) {
-      continue;
+  try {
+    const ids: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
+    for (let i: number = 0; i < ids.length; i++) {
+      const btn: Component | null = await driver.findComponent(ON.id(ids[i]));
+      if (btn === null) {
+        continue;
+      }
+      const text: string = await btn.getText();
+      if (text === target) {
+        await btn.click();
+        return true;
+      }
     }
-    const text: string = await btn.getText();
-    if (text === target) {
-      await btn.click();
-      return true;
-    }
+    return false;
+  } catch (err) {
+    throw err as Error;
   }
-  return false;
 }
 
 async function startFruitForestBattle(driver: Driver): Promise<void> {
-  const fruit: Component | null = await driver.findComponent(ON.id('RegionChip_fruit-forest'));
-  if (fruit !== null) {
-    await fruit.click();
-    await driver.delayMs(300);
+  try {
+    const fruit: Component | null = await driver.findComponent(ON.id('RegionChip_fruit-forest'));
+    if (fruit !== null) {
+      await fruit.click();
+      await driver.delayMs(300);
+    }
+    const cta: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
+    expect(cta !== null).assertTrue();
+    if (cta !== null) {
+      await cta.click();
+    }
+    await driver.delayMs(1500);
+    await driver.assertComponentExist(ON.id('BattleTitle'));
+  } catch (err) {
+    throw err as Error;
   }
-  const cta: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
-  expect(cta !== null).assertTrue();
-  if (cta !== null) {
-    await cta.click();
-  }
-  await driver.delayMs(1500);
-  await driver.assertComponentExist(ON.id('BattleTitle'));
 }
 
 async function exitToHome(driver: Driver): Promise<void> {
-  const finish: Component | null = await driver.findComponent(ON.id('BattleFinishButton'));
-  if (finish !== null) {
-    await finish.click();
-    await driver.delayMs(800);
+  try {
+    const finish: Component | null = await driver.findComponent(ON.id('BattleFinishButton'));
+    if (finish !== null) {
+      await finish.click();
+      await driver.delayMs(800);
+    }
+    const homeBtn: Component | null = await driver.findComponent(ON.id('ResultHomeButton'));
+    if (homeBtn !== null) {
+      await homeBtn.click();
+      await driver.delayMs(800);
+    }
+    await returnToHome(driver);
+  } catch (err) {
+    throw err as Error;
   }
-  const homeBtn: Component | null = await driver.findComponent(ON.id('ResultHomeButton'));
-  if (homeBtn !== null) {
-    await homeBtn.click();
-    await driver.delayMs(800);
-  }
-  await returnToHome(driver);
 }
 
 /**
@@ -186,31 +221,39 @@ async function exitToHome(driver: Driver): Promise<void> {
  * Returns an empty array when the area is not currently mounted.
  */
 async function readSpellSlots(driver: Driver): Promise<string[]> {
-  const out: string[] = [];
-  for (let i: number = 0; i < MAX_SPELL_LEN; i++) {
-    const slot: Component | null =
-      await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Slot_${i}`));
-    if (slot === null) {
-      break;
+  try {
+    const out: string[] = [];
+    for (let i: number = 0; i < MAX_SPELL_LEN; i++) {
+      const slot: Component | null =
+        await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Slot_${i}`));
+      if (slot === null) {
+        break;
+      }
+      const text: string = await slot.getText();
+      out.push(text);
     }
-    const text: string = await slot.getText();
-    out.push(text);
+    return out;
+  } catch (err) {
+    throw err as Error;
   }
-  return out;
 }
 
 async function readSpellPool(driver: Driver): Promise<string[]> {
-  const out: string[] = [];
-  for (let i: number = 0; i < MAX_POOL; i++) {
-    const btn: Component | null =
-      await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Pool_${i}`));
-    if (btn === null) {
-      break;
+  try {
+    const out: string[] = [];
+    for (let i: number = 0; i < MAX_POOL; i++) {
+      const btn: Component | null =
+        await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Pool_${i}`));
+      if (btn === null) {
+        break;
+      }
+      const text: string = await btn.getText();
+      out.push(text);
     }
-    const text: string = await btn.getText();
-    out.push(text);
+    return out;
+  } catch (err) {
+    throw err as Error;
   }
-  return out;
 }
 
 /**
@@ -229,7 +272,32 @@ async function readSpellPool(driver: Driver): Promise<string[]> {
  * loop, even with no audio playback at all.
  */
 async function tapSpellPoolLetter(driver: Driver, letter: string): Promise<number> {
-  for (let attempt: number = 0; attempt < 10; attempt++) {
+  try {
+    for (let attempt: number = 0; attempt < 10; attempt++) {
+      for (let i: number = 0; i < MAX_POOL; i++) {
+        const btn: Component | null =
+          await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Pool_${i}`));
+        if (btn === null) {
+          break;
+        }
+        const text: string = await btn.getText();
+        if (text === letter) {
+          await btn.click();
+          await driver.delayMs(150);
+          return i;
+        }
+      }
+      await driver.delayMs(150);
+    }
+    return -1;
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/** Find the first pool index whose label is NOT `forbidden`. */
+async function findWrongPoolIndex(driver: Driver, forbidden: string): Promise<number> {
+  try {
     for (let i: number = 0; i < MAX_POOL; i++) {
       const btn: Component | null =
         await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Pool_${i}`));
@@ -237,38 +305,25 @@ async function tapSpellPoolLetter(driver: Driver, letter: string): Promise<numbe
         break;
       }
       const text: string = await btn.getText();
-      if (text === letter) {
-        await btn.click();
-        await driver.delayMs(150);
+      if (text !== forbidden) {
         return i;
       }
     }
-    await driver.delayMs(150);
+    return -1;
+  } catch (err) {
+    throw err as Error;
   }
-  return -1;
-}
-
-/** Find the first pool index whose label is NOT `forbidden`. */
-async function findWrongPoolIndex(driver: Driver, forbidden: string): Promise<number> {
-  for (let i: number = 0; i < MAX_POOL; i++) {
-    const btn: Component | null =
-      await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Pool_${i}`));
-    if (btn === null) {
-      break;
-    }
-    const text: string = await btn.getText();
-    if (text !== forbidden) {
-      return i;
-    }
-  }
-  return -1;
 }
 
 async function tapPoolByIndex(driver: Driver, idx: number): Promise<void> {
-  const btn: Component | null =
-    await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Pool_${idx}`));
-  if (btn !== null) {
-    await btn.click();
+  try {
+    const btn: Component | null =
+      await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Pool_${idx}`));
+    if (btn !== null) {
+      await btn.click();
+    }
+  } catch (err) {
+    throw err as Error;
   }
 }
 
@@ -284,60 +339,64 @@ class SpellEntryState {
 }
 
 async function driveUntilSpell(driver: Driver, maxTurns: number): Promise<SpellEntryState> {
-  const out: SpellEntryState = new SpellEntryState();
-  // V0.4.4: add a small initial settle so BattlePage's first-question
-  // render lands before we probe ids. After heavy-suite runs the
-  // emulator can take >900ms to commit the first AppStorage-driven
-  // frame, which previously surfaced as a Spell-never-arrives flake.
-  await driver.delayMs(500);
-  for (let turn: number = 0; turn < maxTurns; turn++) {
-    // Already at Spell?
-    const spellSlot0: Component | null =
-      await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Slot_0`));
-    if (spellSlot0 !== null) {
-      // Allow any in-flight pool/slot animation to settle before we
-      // snapshot the row — readSpellSlots and readSpellPool race
-      // against SpellingArea's reset path.
-      await driver.delayMs(150);
-      const slots: string[] = await readSpellSlots(driver);
-      const pool: string[] = await readSpellPool(driver);
-      const reconstructed: string[] = slots.slice();
-      for (let i: number = 0; i < reconstructed.length; i++) {
-        if (reconstructed[i] === '_') {
-          reconstructed[i] = '_';
+  try {
+    const out: SpellEntryState = new SpellEntryState();
+    // V0.4.4: add a small initial settle so BattlePage's first-question
+    // render lands before we probe ids. After heavy-suite runs the
+    // emulator can take >900ms to commit the first AppStorage-driven
+    // frame, which previously surfaced as a Spell-never-arrives flake.
+    await driver.delayMs(500);
+    for (let turn: number = 0; turn < maxTurns; turn++) {
+      // Already at Spell?
+      const spellSlot0: Component | null =
+        await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Slot_0`));
+      if (spellSlot0 !== null) {
+        // Allow any in-flight pool/slot animation to settle before we
+        // snapshot the row — readSpellSlots and readSpellPool race
+        // against SpellingArea's reset path.
+        await driver.delayMs(150);
+        const slots: string[] = await readSpellSlots(driver);
+        const pool: string[] = await readSpellPool(driver);
+        const reconstructed: string[] = slots.slice();
+        for (let i: number = 0; i < reconstructed.length; i++) {
+          if (reconstructed[i] === '_') {
+            reconstructed[i] = '_';
+          }
         }
-      }
-      const answer: string = wordForPattern(reconstructed);
-      out.slots = slots;
-      out.answer = answer;
-      // Sanity: pool size = slots.length - 1, only slot 0 revealed.
-      expect(pool.length === slots.length - 1).assertTrue();
-      return out;
-    }
-    // FillLetter / FillLetterMedium step?
-    const ltr: Component | null = await driver.findComponent(ON.id('LetterTemplateRow'));
-    if (ltr !== null) {
-      const slots: string[] = await readLetterSlots(driver);
-      const word: string = wordForPattern(slots);
-      if (word === '') {
+        const answer: string = wordForPattern(reconstructed);
+        out.slots = slots;
+        out.answer = answer;
+        // Sanity: pool size = slots.length - 1, only slot 0 revealed.
+        expect(pool.length === slots.length - 1).assertTrue();
         return out;
       }
-      const missingIdx: number = slots.indexOf('_');
-      const letter: string = word.toLowerCase().charAt(missingIdx);
-      await tapOptionWithText(driver, letter);
+      // FillLetter / FillLetterMedium step?
+      const ltr: Component | null = await driver.findComponent(ON.id('LetterTemplateRow'));
+      if (ltr !== null) {
+        const slots: string[] = await readLetterSlots(driver);
+        const word: string = wordForPattern(slots);
+        if (word === '') {
+          return out;
+        }
+        const missingIdx: number = slots.indexOf('_');
+        const letter: string = word.toLowerCase().charAt(missingIdx);
+        await tapOptionWithText(driver, letter);
+        await driver.delayMs(900);
+        continue;
+      }
+      // Choice prompt.
+      const promptText: string = await getPromptText(driver);
+      const en: string = enForZh(promptText);
+      if (en === '') {
+        return out;
+      }
+      await tapOptionWithText(driver, en);
       await driver.delayMs(900);
-      continue;
     }
-    // Choice prompt.
-    const promptText: string = await getPromptText(driver);
-    const en: string = enForZh(promptText);
-    if (en === '') {
-      return out;
-    }
-    await tapOptionWithText(driver, en);
-    await driver.delayMs(900);
+    return out;
+  } catch (err) {
+    throw err as Error;
   }
-  return out;
 }
 
 export default function spellQuestionFlowUiTest(): void {

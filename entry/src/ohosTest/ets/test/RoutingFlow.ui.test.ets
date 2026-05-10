@@ -32,15 +32,22 @@ export async function launchAppShared(): Promise<Driver> {
 }
 
 async function launchApp(): Promise<Driver> {
-  const bundleName: string = abilityDelegatorRegistry.getArguments().bundleName;
-  const want: Want = { bundleName, abilityName: 'EntryAbility' };
-  await delegator.startAbility(want);
-  const driver: Driver = Driver.create();
-  // First cold launch needs ~1s for the window stage and HomePage build; use
-  // the driver's own clock rather than a custom setTimeout so the wait is
-  // reported in the hypium trace.
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const bundleName: string = abilityDelegatorRegistry.getArguments().bundleName;
+    const want: Want = { bundleName, abilityName: 'EntryAbility' };
+    await delegator.startAbility(want);
+    const driver: Driver = Driver.create();
+    // First cold launch needs ~1s for the window stage and HomePage build; use
+    // the driver's own clock rather than a custom setTimeout so the wait is
+    // reported in the hypium trace.
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -54,9 +61,13 @@ export async function clickByIdShared(driver: Driver, id: string): Promise<void>
 }
 
 async function clickById(driver: Driver, id: string): Promise<void> {
-  await driver.assertComponentExist(ON.id(id));
-  const comp = await driver.findComponent(ON.id(id));
-  await comp.click();
+  try {
+    await driver.assertComponentExist(ON.id(id));
+    const comp = await driver.findComponent(ON.id(id));
+    await comp.click();
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -72,18 +83,22 @@ async function clickById(driver: Driver, id: string): Promise<void> {
  * still leaves ConfigPage instead of hanging on the assertion.
  */
 export async function tapConfigCancelShared(driver: Driver): Promise<void> {
-  for (let attempt: number = 0; attempt < 3; attempt++) {
-    const comp = await driver.findComponent(ON.id('ConfigCancelButton'));
-    if (comp !== null) {
-      await comp.click();
-      return;
+  try {
+    for (let attempt: number = 0; attempt < 3; attempt++) {
+      const comp = await driver.findComponent(ON.id('ConfigCancelButton'));
+      if (comp !== null) {
+        await comp.click();
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
     }
-    await driver.swipe(1400, 1100, 1400, 300, 600);
-    await driver.delayMs(400);
+    // Final attempt: pressBack always works on ConfigPage and matches the
+    // semantic intent of "leave config".
+    await driver.pressBack();
+  } catch (err) {
+    throw err as Error;
   }
-  // Final attempt: pressBack always works on ConfigPage and matches the
-  // semantic intent of "leave config".
-  await driver.pressBack();
 }
 
 /**
@@ -154,25 +169,29 @@ export async function tapCorrectAnswerShared(driver: Driver): Promise<string> {
 }
 
 async function tapCorrectAnswer(driver: Driver): Promise<string> {
-  const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
-  const promptText: string = await promptComp.getText();
-  const answer: string = lookupEnglishAnswer(promptText);
-  if (answer === '') {
-    throw new Error(`tapCorrectAnswer: unknown prompt "${promptText}"`);
-  }
-  // Options are rendered as child Text nodes of each button. Walking
-  // the three button IDs lets us find the matching option without
-  // scanning the whole tree.
-  const optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
-  for (let i = 0; i < optionIds.length; i++) {
-    const btn = await driver.findComponent(ON.id(optionIds[i]));
-    const text: string = await btn.getText();
-    if (text.toLowerCase() === answer.toLowerCase()) {
-      await btn.click();
-      return answer;
+  try {
+    const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
+    const promptText: string = await promptComp.getText();
+    const answer: string = lookupEnglishAnswer(promptText);
+    if (answer === '') {
+      throw new Error(`tapCorrectAnswer: unknown prompt "${promptText}"`);
     }
+    // Options are rendered as child Text nodes of each button. Walking
+    // the three button IDs lets us find the matching option without
+    // scanning the whole tree.
+    const optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
+    for (let i = 0; i < optionIds.length; i++) {
+      const btn = await driver.findComponent(ON.id(optionIds[i]));
+      const text: string = await btn.getText();
+      if (text.toLowerCase() === answer.toLowerCase()) {
+        await btn.click();
+        return answer;
+      }
+    }
+    throw new Error(`tapCorrectAnswer: no option button matches answer "${answer}" for prompt "${promptText}"`);
+  } catch (err) {
+    throw err as Error;
   }
-  throw new Error(`tapCorrectAnswer: no option button matches answer "${answer}" for prompt "${promptText}"`);
 }
 
 /**
@@ -186,22 +205,26 @@ export async function tapWrongAnswerShared(driver: Driver): Promise<string> {
 }
 
 async function tapWrongAnswer(driver: Driver): Promise<string> {
-  const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
-  const promptText: string = await promptComp.getText();
-  const correct: string = lookupEnglishAnswer(promptText);
-  if (correct === '') {
-    throw new Error(`tapWrongAnswer: unknown prompt "${promptText}"`);
-  }
-  const optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
-  for (let i = 0; i < optionIds.length; i++) {
-    const btn = await driver.findComponent(ON.id(optionIds[i]));
-    const text: string = await btn.getText();
-    if (text.toLowerCase() !== correct.toLowerCase()) {
-      await btn.click();
-      return text;
+  try {
+    const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
+    const promptText: string = await promptComp.getText();
+    const correct: string = lookupEnglishAnswer(promptText);
+    if (correct === '') {
+      throw new Error(`tapWrongAnswer: unknown prompt "${promptText}"`);
     }
+    const optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
+    for (let i = 0; i < optionIds.length; i++) {
+      const btn = await driver.findComponent(ON.id(optionIds[i]));
+      const text: string = await btn.getText();
+      if (text.toLowerCase() !== correct.toLowerCase()) {
+        await btn.click();
+        return text;
+      }
+    }
+    throw new Error(`tapWrongAnswer: all 3 options matched correct answer "${correct}"`);
+  } catch (err) {
+    throw err as Error;
   }
-  throw new Error(`tapWrongAnswer: all 3 options matched correct answer "${correct}"`);
 }
 
 // V0.6.6 cleanup: the legacy `openConfigAndApply` /

@@ -8,36 +8,51 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function tripleTapVersion(driver: Driver): Promise<void> {
   // Cache the Component once so all three taps fire fast enough to
   // land within the 1500ms triple-tap window even on slow emulators.
-  await driver.assertComponentExist(ON.id('HomeVersionLabel'));
-  const label: Component = await driver.findComponent(ON.id('HomeVersionLabel'));
-  await label.click();
-  await driver.delayMs(150);
-  await label.click();
-  await driver.delayMs(150);
-  await label.click();
-  await driver.delayMs(1500); // allow navigation + manifest fetch + render
+  try {
+    await driver.assertComponentExist(ON.id('HomeVersionLabel'));
+    const label: Component = await driver.findComponent(ON.id('HomeVersionLabel'));
+    await label.click();
+    await driver.delayMs(150);
+    await label.click();
+    await driver.delayMs(150);
+    await label.click();
+    await driver.delayMs(1500); // allow navigation + manifest fetch + render
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**

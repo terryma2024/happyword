@@ -8,38 +8,61 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function openWishlist(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeWishlistButton');
-  await driver.delayMs(1500);
+  try {
+    await clickByIdShared(driver, 'HomeWishlistButton');
+    await driver.delayMs(1500);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
-  await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
-  await driver.delayMs(80);
+  try {
+    await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
+    await driver.delayMs(80);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
-  await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
-  await driver.delayMs(80);
+  try {
+    await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
+    await driver.delayMs(80);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -54,51 +77,59 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
  * the caller can branch on "balance unknown".
  */
 async function readWishlistBalance(driver: Driver): Promise<number> {
-  const t: Component | null =
-    await driver.findComponent(ON.id('WishlistBalance'));
-  if (t === null) {
-    return -1;
+  try {
+    const t: Component | null =
+      await driver.findComponent(ON.id('WishlistBalance'));
+    if (t === null) {
+      return -1;
+    }
+    const raw: string = await t.getText();
+    const match: RegExpMatchArray | null = raw.match(/(\d+)/);
+    if (match === null) {
+      return -1;
+    }
+    return parseInt(match[0], 10);
+  } catch (err) {
+    throw err as Error;
   }
-  const raw: string = await t.getText();
-  const match: RegExpMatchArray | null = raw.match(/(\d+)/);
-  if (match === null) {
-    return -1;
-  }
-  return parseInt(match[0], 10);
 }
 
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
-  await clickByIdShared(driver, 'HomeConfigButton');
-  await driver.delayMs(1500);
-  // V0.6.5.1: scroll iteratively until ConfigParentPinButton is on
-  // screen. The 📦 packPickerSection between autoSpeak and the
-  // parent-pin row can require multiple swipes on the landscape
-  // emulator viewport.
-  for (let attempt: number = 0; attempt < 5; attempt++) {
-    const btn: Component | null =
-      await driver.findComponent(ON.id('ConfigParentPinButton'));
-    if (btn !== null) {
-      break;
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+    // V0.6.5.1: scroll iteratively until ConfigParentPinButton is on
+    // screen. The 📦 packPickerSection between autoSpeak and the
+    // parent-pin row can require multiple swipes on the landscape
+    // emulator viewport.
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const btn: Component | null =
+        await driver.findComponent(ON.id('ConfigParentPinButton'));
+      if (btn !== null) {
+        break;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(300);
     }
-    await driver.swipe(1400, 1100, 1400, 300, 600);
-    await driver.delayMs(300);
-  }
-  await clickByIdShared(driver, 'ConfigParentPinButton');
-  await driver.delayMs(1200);
+    await clickByIdShared(driver, 'ConfigParentPinButton');
+    await driver.delayMs(1200);
 
-  for (let i: number = 0; i < pin.length; i++) {
-    await tapPinSetupKey(driver, pin.charAt(i));
-  }
-  await driver.delayMs(400);
-  for (let i: number = 0; i < pin.length; i++) {
-    await tapPinSetupKey(driver, pin.charAt(i));
-  }
-  await driver.delayMs(1500);
+    for (let i: number = 0; i < pin.length; i++) {
+      await tapPinSetupKey(driver, pin.charAt(i));
+    }
+    await driver.delayMs(400);
+    for (let i: number = 0; i < pin.length; i++) {
+      await tapPinSetupKey(driver, pin.charAt(i));
+    }
+    await driver.delayMs(1500);
 
-  // commitOrReset routes back to ConfigPage. Cancel out to Home.
-  await tapConfigCancelShared(driver);
-  await driver.delayMs(800);
-  await returnToHome(driver);
+    // commitOrReset routes back to ConfigPage. Cancel out to Home.
+    await tapConfigCancelShared(driver);
+    await driver.delayMs(800);
+    await returnToHome(driver);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -116,7 +147,7 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
  *    GiftBox-trigger and PIN-dismiss bugs).
  */
 export default function wishlistFlowUiTest(): void {
-  describe('WishlistFlowV039', () => {
+  describe('WishlistFlow', () => {
     it('wishlistRendersCardsWithHistoryButton', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);

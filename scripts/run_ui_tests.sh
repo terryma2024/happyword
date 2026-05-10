@@ -17,7 +17,7 @@
 # Usage:
 #   scripts/run_ui_tests.sh                  # run with already-built HAPs
 #   scripts/run_ui_tests.sh --rebuild        # rebuild + reinstall first
-#   scripts/run_ui_tests.sh --suite ParentAdminFlowV058  # run one suite
+#   scripts/run_ui_tests.sh --suite ParentAdminFlow  # run one suite
 #
 # Production (release) builds never see the override URL — only this
 # script writes one (via the test harness in List.test.ets, which sets

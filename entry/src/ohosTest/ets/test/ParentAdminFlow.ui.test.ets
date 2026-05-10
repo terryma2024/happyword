@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
-import { Want, common } from '@kit.AbilityKit';
+import { application, Want, common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
 import { LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY } from '../../../main/ets/services/LessonImagePicker';
@@ -33,51 +33,74 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
 const KNOWN_PIN: string = '123456';
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function openConfigAndScrollToAdmin(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomeConfigButton');
-  await driver.delayMs(1500);
-  await driver.assertComponentExist(ON.id('ConfigTitle'));
-  // V0.6.5.1: the 📦 packPickerSection adds 5+ pack rows between
-  // autoSpeak and admin rows, so a single swipe is no longer enough.
-  // Iterate until ConfigParentAdminButton is on screen.
-  for (let attempt: number = 0; attempt < 6; attempt++) {
-    const btn: Component | null =
-      await driver.findComponent(ON.id('ConfigParentAdminButton'));
-    if (btn !== null) {
-      return;
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+    await driver.assertComponentExist(ON.id('ConfigTitle'));
+    // V0.6.5.1: the 📦 packPickerSection adds 5+ pack rows between
+    // autoSpeak and admin rows, so a single swipe is no longer enough.
+    // Iterate until ConfigParentAdminButton is on screen.
+    for (let attempt: number = 0; attempt < 6; attempt++) {
+      const btn: Component | null =
+        await driver.findComponent(ON.id('ConfigParentAdminButton'));
+      if (btn !== null) {
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
     }
-    await driver.swipe(1400, 1100, 1400, 300, 600);
-    await driver.delayMs(400);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
-  await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
-  await driver.delayMs(80);
+  try {
+    await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
+    await driver.delayMs(80);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
-  await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
-  await driver.delayMs(80);
+  try {
+    await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
+    await driver.delayMs(80);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -89,35 +112,39 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
  * back to ConfigPage either way.
  */
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
-  await clickByIdShared(driver, 'HomeConfigButton');
-  await driver.delayMs(1500);
-  // V0.6.5.1: scroll iteratively until the parent-PIN button is on
-  // screen — the packPickerSection between autoSpeak and parentPin
-  // can push the row off the fold.
-  for (let attempt: number = 0; attempt < 5; attempt++) {
-    const btn: Component | null =
-      await driver.findComponent(ON.id('ConfigParentPinButton'));
-    if (btn !== null) {
-      break;
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+    // V0.6.5.1: scroll iteratively until the parent-PIN button is on
+    // screen — the packPickerSection between autoSpeak and parentPin
+    // can push the row off the fold.
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const btn: Component | null =
+        await driver.findComponent(ON.id('ConfigParentPinButton'));
+      if (btn !== null) {
+        break;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(300);
     }
-    await driver.swipe(1400, 1100, 1400, 300, 600);
-    await driver.delayMs(300);
-  }
-  await clickByIdShared(driver, 'ConfigParentPinButton');
-  await driver.delayMs(1200);
+    await clickByIdShared(driver, 'ConfigParentPinButton');
+    await driver.delayMs(1200);
 
-  for (let i: number = 0; i < pin.length; i++) {
-    await tapPinSetupKey(driver, pin.charAt(i));
-  }
-  await driver.delayMs(400);
-  for (let i: number = 0; i < pin.length; i++) {
-    await tapPinSetupKey(driver, pin.charAt(i));
-  }
-  await driver.delayMs(1500);
+    for (let i: number = 0; i < pin.length; i++) {
+      await tapPinSetupKey(driver, pin.charAt(i));
+    }
+    await driver.delayMs(400);
+    for (let i: number = 0; i < pin.length; i++) {
+      await tapPinSetupKey(driver, pin.charAt(i));
+    }
+    await driver.delayMs(1500);
 
-  await tapConfigCancelShared(driver);
-  await driver.delayMs(800);
-  await returnToHome(driver);
+    await tapConfigCancelShared(driver);
+    await driver.delayMs(800);
+    await returnToHome(driver);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -126,18 +153,22 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
  * HomePage and ensured KNOWN_PIN is committed.
  */
 async function navigateToParentAdminPage(driver: Driver): Promise<void> {
-  await openConfigAndScrollToAdmin(driver);
-  await clickByIdShared(driver, 'ConfigParentAdminButton');
-  await driver.delayMs(800);
-  await driver.assertComponentExist(ON.id('ParentPinDialog'));
-  for (let i: number = 0; i < KNOWN_PIN.length; i++) {
-    await tapPinDialogKey(driver, KNOWN_PIN.charAt(i));
+  try {
+    await openConfigAndScrollToAdmin(driver);
+    await clickByIdShared(driver, 'ConfigParentAdminButton');
+    await driver.delayMs(800);
+    await driver.assertComponentExist(ON.id('ParentPinDialog'));
+    for (let i: number = 0; i < KNOWN_PIN.length; i++) {
+      await tapPinDialogKey(driver, KNOWN_PIN.charAt(i));
+    }
+    // ParentPinDialog auto-dismisses on a correct PIN, then the
+    // CustomDialog onConfirm pushes pages/ParentAdminPage. Allow a beat
+    // for the page transition + aboutToAppear (which also locks portrait).
+    await driver.delayMs(1500);
+    await driver.assertComponentExist(ON.id('ParentAdminTitle'));
+  } catch (err) {
+    throw err as Error;
   }
-  // ParentPinDialog auto-dismisses on a correct PIN, then the
-  // CustomDialog onConfirm pushes pages/ParentAdminPage. Allow a beat
-  // for the page transition + aboutToAppear (which also locks portrait).
-  await driver.delayMs(1500);
-  await driver.assertComponentExist(ON.id('ParentAdminTitle'));
 }
 
 /**
@@ -155,8 +186,12 @@ async function navigateToParentAdminPage(driver: Driver): Promise<void> {
  * matcher pass picks the realised components up.
  */
 async function scrollParentAdminToPublish(driver: Driver): Promise<void> {
-  await driver.swipe(360, 1000, 360, 300, 600);
-  await driver.delayMs(400);
+  try {
+    await driver.swipe(360, 1000, 360, 300, 600);
+    await driver.delayMs(400);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -166,8 +201,12 @@ async function scrollParentAdminToPublish(driver: Driver): Promise<void> {
  * because the back button lives at the very top of the page.
  */
 async function scrollParentAdminToTop(driver: Driver): Promise<void> {
-  await driver.swipe(360, 300, 360, 1000, 600);
-  await driver.delayMs(400);
+  try {
+    await driver.swipe(360, 300, 360, 1000, 600);
+    await driver.delayMs(400);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -178,16 +217,20 @@ async function scrollParentAdminToTop(driver: Driver): Promise<void> {
  * have to dismiss with pressBack instead of clicking it.
  */
 async function exitParentAdminPage(driver: Driver): Promise<void> {
-  // The page may have been scrolled down to expose publishCard during
-  // the test body. Scroll back up so the back button at the top is
-  // visible to the matcher.
-  await scrollParentAdminToTop(driver);
-  await clickByIdShared(driver, 'ParentAdminBack');
-  await driver.delayMs(1500);
-  await driver.assertComponentExist(ON.id('ConfigTitle'));
-  await driver.pressBack();
-  await driver.delayMs(800);
-  await driver.assertComponentExist(ON.id('HomeStartButton'));
+  try {
+    // The page may have been scrolled down to expose publishCard during
+    // the test body. Scroll back up so the back button at the top is
+    // visible to the matcher.
+    await scrollParentAdminToTop(driver);
+    await clickByIdShared(driver, 'ParentAdminBack');
+    await driver.delayMs(1500);
+    await driver.assertComponentExist(ON.id('ConfigTitle'));
+    await driver.pressBack();
+    await driver.delayMs(800);
+    await driver.assertComponentExist(ON.id('HomeStartButton'));
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -211,36 +254,43 @@ async function exitParentAdminPage(driver: Driver): Promise<void> {
  * a path that fs.open accepts. Returns the absolute path.
  */
 async function ensureLessonImportFixtureOnDevice(): Promise<string> {
-  const appCtx: common.Context = DELEGATOR.getAppContext();
-  const dest: string = `${appCtx.tempDir}/lesson_import_fixture.jpg`;
+  try {
+    const appCtx: common.Context = DELEGATOR.getAppContext();
+    const dest: string = `${appCtx.tempDir}/lesson_import_fixture.jpg`;
 
-  // Idempotent: if the file is already there from a previous it()
-  // we don't re-copy (saves ~226KB of fs.write per test invocation).
-  if (fs.accessSync(dest)) {
+    // Idempotent: if the file is already there from a previous it()
+    // we don't re-copy (saves ~226KB of fs.write per test invocation).
+    if (fs.accessSync(dest)) {
+      AppStorage.setOrCreate<string>(LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY, dest);
+      return dest;
+    }
+
+    // The fixture lives in the ohosTest module's rawfile, so we need
+    // a context scoped to the `entry_test` module to find its
+    // resourceManager. `appCtx.resourceManager` only sees the main
+    // module's (entry) resources — calling getRawFileContent through
+    // the app context fails with "GetRawFileContent failed".
+    // application.createModuleContext is the post-API-12 replacement for
+    // the deprecated `Context.createModuleContext(moduleName)` overload.
+    const moduleCtx: common.Context =
+      await application.createModuleContext(appCtx, 'entry_test');
+    const bytes: Uint8Array = await moduleCtx.resourceManager.getRawFileContent(
+      'lesson_import_fixture.jpg',
+    );
+    const file: fs.File = await fs.open(
+      dest,
+      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC,
+    );
+    try {
+      await fs.write(file.fd, bytes.buffer);
+    } finally {
+      await fs.close(file);
+    }
     AppStorage.setOrCreate<string>(LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY, dest);
     return dest;
+  } catch (err) {
+    throw err as Error;
   }
-
-  // The fixture lives in the ohosTest module's rawfile, so we need
-  // a context scoped to the `entry_test` module to find its
-  // resourceManager. `appCtx.resourceManager` only sees the main
-  // module's (entry) resources — calling getRawFileContent through
-  // the app context fails with "GetRawFileContent failed".
-  const moduleCtx: common.Context = appCtx.createModuleContext('entry_test');
-  const bytes: Uint8Array = await moduleCtx.resourceManager.getRawFileContent(
-    'lesson_import_fixture.jpg',
-  );
-  const file: fs.File = await fs.open(
-    dest,
-    fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC,
-  );
-  try {
-    await fs.write(file.fd, bytes.buffer);
-  } finally {
-    await fs.close(file);
-  }
-  AppStorage.setOrCreate<string>(LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY, dest);
-  return dest;
 }
 
 /**
@@ -249,16 +299,20 @@ async function ensureLessonImportFixtureOnDevice(): Promise<string> {
  * pattern that CustomWishlistFlow's typeInto uses for AddCustomWishDialog.
  */
 async function typeIntoAdmin(driver: Driver, id: string, text: string): Promise<void> {
-  await driver.assertComponentExist(ON.id(id));
-  const input = await driver.findComponent(ON.id(id));
-  await input.inputText(text);
-  await driver.delayMs(300);
-  await driver.pressBack();
-  await driver.delayMs(400);
+  try {
+    await driver.assertComponentExist(ON.id(id));
+    const input = await driver.findComponent(ON.id(id));
+    await input.inputText(text);
+    await driver.delayMs(300);
+    await driver.pressBack();
+    await driver.delayMs(400);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 export default function parentAdminFlowUiTest(): void {
-  describe('ParentAdminFlowV058', () => {
+  describe('ParentAdminFlow', () => {
     /**
      * The admin entry button lives on ConfigPage just below the
      * sync row. Renders unconditionally — the parent-PIN guard is

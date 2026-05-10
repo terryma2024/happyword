@@ -148,7 +148,7 @@ keep hitting `https://happyword.cool`. The orchestrator
 
 If you skip the script and run `aa test` directly, the test harness still
 sets the override URL — but with no mock listening the HTTP-driven flows
-(`ConfigSyncFlowV050B`, `ParentAdminFlowV058`) will all fail. To run the
+(`ParentAdminFlow`, `LessonDraftReviewFlow`, `PackManagerFlow`) will all fail. To run the
 suite from DevEco's "Run" UI, start the mock and rport mapping by hand
 first:
 

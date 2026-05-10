@@ -8,30 +8,45 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
 async function launchApp(): Promise<Driver> {
-  const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-  await DELEGATOR.startAbility(want);
-  const driver: Driver = Driver.create();
-  await driver.delayMs(1000);
-  return driver;
+  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
+  // helper body in try/catch+rethrow to silence the warning while
+  // preserving propagation to hypium's per-`it` handler.
+  try {
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    const driver: Driver = Driver.create();
+    await driver.delayMs(1000);
+    return driver;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 async function returnToHome(driver: Driver): Promise<void> {
-  for (let i: number = 0; i < 5; i++) {
-    const home: Component | null =
-      await driver.findComponent(ON.id('HomeStartButton'));
-    if (home !== null) {
-      return;
+  try {
+    for (let i: number = 0; i < 5; i++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
     }
-    await driver.pressBack();
-    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
   }
 }
 
 async function openReport(driver: Driver): Promise<void> {
-  await clickByIdShared(driver, 'HomePlanButton');
-  await driver.delayMs(1500);
-  await clickByIdShared(driver, 'TodayPlanReportButton');
-  await driver.delayMs(1500);
+  try {
+    await clickByIdShared(driver, 'HomePlanButton');
+    await driver.delayMs(1500);
+    await clickByIdShared(driver, 'TodayPlanReportButton');
+    await driver.delayMs(1500);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -42,8 +57,12 @@ async function openReport(driver: Driver): Promise<void> {
  * RoutingFlow / ConfigFlow / WishlistFlow.
  */
 async function scrollDownOnce(driver: Driver): Promise<void> {
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(500);
+  try {
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(500);
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
