@@ -51,7 +51,7 @@ async function openReport(driver: Driver): Promise<void> {
 
 /**
  * The report page renders 4-5 cards stacked vertically. On
- * shorter viewports the lower cards (review bar, category section)
+ * shorter viewports the lower cards (review bar, per-pack section)
  * fall below the fold and aren't returned by findComponent until
  * we scroll into them. Mirrors the swipe coordinates used by
  * RoutingFlow / ConfigFlow / WishlistFlow.
@@ -66,10 +66,16 @@ async function scrollDownOnce(driver: Driver): Promise<void> {
 }
 
 /**
- * V0.4.5 acceptance:
+ * V0.6.7.8 acceptance:
  *  - HomePage 📋 → TodayPlanPage; TodayPlanPage 📊 → LearningReportPage.
  *  - LearningReportPage surfaces title, accuracy big-number,
- *    mastered counter, review progress bar, and category section.
+ *    mastered counter, review progress bar, and per-pack section
+ *    (V0.4.5 keyed by category; V0.6.7.8 rewires this around the
+ *    three-layer pack model — see the spec at
+ *    docs/superpowers/specs/2026-05-10-learning-report-by-pack-design.md).
+ *  - The per-pack section renders one row per active pack; on a
+ *    fresh install the 5 builtin defaults are all active, so we
+ *    expect at least the `pack-fruit-forest` row to be in the tree.
  *  - Back navigation returns to TodayPlanPage; tapping back again
  *    returns to HomePage.
  *  - On a fresh install (no recorder data), the page renders the
@@ -85,15 +91,24 @@ export default function learningReportFlowUiTest(): void {
       // Title + accuracy live in the always-visible top of the page.
       await driver.assertComponentExist(ON.id('LearningReportTitle'));
       await driver.assertComponentExist(ON.id('LearningReportAccuracy'));
-      // Scroll once to surface the review bar + category section
+      // Scroll once to surface the review bar + per-pack section
       // below the fold; both should now exist in the a11y tree.
       await scrollDownOnce(driver);
       const reviewBar: Component | null =
         await driver.findComponent(ON.id('LearningReportReviewBar'));
-      const catSection: Component | null =
-        await driver.findComponent(ON.id('LearningReportCategorySection'));
+      const packSection: Component | null =
+        await driver.findComponent(ON.id('LearningReportPackSection'));
       expect(reviewBar !== null).assertTrue();
-      expect(catSection !== null).assertTrue();
+      expect(packSection !== null).assertTrue();
+      // First-launch active set seeds the 5 builtin packs (see
+      // PackSelectionService); the report renders one row per
+      // active pack, so at least `pack-fruit-forest` must be in
+      // the tree. A single id assertion keeps the test resilient
+      // to future ordering changes — exhaustive coverage of the
+      // sort rules lives in LearningReportBuilder.test.ets.
+      const fruitRow: Component | null =
+        await driver.findComponent(ON.id('pack-fruit-forest'));
+      expect(fruitRow !== null).assertTrue();
       done();
     });
 
