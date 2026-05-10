@@ -19,6 +19,11 @@ build-tmp/
 # Local configuration file (sdk path, etc)
 local.properties
 
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
 # Log/OS Files
 *.log
 

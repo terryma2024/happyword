@@ -6,13 +6,53 @@
 
 ## Screenshots
 
-| 首页与今日冒险 | 战斗答题 |
-| --- | --- |
-| ![Home](assets/screenshots/01-home.jpeg) | ![Battle](assets/screenshots/02-battle.jpeg) |
+Clients ship separate binaries; screenshots are grouped **by platform** under [`assets/screenshots/`](assets/screenshots/).
 
-| 怪物图鉴 | 今日学习计划 | 魔法愿望单 |
+### HarmonyOS NEXT (current reference UI)
+
+Captured from a landscape phone/tablet viewport (`2720×1260` PNG from `uitest screenCap`). Long pages use numbered strips (`config-part*.png`, `learning-report-part*.png`, `parent-admin-part*.png`). Regenerate on a connected device or emulator with:
+
+`python3 scripts/capture_harmony_screenshots.py` (see script docstring; requires `hdc`).
+
+| Home | Battle | Result |
 | --- | --- | --- |
-| ![Monster Codex](assets/screenshots/03-monster-codex.jpeg) | ![Today Plan](assets/screenshots/04-today-plan.jpeg) | ![Wishlist](assets/screenshots/05-wishlist.jpeg) |
+| ![Home](assets/screenshots/harmonyos/home.png) | ![Battle](assets/screenshots/harmonyos/battle.png) | ![Result](assets/screenshots/harmonyos/result.png) |
+
+| Monster codex (1 / 2) | Monster codex (2 / 2) | Today plan |
+| --- | --- | --- |
+| ![Codex 1](assets/screenshots/harmonyos/monster-codex-part1.png) | ![Codex 2](assets/screenshots/harmonyos/monster-codex-part2.png) | ![Today plan](assets/screenshots/harmonyos/today-plan.png) |
+
+| Learning report (strip 1 / 2) | Learning report (strip 2 / 2) | Wishlist |
+| --- | --- | --- |
+| ![LR 1](assets/screenshots/harmonyos/learning-report-part1.png) | ![LR 2](assets/screenshots/harmonyos/learning-report-part2.png) | ![Wishlist](assets/screenshots/harmonyos/wishlist.png) |
+
+| Redemption history | Pack manager | Parent PIN setup |
+| --- | --- | --- |
+| ![History](assets/screenshots/harmonyos/redemption-history.png) | ![Packs](assets/screenshots/harmonyos/pack-manager.png) | ![PIN](assets/screenshots/harmonyos/parent-pin-setup.png) |
+
+| Config (scroll 1–4) | Parent admin (portrait scroll 1–4) | Bound child profile |
+| --- | --- | --- |
+| ![C1](assets/screenshots/harmonyos/config-part1.png) | ![A1](assets/screenshots/harmonyos/parent-admin-part1.png) | ![Child](assets/screenshots/harmonyos/bound-device-info.png) |
+| ![C2](assets/screenshots/harmonyos/config-part2.png) | ![A2](assets/screenshots/harmonyos/parent-admin-part2.png) | |
+| ![C3](assets/screenshots/harmonyos/config-part3.png) | ![A3](assets/screenshots/harmonyos/parent-admin-part3.png) | |
+| ![C4](assets/screenshots/harmonyos/config-part4.png) | ![A4](assets/screenshots/harmonyos/parent-admin-part4.png) | |
+
+| Dev menu (debug) | Vercel bypass secret |
+| --- | --- |
+| ![Dev menu](assets/screenshots/harmonyos/dev-menu.png) | ![Bypass](assets/screenshots/harmonyos/bypass-secret.png) |
+
+**Not automated in the capture script (environment-dependent):**
+
+- **`pages/ScanBindingPage`** — the bind button is hidden when the device already has a parent binding; capture `scan-binding.png` manually from an **unbound** install or after clearing binding.
+- **`pages/LessonDraftReviewPage`** — needs at least one server-backed lesson draft in **pending**; capture manually from Parent admin when a row exists.
+
+### iOS (planned)
+
+Place future App Store / parity screenshots under [`assets/screenshots/ios/`](assets/screenshots/ios/).
+
+### Android (planned)
+
+Place future Play Store / parity screenshots under [`assets/screenshots/android/`](assets/screenshots/android/).
 
 ## Highlights
 
@@ -40,7 +80,7 @@ ios/         Native iOS client placeholder; Swift / SwiftUI later
 android/     Native Android client placeholder; Kotlin / Jetpack Compose later
 server/      FastAPI content backend, parent web, device APIs, Vercel config
 shared/      Contracts, schemas, and golden fixtures only
-assets/      Durable design-source assets, screenshots, audio, and variants
+assets/      Design-source assets; per-platform screenshots under assets/screenshots/{harmonyos,ios,android}/
 docs/        Product specs, roadmap, implementation plans, and runbooks
 tools/       Asset generation and deployment helpers
 scripts/     Root orchestration scripts
