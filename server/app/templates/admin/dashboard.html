@@ -1,0 +1,80 @@
+{% extends "admin/base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+<section class="space-y-8">
+  <header>
+    <h1 class="text-2xl font-semibold text-slate-900">System overview</h1>
+    <p class="text-sm text-slate-500 mt-1">Tenant-wide metrics (V0.8.2 admin console).</p>
+  </header>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Parent accounts</p>
+      <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.parent_users }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Families</p>
+      <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.families }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Device bindings</p>
+      <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.device_bindings_total }}</p>
+      <p class="text-xs text-slate-500 mt-2">Active {{ overview.device_bindings_active }} · Revoked {{ overview.device_bindings_revoked }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Global words (non-deleted)</p>
+      <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.global_words }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Family pack definitions</p>
+      <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.family_pack_definitions }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Published global pack version</p>
+      <p class="text-2xl font-semibold text-slate-900 mt-1">
+        {% if overview.global_pack_current_version is not none %}
+          v{{ overview.global_pack_current_version }}
+        {% else %}
+          —
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-slate-900">Recent audit events</h2>
+      <a href="/admin/audit-logs" class="text-sm text-sky-600 hover:underline">View all →</a>
+    </div>
+    {% if overview.recent_audits %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <tr>
+            <th class="px-4 py-2 font-medium">Time</th>
+            <th class="px-4 py-2 font-medium">Action</th>
+            <th class="px-4 py-2 font-medium">Actor</th>
+            <th class="px-4 py-2 font-medium">Target</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in overview.recent_audits %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-2 whitespace-nowrap text-slate-600 font-mono text-xs">{{ audit_ts(row.ts) }}</td>
+            <td class="px-4 py-2 text-slate-900">{{ row.action }}</td>
+            <td class="px-4 py-2 text-slate-600">{{ row.actor_role.value }}{% if row.actor_id %} · {{ row.actor_id }}{% endif %}</td>
+            <td class="px-4 py-2 text-slate-600">
+              {% if row.target_collection %}{{ row.target_collection }}{% endif %}
+              {% if row.target_id %} · {{ row.target_id }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="px-4 py-6 text-sm text-slate-500">No audit records yet.</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

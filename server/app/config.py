@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     parent_web_base_url: str = "http://localhost:3000"
     session_cookie_domain: str = ""
     session_cookie_name: str = "wm_session"
+    # V0.8.2 — system administrator HTML console (/admin/*), separate from parent wm_session
+    admin_session_cookie_name: str = "wm_admin_session"
+    admin_session_expire_hours: int = 24
     parent_session_expire_hours: int = 24 * 30  # 30 days hard cap
     parent_session_renew_after_days: int = 7  # renew when iat older than this
 

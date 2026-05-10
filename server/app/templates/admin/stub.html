@@ -1,0 +1,13 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<section class="space-y-4">
+  <header>
+    <h1 class="text-2xl font-semibold text-slate-900">{{ page_title }}</h1>
+    <p class="text-sm text-slate-600 mt-2">{{ description }}</p>
+  </header>
+  <p class="text-sm text-slate-500 border border-dashed border-slate-200 rounded-lg p-4 bg-white">
+    Detailed listings and high-risk actions (with reason + audit logging) will ship in follow-up commits for V0.8.2.
+  </p>
+</section>
+{% endblock %}

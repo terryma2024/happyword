@@ -33,6 +33,7 @@ from app.models.synced_word_stat import SyncedWordStat
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.models.word_pack import WordPack
+from app.routers import admin_pages as admin_pages_router
 from app.routers import admin_assets as admin_assets_router
 from app.routers import admin_categories as admin_categories_router
 from app.routers import admin_cron as admin_cron_router
@@ -169,6 +170,7 @@ app.include_router(parent_inbox_router.router)
 app.include_router(parent_inbox_router.html_router)
 app.include_router(parent_account_router.router)
 app.include_router(parent_account_router.html_router)
+app.include_router(admin_pages_router.router)
 app.include_router(child_family_pack_router.router)
 app.include_router(child_word_stats_router.router)
 app.include_router(child_wishlist_router.router)

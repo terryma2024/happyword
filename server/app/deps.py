@@ -84,6 +84,30 @@ def clear_parent_session_cookie(response: Response) -> None:
     )
 
 
+def set_admin_session_cookie(response: Response, token: str) -> None:
+    """V0.8.2 — cookie for `/admin/` HTML console (separate from parent `wm_session`)."""
+    settings = get_settings()
+    response.set_cookie(
+        key=settings.admin_session_cookie_name,
+        value=token,
+        max_age=settings.admin_session_expire_hours * 3600,
+        httponly=True,
+        secure=settings.parent_web_base_url.startswith("https"),
+        samesite="lax",
+        domain=settings.session_cookie_domain or None,
+        path="/",
+    )
+
+
+def clear_admin_session_cookie(response: Response) -> None:
+    settings = get_settings()
+    response.delete_cookie(
+        key=settings.admin_session_cookie_name,
+        domain=settings.session_cookie_domain or None,
+        path="/",
+    )
+
+
 async def current_parent_user(
     response: Response,
     cookie_token: str | None = Cookie(default=None, alias="wm_session"),
