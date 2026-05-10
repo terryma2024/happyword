@@ -2,7 +2,9 @@ import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { application, Want, common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
-import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import http from '@ohos.net.http';
+import preferences from '@ohos.data.preferences';
+import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
 import {
   SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY,
   SCAN_BINDING_PHOTO_PICKER_OVERRIDE_URI_KEY,
@@ -42,8 +44,93 @@ const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
+async function createEntryTestModuleContext(): Promise<common.Context> {
+  try {
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const uiCtx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
+    return await application.createModuleContext(uiCtx, 'entry_test');
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 const KNOWN_PIN: string = '123456';
 const VALID_SHORT_CODE: string = '345678';
+
+// Must match `PackManagerFlow.ui.test.ets` / `server/mock_ui_server.py` — after
+// PackManager seeds a mock redeem, the device prefs + mock server must be
+// reset before `unboundConfigPageRendersBindEntryOnly`.
+const MOCK_BASE_URL: string = 'http://127.0.0.1:8123';
+const MOCK_DEVICE_TOKEN: string = 'ui-mock-device-jwt';
+const PREFS_CLOUD: string = 'wordmagic_cloud';
+
+async function mockHttp(
+  method: http.RequestMethod,
+  path: string,
+  body: string,
+  bearer: string,
+): Promise<string> {
+  try {
+    const req: http.HttpRequest = http.createHttp();
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (bearer.length > 0) {
+        headers['Authorization'] = `Bearer ${bearer}`;
+      }
+      const opts: http.HttpRequestOptions = {
+        method,
+        header: headers,
+        extraData: body,
+        connectTimeout: 5000,
+        readTimeout: 5000,
+      };
+      const resp: http.HttpResponse = await req.request(`${MOCK_BASE_URL}${path}`, opts);
+      return typeof resp.result === 'string' ? resp.result : '';
+    } catch (_err) {
+      return '';
+    } finally {
+      try {
+        req.destroy();
+      } catch (_err) {
+        // Best-effort destroy.
+      }
+    }
+  } catch (_err) {
+    return '';
+  }
+}
+
+async function unbindMockBinding(): Promise<void> {
+  await mockHttp(http.RequestMethod.POST, '/api/v1/child/unbind', '{}', MOCK_DEVICE_TOKEN);
+}
+
+async function wipeBoundDeviceState(): Promise<void> {
+  try {
+    const ctx: common.Context = DELEGATOR.getAppContext();
+    const handle: preferences.Preferences =
+      await preferences.getPreferences(ctx, PREFS_CLOUD);
+    await handle.put('device_token', '');
+    await handle.put('binding_id', '');
+    await handle.put('family_id', '');
+    await handle.put('child_profile_id', '');
+    await handle.put('nickname', '');
+    await handle.put('avatar_emoji', '');
+    await handle.put('paired_at_ms', '0');
+    await handle.flush();
+  } catch (_err) {
+    // Best-effort — same rationale as PackManagerFlow.wipeBoundDeviceState.
+  }
+}
+
+/**
+ * ParentBindingFlow runs after PackManagerFlow. PackManager may leave both
+ * the mock server's binding slot and `wordmagic_cloud` prefs populated; the
+ * first unbound-only case must start clean.
+ */
+async function resetMockAndPrefsToUnbound(): Promise<void> {
+  await unbindMockBinding();
+  await wipeBoundDeviceState();
+}
 
 async function launchApp(): Promise<Driver> {
   // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
@@ -62,7 +149,7 @@ async function launchApp(): Promise<Driver> {
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
-    for (let i: number = 0; i < 6; i++) {
+    for (let i: number = 0; i < 12; i++) {
       const home: Component | null =
         await driver.findComponent(ON.id('HomeStartButton'));
       if (home !== null) {
@@ -145,6 +232,30 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
   }
 }
 
+async function waitForParentPinSetupKeypad(driver: Driver, maxMs: number): Promise<boolean> {
+  try {
+    const stepMs: number = 300;
+    let waited: number = 0;
+    let nudge: number = 0;
+    while (waited < maxMs) {
+      const k: Component | null =
+        await driver.findComponent(ON.id('ParentPinSetupKey_1'));
+      if (k !== null) {
+        return true;
+      }
+      nudge += 1;
+      if (nudge % 4 === 0) {
+        await driver.swipe(360, 880, 360, 420, 550);
+      }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
+    }
+    return false;
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
   try {
     await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
@@ -163,19 +274,12 @@ async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   try {
     await openConfigPage(driver);
-    // Scroll until the parent-PIN button is in view. The form grew with
-    // V0.6.2/.4/.7 additions so a single swipe is no longer guaranteed.
-    for (let attempt: number = 0; attempt < 4; attempt++) {
-      const c: Component | null =
-        await driver.findComponent(ON.id('ConfigParentPinButton'));
-      if (c !== null) {
-        break;
-      }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
-      await driver.delayMs(400);
-    }
+    await scrollToParentPinButton(driver);
     await clickByIdShared(driver, 'ConfigParentPinButton');
-    await driver.delayMs(1500);
+    const keypadReady: boolean = await waitForParentPinSetupKeypad(driver, 12000);
+    if (!keypadReady) {
+      throw new Error('ParentPinSetup keypad not reachable');
+    }
     for (let i: number = 0; i < pin.length; i++) {
       await tapPinSetupKey(driver, pin.charAt(i));
     }
@@ -271,10 +375,7 @@ async function ensureScanBindingQrFixtureOnDevice(): Promise<string> {
     if (fs.accessSync(dest)) {
       return dest;
     }
-    // application.createModuleContext is the post-API-12 replacement for
-    // the deprecated `Context.createModuleContext(moduleName)` overload.
-    const moduleCtx: common.Context =
-      await application.createModuleContext(appCtx, 'entry_test');
+    const moduleCtx: common.Context = await createEntryTestModuleContext();
     const bytes: Uint8Array = await moduleCtx.resourceManager.getRawFileContent(
       SCAN_QR_FIXTURE_NAME,
     );
@@ -325,6 +426,7 @@ export default function parentBindingFlowUiTest(): void {
      * was removed; unbind lives on BoundDeviceInfoPage now.)
      */
     it('unboundConfigPageRendersBindEntryOnly', 0, async (done: Function) => {
+      await resetMockAndPrefsToUnbound();
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfigPage(driver);
