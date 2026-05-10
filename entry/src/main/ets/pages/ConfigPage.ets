@@ -301,7 +301,7 @@ struct ConfigPage {
   @Builder
   private adminRow() {
     Row() {
-      Text('家长').fontSize(18).width(120);
+      Text('管理后台').fontSize(18).width(120);
       Button('家长管理后台')
         .id('ConfigParentAdminButton')
         .width(220).height(40)

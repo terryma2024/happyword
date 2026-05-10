@@ -102,7 +102,7 @@ def create_device_token(
     *,
     binding_id: str,
     child_profile_id: str,
-    expires_in_days: int = 30,
+    expires_in_days: int = 365,
 ) -> str:
     """V0.6.2 — long-lived device token issued at pair-redeem time.
 
