@@ -61,4 +61,4 @@ async def build_admin_overview(*, audit_preview_limit: int = 12) -> AdminOvervie
 def format_audit_timestamp(ts: datetime) -> str:
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=UTC)
-    return ts.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    return ts.astimezone(UTC).strftime("%Y-%m-%d %H:%M") + "（UTC）"

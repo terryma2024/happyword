@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% block title %}设备绑定{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">设备绑定</h1>
+      <p class="text-sm text-slate-500 mt-1">按绑定 ID、设备 ID、家庭编号搜索。</p>
+    </div>
+    <form method="get" action="/admin/devices" class="flex flex-wrap gap-2 items-center">
+      <input type="search" name="q" value="{{ q or '' }}" placeholder="关键词…"
+             class="rounded-md border border-slate-300 px-3 py-2 text-sm w-56" />
+      <button type="submit" class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">搜索</button>
+    </form>
+  </header>
+
+  {% if flash_ok %}<p class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2">{{ flash_ok }}</p>{% endif %}
+  {% if flash_err %}<p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{{ flash_err }}</p>{% endif %}
+
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <tr>
+          <th class="px-4 py-2">绑定 ID</th>
+          <th class="px-4 py-2">家庭</th>
+          <th class="px-4 py-2">设备 ID</th>
+          <th class="px-4 py-2">孩子档案</th>
+          <th class="px-4 py-2">状态</th>
+          <th class="px-4 py-2"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for b in bindings %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-2 font-mono text-xs">{{ b.binding_id }}</td>
+          <td class="px-4 py-2 font-mono text-xs">{{ b.family_id }}</td>
+          <td class="px-4 py-2 font-mono text-xs">{{ b.device_id }}</td>
+          <td class="px-4 py-2 font-mono text-xs">{{ b.child_profile_id }}</td>
+          <td class="px-4 py-2">{% if b.revoked_at %}<span class="text-red-600">已撤销</span>{% else %}<span class="text-emerald-700">有效</span>{% endif %}</td>
+          <td class="px-4 py-2 text-right">
+            {% if not b.revoked_at %}
+            <a href="/admin/devices/{{ b.binding_id }}/revoke" class="text-sm text-red-600 hover:underline">撤销绑定</a>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">暂无记录。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_pages > 1 %}
+  <nav class="flex gap-2 text-sm flex-wrap">
+    {% for pn in page_nums %}
+      {% if pn == page %}
+        <span class="px-3 py-1 rounded bg-slate-200">{{ pn }}</span>
+      {% else %}
+        <a href="/admin/devices?q={{ q|urlencode }}&page={{ pn }}" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50">{{ pn }}</a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

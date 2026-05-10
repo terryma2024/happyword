@@ -1,0 +1,48 @@
+{% extends "admin/base.html" %}
+{% block title %}编辑词条 · {{ definition.name }}{% endblock %}
+{% block content %}
+<section class="space-y-6 max-w-3xl">
+  <p class="text-sm">
+    <a href="/admin/global-packs/packs/{{ pack_id }}" class="text-sky-600 hover:underline">← 返回词包</a>
+  </p>
+
+  <header>
+    <h1 class="text-xl font-semibold text-slate-900">编辑草稿词条</h1>
+    <p class="text-sm text-slate-500 mt-1 font-mono">{{ word_id }} · {{ definition.name }}</p>
+  </header>
+
+  {% if flash_err %}<p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{{ flash_err }}</p>{% endif %}
+
+  <form method="post" action="/admin/global-packs/packs/{{ pack_id }}/draft/save" class="space-y-4 bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
+    <input type="hidden" name="word_id" value="{{ word_id }}" />
+
+    <label class="block text-sm text-slate-700">英文词 <span class="text-red-500">*</span>
+      <input type="text" name="word" required maxlength="64" value="{{ row.word | default('', true) }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+    </label>
+    <label class="block text-sm text-slate-700">中文义 <span class="text-red-500">*</span>
+      <input type="text" name="meaning_zh" required maxlength="128" value="{{ (row.meaningZh or row.meaning_zh or '') }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+    </label>
+    <label class="block text-sm text-slate-700">分类 <span class="text-red-500">*</span>
+      <input type="text" name="category" required maxlength="64" value="{{ row.category | default('', true) }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+    </label>
+    <label class="block text-sm text-slate-700">难度 1–5
+      <input type="number" name="difficulty" min="1" max="5" value="{{ row.difficulty | default(1) }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+    </label>
+    <label class="block text-sm text-slate-700">英文例句（可选）
+      <input type="text" name="example_en" maxlength="200" value="{{ (row.exampleEn or row.example_en or '') }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+    </label>
+    <label class="block text-sm text-slate-700">中文例句（可选）
+      <input type="text" name="example_zh" maxlength="200" value="{{ (row.exampleZh or row.example_zh or '') }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+    </label>
+    <label class="block text-sm text-slate-700">干扰项（可选，逗号分隔）
+      <input type="text" name="distractors" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+        value="{% if row.distractors %}{% if row.distractors is string %}{{ row.distractors }}{% else %}{{ row.distractors | join(', ') }}{% endif %}{% endif %}" />
+    </label>
+
+    <div class="flex flex-wrap gap-3 pt-2">
+      <button type="submit" class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">保存</button>
+      <a href="/admin/global-packs/packs/{{ pack_id }}" class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">取消</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

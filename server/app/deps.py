@@ -149,6 +149,16 @@ async def current_parent_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": {"code": "UNAUTHORIZED", "message": "Parent not found"}},
         )
+    if user.parent_login_suspended_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": {
+                    "code": "PARENT_LOGIN_SUSPENDED",
+                    "message": "Parent account login is suspended by an administrator.",
+                }
+            },
+        )
 
     # Cookie renewal: only when authenticated via cookie AND token iat is stale.
     if via_cookie:

@@ -11,11 +11,12 @@ from __future__ import annotations
 import secrets
 from typing import TYPE_CHECKING, Any
 
+from app.models.family_pack_draft import FamilyPackDraft
+from app.services import family_pack_import_service
 from app.services import family_pack_service as fps
 
 if TYPE_CHECKING:
     from app.models.family_pack_definition import FamilyPackDefinition
-    from app.models.family_pack_draft import FamilyPackDraft
     from app.models.family_pack_pointer import FamilyPackPointer
     from app.models.family_word_pack import FamilyWordPack
 
@@ -184,3 +185,20 @@ async def current_pack(
 
 async def collect_merged() -> tuple[list[fps.MergedSlice], str]:
     return await fps.collect_merged(family_id=GLOBAL_PACK_FAMILY_ID)
+
+
+async def import_image_to_draft(
+    *,
+    pack_id: str,
+    admin_id: str,
+    payload: bytes,
+    mime: str,
+) -> tuple[str, str, int, FamilyPackDraft, list[dict[str, Any]]]:
+    """Vision-parse an image and upsert extracted rows into the pack draft."""
+    definition = await get_definition(pack_id=pack_id)
+    return await family_pack_import_service.import_image_to_draft(
+        definition=definition,
+        payload=payload,
+        mime=mime,
+        parent_user_id=admin_id,
+    )

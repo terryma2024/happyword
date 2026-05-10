@@ -32,6 +32,7 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `NO_PREVIOUS_VERSION` | 409 | Family/global packs | Rollback requested but no previous version exists. |
 | `PACK_FULL` | 409 | Family/global packs | Draft pack exceeds the word limit. |
 | `PACK_NOT_FOUND` | 404 | Family/global packs | Pack definition or published version does not exist. |
+| `PARENT_LOGIN_SUSPENDED` | 403 | Parent auth / deps | Parent account login is suspended by an administrator; OTP session invalid. |
 | `PAIR_FAILED` | 400 | Pairing | Pair service rejected redeem operation. |
 | `PROFILE_NOT_FOUND` | 404 | Wishlist service | Child profile does not exist for wishlist operation. |
 | `RATE_LIMITED` | 429 | Pairing | Too many pair-token create requests. |

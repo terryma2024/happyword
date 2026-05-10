@@ -59,8 +59,8 @@ async def test_admin_login_sets_cookie_and_overview_renders(client: AsyncClient)
 
     dash = await client.get("/admin/")
     assert dash.status_code == 200
-    assert b"System overview" in dash.content
-    assert b"Parent accounts" in dash.content
+    assert "系统总览" in dash.text
+    assert "家长账户数" in dash.text
 
 
 @pytest.mark.asyncio

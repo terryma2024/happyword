@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/static/favicon.png" />
-  <title>{% block title %}Admin{% endblock %} · WordMagicGame</title>
+  <title>{% block title %}管理后台{% endblock %} · 快乐背单词</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
@@ -12,20 +12,20 @@
   <header class="border-b border-slate-200 bg-white">
     <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-4 text-sm">
-        <a href="/admin/" class="font-semibold text-slate-900">System admin</a>
+        <a href="/admin/" class="font-semibold text-slate-900">系统管理</a>
         <nav class="flex flex-wrap gap-3 text-slate-600">
-          <a href="/admin/parents" class="hover:text-sky-700">Parents</a>
-          <a href="/admin/devices" class="hover:text-sky-700">Devices</a>
-          <a href="/admin/global-packs" class="hover:text-sky-700">Global packs</a>
-          <a href="/admin/family-packs" class="hover:text-sky-700">Family packs</a>
-          <a href="/admin/audit-logs" class="hover:text-sky-700">Audit logs</a>
+          <a href="/admin/parents" class="hover:text-sky-700">家长账户</a>
+          <a href="/admin/devices" class="hover:text-sky-700">设备绑定</a>
+          <a href="/admin/global-packs" class="hover:text-sky-700">全局词库</a>
+          <a href="/admin/family-packs" class="hover:text-sky-700">家庭词库</a>
+          <a href="/admin/audit-logs" class="hover:text-sky-700">审计日志</a>
         </nav>
       </div>
       {% if admin_user %}
       <form method="post" action="/admin/logout" class="inline">
         <button type="submit"
                 class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-1.5 rounded-md">
-          Sign out ({{ admin_user.username }})
+          退出登录（{{ admin_user.username }}）
         </button>
       </form>
       {% endif %}

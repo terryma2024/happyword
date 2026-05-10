@@ -34,7 +34,7 @@ from app.services.auth_service import (
     create_session_token,
     decode_typed_token,
 )
-from app.services.family_service import create_family_for_parent
+from app.services.family_service import ParentLoginSuspended, create_family_for_parent
 from app.services.notification_service import (
     EmailDeliveryDegraded,
     send_otp_email,
@@ -181,7 +181,19 @@ async def post_verify_code_form(
             status_code=400,
         )
 
-    _, user = await create_family_for_parent(email=email_norm)
+    try:
+        _, user = await create_family_for_parent(email=email_norm)
+    except ParentLoginSuspended:
+        return templates.TemplateResponse(
+            request,
+            "parent/verify.html",
+            {
+                "user": None,
+                "email": email_norm,
+                "error": "该家长账号已被管理员暂停登录，请联系支持。",
+            },
+            status_code=403,
+        )
     token = create_session_token(role="parent", identifier=user.username)
     redirect = RedirectResponse(url="/parent/", status_code=303)
     set_parent_session_cookie(redirect, token)

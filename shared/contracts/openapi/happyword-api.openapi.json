@@ -266,6 +266,20 @@
         "title": "Body_import_image_submit_parent_packs__pack_id__import_post",
         "type": "object"
       },
+      "Body_import_image_to_global_pack_draft_api_v1_admin_global_packs__pack_id__import_image_post": {
+        "properties": {
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_import_image_to_global_pack_draft_api_v1_admin_global_packs__pack_id__import_image_post",
+        "type": "object"
+      },
       "Body_import_image_to_pack_api_v1_parent_family_packs__pack_id__import_image_post": {
         "properties": {
           "image": {
@@ -2385,6 +2399,47 @@
           "difficulty"
         ],
         "title": "GlobalPackDraftWordIn",
+        "type": "object"
+      },
+      "GlobalPackImportImageOut": {
+        "description": "Response from POST `/api/v1/admin/global-packs/{pack_id}/import-image`.",
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/FamilyPackDraftOut"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/FamilyPackDraftWordBatchError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "imported_count": {
+            "title": "Imported Count",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "source_image_url": {
+            "title": "Source Image Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack_id",
+          "source_image_url",
+          "imported_count",
+          "model",
+          "draft",
+          "errors"
+        ],
+        "title": "GlobalPackImportImageOut",
         "type": "object"
       },
       "GlobalPackPatchIn": {
@@ -5190,6 +5245,63 @@
           }
         ],
         "summary": "Upsert Draft Word",
+        "tags": [
+          "admin-global-pack"
+        ]
+      }
+    },
+    "/api/v1/admin/global-packs/{pack_id}/import-image": {
+      "post": {
+        "operationId": "import_image_to_global_pack_draft_api_v1_admin_global_packs__pack_id__import_image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_image_to_global_pack_draft_api_v1_admin_global_packs__pack_id__import_image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalPackImportImageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Image To Global Pack Draft",
         "tags": [
           "admin-global-pack"
         ]

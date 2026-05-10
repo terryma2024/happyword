@@ -1,36 +1,36 @@
 {% extends "admin/base.html" %}
-{% block title %}Overview{% endblock %}
+{% block title %}总览{% endblock %}
 {% block content %}
 <section class="space-y-8">
   <header>
-    <h1 class="text-2xl font-semibold text-slate-900">System overview</h1>
-    <p class="text-sm text-slate-500 mt-1">Tenant-wide metrics (V0.8.2 admin console).</p>
+    <h1 class="text-2xl font-semibold text-slate-900">系统总览</h1>
+    <p class="text-sm text-slate-500 mt-1">按租户汇总的关键指标（V0.8.2 系统管理后台）。</p>
   </header>
 
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
     <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-      <p class="text-xs uppercase tracking-wide text-slate-500">Parent accounts</p>
+      <p class="text-xs uppercase tracking-wide text-slate-500">家长账户数</p>
       <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.parent_users }}</p>
     </div>
     <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-      <p class="text-xs uppercase tracking-wide text-slate-500">Families</p>
+      <p class="text-xs uppercase tracking-wide text-slate-500">家庭数</p>
       <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.families }}</p>
     </div>
     <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-      <p class="text-xs uppercase tracking-wide text-slate-500">Device bindings</p>
+      <p class="text-xs uppercase tracking-wide text-slate-500">设备绑定</p>
       <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.device_bindings_total }}</p>
-      <p class="text-xs text-slate-500 mt-2">Active {{ overview.device_bindings_active }} · Revoked {{ overview.device_bindings_revoked }}</p>
+      <p class="text-xs text-slate-500 mt-2">活跃 {{ overview.device_bindings_active }} · 已撤销 {{ overview.device_bindings_revoked }}</p>
     </div>
     <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-      <p class="text-xs uppercase tracking-wide text-slate-500">Global words (non-deleted)</p>
+      <p class="text-xs uppercase tracking-wide text-slate-500">全局词条（未删除）</p>
       <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.global_words }}</p>
     </div>
     <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-      <p class="text-xs uppercase tracking-wide text-slate-500">Family pack definitions</p>
+      <p class="text-xs uppercase tracking-wide text-slate-500">家庭词包定义数</p>
       <p class="text-2xl font-semibold text-slate-900 mt-1">{{ overview.family_pack_definitions }}</p>
     </div>
     <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
-      <p class="text-xs uppercase tracking-wide text-slate-500">Published global pack version</p>
+      <p class="text-xs uppercase tracking-wide text-slate-500">当前已发布全局词包版本</p>
       <p class="text-2xl font-semibold text-slate-900 mt-1">
         {% if overview.global_pack_current_version is not none %}
           v{{ overview.global_pack_current_version }}
@@ -43,18 +43,18 @@
 
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
     <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-      <h2 class="text-lg font-semibold text-slate-900">Recent audit events</h2>
-      <a href="/admin/audit-logs" class="text-sm text-sky-600 hover:underline">View all →</a>
+      <h2 class="text-lg font-semibold text-slate-900">最近审计事件</h2>
+      <a href="/admin/audit-logs" class="text-sm text-sky-600 hover:underline">查看全部 →</a>
     </div>
     {% if overview.recent_audits %}
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
         <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
           <tr>
-            <th class="px-4 py-2 font-medium">Time</th>
-            <th class="px-4 py-2 font-medium">Action</th>
-            <th class="px-4 py-2 font-medium">Actor</th>
-            <th class="px-4 py-2 font-medium">Target</th>
+            <th class="px-4 py-2 font-medium">时间</th>
+            <th class="px-4 py-2 font-medium">操作</th>
+            <th class="px-4 py-2 font-medium">操作者</th>
+            <th class="px-4 py-2 font-medium">对象</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -73,7 +73,7 @@
       </table>
     </div>
     {% else %}
-    <p class="px-4 py-6 text-sm text-slate-500">No audit records yet.</p>
+    <p class="px-4 py-6 text-sm text-slate-500">暂无审计记录。</p>
     {% endif %}
   </section>
 </section>
