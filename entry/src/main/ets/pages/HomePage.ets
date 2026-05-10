@@ -193,10 +193,28 @@ struct HomePage {
     this.refreshBoundChild().catch((err: BusinessError): void => {
       console.error(`HomePage: refreshBoundChild failed: ${JSON.stringify(err)}`);
     });
-    // V0.6.5.1: ConfigPage may have changed the active set or pinned
-    // a pack while we were away. Re-apply on every page-show so the
-    // chip row reflects the latest selection without a full reload.
-    this.applyActivePacks();
+    // V0.6.5.1: ConfigPage / PackManagerPage may have changed the
+    // active set or pinned a pack while we were away. Re-apply on
+    // every page-show so the chip row reflects the latest selection.
+    //
+    // V0.6.7.4: PackManagerPage / ConfigPage build their own
+    // `loadHomeIntegration` bundle, so the `selection` instance
+    // they mutate is *not* the same `PackSelectionService` HomePage
+    // cached in `aboutToAppear`. Calling `applyActivePacks()` alone
+    // would read stale activeIds and toggling packs in the manager
+    // would have no visible effect on the chip row or AdventureCard.
+    // Reload the bundle on every onPageShow — `loadHomeIntegration`
+    // re-reads the (typically warm) PackLibrary plus a single
+    // preferences blob via PackSelectionService.init, so the cost is
+    // small but the propagation guarantee is now correct.
+    const ctxShow: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    loadHomeIntegration(ctxShow).then((bundle: HomeIntegrationBundle): void => {
+      this.homeIntegration = bundle;
+      this.applyActivePacks();
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage: loadHomeIntegration on show failed: ${JSON.stringify(err)}`);
+    });
   }
 
   aboutToDisappear(): void {
@@ -228,17 +246,19 @@ struct HomePage {
   }
 
   /**
-   * V0.5.E overlay: prefer the server `labelZh` for the given region id
-   * when available, otherwise fall back to the bundled `displayName`.
+   * V0.6.7.5: HomePage labels — the `AdventureCardTitle` heading and
+   * the chip row — now follow PackManagerPage's English convention
+   * (V0.6.7 spec: 词包名字用英文). `region.displayName` is sourced
+   * from `pack.name` via `regionFromPack`, so the heading is
+   * deterministically the English pack name regardless of whether
+   * the server pushed a `categoryCatalog` overlay.
+   *
+   * The legacy V0.5.E `categoryCatalog` Chinese overlay is no longer
+   * consulted from this path; the cache + sync machinery is kept so
+   * the storyZh body copy in `regionStory` and any future Chinese-
+   * label use-case still has a hook.
    */
   private regionLabel(region: AdventureRegion): string {
-    // Read this.categoryCatalogVersion here so any @State-bound caller
-    // re-runs when setRows() bumps the version. ArkUI does not track
-    // through helper methods, so the caller must read the @State too.
-    const overlay: CategoryRow | undefined = this.categoryCatalog.getById(region.id);
-    if (overlay !== undefined && overlay.labelZh.length > 0) {
-      return overlay.labelZh;
-    }
     return region.displayName;
   }
 
@@ -679,15 +699,16 @@ struct HomePage {
   }
 
   /**
-   * V0.6.5.1: chip label resolution prefers the pack's own `labelZh`
-   * (set by the parent in ConfigPage / family-pack flow), then the
-   * server-side category overlay (CategoryCatalog) keyed by id, then
-   * the pack's English name.
+   * V0.6.7.5: chip label is the English `p.name` to match
+   * PackManagerPage. Previously this preferred `p.labelZh` (Chinese)
+   * and fell through to the category-catalog overlay, which produced
+   * the mixed-language chip row reported as a bug — `animal-safari`
+   * / `ocean-realm` had global overrides with empty `description`
+   * (so labelZh was blanked) and rendered in English, while the
+   * rest stayed in Chinese. Locking the chip text to `p.name` makes
+   * the row deterministic and consistent with the 我的词包 page.
    */
   private packChipLabel(p: Pack): string {
-    if (p.labelZh.length > 0) return p.labelZh;
-    const overlay: CategoryRow | undefined = this.categoryCatalog.getById(p.id);
-    if (overlay !== undefined && overlay.labelZh.length > 0) return overlay.labelZh;
     if (p.name.length > 0) return p.name;
     return p.id;
   }
