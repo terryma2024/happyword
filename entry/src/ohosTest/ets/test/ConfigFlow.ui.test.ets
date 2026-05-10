@@ -32,6 +32,23 @@ async function openConfig(driver: Driver): Promise<void> {
   await driver.delayMs(1500);
 }
 
+/**
+ * V0.6.5.1: scroll iteratively until ConfigParentPinButton is on
+ * screen. The 📦 packPickerSection between autoSpeak and parentPin
+ * can require multiple swipes on the landscape emulator viewport.
+ */
+async function scrollToParentPinButton(driver: Driver): Promise<void> {
+  for (let attempt: number = 0; attempt < 5; attempt++) {
+    const btn: Component | null =
+      await driver.findComponent(ON.id('ConfigParentPinButton'));
+    if (btn !== null) {
+      return;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(300);
+  }
+}
+
 async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
   await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
   await driver.delayMs(80);
@@ -60,12 +77,10 @@ export default function configFlowUiTest(): void {
       await returnToHome(driver);
       await openConfig(driver);
 
-      // Row is rendered after categoryRow; on the narrow landscape
-      // emulator the form is taller than the viewport, so swipe up
-      // before locating the button (mirrors the helper used by
-      // RoutingFlow).
-      await driver.swipe(1400, 1100, 1400, 300, 600);
-      await driver.delayMs(300);
+      // V0.6.5.1: iterate scroll until the parent-PIN button is
+      // visible — packPickerSection can push it below the fold on
+      // the narrow landscape emulator viewport.
+      await scrollToParentPinButton(driver);
       await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
 
       await clickByIdShared(driver, 'ConfigParentPinButton');
@@ -97,8 +112,7 @@ export default function configFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfig(driver);
-      await driver.swipe(1400, 1100, 1400, 300, 600);
-      await driver.delayMs(300);
+      await scrollToParentPinButton(driver);
       await clickByIdShared(driver, 'ConfigParentPinButton');
       await driver.delayMs(1200);
 
@@ -140,8 +154,7 @@ export default function configFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfig(driver);
-      await driver.swipe(1400, 1100, 1400, 300, 600);
-      await driver.delayMs(300);
+      await scrollToParentPinButton(driver);
       await clickByIdShared(driver, 'ConfigParentPinButton');
       await driver.delayMs(1200);
 

@@ -50,8 +50,18 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   await clickByIdShared(driver, 'HomeConfigButton');
   await driver.delayMs(1500);
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(300);
+  // V0.6.5.1: scroll iteratively until ConfigParentPinButton is on
+  // screen — the 📦 packPickerSection added in V0.6.5.1 means a
+  // single swipe is no longer guaranteed to expose the row.
+  for (let attempt: number = 0; attempt < 5; attempt++) {
+    const btn: Component | null =
+      await driver.findComponent(ON.id('ConfigParentPinButton'));
+    if (btn !== null) {
+      break;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(300);
+  }
   await clickByIdShared(driver, 'ConfigParentPinButton');
   await driver.delayMs(1200);
 

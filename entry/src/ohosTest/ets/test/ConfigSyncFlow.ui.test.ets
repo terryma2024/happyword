@@ -71,8 +71,18 @@ async function openConfigAndScrollToSync(driver: Driver): Promise<void> {
   await clickByIdShared(driver, 'HomeConfigButton');
   await driver.delayMs(1500);
   await driver.assertComponentExist(ON.id('ConfigTitle'));
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(400);
+  // V0.6.5.1: the 📦 packPickerSection adds 5+ pack rows between
+  // autoSpeak and the sync row, so a single swipe is no longer
+  // enough. Iterate until ConfigSyncButton is on screen.
+  for (let attempt: number = 0; attempt < 5; attempt++) {
+    const sync: Component | null =
+      await driver.findComponent(ON.id('ConfigSyncButton'));
+    if (sync !== null) {
+      return;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(400);
+  }
 }
 
 /**

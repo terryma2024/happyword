@@ -44,29 +44,6 @@ async function launchApp(): Promise<Driver> {
 }
 
 /**
- * Ensure a category chip ends in the requested selected state,
- * regardless of starting state. Reads chip selection from the chip's
- * text (ConfigPage prefixes active chips with "✓") so helpers are
- * idempotent across tests that share AppStorage.
- *
- * Button.selected() is not part of ButtonAttribute in this ArkTS
- * toolchain, so the ✓ prefix is the simplest introspection channel.
- *
- * Guard: toggleCategory silently refuses to turn off the last active
- * category. Callers must turn wanted chips ON before turning unwanted
- * ones OFF so the guard never fires mid-helper.
- */
-async function setChipSelected(driver: Driver, chipId: string, wantSelected: boolean): Promise<void> {
-  const chip = await driver.findComponent(ON.id(chipId));
-  const text: string = await chip.getText();
-  const isOn: boolean = text.indexOf('✓') === 0;
-  if (isOn !== wantSelected) {
-    await chip.click();
-    await driver.delayMs(80);
-  }
-}
-
-/**
  * Click the button with the given id after asserting it exists. `findComponent`
  * alone returns null when the component is missing and the subsequent `.click`
  * throws a confusing "Cannot read property click of null" — asserting first
@@ -153,12 +130,7 @@ const WORD_MAP: WordMapEntry[] = [
   { zh: '门', en: 'door' },
   { zh: '窗户', en: 'window' },
   { zh: '书', en: 'book' },
-  { zh: '杯子', en: 'cup' },
-  // Custom-word entries used by configCustomWordsOnly_oneShotVictory.
-  // Kept in lock-step with CUSTOM_TEST_RAW below.
-  { zh: '一只狗', en: 'dog' },
-  { zh: '一只猫', en: 'cat' },
-  { zh: '太阳', en: 'sun' }
+  { zh: '杯子', en: 'cup' }
 ];
 
 function lookupEnglishAnswer(zhPrompt: string): string {
@@ -204,42 +176,6 @@ async function tapCorrectAnswer(driver: Driver): Promise<string> {
 }
 
 /**
- * Ten Chinese prompts in the 'fruit' category. When GameConfig restricts
- * enabledCategories to ['fruit'], every question's prompt MUST be in
- * this set — asserting it makes category filtering visible in output.
- */
-const FRUIT_PROMPTS: string[] = [
-  '苹果', '香蕉', '橙子', '葡萄', '梨',
-  '桃子', '柠檬', '芒果', '瓜', '樱桃'
-];
-
-function isFruitPrompt(prompt: string): boolean {
-  for (let i = 0; i < FRUIT_PROMPTS.length; i++) {
-    if (FRUIT_PROMPTS[i] === prompt) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Prompts used in the custom-words E2E test. Kept in lock-step with the
- * raw text passed to openCustomWordsAndSave in that test AND with the
- * WORD_MAP additions above so tapCorrectAnswer can resolve them.
- */
-const CUSTOM_TEST_PROMPTS: string[] = ['一只狗', '一只猫', '太阳'];
-const CUSTOM_TEST_RAW: string = '一只狗:dog\n一只猫:cat\n太阳:sun';
-
-function isCustomTestPrompt(prompt: string): boolean {
-  for (let i = 0; i < CUSTOM_TEST_PROMPTS.length; i++) {
-    if (CUSTOM_TEST_PROMPTS[i] === prompt) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Inverse of tapCorrectAnswer: reads the current prompt, resolves the
  * correct English via WORD_MAP, then clicks any option button whose
  * text is NOT that answer. Returns the wrong-answer text that was
@@ -268,197 +204,18 @@ async function tapWrongAnswer(driver: Driver): Promise<string> {
   throw new Error(`tapWrongAnswer: all 3 options matched correct answer "${correct}"`);
 }
 
-/**
- * Plain-old-data carrier passed to openConfigAndApply. Defaults mirror
- * the GameConfig defaults so tests only have to set the fields they
- * actually care about.
- *
- * Exported so sibling UI test files can reset the shared AppStorage
- * config back to defaults at the start of their own `it` blocks —
- * necessary because the runner holds the app open between suites and
- * RoutingFlow's last test leaves the config pinned to a 1-monster /
- * 1-HP custom-words loop that would end a regular battle after a
- * single correct tap.
- */
-export class TestGameConfig {
-  playerHp: number = 5;
-  monsterHp: number = 3;
-  monstersTotal: number = 5;
-  timerChipId: string = 'ConfigTimer300s';
-  categories: string[] = ['fruit']; // may include 'custom'
-}
-
-/**
- * Shared wrapper around openConfigAndApply for sibling UI test files.
- * Call at the start of any test that needs the default battle shape
- * (5 HP / 3 HP / 5 monsters / 300 s / fruit) so RoutingFlow's final
- * custom-words test cannot leak its 1-monster config into us.
- */
-export async function applyConfigShared(driver: Driver,
-                                        cfg: TestGameConfig): Promise<void> {
-  return openConfigAndApply(driver, cfg);
-}
-
-/**
- * Convenience helper used by every sibling V0.2 UI test. Resets the
- * shared AppStorage config to sensible defaults (5 HP / 3 HP /
- * 5 monsters / 300 s / fruit category) so a failing prior test or a
- * test ordering difference can't cause us to inherit a config where
- * one correct tap ends the battle.
- */
-export async function resetToDefaultConfigShared(driver: Driver): Promise<void> {
-  const cfg: TestGameConfig = new TestGameConfig();
-  await openConfigAndApply(driver, cfg);
-}
-
-/**
- * Bidirectional stepper driver: reads the current value from the
- * stepper's value Text id, then taps either the "-" or "+" button
- * until the shown value matches target. Necessary because tests run
- * sequentially against a shared AppStorage — a test that wants a
- * higher value than the previous test cannot rely on decrementing.
- */
-async function stepStepperTo(driver: Driver, decId: string, incId: string,
-                             valueId: string, target: number): Promise<void> {
-  const valueComp = await driver.findComponent(ON.id(valueId));
-  const curText: string = await valueComp.getText();
-  const current: number = parseInt(curText, 10);
-  if (current > target) {
-    for (let i = current; i > target; i--) {
-      const dec = await driver.findComponent(ON.id(decId));
-      await dec.click();
-      await driver.delayMs(80);
-    }
-  } else if (current < target) {
-    for (let i = current; i < target; i++) {
-      const inc = await driver.findComponent(ON.id(incId));
-      await inc.click();
-      await driver.delayMs(80);
-    }
-  }
-}
-
-function categoryChipId(cat: string): string {
-  if (cat === 'fruit') return 'ConfigCategoryFruit';
-  if (cat === 'place') return 'ConfigCategoryPlace';
-  if (cat === 'home') return 'ConfigCategoryHome';
-  if (cat === 'custom') return 'ConfigCategoryCustom';
-  throw new Error(`categoryChipId: unknown category "${cat}"`);
-}
-
-/**
- * From HomePage: open ConfigPage, apply steppers/timer/categories,
- * then Save. Precondition: HomePage visible. Postcondition: back on
- * HomePage with AppStorage updated.
- *
- * Category ordering: toggle-on wanted categories first, then toggle-off
- * unwanted ones. This way the "last-chip-cannot-be-removed" guard
- * never fires mid-helper.
- */
-async function openConfigAndApply(driver: Driver, cfg: TestGameConfig): Promise<void> {
-  await driver.assertComponentExist(ON.id('HomeConfigButton'));
-  const gear = await driver.findComponent(ON.id('HomeConfigButton'));
-  await gear.click();
-  // Longer wait: ConfigPage loads words_v1.json asynchronously in
-  // aboutToAppear and Save-time validation needs that list to be
-  // populated. 1500ms gives the rawfile load headroom on a cold emu.
-  await driver.delayMs(1500);
-  await driver.assertComponentExist(ON.id('ConfigTitle'));
-
-  await stepStepperTo(driver, 'ConfigPlayerHpDec', 'ConfigPlayerHpInc',
-    'ConfigPlayerHpValue', cfg.playerHp);
-  await stepStepperTo(driver, 'ConfigMonsterHpDec', 'ConfigMonsterHpInc',
-    'ConfigMonsterHpValue', cfg.monsterHp);
-  await stepStepperTo(driver, 'ConfigMonstersTotalDec', 'ConfigMonstersTotalInc',
-    'ConfigMonstersTotalValue', cfg.monstersTotal);
-
-  // Timer chip: clicking a chip that is already the active timer is a
-  // no-op in ConfigPage.selectTimer, so we can safely click the wanted
-  // chip without checking its current state.
-  await driver.assertComponentExist(ON.id(cfg.timerChipId));
-  const tchip = await driver.findComponent(ON.id(cfg.timerChipId));
-  await tchip.click();
-  await driver.delayMs(80);
-
-  // Category chips: read actual chip state via isSelected() rather
-  // than assuming the default-on set. State leaks across tests when
-  // the previous test left enabledCategories != default, so assuming
-  // defaults breaks the second config test onward.
-  const wanted: string[] = cfg.categories;
-  const allCats: string[] = ['fruit', 'place', 'home', 'custom'];
-
-  // Step 1: turn ON every wanted chip first. This guarantees we never
-  // hit the last-chip guard while turning off the unwanted ones.
-  for (let i = 0; i < wanted.length; i++) {
-    await setChipSelected(driver, categoryChipId(wanted[i]), true);
-  }
-  // Step 2: turn OFF every chip that isn't wanted.
-  for (let i = 0; i < allCats.length; i++) {
-    if (wanted.indexOf(allCats[i]) < 0) {
-      await setChipSelected(driver, categoryChipId(allCats[i]), false);
-    }
-  }
-
-  // V0.2 note: ConfigPage grew the `ConfigAutoSpeakToggle` row (auto-
-  // play pronunciation toggle), which on a narrow landscape emulator
-  // pushes ConfigSaveButton below the viewport. Swipe up on the
-  // Scroll container so Save is reachable. The swipe is idempotent
-  // on already-in-view content and cheap (one gesture), so we always
-  // perform it rather than gating on screen size.
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(300);
-  await driver.assertComponentExist(ON.id('ConfigSaveButton'));
-  const save = await driver.findComponent(ON.id('ConfigSaveButton'));
-  await save.click();
-  await driver.delayMs(800);
-  await driver.assertComponentExist(ON.id('HomeStartButton'));
-}
-
-/**
- * From HomePage: open ConfigPage, enter CustomWordsPage via the edit
- * icon, replace the TextArea contents, tap Save, and exit ConfigPage
- * via Cancel so stepper/category defaults stay untouched.
- *
- * Precondition: HomePage visible.
- * Postcondition: HomePage visible; only GameConfig.customWordsRaw
- *                has been mutated in AppStorage.
- */
-async function openCustomWordsAndSave(driver: Driver, rawText: string): Promise<void> {
-  await driver.assertComponentExist(ON.id('HomeConfigButton'));
-  const gear = await driver.findComponent(ON.id('HomeConfigButton'));
-  await gear.click();
-  await driver.delayMs(1500);
-  await driver.assertComponentExist(ON.id('ConfigCategoryCustomEdit'));
-
-  const editIcon = await driver.findComponent(ON.id('ConfigCategoryCustomEdit'));
-  await editIcon.click();
-  await driver.delayMs(800);
-  await driver.assertComponentExist(ON.id('CustomWordsTextArea'));
-
-  const ta = await driver.findComponent(ON.id('CustomWordsTextArea'));
-  await ta.inputText(rawText);
-  await driver.delayMs(300);
-  // inputText pops the soft keyboard on the emulator, which covers the
-  // Save button and makes findComponent return null. pressBack
-  // dismisses it so the Save button returns to the visible set.
-  await driver.pressBack();
-  await driver.delayMs(500);
-
-  await driver.assertComponentExist(ON.id('CustomWordsSaveButton'));
-  const save = await driver.findComponent(ON.id('CustomWordsSaveButton'));
-  await save.click();
-  await driver.delayMs(800);
-  await driver.assertComponentExist(ON.id('ConfigTitle'));
-
-  // V0.2 note: ConfigPage grew the `ConfigAutoSpeakToggle` row,
-  // pushing Save/Cancel below the viewport on a narrow landscape
-  // emulator. V0.6.2 added the parent-account row + AssetStoreKit
-  // warning, requiring more scrolls. Use the shared helper that
-  // swipes-then-taps with retries.
-  await tapConfigCancelShared(driver);
-  await driver.delayMs(800);
-  await driver.assertComponentExist(ON.id('HomeStartButton'));
-}
+// V0.6.6 cleanup: the legacy `openConfigAndApply` /
+// `openCustomWordsAndSave` / `setChipSelected` / `categoryChipId` /
+// `stepStepperTo` / `TestGameConfig` / `applyConfigShared` /
+// `resetToDefaultConfigShared` helpers were dropped when GameConfig
+// removed `enabledCategories` and `customWordsRaw` and ConfigPage
+// removed the 词库类别 row + the CustomWordsPage entry point. The
+// V0.3.6 cleanup notes below explain why no surviving `it()` block
+// referenced them: today's adventure ignores the old battle knobs.
+//
+// Sibling UI test files import only `launchAppShared`,
+// `clickByIdShared`, `tapConfigCancelShared`, `tapCorrectAnswerShared`,
+// and `tapWrongAnswerShared` — those remain.
 
 export default function routingFlowUiTest(): void {
   describe('RoutingFlowUiTest', () => {

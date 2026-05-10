@@ -29,8 +29,7 @@ import {
   TODAY_PLAN_STORAGE_KEY,
   TODAY_LAST_COMPLETED_DAY_KEY,
   TODAY_ACTIVE_PACK_KEY,
-  cloneGameConfig,
-  computeFinalPool
+  cloneGameConfig
 } from '../models/GameConfig';
 import { formatDayKeyLocal } from '../models/CoinSnapshot';
 import { TodaySessionPlan, WordSource } from '../models/AdventureRegion';
@@ -345,13 +344,15 @@ struct BattlePage {
       this.isReviewMode = cfg.mode === GAME_MODE_REVIEW;
       this.isTodayMode = cfg.mode === GAME_MODE_TODAY;
 
-      // Universe pool: every word the player could be shown, honouring
-      // their category filters. For review mode we then *narrow* this
-      // to the set of wordIds they've recently answered wrong. Today
-      // mode keeps the full universe so PlanQuestionSource can still
-      // resolve any wordId that ended up in plan.wordPlan.
-      const universe: WordEntry[] =
-        computeFinalPool(repo.all(), cfg.enabledCategories, cfg.customWordsRaw);
+      // Universe pool: every word the player could be shown.
+      // V0.6.6 — the legacy enabledCategories / customWordsRaw filter
+      // was removed when ConfigPage moved to the three-layer pack
+      // model. Normal / review mode now consume the full built-in
+      // repo. Today mode also keeps the full universe so
+      // PlanQuestionSource can resolve any wordId that ended up in
+      // plan.wordPlan; the active pack's words are layered in below
+      // via `bundleEntries`.
+      const universe: WordEntry[] = repo.all();
       const finalEntries: WordEntry[] =
         this.isReviewMode ? this.buildReviewPool(universe) : universe;
 

@@ -53,8 +53,6 @@ export function gameConfigToJson(cfg: GameConfig): string {
     monsterMaxHp: cfg.monsterMaxHp,
     monstersTotal: cfg.monstersTotal,
     startingSeconds: cfg.startingSeconds,
-    enabledCategories: cfg.enabledCategories.slice(),
-    customWordsRaw: cfg.customWordsRaw,
     autoSpeak: cfg.autoSpeak,
     mode: cfg.mode,
     parentPin: cfg.parentPin,
@@ -83,22 +81,10 @@ export function gameConfigFromJson(raw: string): GameConfig {
   if (typeof ss === 'number') {
     out.startingSeconds = sanitizeTimer(Math.floor(ss));
   }
-  const ec: Object | undefined = rec['enabledCategories'];
-  if (Array.isArray(ec)) {
-    const arr: string[] = [];
-    for (let i: number = 0; i < ec.length; i++) {
-      if (typeof ec[i] === 'string') {
-        arr.push(ec[i] as string);
-      }
-    }
-    if (arr.length > 0) {
-      out.enabledCategories = arr;
-    }
-  }
-  const cw: Object | undefined = rec['customWordsRaw'];
-  if (typeof cw === 'string') {
-    out.customWordsRaw = cw;
-  }
+  // V0.6.6: legacy `enabledCategories` / `customWordsRaw` keys are
+  // ignored on rehydrate. Older devices upgrading from <= v0.6.5
+  // simply lose those fields silently — the three-layer pack model
+  // owns word selection now.
   const ap: Object | undefined = rec['autoSpeak'];
   if (typeof ap === 'boolean') {
     out.autoSpeak = ap;

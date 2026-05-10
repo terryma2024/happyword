@@ -165,8 +165,21 @@ async function openConfigPage(driver: Driver): Promise<void> {
 }
 
 async function scrollConfigToParentAccountRow(driver: Driver): Promise<void> {
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(400);
+  // V0.6.5.1: the 📦 packPickerSection added 5+ pack rows between
+  // autoSpeak and the parent-account row, so a single swipe may
+  // not be enough to expose ConfigBoundDeviceInfoButton or
+  // ConfigBindParentButton. Iterate up to 5 times.
+  for (let attempt: number = 0; attempt < 5; attempt++) {
+    const bind: Component | null =
+      await driver.findComponent(ON.id('ConfigBindParentButton'));
+    const bound: Component | null =
+      await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+    if (bind !== null || bound !== null) {
+      return;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(400);
+  }
 }
 
 async function exitConfigPage(driver: Driver): Promise<void> {

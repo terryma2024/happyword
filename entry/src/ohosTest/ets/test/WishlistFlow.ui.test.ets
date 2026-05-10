@@ -70,10 +70,19 @@ async function readWishlistBalance(driver: Driver): Promise<number> {
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   await clickByIdShared(driver, 'HomeConfigButton');
   await driver.delayMs(1500);
-  // Form is taller than the narrow landscape viewport — swipe up so
-  // ConfigParentPinButton resolves (mirrors ConfigFlow.ui.test.ets).
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(300);
+  // V0.6.5.1: scroll iteratively until ConfigParentPinButton is on
+  // screen. The 📦 packPickerSection between autoSpeak and the
+  // parent-pin row can require multiple swipes on the landscape
+  // emulator viewport.
+  for (let attempt: number = 0; attempt < 5; attempt++) {
+    const btn: Component | null =
+      await driver.findComponent(ON.id('ConfigParentPinButton'));
+    if (btn !== null) {
+      break;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(300);
+  }
   await clickByIdShared(driver, 'ConfigParentPinButton');
   await driver.delayMs(1200);
 

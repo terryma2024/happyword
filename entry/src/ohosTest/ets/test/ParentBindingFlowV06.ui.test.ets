@@ -82,14 +82,25 @@ async function openConfigPage(driver: Driver): Promise<void> {
 }
 
 /**
- * The parent-account row sits between `ConfigParentPinButton` and the
- * sync row, well below the fold on the landscape OpenHarmony emulator.
- * One upward swipe brings it into view; mirrors the pattern used by
- * `openConfigAndScrollToSync` in ConfigSyncFlow.ui.test.ets.
+ * The parent-account row sits below `ConfigParentPinButton` and above
+ * the sync row, well below the fold on the landscape OpenHarmony
+ * emulator. V0.6.5.1 inserted the 📦 packPickerSection (5+ pack rows)
+ * between autoSpeak and parentPin, so a single upward swipe is no
+ * longer enough — iterate until the bind/bound button is on screen,
+ * up to 5 attempts.
  */
 async function scrollConfigToParentAccountRow(driver: Driver): Promise<void> {
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(400);
+  for (let attempt: number = 0; attempt < 5; attempt++) {
+    const bind: Component | null =
+      await driver.findComponent(ON.id('ConfigBindParentButton'));
+    const bound: Component | null =
+      await driver.findComponent(ON.id('ConfigBoundDeviceInfoButton'));
+    if (bind !== null || bound !== null) {
+      return;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(400);
+  }
 }
 
 async function exitConfigPage(driver: Driver): Promise<void> {

@@ -8,15 +8,8 @@ import {
   HP_MAX,
   MONSTER_COUNT_MIN,
   MONSTER_COUNT_MAX,
-  KNOWN_CATEGORIES,
-  CUSTOM_CATEGORY_KEY,
-  MIN_POOL_SIZE,
-  cloneGameConfig,
-  computeFinalPool
+  cloneGameConfig
 } from '../models/GameConfig';
-import { WordRepository } from '../services/WordRepository';
-import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
-import { WordEntry } from '../models/WordEntry';
 import { WordPackCache, WordPackCacheRecord } from '../services/WordPackCache';
 import { RemoteWordPackService } from '../services/RemoteWordPackService';
 import {
@@ -42,18 +35,21 @@ import { GlobalPackService, GlobalPackEnsureResult } from '../services/GlobalPac
 import { FamilyPackService, FamilyPackEnsureResult } from '../services/FamilyPackService';
 import { PackNetworkFetchAdapter } from '../services/PackNetworkFetchAdapter';
 /**
- * ConfigPage exposes five battle knobs plus a custom-words category.
- * All non-custom edits happen on a local @State draft and are only
- * written to AppStorage when the user taps 保存 AND the resulting
- * pool size ≥ MIN_POOL_SIZE. 取消 returns to HomePage without
- * touching stored state. The custom-words raw text is owned by
- * CustomWordsPage (spec §3.4 / §4.5).
+ * ConfigPage exposes the five battle knobs (HP / monster count / timer /
+ * autoSpeak / parent PIN) plus the V0.6.5.1 📦 pack picker that drives
+ * Today's adventure word selection. All edits happen on a local
+ * @State draft; 保存 writes the snapshot to AppStorage and 取消
+ * returns to HomePage untouched.
+ *
+ * V0.6.6 cleanup: the legacy 词库类别 (enabledCategories) row and
+ * its 自定义 / CustomWordsPage entry point were removed when
+ * GameConfig dropped those fields. Word selection is now owned end
+ * to end by PackSelectionService (built-in / global / family).
  */
 @Entry
 @Component
 struct ConfigPage {
   @State private draft: GameConfig = new GameConfig();
-  @State private showValidationHint: boolean = false;
   @State private syncStatusText: string = '';
   @State private syncToastText: string = '';
   @State private syncBusy: boolean = false;
@@ -74,7 +70,6 @@ struct ConfigPage {
   private unbindToastTimer: number = -1;
   private syncToastTimer: number = -1;
   private wordPackCache: WordPackCache = new WordPackCache();
-  private builtinEntries: WordEntry[] = [];
   private adminPinDialog: CustomDialogController | null = null;
   /**
    * V0.6.5.1 — pack-picker state. Loaded async by aboutToAppear via
@@ -98,15 +93,7 @@ struct ConfigPage {
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
     this.draft = cloneGameConfig(stored !== undefined ? stored : new GameConfig());
 
-    // Load built-in entries for Save-time validation. Form renders
-    // without waiting — validation only runs on the Save click.
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
-      const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
-      this.builtinEntries = repo.all();
-    }).catch((err: BusinessError): void => {
-      console.error(`ConfigPage: bootstrap failed: ${JSON.stringify(err)}`);
-    });
 
     // V0.5 client follow-up: wire the manual-sync card. The cache
     // handle is owned by ConfigPage so that re-entering the page
@@ -123,8 +110,7 @@ struct ConfigPage {
       });
 
     // V0.6.5.1: bootstrap the unified pack library + selection so the
-    // 📦 picker section can render. Errors are logged but never
-    // throw — the legacy categoryRow keeps the page usable.
+    // 📦 picker section can render.
     loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
       this.homeIntegration = bundle;
       this.refreshPackPickerState();
@@ -152,16 +138,13 @@ struct ConfigPage {
 
   onPageShow(): void {
     // Re-sync draft fields owned by other pages so reading them on
-    // this page (validation / row labels) reflects the latest value.
-    // ConfigPage never mutates these fields itself.
-    //   - customWordsRaw: owned by CustomWordsPage
+    // this page (row labels) reflects the latest value. ConfigPage
+    // never mutates these fields itself.
     //   - parentPin: owned by ParentPinSetupPage (V0.3.9)
     const stored: GameConfig | undefined =
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
     if (stored !== undefined) {
-      this.draft.customWordsRaw = stored.customWordsRaw;
       this.draft.parentPin = stored.parentPin;
-      this.showValidationHint = false;
       this.forceRerender();
     }
     // V0.6.2: refresh binding state in case ScanBindingPage / BoundDeviceInfoPage
@@ -560,42 +543,36 @@ struct ConfigPage {
   private decPlayerHp(): void {
     if (this.draft.playerMaxHp > HP_MIN) {
       this.draft.playerMaxHp -= 1;
-      this.showValidationHint = false;
       this.forceRerender();
     }
   }
   private incPlayerHp(): void {
     if (this.draft.playerMaxHp < HP_MAX) {
       this.draft.playerMaxHp += 1;
-      this.showValidationHint = false;
       this.forceRerender();
     }
   }
   private decMonsterHp(): void {
     if (this.draft.monsterMaxHp > HP_MIN) {
       this.draft.monsterMaxHp -= 1;
-      this.showValidationHint = false;
       this.forceRerender();
     }
   }
   private incMonsterHp(): void {
     if (this.draft.monsterMaxHp < HP_MAX) {
       this.draft.monsterMaxHp += 1;
-      this.showValidationHint = false;
       this.forceRerender();
     }
   }
   private decMonstersTotal(): void {
     if (this.draft.monstersTotal > MONSTER_COUNT_MIN) {
       this.draft.monstersTotal -= 1;
-      this.showValidationHint = false;
       this.forceRerender();
     }
   }
   private incMonstersTotal(): void {
     if (this.draft.monstersTotal < MONSTER_COUNT_MAX) {
       this.draft.monstersTotal += 1;
-      this.showValidationHint = false;
       this.forceRerender();
     }
   }
@@ -605,36 +582,12 @@ struct ConfigPage {
       return;
     }
     this.draft.startingSeconds = seconds;
-    this.showValidationHint = false;
     this.forceRerender();
   }
 
   private toggleAutoSpeak(): void {
     this.draft.autoSpeak = !this.draft.autoSpeak;
-    this.showValidationHint = false;
     this.forceRerender();
-  }
-
-  private toggleCategory(key: string): void {
-    const idx: number = this.draft.enabledCategories.indexOf(key);
-    if (idx >= 0) {
-      // Silently refuse if this would leave zero categories selected
-      // (spec §4.2 — "last-chip tap has no reaction").
-      if (this.draft.enabledCategories.length <= 1) {
-        return;
-      }
-      this.draft.enabledCategories.splice(idx, 1);
-    } else {
-      this.draft.enabledCategories.push(key);
-    }
-    this.showValidationHint = false;
-    this.forceRerender();
-  }
-
-  private openCustomWords(): void {
-    this.getUIContext().getRouter().pushUrl({ url: 'pages/CustomWordsPage' }).catch((err: BusinessError): void => {
-      console.error(`ConfigPage: pushUrl CustomWordsPage failed: ${JSON.stringify(err)}`);
-    });
   }
 
   private openParentPinSetup(): void {
@@ -698,31 +651,18 @@ struct ConfigPage {
   }
 
   private onSave(): void {
-    // Read current stored customWordsRaw so validation matches what
-    // BattlePage will actually use (spec §5.7).
+    // V0.6.6: ConfigPage no longer owns the word pool, so there is no
+    // pool-size validation. The pack picker (📦 我的词包) enforces
+    // its own min/max active-set rules; on save we just persist the
+    // battle knobs.
     const storedNow: GameConfig | undefined =
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
-    const currentCustomRaw: string =
-      storedNow !== undefined ? storedNow.customWordsRaw : '';
-
-    const finalPool: WordEntry[] = computeFinalPool(
-      this.builtinEntries, this.draft.enabledCategories, currentCustomRaw);
-
-    if (finalPool.length < MIN_POOL_SIZE) {
-      this.showValidationHint = true;
-      this.forceRerender();
-      return;
-    }
-
-    // Merge: keep stored customWordsRaw (owned by CustomWordsPage),
-    // overlay draft's stepper/timer/category/autoSpeak edits.
     const merged: GameConfig =
       cloneGameConfig(storedNow !== undefined ? storedNow : new GameConfig());
     merged.playerMaxHp = this.draft.playerMaxHp;
     merged.monsterMaxHp = this.draft.monsterMaxHp;
     merged.monstersTotal = this.draft.monstersTotal;
     merged.startingSeconds = this.draft.startingSeconds;
-    merged.enabledCategories = this.draft.enabledCategories.slice();
     merged.autoSpeak = this.draft.autoSpeak;
 
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
@@ -785,14 +725,6 @@ struct ConfigPage {
     return this.draft.startingSeconds === seconds ? `✓${base}` : base;
   }
 
-  /**
-   * Prefix active category chip labels with "✓". Same rationale as
-   * timerChipLabel: gives tests a reliable way to read selection state.
-   */
-  private categoryChipLabel(baseLabel: string, key: string): string {
-    return this.draft.enabledCategories.indexOf(key) >= 0 ? `✓${baseLabel}` : baseLabel;
-  }
-
   @Builder
   private timerRow() {
     Row() {
@@ -811,20 +743,6 @@ struct ConfigPage {
     }
     .margin({ bottom: 12 })
     .alignItems(VerticalAlign.Center);
-  }
-
-  private builtinCategoryLabel(key: string): string {
-    if (key === 'fruit') return '水果';
-    if (key === 'place') return '地点';
-    if (key === 'home') return '家居';
-    return key;
-  }
-
-  private builtinCategoryId(key: string): string {
-    if (key === 'fruit') return 'ConfigCategoryFruit';
-    if (key === 'place') return 'ConfigCategoryPlace';
-    if (key === 'home') return 'ConfigCategoryHome';
-    return `ConfigCategory${key}`;
   }
 
   @Builder
@@ -1097,46 +1015,6 @@ struct ConfigPage {
     .alignItems(VerticalAlign.Center);
   }
 
-  @Builder
-  private categoryRow() {
-    Row() {
-      Text('词库类别').fontSize(18).width(120);
-      Row({ space: 8 }) {
-        ForEach(KNOWN_CATEGORIES, (key: string) => {
-          Button(this.categoryChipLabel(this.builtinCategoryLabel(key), key))
-            .id(this.builtinCategoryId(key))
-            .width(80).height(40)
-            .fontSize(16)
-            .backgroundColor(this.draft.enabledCategories.indexOf(key) >= 0 ? '#FFF4D0' : '#F0F0F0')
-            .fontColor(this.draft.enabledCategories.indexOf(key) >= 0 ? '#B8860B' : '#666666')
-            .borderWidth(this.draft.enabledCategories.indexOf(key) >= 0 ? 2 : 0)
-            .borderColor('#FFB400')
-            .onClick((): void => this.toggleCategory(key));
-        }, (key: string) => key);
-
-        // Custom chip + edit icon
-        Button(this.categoryChipLabel('自定义', CUSTOM_CATEGORY_KEY))
-          .id('ConfigCategoryCustom')
-          .width(80).height(40)
-          .fontSize(16)
-          .backgroundColor(this.draft.enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0 ? '#FFF4D0' : '#F0F0F0')
-          .fontColor(this.draft.enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0 ? '#B8860B' : '#666666')
-          .borderWidth(this.draft.enabledCategories.indexOf(CUSTOM_CATEGORY_KEY) >= 0 ? 2 : 0)
-          .borderColor('#FFB400')
-          .onClick((): void => this.toggleCategory(CUSTOM_CATEGORY_KEY));
-        Button('✎')
-          .id('ConfigCategoryCustomEdit')
-          .width(40).height(40)
-          .fontSize(18)
-          .backgroundColor('#EAF2F8')
-          .fontColor('#457B9D')
-          .onClick((): void => this.openCustomWords());
-      };
-    }
-    .margin({ bottom: 16 })
-    .alignItems(VerticalAlign.Center);
-  }
-
   build(): void {
     // Scroll wrapper: the form's natural height exceeds the landscape
     // viewport once ArkUI applies its minimum-tap-target sizing to the
@@ -1167,20 +1045,11 @@ struct ConfigPage {
         this.timerRow();
         this.autoSpeakRow();
         this.packPickerSection();
-        this.categoryRow();
         this.parentPinRow();
         this.parentAccountRow();
         this.cloudSyncRow();
         this.syncRow();
         this.adminRow();
-
-        if (this.showValidationHint) {
-          Text('单词池太小（少于 3 个），请启用更多类别或添加自定义词')
-            .id('ConfigValidationHint')
-            .fontSize(14)
-            .fontColor('#E63946')
-            .margin({ bottom: 12 });
-        }
 
         Row({ space: 16 }) {
           Button('取消')

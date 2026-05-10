@@ -56,11 +56,18 @@ async function openConfigAndScrollToAdmin(driver: Driver): Promise<void> {
   await clickByIdShared(driver, 'HomeConfigButton');
   await driver.delayMs(1500);
   await driver.assertComponentExist(ON.id('ConfigTitle'));
-  // The admin row sits below the sync row at the very bottom of the
-  // form. A single swipe-up is enough on the narrow landscape
-  // emulator viewport to bring it into view.
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(400);
+  // V0.6.5.1: the 📦 packPickerSection adds 5+ pack rows between
+  // autoSpeak and admin rows, so a single swipe is no longer enough.
+  // Iterate until ConfigParentAdminButton is on screen.
+  for (let attempt: number = 0; attempt < 6; attempt++) {
+    const btn: Component | null =
+      await driver.findComponent(ON.id('ConfigParentAdminButton'));
+    if (btn !== null) {
+      return;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(400);
+  }
 }
 
 async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
@@ -84,8 +91,18 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   await clickByIdShared(driver, 'HomeConfigButton');
   await driver.delayMs(1500);
-  await driver.swipe(1400, 1100, 1400, 300, 600);
-  await driver.delayMs(300);
+  // V0.6.5.1: scroll iteratively until the parent-PIN button is on
+  // screen — the packPickerSection between autoSpeak and parentPin
+  // can push the row off the fold.
+  for (let attempt: number = 0; attempt < 5; attempt++) {
+    const btn: Component | null =
+      await driver.findComponent(ON.id('ConfigParentPinButton'));
+    if (btn !== null) {
+      break;
+    }
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(300);
+  }
   await clickByIdShared(driver, 'ConfigParentPinButton');
   await driver.delayMs(1200);
 
