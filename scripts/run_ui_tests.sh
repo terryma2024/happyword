@@ -29,6 +29,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HARMONY_ROOT="${REPO_ROOT}/harmonyos"
 MOCK_PORT="${MOCK_PORT:-8123}"
 MOCK_HOST="127.0.0.1"
 MOCK_LOG="${REPO_ROOT}/build-tmp/mock_ui_server.log"
@@ -255,7 +256,7 @@ hdc_t rport "tcp:${MOCK_PORT}" "tcp:${MOCK_PORT}"
 # CANNOT use `hdc file send` to drop the fixture image where the
 # gallery-upload UI test can fs.open it. The fixture is bundled into
 # the ohosTest HAP at
-# `entry/src/ohosTest/resources/rawfile/lesson_import_fixture.jpg`
+# `harmonyos/entry/src/ohosTest/resources/rawfile/lesson_import_fixture.jpg`
 # and `tapPickGalleryUploadsAndShowsImported` copies it from the
 # rawfile resource into the app sandbox at runtime via
 # `Context.resourceManager.getRawFileContent` + `fs.write`. See
@@ -267,14 +268,14 @@ hdc_t rport "tcp:${MOCK_PORT}" "tcp:${MOCK_PORT}"
 
 if [[ "${DO_REBUILD}" -eq 1 ]]; then
   echo "[run_ui_tests] rebuilding HAPs"
-  (cd "${REPO_ROOT}" && hvigorw assembleHap --no-daemon)
-  (cd "${REPO_ROOT}" && hvigorw assembleOhosTest --no-daemon || \
+  (cd "${HARMONY_ROOT}" && hvigorw assembleHap --no-daemon)
+  (cd "${HARMONY_ROOT}" && hvigorw assembleOhosTest --no-daemon || \
     hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon)
 
-  HAP_DEFAULT="$(find "${REPO_ROOT}/entry/build" -name 'entry-default-signed.hap' | head -1 || true)"
-  HAP_TEST="$(find "${REPO_ROOT}/entry/build" -name 'entry-ohosTest-signed.hap' | head -1 || true)"
+  HAP_DEFAULT="$(find "${HARMONY_ROOT}/entry/build" -name 'entry-default-signed.hap' | head -1 || true)"
+  HAP_TEST="$(find "${HARMONY_ROOT}/entry/build" -name 'entry-ohosTest-signed.hap' | head -1 || true)"
   if [[ -z "${HAP_DEFAULT}" || -z "${HAP_TEST}" ]]; then
-    echo "[run_ui_tests] expected HAPs not found under entry/build" >&2
+    echo "[run_ui_tests] expected HAPs not found under harmonyos/entry/build" >&2
     exit 1
   fi
   echo "[run_ui_tests] installing ${HAP_DEFAULT}"
@@ -290,10 +291,10 @@ fi
 # Standard ohosTest entry point for this project — see .cursor/dev-commands.md
 # section 4. The "-s class <suite>" filter is appended only when --suite
 # is supplied; without it, the runner executes everything registered in
-# entry/src/ohosTest/ets/test/List.test.ets.
+# harmonyos/entry/src/ohosTest/ets/test/List.test.ets.
 # Per-test timeout is intentionally larger than dev-commands.md's
 # 30000ms reference: parentAdminInteractionsStayStable in
-# entry/src/ohosTest/ets/test/ParentAdminFlow.ui.test.ets walks
+# harmonyos/entry/src/ohosTest/ets/test/ParentAdminFlow.ui.test.ets walks
 # launchApp → returnToHome → ensureParentPin → navigateToParentAdmin →
 # refresh → pending probe → scroll → typeIntoAdmin → exit, which can
 # take 35-45s in cold start, even though every individual step is fast

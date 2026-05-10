@@ -26,51 +26,52 @@
 
 ## Tech Stack
 
-- HarmonyOS NEXT
+- HarmonyOS NEXT client under `harmonyos/`
 - ArkTS / ArkUI
 - DevEco Studio managed project
+- Python / FastAPI backend under `server/`
 - Local rawfile assets for words, characters, icons, and sound effects
 
 ## Project Structure
 
 ```text
-entry/src/main/ets/
-  pages/        HomePage, BattlePage, ResultPage, TodayPlanPage, WishlistPage
-  components/   CharacterCard, ChoiceButton, HpBar, MagicProjectile
-  models/       BattleState, Question, WordEntry, SessionResult
-  services/     BattleEngine, QuestionGenerator, LearningRecorder, AudioService
-  data/         AdventureCatalog, MonsterCatalog, MonsterCodex
-
-entry/src/main/resources/rawfile/
-  data/         bundled word lists
-  character/    player and monster SVG assets
-  sound/        battle sound effects and BGM candidates
-
-docs/
-  WordMagicGame_overall_spec.md
-  WordMagicGame_roadmap.md
+harmonyos/   HarmonyOS NEXT client; open this directory in DevEco Studio
+ios/         Native iOS client placeholder; Swift / SwiftUI later
+android/     Native Android client placeholder; Kotlin / Jetpack Compose later
+server/      FastAPI content backend, parent web, device APIs, Vercel config
+shared/      Contracts, schemas, and golden fixtures only
+assets/      Durable design-source assets, screenshots, audio, and variants
+docs/        Product specs, roadmap, implementation plans, and runbooks
+tools/       Asset generation and deployment helpers
+scripts/     Root orchestration scripts
 ```
 
 Documentation: [overall spec](docs/WordMagicGame_overall_spec.md) · [roadmap](docs/WordMagicGame_roadmap.md)
 
 ## Local Development
 
-Install dependencies:
+Open the HarmonyOS project in DevEco Studio from:
+
+```text
+/Users/bytedance/Projects/happyword/harmonyos
+```
+
+Install HarmonyOS dependencies:
 
 ```bash
-ohpm install
+cd harmonyos && ohpm install
 ```
 
 Build debug HAP:
 
 ```bash
-hvigorw assembleHap
+cd harmonyos && hvigorw assembleHap
 ```
 
 Run CodeLinter after a successful HAP build:
 
 ```bash
-codelinter -c ./code-linter.json5 . --fix
+cd harmonyos && codelinter -c ./code-linter.json5 . --fix
 ```
 
 Connect a device or emulator:
@@ -82,16 +83,16 @@ hdc list targets
 Install the built HAP:
 
 ```bash
-hdc install entry/build/default/outputs/default/entry-default-signed.hap
+hdc install harmonyos/entry/build/default/outputs/default/entry-default-signed.hap
 ```
 
-Run **no-device unit tests** (`entry/src/test/`):
+Run **no-device unit tests** (`harmonyos/entry/src/test/`):
 
 ```bash
-hvigorw -p module=entry@default test
+cd harmonyos && hvigorw -p module=entry@default test
 ```
 
-Run **on-device UI / Instrument tests** (`entry/src/ohosTest/`) with the project orchestrator — starts `server/mock_ui_server.py`, sets up `hdc rport`, installs HAPs, and runs `aa test`:
+Run **on-device UI / Instrument tests** (`harmonyos/entry/src/ohosTest/`) with the project orchestrator — starts `server/mock_ui_server.py`, sets up `hdc rport`, installs HAPs, and runs `aa test`:
 
 ```bash
 scripts/run_ui_tests.sh

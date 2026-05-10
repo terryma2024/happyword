@@ -3,11 +3,12 @@
 Read this file before running HarmonyOS build or test commands. **Do not invent `hvigorw` flags**; if a command fails, align with DevEco’s task names for the installed SDK and update this file.
 
 - **last_verified_deveco:** (fill when confirmed, e.g. `5.0.x`)
-- **project_root:** repository root (where `oh-package.json5` and `hvigorfile.ts` live)
+- **repo_root:** repository root (`/Users/bytedance/Projects/happyword`)
+- **harmony_project_root:** `harmonyos/` (where `oh-package.json5`, `build-profile.json5`, and `hvigorfile.ts` live)
 
 ## Conventions
 
-- Use `hvigorw` from **project root** (assumes Hvigor wrapper is installed and available on `PATH`); add `--no-daemon` in CI or long non-interactive runs if your environment recommends it.
+- Use `hvigorw` from **harmony_project_root** (`harmonyos/`; assumes Hvigor wrapper is installed and available on `PATH`); add `--no-daemon` in CI or long non-interactive runs if your environment recommends it.
 - **Phase order (autofix loop):** build → **codelinter** → **no-device unit** → **emulator/device** → **on-device / UI (Instrument)**.
 
 ---
@@ -16,29 +17,29 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 
 | Step | Command | Success signal |
 |------|---------|----------------|
-| Install deps | `ohpm install` | Exit 0, `oh_modules` resolvable |
-| Assemble HAP (debug) | `hvigorw assembleHap` | Exit 0, `.hap` under `entry/build/...` (path may vary) |
-| (Optional) single module | `hvigorw -p module=entry@default assembleHap` or `hvigorw --mode module -p module=entry assembleHap` | Exit 0 |
+| Install deps | `cd harmonyos && ohpm install` | Exit 0, `harmonyos/oh_modules` resolvable |
+| Assemble HAP (debug) | `cd harmonyos && hvigorw assembleHap` | Exit 0, `.hap` under `harmonyos/entry/build/...` (path may vary) |
+| (Optional) single module | `cd harmonyos && hvigorw -p module=entry@default assembleHap` or `cd harmonyos && hvigorw --mode module -p module=entry assembleHap` | Exit 0 |
 
-**Working directory:** project root.
+**Working directory:** `harmonyos/`.
 
 ### ArkTS compiler warnings (mandatory)
 
 The `:CompileArkTS` step must emit **zero** `ArkTS:WARN` lines before a Harmony-side change is considered merge-ready. Typical causes: deprecated module-level `router` / `getContext`, legacy `@kit.CoreFileKit` picker types, `ImagePacker.packing`, etc. Migrate to `this.getUIContext().getRouter()`, `this.getUIContext().getHostContext()`, `@kit.MediaLibraryKit` / `photoAccessHelper`, `ImagePacker#packToData`, and related SDK replacements.
 
-**Verify:** after assembleHap, `hvigorw … 2>&1 | grep 'ArkTS:WARN'` must print nothing (exit code 1 from grep is OK). Agents fix warnings at the source; do not silence the compiler for convenience.
+**Verify:** after assembleHap, `cd harmonyos && hvigorw ... 2>&1 | grep 'ArkTS:WARN'` must print nothing (exit code 1 from grep is OK). Agents fix warnings at the source; do not silence the compiler for convenience.
 
 ### CodeLinter (after successful build) — `harmony-codelinter`
 
-Run **after** the HAP build step succeeds. Uses the project’s [code-linter.json5](code-linter.json5) at the repo root.
+Run **after** the HAP build step succeeds. Uses the Harmony project’s `harmonyos/code-linter.json5`.
 
 | Step | Command | Success signal |
 |------|---------|----------------|
-| Code check + auto-fix (recommended) | `codelinter -c ./code-linter.json5 . --fix` | Exit 0, no errors (warnings per team policy) |
-| Check only (no auto-fix) | `codelinter -c ./code-linter.json5 .` | Exit 0 |
-| Stricter CI-style exit (optional) | `codelinter -c ./code-linter.json5 . --fix --exit-on error` | Exit 0 |
+| Code check + auto-fix (recommended) | `cd harmonyos && codelinter -c ./code-linter.json5 . --fix` | Exit 0, no errors (warnings per team policy) |
+| Check only (no auto-fix) | `cd harmonyos && codelinter -c ./code-linter.json5 .` | Exit 0 |
+| Stricter CI-style exit (optional) | `cd harmonyos && codelinter -c ./code-linter.json5 . --fix --exit-on error` | Exit 0 |
 
-**Working directory:** project root.
+**Working directory:** `harmonyos/`.
 
 **Prerequisite:** the `codelinter` binary from **HarmonyOS / DevEco Command Line Tools** must be on `PATH` (not bundled in this repo). In-repo command reference: [docs/arkts-references/codelinter.md](docs/arkts-references/codelinter.md).
 
@@ -48,23 +49,23 @@ Run **after** the HAP build step succeeds. Uses the project’s [code-linter.jso
 
 ## 2) Unit test (no device) — `harmony-unit-test`
 
-**Scope:** `entry/src/test/**` (Local / no emulator, no `hdc`).
+**Scope:** `harmonyos/entry/src/test/**` (Local / no emulator, no `hdc`).
 
 | Command | Success signal |
 |---------|----------------|
-| Typical (adjust to your SDK if needed): `hvigorw -p module=entry@default test` | Exit 0, test report under `entry/build/.../reports` or console shows passed |
+| Typical (adjust to your SDK if needed): `cd harmonyos && hvigorw -p module=entry@default test` | Exit 0, test report under `harmonyos/entry/build/.../reports` or console shows passed |
 
 **Notes:**
 
 - If your Hvigor version uses different `-p` names, copy the exact line from DevEco’s Gradle-like task for **Local Unit Test** and paste it here.
 - **Device-required** or `ohosTest` cases are **not** in this step; they run after the emulator is up (section 4).
 
-### Pre-flight: `oh_modules/` must exist at project root
+### Pre-flight: `harmonyos/oh_modules/` must exist at the Harmony project root
 
 **`hvigorw ... test` drives tests through the offline Previewer binary.** The Previewer loads `@ohos/hypium` from `oh_modules/` at runtime; if that directory is missing (fresh clone, new `git worktree`, or after a wipe), the test ability silently fails to register, so the Previewer never emits `OHOS_REPORT_STATUS: taskconsuming` and hvigor hangs forever in `child.stdout.on('data', ...)` waiting for it.
 
 - **Symptom:** `UnitTestArkTS` compiles, then `GenerateUnitTestResult` prints one or more `Darwin` lines and never completes; killing hvigor leaves a `Previewer` child process reparented to init.
-- **Fix:** run `ohpm install` at project root before `hvigorw ... test`. Verify `oh_modules/` exists (not only under `entry/`).
+- **Fix:** run `cd harmonyos && ohpm install` before `hvigorw ... test`. Verify `harmonyos/oh_modules/` exists (not only under `harmonyos/entry/`).
 - **Zombie cleanup on hang:** `pkill -9 -f "openharmony/previewer/common/bin/Previewer"` and re-run. Leaked Previewers squat ports 40000+ and each leak adds one extra `Darwin` line via `findPort` recursion, but the real failure is still the missing `oh_modules/`.
 
 ---
@@ -84,17 +85,17 @@ Run **after** the HAP build step succeeds. Uses the project’s [code-linter.jso
 
 ## 4) UI / on-device (Instrument) — `harmony-ui-test`
 
-**Scope:** `entry/src/ohosTest/**`, UiTest / Instrument as configured in `entry` target `ohosTest`.
+**Scope:** `harmonyos/entry/src/ohosTest/**`, UiTest / Instrument as configured in `entry` target `ohosTest`.
 
 | Step | Command | Success signal |
 |------|---------|----------------|
-| Install HAP | `hdc install <path-to-debug.hap>` | Install success in hdc output |
+| Install HAP | `hdc install harmonyos/entry/build/default/outputs/default/entry-default-signed.hap` | Install success in hdc output |
 | On-device / Instrument test (recommended) | `scripts/run_ui_tests.sh` (boots the local mock + sets up `hdc rport` + runs `aa test`) | `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0` |
 | Raw command (no mock) | `hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -s timeout 60000 -w 1800` | Same — but flows that hit `/api/v1/...` will fail because the test harness rewrites the base URL to `http://127.0.0.1:8123` |
 
 **Mock UI server (V0.5.8+):**
 
-The ohosTest harness in `entry/src/ohosTest/ets/test/List.test.ets` writes the
+The ohosTest harness in `harmonyos/entry/src/ohosTest/ets/test/List.test.ets` writes the
 AppStorage key `serverBaseUrlOverride = http://127.0.0.1:8123` in `testsuite()`,
 which `RemoteWordPackConfig.effectiveServerBaseUrl()` reads on every API client
 construction. Production / release builds **never** write this key, so they
@@ -104,7 +105,7 @@ keep hitting `https://happyword.cool`. The orchestrator
 1. Booting `server/mock_ui_server.py` on host port 8123 (no MongoDB; fixed
    fixtures only — see the file's module docstring for the endpoint list).
    The pack-sync fixture mirrors the production
-   `entry/src/main/resources/rawfile/data/words_v1.json` 50-word catalog
+   `harmonyos/entry/src/main/resources/rawfile/data/words_v1.json` 50-word catalog
    so that `configSyncFlowUiTest`'s manual sync overwrites the on-device
    cache with a vocabulary that downstream gameplay suites
    (`FillLetterFlow`, `SpellQuestionFlow`, `ReviewMode`, `MagicAttack`)
@@ -113,7 +114,7 @@ keep hitting `https://happyword.cool`. The orchestrator
    `tapReviewLinkOpensReviewPageWithMockedDraft` stay deterministic.
 
    ohosTest bundles two test-fixture images into
-   `entry/src/ohosTest/resources/rawfile/`:
+   `harmonyos/entry/src/ohosTest/resources/rawfile/`:
 
    - `lesson_import_fixture.jpg` — V0.5.8 lesson-import flow.
      `tapPickGalleryUploadsAndShowsImported` reads it via
@@ -167,7 +168,7 @@ then trigger the test from DevEco. Tear down with `kill %1` and
 ## 5) Failure artifacts — `harmony-log-analyzer` (read in this order)
 
 1. **Console:** last 200–400 lines of the failing command (Hvigor / `codelinter` / shell stderr+stdout). For codelinter, if `-o` was used, also open that report file.
-2. **Hvigor reports:** under `entry/build/`, `**/reports/**`, `**/*test*report*`, `**/test-results/**` (glob; paths vary by version).
+2. **Hvigor reports:** under `harmonyos/entry/build/`, `**/reports/**`, `**/*test*report*`, `**/test-results/**` (glob; paths vary by version).
 3. **Device / UI failure:** `hdc hilog` (or the project’s standard hilog command) **after** reproducing; filter by your app’s bundle and tag as needed.
 4. **HAP path:** if install failed, re-check `.hap` path from build output.
 

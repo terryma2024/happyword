@@ -1,31 +1,34 @@
-# HarmonyOS project guide
+# WordMagicGame monorepo guide
 
 ## Stack
-- HarmonyOS NEXT
-- ArkTS
-- DevEco Studio managed project
+- HarmonyOS NEXT client: `harmonyos/`, ArkTS / ArkUI, DevEco Studio managed project
+- iOS client: `ios/`, native Swift / SwiftUI when implementation starts
+- Android client: `android/`, native Kotlin / Jetpack Compose when implementation starts
+- Server: `server/`, Python / FastAPI / MongoDB / Vercel
+- Shared contracts: `shared/`, schemas and fixtures only; no shared client runtime
 
 ## Commands
-- **Phased build/test commands, log paths, and device rules:** [`.cursor/dev-commands.md`](.cursor/dev-commands.md) (source of truth for the Harmony autofix skills).
-- Install deps: ohpm install
-- Build debug HAP: hvigorw assembleHap
+- **HarmonyOS phased build/test commands, log paths, and device rules:** [`.cursor/dev-commands.md`](.cursor/dev-commands.md) (source of truth for Harmony autofix skills).
+- Harmony install deps: `cd harmonyos && ohpm install`
+- Harmony build debug HAP: `cd harmonyos && hvigorw assembleHap`
 - The HAP build log must have **no** `ArkTS:WARN` lines (deprecated APIs); see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) **ArkTS compiler warnings**.
-- After a successful HAP build, run CodeLinter (see [`.cursor/dev-commands.md`](.cursor/dev-commands.md)): `codelinter -c ./code-linter.json5 . --fix`
-- Build module: hvigorw --mode module -p module=entry assembleHap
-- Connect device: hdc list targets
-- Install app: hdc install xxx.hap
+- After a successful HAP build, run CodeLinter: `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
+- Harmony build module: `cd harmonyos && hvigorw --mode module -p module=entry assembleHap`
+- Connect device: `hdc list targets`
+- Install app: `hdc install harmonyos/entry/build/default/outputs/default/entry-default-signed.hap`
+- Server tests: `cd server && uv run pytest`
 
 ## Rules
-- Use ArkTS only
-- Do not replace project structure unless necessary
-- Prefer modifying entry/src/main/ets
+- For HarmonyOS feature work, use ArkTS only and prefer modifying `harmonyos/entry/src/main/ets`.
+- Keep `harmonyos/` as a complete DevEco Studio project root. Explain any Hvigor or DevEco project-file changes before editing.
+- Do not add shared client runtime code under `shared/`; use it only for contracts, schemas, and fixtures.
+- Do not replace project structure unless necessary.
 - Keep UI components small and reusable
-- Explain any build.gradle-like or hvigor changes before editing
 - For all feature development and bugfix tasks, use the applicable Superpowers workflow before implementing changes.
 - Debug builds only: **Settings → Developer → Backend environment** opens the DevMenu for switching staging / local / preview API routing; release builds must not expose this entry.
 
 ## Asset retention policy
-- **Never delete resource files (SVG / PNG / audio / fonts / image source) when they become unused at runtime.** Move them under `assets/` instead — e.g. `assets/icons/` for design-source SVGs whose rasterized PNGs ship in `entry/src/main/resources/rawfile/`. This keeps the design source available for re-rasterization, redesign, rollback, or A/B comparison.
+- **Never delete resource files (SVG / PNG / audio / fonts / image source) when they become unused at runtime.** Move them under `assets/` instead — e.g. `assets/icons/` for design-source SVGs whose rasterized PNGs ship in `harmonyos/entry/src/main/resources/rawfile/`. This keeps the design source available for re-rasterization, redesign, rollback, or A/B comparison.
 - The same applies to retired UI mockups, deprecated audio takes, and old illustration variants — back them up under `assets/<category>/` and add a one-line entry in the matching `assets/<category>/README.md`.
 - Code files (`.ets`, `.ts`, `.py`) follow the normal git-history-as-backup model and do **not** need to be moved — only binary / design-source resources.
 
@@ -38,7 +41,7 @@
 ## Cursor Cloud specific instructions
 
 This section captures non-obvious caveats for cloud agents working on the
-**`server/`** Python backend. The HarmonyOS client (`entry/`) is **not** set up
+**`server/`** Python backend. The HarmonyOS client (`harmonyos/entry/`) is **not** set up
 on cloud agent VMs — those workflows still require DevEco Studio + HarmonyOS
 SDK on a developer machine. If a task touches the client, escalate / run it
 locally instead of in the cloud agent.

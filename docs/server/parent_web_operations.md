@@ -6,7 +6,7 @@
 > 适用范围：服务端版本 `0.6.7+`、客户端版本 `VC0.6.7+`。
 >
 > 涉及到的代码主目录：`server/app/{models,services,routers,templates}/`、
-> `server/tests/`、`entry/src/main/ets/`。
+> `server/tests/`、`harmonyos/entry/src/main/ets/`。
 
 ---
 
@@ -15,7 +15,7 @@
 | 场景 | 命令 | 备注 |
 | --- | --- | --- |
 | 本地完整测试 | `cd server && uv run pytest && uv run ruff check && uv run mypy app` | 全套必须 0 失败 0 警告 |
-| 客户端构建 | `hvigorw assembleHap`（DevEco Studio CLI） | 需要校验 `codelinter` 通过 |
+| 客户端构建 | `cd harmonyos && hvigorw assembleHap`（DevEco Studio CLI） | 需要校验 `cd harmonyos && codelinter -c ./code-linter.json5 . --fix` 通过 |
 | 生产部署 | `bash tools/vercel/deploy-prod.sh` | 部署前先做 `git pull --rebase` |
 | 紧急回滚 | Vercel Dashboard → 选择上一个绿色 deployment → `Promote` | 数据库不会自动回滚，按 §6 数据修复流程处理 |
 
@@ -224,7 +224,7 @@
 * 服务端：`cd server && uv run pytest -k <substring>`，例：`-k cloud_wishlist`。
 * 客户端：`hvigorw test --module entry@ohosTest`（要先连模拟器或真机）。
 * 跑 OTP / SMTP 真发件：`uv run pytest -m live_smtp` 需在 `.env.local` 里配 SMTP 凭证。
-* 永远在 PR / 部署前确认 `uv run ruff check`、`uv run mypy app`、`hvigorw assembleHap` 都通过。
+* 永远在 PR / 部署前确认 `uv run ruff check`、`uv run mypy app`、`cd harmonyos && hvigorw assembleHap` 都通过。
 
 ---
 

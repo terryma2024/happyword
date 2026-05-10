@@ -3,14 +3,15 @@
 # Each call gets a 4-minute hard limit (perl alarm) so a single slow
 # request can't stall the whole batch.
 #
-# Output: entry/src/main/resources/rawfile/character/<name>.svg
+# Output: harmonyos/entry/src/main/resources/rawfile/character/<name>.svg
 #         generated/recraft/<name>.json
 #
 # Usage: bash tools/recraft/generate-bosses.sh
 set -u
 cd "$(dirname "$0")/../.."
 
-OUT_DIR="entry/src/main/resources/rawfile/character"
+HARMONY_ROOT="harmonyos"
+OUT_DIR="${HARMONY_ROOT}/entry/src/main/resources/rawfile/character"
 JSON_DIR="generated/recraft"
 mkdir -p "$OUT_DIR" "$JSON_DIR"
 
