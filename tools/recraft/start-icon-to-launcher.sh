@@ -3,14 +3,14 @@
 # that HarmonyOS reads at runtime.
 #
 # IMPORTANT: HarmonyOS resolves the launcher icon from the APP-level
-# AppScope/resources/base/media (referenced by AppScope/app.json5 ->
+# harmonyos/AppScope/resources/base/media (referenced by harmonyos/AppScope/app.json5 ->
 # "icon": "$media:layered_image"). The module-level
-# entry/src/main/resources/base/media copy is also kept in sync so any
+# harmonyos/entry/src/main/resources/base/media copy is also kept in sync so any
 # in-app code that loads $media:layered_image / $media:startIcon (e.g.
 # splash window) sees the same artwork.
 #
 # Inputs:
-#   entry/src/main/resources/rawfile/icons/start_icon.svg   (single source)
+#   harmonyos/entry/src/main/resources/rawfile/icons/start_icon.svg   (single source)
 #
 # Outputs (overwritten in BOTH directories):
 #   foreground.png  1024x1024 (transparent bg)
@@ -24,10 +24,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-SRC_SVG="entry/src/main/resources/rawfile/icons/start_icon.svg"
+HARMONY_ROOT="harmonyos"
+SRC_SVG="${HARMONY_ROOT}/entry/src/main/resources/rawfile/icons/start_icon.svg"
 DST_DIRS=(
-  "AppScope/resources/base/media"
-  "entry/src/main/resources/base/media"
+  "${HARMONY_ROOT}/AppScope/resources/base/media"
+  "${HARMONY_ROOT}/entry/src/main/resources/base/media"
 )
 
 if [[ ! -f "$SRC_SVG" ]]; then
@@ -66,7 +67,7 @@ for DST in "${DST_DIRS[@]}"; do
   cp "$TMP_DIR/foreground.png" "$DST/foreground.png"
   cp "$TMP_DIR/background.png" "$DST/background.png"
   # AppScope intentionally has no startIcon.png (only entry/ does).
-  if [[ -f "$DST/startIcon.png" || "$DST" == *"entry/src/main"* ]]; then
+  if [[ -f "$DST/startIcon.png" || "$DST" == *"harmonyos/entry/src/main"* ]]; then
     cp "$TMP_DIR/startIcon.png" "$DST/startIcon.png"
   fi
   echo ""

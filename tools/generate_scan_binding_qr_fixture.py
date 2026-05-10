@@ -5,7 +5,7 @@ uv environment (the only place qrcode is declared as a dependency):
 
     cd server && uv run python ../tools/generate_scan_binding_qr_fixture.py
 
-Output: entry/src/ohosTest/resources/rawfile/scan_binding_qr_fixture.png
+Output: harmonyos/entry/src/ohosTest/resources/rawfile/scan_binding_qr_fixture.png
 
 The PNG is committed to the repo so the ohosTest HAP packaging does not
 require Python to be installed; this script exists to make regenerating
@@ -30,6 +30,7 @@ PAYLOAD: str = "https://happyword.cool/p/uitestqr01"
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent
 OUT: Path = (
     REPO_ROOT
+    / "harmonyos"
     / "entry"
     / "src"
     / "ohosTest"

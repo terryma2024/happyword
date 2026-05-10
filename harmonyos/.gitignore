@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# DevEco Studio local project state
+.idea/
+.hvigor/
+local.properties
+
+# HarmonyOS / OpenHarmony generated dependencies and build outputs
+oh_modules/
+node_modules/
+build/
+entry/build/
+entry/.test/
+entry/.preview/
+entry/oh_modules/
+
+# Packaged artifacts
+*.hap
+*.hsp
+*.har
+
+# Logs
+*.log
