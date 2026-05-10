@@ -1,8 +1,8 @@
 """Idempotently seed `words` collection from the client's rawfile JSON.
 
-The client ships ``harmonyos/entry/src/main/resources/rawfile/data/words_v1.json``
-(trivial repo-root layouts still resolve the legacy ``entry/...`` path).
-as the cold-start fallback. From V0.5.2 onwards the live source of truth
+The HarmonyOS client ships ``harmonyos/entry/src/main/resources/rawfile/data/words_v1.json``
+as the cold-start fallback (this script also resolves the legacy ``entry/...`` path for
+trivial repo-root layouts). From V0.5.2 onwards the live source of truth
 is MongoDB. This script copies the rawfile rows into the DB so admins
 have something to edit before they start adding new words.
 
@@ -36,7 +36,8 @@ from app.models.word import Word
 
 # Path is resolved relative to repo root so the script works whether you
 # call it from `server/` or via `uv run python -m scripts.seed_from_rawfile`.
-# V0.7.0 monorepo: rawfile lives under `harmonyos/entry/...`.
+# V0.7.0 monorepo: rawfile lives under `harmonyos/entry/...`; keep legacy `entry/...`
+# for older workspace layouts.
 _RAWFILE_CANDIDATES: tuple[Path, ...] = (
     Path("harmonyos/entry/src/main/resources/rawfile/data/words_v1.json"),
     Path("entry/src/main/resources/rawfile/data/words_v1.json"),

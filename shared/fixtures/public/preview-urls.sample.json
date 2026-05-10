@@ -1,0 +1,10 @@
+{
+  "pulls": [
+    {
+      "number": 55,
+      "branch": "codex/polish_docs",
+      "url": "https://happyword-preview.example.test",
+      "updated_at": "2026-05-10T12:03:34Z"
+    }
+  ]
+}

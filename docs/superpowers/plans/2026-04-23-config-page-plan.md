@@ -226,7 +226,7 @@ describe('GameConfig.computeFinalPool', () => {
 - [ ] **Step 1.2: Run the unit tests to verify they fail**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw -p module=entry@default test --no-daemon 2>&1 | tail -40
+cd <repo-root> && hvigorw -p module=entry@default test --no-daemon 2>&1 | tail -40
 ```
 
 Expected: compile error `Cannot find module '../main/ets/models/GameConfig'`.
@@ -363,7 +363,7 @@ export function computeFinalPool(
 - [ ] **Step 1.4: Run the unit tests to verify they pass**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw -p module=entry@default test --no-daemon 2>&1 | tail -40
+cd <repo-root> && hvigorw -p module=entry@default test --no-daemon 2>&1 | tail -40
 ```
 
 Expected: all 9 new tests pass alongside the existing suite.
@@ -407,7 +407,7 @@ AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, new GameConfig());
 - [ ] **Step 2.3: Build and verify compile**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
+cd <repo-root> && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
 ```
 
 Expected: `BUILD SUCCESSFUL`.
@@ -523,7 +523,7 @@ struct CustomWordsPage {
 - [ ] **Step 3.4: Build and verify compile**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
+cd <repo-root> && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
 ```
 
 Expected: `BUILD SUCCESSFUL`.
@@ -894,7 +894,7 @@ struct ConfigPage {
 - [ ] **Step 4.2: Build and verify compile**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
+cd <repo-root> && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
 ```
 
 Expected: `BUILD SUCCESSFUL`. Fix any ArkTS strict-mode errors inline and re-run.
@@ -1009,7 +1009,7 @@ struct CustomWordsPage {
 - [ ] **Step 5.2: Build and verify compile**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
+cd <repo-root> && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
 ```
 
 Expected: `BUILD SUCCESSFUL`.
@@ -1099,7 +1099,7 @@ struct HomePage {
 - [ ] **Step 6.2: Build and verify compile**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
+cd <repo-root> && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
 ```
 
 Expected: `BUILD SUCCESSFUL`.
@@ -1167,7 +1167,7 @@ If the existing variable names (`repo`, `engine`) differ, adapt this block to ma
 - [ ] **Step 7.3: Build the main HAP to verify compile**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
+cd <repo-root> && hvigorw --mode module -p module=entry@default assembleHap --no-daemon 2>&1 | tail -20
 ```
 
 Expected: `BUILD SUCCESSFUL`.
@@ -1175,8 +1175,8 @@ Expected: `BUILD SUCCESSFUL`.
 - [ ] **Step 7.4: Rebuild the ohosTest HAP and re-run the existing UI test suite**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon 2>&1 | tail -20
-hdc install /Users/bytedance/Projects/happyword/entry/build/default/outputs/ohosTest/entry-ohosTest-unsigned.hap
+cd <repo-root> && hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon 2>&1 | tail -20
+hdc install <repo-root>/entry/build/default/outputs/ohosTest/entry-ohosTest-unsigned.hap
 hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -s timeout 60000 -w 240 2>&1 | tail -30
 ```
 
@@ -1399,7 +1399,7 @@ Also add the custom-test answers to the existing `WORD_MAP` at the top of the fi
 - [ ] **Step 8.2: Rebuild ohosTest HAP to verify the helpers compile**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon 2>&1 | tail -20
+cd <repo-root> && hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon 2>&1 | tail -20
 ```
 
 Expected: `BUILD SUCCESSFUL`.
@@ -1463,9 +1463,9 @@ After the existing `winFlow_fifteenCorrectAnswersReachesVictory` test:
 - [ ] **Step 9.2: Rebuild + install + run**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && \
+cd <repo-root> && \
   hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon 2>&1 | tail -10 && \
-  hdc install /Users/bytedance/Projects/happyword/entry/build/default/outputs/ohosTest/entry-ohosTest-unsigned.hap && \
+  hdc install <repo-root>/entry/build/default/outputs/ohosTest/entry-ohosTest-unsigned.hap && \
   hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -s timeout 60000 -w 240 2>&1 | tail -30
 ```
 
@@ -1694,9 +1694,9 @@ This test combines the custom-words helper with an E2E flow that exercises the v
 - [ ] **Step 12.2: Rebuild + install + run**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && \
+cd <repo-root> && \
   hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon 2>&1 | tail -10 && \
-  hdc install /Users/bytedance/Projects/happyword/entry/build/default/outputs/ohosTest/entry-ohosTest-unsigned.hap && \
+  hdc install <repo-root>/entry/build/default/outputs/ohosTest/entry-ohosTest-unsigned.hap && \
   hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -s timeout 60000 -w 240 2>&1 | tail -60
 ```
 
@@ -1720,11 +1720,11 @@ git commit -m "test(config): E2E configCustomWordsOnly covers validation hint + 
 - [ ] **Step 13.1: Full unit + codelinter + UI pipeline**
 
 ```bash
-cd /Users/bytedance/Projects/happyword && \
+cd <repo-root> && \
   hvigorw -p module=entry@default test --no-daemon 2>&1 | tail -30 && \
   codelinter -c ./code-linter.json5 . 2>&1 | tail -30 && \
   hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon 2>&1 | tail -10 && \
-  hdc install /Users/bytedance/Projects/happyword/entry/build/default/outputs/ohosTest/entry-ohosTest-unsigned.hap && \
+  hdc install <repo-root>/entry/build/default/outputs/ohosTest/entry-ohosTest-unsigned.hap && \
   hdc shell aa test -b com.terryma.wordmagicgame -m entry_test -s unittest OpenHarmonyTestRunner -s timeout 60000 -w 240 2>&1 | tail -30
 ```
 

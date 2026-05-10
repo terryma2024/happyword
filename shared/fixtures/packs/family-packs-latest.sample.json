@@ -1,0 +1,28 @@
+{
+  "status": 200,
+  "headers": {
+    "ETag": "\"family-v1\""
+  },
+  "body": {
+    "schema_version": 1,
+    "family_id": "family-demo",
+    "merged_at": "2026-05-10T12:03:34Z",
+    "packs": [
+      {
+        "pack_id": "family-snacks",
+        "name": "Family Snacks",
+        "version": 1,
+        "schema_version": 1,
+        "words": [
+          {
+            "id": "snack-cookie",
+            "word": "snack",
+            "meaningZh": "点心",
+            "category": "snacks",
+            "difficulty": 1
+          }
+        ]
+      }
+    ]
+  }
+}

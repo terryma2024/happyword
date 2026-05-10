@@ -1,6 +1,8 @@
 # Small Magician Word Adventure
 
-快乐背单词是一个面向儿童的 HarmonyOS NEXT 英语单词学习小游戏。游戏把单词练习包装成“小魔法师对战怪物”的轻量冒险：孩子在横屏战斗中识别单词、补全拼写、积累魔法币，并通过每日计划和学习报告持续复习。
+快乐背单词是一个面向儿童的英语单词学习冒险产品。游戏把单词练习包装成“小魔法师对战怪物”的轻量冒险：孩子在横屏战斗中识别单词、补全拼写、积累魔法币，并通过每日计划和学习报告持续复习。
+
+仓库现在按 monorepo 组织：`harmonyos/`、`ios/`、`android/` 三个原生客户端与 `server/` 后端并列推进，`shared/` 只保存跨端契约、schema 和测试 fixtures。当前可运行的完整客户端仍是 HarmonyOS NEXT；iOS / Android 已保留根目录模块位，后续按原生 SwiftUI / Jetpack Compose 方向补齐。
 
 **路线图（里程碑与后续方向）：** [`docs/WordMagicGame_roadmap.md`](docs/WordMagicGame_roadmap.md)
 
@@ -26,11 +28,12 @@
 
 ## Tech Stack
 
-- HarmonyOS NEXT client under `harmonyos/`
-- ArkTS / ArkUI
-- DevEco Studio managed project
-- Python / FastAPI backend under `server/`
-- Local rawfile assets for words, characters, icons, and sound effects
+- HarmonyOS NEXT client: `harmonyos/`, ArkTS / ArkUI, DevEco Studio managed project
+- iOS client: `ios/`, native Swift / SwiftUI planned
+- Android client: `android/`, native Kotlin / Jetpack Compose planned
+- Server: `server/`, Python / FastAPI / MongoDB / Vercel
+- Shared contracts: `shared/`, schemas and golden fixtures only; no shared client runtime
+- Assets: local rawfile assets plus durable design-source assets under `assets/`
 
 ## Project Structure
 
@@ -50,10 +53,14 @@ Documentation: [overall spec](docs/WordMagicGame_overall_spec.md) · [roadmap](d
 
 ## Local Development
 
+Each top-level module owns its own toolchain. HarmonyOS is the production client today; iOS and Android are native-client placeholders until their implementation starts. Server development and tests are independent of the client SDKs.
+
+### HarmonyOS client
+
 Open the HarmonyOS project in DevEco Studio from:
 
 ```text
-/Users/bytedance/Projects/happyword/harmonyos
+harmonyos/
 ```
 
 Install HarmonyOS dependencies:
@@ -105,6 +112,14 @@ The detailed build, test, device, and log workflow lives in [`.cursor/dev-comman
 ### Debug: backend environment
 
 Debug builds can switch API base URL at runtime (local machine, a Vercel preview deployment, or staging). Open the developer menu by **triple-tapping** the small grey **version label** at the **top-left of the home screen** (there is no Settings entry). The menu shows a card grid — **tap a card to apply** immediately (Preview runs a health probe first and may ask for a Vercel protection-bypass secret). The preview PR list is always fetched from production **`https://happyword.cool/api/v1/preview-urls.json`**, independent of the env you selected. Release builds hide the label and this flow. See [DevMenu runbook](docs/superpowers/runbooks/dev-menu-runbook.md), [backend env switcher spec](docs/superpowers/specs/2026-05-06-client-backend-env-switcher-design.md), and [triple-tap / DevMenu UI spec](docs/superpowers/specs/2026-05-07-home-version-triple-tap-design.md).
+
+### iOS client
+
+The iOS module is reserved at [`ios/`](ios/) for the native Swift / SwiftUI client. It should mirror product contracts through `shared/` fixtures when implementation starts, but must keep runtime code native to iOS.
+
+### Android client
+
+The Android module is reserved at [`android/`](android/) for the native Kotlin / Jetpack Compose client. It should use the same shared contracts and server APIs without introducing a cross-platform client runtime.
 
 ## Server
 
