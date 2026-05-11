@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING
 import pytest
 from bson import ObjectId
 
+from app.routers.admin_cron import MAX_EXTRACT_ATTEMPTS
+
 if TYPE_CHECKING:
     import httpx
 
@@ -27,6 +29,7 @@ if TYPE_CHECKING:
 _CRON_PATH = "/api/v1/admin/cron/extract-pending"
 _IMPORT_PATH = "/api/v1/admin/lessons/import"
 _DRAFT_PATH_TMPL = "/api/v1/admin/lesson-drafts/{draft_id}"
+_TERMINAL_SEED_ATTEMPTS = MAX_EXTRACT_ATTEMPTS - 1
 
 
 def _strip_env(name: str) -> str:
@@ -68,12 +71,14 @@ async def test_import_then_trigger_extract_pending_is_reentrant(
 
     # Keep default E2E deterministic and network-cheap: this case owns the
     # queue/cron state transition, not live Blob/OpenAI extraction latency.
+    # Seed at max-1 so the forced stub fetch failure becomes terminal after
+    # exactly one cron tick.
     await mongo["lesson_import_drafts"].update_one(
         {"_id": ObjectId(draft_id)},
         {
             "$set": {
                 "source_image_url": "stub://e2e/lesson-import-fixture.jpg",
-                "extract_attempts": 999,
+                "extract_attempts": _TERMINAL_SEED_ATTEMPTS,
             }
         },
     )
@@ -90,6 +95,6 @@ async def test_import_then_trigger_extract_pending_is_reentrant(
     assert fetched.status_code == 200, fetched.text
     fetched_draft = fetched.json()
     assert fetched_draft["id"] == draft_id
-    assert fetched_draft["extract_attempts"] == 1
-    assert fetched_draft["status"] in {"pending", "extract_failed"}, fetched_draft
+    assert fetched_draft["extract_attempts"] == _TERMINAL_SEED_ATTEMPTS + 1
+    assert fetched_draft["status"] == "extract_failed", fetched_draft
 
