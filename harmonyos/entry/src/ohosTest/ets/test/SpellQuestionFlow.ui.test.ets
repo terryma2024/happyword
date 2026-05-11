@@ -1,6 +1,10 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
+import {
+  selectAllQuestionTypesShared,
+  selectOnlyQuestionTypeShared,
+} from './RoutingFlow.ui.test';
 
 /**
  * V0.4.1 SpellQuestionFlow — drives a Boss-monster Spell question
@@ -35,11 +39,15 @@ const WORD_ZH: string[] = [
   '苹果', '香蕉', '橙子', '葡萄', '梨', '桃子', '柠檬', '芒果', '瓜', '樱桃',
   '学校', '医院', '公园', '超市', '图书馆', '动物园', '银行', '博物馆', '车站', '家',
   '电视', '椅子', '床', '桌子', '沙发', '台灯', '门', '窗户', '书', '杯子',
+  '猫', '狗', '狮子', '老虎', '熊', '青蛙', '鸭子', '老鼠', '绵羊', '马',
+  '鱼', '鲸鱼', '鲨鱼', '螃蟹', '海豚', '章鱼', '海豹', '海龟', '海星', '水母',
 ];
 const WORD_EN: string[] = [
   'apple', 'banana', 'orange', 'grape', 'pear', 'peach', 'lemon', 'mango', 'melon', 'cherry',
   'school', 'hospital', 'park', 'supermarket', 'library', 'zoo', 'bank', 'museum', 'station', 'home',
   'TV', 'chair', 'bed', 'table', 'sofa', 'lamp', 'door', 'window', 'book', 'cup',
+  'cat', 'dog', 'lion', 'tiger', 'bear', 'frog', 'duck', 'mouse', 'sheep', 'horse',
+  'fish', 'whale', 'shark', 'crab', 'dolphin', 'octopus', 'seal', 'turtle', 'starfish', 'jellyfish',
 ];
 
 async function launchApp(): Promise<Driver> {
@@ -157,6 +165,51 @@ function wordForPattern(slots: string[]): string {
     }
   }
   return '';
+}
+
+function sameLetterMultiset(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  const remaining: string[] = right.slice();
+  for (let i: number = 0; i < left.length; i++) {
+    const idx: number = remaining.indexOf(left[i]);
+    if (idx < 0) {
+      return false;
+    }
+    remaining.splice(idx, 1);
+  }
+  return remaining.length === 0;
+}
+
+function wordForSpellState(slots: string[], pool: string[]): string {
+  const poolLetters: string[] = [];
+  for (let i: number = 0; i < pool.length; i++) {
+    poolLetters.push(pool[i].toLowerCase());
+  }
+  for (let i: number = 0; i < WORD_EN.length; i++) {
+    const w: string = WORD_EN[i].toLowerCase();
+    if (w.length !== slots.length) {
+      continue;
+    }
+    const missingLetters: string[] = [];
+    let ok: boolean = true;
+    for (let j: number = 0; j < slots.length; j++) {
+      const s: string = slots[j];
+      if (s === '_') {
+        missingLetters.push(w.charAt(j));
+        continue;
+      }
+      if (s.toLowerCase() !== w.charAt(j)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok && sameLetterMultiset(missingLetters, poolLetters)) {
+      return WORD_EN[i];
+    }
+  }
+  return wordForPattern(slots);
 }
 
 async function tapOptionWithText(driver: Driver, target: string): Promise<boolean> {
@@ -281,7 +334,10 @@ async function tapSpellPoolLetter(driver: Driver, letter: string): Promise<numbe
           break;
         }
         const text: string = await btn.getText();
-        if (text === letter) {
+        // Consumed duplicate-letter chips keep their text but become disabled;
+        // skip them so a later identical letter can tap the remaining live chip.
+        const enabled: boolean = await btn.isEnabled();
+        if (text === letter && enabled) {
           await btn.click();
           await driver.delayMs(150);
           return i;
@@ -363,7 +419,10 @@ async function driveUntilSpell(driver: Driver, maxTurns: number): Promise<SpellE
             reconstructed[i] = '_';
           }
         }
-        const answer: string = wordForPattern(reconstructed);
+        // Spell only reveals the first letter, so the static catalog can
+        // contain ambiguous patterns (for example s____). Use the visible
+        // pool multiset to reconstruct the exact word under test.
+        const answer: string = wordForSpellState(reconstructed, pool);
         out.slots = slots;
         out.answer = answer;
         // Sanity: pool size = slots.length - 1, only slot 0 revealed.
@@ -409,6 +468,7 @@ export default function spellQuestionFlowUiTest(): void {
     it('fillsSpellSlotsByTappingCorrectPoolLetters', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await selectOnlyQuestionTypeShared(driver, 'spell');
       await startFruitForestBattle(driver);
 
       const entry: SpellEntryState = await driveUntilSpell(driver, 50);
@@ -463,6 +523,7 @@ export default function spellQuestionFlowUiTest(): void {
       expect(fbHit).assertTrue();
 
       await exitToHome(driver);
+      await selectAllQuestionTypesShared(driver);
       done();
     });
 
@@ -475,6 +536,7 @@ export default function spellQuestionFlowUiTest(): void {
     it('rejectsTapsThatDoNotMatchTheNextSlot', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await selectOnlyQuestionTypeShared(driver, 'spell');
       await startFruitForestBattle(driver);
 
       const entry: SpellEntryState = await driveUntilSpell(driver, 50);
@@ -503,6 +565,7 @@ export default function spellQuestionFlowUiTest(): void {
         }
       }
       await exitToHome(driver);
+      await selectAllQuestionTypesShared(driver);
       done();
     });
   });

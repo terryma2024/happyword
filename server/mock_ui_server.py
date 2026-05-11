@@ -79,6 +79,7 @@ from pydantic import BaseModel
 # device catalog in lockstep — change one, change the other.
 _PROD_CATALOG_PATH: Path = (
     Path(__file__).resolve().parent.parent
+    / "harmonyos"
     / "entry"
     / "src"
     / "main"

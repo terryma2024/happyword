@@ -6,6 +6,10 @@ import { FillLetterGenerator } from './FillLetterGenerator';
 import { SpellGenerator } from './SpellGenerator';
 import { IQuestionSource } from './IQuestionSource';
 import {
+  questionTypeForMonsterKind,
+  wordSupportsQuestionType,
+} from './BattleQuestionTypePolicy';
+import {
   TodaySessionPlan,
   WordSlot,
 } from '../models/AdventureRegion';
@@ -66,40 +70,32 @@ export class PlanQuestionSource implements IQuestionSource {
   }
 
   nextQuestion(lastWordId?: string): Question {
-    const word: WordEntry = this.pickWord(lastWordId);
     const kind: MonsterKind = this.currentMonsterKind();
-    if (kind === MonsterKind.Boss) {
-      const spell: Question | undefined = this.spellGen.generate(word);
-      if (spell !== undefined) {
-        return spell;
-      }
-      const medium: Question | undefined = this.fillGen.generateMedium(word);
-      if (medium !== undefined) {
-        return medium;
-      }
-      const beginner: Question | undefined = this.fillGen.generate(word);
-      if (beginner !== undefined) {
-        return beginner;
-      }
-      return this.choiceGen.nextQuestionForWord(word, lastWordId);
+    const targetType: string = questionTypeForMonsterKind(kind);
+    const word: WordEntry = this.pickWordForQuestionType(targetType, lastWordId);
+    const exact: Question | undefined = this.generateExactQuestion(targetType, word, lastWordId);
+    if (exact !== undefined) {
+      return exact;
     }
-    if (kind === MonsterKind.Elite) {
-      const medium: Question | undefined = this.fillGen.generateMedium(word);
-      if (medium !== undefined) {
-        return medium;
-      }
-      const beginner: Question | undefined = this.fillGen.generate(word);
-      if (beginner !== undefined) {
-        return beginner;
-      }
-      return this.choiceGen.nextQuestionForWord(word, lastWordId);
+    // Defensive fallback only. HomePage blocks starts where no selected
+    // type can be generated for the active pack, but a stale or corrupt
+    // plan should still render a playable prompt instead of softlocking.
+    return this.choiceGen.nextQuestionForWord(word, lastWordId);
+  }
+
+  private generateExactQuestion(
+    targetType: string,
+    word: WordEntry,
+    lastWordId?: string,
+  ): Question | undefined {
+    if (targetType === 'fill-letter') {
+      return this.fillGen.generate(word);
     }
-    if (kind === MonsterKind.Spelling) {
-      const fill: Question | undefined = this.fillGen.generate(word);
-      if (fill !== undefined) {
-        return fill;
-      }
-      return this.choiceGen.nextQuestionForWord(word, lastWordId);
+    if (targetType === 'fill-letter-medium') {
+      return this.fillGen.generateMedium(word);
+    }
+    if (targetType === 'spell') {
+      return this.spellGen.generate(word);
     }
     return this.choiceGen.nextQuestionForWord(word, lastWordId);
   }
@@ -136,6 +132,26 @@ export class PlanQuestionSource implements IQuestionSource {
       }
     }
     return this.repo.all()[0];
+  }
+
+  private pickWordForQuestionType(targetType: string, lastWordId?: string): WordEntry {
+    if (this.plan.wordPlan.length === 0) {
+      return this.repo.all()[0];
+    }
+    let attempts: number = 0;
+    while (attempts < this.plan.wordPlan.length) {
+      const slot: WordSlot = this.plan.wordPlan[this.cursor % this.plan.wordPlan.length];
+      this.cursor = (this.cursor + 1) % this.plan.wordPlan.length;
+      attempts += 1;
+      if (lastWordId !== undefined && slot.wordId === lastWordId && this.plan.wordPlan.length > 1) {
+        continue;
+      }
+      const w: WordEntry | undefined = this.repo.findById(slot.wordId);
+      if (w !== undefined && wordSupportsQuestionType(w, targetType)) {
+        return w;
+      }
+    }
+    return this.pickWord(lastWordId);
   }
 
   private peekSlot(): WordSlot | undefined {

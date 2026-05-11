@@ -15,6 +15,7 @@ import {
   WORD_PLAN_MULTIPLIER,
 } from '../main/ets/models/AdventureRegion';
 import { MonsterKind } from '../main/ets/data/MonsterCatalog';
+import { QuestionKind } from '../main/ets/models/Question';
 
 function makeWord(id: string, word: string, category: string): WordEntry {
   const w: WordEntry = new WordEntry();
@@ -185,6 +186,31 @@ export default function todayAdventureBuilderTest() {
       }
       expect(ids.size).assertEqual(4);
     });
+
+    it('usesSelectedQuestionTypesToBuildMonsterSlots', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const region: AdventureRegion = makeRegion();
+      const rec: LearningRecorder = new LearningRecorder();
+      const plan: TodaySessionPlan = new TodayAdventureBuilder(mulberry32(5))
+        .build(region, repo, rec, NOW, false, [QuestionKind.FillLetterMedium]);
+      expect(plan.monsterSlots.length).assertEqual(MONSTER_PLAN_SLOT_COUNT);
+      for (let i: number = 0; i < plan.monsterSlots.length; i++) {
+        expect(plan.monsterSlots[i].kind).assertEqual(MonsterKind.Elite);
+      }
+    });
+
+    it('cyclesSelectedQuestionTypesInDifficultyOrder', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const region: AdventureRegion = makeRegion();
+      const rec: LearningRecorder = new LearningRecorder();
+      const plan: TodaySessionPlan = new TodayAdventureBuilder(mulberry32(6))
+        .build(region, repo, rec, NOW, false, [QuestionKind.Spell, QuestionKind.Choice]);
+      expect(plan.monsterSlots[0].kind).assertEqual(MonsterKind.Normal);
+      expect(plan.monsterSlots[1].kind).assertEqual(MonsterKind.Boss);
+      expect(plan.monsterSlots[2].kind).assertEqual(MonsterKind.Normal);
+      expect(plan.monsterSlots[3].kind).assertEqual(MonsterKind.Boss);
+      expect(plan.monsterSlots[4].kind).assertEqual(MonsterKind.Normal);
+    });
   });
 
   describe('TodayAdventureBuilder.bossRotation (V0.3.8)', () => {
@@ -197,30 +223,33 @@ export default function todayAdventureBuilderTest() {
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
       const p1: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
       const p2: TodaySessionPlan = b.build(region, repo, rec, NOW + 60_000, false);
-      const last: number = p1.monsterSlots.length - 1;
-      expect(p1.monsterSlots[last].catalogIndex).assertEqual(p2.monsterSlots[last].catalogIndex);
+      const bossSlot: number = 3;
+      expect(p1.monsterSlots[bossSlot].catalogIndex).assertEqual(p2.monsterSlots[bossSlot].catalogIndex);
     });
 
-    it('regionWithoutBossCandidatesPreservesTemplateSlot', 0, () => {
+    it('regionWithoutBossCandidatesKeepsBossArchetypeSlot', 0, () => {
       const region: AdventureRegion = makeRegionWithBoss('no-boss-region', []);
       const repo: WordRepository = makeRepo();
       const rec: LearningRecorder = new LearningRecorder();
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
       const p: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
-      const last: number = p.monsterSlots.length - 1;
-      expect(p.monsterSlots[last].catalogIndex).assertEqual(MONSTER_PLAN_SLOT_COUNT);
-      expect(p.monsterSlots[last].kind).assertEqual(MonsterKind.Boss);
+      const bossSlot: number = 3;
+      expect(p.monsterSlots[bossSlot].catalogIndex).assertEqual(3);
+      expect(p.monsterSlots[bossSlot].kind).assertEqual(MonsterKind.Boss);
     });
 
-    it('overrideOnlyTouchesLastSlot', 0, () => {
+    it('overrideOnlyTouchesBossSlots', 0, () => {
       const region: AdventureRegion = makeRegionWithBoss('forest-test', [4, 5, 6]);
       const repo: WordRepository = makeRepo();
       const rec: LearningRecorder = new LearningRecorder();
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
       const p: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
-      for (let i: number = 0; i < p.monsterSlots.length - 1; i++) {
-        expect(p.monsterSlots[i].catalogIndex).assertEqual(region.monsterPlan.slots[i].catalogIndex);
-        expect(p.monsterSlots[i].kind).assertEqual(region.monsterPlan.slots[i].kind);
+      for (let i: number = 0; i < p.monsterSlots.length; i++) {
+        if (p.monsterSlots[i].kind === MonsterKind.Boss) {
+          expect(p.monsterSlots[i].catalogIndex > 3).assertTrue();
+        } else {
+          expect(p.monsterSlots[i].catalogIndex <= 3).assertTrue();
+        }
       }
     });
 
@@ -233,8 +262,8 @@ export default function todayAdventureBuilderTest() {
       let now: number = NOW;
       for (let d: number = 0; d < 14; d++) {
         const p: TodaySessionPlan = b.build(region, repo, rec, now, false);
-        const last: number = p.monsterSlots.length - 1;
-        const idx: number = p.monsterSlots[last].catalogIndex;
+        const bossSlot: number = 3;
+        const idx: number = p.monsterSlots[bossSlot].catalogIndex;
         expect(idx === 4 || idx === 5 || idx === 6).assertTrue();
         allHit.add(idx);
         now += ONE_DAY;
@@ -252,13 +281,13 @@ export default function todayAdventureBuilderTest() {
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
       const pForest: TodaySessionPlan = b.build(forest, repo, rec, NOW, false);
       const pCastle: TodaySessionPlan = b.build(castle, repo, rec, NOW, false);
-      const last: number = pForest.monsterSlots.length - 1;
+      const bossSlot: number = 3;
       // Disjoint candidate ranges guarantee non-equal indices when
       // both override paths fire.
-      expect(pForest.monsterSlots[last].catalogIndex).assertLarger(3);
-      expect(pForest.monsterSlots[last].catalogIndex).assertLess(7);
-      expect(pCastle.monsterSlots[last].catalogIndex).assertLarger(6);
-      expect(pCastle.monsterSlots[last].catalogIndex).assertLess(9);
+      expect(pForest.monsterSlots[bossSlot].catalogIndex).assertLarger(3);
+      expect(pForest.monsterSlots[bossSlot].catalogIndex).assertLess(7);
+      expect(pCastle.monsterSlots[bossSlot].catalogIndex).assertLarger(6);
+      expect(pCastle.monsterSlots[bossSlot].catalogIndex).assertLess(9);
     });
   });
 }

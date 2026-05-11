@@ -147,9 +147,10 @@ export default function planQuestionSourceTest() {
       expect(q.spellLetters.length).assertEqual(4);
     });
 
-    it('bossWithThreeLetterWordFallsBackToFillLetter', 0, () => {
+    it('bossWithNoSpellEligibleWordFallsBackToChoice', 0, () => {
       const repo: WordRepository = makeRepo();
-      // 'zoo' has 3 letters: spell undefined; medium undefined; fill-letter works.
+      // 'zoo' has 3 letters: exact Spell is impossible. Today starts
+      // are blocked before this state, but stale plans still render Choice.
       const plan: TodaySessionPlan = planWith(
         [MonsterKind.Boss],
         ['place-zoo']
@@ -157,7 +158,20 @@ export default function planQuestionSourceTest() {
       const src: PlanQuestionSource = buildSrc(plan, repo, 7, 8, 9);
       src.setMonsterIndexProvider((): number => 1);
       const q: Question = src.nextQuestion();
-      expect(q.kind).assertEqual(QuestionKind.FillLetter);
+      expect(q.kind).assertEqual(QuestionKind.Choice);
+    });
+
+    it('bossSkipsIneligibleWordsInsteadOfFallingBackToFillLetter', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Boss],
+        ['place-zoo', 'fruit-apple']
+      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 7, 8, 9);
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
+      expect(q.wordId).assertEqual('fruit-apple');
+      expect(q.kind).assertEqual(QuestionKind.Spell);
     });
 
     it('bossWithTwoLetterWordFallsBackToChoice', 0, () => {
@@ -174,9 +188,9 @@ export default function planQuestionSourceTest() {
       expect(q.options.length).assertEqual(3);
     });
 
-    it('bossWithLongWordFallsBackToFillLetterMedium', 0, () => {
+    it('bossWithOnlyTooLongWordFallsBackToChoice', 0, () => {
       const repo: WordRepository = makeRepo();
-      // 'extraordinary' has 13 letters: spell undefined (>9), medium works.
+      // 'extraordinary' has 13 letters: exact Spell is impossible (>9).
       const plan: TodaySessionPlan = planWith(
         [MonsterKind.Boss],
         ['w-extraordinary']
@@ -184,7 +198,7 @@ export default function planQuestionSourceTest() {
       const src: PlanQuestionSource = buildSrc(plan, repo, 13, 14, 15);
       src.setMonsterIndexProvider((): number => 1);
       const q: Question = src.nextQuestion();
-      expect(q.kind).assertEqual(QuestionKind.FillLetterMedium);
+      expect(q.kind).assertEqual(QuestionKind.Choice);
     });
 
     it('emitsFillLetterMediumForEliteMonster', 0, () => {
@@ -227,9 +241,9 @@ export default function planQuestionSourceTest() {
       expect(q.letterOptions.length).assertEqual(3);
     });
 
-    it('eliteWithShortWordFallsBackToBeginnerThenChoice', 0, () => {
+    it('eliteWithNoMediumEligibleWordFallsBackToChoice', 0, () => {
       const repo: WordRepository = makeRepo();
-      // wordId place-zoo has 3 letters: medium should return undefined; beginner should work.
+      // wordId place-zoo has 3 letters: exact Medium is impossible.
       const planZoo: TodaySessionPlan = planWith(
         [MonsterKind.Elite],
         ['place-zoo']
@@ -237,9 +251,9 @@ export default function planQuestionSourceTest() {
       const srcZoo: PlanQuestionSource = buildSrc(planZoo, repo, 7, 8, 9);
       srcZoo.setMonsterIndexProvider((): number => 1);
       const qZoo: Question = srcZoo.nextQuestion();
-      expect(qZoo.kind).assertEqual(QuestionKind.FillLetter);
+      expect(qZoo.kind).assertEqual(QuestionKind.Choice);
 
-      // wordId home-tv has <3 alphabetic letters: both medium and beginner return undefined; must degrade to choice.
+      // wordId home-tv has <3 alphabetic letters: exact Medium is also impossible.
       const planTv: TodaySessionPlan = planWith(
         [MonsterKind.Elite],
         ['home-tv']
@@ -249,6 +263,19 @@ export default function planQuestionSourceTest() {
       const qTv: Question = srcTv.nextQuestion();
       expect(qTv.kind).assertEqual(QuestionKind.Choice);
       expect(qTv.options.length).assertEqual(3);
+    });
+
+    it('eliteSkipsIneligibleWordsInsteadOfFallingBackToBeginner', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Elite],
+        ['place-zoo', 'fruit-mango']
+      );
+      const src: PlanQuestionSource = buildSrc(plan, repo, 7, 8, 9);
+      src.setMonsterIndexProvider((): number => 1);
+      const q: Question = src.nextQuestion();
+      expect(q.wordId).assertEqual('fruit-mango');
+      expect(q.kind).assertEqual(QuestionKind.FillLetterMedium);
     });
 
     it('cyclesWordPlanWhenExhausted', 0, () => {

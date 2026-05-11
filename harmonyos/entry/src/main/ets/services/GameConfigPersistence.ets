@@ -18,6 +18,7 @@ import {
   MONSTER_COUNT_MIN,
   MONSTER_COUNT_MAX,
 } from '../models/GameConfig';
+import { sanitizeEnabledQuestionTypes } from './BattleQuestionTypePolicy';
 
 const DOMAIN: number = 0x0000;
 const PREFS_NAME: string = 'wordmagic_game_config_v1';
@@ -64,6 +65,7 @@ export function gameConfigToJson(cfg: GameConfig): string {
     autoSpeak: cfg.autoSpeak,
     mode: cfg.mode,
     parentPin: cfg.parentPin,
+    enabledQuestionTypes: sanitizeEnabledQuestionTypes(cfg.enabledQuestionTypes),
   });
 }
 
@@ -104,6 +106,16 @@ export function gameConfigFromJson(raw: string): GameConfig {
   const pin: Object | undefined = rec['parentPin'];
   if (typeof pin === 'string') {
     out.parentPin = pin;
+  }
+  const qts: Object | undefined = rec['enabledQuestionTypes'];
+  if (Array.isArray(qts)) {
+    const rawTypes: string[] = [];
+    for (let i: number = 0; i < qts.length; i++) {
+      if (typeof qts[i] === 'string') {
+        rawTypes.push(qts[i] as string);
+      }
+    }
+    out.enabledQuestionTypes = sanitizeEnabledQuestionTypes(rawTypes);
   }
   return out;
 }

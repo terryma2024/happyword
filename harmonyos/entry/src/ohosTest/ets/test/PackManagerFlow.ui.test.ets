@@ -847,14 +847,13 @@ export default function packManagerFlowUiTest(): void {
         try {
           await openPackManagerFromHome(driver);
 
-          // Tap sync. The toast that surfaces afterwards is one of the
-          // strings produced by `PackManagerPage.formatPackSyncToast` —
-          // we accept any "synced global" variant here because the
-          // family-pack arm's outcome depends on the (unknown) bound
-          // state of the device under test.
+          // Tap sync. The toast is only a "sync completed" signal here:
+          // `wordmagic_global_packs` cache is intentionally allowed to
+          // survive across runs, and a warm cache can legitimately produce
+          // the generic "已是最新" copy. The row + home-chip assertions below
+          // are the behavior check for global-pack availability.
           const toast: string = await tapPackSyncAndWaitForToast(driver);
           expect(toast.length > 0).assertTrue();
-          expect(toast.indexOf('全局') >= 0).assertTrue();
 
           // Re-loaded library should now contain `space-station`.
           await scrollPackRowIntoView(driver, GLOBAL_PACK_ID);
