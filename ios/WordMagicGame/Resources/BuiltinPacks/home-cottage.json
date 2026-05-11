@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "pack_id": "home-cottage",
+  "name": "Home Cottage",
+  "labelZh": "温馨小屋",
+  "scene": {
+    "bgPrimary": "#FFF0EE",
+    "bgAccent": "#F4A6A0",
+    "bossName": "Tidy Granny",
+    "bossCandidates": [3, 6, 9],
+    "monsterPlan": [
+      {"kind": "normal", "catalogIndex": 0},
+      {"kind": "spelling", "catalogIndex": 1},
+      {"kind": "review", "catalogIndex": 2},
+      {"kind": "elite", "catalogIndex": 11},
+      {"kind": "boss", "catalogIndex": 3}
+    ]
+  },
+  "words": [
+    {"id": "home-tv", "word": "TV", "meaningZh": "电视", "category": "home", "difficulty": 1},
+    {"id": "home-chair", "word": "chair", "meaningZh": "椅子", "category": "home", "difficulty": 1},
+    {"id": "home-bed", "word": "bed", "meaningZh": "床", "category": "home", "difficulty": 1},
+    {"id": "home-table", "word": "table", "meaningZh": "桌子", "category": "home", "difficulty": 1},
+    {"id": "home-sofa", "word": "sofa", "meaningZh": "沙发", "category": "home", "difficulty": 1},
+    {"id": "home-lamp", "word": "lamp", "meaningZh": "台灯", "category": "home", "difficulty": 1},
+    {"id": "home-door", "word": "door", "meaningZh": "门", "category": "home", "difficulty": 1},
+    {"id": "home-window", "word": "window", "meaningZh": "窗户", "category": "home", "difficulty": 1},
+    {"id": "home-book", "word": "book", "meaningZh": "书", "category": "home", "difficulty": 1},
+    {"id": "home-cup", "word": "cup", "meaningZh": "杯子", "category": "home", "difficulty": 1}
+  ]
+}

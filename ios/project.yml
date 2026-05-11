@@ -18,6 +18,8 @@ targets:
     bundleId: com.terryma.wordmagicgame
     sources:
       - path: WordMagicGame
+    resources:
+      - path: WordMagicGame/Resources/BuiltinPacks
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
