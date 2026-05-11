@@ -23,6 +23,8 @@ from app.models.word import Word
 from app.services import llm_service
 from app.services.llm_service import LlmCallError, LlmConfigError
 
+OPENAI_VISION_TIMEOUT_SECONDS = 45.0
+
 # NOTE: the literal token "JSON" must appear somewhere in this prompt
 # (or the user message). When `response_format={"type": "json_object"}`
 # is set on `chat.completions.create`, OpenAI's server-side guardrail
@@ -165,6 +167,7 @@ async def extract_lesson_payload(image_bytes: bytes, mime: str) -> tuple[str, di
             ],
             response_format={"type": "json_object"},
             temperature=0,
+            timeout=OPENAI_VISION_TIMEOUT_SECONDS,
         )
     except openai.OpenAIError as exc:
         # Without this catch, OpenAI client exceptions (BadRequestError,

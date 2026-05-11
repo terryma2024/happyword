@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from bson import ObjectId
 
 if TYPE_CHECKING:
     import httpx
@@ -64,6 +65,18 @@ async def test_import_then_trigger_extract_pending_is_reentrant(
     draft = resp.json()
     draft_id = draft["id"]
     assert draft["status"] == "extracting"
+
+    # Keep default E2E deterministic and network-cheap: this case owns the
+    # queue/cron state transition, not live Blob/OpenAI extraction latency.
+    await mongo["lesson_import_drafts"].update_one(
+        {"_id": ObjectId(draft_id)},
+        {
+            "$set": {
+                "source_image_url": "stub://e2e/lesson-import-fixture.jpg",
+                "extract_attempts": 999,
+            }
+        },
+    )
 
     cron = http.post(
         _CRON_PATH,

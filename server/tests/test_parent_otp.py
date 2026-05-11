@@ -75,6 +75,37 @@ async def test_request_code_rate_limited_within_60s(
 
 
 @pytest.mark.asyncio
+async def test_request_code_degrades_unexpected_email_provider_failure(
+    db: object,
+) -> None:
+    """OTP issuance must stay anti-enumeration even if email transport breaks."""
+    from app.deps_email import get_email_provider
+    from app.main import app
+
+    class _ExplodingProvider:
+        async def send(self, **_kwargs: object) -> None:
+            raise TimeoutError("simulated SMTP network timeout")
+
+    app.dependency_overrides[get_email_provider] = lambda: _ExplodingProvider()
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r = await ac.post(
+                "/api/v1/parent/auth/request-code",
+                json={"email": "smtp-timeout@example.com"},
+            )
+    finally:
+        app.dependency_overrides.pop(get_email_provider, None)
+
+    assert r.status_code == 202, r.text
+    pending = await EmailVerification.find(
+        EmailVerification.email == "smtp-timeout@example.com"
+    ).to_list()
+    assert len(pending) == 1
+    assert pending[0].status == EmailVerificationStatus.PENDING
+
+
+@pytest.mark.asyncio
 async def test_verify_code_success_creates_family_and_returns_cookie(
     recording_client: tuple[AsyncClient, object],
 ) -> None:

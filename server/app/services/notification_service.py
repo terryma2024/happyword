@@ -45,6 +45,14 @@ async def send_email(
     except EmailDeliveryError as e:
         logger.warning("email delivery degraded to=%s subject=%r: %s", to, subject, e)
         raise EmailDeliveryDegraded(str(e)) from e
+    except Exception as e:
+        logger.warning(
+            "email delivery degraded by unexpected provider error to=%s subject=%r: %s",
+            to,
+            subject,
+            e,
+        )
+        raise EmailDeliveryDegraded(str(e)) from e
 
 
 async def send_otp_email(
