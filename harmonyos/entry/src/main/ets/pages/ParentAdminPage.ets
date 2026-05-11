@@ -299,7 +299,11 @@ struct ParentAdminPage {
   }
 
   private back(): void {
-    this.getUIContext().getRouter().back();
+    const router = this.getUIContext().getRouter();
+    router.replaceUrl({ url: 'pages/ConfigPage' }).catch((err: BusinessError): void => {
+      console.error(`ParentAdminPage.back replaceUrl ConfigPage failed: ${JSON.stringify(err)}`);
+      router.back();
+    });
   }
 
   private formatLatestVersion(): string {

@@ -12,8 +12,13 @@ import {
   MONSTER_PLAN_SLOT_COUNT,
   WORD_PLAN_MULTIPLIER,
 } from '../models/AdventureRegion';
-import { MonsterKind } from '../data/MonsterCatalog';
+import { MonsterKind, monsterIndexForKind } from '../data/MonsterCatalog';
 import { Pack } from '../models/Pack';
+import {
+  DEFAULT_ENABLED_QUESTION_TYPES,
+  questionTypeToMonsterKind,
+  sanitizeEnabledQuestionTypes,
+} from './BattleQuestionTypePolicy';
 
 export type RandomFn = () => number;
 
@@ -74,11 +79,12 @@ export class TodayAdventureBuilder {
     recorder: LearningRecorder,
     nowMs: number,
     isFirstToday: boolean,
+    selectedQuestionTypes?: string[],
   ): TodaySessionPlan {
     const region: AdventureRegion = regionFromPack(pack);
     const repo: WordRepository = new WordRepository();
     repo.setEntries(pack.words);
-    return this.build(region, repo, recorder, nowMs, isFirstToday);
+    return this.build(region, repo, recorder, nowMs, isFirstToday, selectedQuestionTypes);
   }
 
   build(
@@ -86,7 +92,8 @@ export class TodayAdventureBuilder {
     repo: WordRepository,
     recorder: LearningRecorder,
     nowMs: number,
-    isFirstToday: boolean
+    isFirstToday: boolean,
+    selectedQuestionTypes?: string[],
   ): TodaySessionPlan {
     const candidates: WordEntry[] = this.gatherCandidates(region, repo);
     const stats: WordStat[] = recorder.statsForTest();
@@ -97,7 +104,7 @@ export class TodayAdventureBuilder {
 
     const plan: TodaySessionPlan = new TodaySessionPlan();
     plan.regionId = region.id;
-    plan.monsterSlots = region.monsterPlan.slots.slice();
+    plan.monsterSlots = this.buildMonsterSlotsForQuestionTypes(region, selectedQuestionTypes);
     plan.wordPlan = wordPlan;
     plan.bossWordIds = bossWordIds;
     plan.isFirstToday = isFirstToday;
@@ -112,6 +119,27 @@ export class TodayAdventureBuilder {
     return plan;
   }
 
+  private buildMonsterSlotsForQuestionTypes(
+    region: AdventureRegion,
+    selectedQuestionTypes?: string[],
+  ): MonsterSlot[] {
+    const safeTypes: string[] = selectedQuestionTypes === undefined
+      ? DEFAULT_ENABLED_QUESTION_TYPES.slice()
+      : sanitizeEnabledQuestionTypes(selectedQuestionTypes);
+    const targetCount: number = region.monsterPlan.slots.length > 0
+      ? region.monsterPlan.slots.length
+      : MONSTER_PLAN_SLOT_COUNT;
+    const slots: MonsterSlot[] = [];
+    for (let i: number = 0; i < targetCount; i++) {
+      const kind: MonsterKind = questionTypeToMonsterKind(safeTypes[i % safeTypes.length]);
+      const slot: MonsterSlot = new MonsterSlot();
+      slot.kind = kind;
+      slot.catalogIndex = monsterIndexForKind(kind);
+      slots.push(slot);
+    }
+    return slots;
+  }
+
   private applyBossRotation(
     plan: TodaySessionPlan,
     region: AdventureRegion,
@@ -124,14 +152,17 @@ export class TodayAdventureBuilder {
     if (slots.length === 0) {
       return;
     }
-    const lastIdx: number = slots.length - 1;
     const dayKey: string = localDayKey(nowMs);
     const bossIdx: number = this.pickBossCatalogIndexForDay(region, dayKey);
-    const oldSlot: MonsterSlot = slots[lastIdx];
-    const newSlot: MonsterSlot = new MonsterSlot();
-    newSlot.kind = oldSlot.kind;
-    newSlot.catalogIndex = bossIdx;
-    slots[lastIdx] = newSlot;
+    for (let i: number = 0; i < slots.length; i++) {
+      if (slots[i].kind !== MonsterKind.Boss) {
+        continue;
+      }
+      const newSlot: MonsterSlot = new MonsterSlot();
+      newSlot.kind = slots[i].kind;
+      newSlot.catalogIndex = bossIdx;
+      slots[i] = newSlot;
+    }
   }
 
   private pickBossCatalogIndexForDay(region: AdventureRegion, dayKey: string): number {

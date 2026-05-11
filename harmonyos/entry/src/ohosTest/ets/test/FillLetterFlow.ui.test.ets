@@ -1,6 +1,10 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
+import {
+  selectAllQuestionTypesShared,
+  selectOnlyQuestionTypeShared,
+} from './RoutingFlow.ui.test';
 
 /**
  * UI suite for the FillLetter battle gameplay (single-letter and
@@ -47,11 +51,15 @@ const WORD_ZH: string[] = [
   '苹果', '香蕉', '橙子', '葡萄', '梨', '桃子', '柠檬', '芒果', '瓜', '樱桃',
   '学校', '医院', '公园', '超市', '图书馆', '动物园', '银行', '博物馆', '车站', '家',
   '电视', '椅子', '床', '桌子', '沙发', '台灯', '门', '窗户', '书', '杯子',
+  '猫', '狗', '狮子', '老虎', '熊', '青蛙', '鸭子', '老鼠', '绵羊', '马',
+  '鱼', '鲸鱼', '鲨鱼', '螃蟹', '海豚', '章鱼', '海豹', '海龟', '海星', '水母',
 ];
 const WORD_EN: string[] = [
   'apple', 'banana', 'orange', 'grape', 'pear', 'peach', 'lemon', 'mango', 'melon', 'cherry',
   'school', 'hospital', 'park', 'supermarket', 'library', 'zoo', 'bank', 'museum', 'station', 'home',
   'TV', 'chair', 'bed', 'table', 'sofa', 'lamp', 'door', 'window', 'book', 'cup',
+  'cat', 'dog', 'lion', 'tiger', 'bear', 'frog', 'duck', 'mouse', 'sheep', 'horse',
+  'fish', 'whale', 'shark', 'crab', 'dolphin', 'octopus', 'seal', 'turtle', 'starfish', 'jellyfish',
 ];
 
 async function launchApp(): Promise<Driver> {
@@ -263,6 +271,7 @@ export default function fillLetterFlowUiTest(): void {
     it('singleLetterFillAcceptsCorrectLetter', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await selectOnlyQuestionTypeShared(driver, 'fill-letter');
       await startFruitForestBattle(driver);
 
       let asserted: boolean = false;
@@ -315,6 +324,7 @@ export default function fillLetterFlowUiTest(): void {
 
       expect(asserted).assertTrue();
       await exitToHome(driver);
+      await selectAllQuestionTypesShared(driver);
       done();
     });
 
@@ -330,6 +340,7 @@ export default function fillLetterFlowUiTest(): void {
     it('mediumLetterFillCompletesBothSteps', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await selectOnlyQuestionTypeShared(driver, 'fill-letter-medium');
       await startFruitForestBattle(driver);
 
       let stepAdvancedSeen: boolean = false;
@@ -441,6 +452,7 @@ export default function fillLetterFlowUiTest(): void {
       expect(stepAdvancedSeen).assertTrue();
       expect(stepOneCompleted).assertTrue();
       await exitToHome(driver);
+      await selectAllQuestionTypesShared(driver);
       done();
     });
   });

@@ -106,7 +106,8 @@ async function unbindMockBinding(): Promise<void> {
 
 async function wipeBoundDeviceState(): Promise<void> {
   try {
-    const ctx: common.Context = DELEGATOR.getAppContext();
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const ctx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
     const handle: preferences.Preferences =
       await preferences.getPreferences(ctx, PREFS_CLOUD);
     await handle.put('device_token', '');
@@ -426,9 +427,9 @@ export default function parentBindingFlowUiTest(): void {
      * was removed; unbind lives on BoundDeviceInfoPage now.)
      */
     it('unboundConfigPageRendersBindEntryOnly', 0, async (done: Function) => {
-      await resetMockAndPrefsToUnbound();
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetMockAndPrefsToUnbound();
       await openConfigPage(driver);
       await scrollConfigToParentAccountRow(driver);
 
@@ -457,6 +458,7 @@ export default function parentBindingFlowUiTest(): void {
     it('tapBindOpensScanBindingPage', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetMockAndPrefsToUnbound();
       await openConfigPage(driver);
       await scrollConfigToParentAccountRow(driver);
 
@@ -528,6 +530,7 @@ export default function parentBindingFlowUiTest(): void {
     it('shortCodeRedeemFlipsConfigToBound', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetMockAndPrefsToUnbound();
       await openConfigPage(driver);
       await scrollConfigToParentAccountRow(driver);
 

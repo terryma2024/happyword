@@ -1,7 +1,12 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
-import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import {
+  clickByIdShared,
+  selectAllQuestionTypesShared,
+  selectOnlyQuestionTypeShared,
+  tapConfigCancelShared,
+} from './RoutingFlow.ui.test';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -237,6 +242,49 @@ async function restoreDefaultTimerChip(driver: Driver): Promise<void> {
  */
 export default function configFlowUiTest(): void {
   describe('ConfigFlow', () => {
+    it('questionTypeSectionRendersImplementedChineseChipsOnly', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+      await openConfig(driver);
+
+      await driver.assertComponentExist(ON.id('ConfigQuestionType_choice'));
+      await driver.assertComponentExist(ON.id('ConfigQuestionType_fill-letter'));
+      await driver.assertComponentExist(ON.id('ConfigQuestionType_fill-letter-medium'));
+      await driver.assertComponentExist(ON.id('ConfigQuestionType_spell'));
+      const choiceChip: Component =
+        await driver.findComponent(ON.id('ConfigQuestionType_choice'));
+      const choiceText: string = await choiceChip.getText();
+      expect(choiceText.indexOf('中文选词') >= 0).assertTrue();
+      const sentenceChip: Component | null =
+        await driver.findComponent(ON.id('ConfigQuestionType_sentence-fill'));
+      expect(sentenceChip === null).assertTrue();
+
+      await tapConfigCancelShared(driver);
+      await returnToHome(driver);
+      done();
+    });
+
+    it('questionTypeSelectionPersistsAfterSave', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+      await selectOnlyQuestionTypeShared(driver, 'spell');
+      await openConfig(driver);
+
+      const spellChip: Component =
+        await driver.findComponent(ON.id('ConfigQuestionType_spell'));
+      const choiceChip: Component =
+        await driver.findComponent(ON.id('ConfigQuestionType_choice'));
+      const spellText: string = await spellChip.getText();
+      const choiceText: string = await choiceChip.getText();
+      expect(spellText.indexOf('✓') === 0).assertTrue();
+      expect(choiceText.indexOf('✓') === 0).assertFalse();
+
+      await tapConfigCancelShared(driver);
+      await returnToHome(driver);
+      await selectAllQuestionTypesShared(driver);
+      done();
+    });
+
     it('configParentPinButtonNavigatesToSetupPage', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);

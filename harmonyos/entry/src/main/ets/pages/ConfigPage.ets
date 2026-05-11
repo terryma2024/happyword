@@ -12,8 +12,13 @@ import {
 } from '../models/GameConfig';
 import { ParentPinDialog } from '../components/ParentPinDialog';
 import { CustomTimerDialog } from '../components/CustomTimerDialog';
+import { QuestionKind } from '../models/Question';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
+import {
+  DEFAULT_ENABLED_QUESTION_TYPES,
+  sanitizeEnabledQuestionTypes,
+} from '../services/BattleQuestionTypePolicy';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
 import {
@@ -59,6 +64,7 @@ struct ConfigPage {
   @State private cloudSyncBusy: boolean = false;
   @State private cloudSyncStatusText: string = '';
   @State private cloudSyncToastText: string = '';
+  @State private questionTypeLastEnabledHint: string = '';
   private cloudCreds: CloudCredentials = new CloudCredentials();
   private adminPinDialog: CustomDialogController | null = null;
   // V0.6.7.7: 自定义 timer dialog controller. Created lazily on first
@@ -366,6 +372,55 @@ struct ConfigPage {
     this.forceRerender();
   }
 
+  private questionTypeChipId(typeId: string): string {
+    return `ConfigQuestionType_${typeId}`;
+  }
+
+  private questionTypeLabel(typeId: string): string {
+    if (typeId === QuestionKind.Choice) {
+      return '中文选词';
+    }
+    if (typeId === QuestionKind.FillLetter) {
+      return '单字母填空';
+    }
+    if (typeId === QuestionKind.FillLetterMedium) {
+      return '双字母填空';
+    }
+    if (typeId === QuestionKind.Spell) {
+      return '多字母选择';
+    }
+    return '题型';
+  }
+
+  private questionTypeChipLabel(typeId: string): string {
+    const selected: boolean = this.isQuestionTypeEnabled(typeId);
+    const prefix: string = selected ? '✓ ' : '';
+    return `${prefix}${this.questionTypeLabel(typeId)}`;
+  }
+
+  private isQuestionTypeEnabled(typeId: string): boolean {
+    const safeTypes: string[] = sanitizeEnabledQuestionTypes(this.draft.enabledQuestionTypes);
+    return safeTypes.indexOf(typeId) >= 0;
+  }
+
+  private toggleQuestionType(typeId: string): void {
+    const safeTypes: string[] = sanitizeEnabledQuestionTypes(this.draft.enabledQuestionTypes);
+    const idx: number = safeTypes.indexOf(typeId);
+    if (idx >= 0) {
+      if (safeTypes.length <= 1) {
+        this.questionTypeLastEnabledHint = '至少保留一种题型';
+        this.forceRerender();
+        return;
+      }
+      safeTypes.splice(idx, 1);
+    } else {
+      safeTypes.push(typeId);
+    }
+    this.questionTypeLastEnabledHint = '';
+    this.draft.enabledQuestionTypes = sanitizeEnabledQuestionTypes(safeTypes);
+    this.forceRerender();
+  }
+
   private openParentPinSetup(): void {
     this.getUIContext().getRouter().pushUrl({ url: 'pages/ParentPinSetupPage' }).catch((err: BusinessError): void => {
       console.error(`ConfigPage: pushUrl ParentPinSetupPage failed: ${JSON.stringify(err)}`);
@@ -440,6 +495,7 @@ struct ConfigPage {
     merged.monstersTotal = this.draft.monstersTotal;
     merged.startingSeconds = this.draft.startingSeconds;
     merged.autoSpeak = this.draft.autoSpeak;
+    merged.enabledQuestionTypes = sanitizeEnabledQuestionTypes(this.draft.enabledQuestionTypes);
 
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
     persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, merged);
@@ -604,6 +660,60 @@ struct ConfigPage {
   }
 
   @Builder
+  private questionTypeRow() {
+    Column() {
+      Row() {
+        Text('题型选择').fontSize(18).width(120);
+        Column({ space: 8 }) {
+          Row({ space: 8 }) {
+            ForEach(DEFAULT_ENABLED_QUESTION_TYPES.slice(0, 2), (typeId: string) => {
+              Button(this.questionTypeChipLabel(typeId))
+                .id(this.questionTypeChipId(typeId))
+                .height(40)
+                .padding({ left: 12, right: 12 })
+                .fontSize(14)
+                .backgroundColor(this.isQuestionTypeEnabled(typeId) ? '#FFF4D0' : '#F0F0F0')
+                .fontColor(this.isQuestionTypeEnabled(typeId) ? '#B8860B' : '#666666')
+                .borderWidth(this.isQuestionTypeEnabled(typeId) ? 2 : 0)
+                .borderColor('#FFB400')
+                .onClick((): void => this.toggleQuestionType(typeId));
+            }, (typeId: string): string => typeId);
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center);
+          Row({ space: 8 }) {
+            ForEach(DEFAULT_ENABLED_QUESTION_TYPES.slice(2), (typeId: string) => {
+              Button(this.questionTypeChipLabel(typeId))
+                .id(this.questionTypeChipId(typeId))
+                .height(40)
+                .padding({ left: 12, right: 12 })
+                .fontSize(14)
+                .backgroundColor(this.isQuestionTypeEnabled(typeId) ? '#FFF4D0' : '#F0F0F0')
+                .fontColor(this.isQuestionTypeEnabled(typeId) ? '#B8860B' : '#666666')
+                .borderWidth(this.isQuestionTypeEnabled(typeId) ? 2 : 0)
+                .borderColor('#FFB400')
+                .onClick((): void => this.toggleQuestionType(typeId));
+            }, (typeId: string): string => typeId);
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center);
+        }
+        .width(260)
+        .alignItems(HorizontalAlign.Center);
+      }
+      .alignItems(VerticalAlign.Center);
+      Text('至少保留一种题型')
+        .id('ConfigQuestionTypeLastEnabledHint')
+        .fontSize(12)
+        .fontColor(this.questionTypeLastEnabledHint.length > 0 ? '#B45309' : '#00FFFFFF')
+        .margin({ top: 4, left: 120 });
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Center)
+    .margin({ bottom: 12 });
+  }
+
+  @Builder
   private parentPinRow() {
     Row() {
       Text('家长密码').fontSize(18).width(120);
@@ -694,6 +804,7 @@ struct ConfigPage {
 
         this.timerRow();
         this.autoSpeakRow();
+        this.questionTypeRow();
         this.packPickerSection();
         this.parentPinRow();
         this.parentAccountRow();

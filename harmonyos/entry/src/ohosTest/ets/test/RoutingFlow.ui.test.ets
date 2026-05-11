@@ -127,6 +127,73 @@ export async function scrollToParentPinButton(driver: Driver): Promise<void> {
   }
 }
 
+const QUESTION_TYPE_IDS: string[] = [
+  'choice',
+  'fill-letter',
+  'fill-letter-medium',
+  'spell',
+];
+
+async function tapConfigSaveShared(driver: Driver): Promise<void> {
+  try {
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const comp: Component | null = await driver.findComponent(ON.id('ConfigSaveButton'));
+      if (comp !== null) {
+        await comp.click();
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
+    }
+    throw new Error('ConfigSaveButton remained off-screen after 5 swipes');
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+function hasCheckPrefix(text: string): boolean {
+  return text.indexOf('✓') === 0;
+}
+
+export async function setQuestionTypeChipShared(driver: Driver, typeId: string, selected: boolean): Promise<void> {
+  try {
+    const id: string = `ConfigQuestionType_${typeId}`;
+    await driver.assertComponentExist(ON.id(id));
+    const chip: Component = await driver.findComponent(ON.id(id));
+    const text: string = await chip.getText();
+    if (hasCheckPrefix(text) !== selected) {
+      await chip.click();
+      await driver.delayMs(250);
+    }
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+export async function selectQuestionTypesShared(driver: Driver, selectedTypes: string[]): Promise<void> {
+  try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1000);
+    for (let i: number = 0; i < QUESTION_TYPE_IDS.length; i++) {
+      const typeId: string = QUESTION_TYPE_IDS[i];
+      await setQuestionTypeChipShared(driver, typeId, selectedTypes.indexOf(typeId) >= 0);
+    }
+    await tapConfigSaveShared(driver);
+    await driver.delayMs(900);
+    await driver.assertComponentExist(ON.id('HomeStartButton'));
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+export async function selectOnlyQuestionTypeShared(driver: Driver, typeId: string): Promise<void> {
+  return selectQuestionTypesShared(driver, [typeId]);
+}
+
+export async function selectAllQuestionTypesShared(driver: Driver): Promise<void> {
+  return selectQuestionTypesShared(driver, QUESTION_TYPE_IDS);
+}
+
 /**
  * zh -> en word mapping, mirrored from words_v1.json. Duplicated here
  * on purpose: the ohosTest HAP is a separate module and resolving the
