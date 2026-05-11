@@ -39,6 +39,12 @@ The detailed phase implementation specs live under `docs/superpowers/specs/` so 
 | Phase 4 | `docs/superpowers/specs/2026-05-10-ios-replica-phase4-debug-preview-design.md` |
 | Phase 5 | `docs/superpowers/specs/2026-05-10-ios-replica-phase5-release-hardening-design.md` |
 
+## Superpowers Implementation Plans
+
+| Phase | Plan |
+| --- | --- |
+| Phase 3 | `docs/superpowers/plans/2026-05-11-ios-replica-phase3-parent-cloud.md` |
+
 ## Current HarmonyOS Route Coverage
 
 `harmonyos/entry/src/main/resources/base/profile/main_pages.json` currently registers 17 pages. iOS implementation planning assigns each page to a phase so the port can proceed in slices instead of as a single rewrite.

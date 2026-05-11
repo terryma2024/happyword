@@ -94,7 +94,7 @@ final class BattleEngine {
 
     func submitAnswer(_ option: String) throws -> AnswerOutcome {
         guard state.status == .playing else { throw BattleError.notPlaying }
-        guard let question = state.currentQuestion else { throw BattleError.missingQuestion }
+        guard var question = state.currentQuestion else { throw BattleError.missingQuestion }
 
         let validOptions = options(for: question)
         guard validOptions.contains(option) else {
@@ -105,6 +105,9 @@ final class BattleEngine {
         var outcome = AnswerOutcome(correct: correct, damage: 1)
 
         if question.kind == .fillLetterMedium && correct && question.currentStep < 1 {
+            revealMediumStepLetter(&question, chosen: option)
+            question.currentStep += 1
+            state.currentQuestion = question
             outcome.damage = 0
             outcome.advancedStep = true
             return outcome
@@ -207,6 +210,20 @@ final class BattleEngine {
         case .fillLetterMedium:
             question.letterAnswers.indices.contains(question.currentStep) && option == question.letterAnswers[question.currentStep]
         }
+    }
+
+    private func revealMediumStepLetter(_ question: inout Question, chosen: String) {
+        guard question.kind == .fillLetterMedium,
+              question.letterAnswers.indices.contains(question.currentStep),
+              question.letterAnswers[question.currentStep] == chosen,
+              question.missingIndices.indices.contains(question.currentStep)
+        else { return }
+
+        let missingIndex = question.missingIndices[question.currentStep]
+        var parts = question.letterTemplateBase.split(separator: " ").map(String.init)
+        guard parts.indices.contains(missingIndex) else { return }
+        parts[missingIndex] = chosen
+        question.letterTemplateBase = parts.joined(separator: " ")
     }
 
     private func rememberWord(_ wordId: String) {

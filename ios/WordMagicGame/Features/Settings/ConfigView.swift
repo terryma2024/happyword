@@ -69,11 +69,42 @@ struct ConfigView: View {
                         .accessibilityIdentifier("ConfigPackManagerButton")
                 }
                 .font(.headline.weight(.bold))
+
+                cloudBindingSection
             }
             .padding(.horizontal, 42)
             .padding(.vertical, 22)
         }
         .background(AppTheme.page)
+    }
+
+    private var cloudBindingSection: some View {
+        HStack(spacing: 16) {
+            Text("家长云同步")
+                .font(.title2.weight(.bold))
+                .frame(width: 130, alignment: .trailing)
+
+            if let credentials = coordinator.cloudCredentialsStore.credentials {
+                Text("已绑定 \(credentials.nickname)")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(AppTheme.navy)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                    .accessibilityIdentifier("CloudBindingStatus")
+                Button("账号信息") { coordinator.openBoundDeviceInfo() }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.mint)
+                    .accessibilityIdentifier("账号信息")
+            } else {
+                Button("绑定家长账号") { coordinator.openBinding() }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.mint)
+                    .accessibilityIdentifier("绑定家长账号")
+            }
+            Spacer()
+        }
+        .font(.headline.weight(.bold))
+        .frame(maxWidth: 560)
     }
 
     private func settingStepper(_ title: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {

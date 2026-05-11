@@ -96,4 +96,33 @@ final class BattleEngineTests: XCTestCase {
         XCTAssertEqual(engine.state.remainingSeconds, 0)
         XCTAssertFalse(engine.tick(deltaSeconds: 1).battleEnded)
     }
+
+    func testFillLetterMediumFirstStepAdvancesInPlaceAndRevealsLetter() throws {
+        let medium = Question(
+            promptZh: "苹果",
+            answer: "apple",
+            options: [],
+            wordId: "fruit-apple",
+            kind: .fillLetterMedium,
+            letterTemplateBase: "a _ p _ e",
+            missingIndices: [1, 3],
+            letterOptionsSteps: [["p", "b", "c"], ["l", "r", "s"]],
+            letterAnswers: ["p", "l"]
+        )
+        let next = Question.choice(wordId: "fruit-pear", promptZh: "梨", answer: "pear", options: ["pear", "apple", "banana"])
+        let engine = BattleEngine(questionSource: FixedQuestionSource(repeating: [medium, next]))
+
+        engine.start()
+        let outcome = try engine.submitAnswer("p")
+
+        XCTAssertTrue(outcome.correct)
+        XCTAssertTrue(outcome.advancedStep)
+        XCTAssertEqual(outcome.damage, 0)
+        XCTAssertEqual(engine.state.monsterHp, engine.state.monsterMaxHp)
+        XCTAssertEqual(engine.state.comboCount, 0)
+        XCTAssertEqual(engine.state.totalAnswers, 0)
+        XCTAssertEqual(engine.state.currentQuestion?.wordId, "fruit-apple")
+        XCTAssertEqual(engine.state.currentQuestion?.currentStep, 1)
+        XCTAssertEqual(engine.state.currentQuestion?.letterTemplateBase, "a p p _ e")
+    }
 }

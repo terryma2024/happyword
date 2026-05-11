@@ -91,6 +91,10 @@ final class QuestionGenerator: QuestionSource {
         return Question.choice(wordId: answer.id, promptZh: answer.meaningZh, answer: answer.word, options: options)
     }
 
+    func nextQuestionForWord(_ answer: WordEntry, lastWordId _: String? = nil) throws -> Question {
+        try question(for: answer)
+    }
+
     private func pickDistractors(all: [WordEntry], answer: WordEntry) -> [WordEntry] {
         let needed = Self.optionsPerQuestion - 1
         var picked: [WordEntry] = []
@@ -121,6 +125,213 @@ final class QuestionGenerator: QuestionSource {
     private func randomIndex(_ upperBound: Int) -> Int {
         guard upperBound > 0 else { return 0 }
         return min(Int((random.nextDouble() * Double(upperBound)).rounded(.down)), upperBound - 1)
+    }
+}
+
+final class FillLetterGenerator {
+    private static let alphabet = Array("abcdefghijklmnopqrstuvwxyz").map(String.init)
+    private static let optionsPerQuestion = 3
+
+    private var random: SeededRandom
+
+    init(random: SeededRandom = SeededRandom(seed: 42)) {
+        self.random = random
+    }
+
+    func generate(_ word: WordEntry, lastWordId _: String? = nil) -> Question? {
+        let letters = alphabeticLetters(word.word)
+        guard letters.count >= 3 else { return nil }
+
+        let missingIndex = randomIndex(in: 1 ... (letters.count - 1))
+        let answer = letters[missingIndex]
+        let options = letterOptions(answer: answer, wordLetters: Set(letters), excludedAnswers: [answer])
+        let template = letters.enumerated().map { index, letter in index == missingIndex ? "_" : letter }.joined(separator: " ")
+
+        var question = Question(promptZh: word.meaningZh, answer: word.word, options: [], wordId: word.id, kind: .fillLetter)
+        question.letterTemplate = template
+        question.missingIndex = missingIndex
+        question.letterOptions = options
+        question.letterAnswer = answer
+        return question
+    }
+
+    func generateMedium(_ word: WordEntry, lastWordId _: String? = nil) -> Question? {
+        let letters = alphabeticLetters(word.word)
+        guard letters.count >= 4 else { return nil }
+
+        var first = randomIndex(in: 1 ... (letters.count - 1))
+        var second = randomIndex(in: 1 ... (letters.count - 1))
+        if first == second {
+            second += 1
+            if second > letters.count - 1 {
+                second = 1
+            }
+        }
+        if first > second {
+            swap(&first, &second)
+        }
+
+        let missingIndices = [first, second]
+        let answers = [letters[first], letters[second]]
+        let wordLetters = Set(letters)
+        let template = letters.enumerated()
+            .map { index, letter in missingIndices.contains(index) ? "_" : letter }
+            .joined(separator: " ")
+        let steps = [
+            letterOptions(answer: answers[0], wordLetters: wordLetters, excludedAnswers: answers),
+            letterOptions(answer: answers[1], wordLetters: wordLetters, excludedAnswers: answers),
+        ]
+
+        var question = Question(promptZh: word.meaningZh, answer: word.word, options: [], wordId: word.id, kind: .fillLetterMedium)
+        question.letterTemplateBase = template
+        question.missingIndices = missingIndices
+        question.letterOptionsSteps = steps
+        question.letterAnswers = answers
+        question.currentStep = 0
+        return question
+    }
+
+    private func alphabeticLetters(_ word: String) -> [String] {
+        word.lowercased().compactMap { character in
+            guard character >= "a", character <= "z" else { return nil }
+            return String(character)
+        }
+    }
+
+    private func letterOptions(answer: String, wordLetters: Set<String>, excludedAnswers: [String]) -> [String] {
+        var pool = Self.alphabet.filter { !wordLetters.contains($0) && !excludedAnswers.contains($0) }
+        if pool.count < Self.optionsPerQuestion - 1 {
+            pool = Self.alphabet.filter { !excludedAnswers.contains($0) }
+        }
+        let distractors = Array(shuffled(pool, random: { self.random.nextDouble() }).prefix(Self.optionsPerQuestion - 1))
+        return shuffled([answer] + distractors, random: { self.random.nextDouble() })
+    }
+
+    private func randomIndex(in range: ClosedRange<Int>) -> Int {
+        guard range.lowerBound < range.upperBound else { return range.lowerBound }
+        let span = range.upperBound - range.lowerBound + 1
+        let candidate = Int((random.nextDouble() * Double(span)).rounded(.down))
+        return range.lowerBound + min(max(candidate, 0), span - 1)
+    }
+}
+
+final class SpellGenerator {
+    private var random: SeededRandom
+
+    init(random: SeededRandom = SeededRandom(seed: 42)) {
+        self.random = random
+    }
+
+    func generate(_ word: WordEntry) -> Question? {
+        let letters = alphabeticLetters(word.word)
+        guard (4 ... 9).contains(letters.count) else { return nil }
+
+        var question = Question(promptZh: word.meaningZh, answer: word.word, options: [], wordId: word.id, kind: .spell)
+        question.spellLetters = letters
+        question.spellRevealedMask = letters.indices.map { $0 == 0 }
+        question.spellPool = shuffled(Array(letters.dropFirst()), random: { self.random.nextDouble() })
+        return question
+    }
+
+    private func alphabeticLetters(_ word: String) -> [String] {
+        word.lowercased().compactMap { character in
+            guard character >= "a", character <= "z" else { return nil }
+            return String(character)
+        }
+    }
+}
+
+struct BattleQuestionPlan: Equatable {
+    var wordIds: [String]
+    var monsterSlots: [MonsterPlanSlot]
+
+    static func from(pack: Pack) -> BattleQuestionPlan {
+        let slots = pack.scene.monsterPlan.isEmpty
+            ? [
+                MonsterPlanSlot(kind: .normal, catalogIndex: 0),
+                MonsterPlanSlot(kind: .spelling, catalogIndex: 1),
+                MonsterPlanSlot(kind: .review, catalogIndex: 2),
+                MonsterPlanSlot(kind: .elite, catalogIndex: 3),
+                MonsterPlanSlot(kind: .boss, catalogIndex: 4),
+            ]
+            : pack.scene.monsterPlan
+        return BattleQuestionPlan(wordIds: pack.words.map(\.id), monsterSlots: slots)
+    }
+}
+
+final class PlanQuestionSource: QuestionSource {
+    private let plan: BattleQuestionPlan
+    private let repository: WordRepository
+    private let choiceGenerator: QuestionGenerator
+    private let fillGenerator: FillLetterGenerator
+    private let spellGenerator: SpellGenerator
+    private var monsterIndexProvider: () -> Int = { 1 }
+    private var cursor = 0
+
+    init(plan: BattleQuestionPlan, repository: WordRepository, randomSeed: UInt64 = 42) {
+        self.plan = plan
+        self.repository = repository
+        choiceGenerator = QuestionGenerator(repository: repository, random: SeededRandom(seed: randomSeed))
+        fillGenerator = FillLetterGenerator(random: SeededRandom(seed: randomSeed &+ 1))
+        spellGenerator = SpellGenerator(random: SeededRandom(seed: randomSeed &+ 2))
+    }
+
+    func setMonsterIndexProvider(_ provider: @escaping () -> Int) {
+        monsterIndexProvider = provider
+    }
+
+    func nextQuestion(lastWordId: String? = nil) throws -> Question {
+        let word = pickWord(lastWordId: lastWordId)
+        switch currentMonsterKind() {
+        case .boss:
+            return try spellGenerator.generate(word)
+                ?? fillGenerator.generateMedium(word)
+                ?? fillGenerator.generate(word)
+                ?? choiceGenerator.nextQuestionForWord(word, lastWordId: lastWordId)
+        case .elite:
+            return try fillGenerator.generateMedium(word)
+                ?? fillGenerator.generate(word)
+                ?? choiceGenerator.nextQuestionForWord(word, lastWordId: lastWordId)
+        case .spelling:
+            return try fillGenerator.generate(word)
+                ?? choiceGenerator.nextQuestionForWord(word, lastWordId: lastWordId)
+        case .normal, .review:
+            return try choiceGenerator.nextQuestionForWord(word, lastWordId: lastWordId)
+        }
+    }
+
+    private func pickWord(lastWordId: String?) -> WordEntry {
+        let all = repository.all()
+        guard !all.isEmpty else {
+            return WordEntry(id: "", word: "", meaningZh: "", category: "", difficulty: 1)
+        }
+        guard !plan.wordIds.isEmpty else { return all[0] }
+
+        var attempts = 0
+        while attempts < plan.wordIds.count {
+            let wordId = plan.wordIds[cursor % plan.wordIds.count]
+            cursor = (cursor + 1) % plan.wordIds.count
+            attempts += 1
+            if plan.wordIds.count > 1, wordId == lastWordId {
+                continue
+            }
+            if let word = repository.word(id: wordId) {
+                return word
+            }
+        }
+
+        for wordId in plan.wordIds {
+            if let word = repository.word(id: wordId) {
+                return word
+            }
+        }
+        return all[0]
+    }
+
+    private func currentMonsterKind() -> MonsterPlanSlotKind {
+        guard !plan.monsterSlots.isEmpty else { return .normal }
+        let index = max(monsterIndexProvider(), 1) - 1
+        return plan.monsterSlots[index % plan.monsterSlots.count].kind
     }
 }
 

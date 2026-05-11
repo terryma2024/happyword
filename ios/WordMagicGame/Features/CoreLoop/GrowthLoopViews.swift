@@ -28,14 +28,13 @@ struct PackManagerView: View {
                         .accessibilityIdentifier("PackManagerTitle")
                 }
                 Spacer()
-                Button("🔄 同步词包") { coordinator.syncPacks() }
+                Button("同步词包") { coordinator.syncPacks() }
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
                     .padding(.horizontal, 18)
                     .frame(height: 46)
                     .background(AppTheme.paleBlue, in: Capsule())
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("PackManagerSyncButton")
             }
 
             HStack {

@@ -16,6 +16,8 @@ enum AppRoute: Equatable {
     case redemptionHistory
     case todayPlan
     case learningReport
+    case scanBinding
+    case boundDeviceInfo
 }
 
 @MainActor
@@ -30,15 +32,23 @@ final class AppCoordinator: ObservableObject {
     @Published var packSelectionStore: PackSelectionStore
     @Published var packManagerMessage = ""
     @Published var learningReport: LearningReport?
+    @Published var bindingMessage = ""
+    @Published var packLibrary = PackLibrary()
 
     let configStore: GameConfigStore
     let coinAccount = CoinAccount()
     let parentClient: ParentApiClient = MockParentApiClient()
-    let packLibrary = PackLibrary()
     let wishlistStore = WishlistStore()
     let redemptionHistoryStore = RedemptionHistoryStore()
     let learningRecorder = LearningRecorder()
     let pronunciationService: PronunciationSpeaking
+    let cloudCredentialsStore: CloudCredentialsStore
+    let deviceIdProvider: DeviceIdProvider
+    let bindingClient: any DeviceBindingClienting
+
+    private var globalPackCache: PackLayerCache?
+    private var familyPackCache: PackLayerCache?
+    private let battleRandomSeed: UInt64?
 
     var packs: [Pack] {
         packLibrary.allPacks()
@@ -50,10 +60,18 @@ final class AppCoordinator: ObservableObject {
 
     init(
         configStore: GameConfigStore = GameConfigStore(),
-        pronunciationService: PronunciationSpeaking = SystemPronunciationService()
+        pronunciationService: PronunciationSpeaking = SystemPronunciationService(),
+        cloudCredentialsStore: CloudCredentialsStore = CloudCredentialsStore(),
+        deviceIdProvider: DeviceIdProvider = DeviceIdProvider(),
+        bindingClient: any DeviceBindingClienting = MockDeviceBindingClient(),
+        battleRandomSeed: UInt64? = nil
     ) {
         self.configStore = configStore
         self.pronunciationService = pronunciationService
+        self.cloudCredentialsStore = cloudCredentialsStore
+        self.deviceIdProvider = deviceIdProvider
+        self.bindingClient = bindingClient
+        self.battleRandomSeed = battleRandomSeed
         packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id))
         selectedPack = Pack.builtin[0]
         pronunciationService.prepare()
@@ -83,20 +101,52 @@ final class AppCoordinator: ObservableObject {
     }
 
     func syncPacks() {
-        packManagerMessage = "本地词包已是最新"
+        guard cloudCredentialsStore.credentials != nil else {
+            packManagerMessage = "请先绑定家长账号"
+            return
+        }
+        do {
+            let client = PackSyncClient()
+            let globalResponse = try JSONDecoder.snakeCase.decode(PackLayerFixture.self, from: DemoPackLayerFixtures.global)
+            let familyResponse = try JSONDecoder.snakeCase.decode(PackLayerFixture.self, from: DemoPackLayerFixtures.family)
+            globalPackCache = try client.apply(
+                status: globalResponse.status,
+                etag: globalResponse.headers.eTag,
+                body: globalResponse.body,
+                source: .global,
+                cached: globalPackCache
+            )
+            familyPackCache = try client.apply(
+                status: familyResponse.status,
+                etag: familyResponse.headers.eTag,
+                body: familyResponse.body,
+                source: .family,
+                cached: familyPackCache
+            )
+            packLibrary = PackLibrary(
+                builtin: Pack.builtin,
+                global: globalPackCache?.packs ?? [],
+                family: familyPackCache?.packs ?? []
+            )
+            packManagerMessage = "已同步官方/家庭词包"
+        } catch PackSyncError.bindingGone {
+            cloudCredentialsStore.clear()
+            packManagerMessage = "绑定已失效，请重新绑定"
+        } catch {
+            packManagerMessage = "同步失败，请稍后再试"
+        }
     }
 
     func startBattle() {
         pronunciationService.prepare()
-        let questions = selectedPack.words.prefix(5).map { word in
-            Question.choice(
-                wordId: word.id,
-                promptZh: word.meaningZh,
-                answer: word.word,
-                options: [word.word, "moon", "star"]
-            )
-        }
-        let engine = BattleEngine(questionSource: FixedQuestionSource(repeating: Array(questions)), config: configStore.config)
+        let repository = WordRepository(words: selectedPack.words)
+        let questionSource = PlanQuestionSource(
+            plan: BattleQuestionPlan.from(pack: selectedPack),
+            repository: repository,
+            randomSeed: makeBattleRandomSeed()
+        )
+        let engine = BattleEngine(questionSource: questionSource, config: configStore.config)
+        questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
         battleEngine = engine
         route = .battle
@@ -165,6 +215,13 @@ final class AppCoordinator: ObservableObject {
         route = .result
     }
 
+    private func makeBattleRandomSeed() -> UInt64 {
+        if let battleRandomSeed {
+            return battleRandomSeed
+        }
+        return UInt64(Date().timeIntervalSince1970 * 1000)
+    }
+
     func saveConfig(_ config: GameConfig) {
         configStore.save(config)
         route = .config
@@ -225,6 +282,50 @@ final class AppCoordinator: ObservableObject {
         route = .learningReport
     }
 
+    func openBinding() {
+        bindingMessage = ""
+        route = .scanBinding
+    }
+
+    func openBoundDeviceInfo() {
+        bindingMessage = ""
+        route = .boundDeviceInfo
+    }
+
+    func bind(shortCode: String) async {
+        let trimmed = shortCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count == 6 else {
+            bindingMessage = "请输入 6 位短码"
+            return
+        }
+        do {
+            let response = try await bindingClient.redeem(shortCode: trimmed, deviceId: deviceIdProvider.deviceId())
+            cloudCredentialsStore.save(response)
+            bindingMessage = "绑定成功：\(response.nickname)"
+        } catch {
+            bindingMessage = "短码无效，请重新输入"
+        }
+    }
+
+    func finishBinding() {
+        bindingMessage = ""
+        route = .config
+    }
+
+    func unbind(pin: String) {
+        guard pin == configStore.config.parentPin else {
+            bindingMessage = "PIN 不正确"
+            return
+        }
+        cloudCredentialsStore.clear()
+        globalPackCache = nil
+        familyPackCache = nil
+        packLibrary = PackLibrary()
+        packManagerMessage = ""
+        bindingMessage = ""
+        route = .config
+    }
+
     func approveLessonReview() {
         parentAdminMessage = "已发布词包 v7，包含 \(reviewStore.approvePayload().words.count) 个单词"
         route = .parentAdmin
@@ -266,6 +367,10 @@ final class AppCoordinator: ObservableObject {
             route = .todayPlan
         } else if arguments.contains("-UITestRouteLearningReport") {
             openLearningReport()
+        } else if arguments.contains("-UITestRouteScanBinding") {
+            route = .scanBinding
+        } else if arguments.contains("-UITestRouteBoundDeviceInfo") {
+            route = .boundDeviceInfo
         }
     }
 
@@ -278,6 +383,9 @@ final class AppCoordinator: ObservableObject {
             var config = configStore.config
             config.parentPin = "123456"
             configStore.save(config)
+        }
+        if arguments.contains("-UITestSeedBoundDevice") {
+            cloudCredentialsStore.save(.demoBinding)
         }
         if arguments.contains("-UITestResetState") {
             packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id))

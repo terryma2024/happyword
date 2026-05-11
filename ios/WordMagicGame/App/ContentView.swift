@@ -36,6 +36,10 @@ struct ContentView: View {
                 TodayPlanView(coordinator: coordinator)
             case .learningReport:
                 LearningReportView(coordinator: coordinator)
+            case .scanBinding:
+                ScanBindingView(coordinator: coordinator)
+            case .boundDeviceInfo:
+                BoundDeviceInfoView(coordinator: coordinator)
             }
         }
         .accessibilityIdentifier("RootView")

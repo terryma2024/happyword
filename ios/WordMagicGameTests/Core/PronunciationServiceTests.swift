@@ -17,7 +17,7 @@ final class PronunciationServiceTests: XCTestCase {
         coordinator.startBattle()
         coordinator.autoSpeakCurrentBattleAnswer(isRevealing: false)
 
-        XCTAssertEqual(speaker.spokenWords, ["apple"])
+        XCTAssertEqual(speaker.spokenWords.first, coordinator.battleEngine?.state.currentQuestion?.answer)
     }
 
     func testAutoSpeakCurrentBattleAnswerRespectsConfigAndRevealState() {
@@ -44,7 +44,7 @@ final class PronunciationServiceTests: XCTestCase {
         coordinator.startBattle()
         coordinator.speakCurrentBattleAnswer()
 
-        XCTAssertEqual(speaker.spokenWords, ["apple"])
+        XCTAssertEqual(speaker.spokenWords.first, coordinator.battleEngine?.state.currentQuestion?.answer)
     }
 
     func testAutoSpeakAfterAnswerUsesNextQuestionAnswer() {
@@ -52,10 +52,11 @@ final class PronunciationServiceTests: XCTestCase {
         let coordinator = makeCoordinator(pronunciationService: speaker)
 
         coordinator.startBattle()
-        _ = coordinator.submitBattleOptionForAnimation("apple")
+        let firstAnswer = coordinator.battleEngine?.state.currentQuestion?.answer
+        _ = coordinator.submitBattleOptionForAnimation(firstAnswer ?? "")
         coordinator.autoSpeakCurrentBattleAnswer(isRevealing: false)
 
-        XCTAssertEqual(speaker.spokenWords, ["pear"])
+        XCTAssertEqual(speaker.spokenWords.first, coordinator.battleEngine?.state.currentQuestion?.answer)
     }
 
     private func makeCoordinator(pronunciationService: PronunciationSpeaking) -> AppCoordinator {

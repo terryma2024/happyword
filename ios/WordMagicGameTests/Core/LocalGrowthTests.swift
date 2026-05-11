@@ -1,7 +1,7 @@
 @testable import WordMagicGame
 import XCTest
 
-final class Phase2LocalGrowthTests: XCTestCase {
+final class LocalGrowthTests: XCTestCase {
     func testPackLibraryMergesFamilyOverGlobalOverBuiltinAndKeepsSceneFallback() {
         let builtin = Pack(
             id: "forest",
@@ -84,9 +84,11 @@ final class Phase2LocalGrowthTests: XCTestCase {
 
     func testLearningReportDedupeTotalsAndOrdersPackRows() {
         let shared = WordEntry(id: "shared", word: "apple", meaningZh: "苹果", category: "fruit", difficulty: 1)
+        let inactiveSeenWord = DemoWords.words.first { $0.id == "home-door" }!
+        let inactiveUnseenWord = DemoWords.words.first { $0.id == "home-window" }!
         let activePack = Pack(id: "forest", title: "Fruit Forest", subtitle: "", story: "", source: .builtin, words: [shared])
-        let inactiveSeen = Pack(id: "family", title: "Family Pack", subtitle: "", story: "", source: .family, words: [shared, DemoWords.words[3]])
-        let inactiveUnseen = Pack(id: "quiet", title: "Quiet Pack", subtitle: "", story: "", source: .global, words: [DemoWords.words[4]])
+        let inactiveSeen = Pack(id: "family", title: "Family Pack", subtitle: "", story: "", source: .family, words: [shared, inactiveSeenWord])
+        let inactiveUnseen = Pack(id: "quiet", title: "Quiet Pack", subtitle: "", story: "", source: .global, words: [inactiveUnseenWord])
         let library = PackLibrary(builtin: [activePack, inactiveSeen, inactiveUnseen])
         let recorder = LearningRecorder()
         recorder.record(wordId: "shared", correct: true, at: fixedDate())
@@ -105,7 +107,7 @@ final class Phase2LocalGrowthTests: XCTestCase {
         recorder.record(wordId: "fruit-apple", correct: true, at: fixedDate(timeIntervalSinceNow: -86_400 * 3))
         let plan = TodayPlanService().build(pack: Pack.builtin[0], recorder: recorder, now: fixedDate())
 
-        XCTAssertEqual(plan.packId, "forest")
+        XCTAssertEqual(plan.packId, "fruit-forest")
         XCTAssertTrue(plan.review.contains { $0.id == "fruit-apple" })
         XCTAssertFalse(plan.learning.isEmpty)
         XCTAssertFalse(plan.newWords.isEmpty)

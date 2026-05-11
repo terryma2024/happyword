@@ -37,21 +37,78 @@ enum PackSource: String, Codable, Equatable {
     }
 }
 
+enum MonsterPlanSlotKind: String, Codable, Equatable {
+    case normal
+    case spelling
+    case review
+    case elite
+    case boss
+}
+
+struct MonsterPlanSlot: Codable, Equatable {
+    var kind: MonsterPlanSlotKind
+    var catalogIndex: Int
+}
+
 struct SceneMetadata: Codable, Equatable {
     var bgPrimary: String
     var bgAccent: String
     var bossName: String
+    var bossCandidates: [Int]
+    var monsterPlan: [MonsterPlanSlot]
+    var storyZh: String?
 
-    static let empty = SceneMetadata(bgPrimary: "", bgAccent: "", bossName: "")
+    static let empty = SceneMetadata()
+
+    init(
+        bgPrimary: String = "",
+        bgAccent: String = "",
+        bossName: String = "",
+        bossCandidates: [Int] = [],
+        monsterPlan: [MonsterPlanSlot] = [],
+        storyZh: String? = nil
+    ) {
+        self.bgPrimary = bgPrimary
+        self.bgAccent = bgAccent
+        self.bossName = bossName
+        self.bossCandidates = bossCandidates
+        self.monsterPlan = monsterPlan
+        self.storyZh = storyZh
+    }
 
     var isEmpty: Bool {
-        bgPrimary.isEmpty && bgAccent.isEmpty && bossName.isEmpty
+        bgPrimary.isEmpty
+            && bgAccent.isEmpty
+            && bossName.isEmpty
+            && bossCandidates.isEmpty
+            && monsterPlan.isEmpty
+            && storyZh == nil
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case bgPrimary
+        case bgAccent
+        case bossName
+        case bossCandidates
+        case monsterPlan
+        case storyZh
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        bgPrimary = try container.decodeIfPresent(String.self, forKey: .bgPrimary) ?? ""
+        bgAccent = try container.decodeIfPresent(String.self, forKey: .bgAccent) ?? ""
+        bossName = try container.decodeIfPresent(String.self, forKey: .bossName) ?? ""
+        bossCandidates = try container.decodeIfPresent([Int].self, forKey: .bossCandidates) ?? []
+        monsterPlan = try container.decodeIfPresent([MonsterPlanSlot].self, forKey: .monsterPlan) ?? []
+        storyZh = try container.decodeIfPresent(String.self, forKey: .storyZh)
     }
 }
 
 struct Pack: Equatable, Identifiable {
     var id: String
     var title: String
+    var labelZh: String
     var subtitle: String
     var story: String
     var source: PackSource
@@ -63,6 +120,7 @@ struct Pack: Equatable, Identifiable {
     init(
         id: String,
         title: String,
+        labelZh: String = "",
         subtitle: String,
         story: String,
         source: PackSource = .builtin,
@@ -73,6 +131,7 @@ struct Pack: Equatable, Identifiable {
     ) {
         self.id = id
         self.title = title
+        self.labelZh = labelZh
         self.subtitle = subtitle
         self.story = story
         self.source = source
@@ -84,52 +143,9 @@ struct Pack: Equatable, Identifiable {
 }
 
 extension Pack {
-    static let builtin: [Pack] = [
-        Pack(
-            id: "forest",
-            title: "Fruit Forest",
-            subtitle: "Starter magic words",
-            story: "今天的冒险包含 5 关卡，含拼写、复习与首领奖励",
-            words: DemoWords.words
-        ),
-        Pack(
-            id: "school",
-            title: "School Castle",
-            subtitle: "Classroom words",
-            story: "收集课堂里的学习咒语。",
-            words: DemoWords.words
-        ),
-        Pack(
-            id: "home",
-            title: "Home Cottage",
-            subtitle: "Daily object words",
-            story: "在魔法小屋里找到熟悉的日常单词。",
-            words: DemoWords.words
-        ),
-        Pack(
-            id: "castle",
-            title: "Animal Safari",
-            subtitle: "Boss warmup words",
-            story: "出发前先完成动物王国的热身。",
-            words: DemoWords.words
-        ),
-        Pack(
-            id: "park",
-            title: "Ocean Realm",
-            subtitle: "Outdoor words",
-            story: "在海风里练习今天的阳光单词。",
-            words: DemoWords.words
-        ),
-    ]
+    static let builtin: [Pack] = BuiltinPackLoader.loadBundled()
 }
 
 enum DemoWords {
-    static let words = [
-        WordEntry(id: "fruit-apple", word: "apple", meaningZh: "苹果", category: "fruit", difficulty: 1),
-        WordEntry(id: "fruit-pear", word: "pear", meaningZh: "梨", category: "fruit", difficulty: 1),
-        WordEntry(id: "fruit-banana", word: "banana", meaningZh: "香蕉", category: "fruit", difficulty: 1),
-        WordEntry(id: "home-door", word: "door", meaningZh: "门", category: "home", difficulty: 1),
-        WordEntry(id: "home-desk", word: "desk", meaningZh: "书桌", category: "home", difficulty: 1),
-        WordEntry(id: "place-park", word: "park", meaningZh: "公园", category: "place", difficulty: 1),
-    ]
+    static let words = Pack.builtin.flatMap(\.words)
 }

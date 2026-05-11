@@ -63,7 +63,7 @@ final class ParentApiClientDTOTests: XCTestCase {
       "word_count": 18,
       "published_at": "2026-05-10T08:00:00Z",
       "published_by": "parent",
-      "notes": "phase 1 mock"
+      "notes": "lesson import mock"
     }
     """.utf8)
 }

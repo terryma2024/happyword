@@ -21,6 +21,8 @@ struct BattleView: View {
     @State private var monsterHurtOpacity = 0.0
     @State private var feedbackSerial = 0
     @State private var pendingBattleEnd = false
+    @State private var spellSlots: [String] = []
+    @State private var spellConsumedIndices: Set<Int> = []
 
     private var state: BattleState? {
         coordinator.battleEngine?.state
@@ -31,7 +33,11 @@ struct BattleView: View {
     }
 
     private var displayedOptions: [String] {
-        feedbackQuestion == nil ? (state?.currentQuestion?.options ?? []) : feedbackOptions
+        if feedbackQuestion != nil {
+            return feedbackOptions
+        }
+        guard let question = state?.currentQuestion else { return [] }
+        return options(for: question)
     }
 
     var body: some View {
@@ -93,7 +99,11 @@ struct BattleView: View {
         }
         .background(AppTheme.page)
         .onAppear {
+            resetSpellProgress(for: state?.currentQuestion)
             coordinator.autoSpeakCurrentBattleAnswer(isRevealing: false)
+        }
+        .onChange(of: state?.currentQuestion) { _, question in
+            resetSpellProgress(for: question)
         }
         .onDisappear {
             coordinator.disposeBattlePronunciation()
@@ -130,11 +140,7 @@ struct BattleView: View {
             Text("Question")
                 .font(.title2.weight(.medium))
                 .foregroundStyle(Color(red: 0.23, green: 0.45, blue: 0.61))
-            Text(displayedQuestion?.promptZh ?? "")
-                .font(.system(size: 42, weight: .heavy, design: .rounded))
-                .foregroundStyle(AppTheme.navy)
-                .minimumScaleFactor(0.5)
-                .accessibilityIdentifier("BattlePrompt")
+            questionContent
             Button {
                 coordinator.speakCurrentBattleAnswer()
             } label: {
@@ -152,11 +158,63 @@ struct BattleView: View {
         }
     }
 
+    @ViewBuilder
+    private var questionContent: some View {
+        if let question = displayedQuestion {
+            switch question.kind {
+            case .choice:
+                Text(question.promptZh)
+                    .font(.system(size: 42, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
+                    .minimumScaleFactor(0.5)
+                    .accessibilityIdentifier("BattlePrompt")
+            case .fillLetter:
+                spellingTemplate(prompt: question.promptZh, template: question.letterTemplate)
+            case .fillLetterMedium:
+                spellingTemplate(prompt: question.promptZh, template: question.letterTemplateBase)
+            case .spell:
+                VStack(spacing: 8) {
+                    Text(question.promptZh)
+                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        .foregroundStyle(AppTheme.navy)
+                        .accessibilityIdentifier("BattlePrompt")
+                    HStack(spacing: 7) {
+                        ForEach(Array(currentSpellSlots(for: question).enumerated()), id: \.offset) { _, letter in
+                            Text(letter.isEmpty ? "_" : letter)
+                                .font(.system(size: 25, weight: .heavy, design: .rounded))
+                                .foregroundStyle(AppTheme.navy)
+                                .frame(width: 30, height: 38)
+                                .background(letter.isEmpty ? Color.white.opacity(0.7) : AppTheme.gold.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                    .accessibilityIdentifier("BattleSpellSlots")
+                }
+            }
+        } else {
+            Text("")
+                .accessibilityIdentifier("BattlePrompt")
+        }
+    }
+
+    private func spellingTemplate(prompt: String, template: String) -> some View {
+        VStack(spacing: 8) {
+            Text(prompt)
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .foregroundStyle(AppTheme.navy)
+                .accessibilityIdentifier("BattlePrompt")
+            Text(template)
+                .font(.system(size: 31, weight: .heavy, design: .rounded).monospaced())
+                .foregroundStyle(AppTheme.navy)
+                .minimumScaleFactor(0.55)
+                .accessibilityIdentifier("BattleLetterTemplate")
+        }
+    }
+
     private var answerRow: some View {
         HStack(spacing: 18) {
-            ForEach(Array(displayedOptions.enumerated()), id: \.offset) { index, option in
+            ForEach(Array(answerButtons.enumerated()), id: \.offset) { index, option in
                 Button {
-                    handleOptionTap(option)
+                    handleAnswerButtonTap(option, index: index)
                 } label: {
                     Text(option)
                         .font(.system(size: 24, weight: .heavy, design: .rounded))
@@ -165,9 +223,133 @@ struct BattleView: View {
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)
                 .tint(tint(for: option))
-                .disabled(feedbackQuestion != nil)
-                .accessibilityIdentifier("BattleOption\(String(UnicodeScalar(65 + index)!))")
+                .disabled(isAnswerButtonDisabled(option: option, index: index))
+                .accessibilityLabel(accessibilityLabel(for: option, index: index))
+                .accessibilityIdentifier(accessibilityIdentifier(for: option, index: index))
             }
+        }
+    }
+
+    private var answerButtons: [String] {
+        guard feedbackQuestion == nil,
+              let question = displayedQuestion,
+              question.kind == .spell
+        else {
+            return displayedOptions
+        }
+        return question.spellPool
+    }
+
+    private func accessibilityLabel(for option: String, index: Int) -> String {
+        if isExposedCorrectOption(option, index: index) {
+            return "BattleCorrectOption"
+        }
+        return option
+    }
+
+    private func accessibilityIdentifier(for option: String, index: Int) -> String {
+        if isExposedCorrectOption(option, index: index) {
+            return "BattleCorrectOption"
+        }
+        return "BattleOption\(String(UnicodeScalar(65 + index)!))"
+    }
+
+    private func isExposedCorrectOption(_ option: String, index: Int?) -> Bool {
+        guard ProcessInfo.processInfo.arguments.contains("-UITestExposeCorrectAnswer"),
+              let question = displayedQuestion
+        else { return false }
+
+        switch question.kind {
+        case .choice:
+            return option == question.answer
+        case .fillLetter:
+            return option == question.letterAnswer
+        case .fillLetterMedium:
+            return question.letterAnswers.indices.contains(question.currentStep)
+                && option == question.letterAnswers[question.currentStep]
+        case .spell:
+            let slots = currentSpellSlots(for: question)
+            guard let index,
+                  !spellConsumedIndices.contains(index),
+                  let nextIndex = slots.firstIndex(where: \.isEmpty),
+                  question.spellLetters.indices.contains(nextIndex),
+                  option == question.spellLetters[nextIndex]
+            else { return false }
+            return question.spellPool.indices.first {
+                !spellConsumedIndices.contains($0) && question.spellPool[$0] == option
+            } == index
+        }
+    }
+
+    private func options(for question: Question) -> [String] {
+        switch question.kind {
+        case .choice:
+            return question.options
+        case .fillLetter:
+            return question.letterOptions
+        case .fillLetterMedium:
+            guard question.letterOptionsSteps.indices.contains(question.currentStep) else { return [] }
+            return question.letterOptionsSteps[question.currentStep]
+        case .spell:
+            return [question.answer]
+        }
+    }
+
+    private func isAnswerButtonDisabled(option _: String, index: Int) -> Bool {
+        if feedbackQuestion != nil {
+            return true
+        }
+        guard displayedQuestion?.kind == .spell else {
+            return false
+        }
+        return spellConsumedIndices.contains(index)
+    }
+
+    private func handleAnswerButtonTap(_ option: String, index: Int) {
+        guard let question = displayedQuestion else { return }
+        if question.kind == .spell {
+            handleSpellLetterTap(option, poolIndex: index, question: question)
+        } else {
+            handleOptionTap(option)
+        }
+    }
+
+    private func handleSpellLetterTap(_ letter: String, poolIndex: Int, question: Question) {
+        guard !spellConsumedIndices.contains(poolIndex),
+              let nextIndex = spellSlots.firstIndex(where: \.isEmpty),
+              question.spellLetters.indices.contains(nextIndex)
+        else { return }
+
+        if letter == question.spellLetters[nextIndex] {
+            spellSlots[nextIndex] = letter
+            spellConsumedIndices.insert(poolIndex)
+            if !spellSlots.contains("") {
+                handleOptionTap(question.answer)
+            }
+        } else {
+            feedbackText = "Try again"
+            feedbackColor = AppTheme.red
+        }
+    }
+
+    private func resetSpellProgress(for question: Question?) {
+        guard let question, question.kind == .spell else {
+            spellSlots = []
+            spellConsumedIndices = []
+            return
+        }
+        spellSlots = question.spellLetters.enumerated().map { index, letter in
+            question.spellRevealedMask.indices.contains(index) && question.spellRevealedMask[index] ? letter : ""
+        }
+        spellConsumedIndices = []
+    }
+
+    private func currentSpellSlots(for question: Question) -> [String] {
+        if spellSlots.count == question.spellLetters.count {
+            return spellSlots
+        }
+        return question.spellLetters.enumerated().map { index, letter in
+            question.spellRevealedMask.indices.contains(index) && question.spellRevealedMask[index] ? letter : ""
         }
     }
 
