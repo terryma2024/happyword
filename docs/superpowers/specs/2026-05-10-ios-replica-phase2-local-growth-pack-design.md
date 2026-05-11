@@ -77,11 +77,13 @@ Pack = id, name, labelZh, source, version, publishedAt, scene, words
 Semantics:
 
 - Builtin packs ship with the app and are never deleted.
+- Builtin packs are loaded from the same five HarmonyOS rawfile JSON fixtures in canonical order: `fruit-forest`, `school-castle`, `home-cottage`, `animal-safari`, `ocean-realm`.
 - Global packs are anonymous remote packs.
 - Family packs are parent-uploaded, family-scoped packs.
 - Merge priority is family > global > builtin by `pack_id`.
 - Scene fallback is own scene -> same-id builtin scene -> deterministic palette.
 - Home chip text and card title use English `Pack.name`.
+- Battle start uses the selected pack's real `words` through `QuestionGenerator`; the Chinese prompt comes from `meaningZh`, and answer options are shuffled English words from the same repository rather than a fixed correct-first list.
 
 ## 6. Pack Selection
 

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "pack_id": "animal-safari",
+  "name": "Animal Safari",
+  "labelZh": "动物大冒险",
+  "scene": {
+    "bgPrimary": "#F2F7E8",
+    "bgAccent": "#9CC07B",
+    "bossName": "Lion King",
+    "bossCandidates": [3, 6, 9],
+    "monsterPlan": [
+      {"kind": "normal", "catalogIndex": 0},
+      {"kind": "spelling", "catalogIndex": 1},
+      {"kind": "review", "catalogIndex": 2},
+      {"kind": "elite", "catalogIndex": 11},
+      {"kind": "boss", "catalogIndex": 6}
+    ]
+  },
+  "words": [
+    {"id": "animal-cat", "word": "cat", "meaningZh": "猫", "category": "animal", "difficulty": 1},
+    {"id": "animal-dog", "word": "dog", "meaningZh": "狗", "category": "animal", "difficulty": 1},
+    {"id": "animal-lion", "word": "lion", "meaningZh": "狮子", "category": "animal", "difficulty": 1},
+    {"id": "animal-tiger", "word": "tiger", "meaningZh": "老虎", "category": "animal", "difficulty": 1},
+    {"id": "animal-bear", "word": "bear", "meaningZh": "熊", "category": "animal", "difficulty": 1},
+    {"id": "animal-frog", "word": "frog", "meaningZh": "青蛙", "category": "animal", "difficulty": 1},
+    {"id": "animal-duck", "word": "duck", "meaningZh": "鸭子", "category": "animal", "difficulty": 1},
+    {"id": "animal-mouse", "word": "mouse", "meaningZh": "老鼠", "category": "animal", "difficulty": 1},
+    {"id": "animal-sheep", "word": "sheep", "meaningZh": "绵羊", "category": "animal", "difficulty": 1},
+    {"id": "animal-horse", "word": "horse", "meaningZh": "马", "category": "animal", "difficulty": 1}
+  ]
+}

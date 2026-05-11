@@ -246,7 +246,7 @@ async def test_landing_page_renders(parent_client: tuple[AsyncClient, str]) -> N
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     assert soup.find(id="pair-landing-instructions") is not None
-    assert "WordMagic" in r.text or "快乐背单词" in r.text
+    assert "WordMagic" in r.text or "魔法背单词" in r.text
 
 
 @pytest.mark.asyncio

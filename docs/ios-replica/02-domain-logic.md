@@ -70,11 +70,26 @@ The current V0.5.8 security tradeoff is inherited from the HarmonyOS implementat
 Pack selection semantics to preserve:
 
 - First launch active set is five builtin packs.
+- Builtin pack ids and order are `fruit-forest`, `school-castle`, `home-cottage`, `animal-safari`, `ocean-realm`; parse them from the bundled HarmonyOS rawfile JSON schema, not from duplicated Swift constants.
 - At most five active packs.
 - Pin is only meaningful for active packs.
 - A perfect adventure is a Today-mode win with no wrong answer.
 - Three cumulative perfect adventures on an unpinned active pack trigger rotation when candidates exist.
 - Selection is device-local and not cloud-synced.
+
+Battle question semantics to preserve:
+
+- The current question prompt is Chinese `WordEntry.meaningZh`.
+- Answer buttons are English words from the selected pack repository.
+- `QuestionGenerator` shuffles options; the first option is not treated as the implicit correct answer.
+- Battle startup must use the selected pack's repository instead of a fixed mock list.
+- iOS must preserve HarmonyOS' four question kinds:
+  - `Choice`: Chinese prompt with three English word choices.
+  - `FillLetter`: Chinese prompt plus one hidden non-first letter, answered from three letters.
+  - `FillLetterMedium`: two hidden non-first letters, completed left-to-right across two answer steps.
+  - `Spell`: first letter revealed, remaining letters chosen from a shuffled letter pool.
+- Monster slot fallback must match HarmonyOS: normal/review use `Choice`; spelling uses `FillLetter -> Choice`; elite uses `FillLetterMedium -> FillLetter -> Choice`; boss uses `Spell -> FillLetterMedium -> FillLetter -> Choice`.
+- Battle UI may render spelling as letter-tap interactions, but the engine still receives the completed word for `Spell`, matching HarmonyOS' submit-on-completion behavior.
 
 ## Phase 3 Cloud Types
 

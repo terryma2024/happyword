@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "pack_id": "ocean-realm",
+  "name": "Ocean Realm",
+  "labelZh": "深海王国",
+  "scene": {
+    "bgPrimary": "#E8F4F8",
+    "bgAccent": "#6EB7CC",
+    "bossName": "Sea Sovereign",
+    "bossCandidates": [3, 6, 9],
+    "monsterPlan": [
+      {"kind": "normal", "catalogIndex": 0},
+      {"kind": "spelling", "catalogIndex": 1},
+      {"kind": "review", "catalogIndex": 2},
+      {"kind": "elite", "catalogIndex": 11},
+      {"kind": "boss", "catalogIndex": 9}
+    ]
+  },
+  "words": [
+    {"id": "ocean-fish", "word": "fish", "meaningZh": "鱼", "category": "ocean", "difficulty": 1},
+    {"id": "ocean-whale", "word": "whale", "meaningZh": "鲸鱼", "category": "ocean", "difficulty": 1},
+    {"id": "ocean-shark", "word": "shark", "meaningZh": "鲨鱼", "category": "ocean", "difficulty": 1},
+    {"id": "ocean-crab", "word": "crab", "meaningZh": "螃蟹", "category": "ocean", "difficulty": 1},
+    {"id": "ocean-dolphin", "word": "dolphin", "meaningZh": "海豚", "category": "ocean", "difficulty": 1},
+    {"id": "ocean-octopus", "word": "octopus", "meaningZh": "章鱼", "category": "ocean", "difficulty": 1},
+    {"id": "ocean-seal", "word": "seal", "meaningZh": "海豹", "category": "ocean", "difficulty": 1},
+    {"id": "ocean-turtle", "word": "turtle", "meaningZh": "海龟", "category": "ocean", "difficulty": 1},
+    {"id": "ocean-starfish", "word": "starfish", "meaningZh": "海星", "category": "ocean", "difficulty": 1},
+    {"id": "ocean-jellyfish", "word": "jellyfish", "meaningZh": "水母", "category": "ocean", "difficulty": 1}
+  ]
+}
