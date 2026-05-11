@@ -9,6 +9,7 @@
 
 ## Commands
 - **HarmonyOS phased build/test commands, log paths, and device rules:** [`.cursor/dev-commands.md`](.cursor/dev-commands.md) (source of truth for Harmony autofix skills).
+- **Android phased build/test/install/logcat/screenshot commands:** [`.cursor/android-dev-commands.md`](.cursor/android-dev-commands.md) (source of truth for Android client agents).
 - Harmony install deps: `cd harmonyos && ohpm install`
 - Harmony build debug HAP: `cd harmonyos && hvigorw assembleHap`
 - The HAP build log must have **no** `ArkTS:WARN` lines (deprecated APIs); see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) **ArkTS compiler warnings**.

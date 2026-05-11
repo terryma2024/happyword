@@ -1,8 +1,25 @@
 # WordMagicGame Android
 
-Native Android client placeholder for V0.7.x and later.
+Native Android client for WordMagicGame.
 
-- Target implementation: Kotlin / Jetpack Compose.
-- Tests: Gradle unit and instrumentation tests when the app project is created.
-- Scope guard: V0.7.0 only reserves this root-level module; it does not implement Android product features.
-- Shared code policy: use `../shared/contracts/` and `../shared/fixtures/` for protocol alignment, not shared runtime UI or business logic.
+- Stack: Kotlin / Jetpack Compose.
+- Project root: `android/`.
+- Package: `cool.happyword.wordmagic`.
+- Shared policy: consume `../shared/contracts/` and `../shared/fixtures/`; do not add shared client runtime under `shared/`.
+- Planning docs: `../docs/android-replica/`.
+- Agent command manifest: `../.cursor/android-dev-commands.md`.
+
+## Local Commands
+
+```sh
+./gradlew testDebugUnitTest
+./gradlew assembleDebug
+./gradlew connectedDebugAndroidTest
+./gradlew assembleRelease
+```
+
+Use JDK 17. If needed, put this local-only value in `local.properties`:
+
+```properties
+org.gradle.java.home=/Applications/Android Studio.app/Contents/jbr/Contents/Home
+```
