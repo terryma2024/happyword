@@ -43,6 +43,9 @@ misc.xml
 deploymentTargetDropDown.xml
 render.experimental.xml
 
+# Xcode / iOS (per-user IDE state; schemes belong under xcshareddata/)
+**/xcuserdata/
+
 # Keystore files
 *.jks
 *.keystore
