@@ -8,11 +8,43 @@
 
 /* Begin PBXBuildFile section */
 		0229DC3FF1FA96BF049D43B5 /* AppMetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */; };
+		030EFE16BBEEDAB01CC37A16 /* BattleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9983A8C2B2B01829EC9597FF /* BattleEngineTests.swift */; };
+		03E9C1A592065ACCA85467EA /* BattleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD73245074A18477196A675 /* BattleEngine.swift */; };
+		0A5527873875D5DF44DFC7FF /* Learning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9608B2C630968DC71F5D8092 /* Learning.swift */; };
+		0D92C5BC2268F1E0D62A4CA9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3D73555B610C471DEB23E99 /* AppDelegate.swift */; };
+		0F85857104D068CD0348FD23 /* PackLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FAA4BEA60462EF5E008000A /* PackLibrary.swift */; };
+		15E36B6A030E94382C3B1267 /* LessonDraftReviewStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76339196A09620CB46FEF4B8 /* LessonDraftReviewStoreTests.swift */; };
+		170E596AC77D25C2588446A7 /* QuestionGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */; };
+		1802ABC00E8F5382A14E8E1C /* LessonDraftReviewStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A77053ADBABC5E1EEED849EA /* LessonDraftReviewStore.swift */; };
+		26B615F58D86B8EC7AA6B0D7 /* BattleAnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */; };
+		2D9B8D104C526A576B6FF478 /* ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94693A96123F2BD2C3D2F70B /* ResultView.swift */; };
+		3BA9690760CDAB437EC7555A /* WordRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710C4CE303108095BB4DD2C4 /* WordRepository.swift */; };
+		4EF9263FA9C00E2D1120DAC1 /* ParentAdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A34FBB768E5B1541E82EB7BF /* ParentAdminView.swift */; };
 		4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6288AB79A566478B8CD0BC1F /* Assets.xcassets */; };
+		579EE45B2B7202F7B3269EFF /* WordEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD002304AC10A20B5A041CF4 /* WordEntry.swift */; };
 		5CE532062EAAC36F72958B4D /* AppMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9157DCBBBBB134DAFBFB0F /* AppMetadata.swift */; };
+		6F5EF564EB875CA55F166AD3 /* BattleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3282D4D1268FF1FE6DAB3358 /* BattleView.swift */; };
+		707FB23DB88D874E8312DD0E /* PackSelectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C695865CC24B715BCC601E85 /* PackSelectionStore.swift */; };
+		71F3BCC31AACAF5730934FAF /* ParentApiClientDTOTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD9FC5BBE0DF16B580028ED5 /* ParentApiClientDTOTests.swift */; };
+		85D1855D2EF21E06F39BEEFD /* MonsterCodex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07C00999FA9E98A1DB8AA43 /* MonsterCodex.swift */; };
+		94E337DE08EB43CCE456B2EE /* BattleAnimationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270E555771AAF420876EE21A /* BattleAnimationEvent.swift */; };
 		9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F904781ED9F4E18758477D /* ContentView.swift */; };
 		B3504CF00EF29F88A237A5D9 /* WordMagicGameUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */; };
+		B3973A93F0C154C9CC3C2E09 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0FC48A86BA4107999240DDC /* HomeView.swift */; };
+		B60048E8C6C4645BDD9762F9 /* PronunciationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FAE4997C3E18E4C154192C3 /* PronunciationService.swift */; };
+		B78D4D8347BED158B20C4848 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */; };
+		B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */; };
+		BFB2D10A293E35EAD0F46005 /* ParentApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */; };
+		C3E56D23E72A73260A4B6232 /* Phase2GrowthViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A4176E28638C58D3A7B6DD /* Phase2GrowthViews.swift */; };
+		C8ED1F2015EB743E6EED5556 /* GameConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */; };
+		DC8CE988A3697BC51B07E777 /* MonsterCodexView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1915D885E57624FF4078BDE /* MonsterCodexView.swift */; };
+		E2A3173A4136798333A2AF0E /* Question.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E540CFB2BCCC470ED117B65 /* Question.swift */; };
+		E7276A8FCD0B214B97D93205 /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8B82B38DA43BA9443CC2B54 /* ConfigView.swift */; };
+		E92ACF8BEA82C2AC742DB463 /* GameConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 546A3D7EC1D58BE06B395150 /* GameConfigTests.swift */; };
+		EAE53652EC92AA7E09BFC13C /* LocalStores.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */; };
+		EC258499EC8DFFA676D2BE14 /* PronunciationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94513DF82FF4E789AD631AC0 /* PronunciationServiceTests.swift */; };
 		EC97934170054F8599E61696 /* WordMagicGameApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6701AF4311EDEC1FCAF0A8 /* WordMagicGameApp.swift */; };
+		F89C53F2B613000D114C4DE8 /* Phase2LocalGrowthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67BE39207652BD34D227D64C /* Phase2LocalGrowthTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,15 +66,47 @@
 
 /* Begin PBXFileReference section */
 		00F904781ED9F4E18758477D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationTests.swift; sourceTree = "<group>"; };
+		270E555771AAF420876EE21A /* BattleAnimationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationEvent.swift; sourceTree = "<group>"; };
+		2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStores.swift; sourceTree = "<group>"; };
+		3282D4D1268FF1FE6DAB3358 /* BattleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleView.swift; sourceTree = "<group>"; };
 		38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordMagicGameUITests.swift; sourceTree = "<group>"; };
+		3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentApiModels.swift; sourceTree = "<group>"; };
+		46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetadataTests.swift; sourceTree = "<group>"; };
-		4AF7C75746693A30D0733A5A /* WordMagicGameTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WordMagicGameTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		4DD3AB20492B28D8947B85F7 /* WordMagicGameUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WordMagicGameUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		4E24CB33D609FA08E8E9B075 /* WordMagicGame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WordMagicGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConfig.swift; sourceTree = "<group>"; };
+		4AF7C75746693A30D0733A5A /* WordMagicGameTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WordMagicGameTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4DD3AB20492B28D8947B85F7 /* WordMagicGameUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WordMagicGameUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4E24CB33D609FA08E8E9B075 /* WordMagicGame.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WordMagicGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		546A3D7EC1D58BE06B395150 /* GameConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConfigTests.swift; sourceTree = "<group>"; };
+		5E540CFB2BCCC470ED117B65 /* Question.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Question.swift; sourceTree = "<group>"; };
+		5FAA4BEA60462EF5E008000A /* PackLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackLibrary.swift; sourceTree = "<group>"; };
 		6288AB79A566478B8CD0BC1F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		67BE39207652BD34D227D64C /* Phase2LocalGrowthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase2LocalGrowthTests.swift; sourceTree = "<group>"; };
+		6FAE4997C3E18E4C154192C3 /* PronunciationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PronunciationService.swift; sourceTree = "<group>"; };
+		710C4CE303108095BB4DD2C4 /* WordRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordRepository.swift; sourceTree = "<group>"; };
+		76339196A09620CB46FEF4B8 /* LessonDraftReviewStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDraftReviewStoreTests.swift; sourceTree = "<group>"; };
 		7B6701AF4311EDEC1FCAF0A8 /* WordMagicGameApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordMagicGameApp.swift; sourceTree = "<group>"; };
+		8DD73245074A18477196A675 /* BattleEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleEngine.swift; sourceTree = "<group>"; };
+		94513DF82FF4E789AD631AC0 /* PronunciationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PronunciationServiceTests.swift; sourceTree = "<group>"; };
+		94693A96123F2BD2C3D2F70B /* ResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultView.swift; sourceTree = "<group>"; };
+		9608B2C630968DC71F5D8092 /* Learning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Learning.swift; sourceTree = "<group>"; };
+		9983A8C2B2B01829EC9597FF /* BattleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleEngineTests.swift; sourceTree = "<group>"; };
 		9B9157DCBBBBB134DAFBFB0F /* AppMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetadata.swift; sourceTree = "<group>"; };
+		A34FBB768E5B1541E82EB7BF /* ParentAdminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentAdminView.swift; sourceTree = "<group>"; };
+		A77053ADBABC5E1EEED849EA /* LessonDraftReviewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDraftReviewStore.swift; sourceTree = "<group>"; };
+		B07C00999FA9E98A1DB8AA43 /* MonsterCodex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodex.swift; sourceTree = "<group>"; };
+		B4A4176E28638C58D3A7B6DD /* Phase2GrowthViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase2GrowthViews.swift; sourceTree = "<group>"; };
+		B8B82B38DA43BA9443CC2B54 /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
 		BAA403A88DE9B94849CC1EAD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C695865CC24B715BCC601E85 /* PackSelectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackSelectionStore.swift; sourceTree = "<group>"; };
+		CD002304AC10A20B5A041CF4 /* WordEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordEntry.swift; sourceTree = "<group>"; };
+		D3D73555B610C471DEB23E99 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionGeneratorTests.swift; sourceTree = "<group>"; };
+		E1915D885E57624FF4078BDE /* MonsterCodexView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexView.swift; sourceTree = "<group>"; };
+		F0FC48A86BA4107999240DDC /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		FD9FC5BBE0DF16B580028ED5 /* ParentApiClientDTOTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentApiClientDTOTests.swift; sourceTree = "<group>"; };
+		FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -56,10 +120,39 @@
 			);
 			sourceTree = "<group>";
 		};
+		2B997480B498ADB237F6B65E /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				270E555771AAF420876EE21A /* BattleAnimationEvent.swift */,
+				8DD73245074A18477196A675 /* BattleEngine.swift */,
+				4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */,
+				9608B2C630968DC71F5D8092 /* Learning.swift */,
+				B07C00999FA9E98A1DB8AA43 /* MonsterCodex.swift */,
+				5FAA4BEA60462EF5E008000A /* PackLibrary.swift */,
+				C695865CC24B715BCC601E85 /* PackSelectionStore.swift */,
+				5E540CFB2BCCC470ED117B65 /* Question.swift */,
+				CD002304AC10A20B5A041CF4 /* WordEntry.swift */,
+				710C4CE303108095BB4DD2C4 /* WordRepository.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		34136277D1824FF2DB56DE77 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				6F1A4D8DB7A4F317842C0F4F /* CoreLoop */,
+				CD0198F6C5191261CD8E822A /* ParentAdmin */,
+				5484A29C2D73A277C7260695 /* Settings */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
 		39EFEB36D216D63AD384B077 /* WordMagicGameTests */ = {
 			isa = PBXGroup;
 			children = (
 				47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */,
+				7A0633465C884DC2DA099BCE /* Core */,
+				700A94A3A6B8E3B21829BF32 /* ParentAdmin */,
 			);
 			path = WordMagicGameTests;
 			sourceTree = "<group>";
@@ -74,9 +167,54 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		5484A29C2D73A277C7260695 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B8B82B38DA43BA9443CC2B54 /* ConfigView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		6F1A4D8DB7A4F317842C0F4F /* CoreLoop */ = {
+			isa = PBXGroup;
+			children = (
+				3282D4D1268FF1FE6DAB3358 /* BattleView.swift */,
+				F0FC48A86BA4107999240DDC /* HomeView.swift */,
+				E1915D885E57624FF4078BDE /* MonsterCodexView.swift */,
+				B4A4176E28638C58D3A7B6DD /* Phase2GrowthViews.swift */,
+				94693A96123F2BD2C3D2F70B /* ResultView.swift */,
+			);
+			path = CoreLoop;
+			sourceTree = "<group>";
+		};
+		700A94A3A6B8E3B21829BF32 /* ParentAdmin */ = {
+			isa = PBXGroup;
+			children = (
+				76339196A09620CB46FEF4B8 /* LessonDraftReviewStoreTests.swift */,
+				FD9FC5BBE0DF16B580028ED5 /* ParentApiClientDTOTests.swift */,
+			);
+			path = ParentAdmin;
+			sourceTree = "<group>";
+		};
+		7A0633465C884DC2DA099BCE /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */,
+				9983A8C2B2B01829EC9597FF /* BattleEngineTests.swift */,
+				546A3D7EC1D58BE06B395150 /* GameConfigTests.swift */,
+				FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */,
+				67BE39207652BD34D227D64C /* Phase2LocalGrowthTests.swift */,
+				94513DF82FF4E789AD631AC0 /* PronunciationServiceTests.swift */,
+				DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
 		8802B20086E02B0E30479EF3 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */,
+				D3D73555B610C471DEB23E99 /* AppDelegate.swift */,
 				9B9157DCBBBBB134DAFBFB0F /* AppMetadata.swift */,
 				00F904781ED9F4E18758477D /* ContentView.swift */,
 				7B6701AF4311EDEC1FCAF0A8 /* WordMagicGameApp.swift */,
@@ -92,6 +230,25 @@
 			path = WordMagicGameUITests;
 			sourceTree = "<group>";
 		};
+		BBE527345F0145751F1FF932 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A77053ADBABC5E1EEED849EA /* LessonDraftReviewStore.swift */,
+				2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */,
+				3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */,
+				6FAE4997C3E18E4C154192C3 /* PronunciationService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		CD0198F6C5191261CD8E822A /* ParentAdmin */ = {
+			isa = PBXGroup;
+			children = (
+				A34FBB768E5B1541E82EB7BF /* ParentAdminView.swift */,
+			);
+			path = ParentAdmin;
+			sourceTree = "<group>";
+		};
 		D572375ED00048FDCE2D0329 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -105,7 +262,10 @@
 			isa = PBXGroup;
 			children = (
 				8802B20086E02B0E30479EF3 /* App */,
+				2B997480B498ADB237F6B65E /* Core */,
+				34136277D1824FF2DB56DE77 /* Features */,
 				D572375ED00048FDCE2D0329 /* Resources */,
+				BBE527345F0145751F1FF932 /* Services */,
 			);
 			path = WordMagicGame;
 			sourceTree = "<group>";
@@ -174,7 +334,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					F4054FCFDC163FFBEC563CA5 = {
 						TestTargetID = 94CF8178381884C0E1171296;
@@ -227,6 +387,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				0229DC3FF1FA96BF049D43B5 /* AppMetadataTests.swift in Sources */,
+				26B615F58D86B8EC7AA6B0D7 /* BattleAnimationTests.swift in Sources */,
+				030EFE16BBEEDAB01CC37A16 /* BattleEngineTests.swift in Sources */,
+				E92ACF8BEA82C2AC742DB463 /* GameConfigTests.swift in Sources */,
+				15E36B6A030E94382C3B1267 /* LessonDraftReviewStoreTests.swift in Sources */,
+				B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */,
+				71F3BCC31AACAF5730934FAF /* ParentApiClientDTOTests.swift in Sources */,
+				F89C53F2B613000D114C4DE8 /* Phase2LocalGrowthTests.swift in Sources */,
+				EC258499EC8DFFA676D2BE14 /* PronunciationServiceTests.swift in Sources */,
+				170E596AC77D25C2588446A7 /* QuestionGeneratorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -234,9 +403,32 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B78D4D8347BED158B20C4848 /* AppCoordinator.swift in Sources */,
+				0D92C5BC2268F1E0D62A4CA9 /* AppDelegate.swift in Sources */,
 				5CE532062EAAC36F72958B4D /* AppMetadata.swift in Sources */,
+				94E337DE08EB43CCE456B2EE /* BattleAnimationEvent.swift in Sources */,
+				03E9C1A592065ACCA85467EA /* BattleEngine.swift in Sources */,
+				6F5EF564EB875CA55F166AD3 /* BattleView.swift in Sources */,
+				E7276A8FCD0B214B97D93205 /* ConfigView.swift in Sources */,
 				9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */,
+				C8ED1F2015EB743E6EED5556 /* GameConfig.swift in Sources */,
+				B3973A93F0C154C9CC3C2E09 /* HomeView.swift in Sources */,
+				0A5527873875D5DF44DFC7FF /* Learning.swift in Sources */,
+				1802ABC00E8F5382A14E8E1C /* LessonDraftReviewStore.swift in Sources */,
+				EAE53652EC92AA7E09BFC13C /* LocalStores.swift in Sources */,
+				85D1855D2EF21E06F39BEEFD /* MonsterCodex.swift in Sources */,
+				DC8CE988A3697BC51B07E777 /* MonsterCodexView.swift in Sources */,
+				0F85857104D068CD0348FD23 /* PackLibrary.swift in Sources */,
+				707FB23DB88D874E8312DD0E /* PackSelectionStore.swift in Sources */,
+				4EF9263FA9C00E2D1120DAC1 /* ParentAdminView.swift in Sources */,
+				BFB2D10A293E35EAD0F46005 /* ParentApiModels.swift in Sources */,
+				C3E56D23E72A73260A4B6232 /* Phase2GrowthViews.swift in Sources */,
+				B60048E8C6C4645BDD9762F9 /* PronunciationService.swift in Sources */,
+				E2A3173A4136798333A2AF0E /* Question.swift in Sources */,
+				2D9B8D104C526A576B6FF478 /* ResultView.swift in Sources */,
+				579EE45B2B7202F7B3269EFF /* WordEntry.swift in Sources */,
 				EC97934170054F8599E61696 /* WordMagicGameApp.swift in Sources */,
+				3BA9690760CDAB437EC7555A /* WordRepository.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -311,7 +503,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -346,7 +537,6 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -361,7 +551,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
@@ -391,7 +580,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 99UX498DB4;
 				INFOPLIST_FILE = WordMagicGame/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -408,7 +596,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -443,7 +630,6 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -465,7 +651,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
@@ -478,7 +663,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 99UX498DB4;
 				INFOPLIST_FILE = WordMagicGame/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
