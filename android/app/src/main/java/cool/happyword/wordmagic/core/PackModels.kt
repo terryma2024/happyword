@@ -1,0 +1,145 @@
+package cool.happyword.wordmagic.core
+
+enum class PackSource {
+    Builtin,
+    Global,
+    Family,
+}
+
+data class SceneMetadata(
+    val bgPrimary: String,
+    val bgAccent: String,
+    val bossName: String,
+    val monsterPlan: List<String>,
+    val bossCandidates: List<String>,
+    val storyZh: String,
+)
+
+data class WordPack(
+    val id: String,
+    val nameEn: String,
+    val nameZh: String,
+    val source: PackSource,
+    val version: Int,
+    val publishedAtMs: Long?,
+    val scene: SceneMetadata,
+    val words: List<WordEntry>,
+) {
+    init {
+        require(id.isNotBlank()) { "pack id is required" }
+        require(nameEn.isNotBlank()) { "English pack name is required" }
+        require(nameZh.isNotBlank()) { "Chinese pack name is required" }
+        require(version >= 1) { "pack version must be positive" }
+        require(words.isNotEmpty()) { "pack must include words" }
+    }
+}
+
+object BuiltinPacks {
+    val all: List<WordPack> = listOf(
+        pack(
+            id = "fruit-forest",
+            nameEn = "Fruit Forest",
+            nameZh = "水果森林",
+            storyZh = "藤蔓和果香里的第一场魔法单词冒险。",
+            monsterPlan = listOf("slime", "slime", "zombie", "dragon", "boss-fruit"),
+            words = listOf(
+                WordEntry("fruit-apple", "apple", "苹果"),
+                WordEntry("fruit-banana", "banana", "香蕉"),
+                WordEntry("fruit-pear", "pear", "梨"),
+                WordEntry("fruit-orange", "orange", "橙子"),
+                WordEntry("fruit-grape", "grape", "葡萄"),
+            ),
+        ),
+        pack(
+            id = "school-castle",
+            nameEn = "School Castle",
+            nameZh = "校园城堡",
+            storyZh = "在书本城堡里挑战会拼写的怪物。",
+            monsterPlan = listOf("zombie", "slime", "zombie", "dragon", "boss-school"),
+            words = listOf(
+                WordEntry("school-book", "book", "书"),
+                WordEntry("school-pencil", "pencil", "铅笔"),
+                WordEntry("school-desk", "desk", "课桌"),
+                WordEntry("school-teacher", "teacher", "老师"),
+                WordEntry("school-bag", "bag", "书包"),
+            ),
+        ),
+        pack(
+            id = "home-cottage",
+            nameEn = "Home Cottage",
+            nameZh = "家庭小屋",
+            storyZh = "把熟悉的家庭物品变成轻松复习。",
+            monsterPlan = listOf("dragon", "slime", "zombie", "dragon", "boss-home"),
+            words = listOf(
+                WordEntry("home-chair", "chair", "椅子"),
+                WordEntry("home-table", "table", "桌子"),
+                WordEntry("home-door", "door", "门"),
+                WordEntry("home-bed", "bed", "床"),
+                WordEntry("home-lamp", "lamp", "台灯"),
+            ),
+        ),
+        pack(
+            id = "animal-safari",
+            nameEn = "Animal Safari",
+            nameZh = "动物远征",
+            storyZh = "跟动物朋友一起找回单词记忆。",
+            monsterPlan = listOf("slime", "dragon", "zombie", "dragon", "boss-animal"),
+            words = listOf(
+                WordEntry("animal-cat", "cat", "猫"),
+                WordEntry("animal-dog", "dog", "狗"),
+                WordEntry("animal-bird", "bird", "鸟"),
+                WordEntry("animal-fish", "fish", "鱼"),
+                WordEntry("animal-lion", "lion", "狮子"),
+            ),
+        ),
+        pack(
+            id = "ocean-realm",
+            nameEn = "Ocean Realm",
+            nameZh = "海洋王国",
+            storyZh = "在蓝色海底完成今日练习。",
+            monsterPlan = listOf("slime", "zombie", "dragon", "slime", "boss-ocean"),
+            words = listOf(
+                WordEntry("ocean-sea", "sea", "海洋"),
+                WordEntry("ocean-ship", "ship", "船"),
+                WordEntry("ocean-shell", "shell", "贝壳"),
+                WordEntry("ocean-wave", "wave", "海浪"),
+                WordEntry("ocean-star", "star", "海星"),
+            ),
+        ),
+    )
+
+    val defaultActiveOrder: List<String> = listOf(
+        "school-castle",
+        "ocean-realm",
+        "home-cottage",
+        "fruit-forest",
+        "animal-safari",
+    )
+
+    private fun pack(
+        id: String,
+        nameEn: String,
+        nameZh: String,
+        storyZh: String,
+        monsterPlan: List<String>,
+        words: List<WordEntry>,
+    ): WordPack {
+        return WordPack(
+            id = id,
+            nameEn = nameEn,
+            nameZh = nameZh,
+            source = PackSource.Builtin,
+            version = 1,
+            publishedAtMs = null,
+            scene = SceneMetadata(
+                bgPrimary = "#FFF7E6",
+                bgAccent = "#FFD2A6",
+                bossName = "$nameEn Boss",
+                monsterPlan = monsterPlan,
+                bossCandidates = monsterPlan.takeLast(1),
+                storyZh = storyZh,
+            ),
+            words = words,
+        )
+    }
+}

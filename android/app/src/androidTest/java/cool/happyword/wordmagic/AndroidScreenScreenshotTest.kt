@@ -1,0 +1,119 @@
+package cool.happyword.wordmagic
+
+import android.graphics.Bitmap
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import java.io.FileOutputStream
+import org.junit.Rule
+import org.junit.Test
+
+class AndroidScreenScreenshotTest {
+    @get:Rule
+    val composeRule = createAndroidComposeRule<MainActivity>()
+
+    @Test
+    fun captureGrowthAndCloudScreens() {
+        capture("local-growth-home.png")
+
+        composeRule.onNodeWithTag("HomePackManagerButton").performClick()
+        capture("pack-manager.png")
+        composeRule.onNodeWithTag("PackManagerBack").performClick()
+
+        composeRule.onNodeWithTag("HomeWishlistButton").performClick()
+        capture("wishlist.png")
+        composeRule.onNodeWithTag("WishlistHistoryButton").performClick()
+        capture("redemption-history.png")
+        composeRule.onNodeWithText("返回").performClick()
+        composeRule.onNodeWithText("返回").performClick()
+
+        composeRule.onNodeWithTag("HomeCodexButton").performClick()
+        capture("monster-codex.png")
+        composeRule.onNodeWithTag("MonsterCodexBack").performClick()
+
+        composeRule.onNodeWithTag("HomeTodayPlanButton").performClick()
+        capture("today-plan.png")
+        composeRule.onNodeWithTag("TodayPlanReportButton").performClick()
+        capture("learning-report.png")
+        composeRule.onNodeWithText("返回").performClick()
+        composeRule.onNodeWithText("返回").performClick()
+
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.onNodeWithTag("ConfigCloudBindingButton").performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            hasNode("ScanBindingScreen") || hasNode("BoundDeviceInfoScreen")
+        }
+        if (hasNode("ScanBindingScreen")) {
+            capture("scan-binding.png")
+            composeRule.onNodeWithTag("ScanBindingManualCodeInput").performTextInput("abc123")
+            composeRule.onNodeWithTag("ScanBindingRedeemButton").performClick()
+            composeRule.waitUntil(timeoutMillis = 2_000) {
+                hasNode("BoundDeviceInfoScreen")
+            }
+        }
+        capture("bound-device-info.png")
+    }
+
+    @Test
+    fun captureCoreParentAndDebugScreens() {
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        capture("config-landscape.png")
+
+        composeRule.onNodeWithTag("ConfigParentAdminButton").performScrollTo().performClick()
+        capture("parent-pin-portrait.png")
+        composeRule.onNodeWithTag("ParentPinInput").performTextInput("123456")
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ParentAdminScreen") }
+        capture("parent-admin.png")
+
+        composeRule.onAllNodesWithText("审核")[0].performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("LessonDraftReviewScreen") }
+        capture("lesson-review-portrait.png")
+        composeRule.onNodeWithText("返回").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ParentAdminScreen") }
+        composeRule.onNodeWithText("返回").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigScreen") }
+
+        composeRule.onNodeWithTag("ConfigDeveloperRow").performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("DevMenuScreen") }
+        capture("dev-menu-debug.png")
+        composeRule.onNodeWithTag("DevMenuBypassSecretButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("BypassSecretPageInput") }
+        capture("bypass-secret-debug.png")
+    }
+
+    @Test
+    fun captureResultScreen() {
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        repeat(2) { composeRule.onNodeWithTag("ConfigMonsterHpDecrement").performScrollTo().performClick() }
+        repeat(4) { composeRule.onNodeWithTag("ConfigMonsterCountDecrement").performScrollTo().performClick() }
+        composeRule.onNodeWithText("返回首页").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
+
+        composeRule.onNodeWithTag("HomeStartButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("BattleScreen") }
+        composeRule.onNodeWithText("apple").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ResultScreen") }
+        capture("result.png")
+    }
+
+    private fun capture(fileName: String) {
+        composeRule.waitForIdle()
+        val bitmap = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+        val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val dir = File(targetContext.filesDir, "screenshots").also { it.mkdirs() }
+        FileOutputStream(File(dir, fileName)).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+    }
+
+    private fun hasNode(tag: String): Boolean {
+        return composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+    }
+}
