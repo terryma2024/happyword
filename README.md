@@ -39,10 +39,6 @@ Captured from a landscape phone/tablet viewport (`2720×1260` PNG from `uitest s
 | ![C3](assets/screenshots/harmonyos/config-part3.png) | ![A3](assets/screenshots/harmonyos/parent-admin-part3.png) | |
 | ![C4](assets/screenshots/harmonyos/config-part4.png) | ![A4](assets/screenshots/harmonyos/parent-admin-part4.png) | |
 
-| Dev menu (debug) | Vercel bypass secret |
-| --- | --- |
-| ![Dev menu](assets/screenshots/harmonyos/dev-menu.png) | ![Bypass](assets/screenshots/harmonyos/bypass-secret.png) |
-
 **Not automated in the capture script (environment-dependent):**
 
 - **`pages/ScanBindingPage`** — the bind button is hidden when the device already has a parent binding; capture `scan-binding.png` manually from an **unbound** install or after clearing binding.
