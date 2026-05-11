@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pymongo.errors import OperationFailure
 
 from scripts.e2e_drop_old_pr_dbs import (
     UnsafePattern,
@@ -93,6 +94,101 @@ async def test_drop_stale_drops_only_old_matching() -> None:
     assert candidates == ["happyword_pr_1_e2e", "happyword_pr_2_e2e"]
     assert dropped == ["happyword_pr_1_e2e"]
     client.drop_database.assert_awaited_once_with("happyword_pr_1_e2e")
+
+
+@pytest.mark.asyncio
+async def test_drop_stale_can_drop_empty_dbs_but_excludes_current() -> None:
+    """Failed preview startups can leave empty PR DBs that still consume collections."""
+    client = MagicMock()
+    client.list_database_names = AsyncMock(
+        return_value=[
+            "happyword_pr_60_e2e",
+            "happyword_pr_61_e2e",
+            "happyword_staging",
+        ]
+    )
+    client.drop_database = AsyncMock()
+
+    async def fake_age(_client: object, _name: str) -> datetime | None:
+        return None
+
+    dropped, candidates = await drop_stale(
+        client,
+        pattern=r"^happyword_pr_\d+_e2e$",
+        older_than_days=14,
+        dry_run=False,
+        drop_empty=True,
+        exclude_names={"happyword_pr_61_e2e"},
+        age_resolver=fake_age,
+    )
+    assert candidates == ["happyword_pr_60_e2e", "happyword_pr_61_e2e"]
+    assert dropped == ["happyword_pr_60_e2e"]
+    client.drop_database.assert_awaited_once_with("happyword_pr_60_e2e")
+
+
+@pytest.mark.asyncio
+async def test_drop_stale_can_ignore_unauthorized_drop_errors() -> None:
+    """CI cleanup is best-effort when the E2E Mongo user cannot drop old DBs."""
+    client = MagicMock()
+    client.list_database_names = AsyncMock(return_value=["happyword_pr_30_e2e"])
+    client.drop_database = AsyncMock(
+        side_effect=OperationFailure("user is not allowed to do action [dropDatabase]")
+    )
+
+    async def fake_age(_client: object, _name: str) -> datetime | None:
+        return None
+
+    ignored_errors: list[str] = []
+    dropped, candidates = await drop_stale(
+        client,
+        pattern=r"^happyword_pr_\d+_e2e$",
+        older_than_days=14,
+        dry_run=False,
+        drop_empty=True,
+        ignore_drop_errors=True,
+        ignored_drop_errors=ignored_errors,
+        age_resolver=fake_age,
+    )
+
+    assert candidates == ["happyword_pr_30_e2e"]
+    assert dropped == []
+    assert len(ignored_errors) == 1
+    assert "happyword_pr_30_e2e" in ignored_errors[0]
+    assert "dropDatabase" in ignored_errors[0]
+
+
+@pytest.mark.asyncio
+async def test_drop_stale_falls_back_to_dropping_collections() -> None:
+    """Dropping collections frees Atlas quota when dropDatabase is disallowed."""
+    stale_db = MagicMock()
+    stale_db.list_collection_names = AsyncMock(return_value=["words", "word_packs"])
+    stale_db.drop_collection = AsyncMock()
+
+    client = MagicMock()
+    client.list_database_names = AsyncMock(return_value=["happyword_pr_30_e2e"])
+    client.drop_database = AsyncMock(
+        side_effect=OperationFailure("user is not allowed to do action [dropDatabase]")
+    )
+    client.__getitem__.return_value = stale_db
+
+    async def fake_age(_client: object, _name: str) -> datetime | None:
+        return None
+
+    dropped, candidates = await drop_stale(
+        client,
+        pattern=r"^happyword_pr_\d+_e2e$",
+        older_than_days=14,
+        dry_run=False,
+        drop_empty=True,
+        drop_collections_on_drop_error=True,
+        age_resolver=fake_age,
+    )
+
+    assert candidates == ["happyword_pr_30_e2e"]
+    assert dropped == ["happyword_pr_30_e2e"]
+    stale_db.list_collection_names.assert_awaited_once()
+    stale_db.drop_collection.assert_any_await("words")
+    stale_db.drop_collection.assert_any_await("word_packs")
 
 
 @pytest.mark.asyncio

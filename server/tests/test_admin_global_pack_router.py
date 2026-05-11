@@ -247,3 +247,63 @@ async def test_admin_get_unknown_pack_returns_404(
         "/api/v1/admin/global-packs/gpk-does-not-exist", headers=headers
     )
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_admin_import_image_writes_global_draft(
+    client: AsyncClient, admin: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import family_pack_import_service
+
+    async def fake_extract(payload: bytes, mime: str) -> tuple[str, dict[str, object]]:
+        return (
+            "fake-model",
+            {
+                "words": [
+                    {
+                        "word": "globe",
+                        "meaningZh": "地球仪",
+                        "category": "school",
+                        "difficulty": 1,
+                    },
+                ],
+            },
+        )
+
+    monkeypatch.setattr(family_pack_import_service, "extract_family_pack_image", fake_extract)
+
+    async def fake_upload(payload: bytes, mime: str) -> str:
+        return "mock://global-pack-source.png"
+
+    monkeypatch.setattr(family_pack_import_service, "upload_family_pack_image", fake_upload)
+
+    headers = _bearer(admin.username)
+    await client.post(
+        "/api/v1/admin/global-packs",
+        json={"name": "ImgPack", "pack_id": "gpk-img-1"},
+        headers=headers,
+    )
+    r = await client.post(
+        "/api/v1/admin/global-packs/gpk-img-1/import-image",
+        headers=headers,
+        files={"image": ("page.png", b"fake-png", "image/png")},
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["imported_count"] == 1
+    assert body["draft"]["word_count"] == 1
+    assert body["model"] == "fake-model"
+    assert body["source_image_url"] == "mock://global-pack-source.png"
+
+
+@pytest.mark.asyncio
+async def test_admin_import_image_unknown_pack_returns_404(
+    client: AsyncClient, admin: User
+) -> None:
+    headers = _bearer(admin.username)
+    r = await client.post(
+        "/api/v1/admin/global-packs/gpk-missing/import-image",
+        headers=headers,
+        files={"image": ("page.png", b"x", "image/png")},
+    )
+    assert r.status_code == 404

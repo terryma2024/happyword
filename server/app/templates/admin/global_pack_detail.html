@@ -1,0 +1,159 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ definition.name }} · 全局词包{% endblock %}
+{% block content %}
+<section class="space-y-8">
+  <p class="text-sm"><a href="/admin/global-packs" class="text-sky-600 hover:underline">← 返回全局词库</a></p>
+
+  <header>
+    <h1 class="text-2xl font-semibold text-slate-900">{{ definition.name }}</h1>
+    <p class="text-sm text-slate-500 mt-1 font-mono">{{ definition.pack_id }}</p>
+  </header>
+
+  {% if flash_ok %}<p class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2">{{ flash_ok }}</p>{% endif %}
+  {% if flash_err %}<p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{{ flash_err }}</p>{% endif %}
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase">状态</p>
+      <p class="text-lg font-semibold mt-1">{% if definition.state.value == 'active' %}<span class="text-emerald-700">活跃</span>{% else %}<span class="text-slate-500">已归档</span>{% endif %}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase">草稿词数</p>
+      <p class="text-2xl font-semibold mt-1">{{ draft_word_count }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase">已发布版本</p>
+      <p class="text-2xl font-semibold mt-1">{% if published_version is not none %}v{{ published_version }}{% else %}—{% endif %}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase">当前发布词数</p>
+      <p class="text-2xl font-semibold mt-1">{{ published_word_count }}</p>
+    </div>
+  </div>
+
+  {% if pointer %}
+  <p class="text-xs text-slate-500">指针：当前 v{{ pointer.current_version }}{% if pointer.previous_version is not none %}，可回滚至 v{{ pointer.previous_version }}{% endif %}。</p>
+  {% endif %}
+
+  {% if definition.description %}
+  <p class="text-sm text-slate-600 bg-slate-50 border border-slate-100 rounded-md px-3 py-2">{{ definition.description }}</p>
+  {% endif %}
+
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-100">
+      <h2 class="font-semibold text-slate-900">草稿词条（CRUD）</h2>
+      <p class="text-xs text-slate-500 mt-1">手动新增、编辑或删除草稿中的单词；发布后才会进入该词包的已发布版本。</p>
+    </div>
+
+    <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+      <h3 class="text-sm font-medium text-slate-800 mb-3">新增词条</h3>
+      <form method="post" action="/admin/global-packs/packs/{{ pack_id }}/draft/create" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+        <label class="block md:col-span-1">英文词 <span class="text-red-500">*</span>
+          <input type="text" name="word" required maxlength="64" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5" placeholder="apple" />
+        </label>
+        <label class="block md:col-span-1">中文义 <span class="text-red-500">*</span>
+          <input type="text" name="meaning_zh" required maxlength="128" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5" placeholder="苹果" />
+        </label>
+        <label class="block md:col-span-1">分类 <span class="text-red-500">*</span>
+          <input type="text" name="category" required maxlength="64" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5" placeholder="fruit" />
+        </label>
+        <label class="block md:col-span-1">难度 1–5
+          <input type="number" name="difficulty" value="1" min="1" max="5" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5" />
+        </label>
+        <label class="block md:col-span-1">自定义词条 ID（可选）
+          <input type="text" name="custom_word_id" maxlength="128" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 font-mono text-xs" placeholder="留空则根据英文词自动生成" />
+        </label>
+        <label class="block md:col-span-2">英文例句（可选）
+          <input type="text" name="example_en" maxlength="200" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5" />
+        </label>
+        <label class="block md:col-span-2">中文例句（可选）
+          <input type="text" name="example_zh" maxlength="200" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5" />
+        </label>
+        <label class="block md:col-span-2">干扰项（可选，逗号分隔）
+          <input type="text" name="distractors" class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5" placeholder="banana, orange" />
+        </label>
+        <div class="md:col-span-2 lg:col-span-3 flex items-end">
+          <button type="submit" class="rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2">添加词条</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <tr>
+            <th class="px-3 py-2">词条 ID</th>
+            <th class="px-3 py-2">英文</th>
+            <th class="px-3 py-2">中文</th>
+            <th class="px-3 py-2">分类</th>
+            <th class="px-3 py-2">难度</th>
+            <th class="px-3 py-2 text-right">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for w in draft_words %}
+          {% if w.get('hidden') %}
+          <tr class="bg-slate-50 text-slate-500">
+            <td class="px-3 py-2 font-mono text-xs">{{ w.id }}</td>
+            <td colspan="4" class="px-3 py-2 text-xs">（隐藏占位，请在 API 或后续版本中处理）</td>
+            <td class="px-3 py-2"></td>
+          </tr>
+          {% else %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-3 py-2 font-mono text-xs align-top">{{ w.id }}</td>
+            <td class="px-3 py-2 align-top">{{ w.word or '—' }}</td>
+            <td class="px-3 py-2 align-top">{{ w.meaningZh or w.meaning_zh or '—' }}</td>
+            <td class="px-3 py-2 align-top">{{ w.category or '—' }}</td>
+            <td class="px-3 py-2 align-top">{{ w.difficulty | default('—') }}</td>
+            <td class="px-3 py-2 text-right whitespace-nowrap align-top">
+              <a href="/admin/global-packs/packs/{{ pack_id }}/draft/edit?word_id={{ w.id | urlencode }}" class="text-sky-600 hover:underline mr-2">编辑</a>
+              <form method="post" action="/admin/global-packs/packs/{{ pack_id }}/draft/delete" class="inline" onsubmit="return confirm('删除该草稿词条？');">
+                <input type="hidden" name="word_id" value="{{ w.id }}" />
+                <button type="submit" class="text-red-600 hover:underline text-sm bg-transparent border-0 cursor-pointer p-0">删除</button>
+              </form>
+            </td>
+          </tr>
+          {% endif %}
+          {% else %}
+          <tr><td colspan="6" class="px-3 py-8 text-center text-slate-500">暂无草稿词条，请新增或图片导入。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
+    <h2 class="font-semibold text-slate-900">图片导入草稿</h2>
+    <p class="text-xs text-slate-500">上传教材页照片，解析词条并写入<strong>本词包</strong>草稿（与家庭端导入同一管线）。支持 JPEG / PNG / WebP，最大 8MB。解析依赖 OpenAI 视觉接口，需在服务器配置 <span class="font-mono">OPENAI_API_KEY</span>。</p>
+    {% if not vision_import_ready %}
+    <p class="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+      当前实例未配置可用的 OPENAI_API_KEY，无法解析图片。请在部署环境（如 Vercel / Docker）设置环境变量并重新部署或重启后再试。
+    </p>
+    {% endif %}
+    <form method="post" action="/admin/global-packs/packs/{{ pack_id }}/import-image" enctype="multipart/form-data" class="space-y-3 max-w-lg" {% if not vision_import_ready %}aria-disabled="true"{% endif %}>
+      <label class="block text-sm text-slate-700">选择图片</label>
+      <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required class="block text-sm text-slate-600" {% if not vision_import_ready %}disabled{% endif %} />
+      <button type="submit" class="rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed" {% if not vision_import_ready %}disabled{% endif %}>解析并写入草稿</button>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <form method="post" action="/admin/global-packs/packs/{{ pack_id }}/publish-definition" class="space-y-4 bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
+      <h2 class="font-semibold text-slate-900">发布本词包版本</h2>
+      <p class="text-xs text-slate-500">将当前草稿快照为该词包的一条发布版本（对应 Admin API <span class="font-mono text-xs">POST /api/v1/admin/global-packs/{pack_id}/publish</span>）。</p>
+      <label class="block text-sm text-slate-700">发布说明（可选）</label>
+      <textarea name="notes" rows="2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+      <button type="submit" class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">发布词包</button>
+    </form>
+
+    <form method="post" action="/admin/global-packs/packs/{{ pack_id }}/rollback-definition" class="space-y-4 bg-white border border-amber-100 rounded-lg p-6 shadow-sm bg-amber-50/30"
+          onsubmit="return confirm('确认回滚该词包的发布指针？');">
+      <h2 class="font-semibold text-amber-900">回滚本词包指针</h2>
+      <p class="text-xs text-amber-800">需存在上一版本；仅影响该 gpk，不影响平台 WordPack 快照。</p>
+      <label class="block text-sm text-slate-700">操作说明（必填，≥4 字）</label>
+      <textarea name="reason" rows="4" required class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+      <button type="submit" class="rounded-md bg-amber-700 hover:bg-amber-800 text-white text-sm px-4 py-2">回滚词包</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

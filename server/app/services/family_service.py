@@ -11,6 +11,10 @@ def _gen_id(prefix: str) -> str:
     return f"{prefix}-{secrets.token_hex(4)}"
 
 
+class ParentLoginSuspended(Exception):
+    """Raised when a parent account is suspended by a system administrator (V0.8.2)."""
+
+
 async def create_family_for_parent(*, email: str) -> tuple[Family, User]:
     """Idempotently create a Family + parent User keyed by `email`.
 
@@ -22,6 +26,8 @@ async def create_family_for_parent(*, email: str) -> tuple[Family, User]:
         User.email == email, User.role == UserRole.PARENT
     )
     if existing_user is not None:
+        if existing_user.parent_login_suspended_at is not None:
+            raise ParentLoginSuspended()
         family = await Family.find_one(Family.owner_user_id == existing_user.username)
         if family is not None:
             return family, existing_user

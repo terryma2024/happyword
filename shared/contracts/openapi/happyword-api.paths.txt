@@ -8,6 +8,7 @@
 /api/v1/admin/global-packs
 /api/v1/admin/global-packs/{pack_id}
 /api/v1/admin/global-packs/{pack_id}/draft/words/{word_id}
+/api/v1/admin/global-packs/{pack_id}/import-image
 /api/v1/admin/global-packs/{pack_id}/publish
 /api/v1/admin/global-packs/{pack_id}/rollback
 /api/v1/admin/global-packs/{pack_id}/versions

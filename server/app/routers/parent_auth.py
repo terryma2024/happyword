@@ -29,7 +29,7 @@ from app.schemas.parent_auth import (
     VerifyCodeOut,
 )
 from app.services.auth_service import create_session_token
-from app.services.family_service import create_family_for_parent
+from app.services.family_service import ParentLoginSuspended, create_family_for_parent
 from app.services.notification_service import (
     EmailDeliveryDegraded,
     send_otp_email,
@@ -134,7 +134,18 @@ async def post_verify_code(
             },
         ) from e
 
-    family, user = await create_family_for_parent(email=email)
+    try:
+        family, user = await create_family_for_parent(email=email)
+    except ParentLoginSuspended:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": {
+                    "code": "PARENT_LOGIN_SUSPENDED",
+                    "message": "Parent account login is suspended by an administrator.",
+                }
+            },
+        ) from None
     token = create_session_token(role="parent", identifier=user.username)
     set_parent_session_cookie(response, token)
 
