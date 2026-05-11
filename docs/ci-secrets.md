@@ -134,6 +134,14 @@ The E2E test driver passes this to every request as
 `x-vercel-protection-bypass: <secret>` (see
 [`server/tests/e2e/conftest.py`](../server/tests/e2e/conftest.py)).
 
+**HarmonyOS debug builds:** paste the **same** secret in the app Developer
+Options → **Bypass Secret** dialog (value from Vercel **Protection Bypass for
+Automation**) so preview URL health checks succeed from a device.
+
+| Dev menu (debug) | Vercel bypass secret |
+| --- | --- |
+| ![Dev menu](../assets/screenshots/harmonyos/dev-menu.png) | ![Bypass](../assets/screenshots/harmonyos/bypass-secret.png) |
+
 ### `VERCEL_CRON_SECRET` (lesson import extraction cron)
 
 **What it does**
