@@ -1,6 +1,6 @@
 # Small Magician Word Adventure
 
-快乐背单词是一个面向儿童的英语单词学习冒险产品。游戏把单词练习包装成“小魔法师对战怪物”的轻量冒险：孩子在横屏战斗中识别单词、补全拼写、积累魔法币，并通过每日计划和学习报告持续复习。
+魔法背单词是一个面向儿童的英语单词学习冒险产品。游戏把单词练习包装成“小魔法师对战怪物”的轻量冒险：孩子在横屏战斗中识别单词、补全拼写、积累魔法币，并通过每日计划和学习报告持续复习。
 
 仓库现在按 monorepo 组织：`harmonyos/`、`ios/`、`android/` 三个原生客户端与 `server/` 后端并列推进，`shared/` 只保存跨端契约、schema 和测试 fixtures。当前可运行的完整客户端仍是 HarmonyOS NEXT；iOS / Android 已保留根目录模块位，后续按原生 SwiftUI / Jetpack Compose 方向补齐。
 
