@@ -3,7 +3,7 @@
 Read this file before running HarmonyOS build or test commands. **Do not invent `hvigorw` flags**; if a command fails, align with DevEco’s task names for the installed SDK and update this file.
 
 - **last_verified_deveco:** (fill when confirmed, e.g. `5.0.x`)
-- **repo_root:** repository root (`/Users/bytedance/Projects/happyword`)
+- **repo_root:** repository root (`<repo-root>`)
 - **harmony_project_root:** `harmonyos/` (where `oh-package.json5`, `build-profile.json5`, and `hvigorfile.ts` live)
 
 ## Conventions
@@ -164,6 +164,17 @@ then trigger the test from DevEco. Tear down with `kill %1` and
 `hdc fport rm "tcp:8123 tcp:8123"` when done.
 
 **Notes:** Exact **Instrument** / **onDevice** task names depend on **DevEco / hvigor-ohos-plugin** version. Record the same command you use in DevEco’s “Run” for `ohosTest`.
+
+### UI suite repair SOP
+
+When fixing UI automation failures, do not batch-fix from a full-suite failure list. Work one suite at a time:
+
+1. Run the target suite once with `scripts/run_ui_tests.sh --suite <SuiteName> --rebuild` when test sources changed, or without `--rebuild` for a pure repro.
+2. If it fails, capture the exact suite/case, stack line, and `OHOS_REPORT_RESULT`, then reproduce as narrowly as the runner allows.
+3. Before editing, collect device evidence with `hdc shell uitest dumpLayout`, `snapshot_display`, and relevant `hilog` / mock logs for flows crossing app, mock server, network, or persisted preferences.
+4. Root-cause the failure across product UI, test harness, mock fixtures, persisted app state, and timing. Do not patch from a guess.
+5. Present the cause and smallest proposed fix to the user, then wait for approval.
+6. After approval, patch narrowly, add an English comment for any state-order invariant the test depends on, and rerun that suite before moving on.
 
 ---
 

@@ -1,7 +1,8 @@
 """Idempotently seed `words` collection from the client's rawfile JSON.
 
-The client ships ``entry/src/main/resources/rawfile/data/words_v1.json``
-as the cold-start fallback. From V0.5.2 onwards the live source of truth
+The HarmonyOS client ships ``harmonyos/entry/src/main/resources/rawfile/data/words_v1.json``
+as the cold-start fallback (this script also resolves the legacy ``entry/...`` path for
+trivial repo-root layouts). From V0.5.2 onwards the live source of truth
 is MongoDB. This script copies the rawfile rows into the DB so admins
 have something to edit before they start adding new words.
 
@@ -35,19 +36,25 @@ from app.models.word import Word
 
 # Path is resolved relative to repo root so the script works whether you
 # call it from `server/` or via `uv run python -m scripts.seed_from_rawfile`.
-_RAWFILE_RELATIVE = Path("entry/src/main/resources/rawfile/data/words_v1.json")
+# V0.7.0 monorepo: rawfile lives under `harmonyos/entry/...`; keep legacy `entry/...`
+# for older workspace layouts.
+_RAWFILE_CANDIDATES: tuple[Path, ...] = (
+    Path("harmonyos/entry/src/main/resources/rawfile/data/words_v1.json"),
+    Path("entry/src/main/resources/rawfile/data/words_v1.json"),
+)
 
 
 def _resolve_rawfile_path() -> Path:
     """Walk up from `__file__` until we find a parent that contains the rawfile."""
     here = Path(__file__).resolve()
     for ancestor in [here.parent, *here.parents]:
-        candidate = ancestor / _RAWFILE_RELATIVE
-        if candidate.exists():
-            return candidate
+        for rel in _RAWFILE_CANDIDATES:
+            candidate = ancestor / rel
+            if candidate.exists():
+                return candidate
     raise FileNotFoundError(
-        f"Could not locate {_RAWFILE_RELATIVE} above {here}. "
-        "Run the script from inside the happyword repo."
+        f"Could not locate any of {', '.join(str(p) for p in _RAWFILE_CANDIDATES)} "
+        f"above {here}. Run the script from inside the happyword repo."
     )
 
 

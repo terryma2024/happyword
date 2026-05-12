@@ -1,0 +1,121 @@
+{% extends "admin/base.html" %}
+{% block title %}全局词库{% endblock %}
+{% block content %}
+<section class="space-y-8">
+  <header>
+    <h1 class="text-2xl font-semibold text-slate-900">全局词库</h1>
+    <p class="text-sm text-slate-500 mt-1">
+      <strong>全局词包定义（gpk-*）</strong>可有多个；请在列表中进入某一词包进行<strong>图片导入草稿、发布与回滚</strong>。
+      下方「平台词条快照」面向所有家庭合并后的 WordPack，与单个 gpk 的发布是两条线。
+    </p>
+  </header>
+
+  {% if flash_ok %}<p class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2">{{ flash_ok }}</p>{% endif %}
+  {% if flash_err %}<p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{{ flash_err }}</p>{% endif %}
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase tracking-wide">平台快照版本</p>
+      <p class="text-2xl font-semibold mt-1">{% if pointer %}v{{ pointer.current_version }}{% else %}—{% endif %}</p>
+      {% if pointer and pointer.previous_version is not none %}
+      <p class="text-xs text-slate-500 mt-2">可回滚上一版本：v{{ pointer.previous_version }}</p>
+      {% endif %}
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase tracking-wide">当前快照词数（WordPack）</p>
+      <p class="text-2xl font-semibold mt-1">{{ current_word_count }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase tracking-wide">全局词包个数</p>
+      <p class="text-2xl font-semibold mt-1">{{ pack_rows|length }}</p>
+    </div>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
+    <h2 class="font-semibold text-slate-900">新建全局词包</h2>
+    <p class="text-xs text-slate-500">创建后即可在「按包管理」中上传图片、发布该词包版本。名称必填；词包 ID 可留空由系统生成（形如 <span class="font-mono">gpk-xxxx</span>）。</p>
+    <form method="post" action="/admin/global-packs/create" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
+      <label class="block md:col-span-2 text-sm text-slate-700">显示名称 <span class="text-red-500">*</span>
+        <input type="text" name="name" required maxlength="32" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="例如：三年级上册 Unit 1" />
+      </label>
+      <label class="block text-sm text-slate-700">自定义词包 ID（可选）
+        <input type="text" name="pack_id" maxlength="64" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-mono" placeholder="gpk-my-unit-1" />
+      </label>
+      <label class="block md:col-span-2 text-sm text-slate-700">描述（可选）
+        <textarea name="description" rows="2" maxlength="200" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+      </label>
+      <div class="md:col-span-2">
+        <button type="submit" class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">创建并进入词包</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+      <h2 class="font-semibold text-slate-900">全局词包列表（按包管理）</h2>
+      <p class="text-xs text-slate-500">含已归档词包；请点击<strong>管理</strong>进入详情上传与发布。</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <tr>
+            <th class="px-4 py-2">名称</th>
+            <th class="px-4 py-2">词包 ID</th>
+            <th class="px-4 py-2">状态</th>
+            <th class="px-4 py-2">草稿词数</th>
+            <th class="px-4 py-2">更新时间</th>
+            <th class="px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in pack_rows %}
+          {% set d = row.definition %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-2 font-medium text-slate-800">{{ d.name }}</td>
+            <td class="px-4 py-2 font-mono text-xs">{{ d.pack_id }}</td>
+            <td class="px-4 py-2">
+              {% if d.state.value == 'active' %}
+                <span class="text-emerald-700">活跃</span>
+              {% else %}
+                <span class="text-slate-500">已归档</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2">{{ row.draft_word_count }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600">{{ d.updated_at.strftime('%Y-%m-%d %H:%M') if d.updated_at else '—' }}</td>
+            <td class="px-4 py-2 text-right">
+              <a href="/admin/global-packs/packs/{{ d.pack_id }}" class="text-sky-600 hover:underline">管理</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">暂无全局词包。请先使用上方表单新建。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 border-t border-slate-200 pt-8">
+    <div>
+      <h2 class="text-sm font-semibold text-slate-700 mb-2">平台词条快照（WordPack）</h2>
+      <p class="text-xs text-slate-500 mb-4">影响客户端拉取的<strong>合并词条快照</strong>版本线；不是单个 gpk 的发布。</p>
+    </div>
+    <div></div>
+    <form method="post" action="/admin/global-packs/publish" class="space-y-4 bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
+      <h3 class="font-semibold text-slate-900">发布快照新版本</h3>
+      <p class="text-xs text-slate-500">将当前 MongoDB 中未删除词条快照为新版本（publish_pack）。</p>
+      <label class="block text-sm text-slate-700">发布说明（可选）</label>
+      <textarea name="notes" rows="2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="例如：批量校对三年级词条"></textarea>
+      <button type="submit" class="rounded-md bg-slate-700 hover:bg-slate-800 text-white text-sm px-4 py-2">确认发布快照</button>
+    </form>
+
+    <form method="post" action="/admin/global-packs/rollback" class="space-y-4 bg-white border border-amber-100 rounded-lg p-6 shadow-sm bg-amber-50/30"
+          onsubmit="return confirm('确认回滚平台词条快照指针到上一版本？');">
+      <h3 class="font-semibold text-amber-900">回滚快照指针</h3>
+      <p class="text-xs text-amber-800">交换当前版本与上一版本指针（需存在 previous_version）。</p>
+      <label class="block text-sm text-slate-700">操作说明（必填，≥4 字）</label>
+      <textarea name="reason" rows="4" required class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+      <button type="submit" class="rounded-md bg-amber-700 hover:bg-amber-800 text-white text-sm px-4 py-2">确认回滚快照</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

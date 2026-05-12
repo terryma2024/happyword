@@ -6,13 +6,12 @@ import { ParentFetchAdapter, ParentFetchResult } from './ParentApiClient';
 import { FamilyPacksBlob, parseFamilyPacksBlob } from './FamilyPackMerge';
 
 /**
- * V0.6.3 — client cache + HTTP wrapper for the merged family-pack JSON.
+ * V0.6.3 / V0.8.1 — client cache + HTTP wrapper for child vocabulary JSON.
  *
- * Route-pattern alignment: GET/HEAD target switches from legacy
- * `/api/v1/child/family-packs/latest.json` to the route-pattern canonical
- * `/api/v1/family/{family_id}/family-packs/latest.json` when `familyId` is
- * non-empty (same handler on server; path param is decorative until v0.6.6
- * enforcement). Empty `familyId` keeps the legacy URL for unusually old prefs.
+ * GET/HEAD target is **`/api/v1/child/packs/latest.json`** (merged global +
+ * family vocabulary per V0.8.1). When the caller supplies a non-empty
+ * `familyId`, we also send **`X-Family-Id`** so the server can enforce the
+ * tenant hint (`TENANT_MISMATCH` on mismatch).
  *
  * The cache lives in its own preferences bag (`wordmagic_family_packs`)
  * so we never mix it with the global `word_pack_cache` slot. A successful
@@ -26,6 +25,7 @@ const PREFS_NAME: string = 'wordmagic_family_packs';
 const KEY_BLOB: string = 'family_packs_v1';
 
 const HEADER_AUTH: string = 'Authorization';
+const HEADER_FAMILY_HINT: string = 'X-Family-Id';
 const HEADER_IF_NONE_MATCH: string = 'If-None-Match';
 const HEADER_ETAG: string = 'ETag';
 const HEADER_ETAG_LOWER: string = 'etag';
@@ -107,17 +107,19 @@ export class FamilyPackService {
     this.nowMs = now;
   }
 
-  /**
-   * Canonical family-pack JSON endpoint per `.cursor/rules/api-route-pattern.mdc`.
-   * Legacy `/api/v1/child/...` remains only when `familyId` is blank.
-   */
-  private familyPacksLatestUrl(familyId: string): string {
-    const id: string = familyId.trim();
-    if (id.length === 0) {
-      return `${this.baseUrl}/api/v1/child/family-packs/latest.json`;
+  /** V0.8.1 merged child vocabulary (global + family); auth is device Bearer. */
+  private childPacksLatestUrl(): string {
+    return `${this.baseUrl}/api/v1/child/packs/latest.json`;
+  }
+
+  private authHeaders(deviceToken: string, familyId: string): Record<string, string> {
+    const headers: Record<string, string> = {};
+    headers[HEADER_AUTH] = `Bearer ${deviceToken}`;
+    const hint: string = familyId.trim();
+    if (hint.length > 0) {
+      headers[HEADER_FAMILY_HINT] = hint;
     }
-    const encoded: string = encodeURIComponent(id);
-    return `${this.baseUrl}/api/v1/family/${encoded}/family-packs/latest.json`;
+    return headers;
   }
 
   async init(ctx: common.UIAbilityContext): Promise<void> {
@@ -160,9 +162,8 @@ export class FamilyPackService {
       return out;
     }
     const fid: string = familyId !== undefined ? familyId : '';
-    const url: string = this.familyPacksLatestUrl(fid);
-    const headers: Record<string, string> = {};
-    headers[HEADER_AUTH] = `Bearer ${deviceToken}`;
+    const url: string = this.childPacksLatestUrl();
+    const headers: Record<string, string> = this.authHeaders(deviceToken, fid);
 
     const cached: CachedEnvelope | null = this.memoryEnvelope ?? await this.readCache();
     if (cached !== null && cached.etag.length > 0) {
@@ -226,9 +227,8 @@ export class FamilyPackService {
       return null;
     }
     const fid: string = familyId !== undefined ? familyId : '';
-    const url: string = this.familyPacksLatestUrl(fid);
-    const headers: Record<string, string> = {};
-    headers[HEADER_AUTH] = `Bearer ${deviceToken}`;
+    const url: string = this.childPacksLatestUrl();
+    const headers: Record<string, string> = this.authHeaders(deviceToken, fid);
     try {
       const res: ParentFetchResult = await this.adapter.head(url, headers);
       if (res.status === 204) {

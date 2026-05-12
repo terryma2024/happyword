@@ -1,0 +1,19 @@
+---
+description: SOP for repairing HarmonyOS ohosTest UI suite failures
+alwaysApply: true
+---
+
+# Harmony UI Suite Repair SOP
+
+When repairing `harmonyos/entry/src/ohosTest/**` failures, use this flow:
+
+1. Work one suite at a time. Run the named suite first, not the full UI suite.
+2. Treat the first failing run as evidence. Record the suite, case name, stack line, and `OHOS_REPORT_RESULT`.
+3. If a case fails, reproduce it as narrowly as the runner allows and collect device evidence before editing:
+   - `hdc shell uitest dumpLayout`
+   - `hdc shell snapshot_display -f /data/local/tmp/<case>.jpeg`
+   - relevant `hdc hilog` or mock-server logs when the flow crosses app/mock/network boundaries
+4. Find the root cause before proposing a fix. Trace whether the failure is in product UI, test state, persisted preferences, mock fixtures, or timing.
+5. Summarize the cause and propose the smallest fix to the user. Wait for approval before changing code.
+6. After approval, patch narrowly. Add an English test comment when preserving a state-order invariant that future agents might break.
+7. Verify the edited suite again. Only run broader UI verification after the user confirms the agreed final set.

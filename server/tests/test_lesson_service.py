@@ -43,6 +43,13 @@ def test_lesson_system_prompt_mentions_json() -> None:
     )
 
 
+def test_lesson_system_prompt_requests_example_zh() -> None:
+    """Bilingual review in parent UI — prompt should ask for optional ``example_zh``."""
+    assert "example_zh" in lesson_service._LESSON_SYSTEM_PROMPT, (
+        "_LESSON_SYSTEM_PROMPT must request optional `example_zh` per word."
+    )
+
+
 def test_lesson_system_prompt_requests_example_en() -> None:
     """Prompt must keep asking for the per-word ``example_en`` field
     used downstream for cloze (fill-in-the-blank) exercises. Dropping
@@ -91,3 +98,47 @@ async def test_extract_lesson_payload_wraps_openai_error(
 
     assert "OpenAI vision call failed" in str(excinfo.value)
     assert isinstance(excinfo.value.__cause__, openai.OpenAIError)
+
+
+@pytest.mark.asyncio
+async def test_extract_lesson_payload_bounds_openai_call_below_function_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cron must regain control before Vercel kills the serverless function."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-real")
+    from app.config import get_settings  # noqa: PLC0415
+
+    get_settings.cache_clear()
+    await llm_service.reset_openai_client()
+
+    seen_kwargs: dict[str, object] = {}
+
+    class _FakeMessage:
+        content = (
+            '{"category_id":"lesson","label_en":"Lesson",'
+            '"label_zh":"Lesson","words":[]}'
+        )
+
+    class _FakeChoice:
+        message = _FakeMessage()
+
+    class _FakeCompletion:
+        choices = [_FakeChoice()]
+
+    class _FakeCompletions:
+        async def create(self, **kwargs: object) -> _FakeCompletion:
+            seen_kwargs.update(kwargs)
+            return _FakeCompletion()
+
+    class _FakeChat:
+        completions = _FakeCompletions()
+
+    class _FakeClient:
+        chat = _FakeChat()
+
+    monkeypatch.setattr(llm_service, "_get_openai_client", lambda: _FakeClient())
+
+    await lesson_service.extract_lesson_payload(b"fake-image-bytes", "image/jpeg")
+
+    assert seen_kwargs["timeout"] == lesson_service.OPENAI_VISION_TIMEOUT_SECONDS
+    assert seen_kwargs["timeout"] < 60.0

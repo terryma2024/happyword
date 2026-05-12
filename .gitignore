@@ -13,11 +13,17 @@
 
 # Gradle files (legacy / hybrid templates)
 .gradle/
+.build/
 build/
 build-tmp/
 
 # Local configuration file (sdk path, etc)
 local.properties
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
 
 # Log/OS Files
 *.log
@@ -36,6 +42,9 @@ output-metadata.json
 misc.xml
 deploymentTargetDropDown.xml
 render.experimental.xml
+
+# Xcode / iOS (per-user IDE state; schemes belong under xcshareddata/)
+**/xcuserdata/
 
 # Keystore files
 *.jks

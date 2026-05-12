@@ -1,0 +1,1110 @@
+"""V0.8.2 — server-rendered system administrator console under `/admin/`."""
+
+from __future__ import annotations
+
+import re
+from datetime import UTC, datetime
+from typing import Any
+from urllib.parse import quote
+
+from fastapi import APIRouter, File, Form, Query, Request, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+
+from app.config import get_settings
+from app.deps import clear_admin_session_cookie, set_admin_session_cookie
+from app.models.device_binding import DeviceBinding
+from app.models.user import User, UserRole
+from app.services import admin_console_service as acs
+from app.services import global_pack_service as gps
+from app.services.admin_audit_service import record_admin_action
+from app.services.llm_service import LlmCallError, LlmConfigError
+from app.services.admin_console_overview_service import (
+    build_admin_overview,
+    format_audit_timestamp,
+)
+from app.services.auth_service import (
+    JwtError,
+    create_session_token,
+    decode_typed_token,
+    verify_password,
+)
+
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin-web"],
+    include_in_schema=False,
+)
+
+templates = Jinja2Templates(directory="app/templates")
+
+PAGE_SIZE = 25
+
+
+def _pagination(total: int, page: int, page_size: int) -> tuple[list[int], int, int]:
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page_clamped = min(max(1, page), total_pages)
+    nums = list(range(1, total_pages + 1))
+    return nums, total_pages, page_clamped
+
+
+async def _require_admin_html(request: Request) -> User | RedirectResponse:
+    settings = get_settings()
+    cookie_token = request.cookies.get(settings.admin_session_cookie_name)
+    if not cookie_token:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    try:
+        typed = decode_typed_token(cookie_token)
+    except JwtError:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    if typed.role != "admin":
+        return RedirectResponse(url="/admin/login", status_code=303)
+    user = await User.find_one(
+        User.username == typed.identifier,
+        User.role == UserRole.ADMIN,
+    )
+    if user is None or user.password_hash is None:
+        return RedirectResponse(url="/admin/login", status_code=303)
+    return user
+
+
+def _redirect_if_authenticated(request: Request) -> RedirectResponse | None:
+    settings = get_settings()
+    cookie_token = request.cookies.get(settings.admin_session_cookie_name)
+    if not cookie_token:
+        return None
+    try:
+        typed = decode_typed_token(cookie_token)
+    except JwtError:
+        return None
+    if typed.role != "admin":
+        return None
+    return RedirectResponse(url="/admin/", status_code=303)
+
+
+def _flash_map_parents(request: Request) -> str | None:
+    err = request.query_params.get("flash_err")
+    if err == "not_found":
+        return "未找到该家长用户。"
+    return err
+
+
+def _flash_map_devices(request: Request) -> tuple[str | None, str | None]:
+    ok = request.query_params.get("flash_ok")
+    msgs = {"revoked": "已撤销设备绑定。"}
+    err = request.query_params.get("flash_err")
+    return (msgs.get(ok) if ok else None, err)
+
+
+def _flash_map_family(request: Request) -> tuple[str | None, str | None]:
+    ok = request.query_params.get("flash_ok")
+    msgs = {"unarchived": "已恢复词包为活跃状态。", "rolled_back": "已回滚家庭词包指针。"}
+    err = request.query_params.get("flash_err")
+    return (msgs.get(ok) if ok else None, err)
+
+
+def _flash_map_global(request: Request) -> tuple[str | None, str | None]:
+    ok = request.query_params.get("flash_ok")
+    imported = request.query_params.get("imported_count")
+    msgs = {
+        "published": "已发布新的平台词条快照（WordPack）。",
+        "rolled_back": "已回滚平台词条快照指针。",
+        "definition_created": "已创建新的全局词包定义（gpk）。",
+        "gpk_published": "已将该词包的草稿发布为新版本。",
+        "gpk_rolled_back": "已回滚该词包的发布指针。",
+        "draft_saved": "已保存草稿词条。",
+        "draft_deleted": "已删除草稿词条。",
+    }
+    err = request.query_params.get("flash_err")
+    if ok == "image_imported" and imported is not None:
+        return (f"图片已解析并写入草稿（成功导入 {imported} 条）。", err)
+    return (msgs.get(ok) if ok else None, err)
+
+
+def _global_pack_detail_url(
+    pack_id: str,
+    *,
+    flash_ok: str | None = None,
+    flash_err: str | None = None,
+    imported_count: int | str | None = None,
+) -> str:
+    base = f"/admin/global-packs/packs/{pack_id}"
+    qs: list[str] = []
+    if flash_ok:
+        qs.append(f"flash_ok={flash_ok}")
+    if imported_count is not None:
+        qs.append(f"imported_count={imported_count}")
+    if flash_err:
+        qs.append(f"flash_err={quote(flash_err)}")
+    return f"{base}?{'&'.join(qs)}" if qs else base
+
+
+_VISION_IMPORT_UNAVAILABLE_CN = (
+    "当前环境未配置 OPENAI_API_KEY（或值为空），无法解析教材图片。"
+    "请在部署环境变量中设置该密钥并重启服务后再试。"
+)
+
+
+def _vision_import_configured() -> bool:
+    settings = get_settings()
+    return bool((settings.openai_api_key or "").strip())
+
+
+def _flash_err_for_vision_import(exc: BaseException) -> str:
+    if isinstance(exc, LlmConfigError):
+        return _VISION_IMPORT_UNAVAILABLE_CN
+    return str(exc)
+
+
+def _existing_global_draft_word_ids(words: list[dict[str, Any]]) -> set[str]:
+    return {str(w["id"]) for w in words if isinstance(w.get("id"), str) and w["id"]}
+
+
+def _allocate_global_word_id(english: str, existing: set[str]) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", english.strip().lower()).strip("-") or "word"
+    if base not in existing:
+        return base
+    n = 2
+    while f"{base}-{n}" in existing:
+        n += 1
+    return f"{base}-{n}"
+
+
+def _build_global_draft_entry_from_form(
+    *,
+    word_id: str,
+    word: str,
+    meaning_zh: str,
+    category: str,
+    difficulty: int,
+    example_en: str,
+    example_zh: str,
+    distractors_csv: str,
+) -> dict[str, Any]:
+    entry: dict[str, Any] = {
+        "id": word_id.strip(),
+        "source": "custom",
+        "word": word.strip(),
+        "meaningZh": meaning_zh.strip(),
+        "category": category.strip(),
+        "difficulty": difficulty,
+    }
+    ex_en = example_en.strip()
+    ex_zh = example_zh.strip()
+    if ex_en:
+        entry["exampleEn"] = ex_en
+    if ex_zh:
+        entry["exampleZh"] = ex_zh
+    parts = [x.strip() for x in distractors_csv.split(",") if x.strip()]
+    if parts:
+        entry["distractors"] = parts
+    return entry
+
+
+def _find_draft_word(words: list[dict[str, Any]], word_id: str) -> dict[str, Any] | None:
+    for w in words:
+        if str(w.get("id")) == word_id:
+            return w
+    return None
+
+
+# --- login / logout / dashboard ------------------------------------------------
+
+
+@router.get("/login", response_class=HTMLResponse, response_model=None)
+async def admin_login_page(request: Request) -> HTMLResponse | RedirectResponse:
+    early = _redirect_if_authenticated(request)
+    if early is not None:
+        return early
+    return templates.TemplateResponse(request, "admin/login.html", {"error": None})
+
+
+@router.post("/login", response_class=HTMLResponse, response_model=None)
+async def admin_login_post(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+) -> HTMLResponse | RedirectResponse:
+    early = _redirect_if_authenticated(request)
+    if early is not None:
+        return early
+
+    user = await User.find_one(User.username == username.strip())
+    if (
+        user is None
+        or user.role != UserRole.ADMIN
+        or user.password_hash is None
+        or not verify_password(password, user.password_hash)
+    ):
+        return templates.TemplateResponse(
+            request,
+            "admin/login.html",
+            {"error": "用户名或密码错误。"},
+            status_code=401,
+        )
+
+    settings = get_settings()
+    expires_in = settings.admin_session_expire_hours * 3600
+    token = create_session_token(
+        role="admin",
+        identifier=user.username,
+        expires_in=expires_in,
+    )
+    user.last_login_at = datetime.now(tz=UTC)
+    await user.save()
+    redirect = RedirectResponse(url="/admin/", status_code=303)
+    set_admin_session_cookie(redirect, token)
+    return redirect
+
+
+@router.post("/logout", response_model=None)
+async def admin_logout() -> RedirectResponse:
+    out = RedirectResponse(url="/admin/login", status_code=303)
+    clear_admin_session_cookie(out)
+    return out
+
+
+@router.get("/", response_class=HTMLResponse, response_model=None)
+async def admin_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    overview = await build_admin_overview()
+    return templates.TemplateResponse(
+        request,
+        "admin/dashboard.html",
+        {
+            "admin_user": gate,
+            "overview": overview,
+            "audit_ts": format_audit_timestamp,
+        },
+    )
+
+
+# --- parents -------------------------------------------------------------------
+
+
+@router.get("/parents", response_class=HTMLResponse, response_model=None)
+async def admin_parents_list(
+    request: Request,
+    q: str | None = Query(None),
+    page: int = Query(1, ge=1),
+) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    flash_err = _flash_map_parents(request)
+    parents, total = await acs.search_parent_users(q=q, page=page, page_size=PAGE_SIZE)
+    page_nums, total_pages, page_use = _pagination(total, page, PAGE_SIZE)
+    if page_use != page:
+        parents, total = await acs.search_parent_users(q=q, page=page_use, page_size=PAGE_SIZE)
+    return templates.TemplateResponse(
+        request,
+        "admin/parents_list.html",
+        {
+            "admin_user": gate,
+            "parents": parents,
+            "q": q or "",
+            "page": page_use,
+            "total_pages": total_pages,
+            "page_nums": page_nums,
+            "flash_err": flash_err,
+        },
+    )
+
+
+@router.get("/parents/{username}", response_class=HTMLResponse, response_model=None)
+async def admin_parent_detail(request: Request, username: str) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    flash_ok = request.query_params.get("flash_ok")
+    ok_map = {"suspended": "已暂停该家长登录。", "restored": "已恢复该家长登录。"}
+    user_o, family, bindings, _profiles, packs = await acs.load_parent_detail(username=username)
+    if user_o is None:
+        return RedirectResponse(url="/admin/parents?flash_err=not_found", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "admin/parent_detail.html",
+        {
+            "admin_user": gate,
+            "user": user_o,
+            "family": family,
+            "bindings": bindings,
+            "packs": packs,
+            "flash_ok": ok_map.get(flash_ok) if flash_ok else None,
+            "flash_err": request.query_params.get("flash_err"),
+        },
+    )
+
+
+@router.post("/parents/{username}/suspend", response_model=None)
+async def admin_parent_suspend(request: Request, username: str, reason: str = Form(...)) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        await acs.admin_suspend_parent(
+            admin_username=gate.username,
+            parent_username=username,
+            reason=reason,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/parents/{username}?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    except LookupError:
+        return RedirectResponse(url="/admin/parents?flash_err=not_found", status_code=303)
+    return RedirectResponse(url=f"/admin/parents/{username}?flash_ok=suspended", status_code=303)
+
+
+@router.post("/parents/{username}/restore", response_model=None)
+async def admin_parent_restore(request: Request, username: str, reason: str = Form(...)) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        await acs.admin_restore_parent(
+            admin_username=gate.username,
+            parent_username=username,
+            reason=reason,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/parents/{username}?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    except LookupError:
+        return RedirectResponse(url="/admin/parents?flash_err=not_found", status_code=303)
+    return RedirectResponse(url=f"/admin/parents/{username}?flash_ok=restored", status_code=303)
+
+
+# --- devices -------------------------------------------------------------------
+
+
+@router.get("/devices", response_class=HTMLResponse, response_model=None)
+async def admin_devices_list(
+    request: Request,
+    q: str | None = Query(None),
+    page: int = Query(1, ge=1),
+) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    flash_ok, flash_err = _flash_map_devices(request)
+    bindings, total = await acs.search_device_bindings(q=q, page=page, page_size=PAGE_SIZE)
+    page_nums, total_pages, page_use = _pagination(total, page, PAGE_SIZE)
+    if page_use != page:
+        bindings, total = await acs.search_device_bindings(q=q, page=page_use, page_size=PAGE_SIZE)
+    return templates.TemplateResponse(
+        request,
+        "admin/devices_list.html",
+        {
+            "admin_user": gate,
+            "bindings": bindings,
+            "q": q or "",
+            "page": page_use,
+            "total_pages": total_pages,
+            "page_nums": page_nums,
+            "flash_ok": flash_ok,
+            "flash_err": flash_err,
+        },
+    )
+
+
+@router.get("/devices/{binding_id}/revoke", response_class=HTMLResponse, response_model=None)
+async def admin_device_revoke_form(request: Request, binding_id: str) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    binding = await DeviceBinding.find_one(DeviceBinding.binding_id == binding_id)
+    if binding is None:
+        return RedirectResponse(url="/admin/devices?flash_err=not_found", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "admin/device_revoke.html",
+        {"admin_user": gate, "binding": binding, "error": None},
+    )
+
+
+@router.post("/devices/{binding_id}/revoke", response_model=None)
+async def admin_device_revoke_post(
+    request: Request,
+    binding_id: str,
+    reason: str = Form(...),
+) -> RedirectResponse | HTMLResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    binding = await DeviceBinding.find_one(DeviceBinding.binding_id == binding_id)
+    if binding is None:
+        return RedirectResponse(url="/admin/devices?flash_err=not_found", status_code=303)
+    try:
+        await acs.admin_revoke_device_binding(
+            admin_username=gate.username,
+            binding_id=binding_id,
+            reason=reason,
+        )
+    except ValueError as e:
+        return templates.TemplateResponse(
+            request,
+            "admin/device_revoke.html",
+            {"admin_user": gate, "binding": binding, "error": str(e)},
+            status_code=400,
+        )
+    return RedirectResponse(url="/admin/devices?flash_ok=revoked", status_code=303)
+
+
+# --- global packs ------------------------------------------------------------
+
+
+@router.get("/global-packs", response_class=HTMLResponse, response_model=None)
+async def admin_global_packs_page(request: Request) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    flash_ok, flash_err = _flash_map_global(request)
+    ctx = await acs.load_global_pack_console_context()
+    pointer = ctx["pointer"]
+    current = ctx["current_pack"]
+    pack_rows = await acs.list_global_pack_definitions_with_summary(include_archived=True)
+    return templates.TemplateResponse(
+        request,
+        "admin/global_packs.html",
+        {
+            "admin_user": gate,
+            "pointer": pointer,
+            "current_pack": current,
+            "current_word_count": ctx["current_word_count"],
+            "pack_rows": pack_rows,
+            "flash_ok": flash_ok,
+            "flash_err": flash_err,
+        },
+    )
+
+
+_MAX_GLOBAL_IMPORT_IMAGE_BYTES = 8 * 1024 * 1024
+_ACCEPTED_GLOBAL_IMPORT_MIME = frozenset({"image/jpeg", "image/png", "image/webp"})
+
+
+@router.post("/global-packs/create", response_model=None)
+async def admin_global_pack_create_post(
+    request: Request,
+    name: str = Form(...),
+    description: str = Form(""),
+    pack_id: str = Form(""),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        d = await acs.admin_create_global_pack_definition(
+            admin_username=gate.username,
+            name=name,
+            description=description,
+            pack_id=pack_id or None,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_global_pack_detail_url(
+            d.pack_id,
+            flash_ok="definition_created",
+        ),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/import-image", response_model=None)
+async def admin_global_pack_import_image_post(
+    request: Request,
+    pack_id: str = Form(...),
+    image: UploadFile = File(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    mime = (image.content_type or "").lower()
+    if mime not in _ACCEPTED_GLOBAL_IMPORT_MIME:
+        return RedirectResponse(
+            url=_global_pack_detail_url(
+                pid,
+                flash_err="不支持的图片类型，请上传 JPEG、PNG 或 WebP。",
+            )
+            if pid
+            else f"/admin/global-packs?flash_err={quote('不支持的图片类型，请上传 JPEG、PNG 或 WebP。')}",
+            status_code=303,
+        )
+    payload = await image.read()
+    if not payload:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err="上传的文件为空。")
+            if pid
+            else f"/admin/global-packs?flash_err={quote('上传的文件为空。')}",
+            status_code=303,
+        )
+    if len(payload) > _MAX_GLOBAL_IMPORT_IMAGE_BYTES:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err="图片过大，请压缩后重试。")
+            if pid
+            else f"/admin/global-packs?flash_err={quote('图片过大，请压缩后重试。')}",
+            status_code=303,
+        )
+    try:
+        source_url, model_name, imported, _draft, errs = await gps.import_image_to_draft(
+            pack_id=pid,
+            admin_id=gate.username,
+            payload=payload,
+            mime=mime,
+        )
+    except gps.PackNotFound:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包编号。')}",
+            status_code=303,
+        )
+    except LlmConfigError as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=_flash_err_for_vision_import(exc)),
+            status_code=303,
+        )
+    except LlmCallError as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=_flash_err_for_vision_import(exc)),
+            status_code=303,
+        )
+
+    await record_admin_action(
+        admin_username=gate.username,
+        action="global_pack.import_image",
+        target_collection="family_pack_definitions",
+        target_id=pid,
+        payload_summary={
+            "imported_count": imported,
+            "error_count": len(errs),
+            "model": model_name,
+            "source_image_url": source_url,
+            "via": "admin_html",
+        },
+    )
+    return RedirectResponse(
+        url=_global_pack_detail_url(
+            pid,
+            flash_ok="image_imported",
+            imported_count=imported,
+            flash_err=(
+                f"部分行未写入（{len(errs)} 条），请在此页继续编辑或重试。" if errs else None
+            ),
+        ),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/publish", response_model=None)
+async def admin_global_publish_post(
+    request: Request,
+    notes: str = Form(""),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        await acs.admin_publish_global_pack(
+            admin_username=gate.username,
+            notes=notes,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    return RedirectResponse(url="/admin/global-packs?flash_ok=published", status_code=303)
+
+
+@router.post("/global-packs/rollback", response_model=None)
+async def admin_global_rollback_post(request: Request, reason: str = Form(...)) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        await acs.admin_rollback_global_pack(admin_username=gate.username, reason=reason)
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    return RedirectResponse(url="/admin/global-packs?flash_ok=rolled_back", status_code=303)
+
+
+@router.get("/global-packs/packs/{pack_id}", response_class=HTMLResponse, response_model=None)
+async def admin_global_pack_detail_page(
+    request: Request,
+    pack_id: str,
+) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        detail = await acs.load_global_pack_definition_console(pack_id=pack_id)
+    except LookupError:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包。')}",
+            status_code=303,
+        )
+    flash_ok, flash_err = _flash_map_global(request)
+    vision_ready = _vision_import_configured()
+    draft_words = sorted(
+        detail["draft_words"], key=lambda w: str(w.get("id", ""))
+    )
+    return templates.TemplateResponse(
+        request,
+        "admin/global_pack_detail.html",
+        {
+            "admin_user": gate,
+            "pack_id": pack_id,
+            "definition": detail["definition"],
+            "draft_words": draft_words,
+            "draft_word_count": detail["draft_word_count"],
+            "pointer": detail["pointer"],
+            "published_word_count": detail["published_word_count"],
+            "published_version": detail["published_version"],
+            "flash_ok": flash_ok,
+            "flash_err": flash_err,
+            "vision_import_ready": vision_ready,
+        },
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/import-image", response_model=None)
+async def admin_global_pack_detail_import_image_post(
+    request: Request,
+    pack_id: str,
+    image: UploadFile = File(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    mime = (image.content_type or "").lower()
+    if mime not in _ACCEPTED_GLOBAL_IMPORT_MIME:
+        return RedirectResponse(
+            url=_global_pack_detail_url(
+                pid,
+                flash_err="不支持的图片类型，请上传 JPEG、PNG 或 WebP。",
+            ),
+            status_code=303,
+        )
+    payload = await image.read()
+    if not payload:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err="上传的文件为空。"),
+            status_code=303,
+        )
+    if len(payload) > _MAX_GLOBAL_IMPORT_IMAGE_BYTES:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err="图片过大，请压缩后重试。"),
+            status_code=303,
+        )
+    try:
+        source_url, model_name, imported, _draft, errs = await gps.import_image_to_draft(
+            pack_id=pid,
+            admin_id=gate.username,
+            payload=payload,
+            mime=mime,
+        )
+    except gps.PackNotFound:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包编号。')}",
+            status_code=303,
+        )
+    except LlmConfigError as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=_flash_err_for_vision_import(exc)),
+            status_code=303,
+        )
+    except LlmCallError as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=_flash_err_for_vision_import(exc)),
+            status_code=303,
+        )
+
+    await record_admin_action(
+        admin_username=gate.username,
+        action="global_pack.import_image",
+        target_collection="family_pack_definitions",
+        target_id=pid,
+        payload_summary={
+            "imported_count": imported,
+            "error_count": len(errs),
+            "model": model_name,
+            "source_image_url": source_url,
+            "via": "admin_html_detail",
+        },
+    )
+    return RedirectResponse(
+        url=_global_pack_detail_url(
+            pid,
+            flash_ok="image_imported",
+            imported_count=imported,
+            flash_err=(
+                f"部分行未写入（{len(errs)} 条），请在此页继续编辑或重试。" if errs else None
+            ),
+        ),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/publish-definition", response_model=None)
+async def admin_global_pack_publish_definition_post(
+    request: Request,
+    pack_id: str,
+    notes: str = Form(""),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    try:
+        await acs.admin_publish_global_pack_definition(
+            admin_username=gate.username,
+            pack_id=pid,
+            notes=notes,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(e)),
+            status_code=303,
+        )
+    except LookupError:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包。')}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_global_pack_detail_url(pid, flash_ok="gpk_published"),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/rollback-definition", response_model=None)
+async def admin_global_pack_rollback_definition_post(
+    request: Request,
+    pack_id: str,
+    reason: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    try:
+        await acs.admin_rollback_global_pack_definition(
+            admin_username=gate.username,
+            pack_id=pid,
+            reason=reason,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(e)),
+            status_code=303,
+        )
+    except LookupError:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包。')}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_global_pack_detail_url(pid, flash_ok="gpk_rolled_back"),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/draft/create", response_model=None)
+async def admin_global_pack_draft_create_post(
+    request: Request,
+    pack_id: str,
+    word: str = Form(...),
+    meaning_zh: str = Form(...),
+    category: str = Form(...),
+    difficulty: int = Form(1, ge=1, le=5),
+    example_en: str = Form(""),
+    example_zh: str = Form(""),
+    distractors: str = Form(""),
+    custom_word_id: str = Form(""),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    try:
+        detail = await acs.load_global_pack_definition_console(pack_id=pid)
+    except LookupError:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包。')}",
+            status_code=303,
+        )
+    existing = _existing_global_draft_word_ids(detail["draft_words"])
+    custom = (custom_word_id or "").strip()
+    if custom:
+        if custom in existing:
+            return RedirectResponse(
+                url=_global_pack_detail_url(
+                    pid, flash_err=f"词条 ID「{custom}」已存在，请换一个或使用编辑。"
+                ),
+                status_code=303,
+            )
+        new_id = custom
+    else:
+        new_id = _allocate_global_word_id(word, existing)
+    entry = _build_global_draft_entry_from_form(
+        word_id=new_id,
+        word=word,
+        meaning_zh=meaning_zh,
+        category=category,
+        difficulty=difficulty,
+        example_en=example_en,
+        example_zh=example_zh,
+        distractors_csv=distractors,
+    )
+    try:
+        await gps.upsert_draft_word(
+            pack_id=pid, admin_id=gate.username, entry=entry
+        )
+    except gps.GlobalPackError as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(exc)),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_global_pack_detail_url(pid, flash_ok="draft_saved"),
+        status_code=303,
+    )
+
+
+@router.get("/global-packs/packs/{pack_id}/draft/edit", response_class=HTMLResponse, response_model=None)
+async def admin_global_pack_draft_edit_page(
+    request: Request,
+    pack_id: str,
+    word_id: str = Query(..., min_length=1),
+) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    wid = word_id.strip()
+    try:
+        detail = await acs.load_global_pack_definition_console(pack_id=pid)
+    except LookupError:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包。')}",
+            status_code=303,
+        )
+    row = _find_draft_word(detail["draft_words"], wid)
+    if row is None:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err="未找到该草稿词条。"),
+            status_code=303,
+        )
+    flash_err_edit = request.query_params.get("flash_err")
+    return templates.TemplateResponse(
+        request,
+        "admin/global_pack_draft_word_edit.html",
+        {
+            "admin_user": gate,
+            "pack_id": pid,
+            "definition": detail["definition"],
+            "word_id": wid,
+            "row": row,
+            "flash_err": flash_err_edit,
+        },
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/draft/save", response_model=None)
+async def admin_global_pack_draft_save_post(
+    request: Request,
+    pack_id: str,
+    word_id: str = Form(...),
+    word: str = Form(...),
+    meaning_zh: str = Form(...),
+    category: str = Form(...),
+    difficulty: int = Form(1, ge=1, le=5),
+    example_en: str = Form(""),
+    example_zh: str = Form(""),
+    distractors: str = Form(""),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    wid = word_id.strip()
+    entry = _build_global_draft_entry_from_form(
+        word_id=wid,
+        word=word,
+        meaning_zh=meaning_zh,
+        category=category,
+        difficulty=difficulty,
+        example_en=example_en,
+        example_zh=example_zh,
+        distractors_csv=distractors,
+    )
+    try:
+        await gps.upsert_draft_word(
+            pack_id=pid, admin_id=gate.username, entry=entry
+        )
+    except gps.GlobalPackError as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(exc)),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_global_pack_detail_url(pid, flash_ok="draft_saved"),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/draft/delete", response_model=None)
+async def admin_global_pack_draft_delete_post(
+    request: Request,
+    pack_id: str,
+    word_id: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    wid = word_id.strip()
+    try:
+        await gps.remove_draft_word(
+            pack_id=pid, admin_id=gate.username, word_id=wid
+        )
+    except gps.GlobalPackError as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(exc)),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=_global_pack_detail_url(pid, flash_ok="draft_deleted"),
+        status_code=303,
+    )
+
+
+# --- family packs ------------------------------------------------------------
+
+
+@router.get("/family-packs", response_class=HTMLResponse, response_model=None)
+async def admin_family_packs_list(
+    request: Request,
+    q: str | None = Query(None),
+    page: int = Query(1, ge=1),
+) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    flash_ok, flash_err = _flash_map_family(request)
+    definitions, total = await acs.search_family_pack_definitions(
+        q=q, page=page, page_size=PAGE_SIZE
+    )
+    page_nums, total_pages, page_use = _pagination(total, page, PAGE_SIZE)
+    if page_use != page:
+        definitions, total = await acs.search_family_pack_definitions(
+            q=q, page=page_use, page_size=PAGE_SIZE
+        )
+    return templates.TemplateResponse(
+        request,
+        "admin/family_packs_list.html",
+        {
+            "admin_user": gate,
+            "definitions": definitions,
+            "q": q or "",
+            "page": page_use,
+            "total_pages": total_pages,
+            "page_nums": page_nums,
+            "flash_ok": flash_ok,
+            "flash_err": flash_err,
+        },
+    )
+
+
+@router.post("/family-packs/{pack_id}/unarchive", response_model=None)
+async def admin_family_unarchive_post(
+    request: Request,
+    pack_id: str,
+    reason: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        await acs.admin_family_pack_unarchive(
+            admin_username=gate.username,
+            pack_id=pack_id,
+            reason=reason,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/family-packs?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    except LookupError:
+        return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
+    return RedirectResponse(url="/admin/family-packs?flash_ok=unarchived", status_code=303)
+
+
+@router.post("/family-packs/{pack_id}/rollback", response_model=None)
+async def admin_family_rollback_post(
+    request: Request,
+    pack_id: str,
+    reason: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        await acs.admin_family_pack_rollback(
+            admin_username=gate.username,
+            pack_id=pack_id,
+            reason=reason,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/family-packs?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    except LookupError:
+        return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
+    return RedirectResponse(url="/admin/family-packs?flash_ok=rolled_back", status_code=303)
+
+
+# --- audit logs ---------------------------------------------------------------
+
+
+@router.get("/audit-logs", response_class=HTMLResponse, response_model=None)
+async def admin_audit_logs_page(
+    request: Request,
+    q: str | None = Query(None),
+    page: int = Query(1, ge=1),
+) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    logs, total = await acs.search_audit_logs(q_action=q, page=page, page_size=PAGE_SIZE)
+    page_nums, total_pages, page_use = _pagination(total, page, PAGE_SIZE)
+    if page_use != page:
+        logs, total = await acs.search_audit_logs(q_action=q, page=page_use, page_size=PAGE_SIZE)
+    return templates.TemplateResponse(
+        request,
+        "admin/audit_logs.html",
+        {
+            "admin_user": gate,
+            "logs": logs,
+            "q": q or "",
+            "page": page_use,
+            "total_pages": total_pages,
+            "page_nums": page_nums,
+            "audit_ts": format_audit_timestamp,
+        },
+    )

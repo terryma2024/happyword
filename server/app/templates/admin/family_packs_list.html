@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+{% block title %}家庭词库{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">家庭词库</h1>
+      <p class="text-sm text-slate-500 mt-1">不含官方全局 sentinel 家庭；仅支持恢复误归档与指针回滚，不编辑草稿词条。</p>
+    </div>
+    <form method="get" action="/admin/family-packs" class="flex flex-wrap gap-2 items-center">
+      <input type="search" name="q" value="{{ q or '' }}" placeholder="pack_id / 名称 / 家庭…"
+             class="rounded-md border border-slate-300 px-3 py-2 text-sm w-56" />
+      <button type="submit" class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">搜索</button>
+    </form>
+  </header>
+
+  {% if flash_ok %}<p class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2">{{ flash_ok }}</p>{% endif %}
+  {% if flash_err %}<p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{{ flash_err }}</p>{% endif %}
+
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <tr>
+          <th class="px-4 py-2">pack_id</th>
+          <th class="px-4 py-2">家庭</th>
+          <th class="px-4 py-2">名称</th>
+          <th class="px-4 py-2">状态</th>
+          <th class="px-4 py-2">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for d in definitions %}
+        <tr class="hover:bg-slate-50 align-top">
+          <td class="px-4 py-2 font-mono text-xs">{{ d.pack_id }}</td>
+          <td class="px-4 py-2 font-mono text-xs">{{ d.family_id }}</td>
+          <td class="px-4 py-2">{{ d.name }}</td>
+          <td class="px-4 py-2">{{ d.state.value }}</td>
+          <td class="px-4 py-2 space-y-2">
+            {% if d.state.value == 'archived' %}
+            <form method="post" action="/admin/family-packs/{{ d.pack_id }}/unarchive" class="space-y-1" onsubmit="return confirm('确认将该词包恢复为活跃？');">
+              <textarea name="reason" placeholder="操作说明（≥4 字）" rows="2" required class="w-full text-xs rounded border border-slate-300 px-2 py-1"></textarea>
+              <button type="submit" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded">恢复活跃</button>
+            </form>
+            {% endif %}
+            <form method="post" action="/admin/family-packs/{{ d.pack_id }}/rollback" class="space-y-1" onsubmit="return confirm('确认回滚该家庭词包指针？');">
+              <textarea name="reason" placeholder="操作说明（≥4 字）" rows="2" required class="w-full text-xs rounded border border-slate-300 px-2 py-1"></textarea>
+              <button type="submit" class="text-xs bg-amber-700 text-white px-2 py-1 rounded">回滚版本</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">暂无记录。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_pages > 1 %}
+  <nav class="flex gap-2 text-sm flex-wrap">
+    {% for pn in page_nums %}
+      {% if pn == page %}
+        <span class="px-3 py-1 rounded bg-slate-200">{{ pn }}</span>
+      {% else %}
+        <a href="/admin/family-packs?q={{ q|urlencode }}&page={{ pn }}" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50">{{ pn }}</a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

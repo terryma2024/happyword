@@ -1,0 +1,8 @@
+{
+  "binding_id": "binding-demo",
+  "family_id": "family-demo",
+  "child_profile_id": "child-demo",
+  "nickname": "Little Magician",
+  "avatar_emoji": "🧙",
+  "device_token": "device-token-demo-not-a-secret"
+}

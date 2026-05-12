@@ -187,7 +187,7 @@ export default function testsuite() {
 
 - [ ] **Step 1.3: Run the unit tests and confirm `MonsterCatalog` tests fail (RED)**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && hvigorw -p module=entry@default test'`
+Run: `/bin/bash -c 'cd <repo-root> && hvigorw -p module=entry@default test'`
 
 Expected: compile fails with a "module `MonsterCatalog` not found" error pointing at `MonsterCatalog.test.ets:2`. This proves the new test is registered and the test runner is reading it. (If hvigor instead reports `oh_modules` missing, run `ohpm install` first per `.cursor/dev-commands.md` §2 pre-flight, then re-run the test command.)
 
@@ -262,7 +262,7 @@ export function getMonsterByIndex(index1Based: number): MonsterEntry {
 
 - [ ] **Step 1.5: Run the unit tests and confirm green**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && hvigorw -p module=entry@default test'`
+Run: `/bin/bash -c 'cd <repo-root> && hvigorw -p module=entry@default test'`
 
 Expected: report shows `MonsterCatalog` describe block executes, all 9 `it` blocks PASS, and the existing `localUnitTest` suites are still passing. Total test count = previous count + 9.
 
@@ -423,7 +423,7 @@ export default function testsuite() {
 
 - [ ] **Step 2.3: Build the HAP and confirm it compiles**
 
-The new UI test must compile cleanly even though it is expected to fail at runtime. Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && hvigorw assembleHap'`
+The new UI test must compile cleanly even though it is expected to fail at runtime. Run: `/bin/bash -c 'cd <repo-root> && hvigorw assembleHap'`
 
 Expected: build succeeds, debug HAP and ohosTest HAP both produced. (Runtime RED is verified later in Step 6.4 once we run the full UI test suite.)
 
@@ -509,13 +509,13 @@ The `Rect` mask keeps using `this.backgroundForKind()` (the card pastel backgrou
 
 - [ ] **Step 3.3: Build and confirm compile is clean**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && hvigorw assembleHap'`
+Run: `/bin/bash -c 'cd <repo-root> && hvigorw assembleHap'`
 
 Expected: build succeeds. Existing callers (`BattlePage.ets:830-840` for the slime, every mage call site) compile unchanged because the new props have defaults.
 
 - [ ] **Step 3.4: Run codelinter**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && codelinter -c ./code-linter.json5 .'`
+Run: `/bin/bash -c 'cd <repo-root> && codelinter -c ./code-linter.json5 .'`
 
 Expected: exit 0, no new errors introduced. (If codelinter flags `@performance/avoid-overusing-custom-component-check` on `CharacterCard`, treat it as out of scope — the existing component already declared its shape and we are not splitting it.)
 
@@ -658,13 +658,13 @@ The crit-gold branch (`intensity > 1`) is checked first in every helper so the c
 
 - [ ] **Step 4.3: Build**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && hvigorw assembleHap'`
+Run: `/bin/bash -c 'cd <repo-root> && hvigorw assembleHap'`
 
 Expected: build succeeds. Existing call sites in `BattlePage.ets:863-872` compile unchanged because the new props have empty-string defaults.
 
 - [ ] **Step 4.4: Run codelinter**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && codelinter -c ./code-linter.json5 .'`
+Run: `/bin/bash -c 'cd <repo-root> && codelinter -c ./code-linter.json5 .'`
 
 Expected: exit 0, no new findings. The override branches are simple `if` returns and don't trigger the `hp-arkui-use-local-var-to-replace-state-var` rule.
 
@@ -811,13 +811,13 @@ The forward `MagicProjectile` (line ~863) stays as-is — never touch the gold c
 
 - [ ] **Step 5.7: Build**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && hvigorw assembleHap'`
+Run: `/bin/bash -c 'cd <repo-root> && hvigorw assembleHap'`
 
 Expected: build succeeds. Both HAPs (debug + ohosTest) are produced.
 
 - [ ] **Step 5.8: Run codelinter**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && codelinter -c ./code-linter.json5 .'`
+Run: `/bin/bash -c 'cd <repo-root> && codelinter -c ./code-linter.json5 .'`
 
 Expected: exit 0. The new state assignment in `syncFromState` is a single straightforward assignment and does not require the `animateTo({ duration: 0 })` wrapper that the magic-attack PR used (no animation start frames here).
 
@@ -844,19 +844,19 @@ End-to-end verification: pure-data invariants pass, the new UI test goes from RE
 
 - [ ] **Step 6.1: Clean assemble**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && hvigorw assembleHap'`
+Run: `/bin/bash -c 'cd <repo-root> && hvigorw assembleHap'`
 
 Expected: exit 0, both `entry/build/.../entry-default-signed.hap` and the `ohosTest` HAP produced.
 
 - [ ] **Step 6.2: Codelinter (no auto-fix; final verification)**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && codelinter -c ./code-linter.json5 .'`
+Run: `/bin/bash -c 'cd <repo-root> && codelinter -c ./code-linter.json5 .'`
 
 Expected: exit 0, zero errors, zero new warnings on the four files this plan touches (`MonsterCatalog.ets`, `CharacterCard.ets`, `MagicProjectile.ets`, `BattlePage.ets`). If any new warning appears, fix it (the project's policy is zero-warning per the user's earlier directive — see `harmony-codelinter` skill) and amend the relevant Task 3/4/5 commit before continuing.
 
 - [ ] **Step 6.3: Run no-device unit tests**
 
-Run: `/bin/bash -c 'cd /Users/bytedance/Projects/happyword && hvigorw -p module=entry@default test'`
+Run: `/bin/bash -c 'cd <repo-root> && hvigorw -p module=entry@default test'`
 
 Expected: all `localUnitTest` suites pass, all 9 `MonsterCatalog` `it` blocks pass, total = previous passing count + 9.
 

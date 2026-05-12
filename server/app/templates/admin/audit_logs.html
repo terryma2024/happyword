@@ -1,0 +1,67 @@
+{% extends "admin/base.html" %}
+{% block title %}审计日志{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">审计日志</h1>
+      <p class="text-sm text-slate-500 mt-1">系统管理员高风险操作记录。</p>
+    </div>
+    <form method="get" action="/admin/audit-logs" class="flex flex-wrap gap-2 items-center">
+      <input type="search" name="q" value="{{ q or '' }}" placeholder="筛选 action 关键字…"
+             class="rounded-md border border-slate-300 px-3 py-2 text-sm w-56" />
+      <button type="submit" class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">筛选</button>
+    </form>
+  </header>
+
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <tr>
+            <th class="px-4 py-2">时间</th>
+            <th class="px-4 py-2">操作</th>
+            <th class="px-4 py-2">操作者</th>
+            <th class="px-4 py-2">对象</th>
+            <th class="px-4 py-2">摘要</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in logs %}
+          <tr class="hover:bg-slate-50 align-top">
+            <td class="px-4 py-2 whitespace-nowrap text-xs font-mono text-slate-600">{{ audit_ts(row.ts) }}</td>
+            <td class="px-4 py-2 font-mono text-xs">{{ row.action }}</td>
+            <td class="px-4 py-2 text-xs">{{ row.actor_role.value }}{% if row.actor_id %} · {{ row.actor_id }}{% endif %}</td>
+            <td class="px-4 py-2 text-xs font-mono">
+              {% if row.target_collection %}{{ row.target_collection }}{% endif %}
+              {% if row.target_id %} · {{ row.target_id }}{% endif %}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-md">
+              {% if row.payload_summary %}
+                {% for k, v in row.payload_summary.items() %}
+                  <div class="break-all"><span class="text-slate-400">{{ k }}</span> · {{ v }}</div>
+                {% endfor %}
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">暂无记录。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if total_pages > 1 %}
+  <nav class="flex gap-2 text-sm flex-wrap">
+    {% for pn in page_nums %}
+      {% if pn == page %}
+        <span class="px-3 py-1 rounded bg-slate-200">{{ pn }}</span>
+      {% else %}
+        <a href="/admin/audit-logs?q={{ q|urlencode }}&page={{ pn }}" class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50">{{ pn }}</a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

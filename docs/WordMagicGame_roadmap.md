@@ -14,21 +14,21 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 - **游戏更好玩**：通过怪物差异、主题关卡、战斗反馈、奖励愿望单和未来剧情，让孩子觉得自己在冒险。
 - **学习更有效**：通过题型阶梯、错词复习、遗忘曲线、词库分级和未来句子语境，让孩子真正理解并记住单词。
 
-路线图的核心原则是：客户端先把学习游戏内核做扎实，服务端随后作为内容生产、词库发布、家长管理和 AI 能力的支撑层逐步进入。
+路线图的核心原则是：先把学习游戏内核和端云契约做扎实，再让 HarmonyOS、iOS、Android 三个原生客户端在同一产品语义下并行演进；服务端作为内容生产、词库发布、家长管理和 AI 能力的支撑层持续进入。
 
 ## 2. 当前实现状态摘要
 
-当前工程已经超过最初 V0.1 的离线原型范围，具备了继续产品化的基础：
+当前工程已经超过最初 V0.1 的离线原型范围，具备了继续产品化和多端扩展的基础：
 
-- 页面闭环：已有 `HomePage`、`BattlePage`、`ResultPage`，并保留 `Index.ets` 作为入口相关页面。
-- 配置能力：已有 `ConfigPage` 和 `CustomWordsPage`，支持本地战斗参数和自定义单词输入。
-- 战斗模型：已有 `WordEntry`、`Question`、`BattleState`、`SessionResult`、`GameConfig` 等基础模型。
-- 战斗服务：已有 `WordRepository`、`QuestionGenerator`、`BattleEngine`、`AudioService`、`PronunciationService`。
-- 学习记录：已有 `LearningRecorder` 和 `WrongAnswerStore`，支持本地答题统计与错题复习基础。
-- 怪物基础：已有 `MonsterCatalog`，V0.3.8 收紧到 10 条（3 archetype + 7 boss），战斗按 catalog 1-based 索引循环。
-- 体验增强：已有暴击反馈、音效、TTS、复习模式和相关 UI/单元测试雏形。
+- Monorepo 结构：根目录并列 `harmonyos/`、`ios/`、`android/`、`server/`、`shared/`；`shared/` 只放 contracts / schemas / fixtures，不承载跨平台客户端 runtime。
+- HarmonyOS 客户端：当前完整实现位于 `harmonyos/`，已有 `HomePage`、`BattlePage`、`ResultPage`、`ConfigPage`、`PackManagerPage`、`LearningReportPage`、家长 PIN / 绑定 / 管理后台等页面闭环。
+- iOS / Android 客户端：`ios/`、`android/` 已预留根目录模块位，后续分别按 Swift / SwiftUI、Kotlin / Jetpack Compose 原生实现，不走 Flutter / React Native / Unity 等跨平台路线。
+- 服务端：`server/` 已具备 FastAPI + MongoDB + Vercel 的内容后台、家长账户、设备绑定、global / family 词包、preview manifest 和测试体系。
+- 内容与词包：客户端已从旧 category / custom words 模型升级为 built-in / global / family 三层 `Pack` 模型，PackManagerPage 负责同步、激活、固定和自动轮换。
+- 战斗与学习：已有 `WordRepository`、`QuestionGenerator`、`BattleEngine`、`AudioService`、`PronunciationService`、`LearningRecorder`、`WrongAnswerStore`、按 pack 分组学习报告等核心能力。
+- 怪物与体验：已有 10 条怪物 / boss catalog、暴击反馈、音效、TTS、复习模式和 UI / 单元测试覆盖。
 
-因此后续路线不应回到“从零搭原型”，而应围绕“今日冒险、题型扩展、复习调度、奖励愿望单、内容后台”逐步演进。
+因此后续路线不应回到“从零搭原型”，而应围绕“原生多客户端补齐、端云契约稳定、今日冒险、题型扩展、复习调度、奖励愿望单、内容后台”逐步演进。
 
 ## 3. 路线图总览
 
@@ -1019,7 +1019,7 @@ happyword/
 
 关键原则：
 
-- **根目录是 monorepo，不再是 DevEco 工程根**：后续 DevEco Studio 打开 `/Users/bytedance/Projects/happyword/harmonyos`。
+- **根目录是 monorepo，不再是 DevEco 工程根**：后续 DevEco Studio 打开 `<repo-root>/harmonyos`。
 - **HarmonyOS 工程整体迁移**：`AppScope/`、`entry/`、`hvigor/`、`hvigorfile.ts`、`build-profile.json5`、`oh-package*.json5`、`code-linter.json5` 一起进入 `harmonyos/`，让 `harmonyos/build-profile.json5` 的 `srcPath: "./entry"` 继续成立。
 - **DevEco 本地状态重建优先**：`local.properties` 跟随到 `harmonyos/`；`.idea/`、`.hvigor/`、`oh_modules/` 不提交，迁移后由 DevEco / ohpm / Hvigor 重新生成。
 - **iOS / Android 原生实现**：iOS 走 Swift / SwiftUI，Android 走 Kotlin / Jetpack Compose；不引入 Flutter / React Native / Unity 等跨平台客户端 runtime。

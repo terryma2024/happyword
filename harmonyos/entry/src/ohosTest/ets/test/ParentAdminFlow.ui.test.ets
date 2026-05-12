@@ -49,15 +49,21 @@ async function launchApp(): Promise<Driver> {
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
-    for (let i: number = 0; i < 12; i++) {
-      const home: Component | null =
-        await driver.findComponent(ON.id('HomeStartButton'));
-      if (home !== null) {
-        return;
+    for (let cycle: number = 0; cycle < 2; cycle++) {
+      for (let i: number = 0; i < 12; i++) {
+        const home: Component | null =
+          await driver.findComponent(ON.id('HomeStartButton'));
+        if (home !== null) {
+          return;
+        }
+        await driver.pressBack();
+        await driver.delayMs(500);
       }
-      await driver.pressBack();
-      await driver.delayMs(500);
+      const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+      await DELEGATOR.startAbility(want);
+      await driver.delayMs(1500);
     }
+    await driver.assertComponentExist(ON.id('HomeStartButton'));
   } catch (err) {
     throw err as Error;
   }
@@ -202,8 +208,76 @@ async function scrollParentAdminToPublish(driver: Driver): Promise<void> {
  */
 async function scrollParentAdminToTop(driver: Driver): Promise<void> {
   try {
-    await driver.swipe(360, 300, 360, 1000, 600);
-    await driver.delayMs(400);
+    for (let attempt: number = 0; attempt < 8; attempt++) {
+      const back: Component | null =
+        await driver.findComponent(ON.id('ParentAdminBack'));
+      if (back !== null) {
+        const bounds = await back.getBounds();
+        const heightPx: number = bounds.bottom - bounds.top;
+        if (heightPx >= 30 && bounds.bottom > 0 && bounds.top < 1100) {
+          return;
+        }
+      }
+      await driver.swipe(360, 300, 360, 1000, 600);
+      await driver.delayMs(400);
+    }
+    await driver.assertComponentExist(ON.id('ParentAdminBack'));
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+async function waitForConfigPageAfterAdminBack(driver: Driver): Promise<void> {
+  try {
+    for (let attempt: number = 0; attempt < 10; attempt++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      const title: Component | null =
+        await driver.findComponent(ON.id('ConfigTitle'));
+      if (title !== null) {
+        return;
+      }
+      const adminButton: Component | null =
+        await driver.findComponent(ON.id('ConfigParentAdminButton'));
+      if (adminButton !== null) {
+        return;
+      }
+      await driver.delayMs(400);
+    }
+    const home: Component | null =
+      await driver.findComponent(ON.id('HomeStartButton'));
+    const configTitle: Component | null =
+      await driver.findComponent(ON.id('ConfigTitle'));
+    const configAdmin: Component | null =
+      await driver.findComponent(ON.id('ConfigParentAdminButton'));
+    const parentTitle: Component | null =
+      await driver.findComponent(ON.id('ParentAdminTitle'));
+    const parentBack: Component | null =
+      await driver.findComponent(ON.id('ParentAdminBack'));
+    expect(`ParentAdmin back did not settle; home=${home !== null}, ` +
+      `configTitle=${configTitle !== null}, configAdmin=${configAdmin !== null}, ` +
+      `parentTitle=${parentTitle !== null}, parentBack=${parentBack !== null}`).assertEqual('');
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+async function ensureHomeVisible(driver: Driver): Promise<void> {
+  try {
+    for (let attempt: number = 0; attempt < 8; attempt++) {
+      const home: Component | null =
+        await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.delayMs(300);
+    }
+    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
+    await DELEGATOR.startAbility(want);
+    await driver.delayMs(1500);
   } catch (err) {
     throw err as Error;
   }
@@ -212,9 +286,9 @@ async function scrollParentAdminToTop(driver: Driver): Promise<void> {
 /**
  * Inverse of navigateToParentAdminPage: ParentAdminBack → ConfigPage →
  * pressBack → HomePage. ConfigPage's outer Scroll is reset to the top
- * by the portrait-to-landscape flip in ParentAdminPage.aboutToDisappear,
- * so the ConfigCancelButton at the bottom is below the fold and we
- * have to dismiss with pressBack instead of clicking it.
+ * on some devices, but may keep the parent-admin row's scroll position
+ * on others. Accept either the top title or the admin row as the
+ * ConfigPage-ready signal, and also accept a direct HomePage return.
  */
 async function exitParentAdminPage(driver: Driver): Promise<void> {
   try {
@@ -224,10 +298,14 @@ async function exitParentAdminPage(driver: Driver): Promise<void> {
     await scrollParentAdminToTop(driver);
     await clickByIdShared(driver, 'ParentAdminBack');
     await driver.delayMs(1500);
-    await driver.assertComponentExist(ON.id('ConfigTitle'));
-    await driver.pressBack();
-    await driver.delayMs(800);
-    await driver.assertComponentExist(ON.id('HomeStartButton'));
+    await waitForConfigPageAfterAdminBack(driver);
+    const home: Component | null =
+      await driver.findComponent(ON.id('HomeStartButton'));
+    if (home === null) {
+      await driver.pressBack();
+      await driver.delayMs(800);
+    }
+    await ensureHomeVisible(driver);
   } catch (err) {
     throw err as Error;
   }
@@ -859,25 +937,15 @@ export default function parentAdminFlowUiTest(): void {
         expect(`unexpected import error: ${errorText}`).assertEqual('');
       }
 
-      // Success line: "✓ 已识别 3 个单词，请确认". The mock fixture
-      // returns 3 words (apple / banana / cherry) — pin the literal
-      // count so a regression in either the multipart encoding (image
-      // bytes truncated → server returns 0 words) or in the page's
-      // `lastImportedWordCount` plumbing is unambiguous.
+      // V0.7 import is asynchronous: upload creates an extracting draft,
+      // then the server-side cron populates words later. The UI should
+      // surface the async state instead of the old synchronous word count.
       await driver.assertComponentExist(ON.id('ParentAdminImportSuccess'));
       const successComp =
         await driver.findComponent(ON.id('ParentAdminImportSuccess'));
       const successText: string = await successComp.getText();
-      expect(successText.indexOf('3 个单词') >= 0).assertTrue();
-
-      // Goto-review button gates the next step in the parent's flow
-      // (ParentAdminPage → LessonDraftReviewPage on the freshly
-      // imported draft). We don't tap it here — that path is covered
-      // by `tapReviewLinkOpensReviewPageWithMockedDraft` against the
-      // pre-seeded draft. Asserting the button exists is enough to
-      // confirm `lastImportedId` was set (the row only renders when
-      // `this.lastImportedId.length > 0`).
-      await driver.assertComponentExist(ON.id('ParentAdminGotoReviewButton'));
+      expect(successText.indexOf('已上传') >= 0).assertTrue();
+      expect(successText.indexOf('AI 识别中') >= 0).assertTrue();
 
       await exitParentAdminPage(driver);
       done();

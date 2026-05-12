@@ -8,6 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.schemas.family_pack import FamilyPackDraftOut, FamilyPackDraftWordBatchError
+
 
 class GlobalPackCreateIn(BaseModel):
     name: str
@@ -67,6 +69,17 @@ class GlobalPackPointerOut(BaseModel):
     current_version: int
     previous_version: int | None = None
     updated_at: datetime
+
+
+class GlobalPackImportImageOut(BaseModel):
+    """Response from POST `/api/v1/admin/global-packs/{pack_id}/import-image`."""
+
+    pack_id: str
+    source_image_url: str
+    imported_count: int
+    model: str
+    draft: FamilyPackDraftOut
+    errors: list[FamilyPackDraftWordBatchError]
 
 
 class GlobalPackEntryInMerged(BaseModel):

@@ -1,0 +1,112 @@
+{% extends "admin/base.html" %}
+{% block title %}家长详情{% endblock %}
+{% block content %}
+<section class="space-y-8">
+  <header>
+    <a href="/admin/parents" class="text-sm text-sky-600 hover:underline">← 返回列表</a>
+    <h1 class="text-2xl font-semibold text-slate-900 mt-2">家长详情</h1>
+    <p class="text-sm text-slate-500 font-mono mt-1">{{ user.username }}</p>
+  </header>
+
+  {% if flash_ok %}
+  <p class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2">{{ flash_ok }}</p>
+  {% endif %}
+  {% if flash_err %}
+  <p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{{ flash_err }}</p>
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm space-y-2">
+      <h2 class="font-semibold text-slate-900">账号信息</h2>
+      <p class="text-sm"><span class="text-slate-500">邮箱</span> · {{ user.email or '—' }}</p>
+      <p class="text-sm"><span class="text-slate-500">显示名</span> · {{ user.display_name or '—' }}</p>
+      <p class="text-sm"><span class="text-slate-500">家庭编号</span> · <span class="font-mono">{{ user.family_id or '—' }}</span></p>
+      <p class="text-sm"><span class="text-slate-500">登录状态</span> ·
+        {% if user.parent_login_suspended_at %}
+          <span class="text-red-600">已暂停（{{ user.parent_login_suspended_at }}）</span>
+        {% else %}
+          <span class="text-emerald-700">正常</span>
+        {% endif %}
+      </p>
+    </div>
+
+    {% if family %}
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm space-y-2">
+      <h2 class="font-semibold text-slate-900">家庭</h2>
+      <p class="text-sm font-mono">{{ family.family_id }}</p>
+      <p class="text-sm text-slate-600">主邮箱 {{ family.primary_email }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+    <h2 class="font-semibold text-slate-900 mb-3">高风险操作</h2>
+    <p class="text-xs text-slate-500 mb-4">须填写操作说明（至少 4 字），并写入审计日志。</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {% if not user.parent_login_suspended_at %}
+      <form method="post" action="/admin/parents/{{ user.username }}/suspend" class="space-y-3 border border-red-100 rounded-lg p-4 bg-red-50/30">
+        <p class="font-medium text-red-800">暂停家长登录</p>
+        <label class="block text-sm text-slate-700">操作说明</label>
+        <textarea name="reason" rows="3" required class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+        <button type="submit" class="rounded-md bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2">确认暂停</button>
+      </form>
+      {% else %}
+      <form method="post" action="/admin/parents/{{ user.username }}/restore" class="space-y-3 border border-emerald-100 rounded-lg p-4 bg-emerald-50/30">
+        <p class="font-medium text-emerald-800">恢复家长登录</p>
+        <label class="block text-sm text-slate-700">操作说明</label>
+        <textarea name="reason" rows="3" required class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+        <button type="submit" class="rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2">确认恢复</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if bindings %}
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-200 font-semibold">绑定设备</div>
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-xs text-slate-500">
+        <tr>
+          <th class="px-4 py-2 text-left">绑定 ID</th>
+          <th class="px-4 py-2 text-left">设备 ID</th>
+          <th class="px-4 py-2 text-left">状态</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for b in bindings %}
+        <tr>
+          <td class="px-4 py-2 font-mono text-xs">{{ b.binding_id }}</td>
+          <td class="px-4 py-2 font-mono text-xs">{{ b.device_id }}</td>
+          <td class="px-4 py-2">{% if b.revoked_at %}已撤销{% else %}有效{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if packs %}
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-200 font-semibold">家庭词包定义</div>
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-xs text-slate-500">
+        <tr>
+          <th class="px-4 py-2 text-left">pack_id</th>
+          <th class="px-4 py-2 text-left">名称</th>
+          <th class="px-4 py-2 text-left">状态</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for p in packs %}
+        <tr>
+          <td class="px-4 py-2 font-mono text-xs">{{ p.pack_id }}</td>
+          <td class="px-4 py-2">{{ p.name }}</td>
+          <td class="px-4 py-2">{{ p.state.value }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

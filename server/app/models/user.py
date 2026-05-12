@@ -25,6 +25,8 @@ class User(Document):
     timezone: str = "Asia/Shanghai"
     # V0.6.7 — set by /api/v1/parent/account/delete; cleared on cancel.
     scheduled_deletion_at: datetime | None = None
+    # V0.8.2 — when set, parent OTP/session is rejected (system admin console).
+    parent_login_suspended_at: datetime | None = None
 
     class Settings:
         name = "users"

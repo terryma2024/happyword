@@ -1,0 +1,40 @@
+{% extends "_base.html" %}
+{% block title %}发布历史{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header>
+    <a href="/parent/packs/{{ definition.pack_id }}" class="text-sm text-sky-700 hover:underline">返回 {{ definition.name }}</a>
+    <h1 class="text-2xl font-semibold text-slate-900 mt-2">发布历史</h1>
+  </header>
+
+  {% if rollback_err == "no_prev" %}
+    <div class="rounded-md border border-rose-200 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
+      没有更早的已发布版本可供回滚。
+    </div>
+  {% endif %}
+
+  {% if pointer and pointer.previous_version is not none %}
+    <section class="bg-white border border-amber-200 rounded-lg shadow-sm p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="text-sm text-slate-700">
+        回滚将把当前生效版本切回上一快照（v{{ pointer.previous_version }}）。
+      </div>
+      <form method="post" action="/parent/packs/{{ definition.pack_id }}/rollback">
+        <button type="submit" class="bg-amber-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-amber-700">
+          回滚家庭词库
+        </button>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm divide-y divide-slate-100">
+    {% for snap in snapshots %}
+      <div class="p-4">
+        <p class="font-semibold text-slate-900">v{{ snap.version }} · {{ snap.words|length }} 词</p>
+        <p class="text-xs text-slate-500 mt-1">{{ snap.published_at }} · {{ snap.notes or "无发布说明" }}</p>
+      </div>
+    {% else %}
+      <p class="text-sm text-slate-500 p-6">还没有发布版本。</p>
+    {% endfor %}
+  </section>
+</section>
+{% endblock %}

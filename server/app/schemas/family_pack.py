@@ -156,3 +156,53 @@ class FamilyPacksMergedOut(BaseModel):
     family_id: str
     merged_at: datetime
     packs: list[FamilyPackEntryInMerged]
+
+
+# ---------------------------------------------------------------------------
+# V0.8.1 — batch draft upsert + merged child vocabulary
+# ---------------------------------------------------------------------------
+
+
+class FamilyPackDraftWordBatchRowIn(FamilyPackDraftWordIn):
+    word_id: Annotated[str, Field(min_length=1, max_length=128)]
+
+
+class FamilyPackDraftWordBatchIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rows: Annotated[list[FamilyPackDraftWordBatchRowIn], Field(min_length=1, max_length=100)]
+
+
+class FamilyPackDraftWordBatchError(BaseModel):
+    row_index: int
+    word_id: str
+    code: str
+    message: str
+
+
+class FamilyPackDraftWordBatchOut(BaseModel):
+    accepted_count: int
+    error_count: int
+    draft: FamilyPackDraftOut
+    errors: list[FamilyPackDraftWordBatchError]
+
+
+class FamilyPackImportImageOut(BaseModel):
+    pack_id: str
+    source_image_url: str
+    imported_count: int
+    model: str
+    draft: FamilyPackDraftOut
+    errors: list[FamilyPackDraftWordBatchError]
+
+
+class ChildPacksMergedOut(BaseModel):
+    """Tenant-scoped merge of global platform pack + published family packs."""
+
+    schema_version: int
+    family_id: str
+    global_version: int
+    family_versions: dict[str, int]
+    merged_at: datetime
+    words: list[dict[str, Any]]
+    packs: list[FamilyPackEntryInMerged]

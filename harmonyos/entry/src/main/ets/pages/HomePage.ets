@@ -20,6 +20,10 @@ import { AdventureRegion, TodaySessionPlan, MonsterSlot } from '../models/Advent
 import { Pack } from '../models/Pack';
 import { describeMonsterKind } from '../services/TodayAdventureBuilder';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
+import {
+  anyWordSupportsQuestionTypes,
+  sanitizeEnabledQuestionTypes,
+} from '../services/BattleQuestionTypePolicy';
 import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
 import { CoinSnapshot } from '../models/CoinSnapshot';
 import { getTodayPreferences, TodayPreferences } from '../services/TodayPreferences';
@@ -94,6 +98,8 @@ struct HomePage {
    */
   @State private reviewLockedToastVisible: boolean = false;
   private toastTimer: number = -1;
+  @State private battleBlockedToastText: string = '';
+  private battleBlockedToastTimer: number = -1;
   private coins: CoinAccount = getCoinAccount();
   private todayPrefs: TodayPreferences = getTodayPreferences();
   /**
@@ -222,6 +228,10 @@ struct HomePage {
       clearTimeout(this.toastTimer);
       this.toastTimer = -1;
     }
+    if (this.battleBlockedToastTimer >= 0) {
+      clearTimeout(this.battleBlockedToastTimer);
+      this.battleBlockedToastTimer = -1;
+    }
   }
 
   private refreshBalance(): void {
@@ -347,6 +357,17 @@ struct HomePage {
     }, 1500);
   }
 
+  private showBattleBlockedToast(text: string): void {
+    if (this.battleBlockedToastTimer >= 0) {
+      clearTimeout(this.battleBlockedToastTimer);
+    }
+    this.battleBlockedToastText = text;
+    this.battleBlockedToastTimer = setTimeout((): void => {
+      this.battleBlockedToastText = '';
+      this.battleBlockedToastTimer = -1;
+    }, 1800);
+  }
+
   /**
    * Mutate the stored GameConfig to flip into review mode before we
    * route to BattlePage. BattlePage reads `cfg.mode` in aboutToAppear
@@ -370,17 +391,28 @@ struct HomePage {
     const router = this.getUIContext().getRouter();
     const pack: Pack = this.todayPack;
     const recorder = getLearningRecorder();
+    const storedCfgForTypes: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    const selectedQuestionTypes: string[] = sanitizeEnabledQuestionTypes(
+      storedCfgForTypes !== undefined
+        ? storedCfgForTypes.enabledQuestionTypes
+        : new GameConfig().enabledQuestionTypes
+    );
     recorder.init(ctx).then(async (): Promise<void> => {
       const builder: TodayAdventureBuilder = new TodayAdventureBuilder();
       const isFirstToday: boolean = !this.coins.todayAdventureCompleted();
       let plan: TodaySessionPlan;
       let activePack: Pack | undefined = undefined;
       if (pack.words.length > 0) {
+        if (!anyWordSupportsQuestionTypes(pack.words, selectedQuestionTypes)) {
+          this.showBattleBlockedToast('Current pack has no words for selected question types');
+          return;
+        }
         // V0.6.5.1 happy path: pack carries its own words (any of the
         // 5 builtins, or a global / family pack with words). Build
         // the plan straight from the pack so BattlePage can resolve
         // every word id against `pack.words`.
-        plan = builder.buildFromPack(pack, recorder, Date.now(), isFirstToday);
+        plan = builder.buildFromPack(pack, recorder, Date.now(), isFirstToday, selectedQuestionTypes);
         activePack = pack;
       } else {
         // Synthetic fallback Pack (no words) — happens if a chip is
@@ -389,7 +421,11 @@ struct HomePage {
         const deps: BootstrapDeps = await WordPackBootstrapper.forContext(ctx);
         const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
         const region: AdventureRegion = this.todayRegion;
-        plan = builder.build(region, repo, recorder, Date.now(), isFirstToday);
+        if (!anyWordSupportsQuestionTypes(repo.all(), selectedQuestionTypes)) {
+          this.showBattleBlockedToast('Current pack has no words for selected question types');
+          return;
+        }
+        plan = builder.build(region, repo, recorder, Date.now(), isFirstToday, selectedQuestionTypes);
       }
       AppStorage.setOrCreate<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY, plan);
       if (activePack !== undefined) {
@@ -457,6 +493,21 @@ struct HomePage {
       .width('100%')
       .alignItems(HorizontalAlign.Center)
       .margin({ top: 96 });
+
+      Column() {
+        if (this.battleBlockedToastText.length > 0) {
+          Text(this.battleBlockedToastText)
+            .id('HomeQuestionTypeBlockedToast')
+            .fontSize(14)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#3A3A3ACC')
+            .borderRadius(18)
+            .padding({ left: 16, right: 16, top: 8, bottom: 8 });
+        }
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Center)
+      .margin({ top: 144 });
 
       Row({ space: 12 }) {
         if (this.boundChildNickname.length > 0) {
