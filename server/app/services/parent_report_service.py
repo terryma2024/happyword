@@ -36,6 +36,7 @@ _CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "home": "家庭",
     "animal": "动物",
     "ocean": "海洋",
+    "synced_pack": "已同步词包",
 }
 
 
@@ -135,8 +136,10 @@ async def build_report(
             last_synced_at = s.updated_at
 
     cat_map: dict[str, _CategoryBucket] = {}
+    word_category_by_id: dict[str, str] = {}
     for w in words:
         cat_map.setdefault(w.category, _CategoryBucket(category=w.category))
+        word_category_by_id[w.id] = w.category
 
     total_seen = 0
     total_correct = 0
@@ -179,6 +182,51 @@ async def build_report(
             and stat.consecutive_correct > 0
         ):
             review_done_today += 1
+
+    # The native clients can sync stats for words that do not exist in the
+    # server-side Word collection: built-in packs, global/family pack words,
+    # or preview databases that have not imported the same word seed. Those
+    # rows are still valid child progress and must count in the report.
+    orphan_stats = [
+        stat for stat in stats if stat.word_id not in word_category_by_id
+    ]
+    if orphan_stats:
+        total_words += len(orphan_stats)
+        bucket = cat_map.setdefault(
+            "synced_pack", _CategoryBucket(category="synced_pack")
+        )
+        for stat in orphan_stats:
+            total_seen += stat.seen_count
+            total_correct += stat.correct_count
+            bucket.total_seen += stat.seen_count
+            bucket.total_correct += stat.correct_count
+            state = _classify(stat, now_ms)
+            if state == "new":
+                new_count += 1
+            elif state == "mastered":
+                mastered_count += 1
+            elif state == "familiar":
+                familiar_count += 1
+            elif state == "review":
+                review_due += 1
+                learning_count += 1
+            else:
+                learning_count += 1
+            is_reviewable = (
+                stat.seen_count > 0 and stat.last_answered_ms < start_of_today_ms
+            )
+            if (
+                is_reviewable
+                and stat.last_answered_ms >= 0
+                and state != "new"
+                and state != "review"
+            ):
+                review_due += 1
+            if (
+                stat.last_answered_ms >= start_of_today_ms
+                and stat.consecutive_correct > 0
+            ):
+                review_done_today += 1
 
     accuracy_pct = round(total_correct * 100 / total_seen) if total_seen > 0 else 0
 

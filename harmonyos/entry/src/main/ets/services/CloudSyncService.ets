@@ -13,8 +13,9 @@ import { CloudSyncLike, CloudSyncResult } from './CloudSyncTypes';
  *   unchanged so the next call retries.
  * - Pushes are batched to keep individual POST bodies small (≤200 items
  *   per request, matching plan client contract #6).
- * - Checkpoint = `synced_through_ms`, persisted in a tiny preferences
- *   slot so restarts pull only what changed since last success.
+ * - Checkpoint = max accepted/pulled `lastAnsweredMs`, persisted in a
+ *   tiny preferences slot. Do not store server wall-clock time here:
+ *   filtering uses answer timestamps.
  */
 
 const HEADER_AUTH: string = 'Authorization';
@@ -130,15 +131,23 @@ export class CloudSyncService implements CloudSyncLike {
 
     const checkpointMs: number = await this.readCheckpoint();
     const allStats: WordStat[] = this.recorder.allStats();
+    const maxLocalAnsweredMs: number = maxAnsweredMs(allStats);
+    // Older builds stored server_now_ms in the checkpoint even though
+    // filtering compares against client-side lastAnsweredMs. When the
+    // server clock is ahead, that hides real local progress forever.
+    // Treat the inflated checkpoint as stale and repair it after a
+    // successful replay.
+    const effectiveCheckpointMs: number =
+      maxLocalAnsweredMs > 0 && checkpointMs > maxLocalAnsweredMs ? 0 : checkpointMs;
     const dirty: WordStat[] = allStats.filter(
-      (s: WordStat): boolean => s.lastAnsweredMs > checkpointMs,
+      (s: WordStat): boolean => s.lastAnsweredMs > effectiveCheckpointMs,
     );
 
     if (dirty.length === 0) {
       // Even with no pushes we still pull server-newer rows so a
       // freshly-bound second device sees its sibling's progress.
       const result: RawSyncOut | null = await this.postSync(
-        snap.deviceToken, [], checkpointMs,
+        snap.deviceToken, [], effectiveCheckpointMs,
       );
       if (result === null) {
         out.status = 'network_error';
@@ -148,8 +157,10 @@ export class CloudSyncService implements CloudSyncLike {
       out.pulled = applied;
       out.serverNowMs = result.server_now_ms !== undefined ? result.server_now_ms : 0;
       out.status = applied > 0 ? 'pulled' : 'no_changes';
-      if (out.serverNowMs > 0) {
-        await this.writeCheckpoint(out.serverNowMs);
+      const pullHighWaterMs: number = maxPullAnsweredMs(result.server_pulls);
+      const nextCheckpointMs: number = Math.max(effectiveCheckpointMs, pullHighWaterMs);
+      if (nextCheckpointMs > checkpointMs) {
+        await this.writeCheckpoint(nextCheckpointMs);
       }
       return out;
     }
@@ -158,10 +169,11 @@ export class CloudSyncService implements CloudSyncLike {
     let rejected: number = 0;
     let pulled: number = 0;
     let lastServerNowMs: number = 0;
+    let nextCheckpointMs: number = effectiveCheckpointMs;
     for (let i = 0; i < dirty.length; i += BATCH_SIZE) {
       const batch: WordStat[] = dirty.slice(i, i + BATCH_SIZE);
       const result: RawSyncOut | null = await this.postSync(
-        snap.deviceToken, batch, checkpointMs,
+        snap.deviceToken, batch, effectiveCheckpointMs,
       );
       if (result === null) {
         out.status = 'network_error';
@@ -170,6 +182,11 @@ export class CloudSyncService implements CloudSyncLike {
       pushed += Array.isArray(result.accepted) ? result.accepted.length : 0;
       rejected += Array.isArray(result.rejected) ? result.rejected.length : 0;
       pulled += this.applyPulls(result.server_pulls);
+      nextCheckpointMs = Math.max(
+        nextCheckpointMs,
+        maxAcceptedAnsweredMs(batch, result.accepted),
+        maxPullAnsweredMs(result.server_pulls),
+      );
       if (typeof result.server_now_ms === 'number' && result.server_now_ms > 0) {
         lastServerNowMs = result.server_now_ms;
       }
@@ -178,8 +195,8 @@ export class CloudSyncService implements CloudSyncLike {
     out.pulled = pulled;
     out.rejected = rejected;
     out.serverNowMs = lastServerNowMs;
-    if (lastServerNowMs > 0) {
-      await this.writeCheckpoint(lastServerNowMs);
+    if (nextCheckpointMs !== checkpointMs) {
+      await this.writeCheckpoint(nextCheckpointMs);
     }
     out.status = pulled > 0 ? 'pushed_and_pulled' : 'pushed';
     return out;
@@ -291,4 +308,45 @@ function toWireItem(s: WordStat): RawWordStatPushItem {
     consecutive_wrong: s.consecutiveWrong,
     mastery: s.mastery,
   };
+}
+
+function maxAnsweredMs(stats: WordStat[]): number {
+  let out: number = 0;
+  for (let i = 0; i < stats.length; i++) {
+    if (stats[i].lastAnsweredMs > out) {
+      out = stats[i].lastAnsweredMs;
+    }
+  }
+  return out;
+}
+
+function maxAcceptedAnsweredMs(batch: WordStat[], accepted: string[] | undefined): number {
+  if (!Array.isArray(accepted) || accepted.length === 0) {
+    return 0;
+  }
+  const acceptedIds: Set<string> = new Set<string>();
+  for (let i = 0; i < accepted.length; i++) {
+    acceptedIds.add(accepted[i]);
+  }
+  let out: number = 0;
+  for (let i = 0; i < batch.length; i++) {
+    if (acceptedIds.has(batch[i].wordId) && batch[i].lastAnsweredMs > out) {
+      out = batch[i].lastAnsweredMs;
+    }
+  }
+  return out;
+}
+
+function maxPullAnsweredMs(rawPulls: RawPullItem[] | undefined): number {
+  if (!Array.isArray(rawPulls)) {
+    return 0;
+  }
+  let out: number = 0;
+  for (let i = 0; i < rawPulls.length; i++) {
+    const ms: number | undefined = rawPulls[i].last_answered_ms;
+    if (typeof ms === 'number' && ms > out) {
+      out = ms;
+    }
+  }
+  return out;
 }

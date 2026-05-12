@@ -183,6 +183,50 @@ async def test_weak_categories_sorted_ascending_excludes_unseen(db: object) -> N
 
 
 @pytest.mark.asyncio
+async def test_orphan_synced_pack_stats_count_in_report(db: object) -> None:
+    await _seed_words()
+    family_id, child_id, _ = await _seed_family_with_child()
+    await sync_svc.sync(
+        child_profile_id=child_id,
+        items=[
+            _stat(
+                "builtin-school-castle-word",
+                seen=5,
+                correct=4,
+                wrong=1,
+                memory_state="familiar",
+            ),
+            _stat(
+                "family-pack-word",
+                seen=3,
+                correct=3,
+                wrong=0,
+                memory_state="mastered",
+                consecutive_correct=5,
+                mastery=0.95,
+            ),
+        ],
+        requesting_device_id="dev-test",
+    )
+    report = await svc.build_report(
+        family_id=family_id,
+        child_profile_id=child_id,
+        lookback_days=7,
+        now_ms=_NOW_MS,
+    )
+    synced = next(c for c in report.categories if c.category == "synced_pack")
+    assert report.total_words == 8
+    assert report.total_seen == 8
+    assert report.total_correct == 7
+    assert report.accuracy_pct == 88
+    assert report.mastered_count == 1
+    assert report.familiar_count == 1
+    assert synced.display_name == "已同步词包"
+    assert synced.total_seen == 8
+    assert synced.total_correct == 7
+
+
+@pytest.mark.asyncio
 async def test_today_review_done_counts_streak_today(db: object) -> None:
     await _seed_words()
     family_id, child_id, _ = await _seed_family_with_child()
