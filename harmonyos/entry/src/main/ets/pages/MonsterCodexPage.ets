@@ -3,8 +3,8 @@ import display from '@ohos.display';
 import { BusinessError } from '@ohos.base';
 
 /**
- * MonsterCodexPage: read-only browse of the 10 codex monsters
- * (Slime → Kraken). No persistence — every entry starts at index 0.
+ * MonsterCodexPage: read-only browse of the 100 codex monsters
+ * (Slime → Music Box Fairy). No persistence — every entry starts at index 0.
  * No audio. No swipe / long-press / zoom — only the left/right
  * circular arrow buttons drive navigation, and they disable at
  * boundaries (no wrap-around).

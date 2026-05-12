@@ -248,8 +248,8 @@ struct BattleQuestionPlan: Equatable {
     static func from(pack: Pack) -> BattleQuestionPlan {
         let slots = pack.scene.monsterPlan.isEmpty
             ? [
-                MonsterPlanSlot(kind: .normal, catalogIndex: 0),
-                MonsterPlanSlot(kind: .spelling, catalogIndex: 1),
+                MonsterPlanSlot(kind: .normal, catalogIndex: 1),
+                MonsterPlanSlot(kind: .spelling, catalogIndex: 2),
                 MonsterPlanSlot(kind: .review, catalogIndex: 2),
                 MonsterPlanSlot(kind: .elite, catalogIndex: 3),
                 MonsterPlanSlot(kind: .boss, catalogIndex: 4),

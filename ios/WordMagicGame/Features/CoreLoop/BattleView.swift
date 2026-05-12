@@ -710,15 +710,17 @@ struct BattleView: View {
     }
 
     private var currentMonsterArt: MonsterArt {
-        let roster = [
-            MonsterArt(name: "Slime", imageName: "HarmonyCharacterSlime"),
-            MonsterArt(name: "Zombie", imageName: "HarmonyCharacterZombie"),
-            MonsterArt(name: "Dragon", imageName: "HarmonyCharacterDragon"),
-            MonsterArt(name: "Jellyfish", imageName: "HarmonyCharacterJellyfish"),
-            MonsterArt(name: "Kraken", imageName: "HarmonyCharacterKraken")
-        ]
-        let index = min(max((state?.monsterIndex ?? 1) - 1, 0), roster.count - 1)
-        return roster[index]
+        let entry = MonsterCodex.entry(catalogIndex1Based: currentMonsterCatalogIndex)
+        return MonsterArt(name: entry.nameEn, imageName: entry.assetName)
+    }
+
+    private var currentMonsterCatalogIndex: Int {
+        let battleIndex = max(state?.monsterIndex ?? 1, 1)
+        let slots = coordinator.selectedPack.scene.monsterPlan
+        guard !slots.isEmpty else { return battleIndex }
+
+        let slot = slots[(battleIndex - 1) % slots.count]
+        return slot.catalogIndex > 0 ? slot.catalogIndex : battleIndex
     }
 }
 
