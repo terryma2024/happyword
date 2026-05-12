@@ -70,6 +70,19 @@ async def test_if_none_match_current_version_returns_304(
 
 
 @pytest.mark.asyncio
+async def test_if_none_match_weak_current_version_returns_304(
+    client: "AsyncClient", admin: User
+) -> None:
+    version = await _publish_one_word(client, admin)
+    resp = await client.get(
+        "/api/v1/packs/latest.json",
+        headers={"If-None-Match": f'W/"{version}"'},
+    )
+    assert resp.status_code == 304
+    assert resp.content == b""
+
+
+@pytest.mark.asyncio
 async def test_if_none_match_stale_version_returns_full_body(
     client: "AsyncClient", admin: User
 ) -> None:

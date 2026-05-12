@@ -26,6 +26,15 @@ from app.services import pack_service, preview_manifest_service
 router = APIRouter(prefix="/api/v1", tags=["public"])
 
 
+def _etag_matches(if_none_match: str, current_etag: str) -> bool:
+    """Use weak comparison for GET revalidation, including CDN-weakened ETags."""
+    for candidate in if_none_match.split(","):
+        tag = candidate.strip()
+        if tag == "*" or tag == current_etag or tag == f"W/{current_etag}":
+            return True
+    return False
+
+
 @router.get("/health")
 async def health() -> dict[str, object]:
     return {"ok": True, "ts": int(time.time())}
@@ -56,7 +65,7 @@ async def latest_pack(
     """
     version, payload = await pack_service.get_current_pack_payload()
     etag = f'"{version}"'
-    if if_none_match is not None and if_none_match == etag:
+    if if_none_match is not None and _etag_matches(if_none_match, etag):
         return Response(status_code=304, headers={"ETag": etag})
 
     body = json.dumps(payload, ensure_ascii=False, default=str)

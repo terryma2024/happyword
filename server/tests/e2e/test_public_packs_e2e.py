@@ -4,6 +4,12 @@ import httpx
 import pytest
 
 
+def _same_entity_tag(left: str | None, right: str | None) -> bool:
+    if left is None or right is None:
+        return False
+    return left.removeprefix("W/") == right.removeprefix("W/")
+
+
 @pytest.mark.e2e
 @pytest.mark.smoke
 def test_packs_latest_returns_etag_and_304_round_trip(http: httpx.Client) -> None:
@@ -11,12 +17,13 @@ def test_packs_latest_returns_etag_and_304_round_trip(http: httpx.Client) -> Non
     r = http.get("/api/v1/packs/latest.json")
     assert r.status_code == 200
     etag = r.headers.get("ETag")
-    assert etag is not None and etag.startswith('"')
+    assert etag is not None and (etag.startswith('"') or etag.startswith('W/"'))
 
     r2 = http.get("/api/v1/packs/latest.json", headers={"If-None-Match": etag})
     assert r2.status_code == 304
-    # 304 responses must echo the same ETag and have an empty body.
-    assert r2.headers.get("ETag") == etag
+    # Vercel may weaken ETags while compressing 200 responses; the 304 only
+    # needs to carry the same entity tag after weak/strong normalization.
+    assert _same_entity_tag(r2.headers.get("ETag"), etag)
     assert r2.content == b""
 
 
