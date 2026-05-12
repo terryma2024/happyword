@@ -235,6 +235,49 @@ async def test_pack_rows_count_independently_and_totals_dedupe(db: object) -> No
 
 
 @pytest.mark.asyncio
+async def test_builtin_packs_remain_when_unrelated_global_pack_exists(db: object) -> None:
+    await _seed_words()
+    family_id, child_id, _ = await _seed_family_with_child()
+    await global_pack_svc.create_definition(
+        name="Alpha Pack",
+        admin_id="admin-1",
+        pack_id="gpk-alpha",
+    )
+    await global_pack_svc.upsert_draft_word(
+        pack_id="gpk-alpha",
+        admin_id="admin-1",
+        entry={
+            "id": "shared-apple",
+            "word": "apple",
+            "meaningZh": "苹果",
+            "category": "fruit",
+            "difficulty": 1,
+        },
+    )
+    await global_pack_svc.publish(pack_id="gpk-alpha", admin_id="admin-1")
+    await sync_svc.sync(
+        child_profile_id=child_id,
+        items=[
+            _stat("apple", seen=2, correct=1),
+            _stat("shared-apple", seen=5, correct=4),
+        ],
+        requesting_device_id="dev-test",
+    )
+
+    report = await svc.build_report(
+        family_id=family_id,
+        child_profile_id=child_id,
+        lookback_days=7,
+        now_ms=_NOW_MS,
+    )
+
+    rows = {p.pack_id: p for p in report.packs}
+    assert report.total_words == 7
+    assert rows["fruit-forest"].total_seen == 2
+    assert rows["gpk-alpha"].total_seen == 5
+
+
+@pytest.mark.asyncio
 async def test_orphan_synced_pack_stats_count_in_report(db: object) -> None:
     await _seed_words()
     family_id, child_id, _ = await _seed_family_with_child()

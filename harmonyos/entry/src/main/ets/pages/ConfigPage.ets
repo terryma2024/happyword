@@ -20,6 +20,7 @@ import {
   sanitizeEnabledQuestionTypes,
 } from '../services/BattleQuestionTypePolicy';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
+import { ensureCloudSyncInstalled } from '../services/CloudSyncInstaller';
 import { CloudSyncLike, CloudSyncResult } from '../services/CloudSyncTypes';
 import {
   HomeIntegrationBundle,
@@ -237,19 +238,22 @@ struct ConfigPage {
     }
     const recorder: LearningRecorder = getLearningRecorder();
     const svc: CloudSyncLike | undefined = recorder.getCloudSync();
-    if (svc === undefined) {
-      this.applyCloudSyncToast('尚未启用云端同步');
-      return;
-    }
     this.beginCloudSync();
-    svc.syncOnce().then((out: CloudSyncResult): void => {
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const ready: Promise<CloudSyncLike> = svc !== undefined
+      ? Promise.resolve(svc)
+      : ensureCloudSyncInstalled(ctx);
+    ready.then((cloudSync: CloudSyncLike): Promise<CloudSyncResult> => {
+      return cloudSync.syncOnce();
+    }).then((out: CloudSyncResult): void => {
       this.applyCloudSyncOutcome(
         ConfigPage.formatCloudSyncStatus(out),
         ConfigPage.formatCloudSyncToast(out),
       );
     }).catch((err: BusinessError): void => {
       console.error(`ConfigPage.onCloudSyncTap failed: ${JSON.stringify(err)}`);
-      this.applyCloudSyncToast('同步失败 (内部错误)');
+      this.applyCloudSyncToast('云同步初始化失败，请稍后重试');
     }).then((): void => {
       this.endCloudSync();
     });

@@ -198,19 +198,20 @@ async def _collect_pack_buckets(
         family_id=family_id
     )
 
-    buckets: list[_PackBucket] = []
-    if global_slices:
-        for s in global_slices:
-            buckets.append(
-                _bucket_from_pack_words(
-                    pack_id=s.pack_id,
-                    name=s.name,
-                    words=s.words,
-                    active=s.pack_id in _DEFAULT_PACK_ORDER,
-                )
+    # The five default packs are built into the native client and should
+    # always exist as the base layer. Published global packs override a
+    # default only when they deliberately reuse the same pack_id; unrelated
+    # global packs are additive.
+    buckets: list[_PackBucket] = _legacy_default_pack_buckets(legacy_words)
+    for s in global_slices:
+        buckets.append(
+            _bucket_from_pack_words(
+                pack_id=s.pack_id,
+                name=s.name,
+                words=s.words,
+                active=s.pack_id in _DEFAULT_PACK_ORDER,
             )
-    else:
-        buckets.extend(_legacy_default_pack_buckets(legacy_words))
+        )
 
     for s in family_slices:
         buckets.append(

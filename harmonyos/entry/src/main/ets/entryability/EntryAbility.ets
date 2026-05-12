@@ -5,10 +5,11 @@ import { BusinessError } from '@ohos.base';
 import preferences from '@ohos.data.preferences';
 import { GameConfig, GAME_CONFIG_STORAGE_KEY } from '../models/GameConfig';
 import { hydrateGameConfigFromPrefs } from '../services/GameConfigPersistence';
-import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
+import { getLearningRecorder } from '../services/LearningRecorder';
 import { DeviceIdProvider } from '../services/DeviceIdProvider';
 import { CloudCredentials } from '../services/CloudCredentials';
-import { CloudSyncService } from '../services/CloudSyncService';
+import { ensureCloudSyncInstalled } from '../services/CloudSyncInstaller';
+import { CloudSyncLike } from '../services/CloudSyncTypes';
 import { CloudWishlistService } from '../services/CloudWishlistService';
 import { ParentRedemptionPoll } from '../services/ParentRedemptionPoll';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
@@ -17,7 +18,6 @@ import { initPreviewManifestService } from '../services/PreviewManifestService';
 import { StringPreferencesLike } from '../services/WrongAnswerStore';
 
 const DOMAIN = 0x0000;
-const SYNC_PREFS_NAME: string = 'wordmagic_cloud_sync';
 const WISHLIST_PREFS_NAME: string = 'wordmagic_cloud_wishlist';
 
 class CloudSyncPrefs implements StringPreferencesLike {
@@ -51,7 +51,7 @@ class CloudSyncPrefs implements StringPreferencesLike {
 }
 
 export default class EntryAbility extends UIAbility {
-  private cloudSyncSvc?: CloudSyncService;
+  private cloudSyncSvc?: CloudSyncLike;
   private cloudWishlistSvc?: CloudWishlistService;
   private redemptionPoll?: ParentRedemptionPoll;
 
@@ -105,23 +105,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   private async installCloudSync(ctx: common.UIAbilityContext): Promise<void> {
-    const recorder: LearningRecorder = getLearningRecorder();
-    const creds: CloudCredentials = new CloudCredentials();
-    await creds.init(ctx);
-    const svc: CloudSyncService = new CloudSyncService(
-      recorder,
-      creds,
-      new RealParentFetchAdapter(),
-      (): string => CloudSyncService.defaultBaseUrlResolver(),
-    );
-    try {
-      const handle: preferences.Preferences = await preferences.getPreferences(ctx, SYNC_PREFS_NAME);
-      svc.injectPreferences(new CloudSyncPrefs(handle));
-    } catch (err) {
-      hilog.warn(DOMAIN, 'testTag', 'CloudSync prefs unavailable: %{public}s', JSON.stringify(err as BusinessError));
-    }
-    recorder.attachCloudSync(svc);
-    this.cloudSyncSvc = svc;
+    this.cloudSyncSvc = await ensureCloudSyncInstalled(ctx);
   }
 
   private async installCloudWishlist(ctx: common.UIAbilityContext): Promise<void> {
