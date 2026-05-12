@@ -1,7 +1,7 @@
 # Android Release Readiness Checklist
 
-> Status: Phase 5 gate
-> Updated: 2026-05-11
+> Status: Phase 5 gate verified
+> Updated: 2026-05-12
 
 This checklist captures the Android release-hardening gate for the native
 WordMagicGame replica. It complements `.cursor/android-dev-commands.md` and
@@ -13,6 +13,15 @@ the Phase 5 Superpowers plan.
 - `cd android && ./gradlew assembleDebug`
 - `cd android && ./gradlew connectedDebugAndroidTest`
 - `cd android && ./gradlew assembleRelease`
+
+Latest verification on 2026-05-12:
+
+- `testDebugUnitTest`: passed.
+- `assembleDebug`: passed.
+- `connectedDebugAndroidTest`: passed, 15/15 on `emulator-5556`.
+- `assembleRelease`: passed. Gradle reported `libandroidx.graphics.path.so`
+  could not be stripped and was packaged as-is; this did not fail the release
+  build.
 
 ## Required Screenshot Baselines
 

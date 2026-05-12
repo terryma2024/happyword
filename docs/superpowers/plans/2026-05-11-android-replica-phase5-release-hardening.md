@@ -25,39 +25,44 @@
 
 ## Tasks
 
+> Execution status: completed on 2026-05-12 from
+> `codex/phase-5-release-hardening`. The implementation files were already
+> present in the Android baseline; this pass verified the gates and refreshed
+> the tracking state.
+
 ### Task 1: Make Release Developer Visibility Unit-Testable
 
-- [ ] Create `BuildGate.kt` with a pure `showDeveloperTools(isDebuggable: Boolean)` policy.
-- [ ] Add `BuildGateTest` proving debug builds may show developer tools and release builds must hide them.
-- [ ] Replace the raw `ApplicationInfo.FLAG_DEBUGGABLE` check in `MainActivity.kt` with `BuildGate.showDeveloperTools(...)`.
-- [ ] Run `cd android && ./gradlew testDebugUnitTest`.
+- [x] Create `BuildGate.kt` with a pure `showDeveloperTools(isDebuggable: Boolean)` policy.
+- [x] Add `BuildGateTest` proving debug builds may show developer tools and release builds must hide them.
+- [x] Replace the raw `ApplicationInfo.FLAG_DEBUGGABLE` check in `MainActivity.kt` with `BuildGate.showDeveloperTools(...)`.
+- [x] Run `cd android && ./gradlew testDebugUnitTest`.
 
 ### Task 2: Add Offline And Failure Gates
 
-- [ ] Add `OfflineFailureGateTest` proving failed cloud pack sync keeps local builtin packs playable.
-- [ ] Add a test that failed word-stat sync returns a non-blocking failure message.
-- [ ] Add a test that production backend routing emits no preview bypass headers.
-- [ ] Run `cd android && ./gradlew testDebugUnitTest`.
+- [x] Add `OfflineFailureGateTest` proving failed cloud pack sync keeps local builtin packs playable.
+- [x] Add a test that failed word-stat sync returns a non-blocking failure message.
+- [x] Add a test that production backend routing emits no preview bypass headers.
+- [x] Run `cd android && ./gradlew testDebugUnitTest`.
 
 ### Task 3: Tighten Phase 5 UI And Documentation
 
-- [ ] Update the stale Config text for `我的词包` so it reflects the implemented PackManager path.
-- [ ] Add the Phase 5 plan link to `docs/android-replica/00-index.md`.
-- [ ] Add a Phase 5 release-hardening section to `.cursor/android-dev-commands.md`.
-- [ ] Run `cd android && ./gradlew testDebugUnitTest`.
+- [x] Update the stale Config text for `我的词包` so it reflects the implemented PackManager path.
+- [x] Add the Phase 5 plan link to `docs/android-replica/00-index.md`.
+- [x] Add a Phase 5 release-hardening section to `.cursor/android-dev-commands.md`.
+- [x] Run `cd android && ./gradlew testDebugUnitTest`.
 
 ### Task 4: Full Verification Gates
 
-- [ ] Run `cd android && ./gradlew assembleDebug`.
-- [ ] Run `cd android && ./gradlew connectedDebugAndroidTest`.
-- [ ] Run `cd android && ./gradlew assembleRelease`.
-- [ ] If `assembleRelease` fails because signing is not configured, document that exact gap in the final report and confirm which release-like gates still passed.
+- [x] Run `cd android && ./gradlew assembleDebug`.
+- [x] Run `cd android && ./gradlew connectedDebugAndroidTest`.
+- [x] Run `cd android && ./gradlew assembleRelease`.
+- [x] `assembleRelease` passed; no signing/configuration gap needed to be documented.
 
 ## Acceptance Checklist
 
-- [ ] Release/debug developer visibility is covered by JVM tests.
-- [ ] Offline and failed cloud sync behavior is covered by JVM tests.
-- [ ] Debug-only DevMenu remains reachable in debug UI tests.
-- [ ] Android command manifest lists the Phase 5 verification loop.
-- [ ] `assembleDebug`, `testDebugUnitTest`, and `connectedDebugAndroidTest` pass.
-- [ ] `assembleRelease` passes, or the signing/configuration gap is explicitly reported.
+- [x] Release/debug developer visibility is covered by JVM tests.
+- [x] Offline and failed cloud sync behavior is covered by JVM tests.
+- [x] Debug-only DevMenu remains reachable in debug UI tests.
+- [x] Android command manifest lists the Phase 5 verification loop.
+- [x] `assembleDebug`, `testDebugUnitTest`, and `connectedDebugAndroidTest` pass.
+- [x] `assembleRelease` passes, or the signing/configuration gap is explicitly reported.
