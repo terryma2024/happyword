@@ -14,11 +14,12 @@ from fastapi.templating import Jinja2Templates
 from app.config import get_settings
 from app.deps import clear_admin_session_cookie, set_admin_session_cookie
 from app.models.device_binding import DeviceBinding
+from app.models.feedback import UserFeedback
 from app.models.user import User, UserRole
 from app.services import admin_console_service as acs
+from app.services import feedback_service
 from app.services import global_pack_service as gps
 from app.services.admin_audit_service import record_admin_action
-from app.services.llm_service import LlmCallError, LlmConfigError
 from app.services.admin_console_overview_service import (
     build_admin_overview,
     format_audit_timestamp,
@@ -29,6 +30,7 @@ from app.services.auth_service import (
     decode_typed_token,
     verify_password,
 )
+from app.services.llm_service import LlmCallError, LlmConfigError
 
 router = APIRouter(
     prefix="/admin",
@@ -119,6 +121,20 @@ def _flash_map_global(request: Request) -> tuple[str | None, str | None]:
     if ok == "image_imported" and imported is not None:
         return (f"图片已解析并写入草稿（成功导入 {imported} 条）。", err)
     return (msgs.get(ok) if ok else None, err)
+
+
+def _flash_map_feedback(request: Request) -> tuple[str | None, str | None]:
+    ok = request.query_params.get("flash_ok")
+    msgs = {
+        "replied": "已回复用户反馈。",
+        "deleted": "已删除用户反馈。",
+    }
+    err = request.query_params.get("flash_err")
+    err_msgs = {
+        "not_found": "未找到该反馈。",
+        "invalid_reply": "回复内容不能为空，且不能超过 4000 字。",
+    }
+    return (msgs.get(ok) if ok else None, err_msgs.get(err, err) if err else None)
 
 
 def _global_pack_detail_url(
@@ -279,6 +295,79 @@ async def admin_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
             "audit_ts": format_audit_timestamp,
         },
     )
+
+
+# --- feedback ------------------------------------------------------------------
+
+
+@router.get("/feedback", response_class=HTMLResponse, response_model=None)
+async def admin_feedback_list(request: Request) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    flash_ok, flash_err = _flash_map_feedback(request)
+    rows = await feedback_service.list_feedback_for_admin()
+    return templates.TemplateResponse(
+        request,
+        "admin/feedback.html",
+        {
+            "admin_user": gate,
+            "feedback_items": rows,
+            "flash_ok": flash_ok,
+            "flash_err": flash_err,
+        },
+    )
+
+
+@router.post("/feedback/{feedback_id}/reply", response_model=None)
+async def admin_feedback_reply(
+    request: Request,
+    feedback_id: str,
+    reply: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        row = await feedback_service.reply_to_feedback(
+            feedback_id=feedback_id,
+            admin_username=gate.username,
+            reply=reply,
+        )
+    except ValueError:
+        return RedirectResponse(
+            url="/admin/feedback?flash_err=invalid_reply",
+            status_code=303,
+        )
+    if row is None:
+        return RedirectResponse(url="/admin/feedback?flash_err=not_found", status_code=303)
+    await record_admin_action(
+        admin_username=gate.username,
+        action="user_feedback.reply",
+        target_collection="user_feedback",
+        target_id=feedback_id,
+        payload_summary={"parent_user_id": row.parent_user_id},
+    )
+    return RedirectResponse(url="/admin/feedback?flash_ok=replied", status_code=303)
+
+
+@router.post("/feedback/{feedback_id}/delete", response_model=None)
+async def admin_feedback_delete(request: Request, feedback_id: str) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    row = await UserFeedback.find_one(UserFeedback.feedback_id == feedback_id)
+    if row is None:
+        return RedirectResponse(url="/admin/feedback?flash_err=not_found", status_code=303)
+    await row.delete()
+    await record_admin_action(
+        admin_username=gate.username,
+        action="user_feedback.delete",
+        target_collection="user_feedback",
+        target_id=feedback_id,
+        payload_summary={"parent_user_id": row.parent_user_id},
+    )
+    return RedirectResponse(url="/admin/feedback?flash_ok=deleted", status_code=303)
 
 
 # --- parents -------------------------------------------------------------------

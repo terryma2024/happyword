@@ -37,7 +37,7 @@ import {
  * sequentially without state leaking across `it` blocks.
  *
  * Runner: shares the 30 s per-test timeout with RoutingFlow — see
- * `.cursor/dev-commands.md` for the canonical invocation.
+ * `.cursor/ohos-dev-commands.md` for the canonical invocation.
  */
 export default function magicAttackUiTest() {
   describe('MagicAttackUiTest', () => {

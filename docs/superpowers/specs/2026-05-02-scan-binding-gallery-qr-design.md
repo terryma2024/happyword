@@ -122,7 +122,7 @@ ScanBindingPage idle 态从两按钮变三按钮：
 | `entry/src/ohosTest/ets/test/ParentBindingFlowV06.ui.test.ets` | 新增 `pickQrFromGalleryRedeemsAndFlipsToBound` 用例 + `ensureScanBindingQrFixtureOnDevice()` 助手 | **修改** |
 | `docs/WordMagicGame_roadmap.md` | V0.6 行追加「ScanBindingPage 从图库选择二维码」一句 | **修改** |
 | `docs/WordMagicGame_overall_spec.md` | ohosTest 章节加新用例描述 | **修改** |
-| `.cursor/dev-commands.md` | 把 lesson 固件段扩成「lesson + scan-binding QR」两个固件的统一描述 | **修改** |
+| `.cursor/ohos-dev-commands.md` | 把 lesson 固件段扩成「lesson + scan-binding QR」两个固件的统一描述 | **修改** |
 
 ### 4.2 模块边界
 

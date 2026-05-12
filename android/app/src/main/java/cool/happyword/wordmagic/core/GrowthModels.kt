@@ -126,9 +126,9 @@ data class MonsterCatalog(
 ) {
     fun current(): MonsterEntry = entries[Math.floorMod(index, entries.size)]
 
-    fun next(): MonsterCatalog = copy(index = Math.floorMod(index + 1, entries.size))
+    fun next(): MonsterCatalog = copy(index = (index + 1).coerceAtMost(entries.lastIndex))
 
-    fun previous(): MonsterCatalog = copy(index = Math.floorMod(index - 1, entries.size))
+    fun previous(): MonsterCatalog = copy(index = (index - 1).coerceAtLeast(0))
 
     companion object {
         fun default(): MonsterCatalog = MonsterCatalog(

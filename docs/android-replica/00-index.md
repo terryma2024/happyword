@@ -1,12 +1,12 @@
 # Android Replica Design Index
 
-> Status: design-for-implementation
-> Target branch: to be chosen when implementation starts
+> Status: Phase 5 release-hardening gate in progress
+> Implementation branch: `codex/android-replica-phase5` merged via PR #66
 > Scope: native Kotlin / Jetpack Compose Android replication of the current HarmonyOS client.
 
 ## Goal
 
-Create a staged, testable plan for replicating the current HarmonyOS WordMagicGame client as a native Android app. The first implementation target is a phone-first Android experience: child learning screens are landscape-first, while parent/admin screens are portrait-first.
+Create and maintain a staged, testable native Android replica of the current HarmonyOS WordMagicGame client. The Android implementation is phone-first: child learning screens are landscape-first, while parent/admin screens are portrait-first.
 
 This plan is grounded in:
 
@@ -19,9 +19,9 @@ This plan is grounded in:
 
 ## Current Repository State
 
-`android/` now contains a native Kotlin / Jetpack Compose project with Gradle wrapper, a debug app shell, core battle logic, copied HarmonyOS art/audio resources, JVM tests, and Compose UI smoke tests. The remaining phase specs below should be read as the roadmap for filling out the Android client beyond the current Phase 1-style playable slice.
+`android/` now contains a native Kotlin / Jetpack Compose project with Gradle wrapper, core battle flow, parent/admin flow, local growth and pack-management screens, cloud binding/debug routing surfaces, copied HarmonyOS art/audio resources, JVM tests, Compose UI tests, screenshot capture tests, and release-hardening gates.
 
-This is good for planning: Android has enough local structure to anchor future work, while `shared/` still remains contracts/fixtures only.
+Phase 0-4 feature work has landed in the Android module. Phase 5 is the active gate: keep release/debug policy, offline fallback, screenshot baselines, and Gradle verification current before treating Android as release-ready. `shared/` remains contracts/fixtures only.
 
 ## Document Map
 
@@ -51,50 +51,50 @@ This is good for planning: Android has enough local structure to anchor future w
 | Phase 4 debug preview routing implementation plan | `docs/superpowers/plans/2026-05-11-android-replica-phase4-debug-preview-routing.md` |
 | Phase 5 release hardening implementation plan | `docs/superpowers/plans/2026-05-11-android-replica-phase5-release-hardening.md` |
 
-Later Android implementation should create one additional Superpowers plan per phase instead of attempting a single mega-port.
+Future Android work should continue to use focused Superpowers plans for each follow-up slice instead of drifting into a single untracked mega-port.
 
 ## Current HarmonyOS Route Coverage
 
 `harmonyos/entry/src/main/resources/base/profile/main_pages.json` currently registers 17 pages. Android assigns each page to a phase so the port can proceed in working slices.
 
-| HarmonyOS page | Android phase | Notes |
+| HarmonyOS page | Android phase | Current Android status |
 | --- | --- | --- |
-| `HomePage` | Phase 1 | Phone landscape, core entry and pack chip row shell. |
-| `BattlePage` | Phase 1 | Phone landscape, playable combat with deterministic test fixture first. |
-| `ResultPage` | Phase 1 | Phone landscape summary, stars, coin delta, back-home path. |
-| `ConfigPage` | Phase 1 | Landscape settings shell with parent PIN and ParentAdmin entry. |
-| `ParentPinSetupPage` | Phase 1 | Local six-digit PIN setup/edit flow. |
-| `ParentAdminPage` | Phase 1 | Portrait parent surface, mockable API boundary first. |
-| `LessonDraftReviewPage` | Phase 1 | Portrait draft review with mock client first. |
-| `PackManagerPage` | Phase 2 | Three-layer pack activation, pin, sync, and rotation UI. |
-| `WishlistPage` | Phase 2 | Local magic-wishlist loop after battle rewards exist. |
-| `RedemptionHistoryPage` | Phase 2 | Local capped redemption history. |
-| `MonsterCodexPage` | Phase 2 | Character/monster card parity and asset pipeline. |
-| `TodayPlanPage` | Phase 2 | Read-only daily plan. |
-| `LearningReportPage` | Phase 2 | Pack-keyed report, matching V0.6.7.8 semantics. |
-| `ScanBindingPage` | Phase 3 | QR/short-code binding after local pack flows are stable. |
-| `BoundDeviceInfoPage` | Phase 3 | Child profile and unbind flow. |
-| `DevMenuPage` | Phase 4 | Debug-only backend environment switcher. |
-| `BypassSecretPage` | Phase 4 | Debug-only preview deployment bypass token editor. |
+| `HomePage` | Phase 1 | Implemented; covered by smoke/screenshot flows. |
+| `BattlePage` | Phase 1 | Implemented with native battle engine, assets, TTS/audio path, and effect screenshots. |
+| `ResultPage` | Phase 1 | Implemented with result summary and local reward/progress wiring. |
+| `ConfigPage` | Phase 1 / 4 | Implemented with parent PIN, cloud binding entry, and debug-only developer entry. |
+| `ParentPinSetupPage` | Phase 1 | Implemented as the local parent gate/edit flow. |
+| `ParentAdminPage` | Phase 1 | Implemented as a portrait parent surface with fixture-backed review flow. |
+| `LessonDraftReviewPage` | Phase 1 | Implemented as the parent lesson-review surface. |
+| `PackManagerPage` | Phase 2 | Implemented with local pack selection, sync action, and pack status UI. |
+| `WishlistPage` | Phase 2 | Implemented with local wishes, coin balance, and parent-gated redemption. |
+| `RedemptionHistoryPage` | Phase 2 | Implemented with local capped redemption history. |
+| `MonsterCodexPage` | Phase 2 | Implemented with native card/gallery flow and copied character assets. |
+| `TodayPlanPage` | Phase 2 | Implemented from local pack/library and learning stats. |
+| `LearningReportPage` | Phase 2 | Implemented with pack-keyed report semantics. |
+| `ScanBindingPage` | Phase 3 | Implemented with manual short-code path and QR/gallery UI placeholders. |
+| `BoundDeviceInfoPage` | Phase 3 | Implemented with bound profile, manual sync, and unbind flow. |
+| `DevMenuPage` | Phase 4 | Implemented as debug-only backend environment/preview routing surface. |
+| `BypassSecretPage` | Phase 4 | Implemented as debug-only preview deployment bypass token editor. |
 
 ## Phase Summary
 
 | Phase | Theme | Deliverable |
 | --- | --- | --- |
-| Phase 0 | Environment and project bootstrap | Android Studio/SDK, JDK 17, Gradle wrapper, app/test targets, first green build. |
-| Phase 1 | Core learning plus ParentAdmin | Home -> Battle -> Result and Config -> PIN -> ParentAdmin -> LessonDraftReview. |
-| Phase 2 | Local growth and pack management | PackManager, wishlist, codex, today plan, local learning report. |
-| Phase 3 | Parent cloud and device binding | Binding, family/global pack sync, word-stats sync, device info. |
-| Phase 4 | Debug and preview operations | DevMenu, backend switcher, preview bypass, mock server routing. |
-| Phase 5 | Release hardening | Screenshot parity, accessibility, release variant gates, CI readiness. |
+| Phase 0 | Environment and project bootstrap | Landed: Android Gradle project, wrapper, app/test targets, first green build path. |
+| Phase 1 | Core learning plus ParentAdmin | Landed: Home -> Battle -> Result and Config -> PIN -> ParentAdmin -> LessonDraftReview. |
+| Phase 2 | Local growth and pack management | Landed: PackManager, wishlist, codex, today plan, local learning report. |
+| Phase 3 | Parent cloud and device binding | Landed: binding surfaces, fixture-backed family/global pack sync, word-stats sync payload, device info. |
+| Phase 4 | Debug and preview operations | Landed: DevMenu, backend switcher, preview bypass, mock/preview routing. |
+| Phase 5 | Release hardening | Active gate: screenshot parity, release/debug policy, offline fallback tests, release variant and CI readiness. |
 
 ## Non-Goals For This Planning Pass
 
-- Do not create Android app code before the local Android SDK exists.
 - Do not change HarmonyOS behavior as part of Android planning.
 - Do not introduce shared client runtime under `shared/`.
 - Do not make Android a cross-platform wrapper around HarmonyOS or iOS code.
 - Do not delete or move existing HarmonyOS assets; Android asset conversion must copy source material and preserve design sources under `assets/`.
+- Do not treat Phase 5 as product-feature scope; it is for gates, parity, fallback, release/debug policy, and documentation hygiene.
 
 ## Default Technical Choices
 

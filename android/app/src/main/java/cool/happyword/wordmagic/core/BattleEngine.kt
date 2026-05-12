@@ -330,9 +330,9 @@ class BattleEngine(
 
     private fun letterOptionsFor(letters: List<String>, answer: String, otherAnswer: String? = null): List<String> {
         val wordLetters = letters.toSet()
-        val distractors = alphabet.filter { it !in wordLetters && it != answer && it != otherAnswer }.take(2)
-        val fallback = alphabet.filter { it != answer && it != otherAnswer }.take(2)
-        val pool = if (distractors.size >= 2) distractors else fallback
+        val distractors = alphabet.filter { it !in wordLetters && it != answer && it != otherAnswer }
+        val fallback = alphabet.filter { it != answer && it != otherAnswer }
+        val pool = shuffleWithRandom(if (distractors.size >= 2) distractors else fallback).take(2)
         return shuffleWithRandom(listOf(answer, pool[0], pool[1]))
     }
 

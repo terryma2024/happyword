@@ -29,6 +29,7 @@ from app.models.device_binding import DeviceBinding
 from app.models.pair_token import PairToken
 from app.models.redemption_request import RedemptionRequest
 from app.models.user import User, UserRole
+from app.services import feedback_service
 from app.services.auth_service import (
     JwtError,
     create_session_token,
@@ -344,6 +345,54 @@ async def post_reject_redemption(
             note=None,
         )
     return RedirectResponse(url="/parent/redemptions", status_code=303)
+
+
+@router.get("/feedback", response_class=HTMLResponse, response_model=None)
+async def get_feedback(
+    request: Request,
+    user: User = Depends(current_parent_user),
+) -> HTMLResponse:
+    rows = await feedback_service.list_feedback_for_parent(parent_user_id=user.username)
+    ok_map = {"created": "反馈已提交，感谢你的建议。"}
+    return templates.TemplateResponse(
+        request,
+        "parent/feedback.html",
+        {
+            "user": user,
+            "feedback_items": rows,
+            "flash_ok": ok_map.get(request.query_params.get("flash_ok", "")),
+            "error": None,
+            "draft_subject": "",
+            "draft_body": "",
+        },
+    )
+
+
+@router.post("/feedback", response_class=HTMLResponse, response_model=None)
+async def post_feedback(
+    request: Request,
+    subject: str = Form(...),
+    body: str = Form(...),
+    user: User = Depends(current_parent_user),
+) -> HTMLResponse | RedirectResponse:
+    try:
+        await feedback_service.create_feedback(user=user, subject=subject, body=body)
+    except ValueError:
+        rows = await feedback_service.list_feedback_for_parent(parent_user_id=user.username)
+        return templates.TemplateResponse(
+            request,
+            "parent/feedback.html",
+            {
+                "user": user,
+                "feedback_items": rows,
+                "flash_ok": None,
+                "error": "请填写反馈标题和内容，标题不超过 120 字，内容不超过 4000 字。",
+                "draft_subject": subject,
+                "draft_body": body,
+            },
+            status_code=400,
+        )
+    return RedirectResponse(url="/parent/feedback?flash_ok=created", status_code=303)
 
 
 @router.get("/devices/add", response_class=HTMLResponse)

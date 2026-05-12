@@ -966,7 +966,7 @@ git commit -m "feat(client): ScanBindingPage gallery-QR button + service wiring"
 - Modify: `entry/src/ohosTest/ets/test/ParentBindingFlowV06.ui.test.ets`
 - Modify: `docs/WordMagicGame_roadmap.md`
 - Modify: `docs/WordMagicGame_overall_spec.md`
-- Modify: `.cursor/dev-commands.md`
+- Modify: `.cursor/ohos-dev-commands.md`
 
 - [ ] **Step 1: Create the fixture-generator script**
 
@@ -1160,7 +1160,7 @@ Find the V0.6 ohosTest enumeration (around the existing `ParentBindingFlowV06` m
 
 > `ParentBindingFlowV06` V0.6.x 增量：`pickQrFromGalleryRedeemsAndFlipsToBound`，沿用 V0.5.8 lesson-fixture 的「ohosTest rawfile 预打包 → tempDir 拷贝 → AppStorage 双 override key（picker + decoder）」机制，端到端验证从图库选 QR → 解码 → redeem → 绑定成功的链路。
 
-- [ ] **Step 8: Update `.cursor/dev-commands.md`**
+- [ ] **Step 8: Update `.cursor/ohos-dev-commands.md`**
 
 Find the section that mentions `lesson_import_fixture.jpg` (around line 110). Generalise the description:
 
@@ -1183,7 +1183,7 @@ git add \
   entry/src/ohosTest/ets/test/ParentBindingFlowV06.ui.test.ets \
   docs/WordMagicGame_roadmap.md \
   docs/WordMagicGame_overall_spec.md \
-  .cursor/dev-commands.md
+  .cursor/ohos-dev-commands.md
 git commit -m "test(ui): scan-binding gallery-QR ohosTest + fixture + docs"
 ```
 

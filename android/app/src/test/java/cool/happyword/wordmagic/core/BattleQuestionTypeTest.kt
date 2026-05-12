@@ -2,6 +2,7 @@ package cool.happyword.wordmagic.core
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -76,6 +77,23 @@ class BattleQuestionTypeTest {
     }
 
     @Test
+    fun fillLetterDistractorsComeFromShuffledCandidatePool() {
+        val lowRandom = engineWithRandomSequence(0.0, 0.0, 0.0, 0.0)
+        val highRandom = engineWithRandomSequence(0.0, 0.5, 0.5, 0.5)
+
+        val lowQuestion = lowRandom.submitAnswer(lowRandom.initialState(), "apple").question
+        val highQuestion = highRandom.submitAnswer(highRandom.initialState(), "apple").question
+
+        assertEquals(QuestionKind.FillLetter, lowQuestion.kind)
+        assertEquals(QuestionKind.FillLetter, highQuestion.kind)
+        assertEquals(lowQuestion.letterAnswer, highQuestion.letterAnswer)
+        assertNotEquals(
+            lowQuestion.letterOptions.filter { it != lowQuestion.letterAnswer }.toSet(),
+            highQuestion.letterOptions.filter { it != highQuestion.letterAnswer }.toSet(),
+        )
+    }
+
+    @Test
     fun shortBossWordFallsBackFromSpellToMediumFillLetter() {
         val shortWords = listOf(
             WordEntry("w-ox", "ox", "牛"),
@@ -109,5 +127,19 @@ class BattleQuestionTypeTest {
             QuestionKind.FillLetterMedium -> question.letterAnswers[question.currentStep]
             QuestionKind.Spell -> question.correctAnswer
         }
+    }
+
+    private fun engineWithRandomSequence(vararg values: Double): BattleEngine {
+        var index = 0
+        return BattleEngine(
+            config = GameConfig(monsterHp = 1, monsterCount = 5),
+            words = words,
+            shuffleOptions = { it },
+            randomDouble = {
+                val value = values.getOrElse(index) { values.last() }
+                index += 1
+                value
+            },
+        )
     }
 }

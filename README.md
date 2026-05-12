@@ -143,7 +143,7 @@ scripts/run_ui_tests.sh
 
 Expect `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0` when the suite passes. You need a connected device or emulator (`hdc list targets`).
 
-The detailed build, test, device, and log workflow lives in [`.cursor/dev-commands.md`](.cursor/dev-commands.md).
+The detailed build, test, device, and log workflow lives in [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md).
 
 ### Debug: backend environment
 

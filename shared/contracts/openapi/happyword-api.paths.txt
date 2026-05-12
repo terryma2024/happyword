@@ -94,6 +94,7 @@
 /parent/devices/add/cancel
 /parent/devices/add/status
 /parent/devices/{binding_id}
+/parent/feedback
 /parent/inbox
 /parent/login
 /parent/packs

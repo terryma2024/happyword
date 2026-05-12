@@ -15,7 +15,7 @@
 #   7. Always tear down: kill the mock server, drop the rport mapping.
 #
 # DevMenu / triple-tap developer tooling is not covered here — manual QA on
-# debug builds only (see .cursor/dev-commands.md §4).
+# debug builds only (see .cursor/ohos-dev-commands.md §4).
 #
 # Usage:
 #   scripts/run_ui_tests.sh                  # run with already-built HAPs
@@ -291,11 +291,11 @@ fi
 # 5. Run ohosTest
 # ---------------------------------------------------------------------------
 
-# Standard ohosTest entry point for this project — see .cursor/dev-commands.md
+# Standard ohosTest entry point for this project — see .cursor/ohos-dev-commands.md
 # section 4. The "-s class <suite>" filter is appended only when --suite
 # is supplied; without it, the runner executes everything registered in
 # harmonyos/entry/src/ohosTest/ets/test/List.test.ets.
-# Per-test timeout is intentionally larger than dev-commands.md's
+# Per-test timeout is intentionally larger than ohos-dev-commands.md's
 # 30000ms reference: parentAdminInteractionsStayStable in
 # harmonyos/entry/src/ohosTest/ets/test/ParentAdminFlow.ui.test.ets walks
 # launchApp → returnToHome → ensureParentPin → navigateToParentAdmin →

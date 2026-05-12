@@ -20,7 +20,7 @@ description: Given a classified failure tier and log excerpts, proposes minimal 
 - Unrelated refactors, dependency-wide upgrades, or “cleanup” not required by the error.
 - Disabling tests or deleting test cases to go green.
 - Patching `local.properties` or keys into the repo.
-- Inventing `hvigorw` flags—if the fix is “wrong task,” update [`.cursor/dev-commands.md`](.cursor/dev-commands.md) with a verified line.
+- Inventing `hvigorw` flags—if the fix is “wrong task,” update [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) with a verified line.
 
 ## Output
 

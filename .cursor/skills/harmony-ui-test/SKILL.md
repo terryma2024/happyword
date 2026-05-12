@@ -10,7 +10,7 @@ description: Installs HAP and runs on-device or Instrument UI tests (ohosTest, U
 ## Before running
 
 1. **Emulator or device** must be available (`harmony-emulator-manage` succeeded or skipped with a target).
-2. Read [`.cursor/dev-commands.md`](.cursor/dev-commands.md) section **UI / on-device (Instrument)**.
+2. Read [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) section **UI / on-device (Instrument)**.
 3. Build artifacts: install the **debug `.hap`** path your build produced (manifest may add exact path pattern).
 4. Apply **`safe-command-policy`**.
 
