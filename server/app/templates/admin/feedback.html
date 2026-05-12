@@ -1,0 +1,72 @@
+{% extends "admin/base.html" %}
+{% block title %}用户反馈{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header>
+    <h1 class="text-2xl font-semibold text-slate-900">用户反馈</h1>
+    <p class="text-sm text-slate-500 mt-1">查看所有家长提交的反馈，并进行回复或删除。</p>
+  </header>
+
+  {% if flash_ok %}
+  <div class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+    {{ flash_ok }}
+  </div>
+  {% endif %}
+  {% if flash_err %}
+  <div class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+    {{ flash_err }}
+  </div>
+  {% endif %}
+
+  <div class="space-y-4">
+    {% for item in feedback_items %}
+    <article class="bg-white border border-slate-200 rounded-lg shadow-sm p-5 space-y-4">
+      <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900">{{ item.subject }}</h2>
+          <p class="text-xs text-slate-500 mt-1">
+            {{ item.created_at.strftime("%Y-%m-%d %H:%M") }}
+            · {{ item.parent_email or item.parent_user_id }}
+            · {{ item.family_id }}
+          </p>
+        </div>
+        <form method="post" action="/admin/feedback/{{ item.feedback_id }}/delete"
+              onsubmit="return confirm('确认删除这条反馈？');">
+          <button type="submit" class="rounded-md border border-rose-200 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50">
+            删除
+          </button>
+        </form>
+      </div>
+
+      <p class="whitespace-pre-wrap text-sm text-slate-700">{{ item.body }}</p>
+
+      {% if item.admin_reply %}
+      <div class="rounded-md bg-sky-50 border border-sky-100 p-3 text-sm text-slate-700">
+        <div class="font-medium text-sky-700 mb-1">
+          已回复{% if item.replied_by %} · {{ item.replied_by }}{% endif %}
+        </div>
+        <p class="whitespace-pre-wrap">{{ item.admin_reply }}</p>
+      </div>
+      {% endif %}
+
+      <form method="post" action="/admin/feedback/{{ item.feedback_id }}/reply" class="space-y-2">
+        <label for="reply-{{ item.feedback_id }}" class="block text-sm font-medium text-slate-700">
+          {% if item.admin_reply %}更新回复{% else %}回复{% endif %}
+        </label>
+        <textarea id="reply-{{ item.feedback_id }}" name="reply" rows="3" maxlength="4000" required
+                  class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">{{ item.admin_reply or "" }}</textarea>
+        <div class="flex justify-end">
+          <button type="submit" class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">
+            保存回复
+          </button>
+        </div>
+      </form>
+    </article>
+    {% else %}
+    <div class="bg-white border border-slate-200 rounded-lg shadow-sm px-6 py-10 text-center text-sm text-slate-500">
+      暂无用户反馈。
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

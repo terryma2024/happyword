@@ -1,0 +1,74 @@
+{% extends "_base.html" %}
+{% block title %}用户反馈{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">用户反馈</h1>
+      <p class="text-sm text-slate-500 mt-1">告诉我们哪里需要改进，管理员回复后会显示在这里。</p>
+    </div>
+    <a href="/parent/" class="text-sm text-slate-500 hover:text-slate-700">← 返回首页</a>
+  </header>
+
+  {% if flash_ok %}
+  <div class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+    {{ flash_ok }}
+  </div>
+  {% endif %}
+  {% if error %}
+  <div class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-4">提交新反馈</h2>
+    <form method="post" action="/parent/feedback" class="space-y-4">
+      <div>
+        <label for="subject" class="block text-sm font-medium text-slate-700 mb-1">标题</label>
+        <input id="subject" name="subject" value="{{ draft_subject }}" maxlength="120" required
+               class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+               placeholder="例如：希望增加错题本" />
+      </div>
+      <div>
+        <label for="body" class="block text-sm font-medium text-slate-700 mb-1">反馈内容</label>
+        <textarea id="body" name="body" rows="5" maxlength="4000" required
+                  class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="请描述你的建议或遇到的问题。">{{ draft_body }}</textarea>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">
+          提交反馈
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-4">我的反馈</h2>
+    {% if feedback_items %}
+      <ul class="space-y-4">
+        {% for item in feedback_items %}
+        <li class="rounded-lg border border-slate-200 p-4">
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+            <h3 class="font-medium text-slate-900">{{ item.subject }}</h3>
+            <span class="text-xs text-slate-400">{{ item.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+          </div>
+          <p class="mt-2 whitespace-pre-wrap text-sm text-slate-600">{{ item.body }}</p>
+          {% if item.admin_reply %}
+          <div class="mt-3 rounded-md bg-sky-50 border border-sky-100 p-3 text-sm text-slate-700">
+            <div class="font-medium text-sky-700 mb-1">管理员回复</div>
+            <p class="whitespace-pre-wrap">{{ item.admin_reply }}</p>
+          </div>
+          {% else %}
+          <p class="mt-3 text-xs text-slate-400">暂未回复</p>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-slate-500">暂无反馈。</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

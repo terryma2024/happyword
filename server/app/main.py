@@ -23,6 +23,7 @@ from app.models.family_pack_definition import FamilyPackDefinition
 from app.models.family_pack_draft import FamilyPackDraft
 from app.models.family_pack_pointer import FamilyPackPointer
 from app.models.family_word_pack import FamilyWordPack
+from app.models.feedback import UserFeedback
 from app.models.lesson_import_draft import LessonImportDraft
 from app.models.llm_draft import LlmDraft
 from app.models.pack_pointer import PackPointer
@@ -102,6 +103,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             FamilyPackDraft,
             FamilyPackPointer,
             FamilyWordPack,
+            UserFeedback,
             SyncedWordStat,
             CloudWishlistItem,
             RedemptionRequest,
