@@ -82,6 +82,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -341,6 +343,7 @@ fun WordMagicGameApp() {
                     onBack = { route = AppRoute.Home },
                     onParentAdmin = { route = AppRoute.ParentPin },
                     onCloudBinding = { route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo },
+                    onPackManager = { route = AppRoute.PackManager },
                     onDeveloper = { route = AppRoute.DevMenu },
                 )
                 AppRoute.ParentPin -> ParentPinScreen(
@@ -571,95 +574,147 @@ private fun HomeScreen(
     onTodayPlan: () -> Unit,
     onConfig: () -> Unit,
 ) {
-    Column(
+    var reviewLockedToastVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(reviewLockedToastVisible) {
+        if (reviewLockedToastVisible) {
+            delay(1_800)
+            reviewLockedToastVisible = false
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .padding(horizontal = 44.dp, vertical = 10.dp)
             .testTag("HomeScreen"),
     ) {
-        Box(modifier = Modifier.fillMaxWidth().height(54.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 44.dp)
+                .padding(top = 72.dp, bottom = 10.dp),
+        ) {
             Text(
-                "v0.1.0",
-                modifier = Modifier.align(Alignment.TopStart).padding(top = 4.dp),
-                fontSize = 16.sp,
-                color = Color(0xFF9A9A9A),
+                "Small Magician Word Adventure",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF303030),
             )
-            Row(
-                modifier = Modifier.align(Alignment.CenterEnd),
-                verticalAlignment = Alignment.CenterVertically,
+            Spacer(Modifier.height(8.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .border(1.dp, colorFromSceneHex(selectedPack.scene.bgAccent, Color(0xFFFFD2A6)), RoundedCornerShape(28.dp))
+                    .testTag("AdventureCard"),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = colorFromSceneHex(selectedPack.scene.bgPrimary, Color(0xFFFFF7E6)),
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
-                Badge("🦁 小明测试82941")
-                Spacer(Modifier.width(8.dp))
-                Badge("✨ $coins")
-                Spacer(Modifier.width(12.dp))
-                IconCircle(R.drawable.icon_review, "复习", Modifier.testTag("HomeTodayPlanButton"), onClick = onTodayPlan)
-                IconCircle(R.drawable.icon_codex, "图鉴", Modifier.testTag("HomeCodexButton"), onClick = onMonsterCodex)
-                IconCircle(R.drawable.icon_scroll, "计划", Modifier.testTag("HomePackManagerButton"), onClick = onPackManager)
-                IconCircle(R.drawable.icon_wishlist, "愿望", Modifier.testTag("HomeWishlistButton"), onClick = onWishlist)
-                IconCircle(R.drawable.icon_gear, "设置", Modifier.testTag("HomeConfigButton"), onClick = onConfig)
+                Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(selectedPack.nameEn, modifier = Modifier.testTag("AdventureCardTitle"), fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
+                        Spacer(Modifier.weight(1f))
+                        SmallPill("今日")
+                    }
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+                        modifier = Modifier.fillMaxWidth().testTag("PackChipRow"),
+                    ) {
+                        items(activePacks) { pack ->
+                            val selected = pack.id == selectedPack.id
+                            OutlinedButton(
+                                onClick = { onSelectPack(pack) },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (selected) Color(0xFFFF0050) else Color.White,
+                                    contentColor = if (selected) Color.White else Color(0xFF4F3424),
+                                ),
+                                modifier = Modifier.height(42.dp).testTag("RegionChip_${pack.id}"),
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
+                            ) {
+                                Text(pack.nameEn, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SmallPill("常规")
+                        SmallPill("拼写")
+                        SmallPill("复习")
+                        SmallPill("精英")
+                        SmallPill("首领")
+                    }
+                    Text("今天的冒险包含 5 关卡，含拼写、复习与首领关", fontSize = 18.sp, color = Color(0xFF6A5843), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    Button(
+                        onClick = onStart,
+                        modifier = Modifier.fillMaxWidth().height(46.dp).testTag("HomeStartButton"),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0050)),
+                        contentPadding = PaddingValues(vertical = 0.dp),
+                    ) { Text("开始今日冒险", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                }
             }
         }
 
-        Spacer(Modifier.height(4.dp))
         Text(
-            "Small Magician Word Adventure",
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Black,
-            color = Color(0xFF303030),
-        )
-        Spacer(Modifier.height(8.dp))
-
-        Card(
+            "v0.1.0",
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .border(1.dp, Color(0xFFFFD2A6), RoundedCornerShape(28.dp))
-                .testTag("AdventureCard"),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7E6)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                .align(Alignment.TopStart)
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
+                .testTag("HomeVersionLabel"),
+            fontSize = 11.sp,
+            color = Color(0xFF999999),
+        )
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 16.dp, end = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(selectedPack.nameEn, modifier = Modifier.testTag("AdventureCardTitle"), fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
-                    Spacer(Modifier.weight(1f))
-                    SmallPill("今日")
-                }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth().testTag("PackChipRow")) {
-                    items(activePacks) { pack ->
-                        val selected = pack.id == selectedPack.id
-                        OutlinedButton(
-                            onClick = { onSelectPack(pack) },
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (selected) Color(0xFFFF0050) else Color.White,
-                                contentColor = if (selected) Color.White else Color(0xFF4F3424),
-                            ),
-                            modifier = Modifier.height(42.dp).testTag("RegionChip_${pack.id}"),
-                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
-                        ) {
-                            Text(pack.nameEn, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SmallPill("常规")
-                    SmallPill("拼写")
-                    SmallPill("复习")
-                    SmallPill("精英")
-                    SmallPill("首领")
-                }
-                Text("今天的冒险包含 5 关卡，含拼写、复习与首领关", fontSize = 18.sp, color = Color(0xFF6A5843), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-                Button(
-                    onClick = onStart,
-                    modifier = Modifier.fillMaxWidth().height(46.dp).testTag("HomeStartButton"),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0050)),
-                    contentPadding = PaddingValues(vertical = 0.dp),
-                ) { Text("开始今日冒险", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
-            }
+            HomeBadge(
+                text = "🦁 小明测试60874",
+                modifier = Modifier.testTag("HomeBoundChildBadge"),
+                textColor = Color(0xFF0369A1),
+                backgroundColor = Color(0xFFE0F2FE),
+                fontSize = 14.sp,
+                horizontalPadding = 10.dp,
+            )
+            HomeBadge(
+                text = "✨ $coins",
+                modifier = Modifier.testTag("HomeCoinBalance"),
+                textColor = Color(0xFFFFB400),
+                backgroundColor = Color(0xFFFFF6E5),
+                fontSize = 16.sp,
+                horizontalPadding = 12.dp,
+            )
+            IconCircle(R.drawable.icon_review, "复习", Modifier.testTag("HomeReviewButton"), backgroundColor = Color(0xFFFCEAEA), onClick = { reviewLockedToastVisible = true })
+            IconCircle(R.drawable.icon_codex, "图鉴", Modifier.testTag("HomeCodexButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onMonsterCodex)
+            EmojiCircle("📋", "今日计划", Modifier.testTag("HomePlanButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onTodayPlan)
+            IconCircle(R.drawable.icon_wishlist, "愿望", Modifier.testTag("HomeWishlistButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onWishlist)
+            IconCircle(R.drawable.icon_gear, "设置", Modifier.testTag("HomeConfigButton"), backgroundColor = Color(0xFFEAF2F8), onClick = onConfig)
+        }
+
+        if (reviewLockedToastVisible) {
+            Text(
+                "先答错几题再来复习吧",
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 96.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xCC3A3A3A))
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .testTag("HomeReviewLockedToast"),
+                fontSize = 14.sp,
+                color = Color.White,
+            )
         }
     }
 }
@@ -860,9 +915,21 @@ private fun BattleScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
                         ) {
-                            Text(questionKindLabel(displayQuestion), color = Color(0xFF4B86B4), fontSize = 20.sp)
+                            Text("Question", color = Color(0xFF4B86B4), fontSize = 20.sp)
                             Spacer(Modifier.height(12.dp))
                             BattleQuestionPrompt(displayQuestion)
+                            if (displayQuestion.kind == QuestionKind.Spell) {
+                                Spacer(Modifier.height(8.dp))
+                                SpellAnswerArea(
+                                    question = displayQuestion,
+                                    feedbackLocked = feedbackLocked,
+                                    onComplete = { option ->
+                                        if (activeOutcome == null) {
+                                            activeOutcome = onAnswer(option)
+                                        }
+                                    },
+                                )
+                            }
                             Spacer(Modifier.height(12.dp))
                             activeOutcome?.let { outcome ->
                                 BattleFeedbackText(outcome)
@@ -916,19 +983,28 @@ private fun BattleScreen(
 @Composable
 private fun BattleQuestionPrompt(question: Question) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        if (question.kind != QuestionKind.Choice) {
-            Text(question.prompt, color = Color(0xFF6A5843), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
+        when (question.kind) {
+            QuestionKind.Choice, QuestionKind.Spell -> {
+                Text(
+                    question.prompt,
+                    fontSize = 42.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF1C3655),
+                    textAlign = TextAlign.Center,
+                )
+            }
+            QuestionKind.FillLetter, QuestionKind.FillLetterMedium -> {
+                Text(question.prompt, color = Color(0xFF6A5843), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (question.kind == QuestionKind.FillLetter) question.letterTemplate else question.letterTemplateBase,
+                    fontSize = 42.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF1C3655),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
-        val promptText = when (question.kind) {
-            QuestionKind.Choice -> question.prompt
-            QuestionKind.FillLetter -> question.letterTemplate
-            QuestionKind.FillLetterMedium -> question.letterTemplateBase
-            QuestionKind.Spell -> question.spellLetters.mapIndexed { index, letter ->
-                if (question.spellRevealedMask.getOrElse(index) { false }) letter else "_"
-            }.joinToString(" ")
-        }
-        Text(promptText, fontSize = 42.sp, fontWeight = FontWeight.Black, color = Color(0xFF1C3655), textAlign = TextAlign.Center)
     }
 }
 
@@ -940,7 +1016,12 @@ private fun BattleAnswerArea(
     onSelect: (String) -> Unit,
 ) {
     if (question.kind == QuestionKind.Spell) {
-        SpellAnswerArea(question = question, feedbackLocked = feedbackLocked, onComplete = onSelect)
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(20.dp)
+                .testTag("BattleOptionsRow_SpellPlaceholder"),
+        )
         return
     }
     val options = answerOptions(question)
@@ -977,52 +1058,104 @@ private fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onCompl
     var consumed by remember(question.wordId, question.correctAnswer) {
         mutableStateOf(List(question.spellPool.size) { false })
     }
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    var wrongPoolIndex by remember(question.wordId, question.correctAnswer) { mutableIntStateOf(-1) }
+    var completed by remember(question.wordId, question.correctAnswer) { mutableStateOf(false) }
+    LaunchedEffect(wrongPoolIndex) {
+        if (wrongPoolIndex >= 0) {
+            delay(220)
+            wrongPoolIndex = -1
+        }
+    }
+    LaunchedEffect(completed) {
+        if (completed) {
+            delay(200)
+            onComplete(question.correctAnswer)
+        }
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .testTag("BattleSpellArea"),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             slots.forEachIndexed { index, value ->
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (value.isNotBlank()) Color(0xFFFFE2A8) else Color(0xFFF2F2F2))
-                        .border(1.dp, Color(0xFFD8C3A0), RoundedCornerShape(12.dp))
+                        .width(36.dp)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (value.isNotBlank()) Color.White else Color(0xFFFCEAEA))
+                        .border(1.dp, Color(0xFFD9D9D9), RoundedCornerShape(6.dp))
                         .testTag("BattleSpellSlot_$index"),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(value.ifBlank { "_" }, fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
+                    Text(
+                        value.ifBlank { "_" },
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (value.isNotBlank()) Color(0xFF1D3557) else Color(0xFFE63946),
+                    )
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(12.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             question.spellPool.forEachIndexed { index, letter ->
                 val used = consumed.getOrElse(index) { false }
+                val wrong = wrongPoolIndex == index
                 Button(
                     onClick = {
-                        if (feedbackLocked || used) return@Button
+                        if (feedbackLocked || used || completed || wrongPoolIndex >= 0) return@Button
                         val nextSlot = slots.indexOfFirst { it.isBlank() }
                         if (nextSlot < 0) return@Button
                         val expected = question.spellLetters.getOrNull(nextSlot)
-                        if (letter != expected) return@Button
-                        slots = slots.toMutableList().also { it[nextSlot] = letter }
+                        if (letter != expected) {
+                            wrongPoolIndex = index
+                            return@Button
+                        }
+                        val nextSlots = slots.toMutableList().also { it[nextSlot] = letter }
+                        slots = nextSlots
                         consumed = consumed.toMutableList().also { it[index] = true }
-                        if (slots.toMutableList().also { it[nextSlot] = letter }.joinToString("") == question.spellLetters.joinToString("")) {
-                            onComplete(question.correctAnswer)
+                        if (nextSlots.joinToString("") == question.spellLetters.joinToString("")) {
+                            completed = true
                         }
                     },
-                    enabled = !feedbackLocked && !used,
+                    enabled = !feedbackLocked && !used && !completed,
                     modifier = Modifier
-                        .weight(1f)
+                        .width(44.dp)
                         .height(52.dp)
                         .testTag("BattleSpellPool_$index"),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (used) Color(0xFFB7A1C8) else Color(0xFF8253A8),
-                        disabledContainerColor = Color(0xFFB7A1C8),
-                        disabledContentColor = Color.White,
+                        containerColor = when {
+                            used -> Color(0xFFE0E0E0)
+                            wrong -> Color(0xFFFCEAEA)
+                            else -> Color(0xFFFFF8E7)
+                        },
+                        disabledContainerColor = if (used) Color(0xFFE0E0E0) else Color(0xFFFFF8E7),
+                        disabledContentColor = Color(0xFFA3A3A3),
                     ),
                 ) {
-                    Text(letter, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        letter,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when {
+                            used -> Color(0xFFA3A3A3)
+                            wrong -> Color(0xFFE63946)
+                            else -> Color(0xFF1D3557)
+                        },
+                    )
                 }
             }
         }
@@ -1035,15 +1168,6 @@ private fun answerOptions(question: Question): List<String> {
         QuestionKind.FillLetter -> question.letterOptions
         QuestionKind.FillLetterMedium -> question.letterOptionsSteps.getOrElse(question.currentStep) { emptyList() }
         QuestionKind.Spell -> question.spellPool
-    }
-}
-
-private fun questionKindLabel(question: Question): String {
-    return when (question.kind) {
-        QuestionKind.Choice -> "Question"
-        QuestionKind.FillLetter -> "Missing Letter"
-        QuestionKind.FillLetterMedium -> "Two Missing Letters"
-        QuestionKind.Spell -> "Spell"
     }
 }
 
@@ -1236,6 +1360,7 @@ private fun ConfigScreen(
     onBack: () -> Unit,
     onParentAdmin: () -> Unit,
     onCloudBinding: () -> Unit,
+    onPackManager: () -> Unit,
     onDeveloper: () -> Unit,
 ) {
     Column(
@@ -1291,7 +1416,13 @@ private fun ConfigScreen(
             }
         }
         SettingCard("我的词包") {
-            Text("词包管理已接入首页计划按钮，可管理启用、固定与同步。")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("管理启用、固定与同步。")
+                Spacer(Modifier.weight(1f))
+                Button(onClick = onPackManager, modifier = Modifier.testTag("ConfigPackManagerButton")) {
+                    Text("进入")
+                }
+            }
         }
         if (showDeveloper) {
             SettingCard("开发者") {
@@ -1550,20 +1681,67 @@ private fun SvgRawImage(@RawRes rawRes: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun IconCircle(@DrawableRes icon: Int, label: String, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+private fun IconCircle(
+    @DrawableRes icon: Int,
+    label: String,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = Color(0xFFFCEAEA),
+    onClick: (() -> Unit)? = null,
+) {
     val clickableModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)
     Box(
         modifier = modifier
-            .padding(horizontal = 4.dp)
-            .size(42.dp)
+            .size(56.dp)
             .clip(CircleShape)
-            .background(Color.White)
-            .border(1.dp, Color(0xFFFFD2A6), CircleShape)
+            .background(backgroundColor)
             .then(clickableModifier),
         contentAlignment = Alignment.Center,
     ) {
-        Image(painter = painterResource(icon), contentDescription = label, modifier = Modifier.size(26.dp))
+        Image(painter = painterResource(icon), contentDescription = label, modifier = Modifier.size(32.dp))
     }
+}
+
+@Composable
+private fun EmojiCircle(
+    emoji: String,
+    label: String,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = Color(0xFFFCEAEA),
+    onClick: (() -> Unit)? = null,
+) {
+    val clickableModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)
+    Box(
+        modifier = modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(backgroundColor)
+            .semantics { contentDescription = label }
+            .then(clickableModifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(emoji, fontSize = 28.sp)
+    }
+}
+
+@Composable
+private fun HomeBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    textColor: Color,
+    backgroundColor: Color,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    horizontalPadding: androidx.compose.ui.unit.Dp,
+) {
+    Text(
+        text = text,
+        modifier = modifier
+            .clip(RoundedCornerShape(99.dp))
+            .background(backgroundColor)
+            .padding(horizontal = horizontalPadding, vertical = 6.dp),
+        color = textColor,
+        fontSize = fontSize,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable
@@ -1584,6 +1762,13 @@ private fun SmallPill(text: String) {
         color = Color(0xFF7A4A00),
         fontSize = 12.sp,
     )
+}
+
+private fun colorFromSceneHex(hex: String, fallback: Color): Color {
+    val cleaned = hex.trim().removePrefix("#")
+    if (cleaned.length != 6) return fallback
+    val value = cleaned.toLongOrNull(16) ?: return fallback
+    return Color(0xFF000000 or value)
 }
 
 @Composable

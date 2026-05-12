@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -184,6 +185,8 @@ fun RedemptionHistoryScreen(history: RedemptionHistoryStore, onBack: () -> Unit)
 @Composable
 fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
     val current = catalog.current()
+    val hasPrevious = catalog.index > 0
+    val hasNext = catalog.index < catalog.entries.lastIndex
     Column(
         Modifier
             .fillMaxSize()
@@ -198,14 +201,86 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
             OutlinedButton(onClick = onBack, modifier = Modifier.testTag("MonsterCodexBack")) { Text("返回") }
         }
         Spacer(Modifier.height(14.dp))
-        SvgRawImage(monsterResource(current.rawResourceName), modifier = Modifier.height(188.dp).aspectRatio(1f).testTag("MonsterCodexImage"))
-        Text(current.nameEn, modifier = Modifier.testTag("MonsterCodexName"), fontSize = 30.sp, fontWeight = FontWeight.Black, color = Color(0xFF303030))
-        Text("${current.kindZh} · ${current.descriptionZh}", color = Color(0xFF6A5843))
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = onPrevious, modifier = Modifier.testTag("MonsterCodexPrevious")) { Text("上一个") }
-            Button(onClick = onNext, modifier = Modifier.testTag("MonsterCodexNext")) { Text("下一个") }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CodexArrowButton(
+                text = "⬅",
+                enabled = hasPrevious,
+                tag = "MonsterCodexPrevious",
+                onClick = onPrevious,
+            )
+            Box(
+                modifier = Modifier
+                    .size(188.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                SvgRawImage(
+                    monsterResource(current.rawResourceName),
+                    modifier = Modifier
+                        .height(152.dp)
+                        .aspectRatio(1f)
+                        .testTag("MonsterCodexImage"),
+                )
+            }
+            CodexArrowButton(
+                text = "➡",
+                enabled = hasNext,
+                tag = "MonsterCodexNext",
+                onClick = onNext,
+            )
         }
+        Spacer(Modifier.height(16.dp))
+        Text(current.nameEn, modifier = Modifier.testTag("MonsterCodexName"), fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D3557))
+        Text(
+            "「${current.kindZh}」",
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFFEAF2F8))
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .testTag("MonsterCodexKind"),
+            fontSize = 18.sp,
+            color = Color(0xFF457B9D),
+        )
+        Text("${catalog.index + 1} / ${catalog.entries.size}", modifier = Modifier.testTag("MonsterCodexPosition"), fontSize = 14.sp, color = Color(0xFF888888))
+        Text(
+            current.descriptionZh,
+            modifier = Modifier
+                .fillMaxWidth(0.7f)
+                .testTag("MonsterCodexDescription"),
+            color = Color(0xFF333333),
+            fontSize = 18.sp,
+            lineHeight = 28.sp,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun CodexArrowButton(text: String, enabled: Boolean, tag: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .size(56.dp)
+            .defaultMinSize(minWidth = 56.dp, minHeight = 56.dp)
+            .testTag(tag),
+        shape = CircleShape,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (enabled) Color(0xFFFCEAEA) else Color(0xFFEEEEEE),
+            contentColor = if (enabled) Color(0xFFE63946) else Color(0xFF999999),
+            disabledContainerColor = Color(0xFFEEEEEE),
+            disabledContentColor = Color(0xFF999999),
+        ),
+    ) {
+        Text(text, fontSize = 28.sp, fontWeight = FontWeight.Bold)
     }
 }
 
