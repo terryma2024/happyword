@@ -51,6 +51,8 @@ All screenshots live under `assets/screenshots/android/`.
 ## Policy Gates
 
 - Release builds do not expose Config developer entry points.
+- Release builds coerce any persisted Local/Preview debug routing state back to
+  release-safe Staging/Prod routing on launch.
 - Production routing does not attach preview bypass headers.
 - Failed pack sync keeps bundled/local packs playable.
 - Failed word-stats sync does not block local Result or learning progress.

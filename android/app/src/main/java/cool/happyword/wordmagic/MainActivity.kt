@@ -202,13 +202,14 @@ fun WordMagicGameApp() {
     val devMenuViewModel = remember { DevMenuViewModel() }
     val cloudCoordinator = remember { CloudSyncCoordinator() }
     val bindingClient = remember { FixtureDeviceBindingClient() }
+    val isDebuggable = remember { (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
     var cloudCredentials by remember { mutableStateOf(cloudRepositories.loadCredentials()) }
     var globalPacks by remember { mutableStateOf(cloudRepositories.loadGlobalPacks()) }
     var familyPacks by remember { mutableStateOf(cloudRepositories.loadFamilyPacks()) }
     var cloudSyncStatus by remember { mutableStateOf(cloudRepositories.loadSyncStatus()) }
     var bindingError by remember { mutableStateOf("") }
     var pendingCloudUnbind by remember { mutableStateOf(false) }
-    var backendRouteState by remember { mutableStateOf(debugRoutingRepository.loadRouteState()) }
+    var backendRouteState by remember { mutableStateOf(BuildGate.coerceBackendRouteForBuild(isDebuggable, debugRoutingRepository.loadRouteState())) }
     var previewTargets by remember { mutableStateOf(emptyList<cool.happyword.wordmagic.core.PreviewTarget>()) }
     var probeStatus by remember { mutableStateOf("尚未探测") }
     val packLibrary = remember(globalPacks, familyPacks) { PackLibrary.merge(BuiltinPacks.all, globalPacks, familyPacks) }
@@ -338,7 +339,7 @@ fun WordMagicGameApp() {
                     config = config,
                     parentPinSet = parentPin.isNotEmpty(),
                     cloudBound = cloudCredentials != null,
-                    showDeveloper = BuildGate.showDeveloperTools((context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0),
+                    showDeveloper = BuildGate.showDeveloperTools(isDebuggable),
                     onConfigChange = { config = it },
                     onBack = { route = AppRoute.Home },
                     onParentAdmin = { route = AppRoute.ParentPin },

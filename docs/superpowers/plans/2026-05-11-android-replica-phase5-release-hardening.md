@@ -22,6 +22,7 @@
 - Modify: `android/app/src/main/java/cool/happyword/wordmagic/MainActivity.kt`
 - Modify: `.cursor/android-dev-commands.md`
 - Modify: `docs/android-replica/00-index.md`
+- Modify: `docs/android-replica/07-release-readiness-checklist.md`
 
 ## Tasks
 
@@ -58,11 +59,18 @@
 - [x] Run `cd android && ./gradlew assembleRelease`.
 - [x] `assembleRelease` passed; no signing/configuration gap needed to be documented.
 
+### Task 5: Harden Release Routing Against Persisted Debug State
+
+- [x] Add `BuildGate.coerceBackendRouteForBuild(...)` so release builds coerce persisted Local/Preview routing back to Staging while preserving explicit Prod.
+- [x] Add `BuildGateTest` cases for Preview, Local, Prod, and debug-preserved route states.
+- [x] Apply the gate when `WordMagicGameApp` loads persisted backend route state.
+
 ## Acceptance Checklist
 
 - [x] Release/debug developer visibility is covered by JVM tests.
 - [x] Offline and failed cloud sync behavior is covered by JVM tests.
 - [x] Debug-only DevMenu remains reachable in debug UI tests.
 - [x] Android command manifest lists the Phase 5 verification loop.
+- [x] Release builds cannot inherit persisted Local/Preview routing from a prior debug install.
 - [x] `assembleDebug`, `testDebugUnitTest`, and `connectedDebugAndroidTest` pass.
 - [x] `assembleRelease` passes, or the signing/configuration gap is explicitly reported.
