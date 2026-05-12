@@ -23,7 +23,8 @@ class AndroidScreenScreenshotTest {
     fun captureGrowthAndCloudScreens() {
         capture("local-growth-home.png")
 
-        composeRule.onNodeWithTag("HomePackManagerButton").performClick()
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.onNodeWithTag("ConfigPackManagerButton").performScrollTo().performClick()
         capture("pack-manager.png")
         composeRule.onNodeWithTag("PackManagerBack").performClick()
 
@@ -38,7 +39,7 @@ class AndroidScreenScreenshotTest {
         capture("monster-codex.png")
         composeRule.onNodeWithTag("MonsterCodexBack").performClick()
 
-        composeRule.onNodeWithTag("HomeTodayPlanButton").performClick()
+        composeRule.onNodeWithTag("HomePlanButton").performClick()
         capture("today-plan.png")
         composeRule.onNodeWithTag("TodayPlanReportButton").performClick()
         capture("learning-report.png")
