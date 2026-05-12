@@ -22,6 +22,17 @@ class CategoryReportOut(BaseModel):
     accuracy_pct: int = 0  # 0..100 rounded
 
 
+class PackReportOut(BaseModel):
+    """One word-pack bucket, matching the client-side `PackReport`."""
+
+    pack_id: str
+    name: str
+    total_seen: int = 0
+    total_correct: int = 0
+    accuracy_pct: int = 0  # 0..100 rounded
+    active: bool = False
+
+
 class ChildReportOut(BaseModel):
     """Aggregate per-child report. Field set is identical to the client's
     `LearningReport`; field names use snake_case (parent web reads JSON)."""
@@ -39,6 +50,8 @@ class ChildReportOut(BaseModel):
     review_due_count: int = 0
     review_done_today_count: int = 0
     review_completion_pct: int = 0
+    packs: list[PackReportOut] = Field(default_factory=list)
+    weak_packs: list[PackReportOut] = Field(default_factory=list)
     categories: list[CategoryReportOut] = Field(default_factory=list)
     weak_categories: list[CategoryReportOut] = Field(default_factory=list)
     today_review_done: int = 0  # alias for review_done_today_count

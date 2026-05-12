@@ -826,6 +826,13 @@
             "title": "Nickname",
             "type": "string"
           },
+          "packs": {
+            "items": {
+              "$ref": "#/components/schemas/PackReportOut"
+            },
+            "title": "Packs",
+            "type": "array"
+          },
           "review_completion_pct": {
             "default": 0,
             "title": "Review Completion Pct",
@@ -871,6 +878,13 @@
               "$ref": "#/components/schemas/CategoryReportOut"
             },
             "title": "Weak Categories",
+            "type": "array"
+          },
+          "weak_packs": {
+            "items": {
+              "$ref": "#/components/schemas/PackReportOut"
+            },
+            "title": "Weak Packs",
             "type": "array"
           }
         },
@@ -3191,6 +3205,45 @@
           "size"
         ],
         "title": "PackListOut",
+        "type": "object"
+      },
+      "PackReportOut": {
+        "description": "One word-pack bucket, matching the client-side `PackReport`.",
+        "properties": {
+          "accuracy_pct": {
+            "default": 0,
+            "title": "Accuracy Pct",
+            "type": "integer"
+          },
+          "active": {
+            "default": false,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "total_correct": {
+            "default": 0,
+            "title": "Total Correct",
+            "type": "integer"
+          },
+          "total_seen": {
+            "default": 0,
+            "title": "Total Seen",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pack_id",
+          "name"
+        ],
+        "title": "PackReportOut",
         "type": "object"
       },
       "PairCreateOut": {
