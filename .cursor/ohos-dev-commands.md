@@ -1,4 +1,6 @@
-# Dev commands manifest (source of truth)
+# HarmonyOS dev commands manifest (source of truth)
+
+> For the per-feature lifecycle (HarmonyOS-first design, stabilization gate, parallel iOS/Android replication, parity checklist), see [`docs/sop/00-three-platform-feature-sop.md`](../docs/sop/00-three-platform-feature-sop.md). This manifest only owns HarmonyOS commands.
 
 Read this file before running HarmonyOS build or test commands. **Do not invent `hvigorw` flags**; if a command fails, align with DevEco’s task names for the installed SDK and update this file.
 

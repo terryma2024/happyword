@@ -7,7 +7,7 @@ description: Gathers and summarizes failure evidence from Hvigor output, test re
 
 ## Source of order
 
-Read **section 5 (Failure artifacts)** in [`.cursor/dev-commands.md`](.cursor/dev-commands.md). Follow that **read order** literally.
+Read **section 5 (Failure artifacts)** in [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md). Follow that **read order** literally.
 
 ## General sequence (if manifest is brief)
 

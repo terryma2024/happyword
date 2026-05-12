@@ -241,7 +241,7 @@ export default function indexPageUiTest(): void {
 
 - [ ] **Step 2: Run the UI test to verify it fails**
 
-Build the HAP, install it, and run on-device tests (requires emulator/device per `.cursor/dev-commands.md` sections 3–4). From project root:
+Build the HAP, install it, and run on-device tests (requires emulator/device per `.cursor/ohos-dev-commands.md` sections 3–4). From project root:
 
 ```bash
 hvigorw assembleHap

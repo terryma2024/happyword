@@ -1,5 +1,7 @@
 # iOS dev commands manifest (source of truth)
 
+> For the per-feature lifecycle (HarmonyOS-first design, stabilization gate, parallel iOS/Android replication, parity checklist), see [`docs/sop/00-three-platform-feature-sop.md`](../docs/sop/00-three-platform-feature-sop.md). This manifest only owns iOS commands.
+
 Read this file before running iOS build, test, simulator, or screenshot commands. Keep it aligned with the native Swift / SwiftUI app under `ios/`; do not invent scheme names or simulator flags when a known command is listed here.
 
 - **last_verified_xcode:** Xcode 17.x with iOS 26.4 simulator runtime on this machine

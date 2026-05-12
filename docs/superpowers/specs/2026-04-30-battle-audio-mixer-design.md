@@ -410,7 +410,7 @@ hvigorw assembleHap
 codelinter -c ./code-linter.json5 . --fix
 ```
 
-按 `.cursor/dev-commands.md` 执行对应 ohosTest。
+按 `.cursor/ohos-dev-commands.md` 执行对应 ohosTest。
 
 重点 UI 套件：
 

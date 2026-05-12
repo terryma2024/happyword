@@ -9,7 +9,7 @@ description: Runs HarmonyOS CodeLinter (codelinter) on the project after a succe
 
 ## Before running
 
-1. Read [`.cursor/dev-commands.md`](.cursor/dev-commands.md) section **1) Build** — subsection **CodeLinter (after successful build)** — for the exact command and working directory.
+1. Read [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) section **1) Build** — subsection **CodeLinter (after successful build)** — for the exact command and working directory.
 2. Apply **`safe-command-policy`**: use the manifest line; do not invent new `codelinter` flags without updating the manifest.
 3. Optional context: in-repo reference [codelinter.md](../../docs/arkts-references/codelinter.md) (command-line options, `--fix`, `--exit-on`).
 
