@@ -1,5 +1,6 @@
 package cool.happyword.wordmagic.ui
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.annotation.RawRes
@@ -184,6 +185,7 @@ fun RedemptionHistoryScreen(history: RedemptionHistoryStore, onBack: () -> Unit)
 
 @Composable
 fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
     val current = catalog.current()
     val hasPrevious = catalog.index > 0
     val hasNext = catalog.index < catalog.entries.lastIndex
@@ -221,7 +223,7 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
                 contentAlignment = Alignment.Center,
             ) {
                 SvgRawImage(
-                    monsterResource(current.rawResourceName),
+                    monsterResource(context, current.rawResourceName),
                     modifier = Modifier
                         .height(152.dp)
                         .aspectRatio(1f)
@@ -350,10 +352,9 @@ private fun SvgRawImage(@RawRes rawRes: Int, modifier: Modifier = Modifier) {
 }
 
 @RawRes
-private fun monsterResource(name: String): Int = when (name) {
-    "character_zombie" -> R.raw.character_zombie
-    "character_dragon" -> R.raw.character_dragon
-    else -> R.raw.character_slime
+private fun monsterResource(context: Context, name: String): Int {
+    val resolved = context.resources.getIdentifier(name, "raw", context.packageName)
+    return if (resolved != 0) resolved else R.raw.character_slime
 }
 
 private fun sourceLabel(source: String): String = when (source) {
