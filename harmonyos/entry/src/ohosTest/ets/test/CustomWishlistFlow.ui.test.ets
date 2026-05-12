@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
-import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -65,6 +65,30 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
   }
 }
 
+async function waitForParentPinSetupKeypad(driver: Driver, maxMs: number): Promise<boolean> {
+  try {
+    const stepMs: number = 300;
+    let waited: number = 0;
+    let nudge: number = 0;
+    while (waited < maxMs) {
+      const k: Component | null =
+        await driver.findComponent(ON.id('ParentPinSetupKey_1'));
+      if (k !== null) {
+        return true;
+      }
+      nudge += 1;
+      if (nudge % 4 === 0) {
+        await driver.swipe(360, 880, 360, 420, 550);
+      }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
+    }
+    return false;
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 /**
  * Mirror WishlistFlow.ensureParentPin so this suite is self-sufficient.
  * Idempotent re-commit is fine — the parent PIN persists across pages
@@ -74,20 +98,12 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   try {
     await clickByIdShared(driver, 'HomeConfigButton');
     await driver.delayMs(1500);
-    // V0.6.5.1: scroll iteratively until ConfigParentPinButton is on
-    // screen — the 📦 packPickerSection added in V0.6.5.1 means a
-    // single swipe is no longer guaranteed to expose the row.
-    for (let attempt: number = 0; attempt < 5; attempt++) {
-      const btn: Component | null =
-        await driver.findComponent(ON.id('ConfigParentPinButton'));
-      if (btn !== null) {
-        break;
-      }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
-      await driver.delayMs(300);
-    }
+    await scrollToParentPinButton(driver);
     await clickByIdShared(driver, 'ConfigParentPinButton');
-    await driver.delayMs(1200);
+    const keypadReady: boolean = await waitForParentPinSetupKeypad(driver, 12000);
+    if (!keypadReady) {
+      throw new Error('ParentPinSetup keypad not reachable');
+    }
 
     for (let i: number = 0; i < pin.length; i++) {
       await tapPinSetupKey(driver, pin.charAt(i));
