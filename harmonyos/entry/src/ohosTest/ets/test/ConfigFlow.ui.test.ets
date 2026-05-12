@@ -30,7 +30,7 @@ async function launchApp(): Promise<Driver> {
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
-    for (let i: number = 0; i < 5; i++) {
+    for (let i: number = 0; i < 12; i++) {
       const home: Component | null =
         await driver.findComponent(ON.id('HomeStartButton'));
       if (home !== null) {
@@ -39,6 +39,27 @@ async function returnToHome(driver: Driver): Promise<void> {
       await driver.pressBack();
       await driver.delayMs(500);
     }
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/**
+ * Defensive cancel + return-to-home: tap `ConfigCancelButton`, allow
+ * the route to settle, then iterate `pressBack()` until `HomeStartButton`
+ * surfaces. Replaces the brittle `tapConfigCancelShared + delay +
+ * assertComponentExist(HomeStartButton)` pattern that depended on a
+ * single Cancel tap landing exactly on a fully-visible button. On the
+ * narrow landscape emulator the Cancel button is below the form fold
+ * after the dialog/setup-page state, and an off-screen tap silently
+ * no-ops, so we follow up with a bounded press-back loop.
+ */
+async function exitConfigToHome(driver: Driver): Promise<void> {
+  try {
+    await tapConfigCancelShared(driver);
+    await driver.delayMs(600);
+    await returnToHome(driver);
+    await driver.assertComponentExist(ON.id('HomeStartButton'));
   } catch (err) {
     throw err as Error;
   }
@@ -147,6 +168,21 @@ async function setCustomTimerSeconds(driver: Driver, seconds: number): Promise<v
  */
 async function tapConfigSaveButton(driver: Driver): Promise<void> {
   try {
+    // V0.6.7.8: even when ConfigSaveButton is `findComponent`-visible,
+    // it can sit partially clipped against the screen bottom (the
+    // narrow landscape viewport plus the bind row + AssetStoreKit
+    // warning push the form's last row past the viewport edge after
+    // a CustomTimerDialog dismissal). Two upward swipes deterministically
+    // bring Save into the safe visible band before the tap; without the
+    // initial pair, `findComponent` could match a partially-occluded
+    // button whose centre coordinate falls outside the touchable area
+    // and the click silently no-ops. We then keep swiping up to 4 more
+    // times if the find still fails (older emulator skins occasionally
+    // need a third nudge).
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(400);
+    await driver.swipe(1400, 1100, 1400, 300, 600);
+    await driver.delayMs(400);
     for (let attempt: number = 0; attempt < 4; attempt++) {
       const comp: Component | null =
         await driver.findComponent(ON.id('ConfigSaveButton'));
@@ -241,9 +277,7 @@ export default function configFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
 
       // Bail out of ConfigPage cleanly.
-      await tapConfigCancelShared(driver);
-      await driver.delayMs(600);
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await exitConfigToHome(driver);
       done();
     });
 
@@ -284,9 +318,7 @@ export default function configFlowUiTest(): void {
       const label: string = await btn.getText();
       expect(label.indexOf('修改') >= 0).assertTrue();
 
-      await tapConfigCancelShared(driver);
-      await driver.delayMs(600);
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await exitConfigToHome(driver);
       done();
     });
 
@@ -331,9 +363,29 @@ export default function configFlowUiTest(): void {
         // Save and pop back to Home. ConfigSaveButton is below the
         // form fold on a narrow landscape viewport, so use the
         // swipe-then-tap helper rather than a bare clickByIdShared.
-        await tapConfigSaveButton(driver);
-        await driver.delayMs(800);
-        await driver.assertComponentExist(ON.id('HomeStartButton'));
+        // V0.6.7.8 (UI test stabilisation): poll for HomeStartButton
+        // rather than calling `returnToHome` — the latter would
+        // press-back on a slow Save → router.back transition and
+        // discard the just-saved 3s value before the new ConfigPage
+        // re-mounts to read it. The Save handler always navigates
+        // back to Home; we just need to wait for it. If the first
+        // tap landed on a partially-occluded button (the dialog
+        // tear-down can leave a translucent overlay for a frame),
+        // retry the tap up to two more times before giving up.
+        let homeReady: boolean = false;
+        for (let saveTry: number = 0; saveTry < 3 && !homeReady; saveTry++) {
+          await tapConfigSaveButton(driver);
+          for (let attempt: number = 0; attempt < 16; attempt++) {
+            const home: Component | null =
+              await driver.findComponent(ON.id('HomeStartButton'));
+            if (home !== null) {
+              homeReady = true;
+              break;
+            }
+            await driver.delayMs(250);
+          }
+        }
+        expect(homeReady).assertTrue();
 
         // Re-open ConfigPage; the custom button should still show 3s
         // since `GameConfigPersistence.sanitizeTimer` now leaves
@@ -348,9 +400,7 @@ export default function configFlowUiTest(): void {
         const label2: string = await customBtn2.getText();
         expect(label2.indexOf('3s') >= 0).assertTrue();
 
-        await tapConfigCancelShared(driver);
-        await driver.delayMs(600);
-        await driver.assertComponentExist(ON.id('HomeStartButton'));
+        await exitConfigToHome(driver);
       } finally {
         if (didTouchTimer) {
           try {
@@ -412,9 +462,7 @@ export default function configFlowUiTest(): void {
 
         // Cancel out of ConfigPage without saving so we don't
         // accidentally persist any previously-set value.
-        await tapConfigCancelShared(driver);
-        await driver.delayMs(600);
-        await driver.assertComponentExist(ON.id('HomeStartButton'));
+        await exitConfigToHome(driver);
       } catch (err) {
         throw err as Error;
       }
@@ -459,9 +507,7 @@ export default function configFlowUiTest(): void {
       // to) rather than ConfigTitle to avoid Scroll-position artefacts.
       await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
 
-      await tapConfigCancelShared(driver);
-      await driver.delayMs(600);
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await exitConfigToHome(driver);
       done();
     });
   });

@@ -77,16 +77,31 @@ from pydantic import BaseModel
 # `entry/src/main/resources/rawfile/data/words_v1.json` and is part of
 # the production app bundle, so loading it here keeps the mock and the
 # device catalog in lockstep — change one, change the other.
-_PROD_CATALOG_PATH: Path = (
-    Path(__file__).resolve().parent.parent
-    / "entry"
-    / "src"
-    / "main"
-    / "resources"
-    / "rawfile"
-    / "data"
-    / "words_v1.json"
-)
+def _resolve_prod_catalog_path() -> Path:
+    """Locate ``words_v1.json`` regardless of repo layout.
+
+    Pre-V0.6.7 the HarmonyOS module lived at the repo root as
+    ``entry/``; v0.7 moved every native client into ``<platform>/``
+    folders, so the path is now ``harmonyos/entry/...``. Try the
+    new layout first, fall back to the legacy layout, and finally
+    return the legacy path so the inline fallback in
+    ``_load_prod_catalog_words`` triggers cleanly when neither is
+    on disk (rather than raising a TypeError later).
+    """
+    repo_root: Path = Path(__file__).resolve().parent.parent
+    candidates: list[Path] = [
+        repo_root / "harmonyos" / "entry" / "src" / "main"
+            / "resources" / "rawfile" / "data" / "words_v1.json",
+        repo_root / "entry" / "src" / "main"
+            / "resources" / "rawfile" / "data" / "words_v1.json",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return candidates[0]
+
+
+_PROD_CATALOG_PATH: Path = _resolve_prod_catalog_path()
 
 
 def _load_prod_catalog_words() -> list[dict[str, Any]]:

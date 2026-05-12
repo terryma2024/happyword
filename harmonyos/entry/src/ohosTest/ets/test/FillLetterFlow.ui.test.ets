@@ -40,18 +40,27 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
 
 // Known catalog words (mirrors entry/src/main/resources/rawfile/data/
-// words_v1.json). Two parallel arrays are simpler than a class array
-// to keep ArkTS literal-typing happy in test code; the only operation
-// we need is zh → en lookup and pattern → en match.
+// words_v1.json — all 50 entries across the five built-in
+// categories: fruit, place, home, animal, ocean). The full catalog
+// is required because BattlePage's today-plan can splice in review
+// words from any active pack (the fruit-forest chip narrows region
+// selection but not LearningRecorder review injection), so the
+// FillLetter / Spell suites must be able to resolve any pattern the
+// engine renders. Two parallel arrays are simpler than a class
+// array to keep ArkTS literal-typing happy in test code.
 const WORD_ZH: string[] = [
   '苹果', '香蕉', '橙子', '葡萄', '梨', '桃子', '柠檬', '芒果', '瓜', '樱桃',
   '学校', '医院', '公园', '超市', '图书馆', '动物园', '银行', '博物馆', '车站', '家',
   '电视', '椅子', '床', '桌子', '沙发', '台灯', '门', '窗户', '书', '杯子',
+  '猫', '狗', '狮子', '老虎', '熊', '青蛙', '鸭子', '老鼠', '绵羊', '马',
+  '鱼', '鲸鱼', '鲨鱼', '螃蟹', '海豚', '章鱼', '海豹', '海龟', '海星', '水母',
 ];
 const WORD_EN: string[] = [
   'apple', 'banana', 'orange', 'grape', 'pear', 'peach', 'lemon', 'mango', 'melon', 'cherry',
   'school', 'hospital', 'park', 'supermarket', 'library', 'zoo', 'bank', 'museum', 'station', 'home',
   'TV', 'chair', 'bed', 'table', 'sofa', 'lamp', 'door', 'window', 'book', 'cup',
+  'cat', 'dog', 'lion', 'tiger', 'bear', 'frog', 'duck', 'mouse', 'sheep', 'horse',
+  'fish', 'whale', 'shark', 'crab', 'dolphin', 'octopus', 'seal', 'turtle', 'starfish', 'jellyfish',
 ];
 
 async function launchApp(): Promise<Driver> {
@@ -71,7 +80,7 @@ async function launchApp(): Promise<Driver> {
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
-    for (let i: number = 0; i < 5; i++) {
+    for (let i: number = 0; i < 12; i++) {
       const home: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
       if (home !== null) {
         return;

@@ -4,7 +4,7 @@ import { application, Want, common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
 import { LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY } from '../../../main/ets/services/LessonImagePicker';
-import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
 
 /**
  * V0.5.8 acceptance: parent admin backend + parent-PIN gate.
@@ -115,20 +115,29 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   try {
     await clickByIdShared(driver, 'HomeConfigButton');
     await driver.delayMs(1500);
-    // V0.6.5.1: scroll iteratively until the parent-PIN button is on
-    // screen — the packPickerSection between autoSpeak and parentPin
-    // can push the row off the fold.
-    for (let attempt: number = 0; attempt < 5; attempt++) {
-      const btn: Component | null =
-        await driver.findComponent(ON.id('ConfigParentPinButton'));
-      if (btn !== null) {
+    // V0.6.5.1+: use the height-aware scroll helper rather than a
+    // simple findComponent loop. Without the height check, the row
+    // can be clipped to a ~25px sliver at the bottom of the Scroll
+    // viewport — findComponent succeeds but UiTest hit-testing then
+    // rejects the click, the keypad never pushes, and every PIN tap
+    // below fails with "ParentPinSetupKey_1 not exist".
+    await scrollToParentPinButton(driver);
+    await clickByIdShared(driver, 'ConfigParentPinButton');
+
+    // Wait for the setup keypad to render before tapping any key.
+    // Without this poll the first tap occasionally races a slow
+    // page-push transition and lands on ConfigPage's PIN row again,
+    // which silently no-ops, after which `ParentPinSetupKey_1`
+    // legitimately does not exist and the per-tap clickByIdShared
+    // bubbles a confusing "Component not exist" error.
+    for (let attempt: number = 0; attempt < 24; attempt++) {
+      const k: Component | null =
+        await driver.findComponent(ON.id('ParentPinSetupKey_1'));
+      if (k !== null) {
         break;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(300);
     }
-    await clickByIdShared(driver, 'ConfigParentPinButton');
-    await driver.delayMs(1200);
 
     for (let i: number = 0; i < pin.length; i++) {
       await tapPinSetupKey(driver, pin.charAt(i));
@@ -330,6 +339,11 @@ export default function parentAdminFlowUiTest(): void {
 
       await tapConfigCancelShared(driver);
       await driver.delayMs(800);
+      // Defensive: the single Cancel tap can land on a partially-
+      // visible button on the narrow landscape emulator and silently
+      // no-op. Fall back to a bounded press-back loop before asserting
+      // we're on Home.
+      await returnToHome(driver);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
     });
@@ -384,6 +398,7 @@ export default function parentAdminFlowUiTest(): void {
 
       await tapConfigCancelShared(driver);
       await driver.delayMs(800);
+      await returnToHome(driver);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
     });
@@ -859,25 +874,27 @@ export default function parentAdminFlowUiTest(): void {
         expect(`unexpected import error: ${errorText}`).assertEqual('');
       }
 
-      // Success line: "✓ 已识别 3 个单词，请确认". The mock fixture
-      // returns 3 words (apple / banana / cherry) — pin the literal
-      // count so a regression in either the multipart encoding (image
-      // bytes truncated → server returns 0 words) or in the page's
-      // `lastImportedWordCount` plumbing is unambiguous.
+      // V0.7 — LLM extraction runs in a Vercel cron, so the just-
+      // uploaded draft is in `status="extracting"` when the import
+      // POST returns. The success line is no longer
+      //   "✓ 已识别 3 个单词，请确认"
+      // but the deferred-extraction copy
+      //   "✓ 已上传，AI 识别中…1 分钟后点\"刷新\"查看"
+      // (see ParentAdminPage.ets `ParentAdminImportSuccess`). Anchor
+      // the assertion on the stable "已上传" prefix — pinning the
+      // full copy would re-introduce the same drift the original
+      // "3 个单词" pin already failed on. The previous
+      // `ParentAdminGotoReviewButton` row was deleted in the same
+      // V0.7 redesign (review now flows through 待复核 list after the
+      // cron extracts), so its existence assertion is also stale and
+      // has been removed — `ParentAdminImportSuccess` itself is gated
+      // on `this.lastImportedId.length > 0`, which keeps the original
+      // "import POST succeeded" coverage intact.
       await driver.assertComponentExist(ON.id('ParentAdminImportSuccess'));
       const successComp =
         await driver.findComponent(ON.id('ParentAdminImportSuccess'));
       const successText: string = await successComp.getText();
-      expect(successText.indexOf('3 个单词') >= 0).assertTrue();
-
-      // Goto-review button gates the next step in the parent's flow
-      // (ParentAdminPage → LessonDraftReviewPage on the freshly
-      // imported draft). We don't tap it here — that path is covered
-      // by `tapReviewLinkOpensReviewPageWithMockedDraft` against the
-      // pre-seeded draft. Asserting the button exists is enough to
-      // confirm `lastImportedId` was set (the row only renders when
-      // `this.lastImportedId.length > 0`).
-      await driver.assertComponentExist(ON.id('ParentAdminGotoReviewButton'));
+      expect(successText.indexOf('已上传') >= 0).assertTrue();
 
       await exitParentAdminPage(driver);
       done();

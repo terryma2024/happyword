@@ -122,18 +122,38 @@ async function scrollPackRowIntoView(driver: Driver, packId: string): Promise<vo
   try {
     const toggleId: string = `PackToggle_${packId}`;
     const labelId: string = `PackLabel_${packId}`;
-    for (let attempt: number = 0; attempt < 6; attempt++) {
+    // V0.6.7.8: scroll the pack list defensively in BOTH directions.
+    // The list orders builtins (fruit-forest, school-castle, home-cottage,
+    // animal-safari, ocean-realm) BEFORE synced globals (space-station)
+    // and family packs. Tests like `syncedGlobalPackAppears...` first
+    // scroll DOWN to space-station for assertions, then need to scroll
+    // BACK UP to reach home-cottage. The previous swipe-only-up loop
+    // could never find a row above the current viewport — symptom was
+    // `Component not exist matching: PackToggle_home-cottage` after the
+    // global-pack assertions had already scrolled past the builtin row.
+    // First do a small downward sweep, then upward, then mixed; if
+    // neither bracket finds the row in 8 nudges combined we surface the
+    // miss as a clear "not reachable" instead of throwing later from
+    // clickByIdShared's assertComponentExist.
+    const directions: number[][] = [
+      [1400, 1100, 1400, 400, 600],   // swipe up (scroll list down)
+      [1400, 400, 1400, 1100, 600],   // swipe down (scroll list up)
+    ];
+    let dirIdx: number = 0;
+    for (let attempt: number = 0; attempt < 10; attempt++) {
       const toggle: Component | null = await driver.findComponent(ON.id(toggleId));
       const label: Component | null = await driver.findComponent(ON.id(labelId));
       if (toggle !== null || label !== null) {
         return;
       }
-      // Swipe within the pack list. The Scroll container fills most
-      // of the viewport (header + status row at top, optional toast
-      // at bottom), so a centred upward swipe always advances the
-      // visible pack window.
-      await driver.swipe(1400, 1100, 1400, 400, 600);
+      const d: number[] = directions[dirIdx % directions.length];
+      await driver.swipe(d[0], d[1], d[2], d[3], d[4]);
       await driver.delayMs(400);
+      // Alternate direction every 4 attempts so a row that was scrolled
+      // past in the wrong direction can still be found by reversing.
+      if ((attempt + 1) % 4 === 0) {
+        dirIdx += 1;
+      }
     }
   } catch (err) {
     throw err as Error;
@@ -385,7 +405,14 @@ async function bindViaShortCode(driver: Driver): Promise<void> {
  */
 async function wipeBoundDeviceState(): Promise<void> {
   try {
-    const ctx: common.Context = DELEGATOR.getAppContext();
+    // V0.6.7.8: use the running ability's UIAbilityContext. See the
+    // ParentBindingFlow.wipeBoundDeviceState comment for the full
+    // rationale — ApplicationContext.preferencesDir and
+    // UIAbilityContext.preferencesDir resolve to different paths in
+    // stage-model HarmonyOS, so writes via getAppContext() never hit
+    // the same file the ability reads via getHostContext().
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const ctx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
     const handle: preferences.Preferences =
       await preferences.getPreferences(ctx, PREFS_CLOUD);
     await handle.put('device_token', '');
@@ -832,6 +859,17 @@ export default function packManagerFlowUiTest(): void {
      */
     it('syncedGlobalPackAppearsInListAndActivatingItGrowsHomeChipRow',
       0, async (done: Function) => {
+        // Defensive: a prior interrupted run could have left the
+        // device prefs bound (the family-pack arm below seeds + wipes,
+        // but its `finally` doesn't fire on JS-process kill). The
+        // public global-packs endpoint is anonymous, but a stale
+        // `device_token` flips `familyAttempted=true` inside
+        // `onPackSyncTap`, which then routes the toast through the
+        // family-arm branches that don't always include '全局' (e.g.
+        // '已是最新' when both arms cache-hit). Wipe before launch so
+        // this test always exercises the unbound branch.
+        await unbindMockBinding();
+        await wipeBoundDeviceState();
         const driver: Driver = await launchApp();
         await returnToHome(driver);
 

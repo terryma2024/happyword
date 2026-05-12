@@ -106,7 +106,18 @@ async function unbindMockBinding(): Promise<void> {
 
 async function wipeBoundDeviceState(): Promise<void> {
   try {
-    const ctx: common.Context = DELEGATOR.getAppContext();
+    // V0.6.7.8: use the live ability's UIAbilityContext rather than the
+    // ApplicationContext. ConfigPage / CloudCredentials read prefs via
+    // `getUIContext().getHostContext()` (entry module's UIAbilityContext)
+    // whose `preferencesDir` resolves to `<bundle>/<entry>/preferences`.
+    // `DELEGATOR.getAppContext()` resolves to a different (application-
+    // scoped) preferencesDir on stage-model HarmonyOS, so writes through
+    // it landed in a separate file and never propagated to the ability's
+    // bound-state read path. Symptom: `unboundConfigPageRendersBindEntryOnly`
+    // never saw `ConfigBindParentButton` because the live ability still
+    // observed the bound prefs from the prior PackManager test.
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const ctx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
     const handle: preferences.Preferences =
       await preferences.getPreferences(ctx, PREFS_CLOUD);
     await handle.put('device_token', '');
@@ -214,9 +225,13 @@ async function scrollConfigToParentAccountRow(driver: Driver): Promise<void> {
 async function exitConfigPage(driver: Driver): Promise<void> {
   try {
     // The form may have been scrolled up; tapConfigCancelShared performs
-    // additional swipes if needed before tapping 取消.
+    // additional swipes if needed before tapping 取消. If the single
+    // Cancel tap lands on a partially-visible button on the narrow
+    // landscape emulator and silently no-ops, fall back to the press-
+    // back loop in `returnToHome` before asserting we're on Home.
     await tapConfigCancelShared(driver);
     await driver.delayMs(800);
+    await returnToHome(driver);
     await driver.assertComponentExist(ON.id('HomeStartButton'));
   } catch (err) {
     throw err as Error;
@@ -430,11 +445,22 @@ export default function parentBindingFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfigPage(driver);
+      // Defensive re-mount: if the previous suite left the live ability
+      // with a still-bound `bindingPresent` flag in the rendered tree,
+      // a second push of ConfigPage forces a fresh `aboutToAppear` →
+      // `refreshBindingState()` against the now-wiped prefs. Without
+      // this leave-and-re-enter, the freshly-pushed ConfigPage's first
+      // refresh would only fire after the test had already polled out.
+      await driver.pressBack();
+      await driver.delayMs(800);
+      await returnToHome(driver);
+      await openConfigPage(driver);
       await scrollConfigToParentAccountRow(driver);
 
-      // Bind row should be visible immediately after the binding-state
-      // refresh resolves.
-      const haveBind: boolean = await waitForBindEntryButton(driver, 5000);
+      // Bind row should be visible after the binding-state refresh
+      // resolves. 12 s tolerates a slow `init() + load()` chain on a
+      // cold-cache emulator.
+      const haveBind: boolean = await waitForBindEntryButton(driver, 12000);
       expect(haveBind).assertTrue();
 
       const bound: Component | null =
@@ -455,12 +481,17 @@ export default function parentBindingFlowUiTest(): void {
      * ConfigPage that is still in the unbound state.
      */
     it('tapBindOpensScanBindingPage', 0, async (done: Function) => {
+      // Idempotent reset — if `unboundConfigPageRendersBindEntryOnly`
+      // tripped before reaching its Cancel exit, the prefs may still
+      // be in their pre-wipe state. Make every binding test
+      // independent of every other binding test's outcome.
+      await resetMockAndPrefsToUnbound();
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfigPage(driver);
       await scrollConfigToParentAccountRow(driver);
 
-      const haveBind: boolean = await waitForBindEntryButton(driver, 5000);
+      const haveBind: boolean = await waitForBindEntryButton(driver, 12000);
       expect(haveBind).assertTrue();
       await clickByIdShared(driver, 'ConfigBindParentButton');
       await driver.delayMs(1500);
@@ -526,12 +557,15 @@ export default function parentBindingFlowUiTest(): void {
      * ConfigPage, which now flips into bound state.
      */
     it('shortCodeRedeemFlipsConfigToBound', 0, async (done: Function) => {
+      // Same defensive reset as `tapBindOpensScanBindingPage` — start
+      // from a known unbound baseline.
+      await resetMockAndPrefsToUnbound();
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfigPage(driver);
       await scrollConfigToParentAccountRow(driver);
 
-      const haveBind: boolean = await waitForBindEntryButton(driver, 5000);
+      const haveBind: boolean = await waitForBindEntryButton(driver, 12000);
       expect(haveBind).assertTrue();
       await clickByIdShared(driver, 'ConfigBindParentButton');
       await driver.delayMs(1500);

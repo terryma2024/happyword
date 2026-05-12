@@ -31,15 +31,24 @@ const SPELL_AREA_ID: string = 'BattleSpellArea';
 const MAX_SPELL_LEN: number = 9;
 const MAX_POOL: number = 9;
 
+// All 50 words in entry/src/main/resources/rawfile/data/words_v1.json
+// (fruit + place + home + animal + ocean). Today-plan can splice in
+// review words from any active pack, so the catalog must cover every
+// possible pattern the engine renders even though the suite enters
+// the battle through the fruit-forest chip.
 const WORD_ZH: string[] = [
   '苹果', '香蕉', '橙子', '葡萄', '梨', '桃子', '柠檬', '芒果', '瓜', '樱桃',
   '学校', '医院', '公园', '超市', '图书馆', '动物园', '银行', '博物馆', '车站', '家',
   '电视', '椅子', '床', '桌子', '沙发', '台灯', '门', '窗户', '书', '杯子',
+  '猫', '狗', '狮子', '老虎', '熊', '青蛙', '鸭子', '老鼠', '绵羊', '马',
+  '鱼', '鲸鱼', '鲨鱼', '螃蟹', '海豚', '章鱼', '海豹', '海龟', '海星', '水母',
 ];
 const WORD_EN: string[] = [
   'apple', 'banana', 'orange', 'grape', 'pear', 'peach', 'lemon', 'mango', 'melon', 'cherry',
   'school', 'hospital', 'park', 'supermarket', 'library', 'zoo', 'bank', 'museum', 'station', 'home',
   'TV', 'chair', 'bed', 'table', 'sofa', 'lamp', 'door', 'window', 'book', 'cup',
+  'cat', 'dog', 'lion', 'tiger', 'bear', 'frog', 'duck', 'mouse', 'sheep', 'horse',
+  'fish', 'whale', 'shark', 'crab', 'dolphin', 'octopus', 'seal', 'turtle', 'starfish', 'jellyfish',
 ];
 
 async function launchApp(): Promise<Driver> {
@@ -59,7 +68,7 @@ async function launchApp(): Promise<Driver> {
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
-    for (let i: number = 0; i < 5; i++) {
+    for (let i: number = 0; i < 12; i++) {
       const home: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
       if (home !== null) {
         return;
@@ -257,8 +266,18 @@ async function readSpellPool(driver: Driver): Promise<string[]> {
 }
 
 /**
- * Tap the first non-consumed pool button whose label matches `letter`.
- * Returns the pool index that was tapped, or -1 if no match was found.
+ * Tap the first non-consumed pool button whose label matches `letter`,
+ * skipping any pool indices the caller has already consumed (passed
+ * via `usedIdx`). Returns the pool index that was tapped, or -1 if no
+ * match was found.
+ *
+ * V0.6.7.8: words with duplicate letters (e.g. apple → two `p` chips,
+ * watermelon → two `e`) used to flake here. SpellingArea greys out a
+ * consumed chip but its text node still reads the same letter, so the
+ * old "first match wins" loop would keep tapping the already-consumed
+ * chip and the slot row would never advance past the first duplicate.
+ * Tracking consumed indices in the caller fixes the failure
+ * deterministically.
  *
  * The function retries the find up to ~1.5 s (10 × 150 ms). The
  * budget needs to be generous because V0.4.8 added several visual
@@ -271,10 +290,17 @@ async function readSpellPool(driver: Driver): Promise<string[]> {
  * work on the emulator that occasionally lands inside the spell-tap
  * loop, even with no audio playback at all.
  */
-async function tapSpellPoolLetter(driver: Driver, letter: string): Promise<number> {
+async function tapSpellPoolLetter(
+  driver: Driver,
+  letter: string,
+  usedIdx: Set<number>,
+): Promise<number> {
   try {
     for (let attempt: number = 0; attempt < 10; attempt++) {
       for (let i: number = 0; i < MAX_POOL; i++) {
+        if (usedIdx.has(i)) {
+          continue;
+        }
         const btn: Component | null =
           await driver.findComponent(ON.id(`${SPELL_AREA_ID}_Pool_${i}`));
         if (btn === null) {
@@ -284,6 +310,7 @@ async function tapSpellPoolLetter(driver: Driver, letter: string): Promise<numbe
         if (text === letter) {
           await btn.click();
           await driver.delayMs(150);
+          usedIdx.add(i);
           return i;
         }
       }
@@ -431,9 +458,10 @@ export default function spellQuestionFlowUiTest(): void {
       // above; cf. tapSpellPoolLetter comment for the V0.4.8
       // visual-embellishment rationale.
       const lower: string = entry.answer.toLowerCase();
+      const usedIdx: Set<number> = new Set<number>();
       for (let pos: number = 1; pos < lower.length; pos++) {
         const letter: string = lower.charAt(pos);
-        const tappedIdx: number = await tapSpellPoolLetter(driver, letter);
+        const tappedIdx: number = await tapSpellPoolLetter(driver, letter, usedIdx);
         expect(tappedIdx >= 0).assertTrue();
         let slotsNow: string[] = [];
         for (let attempt: number = 0; attempt < 10; attempt++) {
