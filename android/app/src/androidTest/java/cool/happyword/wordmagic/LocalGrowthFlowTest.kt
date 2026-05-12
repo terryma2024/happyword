@@ -6,6 +6,8 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -25,6 +27,14 @@ class LocalGrowthFlowTest {
         composeRule.onNodeWithTag("ConfigPackManagerButton").performScrollTo().performClick()
         composeRule.onNodeWithTag("PackManagerScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("PackManagerActiveCount").assertIsDisplayed()
+        composeRule.onNodeWithText("📦 我的词包").assertIsDisplayed()
+        composeRule.onNodeWithText("已激活 5 / 5").assertIsDisplayed()
+        composeRule.onNodeWithText("固定：防止满分自动轮换 · 开关：切换激活").assertIsDisplayed()
+        composeRule.onNodeWithText("🔄 同步词包").assertIsDisplayed()
+        composeRule.onNodeWithTag("PackSourceTag_fruit-forest").assertIsDisplayed()
+        composeRule.onNodeWithText("Fruit Forest").assertIsDisplayed()
+        composeRule.onNodeWithTag("PackPin_fruit-forest").assertIsDisplayed()
+        assert(composeRule.onAllNodesWithText("水果森林 · 内置 · 藤蔓和果香里的第一场魔法单词冒险。").fetchSemanticsNodes().isEmpty())
         composeRule.onNodeWithTag("PackToggle_fruit-forest").performClick()
         composeRule.onNodeWithTag("PackToggle_fruit-forest").performClick()
         composeRule.onNodeWithTag("PackManagerBack").performClick()
@@ -39,6 +49,13 @@ class LocalGrowthFlowTest {
         composeRule.onNodeWithTag("ParentPinScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("ParentPinInput").performTextInput("123456")
         composeRule.onNodeWithTag("WishlistScreen").assertIsDisplayed()
+        composeRule.waitUntil(2_000) {
+            composeRule.onAllNodesWithTag("WishlistGiftBoxModal").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("WishlistGiftBoxModal").assertIsDisplayed()
+        composeRule.waitUntil(4_500) {
+            composeRule.onAllNodesWithTag("WishlistGiftBoxModal").fetchSemanticsNodes().isEmpty()
+        }
         composeRule.onNodeWithTag("WishlistHistoryButton").performClick()
         composeRule.onNodeWithTag("RedemptionHistoryScreen").assertIsDisplayed()
     }

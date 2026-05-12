@@ -44,7 +44,7 @@ class OfflineFailureGateTest {
             syncedThroughMs = 456L,
         )
 
-        assertEquals("""{"synced_through_ms":456,"stats":[]}""", payload)
+        assertEquals("""{"items":[],"synced_through_ms":456}""", payload)
     }
 
     @Test
