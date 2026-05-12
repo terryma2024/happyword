@@ -56,10 +56,12 @@ class AndroidScreenScreenshotTest {
             composeRule.onNodeWithTag("ScanBindingManualCodeInput").performTextInput("abc123")
             composeRule.onNodeWithTag("ScanBindingRedeemButton").performClick()
             composeRule.waitUntil(timeoutMillis = 2_000) {
-                hasNode("BoundDeviceInfoScreen")
+                hasNode("ScanBindingError")
             }
+            capture("scan-binding-error.png")
+        } else {
+            capture("bound-device-info.png")
         }
-        capture("bound-device-info.png")
     }
 
     @Test

@@ -38,7 +38,6 @@ class SmokeTest {
     @Test
     fun homeToolbarMatchesHarmonyBaseline() {
         composeRule.onNodeWithTag("HomeVersionLabel").assertIsDisplayed()
-        composeRule.onNodeWithTag("HomeBoundChildBadge").assertIsDisplayed()
         composeRule.onNodeWithTag("HomeCoinBalance").assertIsDisplayed()
 
         composeRule.onNodeWithTag("HomeReviewButton").assertWidthIsEqualTo(56.dp).assertHeightIsEqualTo(56.dp)

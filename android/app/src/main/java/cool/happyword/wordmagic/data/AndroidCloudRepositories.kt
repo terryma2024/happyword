@@ -48,6 +48,30 @@ class AndroidCloudRepositories(context: Context) {
         prefs.edit().putString("syncStatus", value).apply()
     }
 
+    fun loadLearningSyncStatus(): String = prefs.getString("learningSyncStatus", "").orEmpty()
+
+    fun saveLearningSyncStatus(value: String) {
+        prefs.edit().putString("learningSyncStatus", value).apply()
+    }
+
+    fun loadLearningSyncCheckpointMs(): Long =
+        prefs.getString("learningSyncCheckpointMs", "0").orEmpty().toLongOrNull() ?: 0L
+
+    fun saveLearningSyncCheckpointMs(value: Long) {
+        prefs.edit().putString("learningSyncCheckpointMs", value.coerceAtLeast(0L).toString()).apply()
+    }
+
+    fun resetForBackendSwitch() {
+        clearCredentials()
+        prefs.edit()
+            .remove("globalPacks")
+            .remove("familyPacks")
+            .remove("learningSyncStatus")
+            .putString("learningSyncCheckpointMs", "0")
+            .putString("syncStatus", "尚未同步")
+            .apply()
+    }
+
     private fun encodePacks(packs: List<WordPack>): String {
         return packs.joinToString("\n") { pack ->
             val words = pack.words.joinToString(";") { "${it.id},${it.word},${it.meaning}" }
