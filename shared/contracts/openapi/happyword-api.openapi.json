@@ -309,6 +309,19 @@
         "title": "Body_import_lesson_api_v1_admin_lessons_import_post",
         "type": "object"
       },
+      "Body_post_device_unbind_confirm_parent_devices__binding_id__unbind_post": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "Body_post_device_unbind_confirm_parent_devices__binding_id__unbind_post",
+        "type": "object"
+      },
       "Body_post_devices_add_cancel_parent_devices_add_cancel_post": {
         "properties": {
           "token": {
@@ -10616,6 +10629,144 @@
           }
         ],
         "summary": "Get Device Detail",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
+    "/parent/devices/{binding_id}/unbind": {
+      "get": {
+        "operationId": "get_device_unbind_confirm_parent_devices__binding_id__unbind_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "binding_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 8,
+              "title": "Binding Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Device Unbind Confirm",
+        "tags": [
+          "parent-web"
+        ]
+      },
+      "post": {
+        "operationId": "post_device_unbind_confirm_parent_devices__binding_id__unbind_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "binding_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 8,
+              "title": "Binding Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_device_unbind_confirm_parent_devices__binding_id__unbind_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Device Unbind Confirm",
         "tags": [
           "parent-web"
         ]

@@ -40,7 +40,9 @@
           <td class="px-4 py-2 text-right">
             {% if not b.revoked_at %}
             <a href="/admin/devices/{{ b.binding_id }}/revoke" class="text-sm text-red-600 hover:underline">撤销绑定</a>
-            {% else %}—{% endif %}
+            {% else %}
+            <a href="/admin/devices/{{ b.binding_id }}/restore" class="text-sm text-emerald-700 hover:underline">恢复绑定</a>
+            {% endif %}
           </td>
         </tr>
         {% else %}

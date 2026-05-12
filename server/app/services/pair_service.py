@@ -210,44 +210,83 @@ async def redeem(
         if b.family_id == family_id:
             same_family_child_id = b.child_profile_id
 
-    binding_id = _gen_binding_id()
-    if same_family_child_id is not None:
-        child_id = same_family_child_id
-        child = await ChildProfile.find_one(ChildProfile.profile_id == child_id)
+    reusable_binding: DeviceBinding | None = None
+    if same_family_child_id is None:
+        same_family_bindings = (
+            await DeviceBinding.find(
+                DeviceBinding.device_id == device_id,
+                DeviceBinding.family_id == family_id,
+            )
+            .sort("-created_at")
+            .to_list()
+        )
+        reusable_binding = next(
+            (b for b in same_family_bindings if b.revoked_at is not None),
+            None,
+        )
+
+    if reusable_binding is not None:
+        binding = reusable_binding
+        child = await ChildProfile.find_one(
+            ChildProfile.profile_id == binding.child_profile_id
+        )
         if child is None:
             child = ChildProfile(
-                profile_id=child_id,
+                profile_id=binding.child_profile_id,
+                family_id=family_id,
+                binding_id=binding.binding_id,
+                created_at=now,
+                updated_at=now,
+            )
+            await child.insert()
+        else:
+            child.binding_id = binding.binding_id
+            child.deleted_at = None
+            child.updated_at = now
+            await child.save()
+        binding.user_agent = user_agent
+        binding.last_seen_at = now
+        binding.revoked_at = None
+        await binding.save()
+    else:
+        binding_id = _gen_binding_id()
+        if same_family_child_id is not None:
+            child_id = same_family_child_id
+            child = await ChildProfile.find_one(ChildProfile.profile_id == child_id)
+            if child is None:
+                child = ChildProfile(
+                    profile_id=child_id,
+                    family_id=family_id,
+                    binding_id=binding_id,
+                    created_at=now,
+                    updated_at=now,
+                )
+                await child.insert()
+            else:
+                child.binding_id = binding_id
+                child.deleted_at = None
+                child.updated_at = now
+                await child.save()
+        else:
+            child = ChildProfile(
+                profile_id=_gen_child_id(),
                 family_id=family_id,
                 binding_id=binding_id,
                 created_at=now,
                 updated_at=now,
             )
             await child.insert()
-        else:
-            child.binding_id = binding_id
-            child.deleted_at = None
-            child.updated_at = now
-            await child.save()
-    else:
-        child = ChildProfile(
-            profile_id=_gen_child_id(),
-            family_id=family_id,
-            binding_id=binding_id,
-            created_at=now,
-            updated_at=now,
-        )
-        await child.insert()
 
-    binding = DeviceBinding(
-        binding_id=binding_id,
-        family_id=family_id,
-        device_id=device_id,
-        child_profile_id=child.profile_id,
-        user_agent=user_agent,
-        created_at=now,
-        last_seen_at=now,
-    )
-    await binding.insert()
+        binding = DeviceBinding(
+            binding_id=binding_id,
+            family_id=family_id,
+            device_id=device_id,
+            child_profile_id=child.profile_id,
+            user_agent=user_agent,
+            created_at=now,
+            last_seen_at=now,
+        )
+        await binding.insert()
 
     pt.status = PairTokenStatus.REDEEMED
     pt.redeemed_at = now
