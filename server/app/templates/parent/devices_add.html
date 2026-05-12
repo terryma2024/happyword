@@ -24,11 +24,11 @@
     </div>
   </div>
 
-  <div class="mt-4 flex gap-2">
-    <a href="/parent/" class="text-sm text-slate-500 hover:text-slate-900">返回首页</a>
-    <form method="post" action="/parent/devices/add/cancel" class="inline">
+  <div class="mt-4 flex items-center justify-end gap-3">
+    <a href="/parent/" class="inline-flex items-center text-sm leading-5 text-slate-500 hover:text-slate-900">返回首页</a>
+    <form method="post" action="/parent/devices/add/cancel" class="flex items-center">
       <input type="hidden" name="token" value="{{ token }}" />
-      <button type="submit" class="text-sm text-rose-500 hover:text-rose-700">取消本次配对</button>
+      <button type="submit" class="inline-flex items-center text-sm leading-5 text-rose-500 hover:text-rose-700">取消本次配对</button>
     </form>
   </div>
 </section>
