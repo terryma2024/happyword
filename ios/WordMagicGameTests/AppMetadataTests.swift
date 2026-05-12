@@ -55,25 +55,17 @@ final class AppMetadataTests: XCTestCase {
     }
 
     func testHarmonyCharacterImageAssetsAreCopiedFromHarmonyOS() throws {
-        let pairs = [
+        let playerPairs = [
             HarmonyAssetPair(assetName: "HarmonyCharacterMagician", sourcePath: "character/magican.svg", filename: "magican.svg"),
             HarmonyAssetPair(assetName: "HarmonyCharacterMagicianFight", sourcePath: "character/magican_fight.svg", filename: "magican_fight.svg"),
             HarmonyAssetPair(assetName: "HarmonyCharacterMagicianBeaten", sourcePath: "character/magican_beaten.svg", filename: "magican_beaten.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterMagicianDizzy", sourcePath: "character/magican_dizz.svg", filename: "magican_dizz.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterSlime", sourcePath: "character/slime.svg", filename: "slime.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterZombie", sourcePath: "character/zombie.svg", filename: "zombie.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterDragon", sourcePath: "character/dragon.svg", filename: "dragon.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterJellyfish", sourcePath: "character/jellyfish.svg", filename: "jellyfish.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterKraken", sourcePath: "character/kraken.svg", filename: "kraken.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterWitch", sourcePath: "character/witch.svg", filename: "witch.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterImpKing", sourcePath: "character/imp-king.svg", filename: "imp-king.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterPhoenix", sourcePath: "character/phoenix.svg", filename: "phoenix.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterPumpkinKing", sourcePath: "character/pumpkin-king.svg", filename: "pumpkin-king.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterSnowQueen", sourcePath: "character/snow-queen.svg", filename: "snow-queen.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterUnicorn", sourcePath: "character/unicorn.svg", filename: "unicorn.svg")
+            HarmonyAssetPair(assetName: "HarmonyCharacterMagicianDizzy", sourcePath: "character/magican_dizz.svg", filename: "magican_dizz.svg")
         ]
+        let monsterPairs = MonsterCodex.entries.map {
+            HarmonyAssetPair(assetName: $0.assetName, sourcePath: "character/\($0.key).svg", filename: "\($0.key).svg")
+        }
 
-        try assertHarmonyAssets(pairs, sourceRoot: "harmonyos/entry/src/main/resources/rawfile")
+        try assertHarmonyAssets(playerPairs + monsterPairs, sourceRoot: "harmonyos/entry/src/main/resources/rawfile")
     }
 
     private func repoRoot() throws -> URL {

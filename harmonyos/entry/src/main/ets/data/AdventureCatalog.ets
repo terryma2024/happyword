@@ -36,9 +36,8 @@ const FRUIT_FOREST: AdventureRegion = (() => {
     slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
-  // V0.3.8: Forest hosts Pumpkin King / Imp King / Phoenix; rotated
-  // per local day by TodayAdventureBuilder.
-  r.bossCandidates = [4, 5, 6];
+  // Forest rotation: autumn bosses plus woodland bestiary entries.
+  r.bossCandidates = [4, 5, 6, 12, 13, 14, 15, 16, 21, 22, 86, 87, 88, 89, 90, 91, 92, 93, 94];
   return r;
 })();
 
@@ -59,8 +58,8 @@ const SCHOOL_CASTLE: AdventureRegion = (() => {
     slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
-  // V0.3.8: Castle hosts Witch / Snow Queen.
-  r.bossCandidates = [7, 8];
+  // Castle rotation: magic study, dungeon curiosities, and toy-room guardians.
+  r.bossCandidates = [7, 8, 23, 24, 25, 26, 27, 28, 29, 30, 95, 96, 97, 98, 99, 100];
   return r;
 })();
 
@@ -81,10 +80,8 @@ const HOME_COTTAGE: AdventureRegion = (() => {
     slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
-  // V0.4.6: cottage drops Kraken; Unicorn is the only candidate now.
-  // Kraken migrates to OCEAN_REALM per the V0.3.8 standing promise
-  // ("Kraken will migrate to a future ocean region in v0.4").
-  r.bossCandidates = [9];
+  // Cottage rotation: gentle home, meadow, and toy-box creatures.
+  r.bossCandidates = [9, 18, 19, 20, 39, 40, 87, 88, 95, 96, 97, 98, 99, 100];
   return r;
 })();
 
@@ -107,13 +104,8 @@ const ANIMAL_SAFARI: AdventureRegion = (() => {
     slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
-  // V0.4.6: borrows Phoenix (#6) from the FRUIT_FOREST rotation pool;
-  // pairs with Unicorn (#9) which now becomes a multi-region rotation
-  // member after the cottage Kraken migration. Boss sharing is
-  // legitimate because the rotation key is per-region (regionId +
-  // dayKey) — same boss can appear in different regions on different
-  // local days without a uniqueness conflict.
-  r.bossCandidates = [6, 9];
+  // Safari rotation: winged, scaled, and friendly beast archetypes.
+  r.bossCandidates = [6, 9, 31, 32, 33, 34, 35, 36, 37, 38, 47, 48, 49, 50];
   return r;
 })();
 
@@ -135,10 +127,8 @@ const OCEAN_REALM: AdventureRegion = (() => {
     slot(MonsterKind.Boss),
   ];
   r.monsterPlan = plan;
-  // V0.4.6: Kraken (#10) lands here as its dedicated home. Single-
-  // candidate rotation pool means every local day surfaces the same
-  // boss; future V0.4.x can add a second oceanic boss to the codex.
-  r.bossCandidates = [10];
+  // Ocean rotation: deep-sea and reef creatures.
+  r.bossCandidates = [10, 11, 51, 52, 53, 54, 55, 56, 57, 58, 59];
   return r;
 })();
 

@@ -7,25 +7,120 @@
     "bgPrimary": "#FFF6E0",
     "bgAccent": "#FFD49A",
     "bossName": "Orchard Sentinel",
-    "bossCandidates": [4, 5, 6],
+    "bossCandidates": [
+      4,
+      5,
+      6,
+      12,
+      13,
+      14,
+      15,
+      16,
+      21,
+      22,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94
+    ],
     "monsterPlan": [
-      {"kind": "normal", "catalogIndex": 0},
-      {"kind": "spelling", "catalogIndex": 1},
-      {"kind": "review", "catalogIndex": 2},
-      {"kind": "elite", "catalogIndex": 11},
-      {"kind": "boss", "catalogIndex": 5}
+      {
+        "kind": "normal",
+        "catalogIndex": 1
+      },
+      {
+        "kind": "spelling",
+        "catalogIndex": 2
+      },
+      {
+        "kind": "review",
+        "catalogIndex": 2
+      },
+      {
+        "kind": "elite",
+        "catalogIndex": 3
+      },
+      {
+        "kind": "boss",
+        "catalogIndex": 4
+      }
     ]
   },
   "words": [
-    {"id": "fruit-apple", "word": "apple", "meaningZh": "苹果", "category": "fruit", "difficulty": 1},
-    {"id": "fruit-banana", "word": "banana", "meaningZh": "香蕉", "category": "fruit", "difficulty": 1},
-    {"id": "fruit-orange", "word": "orange", "meaningZh": "橙子", "category": "fruit", "difficulty": 1},
-    {"id": "fruit-grape", "word": "grape", "meaningZh": "葡萄", "category": "fruit", "difficulty": 1},
-    {"id": "fruit-pear", "word": "pear", "meaningZh": "梨", "category": "fruit", "difficulty": 1},
-    {"id": "fruit-peach", "word": "peach", "meaningZh": "桃子", "category": "fruit", "difficulty": 1},
-    {"id": "fruit-lemon", "word": "lemon", "meaningZh": "柠檬", "category": "fruit", "difficulty": 1},
-    {"id": "fruit-mango", "word": "mango", "meaningZh": "芒果", "category": "fruit", "difficulty": 1},
-    {"id": "fruit-melon", "word": "melon", "meaningZh": "瓜", "category": "fruit", "difficulty": 1},
-    {"id": "fruit-cherry", "word": "cherry", "meaningZh": "樱桃", "category": "fruit", "difficulty": 1}
+    {
+      "id": "fruit-apple",
+      "word": "apple",
+      "meaningZh": "苹果",
+      "category": "fruit",
+      "difficulty": 1
+    },
+    {
+      "id": "fruit-banana",
+      "word": "banana",
+      "meaningZh": "香蕉",
+      "category": "fruit",
+      "difficulty": 1
+    },
+    {
+      "id": "fruit-orange",
+      "word": "orange",
+      "meaningZh": "橙子",
+      "category": "fruit",
+      "difficulty": 1
+    },
+    {
+      "id": "fruit-grape",
+      "word": "grape",
+      "meaningZh": "葡萄",
+      "category": "fruit",
+      "difficulty": 1
+    },
+    {
+      "id": "fruit-pear",
+      "word": "pear",
+      "meaningZh": "梨",
+      "category": "fruit",
+      "difficulty": 1
+    },
+    {
+      "id": "fruit-peach",
+      "word": "peach",
+      "meaningZh": "桃子",
+      "category": "fruit",
+      "difficulty": 1
+    },
+    {
+      "id": "fruit-lemon",
+      "word": "lemon",
+      "meaningZh": "柠檬",
+      "category": "fruit",
+      "difficulty": 1
+    },
+    {
+      "id": "fruit-mango",
+      "word": "mango",
+      "meaningZh": "芒果",
+      "category": "fruit",
+      "difficulty": 1
+    },
+    {
+      "id": "fruit-melon",
+      "word": "melon",
+      "meaningZh": "瓜",
+      "category": "fruit",
+      "difficulty": 1
+    },
+    {
+      "id": "fruit-cherry",
+      "word": "cherry",
+      "meaningZh": "樱桃",
+      "category": "fruit",
+      "difficulty": 1
+    }
   ]
 }
