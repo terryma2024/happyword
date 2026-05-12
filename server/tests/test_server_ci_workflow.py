@@ -39,6 +39,17 @@ def test_e2e_uses_cli_preview_deployment_with_pr_metadata() -> None:
     )
 
 
+def test_e2e_preview_deploy_injects_test_admin_credentials() -> None:
+    """The deployed preview and pytest driver must use the same admin creds."""
+    workflow = _server_ci_workflow()
+
+    deploy_step = _step_with_id(workflow, "vercel_deploy")
+    assert "ADMIN_BOOTSTRAP_USER: ${{ secrets.E2E_ADMIN_USER }}" in deploy_step
+    assert "ADMIN_BOOTSTRAP_PASS: ${{ secrets.E2E_ADMIN_PASS }}" in deploy_step
+    assert '--env ADMIN_BOOTSTRAP_USER="$ADMIN_BOOTSTRAP_USER"' in deploy_step
+    assert '--env ADMIN_BOOTSTRAP_PASS="$ADMIN_BOOTSTRAP_PASS"' in deploy_step
+
+
 def test_e2e_prunes_stale_preview_dbs_before_reset() -> None:
     """Per-PR Atlas DB cleanup must run before reset to stay under collection caps."""
     workflow = _server_ci_workflow()

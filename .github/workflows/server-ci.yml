@@ -138,8 +138,8 @@ jobs:
         # was created before the PR existed, Vercel leaves
         # VERCEL_GIT_PULL_REQUEST_ID empty at runtime and the app resolves a
         # branch-fallback Mongo DB while the test runner resets happyword_pr_N_e2e.
-        # This CLI deployment injects stable PR metadata so both sides use the
-        # same isolated database.
+        # This CLI deployment injects stable PR metadata and E2E admin creds so
+        # the deployed bootstrap user matches the pytest login fixture.
         working-directory: .
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -150,6 +150,8 @@ jobs:
           VERCEL_META_ORG: ${{ github.repository_owner }}
           VERCEL_META_REPO: ${{ github.event.repository.name }}
           HAPPYWORD_PREVIEW_PR_ID: ${{ github.event.pull_request.number }}
+          ADMIN_BOOTSTRAP_USER: ${{ secrets.E2E_ADMIN_USER }}
+          ADMIN_BOOTSTRAP_PASS: ${{ secrets.E2E_ADMIN_PASS }}
         run: |
           set -euo pipefail
           DEPLOY_LOG="$(mktemp)"
@@ -161,6 +163,8 @@ jobs:
             --meta githubRepo="$VERCEL_META_REPO" \
             --env HAPPYWORD_PREVIEW_PR_ID="$HAPPYWORD_PREVIEW_PR_ID" \
             --env HAPPYWORD_PREVIEW_BRANCH="$VERCEL_META_COMMIT_REF" \
+            --env ADMIN_BOOTSTRAP_USER="$ADMIN_BOOTSTRAP_USER" \
+            --env ADMIN_BOOTSTRAP_PASS="$ADMIN_BOOTSTRAP_PASS" \
             2>&1 | tee "$DEPLOY_LOG"
           PREVIEW_URL="$(python3 - "$DEPLOY_LOG" <<'PY'
           import re
