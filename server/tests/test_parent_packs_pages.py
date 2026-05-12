@@ -72,3 +72,23 @@ async def test_pack_detail_renders_draft_table(parent_client: AsyncClient) -> No
     assert soup.find(id="draft-word-table") is not None
     assert "发布词库" in resp.text
     assert f"/parent/packs/{pack_id}/import" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_pack_import_page_disables_duplicate_submits(parent_client: AsyncClient) -> None:
+    created = await parent_client.post("/api/v1/parent/family-packs", json={"name": "Import"})
+    pack_id = created.json()["pack_id"]
+
+    resp = await parent_client.get(f"/parent/packs/{pack_id}/import")
+
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.text, "html.parser")
+    form = soup.find(id="pack-import-form")
+    button = soup.find(id="pack-import-submit")
+    assert form is not None
+    assert form.get("action") == f"/parent/packs/{pack_id}/import"
+    assert button is not None
+    assert button.get("data-submitting-label") == "导入中，请稍候..."
+    assert "disabled:cursor-not-allowed" in (button.get("class") or [])
+    assert 'form.dataset.submitting === "true"' in resp.text
+    assert 'submitButton.disabled = true' in resp.text
