@@ -13,6 +13,7 @@ from app.models.child_profile import ChildProfile
 from app.models.device_binding import DeviceBinding
 from app.models.word import Word
 from app.schemas.word_stats_sync import WordStatItem
+from app.services import global_pack_service as global_pack_svc
 from app.services import parent_report_service as svc
 from app.services import word_stats_sync_service as sync_svc
 from app.services.auth_service import create_session_token
@@ -118,7 +119,14 @@ async def test_empty_stats_yield_all_zero_report(db: object) -> None:
     assert report.accuracy_pct == 0
     assert report.new_count == 6
     assert report.mastered_count == 0
-    assert report.weak_categories == []
+    assert report.weak_packs == []
+    assert [p.pack_id for p in report.packs[:5]] == [
+        "fruit-forest",
+        "school-castle",
+        "home-cottage",
+        "animal-safari",
+        "ocean-realm",
+    ]
 
 
 @pytest.mark.asyncio
@@ -154,7 +162,7 @@ async def test_mastered_count_matches_classify(db: object) -> None:
 
 
 @pytest.mark.asyncio
-async def test_weak_categories_sorted_ascending_excludes_unseen(db: object) -> None:
+async def test_weak_packs_sorted_ascending_excludes_unseen(db: object) -> None:
     await _seed_words()
     family_id, child_id, _ = await _seed_family_with_child()
     # fruit: 3 stats, accuracy 50%; animal: 1 stat 100%.
@@ -175,11 +183,55 @@ async def test_weak_categories_sorted_ascending_excludes_unseen(db: object) -> N
         now_ms=_NOW_MS,
     )
     # fruit (50%) before animal (100%)
-    cats = [c.category for c in report.weak_categories]
-    assert cats[0] == "fruit"
-    assert "animal" in cats
-    # If a category had zero seen, it's excluded — but here both have data.
-    assert all(c.total_seen > 0 for c in report.weak_categories)
+    packs = [p.pack_id for p in report.weak_packs]
+    assert packs[0] == "fruit-forest"
+    assert "animal-safari" in packs
+    # If a pack had zero seen, it's excluded — but here both have data.
+    assert all(p.total_seen > 0 for p in report.weak_packs)
+
+
+@pytest.mark.asyncio
+async def test_pack_rows_count_independently_and_totals_dedupe(db: object) -> None:
+    family_id, child_id, _ = await _seed_family_with_child()
+    for pack_id, name in (
+        ("gpk-alpha", "Alpha Pack"),
+        ("gpk-beta", "Beta Pack"),
+    ):
+        await global_pack_svc.create_definition(
+            name=name,
+            admin_id="admin-1",
+            pack_id=pack_id,
+        )
+        await global_pack_svc.upsert_draft_word(
+            pack_id=pack_id,
+            admin_id="admin-1",
+            entry={
+                "id": "shared-apple",
+                "word": "apple",
+                "meaningZh": "苹果",
+                "category": "fruit",
+                "difficulty": 1,
+            },
+        )
+        await global_pack_svc.publish(pack_id=pack_id, admin_id="admin-1")
+    await sync_svc.sync(
+        child_profile_id=child_id,
+        items=[_stat("shared-apple", seen=5, correct=4)],
+        requesting_device_id="dev-test",
+    )
+
+    report = await svc.build_report(
+        family_id=family_id,
+        child_profile_id=child_id,
+        lookback_days=7,
+        now_ms=_NOW_MS,
+    )
+
+    assert report.total_words == 1
+    assert report.total_seen == 5
+    rows = {p.pack_id: p for p in report.packs}
+    assert rows["gpk-alpha"].total_seen == 5
+    assert rows["gpk-beta"].total_seen == 5
 
 
 @pytest.mark.asyncio
@@ -369,6 +421,7 @@ async def test_http_get_report_returns_payload(db: object) -> None:
     assert body["nickname"] == "小芳"
     assert body["total_words"] == 6
     assert body["lookback_days"] == 7
+    assert body["packs"][0]["pack_id"] == "fruit-forest"
 
 
 @pytest.mark.asyncio
@@ -402,7 +455,9 @@ async def test_html_device_detail_contains_report_ids(db: object) -> None:
     assert 'id="report-accuracy"' in body
     assert 'id="report-mastered"' in body
     assert 'id="report-review-done"' in body
-    assert 'id="report-weak-categories"' in body
+    assert 'id="report-weak-packs"' in body
+    assert "词包详情" in body
+    assert "分类详情" not in body
 
 
 @pytest.mark.asyncio

@@ -3,7 +3,8 @@
 Pure function `build_report` over `(child_profile_id, lookback_days,
 now_ms)`. Data sources:
 
-- `Word` collection — the global word pool (categories, total_words).
+- Published global/family packs — the current pack library visible to the child.
+- `Word` collection — legacy fallback before default global packs are published.
 - `SyncedWordStat` — the cloud copy of LearningRecorder per-word stats,
   populated by V0.6.4 sync endpoint.
 
@@ -16,20 +17,25 @@ Bucketing rules mirror the client's `MemoryScheduler.classify`:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta, timezone
+from typing import Any
 
 from app.models.child_profile import ChildProfile
 from app.models.synced_word_stat import SyncedWordStat
 from app.models.word import Word
-from app.schemas.parent_report import CategoryReportOut, ChildReportOut
+from app.schemas.parent_report import (
+    CategoryReportOut,
+    ChildReportOut,
+    PackReportOut,
+)
+from app.services import family_pack_service, global_pack_service
 
 LOOKBACK_DAYS_MIN = 1
 LOOKBACK_DAYS_MAX = 90
 LOOKBACK_DAYS_DEFAULT = 7
 
-# Localised category labels — matches the client's `describeCategory`
-# function in `services/LearningReportBuilder.ets`.
+# Legacy category labels retained for old API fields.
 _CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "fruit": "水果",
     "place": "地点",
@@ -37,6 +43,17 @@ _CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "animal": "动物",
     "ocean": "海洋",
     "synced_pack": "已同步词包",
+}
+
+_DEFAULT_PACKS: tuple[tuple[str, str, str], ...] = (
+    ("fruit-forest", "Fruit Forest", "fruit"),
+    ("school-castle", "School Castle", "place"),
+    ("home-cottage", "Home Cottage", "home"),
+    ("animal-safari", "Animal Safari", "animal"),
+    ("ocean-realm", "Ocean Realm", "ocean"),
+)
+_DEFAULT_PACK_ORDER: dict[str, int] = {
+    pack_id: idx for idx, (pack_id, _name, _category) in enumerate(_DEFAULT_PACKS)
 }
 
 
@@ -49,6 +66,16 @@ class _CategoryBucket:
     category: str
     total_seen: int = 0
     total_correct: int = 0
+
+
+@dataclass
+class _PackBucket:
+    pack_id: str
+    name: str
+    word_ids: list[str] = field(default_factory=list)
+    total_seen: int = 0
+    total_correct: int = 0
+    active: bool = False
 
 
 class ChildProfileNotFoundForReport(Exception):
@@ -91,6 +118,111 @@ def clamp_lookback(lookback_days: int | None) -> int:
     return lookback_days
 
 
+def _word_id_from_pack_entry(entry: dict[str, Any]) -> str | None:
+    if entry.get("hidden") is True:
+        return None
+    word_id = entry.get("id")
+    if isinstance(word_id, str) and word_id:
+        return word_id
+    return None
+
+
+def _bucket_from_pack_words(
+    *, pack_id: str, name: str, words: list[dict[str, Any]], active: bool = False
+) -> _PackBucket:
+    seen: set[str] = set()
+    word_ids: list[str] = []
+    for entry in words:
+        word_id = _word_id_from_pack_entry(entry)
+        if word_id is None or word_id in seen:
+            continue
+        seen.add(word_id)
+        word_ids.append(word_id)
+    return _PackBucket(pack_id=pack_id, name=name, word_ids=word_ids, active=active)
+
+
+def _legacy_default_pack_buckets(words: list[Word]) -> list[_PackBucket]:
+    """Fallback for databases not yet migrated to global pack definitions."""
+    by_category: dict[str, list[dict[str, Any]]] = {}
+    for w in words:
+        by_category.setdefault(w.category, []).append({"id": w.id})
+
+    buckets: list[_PackBucket] = []
+    known_categories: set[str] = set()
+    for pack_id, name, category in _DEFAULT_PACKS:
+        known_categories.add(category)
+        buckets.append(
+            _bucket_from_pack_words(
+                pack_id=pack_id,
+                name=name,
+                words=by_category.get(category, []),
+                active=True,
+            )
+        )
+
+    for category in sorted(set(by_category) - known_categories):
+        buckets.append(
+            _bucket_from_pack_words(
+                pack_id=f"legacy-{category}",
+                name=describe_category(category),
+                words=by_category[category],
+                active=True,
+            )
+        )
+    return buckets
+
+
+def _merge_pack_buckets(buckets: list[_PackBucket]) -> list[_PackBucket]:
+    merged: dict[str, _PackBucket] = {}
+    for bucket in buckets:
+        # Same id follows PackLibrary's override model: later source layers
+        # replace the earlier pack content while retaining deterministic order.
+        if bucket.pack_id in merged:
+            bucket.active = merged[bucket.pack_id].active or bucket.active
+        merged[bucket.pack_id] = bucket
+    indexed = list(enumerate(merged.values()))
+    indexed.sort(
+        key=lambda item: (
+            _DEFAULT_PACK_ORDER.get(item[1].pack_id, len(_DEFAULT_PACK_ORDER)),
+            item[0],
+        )
+    )
+    return [bucket for _idx, bucket in indexed]
+
+
+async def _collect_pack_buckets(
+    *, family_id: str, legacy_words: list[Word]
+) -> list[_PackBucket]:
+    global_slices, _global_etag = await global_pack_service.collect_merged()
+    family_slices, _family_etag = await family_pack_service.collect_merged(
+        family_id=family_id
+    )
+
+    buckets: list[_PackBucket] = []
+    if global_slices:
+        for s in global_slices:
+            buckets.append(
+                _bucket_from_pack_words(
+                    pack_id=s.pack_id,
+                    name=s.name,
+                    words=s.words,
+                    active=s.pack_id in _DEFAULT_PACK_ORDER,
+                )
+            )
+    else:
+        buckets.extend(_legacy_default_pack_buckets(legacy_words))
+
+    for s in family_slices:
+        buckets.append(
+            _bucket_from_pack_words(
+                pack_id=s.pack_id,
+                name=s.name,
+                words=s.words,
+            )
+        )
+    return _merge_pack_buckets(buckets)
+
+
 async def build_report(
     *,
     family_id: str,
@@ -114,11 +246,19 @@ async def build_report(
     clamped_lookback = clamp_lookback(lookback_days)
     start_of_today_ms = _start_of_today_ms(now_ms)
 
-    # Global word pool — categories + count.
+    # Legacy word pool is still used as a fallback until the default
+    # global packs have been published in every environment.
     words = await Word.find(
         Word.deleted_at == None,  # noqa: E711
     ).to_list()
-    total_words = len(words)
+    pack_buckets = await _collect_pack_buckets(
+        family_id=family_id,
+        legacy_words=words,
+    )
+    known_word_ids: set[str] = set()
+    for bucket in pack_buckets:
+        known_word_ids.update(bucket.word_ids)
+    total_words = len(known_word_ids)
 
     # Cloud-copy stats for the child.
     stats = await SyncedWordStat.find(
@@ -136,33 +276,26 @@ async def build_report(
             last_synced_at = s.updated_at
 
     cat_map: dict[str, _CategoryBucket] = {}
-    word_category_by_id: dict[str, str] = {}
     for w in words:
         cat_map.setdefault(w.category, _CategoryBucket(category=w.category))
-        word_category_by_id[w.id] = w.category
 
     total_seen = 0
     total_correct = 0
-    new_count = 0
+    new_from_stats = 0
     learning_count = 0
     familiar_count = 0
     mastered_count = 0
     review_due = 0
     review_done_today = 0
 
-    for w in words:
-        bucket = cat_map[w.category]
-        stat = stat_by_word_id.get(w.id)
-        if stat is None:
-            new_count += 1
+    for stat in stats:
+        if stat.word_id not in known_word_ids:
             continue
         total_seen += stat.seen_count
         total_correct += stat.correct_count
-        bucket.total_seen += stat.seen_count
-        bucket.total_correct += stat.correct_count
         state = _classify(stat, now_ms)
         if state == "new":
-            new_count += 1
+            new_from_stats += 1
         elif state == "mastered":
             mastered_count += 1
         elif state == "familiar":
@@ -174,8 +307,15 @@ async def build_report(
             learning_count += 1
         # Widen review-pool: any seen-before-today, non-new word counts
         # toward "review reach" so the bar reflects total surface area.
-        is_reviewable = stat.seen_count > 0 and stat.last_answered_ms < start_of_today_ms
-        if is_reviewable and stat.last_answered_ms >= 0 and state != "new" and state != "review":
+        is_reviewable = (
+            stat.seen_count > 0 and stat.last_answered_ms < start_of_today_ms
+        )
+        if (
+            is_reviewable
+            and stat.last_answered_ms >= 0
+            and state != "new"
+            and state != "review"
+        ):
             review_due += 1
         if (
             stat.last_answered_ms >= start_of_today_ms
@@ -184,16 +324,23 @@ async def build_report(
             review_done_today += 1
 
     # The native clients can sync stats for words that do not exist in the
-    # server-side Word collection: built-in packs, global/family pack words,
-    # or preview databases that have not imported the same word seed. Those
-    # rows are still valid child progress and must count in the report.
+    # current server-side pack library, for example old preview runs before
+    # words_v1 seeding or a pack that was later removed. Those rows are still
+    # valid child progress and must count in the report.
     orphan_stats = [
-        stat for stat in stats if stat.word_id not in word_category_by_id
+        stat for stat in stats if stat.word_id not in known_word_ids
     ]
     if orphan_stats:
         total_words += len(orphan_stats)
         bucket = cat_map.setdefault(
             "synced_pack", _CategoryBucket(category="synced_pack")
+        )
+        pack_buckets.append(
+            _PackBucket(
+                pack_id="synced-pack",
+                name="Synced Pack",
+                word_ids=[stat.word_id for stat in orphan_stats],
+            )
         )
         for stat in orphan_stats:
             total_seen += stat.seen_count
@@ -202,7 +349,7 @@ async def build_report(
             bucket.total_correct += stat.correct_count
             state = _classify(stat, now_ms)
             if state == "new":
-                new_count += 1
+                new_from_stats += 1
             elif state == "mastered":
                 mastered_count += 1
             elif state == "familiar":
@@ -228,7 +375,43 @@ async def build_report(
             ):
                 review_done_today += 1
 
+    unseen_in_library = len(known_word_ids - set(stat_by_word_id))
+    new_count = new_from_stats + unseen_in_library
     accuracy_pct = round(total_correct * 100 / total_seen) if total_seen > 0 else 0
+
+    packs: list[PackReportOut] = []
+    for bucket in pack_buckets:
+        for word_id in bucket.word_ids:
+            stat = stat_by_word_id.get(word_id)
+            if stat is None:
+                continue
+            bucket.total_seen += stat.seen_count
+            bucket.total_correct += stat.correct_count
+        acc = (
+            round(bucket.total_correct * 100 / bucket.total_seen)
+            if bucket.total_seen > 0
+            else 0
+        )
+        # Client includes active packs even with no data; server cannot see
+        # device-local selection, so it exposes all current visible packs.
+        packs.append(
+            PackReportOut(
+                pack_id=bucket.pack_id,
+                name=bucket.name,
+                total_seen=bucket.total_seen,
+                total_correct=bucket.total_correct,
+                accuracy_pct=acc,
+                active=bucket.active,
+            )
+        )
+
+    for w in words:
+        bucket = cat_map[w.category]
+        stat = stat_by_word_id.get(w.id)
+        if stat is None:
+            continue
+        bucket.total_seen += stat.seen_count
+        bucket.total_correct += stat.correct_count
 
     cats: list[CategoryReportOut] = []
     for bucket in cat_map.values():
@@ -248,6 +431,7 @@ async def build_report(
         )
 
     weak_cats = _pick_weak_categories(cats, 3)
+    weak_packs = _pick_weak_packs(packs, 3)
 
     review_completion_pct = (
         round(review_done_today * 100 / max(review_due, review_done_today))
@@ -269,6 +453,8 @@ async def build_report(
         review_due_count=review_due,
         review_done_today_count=review_done_today,
         review_completion_pct=review_completion_pct,
+        packs=packs,
+        weak_packs=weak_packs,
         categories=cats,
         weak_categories=weak_cats,
         today_review_done=review_done_today,
@@ -285,4 +471,13 @@ def _pick_weak_categories(
     """Sort categories by accuracy ASC, skip empty buckets, take ≤ n."""
     eligible = [c for c in cats if c.total_seen > 0]
     eligible.sort(key=lambda c: c.accuracy_pct)
+    return eligible[:n]
+
+
+def _pick_weak_packs(
+    packs: list[PackReportOut], n: int
+) -> list[PackReportOut]:
+    """Sort packs by accuracy ASC, skip empty buckets, take ≤ n."""
+    eligible = [p for p in packs if p.total_seen > 0]
+    eligible.sort(key=lambda p: p.accuracy_pct)
     return eligible[:n]

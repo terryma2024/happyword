@@ -93,7 +93,7 @@ def _flash_map_parents(request: Request) -> str | None:
 
 def _flash_map_devices(request: Request) -> tuple[str | None, str | None]:
     ok = request.query_params.get("flash_ok")
-    msgs = {"revoked": "已撤销设备绑定。"}
+    msgs = {"revoked": "已撤销设备绑定。", "restored": "已恢复设备绑定。"}
     err = request.query_params.get("flash_err")
     return (msgs.get(ok) if ok else None, err)
 
@@ -428,7 +428,9 @@ async def admin_parent_detail(request: Request, username: str) -> HTMLResponse |
 
 
 @router.post("/parents/{username}/suspend", response_model=None)
-async def admin_parent_suspend(request: Request, username: str, reason: str = Form(...)) -> RedirectResponse:
+async def admin_parent_suspend(
+    request: Request, username: str, reason: str = Form(...)
+) -> RedirectResponse:
     gate = await _require_admin_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
@@ -445,11 +447,15 @@ async def admin_parent_suspend(request: Request, username: str, reason: str = Fo
         )
     except LookupError:
         return RedirectResponse(url="/admin/parents?flash_err=not_found", status_code=303)
-    return RedirectResponse(url=f"/admin/parents/{username}?flash_ok=suspended", status_code=303)
+    return RedirectResponse(
+        url=f"/admin/parents/{username}?flash_ok=suspended", status_code=303
+    )
 
 
 @router.post("/parents/{username}/restore", response_model=None)
-async def admin_parent_restore(request: Request, username: str, reason: str = Form(...)) -> RedirectResponse:
+async def admin_parent_restore(
+    request: Request, username: str, reason: str = Form(...)
+) -> RedirectResponse:
     gate = await _require_admin_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
@@ -466,7 +472,9 @@ async def admin_parent_restore(request: Request, username: str, reason: str = Fo
         )
     except LookupError:
         return RedirectResponse(url="/admin/parents?flash_err=not_found", status_code=303)
-    return RedirectResponse(url=f"/admin/parents/{username}?flash_ok=restored", status_code=303)
+    return RedirectResponse(
+        url=f"/admin/parents/{username}?flash_ok=restored", status_code=303
+    )
 
 
 # --- devices -------------------------------------------------------------------
@@ -482,10 +490,14 @@ async def admin_devices_list(
     if isinstance(gate, RedirectResponse):
         return gate
     flash_ok, flash_err = _flash_map_devices(request)
-    bindings, total = await acs.search_device_bindings(q=q, page=page, page_size=PAGE_SIZE)
+    bindings, total = await acs.search_device_bindings(
+        q=q, page=page, page_size=PAGE_SIZE
+    )
     page_nums, total_pages, page_use = _pagination(total, page, PAGE_SIZE)
     if page_use != page:
-        bindings, total = await acs.search_device_bindings(q=q, page=page_use, page_size=PAGE_SIZE)
+        bindings, total = await acs.search_device_bindings(
+            q=q, page=page_use, page_size=PAGE_SIZE
+        )
     return templates.TemplateResponse(
         request,
         "admin/devices_list.html",
@@ -503,7 +515,9 @@ async def admin_devices_list(
 
 
 @router.get("/devices/{binding_id}/revoke", response_class=HTMLResponse, response_model=None)
-async def admin_device_revoke_form(request: Request, binding_id: str) -> HTMLResponse | RedirectResponse:
+async def admin_device_revoke_form(
+    request: Request, binding_id: str
+) -> HTMLResponse | RedirectResponse:
     gate = await _require_admin_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
@@ -543,6 +557,51 @@ async def admin_device_revoke_post(
             status_code=400,
         )
     return RedirectResponse(url="/admin/devices?flash_ok=revoked", status_code=303)
+
+
+@router.get("/devices/{binding_id}/restore", response_class=HTMLResponse, response_model=None)
+async def admin_device_restore_form(
+    request: Request, binding_id: str
+) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    binding = await DeviceBinding.find_one(DeviceBinding.binding_id == binding_id)
+    if binding is None:
+        return RedirectResponse(url="/admin/devices?flash_err=not_found", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "admin/device_restore.html",
+        {"admin_user": gate, "binding": binding, "error": None},
+    )
+
+
+@router.post("/devices/{binding_id}/restore", response_model=None)
+async def admin_device_restore_post(
+    request: Request,
+    binding_id: str,
+    reason: str = Form(...),
+) -> RedirectResponse | HTMLResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    binding = await DeviceBinding.find_one(DeviceBinding.binding_id == binding_id)
+    if binding is None:
+        return RedirectResponse(url="/admin/devices?flash_err=not_found", status_code=303)
+    try:
+        await acs.admin_restore_device_binding(
+            admin_username=gate.username,
+            binding_id=binding_id,
+            reason=reason,
+        )
+    except ValueError as e:
+        return templates.TemplateResponse(
+            request,
+            "admin/device_restore.html",
+            {"admin_user": gate, "binding": binding, "error": str(e)},
+            status_code=400,
+        )
+    return RedirectResponse(url="/admin/devices?flash_ok=restored", status_code=303)
 
 
 # --- global packs ------------------------------------------------------------
@@ -620,13 +679,14 @@ async def admin_global_pack_import_image_post(
     pid = pack_id.strip()
     mime = (image.content_type or "").lower()
     if mime not in _ACCEPTED_GLOBAL_IMPORT_MIME:
+        err = "不支持的图片类型，请上传 JPEG、PNG 或 WebP。"
         return RedirectResponse(
             url=_global_pack_detail_url(
                 pid,
-                flash_err="不支持的图片类型，请上传 JPEG、PNG 或 WebP。",
+                flash_err=err,
             )
             if pid
-            else f"/admin/global-packs?flash_err={quote('不支持的图片类型，请上传 JPEG、PNG 或 WebP。')}",
+            else f"/admin/global-packs?flash_err={quote(err)}",
             status_code=303,
         )
     payload = await image.read()
@@ -973,7 +1033,11 @@ async def admin_global_pack_draft_create_post(
     )
 
 
-@router.get("/global-packs/packs/{pack_id}/draft/edit", response_class=HTMLResponse, response_model=None)
+@router.get(
+    "/global-packs/packs/{pack_id}/draft/edit",
+    response_class=HTMLResponse,
+    response_model=None,
+)
 async def admin_global_pack_draft_edit_page(
     request: Request,
     pack_id: str,
