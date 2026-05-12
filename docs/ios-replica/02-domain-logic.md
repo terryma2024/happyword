@@ -90,6 +90,7 @@ Battle question semantics to preserve:
   - `Spell`: first letter revealed, remaining letters chosen from a shuffled letter pool.
 - Monster slot fallback must match HarmonyOS: normal/review use `Choice`; spelling uses `FillLetter -> Choice`; elite uses `FillLetterMedium -> FillLetter -> Choice`; boss uses `Spell -> FillLetterMedium -> FillLetter -> Choice`.
 - Battle UI may render spelling as letter-tap interactions, but the engine still receives the completed word for `Spell`, matching HarmonyOS' submit-on-completion behavior.
+- `FillLetterMedium` auto pronunciation plays when the question first appears. After the first missing letter is filled, the second-letter step remains the same question and must not auto-play the word again; the speaker button still manually replays it.
 
 ## Phase 3 Cloud Types
 

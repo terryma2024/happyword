@@ -1,0 +1,72 @@
+import SwiftUI
+
+struct ChildProfileView: View {
+    @ObservedObject var coordinator: AppCoordinator
+    @State private var nickname = ""
+    @FocusState private var isNicknameFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Button("返回") { coordinator.route = .home }
+                    .font(.headline.weight(.bold))
+                    .buttonStyle(.plain)
+                Spacer()
+            }
+
+            HStack(spacing: 24) {
+                Text(coordinator.currentChildAvatarEmoji())
+                    .font(.system(size: 62))
+                    .frame(width: 104, height: 104)
+                    .background(AppTheme.paleBlue, in: Circle())
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("孩子档案")
+                        .font(.system(size: 34, weight: .heavy, design: .rounded))
+                        .foregroundStyle(AppTheme.navy)
+                    TextField("孩子名字", text: $nickname)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .frame(maxWidth: 360)
+                        .focused($isNicknameFocused)
+                        .accessibilityIdentifier("孩子名字")
+                    HStack(spacing: 14) {
+                        Button("保存名字") {
+                            isNicknameFocused = false
+                            Task {
+                                await coordinator.updateChildNickname(nickname)
+                            }
+                        }
+                        .font(.headline.weight(.heavy))
+                        .foregroundStyle(.white)
+                        .frame(width: 132, height: 44)
+                        .background(AppTheme.red, in: Capsule())
+                        .buttonStyle(.plain)
+
+                        Text(coordinator.bindingMessage)
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(coordinator.bindingMessage.hasPrefix("已保存") ? AppTheme.mint : AppTheme.red)
+                            .accessibilityIdentifier("ChildProfileMessage")
+                    }
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 24)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18).stroke(Color.gray.opacity(0.16), lineWidth: 1.2)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 42)
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(AppTheme.page)
+        .ignoresSafeArea(.keyboard)
+        .onAppear {
+            nickname = coordinator.currentChildNickname()
+        }
+    }
+}

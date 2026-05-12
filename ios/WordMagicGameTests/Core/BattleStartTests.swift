@@ -29,6 +29,22 @@ final class BattleStartTests: XCTestCase {
         XCTAssertTrue(sawAnswerAwayFromFirstOption)
     }
 
+    func testAnimatedBattleAnswerRecordsLearningStatForCloudSync() throws {
+        let coordinator = AppCoordinator(
+            configStore: GameConfigStore(defaults: UserDefaults(suiteName: "BattleAnimatedLearning-\(UUID().uuidString)")!),
+            pronunciationService: SilentPronunciationService(),
+            battleRandomSeed: 1
+        )
+        coordinator.startBattle()
+        let question = try XCTUnwrap(coordinator.battleEngine?.state.currentQuestion)
+
+        _ = coordinator.submitBattleOptionForAnimation(question.answer)
+
+        let stat = try XCTUnwrap(coordinator.learningRecorder.stat(for: question.wordId))
+        XCTAssertEqual(stat.attempts, 1)
+        XCTAssertEqual(stat.correct, 1)
+    }
+
     private final class SilentPronunciationService: PronunciationSpeaking {
         var isAvailable = true
 

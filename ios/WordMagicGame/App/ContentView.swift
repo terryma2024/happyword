@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @StateObject private var coordinator = AppCoordinator()
@@ -40,6 +41,37 @@ struct ContentView: View {
                 ScanBindingView(coordinator: coordinator)
             case .boundDeviceInfo:
                 BoundDeviceInfoView(coordinator: coordinator)
+            case .childProfile:
+                ChildProfileView(coordinator: coordinator)
+            case .devMenu:
+                if DeveloperToolsPolicy.isDeveloperToolsVisible() {
+                    DevMenuView(coordinator: coordinator)
+                } else {
+                    ConfigView(coordinator: coordinator)
+                }
+            case .bypassSecret:
+                if DeveloperToolsPolicy.isDeveloperToolsVisible() {
+                    BypassSecretView(coordinator: coordinator)
+                } else {
+                    ConfigView(coordinator: coordinator)
+                }
+            }
+
+            if let toastMessage = coordinator.toastMessage {
+                VStack {
+                    Spacer()
+                    Text(toastMessage)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(Color.black.opacity(0.82), in: Capsule())
+                        .accessibilityIdentifier("AppToast")
+                        .padding(.bottom, 28)
+                }
+                .transition(.opacity)
             }
         }
         .accessibilityIdentifier("RootView")
@@ -48,6 +80,9 @@ struct ContentView: View {
         }
         .onChange(of: coordinator.route) { _, route in
             OrientationController.apply(for: route)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            Task { await coordinator.syncWordStatsIfPossible(showStatus: false) }
         }
     }
 }

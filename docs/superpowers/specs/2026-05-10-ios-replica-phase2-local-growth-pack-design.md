@@ -159,6 +159,7 @@ Rules:
 UI:
 
 - Wishlist shows current magic coins, add button, history button, wish cards.
+- Add button opens a PIN-gated custom wish form for name, positive coin cost, and emoji/icon; it must not silently add a hard-coded wish.
 - Redemption history shows chronological list.
 - GiftBox is a modal celebration and blocks interaction while playing.
 

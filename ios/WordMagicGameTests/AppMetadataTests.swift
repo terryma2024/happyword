@@ -40,40 +40,54 @@ final class AppMetadataTests: XCTestCase {
         XCTAssertEqual(try pngSize(at: iconURL), CGSize(width: 1024, height: 1024))
     }
 
-    func testHarmonyButtonImageAssetsAreCopiedFromHarmonyOS() throws {
-        let pairs = [
-            HarmonyAssetPair(assetName: "HarmonyReview", sourcePath: "icons/review.png", filename: "review.png"),
-            HarmonyAssetPair(assetName: "HarmonyCodex", sourcePath: "icons/codex.png", filename: "codex.png"),
-            HarmonyAssetPair(assetName: "HarmonyWishlist", sourcePath: "icons/wishlist.png", filename: "wishlist.png"),
-            HarmonyAssetPair(assetName: "HarmonyGear", sourcePath: "icons/gear.png", filename: "gear.png"),
-            HarmonyAssetPair(assetName: "HarmonyScroll", sourcePath: "icons/scroll.png", filename: "scroll.png"),
-            HarmonyAssetPair(assetName: "HarmonyStartIcon", sourcePath: "icons/start_icon.svg", filename: "start_icon.svg"),
-            HarmonyAssetPair(assetName: "HarmonyWand", sourcePath: "icons/wand.svg", filename: "wand.svg")
-        ]
+    func testIOSImageAssetNamesDoNotUseSourcePlatformPrefix() throws {
+        let assetCatalog = try repoRoot()
+            .appending(path: "ios/WordMagicGame/Resources/Assets.xcassets")
+        let imageSetNames = try FileManager.default
+            .contentsOfDirectory(at: assetCatalog, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "imageset" }
+            .map { $0.deletingPathExtension().lastPathComponent }
+        let sourcePlatformNames = imageSetNames.filter {
+            $0.localizedCaseInsensitiveContains("Harmony")
+        }
 
-        try assertHarmonyAssets(pairs, sourceRoot: "harmonyos/entry/src/main/resources/rawfile")
+        XCTAssertEqual(sourcePlatformNames, [])
     }
 
-    func testHarmonyCharacterImageAssetsAreCopiedFromHarmonyOS() throws {
+    func testIOSButtonImageAssetsAreCopiedFromHarmonyOS() throws {
         let pairs = [
-            HarmonyAssetPair(assetName: "HarmonyCharacterMagician", sourcePath: "character/magican.svg", filename: "magican.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterMagicianFight", sourcePath: "character/magican_fight.svg", filename: "magican_fight.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterMagicianBeaten", sourcePath: "character/magican_beaten.svg", filename: "magican_beaten.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterMagicianDizzy", sourcePath: "character/magican_dizz.svg", filename: "magican_dizz.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterSlime", sourcePath: "character/slime.svg", filename: "slime.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterZombie", sourcePath: "character/zombie.svg", filename: "zombie.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterDragon", sourcePath: "character/dragon.svg", filename: "dragon.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterJellyfish", sourcePath: "character/jellyfish.svg", filename: "jellyfish.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterKraken", sourcePath: "character/kraken.svg", filename: "kraken.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterWitch", sourcePath: "character/witch.svg", filename: "witch.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterImpKing", sourcePath: "character/imp-king.svg", filename: "imp-king.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterPhoenix", sourcePath: "character/phoenix.svg", filename: "phoenix.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterPumpkinKing", sourcePath: "character/pumpkin-king.svg", filename: "pumpkin-king.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterSnowQueen", sourcePath: "character/snow-queen.svg", filename: "snow-queen.svg"),
-            HarmonyAssetPair(assetName: "HarmonyCharacterUnicorn", sourcePath: "character/unicorn.svg", filename: "unicorn.svg")
+            SourceAssetPair(assetName: "ToolbarReview", sourcePath: "icons/review.png", filename: "review.png"),
+            SourceAssetPair(assetName: "ToolbarCodex", sourcePath: "icons/codex.png", filename: "codex.png"),
+            SourceAssetPair(assetName: "ToolbarWishlist", sourcePath: "icons/wishlist.png", filename: "wishlist.png"),
+            SourceAssetPair(assetName: "SettingsGear", sourcePath: "icons/gear.png", filename: "gear.png"),
+            SourceAssetPair(assetName: "MagicScroll", sourcePath: "icons/scroll.png", filename: "scroll.png"),
+            SourceAssetPair(assetName: "StartIcon", sourcePath: "icons/start_icon.svg", filename: "start_icon.svg"),
+            SourceAssetPair(assetName: "MagicWand", sourcePath: "icons/wand.svg", filename: "wand.svg")
         ]
 
-        try assertHarmonyAssets(pairs, sourceRoot: "harmonyos/entry/src/main/resources/rawfile")
+        try assertCopiedSourceAssets(pairs, sourceRoot: "harmonyos/entry/src/main/resources/rawfile")
+    }
+
+    func testIOSCharacterImageAssetsAreCopiedFromHarmonyOS() throws {
+        let pairs = [
+            SourceAssetPair(assetName: "CharacterMagician", sourcePath: "character/magican.svg", filename: "magican.svg"),
+            SourceAssetPair(assetName: "CharacterMagicianFight", sourcePath: "character/magican_fight.svg", filename: "magican_fight.svg"),
+            SourceAssetPair(assetName: "CharacterMagicianBeaten", sourcePath: "character/magican_beaten.svg", filename: "magican_beaten.svg"),
+            SourceAssetPair(assetName: "CharacterMagicianDizzy", sourcePath: "character/magican_dizz.svg", filename: "magican_dizz.svg"),
+            SourceAssetPair(assetName: "CharacterSlime", sourcePath: "character/slime.svg", filename: "slime.svg"),
+            SourceAssetPair(assetName: "CharacterZombie", sourcePath: "character/zombie.svg", filename: "zombie.svg"),
+            SourceAssetPair(assetName: "CharacterDragon", sourcePath: "character/dragon.svg", filename: "dragon.svg"),
+            SourceAssetPair(assetName: "CharacterJellyfish", sourcePath: "character/jellyfish.svg", filename: "jellyfish.svg"),
+            SourceAssetPair(assetName: "CharacterKraken", sourcePath: "character/kraken.svg", filename: "kraken.svg"),
+            SourceAssetPair(assetName: "CharacterWitch", sourcePath: "character/witch.svg", filename: "witch.svg"),
+            SourceAssetPair(assetName: "CharacterImpKing", sourcePath: "character/imp-king.svg", filename: "imp-king.svg"),
+            SourceAssetPair(assetName: "CharacterPhoenix", sourcePath: "character/phoenix.svg", filename: "phoenix.svg"),
+            SourceAssetPair(assetName: "CharacterPumpkinKing", sourcePath: "character/pumpkin-king.svg", filename: "pumpkin-king.svg"),
+            SourceAssetPair(assetName: "CharacterSnowQueen", sourcePath: "character/snow-queen.svg", filename: "snow-queen.svg"),
+            SourceAssetPair(assetName: "CharacterUnicorn", sourcePath: "character/unicorn.svg", filename: "unicorn.svg")
+        ]
+
+        try assertCopiedSourceAssets(pairs, sourceRoot: "harmonyos/entry/src/main/resources/rawfile")
     }
 
     private func repoRoot() throws -> URL {
@@ -93,10 +107,10 @@ final class AppMetadataTests: XCTestCase {
         return CGSize(width: Int(width), height: Int(height))
     }
 
-    private func assertHarmonyAssets(_ pairs: [HarmonyAssetPair], sourceRoot: String) throws {
+    private func assertCopiedSourceAssets(_ pairs: [SourceAssetPair], sourceRoot: String) throws {
         let root = try repoRoot()
         let assetCatalog = root.appending(path: "ios/WordMagicGame/Resources/Assets.xcassets")
-        let harmonyRoot = root.appending(path: sourceRoot)
+        let sourceAssetRoot = root.appending(path: sourceRoot)
 
         for pair in pairs {
             let imageSet = assetCatalog.appending(path: "\(pair.assetName).imageset")
@@ -109,14 +123,14 @@ final class AppMetadataTests: XCTestCase {
             XCTAssertEqual(image?["filename"] as? String, pair.filename, pair.assetName)
             XCTAssertEqual(
                 try Data(contentsOf: imageSet.appending(path: pair.filename)),
-                try Data(contentsOf: harmonyRoot.appending(path: pair.sourcePath)),
+                try Data(contentsOf: sourceAssetRoot.appending(path: pair.sourcePath)),
                 pair.assetName
             )
         }
     }
 }
 
-private struct HarmonyAssetPair {
+private struct SourceAssetPair {
     let assetName: String
     let sourcePath: String
     let filename: String

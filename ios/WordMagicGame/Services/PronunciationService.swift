@@ -14,6 +14,10 @@ func shouldAutoSpeak(autoSpeakEnabled: Bool, ttsAvailable: Bool, isRevealing: Bo
     autoSpeakEnabled && ttsAvailable && !isRevealing
 }
 
+func shouldAutoSpeakAfterAnswerFeedback(_ outcome: AnswerOutcome) -> Bool {
+    !outcome.advancedStep
+}
+
 @MainActor
 final class SystemPronunciationService: NSObject, PronunciationSpeaking {
     private let synthesizer = AVSpeechSynthesizer()

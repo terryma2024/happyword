@@ -96,6 +96,12 @@ iPhone landscape layout:
 
 Phase 1 must support Choice questions. The Swift types must already model FillLetter, FillLetterMedium, and Spell so enabling them later does not rewrite the engine boundary.
 
+Audio rule:
+
+- Auto pronunciation plays once when a new question appears.
+- For `FillLetterMedium`, filling the first missing letter advances to the second missing-letter step inside the same question. That in-place step advance must not trigger auto pronunciation again.
+- The speaker button remains available and manually replays the full English answer regardless of the current missing-letter step.
+
 Required identifiers:
 
 - `BattleComboLabel`

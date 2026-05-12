@@ -4,7 +4,9 @@
 
 **Goal:** Implement the iOS Phase 3 parent-cloud slice: child device binding, secure device credentials, bound-device info, global/family pack sync, and word-stats sync payload support.
 
-**Architecture:** Keep gameplay offline-first and put all cloud-facing state behind Swift service boundaries. Use Keychain for `device_id` and `device_token`, UserDefaults only for non-secret binding metadata, and merge remote pack layers as `family > global > builtin`. Build the short-code binding path first because it is deterministic in XCTest/XCUITest; QR camera/gallery decoding remains a later parity slice.
+**Architecture:** Keep gameplay offline-first and put all cloud-facing state behind Swift service boundaries. Use Keychain for `device_id` and `device_token`, UserDefaults only for non-secret binding metadata, and merge remote pack layers as `family > global > builtin`. Build the short-code binding path first because it is deterministic in XCTest/XCUITest; pasted QR landing links are parsed now, while live camera/gallery decoding remains a later parity slice.
+
+**Implementation status, 2026-05-12:** Phase 3 is implemented in the iOS replica branch, including real HTTP clients for pair redeem, global/family pack sync, word-stats sync, unbind, and child-profile update; file-backed remote pack caches; explicit/background/battle-result word-stats sync triggers; child-profile rename; custom wish creation; return-button placement fixes; and the two-letter auto-pronunciation regression.
 
 **Tech Stack:** Swift 6, SwiftUI, XCTest, XCUITest, Security/Keychain, XcodeGen-backed iOS project (`ios/project.yml`), iPhone 17 Pro simulator.
 
@@ -37,6 +39,9 @@
 - Create: `ios/WordMagicGame/Features/Settings/CloudBindingViews.swift`
   - `ScanBindingView`.
   - `BoundDeviceInfoView`.
+- Create: `ios/WordMagicGame/Features/Settings/ChildProfileView.swift`
+  - Child profile page opened from the Home toolbar child badge.
+  - Local nickname edit flow backed by `PUT /api/v1/child/profile`.
 - Create: `ios/WordMagicGameTests/Core/CloudSyncTests.swift`
   - DTO, secure store, pack-sync status, merge, and word-stats payload tests.
 - Modify: `ios/WordMagicGame/App/AppCoordinator.swift`
@@ -48,7 +53,15 @@
 - Modify: `ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift`
   - Wire PackManager sync button to Phase 3 sync and keep Chinese UI labels.
 - Modify: `ios/WordMagicGameUITests/WordMagicGameUITests.swift`
-  - Add binding/unbind and global/family pack sync UI coverage.
+  - Add binding/unbind, global/family pack sync, child profile rename, and back-button placement UI coverage.
+- Modify: `ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift`
+  - Replace the hard-coded `添加愿望` action with a real custom-wish form.
+- Modify: `ios/WordMagicGame/Features/CoreLoop/BattleView.swift`
+  - Suppress automatic pronunciation after the first step of a two-letter fill-in-place question.
+- Modify: `ios/WordMagicGame/Services/PronunciationService.swift`
+  - Add a small pure helper for post-feedback auto-pronunciation decisions.
+- Modify: `ios/WordMagicGameTests/Core/PronunciationServiceTests.swift`
+  - Add regression coverage for `FillLetterMedium` in-place step advancement.
 - Verify: `ios/project.yml`
   - It already includes directory-level sources, so no per-file source entries are needed. If XcodeGen is available, regenerate and compare `ios/WordMagicGame.xcodeproj` before committing.
 
@@ -1533,20 +1546,619 @@ git add \
 git commit -m "feat: implement ios phase3 parent cloud sync"
 ```
 
+## Task 9: Add Child Profile Entry, Nickname Edit, And Back-Button Placement Fixes
+
+**Files:**
+- Create: `ios/WordMagicGame/Features/Settings/ChildProfileView.swift`
+- Modify: `ios/WordMagicGame/App/AppCoordinator.swift`
+- Modify: `ios/WordMagicGame/App/ContentView.swift`
+- Modify: `ios/WordMagicGame/Features/CoreLoop/HomeView.swift`
+- Modify: `ios/WordMagicGame/Features/Settings/CloudBindingViews.swift`
+- Modify: `ios/WordMagicGameUITests/WordMagicGameUITests.swift`
+
+- [ ] **Step 1: Add failing UI coverage for Home -> child profile -> rename -> Home**
+
+Add this test to `ios/WordMagicGameUITests/WordMagicGameUITests.swift`:
+
+```swift
+@MainActor
+func testHomeChildProfileBadgeOpensProfileAndRenamesChild() {
+    let app = XCUIApplication()
+    app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice"]
+    app.launch()
+
+    XCTAssertTrue(app.buttons["HomeChildProfileButton"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["HomeChildProfileButton"].label.contains("小明测试46373"))
+    app.buttons["HomeChildProfileButton"].tap()
+
+    XCTAssertTrue(app.staticTexts["孩子档案"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.textFields["孩子名字"].exists)
+    app.textFields["孩子名字"].tap()
+    app.textFields["孩子名字"].clearAndTypeText("小星星")
+    app.buttons["保存名字"].tap()
+
+    XCTAssertTrue(app.staticTexts["已保存孩子名字"].waitForExistence(timeout: 5))
+    app.buttons["返回"].tap()
+    XCTAssertTrue(app.buttons["HomeChildProfileButton"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["HomeChildProfileButton"].label.contains("小星星"))
+}
+```
+
+If `clearAndTypeText` is not available in the test file, add this helper near the other UI-test helpers:
+
+```swift
+private extension XCUIElement {
+    func clearAndTypeText(_ text: String) {
+        guard let current = value as? String else {
+            typeText(text)
+            return
+        }
+        tap()
+        let delete = String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count)
+        typeText(delete)
+        typeText(text)
+    }
+}
+```
+
+- [ ] **Step 2: Add failing UI coverage for the landscape return-button placement**
+
+Add this test to `ios/WordMagicGameUITests/WordMagicGameUITests.swift`:
+
+```swift
+@MainActor
+func testLandscapeAccountPagesKeepBackButtonAtTopLeft() {
+    let app = XCUIApplication()
+    app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice", "-UITestRouteRedemptionHistory"]
+    app.launch()
+
+    assertLandscape(app)
+    assertTopLeftBackButton(app.buttons["返回"], in: app)
+
+    app.terminate()
+    app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice", "-UITestRouteBoundDeviceInfo"]
+    app.launch()
+
+    assertLandscape(app)
+    assertTopLeftBackButton(app.buttons["返回"], in: app)
+}
+```
+
+Add this helper near the existing orientation helpers:
+
+```swift
+@MainActor
+private func assertTopLeftBackButton(_ button: XCUIElement, in app: XCUIApplication) {
+    XCTAssertTrue(button.waitForExistence(timeout: 5))
+    let frame = button.frame
+    let screen = app.windows.element(boundBy: 0).frame
+    XCTAssertLessThan(frame.minX, screen.minX + 130)
+    XCTAssertLessThan(frame.minY, screen.minY + 90)
+}
+```
+
+- [ ] **Step 3: Add child profile route and local nickname update action**
+
+In `ios/WordMagicGame/App/AppCoordinator.swift`, add a route:
+
+```swift
+case childProfile
+```
+
+Add coordinator helpers:
+
+```swift
+func openChildProfile() {
+    bindingMessage = ""
+    route = .childProfile
+}
+
+func currentChildNickname() -> String {
+    cloudCredentialsStore.credentials?.nickname ?? "小明测试82941"
+}
+
+func updateChildNickname(_ nickname: String) {
+    let cleaned = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !cleaned.isEmpty else {
+        bindingMessage = "请输入孩子名字"
+        return
+    }
+    guard var credentials = cloudCredentialsStore.credentials else {
+        bindingMessage = "请先绑定家长账号"
+        return
+    }
+    credentials.nickname = cleaned
+    cloudCredentialsStore.save(credentials)
+    bindingMessage = "已保存孩子名字"
+    objectWillChange.send()
+}
+```
+
+Add an overload to `CloudCredentialsStore` so local nickname edits do not need a fake pair-redeem response:
+
+```swift
+func save(_ credentials: CloudCredentials) {
+    secureStore.set(credentials.deviceToken, forKey: Self.deviceTokenKey)
+    let metadata = Metadata(
+        bindingId: credentials.bindingId,
+        familyId: credentials.familyId,
+        childProfileId: credentials.childProfileId,
+        nickname: credentials.nickname,
+        avatarEmoji: credentials.avatarEmoji
+    )
+    if let data = try? JSONEncoder().encode(metadata) {
+        defaults.set(data, forKey: metadataKey)
+    }
+}
+```
+
+Then make `save(_ response: PairRedeemResponse)` delegate through the overload.
+
+- [ ] **Step 4: Route the child profile page**
+
+In `ios/WordMagicGame/App/ContentView.swift`, add:
+
+```swift
+case .childProfile:
+    ChildProfileView(coordinator: coordinator)
+```
+
+- [ ] **Step 5: Make the Home child badge clickable**
+
+In `ios/WordMagicGame/Features/CoreLoop/HomeView.swift`, replace the static child badge with a button:
+
+```swift
+Button {
+    coordinator.openChildProfile()
+} label: {
+    badge("🦁 \(coordinator.currentChildNickname())", tint: AppTheme.paleBlue, foreground: Color(red: 0.02, green: 0.42, blue: 0.66))
+}
+.buttonStyle(.plain)
+.accessibilityLabel("孩子档案 \(coordinator.currentChildNickname())")
+.accessibilityIdentifier("HomeChildProfileButton")
+```
+
+- [ ] **Step 6: Create the child profile page**
+
+Create `ios/WordMagicGame/Features/Settings/ChildProfileView.swift`:
+
+```swift
+import SwiftUI
+
+struct ChildProfileView: View {
+    @ObservedObject var coordinator: AppCoordinator
+    @State private var nickname = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Button("返回") { coordinator.route = .home }
+                    .font(.headline.weight(.bold))
+                    .accessibilityIdentifier("ChildProfileBack")
+                Spacer()
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                Text("孩子档案")
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
+                TextField("孩子名字", text: $nickname)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.title3.weight(.bold))
+                    .frame(maxWidth: 360)
+                    .accessibilityIdentifier("孩子名字")
+                Button("保存名字") {
+                    coordinator.updateChildNickname(nickname)
+                }
+                .font(.headline.weight(.heavy))
+                .foregroundStyle(.white)
+                .frame(width: 150, height: 44)
+                .background(AppTheme.red, in: Capsule())
+                .buttonStyle(.plain)
+
+                if !coordinator.bindingMessage.isEmpty {
+                    Text(coordinator.bindingMessage)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(coordinator.bindingMessage.hasPrefix("已保存") ? AppTheme.mint : AppTheme.red)
+                }
+            }
+            .padding(22)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18).stroke(Color.gray.opacity(0.16), lineWidth: 1.2)
+            }
+
+            Spacer()
+        }
+        .padding(.top, 24)
+        .padding(.leading, 42)
+        .padding(.trailing, 42)
+        .background(AppTheme.page)
+        .onAppear {
+            nickname = coordinator.currentChildNickname()
+        }
+    }
+}
+```
+
+- [ ] **Step 7: Fix landscape return-button placement**
+
+Update `RedemptionHistoryView` in `ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift` and any Phase 3 account/profile page whose return button is centered vertically. The return button must live in the first top-level `HStack` at the page's top-left, before the page title/content, matching `ChildProfileView` above.
+
+- [ ] **Step 8: Run focused UI tests**
+
+Run:
+
+```bash
+xcodebuild test \
+  -project ios/WordMagicGame.xcodeproj \
+  -scheme WordMagicGame \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:WordMagicGameUITests/WordMagicGameUITests/testHomeChildProfileBadgeOpensProfileAndRenamesChild \
+  -only-testing:WordMagicGameUITests/WordMagicGameUITests/testLandscapeAccountPagesKeepBackButtonAtTopLeft \
+  -derivedDataPath /private/tmp/wordmagic-phase3-profile
+```
+
+Expected: both focused UI tests pass.
+
+- [ ] **Step 9: Commit the profile and layout task**
+
+```bash
+git add \
+  ios/WordMagicGame/App/AppCoordinator.swift \
+  ios/WordMagicGame/App/ContentView.swift \
+  ios/WordMagicGame/Features/CoreLoop/HomeView.swift \
+  ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift \
+  ios/WordMagicGame/Features/Settings/ChildProfileView.swift \
+  ios/WordMagicGame/Features/Settings/CloudBindingViews.swift \
+  ios/WordMagicGameUITests/WordMagicGameUITests.swift
+git commit -m "feat: add ios child profile rename flow"
+```
+
+## Task 10: Implement Custom Wish Creation From The Wishlist Add Button
+
+**Files:**
+- Modify: `ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift`
+- Modify: `ios/WordMagicGameUITests/WordMagicGameUITests.swift`
+
+- [ ] **Step 1: Add failing UI coverage for adding a custom wish**
+
+Add this test to `ios/WordMagicGameUITests/WordMagicGameUITests.swift`:
+
+```swift
+@MainActor
+func testWishlistAddWishCreatesCustomWishAfterParentPin() {
+    let app = XCUIApplication()
+    app.launchArguments = ["-UITestResetState", "-UITestSeedParentPin", "-UITestRouteWishlist"]
+    app.launch()
+
+    XCTAssertTrue(app.staticTexts["魔法愿望单"].waitForExistence(timeout: 5))
+    app.buttons["添加愿望"].tap()
+
+    XCTAssertTrue(app.staticTexts["添加愿望"].waitForExistence(timeout: 5))
+    app.textFields["愿望名称"].tap()
+    app.textFields["愿望名称"].typeText("周末去公园")
+    app.textFields["魔法币"].tap()
+    app.textFields["魔法币"].typeText("12")
+    app.textFields["图标"].tap()
+    app.textFields["图标"].typeText("🌳")
+    app.secureTextFields["家长 PIN"].tap()
+    app.secureTextFields["家长 PIN"].typeText("123456")
+    app.buttons["保存愿望"].tap()
+
+    XCTAssertTrue(app.staticTexts["周末去公园"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["12 ✨"].exists)
+}
+```
+
+- [ ] **Step 2: Add failing UI coverage for validation**
+
+Add this test to `ios/WordMagicGameUITests/WordMagicGameUITests.swift`:
+
+```swift
+@MainActor
+func testWishlistAddWishRejectsInvalidInputAndKeepsDialogOpen() {
+    let app = XCUIApplication()
+    app.launchArguments = ["-UITestResetState", "-UITestSeedParentPin", "-UITestRouteWishlist"]
+    app.launch()
+
+    XCTAssertTrue(app.staticTexts["魔法愿望单"].waitForExistence(timeout: 5))
+    app.buttons["添加愿望"].tap()
+
+    XCTAssertTrue(app.staticTexts["添加愿望"].waitForExistence(timeout: 5))
+    app.textFields["愿望名称"].tap()
+    app.textFields["愿望名称"].typeText(" ")
+    app.textFields["魔法币"].tap()
+    app.textFields["魔法币"].typeText("0")
+    app.secureTextFields["家长 PIN"].tap()
+    app.secureTextFields["家长 PIN"].typeText("123456")
+    app.buttons["保存愿望"].tap()
+
+    XCTAssertTrue(app.staticTexts["请输入愿望名称、正整数魔法币和图标"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["添加愿望"].exists)
+}
+```
+
+- [ ] **Step 3: Replace the hard-coded add action with dialog state**
+
+In `WishlistView` inside `ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift`, add state:
+
+```swift
+@State private var showingAddWish = false
+@State private var wishName = ""
+@State private var wishCost = ""
+@State private var wishEmoji = "🎁"
+@State private var addWishPin = ""
+@State private var addWishMessage = ""
+```
+
+Replace the current hard-coded button action:
+
+```swift
+Button("添加愿望") {
+    showingAddWish = true
+    wishName = ""
+    wishCost = ""
+    wishEmoji = "🎁"
+    addWishPin = ""
+    addWishMessage = ""
+}
+```
+
+Inside the `ZStack`, add the dialog overlay:
+
+```swift
+if showingAddWish {
+    addWishDialog
+}
+```
+
+- [ ] **Step 4: Add the custom-wish dialog**
+
+Add this private view inside `WishlistView`:
+
+```swift
+private var addWishDialog: some View {
+    VStack(spacing: 12) {
+        Text("添加愿望")
+            .font(.title2.weight(.heavy))
+            .foregroundStyle(AppTheme.navy)
+        TextField("愿望名称", text: $wishName)
+            .textFieldStyle(.roundedBorder)
+            .accessibilityIdentifier("愿望名称")
+        TextField("魔法币", text: $wishCost)
+            .keyboardType(.numberPad)
+            .textFieldStyle(.roundedBorder)
+            .accessibilityIdentifier("魔法币")
+        TextField("图标", text: $wishEmoji)
+            .textFieldStyle(.roundedBorder)
+            .accessibilityIdentifier("图标")
+        SecureField("家长 PIN", text: $addWishPin)
+            .keyboardType(.numberPad)
+            .textFieldStyle(.roundedBorder)
+            .accessibilityIdentifier("家长 PIN")
+        if !addWishMessage.isEmpty {
+            Text(addWishMessage)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(AppTheme.red)
+        }
+        HStack(spacing: 12) {
+            Button("取消") {
+                showingAddWish = false
+            }
+            Button("保存愿望") {
+                saveCustomWish()
+            }
+        }
+        .font(.headline.weight(.heavy))
+    }
+    .padding(22)
+    .frame(width: 360)
+    .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
+    .shadow(radius: 14)
+}
+```
+
+- [ ] **Step 5: Add the save action**
+
+Add this helper inside `WishlistView`:
+
+```swift
+private func saveCustomWish() {
+    guard addWishPin == coordinator.configStore.config.parentPin else {
+        addWishMessage = "PIN 不正确"
+        return
+    }
+    let cleanedName = wishName.trimmingCharacters(in: .whitespacesAndNewlines)
+    let cleanedEmoji = wishEmoji.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let cost = Int(wishCost.trimmingCharacters(in: .whitespacesAndNewlines)),
+          !cleanedName.isEmpty,
+          cost > 0,
+          !cleanedEmoji.isEmpty
+    else {
+        addWishMessage = "请输入愿望名称、正整数魔法币和图标"
+        return
+    }
+    let createdId = coordinator.wishlistStore.addCustomWish(name: cleanedName, costCoins: cost, iconEmoji: cleanedEmoji)
+    guard !createdId.isEmpty else {
+        addWishMessage = "请输入愿望名称、正整数魔法币和图标"
+        return
+    }
+    showingAddWish = false
+}
+```
+
+- [ ] **Step 6: Run focused UI tests**
+
+Run:
+
+```bash
+xcodebuild test \
+  -project ios/WordMagicGame.xcodeproj \
+  -scheme WordMagicGame \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:WordMagicGameUITests/WordMagicGameUITests/testWishlistAddWishCreatesCustomWishAfterParentPin \
+  -only-testing:WordMagicGameUITests/WordMagicGameUITests/testWishlistAddWishRejectsInvalidInputAndKeepsDialogOpen \
+  -derivedDataPath /private/tmp/wordmagic-wishlist-add
+```
+
+Expected: both focused UI tests pass.
+
+- [ ] **Step 7: Commit the custom wish flow**
+
+```bash
+git add \
+  ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift \
+  ios/WordMagicGameUITests/WordMagicGameUITests.swift
+git commit -m "feat: add ios custom wish creation"
+```
+
+## Task 11: Suppress Auto Pronunciation On FillLetterMedium Second Step
+
+**Files:**
+- Modify: `ios/WordMagicGame/Features/CoreLoop/BattleView.swift`
+- Modify: `ios/WordMagicGame/Services/PronunciationService.swift`
+- Modify: `ios/WordMagicGameTests/Core/PronunciationServiceTests.swift`
+
+- [ ] **Step 1: Add failing unit coverage for the post-feedback auto-speak rule**
+
+Add this test to `ios/WordMagicGameTests/Core/PronunciationServiceTests.swift`:
+
+```swift
+func testShouldAutoSpeakAfterAnswerFeedbackSuppressesFillLetterMediumStepAdvance() {
+    XCTAssertFalse(shouldAutoSpeakAfterAnswerFeedback(AnswerOutcome(correct: true, damage: 0, advancedStep: true)))
+    XCTAssertTrue(shouldAutoSpeakAfterAnswerFeedback(AnswerOutcome(correct: true, damage: 1, advancedStep: false)))
+    XCTAssertTrue(shouldAutoSpeakAfterAnswerFeedback(AnswerOutcome(correct: false, damage: 1, advancedStep: false)))
+}
+```
+
+Expected: the test does not compile yet because `shouldAutoSpeakAfterAnswerFeedback` is missing.
+
+- [ ] **Step 2: Add the pure post-feedback helper**
+
+In `ios/WordMagicGame/Services/PronunciationService.swift`, add:
+
+```swift
+func shouldAutoSpeakAfterAnswerFeedback(_ outcome: AnswerOutcome) -> Bool {
+    !outcome.advancedStep
+}
+```
+
+- [ ] **Step 3: Run the focused test and confirm it passes**
+
+Run:
+
+```bash
+xcodebuild test \
+  -project ios/WordMagicGame.xcodeproj \
+  -scheme WordMagicGame \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:WordMagicGameTests/PronunciationServiceTests/testShouldAutoSpeakAfterAnswerFeedbackSuppressesFillLetterMediumStepAdvance \
+  -derivedDataPath /private/tmp/wordmagic-fillletter-audio
+```
+
+Expected: the focused test passes.
+
+- [ ] **Step 4: Gate auto pronunciation after feedback clear**
+
+In `ios/WordMagicGame/Features/CoreLoop/BattleView.swift`, add state:
+
+```swift
+@State private var pendingAnswerOutcome: AnswerOutcome?
+```
+
+In `handleOptionTap(_:)`, after `pendingBattleEnd = outcome.battleEnded`, add:
+
+```swift
+pendingAnswerOutcome = outcome
+```
+
+In `clearFeedbackAfterDelay()`, carry the flag before `clearFeedback()`:
+
+```swift
+let answerOutcome = pendingAnswerOutcome
+```
+
+Then reset and gate the existing auto-speak call:
+
+```swift
+pendingAnswerOutcome = nil
+if shouldFinishBattle {
+    coordinator.finishBattle()
+} else if answerOutcome.map(shouldAutoSpeakAfterAnswerFeedback) ?? true {
+    coordinator.autoSpeakCurrentBattleAnswer(isRevealing: false)
+}
+```
+
+- [ ] **Step 5: Keep manual speaker behavior unchanged**
+
+Confirm `coordinator.speakCurrentBattleAnswer()` is still used only by the speaker button path and does not inspect `pendingAnswerOutcome`. Manual replay must continue to work on the second FillLetterMedium letter.
+
+- [ ] **Step 6: Run focused pronunciation tests**
+
+Run:
+
+```bash
+xcodebuild test \
+  -project ios/WordMagicGame.xcodeproj \
+  -scheme WordMagicGame \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:WordMagicGameTests/PronunciationServiceTests \
+  -derivedDataPath /private/tmp/wordmagic-fillletter-audio
+```
+
+Expected: `PronunciationServiceTests` pass.
+
+- [ ] **Step 7: Run a focused battle UI smoke test**
+
+Run:
+
+```bash
+xcodebuild test \
+  -project ios/WordMagicGame.xcodeproj \
+  -scheme WordMagicGame \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:WordMagicGameUITests/WordMagicGameUITests/testBattleScreenUsesEnglishLabelsAndLiveCountdown \
+  -derivedDataPath /private/tmp/wordmagic-fillletter-audio
+```
+
+Expected: the battle screen smoke test still passes.
+
+- [ ] **Step 8: Commit the audio behavior fix**
+
+```bash
+git add \
+  ios/WordMagicGame/Features/CoreLoop/BattleView.swift \
+  ios/WordMagicGame/Services/PronunciationService.swift \
+  ios/WordMagicGameTests/Core/PronunciationServiceTests.swift
+git commit -m "fix: suppress ios fill-letter step autospeak"
+```
+
 ## Acceptance Checklist
 
-- [ ] Config shows `绑定家长账号` when unbound.
-- [ ] Short-code binding with `123456` stores credentials and shows `已绑定 小明测试46373`.
-- [ ] Device token is stored only through `SecureStore` / Keychain.
-- [ ] Bound-device page shows nickname, avatar, family id, child profile id, and device id.
-- [ ] Parent PIN unbind clears local cloud credentials.
-- [ ] Bound PackManager sync shows `已同步官方/家庭词包`.
-- [ ] Synced library contains global `Space Station` and family `Family Snacks`.
-- [ ] Pack merge priority remains `family > global > builtin`.
-- [ ] Word-stats payload encodes snake-case keys compatible with the shared contract.
-- [ ] Offline gameplay does not depend on Phase 3 network state.
-- [ ] Focused Phase 3 unit tests pass.
-- [ ] Focused Phase 3 UI tests pass.
-- [ ] Full iOS test suite passes.
-- [ ] iPhone simulator screenshots were captured and checked after layout changes.
-
+- [x] Config shows `绑定家长账号` when unbound.
+- [x] Short-code binding with `123456` stores credentials and shows `已绑定 小明测试46373`.
+- [x] Pasted QR landing links / tokens can redeem through the same binding flow.
+- [x] Device token is stored only through `SecureStore` / Keychain.
+- [x] Home top-toolbar child profile badge opens the child profile page.
+- [x] Child profile page can edit the child nickname and Home immediately shows the updated name.
+- [x] Child profile rename calls the device-side server profile update client after local persistence.
+- [x] Bound-device page shows nickname, avatar, family id, child profile id, and device id.
+- [x] Parent PIN unbind calls the cloud unbind client before clearing local cloud credentials.
+- [x] Landscape account/profile pages put `返回` at the top-left, consistent with other iOS replica pages.
+- [x] Wishlist `添加愿望` opens a real custom-wish form instead of adding a hard-coded sample wish.
+- [x] Custom wishes require parent PIN, non-empty name, positive magic-coin cost, and emoji/icon before they appear in the list.
+- [x] FillLetterMedium auto pronunciation plays when the question appears, but does not replay after filling the first of two missing letters.
+- [x] FillLetterMedium manual speaker replay still works on the second-letter step.
+- [x] Bound PackManager sync shows `已同步官方/家庭词包`.
+- [x] Synced library contains global `Space Station` and family `Family Snacks`.
+- [x] Pack merge priority remains `family > global > builtin`.
+- [x] Remote pack layers are cached separately on disk and loaded on cold start.
+- [x] Pack HTTP clients send ETag / bearer token headers and preserve cached layers on network or 5xx failure.
+- [x] Word-stats payload encodes snake-case keys compatible with the shared contract.
+- [x] Word-stats sync runs on battle result, app background, and explicit PackManager action without blocking gameplay.
+- [x] Offline gameplay does not depend on Phase 3 network state.
+- [x] Focused Phase 3 unit tests pass.
+- [x] Focused Phase 3 UI tests pass.
+- [x] Full iOS test suite passes.
+- [x] iPhone simulator screenshots were captured and checked after layout changes.

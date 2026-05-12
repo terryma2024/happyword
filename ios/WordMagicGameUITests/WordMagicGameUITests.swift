@@ -12,7 +12,7 @@ final class WordMagicGameUITests: XCTestCase {
         app.launch()
 
         assertLandscape(app)
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "小小魔法师")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Small Magician Word Adventure"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["开始冒险"].exists)
 
         app.buttons["开始冒险"].tap()
@@ -136,8 +136,9 @@ final class WordMagicGameUITests: XCTestCase {
         app.secureTextFields["家长 PIN"].typeText("123456")
         app.buttons["确认兑换"].tap()
 
-        XCTAssertTrue(app.staticTexts["愿望实现啦"].waitForExistence(timeout: 5))
-        app.buttons["知道了"].tap()
+        XCTAssertTrue(app.otherElements["WishlistGiftBoxModal"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["知道了"].exists)
+        XCTAssertTrue(app.otherElements["WishlistGiftBoxModal"].waitForNonExistence(timeout: 4))
         XCTAssertTrue(app.staticTexts["我的魔法币: 10 ✨"].waitForExistence(timeout: 5))
 
         app.buttons["兑换历史"].tap()
@@ -178,6 +179,89 @@ final class WordMagicGameUITests: XCTestCase {
     }
 
     @MainActor
+    func testHomeHidesChildProfileBadgeWithoutDeviceBinding() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestClearBinding"]
+        app.launch()
+
+        assertLandscape(app)
+        XCTAssertTrue(app.buttons["开始冒险"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["HomeChildProfileButton"].exists)
+    }
+
+    @MainActor
+    func testHomeChildProfileBadgeOpensParentAccountAndEditRenamesChild() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice"]
+        app.launch()
+
+        assertLandscape(app)
+        let profileButton = app.descendants(matching: .any)["HomeChildProfileButton"]
+        XCTAssertTrue(profileButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(profileButton.label.contains("小明测试46373"))
+        profileButton.tap()
+
+        XCTAssertTrue(app.staticTexts["家长账户"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Family ID"].exists)
+        XCTAssertTrue(app.staticTexts["孩子档案"].exists)
+        app.buttons["✏️ 编辑"].tap()
+
+        XCTAssertTrue(app.staticTexts["孩子档案"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["孩子名字"].exists)
+        app.textFields["孩子名字"].tap()
+        app.textFields["孩子名字"].clearAndTypeText("小星星")
+        app.buttons["保存名字"].tap()
+
+        XCTAssertTrue(profileButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(profileButton.label.contains("小星星"))
+    }
+
+    @MainActor
+    func testLandscapeAccountPagesUseExpectedBackButtonPlacement() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice", "-UITestRouteRedemptionHistory"]
+        app.launch()
+
+        assertLandscape(app)
+        assertTopLeftBackButton(app.buttons["返回"], in: app)
+
+        app.terminate()
+        app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice", "-UITestRouteBoundDeviceInfo"]
+        app.launch()
+
+        assertLandscape(app)
+        assertTopRightBackButton(app.buttons["返回"], in: app)
+    }
+
+    @MainActor
+    func testBoundDeviceInfoMatchesHarmonyParentAccountLayout() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice", "-UITestRouteBoundDeviceInfo"]
+        app.launch()
+
+        assertLandscape(app)
+        let title = app.staticTexts["家长账户"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(title.frame.minY, app.windows.element(boundBy: 0).frame.minY + 20)
+        XCTAssertTrue(app.staticTexts["孩子档案"].exists)
+        XCTAssertTrue(app.staticTexts["🦁 小明测试46373"].exists)
+        XCTAssertTrue(app.buttons["✏️ 编辑"].exists)
+        XCTAssertTrue(app.staticTexts["Family ID"].exists)
+        XCTAssertTrue(app.staticTexts["family-demo"].exists)
+        XCTAssertTrue(app.staticTexts["Binding ID"].exists)
+        XCTAssertTrue(app.staticTexts["binding-demo"].exists)
+        XCTAssertTrue(app.staticTexts["Device ID 末四位"].exists)
+        XCTAssertTrue(app.staticTexts["Device ID 来源"].exists)
+        XCTAssertTrue(app.staticTexts["Keychain (持久)"].exists)
+        XCTAssertTrue(app.staticTexts["绑定时间"].exists)
+        XCTAssertTrue(app.buttons["解除设备绑定"].exists)
+
+        app.buttons["✏️ 编辑"].tap()
+        XCTAssertTrue(app.staticTexts["孩子档案"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["孩子名字"].exists)
+    }
+
+    @MainActor
     func testShortCodeBindingAndUnbindFlow() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestResetState", "-UITestMockBinding", "-UITestSeedParentPin", "-UITestRouteConfig"]
@@ -199,13 +283,46 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["已绑定 小明测试46373"].exists)
 
         app.buttons["账号信息"].tap()
-        XCTAssertTrue(app.staticTexts["绑定设备"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["小明测试46373"].exists)
+        XCTAssertTrue(app.staticTexts["家长账户"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["🦁 小明测试46373"].exists)
+        app.buttons["解除设备绑定"].tap()
         app.secureTextFields["家长 PIN"].tap()
         app.secureTextFields["家长 PIN"].typeText("123456")
-        app.buttons["解除绑定"].tap()
+        app.buttons["确认解除"].tap()
 
         XCTAssertTrue(app.buttons["绑定家长账号"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testDebugBackendMenuAndBypassSecretRoutesAreReachableInDebugBuild() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestRouteConfig"]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["游戏设置"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["ConfigDeveloperBackendButton"].exists)
+        app.buttons["ConfigDeveloperBackendButton"].tap()
+
+        XCTAssertTrue(app.staticTexts["Developer Options"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Backend environment (debug builds only)"].exists)
+        XCTAssertTrue(app.buttons["DevMenuBypassSecretButton"].exists)
+        XCTAssertTrue(app.buttons["DevMenuRefreshManifestButton"].exists)
+        XCTAssertTrue(app.buttons["DevMenuLocalCard"].exists)
+        XCTAssertTrue(app.buttons["DevMenuStagingCard"].exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.cool")).firstMatch.exists)
+
+        app.terminate()
+        app.launchArguments = ["-UITestResetState", "-UITestRouteBypassSecret"]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Bypass Secret"].waitForExistence(timeout: 5))
+        let bypassInput = app.secureTextFields.firstMatch
+        XCTAssertTrue(bypassInput.waitForExistence(timeout: 5))
+        bypassInput.tap()
+        bypassInput.typeText("secret-demo")
+        app.buttons["保存"].tap()
+
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.cool")).firstMatch.waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -272,6 +389,52 @@ final class WordMagicGameUITests: XCTestCase {
     }
 
     @MainActor
+    func testWishlistAddWishCreatesCustomWishAfterParentPin() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestSeedParentPin", "-UITestRouteWishlist"]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["魔法愿望单"].waitForExistence(timeout: 5))
+        app.buttons["添加愿望"].tap()
+
+        XCTAssertTrue(app.staticTexts["添加愿望"].waitForExistence(timeout: 5))
+        app.textFields["愿望名称"].tap()
+        app.textFields["愿望名称"].typeText("周末去公园")
+        app.textFields["魔法币"].tap()
+        app.textFields["魔法币"].typeText("12")
+        app.textFields["图标"].tap()
+        app.textFields["图标"].clearAndTypeText("🌳")
+        app.secureTextFields["家长 PIN"].tap()
+        app.secureTextFields["家长 PIN"].typeText("123456")
+        app.buttons["保存愿望"].tap()
+
+        XCTAssertTrue(app.staticTexts["周末去公园"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["12 ✨"].exists)
+    }
+
+    @MainActor
+    func testWishlistAddWishRejectsInvalidInputAndKeepsDialogOpen() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestSeedParentPin", "-UITestRouteWishlist"]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["魔法愿望单"].waitForExistence(timeout: 5))
+        app.buttons["添加愿望"].tap()
+
+        XCTAssertTrue(app.staticTexts["添加愿望"].waitForExistence(timeout: 5))
+        app.textFields["愿望名称"].tap()
+        app.textFields["愿望名称"].typeText(" ")
+        app.textFields["魔法币"].tap()
+        app.textFields["魔法币"].typeText("0")
+        app.secureTextFields["家长 PIN"].tap()
+        app.secureTextFields["家长 PIN"].typeText("123456")
+        app.buttons["保存愿望"].tap()
+
+        XCTAssertTrue(app.staticTexts["请输入愿望名称、正整数魔法币和图标"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["添加愿望"].exists)
+    }
+
+    @MainActor
     private func assertLandscape(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 5), file: file, line: line)
@@ -291,6 +454,24 @@ final class WordMagicGameUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
         XCTAssertGreaterThan(window.frame.height, window.frame.width, file: file, line: line)
+    }
+
+    @MainActor
+    private func assertTopLeftBackButton(_ button: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(button.waitForExistence(timeout: 5), file: file, line: line)
+        let frame = button.frame
+        let screen = app.windows.element(boundBy: 0).frame
+        XCTAssertLessThan(frame.minX, screen.minX + 130, file: file, line: line)
+        XCTAssertLessThan(frame.minY, screen.minY + 90, file: file, line: line)
+    }
+
+    @MainActor
+    private func assertTopRightBackButton(_ button: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(button.waitForExistence(timeout: 5), file: file, line: line)
+        let frame = button.frame
+        let screen = app.windows.element(boundBy: 0).frame
+        XCTAssertGreaterThan(frame.maxX, screen.maxX - 130, file: file, line: line)
+        XCTAssertLessThan(frame.minY, screen.minY + 90, file: file, line: line)
     }
 
     @MainActor
@@ -344,4 +525,17 @@ final class WordMagicGameUITests: XCTestCase {
         "瓜": "melon",
         "樱桃": "cherry",
     ]
+}
+
+private extension XCUIElement {
+    func clearAndTypeText(_ text: String) {
+        guard let current = value as? String else {
+            typeText(text)
+            return
+        }
+        tap()
+        let delete = String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count)
+        typeText(delete)
+        typeText(text)
+    }
 }

@@ -160,8 +160,10 @@ UI:
 - Show child nickname/avatar.
 - Show device id or short device display name.
 - Show family/account state.
-- Allow nickname edit if server contract is available.
+- Home top-toolbar child profile badge opens the child profile / bound-device surface.
+- Allow nickname edit from the child profile page. Persist locally first, then call the device-side server profile-update API.
 - Unbind action requires parent PIN.
+- Landscape profile and account pages place the `返回` button at the top-left edge, matching Config, PackManager, and other iOS replica pages.
 
 Unbind flow:
 

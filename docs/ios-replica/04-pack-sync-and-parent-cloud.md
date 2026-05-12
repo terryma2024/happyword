@@ -37,6 +37,7 @@ Source behavior:
 iOS design:
 
 - `WishlistStore`, `CoinAccount`, and `RedemptionHistoryStore` are local stores in Phase 2.
+- The `添加愿望` button opens an explicit custom-wish form instead of creating a hard-coded sample wish.
 - Cloud wishlist and web approval are deferred to later cloud work.
 - Result coin rewards must already exist from Phase 1.
 
@@ -99,9 +100,10 @@ Contracts:
 iOS design:
 
 - Stable `device_id` comes from Keychain-backed UUID.
-- QR scanning can use iOS camera APIs later; short-code entry should land first as a testable path.
+- QR camera/gallery scanning can use iOS camera APIs later; short-code entry and pasted QR landing links share the current testable path.
 - Device token belongs in Keychain.
 - Client displays family/child context but server remains authority for `family_id`.
+- Child profile rename persists locally first, then calls `PUT /api/v1/child/profile` with the device token.
 
 Tests:
 
@@ -119,9 +121,10 @@ Contracts:
 
 iOS design:
 
-- `GlobalPackClient` supports ETag and 200/204/304/network failure handling.
-- `FamilyPackClient` adds bearer device token and handles 401/403/410.
+- `HTTPPackLayerClient.fetchGlobal` supports ETag and 200/204/304/network failure handling.
+- `HTTPPackLayerClient.fetchFamily` adds bearer device token and handles 401/403/410.
 - Cache layers separately, then merge family > global > builtin.
+- File-backed remote layer caches load on cold start before any network call.
 - Never block Home or Battle on sync failure.
 
 Tests:
@@ -143,6 +146,7 @@ iOS design:
 - Local `LearningRecorder` remains source of offline playability.
 - Sync is fire-and-forget on battle result, app background, and explicit parent/account action.
 - Failed sync schedules retry and never blocks Result.
+- `WordStatsSyncStateStore` tracks `synced_through_ms` and retry state in local defaults.
 
 ## Phase 4: Debug And Preview Operations
 
