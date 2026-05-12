@@ -64,7 +64,13 @@ async def search_parent_users(
 
 async def load_parent_detail(
     *, username: str
-) -> tuple[User | None, Family | None, list[DeviceBinding], list[ChildProfile], list[FamilyPackDefinition]]:
+) -> tuple[
+    User | None,
+    Family | None,
+    list[DeviceBinding],
+    list[ChildProfile],
+    list[FamilyPackDefinition],
+]:
     user = await User.find_one(User.username == username, User.role == UserRole.PARENT)
     if user is None:
         return None, None, [], [], []
@@ -273,6 +279,62 @@ async def admin_revoke_device_binding(
             "family_id": binding.family_id,
             "device_id": binding.device_id,
             "revoked_at": now.isoformat(),
+        },
+    )
+
+
+async def admin_restore_device_binding(
+    *, admin_username: str, binding_id: str, reason: str
+) -> None:
+    r = validate_reason_text(reason)
+    binding = await DeviceBinding.find_one(DeviceBinding.binding_id == binding_id)
+    if binding is None:
+        raise LookupError("binding_not_found")
+    if binding.revoked_at is None:
+        await record_admin_action(
+            admin_username=admin_username,
+            action="device.restore.idempotent",
+            target_collection="device_bindings",
+            target_id=binding_id,
+            payload_summary={"reason": r, "note": "already_active"},
+        )
+        return
+
+    active_for_device = await DeviceBinding.find(
+        DeviceBinding.device_id == binding.device_id,
+        DeviceBinding.revoked_at == None,  # noqa: E711
+    ).to_list()
+    conflict = next((b for b in active_for_device if b.binding_id != binding_id), None)
+    if conflict is not None:
+        raise ValueError("该设备已有有效绑定，请先撤销当前有效绑定后再恢复。")
+
+    before = binding.revoked_at
+    now = datetime.now(tz=UTC)
+    binding.revoked_at = None
+    binding.last_seen_at = now
+    await binding.save()
+
+    child = await ChildProfile.find_one(
+        ChildProfile.profile_id == binding.child_profile_id,
+        ChildProfile.family_id == binding.family_id,
+    )
+    if child is not None:
+        child.binding_id = binding.binding_id
+        child.deleted_at = None
+        child.updated_at = now
+        await child.save()
+
+    await record_admin_action(
+        admin_username=admin_username,
+        action="device.restore",
+        target_collection="device_bindings",
+        target_id=binding_id,
+        payload_summary={
+            "reason": r,
+            "family_id": binding.family_id,
+            "device_id": binding.device_id,
+            "had_revoked_at": before.isoformat() if before else None,
+            "restored_at": now.isoformat(),
         },
     )
 

@@ -204,3 +204,78 @@ async def test_devices_add_cancel_form_redirects_home(
     cr = await ac.post("/parent/devices/add/cancel", data={"token": token})
     assert cr.status_code == 303
     assert cr.headers["location"] == "/parent/"
+
+
+@pytest.mark.asyncio
+async def test_parent_unbind_form_verifies_code_before_revoking(db: object) -> None:
+    from app.deps_email import get_email_provider
+    from app.main import app
+    from app.services.email_provider import RecordingEmailProvider
+
+    provider = RecordingEmailProvider()
+    app.dependency_overrides[get_email_provider] = lambda: provider
+
+    transport = ASGITransport(app=app)
+    try:
+        async with AsyncClient(
+            transport=transport, base_url="http://test", follow_redirects=False
+        ) as ac:
+            await ac.post(
+                "/parent/auth/request-code",
+                data={"email": "unbind-parent@example.com"},
+            )
+            login_code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[
+                :6
+            ]
+            await ac.post(
+                "/parent/auth/verify-code",
+                data={"email": "unbind-parent@example.com", "code": login_code},
+            )
+            pair = await ac.post("/api/v1/parent/pair/create")
+            token = pair.json()["token"]
+            redeemed = await ac.post(
+                "/api/v1/pair/redeem",
+                json={"token": token, "device_id": "dev-parent-unbind"},
+            )
+            binding_id = redeemed.json()["binding_id"]
+
+            page = await ac.get(f"/parent/devices/{binding_id}/unbind")
+            assert page.status_code == 200
+            assert "解除设备绑定" in page.text
+            unbind_code = "".join(
+                c for c in provider.outbox[-1]["text"] if c.isdigit()
+            )[:6]
+
+            wrong_code = "000000" if unbind_code != "000000" else "999999"
+            bad = await ac.post(
+                f"/parent/devices/{binding_id}/unbind",
+                data={"code": wrong_code},
+            )
+            assert bad.status_code == 400
+            binding = await DeviceBinding.find_one(DeviceBinding.binding_id == binding_id)
+            assert binding is not None
+            assert binding.revoked_at is None
+
+            ok = await ac.post(
+                f"/parent/devices/{binding_id}/unbind",
+                data={"code": unbind_code},
+            )
+            assert ok.status_code == 303
+            assert ok.headers["location"] == "/parent/?flash_ok=device_unbound"
+            binding = await DeviceBinding.find_one(DeviceBinding.binding_id == binding_id)
+            assert binding is not None
+            assert binding.revoked_at is not None
+            child = await ChildProfile.find_one(
+                ChildProfile.profile_id == binding.child_profile_id
+            )
+            assert child is not None
+            assert child.deleted_at is not None
+            assert child.deleted_at == binding.revoked_at
+
+            detail = await ac.get(f"/parent/devices/{binding_id}")
+            assert detail.status_code == 404
+    finally:
+        app.dependency_overrides.pop(get_email_provider, None)
+        from app.routers.pair import _rate_buckets
+
+        _rate_buckets.clear()

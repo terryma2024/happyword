@@ -178,6 +178,35 @@ async def test_redeem_same_device_same_family_revokes_old_binding(db: object) ->
 
 
 @pytest.mark.asyncio
+async def test_redeem_same_device_same_family_reactivates_revoked_binding(
+    db: object,
+) -> None:
+    from app.services.pair_service import create_pair, redeem
+
+    family_id, parent_id = await _seed_parent()
+    pt1 = await create_pair(family_id=family_id, parent_id=parent_id)
+    binding1, child1, _ = await redeem(
+        token=pt1.token, device_id="dev-reactivate", user_agent="ua-old"
+    )
+    revoked_at = datetime.now(tz=UTC)
+    binding1.revoked_at = revoked_at
+    await binding1.save()
+    child1.deleted_at = revoked_at
+    await child1.save()
+
+    pt2 = await create_pair(family_id=family_id, parent_id=parent_id)
+    binding2, child2, _ = await redeem(
+        token=pt2.token, device_id="dev-reactivate", user_agent="ua-new"
+    )
+
+    assert binding2.binding_id == binding1.binding_id
+    assert binding2.revoked_at is None
+    assert binding2.user_agent == "ua-new"
+    assert child2.profile_id == child1.profile_id
+    assert child2.deleted_at is None
+
+
+@pytest.mark.asyncio
 async def test_redeem_same_device_different_family_creates_new_child(
     db: object,
 ) -> None:

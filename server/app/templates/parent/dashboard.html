@@ -17,20 +17,25 @@
         ➕ 添加新设备
       </a>
     </div>
+    {% if flash_ok %}
+      <p class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2 mb-4">{{ flash_ok }}</p>
+    {% endif %}
     <div id="devices-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {% if bindings %}
         {% for b in bindings %}
           {% set child = children_by_id.get(b.child_profile_id) %}
-          <a href="/parent/devices/{{ b.binding_id }}"
-             class="block bg-slate-50 border border-slate-200 rounded-lg p-4 hover:border-sky-400 hover:bg-sky-50 transition">
+          <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
             <p class="text-base font-semibold text-slate-900">
               {% if child %}{{ child.avatar_emoji }} {{ child.nickname }}{% else %}（未关联档案）{% endif %}
             </p>
             <p class="text-xs text-slate-500 mt-2 font-mono">
               {{ b.binding_id }} · 设备尾号 {{ b.device_id[-4:] }}
             </p>
-            <p class="text-xs text-sky-700 mt-2">查看学习报告 →</p>
-          </a>
+            <p class="text-xs mt-2 flex items-center gap-3">
+              <a href="/parent/devices/{{ b.binding_id }}" class="text-sky-700 hover:underline">查看学习报告 →</a>
+              <a href="/parent/devices/{{ b.binding_id }}/unbind" class="text-red-600 hover:underline">解除绑定</a>
+            </p>
+          </div>
         {% endfor %}
       {% else %}
         <p class="text-sm text-slate-500 col-span-full">

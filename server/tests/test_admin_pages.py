@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import pytest
-from httpx import AsyncClient
 
 from app.models.user import User, UserRole
 from app.services.auth_service import hash_password
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from httpx import AsyncClient
 
 _CONSOLE_PW = "console-test-pw-99"
 
@@ -91,3 +95,63 @@ async def test_admin_logout_clears_cookie(client: AsyncClient) -> None:
     out = await client.post("/admin/logout", follow_redirects=False)
     assert out.status_code == 303
     assert out.headers["location"] == "/admin/login"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_can_restore_revoked_device_binding(client: AsyncClient) -> None:
+    from app.models.child_profile import ChildProfile
+    from app.models.device_binding import DeviceBinding
+
+    revoked_at = datetime.now(tz=UTC)
+    binding = DeviceBinding(
+        binding_id="bind-admin-restore",
+        family_id="fam-admin",
+        device_id="dev-admin-restore",
+        child_profile_id="child-admin",
+        created_at=datetime.now(tz=UTC),
+        last_seen_at=datetime.now(tz=UTC),
+        revoked_at=revoked_at,
+    )
+    await binding.insert()
+    child = ChildProfile(
+        profile_id="child-admin",
+        family_id="fam-admin",
+        binding_id="bind-admin-restore",
+        created_at=datetime.now(tz=UTC),
+        updated_at=revoked_at,
+        deleted_at=revoked_at,
+    )
+    await child.insert()
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+
+    listing = await client.get("/admin/devices")
+    assert listing.status_code == 200
+    assert "恢复绑定" in listing.text
+
+    form = await client.get("/admin/devices/bind-admin-restore/restore")
+    assert form.status_code == 200
+    assert "恢复设备绑定" in form.text
+
+    restored = await client.post(
+        "/admin/devices/bind-admin-restore/restore",
+        data={"reason": "manual restore"},
+        follow_redirects=False,
+    )
+    assert restored.status_code == 303
+    assert restored.headers["location"] == "/admin/devices?flash_ok=restored"
+
+    refreshed = await DeviceBinding.find_one(
+        DeviceBinding.binding_id == "bind-admin-restore"
+    )
+    assert refreshed is not None
+    assert refreshed.revoked_at is None
+    restored_child = await ChildProfile.find_one(ChildProfile.profile_id == "child-admin")
+    assert restored_child is not None
+    assert restored_child.deleted_at is None
