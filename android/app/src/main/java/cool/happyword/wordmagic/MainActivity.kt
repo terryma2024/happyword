@@ -15,6 +15,7 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.annotation.RawRes
 import androidx.activity.ComponentActivity
@@ -71,6 +72,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +84,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -97,13 +101,17 @@ import cool.happyword.wordmagic.core.BattleEngine
 import cool.happyword.wordmagic.core.BattleState
 import cool.happyword.wordmagic.core.BattleStatus
 import cool.happyword.wordmagic.core.BackendEnv
+import cool.happyword.wordmagic.core.BackendHeaderProvider
 import cool.happyword.wordmagic.core.BackendRouteState
+import cool.happyword.wordmagic.core.BackendURLProvider
 import cool.happyword.wordmagic.core.BindingResult
 import cool.happyword.wordmagic.core.BuiltinPacks
+import cool.happyword.wordmagic.core.ChildProfileClient
+import cool.happyword.wordmagic.core.ChildProfileException
 import cool.happyword.wordmagic.core.CloudSyncCoordinator
 import cool.happyword.wordmagic.core.CoinAccount
 import cool.happyword.wordmagic.core.DevMenuViewModel
-import cool.happyword.wordmagic.core.FixtureDeviceBindingClient
+import cool.happyword.wordmagic.core.DeviceBindingClient
 import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.LearningRecorder
 import cool.happyword.wordmagic.core.LearningReportBuilder
@@ -117,6 +125,9 @@ import cool.happyword.wordmagic.core.SessionResult
 import cool.happyword.wordmagic.core.TodayPlanService
 import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.WordPack
+import cool.happyword.wordmagic.core.WordStatsSyncClient
+import cool.happyword.wordmagic.core.WordStatsSyncResult
+import cool.happyword.wordmagic.core.WordStatsSyncStatus
 import cool.happyword.wordmagic.data.AndroidCloudRepositories
 import cool.happyword.wordmagic.data.AndroidDebugRoutingRepository
 import cool.happyword.wordmagic.data.AndroidLocalProgressRepositories
@@ -131,11 +142,14 @@ import cool.happyword.wordmagic.ui.ScanBindingScreen
 import cool.happyword.wordmagic.ui.TodayPlanScreen
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
+import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
@@ -189,6 +203,9 @@ private val homePacks = homePackOrder.mapNotNull { id -> packs.firstOrNull { it.
 private const val DEFAULT_BATTLE_TIMER_SECONDS = 300
 private const val BATTLE_FEEDBACK_MS = 650L
 private const val PROJECTILE_IMPACT_MS = 320L
+private const val GIFTBOX_TRIGGER_DELAY_MS = 60L
+private const val GIFTBOX_MODAL_TOTAL_MS = 3_180L
+private const val WISH_REDEEMED_ACK_MS = 1_500L
 
 @Composable
 fun WordMagicGameApp() {
@@ -198,16 +215,56 @@ fun WordMagicGameApp() {
     val cloudRepositories = remember { AndroidCloudRepositories(context.applicationContext) }
     val debugRoutingRepository = remember { AndroidDebugRoutingRepository(context.applicationContext) }
     val devMenuViewModel = remember { DevMenuViewModel() }
+    val appScope = rememberCoroutineScope()
     val cloudCoordinator = remember { CloudSyncCoordinator() }
-    val bindingClient = remember { FixtureDeviceBindingClient() }
+    val isDebuggable = remember { (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
     var cloudCredentials by remember { mutableStateOf(cloudRepositories.loadCredentials()) }
     var globalPacks by remember { mutableStateOf(cloudRepositories.loadGlobalPacks()) }
     var familyPacks by remember { mutableStateOf(cloudRepositories.loadFamilyPacks()) }
     var cloudSyncStatus by remember { mutableStateOf(cloudRepositories.loadSyncStatus()) }
+    var learningSyncStatus by remember { mutableStateOf(cloudRepositories.loadLearningSyncStatus()) }
+    var learningSyncToast by remember { mutableStateOf("") }
+    var learningSyncBusy by remember { mutableStateOf(false) }
     var bindingError by remember { mutableStateOf("") }
     var pendingCloudUnbind by remember { mutableStateOf(false) }
-    var backendRouteState by remember { mutableStateOf(debugRoutingRepository.loadRouteState()) }
-    var previewTargets by remember { mutableStateOf(emptyList<cool.happyword.wordmagic.core.PreviewTarget>()) }
+    var backendRouteState by remember { mutableStateOf(BuildGate.coerceBackendRouteForBuild(isDebuggable, debugRoutingRepository.loadRouteState())) }
+    val bindingClient = remember {
+        DeviceBindingClient(
+            baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
+            extraHeadersProvider = {
+                BackendHeaderProvider().headers(
+                    backendRouteState,
+                    debugRoutingRepository.bypassSecretStore.load(),
+                )
+            },
+        )
+    }
+    val childProfileClient = remember {
+        ChildProfileClient(
+            baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
+            extraHeadersProvider = {
+                BackendHeaderProvider().headers(
+                    backendRouteState,
+                    debugRoutingRepository.bypassSecretStore.load(),
+                )
+            },
+        )
+    }
+    val wordStatsSyncClient = remember {
+        WordStatsSyncClient(
+            baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
+            extraHeadersProvider = {
+                BackendHeaderProvider().headers(
+                    backendRouteState,
+                    debugRoutingRepository.bypassSecretStore.load(),
+                )
+            },
+        )
+    }
+    var previewTargets by remember { mutableStateOf(devMenuViewModel.fallbackManifest()) }
+    var previewManifestBusy by remember { mutableStateOf(false) }
+    var backendApplying by remember { mutableStateOf(false) }
+    var pendingPreviewAfterSecret by remember { mutableStateOf<cool.happyword.wordmagic.core.PreviewTarget?>(null) }
     var probeStatus by remember { mutableStateOf("尚未探测") }
     val packLibrary = remember(globalPacks, familyPacks) { PackLibrary.merge(BuiltinPacks.all, globalPacks, familyPacks) }
     var selection by remember { mutableStateOf(repositories.loadSelection().prune(packLibrary)) }
@@ -227,7 +284,47 @@ fun WordMagicGameApp() {
     var localProgressMessage by remember { mutableStateOf("") }
     var monsterCatalog by remember { mutableStateOf(MonsterCatalog.default()) }
     var pendingRedemptionWishId by remember { mutableStateOf<String?>(null) }
+    var wishlistGiftBoxVisible by remember { mutableStateOf(false) }
+    var wishlistGiftBoxTrigger by remember { mutableIntStateOf(0) }
+    var recentlyRedeemedWishId by remember { mutableStateOf<String?>(null) }
     var parentPin by remember { mutableStateOf("") }
+
+    fun resetForBackendSwitch() {
+        cloudRepositories.resetForBackendSwitch()
+        cloudCredentials = null
+        globalPacks = emptyList()
+        familyPacks = emptyList()
+        cloudSyncStatus = cloudRepositories.loadSyncStatus()
+        learningSyncStatus = cloudRepositories.loadLearningSyncStatus()
+        learningSyncToast = ""
+    }
+
+    fun applyBackendRoute(targetState: BackendRouteState, bypassSecret: String = "") {
+        if (backendApplying) return
+        appScope.launch {
+            backendApplying = true
+            try {
+                if (targetState.env == BackendEnv.Preview) {
+                    probeStatus = "Probing ${devMenuViewModel.routingSummary(targetState).substringAfter(": ")}/api/v1/health..."
+                    val probeResult = devMenuViewModel.probeHealth(targetState, bypassSecret)
+                    probeStatus = probeResult.message
+                    if (!probeResult.ok) {
+                        route = AppRoute.DevMenu
+                        Toast.makeText(context, "Cannot reach /api/v1/health - see status at bottom", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+                    debugRoutingRepository.bypassSecretStore.save(bypassSecret)
+                }
+                resetForBackendSwitch()
+                debugRoutingRepository.saveRouteState(targetState)
+                backendRouteState = targetState
+                Toast.makeText(context, "Environment updated. Re-bind parent account if needed.", Toast.LENGTH_SHORT).show()
+                route = AppRoute.Home
+            } finally {
+                backendApplying = false
+            }
+        }
+    }
 
     ApplyOrientation(route)
     LaunchedEffect(route, battleRunId) {
@@ -263,7 +360,11 @@ fun WordMagicGameApp() {
                     activePacks = activePacks,
                     selectedPack = selectedPack,
                     coins = coinAccount.balance,
+                    cloudCredentials = cloudCredentials,
                     onSelectPack = { selectedPackId = it.id },
+                    onBoundChild = {
+                        route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo
+                    },
                     onStart = {
                         val sessionConfig = config.copy(timerSeconds = DEFAULT_BATTLE_TIMER_SECONDS)
                         battleRunId += 1
@@ -336,11 +437,41 @@ fun WordMagicGameApp() {
                     config = config,
                     parentPinSet = parentPin.isNotEmpty(),
                     cloudBound = cloudCredentials != null,
-                    showDeveloper = BuildGate.showDeveloperTools((context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0),
+                    learningSyncBusy = learningSyncBusy,
+                    learningSyncStatus = learningSyncStatus,
+                    learningSyncToast = learningSyncToast,
+                    showDeveloper = BuildGate.showDeveloperTools(isDebuggable),
                     onConfigChange = { config = it },
                     onBack = { route = AppRoute.Home },
                     onParentAdmin = { route = AppRoute.ParentPin },
                     onCloudBinding = { route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo },
+                    onPackManager = { route = AppRoute.PackManager },
+                    onLearningSync = {
+                        if (learningSyncBusy) return@ConfigScreen
+                        val credentials = cloudCredentials
+                        if (credentials == null) {
+                            learningSyncToast = "未绑定家长账号，请先在“家长账户”中绑定"
+                            return@ConfigScreen
+                        }
+                        appScope.launch {
+                            learningSyncBusy = true
+                            try {
+                                val result = wordStatsSyncClient.sync(
+                                    deviceToken = credentials.deviceToken,
+                                    stats = learningRecorder.statsSnapshot(),
+                                    syncedThroughMs = cloudRepositories.loadLearningSyncCheckpointMs(),
+                                )
+                                if (result.serverNowMs > 0) {
+                                    cloudRepositories.saveLearningSyncCheckpointMs(result.serverNowMs)
+                                }
+                                learningSyncStatus = formatLearningSyncStatus(result)
+                                learningSyncToast = formatLearningSyncToast(result)
+                                cloudRepositories.saveLearningSyncStatus(learningSyncStatus)
+                            } finally {
+                                learningSyncBusy = false
+                            }
+                        }
+                    },
                     onDeveloper = { route = AppRoute.DevMenu },
                 )
                 AppRoute.ParentPin -> ParentPinScreen(
@@ -366,10 +497,11 @@ fun WordMagicGameApp() {
                             false
                         }
                         if (pinAccepted && pendingRedemptionWishId != null) {
+                            val redeemedWishId = pendingRedemptionWishId.orEmpty()
                             val redeemed = redemptionHistory.redeem(
                                 account = coinAccount,
                                 wishlist = wishlist,
-                                wishId = pendingRedemptionWishId.orEmpty(),
+                                wishId = redeemedWishId,
                                 redeemedAtMs = System.currentTimeMillis(),
                                 parentApproved = true,
                             )
@@ -379,6 +511,21 @@ fun WordMagicGameApp() {
                             pendingRedemptionWishId = null
                             repositories.saveCoinAccount(coinAccount)
                             repositories.saveRedemptionHistory(redemptionHistory)
+                            if (redeemed.accepted) {
+                                wishlistGiftBoxTrigger = 0
+                                wishlistGiftBoxVisible = true
+                                recentlyRedeemedWishId = redeemedWishId
+                                appScope.launch {
+                                    delay(GIFTBOX_TRIGGER_DELAY_MS)
+                                    wishlistGiftBoxTrigger += 1
+                                    delay(GIFTBOX_MODAL_TOTAL_MS - GIFTBOX_TRIGGER_DELAY_MS)
+                                    wishlistGiftBoxVisible = false
+                                    delay(WISH_REDEEMED_ACK_MS)
+                                    if (recentlyRedeemedWishId == redeemedWishId) {
+                                        recentlyRedeemedWishId = null
+                                    }
+                                }
+                            }
                             route = AppRoute.Wishlist
                         } else if (pinAccepted && pendingCloudUnbind) {
                             pendingCloudUnbind = false
@@ -438,6 +585,9 @@ fun WordMagicGameApp() {
                     coinAccount = coinAccount,
                     wishlist = wishlist,
                     message = localProgressMessage,
+                    giftBoxVisible = wishlistGiftBoxVisible,
+                    giftBoxTrigger = wishlistGiftBoxTrigger,
+                    recentlyRedeemedWishId = recentlyRedeemedWishId,
                     onRedeem = { wish ->
                         pendingRedemptionWishId = wish.id
                         route = AppRoute.ParentPin
@@ -468,21 +618,25 @@ fun WordMagicGameApp() {
                     deviceId = cloudRepositories.deviceIdProvider.getOrCreate(),
                     error = bindingError,
                     onRedeem = { code ->
-                        when (val result = bindingClient.redeemShortCode(code, cloudRepositories.deviceIdProvider.getOrCreate())) {
-                            is BindingResult.Success -> {
-                                cloudRepositories.saveCredentials(result.credentials)
-                                cloudCredentials = result.credentials
-                                bindingError = ""
-                                val syncResult = cloudCoordinator.syncPacks(cloudCredentials)
-                                globalPacks = syncResult.globalPacks.ifEmpty { globalPacks }
-                                familyPacks = syncResult.familyPacks.ifEmpty { familyPacks }
-                                cloudRepositories.saveGlobalPacks(globalPacks)
-                                cloudRepositories.saveFamilyPacks(familyPacks)
-                                cloudSyncStatus = syncResult.statusMessage
-                                cloudRepositories.saveSyncStatus(cloudSyncStatus)
-                                route = AppRoute.BoundDeviceInfo
+                        if (bindingError == "正在绑定...") return@ScanBindingScreen
+                        appScope.launch {
+                            bindingError = "正在绑定..."
+                            when (val result = bindingClient.redeemShortCode(code, cloudRepositories.deviceIdProvider.getOrCreate())) {
+                                is BindingResult.Success -> {
+                                    cloudRepositories.saveCredentials(result.credentials)
+                                    cloudCredentials = result.credentials
+                                    bindingError = ""
+                                    val syncResult = cloudCoordinator.syncPacks(cloudCredentials)
+                                    globalPacks = syncResult.globalPacks.ifEmpty { globalPacks }
+                                    familyPacks = syncResult.familyPacks.ifEmpty { familyPacks }
+                                    cloudRepositories.saveGlobalPacks(globalPacks)
+                                    cloudRepositories.saveFamilyPacks(familyPacks)
+                                    cloudSyncStatus = syncResult.statusMessage
+                                    cloudRepositories.saveSyncStatus(cloudSyncStatus)
+                                    route = AppRoute.BoundDeviceInfo
+                                }
+                                is BindingResult.Failure -> bindingError = result.message
                             }
-                            is BindingResult.Failure -> bindingError = result.message
                         }
                     },
                     onBack = { route = AppRoute.Config },
@@ -490,14 +644,26 @@ fun WordMagicGameApp() {
                 AppRoute.BoundDeviceInfo -> BoundDeviceInfoScreen(
                     credentials = cloudCredentials,
                     syncStatus = cloudSyncStatus,
-                    onManualSync = {
-                        val syncResult = cloudCoordinator.syncPacks(cloudCredentials)
-                        globalPacks = syncResult.globalPacks.ifEmpty { globalPacks }
-                        familyPacks = syncResult.familyPacks.ifEmpty { familyPacks }
-                        cloudRepositories.saveGlobalPacks(globalPacks)
-                        cloudRepositories.saveFamilyPacks(familyPacks)
-                        cloudSyncStatus = syncResult.statusMessage
-                        cloudRepositories.saveSyncStatus(cloudSyncStatus)
+                    onEditProfile = { nickname, avatarEmoji ->
+                        val current = cloudCredentials
+                            ?: return@BoundDeviceInfoScreen "当前未绑定，请先扫码"
+                        try {
+                            val updated = childProfileClient.updateProfile(
+                                current.deviceToken,
+                                nickname,
+                                avatarEmoji,
+                            )
+                            val next = current.copy(
+                                childNickname = updated.nickname,
+                                avatarEmoji = updated.avatarEmoji.ifBlank { avatarEmoji },
+                                familyLabel = updated.familyId.ifBlank { current.familyLabel },
+                            )
+                            cloudRepositories.saveCredentials(next)
+                            cloudCredentials = next
+                            null
+                        } catch (err: ChildProfileException) {
+                            childProfileErrorMessage(err)
+                        }
                     },
                     onUnbind = {
                         pendingCloudUnbind = true
@@ -510,14 +676,31 @@ fun WordMagicGameApp() {
                     previews = previewTargets,
                     routingSummary = devMenuViewModel.routingSummary(backendRouteState),
                     probeStatus = probeStatus,
+                    manifestBusy = previewManifestBusy,
+                    applying = backendApplying,
                     onSelectEnv = { env ->
-                        backendRouteState = BackendRouteState(env = env)
-                        debugRoutingRepository.saveRouteState(backendRouteState)
+                        applyBackendRoute(BackendRouteState(env = env))
                     },
-                    onRefreshManifest = { previewTargets = devMenuViewModel.refreshManifest(previewTargets) },
+                    onRefreshManifest = {
+                        if (!previewManifestBusy) {
+                            appScope.launch {
+                                previewManifestBusy = true
+                                try {
+                                    previewTargets = devMenuViewModel.refreshManifest(previewTargets, force = true)
+                                } finally {
+                                    previewManifestBusy = false
+                                }
+                            }
+                        }
+                    },
                     onSelectPreview = { preview ->
-                        backendRouteState = devMenuViewModel.selectPreview(backendRouteState, preview)
-                        debugRoutingRepository.saveRouteState(backendRouteState)
+                        val secret = debugRoutingRepository.bypassSecretStore.load()
+                        if (secret.isBlank()) {
+                            pendingPreviewAfterSecret = preview
+                            route = AppRoute.BypassSecret
+                        } else {
+                            applyBackendRoute(devMenuViewModel.selectPreview(backendRouteState, preview), secret)
+                        }
                     },
                     onProbe = { probeStatus = devMenuViewModel.probe(backendRouteState) },
                     onBypassSecret = { route = AppRoute.BypassSecret },
@@ -531,13 +714,23 @@ fun WordMagicGameApp() {
                     initialSecret = debugRoutingRepository.bypassSecretStore.load(),
                     onSave = { secret ->
                         debugRoutingRepository.bypassSecretStore.save(secret)
-                        route = AppRoute.DevMenu
+                        val pendingPreview = pendingPreviewAfterSecret
+                        if (pendingPreview != null) {
+                            pendingPreviewAfterSecret = null
+                            applyBackendRoute(devMenuViewModel.selectPreview(backendRouteState, pendingPreview), secret)
+                        } else {
+                            route = AppRoute.DevMenu
+                        }
                     },
                     onClear = {
                         debugRoutingRepository.bypassSecretStore.clear()
+                        pendingPreviewAfterSecret = null
                         route = AppRoute.DevMenu
                     },
-                    onCancel = { route = AppRoute.DevMenu },
+                    onCancel = {
+                        pendingPreviewAfterSecret = null
+                        route = AppRoute.DevMenu
+                    },
                 )
             }
         }
@@ -558,12 +751,23 @@ private fun ApplyOrientation(route: AppRoute) {
     }
 }
 
+private fun childProfileErrorMessage(err: ChildProfileException): String = when (err.code) {
+    "INVALID_NICKNAME" -> "名字不能为空"
+    "BINDING_NOT_FOUND" -> "当前后端未找到绑定记录"
+    "BINDING_REVOKED" -> "绑定已被撤销，请重新扫码配对"
+    "NETWORK" -> "网络错误，请稍后重试"
+    "NOT_BOUND" -> "当前未绑定，请先扫码"
+    else -> if (err.status > 0) "保存失败 (HTTP ${err.status})" else "保存失败，请稍后重试"
+}
+
 @Composable
 private fun HomeScreen(
     activePacks: List<WordPack>,
     selectedPack: WordPack,
     coins: Int,
+    cloudCredentials: cool.happyword.wordmagic.core.CloudCredentials?,
     onSelectPack: (WordPack) -> Unit,
+    onBoundChild: () -> Unit,
     onStart: () -> Unit,
     onPackManager: () -> Unit,
     onWishlist: () -> Unit,
@@ -571,95 +775,151 @@ private fun HomeScreen(
     onTodayPlan: () -> Unit,
     onConfig: () -> Unit,
 ) {
-    Column(
+    var reviewLockedToastVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(reviewLockedToastVisible) {
+        if (reviewLockedToastVisible) {
+            delay(1_800)
+            reviewLockedToastVisible = false
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .padding(horizontal = 44.dp, vertical = 10.dp)
             .testTag("HomeScreen"),
     ) {
-        Box(modifier = Modifier.fillMaxWidth().height(54.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 44.dp)
+                .padding(top = 72.dp, bottom = 10.dp),
+        ) {
             Text(
-                "v0.1.0",
-                modifier = Modifier.align(Alignment.TopStart).padding(top = 4.dp),
-                fontSize = 16.sp,
-                color = Color(0xFF9A9A9A),
+                "Small Magician Word Adventure",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF303030),
             )
-            Row(
-                modifier = Modifier.align(Alignment.CenterEnd),
-                verticalAlignment = Alignment.CenterVertically,
+            Spacer(Modifier.height(8.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .border(1.dp, colorFromSceneHex(selectedPack.scene.bgAccent, Color(0xFFFFD2A6)), RoundedCornerShape(28.dp))
+                    .testTag("AdventureCard"),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = colorFromSceneHex(selectedPack.scene.bgPrimary, Color(0xFFFFF7E6)),
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
-                Badge("🦁 小明测试82941")
-                Spacer(Modifier.width(8.dp))
-                Badge("✨ $coins")
-                Spacer(Modifier.width(12.dp))
-                IconCircle(R.drawable.icon_review, "复习", Modifier.testTag("HomeTodayPlanButton"), onClick = onTodayPlan)
-                IconCircle(R.drawable.icon_codex, "图鉴", Modifier.testTag("HomeCodexButton"), onClick = onMonsterCodex)
-                IconCircle(R.drawable.icon_scroll, "计划", Modifier.testTag("HomePackManagerButton"), onClick = onPackManager)
-                IconCircle(R.drawable.icon_wishlist, "愿望", Modifier.testTag("HomeWishlistButton"), onClick = onWishlist)
-                IconCircle(R.drawable.icon_gear, "设置", Modifier.testTag("HomeConfigButton"), onClick = onConfig)
+                Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(selectedPack.nameEn, modifier = Modifier.testTag("AdventureCardTitle"), fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
+                        Spacer(Modifier.weight(1f))
+                        SmallPill("今日")
+                    }
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+                        modifier = Modifier.fillMaxWidth().testTag("PackChipRow"),
+                    ) {
+                        items(activePacks) { pack ->
+                            val selected = pack.id == selectedPack.id
+                            OutlinedButton(
+                                onClick = { onSelectPack(pack) },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (selected) Color(0xFFFF0050) else Color.White,
+                                    contentColor = if (selected) Color.White else Color(0xFF4F3424),
+                                ),
+                                modifier = Modifier.height(42.dp).testTag("RegionChip_${pack.id}"),
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
+                            ) {
+                                Text(pack.nameEn, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SmallPill("常规")
+                        SmallPill("拼写")
+                        SmallPill("复习")
+                        SmallPill("精英")
+                        SmallPill("首领")
+                    }
+                    Text("今天的冒险包含 5 关卡，含拼写、复习与首领关", fontSize = 18.sp, color = Color(0xFF6A5843), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    Button(
+                        onClick = onStart,
+                        modifier = Modifier.fillMaxWidth().height(46.dp).testTag("HomeStartButton"),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0050)),
+                        contentPadding = PaddingValues(vertical = 0.dp),
+                    ) { Text("开始今日冒险", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                }
             }
         }
 
-        Spacer(Modifier.height(4.dp))
         Text(
-            "Small Magician Word Adventure",
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Black,
-            color = Color(0xFF303030),
-        )
-        Spacer(Modifier.height(8.dp))
-
-        Card(
+            "v0.1.0",
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .border(1.dp, Color(0xFFFFD2A6), RoundedCornerShape(28.dp))
-                .testTag("AdventureCard"),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7E6)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                .align(Alignment.TopStart)
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
+                .testTag("HomeVersionLabel"),
+            fontSize = 11.sp,
+            color = Color(0xFF999999),
+        )
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 16.dp, end = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(selectedPack.nameEn, modifier = Modifier.testTag("AdventureCardTitle"), fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
-                    Spacer(Modifier.weight(1f))
-                    SmallPill("今日")
-                }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth().testTag("PackChipRow")) {
-                    items(activePacks) { pack ->
-                        val selected = pack.id == selectedPack.id
-                        OutlinedButton(
-                            onClick = { onSelectPack(pack) },
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (selected) Color(0xFFFF0050) else Color.White,
-                                contentColor = if (selected) Color.White else Color(0xFF4F3424),
-                            ),
-                            modifier = Modifier.height(42.dp).testTag("RegionChip_${pack.id}"),
-                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
-                        ) {
-                            Text(pack.nameEn, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SmallPill("常规")
-                    SmallPill("拼写")
-                    SmallPill("复习")
-                    SmallPill("精英")
-                    SmallPill("首领")
-                }
-                Text("今天的冒险包含 5 关卡，含拼写、复习与首领关", fontSize = 18.sp, color = Color(0xFF6A5843), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-                Button(
-                    onClick = onStart,
-                    modifier = Modifier.fillMaxWidth().height(46.dp).testTag("HomeStartButton"),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0050)),
-                    contentPadding = PaddingValues(vertical = 0.dp),
-                ) { Text("开始今日冒险", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+            if (cloudCredentials != null) {
+                HomeBadge(
+                    text = "${cloudCredentials.avatarEmoji.ifBlank { "🦄" }} ${cloudCredentials.childNickname.ifBlank { "宝贝" }}",
+                    modifier = Modifier
+                        .testTag("HomeBoundChildBadge")
+                        .clickable(onClick = onBoundChild),
+                    textColor = Color(0xFF0369A1),
+                    backgroundColor = Color(0xFFE0F2FE),
+                    fontSize = 14.sp,
+                    horizontalPadding = 10.dp,
+                )
             }
+            HomeBadge(
+                text = "✨ $coins",
+                modifier = Modifier.testTag("HomeCoinBalance"),
+                textColor = Color(0xFFFFB400),
+                backgroundColor = Color(0xFFFFF6E5),
+                fontSize = 16.sp,
+                horizontalPadding = 12.dp,
+            )
+            IconCircle(R.drawable.icon_review, "复习", Modifier.testTag("HomeReviewButton"), backgroundColor = Color(0xFFFCEAEA), onClick = { reviewLockedToastVisible = true })
+            IconCircle(R.drawable.icon_codex, "图鉴", Modifier.testTag("HomeCodexButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onMonsterCodex)
+            EmojiCircle("📋", "今日计划", Modifier.testTag("HomePlanButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onTodayPlan)
+            IconCircle(R.drawable.icon_wishlist, "愿望", Modifier.testTag("HomeWishlistButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onWishlist)
+            IconCircle(R.drawable.icon_gear, "设置", Modifier.testTag("HomeConfigButton"), backgroundColor = Color(0xFFEAF2F8), onClick = onConfig)
+        }
+
+        if (reviewLockedToastVisible) {
+            Text(
+                "先答错几题再来复习吧",
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 96.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xCC3A3A3A))
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .testTag("HomeReviewLockedToast"),
+                fontSize = 14.sp,
+                color = Color.White,
+            )
         }
     }
 }
@@ -860,9 +1120,21 @@ private fun BattleScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
                         ) {
-                            Text(questionKindLabel(displayQuestion), color = Color(0xFF4B86B4), fontSize = 20.sp)
+                            Text("Question", color = Color(0xFF4B86B4), fontSize = 20.sp)
                             Spacer(Modifier.height(12.dp))
                             BattleQuestionPrompt(displayQuestion)
+                            if (displayQuestion.kind == QuestionKind.Spell) {
+                                Spacer(Modifier.height(8.dp))
+                                SpellAnswerArea(
+                                    question = displayQuestion,
+                                    feedbackLocked = feedbackLocked,
+                                    onComplete = { option ->
+                                        if (activeOutcome == null) {
+                                            activeOutcome = onAnswer(option)
+                                        }
+                                    },
+                                )
+                            }
                             Spacer(Modifier.height(12.dp))
                             activeOutcome?.let { outcome ->
                                 BattleFeedbackText(outcome)
@@ -916,19 +1188,28 @@ private fun BattleScreen(
 @Composable
 private fun BattleQuestionPrompt(question: Question) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        if (question.kind != QuestionKind.Choice) {
-            Text(question.prompt, color = Color(0xFF6A5843), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
+        when (question.kind) {
+            QuestionKind.Choice, QuestionKind.Spell -> {
+                Text(
+                    question.prompt,
+                    fontSize = 42.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF1C3655),
+                    textAlign = TextAlign.Center,
+                )
+            }
+            QuestionKind.FillLetter, QuestionKind.FillLetterMedium -> {
+                Text(question.prompt, color = Color(0xFF6A5843), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (question.kind == QuestionKind.FillLetter) question.letterTemplate else question.letterTemplateBase,
+                    fontSize = 42.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF1C3655),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
-        val promptText = when (question.kind) {
-            QuestionKind.Choice -> question.prompt
-            QuestionKind.FillLetter -> question.letterTemplate
-            QuestionKind.FillLetterMedium -> question.letterTemplateBase
-            QuestionKind.Spell -> question.spellLetters.mapIndexed { index, letter ->
-                if (question.spellRevealedMask.getOrElse(index) { false }) letter else "_"
-            }.joinToString(" ")
-        }
-        Text(promptText, fontSize = 42.sp, fontWeight = FontWeight.Black, color = Color(0xFF1C3655), textAlign = TextAlign.Center)
     }
 }
 
@@ -940,7 +1221,12 @@ private fun BattleAnswerArea(
     onSelect: (String) -> Unit,
 ) {
     if (question.kind == QuestionKind.Spell) {
-        SpellAnswerArea(question = question, feedbackLocked = feedbackLocked, onComplete = onSelect)
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(20.dp)
+                .testTag("BattleOptionsRow_SpellPlaceholder"),
+        )
         return
     }
     val options = answerOptions(question)
@@ -977,52 +1263,104 @@ private fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onCompl
     var consumed by remember(question.wordId, question.correctAnswer) {
         mutableStateOf(List(question.spellPool.size) { false })
     }
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    var wrongPoolIndex by remember(question.wordId, question.correctAnswer) { mutableIntStateOf(-1) }
+    var completed by remember(question.wordId, question.correctAnswer) { mutableStateOf(false) }
+    LaunchedEffect(wrongPoolIndex) {
+        if (wrongPoolIndex >= 0) {
+            delay(220)
+            wrongPoolIndex = -1
+        }
+    }
+    LaunchedEffect(completed) {
+        if (completed) {
+            delay(200)
+            onComplete(question.correctAnswer)
+        }
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .testTag("BattleSpellArea"),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             slots.forEachIndexed { index, value ->
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (value.isNotBlank()) Color(0xFFFFE2A8) else Color(0xFFF2F2F2))
-                        .border(1.dp, Color(0xFFD8C3A0), RoundedCornerShape(12.dp))
+                        .width(36.dp)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (value.isNotBlank()) Color.White else Color(0xFFFCEAEA))
+                        .border(1.dp, Color(0xFFD9D9D9), RoundedCornerShape(6.dp))
                         .testTag("BattleSpellSlot_$index"),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(value.ifBlank { "_" }, fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
+                    Text(
+                        value.ifBlank { "_" },
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (value.isNotBlank()) Color(0xFF1D3557) else Color(0xFFE63946),
+                    )
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(12.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             question.spellPool.forEachIndexed { index, letter ->
                 val used = consumed.getOrElse(index) { false }
+                val wrong = wrongPoolIndex == index
                 Button(
                     onClick = {
-                        if (feedbackLocked || used) return@Button
+                        if (feedbackLocked || used || completed || wrongPoolIndex >= 0) return@Button
                         val nextSlot = slots.indexOfFirst { it.isBlank() }
                         if (nextSlot < 0) return@Button
                         val expected = question.spellLetters.getOrNull(nextSlot)
-                        if (letter != expected) return@Button
-                        slots = slots.toMutableList().also { it[nextSlot] = letter }
+                        if (letter != expected) {
+                            wrongPoolIndex = index
+                            return@Button
+                        }
+                        val nextSlots = slots.toMutableList().also { it[nextSlot] = letter }
+                        slots = nextSlots
                         consumed = consumed.toMutableList().also { it[index] = true }
-                        if (slots.toMutableList().also { it[nextSlot] = letter }.joinToString("") == question.spellLetters.joinToString("")) {
-                            onComplete(question.correctAnswer)
+                        if (nextSlots.joinToString("") == question.spellLetters.joinToString("")) {
+                            completed = true
                         }
                     },
-                    enabled = !feedbackLocked && !used,
+                    enabled = !feedbackLocked && !used && !completed,
                     modifier = Modifier
-                        .weight(1f)
+                        .width(44.dp)
                         .height(52.dp)
                         .testTag("BattleSpellPool_$index"),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (used) Color(0xFFB7A1C8) else Color(0xFF8253A8),
-                        disabledContainerColor = Color(0xFFB7A1C8),
-                        disabledContentColor = Color.White,
+                        containerColor = when {
+                            used -> Color(0xFFE0E0E0)
+                            wrong -> Color(0xFFFCEAEA)
+                            else -> Color(0xFFFFF8E7)
+                        },
+                        disabledContainerColor = if (used) Color(0xFFE0E0E0) else Color(0xFFFFF8E7),
+                        disabledContentColor = Color(0xFFA3A3A3),
                     ),
                 ) {
-                    Text(letter, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        letter,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when {
+                            used -> Color(0xFFA3A3A3)
+                            wrong -> Color(0xFFE63946)
+                            else -> Color(0xFF1D3557)
+                        },
+                    )
                 }
             }
         }
@@ -1035,15 +1373,6 @@ private fun answerOptions(question: Question): List<String> {
         QuestionKind.FillLetter -> question.letterOptions
         QuestionKind.FillLetterMedium -> question.letterOptionsSteps.getOrElse(question.currentStep) { emptyList() }
         QuestionKind.Spell -> question.spellPool
-    }
-}
-
-private fun questionKindLabel(question: Question): String {
-    return when (question.kind) {
-        QuestionKind.Choice -> "Question"
-        QuestionKind.FillLetter -> "Missing Letter"
-        QuestionKind.FillLetterMedium -> "Two Missing Letters"
-        QuestionKind.Spell -> "Spell"
     }
 }
 
@@ -1226,16 +1555,36 @@ private fun ResultScreen(result: SessionResult, coins: Int, onHome: () -> Unit) 
     }
 }
 
+private fun formatLearningSyncStatus(result: WordStatsSyncResult): String {
+    if (result.serverNowMs <= 0L) return "上次同步时间未知"
+    val formatted = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(result.serverNowMs))
+    return "上次成功同步 $formatted"
+}
+
+private fun formatLearningSyncToast(result: WordStatsSyncResult): String = when (result.status) {
+    WordStatsSyncStatus.Unbound -> "未绑定家长账号，请先在“家长账户”中绑定"
+    WordStatsSyncStatus.NoChanges -> "没有新的学习记录"
+    WordStatsSyncStatus.Pushed -> "已上传 ${result.pushed} 条学习记录"
+    WordStatsSyncStatus.Pulled -> "已合并 ${result.pulled} 条服务器记录"
+    WordStatsSyncStatus.PushedAndPulled -> "已上传 ${result.pushed} 条 / 合并 ${result.pulled} 条服务器记录"
+    WordStatsSyncStatus.NetworkError -> "同步失败：网络异常，请稍后重试"
+}
+
 @Composable
 private fun ConfigScreen(
     config: GameConfig,
     parentPinSet: Boolean,
     cloudBound: Boolean,
+    learningSyncBusy: Boolean,
+    learningSyncStatus: String,
+    learningSyncToast: String,
     showDeveloper: Boolean,
     onConfigChange: (GameConfig) -> Unit,
     onBack: () -> Unit,
     onParentAdmin: () -> Unit,
     onCloudBinding: () -> Unit,
+    onPackManager: () -> Unit,
+    onLearningSync: () -> Unit,
     onDeveloper: () -> Unit,
 ) {
     Column(
@@ -1290,8 +1639,51 @@ private fun ConfigScreen(
                 }
             }
         }
+        if (cloudBound) {
+            SettingCard("学习记录") {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("ConfigCloudSyncRow")) {
+                    Text("上传本机学习记录到家长账户")
+                    Spacer(Modifier.weight(1f))
+                    OutlinedButton(
+                        onClick = onLearningSync,
+                        enabled = !learningSyncBusy,
+                        modifier = Modifier.testTag("ConfigCloudSyncButton"),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFFE0F2FE),
+                            contentColor = Color(0xFF0369A1),
+                        ),
+                    ) {
+                        Text(if (learningSyncBusy) "同步中…" else "立即同步学习记录")
+                    }
+                }
+                if (learningSyncStatus.isNotBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        learningSyncStatus,
+                        color = Color(0xFF0369A1),
+                        fontSize = 14.sp,
+                        modifier = Modifier.testTag("ConfigCloudSyncStatus"),
+                    )
+                }
+                if (learningSyncToast.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        learningSyncToast,
+                        color = Color(0xFFFF0050),
+                        fontSize = 14.sp,
+                        modifier = Modifier.testTag("ConfigCloudSyncToast"),
+                    )
+                }
+            }
+        }
         SettingCard("我的词包") {
-            Text("词包管理已接入首页计划按钮，可管理启用、固定与同步。")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("管理启用、固定与同步。")
+                Spacer(Modifier.weight(1f))
+                Button(onClick = onPackManager, modifier = Modifier.testTag("ConfigPackManagerButton")) {
+                    Text("进入")
+                }
+            }
         }
         if (showDeveloper) {
             SettingCard("开发者") {
@@ -1550,20 +1942,67 @@ private fun SvgRawImage(@RawRes rawRes: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun IconCircle(@DrawableRes icon: Int, label: String, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+private fun IconCircle(
+    @DrawableRes icon: Int,
+    label: String,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = Color(0xFFFCEAEA),
+    onClick: (() -> Unit)? = null,
+) {
     val clickableModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)
     Box(
         modifier = modifier
-            .padding(horizontal = 4.dp)
-            .size(42.dp)
+            .size(56.dp)
             .clip(CircleShape)
-            .background(Color.White)
-            .border(1.dp, Color(0xFFFFD2A6), CircleShape)
+            .background(backgroundColor)
             .then(clickableModifier),
         contentAlignment = Alignment.Center,
     ) {
-        Image(painter = painterResource(icon), contentDescription = label, modifier = Modifier.size(26.dp))
+        Image(painter = painterResource(icon), contentDescription = label, modifier = Modifier.size(32.dp))
     }
+}
+
+@Composable
+private fun EmojiCircle(
+    emoji: String,
+    label: String,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = Color(0xFFFCEAEA),
+    onClick: (() -> Unit)? = null,
+) {
+    val clickableModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)
+    Box(
+        modifier = modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(backgroundColor)
+            .semantics { contentDescription = label }
+            .then(clickableModifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(emoji, fontSize = 28.sp)
+    }
+}
+
+@Composable
+private fun HomeBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    textColor: Color,
+    backgroundColor: Color,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    horizontalPadding: androidx.compose.ui.unit.Dp,
+) {
+    Text(
+        text = text,
+        modifier = modifier
+            .clip(RoundedCornerShape(99.dp))
+            .background(backgroundColor)
+            .padding(horizontal = horizontalPadding, vertical = 6.dp),
+        color = textColor,
+        fontSize = fontSize,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable
@@ -1584,6 +2023,13 @@ private fun SmallPill(text: String) {
         color = Color(0xFF7A4A00),
         fontSize = 12.sp,
     )
+}
+
+private fun colorFromSceneHex(hex: String, fallback: Color): Color {
+    val cleaned = hex.trim().removePrefix("#")
+    if (cleaned.length != 6) return fallback
+    val value = cleaned.toLongOrNull(16) ?: return fallback
+    return Color(0xFF000000 or value)
 }
 
 @Composable

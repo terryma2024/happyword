@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import contextlib
 import time
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Path, Request, Response, status
@@ -29,6 +30,7 @@ from app.models.device_binding import DeviceBinding
 from app.models.pair_token import PairToken
 from app.models.redemption_request import RedemptionRequest
 from app.models.user import User, UserRole
+from app.services import feedback_service
 from app.services.auth_service import (
     JwtError,
     create_session_token,
@@ -81,6 +83,41 @@ templates = Jinja2Templates(directory="app/templates")
 
 def _normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+async def _load_active_device_for_parent(
+    *, binding_id: str, family_id: str
+) -> tuple[DeviceBinding, ChildProfile]:
+    binding = await DeviceBinding.find_one(
+        DeviceBinding.binding_id == binding_id,
+        DeviceBinding.family_id == family_id,
+        DeviceBinding.revoked_at == None,  # noqa: E711
+    )
+    if binding is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "BINDING_NOT_FOUND",
+                    "message": "Device binding not in your family",
+                }
+            },
+        )
+    child = await ChildProfile.find_one(
+        ChildProfile.profile_id == binding.child_profile_id,
+        ChildProfile.family_id == family_id,
+    )
+    if child is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": "CHILD_NOT_FOUND",
+                    "message": "Child profile missing for this binding",
+                }
+            },
+        )
+    return binding, child
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -245,6 +282,11 @@ async def get_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
             "bindings": bindings,
             "children_by_id": children_by_id,
             "pending_redemptions": pending_rows,
+            "flash_ok": (
+                "设备已解除绑定。"
+                if request.query_params.get("flash_ok") == "device_unbound"
+                else None
+            ),
         },
     )
 
@@ -346,6 +388,54 @@ async def post_reject_redemption(
     return RedirectResponse(url="/parent/redemptions", status_code=303)
 
 
+@router.get("/feedback", response_class=HTMLResponse, response_model=None)
+async def get_feedback(
+    request: Request,
+    user: User = Depends(current_parent_user),
+) -> HTMLResponse:
+    rows = await feedback_service.list_feedback_for_parent(parent_user_id=user.username)
+    ok_map = {"created": "反馈已提交，感谢你的建议。"}
+    return templates.TemplateResponse(
+        request,
+        "parent/feedback.html",
+        {
+            "user": user,
+            "feedback_items": rows,
+            "flash_ok": ok_map.get(request.query_params.get("flash_ok", "")),
+            "error": None,
+            "draft_subject": "",
+            "draft_body": "",
+        },
+    )
+
+
+@router.post("/feedback", response_class=HTMLResponse, response_model=None)
+async def post_feedback(
+    request: Request,
+    subject: str = Form(...),
+    body: str = Form(...),
+    user: User = Depends(current_parent_user),
+) -> HTMLResponse | RedirectResponse:
+    try:
+        await feedback_service.create_feedback(user=user, subject=subject, body=body)
+    except ValueError:
+        rows = await feedback_service.list_feedback_for_parent(parent_user_id=user.username)
+        return templates.TemplateResponse(
+            request,
+            "parent/feedback.html",
+            {
+                "user": user,
+                "feedback_items": rows,
+                "flash_ok": None,
+                "error": "请填写反馈标题和内容，标题不超过 120 字，内容不超过 4000 字。",
+                "draft_subject": subject,
+                "draft_body": body,
+            },
+            status_code=400,
+        )
+    return RedirectResponse(url="/parent/feedback?flash_ok=created", status_code=303)
+
+
 @router.get("/devices/add", response_class=HTMLResponse)
 async def get_devices_add(
     request: Request,
@@ -409,6 +499,105 @@ async def post_devices_add_cancel(
     return RedirectResponse(url="/parent/", status_code=303)
 
 
+@router.get("/devices/{binding_id}/unbind", response_class=HTMLResponse, response_model=None)
+async def get_device_unbind_confirm(
+    request: Request,
+    binding_id: str = Path(min_length=8, max_length=64),
+    user: User = Depends(current_parent_user),
+    provider: EmailProvider = Depends(get_email_provider),
+) -> HTMLResponse:
+    binding, child = await _load_active_device_for_parent(
+        binding_id=binding_id,
+        family_id=user.family_id or "",
+    )
+    email = _normalize_email(user.email or "")
+    delivery_degraded = False
+    if email:
+        settings = get_settings()
+        _, plain_code = await request_code(email)
+        if plain_code is not None:
+            try:
+                await send_otp_email(
+                    provider,
+                    to=email,
+                    code=plain_code,
+                    expires_in_minutes=settings.otp_expiry_minutes,
+                )
+            except EmailDeliveryDegraded:
+                delivery_degraded = True
+    return templates.TemplateResponse(
+        request,
+        "parent/device_unbind_confirm.html",
+        {
+            "user": user,
+            "binding": binding,
+            "child": child,
+            "email": email,
+            "error": None if email else "当前家长账号缺少邮箱，无法发送验证码。",
+            "delivery_degraded": delivery_degraded,
+        },
+    )
+
+
+@router.post("/devices/{binding_id}/unbind", response_class=HTMLResponse, response_model=None)
+async def post_device_unbind_confirm(
+    request: Request,
+    binding_id: str = Path(min_length=8, max_length=64),
+    code: str = Form(...),
+    user: User = Depends(current_parent_user),
+) -> HTMLResponse | RedirectResponse:
+    binding, child = await _load_active_device_for_parent(
+        binding_id=binding_id,
+        family_id=user.family_id or "",
+    )
+    email = _normalize_email(user.email or "")
+    if not email:
+        return templates.TemplateResponse(
+            request,
+            "parent/device_unbind_confirm.html",
+            {
+                "user": user,
+                "binding": binding,
+                "child": child,
+                "email": email,
+                "error": "当前家长账号缺少邮箱，无法校验验证码。",
+                "delivery_degraded": False,
+            },
+            status_code=400,
+        )
+
+    try:
+        await verify_code(email=email, code=code.strip())
+    except OtpInvalid:
+        error = "验证码错误，请重新输入。"
+    except OtpTooManyAttempts:
+        error = "尝试次数过多，请重新发送验证码。"
+    except OtpExpired:
+        error = "验证码已过期，请重新打开解绑确认页。"
+    else:
+        now = datetime.now(tz=UTC)
+        binding.revoked_at = now
+        child.deleted_at = now
+        child.updated_at = now
+        await binding.save()
+        await child.save()
+        return RedirectResponse(url="/parent/?flash_ok=device_unbound", status_code=303)
+
+    return templates.TemplateResponse(
+        request,
+        "parent/device_unbind_confirm.html",
+        {
+            "user": user,
+            "binding": binding,
+            "child": child,
+            "email": email,
+            "error": error,
+            "delivery_degraded": False,
+        },
+        status_code=400,
+    )
+
+
 @router.get("/devices/{binding_id}", response_class=HTMLResponse)
 async def get_device_detail(
     request: Request,
@@ -417,34 +606,10 @@ async def get_device_detail(
 ) -> HTMLResponse:
     """V0.6.5 — render the per-device detail page with embedded report
     block. Other-family bindings raise 404."""
-    binding = await DeviceBinding.find_one(
-        DeviceBinding.binding_id == binding_id,
-        DeviceBinding.family_id == (user.family_id or ""),
+    binding, child = await _load_active_device_for_parent(
+        binding_id=binding_id,
+        family_id=user.family_id or "",
     )
-    if binding is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": {
-                    "code": "BINDING_NOT_FOUND",
-                    "message": "Device binding not in your family",
-                }
-            },
-        )
-    child = await ChildProfile.find_one(
-        ChildProfile.profile_id == binding.child_profile_id,
-        ChildProfile.family_id == (user.family_id or ""),
-    )
-    if child is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": {
-                    "code": "CHILD_NOT_FOUND",
-                    "message": "Child profile missing for this binding",
-                }
-            },
-        )
     try:
         report = await build_report(
             family_id=user.family_id or "",

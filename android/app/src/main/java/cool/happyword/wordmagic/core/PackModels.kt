@@ -41,6 +41,8 @@ object BuiltinPacks {
             nameEn = "Fruit Forest",
             nameZh = "水果森林",
             storyZh = "藤蔓和果香里的第一场魔法单词冒险。",
+            bgPrimary = "#FFF6E0",
+            bgAccent = "#FFD49A",
             monsterPlan = listOf("slime", "slime", "zombie", "dragon", "boss-fruit"),
             words = listOf(
                 WordEntry("fruit-apple", "apple", "苹果"),
@@ -55,6 +57,8 @@ object BuiltinPacks {
             nameEn = "School Castle",
             nameZh = "校园城堡",
             storyZh = "在书本城堡里挑战会拼写的怪物。",
+            bgPrimary = "#E8F0FE",
+            bgAccent = "#AECBFA",
             monsterPlan = listOf("zombie", "slime", "zombie", "dragon", "boss-school"),
             words = listOf(
                 WordEntry("school-book", "book", "书"),
@@ -69,6 +73,8 @@ object BuiltinPacks {
             nameEn = "Home Cottage",
             nameZh = "家庭小屋",
             storyZh = "把熟悉的家庭物品变成轻松复习。",
+            bgPrimary = "#FFF1E6",
+            bgAccent = "#F4B98A",
             monsterPlan = listOf("dragon", "slime", "zombie", "dragon", "boss-home"),
             words = listOf(
                 WordEntry("home-chair", "chair", "椅子"),
@@ -83,6 +89,8 @@ object BuiltinPacks {
             nameEn = "Animal Safari",
             nameZh = "动物远征",
             storyZh = "跟动物朋友一起找回单词记忆。",
+            bgPrimary = "#FFF4D9",
+            bgAccent = "#E0B973",
             monsterPlan = listOf("slime", "dragon", "zombie", "dragon", "boss-animal"),
             words = listOf(
                 WordEntry("animal-cat", "cat", "猫"),
@@ -97,6 +105,8 @@ object BuiltinPacks {
             nameEn = "Ocean Realm",
             nameZh = "海洋王国",
             storyZh = "在蓝色海底完成今日练习。",
+            bgPrimary = "#E0F4F7",
+            bgAccent = "#7BB6BF",
             monsterPlan = listOf("slime", "zombie", "dragon", "slime", "boss-ocean"),
             words = listOf(
                 WordEntry("ocean-sea", "sea", "海洋"),
@@ -121,6 +131,8 @@ object BuiltinPacks {
         nameEn: String,
         nameZh: String,
         storyZh: String,
+        bgPrimary: String,
+        bgAccent: String,
         monsterPlan: List<String>,
         words: List<WordEntry>,
     ): WordPack {
@@ -132,8 +144,8 @@ object BuiltinPacks {
             version = 1,
             publishedAtMs = null,
             scene = SceneMetadata(
-                bgPrimary = "#FFF7E6",
-                bgAccent = "#FFD2A6",
+                bgPrimary = bgPrimary,
+                bgAccent = bgAccent,
                 bossName = "$nameEn Boss",
                 monsterPlan = monsterPlan,
                 bossCandidates = monsterPlan.takeLast(1),

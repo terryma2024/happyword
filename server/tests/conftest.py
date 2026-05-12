@@ -41,6 +41,7 @@ async def db() -> AsyncIterator[object]:
     from app.models.family_pack_draft import FamilyPackDraft  # noqa: PLC0415
     from app.models.family_pack_pointer import FamilyPackPointer  # noqa: PLC0415
     from app.models.family_word_pack import FamilyWordPack  # noqa: PLC0415
+    from app.models.feedback import UserFeedback  # noqa: PLC0415
     from app.models.lesson_import_draft import LessonImportDraft  # noqa: PLC0415
     from app.models.llm_draft import LlmDraft  # noqa: PLC0415
     from app.models.pack_pointer import PackPointer  # noqa: PLC0415
@@ -72,6 +73,7 @@ async def db() -> AsyncIterator[object]:
             FamilyPackDraft,
             FamilyPackPointer,
             FamilyWordPack,
+            UserFeedback,
             SyncedWordStat,
             CloudWishlistItem,
             RedemptionRequest,

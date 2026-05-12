@@ -56,12 +56,10 @@ async function openCodex(driver: Driver): Promise<void> {
  * V0.3.8 acceptance (extends V0.3.7):
  *  - HomePage toolbar surfaces the HomeCodexButton (📖 emoji in
  *    v0.3.7–v0.3.9, codex.svg from v0.3.10), always enabled.
- *  - Codex page enters at index 0 (Slime), shows '1 / 10' indicator,
+ *  - Codex page enters at index 0 (Slime), shows '1 / 100' indicator,
  *    CodexPrev disabled, CodexNext enabled.
- *  - Clicking CodexNext walks all 10 entries (Slime → Zombie → Dragon →
- *    Pumpkin King → Imp King → Phoenix → Witch → Snow Queen → Unicorn
- *    → Kraken) and disables at end; clicking CodexPrev walks back to
- *    start. Extra boundary taps are no-ops (do not crash, do not wrap).
+ *  - Clicking CodexNext preserves the original first-ten order and can
+ *    walk to the expanded final entry before disabling at the end.
  *  - Boss entries surface their fairy-tale Chinese subtitle labels
  *    (e.g. 「秋夜灯王」 for Pumpkin King).
  *  - CodexBackButton returns to HomePage; HomeStartButton is reachable.
@@ -93,46 +91,36 @@ export default function monsterCodexFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('CodexAvatar'));
       await driver.assertComponentExist(ON.text('Slime'));
       await driver.assertComponentExist(ON.text('「普通怪物」'));
-      await driver.assertComponentExist(ON.text('1 / 10'));
+      await driver.assertComponentExist(ON.text('1 / 100'));
       done();
     });
 
-    it('nextArrowWalksAllTenEntriesAndDisablesAtEnd', 0, async (done: Function) => {
+    it('nextArrowPreservesFirstTenAndDisablesAtExpandedEnd', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openCodex(driver);
-      // Slime is the entry; walk 9 next clicks to land on Kraken.
-      // Sample mid-walk on Pumpkin King (4 / 10) and Witch (7 / 10) to
-      // verify the boss block surfaces correctly without exploding the
-      // total runtime with 10 separate full-state assertions.
       await clickNextAndDelay(driver, 300);
       await driver.assertComponentExist(ON.text('Zombie'));
-      await driver.assertComponentExist(ON.text('2 / 10'));
+      await driver.assertComponentExist(ON.text('2 / 100'));
       await clickNextAndDelay(driver, 300);
       await driver.assertComponentExist(ON.text('Dragon'));
       await clickNextAndDelay(driver, 300);
       await driver.assertComponentExist(ON.text('Pumpkin King'));
       await driver.assertComponentExist(ON.text('「秋夜灯王」'));
-      await driver.assertComponentExist(ON.text('4 / 10'));
+      await driver.assertComponentExist(ON.text('4 / 100'));
+      for (let i: number = 0; i < 6; i++) {
+        await clickNextAndDelay(driver, 120);
+      }
+      await driver.assertComponentExist(ON.text('Jellyfish'));
+      await driver.assertComponentExist(ON.text('11 / 100'));
+      for (let i: number = 0; i < 89; i++) {
+        await clickNextAndDelay(driver, 80);
+      }
+      await driver.assertComponentExist(ON.text('Music Box Fairy'));
+      await driver.assertComponentExist(ON.text('100 / 100'));
       await clickNextAndDelay(driver, 300);
-      await driver.assertComponentExist(ON.text('Imp King'));
-      await clickNextAndDelay(driver, 300);
-      await driver.assertComponentExist(ON.text('Phoenix'));
-      await clickNextAndDelay(driver, 300);
-      await driver.assertComponentExist(ON.text('Witch'));
-      await driver.assertComponentExist(ON.text('「夜空魔法师」'));
-      await driver.assertComponentExist(ON.text('7 / 10'));
-      await clickNextAndDelay(driver, 300);
-      await driver.assertComponentExist(ON.text('Snow Queen'));
-      await clickNextAndDelay(driver, 300);
-      await driver.assertComponentExist(ON.text('Unicorn'));
-      await clickNextAndDelay(driver, 300);
-      await driver.assertComponentExist(ON.text('Kraken'));
-      await driver.assertComponentExist(ON.text('10 / 10'));
-      // Boundary: extra tap on disabled CodexNext is a no-op.
-      await clickNextAndDelay(driver, 300);
-      await driver.assertComponentExist(ON.text('Kraken'));
-      await driver.assertComponentExist(ON.text('10 / 10'));
+      await driver.assertComponentExist(ON.text('Music Box Fairy'));
+      await driver.assertComponentExist(ON.text('100 / 100'));
       done();
     });
 
@@ -140,17 +128,16 @@ export default function monsterCodexFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openCodex(driver);
-      // Walk to the end (9 next clicks).
-      for (let i: number = 0; i < 9; i++) {
+      // Walk a few entries forward, then back to the start.
+      for (let i: number = 0; i < 3; i++) {
         await clickNextAndDelay(driver, 250);
       }
-      await driver.assertComponentExist(ON.text('Kraken'));
-      // Walk back to the start.
-      for (let i: number = 0; i < 9; i++) {
+      await driver.assertComponentExist(ON.text('Pumpkin King'));
+      for (let i: number = 0; i < 3; i++) {
         await clickPrevAndDelay(driver, 250);
       }
       await driver.assertComponentExist(ON.text('Slime'));
-      await driver.assertComponentExist(ON.text('1 / 10'));
+      await driver.assertComponentExist(ON.text('1 / 100'));
       // Boundary: extra tap on disabled CodexPrev is a no-op.
       await clickPrevAndDelay(driver, 300);
       await driver.assertComponentExist(ON.text('Slime'));

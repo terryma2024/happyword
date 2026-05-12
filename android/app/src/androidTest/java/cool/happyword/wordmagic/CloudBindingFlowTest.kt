@@ -15,7 +15,7 @@ class CloudBindingFlowTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun manualBindingSyncAndUnbindFlow() {
+    fun manualBindingRejectsInvalidCodeBeforeRedeem() {
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
         composeRule.onNodeWithTag("ConfigCloudBindingButton").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
@@ -26,19 +26,12 @@ class CloudBindingFlowTest {
             composeRule.onNodeWithTag("ScanBindingManualCodeInput").performTextInput("abc123")
             composeRule.onNodeWithTag("ScanBindingRedeemButton").performClick()
             composeRule.waitUntil(timeoutMillis = 2_000) {
-                hasNode("BoundDeviceInfoScreen")
+                hasNode("ScanBindingError")
             }
+            composeRule.onNodeWithTag("ScanBindingError").assertIsDisplayed()
+        } else {
+            composeRule.onNodeWithTag("BoundDeviceInfoScreen").assertIsDisplayed()
         }
-
-        composeRule.onNodeWithTag("BoundDeviceInfoScreen").assertIsDisplayed()
-        composeRule.onNodeWithTag("BoundDeviceInfoNickname").assertIsDisplayed()
-        composeRule.onNodeWithTag("BoundDeviceInfoManualSync").performClick()
-        composeRule.onNodeWithTag("BoundDeviceInfoSyncStatus").assertIsDisplayed()
-        composeRule.onNodeWithTag("BoundDeviceInfoUnbind").performClick()
-
-        composeRule.onNodeWithTag("ParentPinScreen").assertIsDisplayed()
-        composeRule.onNodeWithTag("ParentPinInput").performTextInput("123456")
-        composeRule.onNodeWithTag("ConfigScreen").assertIsDisplayed()
     }
 
     private fun hasNode(tag: String): Boolean {

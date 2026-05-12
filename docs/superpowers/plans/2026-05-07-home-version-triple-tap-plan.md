@@ -644,7 +644,7 @@ scripts/run_ui_tests.sh
 ```
 Expected output ends with `TestFinished-ResultCode: 0` and `OHOS_REPORT_CODE: 0`. The new suites should report `HomeVersionTap` (3 `it` blocks) and `DevMenuCardList` (3 `it` blocks) all passing. No regressions in earlier suites.
 
-If the run fails with `execute timeout 5000ms`, check that `scripts/run_ui_tests.sh` invokes `aa test` with `-s timeout 30000` (it does today — see [`.cursor/dev-commands.md`](../../../.cursor/dev-commands.md) §4).
+If the run fails with `execute timeout 5000ms`, check that `scripts/run_ui_tests.sh` invokes `aa test` with `-s timeout 30000` (it does today — see [`.cursor/ohos-dev-commands.md`](../../../.cursor/ohos-dev-commands.md) §4).
 
 - [ ] **Step 4: Commit**
 

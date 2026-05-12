@@ -73,21 +73,27 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["怪物图鉴"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Slime"].exists)
         XCTAssertTrue(app.staticTexts["「普通怪物」"].exists)
-        XCTAssertTrue(app.staticTexts["1 / 10"].exists)
+        XCTAssertTrue(app.staticTexts["1 / 100"].exists)
 
         app.buttons["下一只"].tap()
         XCTAssertTrue(app.staticTexts["Zombie"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["2 / 10"].exists)
+        XCTAssertTrue(app.staticTexts["2 / 100"].exists)
 
-        for _ in 0..<8 {
+        for _ in 0..<9 {
             app.buttons["下一只"].tap()
         }
-        XCTAssertTrue(app.staticTexts["Kraken"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["10 / 10"].exists)
+        XCTAssertTrue(app.staticTexts["Jellyfish"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["11 / 100"].exists)
+
+        for _ in 0..<89 {
+            app.buttons["下一只"].tap()
+        }
+        XCTAssertTrue(app.staticTexts["Music Box Fairy"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["100 / 100"].exists)
         XCTAssertFalse(app.buttons["下一只"].isEnabled)
 
         app.buttons["上一只"].tap()
-        XCTAssertTrue(app.staticTexts["Unicorn"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Kite Serpent"].waitForExistence(timeout: 2))
 
         app.buttons["返回"].tap()
         XCTAssertTrue(app.buttons["开始冒险"].waitForExistence(timeout: 5))

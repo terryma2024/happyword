@@ -15,7 +15,7 @@ import { Want } from '@kit.AbilityKit';
  * hypium v1.0.25 forces a global 5s per-test timeout unless the runner is
  * invoked with `-s timeout <ms>`. Our flows exceed 5s (multiple 800ms settle
  * waits + findComponent polls), so the canonical command in
- * `.cursor/dev-commands.md` passes `-s timeout 30000`. When adding a new
+ * `.cursor/ohos-dev-commands.md` passes `-s timeout 30000`. When adding a new
  * describe/it, run with that flag or the test will report
  * `execute timeout 5000ms`.
  */

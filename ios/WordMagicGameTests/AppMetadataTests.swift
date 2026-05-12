@@ -69,25 +69,17 @@ final class AppMetadataTests: XCTestCase {
     }
 
     func testIOSCharacterImageAssetsAreCopiedFromHarmonyOS() throws {
-        let pairs = [
+        let playerPairs = [
             SourceAssetPair(assetName: "CharacterMagician", sourcePath: "character/magican.svg", filename: "magican.svg"),
             SourceAssetPair(assetName: "CharacterMagicianFight", sourcePath: "character/magican_fight.svg", filename: "magican_fight.svg"),
             SourceAssetPair(assetName: "CharacterMagicianBeaten", sourcePath: "character/magican_beaten.svg", filename: "magican_beaten.svg"),
-            SourceAssetPair(assetName: "CharacterMagicianDizzy", sourcePath: "character/magican_dizz.svg", filename: "magican_dizz.svg"),
-            SourceAssetPair(assetName: "CharacterSlime", sourcePath: "character/slime.svg", filename: "slime.svg"),
-            SourceAssetPair(assetName: "CharacterZombie", sourcePath: "character/zombie.svg", filename: "zombie.svg"),
-            SourceAssetPair(assetName: "CharacterDragon", sourcePath: "character/dragon.svg", filename: "dragon.svg"),
-            SourceAssetPair(assetName: "CharacterJellyfish", sourcePath: "character/jellyfish.svg", filename: "jellyfish.svg"),
-            SourceAssetPair(assetName: "CharacterKraken", sourcePath: "character/kraken.svg", filename: "kraken.svg"),
-            SourceAssetPair(assetName: "CharacterWitch", sourcePath: "character/witch.svg", filename: "witch.svg"),
-            SourceAssetPair(assetName: "CharacterImpKing", sourcePath: "character/imp-king.svg", filename: "imp-king.svg"),
-            SourceAssetPair(assetName: "CharacterPhoenix", sourcePath: "character/phoenix.svg", filename: "phoenix.svg"),
-            SourceAssetPair(assetName: "CharacterPumpkinKing", sourcePath: "character/pumpkin-king.svg", filename: "pumpkin-king.svg"),
-            SourceAssetPair(assetName: "CharacterSnowQueen", sourcePath: "character/snow-queen.svg", filename: "snow-queen.svg"),
-            SourceAssetPair(assetName: "CharacterUnicorn", sourcePath: "character/unicorn.svg", filename: "unicorn.svg")
+            SourceAssetPair(assetName: "CharacterMagicianDizzy", sourcePath: "character/magican_dizz.svg", filename: "magican_dizz.svg")
         ]
+        let monsterPairs = MonsterCodex.entries.map {
+            SourceAssetPair(assetName: $0.assetName, sourcePath: "character/\($0.key).svg", filename: "\($0.key).svg")
+        }
 
-        try assertCopiedSourceAssets(pairs, sourceRoot: "harmonyos/entry/src/main/resources/rawfile")
+        try assertCopiedSourceAssets(playerPairs + monsterPairs, sourceRoot: "harmonyos/entry/src/main/resources/rawfile")
     }
 
     private func repoRoot() throws -> URL {

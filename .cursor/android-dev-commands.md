@@ -1,7 +1,9 @@
 # Android dev commands manifest (source of truth)
 
+> For the per-feature lifecycle (HarmonyOS-first design, stabilization gate, parallel iOS/Android replication, parity checklist), see [`docs/sop/00-three-platform-feature-sop.md`](../docs/sop/00-three-platform-feature-sop.md). This manifest only owns Android commands.
+
 Read this file before running Android build, test, install, emulator, screenshot,
-or logcat commands. It is the Android companion to `.cursor/dev-commands.md`
+or logcat commands. It is the Android companion to `.cursor/ohos-dev-commands.md`
 for HarmonyOS.
 
 - **last_verified_android_studio:** (fill when confirmed)

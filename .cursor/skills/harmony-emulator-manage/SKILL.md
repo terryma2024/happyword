@@ -9,7 +9,7 @@ description: Verifies or starts a HarmonyOS simulator or USB device via hdc, wit
 
 ## Before running
 
-1. Read [`.cursor/dev-commands.md`](.cursor/dev-commands.md) section **Emulator / device**.
+1. Read [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) section **Emulator / device**.
 2. Apply **`safe-command-policy`**.
 
 ## Flow

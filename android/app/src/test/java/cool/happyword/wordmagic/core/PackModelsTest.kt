@@ -19,4 +19,15 @@ class PackModelsTest {
         assertTrue(packs.first().words.any { it.word == "apple" && it.meaning == "苹果" })
         assertTrue(packs.all { it.scene.monsterPlan.isNotEmpty() })
     }
+
+    @Test
+    fun builtinPackSceneColorsMatchHarmonyRegions() {
+        val colors = BuiltinPacks.all.associate { it.id to (it.scene.bgPrimary to it.scene.bgAccent) }
+
+        assertEquals("#FFF6E0" to "#FFD49A", colors["fruit-forest"])
+        assertEquals("#E8F0FE" to "#AECBFA", colors["school-castle"])
+        assertEquals("#FFF1E6" to "#F4B98A", colors["home-cottage"])
+        assertEquals("#FFF4D9" to "#E0B973", colors["animal-safari"])
+        assertEquals("#E0F4F7" to "#7BB6BF", colors["ocean-realm"])
+    }
 }

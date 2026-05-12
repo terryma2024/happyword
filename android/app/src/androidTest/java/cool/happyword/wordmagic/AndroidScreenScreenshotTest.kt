@@ -23,7 +23,8 @@ class AndroidScreenScreenshotTest {
     fun captureGrowthAndCloudScreens() {
         capture("local-growth-home.png")
 
-        composeRule.onNodeWithTag("HomePackManagerButton").performClick()
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.onNodeWithTag("ConfigPackManagerButton").performScrollTo().performClick()
         capture("pack-manager.png")
         composeRule.onNodeWithTag("PackManagerBack").performClick()
 
@@ -38,7 +39,7 @@ class AndroidScreenScreenshotTest {
         capture("monster-codex.png")
         composeRule.onNodeWithTag("MonsterCodexBack").performClick()
 
-        composeRule.onNodeWithTag("HomeTodayPlanButton").performClick()
+        composeRule.onNodeWithTag("HomePlanButton").performClick()
         capture("today-plan.png")
         composeRule.onNodeWithTag("TodayPlanReportButton").performClick()
         capture("learning-report.png")
@@ -55,10 +56,12 @@ class AndroidScreenScreenshotTest {
             composeRule.onNodeWithTag("ScanBindingManualCodeInput").performTextInput("abc123")
             composeRule.onNodeWithTag("ScanBindingRedeemButton").performClick()
             composeRule.waitUntil(timeoutMillis = 2_000) {
-                hasNode("BoundDeviceInfoScreen")
+                hasNode("ScanBindingError")
             }
+            capture("scan-binding-error.png")
+        } else {
+            capture("bound-device-info.png")
         }
-        capture("bound-device-info.png")
     }
 
     @Test

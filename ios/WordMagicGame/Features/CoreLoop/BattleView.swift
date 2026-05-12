@@ -21,7 +21,6 @@ struct BattleView: View {
     @State private var monsterHurtOpacity = 0.0
     @State private var feedbackSerial = 0
     @State private var pendingBattleEnd = false
-    @State private var pendingAnswerOutcome: AnswerOutcome?
     @State private var spellSlots: [String] = []
     @State private var spellConsumedIndices: Set<Int> = []
 
@@ -435,7 +434,6 @@ struct BattleView: View {
         feedbackText = event.feedbackText
         feedbackColor = outcome.comboTriggered ? AppTheme.gold : (outcome.correct ? Color(red: 0.18, green: 0.65, blue: 0.35) : AppTheme.red)
         pendingBattleEnd = outcome.battleEnded
-        pendingAnswerOutcome = outcome
         feedbackSerial += 1
         triggerAnimation(event)
     }
@@ -455,13 +453,11 @@ struct BattleView: View {
         if Task.isCancelled { return }
         await MainActor.run {
             let shouldFinishBattle = pendingBattleEnd
-            let answerOutcome = pendingAnswerOutcome
             clearFeedback()
             pendingBattleEnd = false
-            pendingAnswerOutcome = nil
             if shouldFinishBattle {
                 coordinator.finishBattle()
-            } else if answerOutcome.map(shouldAutoSpeakAfterAnswerFeedback) ?? true {
+            } else {
                 coordinator.autoSpeakCurrentBattleAnswer(isRevealing: false)
             }
         }
@@ -714,15 +710,17 @@ struct BattleView: View {
     }
 
     private var currentMonsterArt: MonsterArt {
-        let roster = [
-            MonsterArt(name: "Slime", imageName: "CharacterSlime"),
-            MonsterArt(name: "Zombie", imageName: "CharacterZombie"),
-            MonsterArt(name: "Dragon", imageName: "CharacterDragon"),
-            MonsterArt(name: "Jellyfish", imageName: "CharacterJellyfish"),
-            MonsterArt(name: "Kraken", imageName: "CharacterKraken")
-        ]
-        let index = min(max((state?.monsterIndex ?? 1) - 1, 0), roster.count - 1)
-        return roster[index]
+        let entry = MonsterCodex.entry(catalogIndex1Based: currentMonsterCatalogIndex)
+        return MonsterArt(name: entry.nameEn, imageName: entry.assetName)
+    }
+
+    private var currentMonsterCatalogIndex: Int {
+        let battleIndex = max(state?.monsterIndex ?? 1, 1)
+        let slots = coordinator.selectedPack.scene.monsterPlan
+        guard !slots.isEmpty else { return battleIndex }
+
+        let slot = slots[(battleIndex - 1) % slots.count]
+        return slot.catalogIndex > 0 ? slot.catalogIndex : battleIndex
     }
 }
 

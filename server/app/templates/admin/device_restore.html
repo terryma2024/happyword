@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% block title %}恢复设备绑定{% endblock %}
+{% block content %}
+<section class="max-w-lg space-y-6">
+  <a href="/admin/devices" class="text-sm text-sky-600 hover:underline">← 返回设备列表</a>
+  <h1 class="text-2xl font-semibold text-slate-900">恢复设备绑定</h1>
+  <div class="bg-white border border-slate-200 rounded-lg p-4 text-sm space-y-2">
+    <p><span class="text-slate-500">绑定 ID</span> · <span class="font-mono">{{ binding.binding_id }}</span></p>
+    <p><span class="text-slate-500">家庭</span> · <span class="font-mono">{{ binding.family_id }}</span></p>
+    <p><span class="text-slate-500">设备</span> · <span class="font-mono">{{ binding.device_id }}</span></p>
+    <p><span class="text-slate-500">撤销时间</span> · {{ binding.revoked_at or '—' }}</p>
+  </div>
+  {% if error %}
+  <p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{{ error }}</p>
+  {% endif %}
+  <form method="post" action="/admin/devices/{{ binding.binding_id }}/restore" class="space-y-4">
+    <div>
+      <label class="block text-sm font-medium text-slate-700">操作说明（至少 4 字）</label>
+      <textarea name="reason" rows="4" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+    </div>
+    <div class="flex gap-3">
+      <button type="submit" class="rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2">确认恢复</button>
+      <a href="/admin/devices" class="rounded-md border border-slate-300 text-sm px-4 py-2 inline-block">取消</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

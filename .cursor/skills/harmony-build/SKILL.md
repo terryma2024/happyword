@@ -7,18 +7,18 @@ description: Runs OHPM and Hvigor build steps for this HarmonyOS repo using the 
 
 ## Before running
 
-1. Read [`.cursor/dev-commands.md`](.cursor/dev-commands.md) section **Build**.
+1. Read [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) section **Build**.
 2. Apply **`safe-command-policy`**: run the exact or manifest-approved `ohpm` / `hvigorw` lines.
 
 ## Steps
 
 1. `ohpm install` from **project root** (unless manifest says already satisfied).
 2. `hvigorw assembleHap` (assumes `hvigorw` is installed and available on `PATH`; or use the manifest’s module-scoped `assembleHap`, e.g. `hvigorw -p module=entry@default assembleHap`).
-3. **Zero ArkTS warnings:** confirm the compile log has no `ArkTS:WARN` lines (see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) **ArkTS compiler warnings**). Fix deprecations before claiming green.
+3. **Zero ArkTS warnings:** confirm the compile log has no `ArkTS:WARN` lines (see [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) **ArkTS compiler warnings**). Fix deprecations before claiming green.
 
 ## On success
 
-Proceed to **`harmony-codelinter`** (static analysis; see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) **CodeLinter**), then to **`harmony-unit-test`** in a full loop, or as orchestrated. Command-line options: [docs/arkts-references/codelinter.md](../../docs/arkts-references/codelinter.md).
+Proceed to **`harmony-codelinter`** (static analysis; see [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) **CodeLinter**), then to **`harmony-unit-test`** in a full loop, or as orchestrated. Command-line options: [docs/arkts-references/codelinter.md](../../docs/arkts-references/codelinter.md).
 
 ## On failure
 
