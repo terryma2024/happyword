@@ -189,7 +189,7 @@ export default function testsuite() {
 
 Run: `/bin/bash -c 'cd <repo-root> && hvigorw -p module=entry@default test'`
 
-Expected: compile fails with a "module `MonsterCatalog` not found" error pointing at `MonsterCatalog.test.ets:2`. This proves the new test is registered and the test runner is reading it. (If hvigor instead reports `oh_modules` missing, run `ohpm install` first per `.cursor/dev-commands.md` §2 pre-flight, then re-run the test command.)
+Expected: compile fails with a "module `MonsterCatalog` not found" error pointing at `MonsterCatalog.test.ets:2`. This proves the new test is registered and the test runner is reading it. (If hvigor instead reports `oh_modules` missing, run `ohpm install` first per `.cursor/ohos-dev-commands.md` §2 pre-flight, then re-run the test command.)
 
 - [ ] **Step 1.4: Create `MonsterCatalog.ets` with the frozen 10-entry roster**
 
@@ -321,7 +321,7 @@ import {
  * sequence stable.
  *
  * Runner: shares the 30 s per-test timeout with RoutingFlow — see
- * `.cursor/dev-commands.md` for the canonical invocation.
+ * `.cursor/ohos-dev-commands.md` for the canonical invocation.
  */
 export default function monsterRosterUiTest() {
   describe('MonsterRosterUiTest', () => {

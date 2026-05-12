@@ -28,7 +28,7 @@ description: Classifies build, lint, and test failures into category (compile, l
 
 ## Input
 
-- Short **excerpts** from the failing command (see [`.cursor/dev-commands.md`](.cursor/dev-commands.md) failure order).
+- Short **excerpts** from the failing command (see [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) failure order).
 - Which **phase** failed: build, codelinter, unit, emulator, ui.
 
 ## Output format (for orchestrator and fix-strategy)

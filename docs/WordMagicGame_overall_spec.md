@@ -960,6 +960,6 @@ hdc rport tcp:8123 tcp:8123
 - [`docs/arkts-references/`](arkts-references/)：HarmonyOS / ArkTS / hvigor 相关命令与 API 速查。
 - [`server/README.md`](../server/README.md) / [`server/pyproject.toml`](../server/pyproject.toml)：服务端依赖与启动。
 - [`AGENTS.md`](../AGENTS.md) / [`CLAUDE.md`](../CLAUDE.md)：项目内 AI 代理工作约定（包括 server 全绿要求）。
-- [`.cursor/dev-commands.md`](../.cursor/dev-commands.md)：HarmonyOS 构建 / lint / 测试命令的真源。
+- [`.cursor/ohos-dev-commands.md`](../.cursor/ohos-dev-commands.md)：HarmonyOS 构建 / lint / 测试命令的真源。
 
 每次新增大功能时先看本文档是否仍符合架构边界；若引入账号、长连接、或服务端结构性变化，必须新增专项设计文档并更新本文 §3 / §13 / §17。

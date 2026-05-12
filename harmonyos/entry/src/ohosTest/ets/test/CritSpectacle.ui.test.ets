@@ -29,7 +29,7 @@ import {
  * pass — see docs/superpowers/specs/2026-04-24-v0.2-design.md.
  *
  * Runner: uses the same 30 s per-test timeout as RoutingFlow.ui.test —
- * see .cursor/dev-commands.md for the invocation.
+ * see .cursor/ohos-dev-commands.md for the invocation.
  */
 export default function critSpectacleUiTest() {
   describe('CritSpectacleUiTest', () => {

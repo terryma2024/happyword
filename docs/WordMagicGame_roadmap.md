@@ -1030,7 +1030,7 @@ V0.7.0 建议能力：
 
 - 新增并执行 monorepo 迁移设计文档。
 - 将 HarmonyOS DevEco 工程迁入 `harmonyos/`。
-- 更新 `.cursor/dev-commands.md`、`AGENTS.md`、`CLAUDE.md`、`README.md` 中所有 HarmonyOS 工作目录和命令。
+- 更新 `.cursor/ohos-dev-commands.md`、`AGENTS.md`、`CLAUDE.md`、`README.md` 中所有 HarmonyOS 工作目录和命令。
 - 更新 `scripts/run_ui_tests.sh`、Recraft 资源脚本、二维码 fixture 脚本等路径敏感工具。
 - 创建 `ios/`、`android/`、`shared/` 的占位 README，但不启动 native feature implementation。
 - 迁移后验证 `cd harmonyos && ohpm install`、`cd harmonyos && hvigorw assembleHap`，再运行 CodeLinter、no-device unit tests 和必要的 UI 测试。

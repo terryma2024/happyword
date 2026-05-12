@@ -66,7 +66,7 @@ export default function testsuite() {
   homeToolbarLockedUiTest();
   // DevMenuPage + version-label triple-tap are intentionally NOT in ohosTest —
   // developer data/env tooling; validate manually on debug builds (see
-  // `.cursor/dev-commands.md` §4).
+  // `.cursor/ohos-dev-commands.md` §4).
   // MonsterCodexFlow is order-independent: the codex page reads only
   // a frozen static array (MONSTER_CODEX) and does not touch the
   // recorder. Runs early to surface failures fast — codex regressions

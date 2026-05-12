@@ -9,7 +9,7 @@ description: Constrains shell operations during HarmonyOS local CI and autofix r
 
 ## Rules
 
-1. **Prefer manifest copy:** For this repo, concrete commands must match [`.cursor/dev-commands.md`](.cursor/dev-commands.md) (or a path the user points to). If the agent is about to run a **new** flag or a different `hvigorw` invocation, stop and **update the manifest** or get explicit user approval in chat.
+1. **Prefer manifest copy:** For this repo, concrete commands must match [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) (or a path the user points to). If the agent is about to run a **new** flag or a different `hvigorw` invocation, stop and **update the manifest** or get explicit user approval in chat.
 2. **Deny (unless user explicitly orders in this session):**
    - `rm -rf /` or `rm -rf` on `$HOME`, `/System`, or repo root in one go without listing targets
    - `curl|sh`, `wget|sh`, or piping unknown URLs into `bash`

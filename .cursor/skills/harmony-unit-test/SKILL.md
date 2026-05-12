@@ -10,8 +10,8 @@ description: Runs no-device local unit tests for the HarmonyOS entry module usin
 ## Before running
 
 1. **Build must have succeeded** and, in a full **autofix** pipeline, **`harmony-codelinter`** should have passed (or user explicitly re-runs tests only / skips lint with explicit instruction).
-2. **Verify `oh_modules/` exists at project root.** If absent (fresh clone or new git worktree), run `ohpm install` from the project root first. Without it, `hvigorw test` hangs indefinitely in `GenerateUnitTestResult` — the offline Previewer child cannot load `@ohos/hypium` and never emits the `OHOS_REPORT_STATUS: taskconsuming` marker hvigor waits on. See `.cursor/dev-commands.md` section 2 for the detailed symptom/fix.
-3. Read [`.cursor/dev-commands.md`](.cursor/dev-commands.md) section **Unit test (no device)**.
+2. **Verify `oh_modules/` exists at project root.** If absent (fresh clone or new git worktree), run `ohpm install` from the project root first. Without it, `hvigorw test` hangs indefinitely in `GenerateUnitTestResult` — the offline Previewer child cannot load `@ohos/hypium` and never emits the `OHOS_REPORT_STATUS: taskconsuming` marker hvigor waits on. See `.cursor/ohos-dev-commands.md` section 2 for the detailed symptom/fix.
+3. Read [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) section **Unit test (no device)**.
 4. Apply **`safe-command-policy`**.
 
 ## On failure

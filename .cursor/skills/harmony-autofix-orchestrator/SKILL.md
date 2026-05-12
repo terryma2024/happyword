@@ -5,12 +5,12 @@ description: Schedules a HarmonyOS autofix loop (build, codelinter, no-device un
 
 # harmony-autofix-orchestrator
 
-**Role:** **Scheduler only.** It does **not** embed long `hvigorw` or `hdc` command tables—read [`.cursor/dev-commands.md`](.cursor/dev-commands.md) in the repo root for copy-pastable lines.
+**Role:** **Scheduler only.** It does **not** embed long `hvigorw` or `hdc` command tables—read [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) in the repo root for copy-pastable lines.
 
 ## Default pipeline order (one full pass)
 
 1. **`harmony-build`**
-2. **`harmony-codelinter`** (CodeLinter / `codelinter` on project root; after successful HAP build; see [`.cursor/dev-commands.md`](.cursor/dev-commands.md))
+2. **`harmony-codelinter`** (CodeLinter / `codelinter` on project root; after successful HAP build; see [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md))
 3. **`harmony-unit-test`** (no device / Local only; see manifest)
 4. **`harmony-emulator-manage`**
 5. **`harmony-ui-test`**
