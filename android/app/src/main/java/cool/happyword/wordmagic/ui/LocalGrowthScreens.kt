@@ -1,5 +1,6 @@
 package cool.happyword.wordmagic.ui
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.annotation.RawRes
@@ -183,6 +184,7 @@ fun RedemptionHistoryScreen(history: RedemptionHistoryStore, onBack: () -> Unit)
 
 @Composable
 fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
+    val context = LocalContext.current
     val current = catalog.current()
     Column(
         Modifier
@@ -198,7 +200,7 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
             OutlinedButton(onClick = onBack, modifier = Modifier.testTag("MonsterCodexBack")) { Text("返回") }
         }
         Spacer(Modifier.height(14.dp))
-        SvgRawImage(monsterResource(current.rawResourceName), modifier = Modifier.height(188.dp).aspectRatio(1f).testTag("MonsterCodexImage"))
+        SvgRawImage(monsterResource(context, current.rawResourceName), modifier = Modifier.height(188.dp).aspectRatio(1f).testTag("MonsterCodexImage"))
         Text(current.nameEn, modifier = Modifier.testTag("MonsterCodexName"), fontSize = 30.sp, fontWeight = FontWeight.Black, color = Color(0xFF303030))
         Text("${current.kindZh} · ${current.descriptionZh}", color = Color(0xFF6A5843))
         Spacer(Modifier.height(12.dp))
@@ -275,10 +277,9 @@ private fun SvgRawImage(@RawRes rawRes: Int, modifier: Modifier = Modifier) {
 }
 
 @RawRes
-private fun monsterResource(name: String): Int = when (name) {
-    "character_zombie" -> R.raw.character_zombie
-    "character_dragon" -> R.raw.character_dragon
-    else -> R.raw.character_slime
+private fun monsterResource(context: Context, name: String): Int {
+    val resolved = context.resources.getIdentifier(name, "raw", context.packageName)
+    return if (resolved != 0) resolved else R.raw.character_slime
 }
 
 private fun sourceLabel(source: String): String = when (source) {

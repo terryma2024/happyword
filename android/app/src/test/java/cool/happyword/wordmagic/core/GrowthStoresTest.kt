@@ -53,8 +53,10 @@ class GrowthStoresTest {
     fun monsterCatalogCyclesThroughCopiedRuntimeAssets() {
         val catalog = MonsterCatalog.default()
 
+        assertEquals(100, catalog.entries.size)
         assertEquals("Slime", catalog.current().nameEn)
         assertEquals("Zombie", catalog.next().current().nameEn)
-        assertFalse(catalog.entries.isEmpty())
+        assertEquals("Music Box Fairy", catalog.previous().current().nameEn)
+        assertEquals("character_music_box_fairy", catalog.previous().current().rawResourceName)
     }
 }
