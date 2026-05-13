@@ -122,7 +122,7 @@ struct HomeView: View {
                 tag("首领")
             }
 
-            Text(coordinator.selectedPack.story)
+            Text(adventureSummary)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color(red: 0.35, green: 0.29, blue: 0.22))
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -148,6 +148,13 @@ struct HomeView: View {
                 .stroke(scenePalette.accent.opacity(0.72), lineWidth: 1.5)
         }
         .accessibilityIdentifier("AdventureCard")
+    }
+
+    private var adventureSummary: String {
+        let levelCount = coordinator.selectedPack.scene.monsterPlan.isEmpty
+            ? coordinator.configStore.config.monstersTotal
+            : coordinator.selectedPack.scene.monsterPlan.count
+        return "今天的冒险包含 \(levelCount) 关卡，含拼写、复习与首领关"
     }
 
     private func badge(_ text: String, tint: Color, foreground: Color) -> some View {

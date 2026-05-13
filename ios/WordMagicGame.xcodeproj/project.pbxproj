@@ -47,6 +47,7 @@
 		B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */; };
 		BFB2D10A293E35EAD0F46005 /* ParentApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */; };
 		C8ED1F2015EB743E6EED5556 /* GameConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */; };
+		D3A10531A50A7354A3613885 /* AppThemeParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAA3B5A205F686C79D19C337 /* AppThemeParityTests.swift */; };
 		DB7C81381850767CB9885D42 /* school-castle.json in Resources */ = {isa = PBXBuildFile; fileRef = 322D0A3007C7DA1E3A44E318 /* school-castle.json */; };
 		DC8CE988A3697BC51B07E777 /* MonsterCodexView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1915D885E57624FF4078BDE /* MonsterCodexView.swift */; };
 		E2A3173A4136798333A2AF0E /* Question.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E540CFB2BCCC470ED117B65 /* Question.swift */; };
@@ -129,6 +130,7 @@
 		DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionGeneratorTests.swift; sourceTree = "<group>"; };
 		E1915D885E57624FF4078BDE /* MonsterCodexView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexView.swift; sourceTree = "<group>"; };
 		F0FC48A86BA4107999240DDC /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		FAA3B5A205F686C79D19C337 /* AppThemeParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppThemeParityTests.swift; sourceTree = "<group>"; };
 		FD9FC5BBE0DF16B580028ED5 /* ParentApiClientDTOTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentApiClientDTOTests.swift; sourceTree = "<group>"; };
 		FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -176,6 +178,7 @@
 			isa = PBXGroup;
 			children = (
 				47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */,
+				FAA3B5A205F686C79D19C337 /* AppThemeParityTests.swift */,
 				7A0633465C884DC2DA099BCE /* Core */,
 				700A94A3A6B8E3B21829BF32 /* ParentAdmin */,
 			);
@@ -380,7 +383,17 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					1458092D17CE1DB1277327B6 = {
+						DevelopmentTeam = 99UX498DB4;
+						ProvisioningStyle = Automatic;
+					};
+					94CF8178381884C0E1171296 = {
+						DevelopmentTeam = 99UX498DB4;
+						ProvisioningStyle = Automatic;
+					};
 					F4054FCFDC163FFBEC563CA5 = {
+						DevelopmentTeam = 99UX498DB4;
+						ProvisioningStyle = Automatic;
 						TestTargetID = 94CF8178381884C0E1171296;
 					};
 				};
@@ -436,6 +449,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0229DC3FF1FA96BF049D43B5 /* AppMetadataTests.swift in Sources */,
+				D3A10531A50A7354A3613885 /* AppThemeParityTests.swift in Sources */,
 				26B615F58D86B8EC7AA6B0D7 /* BattleAnimationTests.swift in Sources */,
 				030EFE16BBEEDAB01CC37A16 /* BattleEngineTests.swift in Sources */,
 				36A3AC8F104BA497DBDCA64F /* BattleStartTests.swift in Sources */,
@@ -588,9 +602,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1006016;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 99UX498DB4;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -681,9 +697,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1006016;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 99UX498DB4;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

@@ -6,7 +6,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            AppTheme.background.ignoresSafeArea()
+            AppTheme.page.ignoresSafeArea()
 
             switch coordinator.route {
             case .home:
