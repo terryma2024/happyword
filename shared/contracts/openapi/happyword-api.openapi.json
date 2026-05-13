@@ -1153,6 +1153,253 @@
         "title": "CloudWishlistPatchIn",
         "type": "object"
       },
+      "DebugSessionCreateIn": {
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "deployment_id": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployment Id"
+          },
+          "preview_url": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Preview Url",
+            "type": "string"
+          },
+          "problem": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Problem",
+            "type": "string"
+          }
+        },
+        "required": [
+          "problem",
+          "preview_url"
+        ],
+        "title": "DebugSessionCreateIn",
+        "type": "object"
+      },
+      "DebugSessionOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "deployment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployment Id"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "preview_url": {
+            "title": "Preview Url",
+            "type": "string"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "stopped_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopped At"
+          }
+        },
+        "required": [
+          "session_id",
+          "problem",
+          "preview_url",
+          "branch",
+          "deployment_id",
+          "created_by",
+          "created_at",
+          "expires_at",
+          "active",
+          "stopped_at"
+        ],
+        "title": "DebugSessionOut",
+        "type": "object"
+      },
+      "DebugTraceListOut": {
+        "properties": {
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "traces": {
+            "items": {
+              "$ref": "#/components/schemas/DebugTraceOut"
+            },
+            "title": "Traces",
+            "type": "array"
+          }
+        },
+        "required": [
+          "session_id",
+          "traces"
+        ],
+        "title": "DebugTraceListOut",
+        "type": "object"
+      },
+      "DebugTraceOut": {
+        "properties": {
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "number"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "request_body": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Body"
+          },
+          "request_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Request Headers",
+            "type": "object"
+          },
+          "response_body": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Body"
+          },
+          "response_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Response Headers",
+            "type": "object"
+          },
+          "status_code": {
+            "title": "Status Code",
+            "type": "integer"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "correlation_id",
+          "method",
+          "path",
+          "query",
+          "status_code",
+          "duration_ms",
+          "request_headers",
+          "response_headers",
+          "request_body",
+          "response_body",
+          "ts"
+        ],
+        "title": "DebugTraceOut",
+        "type": "object"
+      },
       "DeviceListOut": {
         "properties": {
           "devices": {
@@ -7354,6 +7601,191 @@
         "summary": "Sync Word Stats",
         "tags": [
           "child-word-stats"
+        ]
+      }
+    },
+    "/api/v1/debug/sessions": {
+      "post": {
+        "operationId": "create_session_api_v1_debug_sessions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DebugSessionCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugSessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Session",
+        "tags": [
+          "debug"
+        ]
+      }
+    },
+    "/api/v1/debug/sessions/{session_id}/stop": {
+      "post": {
+        "operationId": "stop_session_api_v1_debug_sessions__session_id__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugSessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop Session",
+        "tags": [
+          "debug"
+        ]
+      }
+    },
+    "/api/v1/debug/sessions/{session_id}/traces": {
+      "get": {
+        "operationId": "list_traces_api_v1_debug_sessions__session_id__traces_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugTraceListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Traces",
+        "tags": [
+          "debug"
         ]
       }
     },

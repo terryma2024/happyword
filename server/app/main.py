@@ -16,6 +16,8 @@ from app.models.audit_log import AuditLog
 from app.models.category import Category
 from app.models.child_profile import ChildProfile
 from app.models.cloud_wishlist_item import CloudWishlistItem
+from app.models.debug_session import DebugSession
+from app.models.debug_trace import DebugTrace
 from app.models.device_binding import DeviceBinding
 from app.models.email_verification import EmailVerification
 from app.models.family import Family
@@ -34,7 +36,6 @@ from app.models.synced_word_stat import SyncedWordStat
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.models.word_pack import WordPack
-from app.routers import admin_pages as admin_pages_router
 from app.routers import admin_assets as admin_assets_router
 from app.routers import admin_categories as admin_categories_router
 from app.routers import admin_cron as admin_cron_router
@@ -43,6 +44,7 @@ from app.routers import admin_global_pack as admin_global_pack_router
 from app.routers import admin_lessons as admin_lessons_router
 from app.routers import admin_llm as admin_llm_router
 from app.routers import admin_packs as admin_packs_router
+from app.routers import admin_pages as admin_pages_router
 from app.routers import admin_stats as admin_stats_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
@@ -58,11 +60,13 @@ from app.routers import parent_family_pack as parent_family_pack_router
 from app.routers import parent_inbox as parent_inbox_router
 from app.routers import parent_packs_pages as parent_packs_pages_router
 from app.routers import parent_pages as parent_pages_router
+from app.routers import preview_debug as preview_debug_router
 from app.routers import public_global_pack as public_global_pack_router
 from app.routers import public_packs as public_packs_router
 from app.services.auth_service import hash_password
 from app.services.category_service import seed_manual_categories
 from app.services.email_provider import build_email_provider
+from app.services.preview_debug_service import PreviewDebugTraceMiddleware
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -109,6 +113,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             RedemptionRequest,
             ParentInboxMsg,
             AuditLog,
+            DebugSession,
+            DebugTrace,
         ],
     )
     app.state.mongo_client = client
@@ -146,6 +152,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(PreviewDebugTraceMiddleware)
 
 
 @app.get("/", include_in_schema=False)
@@ -178,6 +185,7 @@ app.include_router(child_word_stats_router.router)
 app.include_router(child_wishlist_router.router)
 app.include_router(child_profile_router.router)
 app.include_router(pair_router.router)
+app.include_router(preview_debug_router.router)
 app.include_router(public_packs_router.router)
 # V0.6.5 — three-layer pack model: public global packs + admin CRUD.
 app.include_router(public_global_pack_router.router)

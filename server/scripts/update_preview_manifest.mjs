@@ -49,7 +49,6 @@
  *   PREVIEW_MANIFEST_MAX_DEPLOYMENT_PAGES — safety cap on Vercel pagination
  *                                          (default 50 × 100 = 5000 deployments).
  */
-import { Octokit } from '@octokit/rest';
 
 const SCHEMA_VERSION = 1;
 const PREVIEWS_CAP = 50;
@@ -158,15 +157,88 @@ function sanitiseTitle(raw) {
   return (raw || '').replace(/[\r\n]+/g, ' ').slice(0, TITLE_MAX);
 }
 
-function deployUrl(d) {
-  // Vercel `d.url` is the canonical hash hostname WITHOUT scheme — we always
-  // emit `https://`. We deliberately do NOT prefer `d.alias[*]` (the git-based
-  // alias like `happyword-git-<branch>-<team>.vercel.app`) because aliases
-  // are mutable: a tester bookmarking the alias would silently get the next
-  // deployment for that branch, defeating the whole point of pinning a row
-  // to a specific PR head SHA.
-  const url = d.url || '';
+function withHttps(raw) {
+  const url = raw || '';
   return url.startsWith('https://') ? url : `https://${url}`;
+}
+
+function deploymentUrl(d) {
+  // Vercel `d.url` is the canonical hash hostname WITHOUT scheme — we always
+  // emit `https://`. Keep this alongside the branch URL so debug tooling can
+  // tell exactly which deployment a moving branch URL resolved to.
+  return withHttps(d.url || '');
+}
+
+function branchSlug(branch) {
+  return String(branch || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function aliasCandidates(deploy) {
+  const raw = [
+    ...(Array.isArray(deploy.alias) ? deploy.alias : []),
+    ...(Array.isArray(deploy.aliases) ? deploy.aliases : []),
+  ];
+  if (typeof deploy.alias === 'string') raw.push(deploy.alias);
+  if (typeof deploy.aliases === 'string') raw.push(deploy.aliases);
+  return raw
+    .map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item.domain === 'string') return item.domain;
+      if (item && typeof item.url === 'string') return item.url;
+      return '';
+    })
+    .filter(Boolean);
+}
+
+export function requireBranchUrl({ branch, deploy }) {
+  const slug = branchSlug(branch);
+  const aliases = aliasCandidates(deploy);
+  const match = aliases.find((alias) => {
+    const host = alias.replace(/^https?:\/\//, '');
+    return host.includes(`-git-${slug}-`) && host.endsWith('.vercel.app');
+  });
+  if (!match) {
+    throw new Error(
+      `Missing Vercel branch URL for branch "${branch}". ` +
+        'Check that the preview deploy carries Git metadata and exposes the branch URL alias.',
+    );
+  }
+  return withHttps(match);
+}
+
+export function makeManifestRow({ branch, deploy, pr }) {
+  const branch_url = requireBranchUrl({ branch, deploy });
+  const deploy_url = deploymentUrl(deploy);
+  return {
+    pr: pr.number,
+    title: sanitiseTitle(pr.title),
+    branch,
+    url: branch_url,
+    branch_url,
+    deployment_url: deploy_url,
+    deployment_id: deploy.uid || deploy.id || '',
+    author: pr.user?.login || '?',
+    head_sha: (deploy.meta?.githubCommitSha || pr.head?.sha || '').slice(0, 7),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function assertBranchHealth(url) {
+  const headers = {};
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || '';
+  if (bypass) headers['x-vercel-protection-bypass'] = bypass;
+  const healthUrl = `${url.replace(/\/+$/, '')}/api/v1/health`;
+  const res = await fetch(healthUrl, { headers });
+  if (!res.ok) {
+    throw new Error(`Branch URL health check failed for ${healthUrl}: HTTP ${res.status}`);
+  }
+  const body = await res.json().catch(() => null);
+  if (!body || body.ok !== true) {
+    throw new Error(`Branch URL health check returned unexpected body for ${healthUrl}`);
+  }
 }
 
 async function uploadManifestToBlob({ payload, token }) {
@@ -223,6 +295,7 @@ async function buildManifestRows({
     `Eligible non-protected branches with a READY preview: ${newestByBranch.size}`,
   );
 
+  const { Octokit } = await import('@octokit/rest');
   const oct = new Octokit({ auth: ghToken });
   const previews = [];
   for (const [branch, deploy] of newestByBranch) {
@@ -237,15 +310,9 @@ async function buildManifestRows({
       console.log(`branch=${branch}: no matching PR; skipping.`);
       continue;
     }
-    previews.push({
-      pr: pr.number,
-      title: sanitiseTitle(pr.title),
-      branch,
-      url: deployUrl(deploy),
-      author: pr.user?.login || '?',
-      head_sha: (deploy.meta?.githubCommitSha || pr.head?.sha || '').slice(0, 7),
-      updated_at: new Date().toISOString(),
-    });
+    const row = makeManifestRow({ branch, deploy, pr });
+    await assertBranchHealth(row.branch_url);
+    previews.push(row);
   }
 
   previews.sort((a, b) => b.pr - a.pr);

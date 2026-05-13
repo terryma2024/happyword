@@ -39,6 +39,7 @@ fun DevMenuScreen(
     onSelectEnv: (BackendEnv) -> Unit,
     onRefreshManifest: () -> Unit,
     onSelectPreview: (PreviewTarget) -> Unit,
+    onDebugSessionChange: (String) -> Unit,
     onProbe: () -> Unit,
     onBypassSecret: () -> Unit,
     onClear: () -> Unit,
@@ -62,6 +63,13 @@ fun DevMenuScreen(
             OutlinedButton(onClick = onBypassSecret, modifier = Modifier.testTag("DevMenuBypassSecretButton")) { Text("Bypass") }
             OutlinedButton(onClick = onClear, modifier = Modifier.testTag("DevMenuClearOverrideButton")) { Text("清除") }
         }
+        OutlinedTextField(
+            value = state.debugSessionId,
+            onValueChange = onDebugSessionChange,
+            label = { Text("Debug session") },
+            modifier = Modifier.padding(top = 12.dp).fillMaxWidth().testTag("DevMenuDebugSessionInput"),
+            singleLine = true,
+        )
         Text(probeStatus, modifier = Modifier.padding(top = 10.dp).testTag("DevMenuLastProbeStatus"))
         previews.forEach { preview ->
             OutlinedButton(

@@ -21,6 +21,9 @@
 		3BA9690760CDAB437EC7555A /* WordRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710C4CE303108095BB4DD2C4 /* WordRepository.swift */; };
 		3F3A0F69351DA9E8D7EE0001 /* CloudSyncServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3A0F68351DA9E8D7EE0001 /* CloudSyncServices.swift */; };
 		3F3A0F6B351DA9E8D7EE0002 /* CloudBindingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3A0F6A351DA9E8D7EE0002 /* CloudBindingViews.swift */; };
+		42A1001042A1001042A10010 /* BackendRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A1001142A1001142A10011 /* BackendRouting.swift */; };
+		42A1001242A1001242A10012 /* DevMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A1001342A1001342A10013 /* DevMenuView.swift */; };
+		42A1001442A1001442A10014 /* BackendRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A1001542A1001542A10015 /* BackendRoutingTests.swift */; };
 		4EF9263FA9C00E2D1120DAC1 /* ParentAdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A34FBB768E5B1541E82EB7BF /* ParentAdminView.swift */; };
 		4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6288AB79A566478B8CD0BC1F /* Assets.xcassets */; };
 		579EE45B2B7202F7B3269EFF /* WordEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD002304AC10A20B5A041CF4 /* WordEntry.swift */; };
@@ -85,6 +88,9 @@
 		3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentApiModels.swift; sourceTree = "<group>"; };
 		3F3A0F68351DA9E8D7EE0001 /* CloudSyncServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncServices.swift; sourceTree = "<group>"; };
 		3F3A0F6A351DA9E8D7EE0002 /* CloudBindingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBindingViews.swift; sourceTree = "<group>"; };
+		42A1001142A1001142A10011 /* BackendRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendRouting.swift; sourceTree = "<group>"; };
+		42A1001342A1001342A10013 /* DevMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevMenuView.swift; sourceTree = "<group>"; };
+		42A1001542A1001542A10015 /* BackendRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendRoutingTests.swift; sourceTree = "<group>"; };
 		46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetadataTests.swift; sourceTree = "<group>"; };
 		4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConfig.swift; sourceTree = "<group>"; };
@@ -195,6 +201,7 @@
 			children = (
 				3F3A0F6A351DA9E8D7EE0002 /* CloudBindingViews.swift */,
 				B8B82B38DA43BA9443CC2B54 /* ConfigView.swift */,
+				42A1001342A1001342A10013 /* DevMenuView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -223,6 +230,7 @@
 		7A0633465C884DC2DA099BCE /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				42A1001542A1001542A10015 /* BackendRoutingTests.swift */,
 				09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */,
 				9983A8C2B2B01829EC9597FF /* BattleEngineTests.swift */,
 				5D2200025D2200025D220002 /* BattleStartTests.swift */,
@@ -260,6 +268,7 @@
 		BBE527345F0145751F1FF932 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				42A1001142A1001142A10011 /* BackendRouting.swift */,
 				3F3A0F68351DA9E8D7EE0001 /* CloudSyncServices.swift */,
 				A77053ADBABC5E1EEED849EA /* LessonDraftReviewStore.swift */,
 				2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */,
@@ -433,6 +442,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0229DC3FF1FA96BF049D43B5 /* AppMetadataTests.swift in Sources */,
+				42A1001442A1001442A10014 /* BackendRoutingTests.swift in Sources */,
 				26B615F58D86B8EC7AA6B0D7 /* BattleAnimationTests.swift in Sources */,
 				030EFE16BBEEDAB01CC37A16 /* BattleEngineTests.swift in Sources */,
 				5D2200015D2200015D220001 /* BattleStartTests.swift in Sources */,
@@ -455,6 +465,7 @@
 				B78D4D8347BED158B20C4848 /* AppCoordinator.swift in Sources */,
 				0D92C5BC2268F1E0D62A4CA9 /* AppDelegate.swift in Sources */,
 				5CE532062EAAC36F72958B4D /* AppMetadata.swift in Sources */,
+				42A1001042A1001042A10010 /* BackendRouting.swift in Sources */,
 				94E337DE08EB43CCE456B2EE /* BattleAnimationEvent.swift in Sources */,
 				03E9C1A592065ACCA85467EA /* BattleEngine.swift in Sources */,
 				6F5EF564EB875CA55F166AD3 /* BattleView.swift in Sources */,
@@ -462,6 +473,7 @@
 				3F3A0F6B351DA9E8D7EE0002 /* CloudBindingViews.swift in Sources */,
 				E7276A8FCD0B214B97D93205 /* ConfigView.swift in Sources */,
 				9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */,
+				42A1001242A1001242A10012 /* DevMenuView.swift in Sources */,
 				C8ED1F2015EB743E6EED5556 /* GameConfig.swift in Sources */,
 				B3973A93F0C154C9CC3C2E09 /* HomeView.swift in Sources */,
 				0A5527873875D5DF44DFC7FF /* Learning.swift in Sources */,

@@ -19,6 +19,9 @@ export interface ManifestRow {
   title: string;
   branch: string;
   url: string;
+  branch_url: string;
+  deployment_url: string;
+  deployment_id: string;
   author: string;
   head_sha: string;
   updated_at: string;
@@ -46,6 +49,9 @@ interface RawManifestRow {
   title?: string;
   branch?: string;
   url?: string;
+  branch_url?: string;
+  deployment_url?: string;
+  deployment_id?: string;
   author?: string;
   head_sha?: string;
   updated_at?: string;
@@ -76,19 +82,25 @@ export function parseManifest(json: string): PreviewManifest | null {
   if (rows !== undefined) {
     for (let i = 0; i < rows.length; i++) {
       const r: RawManifestRow = rows[i];
+      const branchUrl: string = typeof r.branch_url === 'string' ? r.branch_url : (r.url ?? '');
+      const deploymentUrl: string = typeof r.deployment_url === 'string' ? r.deployment_url : branchUrl;
+      const deploymentId: string = typeof r.deployment_id === 'string' ? r.deployment_id : '';
       if (typeof r.pr !== 'number' || typeof r.title !== 'string' || typeof r.branch !== 'string'
-        || typeof r.url !== 'string' || typeof r.author !== 'string'
+        || typeof branchUrl !== 'string' || typeof r.author !== 'string'
         || typeof r.head_sha !== 'string' || typeof r.updated_at !== 'string') {
         continue;
       }
-      if (!isValidUrl(r.url)) {
+      if (!isValidUrl(branchUrl)) {
         continue;
       }
       previews.push({
         pr: r.pr,
         title: sanitiseTitle(r.title),
         branch: r.branch,
-        url: r.url,
+        url: branchUrl,
+        branch_url: branchUrl,
+        deployment_url: deploymentUrl,
+        deployment_id: deploymentId,
         author: r.author,
         head_sha: r.head_sha,
         updated_at: r.updated_at,

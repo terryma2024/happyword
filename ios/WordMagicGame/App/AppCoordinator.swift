@@ -18,6 +18,7 @@ enum AppRoute: Equatable {
     case learningReport
     case scanBinding
     case boundDeviceInfo
+    case devMenu
 }
 
 @MainActor

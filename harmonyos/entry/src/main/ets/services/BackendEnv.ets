@@ -3,6 +3,7 @@ import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import {
   BACKEND_BYPASS_SECRET_CACHE_KEY,
+  BACKEND_DEBUG_SESSION_CACHE_KEY,
   BACKEND_ENV_CACHE_KEY,
   BACKEND_PREVIEW_URL_CACHE_KEY,
   LOCAL_BASE_URL,
@@ -24,6 +25,7 @@ const KEY_AUDIT: string = 'dev_menu_audit';
  * via a future "clear bypass secret" action (not yet wired).
  */
 const KEY_BYPASS_SECRET: string = 'backend_bypass_secret';
+const KEY_DEBUG_SESSION: string = 'backend_debug_session';
 
 const HISTORY_CAP: number = 5;
 const AUDIT_CAP: number = 50;
@@ -142,17 +144,21 @@ export async function initBackendEnvPrefs(ctx: common.UIAbilityContext): Promise
     const envVt: preferences.ValueType = await prefsHandle.get(KEY_ENV, BackendEnv.STAGING);
     const urlVt: preferences.ValueType = await prefsHandle.get(KEY_PREVIEW_URL, '');
     const secretVt: preferences.ValueType = await prefsHandle.get(KEY_BYPASS_SECRET, '');
+    const debugSessionVt: preferences.ValueType = await prefsHandle.get(KEY_DEBUG_SESSION, '');
     const envStr: string = typeof envVt === 'string' ? envVt : BackendEnv.STAGING;
     const urlStr: string = typeof urlVt === 'string' ? urlVt : '';
     const secretStr: string = typeof secretVt === 'string' ? secretVt : '';
+    const debugSessionStr: string = typeof debugSessionVt === 'string' ? debugSessionVt : '';
     AppStorage.setOrCreate<string>(BACKEND_ENV_CACHE_KEY, envStr);
     AppStorage.setOrCreate<string>(BACKEND_PREVIEW_URL_CACHE_KEY, urlStr);
     AppStorage.setOrCreate<string>(BACKEND_BYPASS_SECRET_CACHE_KEY, secretStr);
+    AppStorage.setOrCreate<string>(BACKEND_DEBUG_SESSION_CACHE_KEY, debugSessionStr);
   } catch (err) {
     console.error(`BackendEnv.initPrefs failed: ${JSON.stringify(err as BusinessError)}`);
     AppStorage.setOrCreate<string>(BACKEND_ENV_CACHE_KEY, BackendEnv.STAGING);
     AppStorage.setOrCreate<string>(BACKEND_PREVIEW_URL_CACHE_KEY, '');
     AppStorage.setOrCreate<string>(BACKEND_BYPASS_SECRET_CACHE_KEY, '');
+    AppStorage.setOrCreate<string>(BACKEND_DEBUG_SESSION_CACHE_KEY, '');
   }
 }
 
@@ -234,6 +240,24 @@ export async function loadBypassSecret(): Promise<string> {
 export async function saveBypassSecret(secret: string): Promise<void> {
   await putAndFlush(KEY_BYPASS_SECRET, secret);
   AppStorage.setOrCreate<string>(BACKEND_BYPASS_SECRET_CACHE_KEY, secret);
+}
+
+export async function loadDebugSessionId(): Promise<string> {
+  if (prefsHandle === null) {
+    return '';
+  }
+  try {
+    const raw: preferences.ValueType = await prefsHandle.get(KEY_DEBUG_SESSION, '');
+    return typeof raw === 'string' ? raw : '';
+  } catch (err) {
+    console.error(`BackendEnv.loadDebugSessionId failed: ${JSON.stringify(err as BusinessError)}`);
+    return '';
+  }
+}
+
+export async function saveDebugSessionId(sessionId: string): Promise<void> {
+  await putAndFlush(KEY_DEBUG_SESSION, sessionId.trim());
+  AppStorage.setOrCreate<string>(BACKEND_DEBUG_SESSION_CACHE_KEY, sessionId.trim());
 }
 
 export async function loadHistory(): Promise<string[]> {

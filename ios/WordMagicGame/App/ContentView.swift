@@ -40,6 +40,12 @@ struct ContentView: View {
                 ScanBindingView(coordinator: coordinator)
             case .boundDeviceInfo:
                 BoundDeviceInfoView(coordinator: coordinator)
+            case .devMenu:
+                #if DEBUG
+                DevMenuView(coordinator: coordinator)
+                #else
+                HomeView(coordinator: coordinator)
+                #endif
             }
         }
         .accessibilityIdentifier("RootView")

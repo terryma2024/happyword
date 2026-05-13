@@ -1,6 +1,7 @@
 import { BackendEnv } from './BackendEnv';
 import {
   BACKEND_BYPASS_SECRET_CACHE_KEY,
+  BACKEND_DEBUG_SESSION_CACHE_KEY,
   BACKEND_ENV_CACHE_KEY,
 } from './RemoteWordPackConfig';
 
@@ -36,6 +37,7 @@ import {
 
 /** HTTP header name Vercel checks for the bypass secret. */
 export const VERCEL_BYPASS_HEADER: string = 'x-vercel-protection-bypass';
+export const DEBUG_SESSION_HEADER: string = 'x-hw-debug-session';
 
 /**
  * Pure helper — exposed for unit tests. Returns the bypass header dict
@@ -71,6 +73,22 @@ export function vercelBypassHeader(): Record<string, string> {
   return buildVercelBypassHeader(env, secret);
 }
 
+export function debugSessionHeader(): Record<string, string> {
+  const envRaw: string | undefined = AppStorage.get<string>(BACKEND_ENV_CACHE_KEY);
+  const env: string = envRaw ?? '';
+  if (env !== BackendEnv.PREVIEW) {
+    return {};
+  }
+  const sessionRaw: string | undefined = AppStorage.get<string>(BACKEND_DEBUG_SESSION_CACHE_KEY);
+  const sessionId: string = (sessionRaw ?? '').trim();
+  if (sessionId.length === 0) {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  out[DEBUG_SESSION_HEADER] = sessionId;
+  return out;
+}
+
 /**
  * Pure helper — merges two header dicts, with `extra` taking
  * precedence on key collision. Exposed so unit tests can verify
@@ -102,7 +120,7 @@ export function mergeHeaders(
 export function withBypassHeaders(
   base: Record<string, string>,
 ): Record<string, string> {
-  const extra: Record<string, string> = vercelBypassHeader();
+  const extra: Record<string, string> = mergeHeaders(vercelBypassHeader(), debugSessionHeader());
   if (Object.keys(extra).length === 0) {
     return base;
   }

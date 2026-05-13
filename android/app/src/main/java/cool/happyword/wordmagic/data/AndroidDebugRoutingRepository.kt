@@ -25,12 +25,13 @@ class AndroidDebugRoutingRepository(context: Context) {
         val previewId = prefs.getString("previewId", null)
         val previewLabel = prefs.getString("previewLabel", null)
         val previewUrl = prefs.getString("previewUrl", null)
+        val debugSessionId = prefs.getString("debugSessionId", "").orEmpty()
         val preview = if (!previewId.isNullOrBlank() && !previewUrl.isNullOrBlank()) {
             PreviewTarget(previewId, previewLabel ?: previewId, previewUrl)
         } else {
             null
         }
-        return BackendRouteState(env = env, selectedPreview = preview)
+        return BackendRouteState(env = env, selectedPreview = preview, debugSessionId = debugSessionId)
     }
 
     fun saveRouteState(state: BackendRouteState) {
@@ -39,6 +40,7 @@ class AndroidDebugRoutingRepository(context: Context) {
             .putString("previewId", state.selectedPreview?.id)
             .putString("previewLabel", state.selectedPreview?.label)
             .putString("previewUrl", state.selectedPreview?.url)
+            .putString("debugSessionId", state.debugSessionId)
             .apply()
     }
 

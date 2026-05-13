@@ -41,6 +41,7 @@ export const BACKEND_PREVIEW_URL_CACHE_KEY: string = 'backend_preview_url_cache'
  * env=preview; release builds never write this key.
  */
 export const BACKEND_BYPASS_SECRET_CACHE_KEY: string = 'backend_bypass_secret_cache';
+export const BACKEND_DEBUG_SESSION_CACHE_KEY: string = 'backend_debug_session_cache';
 
 /** Cap for a single fetch round-trip; exceeded => fallback to cache. */
 export const REMOTE_FETCH_TIMEOUT_MS: number = 8000;

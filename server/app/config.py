@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     openai_model_vision: str = "gpt-4o"
     cors_allow_origins: str = "*"
     log_level: Literal["debug", "info", "warning", "error"] = "info"
+    preview_debug_enabled: bool = False
+    preview_debug_secret: str = ""
+    preview_debug_ttl_minutes: int = 30
+    preview_debug_body_limit_bytes: int = 4096
 
     # V0.6.1 — parent web shell
     parent_web_base_url: str = "http://localhost:3000"

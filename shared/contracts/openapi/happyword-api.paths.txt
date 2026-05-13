@@ -42,6 +42,9 @@
 /api/v1/child/wishlist/sync-custom
 /api/v1/child/word-stats
 /api/v1/child/word-stats/sync
+/api/v1/debug/sessions
+/api/v1/debug/sessions/{session_id}/stop
+/api/v1/debug/sessions/{session_id}/traces
 /api/v1/health
 /api/v1/packs/latest.json
 /api/v1/pair/redeem

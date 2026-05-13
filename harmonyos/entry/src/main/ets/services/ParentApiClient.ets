@@ -707,6 +707,9 @@ export class RealParentFetchAdapter implements ParentFetchAdapter {
       // Staging / Prod and for releases (the AppStorage mirror is
       // empty there).
       const merged: Record<string, string> = withBypassHeaders(headers);
+      if (merged['x-hw-debug-session'] !== undefined) {
+        console.info(`HW_NET_DEBUG request ${method} ${url}`);
+      }
       const resp: http.HttpResponse = await req.request(url, {
         method,
         header: merged,
@@ -716,6 +719,9 @@ export class RealParentFetchAdapter implements ParentFetchAdapter {
         expectDataType: http.HttpDataType.STRING,
       });
       out.status = resp.responseCode;
+      if (merged['x-hw-debug-session'] !== undefined) {
+        console.info(`HW_NET_DEBUG response ${method} ${url} -> ${resp.responseCode}`);
+      }
       const result: string | Object | ArrayBuffer = resp.result;
       if (typeof result === 'string') {
         out.body = result;

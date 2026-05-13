@@ -70,6 +70,9 @@ export class PackNetworkFetchAdapter implements FamilyPackFetchAdapter, GlobalPa
     const req: http.HttpRequest = http.createHttp();
     try {
       const merged: Record<string, string> = withBypassHeaders(headers);
+      if (merged['x-hw-debug-session'] !== undefined) {
+        console.info(`HW_NET_DEBUG request ${method} ${url}`);
+      }
       const resp: http.HttpResponse = await req.request(url, {
         method,
         header: merged,
@@ -79,6 +82,9 @@ export class PackNetworkFetchAdapter implements FamilyPackFetchAdapter, GlobalPa
         expectDataType: http.HttpDataType.STRING,
       });
       out.status = resp.responseCode;
+      if (merged['x-hw-debug-session'] !== undefined) {
+        console.info(`HW_NET_DEBUG response ${method} ${url} -> ${resp.responseCode}`);
+      }
       const result: string | Object | ArrayBuffer = resp.result;
       if (typeof result === 'string') {
         out.body = result;

@@ -517,9 +517,19 @@ fun WordMagicGameApp() {
                         backendRouteState = BackendRouteState(env = env)
                         debugRoutingRepository.saveRouteState(backendRouteState)
                     },
-                    onRefreshManifest = { previewTargets = devMenuViewModel.refreshManifest(previewTargets) },
+                    onRefreshManifest = {
+                        val previous = previewTargets
+                        Thread {
+                            val next = devMenuViewModel.refreshManifest(previous)
+                            Handler(Looper.getMainLooper()).post { previewTargets = next }
+                        }.start()
+                    },
                     onSelectPreview = { preview ->
                         backendRouteState = devMenuViewModel.selectPreview(backendRouteState, preview)
+                        debugRoutingRepository.saveRouteState(backendRouteState)
+                    },
+                    onDebugSessionChange = { sessionId ->
+                        backendRouteState = backendRouteState.copy(debugSessionId = sessionId.trim())
                         debugRoutingRepository.saveRouteState(backendRouteState)
                     },
                     onProbe = { probeStatus = devMenuViewModel.probe(backendRouteState) },

@@ -67,6 +67,11 @@ struct ConfigView: View {
                     Button("我的词包") { coordinator.route = .packManager }
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("ConfigPackManagerButton")
+                    #if DEBUG
+                    Button("Debug") { coordinator.route = .devMenu }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("ConfigDevMenuButton")
+                    #endif
                 }
                 .font(.headline.weight(.bold))
 

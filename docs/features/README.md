@@ -24,6 +24,7 @@ For every feature, agents work inside `docs/features/<feature-id>/`, where `<fea
 
 | Feature ID | Slug | Owner | Status | Replication approved | Folder |
 | --- | --- | --- | --- | --- | --- |
+| `2026-05-12-preview-debug-tool` | preview-debug-tool | Codex | Stage 5 | no | [`2026-05-12-preview-debug-tool/`](2026-05-12-preview-debug-tool/) |
 | `_example` | example-stable-id-toggle | (worked-through reference) | Done | yes | [`_example/`](_example/) |
 <!-- Append new rows above this line, newest at the top. -->
 

@@ -21,13 +21,38 @@ class DebugRoutingTest {
 
         assertTrue(provider.headers(BackendRouteState(env = BackendEnv.Staging), "secret").isEmpty())
         assertEquals("secret", provider.headers(BackendRouteState(env = BackendEnv.Preview), " secret ")["x-vercel-protection-bypass"])
+        assertEquals(
+            "dbg_123",
+            provider.headers(BackendRouteState(env = BackendEnv.Preview, debugSessionId = " dbg_123 "), "")["x-hw-debug-session"],
+        )
     }
 
     @Test
     fun previewManifestRejectsInvalidUrls() {
-        val parsed = PreviewManifestClient().parse("""{"previews":[{"id":"ok","url":"https://ok.example.com"},{"id":"bad","url":"ftp://bad"}]}""")
+        val parsed = PreviewManifestClient().parse(
+            """
+            {
+              "previews": [
+                {
+                  "branch": "feature/stable",
+                  "title": "Feature",
+                  "url": "https://commit-url.vercel.app",
+                  "branch_url": "https://branch-url.vercel.app",
+                  "deployment_url": "https://commit-url.vercel.app"
+                },
+                {
+                  "branch": "bad",
+                  "title": "Bad",
+                  "url": "ftp://bad"
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
 
-        assertEquals(listOf("ok"), parsed.map { it.id })
+        assertEquals(listOf("feature/stable"), parsed.map { it.id })
+        assertEquals("https://branch-url.vercel.app", parsed.first().url)
+        assertEquals("https://commit-url.vercel.app", parsed.first().deploymentUrl)
     }
 
     @Test

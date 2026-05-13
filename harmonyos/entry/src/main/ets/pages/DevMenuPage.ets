@@ -8,10 +8,12 @@ import {
   initBackendEnvPrefs,
   loadBackendEnv,
   loadBypassSecret,
+  loadDebugSessionId,
   loadPreviewUrl,
   metaFor,
   saveBackendEnv,
   saveBypassSecret,
+  saveDebugSessionId,
   savePreviewUrl,
 } from '../services/BackendEnv';
 import {
@@ -95,6 +97,7 @@ struct DevMenuPage {
   // first-time Preview flow (`BypassSecretDialog`). AppStorage is the
   // source of truth for outgoing HTTP calls (see BackendHeaders.ets).
   @State private bypassSecret: string = '';
+  @State private debugSessionId: string = '';
   // Local handle to the current dialog — held so the closure-driven
   // close path (mirrors AddCustomWishDialog) works regardless of
   // whether the auto-bound controller field on the dialog struct
@@ -136,7 +139,8 @@ struct DevMenuPage {
       this.routingDebugText = '';
       return;
     }
-    this.routingDebugText = `API base: ${effectiveServerBaseUrl()}`;
+    const dbg: string = this.debugSessionId.length > 0 ? ` debug=${this.debugSessionId}` : ' debug=off';
+    this.routingDebugText = `API base: ${effectiveServerBaseUrl()}${dbg}`;
   }
 
   /**
@@ -163,6 +167,7 @@ struct DevMenuPage {
     this.currentEnv = await loadBackendEnv();
     this.currentPreviewUrl = await loadPreviewUrl();
     this.bypassSecret = await loadBypassSecret();
+    this.debugSessionId = await loadDebugSessionId();
     this.refreshRoutingDebugPanel();
     this.refreshManifest(false).catch((err: BusinessError): void => {
       console.error(`DevMenuPage.refreshManifest: ${JSON.stringify(err)}`);
@@ -523,6 +528,49 @@ struct DevMenuPage {
           .fontSize(14)
           .fontColor('#666666')
           .margin({ bottom: 12 });
+
+        Text('Debug session')
+          .fontSize(12)
+          .fontColor('#666666')
+          .margin({ bottom: 6 });
+        Row({ space: 8 }) {
+          TextInput({ placeholder: 'dbg_...', text: this.debugSessionId })
+            .id('DevMenuDebugSessionInput')
+            .fontSize(12)
+            .layoutWeight(1)
+            .onChange((value: string): void => {
+              this.debugSessionId = value.trim();
+            });
+          Button('Save')
+            .id('DevMenuDebugSessionSaveButton')
+            .fontSize(12)
+            .height(34)
+            .enabled(!this.applying)
+            .onClick((): void => {
+              saveDebugSessionId(this.debugSessionId).then((): void => {
+                this.showToast(this.debugSessionId.length > 0 ? 'Debug session enabled' : 'Debug session cleared');
+                this.refreshRoutingDebugPanel();
+              }).catch((err: BusinessError): void => {
+                console.error(`DevMenuPage.saveDebugSessionId failed: ${JSON.stringify(err)}`);
+              });
+            });
+          Button('Clear')
+            .id('DevMenuDebugSessionClearButton')
+            .fontSize(12)
+            .height(34)
+            .enabled(!this.applying)
+            .onClick((): void => {
+              this.debugSessionId = '';
+              saveDebugSessionId('').then((): void => {
+                this.showToast('Debug session cleared');
+                this.refreshRoutingDebugPanel();
+              }).catch((err: BusinessError): void => {
+                console.error(`DevMenuPage.clearDebugSessionId failed: ${JSON.stringify(err)}`);
+              });
+            });
+        }
+        .width('100%')
+        .margin({ bottom: 14 });
 
         // 2-column card grid. Each row is two cards side-by-side
         // with `layoutWeight(1)` so they share the available width

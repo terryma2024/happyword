@@ -34,6 +34,8 @@ async def db() -> AsyncIterator[object]:
     from app.models.category import Category  # noqa: PLC0415
     from app.models.child_profile import ChildProfile  # noqa: PLC0415
     from app.models.cloud_wishlist_item import CloudWishlistItem  # noqa: PLC0415
+    from app.models.debug_session import DebugSession  # noqa: PLC0415
+    from app.models.debug_trace import DebugTrace  # noqa: PLC0415
     from app.models.device_binding import DeviceBinding  # noqa: PLC0415
     from app.models.email_verification import EmailVerification  # noqa: PLC0415
     from app.models.family import Family  # noqa: PLC0415
@@ -79,6 +81,8 @@ async def db() -> AsyncIterator[object]:
             RedemptionRequest,
             ParentInboxMsg,
             AuditLog,
+            DebugSession,
+            DebugTrace,
         ],
     )
     yield mock["happyword_test"]
