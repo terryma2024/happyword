@@ -11,6 +11,7 @@ import argparse
 import datetime as _dt
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -56,7 +57,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     pick_p.add_argument("--include-blocked", action="store_true")
 
-    sub.add_parser("run")
+    run_p = sub.add_parser("run")
+    run_p.add_argument("--run", required=True)
+    run_p.add_argument(
+        "--only",
+        default=None,
+        help="Comma-separated subset of already-picked pages.",
+    )
+    run_p.add_argument("--leaf-timeout", type=int, default=180)
+    run_p.add_argument("--allow-dirty-baseline", action="store_true")
+    run_p.add_argument("--registry", type=Path, default=_DEFAULT_REGISTRY)
+
     sub.add_parser("promote")
     sub.add_parser("doctor")
     sub.add_parser("prune")
@@ -165,12 +176,117 @@ def _cmd_pick(args: argparse.Namespace) -> int:
     return 0
 
 
+def _baseline_clean() -> bool:
+    try:
+        head = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain", "harmonyos/entry/src/main/ets"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except Exception:
+        return False
+    return head == "main" and dirty == ""
+
+
+def _baseline_sha() -> str:
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except Exception:
+        return "unknown"
+
+
+def _cmd_run(args: argparse.Namespace) -> int:
+    from parity_scout.adapters.android import AndroidAdapter
+    from parity_scout.adapters.harmony import HarmonyAdapter
+    from parity_scout.adapters.ios import IosAdapter
+    from parity_scout.runner import Runner
+
+    run_dir = _RUN_ROOT / args.run
+    if not (run_dir / "picked.json").is_file():
+        print(f"no picked.json at {run_dir}", file=sys.stderr)
+        return 4
+    if not args.allow_dirty_baseline and not _baseline_clean():
+        print(
+            "HarmonyOS baseline is not on a clean main; pass "
+            "--allow-dirty-baseline to bypass",
+            file=sys.stderr,
+        )
+        return 4
+    (run_dir / "baseline.txt").write_text(_baseline_sha() + "\n", encoding="utf-8")
+
+    reg = load_registry(args.registry)
+
+    # If --only filters the picked branches, rewrite picked.json for this run.
+    if args.only:
+        wanted = {p.strip() for p in args.only.split(",") if p.strip()}
+        picked = json.loads((run_dir / "picked.json").read_text(encoding="utf-8"))
+        picked["branches"] = [b for b in picked["branches"] if b in wanted]
+        (run_dir / "picked.json").write_text(
+            json.dumps(picked, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+
+    capture_specs: dict[str, dict[str, dict]] = {}
+    for page in reg.pages:
+        capture_specs[page.id] = {
+            "harmony": page.harmony.capture.raw if page.harmony.capture else {},
+            "ios": page.ios.capture.raw if page.ios.capture else {},
+            "android": page.android.capture.raw if page.android.capture else {},
+        }
+
+    plan_json = json.loads((run_dir / "plan.json").read_text(encoding="utf-8"))
+    scope = plan_json.get("scope") or {}
+    spec_path: Path | None = None
+    if scope.get("kind") == "spec" and scope.get("value"):
+        spec_path = Path(scope["value"])
+    elif scope.get("kind") == "feature" and scope.get("value"):
+        feat = Path(scope["value"])
+        if feat.is_dir():
+            mds = sorted(feat.glob("*.md"))
+            spec_path = mds[0] if mds else None
+
+    adapters = {
+        "harmony": HarmonyAdapter(),
+        "ios": IosAdapter(),
+        "android": AndroidAdapter(),
+    }
+    runner = Runner(
+        run_dir,
+        adapters,
+        capture_specs,
+        leaf_timeout=args.leaf_timeout,
+        spec_path=spec_path,
+        registry=reg,
+    )
+    for ev in runner.iter_events():
+        if ev.kind == "LEAF_START":
+            print(f"LEAF START page={ev.page_id}", flush=True)
+        elif ev.kind == "LEAF_READY":
+            print(f"LEAF READY page={ev.page_id} dir={ev.dir}", flush=True)
+        elif ev.kind == "RUN_DONE":
+            print("RUN DONE", flush=True)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.cmd == "plan":
         return _cmd_plan(args)
     if args.cmd == "pick":
         return _cmd_pick(args)
+    if args.cmd == "run":
+        return _cmd_run(args)
     print(f"NOT IMPLEMENTED: {args.cmd}", file=sys.stderr)
     return 64
 
