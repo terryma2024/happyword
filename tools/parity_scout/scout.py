@@ -8,8 +8,11 @@ Subcommands: plan, pick, run, promote, doctor, prune.
 from __future__ import annotations
 
 import argparse
+import atexit
 import datetime as _dt
+import errno
 import json
+import os
 import re
 import subprocess
 import sys
@@ -31,6 +34,49 @@ from parity_scout.spec_extract import ScopeError, resolve_scope  # noqa: E402
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_REGISTRY = Path(__file__).resolve().parent / "page_suite_map.yml"
 _RUN_ROOT = _REPO_ROOT / "build-tmp" / "parity_scout"
+_LOCK_PATH = _RUN_ROOT / ".lock"
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError as exc:
+        return exc.errno == errno.EPERM
+    return True
+
+
+def _release_lock() -> None:
+    try:
+        if _LOCK_PATH.exists():
+            # Only remove the lock if it still belongs to us; otherwise leave
+            # alone so a concurrent owner is not surprised by deletion.
+            content = _LOCK_PATH.read_text(encoding="utf-8").strip()
+            try:
+                pid = int(content)
+            except ValueError:
+                pid = -1
+            if pid == os.getpid():
+                _LOCK_PATH.unlink()
+    except OSError:
+        pass
+
+
+def _acquire_lock() -> bool:
+    _RUN_ROOT.mkdir(parents=True, exist_ok=True)
+    if _LOCK_PATH.exists():
+        try:
+            pid = int(_LOCK_PATH.read_text(encoding="utf-8").strip())
+        except (ValueError, OSError):
+            pid = None
+        if pid and _pid_alive(pid):
+            return False
+        try:
+            _LOCK_PATH.unlink()
+        except OSError:
+            return False
+    _LOCK_PATH.write_text(str(os.getpid()), encoding="utf-8")
+    atexit.register(_release_lock)
+    return True
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -216,6 +262,13 @@ def _cmd_run(args: argparse.Namespace) -> int:
     run_dir = _RUN_ROOT / args.run
     if not (run_dir / "picked.json").is_file():
         print(f"no picked.json at {run_dir}", file=sys.stderr)
+        return 4
+    if not _acquire_lock():
+        print(
+            f"another parity_scout run is in progress (lock {_LOCK_PATH}); "
+            "wait for it or rm the lock if you know it's stale",
+            file=sys.stderr,
+        )
         return 4
     if not args.allow_dirty_baseline and not _baseline_clean():
         print(
