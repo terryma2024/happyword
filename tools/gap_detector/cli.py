@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 from collections.abc import Sequence
+from pathlib import Path
+
+from .scope_planner import ScopePlanner
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,5 +32,26 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
-    parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.command == "plan":
+        plan = ScopePlanner(Path.cwd()).plan(args.scope)
+        print(json.dumps(_scope_plan_to_dict(plan), indent=2, ensure_ascii=False))
+        return 0
     return 0
+
+
+def _scope_plan_to_dict(plan: object) -> dict[str, object]:
+    return {
+        "mode": plan.mode.value,
+        "input": plan.input_value,
+        "confirmation_required": plan.confirmation_required,
+        "candidates": [
+            {
+                "label": candidate.label,
+                "path": str(candidate.path) if candidate.path else "",
+                "sources": [str(source) for source in candidate.sources],
+                "reason": candidate.reason,
+            }
+            for candidate in plan.candidates
+        ],
+    }
