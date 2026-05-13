@@ -606,7 +606,13 @@ fun WordMagicGameApp() {
                     onBack = { route = AppRoute.Home },
                 )
                 AppRoute.TodayPlan -> TodayPlanScreen(
-                    plan = TodayPlanService().build(packLibrary, selection.activePackIds, learningRecorder.statsSnapshot()),
+                    plan = TodayPlanService().buildUi(
+                        library = packLibrary,
+                        activeIds = selection.activePackIds,
+                        stats = learningRecorder.statsSnapshot(),
+                        regionDisplayName = selectedPack.nameZh,
+                        nowMs = System.currentTimeMillis(),
+                    ),
                     onReport = { route = AppRoute.LearningReport },
                     onBack = { route = AppRoute.Home },
                 )

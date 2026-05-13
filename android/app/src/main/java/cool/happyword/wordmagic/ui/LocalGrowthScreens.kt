@@ -12,6 +12,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,7 +68,9 @@ import cool.happyword.wordmagic.core.LearningReport
 import cool.happyword.wordmagic.core.MonsterCatalog
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.RedemptionHistoryStore
-import cool.happyword.wordmagic.core.TodayPlan
+import cool.happyword.wordmagic.core.TodayPlanService
+import cool.happyword.wordmagic.core.TodayPlanUi
+import cool.happyword.wordmagic.core.TodayPlanWordRow
 import cool.happyword.wordmagic.core.WishItem
 import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.WordPack
@@ -577,18 +581,242 @@ private fun CodexArrowButton(text: String, enabled: Boolean, tag: String, onClic
 }
 
 @Composable
-fun TodayPlanScreen(plan: TodayPlan, onReport: () -> Unit, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Color(0xFFFFF7E6)).padding(horizontal = 40.dp, vertical = 20.dp).testTag("TodayPlanScreen")) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("今日计划", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
-            Spacer(Modifier.weight(1f))
-            Button(onClick = onReport, modifier = Modifier.testTag("TodayPlanReportButton"), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0050))) { Text("学习报告") }
-            Spacer(Modifier.width(8.dp))
-            OutlinedButton(onClick = onBack) { Text("返回") }
+fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
+            .testTag("TodayPlanScreen"),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
+        ) {
+            Button(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(40.dp)
+                    .testTag("TodayPlanBackButton"),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF1D3557),
+                ),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+            ) {
+                Text("←", fontSize = 20.sp)
+            }
+            Text(
+                "今日学习计划",
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("TodayPlanTitle"),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1D3557),
+                textAlign = TextAlign.Center,
+            )
+            Button(
+                onClick = onReport,
+                modifier = Modifier
+                    .size(40.dp)
+                    .testTag("TodayPlanReportButton"),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF1D3557),
+                ),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+            ) {
+                Text("📊", fontSize = 20.sp)
+            }
         }
-        PlanBucket("复习", plan.review.map { it.word }, "TodayPlanReviewBucket")
-        PlanBucket("学习中", plan.learning.map { it.word }, "TodayPlanLearningBucket")
-        PlanBucket("新单词", plan.newWords.map { it.word }, "TodayPlanNewBucket")
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            TodayPlanHeaderCard(plan)
+            if (plan.total() == 0) {
+                TodayPlanEmptyState()
+            }
+            if (plan.review.isNotEmpty()) {
+                TodayPlanBucketSection(
+                    title = "复习",
+                    sectionTag = "TodayPlanReviewSection",
+                    sourceLabel = "复习",
+                    sourceColor = Color(0xFFE63946),
+                    rows = plan.review,
+                )
+            }
+            if (plan.learning.isNotEmpty()) {
+                TodayPlanBucketSection(
+                    title = "学习中",
+                    sectionTag = "TodayPlanLearningSection",
+                    sourceLabel = "学习",
+                    sourceColor = Color(0xFF457B9D),
+                    rows = plan.learning,
+                )
+            }
+            if (plan.newWords.isNotEmpty()) {
+                TodayPlanBucketSection(
+                    title = "新词",
+                    sectionTag = "TodayPlanNewSection",
+                    sourceLabel = "新词",
+                    sourceColor = Color(0xFF2A9D8F),
+                    rows = plan.newWords,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodayPlanHeaderCard(plan: TodayPlanUi) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
+            .padding(16.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                plan.regionDisplayName,
+                modifier = Modifier.testTag("TodayPlanRegionName"),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF3F2F1A),
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                plan.dayKey,
+                modifier = Modifier.testTag("TodayPlanDayKey"),
+                fontSize = 14.sp,
+                color = Color(0xFF7B7B7B),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "今天的计划：${plan.doneCount()} / ${plan.total()} 已完成",
+            modifier = Modifier.testTag("TodayPlanProgressText"),
+            fontSize = 16.sp,
+            color = Color(0xFF5A4A35),
+        )
+    }
+}
+
+@Composable
+private fun TodayPlanEmptyState() {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            "今天没有可以学习的单词，先去玩一局冒险吧！",
+            modifier = Modifier.testTag("TodayPlanEmptyText"),
+            fontSize = 15.sp,
+            color = Color(0xFF7B7B7B),
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun TodayPlanBucketSection(
+    title: String,
+    sectionTag: String,
+    sourceLabel: String,
+    sourceColor: Color,
+    rows: List<TodayPlanWordRow>,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .testTag(sectionTag),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D3557))
+            Spacer(Modifier.weight(1f))
+            Text("${rows.size}", fontSize = 14.sp, color = Color(0xFF7B7B7B))
+        }
+        rows.forEach { row ->
+            TodayPlanWordRowCard(row, sourceLabel, sourceColor)
+        }
+    }
+}
+
+@Composable
+private fun TodayPlanWordRowCard(row: TodayPlanWordRow, sourceLabel: String, sourceColor: Color) {
+    val memoryLabel = TodayPlanService.describeMemoryStat(row.stat)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    row.entry.word,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1D3557),
+                )
+                if (row.doneHighlight) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "✓",
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFDCF7F2))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                            .testTag("TodayPlanRowDone-${row.entry.id}"),
+                        fontSize = 14.sp,
+                        color = Color(0xFF2A9D8F),
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                row.entry.meaning,
+                fontSize = 13.sp,
+                color = Color(0xFF5A4A35),
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            sourceLabel,
+            fontSize = 12.sp,
+            color = Color.White,
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(sourceColor)
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            memoryLabel,
+            fontSize = 12.sp,
+            color = Color(0xFF3F2F1A),
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFFFFE7B5))
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+        )
     }
 }
 
@@ -611,16 +839,6 @@ fun LearningReportScreen(report: LearningReport, onBack: () -> Unit) {
                     Text("${row.seenWords}/${row.totalWords} · ${row.accuracyPercent}%")
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun PlanBucket(title: String, words: List<String>, tag: String) {
-    Card(Modifier.fillMaxWidth().padding(vertical = 8.dp).testTag(tag), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-        Column(Modifier.padding(14.dp)) {
-            Text(title, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
-            Text(if (words.isEmpty()) "暂无" else words.joinToString(" / "), color = Color(0xFF6A5843))
         }
     }
 }
