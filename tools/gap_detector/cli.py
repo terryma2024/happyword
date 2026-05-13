@@ -5,7 +5,8 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
-from .manifest import Manifest, Probe, ScopeRecord, SourceRecord, save_manifest
+from .manifest import Manifest, Probe, ScopeRecord, SourceRecord, load_manifest, save_manifest
+from .runners.commands import commands_for_probe, execute_command
 from .scope_planner import ScopePlanner
 
 
@@ -45,6 +46,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             "manifest": str(manifest_path),
             "scope_plan": _scope_plan_to_dict(scope_plan),
         }, indent=2, ensure_ascii=False))
+        return 0
+    if args.command == "run":
+        manifest = load_manifest(Path(args.manifest))
+        probe = next((item for item in manifest.probes if item.id == args.probe), None)
+        if probe is None:
+            parser.error(f"probe not found: {args.probe}")
+        commands = commands_for_probe(probe, Path.cwd())
+        for command in commands:
+            if args.execute:
+                result = execute_command(command)
+                print(json.dumps({
+                    "platform": command.platform,
+                    "command": command.shell_text(),
+                    "returncode": result.returncode,
+                    "stdout": result.stdout[-4000:],
+                    "stderr": result.stderr[-4000:],
+                }, indent=2, ensure_ascii=False))
+                if result.returncode != 0:
+                    return result.returncode
+            else:
+                print(f"[dry-run] {command.platform}: {command.shell_text()} (cwd={command.cwd})")
         return 0
     return 0
 
