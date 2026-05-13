@@ -8,23 +8,112 @@ Subcommands: plan, pick, run, promote, doctor, prune.
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
+import re
 import sys
+from pathlib import Path
+from typing import Sequence
+
+# When run as `python3 tools/parity_scout/scout.py ...`, the parent of the
+# package (i.e. `tools/`) must be on sys.path so that `import parity_scout.X`
+# resolves. Tests rely on pytest's `pythonpath = [".."]` instead.
+_PKG_PARENT = Path(__file__).resolve().parents[1]
+if str(_PKG_PARENT) not in sys.path:
+    sys.path.insert(0, str(_PKG_PARENT))
+
+from parity_scout.planner import build_plan, render_tree  # noqa: E402
+from parity_scout.registry import load_registry  # noqa: E402
+from parity_scout.spec_extract import ScopeError, resolve_scope  # noqa: E402
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_DEFAULT_REGISTRY = Path(__file__).resolve().parent / "page_suite_map.yml"
+_RUN_ROOT = _REPO_ROOT / "build-tmp" / "parity_scout"
 
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="scout.py")
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("plan", help="Decompose a scope into a search plan tree.")
-    sub.add_parser("pick", help="Record branch selection for an existing run.")
-    sub.add_parser("run", help="Drive per-leaf captures with SKILL sync.")
-    sub.add_parser("promote", help="Append curated findings to a feature's followups.")
-    sub.add_parser("doctor", help="Preflight diagnostic.")
-    sub.add_parser("prune", help="Rotate old run directories.")
+
+    plan_p = sub.add_parser("plan")
+    scope = plan_p.add_mutually_exclusive_group(required=True)
+    scope.add_argument("--scope", choices=["overall"])
+    scope.add_argument("--spec", type=Path)
+    scope.add_argument("--feature", type=Path)
+    scope.add_argument("--pages")
+    scope.add_argument("--suite")
+    scope.add_argument("--describe")
+    plan_p.add_argument("--registry", type=Path, default=_DEFAULT_REGISTRY)
+    plan_p.add_argument("--run", default=None, help="Reuse an existing run id.")
+
+    sub.add_parser("pick")
+    sub.add_parser("run")
+    sub.add_parser("promote")
+    sub.add_parser("doctor")
+    sub.add_parser("prune")
+
     return p
 
 
-def main(argv: list[str] | None = None) -> int:
+def _slugify(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-") or "scope"
+
+
+def _build_run_id(scope_kind: str, scope_value: str | None) -> str:
+    ts = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    raw = f"{ts}-{scope_kind}-{_slugify(scope_value or '')}"
+    return raw[:80].rstrip("-")
+
+
+def _cmd_plan(args: argparse.Namespace) -> int:
+    if args.scope == "overall":
+        kind, value = "overall", None
+    elif args.spec is not None:
+        kind, value = "spec", str(args.spec)
+    elif args.feature is not None:
+        kind, value = "feature", str(args.feature)
+    elif args.pages is not None:
+        kind, value = "pages", args.pages
+    elif args.suite is not None:
+        kind, value = "suite", args.suite
+    elif args.describe is not None:
+        kind, value = "describe", args.describe
+    else:
+        print("scope flag required", file=sys.stderr)
+        return 2
+
+    try:
+        reg = load_registry(args.registry)
+        page_ids = resolve_scope(reg, kind=kind, value=value)
+    except ScopeError as exc:
+        print(f"scope error: {exc}", file=sys.stderr)
+        return 2
+
+    if not page_ids:
+        print("no leaves resolved (scope too narrow / unmatched)", file=sys.stderr)
+        return 2
+
+    run_id = args.run or _build_run_id(kind, value)
+    run_dir = _RUN_ROOT / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    plan = build_plan(
+        reg,
+        page_ids=page_ids,
+        run_id=run_id,
+        scope_kind=kind,
+        scope_value=value,
+    )
+    (run_dir / "plan.json").write_text(plan.to_json() + "\n", encoding="utf-8")
+    print(render_tree(plan))
+    print(f"\nrun-id: {run_id}")
+    print(f"plan:   {run_dir / 'plan.json'}")
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    if args.cmd == "plan":
+        return _cmd_plan(args)
     print(f"NOT IMPLEMENTED: {args.cmd}", file=sys.stderr)
     return 64
 
