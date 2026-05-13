@@ -60,7 +60,7 @@ from app.routers import parent_packs_pages as parent_packs_pages_router
 from app.routers import parent_pages as parent_pages_router
 from app.routers import public_global_pack as public_global_pack_router
 from app.routers import public_packs as public_packs_router
-from app.services.auth_service import hash_password
+from app.services.auth_service import hash_password, verify_password
 from app.services.category_service import seed_manual_categories
 from app.services.email_provider import build_email_provider
 
@@ -68,9 +68,20 @@ logger = logging.getLogger("uvicorn.error")
 
 
 async def bootstrap_admin_user(username: str, password: str) -> None:
-    """Idempotent: create the admin row only if username does not exist."""
+    """Ensure the configured bootstrap admin row exists and matches settings."""
     existing = await User.find_one(User.username == username)
     if existing is not None:
+        changed = False
+        if existing.role != UserRole.ADMIN:
+            existing.role = UserRole.ADMIN
+            changed = True
+        if existing.password_hash is None or not verify_password(
+            password, existing.password_hash
+        ):
+            existing.password_hash = hash_password(password)
+            changed = True
+        if changed:
+            await existing.save()
         return
     await User(
         username=username,

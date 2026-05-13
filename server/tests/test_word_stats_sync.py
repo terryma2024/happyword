@@ -164,6 +164,46 @@ async def test_sync_equal_idempotent(db: object) -> None:
 
 
 @pytest.mark.asyncio
+async def test_sync_equal_timestamp_updates_changed_aggregate_fields(db: object) -> None:
+    _, child_id, _ = await _seed_binding()
+    first = _item("apple", last_ms=2000, mastery=0.5)
+    changed = WordStatItem(
+        word_id="apple",
+        seen_count=3,
+        correct_count=2,
+        wrong_count=1,
+        last_answered_ms=2000,
+        last_correct_ms=2000,
+        next_review_ms=86_402_000,
+        memory_state="learning",
+        consecutive_correct=1,
+        consecutive_wrong=0,
+        mastery=0.7,
+    )
+
+    await svc.sync(
+        child_profile_id=child_id,
+        items=[first],
+        requesting_device_id="dev-A",
+    )
+    result = await svc.sync(
+        child_profile_id=child_id,
+        items=[changed],
+        requesting_device_id="dev-A",
+    )
+
+    assert result.accepted == ["apple"]
+    row = await SyncedWordStat.find_one(
+        SyncedWordStat.child_profile_id == child_id,
+        SyncedWordStat.word_id == "apple",
+    )
+    assert row is not None
+    assert row.seen_count == 3
+    assert row.correct_count == 2
+    assert row.mastery == 0.7
+
+
+@pytest.mark.asyncio
 async def test_sync_two_devices_lww_orders(db: object) -> None:
     _, child_id, _ = await _seed_binding()
     await svc.sync(
@@ -267,6 +307,44 @@ async def test_post_sync_250_items_all_processed(db: object) -> None:
     assert r.status_code == 200
     body = r.json()
     assert len(body["accepted"]) == 250
+
+
+@pytest.mark.asyncio
+async def test_post_sync_persists_accepted_items_to_database(db: object) -> None:
+    _, child_id, binding_id = await _seed_binding(device_id="ios-device-1")
+    payload = {
+        "items": [
+            {
+                "word_id": "fruit-apple",
+                "seen_count": 2,
+                "correct_count": 1,
+                "wrong_count": 1,
+                "last_answered_ms": 1_778_399_999_000,
+                "last_correct_ms": 1_778_399_999_000,
+                "next_review_ms": 1_778_486_399_000,
+                "memory_state": "learning",
+                "consecutive_correct": 0,
+                "consecutive_wrong": 0,
+                "mastery": 0.5,
+            }
+        ],
+        "synced_through_ms": 0,
+    }
+    ac = await _device_client(binding_id, child_id)
+
+    async with ac:
+        r = await ac.post("/api/v1/child/word-stats/sync", json=payload)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["accepted"] == ["fruit-apple"]
+    row = await SyncedWordStat.find_one(
+        SyncedWordStat.child_profile_id == child_id,
+        SyncedWordStat.word_id == "fruit-apple",
+    )
+    assert row is not None
+    assert row.seen_count == 2
+    assert row.correct_count == 1
+    assert row.last_synced_from_device_id == "ios-device-1"
 
 
 @pytest.mark.asyncio

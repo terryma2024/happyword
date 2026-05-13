@@ -411,11 +411,11 @@ struct BattleView: View {
     private var playerImageName: String {
         switch playerPose {
         case .idle:
-            "HarmonyCharacterMagician"
+            "CharacterMagician"
         case .fight:
-            "HarmonyCharacterMagicianFight"
+            "CharacterMagicianFight"
         case .hurt:
-            "HarmonyCharacterMagicianBeaten"
+            "CharacterMagicianBeaten"
         }
     }
 

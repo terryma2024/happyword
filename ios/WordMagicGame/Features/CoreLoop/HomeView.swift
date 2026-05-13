@@ -3,12 +3,16 @@ import SwiftUI
 struct HomeView: View {
     @ObservedObject var coordinator: AppCoordinator
 
+    private var scenePalette: HomeScenePalette {
+        HomeScenePalette(scene: coordinator.selectedPack.scene)
+    }
+
     var body: some View {
         GeometryReader { proxy in
             VStack(spacing: 9) {
                 topBar
 
-                Text("小小魔法师单词冒险")
+                Text("Small Magician Word Adventure")
                     .font(.system(size: min(proxy.size.width * 0.046, 30), weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.ink)
                     .lineLimit(1)
@@ -27,22 +31,38 @@ struct HomeView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
+        let childProfileLabel = "孩子档案 \(coordinator.currentChildNickname())"
+        return HStack(spacing: 12) {
             Text("v0.7 iOS")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             Spacer()
-            badge("🦁 小明测试82941", tint: AppTheme.paleBlue, foreground: Color(red: 0.02, green: 0.42, blue: 0.66))
+            if coordinator.showsChildProfileShortcut {
+                Button {
+                    coordinator.openBoundDeviceInfo()
+                } label: {
+                    badge(
+                        "\(coordinator.currentChildAvatarEmoji()) \(coordinator.currentChildNickname())",
+                        tint: AppTheme.paleBlue,
+                        foreground: Color(red: 0.02, green: 0.42, blue: 0.66)
+                    )
+                    .accessibilityIdentifier("HomeChildProfileButton")
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(childProfileLabel)
+                .accessibilityIdentifier("HomeChildProfileButton")
+            }
             badge("金币 \(coordinator.coinAccount.balance)", tint: AppTheme.cream, foreground: AppTheme.gold)
                 .accessibilityIdentifier("HomeCoinBalance")
-            toolbarButton("HarmonyReview", label: "计划", action: coordinator.openTodayPlan)
-            toolbarButton("HarmonyCodex", label: "图鉴", action: coordinator.openMonsterCodex)
+            toolbarButton("ToolbarReview", label: "计划", action: coordinator.openTodayPlan)
+            toolbarButton("ToolbarCodex", label: "图鉴", action: coordinator.openMonsterCodex)
             toolbarEmojiButton("📋", label: "学习报告", action: coordinator.openLearningReport)
-            toolbarButton("HarmonyWishlist", label: "许愿", action: coordinator.openWishlist)
+            toolbarButton("ToolbarWishlist", label: "许愿", action: coordinator.openWishlist)
             Button {
                 coordinator.route = .config
             } label: {
-                Image("HarmonyGear")
+                Image("SettingsGear")
                     .resizable()
                     .scaledToFit()
                     .padding(6)
@@ -122,10 +142,10 @@ struct HomeView: View {
             .accessibilityIdentifier("HomeStartButton")
         }
         .padding(14)
-        .background(AppTheme.cream, in: RoundedRectangle(cornerRadius: 24))
+        .background(scenePalette.primary, in: RoundedRectangle(cornerRadius: 24))
         .overlay {
             RoundedRectangle(cornerRadius: 24)
-                .stroke(AppTheme.gold.opacity(0.48), lineWidth: 1.5)
+                .stroke(scenePalette.accent.opacity(0.72), lineWidth: 1.5)
         }
         .accessibilityIdentifier("AdventureCard")
     }
@@ -171,5 +191,52 @@ struct HomeView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(AppTheme.gold.opacity(0.25), in: Capsule())
+    }
+}
+
+struct HomeScenePalette: Equatable {
+    static let fallbackPrimaryHex = "#FFF6E5"
+    static let fallbackAccentHex = "#FFD49A"
+
+    let primaryHex: String
+    let accentHex: String
+
+    init(scene: SceneMetadata) {
+        primaryHex = Self.normalizedHex(scene.bgPrimary) ?? Self.fallbackPrimaryHex
+        accentHex = Self.normalizedHex(scene.bgAccent) ?? Self.fallbackAccentHex
+    }
+
+    var primary: Color {
+        Color(hexRGB: primaryHex) ?? AppTheme.cream
+    }
+
+    var accent: Color {
+        Color(hexRGB: accentHex) ?? AppTheme.gold
+    }
+
+    private static func normalizedHex(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = trimmed.hasPrefix("#") ? String(trimmed.dropFirst()) : trimmed
+        guard value.count == 6,
+              value.allSatisfy(\.isHexDigit)
+        else { return nil }
+        return "#\(value.uppercased())"
+    }
+}
+
+private extension Color {
+    init?(hexRGB: String) {
+        let value = hexRGB.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = value.hasPrefix("#") ? String(value.dropFirst()) : value
+        guard digits.count == 6,
+              digits.allSatisfy(\.isHexDigit),
+              let rgb = UInt32(digits, radix: 16)
+        else { return nil }
+
+        self.init(
+            red: Double((rgb >> 16) & 0xFF) / 255,
+            green: Double((rgb >> 8) & 0xFF) / 255,
+            blue: Double(rgb & 0xFF) / 255
+        )
     }
 }

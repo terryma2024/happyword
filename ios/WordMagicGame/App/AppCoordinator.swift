@@ -18,6 +18,9 @@ enum AppRoute: Equatable {
     case learningReport
     case scanBinding
     case boundDeviceInfo
+    case childProfile
+    case devMenu
+    case bypassSecret
 }
 
 @MainActor
@@ -34,6 +37,7 @@ final class AppCoordinator: ObservableObject {
     @Published var learningReport: LearningReport?
     @Published var bindingMessage = ""
     @Published var packLibrary = PackLibrary()
+    @Published var toastMessage: String?
 
     let configStore: GameConfigStore
     let coinAccount = CoinAccount()
@@ -45,10 +49,19 @@ final class AppCoordinator: ObservableObject {
     let cloudCredentialsStore: CloudCredentialsStore
     let deviceIdProvider: DeviceIdProvider
     let bindingClient: any DeviceBindingClienting
+    let packLayerClient: any PackLayerClienting
+    let packLayerStore: FileBackedPackLayerStore
+    let wordStatsSyncClient: any WordStatsSyncClienting
+    let wordStatsSyncStateStore: WordStatsSyncStateStore
+    let unbindClient: any DeviceUnbindClienting
+    let childProfileClient: any ChildProfileClienting
+    let developerMenuViewModel: DeveloperMenuViewModel
 
     private var globalPackCache: PackLayerCache?
     private var familyPackCache: PackLayerCache?
     private let battleRandomSeed: UInt64?
+    private var toastToken = UUID()
+    private var pendingDeveloperMenuCard: DeveloperMenuCard?
 
     var packs: [Pack] {
         packLibrary.allPacks()
@@ -58,12 +71,23 @@ final class AppCoordinator: ObservableObject {
         packLibrary.activePacks(ids: packSelectionStore.activePackIds)
     }
 
+    var showsChildProfileShortcut: Bool {
+        cloudCredentialsStore.credentials != nil
+    }
+
     init(
         configStore: GameConfigStore = GameConfigStore(),
         pronunciationService: PronunciationSpeaking = SystemPronunciationService(),
         cloudCredentialsStore: CloudCredentialsStore = CloudCredentialsStore(),
         deviceIdProvider: DeviceIdProvider = DeviceIdProvider(),
-        bindingClient: any DeviceBindingClienting = MockDeviceBindingClient(),
+        bindingClient: any DeviceBindingClienting = CloudClientFactory.bindingClient(),
+        packLayerClient: any PackLayerClienting = CloudClientFactory.packLayerClient(),
+        packLayerStore: FileBackedPackLayerStore = FileBackedPackLayerStore(),
+        wordStatsSyncClient: any WordStatsSyncClienting = CloudClientFactory.wordStatsSyncClient(),
+        wordStatsSyncStateStore: WordStatsSyncStateStore = WordStatsSyncStateStore(),
+        unbindClient: any DeviceUnbindClienting = CloudClientFactory.unbindClient(),
+        childProfileClient: any ChildProfileClienting = CloudClientFactory.childProfileClient(),
+        developerMenuViewModel: DeveloperMenuViewModel = DeveloperMenuViewModel(),
         battleRandomSeed: UInt64? = nil
     ) {
         self.configStore = configStore
@@ -71,10 +95,18 @@ final class AppCoordinator: ObservableObject {
         self.cloudCredentialsStore = cloudCredentialsStore
         self.deviceIdProvider = deviceIdProvider
         self.bindingClient = bindingClient
+        self.packLayerClient = packLayerClient
+        self.packLayerStore = packLayerStore
+        self.wordStatsSyncClient = wordStatsSyncClient
+        self.wordStatsSyncStateStore = wordStatsSyncStateStore
+        self.unbindClient = unbindClient
+        self.childProfileClient = childProfileClient
+        self.developerMenuViewModel = developerMenuViewModel
         self.battleRandomSeed = battleRandomSeed
         packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id))
         selectedPack = Pack.builtin[0]
         pronunciationService.prepare()
+        loadCachedPackLayers()
         applyLaunchSeeds()
         applyLaunchRouteOverride()
     }
@@ -101,33 +133,57 @@ final class AppCoordinator: ObservableObject {
     }
 
     func syncPacks() {
-        guard cloudCredentialsStore.credentials != nil else {
+        Task { await syncPacksFromCloud() }
+    }
+
+    func activateDeveloperMenuCard(_ card: DeveloperMenuCard) async {
+        if card.environment == .preview, developerMenuViewModel.bypassSecret.isEmpty {
+            pendingDeveloperMenuCard = card
+            developerMenuViewModel.statusMessage = "请先保存 bypass secret"
+            route = .bypassSecret
+            return
+        }
+        let bindingBeforeSwitch = cloudCredentialsStore.credentials
+        let result = await developerMenuViewModel.activate(card)
+        guard result.didApply else { return }
+        let shouldPromptRebind = bindingNeedsRebindAfterEnvironmentActivation(bindingBeforeSwitch)
+        if shouldPromptRebind {
+            clearLocalBindingForEnvironmentSwitch()
+        }
+        route = .home
+        if shouldPromptRebind {
+            showToast("已切换环境，请重新绑定家长账号")
+        } else if let message = result.toastMessage {
+            showToast(message)
+        }
+    }
+
+    func showToast(_ message: String, duration: TimeInterval = 2.0) {
+        toastToken = UUID()
+        let token = toastToken
+        toastMessage = message
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            if toastToken == token {
+                toastMessage = nil
+            }
+        }
+    }
+
+    func syncPacksFromCloud() async {
+        guard let credentials = cloudCredentialsStore.credentials else {
             packManagerMessage = "请先绑定家长账号"
             return
         }
         do {
-            let client = PackSyncClient()
-            let globalResponse = try JSONDecoder.snakeCase.decode(PackLayerFixture.self, from: DemoPackLayerFixtures.global)
-            let familyResponse = try JSONDecoder.snakeCase.decode(PackLayerFixture.self, from: DemoPackLayerFixtures.family)
-            globalPackCache = try client.apply(
-                status: globalResponse.status,
-                etag: globalResponse.headers.eTag,
-                body: globalResponse.body,
-                source: .global,
-                cached: globalPackCache
-            )
-            familyPackCache = try client.apply(
-                status: familyResponse.status,
-                etag: familyResponse.headers.eTag,
-                body: familyResponse.body,
-                source: .family,
+            globalPackCache = try await packLayerClient.fetchGlobal(cached: globalPackCache)
+            familyPackCache = try await packLayerClient.fetchFamily(
+                deviceToken: credentials.deviceToken,
                 cached: familyPackCache
             )
-            packLibrary = PackLibrary(
-                builtin: Pack.builtin,
-                global: globalPackCache?.packs ?? [],
-                family: familyPackCache?.packs ?? []
-            )
+            try packLayerStore.save(globalPackCache, layer: .global)
+            try packLayerStore.save(familyPackCache, layer: .family)
+            rebuildPackLibraryFromCaches()
             packManagerMessage = "已同步官方/家庭词包"
         } catch PackSyncError.bindingGone {
             cloudCredentialsStore.clear()
@@ -173,7 +229,11 @@ final class AppCoordinator: ObservableObject {
     func submitBattleOption(_ option: String) {
         guard let engine = battleEngine else { return }
         do {
+            let answeredWordId = engine.state.currentQuestion?.wordId
             let outcome = try engine.submitAnswer(option)
+            if let answeredWordId, !outcome.advancedStep {
+                learningRecorder.record(wordId: answeredWordId, correct: outcome.correct)
+            }
             if outcome.battleEnded {
                 finishBattle()
             } else {
@@ -187,7 +247,11 @@ final class AppCoordinator: ObservableObject {
     func submitBattleOptionForAnimation(_ option: String) -> AnswerOutcome? {
         guard let engine = battleEngine else { return nil }
         do {
+            let answeredWordId = engine.state.currentQuestion?.wordId
             let outcome = try engine.submitAnswer(option)
+            if let answeredWordId, !outcome.advancedStep {
+                learningRecorder.record(wordId: answeredWordId, correct: outcome.correct)
+            }
             objectWillChange.send()
             return outcome
         } catch {
@@ -213,6 +277,7 @@ final class AppCoordinator: ObservableObject {
         result.coinsTotal = coinAccount.earn(result.stars)
         lastResult = result
         route = .result
+        Task { await syncWordStatsIfPossible(showStatus: false) }
     }
 
     private func makeBattleRandomSeed() -> UInt64 {
@@ -292,19 +357,112 @@ final class AppCoordinator: ObservableObject {
         route = .boundDeviceInfo
     }
 
-    func bind(shortCode: String) async {
-        let trimmed = shortCode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count == 6 else {
-            bindingMessage = "请输入 6 位短码"
+    func openChildProfile() {
+        bindingMessage = ""
+        route = .childProfile
+    }
+
+    func openDeveloperMenu() {
+        guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
+        route = .devMenu
+    }
+
+    func openBypassSecret() {
+        guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
+        pendingDeveloperMenuCard = nil
+        route = .bypassSecret
+    }
+
+    func cancelBypassSecret() {
+        pendingDeveloperMenuCard = nil
+        route = .devMenu
+    }
+
+    func saveBypassSecretAndContinue(_ secret: String) async {
+        developerMenuViewModel.saveBypassSecret(secret)
+        guard !developerMenuViewModel.bypassSecret.isEmpty else {
+            route = .bypassSecret
+            return
+        }
+        guard let card = pendingDeveloperMenuCard else {
+            route = .devMenu
+            return
+        }
+        pendingDeveloperMenuCard = nil
+        route = .devMenu
+        await activateDeveloperMenuCard(card)
+    }
+
+    func currentChildNickname() -> String {
+        cloudCredentialsStore.credentials?.nickname ?? "孩子档案"
+    }
+
+    func currentChildAvatarEmoji() -> String {
+        cloudCredentialsStore.credentials?.avatarEmoji ?? "🧒"
+    }
+
+    func currentDeviceIdSuffix() -> String {
+        String(deviceIdProvider.deviceId().suffix(4))
+    }
+
+    func currentDeviceIdSourceLabel() -> String {
+        deviceIdProvider.sourceLabel()
+    }
+
+    func currentBindingTimeText() -> String {
+        guard let pairedAt = cloudCredentialsStore.credentials?.pairedAt else {
+            return "—"
+        }
+        return DateFormatter.localizedString(from: pairedAt, dateStyle: .short, timeStyle: .medium)
+    }
+
+    func updateChildNickname(_ nickname: String) async {
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            bindingMessage = "请输入孩子名字"
+            return
+        }
+        guard var credentials = cloudCredentialsStore.credentials else {
+            bindingMessage = "请先绑定家长账号"
+            return
+        }
+        credentials.nickname = trimmed
+        cloudCredentialsStore.save(credentials)
+        bindingMessage = "已保存孩子名字"
+        objectWillChange.send()
+        do {
+            let response = try await childProfileClient.update(
+                nickname: trimmed,
+                avatarEmoji: credentials.avatarEmoji,
+                deviceToken: credentials.deviceToken
+            )
+            var updatedCredentials = credentials
+            updatedCredentials.nickname = response.nickname
+            updatedCredentials.avatarEmoji = response.avatarEmoji
+            cloudCredentialsStore.save(updatedCredentials)
+            route = .home
+        } catch {
+            bindingMessage = "已保存孩子名字，云端稍后重试"
+        }
+    }
+
+    func bind(pairingInput: String) async {
+        let trimmed = pairingInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            bindingMessage = "请输入短码或二维码链接"
             return
         }
         do {
-            let response = try await bindingClient.redeem(shortCode: trimmed, deviceId: deviceIdProvider.deviceId())
-            cloudCredentialsStore.save(response)
+            let response = try await bindingClient.redeem(pairingInput: trimmed, deviceId: deviceIdProvider.deviceId())
+            cloudCredentialsStore.save(response, apiBaseURL: developerMenuViewModel.effectiveBaseURL)
             bindingMessage = "绑定成功：\(response.nickname)"
         } catch {
             bindingMessage = "短码无效，请重新输入"
         }
+    }
+
+    func bind(shortCode: String) async {
+        await bind(pairingInput: shortCode)
     }
 
     func finishBinding() {
@@ -313,17 +471,69 @@ final class AppCoordinator: ObservableObject {
     }
 
     func unbind(pin: String) {
+        Task { await confirmUnbind(pin: pin) }
+    }
+
+    func confirmUnbind(pin: String) async {
         guard pin == configStore.config.parentPin else {
             bindingMessage = "PIN 不正确"
             return
         }
+        if let credentials = cloudCredentialsStore.credentials {
+            do {
+                try await unbindClient.unbind(deviceToken: credentials.deviceToken)
+            } catch {
+                bindingMessage = "解绑失败，请稍后再试"
+                return
+            }
+        }
         cloudCredentialsStore.clear()
         globalPackCache = nil
         familyPackCache = nil
+        try? packLayerStore.clear()
         packLibrary = PackLibrary()
         packManagerMessage = ""
         bindingMessage = ""
         route = .config
+    }
+
+    func syncWordStatsExplicitly() async {
+        await syncWordStatsIfPossible(showStatus: true)
+    }
+
+    func syncWordStatsIfPossible(showStatus: Bool) async {
+        guard let credentials = cloudCredentialsStore.credentials else {
+            if showStatus {
+                packManagerMessage = "请先绑定家长账号"
+                showToast("请先绑定家长账号")
+            }
+            return
+        }
+        let payload = WordStatsSyncPayload.from(
+            recorder: learningRecorder,
+            syncedThroughMs: wordStatsSyncStateStore.syncedThroughMs
+        )
+        guard !payload.items.isEmpty || wordStatsSyncStateStore.needsRetry else {
+            if showStatus {
+                packManagerMessage = "暂无学习数据需要同步"
+                showToast("暂无学习数据需要同步")
+            }
+            return
+        }
+        do {
+            let response = try await wordStatsSyncClient.sync(payload: payload, deviceToken: credentials.deviceToken)
+            wordStatsSyncStateStore.markSuccess(serverNowMs: response.serverNowMs)
+            if showStatus {
+                packManagerMessage = "学习数据已同步"
+                showToast("学习记录已同步")
+            }
+        } catch {
+            wordStatsSyncStateStore.markFailure()
+            if showStatus {
+                packManagerMessage = "学习数据同步失败"
+                showToast("学习记录同步失败")
+            }
+        }
     }
 
     func approveLessonReview() {
@@ -363,6 +573,8 @@ final class AppCoordinator: ObservableObject {
             route = .packManager
         } else if arguments.contains("-UITestRouteWishlist") {
             route = .wishlist
+        } else if arguments.contains("-UITestRouteRedemptionHistory") {
+            route = .redemptionHistory
         } else if arguments.contains("-UITestRouteTodayPlan") {
             route = .todayPlan
         } else if arguments.contains("-UITestRouteLearningReport") {
@@ -371,11 +583,62 @@ final class AppCoordinator: ObservableObject {
             route = .scanBinding
         } else if arguments.contains("-UITestRouteBoundDeviceInfo") {
             route = .boundDeviceInfo
+        } else if arguments.contains("-UITestRouteChildProfile") {
+            route = .childProfile
+        } else if arguments.contains("-UITestRouteDevMenu"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
+            route = .devMenu
+        } else if arguments.contains("-UITestRouteBypassSecret"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
+            route = .bypassSecret
         }
+    }
+
+    private func loadCachedPackLayers() {
+        globalPackCache = try? packLayerStore.load(layer: .global)
+        familyPackCache = try? packLayerStore.load(layer: .family)
+        rebuildPackLibraryFromCaches()
+    }
+
+    private func rebuildPackLibraryFromCaches() {
+        packLibrary = PackLibrary(
+            builtin: Pack.builtin,
+            global: globalPackCache?.packs ?? [],
+            family: familyPackCache?.packs ?? []
+        )
+    }
+
+    private func clearLocalBindingForEnvironmentSwitch() {
+        cloudCredentialsStore.clear()
+        globalPackCache = nil
+        familyPackCache = nil
+        try? packLayerStore.clear()
+        rebuildPackLibraryFromCaches()
+        packManagerMessage = ""
+        bindingMessage = "请重新绑定家长账号"
+    }
+
+    private func bindingNeedsRebindAfterEnvironmentActivation(_ credentials: CloudCredentials?) -> Bool {
+        guard let credentials else { return false }
+        guard let apiBaseURL = credentials.apiBaseURL else { return true }
+        return normalizedBaseURL(apiBaseURL) != normalizedBaseURL(developerMenuViewModel.effectiveBaseURL)
+    }
+
+    private func normalizedBaseURL(_ url: URL) -> String {
+        normalizedBaseURL(url.absoluteString)
+    }
+
+    private func normalizedBaseURL(_ url: String) -> String {
+        var value = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        while value.hasSuffix("/") {
+            value.removeLast()
+        }
+        return value
     }
 
     private func applyLaunchSeeds() {
         let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-UITestClearBinding") {
+            cloudCredentialsStore.clear()
+        }
         if arguments.contains("-UITestSeedCoins") {
             _ = coinAccount.earn(20)
         }

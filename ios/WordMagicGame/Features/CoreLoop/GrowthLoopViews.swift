@@ -28,13 +28,26 @@ struct PackManagerView: View {
                         .accessibilityIdentifier("PackManagerTitle")
                 }
                 Spacer()
-                Button("同步词包") { coordinator.syncPacks() }
+                HStack(spacing: 10) {
+                    Button("同步学习") {
+                        Task { await coordinator.syncWordStatsExplicitly() }
+                    }
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 16)
                     .frame(height: 46)
-                    .background(AppTheme.paleBlue, in: Capsule())
+                    .background(AppTheme.cream, in: Capsule())
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("同步学习")
+
+                    Button("同步词包") { coordinator.syncPacks() }
+                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                        .foregroundStyle(AppTheme.navy)
+                        .padding(.horizontal, 18)
+                        .frame(height: 46)
+                        .background(AppTheme.paleBlue, in: Capsule())
+                        .buttonStyle(.plain)
+                }
             }
 
             HStack {
@@ -125,6 +138,12 @@ struct WishlistView: View {
     @State private var pin = ""
     @State private var pinMessage = ""
     @State private var showingGiftBox = false
+    @State private var showingAddWish = false
+    @State private var wishName = ""
+    @State private var wishCost = ""
+    @State private var wishEmoji = "🎁"
+    @State private var addWishPin = ""
+    @State private var addWishMessage = ""
 
     var body: some View {
         ZStack {
@@ -142,7 +161,12 @@ struct WishlistView: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel("兑换历史")
                     Button("添加愿望") {
-                        _ = coordinator.wishlistStore.addCustomWish(name: "小惊喜", costCoins: 8, iconEmoji: "🎁")
+                        wishName = ""
+                        wishCost = ""
+                        wishEmoji = "🎁"
+                        addWishPin = ""
+                        addWishMessage = ""
+                        showingAddWish = true
                     }
                     .font(.system(size: 18, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
@@ -176,13 +200,64 @@ struct WishlistView: View {
                 pinDialog(wish: pendingWish)
             }
 
+            if showingAddWish {
+                addWishDialog
+            }
+
             if showingGiftBox {
                 GiftBoxOverlay {
                     showingGiftBox = false
                 }
+                .accessibilityIdentifier("WishlistGiftBoxModal")
             }
         }
         .background(AppTheme.page)
+    }
+
+    private var addWishDialog: some View {
+        VStack(spacing: 12) {
+            Text("添加愿望")
+                .font(.title2.weight(.heavy))
+                .foregroundStyle(AppTheme.navy)
+            TextField("愿望名称", text: $wishName)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 280)
+                .accessibilityIdentifier("愿望名称")
+            TextField("魔法币", text: $wishCost)
+                .keyboardType(.numberPad)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 280)
+                .accessibilityIdentifier("魔法币")
+                .onChange(of: wishCost) { _, value in
+                    wishCost = String(value.filter(\.isNumber).prefix(4))
+                }
+            TextField("图标", text: $wishEmoji)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 280)
+                .accessibilityIdentifier("图标")
+            SecureField("家长 PIN", text: $addWishPin)
+                .keyboardType(.numberPad)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 280)
+                .onChange(of: addWishPin) { _, value in
+                    addWishPin = GameConfig.sanitizePinInput(value)
+                }
+            Text(addWishMessage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.red)
+                .frame(height: 20)
+            HStack(spacing: 16) {
+                Button("取消") { showingAddWish = false }
+                Button("保存愿望") {
+                    saveCustomWish()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.red)
+            }
+        }
+        .padding(24)
+        .background(Color.white, in: RoundedRectangle(cornerRadius: 22))
+        .shadow(radius: 18)
     }
 
     private func wishRow(_ wish: MagicWish) -> some View {
@@ -229,8 +304,12 @@ struct WishlistView: View {
             Text("家长确认")
                 .font(.title2.weight(.heavy))
             SecureField("家长 PIN", text: $pin)
+                .keyboardType(.numberPad)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 240)
+                .onChange(of: pin) { _, value in
+                    pin = GameConfig.sanitizePinInput(value)
+                }
             Text(pinMessage)
                 .foregroundStyle(AppTheme.red)
                 .font(.subheadline.weight(.semibold))
@@ -256,25 +335,236 @@ struct WishlistView: View {
         .background(Color.white, in: RoundedRectangle(cornerRadius: 22))
         .shadow(radius: 18)
     }
+
+    private func saveCustomWish() {
+        let trimmedName = wishName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedEmoji = wishEmoji.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty,
+              let cost = Int(wishCost),
+              cost > 0,
+              !trimmedEmoji.isEmpty
+        else {
+            addWishMessage = "请输入愿望名称、正整数魔法币和图标"
+            return
+        }
+        guard addWishPin == coordinator.configStore.config.parentPin else {
+            addWishMessage = "PIN 不正确"
+            return
+        }
+
+        _ = coordinator.wishlistStore.addCustomWish(name: trimmedName, costCoins: cost, iconEmoji: trimmedEmoji)
+        showingAddWish = false
+    }
 }
 
 struct GiftBoxOverlay: View {
     var onDismiss: () -> Void
 
     var body: some View {
-        VStack(spacing: 14) {
-            Text("🎁")
-                .font(.system(size: 64))
-            Text("愿望实现啦")
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
-                .foregroundStyle(AppTheme.navy)
-            Button("知道了", action: onDismiss)
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.red)
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .accessibilityElement()
+                .accessibilityIdentifier("WishlistGiftBoxModal")
+                .accessibilityLabel("WishlistGiftBoxModal")
+            GiftBoxView()
         }
-        .padding(30)
-        .background(AppTheme.cream, in: RoundedRectangle(cornerRadius: 24))
-        .shadow(radius: 18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + GiftBoxAnimationSpec.modalTotalSeconds) {
+                onDismiss()
+            }
+        }
+    }
+}
+
+struct GiftBoxRibbonSnapshot: Equatable, Identifiable {
+    var id: Int
+    var angleDegrees: Double
+    var colorHex: String
+}
+
+enum GiftBoxAnimationSpec {
+    static let ribbonColors = ["#E63946", "#F4C430", "#457B9D", "#F78DA7"]
+    static let ribbonFlyRadius: Double = 90
+    static let ribbonUpwardBias: Double = 25
+    static let ribbonCount = 10
+    static let ribbonGravityDrop: Double = 120
+    static let ribbonPhase1Ms = 300
+    static let ribbonPhase2Ms = 600
+    static let ribbonClearDelayMs = 900
+    static let autoCloseDelayMs = 1500
+    static let modalTotalMs = 3180
+
+    static var modalTotalSeconds: TimeInterval {
+        TimeInterval(modalTotalMs) / 1000
+    }
+
+    static func ribbonFlyTarget(angleDegrees: Double) -> CGSize {
+        let angle = angleDegrees * .pi / 180
+        return CGSize(
+            width: cos(angle) * ribbonFlyRadius,
+            height: sin(angle) * ribbonFlyRadius - ribbonUpwardBias
+        )
+    }
+
+    static func generateRibbons(count: Int) -> [GiftBoxRibbonSnapshot] {
+        guard count > 0 else { return [] }
+        let step = 360.0 / Double(count)
+        return (0..<count).map { index in
+            let jitter = Double(((index * 37) % 21) - 10)
+            return GiftBoxRibbonSnapshot(
+                id: index,
+                angleDegrees: Double(index) * step + jitter,
+                colorHex: ribbonColors[index % ribbonColors.count]
+            )
+        }
+    }
+}
+
+private struct GiftBoxView: View {
+    @State private var isOpen = false
+    @State private var lidOffset: CGFloat = 0
+    @State private var lidRotation: Double = 0
+    @State private var boxScale: CGFloat = 1
+    @State private var ribbons: [GiftBoxRibbonSnapshot] = []
+
+    var body: some View {
+        ZStack {
+            boxBody
+            lid
+
+            if isOpen {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("GiftBoxOpenMarker")
+                    .accessibilityLabel("GiftBoxOpenMarker")
+            }
+
+            ForEach(ribbons) { ribbon in
+                GiftBoxRibbonView(ribbon: ribbon)
+            }
+        }
+        .frame(width: 132, height: 120)
+        .scaleEffect(boxScale)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("GiftBoxContainer")
+        .onAppear(perform: startCycle)
+    }
+
+    private var boxBody: some View {
+        ZStack(alignment: .bottom) {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(hexRGB: "#E63946") ?? AppTheme.red)
+                .frame(width: 120, height: 80)
+            Rectangle()
+                .fill(Color(hexRGB: "#F4C430") ?? AppTheme.gold)
+                .frame(width: 8, height: 80)
+        }
+        .frame(width: 120, height: 80, alignment: .bottom)
+        .offset(y: 20)
+    }
+
+    private var lid: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(hexRGB: "#E63946") ?? AppTheme.red)
+                .frame(width: 132, height: 32)
+            HStack(spacing: 0) {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color(hexRGB: "#F4C430") ?? AppTheme.gold)
+                    .frame(width: 24, height: 10)
+                    .rotationEffect(.degrees(25))
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color(hexRGB: "#F4C430") ?? AppTheme.gold)
+                    .frame(width: 24, height: 10)
+                    .rotationEffect(.degrees(-25))
+            }
+            .frame(width: 56)
+        }
+        .frame(width: 132, height: 32)
+        .offset(y: -44 + lidOffset)
+        .rotationEffect(.degrees(lidRotation))
+        .accessibilityIdentifier("GiftBoxLid")
+    }
+
+    private func startCycle() {
+        isOpen = true
+        ribbons = GiftBoxAnimationSpec.generateRibbons(count: GiftBoxAnimationSpec.ribbonCount)
+
+        withAnimation(.easeOut(duration: 0.1)) {
+            boxScale = 1.08
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.easeIn(duration: 0.1)) {
+                boxScale = 1
+            }
+        }
+
+        withAnimation(.easeOut(duration: 0.2)) {
+            lidOffset = -40
+            lidRotation = -15
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + TimeInterval(GiftBoxAnimationSpec.ribbonClearDelayMs) / 1000) {
+            ribbons = []
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TimeInterval(GiftBoxAnimationSpec.autoCloseDelayMs) / 1000) {
+            isOpen = false
+            withAnimation(.easeInOut(duration: 0.18)) {
+                lidOffset = 0
+                lidRotation = 0
+            }
+        }
+    }
+}
+
+private struct GiftBoxRibbonView: View {
+    let ribbon: GiftBoxRibbonSnapshot
+    @State private var offset: CGSize = .zero
+    @State private var opacity = 1.0
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(Color(hexRGB: ribbon.colorHex) ?? AppTheme.red)
+            .frame(width: 10, height: 18)
+            .offset(offset)
+            .opacity(opacity)
+            .accessibilityHidden(true)
+            .onAppear(perform: animate)
+    }
+
+    private func animate() {
+        let target = GiftBoxAnimationSpec.ribbonFlyTarget(angleDegrees: ribbon.angleDegrees)
+        withAnimation(.easeOut(duration: TimeInterval(GiftBoxAnimationSpec.ribbonPhase1Ms) / 1000)) {
+            offset = target
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TimeInterval(GiftBoxAnimationSpec.ribbonPhase1Ms) / 1000) {
+            withAnimation(.easeIn(duration: TimeInterval(GiftBoxAnimationSpec.ribbonPhase2Ms) / 1000)) {
+                offset = CGSize(width: target.width, height: target.height + GiftBoxAnimationSpec.ribbonGravityDrop)
+                opacity = 0
+            }
+        }
+    }
+}
+
+private extension Color {
+    init?(hexRGB: String) {
+        let value = hexRGB.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = value.hasPrefix("#") ? String(value.dropFirst()) : value
+        guard digits.count == 6,
+              digits.allSatisfy(\.isHexDigit),
+              let rgb = UInt32(digits, radix: 16)
+        else { return nil }
+
+        self.init(
+            red: Double((rgb >> 16) & 0xFF) / 255,
+            green: Double((rgb >> 8) & 0xFF) / 255,
+            blue: Double(rgb & 0xFF) / 255
+        )
     }
 }
 
@@ -319,6 +609,7 @@ struct RedemptionHistoryView: View {
         }
         .padding(.horizontal, 42)
         .padding(.vertical, 22)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
     }
 }

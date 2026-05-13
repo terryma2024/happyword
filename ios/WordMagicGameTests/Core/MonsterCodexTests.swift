@@ -19,18 +19,18 @@ final class MonsterCodexTests: XCTestCase {
 
         XCTAssertEqual(first.kindLabelZh, "普通怪物")
         XCTAssertTrue(first.descriptionZh.contains("Slime 是一只软软的小精灵"))
-        XCTAssertEqual(first.assetName, "HarmonyCharacterSlime")
+        XCTAssertEqual(first.assetName, "CharacterSlime")
 
         XCTAssertEqual(zombie.kindLabelZh, "拼写专家")
-        XCTAssertEqual(zombie.assetName, "HarmonyCharacterZombie")
+        XCTAssertEqual(zombie.assetName, "CharacterZombie")
 
         XCTAssertEqual(kraken.nameEn, "Kraken")
         XCTAssertEqual(kraken.kindLabelZh, "深海歌唱家")
-        XCTAssertEqual(kraken.assetName, "HarmonyCharacterKraken")
+        XCTAssertEqual(kraken.assetName, "CharacterKraken")
 
         XCTAssertEqual(last.nameEn, "Music Box Fairy")
         XCTAssertEqual(last.kindLabelZh, "八音盒仙子")
-        XCTAssertEqual(last.assetName, "HarmonyCharacterMusicBoxFairy")
+        XCTAssertEqual(last.assetName, "CharacterMusicBoxFairy")
     }
 
     func testBattleCatalogLookupWrapsThroughExpandedRoster() {

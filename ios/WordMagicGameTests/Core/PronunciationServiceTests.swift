@@ -10,6 +10,12 @@ final class PronunciationServiceTests: XCTestCase {
         XCTAssertFalse(shouldAutoSpeak(autoSpeakEnabled: true, ttsAvailable: true, isRevealing: true))
     }
 
+    func testShouldAutoSpeakAfterAnswerFeedbackSuppressesFillLetterMediumStepAdvance() {
+        XCTAssertFalse(shouldAutoSpeakAfterAnswerFeedback(AnswerOutcome(correct: true, damage: 0, advancedStep: true)))
+        XCTAssertTrue(shouldAutoSpeakAfterAnswerFeedback(AnswerOutcome(correct: true, damage: 1, advancedStep: false)))
+        XCTAssertTrue(shouldAutoSpeakAfterAnswerFeedback(AnswerOutcome(correct: false, damage: 1, advancedStep: false)))
+    }
+
     func testAutoSpeakCurrentBattleAnswerUsesEnglishAnswerWhenAllowed() {
         let speaker = RecordingPronunciationService()
         let coordinator = makeCoordinator(pronunciationService: speaker)

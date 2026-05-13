@@ -125,6 +125,23 @@ def _build_set_payload(
     }
 
 
+def _row_differs_from_item(row: SyncedWordStat, item: WordStatItem) -> bool:
+    return any(
+        (
+            row.seen_count != item.seen_count,
+            row.correct_count != item.correct_count,
+            row.wrong_count != item.wrong_count,
+            row.last_answered_ms != item.last_answered_ms,
+            row.last_correct_ms != item.last_correct_ms,
+            row.next_review_ms != item.next_review_ms,
+            row.memory_state != item.memory_state,
+            row.consecutive_correct != item.consecutive_correct,
+            row.consecutive_wrong != item.consecutive_wrong,
+            row.mastery != item.mastery,
+        )
+    )
+
+
 async def sync(
     *,
     child_profile_id: str,
@@ -194,8 +211,15 @@ async def sync(
                     result.server_pulls.append(_row_to_pull(cur_row))
                 result.rejected.append(item.word_id)
             else:
-                # Equal ts → idempotent. No-op write, but accepted so the
-                # client can clear its dirty flag.
+                # Equal ts is idempotent only when the aggregate fields are
+                # unchanged. Clients may update counters within the same
+                # millisecond, so changed equal-timestamp aggregates still
+                # need to be flushed.
+                payload = _build_set_payload(
+                    item=item, device_id=requesting_device_id, now=now
+                )
+                if cur_row is None or _row_differs_from_item(cur_row, item):
+                    upserts_by_word[item.word_id] = payload
                 result.accepted.append(item.word_id)
 
         # Step 3 — flush upserts concurrently. Motor's default connection

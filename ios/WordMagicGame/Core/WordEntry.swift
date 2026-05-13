@@ -105,7 +105,7 @@ struct SceneMetadata: Codable, Equatable {
     }
 }
 
-struct Pack: Equatable, Identifiable {
+struct Pack: Codable, Equatable, Identifiable {
     var id: String
     var title: String
     var labelZh: String

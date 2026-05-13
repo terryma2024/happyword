@@ -25,6 +25,7 @@ The plan is grounded in:
 | `03-phase1-core-and-parent-admin.md` | Phase 1 design: Home, Battle, Result, Config entry, ParentAdmin, LessonDraftReview. |
 | `04-pack-sync-and-parent-cloud.md` | Later phases for PackManager, binding, cloud sync, wishlist cloud, and report parity. |
 | `05-validation-plan.md` | Verification matrix for docs, XCTest, XCUITest, screenshots, and contract fixtures. |
+| `06-release-readiness-checklist.md` | Phase 5 release gates for debug routing, fixture parity, accessibility IDs, and TestFlight readiness. |
 
 ## Superpowers Phase Specs
 

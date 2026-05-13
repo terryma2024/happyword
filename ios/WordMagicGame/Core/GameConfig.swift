@@ -52,6 +52,19 @@ struct GameConfig: Codable, Equatable {
     }
 
     static func isValidPin(_ value: String) -> Bool {
-        value.count == 6 && value.allSatisfy(\.isNumber)
+        value.count == 6 && value.allSatisfy(isASCIIDigit)
+    }
+
+    static func sanitizePinInput(_ value: String) -> String {
+        String(value.filter(isASCIIDigit).prefix(6))
+    }
+
+    private static func isASCIIDigit(_ character: Character) -> Bool {
+        guard character.unicodeScalars.count == 1,
+              let scalar = character.unicodeScalars.first
+        else {
+            return false
+        }
+        return (48...57).contains(scalar.value)
     }
 }

@@ -113,6 +113,50 @@ final class LocalGrowthTests: XCTestCase {
         XCTAssertFalse(plan.newWords.isEmpty)
     }
 
+    func testHomeScenePaletteUsesSelectedPackSceneColors() {
+        let palette = HomeScenePalette(scene: SceneMetadata(bgPrimary: "#123456", bgAccent: "#ABCDEF"))
+
+        XCTAssertEqual(palette.primaryHex, "#123456")
+        XCTAssertEqual(palette.accentHex, "#ABCDEF")
+    }
+
+    func testParentPinAcceptsExactlySixASCIIDigitsOnly() {
+        XCTAssertTrue(GameConfig.isValidPin("123456"))
+        XCTAssertFalse(GameConfig.isValidPin("12345"))
+        XCTAssertFalse(GameConfig.isValidPin("1234567"))
+        XCTAssertFalse(GameConfig.isValidPin("12345a"))
+        XCTAssertFalse(GameConfig.isValidPin("１２３４５６"))
+        XCTAssertFalse(GameConfig.isValidPin("12345①"))
+
+        XCTAssertEqual(GameConfig.sanitizePinInput("12a34 5678"), "123456")
+        XCTAssertEqual(GameConfig.sanitizePinInput("１２345①6"), "3456")
+    }
+
+    func testGiftBoxAnimationSpecMatchesHarmonyTimelineAndRibbons() {
+        XCTAssertEqual(GiftBoxAnimationSpec.ribbonCount, 10)
+        XCTAssertEqual(GiftBoxAnimationSpec.ribbonColors, ["#E63946", "#F4C430", "#457B9D", "#F78DA7"])
+        XCTAssertEqual(GiftBoxAnimationSpec.ribbonPhase1Ms, 300)
+        XCTAssertEqual(GiftBoxAnimationSpec.ribbonPhase2Ms, 600)
+        XCTAssertEqual(GiftBoxAnimationSpec.ribbonClearDelayMs, 900)
+        XCTAssertEqual(GiftBoxAnimationSpec.autoCloseDelayMs, 1500)
+        XCTAssertEqual(GiftBoxAnimationSpec.modalTotalMs, 3180)
+
+        let ribbons = GiftBoxAnimationSpec.generateRibbons(count: GiftBoxAnimationSpec.ribbonCount)
+
+        XCTAssertEqual(ribbons.count, 10)
+        XCTAssertEqual(ribbons.map(\.id), Array(0..<10))
+        XCTAssertEqual(ribbons.map(\.angleDegrees), [-10, 42, 73, 104, 135, 187, 218, 249, 280, 332])
+        XCTAssertEqual(ribbons.prefix(4).map(\.colorHex), GiftBoxAnimationSpec.ribbonColors)
+
+        let right = GiftBoxAnimationSpec.ribbonFlyTarget(angleDegrees: 0)
+        XCTAssertEqual(right.width, 90, accuracy: 0.001)
+        XCTAssertEqual(right.height, -25, accuracy: 0.001)
+
+        let up = GiftBoxAnimationSpec.ribbonFlyTarget(angleDegrees: 90)
+        XCTAssertEqual(up.width, 0, accuracy: 0.001)
+        XCTAssertEqual(up.height, 65, accuracy: 0.001)
+    }
+
     private func fixedDate(timeIntervalSinceNow: TimeInterval = 0) -> Date {
         Date(timeIntervalSince1970: 1_800_000_000 + timeIntervalSinceNow)
     }
