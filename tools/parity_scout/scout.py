@@ -131,8 +131,11 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    sub.add_parser("doctor")
-    sub.add_parser("prune")
+    doc_p = sub.add_parser("doctor")
+    doc_p.add_argument("--registry", type=Path, default=_DEFAULT_REGISTRY)
+
+    pr_p = sub.add_parser("prune")
+    pr_p.add_argument("--keep", type=int, default=5)
 
     return p
 
@@ -397,6 +400,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _cmd_run(args)
     if args.cmd == "promote":
         return _cmd_promote(args)
+    if args.cmd == "doctor":
+        from parity_scout.doctor import run_doctor
+        return run_doctor(args.registry)
+    if args.cmd == "prune":
+        from parity_scout.prune import run_prune
+        return run_prune(_RUN_ROOT, args.keep)
     print(f"NOT IMPLEMENTED: {args.cmd}", file=sys.stderr)
     return 64
 
