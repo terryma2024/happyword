@@ -5,6 +5,7 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
+from .manifest import Manifest, Probe, ScopeRecord, SourceRecord, save_manifest
 from .scope_planner import ScopePlanner
 
 
@@ -34,8 +35,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "plan":
-        plan = ScopePlanner(Path.cwd()).plan(args.scope)
-        print(json.dumps(_scope_plan_to_dict(plan), indent=2, ensure_ascii=False))
+        scope_plan = ScopePlanner(Path.cwd()).plan(args.scope)
+        run_name = args.run_name or _safe_run_name(args.scope)
+        run_dir = Path(".gap-detector") / "runs" / run_name
+        manifest = _manifest_from_scope_plan(scope_plan)
+        manifest_path = run_dir / "manifest.yaml"
+        save_manifest(manifest, manifest_path)
+        print(json.dumps({
+            "manifest": str(manifest_path),
+            "scope_plan": _scope_plan_to_dict(scope_plan),
+        }, indent=2, ensure_ascii=False))
         return 0
     return 0
 
@@ -55,3 +64,49 @@ def _scope_plan_to_dict(plan: object) -> dict[str, object]:
             for candidate in plan.candidates
         ],
     }
+
+
+def _safe_run_name(scope: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() else "-" for ch in scope.strip().lower()).strip("-")
+    return cleaned or "search"
+
+
+def _manifest_from_scope_plan(scope_plan: object) -> Manifest:
+    docs: list[str] = []
+    tests: dict[str, list[str]] = {"harmony": [], "ios": [], "android": []}
+    probes: list[Probe] = []
+    selected_paths: list[str] = []
+    skipped_paths: dict[str, str] = {}
+    pending_selection = scope_plan.confirmation_required
+
+    for candidate in scope_plan.candidates:
+        if pending_selection:
+            skipped_paths[candidate.label] = "pending user selection"
+        else:
+            selected_paths.append(candidate.label)
+        if candidate.path:
+            docs.append(str(candidate.path))
+        for source in candidate.sources:
+            source_text = str(source)
+            if source_text.startswith("harmonyos/"):
+                tests["harmony"].append(source_text)
+            elif source_text.startswith("ios/"):
+                tests["ios"].append(source_text)
+            elif source_text.startswith("android/"):
+                tests["android"].append(source_text)
+        probes.append(Probe(id=_safe_run_name(candidate.label), page=candidate.label))
+
+    return Manifest(
+        scope=ScopeRecord(
+            mode=scope_plan.mode.value,
+            input=scope_plan.input_value,
+            baseline_branch="origin/main",
+            selected_paths=tuple(selected_paths),
+            skipped_paths=skipped_paths,
+        ),
+        sources=SourceRecord(
+            docs=tuple(dict.fromkeys(docs)),
+            tests={platform: tuple(dict.fromkeys(paths)) for platform, paths in tests.items() if paths},
+        ),
+        probes=tuple(probes),
+    )
