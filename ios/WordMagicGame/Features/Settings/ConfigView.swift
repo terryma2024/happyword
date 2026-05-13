@@ -72,9 +72,6 @@ struct ConfigView: View {
 
                 cloudBindingSection
 
-                if DeveloperToolsPolicy.isDeveloperToolsVisible() {
-                    developerSection
-                }
             }
             .padding(.horizontal, 42)
             .padding(.vertical, 22)
@@ -113,20 +110,6 @@ struct ConfigView: View {
                     .tint(AppTheme.mint)
                     .accessibilityIdentifier("绑定家长账号")
             }
-            Spacer()
-        }
-        .font(.headline.weight(.bold))
-        .frame(maxWidth: 560)
-    }
-
-    private var developerSection: some View {
-        HStack(spacing: 16) {
-            Text("开发工具")
-                .font(.title2.weight(.bold))
-                .frame(width: 130, alignment: .trailing)
-            Button("Backend environment") { coordinator.openDeveloperMenu() }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("ConfigDeveloperBackendButton")
             Spacer()
         }
         .font(.headline.weight(.bold))
@@ -238,12 +221,20 @@ struct DevMenuView: View {
             .padding(16)
         }
         .background(Color.white)
+        .onAppear {
+            switch coordinator.takeDevMenuRoutePreset()?.lowercased() {
+            case DevMenuRouteParams.presetPreview:
+                Task { await viewModel.refreshManifest() }
+            default:
+                break
+            }
+        }
     }
 
     private var header: some View {
         HStack(spacing: 16) {
             headerButton("Back", minWidth: DeveloperMenuLayoutSpec.backButtonMinWidth) {
-                coordinator.route = .config
+                coordinator.route = .home
             }
             Text("Developer Options")
                 .font(.system(size: DeveloperMenuLayoutSpec.titleFontSize, weight: .heavy, design: .rounded))

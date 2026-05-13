@@ -7,7 +7,6 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -17,10 +16,15 @@ class DeveloperRoutingFlowTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
+    private fun openDevMenuViaVersionTripleTap() {
+        repeat(3) {
+            composeRule.onNodeWithTag("HomeVersionLabel").performClick()
+        }
+    }
+
     @Test
     fun devMenuAppliesCardsAndPromptsPreviewSecret() {
-        composeRule.onNodeWithTag("HomeConfigButton").performClick()
-        composeRule.onNodeWithTag("ConfigDeveloperRow").performScrollTo().performClick()
+        openDevMenuViaVersionTripleTap()
         composeRule.onNodeWithTag("DevMenuScreen").assertIsDisplayed()
 
         composeRule.onNodeWithText("Developer Options").assertIsDisplayed()
@@ -43,8 +47,7 @@ class DeveloperRoutingFlowTest {
             composeRule.onAllNodesWithTag("HomeScreen").fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onNodeWithTag("HomeConfigButton").performClick()
-        composeRule.onNodeWithTag("ConfigDeveloperRow").performScrollTo().performClick()
+        openDevMenuViaVersionTripleTap()
         composeRule.onNodeWithTag("DevMenuScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("DevMenuRefreshManifestButton").assertIsDisplayed()
     }

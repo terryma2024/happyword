@@ -25,7 +25,9 @@ for HarmonyOS.
   under `shared/`; only consume contracts/fixtures from there when needed.
 - For feature work and bugfixes, follow the applicable Superpowers workflow
   before implementation. For behavior changes, write/update tests first.
-- If multiple devices are attached, always pass `-s <serial>` to `adb`.
+- If multiple devices are attached, pass `-s <serial>` to **`adb` only** — do
+  **not** append `-s <serial>` after `./gradlew` (Gradle treats extra tokens as
+  task names; see **Targeting `installDebug`** under §2 Build).
 - Generated build output under `android/.gradle/`, `android/app/build/`, and
   local IDE state must not be treated as source changes.
 
@@ -61,8 +63,20 @@ intentionally tracked for the local worktree.
 |------|---------|----------------|
 | Compile + unit tests | `cd android && ./gradlew testDebugUnitTest` | `BUILD SUCCESSFUL`; Kotlin compiles; JVM tests pass |
 | Assemble debug APK | `cd android && ./gradlew assembleDebug` | APK under `android/app/build/outputs/apk/debug/app-debug.apk` |
-| Install debug APK | `cd android && ./gradlew installDebug` | Installs on connected device/emulator |
+| Install debug APK | `cd android && ./gradlew installDebug` (or `:app:installDebug`) | Installs on the selected device; see **Targeting `installDebug`** below when more than one device is online |
 | Launch app | `$ANDROID_HOME/platform-tools/adb -s <serial> shell am start -n cool.happyword.wordmagic/.MainActivity` | Activity starts on target |
+
+**Targeting `installDebug` to one emulator (Gradle pitfall):**
+
+- **Wrong:** `./gradlew :app:installDebug -s emulator-5556` — Gradle does **not**
+  accept `adb`'s `-s` flag here. Extra words are interpreted as **Gradle task
+  names**, which fails with `Task 'emulator-5556' not found in root project ...`.
+- **Right:** set the serial for the whole command environment, then run Gradle:
+  `export ANDROID_SERIAL=emulator-5556` (zsh/bash) then
+  `cd android && ./gradlew :app:installDebug`. The Android Gradle Plugin uses the
+  same device selection as `adb` when `ANDROID_SERIAL` is set.
+- If **exactly one** `device` row appears in `adb devices`, plain
+  `./gradlew installDebug` is enough (no `ANDROID_SERIAL` needed).
 
 **Working directory:** `android/` for Gradle; any directory for `adb`.
 
@@ -94,7 +108,8 @@ fails for the expected reason, then implement the fix.
 | Step | Command | Success signal |
 |------|---------|----------------|
 | List devices | `$ANDROID_HOME/platform-tools/adb devices` | Online emulator row such as `emulator-5556 device` |
-| Handle multiple devices | `$ANDROID_HOME/platform-tools/adb -s <serial> ...` | Command targets the intended device |
+| Handle multiple devices (`adb`) | `$ANDROID_HOME/platform-tools/adb -s <serial> ...` | Command targets the intended device |
+| Install via Gradle when multiple devices | `export ANDROID_SERIAL=<serial> && cd android && ./gradlew :app:installDebug` | Same as §2 — **never** `./gradlew ... -s <serial>` |
 | Start app | `$ANDROID_HOME/platform-tools/adb -s <serial> shell am start -n cool.happyword.wordmagic/.MainActivity` | App visible |
 | Force-stop app | `$ANDROID_HOME/platform-tools/adb -s <serial> shell am force-stop cool.happyword.wordmagic` | Exit 0 |
 
@@ -103,8 +118,23 @@ target it. Use the online serial from `adb devices`, or restart the emulator
 from Android Studio.
 
 **Current manual convention:** when `adb` reports more than one device/emulator,
-prefer the online AVD serial and pass `-s <serial>` explicitly for screenshots,
-logcat, and input taps.
+prefer the online AVD serial. Use **`export ANDROID_SERIAL=<serial>`** before
+`./gradlew installDebug` / `connectedDebugAndroidTest`, and pass **`-s <serial>`**
+only on **`adb`** shell commands (e.g. `am start`, `logcat`, `input`).
+
+**Reuse existing emulators (preferred):**
+
+- Prefer **already running** emulators from `adb devices` (look for
+  `emulator-#### device`). Set `ANDROID_SERIAL` to that serial for Gradle install /
+  UI tests instead of launching another VM.
+- **Do not** start a second emulator from the **same AVD** unless you intentionally
+  run **every** concurrent instance with **`-read-only`**. Otherwise the emulator
+  exits with *Another emulator instance is running* / *run all emulators with
+  -read-only flag*. For normal install-and-try flows, **reuse the existing window**.
+- To push one built APK to **two devices that are already online** (two serials,
+  or emulator + physical), run **`assembleDebug` once**, then
+  `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk` per target
+  — still never `./gradlew … -s <serial>`.
 
 ---
 
@@ -317,7 +347,7 @@ Cloud integration rules:
 ## 13) Debug routing verification — `android-debug-routing`
 
 After touching DevMenu, BypassSecret, preview manifest, backend URL provider, or
-debug-only Config developer entry:
+debug-only **home version label** (triple-tap) entry:
 
 - `cd android && ./gradlew testDebugUnitTest`
 - `cd android && ./gradlew assembleDebug`
@@ -325,7 +355,7 @@ debug-only Config developer entry:
 
 Release gating rule:
 
-- Debug builds may show `ConfigDeveloperRow`.
+- Debug builds may show **`HomeVersionLabel`** (version line) and DevMenu when triple-tapped.
 - Release builds must not show DevMenu, BypassSecret, preview bypass entry, or
   mock routing UI.
 
@@ -343,8 +373,8 @@ fallbacks, fixture/contract mapping, or Android release-readiness docs:
 
 Phase 5 policy checks:
 
-- `BuildGate.showDeveloperTools(false)` must hide the Config developer row in
-  release-style paths.
+- `BuildGate.showDeveloperTools(false)` must hide debug-only developer surfaces
+  (e.g. `HomeVersionLabel`, DevMenu entry points) in release-style paths.
 - Production routing must not attach `x-vercel-protection-bypass`, even if a
   debug device has a local secret saved.
 - Failed global/family pack sync must keep bundled packs playable.

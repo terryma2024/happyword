@@ -83,7 +83,9 @@ class AndroidScreenScreenshotTest {
         composeRule.onNodeWithText("返回").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigScreen") }
 
-        composeRule.onNodeWithTag("ConfigDeveloperRow").performScrollTo().performClick()
+        composeRule.onNodeWithText("返回首页").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
+        repeat(3) { composeRule.onNodeWithTag("HomeVersionLabel").performClick() }
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("DevMenuScreen") }
         capture("dev-menu-debug.png")
         composeRule.onNodeWithTag("DevMenuBypassSecretButton").performClick()

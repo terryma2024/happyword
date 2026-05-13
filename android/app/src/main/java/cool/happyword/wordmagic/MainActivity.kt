@@ -29,6 +29,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -89,12 +90,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.caverock.androidsvg.SVG
 import cool.happyword.wordmagic.app.BuildGate
+import cool.happyword.wordmagic.app.BuildInfo
 import cool.happyword.wordmagic.core.BattleSessionRecord
 import cool.happyword.wordmagic.core.BattleAnswerOutcome
 import cool.happyword.wordmagic.core.BattleEngine
@@ -110,7 +113,9 @@ import cool.happyword.wordmagic.core.ChildProfileClient
 import cool.happyword.wordmagic.core.ChildProfileException
 import cool.happyword.wordmagic.core.CloudSyncCoordinator
 import cool.happyword.wordmagic.core.CoinAccount
+import cool.happyword.wordmagic.core.DevMenuRouteParams
 import cool.happyword.wordmagic.core.DevMenuViewModel
+import cool.happyword.wordmagic.core.VersionTripleTap
 import cool.happyword.wordmagic.core.DeviceBindingClient
 import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.LearningRecorder
@@ -218,6 +223,10 @@ fun WordMagicGameApp() {
     val appScope = rememberCoroutineScope()
     val cloudCoordinator = remember { CloudSyncCoordinator() }
     val isDebuggable = remember { (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
+    val showDeveloperTools = BuildGate.showDeveloperTools(isDebuggable)
+    val homeVersionLabel = remember(showDeveloperTools) {
+        if (showDeveloperTools) BuildInfo.homeVersionLabel(context) else ""
+    }
     var cloudCredentials by remember { mutableStateOf(cloudRepositories.loadCredentials()) }
     var globalPacks by remember { mutableStateOf(cloudRepositories.loadGlobalPacks()) }
     var familyPacks by remember { mutableStateOf(cloudRepositories.loadFamilyPacks()) }
@@ -288,6 +297,7 @@ fun WordMagicGameApp() {
     var wishlistGiftBoxTrigger by remember { mutableIntStateOf(0) }
     var recentlyRedeemedWishId by remember { mutableStateOf<String?>(null) }
     var parentPin by remember { mutableStateOf("") }
+    var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
 
     fun resetForBackendSwitch() {
         cloudRepositories.resetForBackendSwitch()
@@ -327,6 +337,18 @@ fun WordMagicGameApp() {
     }
 
     ApplyOrientation(route)
+    LaunchedEffect(route, devMenuRoutePreset) {
+        if (route != AppRoute.DevMenu) return@LaunchedEffect
+        val preset = devMenuRoutePreset ?: return@LaunchedEffect
+        devMenuRoutePreset = null
+        if (!preset.equals(DevMenuRouteParams.PRESET_ENV_PREVIEW, ignoreCase = true)) return@LaunchedEffect
+        previewManifestBusy = true
+        try {
+            previewTargets = devMenuViewModel.refreshManifest(previewTargets, force = true)
+        } finally {
+            previewManifestBusy = false
+        }
+    }
     LaunchedEffect(route, battleRunId) {
         if (route == AppRoute.Battle) {
             var remaining = battleTimeLeft
@@ -361,6 +383,14 @@ fun WordMagicGameApp() {
                     selectedPack = selectedPack,
                     coins = coinAccount.balance,
                     cloudCredentials = cloudCredentials,
+                    showDeveloperTools = showDeveloperTools,
+                    homeVersionLabel = homeVersionLabel,
+                    onDeveloperVersionTripleTap = {
+                        if (showDeveloperTools) {
+                            devMenuRoutePreset = DevMenuRouteParams.PRESET_ENV_PREVIEW
+                            route = AppRoute.DevMenu
+                        }
+                    },
                     onSelectPack = { selectedPackId = it.id },
                     onBoundChild = {
                         route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo
@@ -440,7 +470,6 @@ fun WordMagicGameApp() {
                     learningSyncBusy = learningSyncBusy,
                     learningSyncStatus = learningSyncStatus,
                     learningSyncToast = learningSyncToast,
-                    showDeveloper = BuildGate.showDeveloperTools(isDebuggable),
                     onConfigChange = { config = it },
                     onBack = { route = AppRoute.Home },
                     onParentAdmin = { route = AppRoute.ParentPin },
@@ -472,7 +501,6 @@ fun WordMagicGameApp() {
                             }
                         }
                     },
-                    onDeveloper = { route = AppRoute.DevMenu },
                 )
                 AppRoute.ParentPin -> ParentPinScreen(
                     hasPin = parentPin.isNotEmpty(),
@@ -714,7 +742,7 @@ fun WordMagicGameApp() {
                         backendRouteState = BackendRouteState()
                         debugRoutingRepository.clearRouteState()
                     },
-                    onBack = { route = AppRoute.Config },
+                    onBack = { route = AppRoute.Home },
                 )
                 AppRoute.BypassSecret -> BypassSecretScreen(
                     initialSecret = debugRoutingRepository.bypassSecretStore.load(),
@@ -772,6 +800,9 @@ private fun HomeScreen(
     selectedPack: WordPack,
     coins: Int,
     cloudCredentials: cool.happyword.wordmagic.core.CloudCredentials?,
+    showDeveloperTools: Boolean,
+    homeVersionLabel: String,
+    onDeveloperVersionTripleTap: () -> Unit,
     onSelectPack: (WordPack) -> Unit,
     onBoundChild: () -> Unit,
     onStart: () -> Unit,
@@ -782,6 +813,7 @@ private fun HomeScreen(
     onConfig: () -> Unit,
 ) {
     var reviewLockedToastVisible by remember { mutableStateOf(false) }
+    val versionTripleTap = remember { VersionTripleTap() }
 
     LaunchedEffect(reviewLockedToastVisible) {
         if (reviewLockedToastVisible) {
@@ -869,15 +901,28 @@ private fun HomeScreen(
             }
         }
 
-        Text(
-            "v0.1.0",
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
-                .testTag("HomeVersionLabel"),
-            fontSize = 11.sp,
-            color = Color(0xFF999999),
-        )
+        if (showDeveloperTools && homeVersionLabel.isNotEmpty()) {
+            Text(
+                homeVersionLabel,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
+                    .fillMaxWidth(0.55f)
+                    .testTag("HomeVersionLabel")
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        if (versionTripleTap.onTap(System.currentTimeMillis())) {
+                            onDeveloperVersionTripleTap()
+                        }
+                    },
+                fontSize = 11.sp,
+                color = Color(0xFF999999),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
 
         Row(
             modifier = Modifier
@@ -1584,14 +1629,12 @@ private fun ConfigScreen(
     learningSyncBusy: Boolean,
     learningSyncStatus: String,
     learningSyncToast: String,
-    showDeveloper: Boolean,
     onConfigChange: (GameConfig) -> Unit,
     onBack: () -> Unit,
     onParentAdmin: () -> Unit,
     onCloudBinding: () -> Unit,
     onPackManager: () -> Unit,
     onLearningSync: () -> Unit,
-    onDeveloper: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -1688,15 +1731,6 @@ private fun ConfigScreen(
                 Spacer(Modifier.weight(1f))
                 Button(onClick = onPackManager, modifier = Modifier.testTag("ConfigPackManagerButton")) {
                     Text("进入")
-                }
-            }
-        }
-        if (showDeveloper) {
-            SettingCard("开发者") {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("ConfigDeveloperRow").clickable(onClick = onDeveloper)) {
-                    Text("后端环境与 Preview 调试")
-                    Spacer(Modifier.weight(1f))
-                    Button(onClick = onDeveloper) { Text("打开") }
                 }
             }
         }
