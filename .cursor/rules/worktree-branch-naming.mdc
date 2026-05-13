@@ -1,0 +1,30 @@
+---
+description: Readable branch names for Cursor worktree tasks
+alwaysApply: true
+---
+
+# Worktree Branch Naming
+
+When creating or renaming a branch for a Cursor worktree task, use a readable,
+intent-revealing branch name instead of a random token.
+
+Use this format:
+
+```text
+<type>/<platform-or-area>-<scope>-<action>
+```
+
+Examples:
+
+- `fix/ios-home-today-plan-entry`
+- `feat/server-pack-sync`
+- `test/android-wishlist-redemption-flow`
+- `docs/sop-three-platform-feature-lifecycle`
+
+Guidelines:
+
+- Prefer lowercase kebab-case after the slash.
+- Pick a type that describes the change: `fix`, `feat`, `test`, `docs`, `refactor`, or `chore`.
+- Include the platform or area when it helps: `ios`, `android`, `harmony`, `server`, `shared`, `docs`.
+- Keep the name short but meaningful enough for a reviewer to understand the task from the branch list.
+- If Cursor creates a random branch such as `cursor/<token>`, rename it before continuing substantial work.
