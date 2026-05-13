@@ -1,0 +1,45 @@
+pages:
+  - id: home
+    description: Landing screen
+    spec_anchors:
+      stable_ids: [HomeStartButton]
+      page_section_titles: ["Home"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/HomePage.ets
+      capture:
+        kind: capture_harmony_step
+        step: home
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/Home/HomePage.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState"]
+        output_basename: home
+    android:
+      present: false
+  - id: battle
+    description: Battle (landscape)
+    spec_anchors:
+      stable_ids: [BattleCorrectOption]
+      page_section_titles: ["Battle"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/BattlePage.ets
+      capture:
+        kind: capture_harmony_step
+        step: battle
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/Battle/BattlePage.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState", "-UITestRouteBattle"]
+        output_basename: battle
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/BattlePage.kt
+      capture:
+        kind: android_screenshot_test
+        case: battle

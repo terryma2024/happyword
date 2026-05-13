@@ -13,5 +13,9 @@ dev = ["pytest>=8.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The package `parity_scout` IS this directory (tools/parity_scout/__init__.py).
+# Putting `..` on sys.path makes `import parity_scout.X` resolve to
+# tools/parity_scout/X.py during tests.
+pythonpath = [".."]
 filterwarnings = ["error"]
 addopts = "-ra"
