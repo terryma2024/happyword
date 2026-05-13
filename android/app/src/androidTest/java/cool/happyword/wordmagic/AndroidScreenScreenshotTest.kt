@@ -44,7 +44,7 @@ class AndroidScreenScreenshotTest {
         composeRule.onNodeWithTag("TodayPlanReportButton").performClick()
         capture("learning-report.png")
         composeRule.onNodeWithText("返回").performClick()
-        composeRule.onNodeWithText("返回").performClick()
+        composeRule.onNodeWithTag("TodayPlanBackButton").performClick()
 
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
         composeRule.onNodeWithTag("ConfigCloudBindingButton").performScrollTo().performClick()

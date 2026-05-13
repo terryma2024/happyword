@@ -11,6 +11,9 @@
 # `docs/superpowers/...` is project documentation and stays tracked.
 .superpowers/
 
+# Local UI screenshot comparisons (Android/Harmony harness output)
+.compare-screenshots/
+
 # Gradle files (legacy / hybrid templates)
 .gradle/
 .build/
