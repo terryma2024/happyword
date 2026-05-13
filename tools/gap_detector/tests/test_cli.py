@@ -64,6 +64,14 @@ class CliSmokeTest(unittest.TestCase):
         self.assertIn("xcodebuild test", result.stdout)
         self.assertIn("./gradlew connectedDebugAndroidTest", result.stdout)
 
+    def test_readme_documents_non_goal_and_overall_gate(self) -> None:
+        readme = Path("tools/gap_detector/README.md").read_text(encoding="utf-8")
+
+        self.assertIn("does not fix gaps", readme)
+        self.assertIn("--scope overall", readme)
+        self.assertIn("user selection", readme)
+        self.assertIn(".gap-detector/runs", readme)
+
 
 if __name__ == "__main__":
     unittest.main()
