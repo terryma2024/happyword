@@ -286,11 +286,11 @@ Create `tools/gap_detector/scope_planner.py`:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 
 
-class ScopeMode(StrEnum):
+class ScopeMode(str, Enum):
     FEATURE = "feature"
     SPEC = "spec"
     PLAN = "plan"
@@ -1202,13 +1202,13 @@ Create `tools/gap_detector/classifier.py`:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 from .evidence import EvidenceIndex
 from .manifest import Probe
 
 
-class GapCategory(StrEnum):
+class GapCategory(str, Enum):
     MISSING_FLOW = "missing_flow"
     BEHAVIOR_DRIFT = "behavior_drift"
     MISSING_STABLE_ID = "missing_stable_id"
@@ -1219,7 +1219,7 @@ class GapCategory(StrEnum):
     MANUAL_GATE = "manual_gate"
 
 
-class Severity(StrEnum):
+class Severity(str, Enum):
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"

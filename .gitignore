@@ -14,6 +14,9 @@
 # Local UI screenshot comparisons (Android/Harmony harness output)
 .compare-screenshots/
 
+# Local gap detector run artifacts
+.gap-detector/
+
 # Gradle files (legacy / hybrid templates)
 .gradle/
 .build/
