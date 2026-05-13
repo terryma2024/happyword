@@ -114,7 +114,23 @@ def _build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--allow-dirty-baseline", action="store_true")
     run_p.add_argument("--registry", type=Path, default=_DEFAULT_REGISTRY)
 
-    sub.add_parser("promote")
+    prom_p = sub.add_parser("promote")
+    prom_p.add_argument("--run", required=True)
+    prom_p.add_argument(
+        "--feature",
+        required=True,
+        help="feature id (folder name under docs/features/<id>)",
+    )
+    prom_p.add_argument(
+        "--findings",
+        type=Path,
+        default=None,
+        help=(
+            "Override findings file. Default: "
+            "findings.curated.<feature>.md in the run dir."
+        ),
+    )
+
     sub.add_parser("doctor")
     sub.add_parser("prune")
 
@@ -332,6 +348,45 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_promote(args: argparse.Namespace) -> int:
+    from parity_scout.promote import PromoteError, promote_curated_findings
+
+    run_dir = _RUN_ROOT / args.run
+    feature_dir = _REPO_ROOT / "docs" / "features" / args.feature
+    findings = args.findings or (
+        run_dir / f"findings.curated.{args.feature}.md"
+    )
+    plan_path = run_dir / "plan.json"
+    plan = (
+        json.loads(plan_path.read_text(encoding="utf-8"))
+        if plan_path.is_file()
+        else {}
+    )
+    scope = plan.get("scope") or {}
+    scope_line = f"{scope.get('kind', '?')}:{scope.get('value', '-')}"
+    leaves_line = ", ".join(leaf["page_id"] for leaf in plan.get("leaves") or [])
+    baseline_path = run_dir / "baseline.txt"
+    baseline_line = (
+        baseline_path.read_text(encoding="utf-8").strip()
+        if baseline_path.is_file()
+        else "unknown"
+    )
+    try:
+        out = promote_curated_findings(
+            findings=findings,
+            feature_dir=feature_dir,
+            run_id=args.run,
+            baseline_line=baseline_line,
+            scope_line=scope_line,
+            leaves_line=leaves_line,
+        )
+    except PromoteError as exc:
+        print(f"promote refused: {exc}", file=sys.stderr)
+        return 4
+    print(f"appended to {out}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.cmd == "plan":
@@ -340,6 +395,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _cmd_pick(args)
     if args.cmd == "run":
         return _cmd_run(args)
+    if args.cmd == "promote":
+        return _cmd_promote(args)
     print(f"NOT IMPLEMENTED: {args.cmd}", file=sys.stderr)
     return 64
 
