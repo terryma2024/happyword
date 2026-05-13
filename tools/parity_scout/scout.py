@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import json
 import re
 import sys
 from pathlib import Path
@@ -46,7 +47,15 @@ def _build_parser() -> argparse.ArgumentParser:
     plan_p.add_argument("--registry", type=Path, default=_DEFAULT_REGISTRY)
     plan_p.add_argument("--run", default=None, help="Reuse an existing run id.")
 
-    sub.add_parser("pick")
+    pick_p = sub.add_parser("pick")
+    pick_p.add_argument("--run", required=True)
+    pick_p.add_argument(
+        "--branches",
+        required=True,
+        help='Comma-separated page ids, or "all".',
+    )
+    pick_p.add_argument("--include-blocked", action="store_true")
+
     sub.add_parser("run")
     sub.add_parser("promote")
     sub.add_parser("doctor")
@@ -110,10 +119,58 @@ def _cmd_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_pick(args: argparse.Namespace) -> int:
+    run_dir = _RUN_ROOT / args.run
+    plan_path = run_dir / "plan.json"
+    if not plan_path.is_file():
+        print(f"no plan at {plan_path}", file=sys.stderr)
+        return 4
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    leaves_by_id = {leaf["page_id"]: leaf for leaf in plan["leaves"]}
+
+    if args.branches.strip() == "all":
+        requested = list(leaves_by_id.keys())
+    else:
+        requested = [b.strip() for b in args.branches.split(",") if b.strip()]
+
+    chosen: list[str] = []
+    refused: list[tuple[str, str]] = []
+    for pid in requested:
+        leaf = leaves_by_id.get(pid)
+        if leaf is None:
+            refused.append((pid, "not-in-plan"))
+            continue
+        statuses = [leaf[p]["status"] for p in ("harmony", "ios", "android")]
+        if all(s == "feature_absent" for s in statuses):
+            refused.append((pid, "all-feature-absent"))
+            continue
+        if "blocked" in statuses and not args.include_blocked:
+            refused.append((pid, "blocked-without-include-blocked"))
+            continue
+        chosen.append(pid)
+
+    if not chosen:
+        for pid, reason in refused:
+            print(f"refused: {pid} ({reason})", file=sys.stderr)
+        return 4
+
+    out = {"run_id": args.run, "branches": chosen, "refused": refused}
+    (run_dir / "picked.json").write_text(
+        json.dumps(out, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    print(f"picked: {', '.join(chosen)}")
+    if refused:
+        for pid, reason in refused:
+            print(f"refused: {pid} ({reason})")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.cmd == "plan":
         return _cmd_plan(args)
+    if args.cmd == "pick":
+        return _cmd_pick(args)
     print(f"NOT IMPLEMENTED: {args.cmd}", file=sys.stderr)
     return 64
 
