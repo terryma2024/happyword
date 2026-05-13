@@ -450,75 +450,100 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color.White)
-            .padding(horizontal = 44.dp, vertical = 18.dp)
+            .background(Color(0xFFFAFBFD))
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .testTag("MonsterCodexScreen"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("怪物图鉴", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = onBack, modifier = Modifier.testTag("MonsterCodexBack")) { Text("返回") }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+        ) {
+            Button(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .size(48.dp)
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    .testTag("MonsterCodexBack"),
+                shape = CircleShape,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF0B3B63),
+                ),
+            ) {
+                Text("‹", fontSize = 36.sp, fontWeight = FontWeight.Normal)
+            }
+            Text(
+                "怪物图鉴",
+                modifier = Modifier.align(Alignment.Center),
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0B3B63),
+            )
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(2.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             CodexArrowButton(
-                text = "⬅",
+                text = "⬅️",
                 enabled = hasPrevious,
                 tag = "MonsterCodexPrevious",
                 onClick = onPrevious,
             )
             Box(
                 modifier = Modifier
-                    .size(188.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .size(148.dp)
+                    .clip(RoundedCornerShape(22.dp))
                     .background(Color.White)
-                    .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(20.dp)),
+                    .border(1.dp, Color(0xFFE1E1E1), RoundedCornerShape(22.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 SvgRawImage(
                     monsterResource(context, current.rawResourceName),
                     modifier = Modifier
-                        .height(152.dp)
+                        .height(110.dp)
                         .aspectRatio(1f)
                         .testTag("MonsterCodexImage"),
                 )
             }
             CodexArrowButton(
-                text = "➡",
+                text = "➡️",
                 enabled = hasNext,
                 tag = "MonsterCodexNext",
                 onClick = onNext,
             )
         }
-        Spacer(Modifier.height(16.dp))
-        Text(current.nameEn, modifier = Modifier.testTag("MonsterCodexName"), fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D3557))
+        Spacer(Modifier.height(10.dp))
+        Text(current.nameEn, modifier = Modifier.testTag("MonsterCodexName"), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0B3B63))
         Text(
             "「${current.kindZh}」",
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFEAF2F8))
-                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .background(Color(0xFFE2F5FC))
+                .padding(horizontal = 22.dp, vertical = 2.dp)
                 .testTag("MonsterCodexKind"),
-            fontSize = 18.sp,
-            color = Color(0xFF457B9D),
+            fontSize = 15.sp,
+            color = Color(0xFF0C85B6),
         )
-        Text("${catalog.index + 1} / ${catalog.entries.size}", modifier = Modifier.testTag("MonsterCodexPosition"), fontSize = 14.sp, color = Color(0xFF888888))
+        Spacer(Modifier.height(2.dp))
+        Text("${catalog.index + 1} / ${catalog.entries.size}", modifier = Modifier.testTag("MonsterCodexPosition"), fontSize = 14.sp, color = Color(0xFF8A8A8A))
+        Spacer(Modifier.height(12.dp))
         Text(
             current.descriptionZh,
             modifier = Modifier
-                .fillMaxWidth(0.7f)
+                .fillMaxWidth(0.9f)
                 .testTag("MonsterCodexDescription"),
             color = Color(0xFF333333),
-            fontSize = 18.sp,
-            lineHeight = 28.sp,
+            fontSize = 15.sp,
+            lineHeight = 22.sp,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -534,13 +559,20 @@ private fun CodexArrowButton(text: String, enabled: Boolean, tag: String, onClic
         shape = CircleShape,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (enabled) Color(0xFFFCEAEA) else Color(0xFFEEEEEE),
-            contentColor = if (enabled) Color(0xFFE63946) else Color(0xFF999999),
-            disabledContainerColor = Color(0xFFEEEEEE),
-            disabledContentColor = Color(0xFF999999),
+            containerColor = if (enabled) Color(0xFFFDE3E7) else Color(0xFFF6F8FA),
+            contentColor = Color.Unspecified,
+            disabledContainerColor = Color(0xFFF6F8FA),
+            disabledContentColor = Color.Unspecified,
         ),
     ) {
-        Text(text, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(
+            text,
+            modifier = Modifier
+                .alpha(if (enabled) 1f else 0.42f),
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Unspecified,
+        )
     }
 }
 

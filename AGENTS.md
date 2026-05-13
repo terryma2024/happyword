@@ -28,6 +28,10 @@
 - For all feature development and bugfix tasks, use the applicable Superpowers workflow before implementing changes.
 - Debug builds only: **Settings → Developer → Backend environment** opens the DevMenu for switching staging / local / preview API routing; release builds must not expose this entry.
 - **ohosTest UI automation** excludes DevMenu and the version-label triple-tap path — developers exercise those manually; see [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) section 4.
+- Android emulator handoff SOP: after building/installing an Android APK for
+  human confirmation, leave the emulator running and keep the app installed.
+  Do not kill the emulator, wipe data, or uninstall the app unless the user
+  explicitly asks for cleanup.
 
 ## Three-platform feature lifecycle
 

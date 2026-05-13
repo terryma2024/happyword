@@ -130,6 +130,11 @@ answer.
 
 ## 6) Manual QA commands — `android-manual-qa`
 
+**Human confirmation handoff:** when the user asks to manually confirm the
+Android build, leave the emulator/device online and keep the app installed
+after verification. Do not run `adb emu kill`, wipe emulator data, or uninstall
+the app unless the user explicitly asks for cleanup.
+
 | Goal | Command |
 |------|---------|
 | Tap screen | `$ANDROID_HOME/platform-tools/adb -s <serial> shell input tap <x> <y>` |
