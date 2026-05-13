@@ -182,18 +182,20 @@ final class WordMagicGameUITests: XCTestCase {
     }
 
     @MainActor
-    func testHomeToolbarRoutesToLearningReport() {
+    func testHomePlanButtonRoutesToTodayPlan() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestResetState"]
         app.launch()
 
         assertLandscape(app)
-        XCTAssertTrue(app.buttons["学习报告"].waitForExistence(timeout: 5))
-        app.buttons["学习报告"].tap()
+        XCTAssertTrue(app.buttons["今日学习计划"].waitForExistence(timeout: 5))
+        app.buttons["今日学习计划"].tap()
 
         assertLandscape(app)
-        XCTAssertTrue(app.staticTexts["学习报告"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["词包详情"].exists)
+        XCTAssertTrue(app.staticTexts["今日学习计划"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["复习"].exists)
+        XCTAssertTrue(app.staticTexts["学习中"].exists)
+        XCTAssertTrue(app.staticTexts["新词"].exists)
     }
 
     @MainActor

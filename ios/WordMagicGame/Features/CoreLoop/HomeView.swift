@@ -57,7 +57,7 @@ struct HomeView: View {
                 .accessibilityIdentifier("HomeCoinBalance")
             toolbarButton("ToolbarReview", label: "计划", action: coordinator.openTodayPlan)
             toolbarButton("ToolbarCodex", label: "图鉴", action: coordinator.openMonsterCodex)
-            toolbarEmojiButton("📋", label: "学习报告", action: coordinator.openLearningReport)
+            toolbarEmojiButton("📋", label: "今日学习计划", action: coordinator.openTodayPlan)
             toolbarButton("ToolbarWishlist", label: "许愿", action: coordinator.openWishlist)
             Button {
                 coordinator.route = .config
@@ -189,7 +189,7 @@ struct HomeView: View {
                 .background(Color(red: 0.99, green: 0.90, blue: 0.90), in: Circle())
         }
         .accessibilityLabel(label)
-        .accessibilityIdentifier("HomeLearningReportButton")
+        .accessibilityIdentifier("HomeTodayPlanButton")
     }
 
     private func tag(_ label: String) -> some View {
