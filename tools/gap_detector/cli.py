@@ -5,6 +5,8 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
+from .classifier import classify_probe
+from .evidence import EvidenceIndex
 from .manifest import Manifest, Probe, ScopeRecord, SourceRecord, load_manifest, save_manifest
 from .runners.commands import commands_for_probe, execute_command
 from .scope_planner import ScopePlanner
@@ -67,6 +69,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                     return result.returncode
             else:
                 print(f"[dry-run] {command.platform}: {command.shell_text()} (cwd={command.cwd})")
+        return 0
+    if args.command == "classify":
+        run_dir = Path(args.run)
+        manifest = load_manifest(run_dir / "manifest.yaml")
+        gaps = []
+        for probe in manifest.probes:
+            evidence_by_platform = {
+                platform: _load_evidence_index(run_dir, probe.id, platform)
+                for platform in probe.runners
+            }
+            for gap in classify_probe(probe, evidence_by_platform):
+                gaps.append(gap.to_dict())
+        gaps_path = run_dir / "gaps.yaml"
+        gaps_path.write_text(json.dumps(gaps, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(json.dumps({"gaps": str(gaps_path), "count": len(gaps)}, indent=2, ensure_ascii=False))
         return 0
     return 0
 
@@ -131,4 +148,18 @@ def _manifest_from_scope_plan(scope_plan: object) -> Manifest:
             tests={platform: tuple(dict.fromkeys(paths)) for platform, paths in tests.items() if paths},
         ),
         probes=tuple(probes),
+    )
+
+
+def _load_evidence_index(run_dir: Path, probe_id: str, platform: str) -> EvidenceIndex:
+    probe_dir = run_dir / "probes" / probe_id / platform
+    screenshot = probe_dir / "screenshot.png"
+    ui_tree = probe_dir / "ui-tree.txt"
+    log_path = probe_dir / "runner.log"
+    return EvidenceIndex(
+        probe_id=probe_id,
+        platform=platform,
+        screenshot=screenshot if screenshot.exists() else None,
+        ui_tree_text=ui_tree.read_text(encoding="utf-8") if ui_tree.exists() else "",
+        log_path=log_path if log_path.exists() else None,
     )
