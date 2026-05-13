@@ -143,6 +143,18 @@ Run this before saying an iOS implementation is complete, unless the user explic
 - `simctl` screenshots may be saved in the device's raw orientation. If needed, rotate a temporary copy with `sips -r -90 <input> --out <output>` for readable landscape comparison.
 - Do not use simulator screenshots as proof that tests pass. Screenshots prove visual state; XCUITest proves behavior.
 
+**Reuse existing simulators (preferred):**
+
+- Prefer **`booted`** when a single Simulator window is already open:
+  `xcrun simctl install booted …/WordMagicGame.app` and `xcrun simctl launch booted …`
+  target that device without starting another runtime.
+- If **multiple** simulators are booted, pick the intended UDID from
+  `xcrun simctl list devices | grep Booted` and use
+  `xcrun simctl install <udid> …` / `xcrun simctl launch <udid> …` instead of
+  booting extra devices.
+- Avoid `simctl boot` churn for routine install/QA — reuse what Xcode / Simulator
+  already has running unless the task explicitly needs a cold device.
+
 ---
 
 ## 7) Screenshots / Visual Parity - `ios-screenshot`

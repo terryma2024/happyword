@@ -1,6 +1,8 @@
 package cool.happyword.wordmagic.core
 
+import cool.happyword.wordmagic.app.BuildInfo
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlinx.coroutines.runBlocking
@@ -90,6 +92,35 @@ class DebugRoutingTest {
         assertEquals("token", store.load())
         store.clear()
         assertEquals("", store.load())
+    }
+
+    @Test
+    fun versionTripleTapFiresOnThirdTapWithinWindow() {
+        val t = VersionTripleTap(1000L)
+        assertFalse(t.onTap(1000L))
+        assertFalse(t.onTap(1100L))
+        assertTrue(t.onTap(1200L))
+        assertFalse(t.onTap(1300L))
+    }
+
+    @Test
+    fun versionTripleTapResetsAfterWindow() {
+        val t = VersionTripleTap(500L)
+        assertFalse(t.onTap(0L))
+        assertFalse(t.onTap(100L))
+        assertTrue(t.onTap(200L))
+        assertFalse(t.onTap(900L))
+        assertFalse(t.onTap(1000L))
+        assertFalse(t.onTap(1100L))
+        assertTrue(t.onTap(1200L))
+    }
+
+    @Test
+    fun formatBuildTimestampMatchesMinutePrecision() {
+        val cal = java.util.Calendar.getInstance(java.util.Locale.US)
+        cal.set(2026, java.util.Calendar.MAY, 13, 14, 7, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        assertEquals("2605131407", BuildInfo.formatBuildTimestamp(cal.timeInMillis))
     }
 
     @Test

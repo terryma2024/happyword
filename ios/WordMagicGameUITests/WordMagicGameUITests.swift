@@ -316,12 +316,14 @@ final class WordMagicGameUITests: XCTestCase {
     @MainActor
     func testDebugBackendMenuAndBypassSecretRoutesAreReachableInDebugBuild() {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITestResetState", "-UITestRouteConfig"]
+        app.launchArguments = ["-UITestResetState"]
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["游戏设置"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["ConfigDeveloperBackendButton"].exists)
-        app.buttons["ConfigDeveloperBackendButton"].tap()
+        let home = app.staticTexts["HomeVersionLabel"]
+        XCTAssertTrue(home.waitForExistence(timeout: 5))
+        home.tap()
+        home.tap()
+        home.tap()
 
         XCTAssertTrue(app.staticTexts["Developer Options"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Backend environment (debug builds only)"].exists)

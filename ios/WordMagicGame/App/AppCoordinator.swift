@@ -23,6 +23,11 @@ enum AppRoute: Equatable {
     case bypassSecret
 }
 
+/// HarmonyOS `DevMenuRouteParams.presetEnv` parity (e.g. home version triple-tap → DevMenu).
+enum DevMenuRouteParams {
+    static let presetPreview = "preview"
+}
+
 @MainActor
 final class AppCoordinator: ObservableObject {
     @Published var route: AppRoute = .home
@@ -62,6 +67,8 @@ final class AppCoordinator: ObservableObject {
     private let battleRandomSeed: UInt64?
     private var toastToken = UUID()
     private var pendingDeveloperMenuCard: DeveloperMenuCard?
+    /// Consumed once when `DevMenuView` appears. Matches Harmony `presetEnv` route param.
+    private var devMenuRoutePreset: String?
 
     var packs: [Pack] {
         packLibrary.allPacks()
@@ -362,9 +369,21 @@ final class AppCoordinator: ObservableObject {
         route = .childProfile
     }
 
-    func openDeveloperMenu() {
+    func openDeveloperMenu(presetEnv: String? = nil) {
         guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
+        if let trimmed = presetEnv?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty {
+            devMenuRoutePreset = trimmed
+        } else {
+            devMenuRoutePreset = nil
+        }
         route = .devMenu
+    }
+
+    /// Returns and clears the pending `presetEnv` value for `DevMenuView` (single consume).
+    func takeDevMenuRoutePreset() -> String? {
+        let value = devMenuRoutePreset
+        devMenuRoutePreset = nil
+        return value
     }
 
     func openBypassSecret() {

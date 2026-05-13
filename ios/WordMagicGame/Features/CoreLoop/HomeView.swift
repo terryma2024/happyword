@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @ObservedObject var coordinator: AppCoordinator
+    @State private var versionTripleTap = VersionTripleTapState()
 
     private var scenePalette: HomeScenePalette {
         HomeScenePalette(scene: coordinator.selectedPack.scene)
@@ -9,22 +10,46 @@ struct HomeView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            VStack(spacing: 9) {
-                topBar
+            ZStack(alignment: .topLeading) {
+                VStack(spacing: 9) {
+                    topBar
 
-                Text("Small Magician Word Adventure")
-                    .font(.system(size: min(proxy.size.width * 0.046, 30), weight: .heavy, design: .rounded))
-                    .foregroundStyle(AppTheme.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.62)
-                    .accessibilityIdentifier("HomeTitle")
+                    Text("Small Magician Word Adventure")
+                        .font(.system(size: min(proxy.size.width * 0.046, 30), weight: .heavy, design: .rounded))
+                        .foregroundStyle(AppTheme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.62)
+                        .accessibilityIdentifier("HomeTitle")
 
-                adventureCard
-                    .frame(maxHeight: .infinity)
+                    adventureCard
+                        .frame(maxHeight: .infinity)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+                .padding(.bottom, 10)
+                .frame(width: proxy.size.width, height: proxy.size.height)
+
+                if let versionLabel = HomeVersionLabel.text() {
+                    Text(versionLabel)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.6, green: 0.6, blue: 0.6))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .frame(maxWidth: proxy.size.width * 0.55, alignment: .leading)
+                        .padding(.leading, 16)
+                        .padding(.top, 16)
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 8)
+                        .accessibilityIdentifier("HomeVersionLabel")
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            let nowMs = Date().timeIntervalSince1970 * 1000
+                            if versionTripleTap.consumeTap(nowMs: nowMs) {
+                                coordinator.openDeveloperMenu(presetEnv: DevMenuRouteParams.presetPreview)
+                            }
+                        }
+                }
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 18)
-            .padding(.bottom, 10)
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .background(AppTheme.page)
@@ -33,10 +58,7 @@ struct HomeView: View {
     private var topBar: some View {
         let childProfileLabel = "孩子档案 \(coordinator.currentChildNickname())"
         return HStack(spacing: 12) {
-            Text("v0.7 iOS")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Spacer()
+            Spacer(minLength: 0)
             if coordinator.showsChildProfileShortcut {
                 Button {
                     coordinator.openBoundDeviceInfo()
@@ -198,6 +220,59 @@ struct HomeView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(AppTheme.gold.opacity(0.25), in: Capsule())
+    }
+}
+
+/// Mirrors HarmonyOS `VersionTripleTap` (1500ms window).
+private struct VersionTripleTapState {
+    private var count: Int = 0
+    private var lastTapMs: Double = 0
+    private let windowMs: Double = 1500
+
+    mutating func consumeTap(nowMs: Double) -> Bool {
+        if nowMs - lastTapMs > windowMs {
+            count = 1
+        } else {
+            count += 1
+        }
+        lastTapMs = nowMs
+        if count >= 3 {
+            count = 0
+            lastTapMs = 0
+            return true
+        }
+        return false
+    }
+}
+
+/// Debug-only home version line: `v{CFBundleShortVersionString}({YYMMDDHHmm})`.
+private enum HomeVersionLabel {
+    static func text() -> String? {
+        guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return nil }
+        let versionName: String
+        if let name = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !name.isEmpty {
+            versionName = name
+        } else {
+            versionName = "?.?.?"
+        }
+        let bundleURL = Bundle.main.bundleURL
+        let attrs = try? FileManager.default.attributesOfItem(atPath: bundleURL.path)
+        let date =
+            (attrs?[.modificationDate] as? Date)
+            ?? (attrs?[.creationDate] as? Date)
+            ?? Date()
+        return "v\(versionName)(\(formatBuildTimestamp(date)))"
+    }
+
+    private static func formatBuildTimestamp(_ date: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let yy = calendar.component(.year, from: date) % 100
+        let mm = calendar.component(.month, from: date)
+        let dd = calendar.component(.day, from: date)
+        let hh = calendar.component(.hour, from: date)
+        let mn = calendar.component(.minute, from: date)
+        return String(format: "%02d%02d%02d%02d%02d", yy, mm, dd, hh, mn)
     }
 }
 
