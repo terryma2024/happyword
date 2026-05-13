@@ -673,12 +673,4 @@ enum AppTheme {
     static let paleBlue = Color(red: 0.86, green: 0.93, blue: 0.98)
     static let palePink = Color(red: 0.98, green: 0.82, blue: 0.82)
     static let page = Color(red: 0.98, green: 0.99, blue: 1.00)
-    static let background = LinearGradient(
-        colors: [
-            Color(red: 0.99, green: 1.00, blue: 1.00),
-            Color(red: 0.95, green: 0.98, blue: 1.00),
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
 }

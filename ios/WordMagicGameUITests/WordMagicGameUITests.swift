@@ -28,6 +28,18 @@ final class WordMagicGameUITests: XCTestCase {
     }
 
     @MainActor
+    func testHomeHidesChildAccountBeforeBinding() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState"]
+        app.launch()
+
+        assertLandscape(app)
+        XCTAssertTrue(app.staticTexts["Small Magician Word Adventure"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["今天的冒险包含 5 关卡，含拼写、复习与首领关"].exists)
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "小明测试")).firstMatch.exists)
+    }
+
+    @MainActor
     func testBattleScreenUsesEnglishLabelsAndLiveCountdown() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestResetState", "-UITestRouteBattle"]
