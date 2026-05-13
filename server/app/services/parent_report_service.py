@@ -42,6 +42,7 @@ _CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "home": "家庭",
     "animal": "动物",
     "ocean": "海洋",
+    "synced_pack": "已同步词包",
 }
 
 _DEFAULT_PACKS: tuple[tuple[str, str, str], ...] = (
@@ -197,19 +198,20 @@ async def _collect_pack_buckets(
         family_id=family_id
     )
 
-    buckets: list[_PackBucket] = []
-    if global_slices:
-        for s in global_slices:
-            buckets.append(
-                _bucket_from_pack_words(
-                    pack_id=s.pack_id,
-                    name=s.name,
-                    words=s.words,
-                    active=s.pack_id in _DEFAULT_PACK_ORDER,
-                )
+    # The five default packs are built into the native client and should
+    # always exist as the base layer. Published global packs override a
+    # default only when they deliberately reuse the same pack_id; unrelated
+    # global packs are additive.
+    buckets: list[_PackBucket] = _legacy_default_pack_buckets(legacy_words)
+    for s in global_slices:
+        buckets.append(
+            _bucket_from_pack_words(
+                pack_id=s.pack_id,
+                name=s.name,
+                words=s.words,
+                active=s.pack_id in _DEFAULT_PACK_ORDER,
             )
-    else:
-        buckets.extend(_legacy_default_pack_buckets(legacy_words))
+        )
 
     for s in family_slices:
         buckets.append(
@@ -321,6 +323,58 @@ async def build_report(
             and stat.consecutive_correct > 0
         ):
             review_done_today += 1
+
+    # The native clients can sync stats for words that do not exist in the
+    # current server-side pack library, for example old preview runs before
+    # words_v1 seeding or a pack that was later removed. Those rows are still
+    # valid child progress and must count in the report.
+    orphan_stats = [
+        stat for stat in stats if stat.word_id not in known_word_ids
+    ]
+    if orphan_stats:
+        total_words += len(orphan_stats)
+        bucket = cat_map.setdefault(
+            "synced_pack", _CategoryBucket(category="synced_pack")
+        )
+        pack_buckets.append(
+            _PackBucket(
+                pack_id="synced-pack",
+                name="Synced Pack",
+                word_ids=[stat.word_id for stat in orphan_stats],
+            )
+        )
+        for stat in orphan_stats:
+            total_seen += stat.seen_count
+            total_correct += stat.correct_count
+            bucket.total_seen += stat.seen_count
+            bucket.total_correct += stat.correct_count
+            state = _classify(stat, now_ms)
+            if state == "new":
+                new_from_stats += 1
+            elif state == "mastered":
+                mastered_count += 1
+            elif state == "familiar":
+                familiar_count += 1
+            elif state == "review":
+                review_due += 1
+                learning_count += 1
+            else:
+                learning_count += 1
+            is_reviewable = (
+                stat.seen_count > 0 and stat.last_answered_ms < start_of_today_ms
+            )
+            if (
+                is_reviewable
+                and stat.last_answered_ms >= 0
+                and state != "new"
+                and state != "review"
+            ):
+                review_due += 1
+            if (
+                stat.last_answered_ms >= start_of_today_ms
+                and stat.consecutive_correct > 0
+            ):
+                review_done_today += 1
 
     unseen_in_library = len(known_word_ids - set(stat_by_word_id))
     new_count = new_from_stats + unseen_in_library

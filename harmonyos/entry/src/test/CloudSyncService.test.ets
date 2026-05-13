@@ -155,7 +155,7 @@ export default function cloudSyncServiceTest(): void {
       expect(adapter.posts[0].url.indexOf(SYNC_PATH)).assertLargerOrEqual(0);
       expect(adapter.posts[0].auth).assertEqual('Bearer jwt.body.sig');
       expect(adapter.posts[0].body.indexOf('"word_id":"w1"')).assertLargerOrEqual(0);
-      expect(prefs.store.get('sync_checkpoint_ms') ?? '').assertEqual('6000');
+      expect(prefs.store.get('sync_checkpoint_ms') ?? '').assertEqual('5000');
     });
 
     it('skipsAlreadySyncedStatsAfterCheckpoint', 0, async () => {
@@ -193,7 +193,7 @@ export default function cloudSyncServiceTest(): void {
       const prefs: MemPrefs = new MemPrefs();
       // Pretend we already shipped w1 above its checkpoint, so the only
       // delta in this run is the inbound pull.
-      prefs.store.set('sync_checkpoint_ms', '2000');
+      prefs.store.set('sync_checkpoint_ms', '1000');
       const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
@@ -218,7 +218,7 @@ export default function cloudSyncServiceTest(): void {
         '{"accepted":[],"rejected":[],"server_pulls":[{"word_id":"w1","seen_count":3,"correct_count":1,"wrong_count":2,"last_answered_ms":4000,"last_correct_ms":4000,"next_review_ms":5000,"memory_state":"new","consecutive_correct":1,"consecutive_wrong":0,"mastery":0.1}],"server_now_ms":9500}',
       );
       const prefs: MemPrefs = new MemPrefs();
-      prefs.store.set('sync_checkpoint_ms', '9500');
+      prefs.store.set('sync_checkpoint_ms', '9000');
       const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
@@ -252,13 +252,47 @@ export default function cloudSyncServiceTest(): void {
       const adapter: CapturingAdapter = new CapturingAdapter();
       adapter.enqueue(200, '{"accepted":[],"rejected":[],"server_pulls":[],"server_now_ms":2000}');
       const prefs: MemPrefs = new MemPrefs();
-      prefs.store.set('sync_checkpoint_ms', '5000');
+      prefs.store.set('sync_checkpoint_ms', '1000');
       const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('no_changes');
       expect(out.pushed).assertEqual(0);
       expect(out.pulled).assertEqual(0);
+    });
+
+    it('replaysLocalStatsWhenLegacyCheckpointIsServerClock', 0, async () => {
+      const recorder: LearningRecorder = makeRecorderWith([ws('w1', 1000, 1, 0)]);
+      const cc: CloudCredentials = makeBoundCreds();
+      const adapter: CapturingAdapter = new CapturingAdapter();
+      adapter.enqueue(
+        200,
+        '{"accepted":["w1"],"rejected":[],"server_pulls":[],"server_now_ms":9000}',
+      );
+      const prefs: MemPrefs = new MemPrefs();
+      prefs.store.set('sync_checkpoint_ms', '8000');
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
+      svc.injectPreferences(prefs);
+      const out: CloudSyncResult = await svc.syncOnce();
+      expect(out.status).assertEqual('pushed');
+      expect(out.pushed).assertEqual(1);
+      expect(adapter.posts.length).assertEqual(1);
+      expect(adapter.posts[0].body.indexOf('"word_id":"w1"')).assertLargerOrEqual(0);
+      expect(adapter.posts[0].body.indexOf('"synced_through_ms":0')).assertLargerOrEqual(0);
+      expect(prefs.store.get('sync_checkpoint_ms') ?? '').assertEqual('1000');
+    });
+
+    it('doesNotAdvanceCheckpointOnEmptyNoChangeSync', 0, async () => {
+      const recorder: LearningRecorder = makeRecorderWith([]);
+      const cc: CloudCredentials = makeBoundCreds();
+      const adapter: CapturingAdapter = new CapturingAdapter();
+      adapter.enqueue(200, '{"accepted":[],"rejected":[],"server_pulls":[],"server_now_ms":9000}');
+      const prefs: MemPrefs = new MemPrefs();
+      const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
+      svc.injectPreferences(prefs);
+      const out: CloudSyncResult = await svc.syncOnce();
+      expect(out.status).assertEqual('no_changes');
+      expect(prefs.store.get('sync_checkpoint_ms') ?? '').assertEqual('');
     });
   });
 
@@ -301,15 +335,15 @@ export default function cloudSyncServiceTest(): void {
       const recorder: LearningRecorder = makeRecorderWith(stats);
       const cc: CloudCredentials = makeBoundCreds();
       const adapter: CapturingAdapter = new CapturingAdapter();
-      adapter.enqueue(200, '{"accepted":[],"rejected":[],"server_pulls":[],"server_now_ms":9300}');
-      adapter.enqueue(200, '{"accepted":[],"rejected":[],"server_pulls":[],"server_now_ms":9400}');
+      adapter.enqueue(200, '{"accepted":["w199"],"rejected":[],"server_pulls":[],"server_now_ms":9300}');
+      adapter.enqueue(200, '{"accepted":["w249"],"rejected":[],"server_pulls":[],"server_now_ms":9400}');
       const prefs: MemPrefs = new MemPrefs();
       const svc: CloudSyncService = new CloudSyncService(recorder, cc, adapter, (): string => BASE);
       svc.injectPreferences(prefs);
       const out: CloudSyncResult = await svc.syncOnce();
       expect(out.status).assertEqual('pushed');
       expect(adapter.posts.length).assertEqual(2);
-      expect(prefs.store.get('sync_checkpoint_ms') ?? '').assertEqual('9400');
+      expect(prefs.store.get('sync_checkpoint_ms') ?? '').assertEqual('9249');
     });
   });
 }

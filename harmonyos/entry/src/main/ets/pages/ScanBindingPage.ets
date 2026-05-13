@@ -23,6 +23,7 @@ import { DeviceIdProvider } from '../services/DeviceIdProvider';
 import { BindingApiClient } from '../services/BindingApiClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { ensureCloudSyncInstalled } from '../services/CloudSyncInstaller';
 
 class RealScanKitScanner implements BarcodeScannerLike {
   private ctx: common.UIAbilityContext;
@@ -118,6 +119,11 @@ struct ScanBindingPage {
           this.state = u.state;
           if (u.snapshot !== undefined) {
             this.childNickname = u.snapshot.nickname;
+          }
+          if (u.state === 'bound') {
+            ensureCloudSyncInstalled(ctx).catch((err: BusinessError): void => {
+              console.error(`ScanBindingPage.ensureCloudSyncInstalled failed: ${JSON.stringify(err)}`);
+            });
           }
           if (u.reason !== undefined) {
             this.failureReason = u.reason as string;

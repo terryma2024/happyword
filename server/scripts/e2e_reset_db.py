@@ -31,8 +31,12 @@ imports) so it can run before the test process is even built.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -63,10 +67,21 @@ COLLECTIONS: tuple[str, ...] = (
 )
 
 _SAFE_SUFFIXES = ("_e2e", "_test", "_ci")
+_RAWFILE_CANDIDATES: tuple[Path, ...] = (
+    Path("harmonyos/entry/src/main/resources/rawfile/data/words_v1.json"),
+    Path("entry/src/main/resources/rawfile/data/words_v1.json"),
+)
 
 
 class UnsafeDatabaseName(RuntimeError):
     """Raised when the target DB name does not look like a dedicated test DB."""
+
+
+@dataclass(frozen=True)
+class ResetSummary:
+    truncated_collections: int
+    seeded_words_inserted: int
+    seeded_words_skipped: int
 
 
 def assert_safe_db_name(name: str) -> None:
@@ -81,13 +96,82 @@ def assert_safe_db_name(name: str) -> None:
         )
 
 
-async def reset(uri: str, name: str) -> int:
+def _resolve_rawfile_path() -> Path:
+    here = Path(__file__).resolve()
+    for ancestor in [here.parent, *here.parents]:
+        for rel in _RAWFILE_CANDIDATES:
+            candidate = ancestor / rel
+            if candidate.exists():
+                return candidate
+    raise FileNotFoundError(
+        f"Could not locate any of {', '.join(str(p) for p in _RAWFILE_CANDIDATES)} "
+        f"above {here}."
+    )
+
+
+def _rawfile_word_docs(rawfile_path: Path, now: datetime) -> list[dict[str, object]]:
+    payload = json.loads(rawfile_path.read_text(encoding="utf-8"))
+    raw_words = payload.get("words", [])
+    if not isinstance(raw_words, list):
+        raise ValueError(f"{rawfile_path} has no list field 'words'")
+
+    docs: list[dict[str, object]] = []
+    for entry in raw_words:
+        if not isinstance(entry, dict):
+            continue
+        wid = str(entry["id"])
+        docs.append(
+            {
+                "_id": wid,
+                "word": str(entry["word"]),
+                "meaningZh": str(entry["meaningZh"]),
+                "category": str(entry["category"]),
+                "difficulty": int(entry["difficulty"]),
+                "created_at": now,
+                "updated_at": now,
+                "deleted_at": None,
+                "distractors": None,
+                "example_sentence_en": None,
+                "example_sentence_zh": None,
+                "illustration_url": None,
+                "audio_url": None,
+            }
+        )
+    return docs
+
+
+async def seed_words_from_rawfile(
+    db: object,
+    *,
+    rawfile_path: Path | None = None,
+) -> tuple[int, int]:
+    path = rawfile_path or _resolve_rawfile_path()
+    docs = _rawfile_word_docs(path, datetime.now(tz=UTC))
+    if not docs:
+        return 0, 0
+
+    words = db["words"]  # type: ignore[index]
+    existing_ids = {
+        row["_id"] async for row in words.find({}, {"_id": 1})  # type: ignore[attr-defined]
+    }
+    to_insert = [doc for doc in docs if doc["_id"] not in existing_ids]
+    if to_insert:
+        await words.insert_many(to_insert)  # type: ignore[attr-defined]
+    return len(to_insert), len(docs) - len(to_insert)
+
+
+async def reset(uri: str, name: str) -> ResetSummary:
     client: AsyncIOMotorClient[dict[str, object]] = AsyncIOMotorClient(uri)
     try:
         db = client[name]
         for coll in COLLECTIONS:
             await db[coll].delete_many({})
-        return len(COLLECTIONS)
+        inserted, skipped = await seed_words_from_rawfile(db)
+        return ResetSummary(
+            truncated_collections=len(COLLECTIONS),
+            seeded_words_inserted=inserted,
+            seeded_words_skipped=skipped,
+        )
     finally:
         client.close()
 
@@ -108,8 +192,12 @@ async def _amain() -> int:
         print(f"Refusing to reset: {exc}", file=sys.stderr)
         return 3
 
-    truncated = await reset(uri, name)
-    print(f"Reset {truncated} collections in db {name!r}.")
+    summary = await reset(uri, name)
+    print(
+        f"Reset {summary.truncated_collections} collections in db {name!r}. "
+        f"Seeded words from rawfile: inserted={summary.seeded_words_inserted} "
+        f"skipped={summary.seeded_words_skipped}."
+    )
     return 0
 
 
