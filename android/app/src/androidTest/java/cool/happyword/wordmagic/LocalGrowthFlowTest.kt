@@ -72,10 +72,11 @@ class LocalGrowthFlowTest {
             .assertWidthIsEqualTo(56.dp)
             .assertHeightIsEqualTo(56.dp)
             .assertIsEnabled()
-        composeRule.onNodeWithText("⬅").assertIsDisplayed()
-        composeRule.onNodeWithText("➡").assertIsDisplayed()
+        assert(composeRule.onAllNodesWithText("返回").fetchSemanticsNodes().isEmpty())
+        composeRule.onNodeWithText("⬅️").assertIsDisplayed()
+        composeRule.onNodeWithText("➡️").assertIsDisplayed()
         composeRule.onNodeWithText("「普通怪物」").assertIsDisplayed()
-        composeRule.onNodeWithText("1 / 3").assertIsDisplayed()
+        composeRule.onNodeWithText("1 / 100").assertIsDisplayed()
         composeRule.onNodeWithText(
             "Slime 是一只软软的小精灵，整天住在森林深处的青草丛里。它最喜欢的事情就是在月光下打滚，把身体滚得圆圆的。它见到谁都会咧开大嘴笑一笑，从来不会真的生气。",
         ).assertIsDisplayed()
