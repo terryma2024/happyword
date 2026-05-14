@@ -107,7 +107,7 @@ pages:
       page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
       capture:
         kind: android_screenshot_test
-        test_method: captureCoreParentAndDebugScreens
+        test_method: captureConfigScreenOnly
         filename: config-landscape.png
 
   - id: wishlist

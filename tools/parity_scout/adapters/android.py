@@ -34,10 +34,52 @@ def _adb_path() -> str:
     return "adb"  # fall back to PATH lookup
 
 
+def _parse_adb_devices(stdout: str) -> list[str]:
+    """Serials in the ``device`` state (excludes offline / unauthorized)."""
+    serials: list[str] = []
+    for raw in (stdout or "").splitlines():
+        line = raw.strip()
+        if not line or line.lower().startswith("list of devices"):
+            continue
+        parts = line.split()
+        if len(parts) >= 2 and parts[-1] == "device":
+            serials.append(parts[0])
+    return serials
+
+
+def _single_online_serial(adb: str) -> str | None:
+    """If exactly one usable device is attached, return its serial; else None."""
+    try:
+        proc = subprocess.run(
+            [adb, "devices"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    candidates = _parse_adb_devices(proc.stdout or "")
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
+
+
 def _adb_cmd() -> list[str]:
-    """`adb` or `adb -s <serial>` when ANDROID_SERIAL is set (avoids multi-device errors)."""
+    """``adb`` or ``adb -s <serial>`` when the target device is unambiguous.
+
+    Resolution order:
+    1. ``ANDROID_SERIAL`` if set.
+    2. If ``adb devices`` lists exactly one serial in ``device`` state, use it
+       (covers one online emulator plus other ``offline`` rows).
+    3. Otherwise bare ``adb`` (may error when multiple online devices exist).
+    """
     adb = _adb_path()
     serial = (os.environ.get("ANDROID_SERIAL") or "").strip()
+    if not serial:
+        serial = _single_online_serial(adb) or ""
     if serial:
         return [adb, "-s", serial]
     return [adb]
