@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
@@ -138,9 +140,23 @@ fun BoundDeviceInfoScreen(
             .testTag("BoundDeviceInfoScreen"),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("家长账户", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = onBack) { Text("返回") }
+            HarmonyPageTopBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("BoundDeviceInfoBackButton"),
+            )
+            Text(
+                "家长账户",
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("BoundDeviceInfoTitle"),
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1D3557),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.width(48.dp))
         }
 
         if (credentials == null) {

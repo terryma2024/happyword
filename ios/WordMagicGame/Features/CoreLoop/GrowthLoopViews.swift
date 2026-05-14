@@ -51,7 +51,7 @@ struct PackManagerView: View {
                 .padding(.vertical, 4)
             }
         }
-        .padding(.horizontal, 42)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 14)
         .background(AppTheme.page)
     }
@@ -95,7 +95,7 @@ struct PackManagerView: View {
             .tint(AppTheme.gold)
             .accessibilityIdentifier("PackToggle_\(pack.id)")
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .frame(height: 66)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
@@ -131,10 +131,6 @@ struct WishlistView: View {
             VStack(spacing: 16) {
                 wishlistTopBar
 
-                Text("魔法愿望单")
-                    .font(.system(size: 34, weight: .heavy, design: .rounded))
-                    .foregroundStyle(AppTheme.navy)
-
                 ScrollView {
                     VStack(spacing: 14) {
                         ForEach(coordinator.wishlistStore.wishes) { wish in
@@ -144,7 +140,7 @@ struct WishlistView: View {
                     .padding(.vertical, 8)
                 }
             }
-            .padding(.horizontal, 42)
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
             .padding(.top, 24)
             .padding(.bottom, 12)
 
@@ -163,43 +159,58 @@ struct WishlistView: View {
     }
 
     private var wishlistTopBar: some View {
-        HStack(spacing: 12) {
-            MonsterCodexStyleBackButton(
-                action: { coordinator.route = .home },
-                accessibilityIdentifier: "WishlistBackButton"
-            )
-
-            Spacer(minLength: 0)
-
-            Button("📜") { coordinator.route = .redemptionHistory }
-                .font(.system(size: 18))
-                .frame(width: 48, height: 44)
-                .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
-                .buttonStyle(.plain)
-                .accessibilityLabel("兑换历史")
-                .accessibilityIdentifier("WishlistHistoryButton")
-
-            if parentPinReady {
-                Button("添加愿望") {
-                    wishName = ""
-                    wishCost = ""
-                    wishEmoji = "🎁"
-                    addWishPin = ""
-                    addWishMessage = ""
-                    showingAddWish = true
-                }
-                .font(.system(size: 18, weight: .heavy, design: .rounded))
-                .foregroundStyle(AppTheme.navy)
-                .padding(.horizontal, 18)
-                .frame(height: 44)
-                .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("WishlistAddCustomButton")
+        HStack(spacing: 0) {
+            HStack(spacing: 12) {
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .home },
+                    accessibilityIdentifier: "WishlistBackButton"
+                )
+                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text("我的魔法币: \(coordinator.coinAccount.balance) ✨")
-                .font(.system(size: 18, weight: .heavy, design: .rounded))
-                .foregroundStyle(Color(red: 1.0, green: 0.68, blue: 0.0))
+            Text("魔法愿望单")
+                .font(.system(size: 26, weight: .heavy, design: .rounded))
+                .foregroundStyle(AppTheme.navy)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: true, vertical: false)
+                .accessibilityIdentifier("WishlistTitle")
+
+            HStack(spacing: 12) {
+                Spacer(minLength: 0)
+                Button("📜") { coordinator.route = .redemptionHistory }
+                    .font(.system(size: 18))
+                    .frame(width: 48, height: 44)
+                    .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("兑换历史")
+                    .accessibilityIdentifier("WishlistHistoryButton")
+
+                if parentPinReady {
+                    Button("添加") {
+                        wishName = ""
+                        wishCost = ""
+                        wishEmoji = "🎁"
+                        addWishPin = ""
+                        addWishMessage = ""
+                        showingAddWish = true
+                    }
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
+                    .padding(.horizontal, 18)
+                    .frame(height: 44)
+                    .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("WishlistAddCustomButton")
+                }
+
+                Text("我的魔法币: \(coordinator.coinAccount.balance) ✨")
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color(red: 1.0, green: 0.68, blue: 0.0))
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -244,7 +255,8 @@ struct WishlistView: View {
                 .tint(AppTheme.red)
             }
         }
-        .padding(24)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 24)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 22))
         .shadow(radius: 18)
     }
@@ -282,7 +294,7 @@ struct WishlistView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 28)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .frame(height: 104)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: Color.black.opacity(0.06), radius: 5, y: 2)
@@ -563,7 +575,7 @@ struct RedemptionHistoryView: View {
                 }
             }
         }
-        .padding(.horizontal, 42)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 22)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
@@ -616,7 +628,7 @@ struct TodayPlanView: View {
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(Color(red: 0.34, green: 0.28, blue: 0.20))
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
             .frame(height: 116)
             .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
             .overlay {
@@ -632,7 +644,7 @@ struct TodayPlanView: View {
                 .padding(.bottom, 12)
             }
         }
-        .padding(.horizontal, 42)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 16)
         .background(AppTheme.page)
     }
@@ -682,7 +694,7 @@ struct TodayPlanView: View {
                         .frame(height: 30)
                         .background(AppTheme.cream, in: Capsule())
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, AppTheme.pageHorizontalPadding)
                 .frame(height: 78)
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 16))
                 .overlay {
@@ -729,7 +741,7 @@ struct LearningReportView: View {
                 .padding(.bottom, 12)
             }
         }
-        .padding(.horizontal, 42)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 16)
         .background(AppTheme.page)
     }
@@ -746,7 +758,7 @@ struct LearningReportView: View {
                 .font(.system(size: 22, weight: .medium, design: .rounded))
                 .foregroundStyle(Color(red: 0.34, green: 0.28, blue: 0.20))
         }
-        .padding(.horizontal, 28)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .frame(maxWidth: .infinity, minHeight: 158, alignment: .leading)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
@@ -767,7 +779,7 @@ struct LearningReportView: View {
                 statePill("新词", max(coordinator.selectedPack.words.count - report.totalSeenWords, 0), color: Color(red: 0.66, green: 0.86, blue: 0.86))
             }
         }
-        .padding(.horizontal, 28)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 20)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
@@ -795,7 +807,7 @@ struct LearningReportView: View {
                 .font(.system(size: 19, weight: .medium, design: .rounded))
                 .foregroundStyle(Color(red: 0.34, green: 0.28, blue: 0.20))
         }
-        .padding(.horizontal, 28)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 20)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
@@ -826,7 +838,7 @@ struct LearningReportView: View {
                 .accessibilityIdentifier("pack-\(row.packId)")
             }
         }
-        .padding(.horizontal, 28)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 20)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
         .overlay {

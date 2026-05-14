@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.caverock.androidsvg.SVG
@@ -104,9 +105,9 @@ fun PackManagerScreen(
             .fillMaxSize()
             .background(Color(0xFFF8FAFC))
             .padding(
-                start = PageChromeInsets.bodyHorizontal,
+                start = PageChromeInsets.homeAlignedHorizontal,
                 top = PageChromeInsets.bodyTop,
-                end = PageChromeInsets.bodyHorizontal,
+                end = PageChromeInsets.homeAlignedHorizontal,
                 bottom = PageChromeInsets.bodyBottom,
             )
             .testTag("PackManagerScreen"),
@@ -208,10 +209,12 @@ fun WishlistScreen(
     giftBoxVisible: Boolean = false,
     giftBoxTrigger: Int = 0,
     recentlyRedeemedWishId: String? = null,
+    /** When parent PIN is configured (6 digits): show "+ 添加" and remove on custom wishes. */
     showAddCustomEntry: Boolean = false,
     onRedeem: (WishItem) -> Unit,
     onHistory: () -> Unit,
     onAddCustom: () -> Unit,
+    onRequestRemoveCustom: (WishItem) -> Unit,
     onBack: () -> Unit,
 ) {
     BackHandler(enabled = giftBoxVisible) {}
@@ -225,70 +228,78 @@ fun WishlistScreen(
             Modifier
                 .fillMaxSize()
                 .padding(
-                    start = PageChromeInsets.bodyHorizontal,
+                    start = PageChromeInsets.homeAlignedHorizontal,
                     top = PageChromeInsets.bodyTop,
-                    end = PageChromeInsets.bodyHorizontal,
+                    end = PageChromeInsets.homeAlignedHorizontal,
                     bottom = PageChromeInsets.bodyBottom,
                 ),
         ) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     HarmonyPageTopBackButton(
                         onClick = {
                             if (!giftBoxVisible) onBack()
                         },
                         modifier = Modifier.testTag("WishlistBackButton"),
                     )
-                    Spacer(Modifier.weight(1f))
-                    Button(
-                        onClick = {
-                            if (!giftBoxVisible) onHistory()
-                        },
+                    Text(
+                        "魔法愿望单",
                         modifier = Modifier
-                            .height(36.dp)
-                            .testTag("WishlistHistoryButton"),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAF2F8), contentColor = Color(0xFF1D3557)),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                            .weight(1f)
+                            .testTag("WishlistTitle"),
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1D3557),
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("历史", fontSize = 14.sp)
-                    }
-                    if (showAddCustomEntry) {
-                        Spacer(Modifier.width(8.dp))
                         Button(
                             onClick = {
-                                if (!giftBoxVisible) onAddCustom()
+                                if (!giftBoxVisible) onHistory()
                             },
                             modifier = Modifier
                                 .height(36.dp)
-                                .testTag("WishlistAddCustomButton"),
+                                .testTag("WishlistHistoryButton"),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAF2F8), contentColor = Color(0xFF1D3557)),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                         ) {
-                            Text("+ 添加", fontSize = 14.sp)
+                            Text("历史", fontSize = 14.sp)
                         }
+                        if (showAddCustomEntry) {
+                            Button(
+                                onClick = {
+                                    if (!giftBoxVisible) onAddCustom()
+                                },
+                                modifier = Modifier
+                                    .height(36.dp)
+                                    .testTag("WishlistAddCustomButton"),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAF2F8), contentColor = Color(0xFF1D3557)),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            ) {
+                                Text("+ 添加", fontSize = 14.sp)
+                            }
+                        }
+                        Text(
+                            "我的魔法币: ${coinAccount.balance} ✨",
+                            modifier = Modifier.testTag("WishlistBalance"),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFFFB400),
+                        )
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        "我的魔法币: ${coinAccount.balance} ✨",
-                        modifier = Modifier.testTag("WishlistBalance"),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFFFFB400),
-                    )
                 }
-                Text(
-                    "魔法愿望单",
-                    modifier = Modifier
-                        .padding(top = 12.dp)
-                        .testTag("WishlistTitle"),
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1D3557),
-                )
                 if (message.isNotBlank()) {
-                    Text(message, modifier = Modifier.padding(top = 6.dp).testTag("WishlistMessage"), color = Color(0xFFD94141))
+                    Text(message, modifier = Modifier.padding(top = 8.dp).testTag("WishlistMessage"), color = Color(0xFFD94141))
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -325,37 +336,62 @@ fun WishlistScreen(
                                 color = Color(0xFFFFB400),
                             )
                         }
-                        when {
-                            wish.id == recentlyRedeemedWishId -> {
-                                Text(
-                                    "已兑换 ✓",
-                                    modifier = Modifier.testTag("WishConfirmed_${wish.id}"),
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF2ECC71),
-                                )
-                            }
-                            coinAccount.balance >= wish.cost -> {
-                                Button(
-                                    onClick = { onRedeem(wish) },
-                                    modifier = Modifier
-                                        .width(108.dp)
-                                        .height(40.dp)
-                                        .testTag("WishRedeem_${wish.id}"),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE63946), contentColor = Color.White),
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                                ) {
-                                    Text("申请兑换", fontSize = 15.sp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            when {
+                                wish.id == recentlyRedeemedWishId -> {
+                                    Text(
+                                        "已兑换 ✓",
+                                        modifier = Modifier.testTag("WishConfirmed_${wish.id}"),
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF2ECC71),
+                                    )
+                                }
+                                coinAccount.balance >= wish.cost -> {
+                                    Button(
+                                        onClick = { onRedeem(wish) },
+                                        modifier = Modifier
+                                            .width(108.dp)
+                                            .height(40.dp)
+                                            .testTag("WishRedeem_${wish.id}"),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE63946), contentColor = Color.White),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                                    ) {
+                                        Text("申请兑换", fontSize = 15.sp)
+                                    }
+                                }
+                                else -> {
+                                    Text(
+                                        "还差 $gap ✨",
+                                        modifier = Modifier.testTag("WishGap_${wish.id}"),
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF888888),
+                                    )
                                 }
                             }
-                            else -> {
-                                Text(
-                                    "还差 $gap ✨",
-                                    modifier = Modifier.testTag("WishGap_${wish.id}"),
-                                    fontSize = 13.sp,
-                                    color = Color(0xFF888888),
-                                )
+                            if (wish.custom && showAddCustomEntry) {
+                                Button(
+                                    onClick = {
+                                        if (!giftBoxVisible) {
+                                            onRequestRemoveCustom(wish)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .testTag("WishRemove_${wish.id}"),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFF1F2F4),
+                                        contentColor = Color(0xFF888888),
+                                    ),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                                ) {
+                                    Text("✕", fontSize = 14.sp)
+                                }
                             }
                         }
                     }
@@ -802,8 +838,8 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    start = PageChromeInsets.bodyHorizontal,
-                    end = PageChromeInsets.bodyHorizontal,
+                    start = PageChromeInsets.homeAlignedHorizontal,
+                    end = PageChromeInsets.homeAlignedHorizontal,
                     top = PageChromeInsets.bodyTop,
                     bottom = 12.dp,
                 ),
@@ -839,7 +875,7 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
             Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = PageChromeInsets.bodyHorizontal)
+                .padding(horizontal = PageChromeInsets.homeAlignedHorizontal)
                 .padding(bottom = PageChromeInsets.bodyBottom),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

@@ -45,7 +45,7 @@ struct ScanBindingView: View {
                     }
                 }
                 .frame(maxWidth: 560)
-                .padding(.horizontal, 22)
+                .padding(.horizontal, AppTheme.pageHorizontalPadding)
                 .padding(.vertical, 20)
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
                 .overlay {
@@ -53,7 +53,7 @@ struct ScanBindingView: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, 28)
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
             .padding(.vertical, 20)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -282,7 +282,6 @@ struct BoundDeviceInfoView: View {
 
                 Color.clear.frame(width: 54, height: 54)
             }
-            .padding(.horizontal, 24)
             .padding(.top, 56)
             .padding(.bottom, 12)
 
@@ -332,6 +331,7 @@ struct BoundDeviceInfoView: View {
 
             Spacer(minLength: 16)
         }
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.page)
         .overlay {

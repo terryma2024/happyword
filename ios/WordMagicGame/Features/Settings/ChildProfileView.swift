@@ -52,7 +52,7 @@ struct ChildProfileView: View {
                 }
                 Spacer()
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
             .padding(.vertical, 24)
             .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
             .overlay {
@@ -61,7 +61,7 @@ struct ChildProfileView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 42)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(AppTheme.page)

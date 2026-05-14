@@ -144,10 +144,10 @@ struct DataScannerShellView: View {
             }
             .font(.headline.weight(.heavy))
             .foregroundStyle(.white)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
             .padding(.vertical, 10)
             .background(Color.black.opacity(0.45), in: Capsule())
-            .padding(.leading, 16)
+            .padding(.leading, AppTheme.pageHorizontalPadding)
             .padding(.top, 16)
             .accessibilityIdentifier("ScanBindingScannerClose")
         }

@@ -38,14 +38,16 @@ struct ResultView: View {
             .controlSize(.large)
             .accessibilityIdentifier("ResultHomeButton")
         }
-        .padding(24)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 24)
         .frame(maxWidth: 720)
         .background(AppTheme.cream, in: RoundedRectangle(cornerRadius: 24))
         .overlay {
             RoundedRectangle(cornerRadius: 24)
                 .stroke(AppTheme.gold.opacity(0.5), lineWidth: 1.5)
         }
-        .padding(24)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 24)
     }
 
     private func stat(_ title: String, _ value: String) -> some View {
