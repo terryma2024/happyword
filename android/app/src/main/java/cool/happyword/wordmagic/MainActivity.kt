@@ -119,6 +119,7 @@ import cool.happyword.wordmagic.core.DevMenuRouteParams
 import cool.happyword.wordmagic.core.DevMenuViewModel
 import cool.happyword.wordmagic.core.VersionTripleTap
 import cool.happyword.wordmagic.core.DeviceBindingClient
+import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
 import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.LearningRecorder
 import cool.happyword.wordmagic.core.LearningReportBuilder
@@ -241,6 +242,7 @@ fun WordMagicGameApp() {
     var learningSyncBusy by remember { mutableStateOf(false) }
     var bindingError by remember { mutableStateOf("") }
     var pendingCloudUnbind by remember { mutableStateOf(false) }
+    var pendingPostBindPinSetup by remember { mutableStateOf(false) }
     var backendRouteState by remember { mutableStateOf(BuildGate.coerceBackendRouteForBuild(isDebuggable, debugRoutingRepository.loadRouteState())) }
     val bindingClient = remember {
         DeviceBindingClient(
@@ -469,20 +471,20 @@ fun WordMagicGameApp() {
                     onHome = { route = AppRoute.Home },
                 )
                 AppRoute.Config -> ConfigScreen(
-                    initialConfig = config,
+                    config = config,
                     activePackCount = selection.activePackIds.size,
                     maxActivePacks = PackSelectionStore.MAX_ACTIVE,
-                    parentPinSet = parentPin.isNotEmpty(),
+                    parentPinReady = parentPin.length == 6,
                     cloudBound = cloudCredentials != null,
                     cloudChildNickname = cloudCredentials?.childNickname.orEmpty().ifBlank { "宝贝" },
                     learningSyncBusy = learningSyncBusy,
                     learningSyncStatus = learningSyncStatus,
                     learningSyncToast = learningSyncToast,
-                    onSave = { next ->
+                    onConfigChange = { next ->
                         config = next
-                        route = AppRoute.Home
+                        engine = BattleEngine(config = config)
                     },
-                    onCancel = { route = AppRoute.Home },
+                    onBack = { route = AppRoute.Home },
                     onParentAdmin = { route = AppRoute.ParentPin },
                     onParentPinSetup = { route = AppRoute.ParentPin },
                     onCloudBinding = { route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo },
@@ -516,16 +518,22 @@ fun WordMagicGameApp() {
                     },
                 )
                 AppRoute.ParentPin -> ParentPinScreen(
-                    hasPin = parentPin.isNotEmpty(),
+                    hasPin = parentPin.length == 6,
                     onBack = {
-                        if (pendingRedemptionWishId != null) {
-                            pendingRedemptionWishId = null
-                            route = AppRoute.Wishlist
-                        } else if (pendingCloudUnbind) {
-                            pendingCloudUnbind = false
-                            route = AppRoute.BoundDeviceInfo
-                        } else {
-                            route = AppRoute.Config
+                        when {
+                            pendingRedemptionWishId != null -> {
+                                pendingRedemptionWishId = null
+                                route = AppRoute.Wishlist
+                            }
+                            pendingCloudUnbind -> {
+                                pendingCloudUnbind = false
+                                route = AppRoute.BoundDeviceInfo
+                            }
+                            pendingPostBindPinSetup -> {
+                                pendingPostBindPinSetup = false
+                                route = AppRoute.BoundDeviceInfo
+                            }
+                            else -> route = AppRoute.Config
                         }
                     },
                     onSubmit = { value ->
@@ -575,6 +583,9 @@ fun WordMagicGameApp() {
                             cloudSyncStatus = "已解除绑定，本地进度保留"
                             cloudRepositories.saveSyncStatus(cloudSyncStatus)
                             route = AppRoute.Config
+                        } else if (pinAccepted && pendingPostBindPinSetup) {
+                            pendingPostBindPinSetup = false
+                            route = AppRoute.BoundDeviceInfo
                         } else if (pinAccepted) {
                             route = AppRoute.ParentAdmin
                         }
@@ -629,9 +640,35 @@ fun WordMagicGameApp() {
                     giftBoxVisible = wishlistGiftBoxVisible,
                     giftBoxTrigger = wishlistGiftBoxTrigger,
                     recentlyRedeemedWishId = recentlyRedeemedWishId,
+                    showAddCustomEntry = parentPin.length == 6,
                     onRedeem = { wish ->
-                        pendingRedemptionWishId = wish.id
-                        route = AppRoute.ParentPin
+                        val redeemed = redemptionHistory.redeem(
+                            account = coinAccount,
+                            wishlist = wishlist,
+                            wishId = wish.id,
+                            redeemedAtMs = System.currentTimeMillis(),
+                            parentApproved = true,
+                        )
+                        coinAccount = redeemed.account
+                        redemptionHistory = redeemed.history
+                        localProgressMessage = redeemed.message
+                        repositories.saveCoinAccount(coinAccount)
+                        repositories.saveRedemptionHistory(redemptionHistory)
+                        if (redeemed.accepted) {
+                            wishlistGiftBoxTrigger = 0
+                            wishlistGiftBoxVisible = true
+                            recentlyRedeemedWishId = wish.id
+                            appScope.launch {
+                                delay(GIFTBOX_TRIGGER_DELAY_MS)
+                                wishlistGiftBoxTrigger += 1
+                                delay(GIFTBOX_MODAL_TOTAL_MS - GIFTBOX_TRIGGER_DELAY_MS)
+                                wishlistGiftBoxVisible = false
+                                delay(WISH_REDEEMED_ACK_MS)
+                                if (recentlyRedeemedWishId == wish.id) {
+                                    recentlyRedeemedWishId = null
+                                }
+                            }
+                        }
                     },
                     onHistory = { route = AppRoute.RedemptionHistory },
                     onAddCustom = {
@@ -700,7 +737,12 @@ fun WordMagicGameApp() {
                                     cloudRepositories.saveFamilyPacks(familyPacks)
                                     cloudSyncStatus = syncResult.statusMessage
                                     cloudRepositories.saveSyncStatus(cloudSyncStatus)
-                                    route = AppRoute.BoundDeviceInfo
+                                    if (parentPin.length == 6) {
+                                        route = AppRoute.BoundDeviceInfo
+                                    } else {
+                                        pendingPostBindPinSetup = true
+                                        route = AppRoute.ParentPin
+                                    }
                                 }
                                 is BindingResult.Failure -> bindingError = result.message
                             }
@@ -1734,346 +1776,442 @@ private fun HarmonyConfigStepperRow(
 
 @Composable
 private fun ConfigScreen(
-    initialConfig: GameConfig,
+    config: GameConfig,
     activePackCount: Int,
     maxActivePacks: Int,
-    parentPinSet: Boolean,
+    parentPinReady: Boolean,
     cloudBound: Boolean,
     cloudChildNickname: String,
     learningSyncBusy: Boolean,
     learningSyncStatus: String,
     learningSyncToast: String,
-    onSave: (GameConfig) -> Unit,
-    onCancel: () -> Unit,
+    onConfigChange: (GameConfig) -> Unit,
+    onBack: () -> Unit,
     onParentAdmin: () -> Unit,
     onParentPinSetup: () -> Unit,
     onCloudBinding: () -> Unit,
     onPackManager: () -> Unit,
     onLearningSync: () -> Unit,
 ) {
-    var draft by remember(initialConfig) { mutableStateOf(initialConfig) }
     var showCustomTimerDialog by remember { mutableStateOf(false) }
     var customTimerText by remember { mutableStateOf("") }
     var customTimerError by remember { mutableStateOf("") }
+    var questionTypeHint by remember { mutableStateOf("") }
+
+    val safeTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(config.enabledQuestionTypes)
+    fun isTypeOn(id: String) = safeTypes.contains(id)
+    fun chipLabel(typeId: String, selected: Boolean): String {
+        val base = BattleQuestionTypePolicy.displayLabel(typeId)
+        return if (selected) "\u2713 $base" else base
+    }
+    fun toggleQuestionType(typeId: String) {
+        val current = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(config.enabledQuestionTypes).toMutableList()
+        if (current.contains(typeId)) {
+            if (current.size <= 1) {
+                questionTypeHint = "至少保留一种题型"
+                return
+            }
+            current.remove(typeId)
+            questionTypeHint = ""
+        } else {
+            current.add(typeId)
+            questionTypeHint = ""
+        }
+        onConfigChange(
+            config.copy(
+                enabledQuestionTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(current),
+            ),
+        )
+    }
+
+    val ordered = BattleQuestionTypePolicy.defaultOrderedTypeIds
+    val row0 = ordered.take(2)
+    val row1 = ordered.drop(2)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .padding(horizontal = 40.dp, vertical = 16.dp)
-            .verticalScroll(rememberScrollState())
             .testTag("ConfigScreen"),
-        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            "游戏设置",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            textAlign = TextAlign.Center,
-        )
-        Column(modifier = Modifier.fillMaxWidth()) {
-            HarmonyConfigStepperRow(
-                label = "玩家血量",
-                value = draft.playerHp,
-                testTagPrefix = "ConfigPlayerHp",
-                range = HarmonyBattleHpRange,
-                onValueChange = { draft = draft.copy(playerHp = it) },
-            )
-            HarmonyConfigStepperRow(
-                label = "怪物血量",
-                value = draft.monsterHp,
-                testTagPrefix = "ConfigMonsterHp",
-                range = HarmonyBattleHpRange,
-                onValueChange = { draft = draft.copy(monsterHp = it) },
-            )
-            HarmonyConfigStepperRow(
-                label = "怪物数量",
-                value = draft.monsterCount,
-                testTagPrefix = "ConfigMonsterCount",
-                range = HarmonyMonsterCountRange,
-                onValueChange = { draft = draft.copy(monsterCount = it) },
-            )
-        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("倒计时", fontSize = 18.sp, modifier = Modifier.width(120.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                GameConfig.timerPresets.forEach { sec ->
-                    val selected = draft.timerSeconds == sec
+            CenteredCircleTextButton(
+                text = "\u2039",
+                onClick = onBack,
+                modifier = Modifier.testTag("ConfigBackButton"),
+                size = 40.dp,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Medium,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFEAF2F8),
+                    contentColor = Color(0xFF1D3557),
+                ),
+            )
+            Spacer(Modifier.weight(1f))
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 40.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                "游戏配置",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                textAlign = TextAlign.Center,
+            )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                HarmonyConfigStepperRow(
+                    label = "玩家血量",
+                    value = config.playerHp,
+                    testTagPrefix = "ConfigPlayerHp",
+                    range = HarmonyBattleHpRange,
+                    onValueChange = { onConfigChange(config.copy(playerHp = it)) },
+                )
+                HarmonyConfigStepperRow(
+                    label = "怪物血量",
+                    value = config.monsterHp,
+                    testTagPrefix = "ConfigMonsterHp",
+                    range = HarmonyBattleHpRange,
+                    onValueChange = { onConfigChange(config.copy(monsterHp = it)) },
+                )
+                HarmonyConfigStepperRow(
+                    label = "怪物数量",
+                    value = config.monsterCount,
+                    testTagPrefix = "ConfigMonsterCount",
+                    range = HarmonyMonsterCountRange,
+                    onValueChange = { onConfigChange(config.copy(monsterCount = it)) },
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("倒计时", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    GameConfig.timerPresets.forEach { sec ->
+                        val selected = config.timerSeconds == sec
+                        Button(
+                            onClick = { onConfigChange(config.copy(timerSeconds = sec)) },
+                            modifier = Modifier
+                                .height(40.dp)
+                                .testTag("ConfigTimer${sec}s"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selected) Color(0xFFFFB400) else Color(0xFFEAF2F8),
+                                contentColor = if (selected) Color.White else Color(0xFF457B9D),
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            shape = RoundedCornerShape(50),
+                        ) {
+                            Text(harmonyTimerChipLabel(sec, config.timerSeconds), fontSize = 16.sp)
+                        }
+                    }
+                    val customSelected = config.timerSeconds !in GameConfig.timerPresets
                     Button(
-                        onClick = { draft = draft.copy(timerSeconds = sec) },
+                        onClick = {
+                            customTimerText = "${config.timerSeconds}"
+                            customTimerError = ""
+                            showCustomTimerDialog = true
+                        },
                         modifier = Modifier
                             .height(40.dp)
-                            .testTag("ConfigTimer${sec}s"),
+                            .testTag("ConfigTimerCustom"),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (selected) Color(0xFFFFB400) else Color(0xFFEAF2F8),
-                            contentColor = if (selected) Color.White else Color(0xFF457B9D),
+                            containerColor = if (customSelected) Color(0xFFFFB400) else Color(0xFFEAF2F8),
+                            contentColor = if (customSelected) Color.White else Color(0xFF457B9D),
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         shape = RoundedCornerShape(50),
                     ) {
-                        Text(harmonyTimerChipLabel(sec, draft.timerSeconds), fontSize = 16.sp)
+                        Text(harmonyCustomTimerChipLabel(config.timerSeconds), fontSize = 16.sp)
                     }
                 }
-                val customSelected = draft.timerSeconds !in GameConfig.timerPresets
-                Button(
-                    onClick = {
-                        customTimerText = "${draft.timerSeconds}"
-                        customTimerError = ""
-                        showCustomTimerDialog = true
-                    },
-                    modifier = Modifier
-                        .height(40.dp)
-                        .testTag("ConfigTimerCustom"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (customSelected) Color(0xFFFFB400) else Color(0xFFEAF2F8),
-                        contentColor = if (customSelected) Color.White else Color(0xFF457B9D),
-                    ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    shape = RoundedCornerShape(50),
-                ) {
-                    Text(harmonyCustomTimerChipLabel(draft.timerSeconds), fontSize = 16.sp)
-                }
             }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("发音播放", fontSize = 18.sp, modifier = Modifier.width(120.dp))
-            Button(
-                onClick = { draft = draft.copy(autoPronunciation = !draft.autoPronunciation) },
-                modifier = Modifier
-                    .width(140.dp)
-                    .height(40.dp)
-                    .testTag("ConfigAutoSpeakToggle"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (draft.autoPronunciation) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
-                    contentColor = if (draft.autoPronunciation) Color(0xFFB8860B) else Color(0xFF666666),
-                ),
-                shape = RoundedCornerShape(8.dp),
-                border = if (draft.autoPronunciation) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
-            ) {
-                Text(
-                    if (draft.autoPronunciation) "\u2713 自动朗读" else "自动朗读",
-                    fontSize = 16.sp,
-                )
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("我的词包", fontSize = 18.sp, modifier = Modifier.width(120.dp))
-            Row(
-                modifier = Modifier
-                    .width(220.dp)
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFEAF2F8))
-                    .clickable { onPackManager() }
-                    .padding(horizontal = 12.dp)
-                    .testTag("ConfigPackManagerButton"),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "已激活 $activePackCount / $maxActivePacks",
-                    fontSize = 15.sp,
-                    color = Color(0xFF1F2937),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("ConfigPackPickerStatus"),
-                )
-                Text("管理 ›", fontSize = 15.sp, color = Color(0xFF457B9D))
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("家长密码", fontSize = 18.sp, modifier = Modifier.width(120.dp))
-            Button(
-                onClick = onParentPinSetup,
-                modifier = Modifier
-                    .width(220.dp)
-                    .height(40.dp)
-                    .testTag("ConfigParentPinButton"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (parentPinSet) Color(0xFFFFF4D0) else Color(0xFFEAF2F8),
-                    contentColor = if (parentPinSet) Color(0xFFB8860B) else Color(0xFF457B9D),
-                ),
-                shape = RoundedCornerShape(8.dp),
-                border = if (parentPinSet) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
-            ) {
-                Text(
-                    if (parentPinSet) "修改 (•••••• 已设置)" else "设置",
-                    fontSize = 15.sp,
-                )
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("家长账户", fontSize = 18.sp, modifier = Modifier.width(120.dp))
-            if (cloudBound) {
-                Button(
-                    onClick = onCloudBinding,
-                    modifier = Modifier
-                        .width(220.dp)
-                        .height(40.dp)
-                        .testTag("ConfigCloudBindingButton"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE0F2FE),
-                        contentColor = Color(0xFF0369A1),
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
-                ) {
-                    Text(
-                        "孩子档案：$cloudChildNickname",
-                        fontSize = 15.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            } else {
-                Button(
-                    onClick = onCloudBinding,
-                    modifier = Modifier
-                        .width(220.dp)
-                        .height(40.dp)
-                        .testTag("ConfigCloudBindingButton"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFF4D0),
-                        contentColor = Color(0xFFB8860B),
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(2.dp, Color(0xFFFFB400)),
-                ) {
-                    Text("绑定家长账号", fontSize = 15.sp)
-                }
-            }
-        }
-        if (cloudBound) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-                    .testTag("ConfigCloudSyncRow"),
+                    .padding(bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("学习记录", fontSize = 18.sp, modifier = Modifier.width(120.dp))
-                OutlinedButton(
-                    onClick = onLearningSync,
-                    enabled = !learningSyncBusy,
+                Text("发音播放", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                Button(
+                    onClick = { onConfigChange(config.copy(autoPronunciation = !config.autoPronunciation)) },
+                    modifier = Modifier
+                        .width(140.dp)
+                        .height(40.dp)
+                        .testTag("ConfigAutoSpeakToggle"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (config.autoPronunciation) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
+                        contentColor = if (config.autoPronunciation) Color(0xFFB8860B) else Color(0xFF666666),
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    border = if (config.autoPronunciation) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
+                ) {
+                    Text(
+                        if (config.autoPronunciation) "\u2713 自动朗读" else "自动朗读",
+                        fontSize = 16.sp,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text("题型选择", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                Column {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row0.forEach { typeId ->
+                            val selected = isTypeOn(typeId)
+                            Button(
+                                onClick = { toggleQuestionType(typeId) },
+                                modifier = Modifier
+                                    .height(40.dp)
+                                    .testTag("ConfigQuestionType_$typeId"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (selected) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
+                                    contentColor = if (selected) Color(0xFFB8860B) else Color(0xFF666666),
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                border = if (selected) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            ) {
+                                Text(chipLabel(typeId, selected), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(top = 8.dp),
+                    ) {
+                        row1.forEach { typeId ->
+                            val selected = isTypeOn(typeId)
+                            Button(
+                                onClick = { toggleQuestionType(typeId) },
+                                modifier = Modifier
+                                    .height(40.dp)
+                                    .testTag("ConfigQuestionType_$typeId"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (selected) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
+                                    contentColor = if (selected) Color(0xFFB8860B) else Color(0xFF666666),
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                border = if (selected) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            ) {
+                                Text(chipLabel(typeId, selected), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+            if (questionTypeHint.isNotEmpty()) {
+                Text(
+                    questionTypeHint,
+                    color = Color(0xFFB45309),
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp, start = 120.dp)
+                        .testTag("ConfigQuestionTypeLastEnabledHint"),
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("我的词包", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                Row(
                     modifier = Modifier
                         .width(220.dp)
                         .height(40.dp)
-                        .testTag("ConfigCloudSyncButton"),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color(0xFFE0F2FE),
-                        contentColor = Color(0xFF0369A1),
-                    ),
-                    border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFEAF2F8))
+                        .clickable { onPackManager() }
+                        .padding(horizontal = 12.dp)
+                        .testTag("ConfigPackManagerButton"),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(if (learningSyncBusy) "同步中…" else "立即同步学习记录", fontSize = 15.sp)
+                    Text(
+                        "已激活 $activePackCount / $maxActivePacks",
+                        fontSize = 15.sp,
+                        color = Color(0xFF1F2937),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("ConfigPackPickerStatus"),
+                    )
+                    Text("管理 ›", fontSize = 15.sp, color = Color(0xFF457B9D))
                 }
             }
-            if (learningSyncStatus.isNotBlank()) {
-                Text(
-                    learningSyncStatus,
-                    color = Color(0xFF0369A1),
-                    fontSize = 14.sp,
+            Text(
+                "家长配置",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 12.dp)
+                    .testTag("ConfigSectionParentTitle"),
+                textAlign = TextAlign.Center,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("家长账号", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                if (cloudBound) {
+                    Button(
+                        onClick = onCloudBinding,
+                        modifier = Modifier
+                            .width(220.dp)
+                            .height(40.dp)
+                            .testTag("ConfigCloudBindingButton"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE0F2FE),
+                            contentColor = Color(0xFF0369A1),
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+                    ) {
+                        Text(
+                            "孩子档案：$cloudChildNickname",
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = onCloudBinding,
+                        modifier = Modifier
+                            .width(220.dp)
+                            .height(40.dp)
+                            .testTag("ConfigCloudBindingButton"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFFF4D0),
+                            contentColor = Color(0xFFB8860B),
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(2.dp, Color(0xFFFFB400)),
+                    ) {
+                        Text("绑定家长账号", fontSize = 15.sp)
+                    }
+                }
+            }
+            if (cloudBound) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 120.dp, bottom = 4.dp)
-                        .testTag("ConfigCloudSyncStatus"),
-                )
-            }
-            if (learningSyncToast.isNotBlank()) {
-                Text(
-                    learningSyncToast,
-                    color = Color(0xFFFF0050),
-                    fontSize = 14.sp,
+                        .padding(bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("家长密码", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                    Button(
+                        onClick = onParentPinSetup,
+                        modifier = Modifier
+                            .width(220.dp)
+                            .height(40.dp)
+                            .testTag("ConfigParentPinButton"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (parentPinReady) Color(0xFFFFF4D0) else Color(0xFFEAF2F8),
+                            contentColor = if (parentPinReady) Color(0xFFB8860B) else Color(0xFF457B9D),
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = if (parentPinReady) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
+                    ) {
+                        Text(
+                            if (parentPinReady) "修改 (•••••• 已设置)" else "设置",
+                            fontSize = 15.sp,
+                        )
+                    }
+                }
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 120.dp, bottom = 8.dp)
-                        .testTag("ConfigCloudSyncToast"),
-                )
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("管理后台", fontSize = 18.sp, modifier = Modifier.width(120.dp))
-            Button(
-                onClick = onParentAdmin,
-                modifier = Modifier
-                    .width(220.dp)
-                    .height(40.dp)
-                    .testTag("ConfigParentAdminButton"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFFFF4D0),
-                    contentColor = Color(0xFFB8860B),
-                ),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(2.dp, Color(0xFFFFB400)),
-            ) {
-                Text("家长管理后台", fontSize = 15.sp)
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(
-                onClick = onCancel,
-                modifier = Modifier
-                    .width(160.dp)
-                    .height(48.dp)
-                    .testTag("ConfigCancelButton"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFBDBDBD),
-                    contentColor = Color.White,
-                ),
-            ) {
-                Text("取消", fontSize = 16.sp)
-            }
-            Spacer(Modifier.width(16.dp))
-            Button(
-                onClick = { onSave(draft) },
-                modifier = Modifier
-                    .width(160.dp)
-                    .height(48.dp)
-                    .testTag("ConfigSaveButton"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2ECC71),
-                    contentColor = Color.White,
-                ),
-            ) {
-                Text("保存", fontSize = 16.sp)
+                        .padding(bottom = 8.dp)
+                        .testTag("ConfigCloudSyncRow"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("学习记录", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                    OutlinedButton(
+                        onClick = onLearningSync,
+                        enabled = !learningSyncBusy,
+                        modifier = Modifier
+                            .width(220.dp)
+                            .height(40.dp)
+                            .testTag("ConfigCloudSyncButton"),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFFE0F2FE),
+                            contentColor = Color(0xFF0369A1),
+                        ),
+                        border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+                    ) {
+                        Text(if (learningSyncBusy) "同步中…" else "立即同步学习记录", fontSize = 15.sp)
+                    }
+                }
+                if (learningSyncStatus.isNotBlank()) {
+                    Text(
+                        learningSyncStatus,
+                        color = Color(0xFF0369A1),
+                        fontSize = 14.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 120.dp, bottom = 4.dp)
+                            .testTag("ConfigCloudSyncStatus"),
+                    )
+                }
+                if (learningSyncToast.isNotBlank()) {
+                    Text(
+                        learningSyncToast,
+                        color = Color(0xFFFF0050),
+                        fontSize = 14.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 120.dp, bottom = 8.dp)
+                            .testTag("ConfigCloudSyncToast"),
+                    )
+                }
+                if (parentPinReady) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("管理后台", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                        Button(
+                            onClick = onParentAdmin,
+                            modifier = Modifier
+                                .width(220.dp)
+                                .height(40.dp)
+                                .testTag("ConfigParentAdminButton"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFFF4D0),
+                                contentColor = Color(0xFFB8860B),
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(2.dp, Color(0xFFFFB400)),
+                        ) {
+                            Text("家长管理后台", fontSize = 15.sp)
+                        }
+                    }
+                }
             }
         }
     }
@@ -2128,7 +2266,7 @@ private fun ConfigScreen(
                         if (!v.ok) {
                             customTimerError = v.message
                         } else {
-                            draft = draft.copy(timerSeconds = v.seconds)
+                            onConfigChange(config.copy(timerSeconds = v.seconds))
                             showCustomTimerDialog = false
                         }
                     },

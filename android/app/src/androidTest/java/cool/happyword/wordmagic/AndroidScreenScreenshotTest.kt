@@ -1,5 +1,6 @@
 package cool.happyword.wordmagic
 
+import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -81,10 +82,14 @@ class AndroidScreenScreenshotTest {
 
     @Test
     fun captureCoreParentAndDebugScreens() {
+        seedCloudBindingPrefs()
+        composeRule.activity.recreate()
+        composeRule.waitForIdle()
+
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
         capture("config-landscape.png")
 
-        composeRule.onNodeWithTag("ConfigParentAdminButton").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigParentPinButton").performScrollTo().performClick()
         capture("parent-pin-portrait.png")
         composeRule.onNodeWithTag("ParentPinInput").performTextInput("123456")
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ParentAdminScreen") }
@@ -98,7 +103,7 @@ class AndroidScreenScreenshotTest {
         composeRule.onNodeWithText("返回").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigScreen") }
 
-        composeRule.onNodeWithText("返回首页").performClick()
+        composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
         repeat(3) { composeRule.onNodeWithTag("HomeVersionLabel").performClick() }
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("DevMenuScreen") }
@@ -113,7 +118,7 @@ class AndroidScreenScreenshotTest {
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
         repeat(2) { composeRule.onNodeWithTag("ConfigMonsterHpDecrement").performScrollTo().performClick() }
         repeat(4) { composeRule.onNodeWithTag("ConfigMonsterCountDecrement").performScrollTo().performClick() }
-        composeRule.onNodeWithText("返回首页").performClick()
+        composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
 
         composeRule.onNodeWithTag("HomeStartButton").performClick()
@@ -135,5 +140,23 @@ class AndroidScreenScreenshotTest {
 
     private fun hasNode(tag: String): Boolean {
         return composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    private fun seedCloudBindingPrefs() {
+        val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
+        targetContext.getSharedPreferences("wordmagic-cloud", Context.MODE_PRIVATE).edit().clear().apply()
+        File(targetContext.filesDir, "cloud_device_token.secure").delete()
+        targetContext.getSharedPreferences("wordmagic-cloud", Context.MODE_PRIVATE)
+            .edit()
+            .putString("device_id", "device-screenshot-0001")
+            .putString("binding_id", "bind-screenshot-0001")
+            .putString("child_nickname", "星星")
+            .putString("avatar_emoji", "🦄")
+            .putString("family_label", "fam-shot")
+            .apply()
+        File(targetContext.filesDir, "cloud_device_token.secure").apply {
+            parentFile?.mkdirs()
+            writeText("device.jwt.token")
+        }
     }
 }

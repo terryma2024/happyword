@@ -156,18 +156,38 @@ class BattleEngine(
         }
     }
 
+    private fun enabledKindSet(): Set<QuestionKind> =
+        config.sanitizedQuestionTypes().mapNotNull { BattleQuestionTypePolicy.typeIdToKind(it) }.toSet()
+
+    private fun kindEnabled(kind: QuestionKind): Boolean = enabledKindSet().contains(kind)
+
     private fun questionFor(word: WordEntry, monsterIndex: Int): Question {
-        return when (questionRoleFor(monsterIndex)) {
-            MonsterQuestionRole.Boss -> spellQuestionFor(word)
-                ?: mediumFillLetterQuestionFor(word)
-                ?: fillLetterQuestionFor(word)
-                ?: choiceQuestionFor(word)
-            MonsterQuestionRole.Elite -> mediumFillLetterQuestionFor(word)
-                ?: fillLetterQuestionFor(word)
-                ?: choiceQuestionFor(word)
-            MonsterQuestionRole.Spelling -> fillLetterQuestionFor(word) ?: choiceQuestionFor(word)
-            MonsterQuestionRole.Normal -> choiceQuestionFor(word)
+        val role = questionRoleFor(monsterIndex)
+        val builders: List<(WordEntry) -> Question?> = when (role) {
+            MonsterQuestionRole.Boss -> listOf(
+                ::spellQuestionFor,
+                ::mediumFillLetterQuestionFor,
+                ::fillLetterQuestionFor,
+                { w -> choiceQuestionFor(w) },
+            )
+            MonsterQuestionRole.Elite -> listOf(
+                ::mediumFillLetterQuestionFor,
+                ::fillLetterQuestionFor,
+                { w -> choiceQuestionFor(w) },
+            )
+            MonsterQuestionRole.Spelling -> listOf(
+                ::fillLetterQuestionFor,
+                { w -> choiceQuestionFor(w) },
+            )
+            MonsterQuestionRole.Normal -> listOf(
+                { w -> choiceQuestionFor(w) },
+            )
         }
+        for (b in builders) {
+            val q = b(word) ?: continue
+            if (kindEnabled(q.kind)) return q
+        }
+        return choiceQuestionFor(word)
     }
 
     private fun choiceQuestionFor(word: WordEntry): Question {

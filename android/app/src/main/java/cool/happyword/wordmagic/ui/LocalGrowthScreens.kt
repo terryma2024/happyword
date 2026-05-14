@@ -213,6 +213,7 @@ fun WishlistScreen(
     giftBoxVisible: Boolean = false,
     giftBoxTrigger: Int = 0,
     recentlyRedeemedWishId: String? = null,
+    showAddCustomEntry: Boolean = false,
     onRedeem: (WishItem) -> Unit,
     onHistory: () -> Unit,
     onAddCustom: () -> Unit,
@@ -232,16 +233,20 @@ fun WishlistScreen(
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Button(
+                    CenteredCircleTextButton(
+                        text = "\u2039",
                         onClick = {
                             if (!giftBoxVisible) onBack()
                         },
                         modifier = Modifier.testTag("WishlistBackButton"),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color(0xFF457B9D)),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                    ) {
-                        Text("← 返回", fontSize = 16.sp)
-                    }
+                        size = 40.dp,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFEAF2F8),
+                            contentColor = Color(0xFF1D3557),
+                        ),
+                    )
                     Spacer(Modifier.weight(1f))
                     Button(
                         onClick = {
@@ -256,19 +261,21 @@ fun WishlistScreen(
                     ) {
                         Text("历史", fontSize = 14.sp)
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (!giftBoxVisible) onAddCustom()
-                        },
-                        modifier = Modifier
-                            .height(36.dp)
-                            .testTag("WishlistAddCustomButton"),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAF2F8), contentColor = Color(0xFF1D3557)),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    ) {
-                        Text("+ 添加", fontSize = 14.sp)
+                    if (showAddCustomEntry) {
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (!giftBoxVisible) onAddCustom()
+                            },
+                            modifier = Modifier
+                                .height(36.dp)
+                                .testTag("WishlistAddCustomButton"),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAF2F8), contentColor = Color(0xFF1D3557)),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        ) {
+                            Text("+ 添加", fontSize = 14.sp)
+                        }
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(
