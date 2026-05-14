@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 _EXACT: dict[str, str] = {
     "/api/v1/health": "/api/v1/public/health",
     "/api/v1/packs/latest.json": "/api/v1/public/packs/latest.json",
+    "/api/v1/preview-urls.json": "/api/v1/public/preview-urls.json",
     "/api/v1/auth/login": "/api/v1/admin/auth/login",
     "/api/v1/auth/me": "/api/v1/admin/auth/me",
 }

@@ -1,4 +1,4 @@
-"""V0.7 — POST /api/v1/admin/cron/extract-pending behaviour contract.
+"""V0.7 — GET/POST /api/v1/admin/cron/extract-pending behaviour contract.
 
 This is the second half of the async lesson-import refactor. The
 import endpoint (`tests/test_admin_lessons.py`) now creates drafts
@@ -9,8 +9,8 @@ Behaviour we pin:
 
 1. **Auth** — without a matching `Authorization: Bearer $CRON_SECRET`
    header the route returns 401 and the LLM is not called. Vercel
-   cron schedules attach this header automatically (see
-   repo-root ``vercel.json``), and an unauthenticated public hit must never
+   cron schedules use ``GET`` and attach this header automatically (see
+   ``server/vercel.json``), and an unauthenticated public hit must never
    be able to drain the queue / spam OpenAI.
 2. **Success path** — exactly one `extracting` draft gets claimed,
    the LLM seam returns a payload, and the draft flips to `pending`
@@ -304,6 +304,30 @@ async def test_cron_extract_noop_when_nothing_pending(
     monkeypatch.setattr(lesson_service, "fetch_lesson_image", _explode_fetch)
 
     resp = await client.post(_CRON_PATH, headers=_bearer(_CRON_SECRET))
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"claimed": 0, "succeeded": 0, "failed": 0}
+
+
+@pytest.mark.asyncio
+async def test_cron_extract_accepts_get_for_vercel_cron(
+    client: "AsyncClient", db: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Vercel Cron invokes the configured URL with GET; POST remains for
+    manual triggers and tests."""
+    from app.services import lesson_service
+
+    async def _explode(image_bytes: bytes, mime: str) -> tuple[str, dict[str, object]]:
+        msg = "extract_lesson_payload was called when no drafts were pending"
+        raise AssertionError(msg)
+
+    async def _explode_fetch(url: str) -> tuple[bytes, str]:
+        msg = "fetch_lesson_image was called when no drafts were pending"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(lesson_service, "extract_lesson_payload", _explode)
+    monkeypatch.setattr(lesson_service, "fetch_lesson_image", _explode_fetch)
+
+    resp = await client.get(_CRON_PATH, headers=_bearer(_CRON_SECRET))
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"claimed": 0, "succeeded": 0, "failed": 0}
 

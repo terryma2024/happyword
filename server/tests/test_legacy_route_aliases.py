@@ -23,6 +23,11 @@ if TYPE_CHECKING:
 PUBLIC_ALIASES: list[tuple[str, str, str]] = [
     ("/api/v1/health", "/api/v1/public/health", "GET"),
     ("/api/v1/packs/latest.json", "/api/v1/public/packs/latest.json", "GET"),
+    (
+        "/api/v1/preview-urls.json",
+        "/api/v1/public/preview-urls.json",
+        "GET",
+    ),
 ]
 
 # Admin auth — `current_user` enforces Bearer auth so anonymous calls
@@ -106,6 +111,7 @@ async def test_aliases_do_not_appear_in_openapi_schema(
     # Aliases are NOT in /docs.
     assert "/api/v1/family/{family_id}/family-packs" not in paths
     assert "/api/v1/public/health" not in paths
+    assert "/api/v1/public/preview-urls.json" not in paths
     assert "/api/v1/admin/auth/login" not in paths
     # Legacy paths ARE still in /docs.
     assert "/api/v1/parent/family-packs" in paths
@@ -116,7 +122,8 @@ async def test_aliases_do_not_appear_in_openapi_schema(
 @pytest.mark.asyncio
 async def test_attach_legacy_aliases_returns_positive_count() -> None:
     """The aliaser ran during app startup and registered at least the
-    fixed-path aliases (health, packs/latest.json, admin auth, plus all
+    fixed-path aliases (health, packs/latest.json, preview-urls.json, admin auth,
+    plus all
     parent/child variant routes)."""
     from app.main import _alias_count
 

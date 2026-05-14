@@ -1,6 +1,7 @@
 """Runtime proxy for the preview deployment manifest stored in Vercel Blob.
 
-The FastAPI route ``GET /api/v1/preview-urls.json`` that calls this module is
+The FastAPI routes ``GET /api/v1/preview-urls.json`` and
+``GET /api/v1/public/preview-urls.json`` (alias) that call this module are
 **public**: callers never send credentials. Only upstream Blob fetch errors map
 to HTTP errors (502/503); there is no auth gate here.
 """

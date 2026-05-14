@@ -8,8 +8,9 @@ from any future global middleware.
 Exposed paths:
 
 - ``GET /api/v1/health`` — liveness.
-- ``GET /api/v1/preview-urls.json`` — proxies the public Blob mirror of the QA
-  preview manifest (same trust model as ``latest.json``).
+- ``GET /api/v1/preview-urls.json`` (alias: ``GET /api/v1/public/preview-urls.json``)
+  — proxies the public Blob mirror of the QA preview manifest (same trust model
+  as ``latest.json``).
 - ``GET /api/v1/packs/latest.json`` — published pack JSON with ETag.
 
 Deployment Protection on Vercel preview deployments is orthogonal (platform
