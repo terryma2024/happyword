@@ -158,6 +158,37 @@ pages:
         test_method: captureGrowthAndCloudScreens
         filename: today-plan.png
 
+  - id: learning-report
+    description: Local learning report (landscape)
+    spec_anchors:
+      stable_ids:
+        [
+          TodayPlanReportButton,
+          LearningReportTitle,
+          LearningReportAccuracy,
+          LearningReportReviewBar,
+          LearningReportPackSection,
+        ]
+      page_section_titles: ["Learning Report", "学习报告"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/LearningReportPage.ets
+      capture: { kind: capture_harmony_step, step: learning-report }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState", "-UITestRouteLearningReport"]
+        output_basename: learning-report
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      capture:
+        kind: android_screenshot_test
+        test_method: captureLearningReportScreen
+        filename: learning-report.png
+
   - id: parent-admin
     description: Parent admin (portrait)
     spec_anchors:

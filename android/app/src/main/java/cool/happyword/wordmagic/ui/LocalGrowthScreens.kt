@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -57,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -78,6 +81,7 @@ import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.WordPack
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.sin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -909,24 +913,274 @@ private fun TodayPlanWordRowCard(row: TodayPlanWordRow, sourceLabel: String, sou
 
 @Composable
 fun LearningReportScreen(report: LearningReport, onBack: () -> Unit) {
-    LazyColumn(Modifier.fillMaxSize().background(Color.White).padding(horizontal = 40.dp, vertical = 20.dp).testTag("LearningReportScreen")) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("学习报告", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
-                Spacer(Modifier.weight(1f))
-                OutlinedButton(onClick = onBack) { Text("返回") }
-            }
-            Text("单词 ${report.totalSeenWords}/${report.totalWords}", modifier = Modifier.padding(top = 10.dp).testTag("LearningReportTotalWords"), fontWeight = FontWeight.Bold)
-            Text("正确率 ${report.accuracyPercent}%", modifier = Modifier.testTag("LearningReportAccuracy"), color = Color(0xFF6A5843))
+    val scroll = rememberScrollState()
+    val cfg = LocalConfiguration.current
+    val shortDp = minOf(cfg.screenWidthDp, cfg.screenHeightDp)
+    val padClass = shortDp >= 600
+    val contentModifier =
+        if (padClass) {
+            Modifier.widthIn(max = 720.dp).fillMaxWidth()
+        } else {
+            Modifier.fillMaxWidth()
         }
-        items(report.packRows) { row ->
-            Card(Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag("LearningReportPackRow_${row.packId}"), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7E6))) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(row.nameEn, Modifier.weight(1f), fontWeight = FontWeight.Black)
-                    Text("${row.seenWords}/${row.totalWords} · ${row.accuracyPercent}%")
+    val reviewBarFraction = max(1, report.reviewCompletionPct) / 100f
+    val reviewBarTint =
+        if (report.reviewCompletionPct > 0) Color(0xFF2A9D8F) else Color(0xFFEAEAEA)
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
+            .testTag("LearningReportScreen"),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(40.dp)
+                    .testTag("LearningReportBackButton"),
+                shape = CircleShape,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF1D3557),
+                ),
+            ) {
+                Text("←", fontSize = 20.sp)
+            }
+            Text(
+                "学习报告",
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("LearningReportTitle"),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1D3557),
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.width(40.dp))
+        }
+
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(scroll)
+                .padding(bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Column(
+                modifier = contentModifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White)
+                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
+                        .padding(16.dp),
+                ) {
+                    Text("总正确率", fontSize = 14.sp, color = Color(0xFF7B7B7B))
+                    Text(
+                        "${report.accuracyPct}%",
+                        modifier = Modifier.testTag("LearningReportAccuracy"),
+                        fontSize = 40.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1D3557),
+                    )
+                    Text(
+                        "已答 ${report.totalCorrect} / ${report.totalSeen} 题",
+                        modifier = Modifier.testTag("LearningReportAccuracySub"),
+                        fontSize = 14.sp,
+                        color = Color(0xFF5A4A35),
+                    )
+                }
+
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White)
+                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
+                        .padding(16.dp),
+                ) {
+                    Text(
+                        "单词掌握情况",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1D3557),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LearningReportStatePill(
+                            label = "掌握",
+                            value = report.masteredCount,
+                            color = Color(0xFF2A9D8F),
+                            testTag = "LearningReportMastered",
+                        )
+                        LearningReportStatePill(
+                            label = "熟悉",
+                            value = report.familiarCount,
+                            color = Color(0xFF457B9D),
+                            testTag = "LearningReportFamiliar",
+                        )
+                        LearningReportStatePill(
+                            label = "学习中",
+                            value = report.learningCount,
+                            color = Color(0xFFE9C46A),
+                            testTag = "LearningReportLearning",
+                        )
+                        LearningReportStatePill(
+                            label = "新词",
+                            value = report.newCount,
+                            color = Color(0xFFA8DADC),
+                            testTag = "LearningReportNewCount",
+                        )
+                    }
+                }
+
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White)
+                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
+                        .padding(16.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "今日复习进度",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1D3557),
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            "${report.reviewDoneTodayCount} / ${max(report.reviewDueCount, report.reviewDoneTodayCount)}",
+                            modifier = Modifier.testTag("LearningReportReviewCount"),
+                            fontSize = 14.sp,
+                            color = Color(0xFF5A4A35),
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(12.dp)
+                            .testTag("LearningReportReviewBar"),
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFEAEAEA)),
+                        )
+                        Box(
+                            Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(reviewBarFraction)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(reviewBarTint),
+                        )
+                    }
+                    Text(
+                        "${report.reviewCompletionPct}% 完成",
+                        modifier = Modifier.testTag("LearningReportReviewPct"),
+                        fontSize = 13.sp,
+                        color = Color(0xFF5A4A35),
+                    )
+                }
+
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White)
+                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
+                        .padding(16.dp)
+                        .testTag("LearningReportPackSection"),
+                ) {
+                    Text(
+                        "词包详情",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1D3557),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    for (row in report.packs) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .testTag("pack-${row.packId}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(row.name, fontSize = 14.sp, color = Color(0xFF1D3557))
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                "${row.totalCorrect} / ${row.totalSeen}",
+                                fontSize = 13.sp,
+                                color = Color(0xFF5A4A35),
+                                modifier = Modifier.padding(end = 12.dp),
+                            )
+                            Text(
+                                if (row.totalSeen > 0) "${row.accuracyPct}%" else "—",
+                                fontSize = 13.sp,
+                                color = Color(0xFF5A4A35),
+                            )
+                        }
+                    }
+                }
+
+                if (report.totalSeen == 0) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            "还没有学习记录，先去玩一局冒险吧！",
+                            modifier = Modifier.testTag("LearningReportEmptyText"),
+                            fontSize = 14.sp,
+                            color = Color(0xFF7B7B7B),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RowScope.LearningReportStatePill(
+    label: String,
+    value: Int,
+    color: Color,
+    testTag: String,
+) {
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(12.dp))
+            .background(color)
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            "$value",
+            modifier = Modifier.testTag(testTag),
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+        )
+        Text(label, fontSize = 12.sp, color = Color.White)
     }
 }
 

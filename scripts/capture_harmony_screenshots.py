@@ -334,9 +334,13 @@ def main() -> int:
         screen_capture("monster-codex-part2.png")
         click_id("CodexBackButton", pause=0.9)
 
-    def shot_today_and_report() -> None:
+    def shot_today_plan() -> None:
         click_id("HomePlanButton", pause=1.0)
         screen_capture("today-plan.png")
+        click_id("TodayPlanBackButton", pause=0.9)
+
+    def shot_learning_report() -> None:
+        click_id("HomePlanButton", pause=1.0)
         click_id("TodayPlanReportButton", pause=1.2)
         scroll_capture_series("learning-report", 2)
         press_back()
@@ -464,7 +468,8 @@ def main() -> int:
         ("home", "home", shot_home),
         ("battle+result", "battle+result", shot_battle_result),
         ("monster codex", "codex", shot_codex),
-        ("today plan + learning report", "today", shot_today_and_report),
+        ("today plan", "today", shot_today_plan),
+        ("learning report", "learning-report", shot_learning_report),
         ("wishlist + redemption history", "wishlist+redemption", shot_wishlist_history),
         ("config + pack manager", "config", shot_config_and_pack),
         ("parent pin setup surface", "parent-pin", shot_parent_pin_surface),

@@ -88,6 +88,6 @@ class LocalGrowthFlowTest {
         composeRule.onNodeWithTag("TodayPlanScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("TodayPlanReportButton").performClick()
         composeRule.onNodeWithTag("LearningReportScreen").assertIsDisplayed()
-        composeRule.onNodeWithTag("LearningReportTotalWords").assertIsDisplayed()
+        composeRule.onNodeWithTag("LearningReportAccuracy").assertIsDisplayed()
     }
 }
