@@ -42,14 +42,47 @@ struct RedemptionHistoryPage {
     this.records = this.store.list();
   }
 
-  build(): void {
-    Column({ space: 12 }) {
-      this.headerRow();
+  /** Back + title on one row; title is screen-centered (balanced thirds). */
+  @Builder
+  private topBar() {
+    Row() {
+      Row() {
+        Button('← 返回')
+          .id('RedemptionHistoryBackButton')
+          .type(ButtonType.Normal)
+          .backgroundColor(Color.Transparent)
+          .fontColor('#457B9D')
+          .onClick((): void => {
+            try {
+              this.getUIContext().getRouter().back();
+            } catch (err) {
+              console.error(`RedemptionHistoryPage.back failed: ${JSON.stringify(err as BusinessError)}`);
+            }
+          });
+      }
+      .layoutWeight(1)
+      .justifyContent(FlexAlign.Start)
+      .alignItems(VerticalAlign.Center);
+
       Text('兑换记录')
         .id('RedemptionHistoryTitle')
         .fontSize(26)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#1D3557');
+        .fontColor('#1D3557')
+        .layoutWeight(1)
+        .textAlign(TextAlign.Center);
+
+      Blank()
+        .layoutWeight(1);
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+    .padding({ bottom: 12 });
+  }
+
+  build(): void {
+    Column() {
+      this.topBar();
 
       if (this.records.length === 0) {
         Column() {
@@ -112,26 +145,5 @@ struct RedemptionHistoryPage {
     .borderRadius(12)
     .alignItems(VerticalAlign.Center)
     .shadow({ radius: 6, color: '#11000000', offsetX: 0, offsetY: 2 });
-  }
-
-  @Builder
-  private headerRow() {
-    Row() {
-      Button('← 返回')
-        .id('RedemptionHistoryBackButton')
-        .type(ButtonType.Normal)
-        .backgroundColor(Color.Transparent)
-        .fontColor('#457B9D')
-        .onClick((): void => {
-          try {
-            this.getUIContext().getRouter().back();
-          } catch (err) {
-            console.error(`RedemptionHistoryPage.back failed: ${JSON.stringify(err as BusinessError)}`);
-          }
-        });
-      Blank()
-        .layoutWeight(1);
-    }
-    .width('100%');
   }
 }

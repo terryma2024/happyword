@@ -228,7 +228,7 @@ fun WishlistScreen(
         LazyColumn(
             Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 24.dp),
+                .padding(horizontal = 44.dp, vertical = 24.dp),
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -543,28 +543,43 @@ fun RedemptionHistoryScreen(history: RedemptionHistoryStore, onBack: () -> Unit)
             .padding(horizontal = 16.dp, vertical = 24.dp)
             .testTag("RedemptionHistoryScreen"),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Button(
-                onClick = onBack,
-                modifier = Modifier.testTag("RedemptionHistoryBackButton"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = Color(0xFF457B9D),
-                ),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start,
             ) {
-                Text("← 返回", fontSize = 16.sp)
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("RedemptionHistoryBackButton"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = Color(0xFF457B9D),
+                    ),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                ) {
+                    Text("← 返回", fontSize = 16.sp)
+                }
             }
+            Text(
+                text = "兑换记录",
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("RedemptionHistoryTitle"),
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1D3557),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+            )
             Spacer(Modifier.weight(1f))
         }
-        Text(
-            text = "兑换记录",
-            modifier = Modifier.testTag("RedemptionHistoryTitle"),
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1D3557),
-        )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(4.dp))
         if (history.records.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -1035,7 +1050,7 @@ fun LearningReportScreen(report: LearningReport, onBack: () -> Unit) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 44.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Button(
@@ -1074,7 +1089,7 @@ fun LearningReportScreen(report: LearningReport, onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(
-                modifier = contentModifier.padding(horizontal = 16.dp),
+                modifier = contentModifier.padding(horizontal = 44.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column(
