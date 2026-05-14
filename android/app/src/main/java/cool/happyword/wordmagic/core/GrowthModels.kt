@@ -65,7 +65,10 @@ data class RedemptionRecord(
     val title: String,
     val cost: Int,
     val redeemedAtMs: Long,
+    /** Legacy field; rows match HarmonyOS (no per-row status label). */
     val status: String = "已兑换",
+    /** Wish icon/emoji at redemption time — aligns with Harmony `RedemptionRecord.iconEmoji`. */
+    val iconEmoji: String = "",
 )
 
 data class RedemptionResult(
@@ -100,6 +103,7 @@ data class RedemptionHistoryStore(
             title = wish.title,
             cost = wish.cost,
             redeemedAtMs = redeemedAtMs,
+            iconEmoji = wish.icon,
         )
         return RedemptionResult(
             accepted = true,

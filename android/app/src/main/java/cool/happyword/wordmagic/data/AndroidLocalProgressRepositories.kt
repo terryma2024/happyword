@@ -65,17 +65,26 @@ class AndroidLocalProgressRepositories(context: Context) {
             .lineSequence()
             .mapNotNull { line ->
                 val parts = line.split('\t')
-                if (parts.size == 6) {
-                    RedemptionRecord(
+                when (parts.size) {
+                    7 -> RedemptionRecord(
                         id = parts[0],
                         wishId = parts[1],
                         title = parts[2],
                         cost = parts[3].toIntOrNull().orZero(),
                         redeemedAtMs = parts[4].toLongOrNull() ?: 0L,
                         status = parts[5],
+                        iconEmoji = parts[6],
                     )
-                } else {
-                    null
+                    6 -> RedemptionRecord(
+                        id = parts[0],
+                        wishId = parts[1],
+                        title = parts[2],
+                        cost = parts[3].toIntOrNull().orZero(),
+                        redeemedAtMs = parts[4].toLongOrNull() ?: 0L,
+                        status = parts[5],
+                        iconEmoji = "",
+                    )
+                    else -> null
                 }
             }
             .toList()
@@ -86,7 +95,9 @@ class AndroidLocalProgressRepositories(context: Context) {
         prefs.edit()
             .putString(
                 "redemptionHistory",
-                history.records.joinToString("\n") { "${it.id}\t${it.wishId}\t${it.title}\t${it.cost}\t${it.redeemedAtMs}\t${it.status}" },
+                history.records.joinToString("\n") {
+                    "${it.id}\t${it.wishId}\t${it.title}\t${it.cost}\t${it.redeemedAtMs}\t${it.status}\t${it.iconEmoji}"
+                },
             )
             .apply()
     }

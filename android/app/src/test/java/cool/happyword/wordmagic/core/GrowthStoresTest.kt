@@ -30,6 +30,7 @@ class GrowthStoresTest {
         assertTrue(result.accepted)
         assertEquals(3, result.account.balance)
         assertEquals("贴纸", result.history.records.first().title)
+        assertEquals("star", result.history.records.first().iconEmoji)
     }
 
     @Test

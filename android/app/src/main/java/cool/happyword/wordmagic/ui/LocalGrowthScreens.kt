@@ -41,7 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -72,6 +72,7 @@ import cool.happyword.wordmagic.core.CoinAccount
 import cool.happyword.wordmagic.core.LearningReport
 import cool.happyword.wordmagic.core.MonsterCatalog
 import cool.happyword.wordmagic.core.PackSelectionStore
+import cool.happyword.wordmagic.core.RedemptionRecord
 import cool.happyword.wordmagic.core.RedemptionHistoryStore
 import cool.happyword.wordmagic.core.TodayPlanService
 import cool.happyword.wordmagic.core.TodayPlanUi
@@ -83,6 +84,9 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -532,19 +536,113 @@ private fun GiftBox(trigger: Int, modifier: Modifier = Modifier) {
 
 @Composable
 fun RedemptionHistoryScreen(history: RedemptionHistoryStore, onBack: () -> Unit) {
-    LazyColumn(Modifier.fillMaxSize().background(Color.White).padding(24.dp).testTag("RedemptionHistoryScreen")) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("兑换历史", fontSize = 28.sp, fontWeight = FontWeight.Black)
-                Spacer(Modifier.weight(1f))
-                OutlinedButton(onClick = onBack) { Text("返回") }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
+            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .testTag("RedemptionHistoryScreen"),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Button(
+                onClick = onBack,
+                modifier = Modifier.testTag("RedemptionHistoryBackButton"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = Color(0xFF457B9D),
+                ),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+            ) {
+                Text("← 返回", fontSize = 16.sp)
+            }
+            Spacer(Modifier.weight(1f))
+        }
+        Text(
+            text = "兑换记录",
+            modifier = Modifier.testTag("RedemptionHistoryTitle"),
+            fontSize = 26.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1D3557),
+        )
+        Spacer(Modifier.height(12.dp))
+        if (history.records.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "还没有兑换记录",
+                    modifier = Modifier.testTag("RedemptionHistoryEmpty"),
+                    fontSize = 16.sp,
+                    color = Color(0xFF888888),
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 24.dp),
+            ) {
+                items(history.records, key = { it.id }) { record ->
+                    RedemptionHistoryRecordRow(record)
+                }
             }
         }
-        if (history.records.isEmpty()) {
-            item { Text("暂无兑换记录", Modifier.padding(top = 18.dp), color = Color(0xFF777777)) }
-        }
-        items(history.records) { record ->
-            Text("${record.title} · -${record.cost} · ${record.status}", Modifier.padding(vertical = 8.dp).testTag("RedemptionRecord_${record.id}"))
+    }
+}
+
+private val redemptionLocalTsFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+
+/** Matches HarmonyOS `formatLocalTimestamp` in `RedemptionRecord.ets`. */
+private fun formatRedemptionLocalTimestamp(ms: Long): String =
+    redemptionLocalTsFormatter.format(
+        Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDateTime(),
+    )
+
+@Composable
+private fun RedemptionHistoryRecordRow(record: RedemptionRecord) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .testTag("RedemptionRecordCard_${record.id}"),
+            shape = RoundedCornerShape(12.dp),
+            color = Color.White,
+            shadowElevation = 2.dp,
+        ) {
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(record.iconEmoji, fontSize = 28.sp)
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text(
+                        record.title,
+                        modifier = Modifier.testTag("RedemptionRecordName_${record.id}"),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF1D3557),
+                    )
+                    Text(
+                        formatRedemptionLocalTimestamp(record.redeemedAtMs),
+                        modifier = Modifier.testTag("RedemptionRecordTime_${record.id}"),
+                        fontSize = 13.sp,
+                        color = Color(0xFF888888),
+                    )
+                }
+                Text(
+                    text = "-${record.cost} ✨",
+                    modifier = Modifier.testTag("RedemptionRecordCost_${record.id}"),
+                    fontSize = 15.sp,
+                    color = Color(0xFFE63946),
+                )
+            }
         }
     }
 }
@@ -688,7 +786,8 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
+                .padding(horizontal = 44.dp)
+                .padding(top = 16.dp, bottom = 12.dp),
         ) {
             CenteredCircleIconButton(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -729,7 +828,7 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
             Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 44.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
