@@ -1,0 +1,19 @@
+pages:
+  - id: home
+    description: Landing screen
+    spec_anchors:
+      stable_ids: [HomeStartButton]
+      page_section_titles: ["Home"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/HomePage.ets
+      capture: null
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/Home/HomePage.swift
+      capture:
+        kind: simctl_route
+        launch_args: []
+        output_basename: home
+    android:
+      present: false

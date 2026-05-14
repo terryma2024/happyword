@@ -1,0 +1,21 @@
+[project]
+name = "parity-scout"
+version = "0.1.0"
+description = "Three-platform UI/behavior parity gap scout for the WordMagicGame monorepo."
+requires-python = ">=3.11"
+dependencies = [
+  "pyyaml>=6.0",
+  "rich>=13.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The package `parity_scout` IS this directory (tools/parity_scout/__init__.py).
+# Putting `..` on sys.path makes `import parity_scout.X` resolve to
+# tools/parity_scout/X.py during tests.
+pythonpath = [".."]
+filterwarnings = ["error"]
+addopts = "-ra"

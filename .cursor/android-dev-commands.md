@@ -180,6 +180,10 @@ install and screenshot on the Android emulator. Compare against the relevant
 HarmonyOS screenshot under `assets/screenshots/harmonyos/` and refine until the
 layout and style are close enough for the current milestone.
 
+### Parity-scout pointer
+
+For finding Android gaps vs HarmonyOS `main`, run via the `parity-scout` skill. CLI cheat-sheet: [`tools/parity_scout/README.md`](../tools/parity_scout/README.md). Skill: [`.cursor/skills/parity-scout/SKILL.md`](skills/parity-scout/SKILL.md).
+
 ---
 
 ## 7) Battle page debug notes — `android-battle-debug`

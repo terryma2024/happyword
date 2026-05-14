@@ -178,6 +178,10 @@ When fixing UI automation failures, do not batch-fix from a full-suite failure l
 5. Present the cause and smallest proposed fix to the user, then wait for approval.
 6. After approval, patch narrowly, add an English comment for any state-order invariant the test depends on, and rerun that suite before moving on.
 
+### Parity-scout pointer
+
+Use `parity-scout` to find three-platform UI / behavior gaps against HarmonyOS `main`. CLI cheat-sheet: [`tools/parity_scout/README.md`](../tools/parity_scout/README.md). Skill: [`.cursor/skills/parity-scout/SKILL.md`](skills/parity-scout/SKILL.md). Don't run it from this manifest's screenshot sub-flow directly — go through the skill.
+
 ---
 
 ## 5) Failure artifacts — `harmony-log-analyzer` (read in this order)

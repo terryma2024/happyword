@@ -16,6 +16,7 @@ Optional:
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -291,6 +292,20 @@ def maybe_install_hap() -> None:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Capture HarmonyOS WordMagicGame screenshots.",
+    )
+    parser.add_argument(
+        "--pages",
+        default=None,
+        help=(
+            "Comma-separated step keys (e.g. 'home,battle+result'). "
+            "Default = all steps. Step keys are the second element of "
+            "each runner tuple below."
+        ),
+    )
+    args = parser.parse_args()
+
     maybe_install_hap()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -442,25 +457,43 @@ def main() -> int:
             click_if_present("BypassSecretPageCancelButton", pause=0.8)
         press_back()
 
-    runners = [
-        ("home", shot_home),
-        ("battle+result", shot_battle_result),
-        ("monster codex", shot_codex),
-        ("today plan + learning report", shot_today_and_report),
-        ("wishlist + redemption history", shot_wishlist_history),
-        ("config + pack manager", shot_config_and_pack),
-        ("parent pin setup surface", shot_parent_pin_surface),
-        ("scan binding", shot_scan_binding),
-        ("parent admin", shot_parent_admin),
-        ("bound device info (if bound)", shot_bound_device_if_any),
-        ("dev menu + bypass secret", shot_dev_menu_and_bypass),
+    # (label, step_key, fn). The step_key is the public identifier used by
+    # parity_scout's registry and the --pages CLI filter; the label is the
+    # human-readable description printed during the run.
+    runners: list[tuple[str, str, "callable[[], None]"]] = [
+        ("home", "home", shot_home),
+        ("battle+result", "battle+result", shot_battle_result),
+        ("monster codex", "codex", shot_codex),
+        ("today plan + learning report", "today", shot_today_and_report),
+        ("wishlist + redemption history", "wishlist+redemption", shot_wishlist_history),
+        ("config + pack manager", "config", shot_config_and_pack),
+        ("parent pin setup surface", "parent-pin", shot_parent_pin_surface),
+        ("scan binding", "scan-binding", shot_scan_binding),
+        ("parent admin", "parent", shot_parent_admin),
+        ("bound device info (if bound)", "bound", shot_bound_device_if_any),
+        ("dev menu + bypass secret", "dev-menu", shot_dev_menu_and_bypass),
     ]
+
+    if args.pages:
+        wanted = {p.strip() for p in args.pages.split(",") if p.strip()}
+        unknown = wanted - {key for (_, key, _) in runners}
+        if unknown:
+            print(
+                f"[warn] unknown --pages keys: {sorted(unknown)}",
+                file=sys.stderr,
+            )
+        runners = [(label, key, fn) for (label, key, fn) in runners if key in wanted]
+        if not runners:
+            print(
+                f"[warn] no runners match --pages {args.pages}; nothing to do",
+                file=sys.stderr,
+            )
 
     ensure_pin_if_possible()
     start_app()
     time.sleep(2.0)
 
-    for label, fn in runners:
+    for label, _key, fn in runners:
         try:
             print(f"… {label}")
             fn()

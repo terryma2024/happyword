@@ -30,11 +30,13 @@ description: Schedules the per-feature lifecycle for HarmonyOS / iOS / Android: 
 - **Stage 1 (Design).** Drive `00-design.md` to completion. Pay special attention to §5 (stable IDs) — that is the parity contract.
 - **Stage 2 (Harmony plan + impl).** Delegate execution to [`harmony-autofix-orchestrator`](../harmony-autofix-orchestrator/SKILL.md). Do not duplicate its loop here.
 - **Stage 3 (Stabilize).** Drive the soft gate in `20-replication-trigger.md` §1. When green, fill the delta letter (§2). **Refuse to mark the feature ready for Stage 4 without the human-confirm signature block in §4.** This refusal is the entire point of Stage 3.
+  - **Suspect parity drift before the trigger?** Run [`parity-scout`](../parity-scout/SKILL.md) (CLI: [`tools/parity_scout/README.md`](../../../tools/parity_scout/README.md)) and resolve any promoted findings before signing the trigger.
 - **Stage 4a (iOS) and Stage 4b (Android).** Run in **parallel** (separate worktrees). Before either starts:
   1. Open `20-replication-trigger.md` §4.
   2. Verify `replication_approved: true` with non-empty `approved_by` and `approved_at`.
   3. If missing or `false`, **stop** and tell the user the trigger is unsigned. Do **not** edit any iOS or Android source until the human signs.
 - **Stage 5 (Parity).** Drive `50-parity-checklist.md` to all-green. Any newly red row reopens the feature via `60-followups.md`.
+  - Re-run [`parity-scout`](../parity-scout/SKILL.md) whenever a red row remains after a fix attempt — the gap may be visual, not behavioral. The skill stages screenshots leaf-by-leaf and feeds curated findings back into `60-followups.md`.
 
 ## After any failure
 

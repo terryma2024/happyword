@@ -1,0 +1,235 @@
+# parity_scout registry — page <-> per-platform capture route alignment.
+# Source of truth for the gap-scout tool. See:
+#   docs/superpowers/specs/2026-05-13-parity-scout-design.md §4.3
+#
+# Schema rules enforced at load time (parity_scout/registry.py):
+#   present: false                  -> platform is FEATURE_ABSENT (skip capture)
+#   present: true && capture: null  -> platform is BLOCKED (refuse to run leaf)
+#   present: true && capture.kind in {capture_harmony_step, simctl_route,
+#       android_screenshot_test} -> platform is OK
+#
+# When adding a page, also keep the `page_source` paths in sync with the
+# closest existing source file on each platform. tests/test_registry.py's
+# real-registry pass warns when a `page_source` no longer exists.
+
+pages:
+  - id: home
+    description: Landing screen (landscape, child-facing)
+    spec_anchors:
+      stable_ids: [HomeStartButton, HomeChildProfileButton, HomeVersionLabel]
+      page_section_titles: [Home, "主页"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/HomePage.ets
+      capture: { kind: capture_harmony_step, step: home }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/CoreLoop/HomeView.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState"]
+        output_basename: home
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      capture:
+        kind: android_screenshot_test
+        test_method: captureGrowthAndCloudScreens
+        filename: local-growth-home.png
+
+  - id: battle
+    description: Battle page (landscape)
+    spec_anchors:
+      stable_ids: [BattleCorrectOption, BattleFinishButton]
+      page_section_titles: [Battle]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/BattlePage.ets
+      capture: { kind: capture_harmony_step, step: battle+result }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/CoreLoop/BattleView.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState", "-UITestRouteBattle"]
+        output_basename: battle
+    android:
+      # No standalone "battle" screenshot test method today; covered indirectly
+      # by captureResultScreen which lands on Result after one tap. Treat as
+      # BLOCKED until a per-page route exists, so the SKILL surfaces it.
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      capture: null
+
+  - id: result
+    description: Battle result (landscape)
+    spec_anchors:
+      stable_ids: [ResultHomeButton]
+      page_section_titles: [Result, "胜利"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/ResultPage.ets
+      capture: { kind: capture_harmony_step, step: battle+result }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/CoreLoop/ResultView.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState", "-UITestRouteResult"]
+        output_basename: result
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      capture:
+        kind: android_screenshot_test
+        test_method: captureResultScreen
+        filename: result.png
+
+  - id: config
+    description: Game settings (landscape)
+    spec_anchors:
+      stable_ids:
+        [HomeConfigButton, ConfigParentPinButton, ConfigParentAdminButton]
+      page_section_titles: [Config, "游戏设置"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/ConfigPage.ets
+      capture: { kind: capture_harmony_step, step: config }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/Settings/ConfigView.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState", "-UITestRouteConfig"]
+        output_basename: config-landscape
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      capture:
+        kind: android_screenshot_test
+        test_method: captureCoreParentAndDebugScreens
+        filename: config-landscape.png
+
+  - id: wishlist
+    description: Wishlist (landscape)
+    spec_anchors:
+      stable_ids: [HomeWishlistButton, WishlistHistoryButton]
+      page_section_titles: [Wishlist, "魔法愿望单"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/WishlistPage.ets
+      capture: { kind: capture_harmony_step, step: wishlist+redemption }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState", "-UITestRouteWishlist"]
+        output_basename: wishlist
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      capture:
+        kind: android_screenshot_test
+        test_method: captureGrowthAndCloudScreens
+        filename: wishlist.png
+
+  - id: today-plan
+    description: Today plan (landscape)
+    spec_anchors:
+      stable_ids: [HomePlanButton, TodayPlanReportButton]
+      page_section_titles: ["Today Plan", "今日学习计划"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/TodayPlanPage.ets
+      capture: { kind: capture_harmony_step, step: today }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState", "-UITestRouteTodayPlan"]
+        output_basename: today-plan
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      capture:
+        kind: android_screenshot_test
+        test_method: captureGrowthAndCloudScreens
+        filename: today-plan.png
+
+  - id: parent-admin
+    description: Parent admin (portrait)
+    spec_anchors:
+      stable_ids: [ConfigParentAdminButton, ParentAdminTitle]
+      page_section_titles: ["Parent Admin", "家长管理后台"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/ParentAdminPage.ets
+      capture: { kind: capture_harmony_step, step: parent }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/ParentAdmin/ParentAdminView.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState", "-UITestRouteParentAdmin"]
+        output_basename: parent-admin
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      capture:
+        kind: android_screenshot_test
+        test_method: captureCoreParentAndDebugScreens
+        filename: parent-admin.png
+
+  - id: bound-device-info
+    description: Parent account info (landscape)
+    spec_anchors:
+      stable_ids: [ConfigBoundDeviceInfoButton]
+      page_section_titles: ["Bound Device", "家长账户"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/BoundDeviceInfoPage.ets
+      capture: { kind: capture_harmony_step, step: bound }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/Settings/CloudBindingViews.swift
+      capture:
+        kind: simctl_route
+        launch_args:
+          [
+            "-UITestResetState",
+            "-UITestRouteBoundDeviceInfo",
+          ]
+        output_basename: bound-device-info
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/CloudBindingScreens.kt
+      capture:
+        kind: android_screenshot_test
+        test_method: captureGrowthAndCloudScreens
+        filename: bound-device-info.png
+
+  - id: pack-manager
+    description: Pack manager (landscape)
+    spec_anchors:
+      stable_ids: [ConfigPackManagerButton, ConfigPackManagerEntry]
+      page_section_titles: ["Pack Manager", "我的词包"]
+    harmony:
+      present: true
+      page_source: harmonyos/entry/src/main/ets/pages/PackManagerPage.ets
+      capture: { kind: capture_harmony_step, step: config }
+    ios:
+      present: true
+      page_source: ios/WordMagicGame/Features/Settings/ConfigView.swift
+      capture:
+        kind: simctl_route
+        launch_args: ["-UITestResetState", "-UITestRoutePackManager"]
+        output_basename: pack-manager
+    android:
+      present: true
+      page_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      capture:
+        kind: android_screenshot_test
+        test_method: captureGrowthAndCloudScreens
+        filename: pack-manager.png

@@ -1,0 +1,25 @@
+{
+  "leaves": [
+    {
+      "android": {
+        "route": "config",
+        "status": "ok"
+      },
+      "harmony": {
+        "route": "config",
+        "status": "ok"
+      },
+      "ios": {
+        "route": "config",
+        "status": "ok"
+      },
+      "page_id": "config",
+      "spec_excerpt_path": null
+    }
+  ],
+  "run_id": "20260514-000551-pages-config",
+  "scope": {
+    "kind": "pages",
+    "value": "config"
+  }
+}
