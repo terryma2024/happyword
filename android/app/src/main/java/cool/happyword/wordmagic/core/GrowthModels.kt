@@ -3,7 +3,8 @@ package cool.happyword.wordmagic.core
 data class CoinCreditResult(val account: CoinAccount, val delta: Int)
 
 data class CoinAccount(
-    val balance: Int = 28,
+    /** Default matches first catalog wish cost (10) so one row shows 申请兑换 and others show 还差 N ✨. */
+    val balance: Int = 10,
     val earnedByDay: Map<String, Int> = emptyMap(),
 ) {
     fun creditBattleReward(stars: Int, dayKey: String): CoinCreditResult {
@@ -47,10 +48,11 @@ data class WishlistState(
 
     companion object {
         fun default(): WishlistState = WishlistState(
+            // Keep ids/copy aligned with harmonyos/entry/src/main/ets/data/WishlistCatalog.ets (WISHLIST_CATALOG).
             defaultWishes = listOf(
-                WishItem("sticker", "贴纸", 5, "🌟", false),
-                WishItem("story", "睡前故事", 8, "📖", false),
-                WishItem("park", "公园时间", 12, "🎈", false),
+                WishItem("wish-ipad-20min", "看 iPad 20 分钟", 10, "📱", false),
+                WishItem("wish-watch-topup-10", "手表零钱充值 10 元", 25, "⌚", false),
+                WishItem("wish-small-gift", "买一个礼物 (≤20 元)", 50, "🎁", false),
             ),
             customWishes = emptyList(),
         )

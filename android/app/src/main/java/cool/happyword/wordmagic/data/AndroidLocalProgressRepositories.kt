@@ -48,7 +48,7 @@ class AndroidLocalProgressRepositories(context: Context) {
                 if (parts.size == 2) parts[0] to parts[1].toIntOrNull().orZero() else null
             }
             .toMap()
-        return CoinAccount(balance = prefs.getInt("coinBalance", 28), earnedByDay = earned)
+        return CoinAccount(balance = prefs.getInt("coinBalance", 10), earnedByDay = earned)
     }
 
     fun saveCoinAccount(account: CoinAccount) {
