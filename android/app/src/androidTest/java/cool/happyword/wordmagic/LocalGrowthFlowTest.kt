@@ -58,6 +58,8 @@ class LocalGrowthFlowTest {
         }
         composeRule.onNodeWithTag("WishlistHistoryButton").performClick()
         composeRule.onNodeWithTag("RedemptionHistoryScreen").assertIsDisplayed()
+        composeRule.onNodeWithTag("RedemptionHistoryTitle").assertIsDisplayed()
+        composeRule.onNodeWithText("看 iPad 20 分钟").assertIsDisplayed()
     }
 
     @Test
