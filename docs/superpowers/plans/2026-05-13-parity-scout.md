@@ -40,7 +40,7 @@
 - `tools/parity_scout/tests/test_promote.py`
 - `tools/parity_scout/tests/test_runner.py` — runner rhythm tests (with adapter mocks).
 - `.cursor/skills/parity-scout/SKILL.md`
-- `.gitignore` patch: `build-tmp/parity_scout/` (if not already covered).
+- `.gitignore` patch: `.parity_scout/.lock` (PID lock only; run dirs are committable).
 
 **Modified:**
 - `scripts/capture_harmony_screenshots.py` — add `--pages <a,b,c>` CLI flag that filters which step closures run.
@@ -109,7 +109,7 @@ python3 tools/parity_scout/scout.py doctor
 python3 tools/parity_scout/scout.py prune   --keep 5
 ```
 
-Run from repo root. State lives at `build-tmp/parity_scout/<run-id>/`. Registry is `tools/parity_scout/page_suite_map.yml`.
+Run from repo root. State lives at `.parity_scout/<run-id>/`. Registry is `tools/parity_scout/page_suite_map.yml`.
 
 ## Tests
 
@@ -980,7 +980,7 @@ from parity_scout.spec_extract import ScopeError, resolve_scope
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_REGISTRY = Path(__file__).resolve().parent / "page_suite_map.yml"
-_RUN_ROOT = _REPO_ROOT / "build-tmp" / "parity_scout"
+_RUN_ROOT = _REPO_ROOT / ".parity_scout"
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -1075,7 +1075,7 @@ cd tools/parity_scout && uv run python scout.py plan \
   --registry tests/fixtures/registry_minimal.yml \
   --pages home,battle
 ```
-Expected: prints `PLAN run=…` tree with `home` showing `android:feature_absent`, `battle` showing `android:ok`; writes `build-tmp/parity_scout/<id>/plan.json`.
+Expected: prints `PLAN run=…` tree with `home` showing `android:feature_absent`, `battle` showing `android:ok`; writes `.parity_scout/<id>/plan.json`.
 
 - [ ] **Step 3: Commit**
 
@@ -1158,7 +1158,7 @@ Run:
 ```
 cd tools/parity_scout && uv run python scout.py plan \
   --registry tests/fixtures/registry_minimal.yml --pages home,battle
-RUN_ID=$(ls -t /Users/$USER/.cursor/worktrees/happyword/0rzw/build-tmp/parity_scout/ | head -1)
+RUN_ID=$(ls -t /Users/$USER/.cursor/worktrees/happyword/0rzw/.parity_scout/ | head -1)
 uv run python scout.py pick --run "${RUN_ID}" --branches home,battle
 ```
 Expected: `picked: home, battle`. `picked.json` exists in the run dir.
@@ -2098,7 +2098,7 @@ def _probe_baseline():
 - [ ] **Step 2: Implement `tools/parity_scout/prune.py`**
 
 ```python
-"""Rotate build-tmp/parity_scout/<run-id>/ directories, keeping the newest N."""
+"""Rotate .parity_scout/<run-id>/ directories, keeping the newest N."""
 
 from __future__ import annotations
 
@@ -2662,7 +2662,7 @@ python3 tools/parity_scout/scout.py pick --run "${RUN_ID}" --branches home
 python3 tools/parity_scout/scout.py run --run "${RUN_ID}" &
 RUN_PID=$!
 # In another terminal, after seeing 'LEAF READY page=home dir=...':
-touch "build-tmp/parity_scout/${RUN_ID}/home/next.flag"
+touch ".parity_scout/${RUN_ID}/home/next.flag"
 wait "${RUN_PID}"
 ```
 Expected: `LEAF START page=home`, `LEAF READY page=home dir=...`, `RUN DONE`. The home leaf dir contains at least one PNG for every platform that is `present: true && capture: ok` on the developer's running simulators.
@@ -2693,7 +2693,7 @@ Expected: `LEAF START page=home`, `LEAF READY page=home dir=...`, `RUN DONE`. Th
 - §8 tests → Tasks 2, 3, 4, 5, 11, 12.
 - §9 integration → Task 17.
 
-**Gap identified:** spec §7.3 says "concurrent `run` invocations refused via `build-tmp/parity_scout/.lock`". The plan does not implement this. **Adding a follow-up task below.**
+**Gap identified:** spec §7.3 says "concurrent `run` invocations refused via `.parity_scout/.lock`". The plan does not implement this. **Adding a follow-up task below.**
 
 ### 2. Placeholder scan
 
@@ -2757,7 +2757,7 @@ def _pid_alive(pid: int) -> bool:
 
 ```bash
 git add tools/parity_scout/scout.py
-git commit -m "feat(parity-scout): pid-stamped run lock at build-tmp/parity_scout/.lock"
+git commit -m "feat(parity-scout): pid-stamped run lock at .parity_scout/.lock"
 ```
 
 ---

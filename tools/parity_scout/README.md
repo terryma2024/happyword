@@ -18,7 +18,11 @@ python3 tools/parity_scout/scout.py doctor
 python3 tools/parity_scout/scout.py prune   --keep 5
 ```
 
-Run from repo root. State lives at `build-tmp/parity_scout/<run-id>/`. Registry is `tools/parity_scout/page_suite_map.yml`.
+Run from repo root. **Run artifacts** (plan, screenshots, `findings.md`, …) live under **`.parity_scout/<run-id>/`** — the run id is the **task key** for later alignment work; commit that folder when you want the evidence in git. Registry is `tools/parity_scout/page_suite_map.yml`.
+
+## Environment
+
+- **Android:** If `adb devices` lists more than one device, set `ANDROID_SERIAL` (e.g. `export ANDROID_SERIAL=emulator-5556`) before `scout.py run` so the adapter uses `adb -s …`.
 
 ## Tests
 

@@ -29,7 +29,7 @@ A user task that names a scope: a feature folder, a spec doc, an explicit page l
    1. Read the staged `<path>/spec-excerpts.md`. If absent (e.g. `--scope overall` runs that bypass spec extraction), fall back to spec anchors from the registry entry and proceed without excerpts.
    2. Read each `*.png` under `<path>/{harmony,ios,android}/` (Cursor agent vision).
    3. Compare PNGs across platforms and against the spec excerpts. The spec excerpts narrow what counts as a gap; visual-only differences not anchored by the spec are downranked, not promoted.
-   4. Append findings to `<run-id>/findings.md` under a `## <page>` heading, with bullet lines tagged `[harmony|ios|android]` + a severity hint (`critical`, `notable`, `nit`).
+   4. Append findings to `.parity_scout/<run-id>/findings.md` under a `## <page>` heading, with bullet lines tagged `[harmony|ios|android]` + a severity hint (`critical`, `notable`, `nit`).
    5. `touch <dir>/next.flag` to release `scout.py run` to the next leaf.
 
    On `LEAF SKIPPED page=<id> reason=feature_absent`: do not look for PNGs; instead record a one-line entry in `findings.md` noting "Feature missing on platform(s): ..." and continue.

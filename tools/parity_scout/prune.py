@@ -1,4 +1,4 @@
-"""Rotate build-tmp/parity_scout/<run-id>/ directories, keeping the newest N."""
+"""Rotate .parity_scout/<run-id>/ directories, keeping the newest N."""
 
 from __future__ import annotations
 

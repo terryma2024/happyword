@@ -33,7 +33,9 @@ from parity_scout.spec_extract import ScopeError, resolve_scope  # noqa: E402
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_REGISTRY = Path(__file__).resolve().parent / "page_suite_map.yml"
-_RUN_ROOT = _REPO_ROOT / "build-tmp" / "parity_scout"
+# Committed run artifacts (plan, picks, screenshots, findings) live here, keyed
+# by run-id. See `.parity_scout/README.md`.
+_RUN_ROOT = _REPO_ROOT / ".parity_scout"
 _LOCK_PATH = _RUN_ROOT / ".lock"
 
 

@@ -34,6 +34,15 @@ def _adb_path() -> str:
     return "adb"  # fall back to PATH lookup
 
 
+def _adb_cmd() -> list[str]:
+    """`adb` or `adb -s <serial>` when ANDROID_SERIAL is set (avoids multi-device errors)."""
+    adb = _adb_path()
+    serial = (os.environ.get("ANDROID_SERIAL") or "").strip()
+    if serial:
+        return [adb, "-s", serial]
+    return [adb]
+
+
 class AndroidAdapter(Adapter):
     name = "android"
 
@@ -58,11 +67,11 @@ class AndroidAdapter(Adapter):
             )
 
         out_dir.mkdir(parents=True, exist_ok=True)
-        adb = _adb_path()
+        adb = _adb_cmd()
         try:
             subprocess.run(
                 [
-                    adb, "shell", "am", "instrument", "-w",
+                    *adb, "shell", "am", "instrument", "-w",
                     "-e", "class", f"{_SCREENSHOT_CLASS}#{test_method}",
                     _TEST_RUNNER,
                 ],
@@ -79,14 +88,18 @@ class AndroidAdapter(Adapter):
             )
             with open(out_png, "wb") as fh:
                 proc = subprocess.run(
-                    [adb, "exec-out", "sh", "-c", shell_cmd],
+                    [*adb, "exec-out", "sh", "-c", shell_cmd],
                     stdout=fh,
                     stderr=subprocess.PIPE,
                     timeout=30,
                     check=True,
                 )
             if out_png.stat().st_size == 0:
-                err = proc.stderr.decode(errors="replace") if proc.stderr else ""
+                err = (
+                    proc.stderr.decode(errors="replace")
+                    if isinstance(proc.stderr, bytes)
+                    else (proc.stderr or "")
+                )
                 return AdapterResult(
                     platform=self.name,
                     page_id=page_id,

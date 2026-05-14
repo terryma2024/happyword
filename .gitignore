@@ -20,6 +20,10 @@
 build/
 build-tmp/
 
+# parity_scout — run dirs under .parity_scout/<run-id>/ are meant to be
+# committable; keep only the transient PID lock out of git.
+.parity_scout/.lock
+
 # Local configuration file (sdk path, etc)
 local.properties
 

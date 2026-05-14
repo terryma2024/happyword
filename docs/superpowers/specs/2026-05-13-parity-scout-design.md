@@ -28,7 +28,7 @@ We want a tool that **proactively probes** for those gaps against the latest Har
 | Alignment source of truth | **Central registry**: `tools/parity_scout/page_suite_map.yml`. |
 | Scope inputs | `--scope overall`, `--spec <path>`, `--feature <id>`, `--pages a,b`, `--suite Foo,Bar`, `--describe '<prose>'`. **`--plan` deliberately excluded** (plans duplicate spec signal). |
 | Analysis engine | **Agent-vision only.** Tool stages PNGs + spec excerpts; SKILL drives Cursor's vision. No algorithmic diff. |
-| Findings sink | **Scratch then user-curated promote.** `build-tmp/parity_scout/<run-id>/findings.md` during the run; the agent curates and asks the user before any `docs/features/<id>/60-followups.md` write. |
+| Findings sink | **Scratch then user-curated promote.** `.parity_scout/<run-id>/findings.md` during the run; the agent curates and asks the user before any `docs/features/<id>/60-followups.md` write. |
 | Screenshots per leaf per platform | **Auto scroll-until-bottom**, named `<page>-part<n>.png`. |
 | Cross-platform scheduling | **Parallel per leaf.** All 3 platforms run concurrently for the same leaf; analysis is the sync barrier between leaves. |
 | Missing parity on a platform | Two states (internally `status` codes in `plan.json`): **`feature_absent`** → emit single-platform conclusion "implement on `<platform>`", skip its capture, continue. **`blocked` (reason `add-capture-route`)** — equivalent to "suite_absent": feature exists but no capture route mapped. The leaf is **BLOCKED**; user must add the capture route to the registry before re-running. |
@@ -45,7 +45,7 @@ We want a tool that **proactively probes** for those gaps against the latest Har
                                        │
         ┌───────── plan ───────── pick ───────── run ───────── promote ──────────┐
         ▼                                                                         ▼
-  tools/parity_scout/        build-tmp/parity_scout/<run-id>/         docs/features/<id>/
+  tools/parity_scout/        .parity_scout/<run-id>/         docs/features/<id>/
    scout.py (CLI)              plan.json                                60-followups.md
    page_suite_map.yml          picked.json                              (appended on promote)
    adapters/                   <page>/{harmony,ios,android}/*.png
@@ -71,6 +71,8 @@ tools/parity_scout/
   excerpts.py                    # given (spec path, page_id), slice the relevant prose
   pyproject.toml                 # pinned deps: pyyaml, ruamel.yaml, rich
   tests/                         # offline unit tests
+.parity_scout/                   # committed run dirs: <run-id>/plan.json, … (see README)
+  README.md
 .cursor/skills/parity-scout/
   SKILL.md                       # ~150-line scheduler
 ```
@@ -113,7 +115,7 @@ Rules enforced by `scout.py plan` and the adapter dispatcher:
 
 ## 5. CLI surface — four subcommands plus `doctor` and `prune`
 
-All commands run from repo root. Run state lives at `build-tmp/parity_scout/<run-id>/`. `<run-id>` defaults to `YYYYMMDD-HHMMSS-<scope-slug>`. Every subcommand accepts `--run <id>` to bind to an existing run.
+All commands run from repo root. Run state lives at `.parity_scout/<run-id>/`. `<run-id>` defaults to `YYYYMMDD-HHMMSS-<scope-slug>`. Every subcommand accepts `--run <id>` to bind to an existing run.
 
 ### 5.1 `scout.py plan` — decompose into a search-plan tree
 
@@ -126,7 +128,7 @@ scout.py plan --suite ParentAdminFlow,WishlistFlow
 scout.py plan --describe "anything touching the gift box modal"
 ```
 
-Effect: writes `build-tmp/parity_scout/<run-id>/plan.json`:
+Effect: writes `.parity_scout/<run-id>/plan.json`:
 
 ```json
 {
@@ -184,7 +186,7 @@ Per-leaf rhythm:
 
 1. Print `LEAF START page=<id>`. Stage `wishlist/{harmony,ios,android}/` directories and `wishlist/spec-excerpts.md` (from `excerpts.py`). `wishlist/next.flag` is **not** present yet.
 2. Fire all three platform adapters **in parallel**. Each adapter auto-scrolls until bottom, naming files `<page>-part<n>.png`. `feature_absent` platforms write a `MISSING.txt` stub instead of invoking their adapter. Each adapter is given up to `--leaf-timeout` seconds (default `180`); the leaf advances as soon as all three adapters have returned or timed out.
-3. Print `LEAF READY page=<id> dir=build-tmp/parity_scout/<id>/wishlist/`. **Block** on the presence of `wishlist/next.flag` (poll once per second; honor SIGINT).
+3. Print `LEAF READY page=<id> dir=.parity_scout/<run-id>/wishlist/`. **Block** on the presence of `wishlist/next.flag` (poll once per second; honor SIGINT).
 4. When the SKILL's agent has appended findings for this leaf to `findings.md`, the SKILL does `touch <run-id>/<page>/next.flag`. `run` unblocks and advances to the next leaf.
 5. After the last leaf, print `RUN DONE` and exit.
 
@@ -200,7 +202,7 @@ scout.py promote --run <id> --feature <feature-id> --findings <path>     # expli
 **Curate-by-feature contract.** A wide scope (`--scope overall`, multi-page `--spec`, etc.) may produce findings that belong to several feature folders. The curate step (§6 step 6) is therefore responsible for splitting `findings.md` into per-feature slices:
 
 ```
-build-tmp/parity_scout/<run-id>/
+.parity_scout/<run-id>/
   findings.md                                  # raw, agent-appended, every leaf
   findings.curated.md                          # noise dropped
   findings.curated.<feature-id-A>.md           # written by agent during curate
@@ -243,7 +245,7 @@ Non-gating. Informational. SKILL runs it at session start.
 scout.py prune --keep 5
 ```
 
-Deletes oldest `build-tmp/parity_scout/<run-id>/` directories above the keep-count. Not auto-run; deliberate.
+Deletes oldest `.parity_scout/<run-id>/` directories above the keep-count. Not auto-run; deliberate.
 
 ## 6. SKILL: `parity-scout/SKILL.md`
 
@@ -305,7 +307,7 @@ description: Drives a per-feature visual + spec-anchored gap scout across Harmon
 
 - **`--describe` ambiguity.** `spec_extract.py` resolves prose by intersecting tokens with registry `description` + `spec_anchors`. Empty intersection ⇒ `plan` exits `2` with closest candidates. > 8 matches ⇒ `plan` exits `2` listing them all; SKILL forwards.
 - **Spec excerpt extraction.** Slice by `##`-level headings; keep headings whose title or body mentions any registry stable id or page section title for that page. If nothing matches, write `<!-- no spec anchors matched -->` and let the agent reason from PNGs alone (recording "spec did not constrain this leaf").
-- **Concurrent `run` invocations.** Refused. `build-tmp/parity_scout/.lock` is acquired with a pid stamp; stale-pid locks are force-released.
+- **Concurrent `run` invocations.** Refused. `.parity_scout/.lock` is acquired with a pid stamp; stale-pid locks are force-released.
 - **`promote` re-run.** Appends a fresh dated section each time; prior sections are never edited. Duplicate sections are user-resolvable via `git diff`.
 - **Network.** None. All vision is local. All spec parsing is local.
 
