@@ -65,6 +65,12 @@ class AndroidScreenScreenshotTest {
     }
 
     @Test
+    fun captureConfigScreenOnly() {
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        capture("config-landscape.png")
+    }
+
+    @Test
     fun captureCoreParentAndDebugScreens() {
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
         capture("config-landscape.png")
