@@ -3,7 +3,7 @@ name: parity-scout
 description: Drives a per-feature visual + spec-anchored gap scout across HarmonyOS / iOS / Android using tools/parity_scout/. Use when asked to "find iOS / Android gaps vs HarmonyOS main", "check parity for <feature>", or "screenshot the three platforms and tell me what's different".
 ---
 
-Codex mirror: [`.codex/skills/parity-scout/SKILL.md`](../../../.codex/skills/parity-scout/SKILL.md) (keep both in sync when editing).
+Keep in sync with [`.cursor/skills/parity-scout/SKILL.md`](../../../.cursor/skills/parity-scout/SKILL.md) when editing the flow.
 
 # parity-scout
 
@@ -29,7 +29,7 @@ A user task that names a scope: a feature folder, a spec doc, an explicit page l
 4. **Pick.** Run `scout.py pick --run <id> --branches <user-selection>`. If the user picked any `blocked` leaf, **refuse to start `run`** and tell them to add the capture route first; offer to flip into an "add the route" subtask before resuming.
 5. **Per-leaf loop.** Run `scout.py run --run <id>` foreground, watched. For each `LEAF READY page=<id> dir=<path>` line emitted by the process:
    1. Read the staged `<path>/spec-excerpts.md`. If absent (e.g. `--scope overall` runs that bypass spec extraction), fall back to spec anchors from the registry entry and proceed without excerpts.
-   2. Read each `*.png` under `<path>/{harmony,ios,android}/` (Cursor agent vision).
+   2. Read each `*.png` under `<path>/{harmony,ios,android}/` (agent vision over images).
    3. Compare PNGs across platforms and against the spec excerpts. The spec excerpts narrow what counts as a gap; visual-only differences not anchored by the spec are downranked, not promoted.
    4. Append findings to `.parity_scout/<run-id>/findings.md` under a `## <page>` heading, with bullet lines tagged `[harmony|ios|android]` + a severity hint (`critical`, `notable`, `nit`).
    5. `touch <dir>/next.flag` to release `scout.py run` to the next leaf.
@@ -43,7 +43,7 @@ A user task that names a scope: a feature folder, a spec doc, an explicit page l
 
 ## Guards to invoke
 
-- **`safe-command-policy`** before every `scout.py` invocation.
+- **`safe-command-policy`** (under `.cursor/skills/safe-command-policy/`) before every `scout.py` invocation.
 - **`autoloop-guard`** on the per-leaf loop. If `LEAF READY` repeats without `findings.md` growth, abort.
 - **`harmony-emulator-manage`** (and the iOS / Android device preflight in their respective command manifests) when any selected leaf needs that platform's adapter.
 
@@ -62,9 +62,9 @@ A user task that names a scope: a feature folder, a spec doc, an explicit page l
 
 ## Sub-skills to invoke
 
-`safe-command-policy` · `autoloop-guard` · `harmony-emulator-manage`
+`safe-command-policy` · `autoloop-guard` · `harmony-emulator-manage` (paths under `.cursor/skills/` in this repo)
 
-iOS and Android device preflight pull from their respective command manifests, not dedicated sub-skills.
+iOS and Android device preflight pull from their respective command manifests (`.cursor/ios-dev-commands.md`, `.cursor/android-dev-commands.md`), not dedicated sub-skills.
 
 ## What this skill does NOT do
 
