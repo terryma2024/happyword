@@ -1,7 +1,10 @@
 """V0.5.5 → V0.7 — family-namespaced lesson photo import tests.
 
 Routes are under ``/api/v1/family/{family_id}/…``; tests use a fixed
-``fam-test-lessons`` segment (decorative until drafts are family-scoped).
+``fam-test-lessons`` segment. Drafts are stored with that ``family_id``;
+approve writes words into that family's auto-managed lesson-import
+:class:`~app.models.family_pack_definition.FamilyPackDefinition` and
+publishes a snapshot — **not** into global ``words`` / ``categories``.
 
 Behaviour contracts (LLM mocked):
 2. empty body → 400
@@ -11,10 +14,11 @@ Behaviour contracts (LLM mocked):
    exercises the LLM. (V0.7 split — see git log around this commit.)
 4. PATCH /api/v1/family/{family_id}/lesson-drafts/{id} updates `edited_extracted` (only
    meaningful once the cron has flipped the draft to "pending").
-5. POST approve creates a Category + upserts Words (skipping existing
-   ids); existing Word.category gets included in skipped_words.
-6. POST reject leaves DB untouched.
-7. publish after approve produces schema_v4 with categories[].
+5. POST approve upserts custom ids into the family's lesson-import pack and
+   publishes; skips rows that already exist in the draft with identical
+   spelling + meaning.
+6. POST reject leaves family packs and global words untouched.
+7. Import with family path ``_`` → HTTP 400 ``FAMILY_REQUIRED``.
 
 NOTE (V0.5.8): Auth was removed from these routers; the negative auth
 tests have been deleted. The remaining tests still send bearer tokens
@@ -28,10 +32,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from app.models.category import Category
+from app.models.family_pack_pointer import FamilyPackPointer
+from app.models.family_word_pack import FamilyWordPack
 from app.models.lesson_import_draft import LessonImportDraft
 from app.models.user import User, UserRole
-from app.models.word import Word
+from app.services import family_pack_service
 from app.services.auth_service import create_access_token, hash_password
 
 if TYPE_CHECKING:
@@ -128,6 +133,38 @@ async def _promote_to_pending(draft_id: str, payload: dict[str, object]) -> None
     draft.extract_attempts = 1
     draft.extract_last_attempted_at = datetime.now(tz=UTC)
     await draft.save()
+
+
+@pytest.mark.asyncio
+async def test_lesson_import_rejects_placeholder_family(
+    client: "AsyncClient", admin: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stub_blob_upload(monkeypatch)
+    _install_extractor_tripwire(monkeypatch)
+    resp = await client.post(
+        "/api/v1/family/_/lessons/import",
+        headers=_bearer(admin.username),
+        files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg" * 100), "image/jpeg")},
+    )
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"]["error"]["code"] == "FAMILY_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_lesson_draft_wrong_family_returns_404(
+    client: "AsyncClient", admin: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stub_blob_upload(monkeypatch)
+    _install_extractor_tripwire(monkeypatch)
+    headers = _bearer(admin.username)
+    create = await client.post(
+        "/api/v1/family/fam-test-lessons/lessons/import",
+        headers=headers,
+        files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
+    )
+    draft_id = create.json()["id"]
+    got = await client.get(f"/api/v1/family/fam-other/lesson-drafts/{draft_id}", headers=headers)
+    assert got.status_code == 404, got.text
 
 
 # ---------------------------------------------------------------------------
@@ -298,7 +335,7 @@ async def test_patch_lesson_draft_rejected_while_extracting(
 
 
 @pytest.mark.asyncio
-async def test_approve_creates_category_and_words(
+async def test_approve_writes_family_pack_not_global_words(
     client: "AsyncClient", admin: User, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _stub_blob_upload(monkeypatch)
@@ -312,68 +349,74 @@ async def test_approve_creates_category_and_words(
     draft_id = create.json()["id"]
     await _promote_to_pending(draft_id, _FIXED_EXTRACTED)
 
-    approve = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/approve", headers=headers)
+    approve = await client.post(
+        f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/approve", headers=headers
+    )
     assert approve.status_code == 200, approve.text
     body = approve.json()
     assert body["created_category"]["id"] == "school-supplies"
+    prefix = family_pack_service.CustomIdContract(family_id="fam-test-lessons").prefix
     created_ids = sorted(w["id"] for w in body["created_words"])
-    assert created_ids == [
-        "school-supplies-eraser",
-        "school-supplies-pencil",
-        "school-supplies-ruler",
-    ]
+    assert created_ids == sorted(
+        [
+            f"{prefix}pencil",
+            f"{prefix}eraser",
+            f"{prefix}ruler",
+        ]
+    )
     assert body["skipped_words"] == []
 
-    # Sanity: the Category and Words are in the DB now.
-    cat = await Category.find_one(Category.id == "school-supplies")
-    assert cat is not None
-    assert cat.source == "lesson-import"
-
-    pencil = await Word.find_one(Word.id == "school-supplies-pencil")
-    assert pencil is not None
-    assert pencil.category == "school-supplies"
+    definition = await family_pack_service.ensure_lesson_import_pack_definition(
+        family_id="fam-test-lessons"
+    )
+    pointer = await FamilyPackPointer.find_one(
+        FamilyPackPointer.pack_definition_id == definition.pack_id
+    )
+    assert pointer is not None
+    pack = await FamilyWordPack.find_one(
+        FamilyWordPack.pack_definition_id == definition.pack_id,
+        FamilyWordPack.version == pointer.current_version,
+    )
+    assert pack is not None
+    assert len(pack.words) == 3
 
 
 @pytest.mark.asyncio
-async def test_approve_skips_existing_word_ids(
+async def test_approve_second_pass_skips_duplicate_family_words(
     client: "AsyncClient", admin: User, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # An admin previously created `school-supplies-pencil`. Re-importing
-    # the same lesson should NOT clobber it.
-    now = datetime.now(tz=UTC)
-    await Word(
-        id="school-supplies-pencil",
-        word="pencil",
-        meaningZh="管理员手填的铅笔",
-        category="school-supplies",
-        difficulty=2,
-        created_at=now,
-        updated_at=now,
-    ).insert()
-
+    """Re-approving the same visible lesson snapshot skips identical custom rows."""
     _stub_blob_upload(monkeypatch)
     _install_extractor_tripwire(monkeypatch)
     headers = _bearer(admin.username)
-    create = await client.post(
+    create1 = await client.post(
         "/api/v1/family/fam-test-lessons/lessons/import",
         headers=headers,
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
-    draft_id = create.json()["id"]
-    await _promote_to_pending(draft_id, _FIXED_EXTRACTED)
-    approve = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/approve", headers=headers)
-    assert approve.status_code == 200
-    body = approve.json()
-    assert sorted(w["id"] for w in body["created_words"]) == [
-        "school-supplies-eraser",
-        "school-supplies-ruler",
-    ]
-    assert sorted(w["id"] for w in body["skipped_words"]) == ["school-supplies-pencil"]
+    draft_id1 = create1.json()["id"]
+    await _promote_to_pending(draft_id1, _FIXED_EXTRACTED)
+    first = await client.post(
+        f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id1}/approve", headers=headers
+    )
+    assert first.status_code == 200, first.text
 
-    pencil = await Word.find_one(Word.id == "school-supplies-pencil")
-    assert pencil is not None
-    assert pencil.meaningZh == "管理员手填的铅笔"
-    assert pencil.difficulty == 2
+    create2 = await client.post(
+        "/api/v1/family/fam-test-lessons/lessons/import",
+        headers=headers,
+        files={"image": ("p2.jpg", BytesIO(b"y" * 200), "image/jpeg")},
+    )
+    draft_id2 = create2.json()["id"]
+    await _promote_to_pending(draft_id2, _FIXED_EXTRACTED)
+    second = await client.post(
+        f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id2}/approve", headers=headers
+    )
+    assert second.status_code == 200, second.text
+    body = second.json()
+    assert body["created_words"] == []
+    assert sorted(w["id"] for w in body["skipped_words"]) == sorted(
+        w["id"] for w in first.json()["created_words"]
+    )
 
 
 @pytest.mark.asyncio
@@ -434,6 +477,9 @@ async def test_reject_leaves_db_untouched(
     rej = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/reject", headers=headers)
     assert rej.status_code == 200
     assert rej.json()["status"] == "rejected"
+
+    from app.models.category import Category  # noqa: PLC0415
+    from app.models.word import Word  # noqa: PLC0415
 
     cat = await Category.find_one(Category.id == "school-supplies")
     assert cat is None

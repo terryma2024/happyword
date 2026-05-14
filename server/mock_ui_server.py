@@ -288,6 +288,7 @@ def _fresh_draft(draft_id: str = FIXTURE_DRAFT_ID) -> dict[str, Any]:
     """
     return {
         "id": draft_id,
+        "family_id": _PAIR_FAMILY_ID,
         "source_image_url": "",
         "extracted": {
             "category_id": FIXTURE_DRAFT_CATEGORY_ID,
@@ -511,6 +512,18 @@ def create_app() -> FastAPI:
     # Admin: lesson drafts
     # ------------------------------------------------------------------
 
+    def _lesson_family_key(family_id: str) -> str:
+        """Map the parent-web placeholder ``_`` to the mock's paired family id.
+
+        Production FastAPI rejects ``_`` so imported words stay family-scoped;
+        the Harmony ohosTest harness still calls ``/family/_/…`` against this
+        mock, so we normalize here only.
+        """
+        fid = family_id.strip()
+        if fid in ("", "_"):
+            return _PAIR_FAMILY_ID
+        return fid
+
     @app.get("/api/v1/family/{family_id}/lesson-drafts")
     async def admin_list_drafts(
         family_id: str,
@@ -518,13 +531,17 @@ def create_app() -> FastAPI:
         page: int = 1,
         size: int = 20,
     ) -> dict[str, Any]:
-        _ = family_id
+        key = _lesson_family_key(family_id)
         # Mirror the prod contract in `app/routers/family_lessons.py`:
         # `page` is 1-indexed (`Query(1, ge=1)`) and the slice is
         # `(page - 1) * size`. Earlier the mock used 0-indexing, which
         # masked a real-server bug where the client passed `page=0` and
         # got HTTP 422 from the prod validator.
-        filtered = list(_drafts.values())
+        filtered = [
+            d
+            for d in _drafts.values()
+            if str(d.get("family_id", _PAIR_FAMILY_ID)) == key
+        ]
         if status is not None:
             filtered = [d for d in filtered if d["status"] == status]
         normalized_page = max(1, page)
@@ -540,9 +557,9 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/family/{family_id}/lesson-drafts/{draft_id}")
     async def admin_get_draft(family_id: str, draft_id: str) -> dict[str, Any]:
-        _ = family_id
+        key = _lesson_family_key(family_id)
         draft = _drafts.get(draft_id)
-        if draft is None:
+        if draft is None or str(draft.get("family_id", _PAIR_FAMILY_ID)) != key:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
         return draft
 
@@ -553,9 +570,9 @@ def create_app() -> FastAPI:
         draft_id: str,
         body: dict[str, Any],
     ) -> dict[str, Any]:
-        _ = family_id
+        key = _lesson_family_key(family_id)
         draft = _drafts.get(draft_id)
-        if draft is None:
+        if draft is None or str(draft.get("family_id", _PAIR_FAMILY_ID)) != key:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
         if draft["status"] != "pending":
             raise HTTPException(
@@ -573,9 +590,9 @@ def create_app() -> FastAPI:
 
     @app.post("/api/v1/family/{family_id}/lesson-drafts/{draft_id}/approve")
     async def admin_approve_draft(family_id: str, draft_id: str) -> dict[str, Any]:
-        _ = family_id
+        key = _lesson_family_key(family_id)
         draft = _drafts.get(draft_id)
-        if draft is None:
+        if draft is None or str(draft.get("family_id", _PAIR_FAMILY_ID)) != key:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
         if draft["status"] != "pending":
             raise HTTPException(
@@ -588,23 +605,27 @@ def create_app() -> FastAPI:
         kept_words = (
             (draft.get("edited_extracted") or draft["extracted"]).get("words") or []
         )
+        now = _now_iso()
         return {
             "created_category": {
                 "id": FIXTURE_DRAFT_CATEGORY_ID,
-                "name_en": "Mock Lesson",
-                "name_zh": "模拟课文",
-                "created_at": _now_iso(),
-                "deleted_at": None,
+                "label_en": "Mock Lesson",
+                "label_zh": "模拟课文",
+                "story_zh": None,
+                "source_image_url": draft.get("source_image_url"),
+                "source": "lesson-import",
+                "created_at": now,
+                "updated_at": now,
             },
-            "created_words": [{"word": w["word"]} for w in kept_words],
+            "created_words": [{"id": f"fam-mock-{w['word']}", "word": w["word"]} for w in kept_words],
             "skipped_words": [],
         }
 
     @app.post("/api/v1/family/{family_id}/lesson-drafts/{draft_id}/reject")
     async def admin_reject_draft(family_id: str, draft_id: str) -> dict[str, Any]:
-        _ = family_id
+        key = _lesson_family_key(family_id)
         draft = _drafts.get(draft_id)
-        if draft is None:
+        if draft is None or str(draft.get("family_id", _PAIR_FAMILY_ID)) != key:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
         if draft["status"] != "pending":
             raise HTTPException(
@@ -625,7 +646,7 @@ def create_app() -> FastAPI:
         family_id: str,
         image: UploadFile = File(...),
     ) -> JSONResponse:
-        _ = family_id
+        key = _lesson_family_key(family_id)
         # Drain the upload so the client side completes its multipart
         # write before we respond. We don't persist the bytes — the
         # purpose is just to keep the wire-protocol contract identical
@@ -633,6 +654,7 @@ def create_app() -> FastAPI:
         _ = await image.read()
         new_id = f"ui-mock-draft-{len(_drafts) + 1:03d}"
         draft = _fresh_draft(new_id)
+        draft["family_id"] = key
         _drafts[new_id] = draft
         return JSONResponse(status_code=201, content=draft)
 

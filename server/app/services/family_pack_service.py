@@ -21,11 +21,11 @@ if TYPE_CHECKING:
 from beanie.odm.enums import SortDirection
 
 from app.config import get_settings
-from app.services import pack_service
 from app.models.family_pack_definition import FamilyPackDefinition, FamilyPackState
 from app.models.family_pack_draft import FamilyPackDraft
 from app.models.family_pack_pointer import FamilyPackPointer
 from app.models.family_word_pack import FamilyWordPack
+from app.services import pack_service
 
 GLOBAL_PACK_SCHEMA_VERSION: int = 5
 
@@ -33,6 +33,35 @@ GLOBAL_PACK_SCHEMA_VERSION: int = 5
 # Real Family.id values are 24-char ObjectId hex strings, so the
 # underscore-padded literal cannot collide. See spec §5.3 + §11.
 GLOBAL_PACK_FAMILY_ID: str = "__global__"
+
+# Synthetic parent user id for automated lesson-import approvals (native path).
+LESSON_IMPORT_SYSTEM_PARENT_ID = "lesson-import"
+
+
+def lesson_import_pack_id(family_id: str) -> str:
+    """Stable pack_id for the per-family auto-managed lesson-import pack."""
+    fid = family_id.strip()
+    digest = hashlib.sha256(f"lesson-import|{fid}".encode()).hexdigest()[:10]
+    return f"pck-{digest}-li"
+
+
+async def ensure_lesson_import_pack_definition(*, family_id: str) -> FamilyPackDefinition:
+    """Return the singleton lesson-import pack for ``family_id``, creating it if needed."""
+    fid = family_id.strip()
+    pack_id = lesson_import_pack_id(fid)
+    existing = await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == pack_id,
+        FamilyPackDefinition.family_id == fid,
+    )
+    if existing is not None:
+        return existing
+    return await create_definition(
+        family_id=fid,
+        name="Lesson imports",
+        description="Words from approved textbook photo imports (auto-managed).",
+        parent_user_id=LESSON_IMPORT_SYSTEM_PARENT_ID,
+        pack_id=pack_id,
+    )
 
 
 class FamilyPackError(Exception):

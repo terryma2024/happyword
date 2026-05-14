@@ -1,6 +1,6 @@
 """Lesson photo import service (V0.5.5).
 
-Three responsibilities:
+Responsibilities:
 
 1. Persist the raw uploaded image somewhere stable (Vercel Blob in
    production, a stub URL when ``BLOB_READ_WRITE_TOKEN`` is unset). The
@@ -10,16 +10,14 @@ Three responsibilities:
    words[]}`` from the uploaded image via OpenAI vision. The function
    :func:`extract_lesson_payload` is the boundary tests own (they
    monkeypatch it to return a fixed dict).
-3. Approve a draft → create the Category + batch-upsert the Words,
-   skipping any whose ids already exist (so admin-edited rows survive).
+3. Approval is implemented in :mod:`app.services.family_pack_import_service`
+   — words are written only into that family's lesson-import pack (see
+   :func:`family_pack_service.ensure_lesson_import_pack_definition`).
 """
 
-from datetime import UTC, datetime
 from typing import Any
 
-from app.models.category import Category
 from app.models.lesson_import_draft import LessonImportDraft
-from app.models.word import Word
 from app.services import llm_service
 from app.services.llm_service import LlmCallError, LlmConfigError
 
@@ -196,12 +194,12 @@ async def extract_lesson_payload(image_bytes: bytes, mime: str) -> tuple[str, di
 # --------------------------------------------------------------------------
 
 
-def _effective_extracted(draft: LessonImportDraft) -> dict[str, Any]:
+def effective_lesson_extracted(draft: LessonImportDraft) -> dict[str, Any]:
     """Return the admin-edited payload if present, else the raw extraction.
 
     V0.7: `draft.extracted` is `dict | None` while a draft is in
-    `extracting` / `extract_failed`. The approval flow is gated on
-    `_ensure_pending`, so by the time we get here `extracted` is
+    `extracting` / `extract_failed`. The approval flow is gated in the router
+    on ``status == "pending"``, so by the time we get here `extracted` is
     always populated; the assertion guards against future callers
     wiring this up to a non-pending draft and getting a confusing
     `None.get(...)` error inside the upsert loop.
@@ -210,89 +208,9 @@ def _effective_extracted(draft: LessonImportDraft) -> dict[str, Any]:
         return draft.edited_extracted
     if draft.extracted is None:
         msg = (
-            f"approve_lesson_draft called on draft {draft.id} with "
+            f"effective_lesson_extracted called on draft {draft.id} with "
             f"status={draft.status!r} but no extracted payload — this "
             f"is a programmer error; only pending drafts are approvable."
         )
         raise RuntimeError(msg)
     return draft.extracted
-
-
-async def approve_lesson_draft(draft: LessonImportDraft, *, reviewer: str) -> dict[str, Any]:
-    """Apply ``draft`` to the DB:
-
-      * upsert the Category (creating if missing, updating story / labels
-        if it already exists),
-      * for each word in `extracted.words[]`, insert a new Word row
-        unless one with the same id already exists; skip on conflict.
-
-    Returns a structured ``approval_summary`` containing the touched
-    Category and lists of created / skipped words. The caller is
-    responsible for persisting the summary onto the draft.
-    """
-    payload = _effective_extracted(draft)
-    cat_id = str(payload["category_id"]).strip().lower()
-    label_en = str(payload.get("label_en", cat_id))
-    label_zh = str(payload.get("label_zh", cat_id))
-    story_zh = payload.get("story_zh")
-    words: list[dict[str, Any]] = list(payload.get("words", []))
-
-    now = datetime.now(tz=UTC)
-    cat = await Category.find_one(Category.id == cat_id)
-    if cat is None:
-        cat = Category(
-            id=cat_id,
-            label_en=label_en,
-            label_zh=label_zh,
-            story_zh=story_zh,
-            source_image_url=draft.source_image_url,
-            source="lesson-import",
-            created_at=now,
-            updated_at=now,
-        )
-        await cat.insert()
-    else:
-        # Touch story_zh / labels only — never flip a manual category to
-        # lesson-import (that would erase the audit trail).
-        cat.label_en = label_en
-        cat.label_zh = label_zh
-        if story_zh:
-            cat.story_zh = story_zh
-        cat.updated_at = now
-        await cat.save()
-
-    created: list[dict[str, Any]] = []
-    skipped: list[dict[str, Any]] = []
-    for w in words:
-        word_text = str(w["word"]).strip().lower()
-        word_id = f"{cat_id}-{word_text}"
-        existing = await Word.find_one(Word.id == word_id)
-        if existing is not None:
-            skipped.append({"id": word_id, "word": word_text, "reason": "DUPLICATE_ID"})
-            continue
-        await Word(
-            id=word_id,
-            word=word_text,
-            meaningZh=str(w.get("meaningZh", "")),
-            category=cat_id,
-            difficulty=int(w.get("difficulty", 1)),
-            created_at=now,
-            updated_at=now,
-        ).insert()
-        created.append({"id": word_id, "word": word_text})
-
-    return {
-        "category": {
-            "id": cat.id,
-            "label_en": cat.label_en,
-            "label_zh": cat.label_zh,
-            "story_zh": cat.story_zh,
-            "source_image_url": cat.source_image_url,
-            "source": cat.source,
-            "created_at": cat.created_at,
-            "updated_at": cat.updated_at,
-        },
-        "created_words": created,
-        "skipped_words": skipped,
-        "reviewer": reviewer,
-    }

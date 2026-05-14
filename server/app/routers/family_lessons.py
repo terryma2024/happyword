@@ -1,13 +1,10 @@
 """Family-scoped lesson photo import endpoints (V0.5.5 import; V0.7 async extract).
 
 These routes live under ``/api/v1/family/{family_id}/...`` per the v0.6.5+ URL
-convention. The ``family_id`` segment is **decorative** for now (same as other
-family routers): handlers do not filter drafts by family yet. Native clients
-should pass the real ``fam-…`` id when the device is bound, and ``_`` when it
-is not (mirrors the parent web shell ``/family/_/…`` placeholder).
-
-V0.5.8 removed admin JWT from the legacy admin paths; behaviour is unchanged
-aside from the path prefix.
+convention. Drafts store ``family_id`` from the path; list/get/patch/approve
+only operate on drafts belonging to that family. The path segment must be a
+**real** family id (not ``_``) so imported vocabulary can be written exclusively
+into that family's lesson-import pack (see ``family_pack_import_service``).
 
 V0.7 splits upload (fast) from OpenAI vision extraction (cron); see
 ``app.routers.admin_cron``.
@@ -25,7 +22,11 @@ from app.schemas.admin_lesson import (
     LessonDraftOut,
     LessonDraftPatchIn,
 )
-from app.services import lesson_service
+from app.services import family_pack_service, lesson_service
+from app.services.family_pack_import_service import (
+    LessonFamilyApproveError,
+    approve_lesson_draft_for_family,
+)
 
 router = APIRouter(prefix="/api/v1/family/{family_id}", tags=["family-lessons"])
 
@@ -38,6 +39,21 @@ def _err(http_status: int, code: str, message: str) -> HTTPException:
     return HTTPException(
         status_code=http_status, detail={"error": {"code": code, "message": message}}
     )
+
+
+def _normalize_family_scope(family_id: str) -> str:
+    return family_id.strip()
+
+
+def _require_bound_family(family_id: str) -> str:
+    fid = _normalize_family_scope(family_id)
+    if fid in ("", "_"):
+        raise _err(
+            status.HTTP_400_BAD_REQUEST,
+            "FAMILY_REQUIRED",
+            "Lesson import requires a bound family id; the path placeholder '_' is not allowed.",
+        )
+    return fid
 
 
 def _to_out(d: LessonImportDraft) -> LessonDraftOut:
@@ -69,7 +85,7 @@ async def import_lesson(
     family_id: str,
     image: UploadFile = File(..., description="Textbook page photo (JPEG/PNG/WebP)."),
 ) -> LessonDraftOut:
-    _ = family_id
+    fid = _require_bound_family(family_id)
     mime = (image.content_type or "").lower()
     if mime not in _ACCEPTED_MIME:
         raise _err(
@@ -93,6 +109,7 @@ async def import_lesson(
 
     blob_url = await lesson_service.upload_lesson_image(payload, mime)
     draft = LessonImportDraft(
+        family_id=fid,
         source_image_url=blob_url,
         extracted=None,
         status="extracting",
@@ -110,8 +127,8 @@ async def list_lesson_drafts(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
 ) -> LessonDraftListOut:
-    _ = family_id
-    query: dict[str, object] = {}
+    fid = _require_bound_family(family_id)
+    query: dict[str, object] = {"family_id": fid}
     if status not in (None, "all"):
         query["status"] = status
     find = LessonImportDraft.find(query)
@@ -125,7 +142,7 @@ async def list_lesson_drafts(
     )
 
 
-async def _load_draft(draft_id: str) -> LessonImportDraft:
+async def _load_draft_by_id(draft_id: str) -> LessonImportDraft:
     from beanie import PydanticObjectId  # noqa: PLC0415
 
     try:
@@ -146,10 +163,21 @@ async def _load_draft(draft_id: str) -> LessonImportDraft:
     return d
 
 
+async def _load_draft_for_family(draft_id: str, family_id: str) -> LessonImportDraft:
+    fid = _require_bound_family(family_id)
+    d = await _load_draft_by_id(draft_id)
+    if d.family_id.strip() != fid:
+        raise _err(
+            status.HTTP_404_NOT_FOUND,
+            "DRAFT_NOT_FOUND",
+            f"No lesson draft with id={draft_id!r}",
+        )
+    return d
+
+
 @router.get("/lesson-drafts/{draft_id}", response_model=LessonDraftOut)
 async def get_lesson_draft(family_id: str, draft_id: str) -> LessonDraftOut:
-    _ = family_id
-    return _to_out(await _load_draft(draft_id))
+    return _to_out(await _load_draft_for_family(draft_id, family_id))
 
 
 def _ensure_pending(draft: LessonImportDraft) -> None:
@@ -168,8 +196,7 @@ async def patch_lesson_draft(
     draft_id: str,
     body: LessonDraftPatchIn,
 ) -> LessonDraftOut:
-    _ = family_id
-    draft = await _load_draft(draft_id)
+    draft = await _load_draft_for_family(draft_id, family_id)
     _ensure_pending(draft)
     draft.edited_extracted = body.edited_extracted
     await draft.save()
@@ -178,11 +205,33 @@ async def patch_lesson_draft(
 
 @router.post("/lesson-drafts/{draft_id}/approve", response_model=LessonApproveOut)
 async def approve_lesson(family_id: str, draft_id: str) -> LessonApproveOut:
-    _ = family_id
-    draft = await _load_draft(draft_id)
+    draft = await _load_draft_for_family(draft_id, family_id)
     _ensure_pending(draft)
 
-    summary = await lesson_service.approve_lesson_draft(draft, reviewer="parent")
+    try:
+        summary = await approve_lesson_draft_for_family(
+            draft=draft,
+            family_id=family_id,
+            reviewer="parent",
+        )
+    except family_pack_service.PackFull as exc:
+        raise _err(
+            status.HTTP_409_CONFLICT,
+            "PACK_FULL",
+            str(exc),
+        ) from exc
+    except LessonFamilyApproveError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": {
+                    "code": "LESSON_APPROVE_INVALID",
+                    "message": str(exc),
+                    "errors": exc.errors,
+                }
+            },
+        ) from exc
+
     draft.status = "approved"
     draft.reviewed_at = datetime.now(tz=UTC)
     draft.reviewer = "parent"
@@ -208,8 +257,7 @@ async def approve_lesson(family_id: str, draft_id: str) -> LessonApproveOut:
 
 @router.post("/lesson-drafts/{draft_id}/reject", response_model=LessonDraftOut)
 async def reject_lesson(family_id: str, draft_id: str) -> LessonDraftOut:
-    _ = family_id
-    draft = await _load_draft(draft_id)
+    draft = await _load_draft_for_family(draft_id, family_id)
     _ensure_pending(draft)
     draft.status = "rejected"
     draft.reviewed_at = datetime.now(tz=UTC)

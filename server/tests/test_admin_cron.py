@@ -109,6 +109,7 @@ def _stub_blob_fetch(
 
 async def _seed_extracting_draft(*, attempts: int = 0) -> LessonImportDraft:
     draft = LessonImportDraft(
+        family_id="fam-cron-seed",
         source_image_url="stub://lessons/cron.jpg",
         extracted=None,
         status="extracting",
@@ -320,6 +321,7 @@ async def test_cron_extract_picks_never_attempted_first(
     _stub_extractor_returns(monkeypatch, _FIXED_EXTRACTED)
 
     older_with_attempts = LessonImportDraft(
+        family_id="fam-cron-fifo",
         source_image_url="stub://lessons/cron.jpg",
         extracted=None,
         status="extracting",
@@ -329,6 +331,7 @@ async def test_cron_extract_picks_never_attempted_first(
     )
     await older_with_attempts.insert()
     fresh = LessonImportDraft(
+        family_id="fam-cron-fifo",
         source_image_url="stub://lessons/cron.jpg",
         extracted=None,
         status="extracting",

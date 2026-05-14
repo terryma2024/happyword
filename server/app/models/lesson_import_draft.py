@@ -47,6 +47,9 @@ LessonDraftStatus = Literal[
 
 
 class LessonImportDraft(Document):
+    # Bound when created via POST .../family/{family_id}/lessons/import.
+    # Approve/list/patch only operate on drafts whose family_id matches the path.
+    family_id: Annotated[str, Indexed()] = ""
     source_image_url: str
     # `extracted` is None while status=="extracting" (no LLM call yet)
     # and while status=="extract_failed" (the LLM never produced a
