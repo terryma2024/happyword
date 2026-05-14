@@ -110,12 +110,8 @@ export default function testsuite() {
   // full PIN → GiftBox → history flow is unit-tested.
   wishlistFlowUiTest();
   // V0.4.7: parent-created custom wishlist entries. Runs after the
-  // built-in wishlistFlowUiTest because the second test in this
-  // suite re-commits the parent PIN — we don't want PIN setup
-  // bleed-over interfering with WishlistFlow's
-  // applyWithoutPinPromptsParentPinSetupHint case (which assumes
-  // the cheapest wish either has WishApply or WishGap, not a
-  // mid-PIN-entry side-effect).
+  // built-in wishlistFlowUiTest. `ensureParentPin` seeds mock binding
+  // when needed so ConfigParentPinButton is visible (V0.6.8).
   customWishlistFlowUiTest();
   configFlowUiTest();
   // V0.6.7: the manual `词库同步` row was removed from ConfigPage —

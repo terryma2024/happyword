@@ -24,6 +24,7 @@ import { BindingApiClient } from '../services/BindingApiClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { ensureCloudSyncInstalled } from '../services/CloudSyncInstaller';
+import { PageTopChrome } from '../components/PageTopChrome';
 
 class RealScanKitScanner implements BarcodeScannerLike {
   private ctx: common.UIAbilityContext;
@@ -80,6 +81,8 @@ struct ScanBindingPage {
    * on its initial false value forever and clicks become silent no-ops.
    */
   @State private serviceReady: boolean = false;
+  /** After first successful bind, auto-open parent PIN setup once. */
+  @State private pinSetupNavigated: boolean = false;
 
   private service?: DeviceBindingService;
   private galleryPicker?: IPhotoPickerAdapter;
@@ -124,6 +127,7 @@ struct ScanBindingPage {
             ensureCloudSyncInstalled(ctx).catch((err: BusinessError): void => {
               console.error(`ScanBindingPage.ensureCloudSyncInstalled failed: ${JSON.stringify(err)}`);
             });
+            this.scheduleParentPinSetupIfNeeded();
           }
           if (u.reason !== undefined) {
             this.failureReason = u.reason as string;
@@ -137,6 +141,23 @@ struct ScanBindingPage {
         console.error(`ScanBindingPage.bootstrap failed: ${JSON.stringify(err)}`);
         this.serviceReady = false;
       });
+  }
+
+  /**
+   * Binding success routes to ParentPinSetupPage so the parent sets a PIN
+   * before dismissing back to this page's success summary.
+   */
+  private scheduleParentPinSetupIfNeeded(): void {
+    if (this.pinSetupNavigated) {
+      return;
+    }
+    this.pinSetupNavigated = true;
+    const router = this.getUIContext().getRouter();
+    setTimeout((): void => {
+      router.pushUrl({ url: 'pages/ParentPinSetupPage' }).catch((err: BusinessError): void => {
+        console.error(`ScanBindingPage.scheduleParentPinSetupIfNeeded: ${JSON.stringify(err)}`);
+      });
+    }, 0);
   }
 
   // Note: using a method (not a TS getter) because ArkUI's `@Entry`/
@@ -214,19 +235,14 @@ struct ScanBindingPage {
 
   build() {
     Column() {
-      Row() {
-        Text('扫码绑定家长账号')
-          .id('ScanBindingTitle')
-          .fontSize(20).fontWeight(FontWeight.Bold).fontColor('#1f2937')
-        Blank()
-        Button('返回')
-          .id('ScanBindingTopBack')
-          .fontSize(14).backgroundColor('#e2e8f0').fontColor('#1f2937')
-          .onClick((): void => {
-            this.getUIContext().getRouter().back();
-          })
-      }
-      .width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
+      PageTopChrome({
+        backButtonId: 'ScanBindingTopBack',
+        title: '扫码绑定家长账号',
+        titleId: 'ScanBindingTitle',
+        onBack: (): void => {
+          this.getUIContext().getRouter().back();
+        },
+      })
 
       if (this.state === 'bound') {
         Column() {

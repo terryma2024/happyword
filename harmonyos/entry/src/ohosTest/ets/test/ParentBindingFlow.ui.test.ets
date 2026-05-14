@@ -446,6 +446,10 @@ export default function parentBindingFlowUiTest(): void {
         await driver.findComponent(ON.id('ConfigCloudSyncButton'));
       expect(cloudSync === null).assertTrue();
 
+      const pinRow: Component | null =
+        await driver.findComponent(ON.id('ConfigParentPinButton'));
+      expect(pinRow === null).assertTrue();
+
       await exitConfigPage(driver);
       done();
     });
@@ -557,7 +561,28 @@ export default function parentBindingFlowUiTest(): void {
       await driver.delayMs(600);
 
       await clickByIdShared(driver, 'ScanBindingManualSubmit');
-      // Wait for redeem round-trip + state flip — poll for success.
+      // Bound state auto-opens ParentPinSetupPage once; dismiss with Cancel
+      // so the success panel on ScanBindingPage is reachable for the
+      // remainder of this flow (matches post-bind PIN prompt UX).
+      let keypad: Component | null = null;
+      for (let i: number = 0; i < 20; i++) {
+        keypad = await driver.findComponent(ON.id('ParentPinSetupKey_1'));
+        if (keypad !== null) {
+          break;
+        }
+        const successEarly: Component | null =
+          await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
+        if (successEarly !== null) {
+          keypad = null;
+          break;
+        }
+        await driver.delayMs(400);
+      }
+      if (keypad !== null) {
+        await clickByIdShared(driver, 'ParentPinSetupCancel');
+        await driver.delayMs(800);
+      }
+
       let foundSuccess: boolean = false;
       for (let i: number = 0; i < 16; i++) {
         const c: Component | null =

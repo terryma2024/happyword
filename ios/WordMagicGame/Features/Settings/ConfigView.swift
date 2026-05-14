@@ -14,43 +14,51 @@ struct ConfigView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                Text("游戏设置")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .accessibilityIdentifier("ConfigTitle")
+        VStack(spacing: 0) {
+            configTopBar
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
+            ScrollView {
+                VStack(spacing: 18) {
+                    Text("游戏配置")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .accessibilityIdentifier("ConfigTitle")
 
-                settingStepper("玩家血量", value: $draft.playerMaxHp, range: GameConfig.hpRange)
-                settingStepper("怪物血量", value: $draft.monsterMaxHp, range: GameConfig.hpRange)
-                settingStepper("怪物数量", value: $draft.monstersTotal, range: GameConfig.monsterCountRange)
+                    settingStepper("玩家血量", value: $draft.playerMaxHp, range: GameConfig.hpRange)
+                    settingStepper("怪物血量", value: $draft.monsterMaxHp, range: GameConfig.hpRange)
+                    settingStepper("怪物数量", value: $draft.monstersTotal, range: GameConfig.monsterCountRange)
 
-                timerRow
-                autoSpeakRow
-                questionTypeSection
-                packPickerSection
-                parentPinRow
-                parentAccountSection
-                cloudSyncSection
-                adminRow
+                    timerRow
+                    autoSpeakRow
+                    questionTypeSection
+                    packPickerSection
 
-                HStack(spacing: 16) {
-                    Button("取消") { coordinator.route = .home }
-                        .buttonStyle(.bordered)
-                        .frame(minWidth: 160, minHeight: 48)
-                        .accessibilityIdentifier("ConfigCancelButton")
-                    Button("保存") { coordinator.saveConfig(draft) }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color(red: 0.18, green: 0.8, blue: 0.44))
-                        .frame(minWidth: 160, minHeight: 48)
-                        .accessibilityIdentifier("ConfigSaveButton")
+                    Text("家长配置")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 8)
+                        .accessibilityIdentifier("ConfigSectionParentTitle")
+
+                    parentAccountSection
+                    if coordinator.cloudCredentialsStore.credentials != nil {
+                        parentPinRow
+                    }
+                    cloudSyncSection
+                    if coordinator.cloudCredentialsStore.credentials != nil,
+                       coordinator.configStore.config.parentPin.count == 6
+                    {
+                        adminRow
+                    }
                 }
-                .padding(.top, 8)
+                .padding(.horizontal, 40)
+                .padding(.vertical, 22)
             }
-            .padding(.horizontal, 40)
-            .padding(.vertical, 22)
         }
         .background(Color.white)
+        .onChange(of: draft) { _, new in
+            coordinator.saveConfig(new)
+        }
         .sheet(isPresented: $showCustomTimerSheet) {
             customTimerSheetContent
         }
@@ -58,6 +66,24 @@ struct ConfigView: View {
             draft = coordinator.configStore.config
             questionTypeHint = ""
         }
+    }
+
+    private var configTopBar: some View {
+        HStack {
+            Button {
+                coordinator.route = .home
+            } label: {
+                Text("‹")
+                    .font(.system(size: 24, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color(red: 0.11, green: 0.21, blue: 0.34))
+                    .frame(width: 40, height: 40)
+                    .background(AppTheme.paleBlue, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("ConfigBackButton")
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var timerRow: some View {
@@ -182,6 +208,7 @@ struct ConfigView: View {
         draft.startingSeconds = v.seconds
         customTimerError = ""
         showCustomTimerSheet = false
+        coordinator.saveConfig(draft)
     }
 
     private func timerChoiceButton(_ seconds: Int) -> some View {
@@ -374,7 +401,7 @@ struct ConfigView: View {
 
     private var parentAccountSection: some View {
         HStack(spacing: 12) {
-            Text("家长账户")
+            Text("家长账号")
                 .font(.title2.weight(.bold))
                 .frame(width: 120, alignment: .trailing)
             if let credentials = coordinator.cloudCredentialsStore.credentials {

@@ -31,6 +31,7 @@ import {
   ImageCompressionError,
   RealImageCompressor,
 } from '../services/ImageCompressor';
+import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
  * ParentAdminPage — V0.5.8.
@@ -357,24 +358,14 @@ struct ParentAdminPage {
   build(): void {
     Scroll() {
       Column({ space: 16 }) {
-        Row() {
-          Button('返回')
-            .id('ParentAdminBack')
-            .width(80)
-            .height(36)
-            .fontSize(14)
-            .backgroundColor('#EAF2F8')
-            .fontColor('#457B9D')
-            .onClick((): void => this.back());
-          Blank();
-          Text('家长管理后台')
-            .id('ParentAdminTitle')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold);
-          Blank();
-          Text('').width(80);
-        }
-        .width('100%');
+        PageTopChrome({
+          backButtonId: 'ParentAdminBack',
+          title: '家长管理后台',
+          titleId: 'ParentAdminTitle',
+          onBack: (): void => {
+            this.back();
+          },
+        })
 
         Text(`服务器: ${this.serverBaseUrl}`)
           .id('ParentAdminServerLabel')
