@@ -1,8 +1,10 @@
 import json
 import threading
 import time
+from pathlib import Path
 
 from parity_scout.adapters import AdapterResult
+from parity_scout.registry import load_registry
 from parity_scout.runner import Runner
 
 
@@ -121,3 +123,90 @@ def test_run_failed_adapter_still_emits_leaf_ready(tmp_path):
 
     assert "LEAF_READY" in events
     assert (run_dir / "home" / "ios" / "CAPTURE_FAILED.txt").is_file()
+
+
+def test_runner_writes_spec_excerpts_when_provided(tmp_path, fixtures_dir):
+    run_dir = tmp_path / "r3"
+    run_dir.mkdir()
+    spec_path = fixtures_dir / "specs" / "wishlist_design.md"
+    plan = {
+        "run_id": "r3",
+        "scope": {"kind": "spec", "value": str(spec_path)},
+        "leaves": [
+            {
+                "page_id": "home",
+                "harmony": {"status": "ok", "route": "home"},
+                "ios": {"status": "ok", "route": "home"},
+                "android": {"status": "feature_absent"},
+            }
+        ],
+    }
+    (run_dir / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+    (run_dir / "picked.json").write_text(
+        json.dumps({"branches": ["home"]}), encoding="utf-8"
+    )
+
+    adapters = {
+        "harmony": _FakeAdapter("harmony"),
+        "ios": _FakeAdapter("ios"),
+        "android": _FakeAdapter("android"),
+    }
+    capture_specs = {
+        "home": {
+            "harmony": {"step": "home"},
+            "ios": {"output_basename": "home"},
+            "android": {"case": "home"},
+        }
+    }
+    reg = load_registry(fixtures_dir / "registry_minimal.yml")
+    runner = Runner(
+        run_dir,
+        adapters,
+        capture_specs,
+        leaf_timeout=5,
+        spec_path=Path(plan["scope"]["value"]),
+        registry=reg,
+    )
+    _drain(runner, run_dir)
+
+    excerpts = (run_dir / "home" / "spec-excerpts.md").read_text(encoding="utf-8")
+    assert "User flows" in excerpts
+    assert "HomeStartButton" in excerpts
+
+
+def test_runner_writes_placeholder_when_no_spec(tmp_path):
+    run_dir = tmp_path / "r4"
+    run_dir.mkdir()
+    plan = {
+        "run_id": "r4",
+        "scope": {"kind": "pages", "value": "home"},
+        "leaves": [
+            {
+                "page_id": "home",
+                "harmony": {"status": "ok", "route": "home"},
+                "ios": {"status": "ok", "route": "home"},
+                "android": {"status": "ok", "route": "home"},
+            }
+        ],
+    }
+    (run_dir / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+    (run_dir / "picked.json").write_text(
+        json.dumps({"branches": ["home"]}), encoding="utf-8"
+    )
+    adapters = {
+        "harmony": _FakeAdapter("harmony"),
+        "ios": _FakeAdapter("ios"),
+        "android": _FakeAdapter("android"),
+    }
+    capture_specs = {
+        "home": {
+            "harmony": {"step": "home"},
+            "ios": {"output_basename": "home"},
+            "android": {"case": "home"},
+        }
+    }
+    runner = Runner(run_dir, adapters, capture_specs, leaf_timeout=5)
+    _drain(runner, run_dir)
+
+    body = (run_dir / "home" / "spec-excerpts.md").read_text(encoding="utf-8")
+    assert "no spec scope provided" in body
