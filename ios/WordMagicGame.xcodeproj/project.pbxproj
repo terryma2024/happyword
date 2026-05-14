@@ -11,6 +11,7 @@
 		02807A455A26A592F5A50824 /* ParentLessonAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 055A58C7A27B41F82685F51B /* ParentLessonAPITests.swift */; };
 		030EFE16BBEEDAB01CC37A16 /* BattleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9983A8C2B2B01829EC9597FF /* BattleEngineTests.swift */; };
 		03E9C1A592065ACCA85467EA /* BattleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD73245074A18477196A675 /* BattleEngine.swift */; };
+		05BC6D224C27760A1DAD2210 /* DeviceBindingQRSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAEB370D2B26B2384DF6720 /* DeviceBindingQRSupport.swift */; };
 		0A5527873875D5DF44DFC7FF /* Learning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9608B2C630968DC71F5D8092 /* Learning.swift */; };
 		0D92C5BC2268F1E0D62A4CA9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3D73555B610C471DEB23E99 /* AppDelegate.swift */; };
 		0F85857104D068CD0348FD23 /* PackLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FAA4BEA60462EF5E008000A /* PackLibrary.swift */; };
@@ -124,6 +125,7 @@
 		A34FBB768E5B1541E82EB7BF /* ParentAdminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentAdminView.swift; sourceTree = "<group>"; };
 		A75E239F17ECE5B0C5B1CF48 /* CloudBindingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBindingViews.swift; sourceTree = "<group>"; };
 		A77053ADBABC5E1EEED849EA /* LessonDraftReviewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDraftReviewStore.swift; sourceTree = "<group>"; };
+		AAAEB370D2B26B2384DF6720 /* DeviceBindingQRSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceBindingQRSupport.swift; sourceTree = "<group>"; };
 		B07C00999FA9E98A1DB8AA43 /* MonsterCodex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodex.swift; sourceTree = "<group>"; };
 		B8B82B38DA43BA9443CC2B54 /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
 		B9404434663A9314B7DFB316 /* animal-safari.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "animal-safari.json"; sourceTree = "<group>"; };
@@ -208,6 +210,7 @@
 				8BC72BF2F14325B68BCB749C /* ChildProfileView.swift */,
 				A75E239F17ECE5B0C5B1CF48 /* CloudBindingViews.swift */,
 				B8B82B38DA43BA9443CC2B54 /* ConfigView.swift */,
+				AAAEB370D2B26B2384DF6720 /* DeviceBindingQRSupport.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -492,6 +495,7 @@
 				443F20D68ED6417108718DFF /* CloudSyncServices.swift in Sources */,
 				E7276A8FCD0B214B97D93205 /* ConfigView.swift in Sources */,
 				9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */,
+				05BC6D224C27760A1DAD2210 /* DeviceBindingQRSupport.swift in Sources */,
 				C8ED1F2015EB743E6EED5556 /* GameConfig.swift in Sources */,
 				5977BDCF4C1E492668878C0A /* GrowthLoopViews.swift in Sources */,
 				B3973A93F0C154C9CC3C2E09 /* HomeView.swift in Sources */,

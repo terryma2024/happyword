@@ -1,84 +1,262 @@
+import PhotosUI
 import SwiftUI
+import VisionKit
 
 struct ScanBindingView: View {
     @ObservedObject var coordinator: AppCoordinator
     @State private var shortCode = ""
+    @State private var showManualSheet = false
+    @State private var showScanner = false
+    @State private var photoPickerItem: PhotosPickerItem?
+    @State private var isDecodingGalleryQR = false
+    @State private var galleryHint = ""
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Button("返回") { coordinator.route = .config }
+        ScrollView {
+            VStack(spacing: 18) {
+                header
+
+                Text("请扫描家长端「添加设备」页面显示的二维码")
                     .font(.headline.weight(.bold))
-                Spacer()
-                Text("绑定家长账号")
-                    .font(.system(size: 32, weight: .heavy, design: .rounded))
-                    .foregroundStyle(AppTheme.navy)
-                Spacer()
-                Color.clear.frame(width: 48, height: 1)
-            }
-
-            HStack(spacing: 28) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("家长端短码")
-                        .font(.system(size: 28, weight: .heavy, design: .rounded))
-                        .foregroundStyle(AppTheme.navy)
-                    Text("输入家长端生成的 6 位短码，也可粘贴二维码链接")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(.secondary)
-                    Text(coordinator.bindingMessage.isEmpty ? "绑定后会同步家庭词包和学习报告" : coordinator.bindingMessage)
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(coordinator.bindingMessage.hasPrefix("绑定成功") ? AppTheme.mint : .secondary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.8)
-                        .frame(height: 46, alignment: .topLeading)
-                        .accessibilityIdentifier("BindingMessage")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                TextField("6 位短码", text: $shortCode)
-                    .keyboardType(.default)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .frame(width: 280)
-                    .accessibilityIdentifier("6 位短码")
+                    .frame(maxWidth: 520)
 
                 VStack(spacing: 12) {
-                    Button("绑定") {
-                        Task { await coordinator.bind(pairingInput: shortCode) }
-                    }
-                    .font(.title3.weight(.heavy))
-                    .foregroundStyle(.white)
-                    .frame(width: 128, height: 48)
-                    .background(AppTheme.red, in: Capsule())
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("绑定")
+                    scanActions
+
+                    Text(statusMessage)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(statusColor)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.85)
+                        .frame(minHeight: 44, alignment: .top)
+                        .accessibilityIdentifier("BindingMessage")
 
                     if coordinator.bindingMessage.hasPrefix("绑定成功") {
                         Button("完成") { coordinator.finishBinding() }
                             .font(.title3.weight(.heavy))
-                            .foregroundStyle(AppTheme.navy)
-                            .frame(width: 128, height: 48)
-                            .background(AppTheme.cream, in: Capsule())
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(AppTheme.mint, in: Capsule())
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("完成")
+                            .frame(maxWidth: 360)
                     }
                 }
-                .frame(width: 142)
+                .frame(maxWidth: 560)
+                .padding(.horizontal, 22)
+                .padding(.vertical, 20)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18).stroke(Color.gray.opacity(0.16), lineWidth: 1.2)
+                }
             }
             .frame(maxWidth: .infinity)
-            .frame(minHeight: 150)
             .padding(.horizontal, 28)
             .padding(.vertical, 20)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
-            .overlay {
-                RoundedRectangle(cornerRadius: 18).stroke(Color.gray.opacity(0.16), lineWidth: 1.2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppTheme.page)
+        .overlay {
+            if isDecodingGalleryQR {
+                ZStack {
+                    Color.black.opacity(0.18).ignoresSafeArea()
+                    ProgressView("正在识别二维码…")
+                        .padding(18)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                }
             }
         }
-        .padding(.horizontal, 42)
-        .padding(.vertical, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(AppTheme.page)
+        .sheet(isPresented: $showManualSheet) {
+            manualEntrySheet
+        }
+        .fullScreenCover(isPresented: $showScanner) {
+            DataScannerShellView(
+                isPresented: $showScanner,
+                onScan: { payload in
+                    Task { await coordinator.bind(pairingInput: payload) }
+                },
+                onStartFailed: {
+                    coordinator.bindingMessage = "无法启动相机扫码，请从图库选择或手动输入"
+                }
+            )
+        }
+        .onChange(of: photoPickerItem) { _, item in
+            guard let item else { return }
+            Task { await decodeGalleryQR(from: item) }
+        }
+        .onChange(of: coordinator.bindingMessage) { _, newValue in
+            if newValue.hasPrefix("绑定成功") {
+                showManualSheet = false
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Button("返回") { coordinator.route = .config }
+                .font(.headline.weight(.bold))
+                .foregroundStyle(AppTheme.navy)
+
+            Spacer(minLength: 8)
+
+            Text("扫码绑定家长账号")
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .foregroundStyle(AppTheme.navy)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+                .accessibilityIdentifier("ScanBindingTitle")
+
+            Spacer(minLength: 8)
+
+            Color.clear.frame(width: 52, height: 1)
+        }
+    }
+
+    private var scanActions: some View {
+        VStack(spacing: 12) {
+            Button("打开扫码器") {
+                galleryHint = ""
+                if DataScannerViewController.isSupported {
+                    showScanner = true
+                } else {
+                    coordinator.bindingMessage = "当前设备不支持实时扫码，请从图库选择二维码或手动输入短码"
+                }
+            }
+            .font(.title3.weight(.heavy))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(AppTheme.blue, in: Capsule())
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("ScanBindingOpenScanner")
+
+            PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
+                HStack(spacing: 10) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                    Text("从图库选择二维码")
+                }
+                .font(.title3.weight(.heavy))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(AppTheme.blue, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("ScanBindingPickFromGallery")
+
+            Button("无法扫码？手动输入短码") {
+                galleryHint = ""
+                coordinator.bindingMessage = ""
+                shortCode = ""
+                showManualSheet = true
+            }
+            .font(.headline.weight(.heavy))
+            .foregroundStyle(AppTheme.navy)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(AppTheme.paleBlue, in: Capsule())
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("ScanBindingManualEntry")
+        }
+        .frame(maxWidth: 360)
+    }
+
+    private var manualEntrySheet: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                Text("输入家长端生成的 6 位短码，也可粘贴二维码链接")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 520)
+
+                TextField("6 位短码", text: $shortCode)
+                    .keyboardType(.default)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("6 位短码")
+
+                Button("绑定") {
+                    Task { await coordinator.bind(pairingInput: shortCode) }
+                }
+                .font(.title3.weight(.heavy))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .background(AppTheme.red, in: Capsule())
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("绑定")
+
+                if !coordinator.bindingMessage.isEmpty {
+                    Text(coordinator.bindingMessage)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(coordinator.bindingMessage.hasPrefix("绑定成功") ? AppTheme.mint : AppTheme.red)
+                        .multilineTextAlignment(.center)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(20)
+            .navigationTitle("手动输入")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") {
+                        showManualSheet = false
+                    }
+                    .accessibilityIdentifier("ScanBindingManualClose")
+                }
+            }
+        }
+    }
+
+    private var statusMessage: String {
+        if !galleryHint.isEmpty {
+            return galleryHint
+        }
+        if coordinator.bindingMessage.isEmpty {
+            return "绑定后会同步家庭词包和学习报告"
+        }
+        return coordinator.bindingMessage
+    }
+
+    private var statusColor: Color {
+        if !galleryHint.isEmpty {
+            return AppTheme.red
+        }
+        if coordinator.bindingMessage.hasPrefix("绑定成功") {
+            return AppTheme.mint
+        }
+        if coordinator.bindingMessage.isEmpty {
+            return .secondary
+        }
+        return AppTheme.red
+    }
+
+    private func decodeGalleryQR(from item: PhotosPickerItem) async {
+        galleryHint = ""
+        isDecodingGalleryQR = true
+        defer {
+            isDecodingGalleryQR = false
+            photoPickerItem = nil
+        }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                galleryHint = "无法读取所选照片"
+                return
+            }
+            guard let image = UIImage(data: data) else {
+                galleryHint = "无法读取所选照片"
+                return
+            }
+            let payload = try QRCodeImageDecoder.firstQRPayload(in: image)
+            await coordinator.bind(pairingInput: payload)
+        } catch QRCodeImageDecoder.DecodeError.notFound {
+            galleryHint = "未在照片中找到二维码，请换一张图片试试"
+        } catch {
+            galleryHint = "识别失败，请换一张清晰的二维码截图"
+        }
     }
 }
 

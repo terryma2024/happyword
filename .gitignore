@@ -55,6 +55,8 @@ render.experimental.xml
 
 # Xcode / iOS (per-user IDE state; schemes belong under xcshareddata/)
 **/xcuserdata/
+# Local simulator build tree (e.g. xcodebuild -derivedDataPath ios/build-sim)
+ios/build-sim/
 # Local derived data / build products when DERIVED_FILE_DIR points into the repo
 ios/.derived-install/
 
