@@ -31,6 +31,7 @@ import {
   ImageCompressionError,
   RealImageCompressor,
 } from '../services/ImageCompressor';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
@@ -362,6 +363,7 @@ struct ParentAdminPage {
           backButtonId: 'ParentAdminBack',
           title: '家长管理后台',
           titleId: 'ParentAdminTitle',
+          pageGutterVp: 0,
           onBack: (): void => {
             this.back();
           },
@@ -390,7 +392,11 @@ struct ParentAdminPage {
             .borderRadius(6);
         }
       }
-      .padding(16)
+      .padding({
+        left: PAGE_BODY_EDGE_VP,
+        right: PAGE_BODY_EDGE_VP,
+        bottom: PAGE_BODY_EDGE_VP,
+      })
       .alignItems(HorizontalAlign.Start);
     }
     .width('100%')

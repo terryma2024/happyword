@@ -60,7 +60,12 @@ fun DevMenuScreen(
             .fillMaxSize()
             .background(Color.White)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(
+                start = PageChromeInsets.bodyHorizontal,
+                top = PageChromeInsets.bodyTop,
+                end = PageChromeInsets.bodyHorizontal,
+                bottom = PageChromeInsets.bodyBottom,
+            )
             .testTag("DevMenuScreen"),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -240,7 +245,18 @@ fun BypassSecretScreen(
     onCancel: () -> Unit,
 ) {
     var secret by remember(initialSecret) { mutableStateOf(initialSecret) }
-    Column(Modifier.fillMaxSize().background(Color(0xFFFFF6E7)).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color(0xFFFFF6E7))
+            .padding(
+                start = PageChromeInsets.bodyHorizontal,
+                top = PageChromeInsets.bodyTop,
+                end = PageChromeInsets.bodyHorizontal,
+                bottom = PageChromeInsets.bodyBottom,
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text("Bypass Secret", fontSize = 28.sp, fontWeight = FontWeight.Black, modifier = Modifier.testTag("BypassSecretPageTitle"))
         OutlinedTextField(
             value = secret,

@@ -6,18 +6,10 @@ struct PackManagerView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Button {
-                    coordinator.route = .config
-                } label: {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(AppTheme.navy)
-                        .frame(width: 46, height: 46)
-                        .background(Color.white, in: Circle())
-                }
-                .accessibilityLabel("返回")
-                .buttonStyle(.plain)
-                    .accessibilityIdentifier("PackManagerBack")
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .config },
+                    accessibilityIdentifier: "PackManagerBack"
+                )
                 Spacer()
                 HStack(spacing: 10) {
                     Text("📦")
@@ -28,26 +20,14 @@ struct PackManagerView: View {
                         .accessibilityIdentifier("PackManagerTitle")
                 }
                 Spacer()
-                HStack(spacing: 10) {
-                    Button("同步学习") {
-                        Task { await coordinator.syncWordStatsExplicitly() }
-                    }
+                Button("同步词包") { coordinator.syncPacks() }
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
-                    .padding(.horizontal, 16)
-                    .frame(height: 46)
-                    .background(AppTheme.cream, in: Capsule())
+                    .padding(.horizontal, 18)
+                    .frame(height: 54)
+                    .background(AppTheme.paleBlue, in: Capsule())
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("同步学习")
-
-                    Button("同步词包") { coordinator.syncPacks() }
-                        .font(.system(size: 17, weight: .heavy, design: .rounded))
-                        .foregroundStyle(AppTheme.navy)
-                        .padding(.horizontal, 18)
-                        .frame(height: 46)
-                        .background(AppTheme.paleBlue, in: Capsule())
-                        .buttonStyle(.plain)
-                }
+                    .accessibilityIdentifier("PackManagerSyncButton")
             }
 
             HStack {
@@ -184,17 +164,10 @@ struct WishlistView: View {
 
     private var wishlistTopBar: some View {
         HStack(spacing: 12) {
-            Button {
-                coordinator.route = .home
-            } label: {
-                Text("‹")
-                    .font(.system(size: 24, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color(red: 0.11, green: 0.21, blue: 0.34))
-                    .frame(width: 40, height: 40)
-                    .background(AppTheme.paleBlue, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("WishlistBackButton")
+            MonsterCodexStyleBackButton(
+                action: { coordinator.route = .home },
+                accessibilityIdentifier: "WishlistBackButton"
+            )
 
             Spacer(minLength: 0)
 
@@ -553,12 +526,16 @@ struct RedemptionHistoryView: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack {
-                Button("返回") { coordinator.route = .wishlist }
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .wishlist },
+                    accessibilityIdentifier: "RedemptionHistoryBackButton"
+                )
                 Spacer()
                 Text("兑换历史")
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
                 Spacer()
+                Color.clear.frame(width: 54, height: 54)
             }
 
             if coordinator.redemptionHistoryStore.records.isEmpty {
@@ -603,17 +580,10 @@ struct TodayPlanView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Button {
-                    coordinator.route = .home
-                } label: {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(AppTheme.navy)
-                        .frame(width: 46, height: 46)
-                        .background(Color.white, in: Circle())
-                }
-                .accessibilityLabel("返回")
-                .buttonStyle(.plain)
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .home },
+                    accessibilityIdentifier: "TodayPlanBackButton"
+                )
 
                 Spacer()
                 Text("今日学习计划")
@@ -625,7 +595,7 @@ struct TodayPlanView: View {
                 } label: {
                     Text("📊")
                         .font(.system(size: 24))
-                        .frame(width: 46, height: 46)
+                        .frame(width: 54, height: 54)
                         .background(Color.white, in: Circle())
                 }
                 .accessibilityLabel("学习报告")
@@ -737,23 +707,16 @@ struct LearningReportView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Button {
-                    coordinator.route = .todayPlan
-                } label: {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(AppTheme.navy)
-                        .frame(width: 46, height: 46)
-                        .background(Color.white, in: Circle())
-                }
-                .accessibilityLabel("返回")
-                .buttonStyle(.plain)
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .todayPlan },
+                    accessibilityIdentifier: "LearningReportBackButton"
+                )
                 Spacer()
                 Text("学习报告")
                     .font(.system(size: 29, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
                 Spacer()
-                Color.clear.frame(width: 46, height: 46)
+                Color.clear.frame(width: 54, height: 54)
             }
 
             ScrollView {

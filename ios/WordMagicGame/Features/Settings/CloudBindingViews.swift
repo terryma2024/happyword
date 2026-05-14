@@ -24,7 +24,6 @@ struct ScanBindingView: View {
 
                 VStack(spacing: 12) {
                     scanActions
-
                     Text(statusMessage)
                         .font(.headline.weight(.bold))
                         .foregroundStyle(statusColor)
@@ -269,16 +268,19 @@ struct BoundDeviceInfoView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("家长账户")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .config },
+                    accessibilityIdentifier: "BoundDeviceInfoBack"
+                )
+
+                Text("孩子档案")
+                    .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
-                Spacer()
-                Button("返回") { coordinator.route = .config }
-                    .font(.headline.weight(.heavy))
-                    .foregroundStyle(AppTheme.navy)
-                    .frame(width: 92, height: 52)
-                    .background(AppTheme.paleBlue, in: Capsule())
-                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("BoundDeviceInfoTitle")
+
+                Color.clear.frame(width: 54, height: 54)
             }
             .padding(.horizontal, 24)
             .padding(.top, 56)

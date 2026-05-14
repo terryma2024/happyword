@@ -12,6 +12,7 @@ import {
   HomeIntegrationBundle,
   loadHomeIntegration,
 } from '../services/PackHomeIntegration';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
@@ -157,7 +158,11 @@ struct LearningReportPage {
             }
           }
           .width(this.contentWidth())
-          .padding({ left: 16, right: 16, bottom: 24 });
+          .padding({
+            left: PAGE_BODY_EDGE_VP,
+            right: PAGE_BODY_EDGE_VP,
+            bottom: PAGE_BODY_EDGE_VP,
+          });
         }
         .width('100%')
         .alignItems(HorizontalAlign.Center);

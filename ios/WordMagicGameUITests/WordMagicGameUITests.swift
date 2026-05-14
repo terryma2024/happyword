@@ -250,7 +250,7 @@ final class WordMagicGameUITests: XCTestCase {
         app.launch()
 
         assertLandscape(app)
-        assertTopRightBackButton(app.buttons["返回"], in: app)
+        assertTopLeftBackButton(app.buttons["返回"], in: app)
     }
 
     @MainActor
@@ -488,15 +488,6 @@ final class WordMagicGameUITests: XCTestCase {
         let frame = button.frame
         let screen = app.windows.element(boundBy: 0).frame
         XCTAssertLessThan(frame.minX, screen.minX + 130, file: file, line: line)
-        XCTAssertLessThan(frame.minY, screen.minY + 90, file: file, line: line)
-    }
-
-    @MainActor
-    private func assertTopRightBackButton(_ button: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(button.waitForExistence(timeout: 5), file: file, line: line)
-        let frame = button.frame
-        let screen = app.windows.element(boundBy: 0).frame
-        XCTAssertGreaterThan(frame.maxX, screen.maxX - 130, file: file, line: line)
         XCTAssertLessThan(frame.minY, screen.minY + 90, file: file, line: line)
     }
 

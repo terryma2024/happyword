@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -93,6 +94,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -135,6 +137,8 @@ import cool.happyword.wordmagic.core.TodayPlanService
 import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.WordPack
 import cool.happyword.wordmagic.ui.CenteredCircleTextButton
+import cool.happyword.wordmagic.ui.HarmonyPageTopBackButton
+import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.circleGlyphTextStyle
 import cool.happyword.wordmagic.core.WordStatsSyncClient
 import cool.happyword.wordmagic.core.WordStatsSyncResult
@@ -1719,6 +1723,23 @@ private fun harmonyCustomTimerChipLabel(timerSeconds: Int): String {
 }
 
 @Composable
+private fun ConfigCenteredFormRow(
+    modifier: Modifier = Modifier,
+    bottomPadding: Dp = 12.dp,
+    verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = bottomPadding),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(verticalAlignment = verticalAlignment, content = content)
+    }
+}
+
+@Composable
 private fun HarmonyConfigStepperRow(
     label: String,
     value: Int,
@@ -1726,51 +1747,53 @@ private fun HarmonyConfigStepperRow(
     range: IntRange,
     onValueChange: (Int) -> Unit,
 ) {
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        contentAlignment = Alignment.Center,
     ) {
-        Text(label, fontSize = 18.sp, modifier = Modifier.width(120.dp))
-        CenteredCircleTextButton(
-            text = "-",
-            onClick = { onValueChange((value - 1).coerceAtLeast(range.first)) },
-            modifier = Modifier.testTag("${testTagPrefix}Decrement"),
-            size = 44.dp,
-            enabled = value > range.first,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF213E66),
-                contentColor = Color.White,
-                disabledContainerColor = Color(0xFFE8E8E8),
-                disabledContentColor = Color(0xFFB0B0B0),
-            ),
-        )
-        Text(
-            "$value",
-            fontSize = 22.sp,
-            modifier = Modifier
-                .width(48.dp)
-                .testTag("${testTagPrefix}Value"),
-            textAlign = TextAlign.Center,
-        )
-        CenteredCircleTextButton(
-            text = "+",
-            onClick = { onValueChange((value + 1).coerceAtMost(range.last)) },
-            modifier = Modifier.testTag("${testTagPrefix}Increment"),
-            size = 44.dp,
-            enabled = value < range.last,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF213E66),
-                contentColor = Color.White,
-                disabledContainerColor = Color(0xFFE8E8E8),
-                disabledContentColor = Color(0xFFB0B0B0),
-            ),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, fontSize = 18.sp, modifier = Modifier.width(120.dp))
+            CenteredCircleTextButton(
+                text = "-",
+                onClick = { onValueChange((value - 1).coerceAtLeast(range.first)) },
+                modifier = Modifier.testTag("${testTagPrefix}Decrement"),
+                size = 44.dp,
+                enabled = value > range.first,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF213E66),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFFE8E8E8),
+                    disabledContentColor = Color(0xFFB0B0B0),
+                ),
+            )
+            Text(
+                "$value",
+                fontSize = 22.sp,
+                modifier = Modifier
+                    .width(48.dp)
+                    .testTag("${testTagPrefix}Value"),
+                textAlign = TextAlign.Center,
+            )
+            CenteredCircleTextButton(
+                text = "+",
+                onClick = { onValueChange((value + 1).coerceAtMost(range.last)) },
+                modifier = Modifier.testTag("${testTagPrefix}Increment"),
+                size = 44.dp,
+                enabled = value < range.last,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF213E66),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFFE8E8E8),
+                    disabledContentColor = Color(0xFFB0B0B0),
+                ),
+            )
+        }
     }
 }
 
@@ -1837,20 +1860,15 @@ private fun ConfigScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(
+                    horizontal = PageChromeInsets.bodyHorizontal,
+                    vertical = PageChromeInsets.bodyTop,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CenteredCircleTextButton(
-                text = "\u2039",
+            HarmonyPageTopBackButton(
                 onClick = onBack,
                 modifier = Modifier.testTag("ConfigBackButton"),
-                size = 40.dp,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Medium,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFEAF2F8),
-                    contentColor = Color(0xFF1D3557),
-                ),
             )
             Spacer(Modifier.weight(1f))
         }
@@ -1858,7 +1876,12 @@ private fun ConfigScreen(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 40.dp, vertical = 8.dp),
+                .padding(
+                    start = PageChromeInsets.bodyHorizontal,
+                    top = PageChromeInsets.bodyTop,
+                    end = PageChromeInsets.bodyHorizontal,
+                    bottom = PageChromeInsets.bodyBottom,
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -1893,12 +1916,7 @@ private fun ConfigScreen(
                     onValueChange = { onConfigChange(config.copy(monsterCount = it)) },
                 )
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            ConfigCenteredFormRow {
                 Text("倒计时", fontSize = 18.sp, modifier = Modifier.width(120.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     GameConfig.timerPresets.forEach { sec ->
@@ -1939,12 +1957,7 @@ private fun ConfigScreen(
                     }
                 }
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            ConfigCenteredFormRow {
                 Text("发音播放", fontSize = 18.sp, modifier = Modifier.width(120.dp))
                 Button(
                     onClick = { onConfigChange(config.copy(autoPronunciation = !config.autoPronunciation)) },
@@ -1965,12 +1978,7 @@ private fun ConfigScreen(
                     )
                 }
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
+            ConfigCenteredFormRow(bottomPadding = 4.dp, verticalAlignment = Alignment.Top) {
                 Text("题型选择", fontSize = 18.sp, modifier = Modifier.width(120.dp))
                 Column {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2025,16 +2033,12 @@ private fun ConfigScreen(
                     fontSize = 12.sp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 8.dp, start = 120.dp)
+                        .padding(bottom = 8.dp)
                         .testTag("ConfigQuestionTypeLastEnabledHint"),
+                    textAlign = TextAlign.Center,
                 )
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            ConfigCenteredFormRow {
                 Text("我的词包", fontSize = 18.sp, modifier = Modifier.width(120.dp))
                 Row(
                     modifier = Modifier
@@ -2068,12 +2072,7 @@ private fun ConfigScreen(
                     .testTag("ConfigSectionParentTitle"),
                 textAlign = TextAlign.Center,
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            ConfigCenteredFormRow {
                 Text("家长账号", fontSize = 18.sp, modifier = Modifier.width(120.dp))
                 if (cloudBound) {
                     Button(
@@ -2115,12 +2114,7 @@ private fun ConfigScreen(
                 }
             }
             if (cloudBound) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                ConfigCenteredFormRow {
                     Text("家长密码", fontSize = 18.sp, modifier = Modifier.width(120.dp))
                     Button(
                         onClick = onParentPinSetup,
@@ -2141,12 +2135,9 @@ private fun ConfigScreen(
                         )
                     }
                 }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                        .testTag("ConfigCloudSyncRow"),
-                    verticalAlignment = Alignment.CenterVertically,
+                ConfigCenteredFormRow(
+                    modifier = Modifier.testTag("ConfigCloudSyncRow"),
+                    bottomPadding = 8.dp,
                 ) {
                     Text("学习记录", fontSize = 18.sp, modifier = Modifier.width(120.dp))
                     OutlinedButton(
@@ -2172,8 +2163,9 @@ private fun ConfigScreen(
                         fontSize = 14.sp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 120.dp, bottom = 4.dp)
+                            .padding(bottom = 4.dp)
                             .testTag("ConfigCloudSyncStatus"),
+                        textAlign = TextAlign.Center,
                     )
                 }
                 if (learningSyncToast.isNotBlank()) {
@@ -2183,17 +2175,13 @@ private fun ConfigScreen(
                         fontSize = 14.sp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 120.dp, bottom = 8.dp)
+                            .padding(bottom = 8.dp)
                             .testTag("ConfigCloudSyncToast"),
+                        textAlign = TextAlign.Center,
                     )
                 }
                 if (parentPinReady) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+                    ConfigCenteredFormRow {
                         Text("管理后台", fontSize = 18.sp, modifier = Modifier.width(120.dp))
                         Button(
                             onClick = onParentAdmin,

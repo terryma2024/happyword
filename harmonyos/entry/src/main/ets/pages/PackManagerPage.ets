@@ -12,6 +12,7 @@ import { FamilyPackService, FamilyPackEnsureResult } from '../services/FamilyPac
 import { PackNetworkFetchAdapter } from '../services/PackNetworkFetchAdapter';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
@@ -257,7 +258,12 @@ struct PackManagerPage {
         .fontSize(12).fontColor('#9CA3AF');
     }
     .width('100%')
-    .padding({ left: 20, right: 20, top: 4, bottom: 12 });
+    .padding({
+      left: PAGE_BODY_EDGE_VP,
+      right: PAGE_BODY_EDGE_VP,
+      top: 4,
+      bottom: 12,
+    });
   }
 
   @Builder
@@ -329,7 +335,12 @@ struct PackManagerPage {
         });
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+    .padding({
+      left: PAGE_BODY_EDGE_VP,
+      right: PAGE_BODY_EDGE_VP,
+      top: 10,
+      bottom: 10,
+    })
     .alignItems(VerticalAlign.Center)
     .borderRadius(10)
     .backgroundColor('#FFFFFF');
@@ -363,7 +374,11 @@ struct PackManagerPage {
           }
         }
         .width('100%')
-        .padding({ left: 12, right: 12, top: 4, bottom: 24 });
+        .padding({
+          left: PAGE_BODY_EDGE_VP,
+          right: PAGE_BODY_EDGE_VP,
+          bottom: PAGE_BODY_EDGE_VP,
+        });
       }
       .layoutWeight(1)
       .scrollable(ScrollDirection.Vertical);
@@ -375,7 +390,7 @@ struct PackManagerPage {
           .padding({ left: 10, right: 10, top: 6, bottom: 6 })
           .backgroundColor('#FFF4D0')
           .borderRadius(6)
-          .margin({ left: 16, right: 16, bottom: 12 });
+          .margin({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP, bottom: 12 });
       }
     }
     .width('100%')

@@ -16,6 +16,7 @@ import {
   RealOrientationAdapter,
   lockPortrait,
 } from '../utils/orientation';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
@@ -396,6 +397,7 @@ struct LessonDraftReviewPage {
           backButtonId: 'LessonReviewBack',
           title: '课本单词复核',
           titleId: 'LessonReviewTitle',
+          pageGutterVp: 0,
           onBack: (): void => {
             this.back();
           },
@@ -416,7 +418,11 @@ struct LessonDraftReviewPage {
           this.actionRow();
         }
       }
-      .padding(16)
+      .padding({
+        left: PAGE_BODY_EDGE_VP,
+        right: PAGE_BODY_EDGE_VP,
+        bottom: PAGE_BODY_EDGE_VP,
+      })
       .width('100%')
       .height('100%')
       .alignItems(HorizontalAlign.Start);

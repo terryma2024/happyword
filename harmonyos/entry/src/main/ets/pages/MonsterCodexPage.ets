@@ -1,6 +1,7 @@
 import { CodexEntry, MONSTER_CODEX } from '../data/MonsterCodex';
 import display from '@ohos.display';
 import { BusinessError } from '@ohos.base';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
@@ -131,11 +132,11 @@ struct MonsterCodexPage {
       }
       .width('100%')
       .layoutWeight(1)
-      .justifyContent(FlexAlign.Center);
+      .justifyContent(FlexAlign.Center)
+      .padding({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP, bottom: PAGE_BODY_EDGE_VP });
     }
     .width('100%')
     .height('100%')
-    .padding({ top: 16, left: 16, right: 16, bottom: 16 })
     .backgroundColor('#F8F9FA')
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
       SafeAreaEdge.START, SafeAreaEdge.END]);

@@ -8,6 +8,7 @@ import {
   RedemptionHistoryStore,
   getRedemptionHistoryStore,
 } from '../services/RedemptionHistoryStore';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
@@ -80,14 +81,17 @@ struct RedemptionHistoryPage {
               this.recordCardInline(r);
             }, (r: RedemptionRecord): string => r.id);
           }
-          .padding({ top: 8, bottom: 24 });
+          .padding({
+            left: PAGE_BODY_EDGE_VP,
+            right: PAGE_BODY_EDGE_VP,
+            bottom: PAGE_BODY_EDGE_VP,
+          });
         }
         .layoutWeight(1);
       }
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 24 })
     .backgroundColor('#F8F9FA')
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
       SafeAreaEdge.START, SafeAreaEdge.END]);
@@ -119,7 +123,7 @@ struct RedemptionHistoryPage {
     }
     .id(`RedemptionRecordCard_${r.id}`)
     .width('92%')
-    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+    .padding({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP, top: 12, bottom: 12 })
     .backgroundColor('#FFFFFF')
     .borderRadius(12)
     .alignItems(VerticalAlign.Center)

@@ -24,6 +24,7 @@
 		26B615F58D86B8EC7AA6B0D7 /* BattleAnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */; };
 		2D9B8D104C526A576B6FF478 /* ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94693A96123F2BD2C3D2F70B /* ResultView.swift */; };
 		307C8F11567A577C390D2D67 /* CloudBindingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75E239F17ECE5B0C5B1CF48 /* CloudBindingViews.swift */; };
+		35CA6F2A8474520D7933A336 /* MonsterCodexStyleBackButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A9EC8E570DA5CD48D36B4B /* MonsterCodexStyleBackButton.swift */; };
 		3612D5539B436F29F3A5F62D /* LocalGrowthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */; };
 		36A3AC8F104BA497DBDCA64F /* BattleStartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 729681DD70AD1933A6DBB022 /* BattleStartTests.swift */; };
 		3BA9690760CDAB437EC7555A /* WordRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710C4CE303108095BB4DD2C4 /* WordRepository.swift */; };
@@ -133,6 +134,7 @@
 		BAF3995E798608040E8CBADE /* ocean-realm.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "ocean-realm.json"; sourceTree = "<group>"; };
 		C695865CC24B715BCC601E85 /* PackSelectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackSelectionStore.swift; sourceTree = "<group>"; };
 		CD002304AC10A20B5A041CF4 /* WordEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordEntry.swift; sourceTree = "<group>"; };
+		D2A9EC8E570DA5CD48D36B4B /* MonsterCodexStyleBackButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexStyleBackButton.swift; sourceTree = "<group>"; };
 		D3D73555B610C471DEB23E99 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionGeneratorTests.swift; sourceTree = "<group>"; };
 		E1915D885E57624FF4078BDE /* MonsterCodexView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexView.swift; sourceTree = "<group>"; };
@@ -179,6 +181,7 @@
 				6F1A4D8DB7A4F317842C0F4F /* CoreLoop */,
 				CD0198F6C5191261CD8E822A /* ParentAdmin */,
 				5484A29C2D73A277C7260695 /* Settings */,
+				CBCA46B9BD2D6686A2F07369 /* Shared */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -297,6 +300,14 @@
 				6FAE4997C3E18E4C154192C3 /* PronunciationService.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		CBCA46B9BD2D6686A2F07369 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				D2A9EC8E570DA5CD48D36B4B /* MonsterCodexStyleBackButton.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		CD0198F6C5191261CD8E822A /* ParentAdmin */ = {
@@ -503,6 +514,7 @@
 				1802ABC00E8F5382A14E8E1C /* LessonDraftReviewStore.swift in Sources */,
 				EAE53652EC92AA7E09BFC13C /* LocalStores.swift in Sources */,
 				85D1855D2EF21E06F39BEEFD /* MonsterCodex.swift in Sources */,
+				35CA6F2A8474520D7933A336 /* MonsterCodexStyleBackButton.swift in Sources */,
 				DC8CE988A3697BC51B07E777 /* MonsterCodexView.swift in Sources */,
 				0F85857104D068CD0348FD23 /* PackLibrary.swift in Sources */,
 				707FB23DB88D874E8312DD0E /* PackSelectionStore.swift in Sources */,

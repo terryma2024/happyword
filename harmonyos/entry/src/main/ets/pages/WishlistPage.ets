@@ -20,6 +20,7 @@ import {
   AddCustomWishDialog,
   CustomWishFormResult,
 } from '../components/AddCustomWishDialog';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
 /** Total time the GiftBox modal stays visible: anim cycle ~1.68s + 1.5s hold. */
@@ -104,20 +105,25 @@ struct WishlistPage {
           .id('WishlistTitle')
           .fontSize(26)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#1D3557');
+          .fontColor('#1D3557')
+          .width('100%')
+          .padding({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP });
         Scroll() {
           Column({ space: 12 }) {
             ForEach(this.wishes, (w: MagicWish): void => {
               this.wishCardInline(w);
             }, (w: MagicWish): string => w.id);
           }
-          .padding({ top: 8, bottom: 24 });
+          .padding({
+            left: PAGE_BODY_EDGE_VP,
+            right: PAGE_BODY_EDGE_VP,
+            bottom: PAGE_BODY_EDGE_VP,
+          });
         }
         .layoutWeight(1);
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 16, right: 16, top: 24 })
       .backgroundColor('#F8F9FA');
 
       if (this.giftBoxVisible) {
@@ -206,7 +212,7 @@ struct WishlistPage {
     }
     .id(`WishCard_${w.id}`)
     .width('92%')
-    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+    .padding({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP, top: 12, bottom: 12 })
     .backgroundColor('#FFFFFF')
     .borderRadius(14)
     .alignItems(VerticalAlign.Center)

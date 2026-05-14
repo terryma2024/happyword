@@ -24,6 +24,7 @@ import { BindingApiClient } from '../services/BindingApiClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { ensureCloudSyncInstalled } from '../services/CloudSyncInstaller';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
 class RealScanKitScanner implements BarcodeScannerLike {
@@ -258,7 +259,7 @@ struct ScanBindingPage {
             .onClick((): void => {
             this.getUIContext().getRouter().back();
           })
-        }.width('100%').padding(24)
+        }.width('100%').padding(PAGE_BODY_EDGE_VP)
       } else if (this.manualMode) {
         Column({ space: 12 }) {
           Text('输入家长网页显示的 6 位短码').fontSize(14).fontColor('#475569')
@@ -279,7 +280,7 @@ struct ScanBindingPage {
           if (this.reasonHint().length > 0) {
             Text(this.reasonHint()).fontColor('#dc2626').fontSize(13).margin({ top: 8 })
           }
-        }.width('100%').padding(24)
+        }.width('100%').padding(PAGE_BODY_EDGE_VP)
       } else {
         Column({ space: 12 }) {
           Text('请扫描家长端「添加设备」页面显示的二维码')
@@ -301,7 +302,7 @@ struct ScanBindingPage {
           if (this.reasonHint().length > 0) {
             Text(this.reasonHint()).fontColor('#dc2626').fontSize(13).margin({ top: 16 })
           }
-        }.width('100%').padding(24)
+        }.width('100%').padding(PAGE_BODY_EDGE_VP)
       }
     }
     .width('100%')

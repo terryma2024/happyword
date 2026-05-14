@@ -21,6 +21,7 @@ import {
   NicknameSubmitResult,
 } from '../components/EditChildNicknameDialog';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 
 @Entry
 @Component
@@ -316,7 +317,11 @@ struct BoundDeviceInfoPage {
             .borderRadius(12)
           }
           .width('100%')
-          .padding({ left: 16, right: 16 })
+          .padding({
+            left: PAGE_BODY_EDGE_VP,
+            right: PAGE_BODY_EDGE_VP,
+            bottom: PAGE_BODY_EDGE_VP,
+          })
           .alignItems(HorizontalAlign.Center)
         }
       }

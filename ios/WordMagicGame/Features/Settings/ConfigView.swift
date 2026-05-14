@@ -14,46 +14,51 @@ struct ConfigView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            configTopBar
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
-            ScrollView {
-                VStack(spacing: 18) {
-                    Text("游戏配置")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .accessibilityIdentifier("ConfigTitle")
+        GeometryReader { proxy in
+            let compactHeight = proxy.size.height < 460
+            VStack(spacing: 0) {
+                configTopBar(compactHeight: compactHeight)
+                ScrollView {
+                    VStack(spacing: 18) {
+                        Text("游戏配置")
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .accessibilityIdentifier("ConfigTitle")
 
-                    settingStepper("玩家血量", value: $draft.playerMaxHp, range: GameConfig.hpRange)
-                    settingStepper("怪物血量", value: $draft.monsterMaxHp, range: GameConfig.hpRange)
-                    settingStepper("怪物数量", value: $draft.monstersTotal, range: GameConfig.monsterCountRange)
+                        settingStepper("玩家血量", value: $draft.playerMaxHp, range: GameConfig.hpRange)
+                        settingStepper("怪物血量", value: $draft.monsterMaxHp, range: GameConfig.hpRange)
+                        settingStepper("怪物数量", value: $draft.monstersTotal, range: GameConfig.monsterCountRange)
 
-                    timerRow
-                    autoSpeakRow
-                    questionTypeSection
-                    packPickerSection
+                        timerRow
+                        autoSpeakRow
+                        questionTypeSection
+                        packPickerSection
 
-                    Text("家长配置")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 8)
-                        .accessibilityIdentifier("ConfigSectionParentTitle")
+                        Text("家长配置")
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 8)
+                            .accessibilityIdentifier("ConfigSectionParentTitle")
 
-                    parentAccountSection
-                    if coordinator.cloudCredentialsStore.credentials != nil {
-                        parentPinRow
+                        parentAccountSection
+                        if coordinator.cloudCredentialsStore.credentials != nil {
+                            parentPinRow
+                        }
+                        cloudSyncSection
+                        if coordinator.cloudCredentialsStore.credentials != nil,
+                           coordinator.configStore.config.parentPin.count == 6
+                        {
+                            adminRow
+                        }
                     }
-                    cloudSyncSection
-                    if coordinator.cloudCredentialsStore.credentials != nil,
-                       coordinator.configStore.config.parentPin.count == 6
-                    {
-                        adminRow
-                    }
+                    .padding(.horizontal, 40)
+                    .padding(.vertical, 22)
                 }
-                .padding(.horizontal, 40)
-                .padding(.vertical, 22)
             }
+            .padding(.horizontal, compactHeight ? 18 : 28)
+            .padding(.top, compactHeight ? 10 : 18)
+            .padding(.bottom, compactHeight ? 8 : 14)
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .background(Color.white)
         .onChange(of: draft) { _, new in
@@ -68,19 +73,13 @@ struct ConfigView: View {
         }
     }
 
-    private var configTopBar: some View {
+    private func configTopBar(compactHeight: Bool) -> some View {
         HStack {
-            Button {
-                coordinator.route = .home
-            } label: {
-                Text("‹")
-                    .font(.system(size: 24, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color(red: 0.11, green: 0.21, blue: 0.34))
-                    .frame(width: 40, height: 40)
-                    .background(AppTheme.paleBlue, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("ConfigBackButton")
+            MonsterCodexStyleBackButton(
+                action: { coordinator.route = .home },
+                compact: compactHeight,
+                accessibilityIdentifier: "ConfigBackButton"
+            )
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)

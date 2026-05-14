@@ -13,6 +13,7 @@ import {
   describeMemoryState,
   describeWordSource,
 } from '../services/TodayPlanService';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
@@ -111,7 +112,11 @@ struct TodayPlanPage {
           }
         }
         .width('100%')
-        .padding({ left: 16, right: 16, bottom: 24 });
+        .padding({
+          left: PAGE_BODY_EDGE_VP,
+          right: PAGE_BODY_EDGE_VP,
+          bottom: PAGE_BODY_EDGE_VP,
+        });
       }
       .layoutWeight(1)
       .scrollBar(BarState.Auto);

@@ -27,6 +27,7 @@ import {
   loadHomeIntegration,
 } from '../services/PackHomeIntegration';
 import { MAX_ACTIVE_PACKS } from '../services/PackSelectionService';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 /**
  * ConfigPage exposes battle knobs (HP / monster count / timer /
@@ -843,7 +844,11 @@ struct ConfigPage {
           }
         }
         .width('100%')
-        .padding({ top: 8, bottom: 24, left: 40, right: 40 })
+        .padding({
+          left: PAGE_BODY_EDGE_VP,
+          right: PAGE_BODY_EDGE_VP,
+          bottom: PAGE_BODY_EDGE_VP,
+        })
         .alignItems(HorizontalAlign.Center);
       }
       .layoutWeight(1)
