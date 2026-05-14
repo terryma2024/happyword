@@ -1,0 +1,25 @@
+{
+  "leaves": [
+    {
+      "android": {
+        "route": "wishlist",
+        "status": "ok"
+      },
+      "harmony": {
+        "route": "wishlist",
+        "status": "ok"
+      },
+      "ios": {
+        "route": "wishlist",
+        "status": "ok"
+      },
+      "page_id": "wishlist",
+      "spec_excerpt_path": null
+    }
+  ],
+  "run_id": "20260514-091648-pages-wishlist",
+  "scope": {
+    "kind": "pages",
+    "value": "wishlist"
+  }
+}
