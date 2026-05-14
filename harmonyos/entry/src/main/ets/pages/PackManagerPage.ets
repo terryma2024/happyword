@@ -12,6 +12,7 @@ import { FamilyPackService, FamilyPackEnsureResult } from '../services/FamilyPac
 import { PackNetworkFetchAdapter } from '../services/PackNetworkFetchAdapter';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
  * V0.6.7 — dedicated page for the three-layer pack picker. Extracted
@@ -229,41 +230,20 @@ struct PackManagerPage {
   }
 
   @Builder
-  private headerBar() {
-    Row() {
-      Button('←')
-        .id('PackManagerBack')
-        .width(44).height(44)
-        .fontSize(22)
-        .fontColor('#1f2937')
-        .backgroundColor('#F3F4F6')
-        .borderRadius(22)
-        .onClick((): void => {
-          this.getUIContext().getRouter().back();
+  private packManagerSyncTrailing(): void {
+    Button(this.packSyncBusy ? '同步中…' : '🔄 同步词包')
+      .id('PackManagerSyncButton')
+      .height(40)
+      .fontSize(15)
+      .padding({ left: 14, right: 14 })
+      .backgroundColor(this.packSyncBusy ? '#F0F0F0' : '#EAF2F8')
+      .fontColor(this.packSyncBusy ? '#999999' : '#457B9D')
+      .enabled(!this.packSyncBusy)
+      .onClick((): void => {
+        this.onPackSyncTap().catch((err: BusinessError): void => {
+          console.error(`PackManagerPage.onPackSyncTap promise failed: ${JSON.stringify(err)}`);
         });
-      Text('📦 我的词包')
-        .id('PackManagerTitle')
-        .fontSize(22)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1f2937')
-        .margin({ left: 12 });
-      Blank().layoutWeight(1);
-      Button(this.packSyncBusy ? '同步中…' : '🔄 同步词包')
-        .id('PackManagerSyncButton')
-        .height(40).fontSize(15)
-        .padding({ left: 14, right: 14 })
-        .backgroundColor(this.packSyncBusy ? '#F0F0F0' : '#EAF2F8')
-        .fontColor(this.packSyncBusy ? '#999999' : '#457B9D')
-        .enabled(!this.packSyncBusy)
-        .onClick((): void => {
-          this.onPackSyncTap().catch((err: BusinessError): void => {
-            console.error(`PackManagerPage.onPackSyncTap promise failed: ${JSON.stringify(err)}`);
-          });
-        });
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 12, bottom: 8 })
-    .alignItems(VerticalAlign.Center);
+      });
   }
 
   @Builder
@@ -357,7 +337,17 @@ struct PackManagerPage {
 
   build(): void {
     Column() {
-      this.headerBar();
+      PageTopChrome({
+        backButtonId: 'PackManagerBack',
+        title: '📦 我的词包',
+        titleId: 'PackManagerTitle',
+        onBack: (): void => {
+          this.getUIContext().getRouter().back();
+        },
+        trailing: (): void => {
+          this.packManagerSyncTrailing();
+        },
+      });
       this.statusRow();
       Scroll() {
         Column({ space: 6 }) {

@@ -13,6 +13,7 @@ import {
   describeMemoryState,
   describeWordSource,
 } from '../services/TodayPlanService';
+import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
  * V0.4.4 — read-only daily plan page. Shows the kid (and any parent
@@ -82,7 +83,17 @@ struct TodayPlanPage {
 
   build() {
     Column() {
-      this.topBar();
+      PageTopChrome({
+        backButtonId: 'TodayPlanBackButton',
+        title: '今日学习计划',
+        titleId: 'TodayPlanTitle',
+        onBack: (): void => {
+          this.getUIContext().getRouter().back();
+        },
+        trailing: (): void => {
+          this.todayPlanReportTrailing();
+        },
+      });
       Scroll() {
         Column({ space: 12 }) {
           this.headerCard();
@@ -112,47 +123,23 @@ struct TodayPlanPage {
       SafeAreaEdge.START, SafeAreaEdge.END]);
   }
 
+  // V0.4.5: report entry. Pairs with TodayPlanPage as the
+  // "what to learn / how am I doing" duo so HomePage's toolbar
+  // budget stays at 5 buttons.
   @Builder
-  private topBar() {
-    Row() {
-      Button('←')
-        .id('TodayPlanBackButton')
-        .type(ButtonType.Circle)
-        .width(40)
-        .height(40)
-        .fontSize(20)
-        .fontColor('#1D3557')
-        .backgroundColor('#FFFFFF')
-        .onClick((): void => {
-          this.getUIContext().getRouter().back();
+  private todayPlanReportTrailing(): void {
+    Button('📊')
+      .id('TodayPlanReportButton')
+      .type(ButtonType.Circle)
+      .width(40)
+      .height(40)
+      .fontSize(20)
+      .backgroundColor('#EAF2F8')
+      .onClick((): void => {
+        this.getUIContext().getRouter().pushUrl({ url: 'pages/LearningReportPage' }).catch((err: BusinessError): void => {
+          console.error(`TodayPlanPage: pushUrl LearningReportPage failed: ${JSON.stringify(err)}`);
         });
-
-      Text('今日学习计划')
-        .id('TodayPlanTitle')
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1D3557')
-        .layoutWeight(1)
-        .textAlign(TextAlign.Center);
-
-      // V0.4.5: report entry. Pairs with TodayPlanPage as the
-      // "what to learn / how am I doing" duo so HomePage's toolbar
-      // budget stays at 5 buttons.
-      Button('📊')
-        .id('TodayPlanReportButton')
-        .type(ButtonType.Circle)
-        .width(40)
-        .height(40)
-        .fontSize(20)
-        .backgroundColor('#FFFFFF')
-        .onClick((): void => {
-          this.getUIContext().getRouter().pushUrl({ url: 'pages/LearningReportPage' }).catch((err: BusinessError): void => {
-            console.error(`TodayPlanPage: pushUrl LearningReportPage failed: ${JSON.stringify(err)}`);
-          });
-        });
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 12 });
+      });
   }
 
   @Builder

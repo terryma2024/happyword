@@ -1,6 +1,7 @@
 import { CodexEntry, MONSTER_CODEX } from '../data/MonsterCodex';
 import display from '@ohos.display';
 import { BusinessError } from '@ohos.base';
+import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
  * MonsterCodexPage: read-only browse of the 100 codex monsters
@@ -76,7 +77,6 @@ struct MonsterCodexPage {
   private arrowFontSize(): number { return this.isPad() ? 44 : 28; }
   private arrowGap(): number { return this.isPad() ? 28 : 12; }
 
-  private titleFontSize(): number { return this.isPad() ? 28 : 20; }
   private nameFontSize(): number { return this.isPad() ? 32 : 22; }
   private kindFontSize(): number { return this.isPad() ? 20 : 14; }
   private positionFontSize(): number { return this.isPad() ? 16 : 12; }
@@ -108,9 +108,16 @@ struct MonsterCodexPage {
     }
   }
 
-  build() {
+  build(): void {
     Column() {
-      this.topBar();
+      PageTopChrome({
+        backButtonId: 'CodexBackButton',
+        title: '怪物图鉴',
+        titleId: 'MonsterCodexTitle',
+        onBack: (): void => {
+          this.getUIContext().getRouter().back();
+        },
+      })
       // Body wrapper: layoutWeight(1) consumes the remaining vertical
       // space and `FlexAlign.Center` pins the avatar/name/description
       // block to the page's vertical centre. Without this the codex
@@ -132,32 +139,6 @@ struct MonsterCodexPage {
     .backgroundColor('#F8F9FA')
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
       SafeAreaEdge.START, SafeAreaEdge.END]);
-  }
-
-  @Builder
-  private topBar() {
-    Row() {
-      Button('←')
-        .id('CodexBackButton')
-        .type(ButtonType.Circle)
-        .width(40)
-        .height(40)
-        .fontSize(20)
-        .fontColor('#1D3557')
-        .backgroundColor('#FFFFFF')
-        .onClick((): void => {
-          this.getUIContext().getRouter().back();
-        });
-
-      Text('怪物图鉴')
-        .fontSize(this.titleFontSize())
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1D3557')
-        .layoutWeight(1)
-        .textAlign(TextAlign.Center)
-        .margin({ right: 40 });
-    }
-    .width('100%');
   }
 
   @Builder

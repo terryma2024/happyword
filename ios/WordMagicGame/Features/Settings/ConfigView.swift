@@ -770,7 +770,7 @@ struct ParentPinSetupView: View {
             Text(coordinator.pinMessage)
                 .foregroundStyle(AppTheme.red)
             HStack {
-                Button("取消") { coordinator.route = .config }
+                Button("取消") { coordinator.cancelParentPinSetup() }
                 Button("保存 PIN") { coordinator.saveParentPin(pin, confirmation: confirmation) }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.red)
