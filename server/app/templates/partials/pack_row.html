@@ -1,4 +1,4 @@
-<a href="/parent/packs/{{ summary.definition.pack_id }}" class="block p-4 hover:bg-sky-50">
+<a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ summary.definition.pack_id }}" class="block p-4 hover:bg-sky-50">
   <div class="flex items-start justify-between gap-4">
     <div>
       <p class="font-semibold text-slate-900">{{ summary.definition.name }}</p>

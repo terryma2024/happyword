@@ -7,7 +7,7 @@ Gmail OTP needs SMTP_USERNAME — until that is set, use this script:
 
 Then in the browser (Chrome): DevTools → Application → Cookies →
 http://localhost:8000 → Add cookie Name `wm_session`, Value <printed token>,
-Path `/`, SameSite Lax. Reload `/parent/packs`.
+Path `/`, SameSite Lax. Reload `/family/_/packs` (or your real `/family/{family_id}/packs` URL once known).
 """
 
 from __future__ import annotations

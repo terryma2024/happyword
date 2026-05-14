@@ -1,17 +1,12 @@
 /**
- * CategoryCatalog — V0.5 schema_v4 overlay for AdventureCatalog.
+ * CategoryCatalog — V0.5 schema_v4 overlay parser for AdventureCatalog.
  *
  * The server publishes a top-level `categories[]` block in pack JSON
  * starting at schema_version 4: `[{ id, labelEn, labelZh, storyZh? }]`.
- * HomePage uses this catalog to overlay the server-provided Chinese
- * label / story onto the bundled `AdventureCatalog` regions whenever
- * the operator has synced a v4+ pack. v1 packs (which is what currently
- * ships) carry no categories[] block, so `parsePackCategories` returns
- * an empty array and the bundled labels stay in place — no regression.
- *
- * The class is intentionally pure (no IO, no AppStorage, no async).
- * HomePage owns the lifecycle: it calls `parsePackCategories` after
- * the WordPackCache has produced a record, then invokes `setRows`.
+ * `parsePackCategories` is pure JSON parsing; HomePage now prefers
+ * `Pack.scene.storyZh` from the active three-layer packs, but this helper
+ * remains for tests and any future UI that needs category rows from raw
+ * pack JSON.
  */
 
 export class CategoryRow {

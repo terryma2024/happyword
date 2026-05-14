@@ -238,7 +238,8 @@ export class CloudWishlistService implements RedemptionPollSource {
       return false;
     }
     const base: string = CloudWishlistService.trim(this.resolveBaseUrl());
-    const url: string = `${base}/api/v1/child/wishlist`;
+    const fid: string = snap.familyId.trim().length > 0 ? snap.familyId.trim() : '_';
+    const url: string = `${base}/api/v1/family/${fid}/wishlist`;
     const headers: Record<string, string> = {};
     headers[HEADER_ACCEPT] = CONTENT_JSON;
     headers[HEADER_AUTH] = `Bearer ${snap.deviceToken}`;
@@ -292,7 +293,8 @@ export class CloudWishlistService implements RedemptionPollSource {
       return '';
     }
     const baseReq: string = CloudWishlistService.trim(this.resolveBaseUrl());
-    const url: string = `${baseReq}/api/v1/child/redemption-requests`;
+    const fid: string = snap.familyId.trim().length > 0 ? snap.familyId.trim() : '_';
+    const url: string = `${baseReq}/api/v1/family/${fid}/redemption-requests`;
     const headers: Record<string, string> = {};
     headers[HEADER_CONTENT_TYPE] = CONTENT_JSON;
     headers[HEADER_ACCEPT] = CONTENT_JSON;
@@ -362,8 +364,9 @@ export class CloudWishlistService implements RedemptionPollSource {
     }
     const sinceMs: number = await this.readSince();
     const basePoll: string = CloudWishlistService.trim(this.resolveBaseUrl());
+    const fid: string = snap.familyId.trim().length > 0 ? snap.familyId.trim() : '_';
     const url: string =
-      `${basePoll}/api/v1/child/redemption-requests/poll?since_ms=${sinceMs}`;
+      `${basePoll}/api/v1/family/${fid}/redemption-requests/poll?since_ms=${sinceMs}`;
     const headers: Record<string, string> = {};
     headers[HEADER_ACCEPT] = CONTENT_JSON;
     headers[HEADER_AUTH] = `Bearer ${snap.deviceToken}`;

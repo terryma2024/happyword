@@ -7,7 +7,7 @@
       <h1 class="text-2xl font-semibold text-slate-900">用户反馈</h1>
       <p class="text-sm text-slate-500 mt-1">告诉我们哪里需要改进，管理员回复后会显示在这里。</p>
     </div>
-    <a href="/parent/" class="text-sm text-slate-500 hover:text-slate-700">← 返回首页</a>
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/" class="text-sm text-slate-500 hover:text-slate-700">← 返回首页</a>
   </header>
 
   {% if flash_ok %}
@@ -23,7 +23,7 @@
 
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
     <h2 class="text-lg font-semibold text-slate-900 mb-4">提交新反馈</h2>
-    <form method="post" action="/parent/feedback" class="space-y-4">
+    <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/feedback" class="space-y-4">
       <div>
         <label for="subject" class="block text-sm font-medium text-slate-700 mb-1">标题</label>
         <input id="subject" name="subject" value="{{ draft_subject }}" maxlength="120" required

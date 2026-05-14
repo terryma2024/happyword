@@ -10,7 +10,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Response, status
+from starlette.responses import JSONResponse
 
 from app.deps import current_device_binding
 from app.schemas.family_pack import (
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     from app.models.device_binding import DeviceBinding
 
 
-router = APIRouter(prefix="/api/v1/child", tags=["child-family-pack"])
+router = APIRouter(prefix="/api/v1/family", tags=["child-family-pack"])
 
 
 def _max_schema_version(slices: list[svc.MergedSlice]) -> int:
@@ -44,22 +45,21 @@ def _ensure_family_hint_matches(binding: DeviceBinding, x_family_id: str | None)
         )
 
 
-@router.get("/packs/latest.json", response_model=None)
+@router.get("/{family_id}/packs/latest.json", response_model=None)
 async def get_child_packs_latest(
-    response: Response,
+    family_id: str = Path(min_length=1, max_length=128),
     if_none_match: str | None = Header(default=None),
     x_family_id: str | None = Header(default=None, alias="X-Family-Id"),
     binding: DeviceBinding = Depends(current_device_binding),
-) -> ChildPacksMergedOut | Response:
+) -> ChildPacksMergedOut | Response | JSONResponse:
+    _ = family_id
     _ensure_family_hint_matches(binding, x_family_id)
     merged = await svc.collect_child_vocabulary(family_id=binding.family_id)
     if not merged.words:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     if if_none_match is not None and if_none_match.strip() == merged.etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": merged.etag})
-    response.headers["ETag"] = merged.etag
-    response.headers["Cache-Control"] = "private, no-cache"
-    return ChildPacksMergedOut(
+    body = ChildPacksMergedOut(
         schema_version=merged.schema_version,
         family_id=merged.family_id,
         global_version=merged.global_version,
@@ -77,40 +77,45 @@ async def get_child_packs_latest(
             for s in merged.slices
         ],
     )
+    return JSONResponse(
+        content=body.model_dump(mode="json"),
+        headers={"ETag": merged.etag, "Cache-Control": "private, no-cache"},
+    )
 
 
-@router.head("/packs/latest.json", response_model=None)
+@router.head("/{family_id}/packs/latest.json", response_model=None)
 async def head_child_packs_latest(
-    response: Response,
+    family_id: str = Path(min_length=1, max_length=128),
     if_none_match: str | None = Header(default=None),
     x_family_id: str | None = Header(default=None, alias="X-Family-Id"),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> Response:
+    _ = family_id
     _ensure_family_hint_matches(binding, x_family_id)
     merged = await svc.collect_child_vocabulary(family_id=binding.family_id)
     if not merged.words:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     if if_none_match is not None and if_none_match.strip() == merged.etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": merged.etag})
-    response.headers["ETag"] = merged.etag
-    response.headers["Cache-Control"] = "private, no-cache"
-    return Response(status_code=status.HTTP_200_OK, headers={"ETag": merged.etag})
+    return Response(
+        status_code=status.HTTP_200_OK,
+        headers={"ETag": merged.etag, "Cache-Control": "private, no-cache"},
+    )
 
 
-@router.get("/family-packs/latest.json", response_model=None)
+@router.get("/{family_id}/family-packs/latest.json", response_model=None)
 async def get_merged_family_packs(
-    response: Response,
+    family_id: str = Path(min_length=1, max_length=128),
     if_none_match: str | None = Header(default=None),
     binding: DeviceBinding = Depends(current_device_binding),
-) -> FamilyPacksMergedOut | Response:
+) -> FamilyPacksMergedOut | Response | JSONResponse:
+    _ = family_id
     slices, etag = await svc.collect_merged(family_id=binding.family_id)
     if not slices:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     if if_none_match is not None and if_none_match.strip() == etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
-    response.headers["ETag"] = etag
-    response.headers["Cache-Control"] = "private, no-cache"
-    return FamilyPacksMergedOut(
+    body = FamilyPacksMergedOut(
         schema_version=_max_schema_version(slices),
         family_id=binding.family_id,
         merged_at=datetime.now(tz=UTC),
@@ -125,19 +130,25 @@ async def get_merged_family_packs(
             for s in slices
         ],
     )
+    return JSONResponse(
+        content=body.model_dump(mode="json"),
+        headers={"ETag": etag, "Cache-Control": "private, no-cache"},
+    )
 
 
-@router.head("/family-packs/latest.json", response_model=None)
+@router.head("/{family_id}/family-packs/latest.json", response_model=None)
 async def head_merged_family_packs(
-    response: Response,
+    family_id: str = Path(min_length=1, max_length=128),
     if_none_match: str | None = Header(default=None),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> Response:
+    _ = family_id
     slices, etag = await svc.collect_merged(family_id=binding.family_id)
     if not slices:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     if if_none_match is not None and if_none_match.strip() == etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers={"ETag": etag})
-    response.headers["ETag"] = etag
-    response.headers["Cache-Control"] = "private, no-cache"
-    return Response(status_code=status.HTTP_200_OK, headers={"ETag": etag})
+    return Response(
+        status_code=status.HTTP_200_OK,
+        headers={"ETag": etag, "Cache-Control": "private, no-cache"},
+    )

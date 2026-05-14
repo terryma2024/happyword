@@ -140,6 +140,41 @@ struct GameConfig: Codable, Equatable {
         }
         return CustomTimerInputValidation(ok: true, seconds: parsed, message: "")
     }
+
+    /// Mirrors Harmony `validateCustomTimerSeconds` in `CustomTimerDialog.ets`.
+    static func validateCustomTimerInput(_ input: String) -> CustomTimerInputValidation {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return CustomTimerInputValidation(ok: false, seconds: 0, message: "请输入秒数")
+        }
+        if trimmed.range(of: "^[0-9]+$", options: .regularExpression) == nil {
+            return CustomTimerInputValidation(ok: false, seconds: 0, message: "请输入正整数秒数")
+        }
+        guard let parsed = Int(trimmed) else {
+            return CustomTimerInputValidation(ok: false, seconds: 0, message: "请输入正整数秒数")
+        }
+        if parsed < timerCustomRange.lowerBound {
+            return CustomTimerInputValidation(
+                ok: false,
+                seconds: 0,
+                message: "最少 \(timerCustomRange.lowerBound) 秒",
+            )
+        }
+        if parsed > timerCustomRange.upperBound {
+            return CustomTimerInputValidation(
+                ok: false,
+                seconds: 0,
+                message: "最多 \(timerCustomRange.upperBound) 秒",
+            )
+        }
+        return CustomTimerInputValidation(ok: true, seconds: parsed, message: "")
+    }
+}
+
+struct CustomTimerInputValidation: Equatable {
+    let ok: Bool
+    let seconds: Int
+    let message: String
 }
 
 struct CustomTimerInputValidation: Equatable {

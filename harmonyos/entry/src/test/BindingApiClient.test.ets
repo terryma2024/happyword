@@ -63,7 +63,7 @@ export default function bindingApiClientTest(): void {
     it('parsesSuccessAndPropagatesAllFields', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `POST ${BASE}/api/v1/pair/redeem`,
+        `POST ${BASE}/api/v1/public/pair/redeem`,
         fake(
           200,
           '{"binding_id":"bind-aabbccdd","family_id":"fam-12345678","child_profile_id":"child-deadbeef","nickname":"宝贝","avatar_emoji":"🦄","device_token":"jwt.body.sig"}',
@@ -84,7 +84,7 @@ export default function bindingApiClientTest(): void {
     it('mapsTokenExpiredErrorEnvelope', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `POST ${BASE}/api/v1/pair/redeem`,
+        `POST ${BASE}/api/v1/public/pair/redeem`,
         fake(410, '{"detail":{"error":{"code":"TOKEN_EXPIRED","message":"gone"}}}'),
       );
       const c: BindingApiClient = new BindingApiClient(ad, BASE);
@@ -105,7 +105,7 @@ export default function bindingApiClientTest(): void {
     it('mapsAlreadyRedeemedConflict', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `POST ${BASE}/api/v1/pair/redeem`,
+        `POST ${BASE}/api/v1/public/pair/redeem`,
         fake(409, '{"detail":{"error":{"code":"TOKEN_REDEEMED"}}}'),
       );
       const c: BindingApiClient = new BindingApiClient(ad, BASE);
@@ -125,7 +125,7 @@ export default function bindingApiClientTest(): void {
     it('shortCodeIsForwardedInBody', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `POST ${BASE}/api/v1/pair/redeem`,
+        `POST ${BASE}/api/v1/public/pair/redeem`,
         fake(
           200,
           '{"binding_id":"bind-x","family_id":"fam-x","child_profile_id":"child-x","nickname":"x","avatar_emoji":"x","device_token":"x.y.z"}',

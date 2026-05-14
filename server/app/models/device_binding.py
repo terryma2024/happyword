@@ -1,6 +1,6 @@
 """V0.6.2 — DeviceBinding ties one client device to one family + child profile.
 
-Created atomically by `POST /api/v1/pair/redeem` together with a sibling
+Created atomically by `POST /api/v1/public/pair/redeem` together with a sibling
 `ChildProfile` (1:1). When a device re-binds (same device_id), the previous
 active binding for that device under the same family is revoked
 (`revoked_at` set) but the same `child_profile_id` is reused so learning

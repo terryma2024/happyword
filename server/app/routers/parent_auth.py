@@ -11,7 +11,7 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 
 from app.config import get_settings
 from app.deps import (
@@ -45,7 +45,7 @@ from app.services.otp_service import (
 if TYPE_CHECKING:
     from app.services.email_provider import EmailProvider
 
-router = APIRouter(prefix="/api/v1/parent", tags=["parent-auth"])
+router = APIRouter(prefix="/api/v1/family", tags=["parent-auth"])
 
 
 def _normalize_email(email: str) -> str:
@@ -53,12 +53,13 @@ def _normalize_email(email: str) -> str:
 
 
 @router.post(
-    "/auth/request-code",
+    "/{family_id}/auth/request-code",
     response_model=RequestCodeOut,
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def post_request_code(
     payload: RequestCodeIn,
+    family_id: str = Path(min_length=1, max_length=128),
     provider: EmailProvider = Depends(get_email_provider),
 ) -> RequestCodeOut:
     """Always 202: do NOT reveal whether the email is known (anti-enumeration).
@@ -67,6 +68,7 @@ async def post_request_code(
     are degraded silently — the row is persisted and the user can retry; we
     do not leak provider state to the public endpoint.
     """
+    _ = family_id  # Decorative until path/session enforcement lands.
     settings = get_settings()
     email = _normalize_email(payload.email)
     row, plain_code = await request_code(email)
@@ -83,13 +85,15 @@ async def post_request_code(
 
 
 @router.post(
-    "/auth/verify-code",
+    "/{family_id}/auth/verify-code",
     response_model=VerifyCodeOut,
 )
 async def post_verify_code(
     payload: VerifyCodeIn,
     response: Response,
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> VerifyCodeOut:
+    _ = family_id  # Decorative until path/session enforcement lands.
     email = _normalize_email(payload.email)
 
     # Reject admin-owned email addresses up front (avoids creating a stray
@@ -101,7 +105,7 @@ async def post_verify_code(
             detail={
                 "error": {
                     "code": "ROLE_MISMATCH",
-                    "message": "This email belongs to an admin account; use /api/v1/auth/login.",
+                    "message": "This email belongs to an admin account; use /api/v1/admin/auth/login.",
                 }
             },
         )
@@ -158,14 +162,22 @@ async def post_verify_code(
     )
 
 
-@router.post("/auth/logout", status_code=status.HTTP_200_OK)
-async def post_logout(response: Response) -> dict[str, str]:
+@router.post("/{family_id}/auth/logout", status_code=status.HTTP_200_OK)
+async def post_logout(
+    response: Response,
+    family_id: str = Path(min_length=1, max_length=128),
+) -> dict[str, str]:
+    _ = family_id
     clear_parent_session_cookie(response)
     return {"status": "logged_out"}
 
 
-@router.get("/me", response_model=ParentMeOut)
-async def get_me(user: User = Depends(current_parent_user)) -> ParentMeOut:
+@router.get("/{family_id}/me", response_model=ParentMeOut)
+async def get_me(
+    family_id: str = Path(min_length=1, max_length=128),
+    user: User = Depends(current_parent_user),
+) -> ParentMeOut:
+    _ = family_id
     return ParentMeOut(
         id=user.username,
         email=user.email or "",

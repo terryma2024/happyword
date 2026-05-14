@@ -8,13 +8,13 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, MeResponse
 from app.services.auth_service import create_access_token, verify_password
 
-router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+router = APIRouter(prefix="/api/v1/admin/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=LoginResponse)
 async def login(req: LoginRequest) -> LoginResponse:
     user = await User.find_one(User.username == req.username)
-    # Parent users have password_hash=None and must use /api/v1/parent/auth/* — reject
+    # Parent users have password_hash=None and must use /api/v1/family/{family_id}/auth/* — reject
     # them here so the admin login endpoint can never be tricked into a None compare.
     if (
         user is None

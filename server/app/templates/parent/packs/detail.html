@@ -4,14 +4,14 @@
 <section class="space-y-6">
   <header class="flex items-start justify-between gap-4 flex-wrap">
     <div>
-      <a href="/parent/packs" class="text-sm text-sky-700 hover:underline">返回词库</a>
+      <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs" class="text-sm text-sky-700 hover:underline">返回词库</a>
       <h1 class="text-2xl font-semibold text-slate-900 mt-2">{{ definition.name }}</h1>
       <p class="text-sm text-slate-500 mt-1">{{ definition.description or "无描述" }}</p>
       <p class="text-sm mt-2">
-        <a href="/parent/packs/{{ definition.pack_id }}/versions" class="text-sky-700 hover:underline">发布历史</a>
+        <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/versions" class="text-sky-700 hover:underline">发布历史</a>
       </p>
     </div>
-    <a href="/parent/packs/{{ definition.pack_id }}/import" class="text-sm bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded-md font-medium">
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/import" class="text-sm bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded-md font-medium">
       图片导入
     </a>
   </header>
@@ -98,7 +98,7 @@
       {% if pointer %}当前版本 v{{ pointer.current_version }}{% else %}尚未发布{% endif %}
       · 草稿 {{ draft.word_count }} / {{ draft.max_words }} 词
     </p>
-    <form method="post" action="/parent/packs/{{ definition.pack_id }}/publish" class="mt-4 flex items-center gap-2">
+    <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/publish" class="mt-4 flex items-center gap-2">
       <input name="notes" class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="发布说明" />
       <button type="submit" class="bg-sky-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-sky-700">发布词库</button>
     </form>
@@ -109,7 +109,7 @@
     <p class="text-xs text-slate-500">
       自定义词条 ID 由家庭前缀与您下方填写的后缀组成（与 JSON API 约定一致）。
     </p>
-    <form method="post" action="/parent/packs/{{ definition.pack_id }}/draft/add-custom" class="grid gap-3 md:grid-cols-2">
+    <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/add-custom" class="grid gap-3 md:grid-cols-2">
       <label class="text-sm text-slate-700">后缀（接在家庭前缀之后）
         <input name="suffix" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="apple-1" />
       </label>
@@ -140,10 +140,10 @@
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-3">
     <h2 class="text-lg font-semibold text-slate-900">批量粘贴（JSON）</h2>
     <p class="text-xs text-slate-500">
-      请求体与接口 <code class="font-mono text-xs">POST /api/v1/parent/family-packs/{id}/draft/words:batch-upsert</code> 一致，例如：
+      请求体与接口 <code class="font-mono text-xs">POST /api/v1/family/{family_id}/family-packs/{id}/draft/words:batch-upsert</code> 一致，例如：
       <code class="font-mono text-xs block mt-2 bg-slate-50 border border-slate-200 rounded px-2 py-2">{"rows":[{"word_id":"…","source":"custom","word":"…","meaning_zh":"…","category":"…","difficulty":3,"example_en":"I see an apple.","example_zh":"我看见一个苹果。"}]}</code>
     </p>
-    <form method="post" action="/parent/packs/{{ definition.pack_id }}/draft/batch-json" class="space-y-3">
+    <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/batch-json" class="space-y-3">
       <textarea name="batch_json" rows="8" class="w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-mono" placeholder='{"rows":[]}'></textarea>
       <button type="submit" class="bg-sky-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-sky-700">应用批量写入</button>
     </form>

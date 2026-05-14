@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 @pytest.fixture
 async def parent_with_device(
     db: object,
-) -> AsyncIterator[tuple[AsyncClient, str, str]]:
-    """Logs in a parent + redeems one binding; yields (client, binding_id, child_id)."""
+) -> AsyncIterator[tuple[AsyncClient, str, str, str]]:
+    """Logs in a parent + redeems one binding; yields (client, binding_id, child_id, family_id)."""
     from app.deps_email import get_email_provider
     from app.main import app
     from app.services.email_provider import RecordingEmailProvider
@@ -31,21 +31,21 @@ async def parent_with_device(
         transport=transport, base_url="http://test", follow_redirects=False
     ) as ac:
         await ac.post(
-            "/api/v1/parent/auth/request-code", json={"email": "p2@example.com"}
+            "/api/v1/family/_/auth/request-code", json={"email": "p2@example.com"}
         )
         code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[:6]
         await ac.post(
-            "/api/v1/parent/auth/verify-code",
+            "/api/v1/family/_/auth/verify-code",
             json={"email": "p2@example.com", "code": code},
         )
-        c = await ac.post("/api/v1/parent/pair/create")
+        c = await ac.post("/api/v1/family/_/pair/create")
         token = c.json()["token"]
         rd = await ac.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": "dev-mgmt-001"},
         )
         body = rd.json()
-        yield ac, body["binding_id"], body["child_profile_id"]
+        yield ac, body["binding_id"], body["child_profile_id"], body["family_id"]
 
     app.dependency_overrides.pop(get_email_provider, None)
     from app.routers.pair import _rate_buckets
@@ -55,10 +55,10 @@ async def parent_with_device(
 
 @pytest.mark.asyncio
 async def test_list_devices_returns_active_bindings(
-    parent_with_device: tuple[AsyncClient, str, str],
+    parent_with_device: tuple[AsyncClient, str, str, str],
 ) -> None:
-    ac, binding_id, _ = parent_with_device
-    r = await ac.get("/api/v1/parent/devices")
+    ac, binding_id, _, _fid = parent_with_device
+    r = await ac.get("/api/v1/family/_/devices")
     assert r.status_code == 200
     body = r.json()
     assert body["total"] == 1
@@ -68,10 +68,10 @@ async def test_list_devices_returns_active_bindings(
 
 @pytest.mark.asyncio
 async def test_list_children_returns_active_profiles(
-    parent_with_device: tuple[AsyncClient, str, str],
+    parent_with_device: tuple[AsyncClient, str, str, str],
 ) -> None:
-    ac, _binding_id, child_id = parent_with_device
-    r = await ac.get("/api/v1/parent/children")
+    ac, _binding_id, child_id, _fid = parent_with_device
+    r = await ac.get("/api/v1/family/_/children")
     assert r.status_code == 200
     body = r.json()
     assert len(body) == 1
@@ -80,11 +80,11 @@ async def test_list_children_returns_active_profiles(
 
 @pytest.mark.asyncio
 async def test_put_child_updates_nickname(
-    parent_with_device: tuple[AsyncClient, str, str],
+    parent_with_device: tuple[AsyncClient, str, str, str],
 ) -> None:
-    ac, _binding_id, child_id = parent_with_device
+    ac, _binding_id, child_id, _fid = parent_with_device
     r = await ac.put(
-        f"/api/v1/parent/children/{child_id}",
+        f"/api/v1/family/_/children/{child_id}",
         json={"nickname": "小明", "avatar_emoji": "🦊"},
     )
     assert r.status_code == 200
@@ -95,11 +95,11 @@ async def test_put_child_updates_nickname(
 
 @pytest.mark.asyncio
 async def test_put_child_other_family_returns_404(
-    parent_with_device: tuple[AsyncClient, str, str],
+    parent_with_device: tuple[AsyncClient, str, str, str],
 ) -> None:
-    ac, _binding_id, _child_id = parent_with_device
+    ac, _binding_id, _child_id, _fid = parent_with_device
     r = await ac.put(
-        "/api/v1/parent/children/child-deadbeef",
+        "/api/v1/family/_/children/child-deadbeef",
         json={"nickname": "x"},
     )
     assert r.status_code == 404
@@ -107,10 +107,10 @@ async def test_put_child_other_family_returns_404(
 
 @pytest.mark.asyncio
 async def test_delete_child_revokes_binding(
-    parent_with_device: tuple[AsyncClient, str, str],
+    parent_with_device: tuple[AsyncClient, str, str, str],
 ) -> None:
-    ac, binding_id, child_id = parent_with_device
-    r = await ac.delete(f"/api/v1/parent/children/{child_id}")
+    ac, binding_id, child_id, _fid = parent_with_device
+    r = await ac.delete(f"/api/v1/family/_/children/{child_id}")
     assert r.status_code == 200
     binding = await DeviceBinding.find_one(DeviceBinding.binding_id == binding_id)
     assert binding is not None
@@ -122,17 +122,17 @@ async def test_delete_child_revokes_binding(
 
 @pytest.mark.asyncio
 async def test_device_binding_dep_rejects_revoked_token(
-    parent_with_device: tuple[AsyncClient, str, str],
+    parent_with_device: tuple[AsyncClient, str, str, str],
 ) -> None:
     """Once a child profile is deleted, the previously-issued device JWT must
-    yield 404 BINDING_REVOKED on /api/v1/child/* (V0.6.2 ships only the dep;
-    sample endpoint /api/v1/child/me is wired here to exercise it)."""
+    yield 404 BINDING_REVOKED on /api/v1/family/_/* (V0.6.2 ships only the dep;
+    sample endpoint /api/v1/family/_/me is wired here to exercise it)."""
     from fastapi import Depends, FastAPI
 
     from app.deps import current_device_binding
     from app.services.auth_service import create_device_token
 
-    ac, binding_id, child_id = parent_with_device
+    ac, binding_id, child_id, _fid = parent_with_device
     device_token = create_device_token(
         binding_id=binding_id, child_profile_id=child_id
     )
@@ -153,7 +153,7 @@ async def test_device_binding_dep_rejects_revoked_token(
     assert r.status_code == 200
 
     # Now delete the child; binding gets revoked; same token must 404.
-    await ac.delete(f"/api/v1/parent/children/{child_id}")
+    await ac.delete(f"/api/v1/family/_/children/{child_id}")
     async with AsyncClient(transport=transport, base_url="http://test") as tc:
         r = await tc.get(
             "/__test/me", headers={"Authorization": f"Bearer {device_token}"}
@@ -196,14 +196,14 @@ async def test_device_binding_dep_unknown_binding_yields_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_devices_add_cancel_form_redirects_home(
-    parent_with_device: tuple[AsyncClient, str, str],
+    parent_with_device: tuple[AsyncClient, str, str, str],
 ) -> None:
-    ac, _binding_id, _child_id = parent_with_device
-    r = await ac.post("/api/v1/parent/pair/create")
+    ac, _binding_id, _child_id, fid = parent_with_device
+    r = await ac.post("/api/v1/family/_/pair/create")
     token = r.json()["token"]
-    cr = await ac.post("/parent/devices/add/cancel", data={"token": token})
+    cr = await ac.post(f"/family/{fid}/devices/add/cancel", data={"token": token})
     assert cr.status_code == 303
-    assert cr.headers["location"] == "/parent/"
+    assert cr.headers["location"] == f"/family/{fid}/"
 
 
 @pytest.mark.asyncio
@@ -221,25 +221,32 @@ async def test_parent_unbind_form_verifies_code_before_revoking(db: object) -> N
             transport=transport, base_url="http://test", follow_redirects=False
         ) as ac:
             await ac.post(
-                "/parent/auth/request-code",
+                "/family/_/auth/request-code",
                 data={"email": "unbind-parent@example.com"},
             )
             login_code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[
                 :6
             ]
             await ac.post(
-                "/parent/auth/verify-code",
+                "/family/_/auth/verify-code",
                 data={"email": "unbind-parent@example.com", "code": login_code},
             )
-            pair = await ac.post("/api/v1/parent/pair/create")
+            from app.models.user import User, UserRole
+
+            u = await User.find_one(
+                User.email == "unbind-parent@example.com", User.role == UserRole.PARENT
+            )
+            assert u is not None
+            fid = u.family_id or "_"
+            pair = await ac.post("/api/v1/family/_/pair/create")
             token = pair.json()["token"]
             redeemed = await ac.post(
-                "/api/v1/pair/redeem",
+                "/api/v1/public/pair/redeem",
                 json={"token": token, "device_id": "dev-parent-unbind"},
             )
             binding_id = redeemed.json()["binding_id"]
 
-            page = await ac.get(f"/parent/devices/{binding_id}/unbind")
+            page = await ac.get(f"/family/{fid}/devices/{binding_id}/unbind")
             assert page.status_code == 200
             assert "解除设备绑定" in page.text
             unbind_code = "".join(
@@ -248,7 +255,7 @@ async def test_parent_unbind_form_verifies_code_before_revoking(db: object) -> N
 
             wrong_code = "000000" if unbind_code != "000000" else "999999"
             bad = await ac.post(
-                f"/parent/devices/{binding_id}/unbind",
+                f"/family/{fid}/devices/{binding_id}/unbind",
                 data={"code": wrong_code},
             )
             assert bad.status_code == 400
@@ -257,11 +264,11 @@ async def test_parent_unbind_form_verifies_code_before_revoking(db: object) -> N
             assert binding.revoked_at is None
 
             ok = await ac.post(
-                f"/parent/devices/{binding_id}/unbind",
+                f"/family/{fid}/devices/{binding_id}/unbind",
                 data={"code": unbind_code},
             )
             assert ok.status_code == 303
-            assert ok.headers["location"] == "/parent/?flash_ok=device_unbound"
+            assert ok.headers["location"] == f"/family/{fid}/?flash_ok=device_unbound"
             binding = await DeviceBinding.find_one(DeviceBinding.binding_id == binding_id)
             assert binding is not None
             assert binding.revoked_at is not None
@@ -272,7 +279,7 @@ async def test_parent_unbind_form_verifies_code_before_revoking(db: object) -> N
             assert child.deleted_at is not None
             assert child.deleted_at == binding.revoked_at
 
-            detail = await ac.get(f"/parent/devices/{binding_id}")
+            detail = await ac.get(f"/family/{fid}/devices/{binding_id}")
             assert detail.status_code == 404
     finally:
         app.dependency_overrides.pop(get_email_provider, None)

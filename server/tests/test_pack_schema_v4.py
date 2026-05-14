@@ -60,7 +60,7 @@ async def test_pack_includes_categories_at_schema_v4(client: "AsyncClient", admi
     assert publish.status_code == 201
     assert publish.json()["schema_version"] == 4
 
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     body = pack.json()
     assert body["schema_version"] == 4
     assert {c["id"] for c in body["categories"]} == {"school-supplies"}
@@ -104,7 +104,7 @@ async def test_pack_only_includes_referenced_categories(client: "AsyncClient", a
     ).insert()
 
     await client.post("/api/v1/admin/packs/publish", json={}, headers=_bearer(admin.username))
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     ids = [c["id"] for c in pack.json()["categories"]]
     assert ids == ["school-supplies"]
 
@@ -125,5 +125,5 @@ async def test_pack_with_no_category_rows_stays_at_v1(client: "AsyncClient", adm
         "/api/v1/admin/packs/publish", json={}, headers=_bearer(admin.username)
     )
     assert publish.json()["schema_version"] == 1
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     assert "categories" not in pack.json()

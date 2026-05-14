@@ -8,10 +8,10 @@ client need adjustments.
 ## Background
 
 Today the bound child's `nickname` is set once during pair redeem
-(`POST /api/v1/pair/redeem`) and can only be changed by a parent through
+(`POST /api/v1/public/pair/redeem`) and can only be changed by a parent through
 the parent-web UI:
 
-- `PUT /api/v1/parent/children/{profile_id}` — parent JWT auth, accepts
+- `PUT /api/v1/family/{family_id}/children/{profile_id}` — parent JWT auth, accepts
   `{ nickname?, avatar_emoji? }`. Implemented by
   `child_profile_service.update` which already does `strip()`, max-32
   truncation, and `family_id` ownership scoping.
@@ -25,7 +25,7 @@ this.row('孩子档案', `${this.snap.avatarEmoji || '🦄'} ${this.snap.nicknam
 
 The device only holds a `device_token` (not a parent JWT), so it cannot
 call the parent-side PUT. There is precedent for device-token-authed
-mutations under `/api/v1/child/*`: `POST /api/v1/child/unbind`
+mutations under `/api/v1/family/{family_id}/*`: `POST /api/v1/family/{family_id}/unbind`
 (`current_device_binding` Bearer auth) revokes the binding from the
 device.
 
@@ -55,10 +55,10 @@ device.
 
 ## Server changes
 
-### New endpoint: `PUT /api/v1/child/profile`
+### New endpoint: `PUT /api/v1/family/{family_id}/profile`
 
 Auth: `Depends(current_device_binding)` — same Bearer device JWT used by
-all `/api/v1/child/*` routes. Revoked bindings get the standard
+all `/api/v1/family/{family_id}/*` routes. Revoked bindings get the standard
 `404 BINDING_REVOKED` from the dependency itself.
 
 Request schema (`server/app/schemas/child_self.py`):
@@ -82,7 +82,7 @@ class ChildSelfProfileOut(BaseModel):
 ```
 
 Handler location: a new module `server/app/routers/child_profile.py`
-(prefix `/api/v1/child`, tag `child-profile`) wired in `app/main.py`.
+(prefix `/api/v1/family/{family_id}`, tag `child-profile`) wired in `app/main.py`.
 Keeping it separate from `child_wishlist.py` keeps each router focused
 on one collection.
 
@@ -124,7 +124,7 @@ Following the convey-style table test patterns already used in
 `test_device_management.py`:
 
 1. Happy path: redeem → device PUT with new nickname → 200 with stripped
-   value; subsequent parent `GET /parent/children` shows the new name.
+   value; subsequent parent `GET /family/{family_id}/children` shows the new name.
 2. Whitespace-only nickname → 400 `INVALID_NICKNAME`.
 3. Long nickname (>32 chars) → 200; stored value is truncated to 32.
 4. Revoked binding → 404 `BINDING_REVOKED` (from the dep, no new code).
@@ -142,7 +142,7 @@ Mirrors the slim `BindingApiClient` / `DeviceUnbindClient` shape:
 - Constructor `(adapter: ParentFetchAdapter, baseUrl: string)`
 - `async updateNickname(deviceToken: string, nickname: string):
   Promise<UpdatedChildProfile>`
-- Sends `PUT ${baseUrl}/api/v1/child/profile` with header
+- Sends `PUT ${baseUrl}/api/v1/family/{family_id}/profile` with header
   `Authorization: Bearer ${deviceToken}` and body
   `{"nickname": ...}`.
 - Error envelope parsed via the existing `parseErrorCode` style; throws
@@ -190,7 +190,7 @@ Reusing it ensures every other reader (`HomePage` 🌙 badge,
 
 - `BindingApiClient.redeem` — still seeds `nickname` from server response.
 - `DeviceUnbindClient`, `ScanBindingPage` — unrelated.
-- Parent-web flow at `PUT /api/v1/parent/children/{profile_id}` — still
+- Parent-web flow at `PUT /api/v1/family/{family_id}/children/{profile_id}` — still
   the canonical path for parent-side edits. Both clients write to the
   same `child_profiles` collection and respect the same 32-char cap.
 

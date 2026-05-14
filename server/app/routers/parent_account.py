@@ -1,13 +1,13 @@
 """V0.6.7 — parent self-service account endpoints.
 
 JSON:
-  GET    /api/v1/parent/account/status
-  POST   /api/v1/parent/account/delete
-  POST   /api/v1/parent/account/cancel-delete
-  POST   /api/v1/parent/account/export
+  GET    /api/v1/family/{family_id}/account/status
+  POST   /api/v1/family/{family_id}/account/delete
+  POST   /api/v1/family/{family_id}/account/cancel-delete
+  POST   /api/v1/family/{family_id}/account/export
 
 HTML:
-  GET    /parent/settings (settings page with delete + export forms)
+  GET    /family/{family_id}/account (settings page with delete + export forms)
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -32,16 +32,23 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-router = APIRouter(prefix="/api/v1/parent/account", tags=["parent-account"])
-html_router = APIRouter(prefix="/parent/account", tags=["parent-account-html"])
+router = APIRouter(prefix="/api/v1/family", tags=["parent-account"])
+html_router = APIRouter(prefix="/family", tags=["parent-account-html"])
 
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get("/status", response_model=AccountStatusOut)
+def _account_home(user: User) -> str:
+    fid = user.family_id or "_"
+    return f"/family/{fid}/account"
+
+
+@router.get("/{family_id}/account/status", response_model=AccountStatusOut)
 async def get_status(
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> AccountStatusOut:
+    _ = family_id
     grace = account_deletion_service.grace_days_remaining(
         scheduled=user.scheduled_deletion_at,
         now=datetime.now(tz=UTC),
@@ -55,10 +62,12 @@ async def get_status(
     )
 
 
-@router.post("/delete", response_model=AccountDeleteOut)
+@router.post("/{family_id}/account/delete", response_model=AccountDeleteOut)
 async def post_delete(
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> AccountDeleteOut:
+    _ = family_id
     scheduled_at = await account_deletion_service.schedule_deletion(
         user_id=user.username, requested_by=user.username
     )
@@ -69,20 +78,24 @@ async def post_delete(
     )
 
 
-@router.post("/cancel-delete", response_model=AccountCancelDeleteOut)
+@router.post("/{family_id}/account/cancel-delete", response_model=AccountCancelDeleteOut)
 async def post_cancel_delete(
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> AccountCancelDeleteOut:
+    _ = family_id
     cancelled = await account_deletion_service.cancel_deletion(
         user_id=user.username, requested_by=user.username
     )
     return AccountCancelDeleteOut(user_id=user.username, cancelled=cancelled)
 
 
-@router.post("/export")
+@router.post("/{family_id}/account/export")
 async def post_export(
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> JSONResponse:
+    _ = family_id
     snapshot = await account_deletion_service.export_account_data(user=user)
     files = list(snapshot.keys())
     items_count = sum(len(v) for v in snapshot.values())
@@ -103,11 +116,13 @@ async def post_export(
     return JSONResponse(body, headers=headers)
 
 
-@html_router.get("", response_class=HTMLResponse)
+@html_router.get("/{family_id}/account", response_class=HTMLResponse)
 async def get_settings_html(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> HTMLResponse:
+    _ = family_id
     grace = account_deletion_service.grace_days_remaining(
         scheduled=user.scheduled_deletion_at
     )
@@ -122,24 +137,28 @@ async def get_settings_html(
     )
 
 
-@html_router.post("/delete", response_model=None)
+@html_router.post("/{family_id}/account/delete", response_model=None)
 async def post_delete_form(
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> RedirectResponse:
+    _ = family_id
     await account_deletion_service.schedule_deletion(
         user_id=user.username, requested_by=user.username
     )
-    return RedirectResponse(url="/parent/account", status_code=303)
+    return RedirectResponse(url=_account_home(user), status_code=303)
 
 
-@html_router.post("/cancel-delete", response_model=None)
+@html_router.post("/{family_id}/account/cancel-delete", response_model=None)
 async def post_cancel_delete_form(
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> RedirectResponse:
+    _ = family_id
     await account_deletion_service.cancel_deletion(
         user_id=user.username, requested_by=user.username
     )
-    return RedirectResponse(url="/parent/account", status_code=303)
+    return RedirectResponse(url=_account_home(user), status_code=303)
 
 
 # Reference unused imports so linters stay quiet about HTTPException + status.

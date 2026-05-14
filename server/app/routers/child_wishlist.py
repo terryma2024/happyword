@@ -1,6 +1,6 @@
 """V0.6.6 — child-side wishlist + redemption-request APIs.
 
-These are mounted under `/api/v1/child` and authenticated by the device
+These are mounted under `/api/v1/family/{family_id}` and authenticated by the device
 JWT via `current_device_binding`. The dep also rejects revoked bindings
 with 404 BINDING_REVOKED.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 
 from app.deps import current_device_binding
 from app.schemas.cloud_wishlist import (
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from app.models.redemption_request import RedemptionRequest
 
 
-router = APIRouter(prefix="/api/v1/child", tags=["child-wishlist"])
+router = APIRouter(prefix="/api/v1/family", tags=["child-wishlist"])
 
 
 def _now_ms() -> int:
@@ -74,10 +74,12 @@ def _redemption_to_out(req: RedemptionRequest) -> RedemptionRequestOut:
     )
 
 
-@router.get("/wishlist", response_model=CloudWishlistListOut)
+@router.get("/{family_id}/wishlist", response_model=CloudWishlistListOut)
 async def list_wishlist(
+    family_id: str = Path(min_length=1, max_length=128),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> CloudWishlistListOut:
+    _ = family_id
     items = await cloud_wishlist_service.list_active_for_device(
         profile_id=binding.child_profile_id
     )
@@ -85,13 +87,15 @@ async def list_wishlist(
 
 
 @router.post(
-    "/wishlist/sync-custom",
+    "/{family_id}/wishlist/sync-custom",
     response_model=ChildWishlistSyncOut,
 )
 async def sync_custom(
     payload: ChildWishlistSyncIn,
+    family_id: str = Path(min_length=1, max_length=128),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> ChildWishlistSyncOut:
+    _ = family_id
     items = await cloud_wishlist_service.upsert_custom_from_device(
         profile_id=binding.child_profile_id,
         family_id=binding.family_id,
@@ -104,14 +108,16 @@ async def sync_custom(
 
 
 @router.post(
-    "/redemption-requests",
+    "/{family_id}/redemption-requests",
     response_model=RedemptionRequestOut,
     status_code=status.HTTP_201_CREATED,
 )
 async def submit_redemption(
     payload: RedemptionRequestCreateIn = Body(...),
+    family_id: str = Path(min_length=1, max_length=128),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> RedemptionRequestOut:
+    _ = family_id
     try:
         req = await redemption_service.submit_request(
             profile_id=binding.child_profile_id,
@@ -143,12 +149,14 @@ async def submit_redemption(
 
 
 @router.get(
-    "/redemption-requests",
+    "/{family_id}/redemption-requests",
     response_model=RedemptionRequestListOut,
 )
 async def list_pending(
+    family_id: str = Path(min_length=1, max_length=128),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> RedemptionRequestListOut:
+    _ = family_id
     rows = await redemption_service.list_pending_for_device(
         profile_id=binding.child_profile_id
     )
@@ -156,13 +164,15 @@ async def list_pending(
 
 
 @router.get(
-    "/redemption-requests/poll",
+    "/{family_id}/redemption-requests/poll",
     response_model=RedemptionPollOut,
 )
 async def poll_decisions(
+    family_id: str = Path(min_length=1, max_length=128),
     since_ms: int = Query(default=0, ge=0),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> RedemptionPollOut:
+    _ = family_id
     rows = await redemption_service.poll_for_device(
         profile_id=binding.child_profile_id, since_ms=since_ms
     )
@@ -172,13 +182,15 @@ async def poll_decisions(
     )
 
 
-@router.post("/unbind", status_code=status.HTTP_200_OK)
+@router.post("/{family_id}/unbind", status_code=status.HTTP_200_OK)
 async def post_unbind(
+    family_id: str = Path(min_length=1, max_length=128),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> dict[str, str]:
     """V0.6.7 — explicit device unbind. Sets revoked_at; subsequent
-    /api/v1/child/* calls with the same token return 404 BINDING_REVOKED.
+    /api/v1/family/{family_id}/* calls with the same token return 404 BINDING_REVOKED.
     """
+    _ = family_id
     from app.models.audit_log import ActorRole  # noqa: PLC0415
     from app.services import audit_service  # noqa: PLC0415
 

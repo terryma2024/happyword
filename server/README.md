@@ -96,7 +96,7 @@ uv run pytest -v -m e2e
 | `E2E_BASE_URL`      | Base URL of the deployed server, e.g. a Vercel preview URL.                                             |
 | `E2E_MONGODB_URI`   | Mongo connection string used by reset/inject helpers. **Must be a dedicated test cluster.**             |
 | `E2E_MONGO_DB_NAME` | DB name. Safety guard requires the name to end with `_e2e`, `_test`, or `_ci` and never contain `prod`. |
-| `E2E_ADMIN_USER`    | Bootstrap admin username for `/api/v1/auth/login`.                                                      |
+| `E2E_ADMIN_USER`    | Bootstrap admin username for `/api/v1/admin/auth/login`.                                                      |
 | `E2E_ADMIN_PASS`    | Bootstrap admin password.                                                                               |
 | `E2E_VERCEL_PROTECTION_BYPASS` | Optional. Vercel "Protection Bypass for Automation" secret — required when the preview has Deployment Protection (SSO / password / trusted-IP) enabled. The driver attaches it as the `x-vercel-protection-bypass` header on every request. Empty / unset = no header sent (correct for local or unprotected previews). |
 

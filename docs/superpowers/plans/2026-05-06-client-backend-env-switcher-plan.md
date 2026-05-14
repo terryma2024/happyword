@@ -4,9 +4,9 @@
 
 **Goal:** Implement the client-side backend env switcher described in [the env-switcher design spec](../specs/2026-05-06-client-backend-env-switcher-design.md). Debug builds gain a DevMenu page that lets a tester point the HarmonyOS app at Local / a PR Preview / Staging without rebuilding. Release builds remain hard-locked to staging.
 
-**Architecture:** A new `BackendEnv` enum + Preferences-backed resolver replaces the boolean `USE_LOCAL_DEV_SERVER` toggle. A `PreviewManifestService` fetches the preview list from **`PREVIEW_MANIFEST_JSON_URL`** (`https://happyword.cool/api/v1/preview-urls.json` — Blob-backed public FastAPI proxy; repo file on `main` is the CI audit copy). Switching environments hard-resets cloud session state by design.
+**Architecture:** A new `BackendEnv` enum + Preferences-backed resolver replaces the boolean `USE_LOCAL_DEV_SERVER` toggle. A `PreviewManifestService` fetches the preview list from **`PREVIEW_MANIFEST_JSON_URL`** (`https://happyword.cool/api/v1/public/preview-urls.json` — Blob-backed public FastAPI proxy; repo file on `main` is the CI audit copy). Switching environments hard-resets cloud session state by design.
 
-**Revision (2026-05-08):** Aligns with design spec §10 — manifest HTTP never follows `effectiveServerBaseUrl()` or bypass headers. Server `GET /api/v1/preview-urls.json` is intentionally unauthenticated (see `public_packs.py` module docstring).
+**Revision (2026-05-08):** Aligns with design spec §10 — manifest HTTP never follows `effectiveServerBaseUrl()` or bypass headers. Server `GET /api/v1/public/preview-urls.json` is intentionally unauthenticated (see `public_packs.py` module docstring).
 
 **Tech Stack:** ArkTS, HarmonyOS NEXT, `@ohos/hypium` (unit tests), `@ohos.data.preferences`, AppStorage, `@ohos.net.http`, Node 20 (manifest workflow script), GitHub Actions.
 
@@ -296,7 +296,7 @@ export default function remoteWordPackConfigTest() {
 
     it('buildLatestPackUrlAppendsCorrectPath', 0, () => {
       expect(buildLatestPackUrl(STAGING_BASE_URL))
-        .assertEqual('https://happyword.cool/api/v1/packs/latest.json');
+        .assertEqual('https://happyword.cool/api/v1/public/packs/latest.json');
     });
     it('buildLatestPackUrlReturnsEmptyForEmptyBase', 0, () => {
       expect(buildLatestPackUrl('')).assertEqual('');
@@ -823,7 +823,7 @@ import { common } from '@kit.AbilityKit';
 // Production manifest endpoint only — same origin as `PREVIEW_MANIFEST_JSON_URL`
 // in RemoteWordPackConfig.ets (no raw.githubusercontent.com; no rewrite via DevMenu base URL).
 const MANIFEST_URL: string =
-  'https://happyword.cool/api/v1/preview-urls.json';
+  'https://happyword.cool/api/v1/public/preview-urls.json';
 const PREFS_NAME: string = 'wm_dev_menu';
 const CACHE_KEY: string = 'preview_manifest_cache';
 const CACHE_TTL_MS: number = 5 * 60 * 1000;
@@ -1279,7 +1279,7 @@ struct DevMenuPage {
   async healthCheck(url: string): Promise<boolean> {
     const req = http.createHttp();
     try {
-      const resp = await req.request(`${url}/api/v1/health`, {
+      const resp = await req.request(`${url}/api/v1/public/health`, {
         method: http.RequestMethod.GET,
         connectTimeout: 2000,
         readTimeout: 2000,
@@ -1806,7 +1806,7 @@ specific PR's preview backend.
    - Paste the full preview URL into the **Or paste a preview URL** field
      (must start with `https://` and end with `.vercel.app`).
 5. Tap **Apply (会清除本地会话)**. The app will:
-   - validate the URL with a 2-second `/api/v1/health` probe,
+   - validate the URL with a 2-second `/api/v1/public/health` probe,
    - clear your parent login + device binding (you'll need to re-link),
    - persist the choice and return to the Home page.
 
@@ -1819,7 +1819,7 @@ specific PR's preview backend.
 
 ## Troubleshooting
 
-- "无法访问该 URL" toast: the preview URL doesn't respond to `/api/v1/health`
+- "无法访问该 URL" toast: the preview URL doesn't respond to `/api/v1/public/health`
   within 2 s. Confirm the deploy finished (sometimes takes ~3 min after
   PR push) and try again.
 - The dropdown shows "Manifest 状态: 0 个有效预览": tap **刷新 manifest**.

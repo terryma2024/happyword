@@ -2,7 +2,7 @@ import { BindingHttpClientLike, BindingHttpError, BindingRedeemArgs, BindingRede
 import { ParentFetchAdapter, ParentFetchResult } from './ParentApiClient';
 
 /**
- * V0.6.2 — thin HTTP client for `/api/v1/pair/redeem`.
+ * V0.6.2 — thin HTTP client for `POST /api/v1/public/pair/redeem`.
  *
  * Reuses the existing `ParentFetchAdapter` injection seam so production
  * traffic flows through the same HttpRequest path as the rest of the app
@@ -44,7 +44,7 @@ export class BindingApiClient implements BindingHttpClientLike {
   }
 
   async redeem(args: BindingRedeemArgs): Promise<BindingRedeemResult> {
-    const url: string = `${this.baseUrl}/api/v1/pair/redeem`;
+    const url: string = `${this.baseUrl}/api/v1/public/pair/redeem`;
     const headers: Record<string, string> = {};
     headers[HEADER_CONTENT_TYPE] = CONTENT_JSON;
     headers[HEADER_ACCEPT] = CONTENT_JSON;

@@ -2,7 +2,7 @@ import { CloudCredentials, CloudCredentialsSnapshot } from './CloudCredentials';
 import { ParentFetchAdapter, ParentFetchResult } from './ParentApiClient';
 
 /**
- * V0.6.7 — thin client for `POST /api/v1/child/unbind`.
+ * V0.6.7 — thin client for `POST /api/v1/family/{family_id}/unbind`.
  *
  * Behaviour:
  *  - Reads the device token from CloudCredentials.
@@ -11,7 +11,7 @@ import { ParentFetchAdapter, ParentFetchResult } from './ParentApiClient';
  *    the device unbound.
  *  - Network failure / non-2xx leaves credentials intact (the server
  *    binding may have been revoked from the parent web; the client will
- *    learn that on the next /child/* call returning 404 BINDING_REVOKED).
+ *    learn that on the next /api/v1/family/* call returning 404 BINDING_REVOKED).
  */
 
 const HEADER_AUTH: string = 'Authorization';
@@ -45,7 +45,8 @@ export class DeviceUnbindClient {
       out.ok = true;
       return out;
     }
-    const url: string = `${this.baseUrl}/api/v1/child/unbind`;
+    const fid: string = snap.familyId.trim().length > 0 ? snap.familyId.trim() : '_';
+    const url: string = `${this.baseUrl}/api/v1/family/${fid}/unbind`;
     const headers: Record<string, string> = {};
     headers[HEADER_ACCEPT] = CONTENT_JSON;
     headers[HEADER_AUTH] = `Bearer ${snap.deviceToken}`;

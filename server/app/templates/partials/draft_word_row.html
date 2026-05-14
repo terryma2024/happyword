@@ -14,11 +14,11 @@
     <span class="line-clamp-2" title="{{ ex_zh }}">{{ ex_zh }}</span>
   </td>
   <td class="py-2 pr-3 text-right whitespace-nowrap space-x-2">
-    <form method="get" action="/parent/packs/{{ definition.pack_id }}/draft/edit" class="inline">
+    <form method="get" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/edit" class="inline">
       <input type="hidden" name="word_id" value="{{ word.get('id', '') }}" />
       <button type="submit" class="text-xs text-sky-700 hover:underline">编辑</button>
     </form>
-    <form method="post" action="/parent/packs/{{ definition.pack_id }}/draft/delete-word" class="inline">
+    <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/delete-word" class="inline">
       <input type="hidden" name="word_id" value="{{ word.get('id', '') }}" />
       <button type="submit" class="text-xs text-rose-700 hover:underline">删除</button>
     </form>

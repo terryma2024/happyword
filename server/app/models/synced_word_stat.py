@@ -1,7 +1,7 @@
 """V0.6.4 — Server-side cloud copy of LearningRecorder per-word stats.
 
 One row per `(child_profile_id, word_id)`. Devices push deltas via
-`POST /api/v1/child/word-stats/sync`; LWW resolution by
+`POST /api/v1/family/{family_id}/word-stats/sync`; LWW resolution by
 `last_answered_ms` decides who wins on conflict (spec §6.4 + §7.4).
 """
 

@@ -266,7 +266,7 @@ struct ScanBindingPage {
         }.width('100%').padding(24)
       } else {
         Column({ space: 12 }) {
-          Text('请扫描家长网页 /parent/devices/add 显示的二维码')
+          Text('请扫描家长端「添加设备」页面显示的二维码')
             .id('ScanBindingIdlePrompt')
             .fontSize(14).fontColor('#475569').textAlign(TextAlign.Center)
           Button(this.busy ? '正在打开扫码器…' : '打开扫码器')

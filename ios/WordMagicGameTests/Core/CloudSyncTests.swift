@@ -33,7 +33,7 @@ final class CloudSyncTests: XCTestCase {
         )
         _ = try await client.redeem(pairingInput: "123456", deviceId: "device-test")
 
-        XCTAssertEqual(recorder.urls, ["https://happyword-preview.example.test/api/v1/pair/redeem"])
+        XCTAssertEqual(recorder.urls, ["https://happyword-preview.example.test/api/v1/public/pair/redeem"])
     }
 
     func testBackendURLProviderUsesOverridePreviewAndFixedEnvironmentPrecedence() {
@@ -92,7 +92,7 @@ final class CloudSyncTests: XCTestCase {
         secretStore.save("secret-demo")
 
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://happyword.cool/api/v1/preview-urls.json")
+            XCTAssertEqual(request.url?.absoluteString, "https://happyword.cool/api/v1/public/preview-urls.json")
             XCTAssertNil(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader))
             return Self.httpResponse(request: request, status: 200, body: Self.previewManifestFixture)
         }
@@ -178,7 +178,7 @@ final class CloudSyncTests: XCTestCase {
         let secretStore = BypassSecretStore(defaults: defaults)
         secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-fail.vercel.app/api/v1/health")
+            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-fail.vercel.app/api/v1/public/health")
             XCTAssertEqual(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader), "secret-demo")
             return Self.httpResponse(request: request, status: 401, body: Data())
         }
@@ -196,7 +196,7 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(environmentStore.environment, .staging)
         XCTAssertNil(environmentStore.previewURL)
         XCTAssertEqual(viewModel.environment, .staging)
-        XCTAssertEqual(viewModel.lastProbeStatus, "https://happyword-git-fail.vercel.app/api/v1/health → HTTP 401")
+        XCTAssertEqual(viewModel.lastProbeStatus, "https://happyword-git-fail.vercel.app/api/v1/public/health → HTTP 401")
     }
 
     @MainActor
@@ -207,7 +207,7 @@ final class CloudSyncTests: XCTestCase {
         let secretStore = BypassSecretStore(defaults: defaults)
         secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/health")
+            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
             XCTAssertEqual(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader), "secret-demo")
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
@@ -225,7 +225,7 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(environmentStore.environment, .preview)
         XCTAssertEqual(environmentStore.previewURL?.absoluteString, "https://happyword-git-ok.vercel.app")
         XCTAssertEqual(viewModel.environment, .preview)
-        XCTAssertEqual(viewModel.lastProbeStatus, "https://happyword-git-ok.vercel.app/api/v1/health → HTTP 200")
+        XCTAssertEqual(viewModel.lastProbeStatus, "https://happyword-git-ok.vercel.app/api/v1/public/health → HTTP 200")
     }
 
     @MainActor
@@ -236,7 +236,7 @@ final class CloudSyncTests: XCTestCase {
         let secretStore = BypassSecretStore(defaults: defaults)
         secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/health")
+            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
         let viewModel = DeveloperMenuViewModel(
@@ -264,7 +264,7 @@ final class CloudSyncTests: XCTestCase {
         let secretStore = BypassSecretStore(defaults: defaults)
         secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/health")
+            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
         let viewModel = DeveloperMenuViewModel(
@@ -303,7 +303,7 @@ final class CloudSyncTests: XCTestCase {
         let secretStore = BypassSecretStore(defaults: defaults)
         secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/health")
+            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
         let viewModel = DeveloperMenuViewModel(
@@ -339,7 +339,7 @@ final class CloudSyncTests: XCTestCase {
         let counter = RequestCounter()
         let transport = RecordingHTTPTransport { request in
             counter.increment()
-            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/health")
+            XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
             XCTAssertEqual(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader), "secret-demo")
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
@@ -444,14 +444,14 @@ final class CloudSyncTests: XCTestCase {
             transport: transport
         )
 
-        let response = try await client.sync(payload: WordStatsSyncPayload(items: [], syncedThroughMs: 0), deviceToken: "token-demo")
+        let response = try await client.sync(payload: WordStatsSyncPayload(items: [], syncedThroughMs: 0), familyId: "family-demo", deviceToken: "token-demo")
 
         XCTAssertEqual(response.serverNowMs, 1_778_400_000_000)
     }
 
     func testHTTPChildProfileClientDecodesServerDatetimeWithFractionalSeconds() async throws {
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.path, "/api/v1/child/profile")
+            XCTAssertEqual(request.url?.path, "/api/v1/family/family-demo/profile")
             XCTAssertEqual(request.httpMethod, "PUT")
             return Self.httpResponse(request: request, status: 200, body: Self.childProfileUpdateFixtureWithFractionalDate)
         }
@@ -460,7 +460,7 @@ final class CloudSyncTests: XCTestCase {
             transport: transport
         )
 
-        let response = try await client.update(nickname: "MaChen", avatarEmoji: "🦄", deviceToken: "token-demo")
+        let response = try await client.update(nickname: "MaChen", avatarEmoji: "🦄", familyId: "family-demo", deviceToken: "token-demo")
 
         XCTAssertEqual(response.nickname, "MaChen")
         XCTAssertEqual(try XCTUnwrap(response.updatedAt).timeIntervalSince1970, 1_747_044_754.123456, accuracy: 0.001)
@@ -522,7 +522,7 @@ final class CloudSyncTests: XCTestCase {
 
     func testHTTPDeviceBindingClientPostsRedeemRequestAndDecodesCredentials() async throws {
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.path, "/api/v1/pair/redeem")
+            XCTAssertEqual(request.url?.path, "/api/v1/public/pair/redeem")
             XCTAssertEqual(request.httpMethod, "POST")
             let json = try Self.jsonObject(from: request)
             XCTAssertEqual(json["short_code"] as? String, "123456")
@@ -614,7 +614,7 @@ final class CloudSyncTests: XCTestCase {
         let counter = RequestCounter()
         let transport = RecordingHTTPTransport { request in
             counter.increment()
-            XCTAssertEqual(request.url?.path, "/api/v1/child/family-packs/latest.json")
+            XCTAssertEqual(request.url?.path, "/api/v1/family/family-demo/family-packs/latest.json")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer token-demo")
             if counter.value == 1 {
                 XCTAssertEqual(request.value(forHTTPHeaderField: "If-None-Match"), "\"family-v1\"")
@@ -633,8 +633,8 @@ final class CloudSyncTests: XCTestCase {
             transport: transport
         )
 
-        let refreshed = try await client.fetchFamily(deviceToken: "token-demo", cached: cached)
-        let fallback = try await client.fetchFamily(deviceToken: "token-demo", cached: refreshed)
+        let refreshed = try await client.fetchFamily(familyId: "family-demo", deviceToken: "token-demo", cached: cached)
+        let fallback = try await client.fetchFamily(familyId: "family-demo", deviceToken: "token-demo", cached: refreshed)
 
         XCTAssertEqual(refreshed?.etag, "\"family-v2\"")
         XCTAssertEqual(refreshed?.packs.map(\.id), ["family-snacks"])
@@ -682,7 +682,7 @@ final class CloudSyncTests: XCTestCase {
 
     func testWordStatsSyncClientPostsBearerPayloadAndDecodesAcceptedClock() async throws {
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.path, "/api/v1/child/word-stats/sync")
+            XCTAssertEqual(request.url?.path, "/api/v1/family/family-demo/word-stats/sync")
             XCTAssertEqual(request.httpMethod, "POST")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer token-demo")
             let json = try Self.jsonObject(from: request)
@@ -705,7 +705,11 @@ final class CloudSyncTests: XCTestCase {
             syncedThroughMs: 1_778_300_000_000
         )
 
-        let response = try await client.sync(payload: payload, deviceToken: "token-demo")
+        let response = try await client.sync(
+            payload: payload,
+            familyId: "family-demo",
+            deviceToken: "token-demo"
+        )
 
         XCTAssertEqual(response.accepted, 1)
         XCTAssertEqual(response.serverNowMs, 1_778_400_000_000)
@@ -797,6 +801,7 @@ final class CloudSyncTests: XCTestCase {
 
         await coordinator.syncWordStatsExplicitly()
         XCTAssertEqual(statsClient.lastToken, PairRedeemResponse.demoBinding.deviceToken)
+        XCTAssertEqual(statsClient.lastFamilyId, PairRedeemResponse.demoBinding.familyId)
         XCTAssertEqual(stateStore.syncedThroughMs, 1_778_400_000_000)
         XCTAssertEqual(coordinator.packManagerMessage, "学习数据已同步")
         XCTAssertEqual(coordinator.toastMessage, "学习记录已同步")
@@ -804,6 +809,7 @@ final class CloudSyncTests: XCTestCase {
         await coordinator.confirmUnbind(pin: "123456")
 
         XCTAssertEqual(unbindClient.lastToken, PairRedeemResponse.demoBinding.deviceToken)
+        XCTAssertEqual(unbindClient.lastFamilyId, PairRedeemResponse.demoBinding.familyId)
         XCTAssertNil(credentialsStore.credentials)
     }
 
@@ -1001,10 +1007,12 @@ private final class RequestURLRecorder: @unchecked Sendable {
 
 private final class RecordingWordStatsSyncClient: WordStatsSyncClienting, @unchecked Sendable {
     var lastToken: String?
+    var lastFamilyId: String?
     var lastPayload: WordStatsSyncPayload?
 
-    func sync(payload: WordStatsSyncPayload, deviceToken: String) async throws -> WordStatsSyncResponse {
+    func sync(payload: WordStatsSyncPayload, familyId: String, deviceToken: String) async throws -> WordStatsSyncResponse {
         lastToken = deviceToken
+        lastFamilyId = familyId
         lastPayload = payload
         return WordStatsSyncResponse(accepted: payload.items.count, rejected: 0, serverPulls: [], serverNowMs: 1_778_400_000_000)
     }
@@ -1012,16 +1020,18 @@ private final class RecordingWordStatsSyncClient: WordStatsSyncClienting, @unche
 
 private final class RecordingDeviceUnbindClient: DeviceUnbindClienting, @unchecked Sendable {
     var lastToken: String?
+    var lastFamilyId: String?
 
-    func unbind(deviceToken: String) async throws {
+    func unbind(familyId: String, deviceToken: String) async throws {
         lastToken = deviceToken
+        lastFamilyId = familyId
     }
 }
 
 private final class RecordingChildProfileClient: ChildProfileClienting, @unchecked Sendable {
     var lastNickname: String?
 
-    func update(nickname: String, avatarEmoji: String?, deviceToken: String) async throws -> ChildProfileUpdateResponse {
+    func update(nickname: String, avatarEmoji: String?, familyId: String, deviceToken: String) async throws -> ChildProfileUpdateResponse {
         lastNickname = nickname
         return ChildProfileUpdateResponse(
             profileId: PairRedeemResponse.demoBinding.childProfileId,

@@ -94,13 +94,13 @@ The deployment leaves SMTP unconfigured in E2E (`SMTP_USERNAME=""`); `GmailSmtpP
 
 ```python
 # pseudo
-await client.post("/api/v1/parent/auth/request-code", json={"email": email})
+await client.post("/api/v1/family/{family_id}/auth/request-code", json={"email": email})
 known = "123456"
 await mongo.email_verifications.update_one(
     {"email": email, "status": "pending"},
     {"$set": {"code_hash": bcrypt.hashpw(known.encode(), bcrypt.gensalt()).decode()}},
 )
-resp = await client.post("/api/v1/parent/auth/verify-code", json={"email": email, "code": known})
+resp = await client.post("/api/v1/family/{family_id}/auth/verify-code", json={"email": email, "code": known})
 ```
 
 This keeps the deployment code path identical to production (no `/test/` endpoints) while still letting tests drive auth.
@@ -157,18 +157,18 @@ Each entry: **ID — title** (HTTP path) → preconditions / steps / assertions.
 
 ### 3.1 Health & public packs (`public_packs.py`)
 
-- **PUB-1 health 200** — `GET /api/v1/health` → status 200; `body.ok is True`; `body.ts` is int within ±300s of client clock.
-- **PUB-2 latest empty** — `GET /api/v1/packs/latest.json` before any publish: status 200; valid JSON envelope; ETag header present.
+- **PUB-1 health 200** — `GET /api/v1/public/health` → status 200; `body.ok is True`; `body.ts` is int within ±300s of client clock.
+- **PUB-2 latest empty** — `GET /api/v1/public/packs/latest.json` before any publish: status 200; valid JSON envelope; ETag header present.
 - **PUB-3 latest after publish** — pre-create 2 words via admin + publish; assert response includes both words and ETag matches `f'"{version}"'`.
 - **PUB-4 ETag 304** — repeat with `If-None-Match: <etag>` header; expect status 304, no body.
 - **PUB-5 ETag stale 200** — send `If-None-Match: "0"` after publish; expect status 200 + full body.
 
 ### 3.2 Admin auth (`admin_auth`)
 
-- **AAUTH-1 login success** — `POST /api/v1/auth/login` with bootstrap creds → 200; `body.access_token` non-empty.
+- **AAUTH-1 login success** — `POST /api/v1/admin/auth/login` with bootstrap creds → 200; `body.access_token` non-empty.
 - **AAUTH-2 login wrong password** — same user, garbage password → 401, `code == "INVALID_CREDENTIALS"` (or current canonical code; verify against test_auth_login.py).
 - **AAUTH-3 login unknown user** → 401.
-- **AAUTH-4 me with token** — `GET /api/v1/auth/me` with `Authorization: Bearer <token>` → 200; payload contains `username`, `role == "admin"`.
+- **AAUTH-4 me with token** — `GET /api/v1/admin/auth/me` with `Authorization: Bearer <token>` → 200; payload contains `username`, `role == "admin"`.
 - **AAUTH-5 me without token** → 401.
 
 ### 3.3 Admin words CRUD (`admin_words`)
@@ -241,31 +241,31 @@ LLM endpoints are gated; tests assert the **error contract** rather than positiv
 - **POTP-5 verify 5th wrong** → 410 `TOO_MANY_ATTEMPTS`.
 - **POTP-6 verify after expiry** — backdate `expires_at` via DB helper → 410 `CODE_EXPIRED`.
 - **POTP-7 admin email rejected** — request+verify with admin email → 403 `ROLE_MISMATCH`.
-- **PSES-1 me with cookie** — `GET /api/v1/parent/me` → 200; matches verify result.
+- **PSES-1 me with cookie** — `GET /api/v1/family/{family_id}/me` → 200; matches verify result.
 - **PSES-2 me without cookie** → 401.
-- **PSES-3 logout clears cookie** — `POST /api/v1/parent/auth/logout` → 200; subsequent `me` → 401.
+- **PSES-3 logout clears cookie** — `POST /api/v1/family/{family_id}/auth/logout` → 200; subsequent `me` → 401.
 
 ### 3.10 Parent web pages (`parent_pages`)
 
-- **PWEB-1 GET /parent/login** → 200; HTML contains email form.
+- **PWEB-1 GET /family/{family_id}/login** → 200; HTML contains email form.
 - **PWEB-2 POST request-code form** → renders verify page with hidden email field.
 - **PWEB-3 POST verify-code form happy** → 303 redirect to `/parent` with cookie set.
 - **PWEB-4 POST verify-code form wrong** → re-renders verify page with error.
 - **PWEB-5 GET /parent without cookie** → 303 to login.
 - **PWEB-6 GET /parent with cookie** → 200; renders dashboard skeleton.
-- **PWEB-7 POST /parent/auth/logout form** → 303 to login; cookie cleared.
+- **PWEB-7 POST /family/{family_id}/auth/logout form** → 303 to login; cookie cleared.
 
 ### 3.11 Pair flow (`pair`)
 
-- **PAIR-1 parent create token** — authenticated parent `POST /api/v1/parent/pair/create` → 201; `token` len 32, `short_code` len 6, `qr_payload_url` starts with `parent_web_base_url + "/p/"`, `expires_at` ~10 min in future.
-- **PAIR-2 status pending** — `GET /api/v1/parent/pair/status/{token}` → 200 `status == "pending"`.
+- **PAIR-1 parent create token** — authenticated parent `POST /api/v1/family/{family_id}/pair/create` → 201; `token` len 32, `short_code` len 6, `qr_payload_url` starts with `parent_web_base_url + "/p/"`, `expires_at` ~10 min in future.
+- **PAIR-2 status pending** — `GET /api/v1/family/{family_id}/pair/status/{token}` → 200 `status == "pending"`.
 - **PAIR-3 unknown token** → 404 `TOKEN_INVALID`.
 - **PAIR-4 cross-family status** — second parent (different family) → 404.
-- **PAIR-5 device redeem** — anonymous `POST /api/v1/pair/redeem` `{token, device_id}` → 200; receives `device_token`, `binding_id`, `child_profile_id`, `nickname`.
+- **PAIR-5 device redeem** — anonymous `POST /api/v1/public/pair/redeem` `{token, device_id}` → 200; receives `device_token`, `binding_id`, `child_profile_id`, `nickname`.
 - **PAIR-6 redeem by short_code** — same flow with `{short_code, device_id}` → 200.
 - **PAIR-7 redeem already used** — repeat redeem → 409 `TOKEN_REDEEMED`.
 - **PAIR-8 redeem expired** — backdate token via DB helper → 410 `TOKEN_EXPIRED`.
-- **PAIR-9 cancel pending** — `DELETE /api/v1/parent/pair/{token}` → status `cancelled`.
+- **PAIR-9 cancel pending** — `DELETE /api/v1/family/{family_id}/pair/{token}` → status `cancelled`.
 - **PAIR-10 redeem after cancel** → 410/404 (current behavior).
 - **PAIR-11 rate limit 5/600s** — call create 6× rapidly → 6th returns 429 `RATE_LIMITED`.
 - **PAIR-12 landing page renders** — `GET /p/{token_short}` → 200 HTML.
@@ -288,7 +288,7 @@ LLM endpoints are gated; tests assert the **error contract** rather than positiv
 
 ### 3.14 Child word-stats sync (`child_word_stats`)
 
-- **CWS-1 sync empty arrays** — `POST /api/v1/child/word-stats/sync` with `[]` → 200; arrays empty.
+- **CWS-1 sync empty arrays** — `POST /api/v1/family/{family_id}/word-stats/sync` with `[]` → 200; arrays empty.
 - **CWS-2 sync inserts new** — push 1 item; subsequent `GET ?since_ms=0` returns it.
 - **CWS-3 LWW newer overwrites** — push older, then newer; row ends with newer fields.
 - **CWS-4 LWW older returned in server_pulls** — second device pushes older → server returns its newer record in `server_pulls`.
@@ -301,7 +301,7 @@ LLM endpoints are gated; tests assert the **error contract** rather than positiv
 
 - **CWL-1 list wishlist returns active only** — parent creates 1 active + 1 archived; device GET returns only active.
 - **CWL-2 sync custom inserts new** — POST 2 custom items; both echoed back; archived items are skipped.
-- **CWL-3 device unbind** — `POST /api/v1/child/unbind` → 200; subsequent calls 404.
+- **CWL-3 device unbind** — `POST /api/v1/family/{family_id}/unbind` → 200; subsequent calls 404.
 
 ### 3.16 Child redemption (`child_wishlist`, `redemption`)
 
@@ -326,11 +326,11 @@ LLM endpoints are gated; tests assert the **error contract** rather than positiv
 - **PRED-3 reject keeps item active**.
 - **PRED-4 double decision** → 409 `ALREADY_DECIDED`.
 - **PRED-5 cross-family request** → 404 `REDEMPTION_NOT_FOUND`.
-- **PRED-6 HTML approve form** — `POST /parent/redemptions/{id}/approve` → 303 redirect to `/parent/redemptions`.
+- **PRED-6 HTML approve form** — `POST /family/{family_id}/redemptions/{id}/approve` → 303 redirect to `/family/{family_id}/redemptions`.
 
 ### 3.19 Parent family pack (`parent_family_pack`, `child_family_pack`)
 
-- **PFP-1 create pack** — `POST /api/v1/parent/family-packs` → 201; state `active`.
+- **PFP-1 create pack** — `POST /api/v1/family/{family_id}/family-packs` → 201; state `active`.
 - **PFP-2 name taken** → 409 `NAME_TAKEN`.
 - **PFP-3 list excludes archived by default**.
 - **PFP-4 upsert draft word** — PUT word → 200; `word_count` increments.
@@ -344,7 +344,7 @@ LLM endpoints are gated; tests assert the **error contract** rather than positiv
 - **PFP-12 unarchive name collision** → 409 `NAME_TAKEN`.
 - **PFP-13 list versions** — returns 2 items with versions 2,1 sorted desc.
 - **PFP-14 cross-family pack access** → 404 `PACK_NOT_FOUND`.
-- **PFP-CHILD-1 child fetch merged latest** — `GET /api/v1/child/family-packs/latest.json` (with device JWT) returns concatenation of family's published packs; ETag header set; second call with `If-None-Match` → 304.
+- **PFP-CHILD-1 child fetch merged latest** — `GET /api/v1/family/{family_id}/family-packs/latest.json` (with device JWT) returns concatenation of family's published packs; ETag header set; second call with `If-None-Match` → 304.
 
 ### 3.20 Parent inbox (`parent_inbox`)
 
@@ -355,22 +355,22 @@ LLM endpoints are gated; tests assert the **error contract** rather than positiv
 - **PIB-5 mark-all-read** → returns count updated; unread becomes 0.
 - **PIB-6 mark unknown msg id** → `{status: "not_found"}` 200 (not 404 by current contract).
 - **PIB-7 cross-parent isolation** — second parent's inbox does not include first parent's rows.
-- **PIB-8 HTML inbox** — `GET /parent/inbox` → 200 HTML lists messages.
+- **PIB-8 HTML inbox** — `GET /family/{family_id}/inbox` → 200 HTML lists messages.
 
 ### 3.21 Parent account (`parent_account`)
 
-- **PACC-1 status no schedule** — `GET /api/v1/parent/account/status` → 200; `scheduled_deletion_at is None`; `grace_days_remaining == None`.
+- **PACC-1 status no schedule** — `GET /api/v1/family/{family_id}/account/status` → 200; `scheduled_deletion_at is None`; `grace_days_remaining == None`.
 - **PACC-2 schedule delete** — `POST /delete` → 200; `scheduled_deletion_at` ~7 days ahead.
 - **PACC-3 status with grace** — `grace_days_remaining` = `account_deletion_grace_days`.
 - **PACC-4 cancel-delete clears** → 200; status returns to baseline.
 - **PACC-5 export returns json snapshot** — `POST /export` → 200; `Content-Disposition` header present; body has `summary`, `data` keys.
-- **PACC-6 settings HTML** — `GET /parent/account` → 200 HTML.
+- **PACC-6 settings HTML** — `GET /family/{family_id}/account` → 200 HTML.
 
 ### 3.22 Cross-cutting / negative (`test_cross_cutting_e2e.py`)
 
 - **XC-1 401 without cookie/token** — pick 5 representative endpoints (`parent/me`, `parent/devices`, `parent/family-packs`, `child/wishlist`, `child/word-stats`) → all 401 / 404 BINDING_REVOKED as appropriate.
 - **XC-2 404 cross-family wishlist read** — parent A creates item; parent B's GET → 404.
-- **XC-3 CORS preflight** — `OPTIONS /api/v1/health` with `Origin: https://other.example` → 200 + `Access-Control-Allow-Origin: *` (current default).
+- **XC-3 CORS preflight** — `OPTIONS /api/v1/public/health` with `Origin: https://other.example` → 200 + `Access-Control-Allow-Origin: *` (current default).
 - **XC-4 invalid JSON body** — POST malformed JSON → 422.
 - **XC-5 unknown route** → 404.
 
@@ -396,7 +396,7 @@ async def mongo() -> AsyncIOMotorDatabase: ... # E2E_MONGODB_URI / E2E_MONGO_DB_
 @pytest.fixture(scope="session", autouse=True)
 async def _suite_setup(mongo, http, base_url): # truncate / verify deployment up
     await reset_test_db(mongo)
-    r = http.get("/api/v1/health"); assert r.status_code == 200
+    r = http.get("/api/v1/public/health"); assert r.status_code == 200
 
 @pytest.fixture
 async def admin_token(http) -> str: ...        # cached per session

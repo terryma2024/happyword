@@ -18,15 +18,15 @@ Current OpenAPI path count: **98**.
 
 Machine-contract scope:
 
-- **Public app APIs:** `/api/v1/health`, `/api/v1/preview-urls.json`, `/api/v1/packs/latest.json`, `/api/v1/public/global-packs/latest.json`
-- **Child device APIs:** `/api/v1/child/profile`, `/api/v1/child/family-packs/latest.json`, `/api/v1/child/word-stats/**`, `/api/v1/child/wishlist/**`, `/api/v1/child/redemption-requests/**`, `/api/v1/child/unbind`
-- **Pairing APIs:** `/api/v1/parent/pair/create`, `/api/v1/parent/pair/status/{token}`, `/api/v1/parent/pair/{token}`, `/api/v1/pair/redeem`, `/p/{token_short}`
-- **Parent app APIs:** `/api/v1/parent/auth/**`, `/api/v1/parent/me`, `/api/v1/parent/devices`, `/api/v1/parent/children/**`, `/api/v1/parent/wishlist-items/**`, `/api/v1/parent/redemption-requests/**`, `/api/v1/parent/inbox/**`, `/api/v1/parent/account/**`, `/api/v1/parent/family-packs/**`
-- **Admin content APIs:** `/api/v1/auth/**`, `/api/v1/admin/words/**`, `/api/v1/admin/packs/**`, `/api/v1/admin/categories/**`, `/api/v1/admin/lessons/**`, `/api/v1/admin/lesson-drafts/**`, `/api/v1/admin/drafts/**`, `/api/v1/admin/llm/**`, `/api/v1/admin/global-packs/**`, `/api/v1/admin/stats`, `/api/v1/admin/cron/**`
+- **Public app APIs:** `/api/v1/public/health`, `/api/v1/public/preview-urls.json`, `/api/v1/public/packs/latest.json`, `/api/v1/public/global-packs/latest.json`
+- **Child device APIs:** `/api/v1/family/{family_id}/profile`, `/api/v1/family/{family_id}/family-packs/latest.json`, `/api/v1/family/{family_id}/word-stats/**`, `/api/v1/family/{family_id}/wishlist/**`, `/api/v1/family/{family_id}/redemption-requests/**`, `/api/v1/family/{family_id}/unbind`
+- **Pairing APIs:** `/api/v1/family/{family_id}/pair/create`, `/api/v1/family/{family_id}/pair/status/{token}`, `/api/v1/family/{family_id}/pair/{token}`, `/api/v1/public/pair/redeem`, `/p/{token_short}`
+- **Parent app APIs:** `/api/v1/family/{family_id}/auth/**`, `/api/v1/family/{family_id}/me`, `/api/v1/family/{family_id}/devices`, `/api/v1/family/{family_id}/children/**`, `/api/v1/family/{family_id}/wishlist-items/**`, `/api/v1/family/{family_id}/redemption-requests/**`, `/api/v1/family/{family_id}/inbox/**`, `/api/v1/family/{family_id}/account/**`, `/api/v1/family/{family_id}/family-packs/**`
+- **Admin content APIs:** `/api/v1/admin/auth/**`, `/api/v1/admin/words/**`, `/api/v1/admin/packs/**`, `/api/v1/admin/categories/**`, `/api/v1/admin/lessons/**`, `/api/v1/admin/lesson-drafts/**`, `/api/v1/admin/drafts/**`, `/api/v1/admin/llm/**`, `/api/v1/admin/global-packs/**`, `/api/v1/admin/stats`, `/api/v1/admin/cron/**`
 
 Documentation-only scope:
 
-- `/parent/**` HTML routes and redirects stay documented in a web-route appendix, but do not become native-client contracts.
+- `/family/{family_id}/**` HTML routes and redirects stay documented in a web-route appendix, but do not become native-client contracts.
 
 ---
 
@@ -379,9 +379,9 @@ Source: `shared/contracts/openapi/happyword-api.openapi.json`
 
 | Method | Path | Contract notes |
 | --- | --- | --- |
-| GET | `/api/v1/health` | Public health check. Namespaced path only; `/health` is not valid. |
-| GET | `/api/v1/preview-urls.json` | Preview manifest consumed by debug DevMenu. |
-| GET | `/api/v1/packs/latest.json` | Legacy/latest public pack JSON. Supports `If-None-Match`; returns `ETag`. |
+| GET | `/api/v1/public/health` | Public health check. Namespaced path only; `/health` is not valid. |
+| GET | `/api/v1/public/preview-urls.json` | Preview manifest consumed by debug DevMenu. |
+| GET | `/api/v1/public/packs/latest.json` | Legacy/latest public pack JSON. Supports `If-None-Match`; returns `ETag`. |
 | GET | `/api/v1/public/global-packs/latest.json` | Current global pack feed. Supports `If-None-Match`; returns 200, 204, or 304. |
 | HEAD | `/api/v1/public/global-packs/latest.json` | ETag-only global pack revalidation. |
 
@@ -401,17 +401,17 @@ Source: `shared/contracts/openapi/happyword-api.openapi.json`
 
 | Method | Path | Contract notes |
 | --- | --- | --- |
-| PUT | `/api/v1/child/profile` | Upsert child self profile for the bound device. |
-| GET | `/api/v1/child/family-packs/latest.json` | Device-token authenticated family pack feed. Supports 200, 204, 304 and `ETag`. |
-| HEAD | `/api/v1/child/family-packs/latest.json` | ETag-only family pack revalidation. |
-| POST | `/api/v1/child/word-stats/sync` | Push local word stat deltas and receive server accepted state. |
-| GET | `/api/v1/child/word-stats` | Pull current word stats for the bound device/family context. |
-| GET | `/api/v1/child/wishlist` | Pull cloud wishlist visible to child device. |
-| POST | `/api/v1/child/wishlist/sync-custom` | Sync child-created custom wish items. |
-| POST | `/api/v1/child/redemption-requests` | Child requests wish redemption. |
-| GET | `/api/v1/child/redemption-requests` | Child lists own redemption requests. |
-| GET | `/api/v1/child/redemption-requests/poll` | Child polls redemption status. |
-| POST | `/api/v1/child/unbind` | Bound device unbind flow. |
+| PUT | `/api/v1/family/{family_id}/profile` | Upsert child self profile for the bound device. |
+| GET | `/api/v1/family/{family_id}/family-packs/latest.json` | Device-token authenticated family pack feed. Supports 200, 204, 304 and `ETag`. |
+| HEAD | `/api/v1/family/{family_id}/family-packs/latest.json` | ETag-only family pack revalidation. |
+| POST | `/api/v1/family/{family_id}/word-stats/sync` | Push local word stat deltas and receive server accepted state. |
+| GET | `/api/v1/family/{family_id}/word-stats` | Pull current word stats for the bound device/family context. |
+| GET | `/api/v1/family/{family_id}/wishlist` | Pull cloud wishlist visible to child device. |
+| POST | `/api/v1/family/{family_id}/wishlist/sync-custom` | Sync child-created custom wish items. |
+| POST | `/api/v1/family/{family_id}/redemption-requests` | Child requests wish redemption. |
+| GET | `/api/v1/family/{family_id}/redemption-requests` | Child lists own redemption requests. |
+| GET | `/api/v1/family/{family_id}/redemption-requests/poll` | Child polls redemption status. |
+| POST | `/api/v1/family/{family_id}/unbind` | Bound device unbind flow. |
 
 ## Tenant Boundary
 
@@ -429,10 +429,10 @@ Source: `shared/contracts/openapi/happyword-api.openapi.json`
 
 | Method | Path | Contract notes |
 | --- | --- | --- |
-| POST | `/api/v1/parent/pair/create` | Parent creates a pair token and short code. |
-| GET | `/api/v1/parent/pair/status/{token}` | Parent polls pair token status. |
-| DELETE | `/api/v1/parent/pair/{token}` | Parent cancels a pair token. |
-| POST | `/api/v1/pair/redeem` | Child device redeems token or 6-digit short code. |
+| POST | `/api/v1/family/{family_id}/pair/create` | Parent creates a pair token and short code. |
+| GET | `/api/v1/family/{family_id}/pair/status/{token}` | Parent polls pair token status. |
+| DELETE | `/api/v1/family/{family_id}/pair/{token}` | Parent cancels a pair token. |
+| POST | `/api/v1/public/pair/redeem` | Child device redeems token or 6-digit short code. |
 | GET | `/p/{token_short}` | Public landing page for QR / short-code pairing. Documentation-only for API clients. |
 
 ## Native Client Priority
@@ -451,51 +451,51 @@ Source: `shared/contracts/openapi/happyword-api.openapi.json`
 
 | Method | Path |
 | --- | --- |
-| POST | `/api/v1/parent/auth/request-code` |
-| POST | `/api/v1/parent/auth/verify-code` |
-| POST | `/api/v1/parent/auth/logout` |
-| GET | `/api/v1/parent/me` |
-| GET | `/api/v1/parent/account/status` |
-| POST | `/api/v1/parent/account/delete` |
-| POST | `/api/v1/parent/account/cancel-delete` |
-| POST | `/api/v1/parent/account/export` |
+| POST | `/api/v1/family/{family_id}/auth/request-code` |
+| POST | `/api/v1/family/{family_id}/auth/verify-code` |
+| POST | `/api/v1/family/{family_id}/auth/logout` |
+| GET | `/api/v1/family/{family_id}/me` |
+| GET | `/api/v1/family/{family_id}/account/status` |
+| POST | `/api/v1/family/{family_id}/account/delete` |
+| POST | `/api/v1/family/{family_id}/account/cancel-delete` |
+| POST | `/api/v1/family/{family_id}/account/export` |
 
 ## Family, Devices, Reports, Wishlist
 
 | Method | Path |
 | --- | --- |
-| GET | `/api/v1/parent/devices` |
-| GET | `/api/v1/parent/children` |
-| PUT | `/api/v1/parent/children/{profile_id}` |
-| DELETE | `/api/v1/parent/children/{profile_id}` |
-| GET | `/api/v1/parent/children/{profile_id}/report` |
-| GET | `/api/v1/parent/children/{profile_id}/wishlist` |
-| POST | `/api/v1/parent/wishlist-items/{item_id}` |
-| PUT | `/api/v1/parent/wishlist-items/{item_id}` |
-| DELETE | `/api/v1/parent/wishlist-items/{item_id}` |
-| GET | `/api/v1/parent/redemption-requests` |
-| POST | `/api/v1/parent/redemption-requests/{request_id}/approve` |
-| POST | `/api/v1/parent/redemption-requests/{request_id}/reject` |
-| GET | `/api/v1/parent/inbox` |
-| POST | `/api/v1/parent/inbox/{msg_id}/read` |
-| POST | `/api/v1/parent/inbox/mark-all-read` |
+| GET | `/api/v1/family/{family_id}/devices` |
+| GET | `/api/v1/family/{family_id}/children` |
+| PUT | `/api/v1/family/{family_id}/children/{profile_id}` |
+| DELETE | `/api/v1/family/{family_id}/children/{profile_id}` |
+| GET | `/api/v1/family/{family_id}/children/{profile_id}/report` |
+| GET | `/api/v1/family/{family_id}/children/{profile_id}/wishlist` |
+| POST | `/api/v1/family/{family_id}/wishlist-items/{item_id}` |
+| PUT | `/api/v1/family/{family_id}/wishlist-items/{item_id}` |
+| DELETE | `/api/v1/family/{family_id}/wishlist-items/{item_id}` |
+| GET | `/api/v1/family/{family_id}/redemption-requests` |
+| POST | `/api/v1/family/{family_id}/redemption-requests/{request_id}/approve` |
+| POST | `/api/v1/family/{family_id}/redemption-requests/{request_id}/reject` |
+| GET | `/api/v1/family/{family_id}/inbox` |
+| POST | `/api/v1/family/{family_id}/inbox/{msg_id}/read` |
+| POST | `/api/v1/family/{family_id}/inbox/mark-all-read` |
 
 ## Family Pack Workbench
 
 | Method | Path |
 | --- | --- |
-| GET | `/api/v1/parent/family-packs` |
-| POST | `/api/v1/parent/family-packs` |
-| GET | `/api/v1/parent/family-packs/{pack_id}` |
-| PATCH | `/api/v1/parent/family-packs/{pack_id}` |
-| POST | `/api/v1/parent/family-packs/{pack_id}/archive` |
-| POST | `/api/v1/parent/family-packs/{pack_id}/unarchive` |
-| GET | `/api/v1/parent/family-packs/{pack_id}/draft` |
-| PUT | `/api/v1/parent/family-packs/{pack_id}/draft/words/{word_id}` |
-| DELETE | `/api/v1/parent/family-packs/{pack_id}/draft/words/{word_id}` |
-| POST | `/api/v1/parent/family-packs/{pack_id}/publish` |
-| POST | `/api/v1/parent/family-packs/{pack_id}/rollback` |
-| GET | `/api/v1/parent/family-packs/{pack_id}/versions` |
+| GET | `/api/v1/family/{family_id}/family-packs` |
+| POST | `/api/v1/family/{family_id}/family-packs` |
+| GET | `/api/v1/family/{family_id}/family-packs/{pack_id}` |
+| PATCH | `/api/v1/family/{family_id}/family-packs/{pack_id}` |
+| POST | `/api/v1/family/{family_id}/family-packs/{pack_id}/archive` |
+| POST | `/api/v1/family/{family_id}/family-packs/{pack_id}/unarchive` |
+| GET | `/api/v1/family/{family_id}/family-packs/{pack_id}/draft` |
+| PUT | `/api/v1/family/{family_id}/family-packs/{pack_id}/draft/words/{word_id}` |
+| DELETE | `/api/v1/family/{family_id}/family-packs/{pack_id}/draft/words/{word_id}` |
+| POST | `/api/v1/family/{family_id}/family-packs/{pack_id}/publish` |
+| POST | `/api/v1/family/{family_id}/family-packs/{pack_id}/rollback` |
+| GET | `/api/v1/family/{family_id}/family-packs/{pack_id}/versions` |
 ```
 
 - [ ] **Step 5: Create `shared/contracts/domains/admin-content.md`**
@@ -509,7 +509,7 @@ Source: `shared/contracts/openapi/happyword-api.openapi.json`
 
 | Group | Paths |
 | --- | --- |
-| Admin auth | `/api/v1/auth/login`, `/api/v1/auth/me` |
+| Admin auth | `/api/v1/admin/auth/login`, `/api/v1/admin/auth/me` |
 | Words | `/api/v1/admin/words`, `/api/v1/admin/words/{word_id}`, `/api/v1/admin/words/{word_id}/illustration`, `/api/v1/admin/words/{word_id}/audio` |
 | Legacy packs | `/api/v1/admin/packs`, `/api/v1/admin/packs/current`, `/api/v1/admin/packs/{version}`, `/api/v1/admin/packs/publish`, `/api/v1/admin/packs/rollback` |
 | Categories | `/api/v1/admin/categories`, `/api/v1/admin/categories/{category_id}` |
@@ -532,24 +532,24 @@ These routes are HTML routes served by FastAPI templates. They are not native-cl
 
 | Method | Path |
 | --- | --- |
-| GET | `/parent/login` |
-| GET | `/parent/verify` |
-| POST | `/parent/auth/request-code` |
-| POST | `/parent/auth/verify-code` |
-| POST | `/parent/auth/logout` |
-| GET | `/parent/` |
+| GET | `/family/{family_id}/login` |
+| GET | `/family/{family_id}/verify` |
+| POST | `/family/{family_id}/auth/request-code` |
+| POST | `/family/{family_id}/auth/verify-code` |
+| POST | `/family/{family_id}/auth/logout` |
+| GET | `/family/{family_id}/` |
 | GET | `/parent` |
-| GET | `/parent/redemptions` |
-| POST | `/parent/redemptions/{request_id}/approve` |
-| POST | `/parent/redemptions/{request_id}/reject` |
-| GET | `/parent/devices/add` |
-| GET | `/parent/devices/add/status` |
-| POST | `/parent/devices/add/cancel` |
-| GET | `/parent/devices/{binding_id}` |
-| GET | `/parent/inbox` |
-| GET | `/parent/account` |
-| POST | `/parent/account/delete` |
-| POST | `/parent/account/cancel-delete` |
+| GET | `/family/{family_id}/redemptions` |
+| POST | `/family/{family_id}/redemptions/{request_id}/approve` |
+| POST | `/family/{family_id}/redemptions/{request_id}/reject` |
+| GET | `/family/{family_id}/devices/add` |
+| GET | `/family/{family_id}/devices/add/status` |
+| POST | `/family/{family_id}/devices/add/cancel` |
+| GET | `/family/{family_id}/devices/{binding_id}` |
+| GET | `/family/{family_id}/inbox` |
+| GET | `/family/{family_id}/account` |
+| POST | `/family/{family_id}/account/delete` |
+| POST | `/family/{family_id}/account/cancel-delete` |
 ```
 
 - [ ] **Step 7: Commit**
@@ -649,7 +649,7 @@ git commit -m "docs: define shared api error contracts"
 | --- | --- | --- | --- |
 | built-in | shipped app asset | none | app bundle version |
 | global | `GET /api/v1/public/global-packs/latest.json` | anonymous | ETag + fetchedAt |
-| family | `GET /api/v1/child/family-packs/latest.json` | device token | ETag + fetchedAt |
+| family | `GET /api/v1/family/{family_id}/family-packs/latest.json` | device token | ETag + fetchedAt |
 
 ## Status Handling
 
@@ -674,9 +674,9 @@ Client effective library is `family > global > built-in` by `pack_id`. `shared/`
 
 ## Flow
 
-1. Parent creates token with `POST /api/v1/parent/pair/create`.
+1. Parent creates token with `POST /api/v1/family/{family_id}/pair/create`.
 2. Parent shows QR or short code from `PairCreateOut`.
-3. Child redeems via `POST /api/v1/pair/redeem` using token or 6-digit short code plus stable `device_id`.
+3. Child redeems via `POST /api/v1/public/pair/redeem` using token or 6-digit short code plus stable `device_id`.
 4. Server returns device credentials and family context in `PairRedeemOut`.
 5. Child stores device token in platform-secure storage where available.
 6. Child uses device token for child-device APIs.
@@ -691,7 +691,7 @@ The server derives `family_id` from `DeviceBinding`. Clients may display family 
 ```markdown
 # Word Stats Sync Protocol
 
-Endpoint: `POST /api/v1/child/word-stats/sync`
+Endpoint: `POST /api/v1/family/{family_id}/word-stats/sync`
 
 The child device sends local `WordStatItem[]` plus `synced_through_ms`. The server accepts stats for the bound family/device context and returns accepted remote state.
 
@@ -712,16 +712,16 @@ Schema source: `components.schemas.WordStatsSyncIn`, `WordStatsSyncOut`, `WordSt
 
 ## Child Device
 
-- Pull wishlist: `GET /api/v1/child/wishlist`
-- Sync custom wishlist items: `POST /api/v1/child/wishlist/sync-custom`
-- Create redemption request: `POST /api/v1/child/redemption-requests`
-- Poll/list requests: `GET /api/v1/child/redemption-requests`, `GET /api/v1/child/redemption-requests/poll`
+- Pull wishlist: `GET /api/v1/family/{family_id}/wishlist`
+- Sync custom wishlist items: `POST /api/v1/family/{family_id}/wishlist/sync-custom`
+- Create redemption request: `POST /api/v1/family/{family_id}/redemption-requests`
+- Poll/list requests: `GET /api/v1/family/{family_id}/redemption-requests`, `GET /api/v1/family/{family_id}/redemption-requests/poll`
 
 ## Parent
 
-- View child wishlist: `GET /api/v1/parent/children/{profile_id}/wishlist`
-- Mutate wishlist item: `POST|PUT|DELETE /api/v1/parent/wishlist-items/{item_id}`
-- Review redemption: `POST /api/v1/parent/redemption-requests/{request_id}/approve|reject`
+- View child wishlist: `GET /api/v1/family/{family_id}/children/{profile_id}/wishlist`
+- Mutate wishlist item: `POST|PUT|DELETE /api/v1/family/{family_id}/wishlist-items/{item_id}`
+- Review redemption: `POST /api/v1/family/{family_id}/redemption-requests/{request_id}/approve|reject`
 
 Client rules:
 

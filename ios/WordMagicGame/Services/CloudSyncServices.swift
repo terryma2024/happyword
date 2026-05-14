@@ -121,7 +121,7 @@ struct StaticBackendURLProvider: BackendURLProviding {
 struct BackendURLProvider: BackendURLProviding {
     static let localBaseURL = URL(string: "http://127.0.0.1:8000")!
     static let stagingBaseURL = URL(string: "https://happyword.cool")!
-    static let previewManifestURL = URL(string: "https://happyword.cool/api/v1/preview-urls.json")!
+    static let previewManifestURL = URL(string: "https://happyword.cool/api/v1/public/preview-urls.json")!
 
     private let store: BackendEnvironmentStore
     private let launchOverrideURL: URL?
@@ -494,6 +494,7 @@ struct URLSessionHTTPTransport: HTTPTransporting {
 enum CloudHTTPError: Error, Equatable {
     case invalidResponse
     case unexpectedStatus(Int)
+    case familyIdRequired
 }
 
 struct PreviewManifest: Decodable, Equatable {
@@ -737,11 +738,11 @@ final class DeveloperMenuViewModel: ObservableObject {
                 statusMessage = "请先保存 bypass secret"
                 return .blocked(statusMessage)
             }
-            lastProbeStatus = "Probing \(endpoint("/api/v1/health", baseURL: previewURL).absoluteString)…"
+            lastProbeStatus = "Probing \(endpoint("/api/v1/public/health", baseURL: previewURL).absoluteString)…"
             let result = await probeHealth(baseURL: previewURL, bypassSecret: secret)
             lastProbeStatus = result.message
             guard result.ok else {
-                statusMessage = "Cannot reach /api/v1/health"
+                statusMessage = "Cannot reach /api/v1/public/health"
                 return .blocked(statusMessage)
             }
             environmentStore.save(environment: .preview, previewURL: previewURL)
@@ -786,7 +787,7 @@ final class DeveloperMenuViewModel: ObservableObject {
     }
 
     private func probeHealth(baseURL: URL, bypassSecret: String) async -> (ok: Bool, message: String) {
-        let url = endpoint("/api/v1/health", baseURL: baseURL)
+        let url = endpoint("/api/v1/public/health", baseURL: baseURL)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         if !bypassSecret.isEmpty {
@@ -828,7 +829,7 @@ struct HTTPDeviceBindingClient: DeviceBindingClienting, Sendable {
 
     func redeem(pairingInput: String, deviceId: String) async throws -> PairRedeemResponse {
         let pairing = try PairingInput.parse(pairingInput)
-        var request = URLRequest(url: endpoint("/api/v1/pair/redeem", baseURL: baseURLProvider.effectiveBaseURL()))
+        var request = URLRequest(url: endpoint("/api/v1/public/pair/redeem", baseURL: baseURLProvider.effectiveBaseURL()))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         headerProvider.apply(to: &request)
@@ -844,6 +845,12 @@ struct HTTPDeviceBindingClient: DeviceBindingClienting, Sendable {
 
 private func endpoint(_ path: String, baseURL: URL) -> URL {
     URL(string: path, relativeTo: baseURL)?.absoluteURL ?? baseURL.appendingPathComponent(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+}
+
+/// Builds `/api/v1/family/{familyId}{suffix}` with a percent-encoded path segment (e.g. `suffix` = `/profile`).
+private func familyScopedAPIPath(suffix: String, familyId: String) -> String {
+    let segment = familyId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? familyId
+    return "/api/v1/family/\(segment)\(suffix)"
 }
 
 extension PairRedeemResponse {
@@ -1104,7 +1111,7 @@ final class FileBackedPackLayerStore {
 
 protocol PackLayerClienting: Sendable {
     func fetchGlobal(cached: PackLayerCache?) async throws -> PackLayerCache?
-    func fetchFamily(deviceToken: String, cached: PackLayerCache?) async throws -> PackLayerCache?
+    func fetchFamily(familyId: String, deviceToken: String, cached: PackLayerCache?) async throws -> PackLayerCache?
 }
 
 struct HTTPPackLayerClient: PackLayerClienting, Sendable {
@@ -1137,8 +1144,10 @@ struct HTTPPackLayerClient: PackLayerClienting, Sendable {
         try await fetch(path: "/api/v1/public/global-packs/latest.json", deviceToken: nil, source: .global, cached: cached)
     }
 
-    func fetchFamily(deviceToken: String, cached: PackLayerCache?) async throws -> PackLayerCache? {
-        try await fetch(path: "/api/v1/child/family-packs/latest.json", deviceToken: deviceToken, source: .family, cached: cached)
+    func fetchFamily(familyId: String, deviceToken: String, cached: PackLayerCache?) async throws -> PackLayerCache? {
+        guard !familyId.isEmpty else { throw CloudHTTPError.familyIdRequired }
+        let path = familyScopedAPIPath(suffix: "/family-packs/latest.json", familyId: familyId)
+        return try await fetch(path: path, deviceToken: deviceToken, source: .family, cached: cached)
     }
 
     private func fetch(path: String, deviceToken: String?, source: PackSource, cached: PackLayerCache?) async throws -> PackLayerCache? {
@@ -1185,7 +1194,7 @@ struct DemoPackLayerClient: PackLayerClienting, Sendable {
         )
     }
 
-    func fetchFamily(deviceToken: String, cached: PackLayerCache?) async throws -> PackLayerCache? {
+    func fetchFamily(familyId: String, deviceToken: String, cached: PackLayerCache?) async throws -> PackLayerCache? {
         let response = try JSONDecoder.snakeCase.decode(PackLayerFixture.self, from: DemoPackLayerFixtures.family)
         return try syncClient.apply(
             status: response.status,
@@ -1316,7 +1325,7 @@ private extension KeyedDecodingContainer {
 }
 
 protocol WordStatsSyncClienting: Sendable {
-    func sync(payload: WordStatsSyncPayload, deviceToken: String) async throws -> WordStatsSyncResponse
+    func sync(payload: WordStatsSyncPayload, familyId: String, deviceToken: String) async throws -> WordStatsSyncResponse
 }
 
 struct HTTPWordStatsSyncClient: WordStatsSyncClienting, Sendable {
@@ -1344,8 +1353,10 @@ struct HTTPWordStatsSyncClient: WordStatsSyncClienting, Sendable {
         self.transport = transport
     }
 
-    func sync(payload: WordStatsSyncPayload, deviceToken: String) async throws -> WordStatsSyncResponse {
-        var request = URLRequest(url: endpoint("/api/v1/child/word-stats/sync", baseURL: baseURLProvider.effectiveBaseURL()))
+    func sync(payload: WordStatsSyncPayload, familyId: String, deviceToken: String) async throws -> WordStatsSyncResponse {
+        guard !familyId.isEmpty else { throw CloudHTTPError.familyIdRequired }
+        let path = familyScopedAPIPath(suffix: "/word-stats/sync", familyId: familyId)
+        var request = URLRequest(url: endpoint(path, baseURL: baseURLProvider.effectiveBaseURL()))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(deviceToken)", forHTTPHeaderField: "Authorization")
@@ -1361,7 +1372,7 @@ struct HTTPWordStatsSyncClient: WordStatsSyncClienting, Sendable {
 }
 
 struct MockWordStatsSyncClient: WordStatsSyncClienting, Sendable {
-    func sync(payload: WordStatsSyncPayload, deviceToken: String) async throws -> WordStatsSyncResponse {
+    func sync(payload: WordStatsSyncPayload, familyId: String, deviceToken: String) async throws -> WordStatsSyncResponse {
         WordStatsSyncResponse(
             accepted: payload.items.count,
             rejected: 0,
@@ -1403,7 +1414,7 @@ final class WordStatsSyncStateStore {
 }
 
 protocol DeviceUnbindClienting: Sendable {
-    func unbind(deviceToken: String) async throws
+    func unbind(familyId: String, deviceToken: String) async throws
 }
 
 struct HTTPDeviceUnbindClient: DeviceUnbindClienting, Sendable {
@@ -1431,8 +1442,10 @@ struct HTTPDeviceUnbindClient: DeviceUnbindClienting, Sendable {
         self.transport = transport
     }
 
-    func unbind(deviceToken: String) async throws {
-        var request = URLRequest(url: endpoint("/api/v1/child/unbind", baseURL: baseURLProvider.effectiveBaseURL()))
+    func unbind(familyId: String, deviceToken: String) async throws {
+        guard !familyId.isEmpty else { throw CloudHTTPError.familyIdRequired }
+        let path = familyScopedAPIPath(suffix: "/unbind", familyId: familyId)
+        var request = URLRequest(url: endpoint(path, baseURL: baseURLProvider.effectiveBaseURL()))
         request.httpMethod = "POST"
         request.setValue("Bearer \(deviceToken)", forHTTPHeaderField: "Authorization")
         headerProvider.apply(to: &request)
@@ -1444,7 +1457,7 @@ struct HTTPDeviceUnbindClient: DeviceUnbindClienting, Sendable {
 }
 
 struct MockDeviceUnbindClient: DeviceUnbindClienting, Sendable {
-    func unbind(deviceToken: String) async throws {}
+    func unbind(familyId: String, deviceToken: String) async throws {}
 }
 
 struct ChildProfileUpdateResponse: Codable, Equatable {
@@ -1461,7 +1474,7 @@ private struct ChildProfileUpdateRequest: Codable, Equatable {
 }
 
 protocol ChildProfileClienting: Sendable {
-    func update(nickname: String, avatarEmoji: String?, deviceToken: String) async throws -> ChildProfileUpdateResponse
+    func update(nickname: String, avatarEmoji: String?, familyId: String, deviceToken: String) async throws -> ChildProfileUpdateResponse
 }
 
 struct HTTPChildProfileClient: ChildProfileClienting, Sendable {
@@ -1489,8 +1502,10 @@ struct HTTPChildProfileClient: ChildProfileClienting, Sendable {
         self.transport = transport
     }
 
-    func update(nickname: String, avatarEmoji: String?, deviceToken: String) async throws -> ChildProfileUpdateResponse {
-        var request = URLRequest(url: endpoint("/api/v1/child/profile", baseURL: baseURLProvider.effectiveBaseURL()))
+    func update(nickname: String, avatarEmoji: String?, familyId: String, deviceToken: String) async throws -> ChildProfileUpdateResponse {
+        guard !familyId.isEmpty else { throw CloudHTTPError.familyIdRequired }
+        let path = familyScopedAPIPath(suffix: "/profile", familyId: familyId)
+        var request = URLRequest(url: endpoint(path, baseURL: baseURLProvider.effectiveBaseURL()))
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(deviceToken)", forHTTPHeaderField: "Authorization")
@@ -1506,7 +1521,7 @@ struct HTTPChildProfileClient: ChildProfileClienting, Sendable {
 }
 
 struct MockChildProfileClient: ChildProfileClienting, Sendable {
-    func update(nickname: String, avatarEmoji: String?, deviceToken: String) async throws -> ChildProfileUpdateResponse {
+    func update(nickname: String, avatarEmoji: String?, familyId: String, deviceToken: String) async throws -> ChildProfileUpdateResponse {
         ChildProfileUpdateResponse(
             profileId: PairRedeemResponse.demoBinding.childProfileId,
             familyId: PairRedeemResponse.demoBinding.familyId,

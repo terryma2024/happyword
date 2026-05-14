@@ -147,7 +147,7 @@ Rules:
 Components:
 
 - Backend environment switcher: staging/local/preview.
-- Preview manifest fetch from `GET /api/v1/preview-urls.json`.
+- Preview manifest fetch from `GET /api/v1/public/preview-urls.json`.
 - Bypass secret editor.
 - Mock-server instrumentation override.
 

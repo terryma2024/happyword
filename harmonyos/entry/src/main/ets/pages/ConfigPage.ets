@@ -40,9 +40,9 @@ import { MAX_ACTIVE_PACKS } from '../services/PackSelectionService';
  *
  * V0.6.7: the inline pack picker section was extracted to
  * `pages/PackManagerPage` so the ConfigPage form stays scannable
- * and the picker can grow independently. The legacy 词库同步 row
- * (powered by `WordPackSyncService`) was also removed — pack
- * synchronisation is now consolidated under PackManagerPage's
+ * and the picker can grow independently. The legacy single-endpoint
+ * pack sync row was also removed — pack synchronisation is now
+ * consolidated under PackManagerPage's
  * 🔄 同步词包 button, which drives the three-layer
  * GlobalPackService + FamilyPackService stack.
  *

@@ -14,7 +14,7 @@ import { StringPreferencesLike } from './WrongAnswerStore';
  * location.
  *
  * Stored keys:
- * - `device_token`     — JWT issued by `/api/v1/pair/redeem`
+ * - `device_token`     — JWT issued by `/api/v1/public/pair/redeem`
  * - `binding_id`       — `bind-<8hex>` business id
  * - `family_id`        — `fam-<8hex>` business id
  * - `child_profile_id` — `child-<8hex>` business id

@@ -176,7 +176,7 @@ struct DevMenuPage {
   }
 
   /**
-   * Probe `<url>/api/v1/health` and return both the gating boolean
+   * Probe `<url>/api/v1/public/health` and return both the gating boolean
    * (HTTP 200) and a verbose status string for the on-screen debug
    * line. Timeout is 10s — first-hit TLS handshake to *.vercel.app from
    * the OpenHarmony emulator (cold DNS / cold TCP / cold edge) often
@@ -196,7 +196,7 @@ struct DevMenuPage {
    * `onCardTap`, so we can't rely on `vercelBypassHeader()`.
    */
   private async probeHealth(url: string, bypassSecret: string): Promise<ProbeResult> {
-    const fullUrl: string = `${url}/api/v1/health`;
+    const fullUrl: string = `${url}/api/v1/public/health`;
     const req: http.HttpRequest = http.createHttp();
     const out: ProbeResult = new ProbeResult();
     try {
@@ -306,11 +306,11 @@ struct DevMenuPage {
       if (env === BackendEnv.PREVIEW) {
         // Surface the URL we're about to probe BEFORE the request so
         // the user sees something even if the call hangs to timeout.
-        this.lastProbeStatus = `Probing ${previewUrl}/api/v1/health…`;
+        this.lastProbeStatus = `Probing ${previewUrl}/api/v1/public/health…`;
         const result: ProbeResult = await this.probeHealth(previewUrl, bypassSecret);
         this.lastProbeStatus = result.message;
         if (!result.ok) {
-          this.showToast('Cannot reach /api/v1/health — see status at bottom');
+          this.showToast('Cannot reach /api/v1/public/health — see status at bottom');
           return;
         }
       }
@@ -563,7 +563,7 @@ struct DevMenuPage {
         }
 
         if (this.lastProbeStatus.length > 0) {
-          // Pinned debug line — shows the most recent /api/v1/health
+          // Pinned debug line — shows the most recent /api/v1/public/health
           // probe URL + outcome. Stays visible even after a failed
           // tap so the user can verify which URL was hit (Vercel
           // preview deployments often return 401, which the toast

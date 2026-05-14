@@ -320,12 +320,12 @@ fun WordMagicGameApp() {
             backendApplying = true
             try {
                 if (targetState.env == BackendEnv.Preview) {
-                    probeStatus = "Probing ${devMenuViewModel.routingSummary(targetState).substringAfter(": ")}/api/v1/health..."
+                    probeStatus = "Probing ${devMenuViewModel.routingSummary(targetState).substringAfter(": ")}/api/v1/public/health..."
                     val probeResult = devMenuViewModel.probeHealth(targetState, bypassSecret)
                     probeStatus = probeResult.message
                     if (!probeResult.ok) {
                         route = AppRoute.DevMenu
-                        Toast.makeText(context, "Cannot reach /api/v1/health - see status at bottom", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Cannot reach /api/v1/public/health - see status at bottom", Toast.LENGTH_SHORT).show()
                         return@launch
                     }
                     debugRoutingRepository.bypassSecretStore.save(bypassSecret)
@@ -501,6 +501,7 @@ fun WordMagicGameApp() {
                                     deviceToken = credentials.deviceToken,
                                     stats = learningRecorder.statsSnapshot(),
                                     syncedThroughMs = cloudRepositories.loadLearningSyncCheckpointMs(),
+                                    familyId = credentials.familyLabel,
                                 )
                                 if (result.serverNowMs > 0) {
                                     cloudRepositories.saveLearningSyncCheckpointMs(result.serverNowMs)
@@ -711,6 +712,7 @@ fun WordMagicGameApp() {
                         try {
                             val updated = childProfileClient.updateProfile(
                                 current.deviceToken,
+                                current.familyLabel,
                                 nickname,
                                 avatarEmoji,
                             )

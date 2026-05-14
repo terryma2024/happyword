@@ -49,7 +49,7 @@ async def test_pack_with_illustration_url_is_v5(client: "AsyncClient", admin: Us
     )
     assert publish.status_code == 201
     assert publish.json()["schema_version"] == 5
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     body = pack.json()
     assert body["schema_version"] == 5
     word = body["words"][0]
@@ -74,7 +74,7 @@ async def test_pack_with_audio_url_is_v5(client: "AsyncClient", admin: User) -> 
     )
     assert publish.status_code == 201
     assert publish.json()["schema_version"] == 5
-    word = (await client.get("/api/v1/packs/latest.json")).json()["words"][0]
+    word = (await client.get("/api/v1/public/packs/latest.json")).json()["words"][0]
     assert word["audioUrl"].endswith(".mp3")
 
 

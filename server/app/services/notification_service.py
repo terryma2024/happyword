@@ -122,6 +122,7 @@ async def send_redemption_email(
     provider: EmailProvider,
     *,
     to: str,
+    family_id: str,
     child_nickname: str,
     item_display_name: str,
     cost_coins: int,
@@ -134,8 +135,9 @@ async def send_redemption_email(
     deep-links into the parent web inbox.
     """
     settings = get_settings()
+    fid = family_id.strip() or "_"
     subject = f"[Word Magic] {child_nickname} 想兑换 {item_display_name}"
-    inbox_url = f"{settings.parent_web_base_url.rstrip('/')}/parent/redemptions"
+    inbox_url = f"{settings.parent_web_base_url.rstrip('/')}/family/{fid}/redemptions"
     text = (
         f"{child_nickname} 想兑换 {item_display_name}（{cost_coins} 金币）。\n\n"
         f"请前往家长后台审批：\n{inbox_url}\n\n"

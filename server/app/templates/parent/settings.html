@@ -4,7 +4,7 @@
 <section class="space-y-6">
   <header class="flex items-center justify-between">
     <h1 class="text-2xl font-semibold text-slate-900">账号设置</h1>
-    <a href="/parent/" class="text-sm text-slate-500 hover:text-slate-700">← 返回首页</a>
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/" class="text-sm text-slate-500 hover:text-slate-700">← 返回首页</a>
   </header>
 
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
@@ -24,7 +24,7 @@
         删除（剩余 <span id="grace-days-remaining">{{ grace_days_remaining }}</span> 天）。在
         删除时间到期前可以撤销。
       </p>
-      <form method="post" action="/parent/account/cancel-delete">
+      <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/account/cancel-delete">
         <button type="submit"
                 id="cancel-delete-btn"
                 class="bg-emerald-600 text-white hover:bg-emerald-700 text-sm
@@ -37,7 +37,7 @@
         删除账号会在 {{ grace_days_total }} 天宽限期后清除你和所有绑定设备的全部数据。
         在宽限期内可以撤销。
       </p>
-      <form method="post" action="/parent/account/delete">
+      <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/account/delete">
         <button type="submit"
                 id="delete-btn"
                 class="bg-rose-600 text-white hover:bg-rose-700 text-sm
@@ -53,7 +53,7 @@
     <p class="text-sm text-slate-600 mb-3">
       导出当前家庭账号下的孩子档案、设备绑定、愿望清单、兑换记录和消息（JSON 格式）。
     </p>
-    <form method="post" action="/api/v1/parent/account/export">
+    <form method="post" action="/api/v1/family/{{ (user.family_id if (user is defined and user) else '_') }}/account/export">
       <button type="submit"
               id="export-btn"
               class="bg-sky-600 text-white hover:bg-sky-700 text-sm

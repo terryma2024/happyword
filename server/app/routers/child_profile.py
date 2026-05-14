@@ -1,18 +1,18 @@
 """V0.6.8 — device-side self-edit of the bound child profile.
 
-Mounted under `/api/v1/child` and authenticated by the device JWT via
+Mounted under `/api/v1/family/{family_id}` and authenticated by the device JWT via
 `current_device_binding` (same precedent as `child_wishlist.post_unbind`).
 
 Kids set display name and pick an avatar emoji from `BoundDeviceInfoPage`
 (HarmonyOS). Parents can still override from the web
-(`PUT /api/v1/parent/children/{id}`).
+(`PUT /api/v1/family/{family_id}/children/{id}`).
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from app.deps import current_device_binding
 from app.schemas.child_self import (
@@ -28,14 +28,16 @@ if TYPE_CHECKING:
     from app.models.device_binding import DeviceBinding
 
 
-router = APIRouter(prefix="/api/v1/child", tags=["child-profile"])
+router = APIRouter(prefix="/api/v1/family", tags=["child-profile"])
 
 
-@router.put("/profile", response_model=ChildSelfProfileOut)
+@router.put("/{family_id}/profile", response_model=ChildSelfProfileOut)
 async def put_self_profile(
     payload: ChildSelfProfileUpdateIn,
+    family_id: str = Path(min_length=1, max_length=128),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> ChildSelfProfileOut:
+    _ = family_id
     # Reject whitespace-only nicknames up front. The service silently
     # ignores them (treats as no-op), but for an explicit user action
     # we prefer a 400 so the device can show the rejection inline.

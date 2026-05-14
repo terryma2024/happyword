@@ -104,7 +104,7 @@ ADMIN_BOOTSTRAP_PASS=<choose-a-local-password>
 
 `OPENAI_API_KEY` and `BLOB_READ_WRITE_TOKEN` are optional — LLM /
 asset-upload endpoints will return config errors without them, but everything
-else (auth, words, packs, public `/api/v1/packs/latest.json`) works fine.
+else (auth, words, packs, public `/api/v1/public/packs/latest.json`) works fine.
 
 Start the dev server (foreground or via tmux):
 
@@ -113,7 +113,7 @@ cd server && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ### Public health endpoint is namespaced
-The health route is `GET /api/v1/health`, **not** `/health`. The unprefixed
+The health route is `GET /api/v1/public/health`, **not** `/health`. The unprefixed
 path returns 404 (this surprised me on first run).
 
 ### Mock UI server (separate from main server)

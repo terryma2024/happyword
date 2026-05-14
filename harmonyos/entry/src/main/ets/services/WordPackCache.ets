@@ -14,10 +14,9 @@ const PREFS_NAME: string = 'word_pack_cache';
 const PACK_KEY: string = 'pack_v2';
 
 /**
- * V0.5 client follow-up envelope written by WordPackSyncService
- * after a successful pull. Stored as a single JSON string under
- * PACK_KEY. Bootstrap consumers don't need to know about this —
- * `WordPackCache.read()` returns just the body.
+ * Legacy prefs envelope (body + etag + schemaVersion + fetchedAt) from
+ * older clients that synced a single public pack into `pack_v2`.
+ * `WordPackCache.read()` returns just the body for cold-start consumers.
  */
 export class WordPackCacheRecord {
   body: string = '';
@@ -64,10 +63,8 @@ class RealPrefs implements StringPreferencesLike {
  *   - V0.5 follow-up envelope (body + etag + schemaVersion + fetchedAt)
  *
  * `read()` returns just the body so cold-start consumers (the
- * bootstrapper) are oblivious to the envelope. `readRecord()` is
- * used exclusively by the manual sync path on ConfigPage to render
- * status text and to populate the `If-None-Match` header on the
- * next pull.
+ * bootstrapper) are oblivious to the envelope. `readRecord()` is only
+ * used by unit tests and diagnostics; production no longer writes this slot.
  */
 export class WordPackCache {
   private prefs?: StringPreferencesLike;

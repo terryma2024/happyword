@@ -74,7 +74,7 @@ function nicknameFromRowText(rowText: string): string {
 
 /**
  * Seed the mock server's `_active_bindings` set by issuing a direct
- * `/api/v1/pair/redeem` call from the test process. Idempotent on the
+ * `/api/v1/public/pair/redeem` call from the test process. Idempotent on the
  * mock side: redeeming twice with the same short code adds to the set
  * once and re-mints the same deterministic device token.
  *
@@ -97,7 +97,7 @@ async function seedMockBinding(): Promise<void> {
   const req: http.HttpRequest = http.createHttp();
   try {
     await req.request(
-      'http://127.0.0.1:8123/api/v1/pair/redeem',
+      'http://127.0.0.1:8123/api/v1/public/pair/redeem',
       {
         method: http.RequestMethod.POST,
         header: { 'Content-Type': 'application/json' },

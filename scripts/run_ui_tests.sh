@@ -228,14 +228,14 @@ echo $! >"${MOCK_PID_FILE}"
 
 # Wait up to ~10s for the health endpoint to come up.
 for _ in $(seq 1 50); do
-  if curl -fsS "http://${MOCK_HOST}:${MOCK_PORT}/api/v1/health" >/dev/null 2>&1; then
+  if curl -fsS "http://${MOCK_HOST}:${MOCK_PORT}/api/v1/public/health" >/dev/null 2>&1; then
     echo "[run_ui_tests] mock UI server is healthy"
     break
   fi
   sleep 0.2
 done
 
-if ! curl -fsS "http://${MOCK_HOST}:${MOCK_PORT}/api/v1/health" >/dev/null 2>&1; then
+if ! curl -fsS "http://${MOCK_HOST}:${MOCK_PORT}/api/v1/public/health" >/dev/null 2>&1; then
   echo "[run_ui_tests] mock server failed to come up — log tail:" >&2
   tail -n 50 "${MOCK_LOG}" >&2 || true
   exit 1

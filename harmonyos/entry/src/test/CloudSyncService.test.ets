@@ -12,7 +12,7 @@ import {
 import { ParentFetchAdapter, ParentFetchResult } from '../main/ets/services/ParentApiClient';
 
 const BASE: string = 'https://happyword.cool';
-const SYNC_PATH: string = '/api/v1/child/word-stats/sync';
+const SYNC_PATH: string = '/api/v1/family/fam-12345678/word-stats/sync';
 
 class MemPrefs implements StringPreferencesLike {
   store: Map<string, string> = new Map<string, string>();

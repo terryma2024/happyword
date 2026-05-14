@@ -8,7 +8,7 @@ import { FamilyPacksBlob, parseFamilyPacksBlob } from './FamilyPackMerge';
 /**
  * V0.6.3 / V0.8.1 — client cache + HTTP wrapper for child vocabulary JSON.
  *
- * GET/HEAD target is **`/api/v1/child/packs/latest.json`** (merged global +
+ * GET/HEAD target is **`/api/v1/family/{family_id}/packs/latest.json`** (merged global +
  * family vocabulary per V0.8.1). When the caller supplies a non-empty
  * `familyId`, we also send **`X-Family-Id`** so the server can enforce the
  * tenant hint (`TENANT_MISMATCH` on mismatch).
@@ -108,8 +108,9 @@ export class FamilyPackService {
   }
 
   /** V0.8.1 merged child vocabulary (global + family); auth is device Bearer. */
-  private childPacksLatestUrl(): string {
-    return `${this.baseUrl}/api/v1/child/packs/latest.json`;
+  private childPacksLatestUrl(familyId: string): string {
+    const fid: string = familyId.trim().length > 0 ? familyId.trim() : '_';
+    return `${this.baseUrl}/api/v1/family/${fid}/packs/latest.json`;
   }
 
   private authHeaders(deviceToken: string, familyId: string): Record<string, string> {
@@ -162,7 +163,7 @@ export class FamilyPackService {
       return out;
     }
     const fid: string = familyId !== undefined ? familyId : '';
-    const url: string = this.childPacksLatestUrl();
+    const url: string = this.childPacksLatestUrl(fid);
     const headers: Record<string, string> = this.authHeaders(deviceToken, fid);
 
     const cached: CachedEnvelope | null = this.memoryEnvelope ?? await this.readCache();
@@ -227,7 +228,7 @@ export class FamilyPackService {
       return null;
     }
     const fid: string = familyId !== undefined ? familyId : '';
-    const url: string = this.childPacksLatestUrl();
+    const url: string = this.childPacksLatestUrl(fid);
     const headers: Record<string, string> = this.authHeaders(deviceToken, fid);
     try {
       const res: ParentFetchResult = await this.adapter.head(url, headers);

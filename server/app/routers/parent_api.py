@@ -47,13 +47,15 @@ from app.services.parent_report_service import (
 if TYPE_CHECKING:
     from app.models.user import User
 
-router = APIRouter(prefix="/api/v1/parent", tags=["parent-children"])
+router = APIRouter(prefix="/api/v1/family", tags=["parent-children"])
 
 
-@router.get("/devices", response_model=DeviceListOut)
+@router.get("/{family_id}/devices", response_model=DeviceListOut)
 async def list_devices(
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> DeviceListOut:
+    _ = family_id
     rows = await DeviceBinding.find(
         DeviceBinding.family_id == (user.family_id or ""),
         sort=[("created_at", SortDirection.DESCENDING)],
@@ -77,14 +79,16 @@ async def list_devices(
 
 
 @router.put(
-    "/children/{profile_id}",
+    "/{family_id}/children/{profile_id}",
     response_model=ChildProfileOut,
 )
 async def put_child(
     payload: ChildProfileUpdateIn,
+    family_id: str = Path(min_length=1, max_length=128),
     profile_id: str = Path(min_length=8, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> ChildProfileOut:
+    _ = family_id
     try:
         profile = await update(
             profile_id=profile_id,
@@ -114,13 +118,15 @@ async def put_child(
 
 
 @router.delete(
-    "/children/{profile_id}",
+    "/{family_id}/children/{profile_id}",
     status_code=status.HTTP_200_OK,
 )
 async def delete_child(
+    family_id: str = Path(min_length=1, max_length=128),
     profile_id: str = Path(min_length=8, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> dict[str, str]:
+    _ = family_id
     try:
         await soft_delete(profile_id=profile_id, family_id=user.family_id or "")
     except ChildProfileNotFound as e:
@@ -137,14 +143,16 @@ async def delete_child(
 
 
 @router.get(
-    "/children/{profile_id}/report",
+    "/{family_id}/children/{profile_id}/report",
     response_model=ChildReportOut,
 )
 async def get_child_report(
+    family_id: str = Path(min_length=1, max_length=128),
     profile_id: str = Path(min_length=8, max_length=64),
     lookback_days: int = Query(default=7, ge=1, le=90),
     user: User = Depends(current_parent_user),
 ) -> ChildReportOut:
+    _ = family_id
     try:
         return await build_report(
             family_id=user.family_id or "",
@@ -164,10 +172,12 @@ async def get_child_report(
         ) from e
 
 
-@router.get("/children", response_model=list[ChildProfileOut])
+@router.get("/{family_id}/children", response_model=list[ChildProfileOut])
 async def list_children(
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> list[ChildProfileOut]:
+    _ = family_id
     rows = await ChildProfile.find(
         ChildProfile.family_id == (user.family_id or ""),
         ChildProfile.deleted_at == None,  # noqa: E711
@@ -276,13 +286,15 @@ def _already_decided_409() -> HTTPException:
 
 
 @router.get(
-    "/children/{profile_id}/wishlist",
+    "/{family_id}/children/{profile_id}/wishlist",
     response_model=CloudWishlistListOut,
 )
 async def list_child_wishlist(
+    family_id: str = Path(min_length=1, max_length=128),
     profile_id: str = Path(min_length=8, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> CloudWishlistListOut:
+    _ = family_id
     try:
         items = await cloud_wishlist_service.list_for_parent(
             profile_id=profile_id, family_id=user.family_id or ""
@@ -293,15 +305,17 @@ async def list_child_wishlist(
 
 
 @router.post(
-    "/children/{profile_id}/wishlist",
+    "/{family_id}/children/{profile_id}/wishlist",
     response_model=CloudWishlistItemOut,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_child_wishlist_item(
     payload: CloudWishlistCreateIn,
+    family_id: str = Path(min_length=1, max_length=128),
     profile_id: str = Path(min_length=8, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> CloudWishlistItemOut:
+    _ = family_id
     try:
         item = await cloud_wishlist_service.create_for_parent(
             profile_id=profile_id,
@@ -316,14 +330,16 @@ async def create_child_wishlist_item(
 
 
 @router.put(
-    "/wishlist-items/{item_id}",
+    "/{family_id}/wishlist-items/{item_id}",
     response_model=CloudWishlistItemOut,
 )
 async def patch_wishlist_item(
     payload: CloudWishlistPatchIn,
+    family_id: str = Path(min_length=1, max_length=128),
     item_id: str = Path(min_length=4, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> CloudWishlistItemOut:
+    _ = family_id
     try:
         item = await cloud_wishlist_service.patch_for_parent(
             item_id=item_id,
@@ -338,13 +354,15 @@ async def patch_wishlist_item(
 
 
 @router.delete(
-    "/wishlist-items/{item_id}",
+    "/{family_id}/wishlist-items/{item_id}",
     response_model=CloudWishlistItemOut,
 )
 async def archive_wishlist_item(
+    family_id: str = Path(min_length=1, max_length=128),
     item_id: str = Path(min_length=4, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> CloudWishlistItemOut:
+    _ = family_id
     try:
         item = await cloud_wishlist_service.archive_for_parent(
             item_id=item_id, family_id=user.family_id or ""
@@ -360,13 +378,15 @@ async def archive_wishlist_item(
 
 
 @router.get(
-    "/redemption-requests",
+    "/{family_id}/redemption-requests",
     response_model=RedemptionRequestListOut,
 )
 async def list_redemption_requests(
+    family_id: str = Path(min_length=1, max_length=128),
     pending_only: bool = Query(default=True),
     user: User = Depends(current_parent_user),
 ) -> RedemptionRequestListOut:
+    _ = family_id
     if pending_only:
         rows = await redemption_service.list_pending_for_family(
             family_id=user.family_id or ""
@@ -379,14 +399,16 @@ async def list_redemption_requests(
 
 
 @router.post(
-    "/redemption-requests/{request_id}/approve",
+    "/{family_id}/redemption-requests/{request_id}/approve",
     response_model=RedemptionRequestOut,
 )
 async def approve_redemption(
     payload: RedemptionDecisionIn,
+    family_id: str = Path(min_length=1, max_length=128),
     request_id: str = Path(min_length=4, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> RedemptionRequestOut:
+    _ = family_id
     try:
         req = await redemption_service.approve(
             request_id=request_id,
@@ -402,14 +424,16 @@ async def approve_redemption(
 
 
 @router.post(
-    "/redemption-requests/{request_id}/reject",
+    "/{family_id}/redemption-requests/{request_id}/reject",
     response_model=RedemptionRequestOut,
 )
 async def reject_redemption(
     payload: RedemptionDecisionIn,
+    family_id: str = Path(min_length=1, max_length=128),
     request_id: str = Path(min_length=4, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> RedemptionRequestOut:
+    _ = family_id
     try:
         req = await redemption_service.reject(
             request_id=request_id,

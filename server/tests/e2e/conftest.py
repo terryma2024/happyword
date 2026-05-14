@@ -63,7 +63,7 @@ def _preview_protection_preflight(base_url: str) -> None:
     # bumps into its own timeout.
     try:
         resp = httpx.get(
-            f"{base_url}/api/v1/health",
+            f"{base_url}/api/v1/public/health",
             headers=vercel_bypass_headers(),
             timeout=60.0,
             follow_redirects=False,

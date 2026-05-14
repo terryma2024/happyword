@@ -17,7 +17,7 @@
       <p class="text-sm text-slate-700 whitespace-pre-line">{{ m.body_md }}</p>
     </div>
     {% if not m.read_at %}
-      <form method="post" action="/api/v1/parent/inbox/{{ m.msg_id }}/read" class="inline">
+      <form method="post" action="/api/v1/family/{{ (user.family_id if (user is defined and user) else '_') }}/inbox/{{ m.msg_id }}/read" class="inline">
         <button type="submit"
                 class="text-xs px-2 py-1 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700">
           标记已读

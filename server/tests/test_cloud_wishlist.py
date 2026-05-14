@@ -223,17 +223,17 @@ async def parent_with_device(
         transport=transport, base_url="http://test", follow_redirects=False
     ) as ac:
         await ac.post(
-            "/api/v1/parent/auth/request-code", json={"email": "wp@example.com"}
+            "/api/v1/family/_/auth/request-code", json={"email": "wp@example.com"}
         )
         code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[:6]
         await ac.post(
-            "/api/v1/parent/auth/verify-code",
+            "/api/v1/family/_/auth/verify-code",
             json={"email": "wp@example.com", "code": code},
         )
-        c = await ac.post("/api/v1/parent/pair/create")
+        c = await ac.post("/api/v1/family/_/pair/create")
         token = c.json()["token"]
         rd = await ac.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": "dev-wsh-001"},
         )
         body = rd.json()
@@ -255,13 +255,13 @@ async def test_parent_post_then_get_returns_item(
 ) -> None:
     ac, _binding, child_id, _token = parent_with_device
     r = await ac.post(
-        f"/api/v1/parent/children/{child_id}/wishlist",
+        f"/api/v1/family/_/children/{child_id}/wishlist",
         json={"display_name": "冰棍", "cost_coins": 15, "icon_emoji": "🍦"},
     )
     assert r.status_code == 201
     item_id = r.json()["item_id"]
 
-    r = await ac.get(f"/api/v1/parent/children/{child_id}/wishlist")
+    r = await ac.get(f"/api/v1/family/_/children/{child_id}/wishlist")
     assert r.status_code == 200
     items = r.json()["items"]
     assert any(i["item_id"] == item_id for i in items)
@@ -272,7 +272,7 @@ async def test_parent_other_family_get_returns_404(
     parent_with_device: tuple[AsyncClient, str, str, str],
 ) -> None:
     ac, _binding, _child_id, _token = parent_with_device
-    r = await ac.get("/api/v1/parent/children/child-deadbeef/wishlist")
+    r = await ac.get("/api/v1/family/_/children/child-deadbeef/wishlist")
     assert r.status_code == 404
     assert r.json()["detail"]["error"]["code"] == "CHILD_NOT_FOUND"
 
@@ -283,12 +283,12 @@ async def test_parent_archive_returns_archived_state(
 ) -> None:
     ac, _binding, child_id, _token = parent_with_device
     cr = await ac.post(
-        f"/api/v1/parent/children/{child_id}/wishlist",
+        f"/api/v1/family/_/children/{child_id}/wishlist",
         json={"display_name": "棒棒糖", "cost_coins": 10, "icon_emoji": "🍭"},
     )
     item_id = cr.json()["item_id"]
 
-    dr = await ac.delete(f"/api/v1/parent/wishlist-items/{item_id}")
+    dr = await ac.delete(f"/api/v1/family/_/wishlist-items/{item_id}")
     assert dr.status_code == 200
     assert dr.json()["state"] == "archived"
 
@@ -299,19 +299,19 @@ async def test_device_get_only_returns_active(
 ) -> None:
     ac, _binding, child_id, token = parent_with_device
     cr = await ac.post(
-        f"/api/v1/parent/children/{child_id}/wishlist",
+        f"/api/v1/family/_/children/{child_id}/wishlist",
         json={"display_name": "冰棍", "cost_coins": 15, "icon_emoji": "🍦"},
     )
     active_id = cr.json()["item_id"]
     cr2 = await ac.post(
-        f"/api/v1/parent/children/{child_id}/wishlist",
+        f"/api/v1/family/_/children/{child_id}/wishlist",
         json={"display_name": "棒棒糖", "cost_coins": 10, "icon_emoji": "🍭"},
     )
     arch_id = cr2.json()["item_id"]
-    await ac.delete(f"/api/v1/parent/wishlist-items/{arch_id}")
+    await ac.delete(f"/api/v1/family/_/wishlist-items/{arch_id}")
 
     r = await ac.get(
-        "/api/v1/child/wishlist", headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/family/_/wishlist", headers={"Authorization": f"Bearer {token}"}
     )
     assert r.status_code == 200
     ids = {i["item_id"] for i in r.json()["items"]}
@@ -335,7 +335,7 @@ async def test_device_sync_custom_inserts_local_items(
         ]
     }
     r = await ac.post(
-        "/api/v1/child/wishlist/sync-custom",
+        "/api/v1/family/_/wishlist/sync-custom",
         headers={"Authorization": f"Bearer {token}"},
         json=payload,
     )

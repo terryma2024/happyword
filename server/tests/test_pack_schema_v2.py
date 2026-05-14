@@ -51,7 +51,7 @@ async def test_pack_with_distractors_is_schema_v2(client: "AsyncClient", admin: 
     assert publish.status_code == 201
     assert publish.json()["schema_version"] == 2
 
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     body = pack.json()
     assert body["schema_version"] == 2
     apple = next(w for w in body["words"] if w["id"] == "fruit-apple")
@@ -79,7 +79,7 @@ async def test_pack_with_example_is_schema_v2(client: "AsyncClient", admin: User
     assert publish.status_code == 201
     assert publish.json()["schema_version"] == 2
 
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     body = pack.json()
     apple = next(w for w in body["words"] if w["id"] == "fruit-apple")
     assert apple["example"] == {

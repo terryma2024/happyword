@@ -43,7 +43,7 @@ async def update(
 
 async def soft_delete(*, profile_id: str, family_id: str) -> None:
     """Soft-delete the profile and revoke its current DeviceBinding so the
-    client immediately stops being authorized for /api/v1/child/* requests."""
+    client immediately stops being authorized for `/api/v1/family/{family_id}/**` device-token requests."""
     profile = await ChildProfile.find_one(
         ChildProfile.profile_id == profile_id,
         ChildProfile.family_id == family_id,

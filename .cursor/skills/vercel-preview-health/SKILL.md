@@ -1,6 +1,6 @@
 ---
 name: vercel-preview-health
-description: Health-check every active Vercel Preview deployment listed in the live manifest at `https://happyword.cool/api/v1/preview-urls.json`. Probes `GET /api/v1/health` through Vercel Deployment Protection (`x-vercel-protection-bypass` header), prints a one-line status per preview, and exits non-zero if any are sick. Use when the user asks to "test preview health", "check previews", "are PR previews alive?", before merging anything that touches `server/`, after a fleet-wide redeploy or env-var rotation, or after rotating `VERCEL_AUTOMATION_BYPASS_SECRET` — do NOT loop ad-hoc `curl` calls or use `tools/vercel/smoke-prod.sh` (production-only) for this.
+description: Health-check every active Vercel Preview deployment listed in the live manifest at `https://happyword.cool/api/v1/public/preview-urls.json`. Probes `GET /api/v1/public/health` through Vercel Deployment Protection (`x-vercel-protection-bypass` header), prints a one-line status per preview, and exits non-zero if any are sick. Use when the user asks to "test preview health", "check previews", "are PR previews alive?", before merging anything that touches `server/`, after a fleet-wide redeploy or env-var rotation, or after rotating `VERCEL_AUTOMATION_BYPASS_SECRET` — do NOT loop ad-hoc `curl` calls or use `tools/vercel/smoke-prod.sh` (production-only) for this.
 ---
 
 # vercel-preview-health
@@ -34,14 +34,14 @@ Use **`tools/vercel/preview-health.sh`** from the **repository root**.
 bash tools/vercel/preview-health.sh
 
 # Pin to a specific manifest URL (e.g. staging proxy or a saved fixture)
-bash tools/vercel/preview-health.sh https://happyword.cool/api/v1/preview-urls.json
+bash tools/vercel/preview-health.sh https://happyword.cool/api/v1/public/preview-urls.json
 MANIFEST_URL=https://staging.example/preview-urls.json \
   bash tools/vercel/preview-health.sh
 ```
 
 ## Why this script (not ad-hoc curl)
 
-- **Manifest is the source of truth.** `https://happyword.cool/api/v1/preview-urls.json` is the public proxy in `server/app/routers/public_packs.py` over the Vercel Blob mirror that the `preview-manifest / refresh` workflow keeps live. Iterating it gets you exactly the previews CI considers "active" — no stale URL list, no missing PRs.
+- **Manifest is the source of truth.** `https://happyword.cool/api/v1/public/preview-urls.json` is the public proxy in `server/app/routers/public_packs.py` over the Vercel Blob mirror that the `preview-manifest / refresh` workflow keeps live. Iterating it gets you exactly the previews CI considers "active" — no stale URL list, no missing PRs.
 - **Punches through Deployment Protection.** Every preview is gated by Vercel SSO; raw `curl` returns `401 + Vercel Authentication` HTML. The script attaches `x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET` on every probe (resolution: env var → `~/.env` → warn).
 - **Cold-start-safe timeout (30s default).** Python serverless cold-starts on stale previews routinely take 15–25s (FastAPI lifespan opens Mongo via Motor + Beanie before the first response). A naive 10s probe false-fails the entire fleet.
 - **Tabular output + non-zero exit.** Safe to chain in CI / pre-merge gates.
@@ -60,17 +60,17 @@ If the bypass secret is missing the script still runs but warns once and reports
 
 | Knob | Default | Effect |
 | --- | --- | --- |
-| Positional `$1` | `$MANIFEST_URL` then `https://happyword.cool/api/v1/preview-urls.json` | Override which manifest to probe. |
+| Positional `$1` | `$MANIFEST_URL` then `https://happyword.cool/api/v1/public/preview-urls.json` | Override which manifest to probe. |
 | `MANIFEST_URL` env | (see above) | Same as positional. Useful in CI. |
-| `HEALTH_PATH` env | `/api/v1/health` | Probe a different endpoint (e.g. `/api/v1/packs/latest.json`). Schema check still expects `{"ok": true}` so most overrides will report `[FAIL <status>]` unless you script your own check. |
+| `HEALTH_PATH` env | `/api/v1/public/health` | Probe a different endpoint (e.g. `/api/v1/public/packs/latest.json`). Schema check still expects `{"ok": true}` so most overrides will report `[FAIL <status>]` unless you script your own check. |
 | `TIMEOUT` env | `30` (seconds) | Per-probe `--max-time`. Bump to `60` if you're verifying right after a fleet-wide redeploy and every preview is cold. |
 | `ENV_FILE` env | `~/.env` | Where to look for the bypass secret if not exported. |
 
 ## Output format
 
 ```text
-[preview-health] manifest: https://happyword.cool/api/v1/preview-urls.json
-[preview-health] manifest updated_at=2026-05-08T08:06:43.188Z  previews=8  health-path=/api/v1/health  timeout=30s
+[preview-health] manifest: https://happyword.cool/api/v1/public/preview-urls.json
+[preview-health] manifest updated_at=2026-05-08T08:06:43.188Z  previews=8  health-path=/api/v1/public/health  timeout=30s
   [OK   200   0.42s] PR  47 ab3563c  cursor/93cd3bd3                              https://happyword-…vercel.app
   [FAIL 502   0.31s] PR  30 69fc795  feat/v0.6-parent-account                     https://happyword-…vercel.app
        body: <html>...
@@ -112,7 +112,7 @@ The `[FAIL <status>]` prefix is the **first** thing to read; it maps to a specif
 ## Reference
 
 - Script: [`tools/vercel/preview-health.sh`](../../../tools/vercel/preview-health.sh) (file header has the full env-var resolution order and exit-code contract)
-- Manifest source: `server/app/routers/public_packs.py` (the `/api/v1/preview-urls.json` proxy) and `server/scripts/README.md`
+- Manifest source: `server/app/routers/public_packs.py` (the `/api/v1/public/preview-urls.json` proxy) and `server/scripts/README.md`
 - Bypass-secret rotation flow: `scripts/setup_bypass_secret_on_device.sh` + `docs/ci-secrets.md` → **VERCEL_AUTOMATION_BYPASS_SECRET**
 - Deeper triage when a preview fails non-`401` / non-`000`: skill **`server-deploy-log-triage`**
 - Tools index: `tools/vercel/README.md`

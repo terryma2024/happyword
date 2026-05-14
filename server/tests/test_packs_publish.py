@@ -130,7 +130,7 @@ async def test_latest_pack_serves_pointer_target(client: "AsyncClient", admin: U
     await _seed_word("fruit-banana", word="banana")
     await client.post("/api/v1/admin/packs/publish", json={}, headers=headers)
 
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     assert pack.status_code == 200
     body = pack.json()
     assert body["version"] == 2
@@ -152,7 +152,7 @@ async def test_rollback_flips_pointer(client: "AsyncClient", admin: User) -> Non
     assert body["current_version"] == 1
     assert body["previous_version"] == 2
 
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     assert pack.status_code == 200
     ids = sorted(w["id"] for w in pack.json()["words"])
     assert ids == ["fruit-apple"]
@@ -182,7 +182,7 @@ async def test_publish_excludes_soft_deleted_words(client: "AsyncClient", admin:
     assert resp.status_code == 201
     assert resp.json()["word_count"] == 1
 
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     ids = [w["id"] for w in pack.json()["words"]]
     assert ids == ["fruit-banana"]
 

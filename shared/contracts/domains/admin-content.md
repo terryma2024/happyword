@@ -6,7 +6,7 @@ Source: `shared/contracts/openapi/happyword-api.openapi.json`
 
 | Group | Paths |
 | --- | --- |
-| Admin auth | `/api/v1/auth/login`, `/api/v1/auth/me` |
+| Admin auth | `/api/v1/admin/auth/login`, `/api/v1/admin/auth/me` |
 | Words | `/api/v1/admin/words`, `/api/v1/admin/words/{word_id}`, `/api/v1/admin/words/{word_id}/illustration`, `/api/v1/admin/words/{word_id}/audio` |
 | Legacy packs | `/api/v1/admin/packs`, `/api/v1/admin/packs/current`, `/api/v1/admin/packs/{version}`, `/api/v1/admin/packs/publish`, `/api/v1/admin/packs/rollback` |
 | Categories | `/api/v1/admin/categories`, `/api/v1/admin/categories/{category_id}` |

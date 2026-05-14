@@ -1,11 +1,11 @@
 """V0.6.2 — short-lived pairing tokens issued by the parent web.
 
-The parent visits `/parent/devices/add`; the page calls `POST /api/v1/parent/
-pair/create` which produces a `PairToken` row. The QR encodes the token URL
-(`{PARENT_WEB_BASE_URL}/p/<token-prefix>`), and the page also surfaces a
-6-digit human-readable `short_code` fallback for "I can't scan" flows. The
-client posts either `token` or `short_code` to `/api/v1/pair/redeem` along
-with its persistent device id.
+The parent visits `/family/{family_id}/devices/add`; the page calls
+`POST /api/v1/family/{family_id}/pair/create` which produces a `PairToken` row.
+The QR encodes the token URL (`{PARENT_WEB_BASE_URL}/p/<token-prefix>`), and
+the page also surfaces a 6-digit human-readable `short_code` fallback for
+"I can't scan" flows. The client posts either `token` or `short_code` to
+`POST /api/v1/public/pair/redeem` along with its persistent device id.
 """
 
 from datetime import datetime

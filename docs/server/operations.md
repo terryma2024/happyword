@@ -31,7 +31,7 @@ No further manual setup is required.
 ## 1. Login → access token
 
 ```bash
-ACCESS_TOKEN=$(curl -s -X POST "${API}/api/v1/auth/login" \
+ACCESS_TOKEN=$(curl -s -X POST "${API}/api/v1/admin/auth/login" \
   -H 'content-type: application/json' \
   -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}" \
   | jq -r .access_token)
@@ -206,7 +206,7 @@ curl -s -X POST "${API}/api/v1/admin/packs/rollback" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 
 # Public read path used by the HarmonyOS client (ETag/304 enabled)
-curl -i "${API}/api/v1/packs/latest.json"
+curl -i "${API}/api/v1/public/packs/latest.json"
 ```
 
 `schema_version` evolves with content shape:
@@ -245,7 +245,7 @@ Weekly:
 1. `scripts/backup_pack.py` (off-site copy).
 2. Approve any pending drafts you want shipped.
 3. `POST /admin/packs/publish` with a release note.
-4. Smoke-test `GET /api/v1/packs/latest.json` (status 200, ETag
+4. Smoke-test `GET /api/v1/public/packs/latest.json` (status 200, ETag
    bumped). Verify on a dev device.
 
 If something goes wrong:

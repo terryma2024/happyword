@@ -145,10 +145,10 @@ def main() -> int:
         timeout=timeout,
         follow_redirects=False,
     ) as http:
-        health = http.get("/api/v1/health")
+        health = http.get("/api/v1/public/health")
         if health.status_code != 200:
             print(
-                f"error: GET /api/v1/health -> {health.status_code}\n{health.text[:500]}",
+                f"error: GET /api/v1/public/health -> {health.status_code}\n{health.text[:500]}",
                 file=sys.stderr,
             )
             return 1

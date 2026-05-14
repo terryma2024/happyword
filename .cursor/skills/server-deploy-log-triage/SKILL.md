@@ -99,7 +99,7 @@ gh run view "$RUN_ID" --json jobs --jq '.jobs[] | "\(.conclusion // .status)  \(
 | `short test summary` shows | Root cause |
 | --- | --- |
 | Every test errors with same pytest skip "Vercel Deployment Protection is intercepting requests" | `VERCEL_AUTOMATION_BYPASS_SECRET` GH secret is missing/wrong. Re-fetch from project (section D) and `gh secret set`. |
-| Several `httpx.ReadTimeout` on small endpoints like `/api/v1/health` | Vercel cold start exceeded the test client timeout. The autouse `_preview_protection_preflight` should warm the function; if it didn't, its own timeout was too low. |
+| Several `httpx.ReadTimeout` on small endpoints like `/api/v1/public/health` | Vercel cold start exceeded the test client timeout. The autouse `_preview_protection_preflight` should warm the function; if it didn't, its own timeout was too low. |
 | `httpx.ReadTimeout` only on `test_sync_batch_*_items` | Per-item DB anti-pattern resurfacing in some sync endpoint. The `word-stats/sync` path was previously a 2N-round-trip find-then-save loop; fixed by collapsing to one bulk `find` + concurrent `update_one(upsert=True)` in `app/services/word_stats_sync_service.py`. If you see this signature on a NEW endpoint, look for the same anti-pattern there. |
 | `httpx.HTTPStatusError: 401` on admin endpoints | `ADMIN_BOOTSTRAP_USER`/`PASS` on Vercel preview ≠ `E2E_ADMIN_USER`/`PASS` GH secret. They have to be byte-equal. |
 | `httpx.HTTPStatusError: 500` on a single endpoint | Real bug in that endpoint; pull runtime logs (section B) for the stack. |

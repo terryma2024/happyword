@@ -3,12 +3,12 @@
     <span class="inline-block w-2 h-2 bg-emerald-500 rounded-full"></span>
     已绑定 设备 {{ device_id_tail or "" }}
   </div>
-  <a href="/parent/" class="block mt-2 text-sm text-indigo-600 hover:text-indigo-900">
+  <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/" class="block mt-2 text-sm text-indigo-600 hover:text-indigo-900">
     返回首页查看
   </a>
 {% elif status == "expired" %}
   <div class="text-rose-600">
-    二维码已过期，请<a href="/parent/devices/add" class="underline">重新生成</a>。
+    二维码已过期，请<a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/devices/add" class="underline">重新生成</a>。
   </div>
 {% elif status == "cancelled" %}
   <div class="text-slate-500">本次配对已取消。</div>

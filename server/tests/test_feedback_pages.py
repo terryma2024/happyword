@@ -67,13 +67,13 @@ async def test_parent_submits_and_sees_only_own_feedback(
     )
     await other.insert()
 
-    page = await client.get("/parent/feedback")
+    page = await client.get("/family/fam-feedback-1/feedback")
     assert page.status_code == 200
     assert "用户反馈" in page.text
     assert "Other parent feedback" not in page.text
 
     res = await client.post(
-        "/parent/feedback",
+        "/family/fam-feedback-1/feedback",
         data={
             "subject": "希望支持错题本",
             "body": "孩子想复习最近答错的单词。",
@@ -81,13 +81,13 @@ async def test_parent_submits_and_sees_only_own_feedback(
         follow_redirects=False,
     )
     assert res.status_code == 303
-    assert res.headers["location"] == "/parent/feedback?flash_ok=created"
+    assert res.headers["location"] == "/family/fam-feedback-1/feedback?flash_ok=created"
 
     saved = await UserFeedback.find_one(UserFeedback.parent_user_id == feedback_parent.username)
     assert saved is not None
     assert saved.subject == "希望支持错题本"
 
-    updated = await client.get("/parent/feedback")
+    updated = await client.get("/family/fam-feedback-1/feedback")
     assert updated.status_code == 200
     assert "希望支持错题本" in updated.text
     assert "孩子想复习最近答错的单词。" in updated.text

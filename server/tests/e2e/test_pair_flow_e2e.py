@@ -17,7 +17,7 @@ def test_pair_create_returns_token_and_short_code(
     http: httpx.Client, parent: ParentSession
 ) -> None:
     """PAIR-1: parent /pair/create → 201 + token / short_code / qr_payload_url."""
-    r = http.post("/api/v1/parent/pair/create")
+    r = http.post("/api/v1/family/_/pair/create")
     assert r.status_code == 201, r.text
     body = r.json()
     assert isinstance(body["token"], str) and len(body["token"]) >= 16
@@ -31,17 +31,17 @@ def test_pair_status_pending_then_redeemed(
     http: httpx.Client, parent: ParentSession, base_url: str, run_id: str
 ) -> None:
     """PAIR-2 + PAIR-5: status flips from pending → redeemed after device claim."""
-    create = http.post("/api/v1/parent/pair/create")
+    create = http.post("/api/v1/family/_/pair/create")
     assert create.status_code == 201, create.text
     token = create.json()["token"]
 
-    status = http.get(f"/api/v1/parent/pair/status/{token}")
+    status = http.get(f"/api/v1/family/_/pair/status/{token}")
     assert status.status_code == 200
     assert status.json()["status"] == "pending"
 
     with httpx.Client(base_url=base_url, timeout=15.0, headers=vercel_bypass_headers()) as anon:
         redeem = anon.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": f"e2e-{run_id}-redeem-1"},
         )
     assert redeem.status_code == 200, redeem.text
@@ -50,7 +50,7 @@ def test_pair_status_pending_then_redeemed(
     assert body["binding_id"]
     assert body["family_id"] == parent.family_id
 
-    status2 = http.get(f"/api/v1/parent/pair/status/{token}")
+    status2 = http.get(f"/api/v1/family/_/pair/status/{token}")
     assert status2.status_code == 200
     assert status2.json()["status"] == "redeemed"
     assert status2.json()["redeemed_binding_id"] == body["binding_id"]
@@ -61,18 +61,18 @@ def test_pair_double_redeem_returns_409(
     http: httpx.Client, parent: ParentSession, base_url: str, run_id: str
 ) -> None:
     """PAIR-7: a second redeem on the same token → 409 TOKEN_REDEEMED."""
-    create = http.post("/api/v1/parent/pair/create")
+    create = http.post("/api/v1/family/_/pair/create")
     token = create.json()["token"]
 
     with httpx.Client(base_url=base_url, timeout=15.0, headers=vercel_bypass_headers()) as anon:
         first = anon.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": f"e2e-{run_id}-d1"},
         )
         assert first.status_code == 200, first.text
 
         second = anon.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": f"e2e-{run_id}-d2"},
         )
     assert second.status_code == 409
@@ -86,7 +86,7 @@ def test_pair_redeem_unknown_token_returns_404(
     """PAIR-3 (anon variant): unknown token → 404 TOKEN_INVALID."""
     with httpx.Client(base_url=base_url, timeout=15.0, headers=vercel_bypass_headers()) as anon:
         r = anon.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={
                 "token": f"no-such-token-{run_id}-padding",
                 "device_id": f"e2e-{run_id}-x",
@@ -101,10 +101,10 @@ def test_pair_cancel_pending_token(
     http: httpx.Client, parent: ParentSession
 ) -> None:
     """PAIR-9: DELETE pending token flips status to cancelled."""
-    create = http.post("/api/v1/parent/pair/create")
+    create = http.post("/api/v1/family/_/pair/create")
     token = create.json()["token"]
 
-    r = http.request("DELETE", f"/api/v1/parent/pair/{token}")
+    r = http.request("DELETE", f"/api/v1/family/_/pair/{token}")
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["status"] == "cancelled"

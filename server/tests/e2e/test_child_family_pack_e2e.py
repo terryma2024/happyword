@@ -1,6 +1,6 @@
 """Child-side family-pack merge E2E (PFP-CHILD-1).
 
-Validates the device-facing ``/api/v1/child/family-packs/latest.json``
+Validates the device-facing ``/api/v1/family/_/family-packs/latest.json``
 contract: 204 when the family has no published packs, 200 + ETag once a
 pack is published, and 304 on revalidation with ``If-None-Match``.
 """
@@ -21,7 +21,7 @@ def test_child_merged_204_when_no_packs(
 ) -> None:
     """No published family packs in the family → 204."""
     r = http.get(
-        "/api/v1/child/family-packs/latest.json",
+        "/api/v1/family/_/family-packs/latest.json",
         headers=device_headers(device),
     )
     assert r.status_code == 204
@@ -36,7 +36,7 @@ def test_child_merged_200_then_304_with_etag(
 ) -> None:
     """Publish a pack, fetch it, then re-fetch with If-None-Match → 304."""
     create = http.post(
-        "/api/v1/parent/family-packs",
+        "/api/v1/family/_/family-packs",
         json={"name": f"E2E {run_id} child-merge"},
     )
     assert create.status_code == 201, create.text
@@ -44,7 +44,7 @@ def test_child_merged_200_then_304_with_etag(
 
     word_id = f"{_custom_prefix(parent.family_id)}{run_id[:6]}-mango"
     upsert = http.put(
-        f"/api/v1/parent/family-packs/{pack_id}/draft/words/{word_id}",
+        f"/api/v1/family/_/family-packs/{pack_id}/draft/words/{word_id}",
         json={
             "source": "custom",
             "word": "mango",
@@ -56,14 +56,14 @@ def test_child_merged_200_then_304_with_etag(
     assert upsert.status_code == 200, upsert.text
 
     publish = http.post(
-        f"/api/v1/parent/family-packs/{pack_id}/publish",
+        f"/api/v1/family/_/family-packs/{pack_id}/publish",
         json={"notes": "child-fetch test"},
     )
     assert publish.status_code == 201, publish.text
 
     # First fetch: 200 + ETag + body containing our pack.
     r1 = http.get(
-        "/api/v1/child/family-packs/latest.json",
+        "/api/v1/family/_/family-packs/latest.json",
         headers=device_headers(device),
     )
     assert r1.status_code == 200, r1.text
@@ -76,7 +76,7 @@ def test_child_merged_200_then_304_with_etag(
 
     # Second fetch with If-None-Match → 304.
     r2 = http.get(
-        "/api/v1/child/family-packs/latest.json",
+        "/api/v1/family/_/family-packs/latest.json",
         headers={**device_headers(device), "If-None-Match": etag},
     )
     assert r2.status_code == 304

@@ -98,7 +98,7 @@ class PreviewManifestClient(
     )
 
     companion object {
-        const val PREVIEW_MANIFEST_JSON_URL = "https://happyword.cool/api/v1/preview-urls.json"
+        const val PREVIEW_MANIFEST_JSON_URL = "https://happyword.cool/api/v1/public/preview-urls.json"
         private const val SCHEMA_VERSION = 1
         private const val CACHE_TTL_MS = 5 * 60 * 1000L
 
@@ -189,7 +189,7 @@ class DevMenuViewModel(
 
     suspend fun probeHealth(state: BackendRouteState, bypassSecret: String): ProbeResult = withContext(Dispatchers.IO) {
         val baseUrl = urlProvider.resolve(state)
-        val fullUrl = "${baseUrl.trimEnd('/')}/api/v1/health"
+        val fullUrl = "${baseUrl.trimEnd('/')}/api/v1/public/health"
         val connection = (URL(fullUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 10_000
