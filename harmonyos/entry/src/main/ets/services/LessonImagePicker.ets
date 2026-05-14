@@ -23,7 +23,7 @@ import {
  *
  * MIME is sniffed from the URI extension because the system pickers
  * don't return a separate MIME field on this SDK (API 20). The server
- * validates again on `POST /api/v1/admin/lessons/import`, so this is
+ * validates again on `POST /api/v1/family/{family_id}/lessons/import`, so this is
  * a fast-fail check rather than a security boundary.
  *
  * Real adapters wrap @kit.CoreFileKit `picker.PhotoViewPicker` (gallery,

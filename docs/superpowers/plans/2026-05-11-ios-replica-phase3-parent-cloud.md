@@ -41,7 +41,7 @@
   - `BoundDeviceInfoView`.
 - Create: `ios/WordMagicGame/Features/Settings/ChildProfileView.swift`
   - Child profile page opened from the Home toolbar child badge.
-  - Local nickname edit flow backed by `PUT /api/v1/child/profile`.
+  - Local nickname edit flow backed by `PUT /api/v1/family/{family_id}/profile`.
 - Create: `ios/WordMagicGameTests/Core/CloudSyncTests.swift`
   - DTO, secure store, pack-sync status, merge, and word-stats payload tests.
 - Modify: `ios/WordMagicGame/App/AppCoordinator.swift`

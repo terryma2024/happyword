@@ -31,7 +31,7 @@ No further manual setup is required.
 ## 1. Login → access token
 
 ```bash
-ACCESS_TOKEN=$(curl -s -X POST "${API}/api/v1/auth/login" \
+ACCESS_TOKEN=$(curl -s -X POST "${API}/api/v1/admin/auth/login" \
   -H 'content-type: application/json' \
   -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}" \
   | jq -r .access_token)
@@ -138,18 +138,22 @@ curl -s -X DELETE "${API}/api/v1/admin/categories/weather" \
 
 ## 6. Lesson photo import
 
+Uses the **family** URL namespace (``family_id`` is decorative until drafts are scoped per family; use ``_`` when you do not have a real ``fam-…`` id).
+
 ```bash
+FAMILY_ID="${FAMILY_ID:-_}"
+
 # Upload a textbook page photo → creates a pending LessonImportDraft
-curl -s -X POST "${API}/api/v1/admin/lessons/import" \
+curl -s -X POST "${API}/api/v1/family/${FAMILY_ID}/lessons/import" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -F image=@/path/to/page.jpg
 
 # Review the queue
-curl -s "${API}/api/v1/admin/lesson-drafts?status=pending" \
+curl -s "${API}/api/v1/family/${FAMILY_ID}/lesson-drafts?status=pending" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 
 # Optionally edit the OpenAI Vision extraction (only while pending)
-curl -s -X PATCH "${API}/api/v1/admin/lesson-drafts/<DRAFT_ID>" \
+curl -s -X PATCH "${API}/api/v1/family/${FAMILY_ID}/lesson-drafts/<DRAFT_ID>" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H 'content-type: application/json' \
   -d '{"edited_extracted":{"category_id":"school-supplies","label_en":"School Supplies","label_zh":"学校用品","words":[{"word":"pencil","meaningZh":"铅笔","difficulty":1}]}}'
@@ -157,9 +161,9 @@ curl -s -X PATCH "${API}/api/v1/admin/lesson-drafts/<DRAFT_ID>" \
 # Approve creates/updates the Category and inserts every word whose id
 # does NOT already exist (admin edits are preserved). Reject leaves the
 # DB untouched.
-curl -s -X POST "${API}/api/v1/admin/lesson-drafts/<DRAFT_ID>/approve" \
+curl -s -X POST "${API}/api/v1/family/${FAMILY_ID}/lesson-drafts/<DRAFT_ID>/approve" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
-curl -s -X POST "${API}/api/v1/admin/lesson-drafts/<DRAFT_ID>/reject" \
+curl -s -X POST "${API}/api/v1/family/${FAMILY_ID}/lesson-drafts/<DRAFT_ID>/reject" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
@@ -206,7 +210,7 @@ curl -s -X POST "${API}/api/v1/admin/packs/rollback" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 
 # Public read path used by the HarmonyOS client (ETag/304 enabled)
-curl -i "${API}/api/v1/packs/latest.json"
+curl -i "${API}/api/v1/public/packs/latest.json"
 ```
 
 `schema_version` evolves with content shape:
@@ -245,7 +249,7 @@ Weekly:
 1. `scripts/backup_pack.py` (off-site copy).
 2. Approve any pending drafts you want shipped.
 3. `POST /admin/packs/publish` with a release note.
-4. Smoke-test `GET /api/v1/packs/latest.json` (status 200, ETag
+4. Smoke-test `GET /api/v1/public/packs/latest.json` (status 200, ETag
    bumped). Verify on a dev device.
 
 If something goes wrong:

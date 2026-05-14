@@ -70,7 +70,7 @@ def create_session_token(
     Parent sessions default to `parent_session_expire_hours` (30 days).
     Admin tokens emitted via this path replace the legacy bare-username sub
     over time; the legacy `create_access_token` is preserved for V0.5
-    `/api/v1/auth/login` backward compatibility.
+    `/api/v1/admin/auth/login` compatibility with older admin JWTs.
     """
     settings = get_settings()
     if expires_in is None:

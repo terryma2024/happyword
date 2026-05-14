@@ -22,7 +22,7 @@ def test_admin_login_wrong_password(http: httpx.Client) -> None:
     if not user:
         pytest.skip("E2E_ADMIN_USER not set")
     r = http.post(
-        "/api/v1/auth/login",
+        "/api/v1/admin/auth/login",
         json={"username": user, "password": "wrong-password-e2e"},
     )
     assert r.status_code == 401
@@ -33,7 +33,7 @@ def test_admin_login_wrong_password(http: httpx.Client) -> None:
 def test_admin_login_unknown_user(http: httpx.Client, run_id: str) -> None:
     """AAUTH-3: unknown username → 401 UNAUTHORIZED."""
     r = http.post(
-        "/api/v1/auth/login",
+        "/api/v1/admin/auth/login",
         json={"username": f"nope-e2e-{run_id}", "password": "x"},
     )
     assert r.status_code == 401
@@ -43,7 +43,7 @@ def test_admin_login_unknown_user(http: httpx.Client, run_id: str) -> None:
 @pytest.mark.e2e
 def test_admin_me_with_token(http: httpx.Client, admin_token: str) -> None:
     """AAUTH-4: /auth/me with bearer token → 200 + role admin."""
-    r = http.get("/api/v1/auth/me", headers=admin_headers(admin_token))
+    r = http.get("/api/v1/admin/auth/me", headers=admin_headers(admin_token))
     assert r.status_code == 200
     body = r.json()
     assert body["role"] == "admin"
@@ -53,5 +53,5 @@ def test_admin_me_with_token(http: httpx.Client, admin_token: str) -> None:
 @pytest.mark.e2e
 def test_admin_me_without_token(http: httpx.Client) -> None:
     """AAUTH-5: /auth/me with no Authorization header → 401."""
-    r = http.get("/api/v1/auth/me")
+    r = http.get("/api/v1/admin/auth/me")
     assert r.status_code == 401

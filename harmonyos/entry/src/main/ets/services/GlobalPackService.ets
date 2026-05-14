@@ -262,8 +262,8 @@ export class GlobalPackService {
   }
 
   /**
-   * Pure parser exposed for unit tests. Converts the public latest.json
-   * envelope into a list of fully-hydrated Pack objects with `source = 'global'`.
+   * Pure parser exposed for unit tests. Converts the global-packs
+   * latest.json envelope into a list of fully-hydrated Pack objects with `source = 'global'`.
    * Returns an empty list on any parse error.
    */
   static parsePacks(body: string): Pack[] {

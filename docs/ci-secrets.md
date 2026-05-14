@@ -33,7 +33,7 @@ now only handles cleanup-on-close and manual repair runs.
 | [`VERCEL_TOKEN`](#vercel_token) | `server-ci` | optional | `server / e2e (preview)` job is skipped (warning only) |
 | [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | `server-ci` (fallback deploy) | optional | E2E job tries the auto-deploy fallback and fails if no preview was detected on the SHA |
 | [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | `server-ci` (fallback deploy) | optional | same as above |
-| [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `server-ci`, `preview-manifest` | **required** for the manifest rebuild path | The `update_manifest` jobs skip with a warning; `GET /api/v1/preview-urls.json` keeps serving whatever is currently in Blob (or `503` until the env var is wired up the first time) |
+| [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `server-ci`, `preview-manifest` | **required** for the manifest rebuild path | The `update_manifest` jobs skip with a warning; `GET /api/v1/public/preview-urls.json` keeps serving whatever is currently in Blob (or `503` until the env var is wired up the first time) |
 | [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | `server-ci` E2E | optional | E2E hits the **Vercel deployment protection** login page and every request fails |
 | _operator_ [**`VERCEL_CRON_SECRET`**](#vercel_cron_secret-lesson-import-extraction-cron) | workstation `~/.env` | optional | Mirrors Vercel **`CRON_SECRET`** for [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh); not a GitHub Actions secret |
 | [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `server-cd`, `atlas-cleanup` | optional | E2E DB reset + Mongo-dependent tests skip; cron cleanup is a no-op |
@@ -87,7 +87,7 @@ Used by `server/scripts/update_preview_manifest.mjs` to publish the public
 preview manifest to Vercel Blob at `preview/preview-urls.json`. The Blob is
 the **only** output of the script — there is no repo-tracked audit copy any
 more, so without this token the rebuild jobs skip with a warning and the
-runtime endpoint `GET /api/v1/preview-urls.json` keeps serving whatever is
+runtime endpoint `GET /api/v1/public/preview-urls.json` keeps serving whatever is
 currently in Blob (or returns `503` until the env var is wired up the first
 time).
 
@@ -245,7 +245,7 @@ secret for `server-ci`.
 ### `E2E_ADMIN_USER` & `E2E_ADMIN_PASS`
 
 Bootstrap admin credentials the E2E tests use to call admin-only endpoints
-(`/api/v1/auth/login`). They must match the `ADMIN_BOOTSTRAP_USER` /
+(`/api/v1/admin/auth/login`). They must match the `ADMIN_BOOTSTRAP_USER` /
 `ADMIN_BOOTSTRAP_PASS` env vars you set on the Vercel **Preview**
 deployment, since the FastAPI startup hook seeds the admin row from those.
 

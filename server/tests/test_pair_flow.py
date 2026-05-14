@@ -30,11 +30,11 @@ async def parent_client(db: object) -> AsyncIterator[tuple[AsyncClient, str]]:
         transport=transport, base_url="http://test", follow_redirects=False
     ) as ac:
         await ac.post(
-            "/api/v1/parent/auth/request-code", json={"email": "p@example.com"}
+            "/api/v1/family/_/auth/request-code", json={"email": "p@example.com"}
         )
         code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[:6]
         r = await ac.post(
-            "/api/v1/parent/auth/verify-code",
+            "/api/v1/family/_/auth/verify-code",
             json={"email": "p@example.com", "code": code},
         )
         family_id = r.json()["family_id"]
@@ -51,8 +51,8 @@ async def parent_client(db: object) -> AsyncIterator[tuple[AsyncClient, str]]:
 async def test_post_pair_create_returns_201_with_token(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    ac, family_id = parent_client
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     assert r.status_code == 201
     body = r.json()
     assert len(body["token"]) == 32
@@ -65,11 +65,11 @@ async def test_post_pair_create_returns_201_with_token(
 async def test_post_pair_create_rate_limited_after_5(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
+    ac, family_id = parent_client
     for _ in range(5):
-        r = await ac.post("/api/v1/parent/pair/create")
+        r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
         assert r.status_code == 201
-    r = await ac.post("/api/v1/parent/pair/create")
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     assert r.status_code == 429
     assert r.json()["detail"]["error"]["code"] == "RATE_LIMITED"
 
@@ -78,10 +78,10 @@ async def test_post_pair_create_rate_limited_after_5(
 async def test_status_returns_pending_for_pending_token(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    ac, family_id = parent_client
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     token = r.json()["token"]
-    s = await ac.get(f"/api/v1/parent/pair/status/{token}")
+    s = await ac.get(f"/api/v1/family/{family_id}/pair/status/{token}")
     assert s.status_code == 200
     assert s.json()["status"] == "pending"
 
@@ -90,8 +90,8 @@ async def test_status_returns_pending_for_pending_token(
 async def test_status_unknown_token_returns_404(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
-    r = await ac.get("/api/v1/parent/pair/status/" + "0" * 32)
+    ac, family_id = parent_client
+    r = await ac.get(f"/api/v1/family/{family_id}/pair/status/" + "0" * 32)
     assert r.status_code == 404
     assert r.json()["detail"]["error"]["code"] == "TOKEN_INVALID"
 
@@ -101,10 +101,10 @@ async def test_redeem_token_creates_binding_and_returns_device_token(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
     ac, family_id = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     token = r.json()["token"]
     rd = await ac.post(
-        "/api/v1/pair/redeem",
+        "/api/v1/public/pair/redeem",
         json={"token": token, "device_id": "dev-aaaa-bbbb"},
     )
     assert rd.status_code == 200
@@ -115,7 +115,7 @@ async def test_redeem_token_creates_binding_and_returns_device_token(
     assert body["nickname"] == "宝贝"
     assert body["device_token"].count(".") == 2
 
-    s = await ac.get(f"/api/v1/parent/pair/status/{token}")
+    s = await ac.get(f"/api/v1/family/{family_id}/pair/status/{token}")
     assert s.json()["status"] == "redeemed"
     assert s.json()["redeemed_binding_id"] == body["binding_id"]
 
@@ -130,14 +130,14 @@ async def test_redeem_with_qr_token_prefix(
     404 TOKEN_INVALID even though the token row is healthy and pending.
     """
     ac, family_id = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     full_token = r.json()["token"]
     qr_url = r.json()["qr_payload_url"]
     token_prefix = qr_url.rsplit("/p/", 1)[-1]
     assert len(token_prefix) == 12
     assert full_token.startswith(token_prefix)
     rd = await ac.post(
-        "/api/v1/pair/redeem",
+        "/api/v1/public/pair/redeem",
         json={"token": token_prefix, "device_id": "dev-qrprefix01"},
     )
     assert rd.status_code == 200, rd.text
@@ -146,11 +146,11 @@ async def test_redeem_with_qr_token_prefix(
 
 @pytest.mark.asyncio
 async def test_redeem_short_code(parent_client: tuple[AsyncClient, str]) -> None:
-    ac, _ = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    ac, family_id = parent_client
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     short_code = r.json()["short_code"]
     rd = await ac.post(
-        "/api/v1/pair/redeem",
+        "/api/v1/public/pair/redeem",
         json={"short_code": short_code, "device_id": "dev-short-xyz"},
     )
     assert rd.status_code == 200
@@ -160,8 +160,8 @@ async def test_redeem_short_code(parent_client: tuple[AsyncClient, str]) -> None
 async def test_redeem_expired_returns_410(
     parent_client: tuple[AsyncClient, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    ac, _ = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    ac, family_id = parent_client
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     token = r.json()["token"]
 
     from app.services import pair_service
@@ -171,7 +171,7 @@ async def test_redeem_expired_returns_410(
         pair_service, "_utcnow", lambda: real_now + timedelta(minutes=10)
     )
     rd = await ac.post(
-        "/api/v1/pair/redeem", json={"token": token, "device_id": "dev-ttl-test"}
+        "/api/v1/public/pair/redeem", json={"token": token, "device_id": "dev-ttl-test"}
     )
     assert rd.status_code == 410
     assert rd.json()["detail"]["error"]["code"] == "TOKEN_EXPIRED"
@@ -181,14 +181,14 @@ async def test_redeem_expired_returns_410(
 async def test_redeem_already_used_returns_409(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    ac, family_id = parent_client
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     token = r.json()["token"]
     await ac.post(
-        "/api/v1/pair/redeem", json={"token": token, "device_id": "dev-dup-001"}
+        "/api/v1/public/pair/redeem", json={"token": token, "device_id": "dev-dup-001"}
     )
     rd = await ac.post(
-        "/api/v1/pair/redeem", json={"token": token, "device_id": "dev-dup-002"}
+        "/api/v1/public/pair/redeem", json={"token": token, "device_id": "dev-dup-002"}
     )
     assert rd.status_code == 409
     assert rd.json()["detail"]["error"]["code"] == "TOKEN_REDEEMED"
@@ -198,9 +198,9 @@ async def test_redeem_already_used_returns_409(
 async def test_redeem_unknown_token_returns_404(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
+    ac, family_id = parent_client
     rd = await ac.post(
-        "/api/v1/pair/redeem", json={"token": "0" * 32, "device_id": "dev-unknown"}
+        "/api/v1/public/pair/redeem", json={"token": "0" * 32, "device_id": "dev-unknown"}
     )
     assert rd.status_code == 404
     assert rd.json()["detail"]["error"]["code"] == "TOKEN_INVALID"
@@ -210,9 +210,9 @@ async def test_redeem_unknown_token_returns_404(
 async def test_redeem_non_hex_unknown_token_returns_404(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
+    ac, family_id = parent_client
     rd = await ac.post(
-        "/api/v1/pair/redeem",
+        "/api/v1/public/pair/redeem",
         json={
             "token": "no-such-token-local-padding",
             "device_id": "dev-unknown-nonhex",
@@ -226,14 +226,14 @@ async def test_redeem_non_hex_unknown_token_returns_404(
 async def test_delete_pair_token_cancels_it(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    ac, family_id = parent_client
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     token = r.json()["token"]
-    d = await ac.delete(f"/api/v1/parent/pair/{token}")
+    d = await ac.delete(f"/api/v1/family/{family_id}/pair/{token}")
     assert d.status_code == 200
     assert d.json()["status"] == "cancelled"
     rd = await ac.post(
-        "/api/v1/pair/redeem",
+        "/api/v1/public/pair/redeem",
         json={"token": token, "device_id": "dev-cancel-test"},
     )
     assert rd.status_code == 404
@@ -241,7 +241,7 @@ async def test_delete_pair_token_cancels_it(
 
 @pytest.mark.asyncio
 async def test_landing_page_renders(parent_client: tuple[AsyncClient, str]) -> None:
-    ac, _ = parent_client
+    ac, family_id = parent_client
     r = await ac.get("/p/abc123def456")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
@@ -253,8 +253,8 @@ async def test_landing_page_renders(parent_client: tuple[AsyncClient, str]) -> N
 async def test_devices_add_html_renders_qr_data_url(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
-    r = await ac.get("/parent/devices/add")
+    ac, family_id = parent_client
+    r = await ac.get(f"/family/{family_id}/devices/add")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     img = soup.find("img", alt="二维码")
@@ -263,25 +263,25 @@ async def test_devices_add_html_renders_qr_data_url(
     # Status partial polling endpoint baked into the template.
     status_div = soup.find(id="pair-status")
     assert status_div is not None
-    assert "/parent/devices/add/status" in status_div.get("hx-get", "")
+    assert f"/family/{family_id}/devices/add/status" in status_div.get("hx-get", "")
 
 
 @pytest.mark.asyncio
 async def test_devices_add_status_partial_returns_pending_then_redeemed(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
-    ac, _ = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    ac, family_id = parent_client
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     token = r.json()["token"]
 
-    s = await ac.get("/parent/devices/add/status", params={"token": token})
+    s = await ac.get(f"/family/{family_id}/devices/add/status", params={"token": token})
     assert s.status_code == 200
     assert "等待设备扫码" in s.text or "pending" in s.text.lower()
 
     await ac.post(
-        "/api/v1/pair/redeem", json={"token": token, "device_id": "dev-aaaa-1234"}
+        "/api/v1/public/pair/redeem", json={"token": token, "device_id": "dev-aaaa-1234"}
     )
-    s2 = await ac.get("/parent/devices/add/status", params={"token": token})
+    s2 = await ac.get(f"/family/{family_id}/devices/add/status", params={"token": token})
     assert "已绑定" in s2.text
     assert "1234" in s2.text  # last 4 of device id
 
@@ -293,8 +293,8 @@ async def test_pending_token_marked_expired_by_expire_old(
     from app.services.pair_service import _utcnow as _real
     from app.services.pair_service import expire_old
 
-    ac, _ = parent_client
-    r = await ac.post("/api/v1/parent/pair/create")
+    ac, family_id = parent_client
+    r = await ac.post(f"/api/v1/family/{family_id}/pair/create")
     token = r.json()["token"]
     from app.services import pair_service
 
@@ -305,5 +305,5 @@ async def test_pending_token_marked_expired_by_expire_old(
     )
     n = await expire_old()
     assert n >= 1
-    s = await ac.get(f"/api/v1/parent/pair/status/{token}")
+    s = await ac.get(f"/api/v1/family/{family_id}/pair/status/{token}")
     assert s.json()["status"] == PairTokenStatus.EXPIRED.value

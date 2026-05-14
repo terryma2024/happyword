@@ -37,7 +37,7 @@ Let HarmonyOS debug builds switch their backend at runtime among **Local**, **PR
                                        └─────────┬───────────────────┘
                                                  │ DevMenu refresh / boot init (debug)
                                                  ▼
-                       GET https://happyword.cool/api/v1/preview-urls.json
+                       GET https://happyword.cool/api/v1/public/preview-urls.json
                        (fixed prod origin — never follows BackendEnv / preview URL /
                         x-vercel-protection-bypass; see §10)
                                                  ▲
@@ -52,7 +52,7 @@ Let HarmonyOS debug builds switch their backend at runtime among **Local**, **PR
 - **Switching environments hard-resets cloud session state.** Cleared: `wm_session` cookie, `device_token`, parent session, cloud-sync watermark. Preserved: local-only data — battle stats, learned-word state, monster codex.
 - **Manifest fetch is best-effort.** On failure (offline, 404, parse error) the preview card grid may be empty until connectivity returns; manual paste-URL was removed in v0.6.1 — use **Refresh manifest** after CI updates the Blob mirror.
 - **Today's `PROD_BASE_URL`** (`https://happyword.cool`) is renamed to `STAGING_BASE_URL` (it points at what the QA pipeline spec calls staging). A new `PROD_BASE_URL` constant is reserved as `null` for V0.7+.
-- **Preview manifest discovery is decoupled from the active backend.** The DevMenu always downloads the manifest from **`PREVIEW_MANIFEST_JSON_URL`** (`https://happyword.cool/api/v1/preview-urls.json`), not from the user's selected Preview deployment and not via deployment-protection bypass headers (§5.4, §10).
+- **Preview manifest discovery is decoupled from the active backend.** The DevMenu always downloads the manifest from **`PREVIEW_MANIFEST_JSON_URL`** (`https://happyword.cool/api/v1/public/preview-urls.json`), not from the user's selected Preview deployment and not via deployment-protection bypass headers (§5.4, §10).
 
 ## 4. Env model + DevMenu UX
 
@@ -166,7 +166,7 @@ Signature stays unchanged so the 6+ services already calling `effectiveServerBas
 
 Pressing Apply when the selection differs from the persisted env executes, in order:
 
-1. Validate the URL the user picked: `https://...` shape check + 2 s timeout HEAD against `/api/v1/health`. On failure → toast "无法访问，已撤回" and abort, no state changes.
+1. Validate the URL the user picked: `https://...` shape check + 2 s timeout HEAD against `/api/v1/public/health`. On failure → toast "无法访问，已撤回" and abort, no state changes.
 2. Hard-reset device-side session/binding:
    - Delete the Cookie store entry for `wm_session`.
    - Clear AppStorage keys: `cloudCredentials`, `deviceBinding`, `parentSession`, `pendingRedemptions`.
@@ -192,7 +192,7 @@ Capped at 50 rows (FIFO trim). Visible at the bottom of DevMenu under "切换历
 
 ### 5.1 What the manifest is
 
-A **single JSON file at `docs/preview-urls.json` on the `main` branch**, kept current by GitHub Actions + `server/scripts/update_preview_manifest.mjs` (Vercel deployments API). The HarmonyOS app fetches the **runtime mirror** via **`GET https://happyword.cool/api/v1/preview-urls.json`** — constants `PREVIEW_MANIFEST_ORIGIN` / `PREVIEW_MANIFEST_JSON_URL` in `RemoteWordPackConfig.ets`, independent of `BackendEnv` and without `x-vercel-protection-bypass`. The repo file remains the audit copy; Blob + FastAPI proxy serve clients (see §5.5).
+A **single JSON file at `docs/preview-urls.json` on the `main` branch**, kept current by GitHub Actions + `server/scripts/update_preview_manifest.mjs` (Vercel deployments API). The HarmonyOS app fetches the **runtime mirror** via **`GET https://happyword.cool/api/v1/public/preview-urls.json`** — constants `PREVIEW_MANIFEST_ORIGIN` / `PREVIEW_MANIFEST_JSON_URL` in `RemoteWordPackConfig.ets`, independent of `BackendEnv` and without `x-vercel-protection-bypass`. The repo file remains the audit copy; Blob + FastAPI proxy serve clients (see §5.5).
 
 ### 5.2 JSON schema (v1)
 
@@ -248,13 +248,13 @@ Key choices:
 
 `entry/src/main/ets/services/PreviewManifestService.ets`:
 
-URL is **`PREVIEW_MANIFEST_JSON_URL`** from `RemoteWordPackConfig.ets` — today `https://happyword.cool/api/v1/preview-urls.json`. It is **not** derived from `effectiveServerBaseUrl()`, `STAGING_BASE_URL` indirection, or `BackendHeaders` / bypass secrets; a debug device pointed at a gated Preview deployment still loads the PR list from production.
+URL is **`PREVIEW_MANIFEST_JSON_URL`** from `RemoteWordPackConfig.ets` — today `https://happyword.cool/api/v1/public/preview-urls.json`. It is **not** derived from `effectiveServerBaseUrl()`, `STAGING_BASE_URL` indirection, or `BackendHeaders` / bypass secrets; a debug device pointed at a gated Preview deployment still loads the PR list from production.
 
 ```typescript
 // RemoteWordPackConfig.ets (excerpt)
 export const PREVIEW_MANIFEST_ORIGIN: string = 'https://happyword.cool';
 export const PREVIEW_MANIFEST_JSON_URL: string =
-  `${PREVIEW_MANIFEST_ORIGIN}/api/v1/preview-urls.json`;
+  `${PREVIEW_MANIFEST_ORIGIN}/api/v1/public/preview-urls.json`;
 ```
 
 Behaviour:
@@ -267,7 +267,7 @@ Behaviour:
 
 ### 5.5 What changes server-side?
 
-**Public manifest proxy.** `server/app/routers/public_packs.py` registers **`GET /api/v1/preview-urls.json`** — **no authentication** (no JWT bearer, admin cookie, parent session, or device token). It proxies the JSON from **`PREVIEW_MANIFEST_BLOB_URL`** (Vercel Blob) with short cache headers; see `preview_manifest_service.py`. Which previews appear is still determined by **`update_preview_manifest.mjs`** + CI (Vercel deployments API → repo audit file → optional Blob upload).
+**Public manifest proxy.** `server/app/routers/public_packs.py` registers **`GET /api/v1/public/preview-urls.json`** — **no authentication** (no JWT bearer, admin cookie, parent session, or device token). It proxies the JSON from **`PREVIEW_MANIFEST_BLOB_URL`** (Vercel Blob) with short cache headers; see `preview_manifest_service.py`. Which previews appear is still determined by **`update_preview_manifest.mjs`** + CI (Vercel deployments API → repo audit file → optional Blob upload).
 
 Vercel **Deployment Protection** on preview deployments is orthogonal: this route must stay credential-free so HarmonyOS can refresh the manifest without a bypass secret. Production `happyword.cool` should remain reachable for unauthenticated GETs on this path.
 
@@ -365,7 +365,7 @@ The env-switcher is "live" when ALL hold:
 
 **Server**
 
-- Module docstrings on `public_packs.py` and `preview_manifest_service.py` record that **`GET /api/v1/preview-urls.json`** is intentionally **unauthenticated**; any future global auth middleware must exclude public pack routes.
+- Module docstrings on `public_packs.py` and `preview_manifest_service.py` record that **`GET /api/v1/public/preview-urls.json`** is intentionally **unauthenticated**; any future global auth middleware must exclude public pack routes.
 
 **Operations**
 

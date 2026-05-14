@@ -39,10 +39,25 @@ struct ParentPackPublished: Codable, Equatable {
 enum LessonDraftStatus: String, Codable, Equatable {
     case extracting
     case extractFailed = "extract_failed"
-    case pendingReview = "pending_review"
+    case pending
     case approved
     case rejected
-    case alreadyReviewed = "already_reviewed"
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        if raw == "pending_review" {
+            self = .pending
+            return
+        }
+        guard let value = LessonDraftStatus(rawValue: raw) else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown lesson draft status \(raw)"
+            )
+        }
+        self = value
+    }
 }
 
 struct LessonExtractedWord: Codable, Equatable, Identifiable {
@@ -106,7 +121,7 @@ extension LessonDraft {
             ]
         ),
         editedExtracted: nil,
-        status: .pendingReview,
+        status: .pending,
         reviewer: nil,
         model: "mock",
         promptVersion: 1,

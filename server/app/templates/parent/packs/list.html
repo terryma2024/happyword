@@ -7,7 +7,7 @@
       <h1 class="text-2xl font-semibold text-slate-900">词库</h1>
       <p class="text-sm text-slate-500 mt-1">管理这个家庭自己的课本词库和补充词。</p>
     </div>
-    <a href="/parent/packs/new" class="text-sm bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded-md font-medium">
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/new" class="text-sm bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded-md font-medium">
       新建词库
     </a>
   </header>

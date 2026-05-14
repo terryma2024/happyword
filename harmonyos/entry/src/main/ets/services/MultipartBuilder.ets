@@ -10,7 +10,7 @@ import util from '@ohos.util';
  * contiguous buffer and let libcurl forward it.
  *
  * The builder is intentionally narrow — we only need single-image
- * uploads for `POST /api/v1/admin/lessons/import`. If we ever need
+ * uploads for `POST /api/v1/family/{family_id}/lessons/import`. If we ever need
  * multi-part lesson imports we'll generalize this.
  */
 

@@ -50,7 +50,7 @@ V0.6.2 上线了 `ScanBindingPage`，提供两条绑定路径：
 | 解码失败 UX | 复用现有 `TOKEN_INVALID` reason + 红字 `二维码或短码无效。` | 孩子能做的下一步动作（重选图 / 让家长重发）与「手输短码错」时完全一致；新增独立 reason 仅为分流诊断而带来枚举膨胀，YAGNI |
 | 与 `LessonImagePicker` 关系 | **抽离公共 `PhotoPickerService`**（仅 gallery 半边），让 `LessonImagePicker` 与新 ScanBinding 路径共用 picker 适配器，但**保留独立的 AppStorage override key**（lesson 用 `LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY`，scan-binding 用 `SCAN_BINDING_PHOTO_PICKER_OVERRIDE_URI_KEY`） | 避免重复 ~50 行 picker 适配器；同时两个 override key 物理隔离，避免某次 ohosTest 写过 lesson key 后污染 scan-binding 测试。Camera 半边由 lesson 独占，不进 PhotoPickerService |
 | ohosTest 解码层注入 | 新增 `SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY` AppStorage 短路 — 测试时 `RealBarcodeImageDecoder.decodeFromUri` 命中 override 直接返回字符串，不调真实 `scanBarcode.decode` | `scanBarcode.decode` 在 OpenHarmony 模拟器上对任意应用沙箱下的图片 URI 鉴权不稳（与 V0.5.8 选 `LessonImagePicker` 加 picker override 同因），且我们已经持有 QR 的 raw 内容（在生成 fixture 时），把 raw 内容作为 override 字符串能让端到端测试只断言「上层调度正确 + redeem 链路通」而不绑死系统 ScanKit 的实现细节 |
-| 测试固件 | 新增 `entry/src/ohosTest/resources/rawfile/scan_binding_qr_fixture.png`（PNG，内容编码 `https://happyword.cool/p/uitestqr01`），由 `tools/generate_scan_binding_qr_fixture.py` 用 `qrcode` 库生成 | PNG 体积约 800B，可重新生成、可入 git，与 lesson_import_fixture.jpg 同栈位置；token 用 `uitestqr01` 是固定字符串，10 位长度满足 server `MIN_TOKEN_LEN=4 / MAX_TOKEN_LEN=64` 校验，mock server `/api/v1/pair/redeem` 已对任意非空 token 返回成功 |
+| 测试固件 | 新增 `entry/src/ohosTest/resources/rawfile/scan_binding_qr_fixture.png`（PNG，内容编码 `https://happyword.cool/p/uitestqr01`），由 `tools/generate_scan_binding_qr_fixture.py` 用 `qrcode` 库生成 | PNG 体积约 800B，可重新生成、可入 git，与 lesson_import_fixture.jpg 同栈位置；token 用 `uitestqr01` 是固定字符串，10 位长度满足 server `MIN_TOKEN_LEN=4 / MAX_TOKEN_LEN=64` 校验，mock server `/api/v1/public/pair/redeem` 已对任意非空 token 返回成功 |
 | 是否同步打开 `enableAlbum:true` | **r1 不打开 / r2 打开** | r1 选了「先用 dedicated button 单点上线」（dedicated button + enableAlbum 双备会让 UI 重复且系统扫码 UI 控件不可被 Hypium 测）。r2 用户翻盘要求两条都开 — dedicated button 在 idle 列里给「我没在拍照」的用户最直接的入口，`enableAlbum:true` 在已经点开扫码器的用户场景里给「这才想起来 QR 是张截图」的用户兜底；UI 自动化只覆盖 dedicated button，系统扫码 UI 内的 album 按钮按 production smoke 验收 |
 | 固件生成脚本入仓位置 | `tools/generate_scan_binding_qr_fixture.py` | `tools/` 下已经有 `recraft/` 等内容生成脚本，约定一致；固件由脚本可重生但 PNG 同时入仓（保证 ohosTest HAP 打包不依赖运行 Python） |
 
@@ -66,7 +66,7 @@ ScanBindingPage idle 态从两按钮变三按钮：
 ┌─────────────────────────────────────────────────────┐
 │ 扫码绑定家长账号                              [返回] │
 ├─────────────────────────────────────────────────────┤
-│         请扫描家长网页 /parent/devices/add          │
+│         请扫描家长网页 /family/{family_id}/devices/add          │
 │              显示的二维码                           │
 │                                                     │
 │              [ 打开扫码器 ]                         │
@@ -326,12 +326,12 @@ async function ensureScanBindingQrFixtureOnDevice(): Promise<string> {
 
 ### 6.3 Mock server
 
-不新增 endpoint。`/api/v1/pair/redeem` 已经接受任意 token，对 `uitestqr01` 返回成功（`_short` 分支不命中，因为我们只填 token）。
+不新增 endpoint。`/api/v1/public/pair/redeem` 已经接受任意 token，对 `uitestqr01` 返回成功（`_short` 分支不命中，因为我们只填 token）。
 
 ### 6.4 Production smoke（人工）
 
 - 真机 MatePad（5FFBB25926205346）：
-  1. 在家长 web `/parent/devices/add` 上截屏 QR。
+  1. 在家长 web `/family/{family_id}/devices/add` 上截屏 QR。
   2. 把截屏放到 MatePad 相册（hdc file send + 触发媒体扫描）。
   3. 在 MatePad 上点 ConfigPage → 绑定 → ScanBindingPage → 「📷 从图库选择二维码」。
   4. 选中刚保存的截屏 → 期待绑定成功。

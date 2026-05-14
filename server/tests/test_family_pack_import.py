@@ -63,13 +63,13 @@ async def test_import_image_writes_draft_only(
     ac, family_id = await _make_parent_client()
     prefix = f"fam-{family_id.removeprefix('fam-')[:8]}-"
     async with ac:
-        created = await ac.post("/api/v1/parent/family-packs", json={"name": "Photo"})
+        created = await ac.post("/api/v1/family/_/family-packs", json={"name": "Photo"})
         pack_id = created.json()["pack_id"]
         resp = await ac.post(
-            f"/api/v1/parent/family-packs/{pack_id}/import-image",
+            f"/api/v1/family/_/family-packs/{pack_id}/import-image",
             files={"image": ("page.png", b"fake-png", "image/png")},
         )
-        detail = await ac.get(f"/api/v1/parent/family-packs/{pack_id}")
+        detail = await ac.get(f"/api/v1/family/_/family-packs/{pack_id}")
 
     assert resp.status_code == 201, resp.text
     body = resp.json()
@@ -119,10 +119,10 @@ def test_extracted_words_to_rows_maps_example_fields(db: object) -> None:
 async def test_import_image_rejects_text_file(db: object) -> None:
     ac, _ = await _make_parent_client(email="bad-import@example.com")
     async with ac:
-        created = await ac.post("/api/v1/parent/family-packs", json={"name": "Bad"})
+        created = await ac.post("/api/v1/family/_/family-packs", json={"name": "Bad"})
         pack_id = created.json()["pack_id"]
         resp = await ac.post(
-            f"/api/v1/parent/family-packs/{pack_id}/import-image",
+            f"/api/v1/family/_/family-packs/{pack_id}/import-image",
             files={"image": ("notes.txt", b"hello", "text/plain")},
         )
 

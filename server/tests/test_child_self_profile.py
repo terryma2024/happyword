@@ -1,7 +1,7 @@
-"""V0.6.8 — device-side self-edit of `/api/v1/child/profile`.
+"""V0.6.8 — device-side self-edit of `/api/v1/family/_/profile`.
 
 These cover only the new device-token-authed endpoint. The parent-side
-`PUT /api/v1/parent/children/{id}` is exercised in
+`PUT /api/v1/family/_/children/{id}` is exercised in
 `test_device_management.py`.
 """
 
@@ -41,18 +41,18 @@ async def parent_with_device(
         transport=transport, base_url="http://test", follow_redirects=False
     ) as ac:
         await ac.post(
-            "/api/v1/parent/auth/request-code",
+            "/api/v1/family/_/auth/request-code",
             json={"email": "self-edit@example.com"},
         )
         code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[:6]
         await ac.post(
-            "/api/v1/parent/auth/verify-code",
+            "/api/v1/family/_/auth/verify-code",
             json={"email": "self-edit@example.com", "code": code},
         )
-        c = await ac.post("/api/v1/parent/pair/create")
+        c = await ac.post("/api/v1/family/_/pair/create")
         token = c.json()["token"]
         rd = await ac.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": "dev-self-001"},
         )
         body = rd.json()
@@ -75,7 +75,7 @@ async def test_device_can_update_own_nickname(
     ac, _binding_id, child_id, device_token = parent_with_device
 
     r = await ac.put(
-        "/api/v1/child/profile",
+        "/api/v1/family/_/profile",
         json={"nickname": "  小明  "},
         headers={"Authorization": f"Bearer {device_token}"},
     )
@@ -89,7 +89,7 @@ async def test_device_can_update_own_nickname(
     assert "updated_at" in body and "family_id" in body
 
     # Parent-side list reflects the new value (single source of truth).
-    pl = await ac.get("/api/v1/parent/children")
+    pl = await ac.get("/api/v1/family/_/children")
     assert pl.status_code == 200
     rows = pl.json()
     assert len(rows) == 1
@@ -103,7 +103,7 @@ async def test_device_can_update_avatar_emoji(
     ac, _binding_id, child_id, device_token = parent_with_device
 
     r = await ac.put(
-        "/api/v1/child/profile",
+        "/api/v1/family/_/profile",
         json={"nickname": "小明", "avatar_emoji": "🐻"},
         headers={"Authorization": f"Bearer {device_token}"},
     )
@@ -125,7 +125,7 @@ async def test_device_blank_nickname_is_400(
     ac, _binding_id, child_id, device_token = parent_with_device
 
     r = await ac.put(
-        "/api/v1/child/profile",
+        "/api/v1/family/_/profile",
         json={"nickname": "   "},
         headers={"Authorization": f"Bearer {device_token}"},
     )
@@ -146,7 +146,7 @@ async def test_device_long_nickname_is_truncated_to_32(
 
     long_name = "x" * 100
     r = await ac.put(
-        "/api/v1/child/profile",
+        "/api/v1/family/_/profile",
         json={"nickname": long_name},
         headers={"Authorization": f"Bearer {device_token}"},
     )
@@ -164,11 +164,11 @@ async def test_device_revoked_token_yields_404_binding_revoked(
 
     # Soft-delete the profile via the parent path; the dep should then
     # reject the device token without our endpoint ever running.
-    dr = await ac.delete(f"/api/v1/parent/children/{child_id}")
+    dr = await ac.delete(f"/api/v1/family/_/children/{child_id}")
     assert dr.status_code == 200
 
     r = await ac.put(
-        "/api/v1/child/profile",
+        "/api/v1/family/_/profile",
         json={"nickname": "x"},
         headers={"Authorization": f"Bearer {device_token}"},
     )
@@ -184,7 +184,7 @@ async def test_device_missing_token_is_401(
 
     # Anonymous PUT must not pass auth.
     r = await ac.put(
-        "/api/v1/child/profile",
+        "/api/v1/family/_/profile",
         json={"nickname": "x"},
     )
     assert r.status_code in (401, 403)

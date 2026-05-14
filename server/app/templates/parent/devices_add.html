@@ -17,7 +17,7 @@
 
   <div class="mt-6 border-t border-slate-200 pt-4">
     <div id="pair-status" class="text-sm text-slate-600"
-         hx-get="/parent/devices/add/status?token={{ token }}"
+         hx-get="/family/{{ (user.family_id if (user is defined and user) else '_') }}/devices/add/status?token={{ token }}"
          hx-trigger="load delay:1s, every 2s"
          hx-swap="innerHTML">
       等待设备扫码…
@@ -25,8 +25,8 @@
   </div>
 
   <div class="mt-4 flex items-center justify-end gap-3">
-    <a href="/parent/" class="inline-flex items-center text-sm leading-5 text-slate-500 hover:text-slate-900">返回首页</a>
-    <form method="post" action="/parent/devices/add/cancel" class="flex items-center">
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/" class="inline-flex items-center text-sm leading-5 text-slate-500 hover:text-slate-900">返回首页</a>
+    <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/devices/add/cancel" class="flex items-center">
       <input type="hidden" name="token" value="{{ token }}" />
       <button type="submit" class="inline-flex items-center text-sm leading-5 text-rose-500 hover:text-rose-700">取消本次配对</button>
     </form>

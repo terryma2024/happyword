@@ -34,7 +34,7 @@
    )
    ```
 
-2. 让家长在新邮箱发起 `/api/v1/parent/auth/request-code`。
+2. 让家长在新邮箱发起 `/api/v1/family/{family_id}/auth/request-code`。
 3. 家长收到验证码后即可登录新邮箱。绑定的设备 token 不变，孩子档案 / 学习数据
    保留不变。
 
@@ -46,7 +46,7 @@
 
 * 配对 token 默认 15 分钟过期。
 * 家长重新进入"添加新设备"页 → 点击"重新生成"会创建新的 PairToken。
-* 旧 token 可通过 `POST /parent/devices/add/cancel` 显式失效。
+* 旧 token 可通过 `POST /family/{family_id}/devices/add/cancel` 显式失效。
 * 客户端扫码失败时引导家长输入 6 位短码，短码与 token 同源（数据库 `pair_tokens.short_code`）。
 * 如果 `dev-id-source = preferences_fallback`，提示家长在"设置 → 应用 → 持久化标识符"开启权限并重启 App。
 
@@ -56,13 +56,13 @@
 
 * 单个 family 上限：每个 pack ≤ 50 词，pack 数量无上限。
 * 家长在 web 页面新建草稿、添加 / 编辑词、点击"发布"创建一个 `family_word_packs` 版本。
-* 客户端通过 `GET /api/v1/child/family-packs/merged.json`（带 ETag）拉取合并 JSON。
+* 客户端通过 `GET /api/v1/family/{family_id}/family-packs/merged.json`（带 ETag）拉取合并 JSON。
 * `published_packs.list` 视图：`{ pack_id, current_version, schema_version, word_count, updated_at }`。
 
 ### 回滚指定 pack 到上一个版本
 
 * 家长 web → 词包详情 → "回滚到上一个版本" 按钮调用
-  `POST /api/v1/parent/family-packs/{pack_id}/rollback`，将 `pointer.current_version` 切回
+  `POST /api/v1/family/{family_id}/family-packs/{pack_id}/rollback`，将 `pointer.current_version` 切回
   `pointer.previous_version`，新 ETag 自动生成。
 * 应急回滚（绕过家长操作）：
 
@@ -83,7 +83,7 @@
 
 排查"同步失败"时：
 
-1. 让家长在 web 端 `GET /api/v1/parent/children/{id}/wishlist`（任意端点）确认 family / 设备绑定状态。
+1. 让家长在 web 端 `GET /api/v1/family/{family_id}/children/{id}/wishlist`（任意端点）确认 family / 设备绑定状态。
 2. 后端日志搜索 `CloudSync`/`sync_word_stats` 关键字，确认是否 401 / 404。
 3. 如果 401：检查设备 token 是否撤销（`device_bindings.revoked_at`）；如果撤销，必须重新走绑定。
 
@@ -119,9 +119,9 @@
 
 ## 7. 删除账号（V0.6.7）
 
-* 家长端 → 账号设置 → "删除账号" 调用 `POST /api/v1/parent/account/delete`，
+* 家长端 → 账号设置 → "删除账号" 调用 `POST /api/v1/family/{family_id}/account/delete`，
   写入 `users.scheduled_deletion_at = now + 7d`。
-* 宽限期内任何时候可调用 `POST /api/v1/parent/account/cancel-delete` 撤销。
+* 宽限期内任何时候可调用 `POST /api/v1/family/{family_id}/account/cancel-delete` 撤销。
 * 后台需要每日跑：
 
   ```
@@ -140,7 +140,7 @@
 
 ## 8. 数据导出
 
-* `POST /api/v1/parent/account/export` 返回 `Content-Disposition: attachment` 的
+* `POST /api/v1/family/{family_id}/account/export` 返回 `Content-Disposition: attachment` 的
   JSON，结构：
 
   ```
@@ -158,7 +158,7 @@
 
 ## 9. 设备解绑
 
-* 客户端 ConfigPage → "解除设备绑定" → 弹出 PIN 校验 → `POST /api/v1/child/unbind`。
+* 客户端 ConfigPage → "解除设备绑定" → 弹出 PIN 校验 → `POST /api/v1/family/{family_id}/unbind`。
 * 服务端把 `device_bindings.revoked_at = now` 并写 audit `device.unbind`。
 * 客户端清空 `wordmagic_cloud` preferences（设备 token / family_id / child_profile_id）。
 * 家长 web 上该设备会从"已绑定的设备"列表中消失（dashboard 过滤 `revoked_at IS NULL`）。
@@ -168,8 +168,8 @@
 ## 10. Inbox / 消息中心
 
 * 每次孩子端发起兑换 → 写入 `parent_inbox_msgs`（kind=redemption_request）+ 尝试发邮件。
-* 家长可以在 `/parent/inbox` 看到全部消息，单条标记已读 `POST /api/v1/parent/inbox/{id}/read`，
-  全部标记已读 `POST /api/v1/parent/inbox/mark-all-read`。
+* 家长可以在 `/family/{family_id}/inbox` 看到全部消息，单条标记已读 `POST /api/v1/family/{family_id}/inbox/{id}/read`，
+  全部标记已读 `POST /api/v1/family/{family_id}/inbox/mark-all-read`。
 * 测试或调试时关闭邮件可以设置 `NOTIFICATION_EMAIL_ENABLED=false`，inbox 仍然写入。
 
 ---
@@ -190,7 +190,7 @@
 3. 在 Vercel Dashboard → Project → Settings → Environment Variables 更新
    `SMTP_PASSWORD` 字段（注意去掉空格）。
 4. 重新部署 `bash tools/vercel/deploy-prod.sh` 或 Vercel Dashboard → Redeploy。
-5. 用 `live_smtp` 标记的 pytest 集合或一个临时 `/api/v1/parent/auth/request-code`
+5. 用 `live_smtp` 标记的 pytest 集合或一个临时 `/api/v1/family/{family_id}/auth/request-code`
    验证发件成功。
 6. 第一次成功的请求即可关闭工单。
 

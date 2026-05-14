@@ -55,6 +55,8 @@ render.experimental.xml
 
 # Xcode / iOS (per-user IDE state; schemes belong under xcshareddata/)
 **/xcuserdata/
+# Local derived data / build products when DERIVED_FILE_DIR points into the repo
+ios/.derived-install/
 
 # Keystore files
 *.jks

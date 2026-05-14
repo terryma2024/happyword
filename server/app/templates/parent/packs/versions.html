@@ -3,7 +3,7 @@
 {% block content %}
 <section class="space-y-6">
   <header>
-    <a href="/parent/packs/{{ definition.pack_id }}" class="text-sm text-sky-700 hover:underline">返回 {{ definition.name }}</a>
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}" class="text-sm text-sky-700 hover:underline">返回 {{ definition.name }}</a>
     <h1 class="text-2xl font-semibold text-slate-900 mt-2">发布历史</h1>
   </header>
 
@@ -18,7 +18,7 @@
       <div class="text-sm text-slate-700">
         回滚将把当前生效版本切回上一快照（v{{ pointer.previous_version }}）。
       </div>
-      <form method="post" action="/parent/packs/{{ definition.pack_id }}/rollback">
+      <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/rollback">
         <button type="submit" class="bg-amber-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-amber-700">
           回滚家庭词库
         </button>

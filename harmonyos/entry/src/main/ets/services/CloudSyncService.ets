@@ -147,7 +147,7 @@ export class CloudSyncService implements CloudSyncLike {
       // Even with no pushes we still pull server-newer rows so a
       // freshly-bound second device sees its sibling's progress.
       const result: RawSyncOut | null = await this.postSync(
-        snap.deviceToken, [], effectiveCheckpointMs,
+        snap.deviceToken, snap.familyId, [], effectiveCheckpointMs,
       );
       if (result === null) {
         out.status = 'network_error';
@@ -173,7 +173,7 @@ export class CloudSyncService implements CloudSyncLike {
     for (let i = 0; i < dirty.length; i += BATCH_SIZE) {
       const batch: WordStat[] = dirty.slice(i, i + BATCH_SIZE);
       const result: RawSyncOut | null = await this.postSync(
-        snap.deviceToken, batch, effectiveCheckpointMs,
+        snap.deviceToken, snap.familyId, batch, effectiveCheckpointMs,
       );
       if (result === null) {
         out.status = 'network_error';
@@ -204,11 +204,13 @@ export class CloudSyncService implements CloudSyncLike {
 
   private async postSync(
     token: string,
+    familyId: string,
     items: WordStat[],
     syncedThroughMs: number,
   ): Promise<RawSyncOut | null> {
     const base: string = CloudSyncService.trimTrailingSlash(this.resolveBaseUrl());
-    const url: string = `${base}/api/v1/child/word-stats/sync`;
+    const fid: string = familyId.trim().length > 0 ? familyId.trim() : '_';
+    const url: string = `${base}/api/v1/family/${fid}/word-stats/sync`;
     const headers: Record<string, string> = {};
     headers[HEADER_CONTENT_TYPE] = CONTENT_JSON;
     headers[HEADER_ACCEPT] = CONTENT_JSON;

@@ -1,16 +1,16 @@
 <header class="bg-white border-b border-slate-200">
   <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-    <a href="/parent/" class="text-lg font-semibold text-slate-900">魔法背单词 · 家长后台</a>
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/" class="text-lg font-semibold text-slate-900">魔法背单词 · 家长后台</a>
     {% if user is defined and user %}
     <nav class="hidden sm:flex items-center gap-3 text-sm">
-      <a href="/parent/" class="text-slate-600 hover:text-slate-900">首页</a>
-      <a href="/parent/packs" class="text-slate-600 hover:text-slate-900">词库</a>
-      <a href="/parent/redemptions" class="text-slate-600 hover:text-slate-900">兑换</a>
-      <a href="/parent/inbox" class="text-slate-600 hover:text-slate-900">消息</a>
-      <a href="/parent/feedback" class="text-slate-600 hover:text-slate-900">反馈</a>
-      <a href="/parent/account" class="text-slate-600 hover:text-slate-900">设置</a>
+      <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/" class="text-slate-600 hover:text-slate-900">首页</a>
+      <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs" class="text-slate-600 hover:text-slate-900">词库</a>
+      <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/redemptions" class="text-slate-600 hover:text-slate-900">兑换</a>
+      <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/inbox" class="text-slate-600 hover:text-slate-900">消息</a>
+      <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/feedback" class="text-slate-600 hover:text-slate-900">反馈</a>
+      <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/account" class="text-slate-600 hover:text-slate-900">设置</a>
     </nav>
-    <form method="post" action="/parent/auth/logout" class="m-0">
+    <form method="post" action="/family/{{ user.family_id or '_' }}/auth/logout" class="m-0">
       <button type="submit" class="text-sm text-slate-500 hover:text-slate-900">退出登录</button>
     </form>
     {% endif %}

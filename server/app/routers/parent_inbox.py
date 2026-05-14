@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-router = APIRouter(prefix="/api/v1/parent/inbox", tags=["parent-inbox"])
-html_router = APIRouter(prefix="/parent", tags=["parent-inbox-html"])
+router = APIRouter(prefix="/api/v1/family", tags=["parent-inbox"])
+html_router = APIRouter(prefix="/family", tags=["parent-inbox-html"])
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -37,11 +37,13 @@ def _to_out(m: ParentInboxMsg) -> InboxMsgOut:
     )
 
 
-@router.get("", response_model=InboxListOut)
+@router.get("/{family_id}/inbox", response_model=InboxListOut)
 async def list_inbox(
+    family_id: str = Path(min_length=1, max_length=128),
     unread_only: bool = Query(default=False),
     user: User = Depends(current_parent_user),
 ) -> InboxListOut:
+    _ = family_id
     rows = await ParentInboxMsg.find(
         ParentInboxMsg.parent_user_id == user.username
     ).to_list()
@@ -52,11 +54,13 @@ async def list_inbox(
     return InboxListOut(items=[_to_out(r) for r in rows], unread_count=unread)
 
 
-@router.post("/{msg_id}/read", status_code=status.HTTP_200_OK)
+@router.post("/{family_id}/inbox/{msg_id}/read", status_code=status.HTTP_200_OK)
 async def mark_read(
+    family_id: str = Path(min_length=1, max_length=128),
     msg_id: str = Path(min_length=4, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> dict[str, str]:
+    _ = family_id
     msg = await ParentInboxMsg.find_one(
         ParentInboxMsg.msg_id == msg_id,
         ParentInboxMsg.parent_user_id == user.username,
@@ -69,10 +73,12 @@ async def mark_read(
     return {"status": "ok"}
 
 
-@router.post("/mark-all-read", status_code=status.HTTP_200_OK)
+@router.post("/{family_id}/inbox/mark-all-read", status_code=status.HTTP_200_OK)
 async def mark_all_read(
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> dict[str, int]:
+    _ = family_id
     rows = await ParentInboxMsg.find(
         ParentInboxMsg.parent_user_id == user.username,
         ParentInboxMsg.read_at == None,  # noqa: E711
@@ -84,11 +90,13 @@ async def mark_all_read(
     return {"updated": len(rows)}
 
 
-@html_router.get("/inbox", response_class=HTMLResponse)
+@html_router.get("/{family_id}/inbox", response_class=HTMLResponse)
 async def get_inbox_html(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> HTMLResponse:
+    _ = family_id
     rows = await ParentInboxMsg.find(
         ParentInboxMsg.parent_user_id == user.username
     ).to_list()

@@ -20,7 +20,7 @@ async def test_request_code_returns_202(
 ) -> None:
     """POTP-1: /request-code is anti-enumeration → always 202."""
     email = f"e2e+{run_id}+req@example.com"
-    r = http.post("/api/v1/parent/auth/request-code", json={"email": email})
+    r = http.post("/api/v1/family/_/auth/request-code", json={"email": email})
     assert r.status_code == 202
     body = r.json()
     assert isinstance(body["expires_in_minutes"], int)
@@ -49,12 +49,12 @@ async def test_verify_code_wrong_returns_403(
 ) -> None:
     """POTP-4: /verify-code with a wrong 6-digit value → 403 INVALID_CODE."""
     email = f"e2e+{run_id}+wrong@example.com"
-    r = http.post("/api/v1/parent/auth/request-code", json={"email": email})
+    r = http.post("/api/v1/family/_/auth/request-code", json={"email": email})
     assert r.status_code == 202
     await inject_otp_code(mongo, email=email, plain_code=KNOWN_OTP_CODE)
 
     r = http.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": email, "code": "000000"},
     )
     assert r.status_code == 403
@@ -63,8 +63,8 @@ async def test_verify_code_wrong_returns_403(
 
 @pytest.mark.e2e
 def test_parent_me_without_cookie_returns_401(http: httpx.Client) -> None:
-    """PSES-2: /parent/me without cookie → 401."""
-    r = http.get("/api/v1/parent/me")
+    """PSES-2: GET /api/v1/family/_/me without cookie → 401."""
+    r = http.get("/api/v1/family/_/me")
     assert r.status_code == 401
 
 
@@ -72,8 +72,8 @@ def test_parent_me_without_cookie_returns_401(http: httpx.Client) -> None:
 async def test_parent_me_with_cookie_returns_profile(
     http: httpx.Client, parent: ParentSession
 ) -> None:
-    """PSES-1: /parent/me with cookie → 200 + payload matches verify-code."""
-    r = http.get("/api/v1/parent/me")
+    """PSES-1: GET /api/v1/family/_/me with cookie → 200 + payload matches verify-code."""
+    r = http.get("/api/v1/family/_/me")
     assert r.status_code == 200
     body = r.json()
     assert body["email"] == parent.email
@@ -84,12 +84,12 @@ async def test_parent_me_with_cookie_returns_profile(
 async def test_parent_logout_clears_cookie(
     http: httpx.Client, parent: ParentSession
 ) -> None:
-    """PSES-3: /parent/auth/logout → 200 + subsequent /me → 401."""
+    """PSES-3: POST /api/v1/family/_/auth/logout → 200 + subsequent GET /me → 401."""
     assert parent  # parent fixture already attached the cookie
-    r = http.post("/api/v1/parent/auth/logout")
+    r = http.post("/api/v1/family/_/auth/logout")
     assert r.status_code == 200
 
     # Drop the cookie locally too so the follow-up /me reflects the logout.
     http.cookies.delete("wm_session")
-    r = http.get("/api/v1/parent/me")
+    r = http.get("/api/v1/family/_/me")
     assert r.status_code == 401

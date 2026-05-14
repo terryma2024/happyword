@@ -447,7 +447,7 @@ private async onCardTap(env: BackendEnv, previewUrl: string): Promise<void> {
     if (env === BackendEnv.PREVIEW) {
       const ok: boolean = await this.probeHealth(previewUrl);
       if (!ok) {
-        this.showToast('Cannot reach /api/v1/health on that URL');
+        this.showToast('Cannot reach /api/v1/public/health on that URL');
         return;
       }
     }
@@ -539,7 +539,7 @@ Two unrelated-but-co-shipped fixes:
 - [ ] Tapping any card commits the env switch (audit log gains a row,
       toast appears, page replaces back to `HomePage`).
 - [ ] Tapping a Preview card whose URL fails the health probe surfaces the
-      "Cannot reach /api/v1/health" toast and **does not** change env.
+      "Cannot reach /api/v1/public/health" toast and **does not** change env.
 - [ ] `ConfigPage` no longer shows a `Developer` row.
 - [ ] `ConfigPage`'s `学习记录` row sits at the same horizontal position as
       its peer rows (Bind parent / Parent PIN / etc.), not pushed to the
@@ -554,13 +554,13 @@ Companion to [`2026-05-06-client-backend-env-switcher-design.md`](2026-05-06-cli
 
 ### 12.1 Client
 
-- **`PREVIEW_MANIFEST_ORIGIN`** / **`PREVIEW_MANIFEST_JSON_URL`** in `RemoteWordPackConfig.ets` pin DevMenu manifest fetches to **`https://happyword.cool/api/v1/preview-urls.json`**, regardless of the currently selected `BackendEnv` or preview deployment.
+- **`PREVIEW_MANIFEST_ORIGIN`** / **`PREVIEW_MANIFEST_JSON_URL`** in `RemoteWordPackConfig.ets` pin DevMenu manifest fetches to **`https://happyword.cool/api/v1/public/preview-urls.json`**, regardless of the currently selected `BackendEnv` or preview deployment.
 - **`PreviewManifestService`** issues a plain GET with **no** `x-vercel-protection-bypass` header — listing PR previews never depends on Vercel Deployment Protection secrets.
 
 ### 12.2 Server
 
-- **`GET /api/v1/preview-urls.json`** remains **credential-free** at the FastAPI layer (public router + service docstrings). This aligns with the client’s ability to refresh the manifest without storing a bypass token for that request.
+- **`GET /api/v1/public/preview-urls.json`** remains **credential-free** at the FastAPI layer (public router + service docstrings). This aligns with the client’s ability to refresh the manifest without storing a bypass token for that request.
 
 ### 12.3 Scope boundary
 
-- Selecting a **Preview** card for app traffic may still require deployment-protection bypass for **`/api/v1/health`** and subsequent API calls — that path is separate from manifest discovery (see env-switcher spec §10).
+- Selecting a **Preview** card for app traffic may still require deployment-protection bypass for **`/api/v1/public/health`** and subsequent API calls — that path is separate from manifest discovery (see env-switcher spec §10).

@@ -143,7 +143,7 @@ GET /api/v1/public/global-packs/latest.json
 Family endpoint:
 
 ```text
-GET /api/v1/child/family-packs/latest.json
+GET /api/v1/family/{family_id}/family-packs/latest.json
 Authorization: Bearer <deviceToken>
 ```
 

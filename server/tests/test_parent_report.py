@@ -457,7 +457,7 @@ async def test_http_get_report_returns_payload(db: object) -> None:
     family_id, child_id, _, parent_username = await _seed_with_parent_client()
     ac = await _parent_client(family_id, parent_username)
     async with ac:
-        r = await ac.get(f"/api/v1/parent/children/{child_id}/report")
+        r = await ac.get(f"/api/v1/family/_/children/{child_id}/report")
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["child_profile_id"] == child_id
@@ -475,7 +475,7 @@ async def test_http_get_report_other_family_404(db: object) -> None:
     )
     ac = await _parent_client(other_family.family_id, other_user.username)
     async with ac:
-        r = await ac.get(f"/api/v1/parent/children/{child_id}/report")
+        r = await ac.get(f"/api/v1/family/_/children/{child_id}/report")
     assert r.status_code == 404
     assert r.json()["detail"]["error"]["code"] == "CHILD_NOT_FOUND"
 
@@ -491,7 +491,7 @@ async def test_html_device_detail_contains_report_ids(db: object) -> None:
     )
     ac = await _parent_client(family_id, parent_username)
     async with ac:
-        r = await ac.get(f"/parent/devices/{binding_id}")
+        r = await ac.get(f"/family/_/devices/{binding_id}")
     assert r.status_code == 200, r.text
     body = r.text
     # All four IDs the V0.6.5 plan calls out for HTMX hooks.
@@ -511,7 +511,7 @@ async def test_html_device_detail_other_family_404(db: object) -> None:
     )
     ac = await _parent_client(other_family.family_id, other_user.username)
     async with ac:
-        r = await ac.get(f"/parent/devices/{binding_id}")
+        r = await ac.get(f"/family/_/devices/{binding_id}")
     assert r.status_code == 404
 
 

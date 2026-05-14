@@ -185,6 +185,7 @@ final class AppCoordinator: ObservableObject {
         do {
             globalPackCache = try await packLayerClient.fetchGlobal(cached: globalPackCache)
             familyPackCache = try await packLayerClient.fetchFamily(
+                familyId: credentials.familyId,
                 deviceToken: credentials.deviceToken,
                 cached: familyPackCache
             )
@@ -458,6 +459,7 @@ final class AppCoordinator: ObservableObject {
             let response = try await childProfileClient.update(
                 nickname: trimmed,
                 avatarEmoji: credentials.avatarEmoji,
+                familyId: credentials.familyId,
                 deviceToken: credentials.deviceToken
             )
             var updatedCredentials = credentials
@@ -505,7 +507,7 @@ final class AppCoordinator: ObservableObject {
         }
         if let credentials = cloudCredentialsStore.credentials {
             do {
-                try await unbindClient.unbind(deviceToken: credentials.deviceToken)
+                try await unbindClient.unbind(familyId: credentials.familyId, deviceToken: credentials.deviceToken)
             } catch {
                 bindingMessage = "解绑失败，请稍后再试"
                 return
@@ -545,7 +547,11 @@ final class AppCoordinator: ObservableObject {
             return
         }
         do {
-            let response = try await wordStatsSyncClient.sync(payload: payload, deviceToken: credentials.deviceToken)
+            let response = try await wordStatsSyncClient.sync(
+                payload: payload,
+                familyId: credentials.familyId,
+                deviceToken: credentials.deviceToken
+            )
             wordStatsSyncStateStore.markSuccess(serverNowMs: response.serverNowMs)
             if showStatus {
                 packManagerMessage = "学习数据已同步"

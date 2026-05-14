@@ -13,7 +13,7 @@ Release builds do not show the version label tap target.
 
 The DevMenu loads PR preview rows from:
 
-`GET https://happyword.cool/api/v1/preview-urls.json`
+`GET https://happyword.cool/api/v1/public/preview-urls.json`
 
 That URL is **fixed** in code (`PREVIEW_MANIFEST_JSON_URL` in `RemoteWordPackConfig.ets`). It does **not** follow the backend environment you selected, and the GET carries **no** `x-vercel-protection-bypass` header — you only need normal HTTPS reachability to production.
 
@@ -41,4 +41,4 @@ A merged PR whose preview deployment hasn't been pruned by the weekly `vercel-pr
 
 The Blob is the only output: the historical repo-tracked audit copy at `docs/preview-urls.json` was retired in 2026-05 because the bot-commit churn on `main` had no readers — the FastAPI proxy already served traffic out of Blob. `BLOB_READ_WRITE_TOKEN` must therefore be configured in GitHub Actions for the rebuild jobs to do anything (otherwise they skip with a warning), and the FastAPI backend must have `PREVIEW_MANIFEST_BLOB_URL` set to the public Blob URL printed by the manifest rebuild job.
 
-**Server contract:** `GET /api/v1/preview-urls.json` is intentionally **unauthenticated** at the application layer (public router — no JWT, cookies, or API keys). Vercel Deployment Protection on *preview* deployments does not apply to this URL because the client always calls **production** `happyword.cool` for the manifest.
+**Server contract:** `GET /api/v1/public/preview-urls.json` is intentionally **unauthenticated** at the application layer (public router — no JWT, cookies, or API keys). Vercel Deployment Protection on *preview* deployments does not apply to this URL because the client always calls **production** `happyword.cool` for the manifest.

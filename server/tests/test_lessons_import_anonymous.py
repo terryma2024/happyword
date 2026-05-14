@@ -23,9 +23,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from app.models.category import Category
+from app.models.family_pack_pointer import FamilyPackPointer
+from app.models.family_word_pack import FamilyWordPack
 from app.models.lesson_import_draft import LessonImportDraft
-from app.models.word import Word
+from app.services import family_pack_service
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -86,7 +87,7 @@ async def test_import_succeeds_without_auth(
     _stub_blob_upload(monkeypatch)
     _install_extractor_tripwire(monkeypatch)
     resp = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg" * 100), "image/jpeg")},
     )
     assert resp.status_code == 201, resp.text
@@ -105,7 +106,7 @@ async def test_patch_then_approve_anonymously_records_parent_reviewer(
     _stub_blob_upload(monkeypatch)
     _install_extractor_tripwire(monkeypatch)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     assert create.status_code == 201, create.text
@@ -117,17 +118,18 @@ async def test_patch_then_approve_anonymously_records_parent_reviewer(
         "words": [{"word": "alpha", "meaningZh": "甲改", "difficulty": 1}],
     }
     patched = await client.patch(
-        f"/api/v1/admin/lesson-drafts/{draft_id}",
+        f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}",
         json={"edited_extracted": edited},
     )
     assert patched.status_code == 200, patched.text
     assert patched.json()["edited_extracted"]["words"][0]["meaningZh"] == "甲改"
 
-    approve = await client.post(f"/api/v1/admin/lesson-drafts/{draft_id}/approve")
+    approve = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/approve")
     assert approve.status_code == 200, approve.text
     body = approve.json()
+    prefix = family_pack_service.CustomIdContract(family_id="fam-test-lessons").prefix
     created_ids = sorted(w["id"] for w in body["created_words"])
-    assert created_ids == ["lesson-import-anon-alpha"]  # only the edited word
+    assert created_ids == sorted([f"{prefix}alpha"])
 
     saved = await LessonImportDraft.get(draft_id)
     assert saved is not None
@@ -135,10 +137,19 @@ async def test_patch_then_approve_anonymously_records_parent_reviewer(
     assert saved.reviewer == "parent"
     assert saved.reviewed_at is not None
 
-    cat = await Category.find_one(Category.id == "lesson-import-anon")
-    assert cat is not None
-    alpha = await Word.find_one(Word.id == "lesson-import-anon-alpha")
-    assert alpha is not None
+    definition = await family_pack_service.ensure_lesson_import_pack_definition(
+        family_id="fam-test-lessons"
+    )
+    pointer = await FamilyPackPointer.find_one(
+        FamilyPackPointer.pack_definition_id == definition.pack_id
+    )
+    assert pointer is not None
+    pack = await FamilyWordPack.find_one(
+        FamilyWordPack.pack_definition_id == definition.pack_id,
+        FamilyWordPack.version == pointer.current_version,
+    )
+    assert pack is not None
+    assert any(w.get("id") == f"{prefix}alpha" for w in pack.words)
 
 
 @pytest.mark.asyncio
@@ -148,13 +159,13 @@ async def test_reject_anonymously_records_parent_reviewer(
     _stub_blob_upload(monkeypatch)
     _install_extractor_tripwire(monkeypatch)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     draft_id = create.json()["id"]
     await _promote_to_pending(draft_id)
 
-    rej = await client.post(f"/api/v1/admin/lesson-drafts/{draft_id}/reject")
+    rej = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/reject")
     assert rej.status_code == 200, rej.text
     assert rej.json()["status"] == "rejected"
     assert rej.json()["reviewer"] == "parent"

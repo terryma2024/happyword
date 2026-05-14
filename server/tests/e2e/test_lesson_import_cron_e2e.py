@@ -1,7 +1,7 @@
 """E2E: lesson import fast-path + manual cron tick.
 
 Contract:
-- POST /api/v1/admin/lessons/import returns quickly with status="extracting".
+- POST /api/v1/family/{family_id}/lessons/import returns quickly with status="extracting".
 - POST /api/v1/admin/cron/extract-pending (authorized) processes one extracting
   draft and flips it to either "pending" (success) or "extract_failed" (terminal).
 
@@ -27,8 +27,9 @@ if TYPE_CHECKING:
     from tests.e2e._utils.db import MongoDB
 
 _CRON_PATH = "/api/v1/admin/cron/extract-pending"
-_IMPORT_PATH = "/api/v1/admin/lessons/import"
-_DRAFT_PATH_TMPL = "/api/v1/admin/lesson-drafts/{draft_id}"
+_FAMILY_E2E = "fam-e2e-lesson-cron"
+_IMPORT_PATH = f"/api/v1/family/{_FAMILY_E2E}/lessons/import"
+_DRAFT_PATH_TMPL = f"/api/v1/family/{_FAMILY_E2E}/lesson-drafts/{{draft_id}}"
 _TERMINAL_SEED_ATTEMPTS = MAX_EXTRACT_ATTEMPTS - 1
 
 

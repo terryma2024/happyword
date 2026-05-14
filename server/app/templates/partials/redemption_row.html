@@ -23,7 +23,7 @@
   <div class="flex items-center space-x-2">
     {% if row.status == 'pending' %}
       <form method="post"
-            action="/parent/redemptions/{{ row.request_id }}/approve"
+            action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/redemptions/{{ row.request_id }}/approve"
             class="inline">
         <button type="submit"
                 class="text-xs bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-1.5 rounded-md font-medium"
@@ -32,7 +32,7 @@
         </button>
       </form>
       <form method="post"
-            action="/parent/redemptions/{{ row.request_id }}/reject"
+            action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/redemptions/{{ row.request_id }}/reject"
             class="inline">
         <button type="submit"
                 class="text-xs bg-rose-100 text-rose-700 hover:bg-rose-200 px-3 py-1.5 rounded-md font-medium"

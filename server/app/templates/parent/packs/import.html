@@ -3,7 +3,7 @@
 {% block content %}
 <section class="space-y-6">
   <header>
-    <a href="/parent/packs/{{ definition.pack_id }}" class="text-sm text-sky-700 hover:underline">返回 {{ definition.name }}</a>
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}" class="text-sm text-sky-700 hover:underline">返回 {{ definition.name }}</a>
     <h1 class="text-2xl font-semibold text-slate-900 mt-2">图片导入</h1>
     <p class="text-sm text-slate-500 mt-1">上传课本页或练习册图片，识别结果会进入草稿。</p>
   </header>
@@ -43,7 +43,7 @@
   <form
     id="pack-import-form"
     method="post"
-    action="/parent/packs/{{ definition.pack_id }}/import"
+    action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/import"
     enctype="multipart/form-data"
     class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-4"
   >

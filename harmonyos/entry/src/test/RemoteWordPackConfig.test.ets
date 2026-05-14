@@ -2,7 +2,6 @@ import { describe, it, expect } from '@ohos/hypium';
 import {
   pickServerBaseUrl,
   pickServerBaseUrlExplicit,
-  buildLatestPackUrl,
   resolveServerBaseUrl,
   effectiveServerBaseUrl,
   SERVER_BASE_URL_OVERRIDE_KEY,
@@ -26,7 +25,7 @@ export default function remoteWordPackConfigTest() {
     it('previewManifestAlwaysUsesProdOriginNotBackendEnv', 0, () => {
       expect(PREVIEW_MANIFEST_ORIGIN).assertEqual('https://happyword.cool');
       expect(PREVIEW_MANIFEST_JSON_URL).assertEqual(
-        'https://happyword.cool/api/v1/preview-urls.json',
+        'https://happyword.cool/api/v1/public/preview-urls.json',
       );
     });
     it('prodUrlReservedEmpty', 0, () => {
@@ -97,12 +96,5 @@ export default function remoteWordPackConfigTest() {
       AppStorage.delete(BACKEND_PREVIEW_URL_CACHE_KEY);
     });
 
-    it('buildLatestPackUrlAppendsCorrectPath', 0, () => {
-      expect(buildLatestPackUrl(STAGING_BASE_URL))
-        .assertEqual('https://happyword.cool/api/v1/packs/latest.json');
-    });
-    it('buildLatestPackUrlReturnsEmptyForEmptyBase', 0, () => {
-      expect(buildLatestPackUrl('')).assertEqual('');
-    });
   });
 }

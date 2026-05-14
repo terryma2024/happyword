@@ -68,7 +68,7 @@ struct BoundDeviceInfoPage {
 
   /**
    * V0.6.7.2 — opens a parent-PIN gate, then calls
-   * `POST /api/v1/child/unbind` on confirm. The PIN dialog reuses the
+   * `POST /api/v1/family/{family_id}/unbind` on confirm. The PIN dialog reuses the
    * shared `ParentPinDialog` component so the UX mirrors the
    * `进入家长后台` flow. On success `DeviceUnbindClient` clears the
    * local credentials, we detach the cloud-sync handler, and route
@@ -231,7 +231,7 @@ struct BoundDeviceInfoPage {
     const client: ChildProfileApiClient = new ChildProfileApiClient(adapter, baseUrl);
     try {
       const updated: UpdatedChildProfile =
-        await client.updateProfile(this.snap.deviceToken, trimmed, avatarEmoji);
+        await client.updateProfile(this.snap.deviceToken, this.snap.familyId, trimmed, avatarEmoji);
       const next: CloudCredentialsSnapshot = new CloudCredentialsSnapshot();
       next.deviceToken = this.snap.deviceToken;
       next.bindingId = this.snap.bindingId;

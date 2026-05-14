@@ -14,7 +14,7 @@ We deliberately do **NOT** send the optional ``x-vercel-set-bypass-cookie``
 header. Per Vercel docs, that header instructs the edge to set a
 ``_vercel_jwt`` bypass cookie via a **307 redirect with a Set-Cookie
 header**. Because the test client uses ``follow_redirects=False`` (so
-that auth flows like ``/parent/auth/verify-code`` see real ``Set-Cookie``
+that auth flows like ``/family/_/auth/verify-code`` see real ``Set-Cookie``
 responses and not whatever the redirect target returns), every API call
 would short-circuit at the cookie-setting redirect and tests would
 see ``307 Redirecting...`` instead of the expected status code. Sending

@@ -259,7 +259,7 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 &
 sleep 3
 # In another terminal:
 grep "Mongo DB name resolved" /tmp/happyword-e2e-uvicorn.log || \
-  curl -s http://127.0.0.1:8000/api/v1/health  # health probe
+  curl -s http://127.0.0.1:8000/api/v1/public/health  # health probe
 kill %1
 ```
 Expected: log line `Mongo DB name resolved to happyword_e2e` (because `.env.local` sets a literal name).

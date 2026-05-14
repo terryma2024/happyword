@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **Revision 2026-05-08:** Document **credential-free** access for `GET /api/v1/preview-urls.json` (module docstrings on `public_packs.py` + `preview_manifest_service.py`). Client uses **`PREVIEW_MANIFEST_JSON_URL`** — fixed production origin, **no** `x-vercel-protection-bypass` on manifest GET (see env-switcher design §10).
+> **Revision 2026-05-08:** Document **credential-free** access for `GET /api/v1/public/preview-urls.json` (module docstrings on `public_packs.py` + `preview_manifest_service.py`). Client uses **`PREVIEW_MANIFEST_JSON_URL`** — fixed production origin, **no** `x-vercel-protection-bypass` on manifest GET (see env-switcher design §10).
 
 **Goal:** Publish `docs/preview-urls.json` to Vercel Blob and expose it through a public FastAPI endpoint.
 
-**Architecture:** `server/scripts/update_preview_manifest.mjs` remains the manifest builder and optionally uploads the same JSON payload to a deterministic public Blob path. The backend exposes **`GET /api/v1/preview-urls.json`** (**unauthenticated** — no JWT / cookies / API keys), which proxies a configured `PREVIEW_MANIFEST_BLOB_URL` with short cache headers and clear upstream error handling.
+**Architecture:** `server/scripts/update_preview_manifest.mjs` remains the manifest builder and optionally uploads the same JSON payload to a deterministic public Blob path. The backend exposes **`GET /api/v1/public/preview-urls.json`** (**unauthenticated** — no JWT / cookies / API keys), which proxies a configured `PREVIEW_MANIFEST_BLOB_URL` with short cache headers and clear upstream error handling.
 
 **Tech Stack:** FastAPI, httpx, pytest, Node 24 native `fetch`, Vercel Blob HTTP API, GitHub Actions.
 
@@ -31,7 +31,7 @@ Expected: collection fails or tests fail because the endpoint/service does not e
 
 - [ ] **Step 3: Implement service and router**
 
-Add a service that fetches the configured Blob URL, forwards `If-None-Match`, validates JSON for `200`, and maps upstream errors to `502`. Add `GET /api/v1/preview-urls.json` to the existing **public** router — **no `Depends` auth**; record in module docstrings (`public_packs.py`, `preview_manifest_service.py`) that this path stays credential-free so HarmonyOS can refresh the manifest without a deployment-protection bypass token on this GET.
+Add a service that fetches the configured Blob URL, forwards `If-None-Match`, validates JSON for `200`, and maps upstream errors to `502`. Add `GET /api/v1/public/preview-urls.json` to the existing **public** router — **no `Depends` auth**; record in module docstrings (`public_packs.py`, `preview_manifest_service.py`) that this path stays credential-free so HarmonyOS can refresh the manifest without a deployment-protection bypass token on this GET.
 
 - [ ] **Step 4: Run focused tests to verify green**
 
@@ -68,7 +68,7 @@ Expected: syntax check exits 0.
 
 - [ ] **Step 1: Document the two-layer publication path**
 
-Record that GitHub keeps the audit copy, Vercel Blob is the runtime mirror, and `/api/v1/preview-urls.json` is the client-facing endpoint — **credential-free** at the FastAPI layer.
+Record that GitHub keeps the audit copy, Vercel Blob is the runtime mirror, and `/api/v1/public/preview-urls.json` is the client-facing endpoint — **credential-free** at the FastAPI layer.
 
 - [ ] **Step 2: Record required Vercel env**
 
@@ -82,7 +82,7 @@ Document `BLOB_READ_WRITE_TOKEN`, `PREVIEW_MANIFEST_BLOB_URL`, and optional `PRE
 
 - [ ] **Step 1: Pin manifest fetch to production origin**
 
-Use **`PREVIEW_MANIFEST_JSON_URL`** from `RemoteWordPackConfig.ets` (today `https://happyword.cool/api/v1/preview-urls.json`). Do **not** derive the URL from `effectiveServerBaseUrl()`, `STAGING_BASE_URL` alone, or `BackendHeaders` / bypass — DevMenu must load the PR list even when the device is pointed at a Preview deployment. Rows inside the JSON still carry per-PR `*.vercel.app` URLs for actual API traffic after the user picks a card.
+Use **`PREVIEW_MANIFEST_JSON_URL`** from `RemoteWordPackConfig.ets` (today `https://happyword.cool/api/v1/public/preview-urls.json`). Do **not** derive the URL from `effectiveServerBaseUrl()`, `STAGING_BASE_URL` alone, or `BackendHeaders` / bypass — DevMenu must load the PR list even when the device is pointed at a Preview deployment. Rows inside the JSON still carry per-PR `*.vercel.app` URLs for actual API traffic after the user picks a card.
 
 ### Task 5: Verification
 

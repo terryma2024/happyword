@@ -301,7 +301,7 @@ async def test_post_sync_250_items_all_processed(db: object) -> None:
     ac = await _device_client(binding_id, child_id)
     async with ac:
         r = await ac.post(
-            "/api/v1/child/word-stats/sync",
+            "/api/v1/family/_/word-stats/sync",
             json={"items": payload, "synced_through_ms": 0},
         )
     assert r.status_code == 200
@@ -333,7 +333,7 @@ async def test_post_sync_persists_accepted_items_to_database(db: object) -> None
     ac = await _device_client(binding_id, child_id)
 
     async with ac:
-        r = await ac.post("/api/v1/child/word-stats/sync", json=payload)
+        r = await ac.post("/api/v1/family/_/word-stats/sync", json=payload)
 
     assert r.status_code == 200, r.text
     assert r.json()["accepted"] == ["fruit-apple"]
@@ -358,7 +358,7 @@ async def test_get_on_revoked_binding_404(db: object) -> None:
     await binding.save()
     ac = await _device_client(binding_id, child_id)
     async with ac:
-        r = await ac.get("/api/v1/child/word-stats")
+        r = await ac.get("/api/v1/family/_/word-stats")
     assert r.status_code == 404
     assert r.json()["detail"]["error"]["code"] == "BINDING_REVOKED"
 
@@ -375,7 +375,7 @@ async def test_post_sync_via_http_returns_server_pulls(db: object) -> None:
     ac = await _device_client(binding_id, child_id)
     async with ac:
         r = await ac.post(
-            "/api/v1/child/word-stats/sync",
+            "/api/v1/family/_/word-stats/sync",
             json={
                 "items": [
                     {
@@ -414,7 +414,7 @@ async def test_get_with_since_ms_returns_newer_only(db: object) -> None:
     )
     ac = await _device_client(binding_id, child_id)
     async with ac:
-        r = await ac.get("/api/v1/child/word-stats?since_ms=1500")
+        r = await ac.get("/api/v1/family/_/word-stats?since_ms=1500")
     assert r.status_code == 200
     word_ids = {item["word_id"] for item in r.json()["items"]}
     assert word_ids == {"b"}

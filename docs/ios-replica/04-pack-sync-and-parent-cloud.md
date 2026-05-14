@@ -103,7 +103,7 @@ iOS design:
 - QR camera/gallery scanning can use iOS camera APIs later; short-code entry and pasted QR landing links share the current testable path.
 - Device token belongs in Keychain.
 - Client displays family/child context but server remains authority for `family_id`.
-- Child profile rename persists locally first, then calls `PUT /api/v1/child/profile` with the device token.
+- Child profile rename persists locally first, then calls `PUT /api/v1/family/{family_id}/profile` with the device token.
 
 Tests:
 

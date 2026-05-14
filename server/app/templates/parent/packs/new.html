@@ -3,10 +3,10 @@
 {% block content %}
 <section class="space-y-6">
   <header>
-    <a href="/parent/packs" class="text-sm text-sky-700 hover:underline">返回词库</a>
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs" class="text-sm text-sky-700 hover:underline">返回词库</a>
     <h1 class="text-2xl font-semibold text-slate-900 mt-2">新建词库</h1>
   </header>
-  <form method="post" action="/parent/packs" class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-4">
+  <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs" class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-4">
     <label class="block">
       <span class="text-sm font-medium text-slate-700">名称</span>
       <input name="name" maxlength="32" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" placeholder="三年级上 Unit 1" />

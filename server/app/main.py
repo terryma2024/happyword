@@ -40,7 +40,7 @@ from app.routers import admin_categories as admin_categories_router
 from app.routers import admin_cron as admin_cron_router
 from app.routers import admin_drafts as admin_drafts_router
 from app.routers import admin_global_pack as admin_global_pack_router
-from app.routers import admin_lessons as admin_lessons_router
+from app.routers import family_lessons as family_lessons_router
 from app.routers import admin_llm as admin_llm_router
 from app.routers import admin_packs as admin_packs_router
 from app.routers import admin_stats as admin_stats_router
@@ -167,15 +167,18 @@ async def root() -> RedirectResponse:
     through to FastAPI's default 404 handler and returns
     `{"detail":"Not Found"}`, which looks broken to anyone landing on the
     domain. The parent shell is the only public HTML surface this server
-    has, so `/` -> `/parent/` (which itself redirects to `/parent/login`
-    for anonymous users) is the most useful landing experience.
+    has, so `/` -> `/family/_/login` (decorative family id until the web
+    shell is fully path-scoped) is the most useful landing experience.
     """
-    return RedirectResponse(url="/parent/", status_code=307)
+    return RedirectResponse(url="/family/_/login", status_code=307)
 
 
 app.include_router(auth_router.router)
 app.include_router(parent_auth_router.router)
 app.include_router(parent_api_router.router)
+# Child `.../family-packs/latest.json` must register before parent
+# `.../family-packs/{pack_id}` or `latest.json` is treated as a pack id.
+app.include_router(child_family_pack_router.router)
 app.include_router(parent_family_pack_router.router)
 app.include_router(parent_pages_router.router)
 app.include_router(parent_packs_pages_router.router)
@@ -184,11 +187,12 @@ app.include_router(parent_inbox_router.html_router)
 app.include_router(parent_account_router.router)
 app.include_router(parent_account_router.html_router)
 app.include_router(admin_pages_router.router)
-app.include_router(child_family_pack_router.router)
 app.include_router(child_word_stats_router.router)
 app.include_router(child_wishlist_router.router)
 app.include_router(child_profile_router.router)
-app.include_router(pair_router.router)
+app.include_router(pair_router.family_router)
+app.include_router(pair_router.public_router)
+app.include_router(pair_router.landing_router)
 app.include_router(public_packs_router.router)
 # V0.6.5 — three-layer pack model: public global packs + admin CRUD.
 app.include_router(public_global_pack_router.router)
@@ -198,20 +202,13 @@ app.include_router(admin_words_router.router)
 app.include_router(admin_packs_router.router)
 app.include_router(admin_drafts_router.router)
 app.include_router(admin_categories_router.router)
-app.include_router(admin_lessons_router.router)
+app.include_router(family_lessons_router.router)
 app.include_router(admin_cron_router.router)
 app.include_router(admin_assets_router.router)
 app.include_router(admin_stats_router.router)
 
-# V0.6.5 — surface new-pattern aliases onto every legacy route. MUST run
-# AFTER every include_router call so we can see all legacy routes.
-# See .cursor/rules/api-route-pattern.mdc and the v0.6.5 plan Task 27.
-from app.routers.legacy_route_aliases import (  # noqa: E402
-    attach_legacy_aliases,
-)
-
-_alias_count = attach_legacy_aliases(app)
-logger.info("v0.6.5 attached %d legacy route aliases", _alias_count)
+# Legacy URL aliases were removed after clients migrated to the v0.6.5+ prefix
+# convention (see `.cursor/rules/api-route-pattern.mdc`).
 
 # V0.6.1: serve the parent web shell's static assets.
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

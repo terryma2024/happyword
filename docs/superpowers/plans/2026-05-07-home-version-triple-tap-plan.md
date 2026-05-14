@@ -697,7 +697,7 @@ Expected: `TestFinished-ResultCode: 0`, `OHOS_REPORT_CODE: 0`. All earlier suite
 1. `hdc install` the latest debug HAP.
 2. Open the app — confirm the top-left shows `v0.6.0(YYMMDDHHmm)` in small grey text (10-char timestamp, minute precision).
 3. Triple-tap quickly (within **`VersionTripleTap`'s 1500ms** window) → DevMenuPage opens with the unified card grid (Local, Staging, manifest previews).
-4. Tap **Staging** (or Local) — env applies immediately (**tap-to-apply**; there is no **Apply** button). Expect toast `Environment updated. Re-bind parent account if needed.` and navigation back to HomePage. Preview cards may prompt for the Vercel bypass secret on first use, then probe `/api/v1/health` on the selected `.vercel.app` URL.
+4. Tap **Staging** (or Local) — env applies immediately (**tap-to-apply**; there is no **Apply** button). Expect toast `Environment updated. Re-bind parent account if needed.` and navigation back to HomePage. Preview cards may prompt for the Vercel bypass secret on first use, then probe `/api/v1/public/health` on the selected `.vercel.app` URL.
 5. Re-open DevMenuPage from `Settings → Developer → Backend environment` → confirm the env reflects what was just selected.
 6. Build a release HAP (`hvigorw -p product=default --mode module -p module=entry@default assembleHap` with the release product) → install on device → confirm **no** version label is visible at top-left and tapping where it would have been does nothing.
 

@@ -35,8 +35,8 @@ import {
  *      BoundDeviceInfoPage.)
  *
  * All HTTP traffic is routed through the local mock at 127.0.0.1:8123
- * (see server/mock_ui_server.py: `/api/v1/pair/redeem` accepts any
- * 6-digit short code that is not 000000/111111/222222; `/api/v1/child/
+ * (see server/mock_ui_server.py: `/api/v1/public/pair/redeem` accepts any
+ * 6-digit short code that is not 000000/111111/222222; `/api/v1/family/_/
  * unbind` clears the active binding for the deterministic mock JWT).
  */
 
@@ -101,7 +101,7 @@ async function mockHttp(
 }
 
 async function unbindMockBinding(): Promise<void> {
-  await mockHttp(http.RequestMethod.POST, '/api/v1/child/unbind', '{}', MOCK_DEVICE_TOKEN);
+  await mockHttp(http.RequestMethod.POST, '/api/v1/family/_/unbind', '{}', MOCK_DEVICE_TOKEN);
 }
 
 async function wipeBoundDeviceState(): Promise<void> {
@@ -628,7 +628,7 @@ export default function parentBindingFlowUiTest(): void {
         await tapPinDialogKey(driver, KNOWN_PIN.charAt(i));
       }
       // ParentPinDialog auto-dismisses on a correct PIN, then runUnbind
-      // posts to /api/v1/child/unbind. Allow up to 8 s for round-trip.
+      // posts to /api/v1/family/_/unbind. Allow up to 8 s for round-trip.
       const toast: string = await waitForUnbindToast(driver, 8000);
       if (toast.length === 0) {
         throw new Error('UNBIND-T2: unbind toast never surfaced');

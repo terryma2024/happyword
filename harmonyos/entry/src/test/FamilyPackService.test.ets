@@ -79,7 +79,8 @@ class MemPrefs implements StringPreferencesLike {
 
 const BASE: string = 'https://happyword.cool';
 const FAMILY_ID: string = 'fam-testfamily';
-const URL_MERGED: string = `${BASE}/api/v1/child/packs/latest.json`;
+const URL_MERGED: string = `${BASE}/api/v1/family/${FAMILY_ID}/packs/latest.json`;
+const URL_MERGED_PLACEHOLDER: string = `${BASE}/api/v1/family/_/packs/latest.json`;
 const TOKEN: string = 'device.jwt.token';
 const CACHE_KEY: string = 'family_packs_v1';
 
@@ -188,11 +189,11 @@ export default function familyPackServiceTest() {
 
     it('ensureLatest_blank_family_id_uses_merged_child_path_without_hint_header', 0, async () => {
       const h: Harness = buildSvc();
-      h.adapter.responses.set(`GET ${URL_MERGED}`, ok(fakeBody('pck-legacy', 'Leg')));
-      h.adapter.setResponseHeaders(`GET ${URL_MERGED}`, headersWith('ETag', '"e-legacy"'));
+      h.adapter.responses.set(`GET ${URL_MERGED_PLACEHOLDER}`, ok(fakeBody('pck-legacy', 'Leg')));
+      h.adapter.setResponseHeaders(`GET ${URL_MERGED_PLACEHOLDER}`, headersWith('ETag', '"e-legacy"'));
       const r: FamilyPackEnsureResult = await h.svc.ensureLatest(TOKEN, '');
       expect(r.status).assertEqual('updated');
-      expect(h.adapter.lastUrl).assertEqual(URL_MERGED);
+      expect(h.adapter.lastUrl).assertEqual(URL_MERGED_PLACEHOLDER);
       expect(h.adapter.lastHeaders['X-Family-Id'] === undefined || h.adapter.lastHeaders['X-Family-Id'] === '').assertTrue();
       expect(h.svc.currentBlob()?.packs[0].packId).assertEqual('pck-legacy');
     });

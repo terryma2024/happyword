@@ -117,7 +117,7 @@
         "title": "AudioOut",
         "type": "object"
       },
-      "Body_create_pack_page_parent_packs_post": {
+      "Body_create_pack_page_family__family_id__packs__post": {
         "properties": {
           "description": {
             "default": "",
@@ -132,10 +132,10 @@
         "required": [
           "name"
         ],
-        "title": "Body_create_pack_page_parent_packs_post",
+        "title": "Body_create_pack_page_family__family_id__packs__post",
         "type": "object"
       },
-      "Body_draft_add_custom_word_parent_packs__pack_id__draft_add_custom_post": {
+      "Body_draft_add_custom_word_family__family_id__packs__pack_id__draft_add_custom_post": {
         "properties": {
           "category": {
             "title": "Category",
@@ -175,10 +175,10 @@
           "category",
           "difficulty"
         ],
-        "title": "Body_draft_add_custom_word_parent_packs__pack_id__draft_add_custom_post",
+        "title": "Body_draft_add_custom_word_family__family_id__packs__pack_id__draft_add_custom_post",
         "type": "object"
       },
-      "Body_draft_batch_json_parent_packs__pack_id__draft_batch_json_post": {
+      "Body_draft_batch_json_family__family_id__packs__pack_id__draft_batch_json_post": {
         "properties": {
           "batch_json": {
             "title": "Batch Json",
@@ -188,10 +188,10 @@
         "required": [
           "batch_json"
         ],
-        "title": "Body_draft_batch_json_parent_packs__pack_id__draft_batch_json_post",
+        "title": "Body_draft_batch_json_family__family_id__packs__pack_id__draft_batch_json_post",
         "type": "object"
       },
-      "Body_draft_delete_word_parent_packs__pack_id__draft_delete_word_post": {
+      "Body_draft_delete_word_family__family_id__packs__pack_id__draft_delete_word_post": {
         "properties": {
           "word_id": {
             "title": "Word Id",
@@ -201,10 +201,10 @@
         "required": [
           "word_id"
         ],
-        "title": "Body_draft_delete_word_parent_packs__pack_id__draft_delete_word_post",
+        "title": "Body_draft_delete_word_family__family_id__packs__pack_id__draft_delete_word_post",
         "type": "object"
       },
-      "Body_draft_edit_submit_parent_packs__pack_id__draft_edit_post": {
+      "Body_draft_edit_submit_family__family_id__packs__pack_id__draft_edit_post": {
         "properties": {
           "action": {
             "default": "",
@@ -249,10 +249,10 @@
         "required": [
           "word_id"
         ],
-        "title": "Body_draft_edit_submit_parent_packs__pack_id__draft_edit_post",
+        "title": "Body_draft_edit_submit_family__family_id__packs__pack_id__draft_edit_post",
         "type": "object"
       },
-      "Body_import_image_submit_parent_packs__pack_id__import_post": {
+      "Body_import_image_submit_family__family_id__packs__pack_id__import_post": {
         "properties": {
           "image": {
             "contentMediaType": "application/octet-stream",
@@ -263,7 +263,7 @@
         "required": [
           "image"
         ],
-        "title": "Body_import_image_submit_parent_packs__pack_id__import_post",
+        "title": "Body_import_image_submit_family__family_id__packs__pack_id__import_post",
         "type": "object"
       },
       "Body_import_image_to_global_pack_draft_api_v1_admin_global_packs__pack_id__import_image_post": {
@@ -280,7 +280,7 @@
         "title": "Body_import_image_to_global_pack_draft_api_v1_admin_global_packs__pack_id__import_image_post",
         "type": "object"
       },
-      "Body_import_image_to_pack_api_v1_parent_family_packs__pack_id__import_image_post": {
+      "Body_import_image_to_pack_api_v1_family__family_scope__family_packs__pack_id__import_image_post": {
         "properties": {
           "image": {
             "contentMediaType": "application/octet-stream",
@@ -291,10 +291,10 @@
         "required": [
           "image"
         ],
-        "title": "Body_import_image_to_pack_api_v1_parent_family_packs__pack_id__import_image_post",
+        "title": "Body_import_image_to_pack_api_v1_family__family_scope__family_packs__pack_id__import_image_post",
         "type": "object"
       },
-      "Body_import_lesson_api_v1_admin_lessons_import_post": {
+      "Body_import_lesson_api_v1_family__family_id__lessons_import_post": {
         "properties": {
           "image": {
             "contentMediaType": "application/octet-stream",
@@ -306,10 +306,10 @@
         "required": [
           "image"
         ],
-        "title": "Body_import_lesson_api_v1_admin_lessons_import_post",
+        "title": "Body_import_lesson_api_v1_family__family_id__lessons_import_post",
         "type": "object"
       },
-      "Body_post_device_unbind_confirm_parent_devices__binding_id__unbind_post": {
+      "Body_post_device_unbind_confirm_family__family_id__devices__binding_id__unbind_post": {
         "properties": {
           "code": {
             "title": "Code",
@@ -319,10 +319,10 @@
         "required": [
           "code"
         ],
-        "title": "Body_post_device_unbind_confirm_parent_devices__binding_id__unbind_post",
+        "title": "Body_post_device_unbind_confirm_family__family_id__devices__binding_id__unbind_post",
         "type": "object"
       },
-      "Body_post_devices_add_cancel_parent_devices_add_cancel_post": {
+      "Body_post_devices_add_cancel_family__family_id__devices_add_cancel_post": {
         "properties": {
           "token": {
             "title": "Token",
@@ -332,10 +332,10 @@
         "required": [
           "token"
         ],
-        "title": "Body_post_devices_add_cancel_parent_devices_add_cancel_post",
+        "title": "Body_post_devices_add_cancel_family__family_id__devices_add_cancel_post",
         "type": "object"
       },
-      "Body_post_feedback_parent_feedback_post": {
+      "Body_post_feedback_family__family_id__feedback_post": {
         "properties": {
           "body": {
             "title": "Body",
@@ -350,10 +350,10 @@
           "subject",
           "body"
         ],
-        "title": "Body_post_feedback_parent_feedback_post",
+        "title": "Body_post_feedback_family__family_id__feedback_post",
         "type": "object"
       },
-      "Body_post_request_code_form_parent_auth_request_code_post": {
+      "Body_post_request_code_form_family__family_id__auth_request_code_post": {
         "properties": {
           "email": {
             "title": "Email",
@@ -363,10 +363,10 @@
         "required": [
           "email"
         ],
-        "title": "Body_post_request_code_form_parent_auth_request_code_post",
+        "title": "Body_post_request_code_form_family__family_id__auth_request_code_post",
         "type": "object"
       },
-      "Body_post_verify_code_form_parent_auth_verify_code_post": {
+      "Body_post_verify_code_form_family__family_id__auth_verify_code_post": {
         "properties": {
           "code": {
             "title": "Code",
@@ -381,10 +381,10 @@
           "email",
           "code"
         ],
-        "title": "Body_post_verify_code_form_parent_auth_verify_code_post",
+        "title": "Body_post_verify_code_form_family__family_id__auth_verify_code_post",
         "type": "object"
       },
-      "Body_publish_page_parent_packs__pack_id__publish_post": {
+      "Body_publish_page_family__family_id__packs__pack_id__publish_post": {
         "properties": {
           "notes": {
             "default": "",
@@ -392,7 +392,7 @@
             "type": "string"
           }
         },
-        "title": "Body_publish_page_parent_packs__pack_id__publish_post",
+        "title": "Body_publish_page_family__family_id__packs__pack_id__publish_post",
         "type": "object"
       },
       "Body_scan_words_api_v1_admin_llm_scan_words_post": {
@@ -1806,7 +1806,7 @@
       },
       "FamilyPackDraftWordIn": {
         "additionalProperties": false,
-        "description": "Body of `PUT /api/v1/parent/family-packs/{id}/draft/words/{word_id}`.\n\n`source` selects the entry shape:\n- `global`: this draft pulls (or re-pulls) a global admin word; only the\n  `id` (the path param) matters; server stores the latest global view.\n- `custom`: parent supplies the full entry. The path `word_id` MUST\n  start with `fam-<family_id_8>-` (validated by the service).\n- `hidden`: parent wants this global id hidden; we persist\n  `{ id: <word_id>, hidden: true }` only.",
+        "description": "Body of `PUT /api/v1/family/{family_id}/family-packs/{id}/draft/words/{word_id}`.\n\n`source` selects the entry shape:\n- `global`: this draft pulls (or re-pulls) a global admin word; only the\n  `id` (the path param) matters; server stores the latest global view.\n- `custom`: parent supplies the full entry. The path `word_id` MUST\n  start with `fam-<family_id_8>-` (validated by the service).\n- `hidden`: parent wants this global id hidden; we persist\n  `{ id: <word_id>, hidden: true }` only.",
         "properties": {
           "audio_url": {
             "anyOf": [
@@ -2754,7 +2754,7 @@
       },
       "LessonApproveOut": {
         "additionalProperties": false,
-        "description": "Returned from POST /admin/lesson-drafts/{id}/approve.",
+        "description": "Returned from POST /api/v1/family/{family_id}/lesson-drafts/{id}/approve.",
         "properties": {
           "created_category": {
             "$ref": "#/components/schemas/CategoryOut"
@@ -3593,7 +3593,7 @@
         "type": "object"
       },
       "RedemptionPollOut": {
-        "description": "Returned from `GET /api/v1/child/redemption-requests/poll`.\n\nThe device shares its last-seen `since_ms` so we only return rows whose\ndecision (or expiry) happened after that cursor.",
+        "description": "Returned from `GET /api/v1/family/{family_id}/redemption-requests/poll`.\n\nThe device shares its last-seen `since_ms` so we only return rows whose\ndecision (or expiry) happened after that cursor.",
         "properties": {
           "items": {
             "items": {
@@ -4524,6 +4524,73 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/auth/login": {
+      "post": {
+        "operationId": "login_api_v1_admin_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/admin/auth/me": {
+      "get": {
+        "operationId": "me_api_v1_admin_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/admin/categories": {
       "get": {
         "operationId": "list_categories_api_v1_admin_categories_get",
@@ -5598,348 +5665,6 @@
         ]
       }
     },
-    "/api/v1/admin/lesson-drafts": {
-      "get": {
-        "operationId": "list_lesson_drafts_api_v1_admin_lesson_drafts_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 20,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "pending",
-              "title": "Status"
-            }
-          },
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "default": 1,
-              "minimum": 1,
-              "title": "Page",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "size",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "maximum": 500,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftListOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Lesson Drafts",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
-    "/api/v1/admin/lesson-drafts/{draft_id}": {
-      "get": {
-        "operationId": "get_lesson_draft_api_v1_admin_lesson_drafts__draft_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Lesson Draft",
-        "tags": [
-          "admin-lessons"
-        ]
-      },
-      "patch": {
-        "operationId": "patch_lesson_draft_api_v1_admin_lesson_drafts__draft_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LessonDraftPatchIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Patch Lesson Draft",
-        "tags": [
-          "admin-lessons"
-        ]
-      },
-      "put": {
-        "operationId": "patch_lesson_draft_api_v1_admin_lesson_drafts__draft_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LessonDraftPatchIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Patch Lesson Draft",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
-    "/api/v1/admin/lesson-drafts/{draft_id}/approve": {
-      "post": {
-        "operationId": "approve_lesson_api_v1_admin_lesson_drafts__draft_id__approve_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonApproveOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Approve Lesson",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
-    "/api/v1/admin/lesson-drafts/{draft_id}/reject": {
-      "post": {
-        "operationId": "reject_lesson_api_v1_admin_lesson_drafts__draft_id__reject_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Reject Lesson",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
-    "/api/v1/admin/lessons/import": {
-      "post": {
-        "description": "Fast-path import: validate the upload, persist the original\nimage to Vercel Blob, and create a draft row in\n`status=\"extracting\"`. The OpenAI vision extraction runs\nasynchronously on a Vercel cron (see `app.routers.admin_cron`).\n\nThe handler intentionally does NOT call `extract_lesson_payload`\nhere — the call could take 8–15s on a real OpenAI request, well\nover the simulator's ~900ms QEMU NAT idle timeout. Keeping the\nhandler under ~1s is the whole point of the V0.7 split.",
-        "operationId": "import_lesson_api_v1_admin_lessons_import_post",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_import_lesson_api_v1_admin_lessons_import_post"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Import Lesson",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
     "/api/v1/admin/llm/scan-words": {
       "post": {
         "operationId": "scan_words_api_v1_admin_llm_scan_words_post",
@@ -6743,788 +6468,21 @@
         ]
       }
     },
-    "/api/v1/auth/login": {
+    "/api/v1/family/{family_id}/account/cancel-delete": {
       "post": {
-        "operationId": "login_api_v1_auth_login_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoginResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Login",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/auth/me": {
-      "get": {
-        "operationId": "me_api_v1_auth_me_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Me",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/child/family-packs/latest.json": {
-      "get": {
-        "operationId": "get_merged_family_packs_api_v1_child_family_packs_latest_json_get",
+        "operationId": "post_cancel_delete_api_v1_family__family_id__account_cancel_delete_post",
         "parameters": [
           {
-            "in": "header",
-            "name": "if-none-match",
-            "required": false,
+            "in": "path",
+            "name": "family_id",
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "If-None-Match"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Merged Family Packs",
-        "tags": [
-          "child-family-pack"
-        ]
-      },
-      "head": {
-        "operationId": "head_merged_family_packs_api_v1_child_family_packs_latest_json_head",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "if-none-match",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "If-None-Match"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Head Merged Family Packs",
-        "tags": [
-          "child-family-pack"
-        ]
-      }
-    },
-    "/api/v1/child/packs/latest.json": {
-      "get": {
-        "operationId": "get_child_packs_latest_api_v1_child_packs_latest_json_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "if-none-match",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "If-None-Match"
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
             }
           },
-          {
-            "in": "header",
-            "name": "X-Family-Id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Family-Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Child Packs Latest",
-        "tags": [
-          "child-family-pack"
-        ]
-      },
-      "head": {
-        "operationId": "head_child_packs_latest_api_v1_child_packs_latest_json_head",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "if-none-match",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "If-None-Match"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Family-Id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Family-Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Head Child Packs Latest",
-        "tags": [
-          "child-family-pack"
-        ]
-      }
-    },
-    "/api/v1/child/profile": {
-      "put": {
-        "operationId": "put_self_profile_api_v1_child_profile_put",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChildSelfProfileUpdateIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChildSelfProfileOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Put Self Profile",
-        "tags": [
-          "child-profile"
-        ]
-      }
-    },
-    "/api/v1/child/redemption-requests": {
-      "get": {
-        "operationId": "list_pending_api_v1_child_redemption_requests_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RedemptionRequestListOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Pending",
-        "tags": [
-          "child-wishlist"
-        ]
-      },
-      "post": {
-        "operationId": "submit_redemption_api_v1_child_redemption_requests_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RedemptionRequestCreateIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RedemptionRequestOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Submit Redemption",
-        "tags": [
-          "child-wishlist"
-        ]
-      }
-    },
-    "/api/v1/child/redemption-requests/poll": {
-      "get": {
-        "operationId": "poll_decisions_api_v1_child_redemption_requests_poll_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "since_ms",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Since Ms",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RedemptionPollOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Poll Decisions",
-        "tags": [
-          "child-wishlist"
-        ]
-      }
-    },
-    "/api/v1/child/unbind": {
-      "post": {
-        "description": "V0.6.7 — explicit device unbind. Sets revoked_at; subsequent\n/api/v1/child/* calls with the same token return 404 BINDING_REVOKED.",
-        "operationId": "post_unbind_api_v1_child_unbind_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Post Unbind Api V1 Child Unbind Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Post Unbind",
-        "tags": [
-          "child-wishlist"
-        ]
-      }
-    },
-    "/api/v1/child/wishlist": {
-      "get": {
-        "operationId": "list_wishlist_api_v1_child_wishlist_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CloudWishlistListOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Wishlist",
-        "tags": [
-          "child-wishlist"
-        ]
-      }
-    },
-    "/api/v1/child/wishlist/sync-custom": {
-      "post": {
-        "operationId": "sync_custom_api_v1_child_wishlist_sync_custom_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChildWishlistSyncIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChildWishlistSyncOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Sync Custom",
-        "tags": [
-          "child-wishlist"
-        ]
-      }
-    },
-    "/api/v1/child/word-stats": {
-      "get": {
-        "operationId": "list_word_stats_api_v1_child_word_stats_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "since_ms",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Since Ms",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WordStatsListOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Word Stats",
-        "tags": [
-          "child-word-stats"
-        ]
-      }
-    },
-    "/api/v1/child/word-stats/sync": {
-      "post": {
-        "operationId": "sync_word_stats_api_v1_child_word_stats_sync_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WordStatsSyncIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WordStatsSyncOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Sync Word Stats",
-        "tags": [
-          "child-word-stats"
-        ]
-      }
-    },
-    "/api/v1/health": {
-      "get": {
-        "operationId": "health_api_v1_health_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Health Api V1 Health Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Health",
-        "tags": [
-          "public"
-        ]
-      }
-    },
-    "/api/v1/packs/latest.json": {
-      "get": {
-        "description": "Serve the current published pack JSON.\n\nHonors ``If-None-Match`` per RFC 7232 — when the operator's cached\nETag still matches the current pack version, return ``304 Not\nModified`` with no body.",
-        "operationId": "latest_pack_api_v1_packs_latest_json_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "If-None-Match",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "If-None-Match"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Latest Pack",
-        "tags": [
-          "public"
-        ]
-      }
-    },
-    "/api/v1/pair/redeem": {
-      "post": {
-        "operationId": "post_redeem_api_v1_pair_redeem_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PairRedeemIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PairRedeemOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Post Redeem",
-        "tags": [
-          "pair"
-        ]
-      }
-    },
-    "/api/v1/parent/account/cancel-delete": {
-      "post": {
-        "operationId": "post_cancel_delete_api_v1_parent_account_cancel_delete_post",
-        "parameters": [
           {
             "in": "cookie",
             "name": "wm_session",
@@ -7575,10 +6533,21 @@
         ]
       }
     },
-    "/api/v1/parent/account/delete": {
+    "/api/v1/family/{family_id}/account/delete": {
       "post": {
-        "operationId": "post_delete_api_v1_parent_account_delete_post",
+        "operationId": "post_delete_api_v1_family__family_id__account_delete_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -7629,10 +6598,21 @@
         ]
       }
     },
-    "/api/v1/parent/account/export": {
+    "/api/v1/family/{family_id}/account/export": {
       "post": {
-        "operationId": "post_export_api_v1_parent_account_export_post",
+        "operationId": "post_export_api_v1_family__family_id__account_export_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -7681,10 +6661,21 @@
         ]
       }
     },
-    "/api/v1/parent/account/status": {
+    "/api/v1/family/{family_id}/account/status": {
       "get": {
-        "operationId": "get_status_api_v1_parent_account_status_get",
+        "operationId": "get_status_api_v1_family__family_id__account_status_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -7735,9 +6726,22 @@
         ]
       }
     },
-    "/api/v1/parent/auth/logout": {
+    "/api/v1/family/{family_id}/auth/logout": {
       "post": {
-        "operationId": "post_logout_api_v1_parent_auth_logout_post",
+        "operationId": "post_logout_api_v1_family__family_id__auth_logout_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -7746,12 +6750,22 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "title": "Response Post Logout Api V1 Parent Auth Logout Post",
+                  "title": "Response Post Logout Api V1 Family  Family Id  Auth Logout Post",
                   "type": "object"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Post Logout",
@@ -7760,10 +6774,23 @@
         ]
       }
     },
-    "/api/v1/parent/auth/request-code": {
+    "/api/v1/family/{family_id}/auth/request-code": {
       "post": {
         "description": "Always 202: do NOT reveal whether the email is known (anti-enumeration).\n\nSends the OTP email only when not rate-limited. Email-delivery failures\nare degraded silently — the row is persisted and the user can retry; we\ndo not leak provider state to the public endpoint.",
-        "operationId": "post_request_code_api_v1_parent_auth_request_code_post",
+        "operationId": "post_request_code_api_v1_family__family_id__auth_request_code_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -7802,9 +6829,22 @@
         ]
       }
     },
-    "/api/v1/parent/auth/verify-code": {
+    "/api/v1/family/{family_id}/auth/verify-code": {
       "post": {
-        "operationId": "post_verify_code_api_v1_parent_auth_verify_code_post",
+        "operationId": "post_verify_code_api_v1_family__family_id__auth_verify_code_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -7843,10 +6883,21 @@
         ]
       }
     },
-    "/api/v1/parent/children": {
+    "/api/v1/family/{family_id}/children": {
       "get": {
-        "operationId": "list_children_api_v1_parent_children_get",
+        "operationId": "list_children_api_v1_family__family_id__children_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -7872,7 +6923,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ChildProfileOut"
                   },
-                  "title": "Response List Children Api V1 Parent Children Get",
+                  "title": "Response List Children Api V1 Family  Family Id  Children Get",
                   "type": "array"
                 }
               }
@@ -7901,10 +6952,21 @@
         ]
       }
     },
-    "/api/v1/parent/children/{profile_id}": {
+    "/api/v1/family/{family_id}/children/{profile_id}": {
       "delete": {
-        "operationId": "delete_child_api_v1_parent_children__profile_id__delete",
+        "operationId": "delete_child_api_v1_family__family_id__children__profile_id__delete",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "profile_id",
@@ -7941,7 +7003,7 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "title": "Response Delete Child Api V1 Parent Children  Profile Id  Delete",
+                  "title": "Response Delete Child Api V1 Family  Family Id  Children  Profile Id  Delete",
                   "type": "object"
                 }
               }
@@ -7970,8 +7032,19 @@
         ]
       },
       "put": {
-        "operationId": "put_child_api_v1_parent_children__profile_id__put",
+        "operationId": "put_child_api_v1_family__family_id__children__profile_id__put",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "profile_id",
@@ -8043,10 +7116,21 @@
         ]
       }
     },
-    "/api/v1/parent/children/{profile_id}/report": {
+    "/api/v1/family/{family_id}/children/{profile_id}/report": {
       "get": {
-        "operationId": "get_child_report_api_v1_parent_children__profile_id__report_get",
+        "operationId": "get_child_report_api_v1_family__family_id__children__profile_id__report_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "profile_id",
@@ -8120,10 +7204,21 @@
         ]
       }
     },
-    "/api/v1/parent/children/{profile_id}/wishlist": {
+    "/api/v1/family/{family_id}/children/{profile_id}/wishlist": {
       "get": {
-        "operationId": "list_child_wishlist_api_v1_parent_children__profile_id__wishlist_get",
+        "operationId": "list_child_wishlist_api_v1_family__family_id__children__profile_id__wishlist_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "profile_id",
@@ -8185,8 +7280,19 @@
         ]
       },
       "post": {
-        "operationId": "create_child_wishlist_item_api_v1_parent_children__profile_id__wishlist_post",
+        "operationId": "create_child_wishlist_item_api_v1_family__family_id__children__profile_id__wishlist_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "profile_id",
@@ -8258,10 +7364,21 @@
         ]
       }
     },
-    "/api/v1/parent/devices": {
+    "/api/v1/family/{family_id}/devices": {
       "get": {
-        "operationId": "list_devices_api_v1_parent_devices_get",
+        "operationId": "list_devices_api_v1_family__family_id__devices_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -8312,23 +7429,24 @@
         ]
       }
     },
-    "/api/v1/parent/family-packs": {
+    "/api/v1/family/{family_id}/family-packs/latest.json": {
       "get": {
-        "operationId": "list_packs_api_v1_parent_family_packs_get",
+        "operationId": "get_merged_family_packs_api_v1_family__family_id__family_packs_latest_json_get",
         "parameters": [
           {
-            "in": "query",
-            "name": "include_archived",
-            "required": false,
+            "in": "path",
+            "name": "family_id",
+            "required": true,
             "schema": {
-              "default": false,
-              "title": "Include Archived",
-              "type": "boolean"
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
             }
           },
           {
-            "in": "cookie",
-            "name": "wm_session",
+            "in": "header",
+            "name": "if-none-match",
             "required": false,
             "schema": {
               "anyOf": [
@@ -8339,7 +7457,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Wm Session"
+              "title": "If-None-Match"
             }
           }
         ],
@@ -8347,9 +7465,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackListOut"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -8370,17 +7486,28 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "List Packs",
+        "summary": "Get Merged Family Packs",
         "tags": [
-          "parent-family-pack"
+          "child-family-pack"
         ]
       },
-      "post": {
-        "operationId": "create_pack_api_v1_parent_family_packs_post",
+      "head": {
+        "operationId": "head_merged_family_packs_api_v1_family__family_id__family_packs_latest_json_head",
         "parameters": [
           {
-            "in": "cookie",
-            "name": "wm_session",
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-none-match",
             "required": false,
             "schema": {
               "anyOf": [
@@ -8391,27 +7518,15 @@
                   "type": "null"
                 }
               ],
-              "title": "Wm Session"
+              "title": "If-None-Match"
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FamilyPackCreateIn"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
-          "201": {
+          "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackDefinitionOut"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -8432,836 +7547,27 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Create Pack",
+        "summary": "Head Merged Family Packs",
         "tags": [
-          "parent-family-pack"
+          "child-family-pack"
         ]
       }
     },
-    "/api/v1/parent/family-packs/{pack_id}": {
+    "/api/v1/family/{family_id}/inbox": {
       "get": {
-        "operationId": "get_pack_api_v1_parent_family_packs__pack_id__get",
+        "operationId": "list_inbox_api_v1_family__family_id__inbox_get",
         "parameters": [
           {
             "in": "path",
-            "name": "pack_id",
+            "name": "family_id",
             "required": true,
             "schema": {
-              "title": "Pack Id",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackDetailOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Pack",
-        "tags": [
-          "parent-family-pack"
-        ]
-      },
-      "patch": {
-        "operationId": "patch_pack_api_v1_parent_family_packs__pack_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FamilyPackPatchIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackDefinitionOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Patch Pack",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/family-packs/{pack_id}/archive": {
-      "post": {
-        "operationId": "archive_pack_api_v1_parent_family_packs__pack_id__archive_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackDefinitionOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Archive Pack",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/family-packs/{pack_id}/draft": {
-      "get": {
-        "operationId": "get_draft_api_v1_parent_family_packs__pack_id__draft_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Draft",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/family-packs/{pack_id}/draft/words/{word_id}": {
-      "delete": {
-        "operationId": "delete_draft_word_api_v1_parent_family_packs__pack_id__draft_words__word_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "word_id",
-            "required": true,
-            "schema": {
-              "title": "Word Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Delete Draft Word",
-        "tags": [
-          "parent-family-pack"
-        ]
-      },
-      "put": {
-        "operationId": "upsert_draft_word_api_v1_parent_family_packs__pack_id__draft_words__word_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "word_id",
-            "required": true,
-            "schema": {
-              "title": "Word Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FamilyPackDraftWordIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Upsert Draft Word",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/family-packs/{pack_id}/draft/words:batch-upsert": {
-      "post": {
-        "operationId": "batch_upsert_draft_words_api_v1_parent_family_packs__pack_id__draft_words_batch_upsert_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FamilyPackDraftWordBatchIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackDraftWordBatchOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Batch Upsert Draft Words",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/family-packs/{pack_id}/import-image": {
-      "post": {
-        "operationId": "import_image_to_pack_api_v1_parent_family_packs__pack_id__import_image_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_import_image_to_pack_api_v1_parent_family_packs__pack_id__import_image_post"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackImportImageOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Import Image To Pack",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/family-packs/{pack_id}/publish": {
-      "post": {
-        "operationId": "publish_pack_api_v1_parent_family_packs__pack_id__publish_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FamilyPackPublishIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackPublishOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Publish Pack",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/family-packs/{pack_id}/rollback": {
-      "post": {
-        "operationId": "rollback_pack_api_v1_parent_family_packs__pack_id__rollback_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackRollbackOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Rollback Pack",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/family-packs/{pack_id}/unarchive": {
-      "post": {
-        "operationId": "unarchive_pack_api_v1_parent_family_packs__pack_id__unarchive_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackDefinitionOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Unarchive Pack",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/family-packs/{pack_id}/versions": {
-      "get": {
-        "operationId": "list_versions_api_v1_parent_family_packs__pack_id__versions_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "pack_id",
-            "required": true,
-            "schema": {
-              "title": "Pack Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyPackVersionListOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Versions",
-        "tags": [
-          "parent-family-pack"
-        ]
-      }
-    },
-    "/api/v1/parent/inbox": {
-      "get": {
-        "operationId": "list_inbox_api_v1_parent_inbox_get",
-        "parameters": [
           {
             "in": "query",
             "name": "unread_only",
@@ -9322,10 +7628,21 @@
         ]
       }
     },
-    "/api/v1/parent/inbox/mark-all-read": {
+    "/api/v1/family/{family_id}/inbox/mark-all-read": {
       "post": {
-        "operationId": "mark_all_read_api_v1_parent_inbox_mark_all_read_post",
+        "operationId": "mark_all_read_api_v1_family__family_id__inbox_mark_all_read_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -9351,7 +7668,7 @@
                   "additionalProperties": {
                     "type": "integer"
                   },
-                  "title": "Response Mark All Read Api V1 Parent Inbox Mark All Read Post",
+                  "title": "Response Mark All Read Api V1 Family  Family Id  Inbox Mark All Read Post",
                   "type": "object"
                 }
               }
@@ -9380,10 +7697,21 @@
         ]
       }
     },
-    "/api/v1/parent/inbox/{msg_id}/read": {
+    "/api/v1/family/{family_id}/inbox/{msg_id}/read": {
       "post": {
-        "operationId": "mark_read_api_v1_parent_inbox__msg_id__read_post",
+        "operationId": "mark_read_api_v1_family__family_id__inbox__msg_id__read_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "msg_id",
@@ -9420,7 +7748,7 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "title": "Response Mark Read Api V1 Parent Inbox  Msg Id  Read Post",
+                  "title": "Response Mark Read Api V1 Family  Family Id  Inbox  Msg Id  Read Post",
                   "type": "object"
                 }
               }
@@ -9449,10 +7777,427 @@
         ]
       }
     },
-    "/api/v1/parent/me": {
+    "/api/v1/family/{family_id}/lesson-drafts": {
       "get": {
-        "operationId": "get_me_api_v1_parent_me_get",
+        "operationId": "list_lesson_drafts_api_v1_family__family_id__lesson_drafts_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "pending",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Lesson Drafts",
+        "tags": [
+          "family-lessons"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/lesson-drafts/{draft_id}": {
+      "get": {
+        "operationId": "get_lesson_draft_api_v1_family__family_id__lesson_drafts__draft_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Lesson Draft",
+        "tags": [
+          "family-lessons"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_lesson_draft_api_v1_family__family_id__lesson_drafts__draft_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LessonDraftPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Lesson Draft",
+        "tags": [
+          "family-lessons"
+        ]
+      },
+      "put": {
+        "operationId": "patch_lesson_draft_api_v1_family__family_id__lesson_drafts__draft_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LessonDraftPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Lesson Draft",
+        "tags": [
+          "family-lessons"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/lesson-drafts/{draft_id}/approve": {
+      "post": {
+        "operationId": "approve_lesson_api_v1_family__family_id__lesson_drafts__draft_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonApproveOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Lesson",
+        "tags": [
+          "family-lessons"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/lesson-drafts/{draft_id}/reject": {
+      "post": {
+        "operationId": "reject_lesson_api_v1_family__family_id__lesson_drafts__draft_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Lesson",
+        "tags": [
+          "family-lessons"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/lessons/import": {
+      "post": {
+        "operationId": "import_lesson_api_v1_family__family_id__lessons_import_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_lesson_api_v1_family__family_id__lessons_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Lesson",
+        "tags": [
+          "family-lessons"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/me": {
+      "get": {
+        "operationId": "get_me_api_v1_family__family_id__me_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -9503,10 +8248,177 @@
         ]
       }
     },
-    "/api/v1/parent/pair/create": {
-      "post": {
-        "operationId": "post_create_pair_api_v1_parent_pair_create_post",
+    "/api/v1/family/{family_id}/packs/latest.json": {
+      "get": {
+        "operationId": "get_child_packs_latest_api_v1_family__family_id__packs_latest_json_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-none-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Family-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Family-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Child Packs Latest",
+        "tags": [
+          "child-family-pack"
+        ]
+      },
+      "head": {
+        "operationId": "head_child_packs_latest_api_v1_family__family_id__packs_latest_json_head",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-none-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Family-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Family-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Head Child Packs Latest",
+        "tags": [
+          "child-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/pair/create": {
+      "post": {
+        "operationId": "post_create_pair_api_v1_family__family_id__pair_create_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -9557,10 +8469,21 @@
         ]
       }
     },
-    "/api/v1/parent/pair/status/{token}": {
+    "/api/v1/family/{family_id}/pair/status/{token}": {
       "get": {
-        "operationId": "get_pair_status_api_v1_parent_pair_status__token__get",
+        "operationId": "get_pair_status_api_v1_family__family_id__pair_status__token__get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "token",
@@ -9622,10 +8545,21 @@
         ]
       }
     },
-    "/api/v1/parent/pair/{token}": {
+    "/api/v1/family/{family_id}/pair/{token}": {
       "delete": {
-        "operationId": "delete_pair_api_v1_parent_pair__token__delete",
+        "operationId": "delete_pair_api_v1_family__family_id__pair__token__delete",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "token",
@@ -9687,34 +8621,78 @@
         ]
       }
     },
-    "/api/v1/parent/redemption-requests": {
-      "get": {
-        "operationId": "list_redemption_requests_api_v1_parent_redemption_requests_get",
+    "/api/v1/family/{family_id}/profile": {
+      "put": {
+        "operationId": "put_self_profile_api_v1_family__family_id__profile_put",
         "parameters": [
           {
-            "in": "query",
-            "name": "pending_only",
-            "required": false,
+            "in": "path",
+            "name": "family_id",
+            "required": true,
             "schema": {
-              "default": true,
-              "title": "Pending Only",
-              "type": "boolean"
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChildSelfProfileUpdateIn"
+              }
             }
           },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChildSelfProfileOut"
                 }
-              ],
-              "title": "Wm Session"
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Self Profile",
+        "tags": [
+          "child-profile"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/redemption-requests": {
+      "get": {
+        "operationId": "list_pending_api_v1_family__family_id__redemption_requests_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
             }
           }
         ],
@@ -9745,16 +8723,144 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "List Redemption Requests",
+        "summary": "List Pending",
         "tags": [
-          "parent-children"
+          "child-wishlist"
+        ]
+      },
+      "post": {
+        "operationId": "submit_redemption_api_v1_family__family_id__redemption_requests_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedemptionRequestCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedemptionRequestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Submit Redemption",
+        "tags": [
+          "child-wishlist"
         ]
       }
     },
-    "/api/v1/parent/redemption-requests/{request_id}/approve": {
-      "post": {
-        "operationId": "approve_redemption_api_v1_parent_redemption_requests__request_id__approve_post",
+    "/api/v1/family/{family_id}/redemption-requests/poll": {
+      "get": {
+        "operationId": "poll_decisions_api_v1_family__family_id__redemption_requests_poll_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since_ms",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Since Ms",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedemptionPollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Poll Decisions",
+        "tags": [
+          "child-wishlist"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/redemption-requests/{request_id}/approve": {
+      "post": {
+        "operationId": "approve_redemption_api_v1_family__family_id__redemption_requests__request_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "request_id",
@@ -9826,10 +8932,21 @@
         ]
       }
     },
-    "/api/v1/parent/redemption-requests/{request_id}/reject": {
+    "/api/v1/family/{family_id}/redemption-requests/{request_id}/reject": {
       "post": {
-        "operationId": "reject_redemption_api_v1_parent_redemption_requests__request_id__reject_post",
+        "operationId": "reject_redemption_api_v1_family__family_id__redemption_requests__request_id__reject_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "request_id",
@@ -9901,10 +9018,124 @@
         ]
       }
     },
-    "/api/v1/parent/wishlist-items/{item_id}": {
-      "delete": {
-        "operationId": "archive_wishlist_item_api_v1_parent_wishlist_items__item_id__delete",
+    "/api/v1/family/{family_id}/unbind": {
+      "post": {
+        "description": "V0.6.7 — explicit device unbind. Sets revoked_at; subsequent\n/api/v1/family/{family_id}/* calls with the same token return 404 BINDING_REVOKED.",
+        "operationId": "post_unbind_api_v1_family__family_id__unbind_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Post Unbind Api V1 Family  Family Id  Unbind Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Unbind",
+        "tags": [
+          "child-wishlist"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/wishlist": {
+      "get": {
+        "operationId": "list_wishlist_api_v1_family__family_id__wishlist_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudWishlistListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Wishlist",
+        "tags": [
+          "child-wishlist"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/wishlist-items/{item_id}": {
+      "delete": {
+        "operationId": "archive_wishlist_item_api_v1_family__family_id__wishlist_items__item_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "item_id",
@@ -9966,8 +9197,19 @@
         ]
       },
       "put": {
-        "operationId": "patch_wishlist_item_api_v1_parent_wishlist_items__item_id__put",
+        "operationId": "patch_wishlist_item_api_v1_family__family_id__wishlist_items__item_id__put",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "item_id",
@@ -10039,33 +9281,39 @@
         ]
       }
     },
-    "/api/v1/preview-urls.json": {
-      "get": {
-        "description": "Public QA preview manifest (proxied from Vercel Blob).\n\n**Unauthenticated** — no Authorization header, cookies, or API keys required.\nSafe for DevMenu and scripted clients to fetch directly.",
-        "operationId": "preview_manifest_api_v1_preview_urls_json_get",
+    "/api/v1/family/{family_id}/wishlist/sync-custom": {
+      "post": {
+        "operationId": "sync_custom_api_v1_family__family_id__wishlist_sync_custom_post",
         "parameters": [
           {
-            "in": "header",
-            "name": "If-None-Match",
-            "required": false,
+            "in": "path",
+            "name": "family_id",
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "If-None-Match"
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChildWishlistSyncIn"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ChildWishlistSyncOut"
+                }
               }
             },
             "description": "Successful Response"
@@ -10081,9 +9329,1261 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Preview Manifest",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sync Custom",
         "tags": [
-          "public"
+          "child-wishlist"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/word-stats": {
+      "get": {
+        "operationId": "list_word_stats_api_v1_family__family_id__word_stats_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since_ms",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Since Ms",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WordStatsListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Word Stats",
+        "tags": [
+          "child-word-stats"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/word-stats/sync": {
+      "post": {
+        "operationId": "sync_word_stats_api_v1_family__family_id__word_stats_sync_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WordStatsSyncIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WordStatsSyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sync Word Stats",
+        "tags": [
+          "child-word-stats"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs": {
+      "get": {
+        "operationId": "list_packs_api_v1_family__family_scope__family_packs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Packs",
+        "tags": [
+          "parent-family-pack"
+        ]
+      },
+      "post": {
+        "operationId": "create_pack_api_v1_family__family_scope__family_packs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPackCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDefinitionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Pack",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}": {
+      "get": {
+        "operationId": "get_pack_api_v1_family__family_scope__family_packs__pack_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Pack",
+        "tags": [
+          "parent-family-pack"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_pack_api_v1_family__family_scope__family_packs__pack_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPackPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDefinitionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Pack",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/archive": {
+      "post": {
+        "operationId": "archive_pack_api_v1_family__family_scope__family_packs__pack_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDefinitionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Archive Pack",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/draft": {
+      "get": {
+        "operationId": "get_draft_api_v1_family__family_scope__family_packs__pack_id__draft_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Draft",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/draft/words/{word_id}": {
+      "delete": {
+        "operationId": "delete_draft_word_api_v1_family__family_scope__family_packs__pack_id__draft_words__word_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "word_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Word Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Draft Word",
+        "tags": [
+          "parent-family-pack"
+        ]
+      },
+      "put": {
+        "operationId": "upsert_draft_word_api_v1_family__family_scope__family_packs__pack_id__draft_words__word_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "word_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Word Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPackDraftWordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upsert Draft Word",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/draft/words:batch-upsert": {
+      "post": {
+        "operationId": "batch_upsert_draft_words_api_v1_family__family_scope__family_packs__pack_id__draft_words_batch_upsert_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPackDraftWordBatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDraftWordBatchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Batch Upsert Draft Words",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/import-image": {
+      "post": {
+        "operationId": "import_image_to_pack_api_v1_family__family_scope__family_packs__pack_id__import_image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_image_to_pack_api_v1_family__family_scope__family_packs__pack_id__import_image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackImportImageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Image To Pack",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/publish": {
+      "post": {
+        "operationId": "publish_pack_api_v1_family__family_scope__family_packs__pack_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPackPublishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackPublishOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Pack",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/rollback": {
+      "post": {
+        "operationId": "rollback_pack_api_v1_family__family_scope__family_packs__pack_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackRollbackOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rollback Pack",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/unarchive": {
+      "post": {
+        "operationId": "unarchive_pack_api_v1_family__family_scope__family_packs__pack_id__unarchive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDefinitionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unarchive Pack",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/versions": {
+      "get": {
+        "operationId": "list_versions_api_v1_family__family_scope__family_packs__pack_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackVersionListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Versions",
+        "tags": [
+          "parent-family-pack"
         ]
       }
     },
@@ -10151,16 +10651,178 @@
         ]
       }
     },
-    "/p/{token_short}": {
+    "/api/v1/public/health": {
       "get": {
-        "operationId": "get_landing_p__token_short__get",
+        "operationId": "health_api_v1_public_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Api V1 Public Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/packs/latest.json": {
+      "get": {
+        "description": "Serve the current published pack JSON.\n\nHonors ``If-None-Match`` per RFC 7232 — when the operator's cached\nETag still matches the current pack version, return ``304 Not\nModified`` with no body.",
+        "operationId": "latest_pack_api_v1_public_packs_latest_json_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "If-None-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Latest Pack",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/public/pair/redeem": {
+      "post": {
+        "operationId": "post_redeem_api_v1_public_pair_redeem_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairRedeemIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairRedeemOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Redeem",
+        "tags": [
+          "pair"
+        ]
+      }
+    },
+    "/api/v1/public/preview-urls.json": {
+      "get": {
+        "description": "Public QA preview manifest (proxied from Vercel Blob).\n\n**Unauthenticated** — no Authorization header, cookies, or API keys required.\nSafe for DevMenu and scripted clients to fetch directly.",
+        "operationId": "preview_manifest_api_v1_public_preview_urls_json_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "If-None-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Manifest",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/family/{family_id}": {
+      "get": {
+        "operationId": "get_dashboard_family__family_id__get",
         "parameters": [
           {
             "in": "path",
-            "name": "token_short",
+            "name": "family_id",
             "required": true,
             "schema": {
-              "title": "Token Short",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           }
@@ -10187,60 +10849,71 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Landing",
-        "tags": [
-          "pair"
-        ]
-      }
-    },
-    "/parent": {
-      "get": {
-        "description": "Soft-auth: cookie missing or invalid → redirect to login (HTML flow).",
-        "operationId": "get_dashboard_parent_get",
-        "responses": {
-          "200": {
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
         "summary": "Get Dashboard",
         "tags": [
           "parent-web"
         ]
       }
     },
-    "/parent/": {
+    "/family/{family_id}/": {
       "get": {
-        "description": "Soft-auth: cookie missing or invalid → redirect to login (HTML flow).",
-        "operationId": "get_dashboard_parent__get",
-        "responses": {
-          "200": {
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Dashboard",
-        "tags": [
-          "parent-web"
-        ]
-      }
-    },
-    "/parent/account": {
-      "get": {
-        "operationId": "get_settings_html_parent_account_get",
+        "operationId": "get_dashboard_family__family_id___get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Dashboard",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
+    "/family/{family_id}/account": {
+      "get": {
+        "operationId": "get_settings_html_family__family_id__account_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -10291,10 +10964,21 @@
         ]
       }
     },
-    "/parent/account/cancel-delete": {
+    "/family/{family_id}/account/cancel-delete": {
       "post": {
-        "operationId": "post_cancel_delete_form_parent_account_cancel_delete_post",
+        "operationId": "post_cancel_delete_form_family__family_id__account_cancel_delete_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -10343,10 +11027,21 @@
         ]
       }
     },
-    "/parent/account/delete": {
+    "/family/{family_id}/account/delete": {
       "post": {
-        "operationId": "post_delete_form_parent_account_delete_post",
+        "operationId": "post_delete_form_family__family_id__account_delete_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -10395,9 +11090,22 @@
         ]
       }
     },
-    "/parent/auth/logout": {
+    "/family/{family_id}/auth/logout": {
       "post": {
-        "operationId": "post_logout_form_parent_auth_logout_post",
+        "operationId": "post_logout_form_family__family_id__auth_logout_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -10406,6 +11114,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Post Logout Form",
@@ -10414,14 +11132,27 @@
         ]
       }
     },
-    "/parent/auth/request-code": {
+    "/family/{family_id}/auth/request-code": {
       "post": {
-        "operationId": "post_request_code_form_parent_auth_request_code_post",
+        "operationId": "post_request_code_form_family__family_id__auth_request_code_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_post_request_code_form_parent_auth_request_code_post"
+                "$ref": "#/components/schemas/Body_post_request_code_form_family__family_id__auth_request_code_post"
               }
             }
           },
@@ -10453,14 +11184,27 @@
         ]
       }
     },
-    "/parent/auth/verify-code": {
+    "/family/{family_id}/auth/verify-code": {
       "post": {
-        "operationId": "post_verify_code_form_parent_auth_verify_code_post",
+        "operationId": "post_verify_code_form_family__family_id__auth_verify_code_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_post_verify_code_form_parent_auth_verify_code_post"
+                "$ref": "#/components/schemas/Body_post_verify_code_form_family__family_id__auth_verify_code_post"
               }
             }
           },
@@ -10492,11 +11236,21 @@
         ]
       }
     },
-    "/parent/devices/add": {
+    "/family/{family_id}/devices/add": {
       "get": {
-        "description": "V0.6.2 — render a fresh QR + 6-digit short code for the parent to share.",
-        "operationId": "get_devices_add_parent_devices_add_get",
+        "operationId": "get_devices_add_family__family_id__devices_add_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -10547,10 +11301,21 @@
         ]
       }
     },
-    "/parent/devices/add/cancel": {
+    "/family/{family_id}/devices/add/cancel": {
       "post": {
-        "operationId": "post_devices_add_cancel_parent_devices_add_cancel_post",
+        "operationId": "post_devices_add_cancel_family__family_id__devices_add_cancel_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -10572,7 +11337,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_post_devices_add_cancel_parent_devices_add_cancel_post"
+                "$ref": "#/components/schemas/Body_post_devices_add_cancel_family__family_id__devices_add_cancel_post"
               }
             }
           },
@@ -10609,16 +11374,27 @@
         ]
       }
     },
-    "/parent/devices/add/status": {
+    "/family/{family_id}/devices/add/status": {
       "get": {
-        "description": "HTMX poll endpoint returning the small status partial.",
-        "operationId": "get_devices_add_status_parent_devices_add_status_get",
+        "operationId": "get_devices_add_status_family__family_id__devices_add_status_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "query",
             "name": "token",
             "required": true,
             "schema": {
+              "minLength": 8,
               "title": "Token",
               "type": "string"
             }
@@ -10673,11 +11449,21 @@
         ]
       }
     },
-    "/parent/devices/{binding_id}": {
+    "/family/{family_id}/devices/{binding_id}": {
       "get": {
-        "description": "V0.6.5 — render the per-device detail page with embedded report\nblock. Other-family bindings raise 404.",
-        "operationId": "get_device_detail_parent_devices__binding_id__get",
+        "operationId": "get_device_detail_family__family_id__devices__binding_id__get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "binding_id",
@@ -10739,10 +11525,21 @@
         ]
       }
     },
-    "/parent/devices/{binding_id}/unbind": {
+    "/family/{family_id}/devices/{binding_id}/unbind": {
       "get": {
-        "operationId": "get_device_unbind_confirm_parent_devices__binding_id__unbind_get",
+        "operationId": "get_device_unbind_confirm_family__family_id__devices__binding_id__unbind_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "binding_id",
@@ -10804,8 +11601,19 @@
         ]
       },
       "post": {
-        "operationId": "post_device_unbind_confirm_parent_devices__binding_id__unbind_post",
+        "operationId": "post_device_unbind_confirm_family__family_id__devices__binding_id__unbind_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "binding_id",
@@ -10838,7 +11646,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_post_device_unbind_confirm_parent_devices__binding_id__unbind_post"
+                "$ref": "#/components/schemas/Body_post_device_unbind_confirm_family__family_id__devices__binding_id__unbind_post"
               }
             }
           },
@@ -10877,10 +11685,21 @@
         ]
       }
     },
-    "/parent/feedback": {
+    "/family/{family_id}/feedback": {
       "get": {
-        "operationId": "get_feedback_parent_feedback_get",
+        "operationId": "get_feedback_family__family_id__feedback_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -10931,8 +11750,19 @@
         ]
       },
       "post": {
-        "operationId": "post_feedback_parent_feedback_post",
+        "operationId": "post_feedback_family__family_id__feedback_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -10954,7 +11784,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_post_feedback_parent_feedback_post"
+                "$ref": "#/components/schemas/Body_post_feedback_family__family_id__feedback_post"
               }
             }
           },
@@ -10993,10 +11823,21 @@
         ]
       }
     },
-    "/parent/inbox": {
+    "/family/{family_id}/inbox": {
       "get": {
-        "operationId": "get_inbox_html_parent_inbox_get",
+        "operationId": "get_inbox_html_family__family_id__inbox_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -11047,9 +11888,22 @@
         ]
       }
     },
-    "/parent/login": {
+    "/family/{family_id}/login": {
       "get": {
-        "operationId": "get_login_parent_login_get",
+        "operationId": "get_login_family__family_id__login_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -11060,6 +11914,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Get Login",
@@ -11068,9 +11932,22 @@
         ]
       }
     },
-    "/parent/packs": {
+    "/family/{family_id}/packs/": {
       "get": {
-        "operationId": "list_packs_page_parent_packs_get",
+        "operationId": "list_packs_page_family__family_id__packs__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -11081,6 +11958,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Packs Page",
@@ -11089,12 +11976,25 @@
         ]
       },
       "post": {
-        "operationId": "create_pack_page_parent_packs_post",
+        "operationId": "create_pack_page_family__family_id__packs__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_create_pack_page_parent_packs_post"
+                "$ref": "#/components/schemas/Body_create_pack_page_family__family_id__packs__post"
               }
             }
           },
@@ -11126,9 +12026,22 @@
         ]
       }
     },
-    "/parent/packs/new": {
+    "/family/{family_id}/packs/new": {
       "get": {
-        "operationId": "new_pack_page_parent_packs_new_get",
+        "operationId": "new_pack_page_family__family_id__packs_new_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -11139,6 +12052,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "New Pack Page",
@@ -11147,16 +12070,29 @@
         ]
       }
     },
-    "/parent/packs/{pack_id}": {
+    "/family/{family_id}/packs/{pack_id}": {
       "get": {
-        "operationId": "detail_page_parent_packs__pack_id__get",
+        "operationId": "detail_page_family__family_id__packs__pack_id__get",
         "parameters": [
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           }
@@ -11189,16 +12125,29 @@
         ]
       }
     },
-    "/parent/packs/{pack_id}/draft/add-custom": {
+    "/family/{family_id}/packs/{pack_id}/draft/add-custom": {
       "post": {
-        "operationId": "draft_add_custom_word_parent_packs__pack_id__draft_add_custom_post",
+        "operationId": "draft_add_custom_word_family__family_id__packs__pack_id__draft_add_custom_post",
         "parameters": [
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           }
@@ -11207,7 +12156,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_draft_add_custom_word_parent_packs__pack_id__draft_add_custom_post"
+                "$ref": "#/components/schemas/Body_draft_add_custom_word_family__family_id__packs__pack_id__draft_add_custom_post"
               }
             }
           },
@@ -11239,16 +12188,29 @@
         ]
       }
     },
-    "/parent/packs/{pack_id}/draft/batch-json": {
+    "/family/{family_id}/packs/{pack_id}/draft/batch-json": {
       "post": {
-        "operationId": "draft_batch_json_parent_packs__pack_id__draft_batch_json_post",
+        "operationId": "draft_batch_json_family__family_id__packs__pack_id__draft_batch_json_post",
         "parameters": [
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           }
@@ -11257,7 +12219,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_draft_batch_json_parent_packs__pack_id__draft_batch_json_post"
+                "$ref": "#/components/schemas/Body_draft_batch_json_family__family_id__packs__pack_id__draft_batch_json_post"
               }
             }
           },
@@ -11289,16 +12251,29 @@
         ]
       }
     },
-    "/parent/packs/{pack_id}/draft/delete-word": {
+    "/family/{family_id}/packs/{pack_id}/draft/delete-word": {
       "post": {
-        "operationId": "draft_delete_word_parent_packs__pack_id__draft_delete_word_post",
+        "operationId": "draft_delete_word_family__family_id__packs__pack_id__draft_delete_word_post",
         "parameters": [
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           }
@@ -11307,7 +12282,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_draft_delete_word_parent_packs__pack_id__draft_delete_word_post"
+                "$ref": "#/components/schemas/Body_draft_delete_word_family__family_id__packs__pack_id__draft_delete_word_post"
               }
             }
           },
@@ -11339,16 +12314,29 @@
         ]
       }
     },
-    "/parent/packs/{pack_id}/draft/edit": {
+    "/family/{family_id}/packs/{pack_id}/draft/edit": {
       "get": {
-        "operationId": "draft_edit_page_parent_packs__pack_id__draft_edit_get",
+        "operationId": "draft_edit_page_family__family_id__packs__pack_id__draft_edit_get",
         "parameters": [
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           },
@@ -11391,14 +12379,27 @@
         ]
       },
       "post": {
-        "operationId": "draft_edit_submit_parent_packs__pack_id__draft_edit_post",
+        "operationId": "draft_edit_submit_family__family_id__packs__pack_id__draft_edit_post",
         "parameters": [
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           }
@@ -11407,7 +12408,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_draft_edit_submit_parent_packs__pack_id__draft_edit_post"
+                "$ref": "#/components/schemas/Body_draft_edit_submit_family__family_id__packs__pack_id__draft_edit_post"
               }
             }
           },
@@ -11439,15 +12440,28 @@
         ]
       }
     },
-    "/parent/packs/{pack_id}/import": {
+    "/family/{family_id}/packs/{pack_id}/import": {
       "get": {
-        "operationId": "import_page_parent_packs__pack_id__import_get",
+        "operationId": "import_page_family__family_id__packs__pack_id__import_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
               "type": "string"
             }
@@ -11481,13 +12495,26 @@
         ]
       },
       "post": {
-        "operationId": "import_image_submit_parent_packs__pack_id__import_post",
+        "operationId": "import_image_submit_family__family_id__packs__pack_id__import_post",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
               "type": "string"
             }
@@ -11497,7 +12524,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_import_image_submit_parent_packs__pack_id__import_post"
+                "$ref": "#/components/schemas/Body_import_image_submit_family__family_id__packs__pack_id__import_post"
               }
             }
           },
@@ -11529,16 +12556,29 @@
         ]
       }
     },
-    "/parent/packs/{pack_id}/publish": {
+    "/family/{family_id}/packs/{pack_id}/publish": {
       "post": {
-        "operationId": "publish_page_parent_packs__pack_id__publish_post",
+        "operationId": "publish_page_family__family_id__packs__pack_id__publish_post",
         "parameters": [
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           }
@@ -11547,7 +12587,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_publish_page_parent_packs__pack_id__publish_post"
+                "$ref": "#/components/schemas/Body_publish_page_family__family_id__packs__pack_id__publish_post"
               }
             }
           }
@@ -11578,16 +12618,29 @@
         ]
       }
     },
-    "/parent/packs/{pack_id}/rollback": {
+    "/family/{family_id}/packs/{pack_id}/rollback": {
       "post": {
-        "operationId": "rollback_pack_page_parent_packs__pack_id__rollback_post",
+        "operationId": "rollback_pack_page_family__family_id__packs__pack_id__rollback_post",
         "parameters": [
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           }
@@ -11618,16 +12671,29 @@
         ]
       }
     },
-    "/parent/packs/{pack_id}/versions": {
+    "/family/{family_id}/packs/{pack_id}/versions": {
       "get": {
-        "operationId": "versions_page_parent_packs__pack_id__versions_get",
+        "operationId": "versions_page_family__family_id__packs__pack_id__versions_get",
         "parameters": [
           {
             "in": "path",
             "name": "pack_id",
             "required": true,
             "schema": {
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           }
@@ -11660,10 +12726,21 @@
         ]
       }
     },
-    "/parent/redemptions": {
+    "/family/{family_id}/redemptions": {
       "get": {
-        "operationId": "get_redemption_inbox_parent_redemptions_get",
+        "operationId": "get_redemption_inbox_family__family_id__redemptions_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "cookie",
             "name": "wm_session",
@@ -11714,9 +12791,9 @@
         ]
       }
     },
-    "/parent/redemptions/{request_id}/approve": {
+    "/family/{family_id}/redemptions/{request_id}/approve": {
       "post": {
-        "operationId": "post_approve_redemption_parent_redemptions__request_id__approve_post",
+        "operationId": "post_approve_redemption_family__family_id__redemptions__request_id__approve_post",
         "parameters": [
           {
             "in": "path",
@@ -11726,6 +12803,17 @@
               "maxLength": 64,
               "minLength": 4,
               "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           },
@@ -11777,9 +12865,9 @@
         ]
       }
     },
-    "/parent/redemptions/{request_id}/reject": {
+    "/family/{family_id}/redemptions/{request_id}/reject": {
       "post": {
-        "operationId": "post_reject_redemption_parent_redemptions__request_id__reject_post",
+        "operationId": "post_reject_redemption_family__family_id__redemptions__request_id__reject_post",
         "parameters": [
           {
             "in": "path",
@@ -11789,6 +12877,17 @@
               "maxLength": 64,
               "minLength": 4,
               "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
               "type": "string"
             }
           },
@@ -11840,10 +12939,21 @@
         ]
       }
     },
-    "/parent/verify": {
+    "/family/{family_id}/verify": {
       "get": {
-        "operationId": "get_verify_parent_verify_get",
+        "operationId": "get_verify_family__family_id__verify_get",
         "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
           {
             "in": "query",
             "name": "email",
@@ -11880,6 +12990,48 @@
         "summary": "Get Verify",
         "tags": [
           "parent-web"
+        ]
+      }
+    },
+    "/p/{token_short}": {
+      "get": {
+        "operationId": "get_landing_p__token_short__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token_short",
+            "required": true,
+            "schema": {
+              "title": "Token Short",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Landing",
+        "tags": [
+          "pair-landing"
         ]
       }
     }

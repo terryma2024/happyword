@@ -24,12 +24,12 @@ async def test_batch_upsert_accepts_valid_rows_and_reports_invalid_rows(db: obje
     ac, family_id, _ = await _make_parent_client()
     prefix = f"fam-{family_id.removeprefix('fam-')[:8]}-"
     async with ac:
-        created = await ac.post("/api/v1/parent/family-packs", json={"name": "Unit 1"})
+        created = await ac.post("/api/v1/family/_/family-packs", json={"name": "Unit 1"})
         assert created.status_code == 201
         pack_id = created.json()["pack_id"]
 
         resp = await ac.post(
-            f"/api/v1/parent/family-packs/{pack_id}/draft/words:batch-upsert",
+            f"/api/v1/family/_/family-packs/{pack_id}/draft/words:batch-upsert",
             json={
                 "rows": [
                     {
@@ -71,10 +71,10 @@ async def test_batch_upsert_other_family_pack_404(db: object) -> None:
     ac_b, family_b, _ = await _make_parent_client(email="b-batch@example.com")
     assert family_a != family_b
     async with ac_a, ac_b:
-        created = await ac_a.post("/api/v1/parent/family-packs", json={"name": "Private"})
+        created = await ac_a.post("/api/v1/family/_/family-packs", json={"name": "Private"})
         pack_id = created.json()["pack_id"]
         resp = await ac_b.post(
-            f"/api/v1/parent/family-packs/{pack_id}/draft/words:batch-upsert",
+            f"/api/v1/family/_/family-packs/{pack_id}/draft/words:batch-upsert",
             json={"rows": [{"word_id": "global-apple", "source": "global"}]},
         )
 
@@ -86,10 +86,10 @@ async def test_batch_upsert_other_family_pack_404(db: object) -> None:
 async def test_batch_upsert_rejects_empty_rows(db: object) -> None:
     ac, _, _ = await _make_parent_client(email="empty-batch@example.com")
     async with ac:
-        created = await ac.post("/api/v1/parent/family-packs", json={"name": "Empty"})
+        created = await ac.post("/api/v1/family/_/family-packs", json={"name": "Empty"})
         pack_id = created.json()["pack_id"]
         resp = await ac.post(
-            f"/api/v1/parent/family-packs/{pack_id}/draft/words:batch-upsert",
+            f"/api/v1/family/_/family-packs/{pack_id}/draft/words:batch-upsert",
             json={"rows": []},
         )
 

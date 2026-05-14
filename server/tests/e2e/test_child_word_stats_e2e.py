@@ -43,7 +43,7 @@ def test_sync_empty_returns_empty_arrays(
 ) -> None:
     """CWS-1: empty payload → 200 + accepted/rejected/server_pulls all empty."""
     r = http.post(
-        "/api/v1/child/word-stats/sync",
+        "/api/v1/family/_/word-stats/sync",
         headers=device_headers(device),
         json={"items": [], "synced_through_ms": 0},
     )
@@ -62,7 +62,7 @@ def test_sync_inserts_then_get_returns_row(
     """CWS-2: pushed item appears in subsequent GET /word-stats."""
     word_id = f"e2e-{run_id}-cws-insert"
     push = http.post(
-        "/api/v1/child/word-stats/sync",
+        "/api/v1/family/_/word-stats/sync",
         headers=device_headers(device),
         json={
             "items": [_stat(word_id, last_answered_ms=1_000_000, correct_count=1)],
@@ -73,7 +73,7 @@ def test_sync_inserts_then_get_returns_row(
     assert push.json()["accepted"] == [word_id]
 
     r = http.get(
-        "/api/v1/child/word-stats",
+        "/api/v1/family/_/word-stats",
         headers=device_headers(device),
         params={"since_ms": 0},
     )
@@ -100,7 +100,7 @@ def test_sync_lww_newer_overwrites(
     headers = device_headers(device)
 
     r1 = http.post(
-        "/api/v1/child/word-stats/sync",
+        "/api/v1/family/_/word-stats/sync",
         headers=headers,
         json={"items": [older], "synced_through_ms": 0},
     )
@@ -108,7 +108,7 @@ def test_sync_lww_newer_overwrites(
     assert r1.json()["accepted"] == [word_id]
 
     r2 = http.post(
-        "/api/v1/child/word-stats/sync",
+        "/api/v1/family/_/word-stats/sync",
         headers=headers,
         json={"items": [newer], "synced_through_ms": 0},
     )
@@ -117,7 +117,7 @@ def test_sync_lww_newer_overwrites(
     assert r2.json()["rejected"] == []
 
     g = http.get(
-        "/api/v1/child/word-stats",
+        "/api/v1/family/_/word-stats",
         headers=headers,
         params={"since_ms": 0},
     )
@@ -138,7 +138,7 @@ def test_sync_older_returns_in_server_pulls(
     headers = device_headers(device)
 
     http.post(
-        "/api/v1/child/word-stats/sync",
+        "/api/v1/family/_/word-stats/sync",
         headers=headers,
         json={
             "items": [_stat(word_id, last_answered_ms=5_000, correct_count=3)],
@@ -146,7 +146,7 @@ def test_sync_older_returns_in_server_pulls(
         },
     )
     r = http.post(
-        "/api/v1/child/word-stats/sync",
+        "/api/v1/family/_/word-stats/sync",
         headers=headers,
         json={
             "items": [_stat(word_id, last_answered_ms=1_000, correct_count=1)],
@@ -181,7 +181,7 @@ def test_sync_batch_100_items(
         for i in range(100)
     ]
     r = http.post(
-        "/api/v1/child/word-stats/sync",
+        "/api/v1/family/_/word-stats/sync",
         headers=device_headers(device),
         json={"items": items, "synced_through_ms": 0},
     )
@@ -200,7 +200,7 @@ def test_get_with_since_ms_returns_only_newer(
     old_id = f"e2e-{run_id}-since-old"
     new_id = f"e2e-{run_id}-since-new"
     http.post(
-        "/api/v1/child/word-stats/sync",
+        "/api/v1/family/_/word-stats/sync",
         headers=headers,
         json={
             "items": [
@@ -212,7 +212,7 @@ def test_get_with_since_ms_returns_only_newer(
     )
 
     r = http.get(
-        "/api/v1/child/word-stats",
+        "/api/v1/family/_/word-stats",
         headers=headers,
         params={"since_ms": 5_000},
     )
