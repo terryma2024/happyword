@@ -33,7 +33,7 @@ PAIR_TOKEN_TTL_SECONDS = 3 * 60
 
 # Length of the token prefix the server embeds in the public `/p/<prefix>`
 # QR URL (see `pair._qr_payload_url`). The HarmonyOS client extracts this
-# prefix from the scanned URL and posts it back to `/api/v1/pair/redeem`
+# prefix from the scanned URL and posts it back to `/api/v1/public/pair/redeem`
 # as `token`, so redeem lookup must accept either the 12-char prefix or
 # the full 32-char hex token (the latter is used by the parent web's own
 # status / cancel calls and by tests / CLI tools).

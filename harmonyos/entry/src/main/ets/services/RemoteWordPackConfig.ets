@@ -23,12 +23,12 @@ export const PROD_BASE_URL: string = '';
  * DevMenu preview-manifest fetch origin — **always** the production Vercel app,
  * independent of `BackendEnv`, `effectiveServerBaseUrl()`, preview deployments,
  * or `x-vercel-protection-bypass`. The JSON lists PR preview URLs; the manifest
- * endpoint itself is served from stable prod (`GET /api/v1/preview-urls.json`).
+ * endpoint itself is served from stable prod (`GET /api/v1/public/preview-urls.json`).
  */
 export const PREVIEW_MANIFEST_ORIGIN: string = 'https://happyword.cool';
 
 export const PREVIEW_MANIFEST_JSON_URL: string =
-  `${PREVIEW_MANIFEST_ORIGIN}/api/v1/preview-urls.json`;
+  `${PREVIEW_MANIFEST_ORIGIN}/api/v1/public/preview-urls.json`;
 
 /** AppStorage mirrors written by BackendEnv — read synchronously by pickServerBaseUrl. */
 export const BACKEND_ENV_CACHE_KEY: string = 'backend_env_cache';
@@ -107,14 +107,3 @@ export function effectiveServerBaseUrl(): string {
 }
 
 export const SERVER_BASE_URL: string = pickServerBaseUrl(BuildProfile.BUILD_MODE_NAME);
-
-export function buildLatestPackUrl(base: string): string {
-  if (base.length === 0) {
-    return '';
-  }
-  return `${base}/api/v1/packs/latest.json`;
-}
-
-export function latestPackUrl(): string {
-  return buildLatestPackUrl(effectiveServerBaseUrl());
-}

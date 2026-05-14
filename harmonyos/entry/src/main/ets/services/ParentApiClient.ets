@@ -314,6 +314,8 @@ export class RealHttpRequester implements IHttpRequester {
 export class ParentApiClient {
   private readonly adapter: ParentFetchAdapter;
   private readonly baseUrl: string;
+  /** Decorative until server scopes drafts per family; use real `fam-…` when bound. */
+  private familyIdSegment: string = '_';
   private httpRequester: IHttpRequester = new RealHttpRequester();
 
   constructor(adapter: ParentFetchAdapter, baseUrl: string) {
@@ -321,8 +323,20 @@ export class ParentApiClient {
     this.baseUrl = ParentApiClient.trimTrailingSlash(baseUrl);
   }
 
-  static withRealHttp(baseUrl: string): ParentApiClient {
-    return new ParentApiClient(new RealParentFetchAdapter(), baseUrl);
+  /** Sync lesson-import URLs with ``/api/v1/family/{family_id}/…``; pass '' or `_` when unbound. */
+  setFamilyIdForLessonApis(raw: string): void {
+    const t: string = raw.trim();
+    this.familyIdSegment = t.length > 0 ? t : '_';
+  }
+
+  private lessonFamilyBase(): string {
+    return `${this.baseUrl}/api/v1/family/${encodeURIComponent(this.familyIdSegment)}`;
+  }
+
+  static withRealHttp(baseUrl: string, familyIdForLessonApis: string = ''): ParentApiClient {
+    const c: ParentApiClient = new ParentApiClient(new RealParentFetchAdapter(), baseUrl);
+    c.setFamilyIdForLessonApis(familyIdForLessonApis);
+    return c;
   }
 
   /** Override the binary http path; tests inject a stub. */
@@ -429,10 +443,8 @@ export class ParentApiClient {
     return out;
   }
 
-  // -------------------------------------------------------------------------
-  // V0.5.8 lesson-import endpoints. Auth is omitted in V0.5.8 (open admin);
-  // V0.6 will reattach a per-family bearer token.
-  // -------------------------------------------------------------------------
+  // V0.5.8 lesson-import endpoints under /api/v1/family/{family_id}/… . Auth is
+  // omitted in V0.5.8 (open admin); V0.6 will reattach a per-family bearer token.
 
   /** Upload a single textbook photo and let the server's vision model
    *  extract candidate words. The request is `multipart/form-data` with a
@@ -453,7 +465,7 @@ export class ParentApiClient {
       );
     }
 
-    const url: string = `${this.baseUrl}/api/v1/admin/lessons/import`;
+    const url: string = `${this.lessonFamilyBase()}/lessons/import`;
     const built: MultipartResult = buildSingleImageMultipart(
       'image',
       image.filename.length > 0 ? image.filename : 'lesson.jpg',
@@ -498,7 +510,7 @@ export class ParentApiClient {
 
   /** Fetch a single draft by id (used by the review page). */
   async getLessonDraft(draftId: string): Promise<LessonDraftDto> {
-    const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}`;
+    const url: string = `${this.lessonFamilyBase()}/lesson-drafts/${draftId}`;
     const res: ParentFetchResult = await this.adapter.get(url, ParentApiClient.acceptJsonHeaders());
     ParentApiClient.assertOk(res, 'getLessonDraft');
     return ParentApiClient.parseLessonDraft(res.body, 'getLessonDraft');
@@ -511,7 +523,7 @@ export class ParentApiClient {
    *  DELETE on `http.RequestMethod`; casting `"PATCH"` fails at runtime and
    *  yields HTTP 0. Server accepts the same JSON body on PUT and PATCH. */
   async patchLessonDraft(draftId: string, edited: LessonExtractedDto): Promise<LessonDraftDto> {
-    const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}`;
+    const url: string = `${this.lessonFamilyBase()}/lesson-drafts/${draftId}`;
     const headers: Record<string, string> = ParentApiClient.jsonHeaders();
     const payload: Record<string, LessonExtractedDto> = { 'edited_extracted': edited };
     const body: string = JSON.stringify(payload);
@@ -523,7 +535,7 @@ export class ParentApiClient {
   /** Approve a pending draft. Server returns a summary describing the new
    *  category, the words it created, and any duplicates it skipped. */
   async approveLessonDraft(draftId: string): Promise<LessonApproveSummaryDto> {
-    const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}/approve`;
+    const url: string = `${this.lessonFamilyBase()}/lesson-drafts/${draftId}/approve`;
     const headers: Record<string, string> = ParentApiClient.jsonHeaders();
     const res: ParentFetchResult = await this.adapter.post(url, headers, '{}');
     ParentApiClient.assertOk(res, 'approveLessonDraft');
@@ -538,7 +550,7 @@ export class ParentApiClient {
 
   /** Reject a pending draft. Server returns the (now-rejected) draft. */
   async rejectLessonDraft(draftId: string): Promise<LessonDraftDto> {
-    const url: string = `${this.baseUrl}/api/v1/admin/lesson-drafts/${draftId}/reject`;
+    const url: string = `${this.lessonFamilyBase()}/lesson-drafts/${draftId}/reject`;
     const headers: Record<string, string> = ParentApiClient.jsonHeaders();
     const res: ParentFetchResult = await this.adapter.post(url, headers, '{}');
     ParentApiClient.assertOk(res, 'rejectLessonDraft');
@@ -552,7 +564,7 @@ export class ParentApiClient {
     size: number,
   ): Promise<LessonDraftListPage> {
     const url: string =
-      `${this.baseUrl}/api/v1/admin/lesson-drafts?status=${encodeURIComponent(statusFilter)}` +
+      `${this.lessonFamilyBase()}/lesson-drafts?status=${encodeURIComponent(statusFilter)}` +
       `&page=${page}&size=${size}`;
     const op: string = `listLessonDraftsByStatus(${statusFilter})`;
     const res: ParentFetchResult = await this.adapter.get(url, ParentApiClient.acceptJsonHeaders());

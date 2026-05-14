@@ -63,18 +63,18 @@ PASS="$(resolve_password)" || {
     exit 1
 }
 LOGIN_BODY="$(jq -nc --arg u "$ADMIN_USER" --arg p "$PASS" '{username:$u, password:$p}')"
-LOGIN_RES="$(curl -sS -X POST "$PROD_URL/api/v1/auth/login" \
+LOGIN_RES="$(curl -sS -X POST "$PROD_URL/api/v1/admin/auth/login" \
     -H 'Content-Type: application/json' \
     -d "$LOGIN_BODY" -w $'\n%{http_code}')"
 LOGIN_CODE="$(echo "$LOGIN_RES" | tail -1)"
 LOGIN_JSON="$(echo "$LOGIN_RES" | sed '$d')"
 if [[ "$LOGIN_CODE" != "200" ]]; then
-    echo "[scan-words] [FAIL $LOGIN_CODE] /auth/login" >&2
+    echo "[scan-words] [FAIL $LOGIN_CODE] /admin/auth/login" >&2
     echo "$LOGIN_JSON" >&2
     exit 1
 fi
 TOKEN="$(echo "$LOGIN_JSON" | jq -er .access_token)"
-echo "[scan-words] [OK 200] /auth/login"
+echo "[scan-words] [OK 200] /admin/auth/login"
 
 # 2. POST the fixture image
 SCAN_RES="$(curl -sS -X POST "$PROD_URL/api/v1/admin/llm/scan-words" \

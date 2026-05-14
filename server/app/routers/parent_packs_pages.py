@@ -1,4 +1,4 @@
-"""V0.8.1 — HTML vocabulary workspace under /parent/packs."""
+"""V0.8.1 — HTML vocabulary workspace under /family/{family_id}/packs."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 from json import JSONDecodeError
 from typing import Any
 
-from fastapi import APIRouter, File, Form, Query, Request, UploadFile
+from fastapi import APIRouter, File, Form, Path, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -19,7 +19,7 @@ from app.services import family_pack_service as svc
 from app.services.auth_service import JwtError, decode_typed_token
 from app.services.llm_service import LlmCallError, LlmConfigError
 
-router = APIRouter(prefix="/parent/packs", tags=["parent-packs-html"])
+router = APIRouter(prefix="/family", tags=["parent-packs-html"])
 
 _MAX_IMPORT_IMAGE_BYTES = 8 * 1024 * 1024
 _ACCEPTED_IMPORT_IMAGE_MIME = frozenset({"image/jpeg", "image/png", "image/webp"})
@@ -27,21 +27,21 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 async def _require_parent_html(request: Request) -> User | RedirectResponse:
-    """Mirror `/parent/` dashboard soft-auth (cookie missing → login redirect)."""
+    """Mirror `/family/{family_id}/` dashboard soft-auth (cookie missing → login redirect)."""
     cookie_token = request.cookies.get(get_settings().session_cookie_name)
     if not cookie_token:
-        return RedirectResponse(url="/parent/login", status_code=303)
+        return RedirectResponse(url="/family/_/login", status_code=303)
     try:
         typed = decode_typed_token(cookie_token)
     except JwtError:
-        return RedirectResponse(url="/parent/login", status_code=303)
+        return RedirectResponse(url="/family/_/login", status_code=303)
     if typed.role != "parent":
-        return RedirectResponse(url="/parent/login", status_code=303)
+        return RedirectResponse(url="/family/_/login", status_code=303)
     user = await User.find_one(
         User.username == typed.identifier, User.role == UserRole.PARENT
     )
     if user is None:
-        return RedirectResponse(url="/parent/login", status_code=303)
+        return RedirectResponse(url="/family/_/login", status_code=303)
     return user
 
 
@@ -148,8 +148,8 @@ async def _render_pack_detail(
     )
 
 
-@router.get("", response_class=HTMLResponse, response_model=None)
-async def list_packs_page(request: Request) -> HTMLResponse | RedirectResponse:
+@router.get("/{family_id}/packs/", response_class=HTMLResponse, response_model=None)
+async def list_packs_page(request: Request, family_id: str = Path(min_length=1, max_length=128)) -> HTMLResponse | RedirectResponse:
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
@@ -166,8 +166,8 @@ async def list_packs_page(request: Request) -> HTMLResponse | RedirectResponse:
     )
 
 
-@router.get("/new", response_class=HTMLResponse, response_model=None)
-async def new_pack_page(request: Request) -> HTMLResponse | RedirectResponse:
+@router.get("/{family_id}/packs/new", response_class=HTMLResponse, response_model=None)
+async def new_pack_page(request: Request, family_id: str = Path(min_length=1, max_length=128)) -> HTMLResponse | RedirectResponse:
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
@@ -179,11 +179,12 @@ async def new_pack_page(request: Request) -> HTMLResponse | RedirectResponse:
     )
 
 
-@router.post("", response_model=None)
+@router.post("/{family_id}/packs/", response_model=None)
 async def create_pack_page(
     request: Request,
     name: str = Form(...),
     description: str = Form(""),
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> RedirectResponse | HTMLResponse:
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
@@ -195,13 +196,14 @@ async def create_pack_page(
         description=description or None,
         parent_user_id=user.username,
     )
-    return RedirectResponse(url=f"/parent/packs/{definition.pack_id}", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{definition.pack_id}", status_code=303)
 
 
-@router.get("/{pack_id}/import", response_class=HTMLResponse, response_model=None)
+@router.get("/{family_id}/packs/{pack_id}/import", response_class=HTMLResponse, response_model=None)
 async def import_page(
     request: Request,
-    pack_id: str,
+    family_id: str = Path(min_length=1, max_length=128),
+    pack_id: str = Path(min_length=1, max_length=128),
 ) -> HTMLResponse | RedirectResponse:
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
@@ -209,7 +211,7 @@ async def import_page(
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     return templates.TemplateResponse(
         request,
         "parent/packs/import.html",
@@ -223,10 +225,11 @@ async def import_page(
     )
 
 
-@router.post("/{pack_id}/import", response_model=None)
+@router.post("/{family_id}/packs/{pack_id}/import", response_model=None)
 async def import_image_submit(
     request: Request,
-    pack_id: str,
+    family_id: str = Path(min_length=1, max_length=128),
+    pack_id: str = Path(min_length=1, max_length=128),
     image: UploadFile = File(...),
 ) -> RedirectResponse | HTMLResponse:
     gate = await _require_parent_html(request)
@@ -235,7 +238,7 @@ async def import_image_submit(
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
 
     mime = (image.content_type or "").lower()
     if mime not in _ACCEPTED_IMPORT_IMAGE_MIME:
@@ -300,22 +303,24 @@ async def import_image_submit(
 
     if imported_count == 0:
         return RedirectResponse(
-            url=f"/parent/packs/{pack_id}?import_hint=no_words",
+            url=f"/family/{user.family_id or '_'}/packs/{pack_id}?import_hint=no_words",
             status_code=303,
         )
 
     return RedirectResponse(
-        url=f"/parent/packs/{pack_id}?import_ok=1",
+        url=f"/family/{user.family_id or '_'}/packs/{pack_id}?import_ok=1",
         status_code=303,
     )
 
 
-@router.post("/{pack_id}/publish", response_model=None)
+@router.post("/{family_id}/packs/{pack_id}/publish", response_model=None)
 async def publish_page(
     request: Request,
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
     notes: str = Form(""),
 ) -> RedirectResponse | HTMLResponse:
+    _ = family_id
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
@@ -326,7 +331,7 @@ async def publish_page(
             family_id=user.family_id or "",
         )
     except svc.PackNotFound:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     try:
         await svc.publish(
             definition=definition, parent_user_id=user.username, notes=notes or None
@@ -353,35 +358,36 @@ async def publish_page(
             publish_error="validation",
             publish_row_errors=list(exc.errors),
         )
-    return RedirectResponse(url=f"/parent/packs/{pack_id}", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
 
 
-@router.post("/{pack_id}/rollback", response_model=None)
+@router.post("/{family_id}/packs/{pack_id}/rollback", response_model=None)
 async def rollback_pack_page(
     request: Request,
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> RedirectResponse:
+    _ = family_id
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     try:
         await svc.rollback(definition=definition)
     except svc.NoPreviousVersion:
         return RedirectResponse(
-            url=f"/parent/packs/{pack_id}/versions?rollback_err=no_prev",
+            url=f"/family/{user.family_id or '_'}/packs/{pack_id}/versions?rollback_err=no_prev",
             status_code=303,
         )
-    return RedirectResponse(url=f"/parent/packs/{pack_id}/versions", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}/versions", status_code=303)
 
 
-@router.post("/{pack_id}/draft/add-custom", response_model=None)
+@router.post("/{family_id}/packs/{pack_id}/draft/add-custom", response_model=None)
 async def draft_add_custom_word(
     request: Request,
-    pack_id: str,
     suffix: str = Form(...),
     word: str = Form(...),
     meaning_zh: str = Form(...),
@@ -389,14 +395,17 @@ async def draft_add_custom_word(
     difficulty: int = Form(...),
     example_en: str = Form(""),
     example_zh: str = Form(""),
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> HTMLResponse | RedirectResponse:
+    _ = family_id
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     prefix = svc.CustomIdContract(family_id=user.family_id or "").prefix
     clean_suffix = suffix.strip()
     if len(clean_suffix) == 0:
@@ -439,43 +448,47 @@ async def draft_add_custom_word(
             definition=definition,
             add_word_error="invalid_payload",
         )
-    return RedirectResponse(url=f"/parent/packs/{pack_id}", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
 
 
-@router.post("/{pack_id}/draft/delete-word", response_model=None)
+@router.post("/{family_id}/packs/{pack_id}/draft/delete-word", response_model=None)
 async def draft_delete_word(
     request: Request,
-    pack_id: str,
     word_id: str = Form(...),
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> RedirectResponse:
+    _ = family_id
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     await svc.remove_draft_word(
         definition=definition,
         word_id=word_id,
         parent_user_id=user.username,
     )
-    return RedirectResponse(url=f"/parent/packs/{pack_id}", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
 
 
-@router.post("/{pack_id}/draft/batch-json", response_model=None)
+@router.post("/{family_id}/packs/{pack_id}/draft/batch-json", response_model=None)
 async def draft_batch_json(
     request: Request,
-    pack_id: str,
     batch_json: str = Form(...),
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> HTMLResponse | RedirectResponse:
+    _ = family_id
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     try:
         parsed = json.loads(batch_json)
     except JSONDecodeError:
@@ -510,22 +523,24 @@ async def draft_batch_json(
             batch_error="row_errors",
             batch_row_errors=list(errors),
         )
-    return RedirectResponse(url=f"/parent/packs/{pack_id}", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
 
 
-@router.get("/{pack_id}/draft/edit", response_class=HTMLResponse, response_model=None)
+@router.get("/{family_id}/packs/{pack_id}/draft/edit", response_class=HTMLResponse, response_model=None)
 async def draft_edit_page(
     request: Request,
-    pack_id: str,
     word_id: str = Query(..., min_length=1),
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> HTMLResponse | RedirectResponse:
+    _ = family_id
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     draft = await svc.get_or_create_draft(
         definition=definition, parent_user_id=user.username
     )
@@ -535,7 +550,7 @@ async def draft_edit_page(
             row = dict(w)
             break
     if row is None:
-        return RedirectResponse(url=f"/parent/packs/{pack_id}", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
     prefix = svc.CustomIdContract(family_id=user.family_id or "").prefix
     kind = _draft_row_kind(row, prefix=prefix)
     return await _render_draft_edit(
@@ -548,10 +563,9 @@ async def draft_edit_page(
     )
 
 
-@router.post("/{pack_id}/draft/edit", response_model=None)
+@router.post("/{family_id}/packs/{pack_id}/draft/edit", response_model=None)
 async def draft_edit_submit(
     request: Request,
-    pack_id: str,
     word_id: str = Form(...),
     action: str = Form(""),
     word: str = Form(""),
@@ -560,14 +574,17 @@ async def draft_edit_submit(
     difficulty: str = Form(""),
     example_en: str = Form(""),
     example_zh: str = Form(""),
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> RedirectResponse | HTMLResponse:
+    _ = family_id
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     draft = await svc.get_or_create_draft(
         definition=definition, parent_user_id=user.username
     )
@@ -577,7 +594,7 @@ async def draft_edit_submit(
             row = dict(w)
             break
     if row is None:
-        return RedirectResponse(url=f"/parent/packs/{pack_id}", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
     prefix = svc.CustomIdContract(family_id=user.family_id or "").prefix
     kind = _draft_row_kind(row, prefix=prefix)
 
@@ -610,7 +627,7 @@ async def draft_edit_submit(
                 kind=kind,
                 edit_error=str(exc),
             )
-        return RedirectResponse(url=f"/parent/packs/{pack_id}", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
 
     if kind == "custom":
         diff_raw = difficulty.strip()
@@ -663,7 +680,7 @@ async def draft_edit_submit(
                 kind=kind,
                 edit_error=str(exc),
             )
-        return RedirectResponse(url=f"/parent/packs/{pack_id}", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
 
     # global — optional field overrides
     payload = {"source": "global"}
@@ -699,21 +716,23 @@ async def draft_edit_submit(
             kind=kind,
             edit_error=str(exc),
         )
-    return RedirectResponse(url=f"/parent/packs/{pack_id}", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
 
 
-@router.get("/{pack_id}/versions", response_class=HTMLResponse, response_model=None)
+@router.get("/{family_id}/packs/{pack_id}/versions", response_class=HTMLResponse, response_model=None)
 async def versions_page(
     request: Request,
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> HTMLResponse | RedirectResponse:
+    _ = family_id
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     pointer, _snap_pack = await svc.current_pack(definition=definition)
     snapshots = await svc.list_versions(definition=definition)
     rollback_err = request.query_params.get("rollback_err", "")
@@ -730,18 +749,20 @@ async def versions_page(
     )
 
 
-@router.get("/{pack_id}", response_class=HTMLResponse, response_model=None)
+@router.get("/{family_id}/packs/{pack_id}", response_class=HTMLResponse, response_model=None)
 async def detail_page(
     request: Request,
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
 ) -> HTMLResponse | RedirectResponse:
+    _ = family_id
     gate = await _require_parent_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
     user = gate
     definition = await _load_definition_or_redirect(pack_id, user)
     if definition is None:
-        return RedirectResponse(url="/parent/packs", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
     pointer, pack = await svc.current_pack(definition=definition)
     draft = await svc.get_or_create_draft(
         definition=definition, parent_user_id=user.username

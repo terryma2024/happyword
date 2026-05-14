@@ -114,6 +114,7 @@ async def test_stats_aggregates_after_publish(client: "AsyncClient", admin: User
         model="test",
     ).insert()
     await LessonImportDraft(
+        family_id="fam-stats-lesson",
         source_image_url="stub://lessons/x.jpg",
         extracted={"category_id": "tools", "words": []},
         status="pending",

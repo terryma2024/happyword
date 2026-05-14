@@ -2,7 +2,7 @@
 {% block title %}解除设备绑定{% endblock %}
 {% block content %}
 <section class="max-w-lg space-y-6">
-  <a href="/parent/" class="text-sm text-sky-700 hover:underline">← 返回家长首页</a>
+  <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/" class="text-sm text-sky-700 hover:underline">← 返回家长首页</a>
   <header>
     <h1 class="text-2xl font-semibold text-slate-900">解除设备绑定</h1>
     <p class="text-sm text-slate-500 mt-1">
@@ -30,7 +30,7 @@
   <p class="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{{ error }}</p>
   {% endif %}
 
-  <form method="post" action="/parent/devices/{{ binding.binding_id }}/unbind" class="space-y-4">
+  <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/devices/{{ binding.binding_id }}/unbind" class="space-y-4">
     <div>
       <label class="block text-sm font-medium text-slate-700">验证码</label>
       <input name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required
@@ -38,7 +38,7 @@
     </div>
     <div class="flex gap-3">
       <button type="submit" class="rounded-md bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2">确认解除绑定</button>
-      <a href="/parent/" class="rounded-md border border-slate-300 text-sm px-4 py-2 inline-block">取消</a>
+      <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/" class="rounded-md border border-slate-300 text-sm px-4 py-2 inline-block">取消</a>
     </div>
   </form>
 </section>

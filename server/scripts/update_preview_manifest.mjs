@@ -2,7 +2,7 @@
 /**
  * Build the public preview manifest from Vercel deployments (the source of
  * truth) and upload it to Vercel Blob. The Blob object is the runtime
- * source for the public FastAPI proxy `GET /api/v1/preview-urls.json`
+ * source for the public FastAPI proxy `GET /api/v1/public/preview-urls.json`
  * (see `server/app/services/preview_manifest_service.py`).
  *
  * Per non-protected branch with a successful Vercel preview deployment:

@@ -6,7 +6,7 @@ Idempotent rebuild of the public preview manifest stored in **Vercel Blob** at `
 
 Manifest rows survive across the PR lifecycle as long as the underlying Vercel deployment is alive. A merged PR whose preview deployment hasn't been pruned yet (the weekly `vercel-prune.yml` cron sweeps Mon 10:00 UTC) is still in the manifest — testers can keep pointing the HarmonyOS DevMenu at it. The row vanishes automatically the next time the workflow runs after Vercel deletes the deployment; no separate cleanup job is needed.
 
-**Output: Vercel Blob only.** Earlier revisions also wrote a repo-tracked audit copy at `docs/preview-urls.json` and committed it back to `main` whenever the URL set changed. That bot-commit churn was retired in 2026-05 — runtime traffic always reads from the Blob via the FastAPI proxy `GET /api/v1/preview-urls.json` (see `server/app/services/preview_manifest_service.py`), so the audit copy added noise without value. Each successful run now overwrites the Blob with the freshly built manifest; cache is 60 s by default, so clients converge within roughly that window.
+**Output: Vercel Blob only.** Earlier revisions also wrote a repo-tracked audit copy at `docs/preview-urls.json` and committed it back to `main` whenever the URL set changed. That bot-commit churn was retired in 2026-05 — runtime traffic always reads from the Blob via the FastAPI proxy `GET /api/v1/public/preview-urls.json` (see `server/app/services/preview_manifest_service.py`), so the audit copy added noise without value. Each successful run now overwrites the Blob with the freshly built manifest; cache is 60 s by default, so clients converge within roughly that window.
 
 **Triggers (Node 24 via `actions/setup-node`)**:
 

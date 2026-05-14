@@ -38,7 +38,7 @@ class FamilyPackPublishIn(BaseModel):
 
 
 class FamilyPackDraftWordIn(BaseModel):
-    """Body of `PUT /api/v1/parent/family-packs/{id}/draft/words/{word_id}`.
+    """Body of `PUT /api/v1/family/{family_id}/family-packs/{id}/draft/words/{word_id}`.
 
     `source` selects the entry shape:
     - `global`: this draft pulls (or re-pulls) a global admin word; only the

@@ -75,7 +75,7 @@ Swift services:
 | `CloudCredentialsStore` | Device token, binding id, family id, child profile metadata. |
 | `GlobalPackClient` | Anonymous global pack ETag sync. |
 | `FamilyPackClient` | Device-token family pack ETag sync. |
-| `WordStatsSyncClient` | `POST /api/v1/child/word-stats/sync`. |
+| `WordStatsSyncClient` | `POST /api/v1/family/{family_id}/word-stats/sync`. |
 | `DeviceUnbindClient` | Server unbind and local credential clearing. |
 | `BoundDeviceInfoViewModel` | Profile display, nickname edit, unbind flow. |
 
@@ -122,7 +122,7 @@ Global endpoint:
 
 Family endpoint:
 
-- `GET /api/v1/child/family-packs/latest.json`
+- `GET /api/v1/family/{family_id}/family-packs/latest.json`
 - Bearer device token.
 - Uses ETag and 200/204/304/401/403/410 handling.
 
@@ -141,7 +141,7 @@ Flow:
 ```text
 Battle result / app background / explicit sync
   -> read local WordStat snapshot
-  -> POST /api/v1/child/word-stats/sync
+  -> POST /api/v1/family/{family_id}/word-stats/sync
   -> merge accepted remote state only if protocol requires it
   -> never block battle result
 ```

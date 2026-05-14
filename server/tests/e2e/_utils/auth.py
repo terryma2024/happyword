@@ -40,7 +40,7 @@ class DeviceSession:
 def admin_login(http: httpx.Client, *, username: str, password: str) -> str:
     """Return the bearer token for an admin login. Raises on non-200."""
     r = http.post(
-        "/api/v1/auth/login",
+        "/api/v1/admin/auth/login",
         json={"username": username, "password": password},
     )
     if r.status_code != 200:
@@ -61,14 +61,14 @@ async def parent_login(
 ) -> ParentSession:
     """Run the OTP login flow end-to-end.
 
-    1. POST /parent/auth/request-code → 202.
+    1. POST /api/v1/family/_/auth/request-code → 202.
     2. Overwrite the row's ``code_hash`` with bcrypt(KNOWN_OTP_CODE).
-    3. POST /parent/auth/verify-code → 200 + Set-Cookie.
+    3. POST /api/v1/family/_/auth/verify-code → 200 + Set-Cookie.
 
     The session cookie is attached to the shared ``http`` client so any
     subsequent call in the same test is automatically authenticated.
     """
-    r = http.post("/api/v1/parent/auth/request-code", json={"email": email})
+    r = http.post("/api/v1/family/_/auth/request-code", json={"email": email})
     if r.status_code != 202:
         raise AssertionError(
             f"request-code failed ({r.status_code}): {r.text}"
@@ -77,7 +77,7 @@ async def parent_login(
     await inject_otp_code(mongo, email=email, plain_code=KNOWN_OTP_CODE)
 
     r = http.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": email, "code": KNOWN_OTP_CODE},
     )
     if r.status_code != 200:
@@ -114,7 +114,7 @@ def device_redeem(
     it from a clean anonymous client so the parent's cookie does not leak
     into the redeem call.
     """
-    r = parent_http.post("/api/v1/parent/pair/create")
+    r = parent_http.post("/api/v1/family/_/pair/create")
     if r.status_code != 201:
         raise AssertionError(
             f"pair/create failed ({r.status_code}): {r.text}"
@@ -127,7 +127,7 @@ def device_redeem(
         headers=vercel_bypass_headers(),
     ) as anon:
         r = anon.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": device_id},
         )
     if r.status_code != 200:

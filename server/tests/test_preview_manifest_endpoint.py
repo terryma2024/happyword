@@ -53,7 +53,7 @@ async def test_preview_manifest_returns_503_when_blob_url_is_missing(
 ) -> None:
     monkeypatch.delenv("PREVIEW_MANIFEST_BLOB_URL", raising=False)
 
-    resp = await client.get("/api/v1/preview-urls.json")
+    resp = await client.get("/api/v1/public/preview-urls.json")
 
     assert resp.status_code == 503
     assert resp.json()["detail"] == "PREVIEW_MANIFEST_BLOB_URL is not configured"
@@ -72,7 +72,7 @@ async def test_preview_manifest_proxies_blob_json_with_cache_and_etag(
     monkeypatch.setattr(preview_manifest_service.httpx, "AsyncClient", _FakeBlobClient)
 
     resp = await client.get(
-        "/api/v1/preview-urls.json",
+        "/api/v1/public/preview-urls.json",
         headers={"If-None-Match": '"manifest-v1"'},
     )
 
@@ -108,7 +108,7 @@ async def test_preview_manifest_returns_502_when_blob_fetch_fails(
     )
     monkeypatch.setattr(preview_manifest_service.httpx, "AsyncClient", _FakeBlobClient)
 
-    resp = await client.get("/api/v1/preview-urls.json")
+    resp = await client.get("/api/v1/public/preview-urls.json")
 
     assert resp.status_code == 502
     assert resp.json()["detail"] == "Preview manifest Blob returned 500"

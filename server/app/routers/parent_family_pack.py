@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, Response, UploadFile, status
 
 from app.config import get_settings
 from app.deps import current_parent_user
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-router = APIRouter(prefix="/api/v1/parent/family-packs", tags=["parent-family-pack"])
+router = APIRouter(prefix="/api/v1/family", tags=["parent-family-pack"])
 
 _MAX_IMAGE_BYTES = 8 * 1024 * 1024
 _ACCEPTED_IMAGE_MIME = frozenset({"image/jpeg", "image/png", "image/webp"})
@@ -112,8 +112,9 @@ async def _load_definition_or_404(
         raise _not_found() from exc
 
 
-@router.get("", response_model=FamilyPackListOut)
+@router.get("/{family_scope}/family-packs", response_model=FamilyPackListOut)
 async def list_packs(
+    family_scope: str = Path(min_length=1, max_length=128),
     include_archived: bool = Query(default=False),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackListOut:
@@ -144,12 +145,13 @@ async def list_packs(
 
 
 @router.post(
-    "",
+    "/{family_scope}/family-packs",
     response_model=FamilyPackDefinitionOut,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_pack(
     body: FamilyPackCreateIn,
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackDefinitionOut:
     family_id = user.family_id or ""
@@ -167,9 +169,10 @@ async def create_pack(
     return _serialize_definition(definition)
 
 
-@router.get("/{pack_id}", response_model=FamilyPackDetailOut)
+@router.get("/{family_scope}/family-packs/{pack_id}", response_model=FamilyPackDetailOut)
 async def get_pack(
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackDetailOut:
     family_id = user.family_id or ""
@@ -203,10 +206,11 @@ async def get_pack(
     )
 
 
-@router.patch("/{pack_id}", response_model=FamilyPackDefinitionOut)
+@router.patch("/{family_scope}/family-packs/{pack_id}", response_model=FamilyPackDefinitionOut)
 async def patch_pack(
-    pack_id: str,
     body: FamilyPackPatchIn,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackDefinitionOut:
     family_id = user.family_id or ""
@@ -225,9 +229,10 @@ async def patch_pack(
     return _serialize_definition(definition)
 
 
-@router.post("/{pack_id}/archive", response_model=FamilyPackDefinitionOut)
+@router.post("/{family_scope}/family-packs/{pack_id}/archive", response_model=FamilyPackDefinitionOut)
 async def archive_pack(
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackDefinitionOut:
     family_id = user.family_id or ""
@@ -236,9 +241,10 @@ async def archive_pack(
     return _serialize_definition(definition)
 
 
-@router.post("/{pack_id}/unarchive", response_model=FamilyPackDefinitionOut)
+@router.post("/{family_scope}/family-packs/{pack_id}/unarchive", response_model=FamilyPackDefinitionOut)
 async def unarchive_pack(
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackDefinitionOut:
     family_id = user.family_id or ""
@@ -250,9 +256,10 @@ async def unarchive_pack(
     return _serialize_definition(definition)
 
 
-@router.get("/{pack_id}/draft", response_model=FamilyPackDraftOut)
+@router.get("/{family_scope}/family-packs/{pack_id}/draft", response_model=FamilyPackDraftOut)
 async def get_draft(
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackDraftOut:
     family_id = user.family_id or ""
@@ -263,11 +270,12 @@ async def get_draft(
     return _serialize_draft(draft)
 
 
-@router.put("/{pack_id}/draft/words/{word_id}", response_model=FamilyPackDraftOut)
+@router.put("/{family_scope}/family-packs/{pack_id}/draft/words/{word_id}", response_model=FamilyPackDraftOut)
 async def upsert_draft_word(
-    pack_id: str,
-    word_id: str,
     body: FamilyPackDraftWordIn,
+    pack_id: str = Path(min_length=1, max_length=128),
+    word_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackDraftOut:
     family_id = user.family_id or ""
@@ -290,10 +298,11 @@ async def upsert_draft_word(
     return _serialize_draft(draft)
 
 
-@router.delete("/{pack_id}/draft/words/{word_id}", response_model=FamilyPackDraftOut)
+@router.delete("/{family_scope}/family-packs/{pack_id}/draft/words/{word_id}", response_model=FamilyPackDraftOut)
 async def delete_draft_word(
-    pack_id: str,
-    word_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    word_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackDraftOut:
     family_id = user.family_id or ""
@@ -304,14 +313,14 @@ async def delete_draft_word(
     return _serialize_draft(draft)
 
 
-@router.post(
-    "/{pack_id}/draft/words:batch-upsert",
+@router.post("/{family_scope}/family-packs/{pack_id}/draft/words:batch-upsert",
     response_model=FamilyPackDraftWordBatchOut,
 )
 async def batch_upsert_draft_words(
-    pack_id: str,
-    body: FamilyPackDraftWordBatchIn,
     response: Response,
+    body: FamilyPackDraftWordBatchIn,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackDraftWordBatchOut:
     family_id = user.family_id or ""
@@ -333,14 +342,14 @@ async def batch_upsert_draft_words(
     )
 
 
-@router.post(
-    "/{pack_id}/import-image",
+@router.post("/{family_scope}/family-packs/{pack_id}/import-image",
     response_model=FamilyPackImportImageOut,
     status_code=status.HTTP_201_CREATED,
 )
 async def import_image_to_pack(
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
     image: UploadFile = File(...),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackImportImageOut:
     mime = (image.content_type or "").lower()
@@ -402,14 +411,14 @@ async def import_image_to_pack(
     )
 
 
-@router.post(
-    "/{pack_id}/publish",
+@router.post("/{family_scope}/family-packs/{pack_id}/publish",
     response_model=FamilyPackPublishOut,
     status_code=status.HTTP_201_CREATED,
 )
 async def publish_pack(
-    pack_id: str,
     body: FamilyPackPublishIn,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackPublishOut:
     family_id = user.family_id or ""
@@ -447,9 +456,10 @@ async def publish_pack(
     )
 
 
-@router.post("/{pack_id}/rollback", response_model=FamilyPackRollbackOut)
+@router.post("/{family_scope}/family-packs/{pack_id}/rollback", response_model=FamilyPackRollbackOut)
 async def rollback_pack(
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackRollbackOut:
     family_id = user.family_id or ""
@@ -467,9 +477,10 @@ async def rollback_pack(
     )
 
 
-@router.get("/{pack_id}/versions", response_model=FamilyPackVersionListOut)
+@router.get("/{family_scope}/family-packs/{pack_id}/versions", response_model=FamilyPackVersionListOut)
 async def list_versions(
-    pack_id: str,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> FamilyPackVersionListOut:
     family_id = user.family_id or ""

@@ -9,6 +9,7 @@ import {
   LessonExtractedDto,
   LessonExtractedWord,
 } from '../services/ParentApiClient';
+import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import {
   IOrientationAdapter,
@@ -61,6 +62,7 @@ struct LessonDraftReviewPage {
   @State private toast: string = '';
   private toastTimer: number = -1;
   private draftId: string = '';
+  private cloudCreds: CloudCredentials = new CloudCredentials();
   private client: ParentApiClient = ParentApiClient.withRealHttp(effectiveServerBaseUrl());
   private orientation: IOrientationAdapter = new RealOrientationAdapter(
     this.getUIContext().getHostContext() as common.UIAbilityContext,
@@ -77,9 +79,14 @@ struct LessonDraftReviewPage {
         this.draftId = p.draftId;
       }
     }
-    this.loadDraft().catch((err: BusinessError): void => {
-      console.error(`LessonDraftReviewPage.loadDraft failed: ${JSON.stringify(err)}`);
-    });
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    this.cloudCreds.init(ctx).then((): Promise<void> => this.bootstrapLessonDraftClient())
+      .catch((err: BusinessError): void => {
+        console.error(`LessonDraftReviewPage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
+        this.loadDraft().catch((e2: BusinessError): void => {
+          console.error(`LessonDraftReviewPage.loadDraft failed: ${JSON.stringify(e2)}`);
+        });
+      });
   }
 
   onPageShow(): void {
@@ -96,6 +103,12 @@ struct LessonDraftReviewPage {
     // Outer ParentAdminPage handles restoreAutoLandscape on its own
     // aboutToDisappear; portrait stays locked across the back-pop so
     // the parent's onPageShow re-lock is a no-op.
+  }
+
+  private async bootstrapLessonDraftClient(): Promise<void> {
+    const snap: CloudCredentialsSnapshot = await this.cloudCreds.load();
+    this.client.setFamilyIdForLessonApis(snap.familyId);
+    await this.loadDraft();
   }
 
   private async loadDraft(): Promise<void> {

@@ -10,7 +10,7 @@ from app.models.word import Word
 async def test_packs_latest_with_no_words_returns_empty_list(
     client: AsyncClient, db: object
 ) -> None:
-    resp = await client.get("/api/v1/packs/latest.json")
+    resp = await client.get("/api/v1/public/packs/latest.json")
     assert resp.status_code == 200
     body = resp.json()
     # V0.5.3: live fallback (no pack ever published) reports version=0 so
@@ -42,7 +42,7 @@ async def test_packs_latest_returns_seeded_words(client: AsyncClient, db: object
         updated_at=now,
     ).insert()
 
-    resp = await client.get("/api/v1/packs/latest.json")
+    resp = await client.get("/api/v1/public/packs/latest.json")
     assert resp.status_code == 200
     body = resp.json()
     assert {w["id"] for w in body["words"]} == {"fruit-apple", "place-school"}

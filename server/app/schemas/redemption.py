@@ -38,7 +38,7 @@ class RedemptionRequestListOut(BaseModel):
 
 
 class RedemptionPollOut(BaseModel):
-    """Returned from `GET /api/v1/child/redemption-requests/poll`.
+    """Returned from `GET /api/v1/family/{family_id}/redemption-requests/poll`.
 
     The device shares its last-seen `since_ms` so we only return rows whose
     decision (or expiry) happened after that cursor.

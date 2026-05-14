@@ -77,17 +77,17 @@ async def test_child_packs_latest_merges_global_and_family(db: object) -> None:
     parent, family_id = await _make_parent_client(email="merge@example.com")
     prefix = f"fam-{family_id.removeprefix('fam-')[:8]}-"
     async with parent:
-        created = await parent.post("/api/v1/parent/family-packs", json={"name": "Family"})
+        created = await parent.post("/api/v1/family/_/family-packs", json={"name": "Family"})
         pack_id = created.json()["pack_id"]
         await parent.put(
-            f"/api/v1/parent/family-packs/{pack_id}/draft/words/{prefix}pear",
+            f"/api/v1/family/_/family-packs/{pack_id}/draft/words/{prefix}pear",
             json={"source": "custom", "word": "pear", "meaning_zh": "梨", "category": "fruit", "difficulty": 1},
         )
-        await parent.post(f"/api/v1/parent/family-packs/{pack_id}/publish", json={"notes": "family"})
+        await parent.post(f"/api/v1/family/_/family-packs/{pack_id}/publish", json={"notes": "family"})
 
     device = await _make_device_client(family_id=family_id, suffix="merge1")
     async with device:
-        resp = await device.get("/api/v1/child/packs/latest.json")
+        resp = await device.get("/api/v1/family/_/packs/latest.json")
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -106,17 +106,20 @@ async def test_child_packs_latest_rejects_family_hint_mismatch(db: object) -> No
     _, family_b = await _make_parent_client(email="hint-b@example.com")
     device = await _make_device_client(family_id=family_a, suffix="hint1")
     async with device:
-        resp = await device.get("/api/v1/child/packs/latest.json", headers={"X-Family-Id": family_b})
+        resp = await device.get("/api/v1/family/_/packs/latest.json", headers={"X-Family-Id": family_b})
 
     assert resp.status_code == 403
     assert resp.json()["detail"]["error"]["code"] == "TENANT_MISMATCH"
 
 
 @pytest.mark.asyncio
-async def test_child_family_packs_compat_alias_still_works(db: object) -> None:
+async def test_child_family_packs_latest_json_empty_when_no_published(
+    db: object,
+) -> None:
+    """Canonical child path (no legacy URL aliases)."""
     _, family_id = await _make_parent_client(email="compat@example.com")
     device = await _make_device_client(family_id=family_id, suffix="compat1")
     async with device:
-        resp = await device.get("/api/v1/child/family-packs/latest.json")
+        resp = await device.get(f"/api/v1/family/{family_id}/family-packs/latest.json")
 
-    assert resp.status_code in (200, 204)
+    assert resp.status_code == 204

@@ -63,7 +63,7 @@ class CloudModelsTest {
 
         assertTrue(result is BindingResult.Success)
         assertEquals("POST", capturedMethod)
-        assertEquals("https://happyword.cool/api/v1/pair/redeem", capturedUrl)
+        assertEquals("https://happyword.cool/api/v1/public/pair/redeem", capturedUrl)
         assertEquals("""{"short_code":"123456","device_id":"device-aaaa"}""", capturedBody)
         assertEquals("bind-1", (result as BindingResult.Success).credentials.bindingId)
         assertEquals("jwt.token.value", result.credentials.deviceToken)
@@ -108,10 +108,10 @@ class CloudModelsTest {
             },
         )
 
-        val updated = client.updateProfile("device.jwt.token", "星星", "🦄")
+        val updated = client.updateProfile("device.jwt.token", "fam-1", "星星", "🦄")
 
         assertEquals("PUT", capturedMethod)
-        assertEquals("https://happyword.cool/api/v1/child/profile", capturedUrl)
+        assertEquals("https://happyword.cool/api/v1/family/fam-1/profile", capturedUrl)
         assertEquals("""{"nickname":"星星","avatar_emoji":"🦄"}""", capturedBody)
         assertEquals("星星", updated.nickname)
         assertEquals("🦄", updated.avatarEmoji)
@@ -144,10 +144,11 @@ class CloudModelsTest {
             deviceToken = "device.jwt.token",
             stats = listOf(WordLearningStat("fruit-forest", "fruit-apple", 2, 1, 1, 2000L)),
             syncedThroughMs = 1000L,
+            familyId = "fam-sync-test",
         )
 
         assertEquals("POST", capturedMethod)
-        assertEquals("https://happyword.cool/api/v1/child/word-stats/sync", capturedUrl)
+        assertEquals("https://happyword.cool/api/v1/family/fam-sync-test/word-stats/sync", capturedUrl)
         assertEquals(
             """{"items":[{"word_id":"fruit-apple","seen_count":2,"correct_count":1,"wrong_count":1,"last_answered_ms":2000,"last_correct_ms":2000,"next_review_ms":0,"memory_state":"new","consecutive_correct":0,"consecutive_wrong":0,"mastery":0.5}],"synced_through_ms":1000}""",
             capturedBody,

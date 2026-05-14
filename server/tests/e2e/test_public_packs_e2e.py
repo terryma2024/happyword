@@ -14,12 +14,12 @@ def _same_entity_tag(left: str | None, right: str | None) -> bool:
 @pytest.mark.smoke
 def test_packs_latest_returns_etag_and_304_round_trip(http: httpx.Client) -> None:
     """PUB-2 + PUB-4: latest.json returns 200 + ETag; If-None-Match → 304."""
-    r = http.get("/api/v1/packs/latest.json")
+    r = http.get("/api/v1/public/packs/latest.json")
     assert r.status_code == 200
     etag = r.headers.get("ETag")
     assert etag is not None and (etag.startswith('"') or etag.startswith('W/"'))
 
-    r2 = http.get("/api/v1/packs/latest.json", headers={"If-None-Match": etag})
+    r2 = http.get("/api/v1/public/packs/latest.json", headers={"If-None-Match": etag})
     assert r2.status_code == 304
     # Vercel may weaken ETags while compressing 200 responses; the 304 only
     # needs to carry the same entity tag after weak/strong normalization.
@@ -31,7 +31,7 @@ def test_packs_latest_returns_etag_and_304_round_trip(http: httpx.Client) -> Non
 def test_packs_latest_stale_etag_returns_full_body(http: httpx.Client) -> None:
     """PUB-5: a stale If-None-Match falls back to a full 200 + new ETag."""
     r = http.get(
-        "/api/v1/packs/latest.json",
+        "/api/v1/public/packs/latest.json",
         headers={"If-None-Match": '"stale-version-99999"'},
     )
     assert r.status_code == 200

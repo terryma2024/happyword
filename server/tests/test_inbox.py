@@ -30,11 +30,11 @@ async def parent_client(
         transport=transport, base_url="http://test", follow_redirects=False
     ) as ac:
         await ac.post(
-            "/api/v1/parent/auth/request-code", json={"email": "ix@example.com"}
+            "/api/v1/family/_/auth/request-code", json={"email": "ix@example.com"}
         )
         code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[:6]
         await ac.post(
-            "/api/v1/parent/auth/verify-code",
+            "/api/v1/family/_/auth/verify-code",
             json={"email": "ix@example.com", "code": code},
         )
         # Look up the parent username from /me-shaped endpoint isn't available,
@@ -76,7 +76,7 @@ async def test_list_inbox_returns_unread_count(
     await _seed_msg(username, title="未读 1")
     await _seed_msg(username, title="未读 2")
     await _seed_msg(username, title="已读 1", read=True)
-    r = await ac.get("/api/v1/parent/inbox")
+    r = await ac.get("/api/v1/family/_/inbox")
     assert r.status_code == 200
     body = r.json()
     assert body["unread_count"] == 2
@@ -90,7 +90,7 @@ async def test_unread_only_filter(
     ac, username = parent_client
     await _seed_msg(username, title="未读 1")
     await _seed_msg(username, title="已读 1", read=True)
-    r = await ac.get("/api/v1/parent/inbox", params={"unread_only": "true"})
+    r = await ac.get("/api/v1/family/_/inbox", params={"unread_only": "true"})
     body = r.json()
     assert len(body["items"]) == 1
     assert body["items"][0]["title"] == "未读 1"
@@ -102,8 +102,8 @@ async def test_mark_read_idempotent(
 ) -> None:
     ac, username = parent_client
     msg = await _seed_msg(username, title="x")
-    r1 = await ac.post(f"/api/v1/parent/inbox/{msg.msg_id}/read")
-    r2 = await ac.post(f"/api/v1/parent/inbox/{msg.msg_id}/read")
+    r1 = await ac.post(f"/api/v1/family/_/inbox/{msg.msg_id}/read")
+    r2 = await ac.post(f"/api/v1/family/_/inbox/{msg.msg_id}/read")
     assert r1.status_code == 200
     assert r2.status_code == 200
     saved = await ParentInboxMsg.find_one(ParentInboxMsg.msg_id == msg.msg_id)
@@ -118,7 +118,7 @@ async def test_mark_all_read(
     ac, username = parent_client
     await _seed_msg(username, title="未读 1")
     await _seed_msg(username, title="未读 2")
-    r = await ac.post("/api/v1/parent/inbox/mark-all-read")
+    r = await ac.post("/api/v1/family/_/inbox/mark-all-read")
     assert r.json()["updated"] == 2
     rows = await ParentInboxMsg.find(
         ParentInboxMsg.parent_user_id == username
@@ -132,7 +132,7 @@ async def test_other_parent_inbox_invisible(
 ) -> None:
     ac, _username = parent_client
     await _seed_msg("other-user", title="不该出现")
-    r = await ac.get("/api/v1/parent/inbox")
+    r = await ac.get("/api/v1/family/_/inbox")
     assert r.status_code == 200
     titles = [it["title"] for it in r.json()["items"]]
     assert "不该出现" not in titles
@@ -143,8 +143,13 @@ async def test_html_inbox_renders_list(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
     ac, username = parent_client
+    from app.models.user import User, UserRole
+
+    user = await User.find_one(User.username == username, User.role == UserRole.PARENT)
+    assert user is not None
+    fid = user.family_id or "_"
     await _seed_msg(username, title="hello world")
-    r = await ac.get("/parent/inbox")
+    r = await ac.get(f"/family/{fid}/inbox")
     assert r.status_code == 200
     assert 'id="inbox-list"' in r.text
     assert "hello world" in r.text

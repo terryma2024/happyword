@@ -1,6 +1,6 @@
 """Pack publish / rollback / serialize service (V0.5.3 -> V0.5.6).
 
-Layout note: the public `/api/v1/packs/latest.json` endpoint imports
+Layout note: the public `/api/v1/public/packs/latest.json` endpoint imports
 :func:`get_current_pack_payload` so that the wire schema stays in one
 place across schema_version bumps (v1 today; v2 in V0.5.4 with LLM
 fields; v4 in V0.5.5 with categories[]; v5 in V0.5.6 with
@@ -171,7 +171,7 @@ async def rollback_pack() -> PackPointer:
 
 
 # ---------------------------------------------------------------------------
-# Read paths used by /api/v1/packs/latest.json + /admin/packs
+# Read paths used by /api/v1/public/packs/latest.json + /admin/packs
 # ---------------------------------------------------------------------------
 
 
@@ -189,7 +189,7 @@ async def get_pack_by_version(version: int) -> WordPack | None:
 
 
 async def get_current_pack_payload() -> tuple[int, dict[str, Any]]:
-    """Wire payload for `/api/v1/packs/latest.json`.
+    """Wire payload for `/api/v1/public/packs/latest.json`.
 
     Returns ``(version, payload)``. Falls back to a live (non-snapshot)
     pack when no publish has happened yet — V0.5.1 dev / pre-publish

@@ -8,7 +8,7 @@ Behaviour contracts from the V0.5.2 plan:
 5. PUT 404 when id missing
 6. DELETE marks deleted_at; subsequent GET returns 404; ?include_deleted=true returns it
 7. DELETE on already-deleted → 404
-8. soft-deleted word is excluded from /api/v1/packs/latest.json
+8. soft-deleted word is excluded from /api/v1/public/packs/latest.json
 9. GET list paginated with category / difficulty / q filters
 
 NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
@@ -207,7 +207,7 @@ async def test_soft_deleted_word_excluded_from_public_pack(
     )
     await client.delete("/api/v1/admin/words/fruit-apple", headers=headers)
 
-    pack = await client.get("/api/v1/packs/latest.json")
+    pack = await client.get("/api/v1/public/packs/latest.json")
     assert pack.status_code == 200
     ids = [w["id"] for w in pack.json()["words"]]
     assert "fruit-apple" not in ids

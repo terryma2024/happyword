@@ -39,17 +39,17 @@ async def parent_with_device(
         transport=transport, base_url="http://test", follow_redirects=False
     ) as ac:
         await ac.post(
-            "/api/v1/parent/auth/request-code", json={"email": "del@example.com"}
+            "/api/v1/family/_/auth/request-code", json={"email": "del@example.com"}
         )
         code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[:6]
         await ac.post(
-            "/api/v1/parent/auth/verify-code",
+            "/api/v1/family/_/auth/verify-code",
             json={"email": "del@example.com", "code": code},
         )
-        c = await ac.post("/api/v1/parent/pair/create")
+        c = await ac.post("/api/v1/family/_/pair/create")
         token = c.json()["token"]
         rd = await ac.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": "dev-del-001"},
         )
         body = rd.json()
@@ -74,7 +74,7 @@ async def test_status_returns_no_schedule_initially(
     parent_with_device: tuple[AsyncClient, str, str, str, str],
 ) -> None:
     ac, _username, _family, _child, _binding = parent_with_device
-    r = await ac.get("/api/v1/parent/account/status")
+    r = await ac.get("/api/v1/family/_/account/status")
     assert r.status_code == 200
     body = r.json()
     assert body["scheduled_deletion_at"] is None
@@ -86,7 +86,7 @@ async def test_delete_schedules_with_7_day_grace(
     parent_with_device: tuple[AsyncClient, str, str, str, str],
 ) -> None:
     ac, username, _family, _child, _binding = parent_with_device
-    r = await ac.post("/api/v1/parent/account/delete")
+    r = await ac.post("/api/v1/family/_/account/delete")
     assert r.status_code == 200
     body = r.json()
     assert body["grace_days"] == 7
@@ -100,8 +100,8 @@ async def test_cancel_delete_clears_schedule(
     parent_with_device: tuple[AsyncClient, str, str, str, str],
 ) -> None:
     ac, username, _family, _child, _binding = parent_with_device
-    await ac.post("/api/v1/parent/account/delete")
-    r = await ac.post("/api/v1/parent/account/cancel-delete")
+    await ac.post("/api/v1/family/_/account/delete")
+    r = await ac.post("/api/v1/family/_/account/cancel-delete")
     assert r.status_code == 200
     assert r.json()["cancelled"] is True
     user = await User.find_one(User.username == username)
@@ -114,7 +114,7 @@ async def test_sweep_skips_users_within_grace(
     parent_with_device: tuple[AsyncClient, str, str, str, str],
 ) -> None:
     ac, username, _family, _child, _binding = parent_with_device
-    await ac.post("/api/v1/parent/account/delete")
+    await ac.post("/api/v1/family/_/account/delete")
     n = await account_deletion_service.sweep_scheduled_deletes(
         now=datetime.now(tz=UTC) + timedelta(days=1)
     )
@@ -129,11 +129,11 @@ async def test_sweep_after_grace_cascades_everything(
 ) -> None:
     ac, username, family_id, child_id, _binding = parent_with_device
     cr = await ac.post(
-        f"/api/v1/parent/children/{child_id}/wishlist",
+        f"/api/v1/family/_/children/{child_id}/wishlist",
         json={"display_name": "测试", "cost_coins": 10, "icon_emoji": "🎁"},
     )
     assert cr.status_code == 201
-    await ac.post("/api/v1/parent/account/delete")
+    await ac.post("/api/v1/family/_/account/delete")
     later = datetime.now(tz=UTC) + timedelta(days=8)
     n = await account_deletion_service.sweep_scheduled_deletes(now=later)
     assert n == 1
@@ -159,7 +159,7 @@ async def test_audit_log_records_delete_request(
     parent_with_device: tuple[AsyncClient, str, str, str, str],
 ) -> None:
     ac, username, _family, _child, _binding = parent_with_device
-    await ac.post("/api/v1/parent/account/delete")
+    await ac.post("/api/v1/family/_/account/delete")
     rows = await AuditLog.find(AuditLog.action == "account.delete_request").to_list()
     assert any(r.actor_id == username for r in rows)
 
@@ -169,7 +169,7 @@ async def test_audit_log_records_delete_commit(
     parent_with_device: tuple[AsyncClient, str, str, str, str],
 ) -> None:
     ac, username, _family, _child, _binding = parent_with_device
-    await ac.post("/api/v1/parent/account/delete")
+    await ac.post("/api/v1/family/_/account/delete")
     later = datetime.now(tz=UTC) + timedelta(days=8)
     await account_deletion_service.sweep_scheduled_deletes(now=later)
     rows = await AuditLog.find(AuditLog.action == "account.delete_commit").to_list()
@@ -185,13 +185,13 @@ async def test_export_includes_published_family_word_packs(
 ) -> None:
     ac, _username, family_id, _child, _binding = parent_with_device
     assert family_id
-    created = await ac.post("/api/v1/parent/family-packs", json={"name": "Export Pack"})
+    created = await ac.post("/api/v1/family/_/family-packs", json={"name": "Export Pack"})
     assert created.status_code == 201
     pack_id = created.json()["pack_id"]
     prefix = f"fam-{family_id.removeprefix('fam-')[:8]}-"
     wid = f"{prefix}hello"
     put = await ac.put(
-        f"/api/v1/parent/family-packs/{pack_id}/draft/words/{wid}",
+        f"/api/v1/family/_/family-packs/{pack_id}/draft/words/{wid}",
         json={
             "source": "custom",
             "word": "hello",
@@ -202,12 +202,12 @@ async def test_export_includes_published_family_word_packs(
     )
     assert put.status_code == 200
     pub = await ac.post(
-        f"/api/v1/parent/family-packs/{pack_id}/publish",
+        f"/api/v1/family/_/family-packs/{pack_id}/publish",
         json={"notes": "v1"},
     )
     assert pub.status_code == 201
 
-    r = await ac.post("/api/v1/parent/account/export")
+    r = await ac.post("/api/v1/family/_/account/export")
     assert r.status_code == 200
     body = r.json()
     data = body["data"]
@@ -229,10 +229,10 @@ async def test_export_returns_json_with_summary(
 ) -> None:
     ac, _username, _family, child_id, _binding = parent_with_device
     await ac.post(
-        f"/api/v1/parent/children/{child_id}/wishlist",
+        f"/api/v1/family/_/children/{child_id}/wishlist",
         json={"display_name": "测试", "cost_coins": 10, "icon_emoji": "🎁"},
     )
-    r = await ac.post("/api/v1/parent/account/export")
+    r = await ac.post("/api/v1/family/_/account/export")
     assert r.status_code == 200
     body = r.json()
     assert "summary" in body
@@ -253,7 +253,7 @@ async def test_child_unbind_revokes_binding(
         binding_id=binding_id, child_profile_id=child_id
     )
     r = await ac.post(
-        "/api/v1/child/unbind",
+        "/api/v1/family/_/unbind",
         headers={"Authorization": f"Bearer {device_token}"},
     )
     assert r.status_code == 200
@@ -264,7 +264,7 @@ async def test_child_unbind_revokes_binding(
 
     # Subsequent device API call must 404 with BINDING_REVOKED.
     r2 = await ac.get(
-        "/api/v1/child/wishlist",
+        "/api/v1/family/_/wishlist",
         headers={"Authorization": f"Bearer {device_token}"},
     )
     assert r2.status_code == 404
@@ -284,7 +284,7 @@ async def test_inbox_messages_purged_on_cascade(
         body_md="x",
         created_at=datetime.now(tz=UTC),
     ).insert()
-    await ac.post("/api/v1/parent/account/delete")
+    await ac.post("/api/v1/family/_/account/delete")
     await account_deletion_service.sweep_scheduled_deletes(
         now=datetime.now(tz=UTC) + timedelta(days=8)
     )

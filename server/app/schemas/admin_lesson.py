@@ -73,7 +73,7 @@ class LessonDraftPatchIn(BaseModel):
 
 
 class LessonApproveOut(BaseModel):
-    """Returned from POST /admin/lesson-drafts/{id}/approve."""
+    """Returned from POST /api/v1/family/{family_id}/lesson-drafts/{id}/approve."""
 
     model_config = ConfigDict(extra="forbid")
     created_category: CategoryOut

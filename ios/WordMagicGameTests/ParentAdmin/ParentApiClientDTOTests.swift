@@ -11,11 +11,33 @@ final class ParentApiClientDTOTests: XCTestCase {
 
         let drafts = try decoder.decode(LessonDraftListPage.self, from: Self.draftsJSON)
         XCTAssertEqual(drafts.items.count, 1)
-        XCTAssertEqual(drafts.items[0].status, .pendingReview)
+        XCTAssertEqual(drafts.items[0].status, .pending)
 
         let published = try decoder.decode(ParentPackPublished.self, from: Self.publishJSON)
         XCTAssertEqual(published.version, 7)
         XCTAssertEqual(published.wordCount, 18)
+    }
+
+    func testDecodesLegacyPendingReviewStatusAsPending() throws {
+        let decoder = JSONDecoder.parentApi
+        let json = Data("""
+        {
+          "items": [
+            {
+              "id": "draft-legacy",
+              "source_image_url": "https://example.test/x.png",
+              "status": "pending_review",
+              "prompt_version": 1,
+              "created_at": "2026-05-10T08:00:00Z"
+            }
+          ],
+          "total": 1,
+          "page": 1,
+          "size": 20
+        }
+        """.utf8)
+        let drafts = try decoder.decode(LessonDraftListPage.self, from: json)
+        XCTAssertEqual(drafts.items[0].status, .pending)
     }
 
     private static let statsJSON = Data("""
@@ -37,7 +59,7 @@ final class ParentApiClientDTOTests: XCTestCase {
         {
           "id": "draft-1",
           "source_image_url": "https://example.test/lesson.png",
-          "status": "pending_review",
+          "status": "pending",
           "prompt_version": 1,
           "created_at": "2026-05-10T08:00:00Z",
           "extracted": {

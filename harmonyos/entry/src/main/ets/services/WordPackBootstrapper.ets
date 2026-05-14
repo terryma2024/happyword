@@ -2,8 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { WordEntry } from '../models/WordEntry';
 import { WordRepository } from './WordRepository';
 import { WordPackCache } from './WordPackCache';
-import { RemoteWordPackService } from './RemoteWordPackService';
-import { latestPackUrl, effectiveServerBaseUrl } from './RemoteWordPackConfig';
+import { effectiveServerBaseUrl } from './RemoteWordPackConfig';
 import { MIN_REPO_SIZE } from './QuestionGenerator';
 import { Pack } from '../models/Pack';
 import { BuiltinPackLoader } from './BuiltinPackLoader';
@@ -16,23 +15,21 @@ import { PackNetworkFetchAdapter } from './PackNetworkFetchAdapter';
 export type RawfileLoader = () => Promise<WordEntry[]>;
 
 export interface BootstrapDeps {
+  /** Legacy on-disk cache from pre-V0.6.6 public single-pack sync; read-only in bootstrap(). */
   cache: WordPackCache;
-  // Kept in the bag because the manual sync path (VC0.5.B) still needs
-  // it. bootstrap() itself ignores this field.
-  remote: RemoteWordPackService;
   rawfileLoader: RawfileLoader;
-  serverUrl: string;
 }
 
 /**
  * V0.5 client follow-up: cold-start orchestrator for the word pack.
  *
- * Read-only. bootstrap() NEVER touches the network. The only path
- * that writes the cache is `WordPackSyncService.syncOnce`, triggered
- * by an operator tap on ConfigPage. Removing the auto-refresh kills
- * the cache-poisoning class of bug that surfaced in V0.5.7 (prod was
- * serving a 1-word pack; the old auto-refresh wrote it to disk; next
- * cold start handed a 1-word repo to QuestionGenerator and threw).
+ * Read-only. bootstrap() NEVER touches the network. New installs rely
+ * on rawfile/bundled words; upgrades may still read a non-empty legacy
+ * `WordPackCache` prefs blob until the user clears app data. Removing
+ * the old auto-refresh avoids the cache-poisoning class of bug that
+ * surfaced in V0.5.7 (prod was serving a 1-word pack; the old
+ * auto-refresh wrote it to disk; next cold start handed a 1-word repo
+ * to QuestionGenerator and threw).
  *
  * Sync section (returns within tens of ms):
  *   1. read cache.
@@ -45,16 +42,13 @@ export class WordPackBootstrapper {
   static async forContext(ctx: common.UIAbilityContext): Promise<BootstrapDeps> {
     const cache: WordPackCache = new WordPackCache();
     await cache.init(ctx);
-    const remote: RemoteWordPackService = new RemoteWordPackService();
     const repo: WordRepository = new WordRepository();
     const deps: BootstrapDeps = {
       cache,
-      remote,
       rawfileLoader: async (): Promise<WordEntry[]> => {
         await repo.loadFromRawfile(ctx);
         return repo.all();
       },
-      serverUrl: latestPackUrl(),
     };
     return deps;
   }
@@ -81,8 +75,8 @@ export class WordPackBootstrapper {
    *   - global packs from `wordmagic_global_packs` prefs cache (no network);
    *   - family packs from `wordmagic_family_packs` prefs cache (no network),
    *     adapted from FamilyPacksBlob → Pack[] using the same lift
-   *     `GlobalPackService.parsePacks` performs on the public-latest
-   *     wire format.
+   *     `GlobalPackService.parsePacks` performs on the global-packs
+   *     latest.json wire format.
    *
    * Returns an assembled PackLibrary ready to feed the home-page chip
    * row and BattlePage's repo construction. NEVER touches the network —

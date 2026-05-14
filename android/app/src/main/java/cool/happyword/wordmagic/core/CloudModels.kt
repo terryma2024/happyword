@@ -190,7 +190,7 @@ class DeviceBindingClient(
         if (deviceId.isBlank()) {
             return BindingResult.Failure("设备 ID 不可用，请重试")
         }
-        val url = "${baseUrlProvider().trimEnd('/')}/api/v1/pair/redeem"
+        val url = "${baseUrlProvider().trimEnd('/')}/api/v1/public/pair/redeem"
         val headers = linkedMapOf(
             "Content-Type" to "application/json",
             "Accept" to "application/json",
@@ -253,11 +253,12 @@ class ChildProfileClient(
     private val extraHeadersProvider: () -> Map<String, String> = { emptyMap() },
     private val transport: BindingHttpTransport = UrlConnectionBindingHttpTransport(),
 ) {
-    suspend fun updateProfile(deviceToken: String, nickname: String, avatarEmoji: String): UpdatedChildProfile {
+    suspend fun updateProfile(deviceToken: String, familyId: String, nickname: String, avatarEmoji: String): UpdatedChildProfile {
         if (deviceToken.isBlank()) {
             throw ChildProfileException("NOT_BOUND", "no device token", 0)
         }
-        val url = "${baseUrlProvider().trimEnd('/')}/api/v1/child/profile"
+        val fid = familyId.trim().ifBlank { "_" }
+        val url = "${baseUrlProvider().trimEnd('/')}/api/v1/family/$fid/profile"
         val headers = linkedMapOf(
             "Content-Type" to "application/json",
             "Accept" to "application/json",
@@ -272,10 +273,10 @@ class ChildProfileClient(
             throw ChildProfileException("NETWORK", err.message.orEmpty(), 0)
         }
         if (response.status != 200) {
-            throw ChildProfileException(parseErrorCode(response.body), "child/profile: HTTP ${response.status}", response.status)
+            throw ChildProfileException(parseErrorCode(response.body), "family/profile: HTTP ${response.status}", response.status)
         }
         return parseUpdatedProfile(response.body)
-            ?: throw ChildProfileException("UNKNOWN", "child/profile: malformed response body", response.status)
+            ?: throw ChildProfileException("UNKNOWN", "family/profile: malformed response body", response.status)
     }
 
     private fun parseUpdatedProfile(body: String): UpdatedChildProfile? {
@@ -407,7 +408,12 @@ open class WordStatsSyncClient(
         return """{"items":[$rows],"synced_through_ms":$syncedThroughMs}"""
     }
 
-    open suspend fun sync(deviceToken: String, stats: List<WordLearningStat>, syncedThroughMs: Long): WordStatsSyncResult {
+    open suspend fun sync(
+        deviceToken: String,
+        stats: List<WordLearningStat>,
+        syncedThroughMs: Long,
+        familyId: String = "_",
+    ): WordStatsSyncResult {
         if (deviceToken.isBlank()) {
             return WordStatsSyncResult(status = WordStatsSyncStatus.Unbound)
         }
@@ -415,6 +421,7 @@ open class WordStatsSyncClient(
         if (baseUrl.isBlank()) {
             return WordStatsSyncResult(status = WordStatsSyncStatus.NetworkError)
         }
+        val fid = familyId.trim().ifBlank { "_" }
         val headers = linkedMapOf(
             "Content-Type" to "application/json",
             "Accept" to "application/json",
@@ -424,7 +431,7 @@ open class WordStatsSyncClient(
         }
         val response = try {
             transport.postJson(
-                url = "$baseUrl/api/v1/child/word-stats/sync",
+                url = "$baseUrl/api/v1/family/$fid/word-stats/sync",
                 headers = headers,
                 body = buildPayload(stats, syncedThroughMs),
             )

@@ -43,12 +43,12 @@ Swift implementation rules:
 Phase 1 must preserve these API shapes even if the first implementation uses mocks:
 
 - `GET /api/v1/admin/stats`
-- `GET /api/v1/admin/lesson-drafts`
-- `GET /api/v1/admin/lesson-drafts/{draft_id}`
-- `PATCH /api/v1/admin/lesson-drafts/{draft_id}`
-- `POST /api/v1/admin/lesson-drafts/{draft_id}/approve`
-- `POST /api/v1/admin/lesson-drafts/{draft_id}/reject`
-- `POST /api/v1/admin/lessons/import`
+- `GET /api/v1/family/{family_id}/lesson-drafts`
+- `GET /api/v1/family/{family_id}/lesson-drafts/{draft_id}`
+- `PATCH /api/v1/family/{family_id}/lesson-drafts/{draft_id}`
+- `POST /api/v1/family/{family_id}/lesson-drafts/{draft_id}/approve`
+- `POST /api/v1/family/{family_id}/lesson-drafts/{draft_id}/reject`
+- `POST /api/v1/family/{family_id}/lessons/import`
 - `POST /api/v1/admin/packs/publish`
 
 The current V0.5.8 security tradeoff is inherited from the HarmonyOS implementation and must be documented in iOS code comments when real networking is added.

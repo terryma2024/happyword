@@ -1,6 +1,6 @@
 """V0.6.4 — Cloud sync API for the bound device.
 
-Two endpoints under `/api/v1/child/word-stats`:
+Two endpoints under `/api/v1/family/{family_id}/word-stats`:
 
 - `POST /sync` — push deltas + receive server-newer rows.
 - `GET /` (with optional `?since_ms=`) — pull only.
@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from app.deps import current_device_binding
 from app.schemas.word_stats_sync import (
@@ -30,18 +30,20 @@ if TYPE_CHECKING:
     from app.models.device_binding import DeviceBinding
 
 
-router = APIRouter(prefix="/api/v1/child/word-stats", tags=["child-word-stats"])
+router = APIRouter(prefix="/api/v1/family", tags=["child-word-stats"])
 
 
 def _now_ms() -> int:
     return int(datetime.now(tz=UTC).timestamp() * 1000)
 
 
-@router.post("/sync", response_model=WordStatsSyncOut)
+@router.post("/{family_id}/word-stats/sync", response_model=WordStatsSyncOut)
 async def sync_word_stats(
     body: WordStatsSyncIn,
+    family_id: str = Path(min_length=1, max_length=128),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> WordStatsSyncOut:
+    _ = family_id
     result = await svc.sync(
         child_profile_id=binding.child_profile_id,
         items=body.items,
@@ -56,11 +58,13 @@ async def sync_word_stats(
     )
 
 
-@router.get("", response_model=WordStatsListOut)
+@router.get("/{family_id}/word-stats", response_model=WordStatsListOut)
 async def list_word_stats(
+    family_id: str = Path(min_length=1, max_length=128),
     since_ms: int = Query(default=0, ge=0),
     binding: DeviceBinding = Depends(current_device_binding),
 ) -> WordStatsListOut:
+    _ = family_id
     items = await svc.list_since(
         child_profile_id=binding.child_profile_id, since_ms=since_ms
     )

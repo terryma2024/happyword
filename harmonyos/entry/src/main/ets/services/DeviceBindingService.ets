@@ -13,7 +13,7 @@ import {
  *
  * The service does NOT touch UI: it depends on `BarcodeScannerLike` (so
  * tests don't dial @kit.ScanKit), `BindingHttpClientLike` (so tests don't
- * dial real /api/v1/pair/redeem), `DeviceIdProvider`, and
+ * dial real `/api/v1/public/pair/redeem`), `DeviceIdProvider`, and
  * `CloudCredentials`. Pages observe `state` via the listener callback.
  */
 

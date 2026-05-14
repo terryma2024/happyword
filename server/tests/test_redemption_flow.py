@@ -35,17 +35,17 @@ async def parent_with_device(
         transport=transport, base_url="http://test", follow_redirects=False
     ) as ac:
         await ac.post(
-            "/api/v1/parent/auth/request-code", json={"email": "rd@example.com"}
+            "/api/v1/family/_/auth/request-code", json={"email": "rd@example.com"}
         )
         code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[:6]
         await ac.post(
-            "/api/v1/parent/auth/verify-code",
+            "/api/v1/family/_/auth/verify-code",
             json={"email": "rd@example.com", "code": code},
         )
-        c = await ac.post("/api/v1/parent/pair/create")
+        c = await ac.post("/api/v1/family/_/pair/create")
         token = c.json()["token"]
         rd = await ac.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": "dev-rdm-001"},
         )
         body = rd.json()
@@ -65,7 +65,7 @@ async def _create_active_item(
     ac: AsyncClient, child_id: str, *, name: str = "冰棍", cost: int = 15
 ) -> str:
     cr = await ac.post(
-        f"/api/v1/parent/children/{child_id}/wishlist",
+        f"/api/v1/family/_/children/{child_id}/wishlist",
         json={"display_name": name, "cost_coins": cost, "icon_emoji": "🍦"},
     )
     return cr.json()["item_id"]
@@ -79,7 +79,7 @@ async def test_device_submit_creates_pending(
     item_id = await _create_active_item(ac, child_id, name="冰棍", cost=15)
 
     r = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
@@ -96,10 +96,10 @@ async def test_device_submit_inactive_item_returns_409(
 ) -> None:
     ac, _binding, child_id, token = parent_with_device
     item_id = await _create_active_item(ac, child_id)
-    await ac.delete(f"/api/v1/parent/wishlist-items/{item_id}")
+    await ac.delete(f"/api/v1/family/_/wishlist-items/{item_id}")
 
     r = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
@@ -114,14 +114,14 @@ async def test_parent_approve_marks_item_redeemed(
     ac, _binding, child_id, token = parent_with_device
     item_id = await _create_active_item(ac, child_id, cost=20)
     sub = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
     rid = sub.json()["request_id"]
 
     ar = await ac.post(
-        f"/api/v1/parent/redemption-requests/{rid}/approve",
+        f"/api/v1/family/_/redemption-requests/{rid}/approve",
         json={"note": "干得不错"},
     )
     assert ar.status_code == 200
@@ -140,14 +140,14 @@ async def test_parent_reject_keeps_item_active(
     ac, _binding, child_id, token = parent_with_device
     item_id = await _create_active_item(ac, child_id)
     sub = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
     rid = sub.json()["request_id"]
 
     ar = await ac.post(
-        f"/api/v1/parent/redemption-requests/{rid}/reject",
+        f"/api/v1/family/_/redemption-requests/{rid}/reject",
         json={"note": "再等等"},
     )
     assert ar.status_code == 200
@@ -164,13 +164,13 @@ async def test_double_decision_returns_409(
     ac, _binding, child_id, token = parent_with_device
     item_id = await _create_active_item(ac, child_id)
     sub = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
     rid = sub.json()["request_id"]
-    await ac.post(f"/api/v1/parent/redemption-requests/{rid}/approve", json={})
-    r = await ac.post(f"/api/v1/parent/redemption-requests/{rid}/approve", json={})
+    await ac.post(f"/api/v1/family/_/redemption-requests/{rid}/approve", json={})
+    r = await ac.post(f"/api/v1/family/_/redemption-requests/{rid}/approve", json={})
     assert r.status_code == 409
     assert r.json()["detail"]["error"]["code"] == "ALREADY_DECIDED"
 
@@ -183,27 +183,27 @@ async def test_parent_pending_only_filter(
     a = await _create_active_item(ac, child_id, name="A")
     b = await _create_active_item(ac, child_id, name="B")
     s1 = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": a},
     )
     s2 = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": b},
     )
     await ac.post(
-        f"/api/v1/parent/redemption-requests/{s1.json()['request_id']}/approve",
+        f"/api/v1/family/_/redemption-requests/{s1.json()['request_id']}/approve",
         json={},
     )
 
-    r = await ac.get("/api/v1/parent/redemption-requests")
+    r = await ac.get("/api/v1/family/_/redemption-requests")
     pending = r.json()["items"]
     assert len(pending) == 1
     assert pending[0]["request_id"] == s2.json()["request_id"]
 
     r2 = await ac.get(
-        "/api/v1/parent/redemption-requests", params={"pending_only": "false"}
+        "/api/v1/family/_/redemption-requests", params={"pending_only": "false"}
     )
     assert len(r2.json()["items"]) == 2
 
@@ -215,12 +215,12 @@ async def test_device_pending_lists_only_open(
     ac, _binding, child_id, token = parent_with_device
     item_id = await _create_active_item(ac, child_id)
     sub = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
     r = await ac.get(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
     )
     body = r.json()
@@ -235,15 +235,15 @@ async def test_device_poll_returns_decided_after_since(
     ac, _binding, child_id, token = parent_with_device
     item_id = await _create_active_item(ac, child_id)
     sub = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
     rid = sub.json()["request_id"]
-    await ac.post(f"/api/v1/parent/redemption-requests/{rid}/approve", json={})
+    await ac.post(f"/api/v1/family/_/redemption-requests/{rid}/approve", json={})
 
     r = await ac.get(
-        "/api/v1/child/redemption-requests/poll",
+        "/api/v1/family/_/redemption-requests/poll",
         headers={"Authorization": f"Bearer {token}"},
         params={"since_ms": 0},
     )
@@ -255,7 +255,7 @@ async def test_device_poll_returns_decided_after_since(
     # Now poll with since_ms = future to confirm filter works.
     future_ms = int(time.time() * 1000) + 60_000
     r2 = await ac.get(
-        "/api/v1/child/redemption-requests/poll",
+        "/api/v1/family/_/redemption-requests/poll",
         headers={"Authorization": f"Bearer {token}"},
         params={"since_ms": future_ms},
     )
@@ -268,7 +268,7 @@ async def test_other_family_request_404(
 ) -> None:
     ac, _binding, _child_id, _token = parent_with_device
     r = await ac.post(
-        "/api/v1/parent/redemption-requests/rdm-deadbeef/approve", json={}
+        "/api/v1/family/_/redemption-requests/rdm-deadbeef/approve", json={}
     )
     assert r.status_code == 404
     assert r.json()["detail"]["error"]["code"] == "REDEMPTION_NOT_FOUND"
@@ -334,20 +334,20 @@ async def test_revoking_binding_keeps_pending_alive(
     ac, _binding, child_id, token = parent_with_device
     item_id = await _create_active_item(ac, child_id)
     sub = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
     rid = sub.json()["request_id"]
 
-    await ac.delete(f"/api/v1/parent/children/{child_id}")
+    await ac.delete(f"/api/v1/family/_/children/{child_id}")
     pending = await RedemptionRequest.find_one(RedemptionRequest.request_id == rid)
     assert pending is not None
     assert pending.status == RedemptionStatus.PENDING
 
     # Parent can still approve (or reject) since the row still exists.
     r = await ac.post(
-        f"/api/v1/parent/redemption-requests/{rid}/approve", json={}
+        f"/api/v1/family/_/redemption-requests/{rid}/approve", json={}
     )
     assert r.status_code == 200
     assert r.json()["status"] == "approved"

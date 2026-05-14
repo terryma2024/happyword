@@ -6,7 +6,7 @@ The on-device UI tests in ``entry/src/ohosTest`` exercise these flows
 that previously made live HTTP requests to ``https://happyword.cool``:
 
 * ``ConfigPage`` — legacy pack-sync round-trip
-  (``GET /api/v1/packs/latest.json``); kept for app cold-start so
+  (``GET /api/v1/public/packs/latest.json``); kept for app cold-start so
   ``WordPackSyncService`` doesn't 404.
 * (V0.6.5) ``PackManagerPage`` — three-layer pack sync. The 🔄 同步词包
   button hits both
@@ -17,12 +17,13 @@ that previously made live HTTP requests to ``https://happyword.cool``:
   rows render with English names and the HomePage chip row grows when
   a synced pack is activated.
 * ``ParentAdminPage`` — stats + pending lesson drafts + publish notes
-  + photo import (``GET /api/v1/admin/stats``, ``GET /admin/lesson-drafts``,
-  ``POST /admin/packs/publish``, ``POST /admin/lessons/import``).
+  + photo import (``GET /api/v1/admin/stats``,
+  ``GET /api/v1/family/{family_id}/lesson-drafts``,
+  ``POST /admin/packs/publish``, ``POST /api/v1/family/{family_id}/lessons/import``).
 * ``LessonDraftReviewPage`` — load / patch / approve / reject lesson drafts.
 * (V0.6) ``ScanBindingPage`` / ``ConfigPage`` parent-account row —
-  short-code redeem (``POST /api/v1/pair/redeem``) and device unbind
-  (``POST /api/v1/child/unbind``). Cloud sync / wishlist / redemption
+  short-code redeem (``POST /api/v1/public/pair/redeem``) and device unbind
+  (``POST /api/v1/family/_/unbind``). Cloud sync / wishlist / redemption
   endpoints are also stubbed so that any cold-start network call from a
   bound device returns deterministic empty payloads.
 
@@ -255,6 +256,19 @@ FIXTURE_FAMILY_PACK_PAYLOAD: dict[str, Any] = {
     ],
 }
 
+CHILD_VOCABULARY_ETAG: str = '"child-vocab-v1"'
+
+# Mirrors `ChildPacksMergedOut`; `parseFamilyPacksBlob` consumes `packs`.
+FIXTURE_CHILD_PACKS_LATEST_BODY: dict[str, Any] = {
+    "schema_version": 1,
+    "family_id": "ui-mock-fam-001",
+    "global_version": 1,
+    "family_versions": {FAMILY_PACK_ID: FAMILY_PACK_VERSION},
+    "merged_at": FAMILY_PACK_MERGED_AT,
+    "words": [],
+    "packs": FIXTURE_FAMILY_PACK_PAYLOAD["packs"],
+}
+
 # Shape mirrors server/app/schemas/admin_lesson.py::LessonDraftOut.
 FIXTURE_DRAFT_ID: str = "ui-mock-draft-001"
 FIXTURE_DRAFT_CATEGORY_ID: str = "ui-mock-cat-001"
@@ -274,6 +288,7 @@ def _fresh_draft(draft_id: str = FIXTURE_DRAFT_ID) -> dict[str, Any]:
     """
     return {
         "id": draft_id,
+        "family_id": _PAIR_FAMILY_ID,
         "source_image_url": "",
         "extracted": {
             "category_id": FIXTURE_DRAFT_CATEGORY_ID,
@@ -313,7 +328,7 @@ _PAIR_BINDING_ID: str = "ui-mock-bind-001"
 _PAIR_FAMILY_ID: str = "ui-mock-fam-001"
 _PAIR_CHILD_PROFILE_ID: str = "ui-mock-child-001"
 # V0.6.8: nickname / avatar_emoji are mutable so the new device-side
-# `PUT /api/v1/child/profile` endpoint can write them back. The
+# `PUT /api/v1/family/_/profile` endpoint can write them back. The
 # `_DEFAULT_*` constants are the redeem-time seed and the value
 # `_reset_state()` restores between integration runs.
 _PAIR_NICKNAME_DEFAULT: str = "测试宝贝"
@@ -364,7 +379,7 @@ class PairRedeemIn(BaseModel):
 
 
 class ChildProfileUpdateIn(BaseModel):
-    """V0.6.8 — body for `PUT /api/v1/child/profile`. Mirror of
+    """V0.6.8 — body for `PUT /api/v1/family/_/profile`. Mirror of
     `app/schemas/child_self.ChildSelfProfileUpdateIn`."""
 
     nickname: str
@@ -413,11 +428,11 @@ def create_app() -> FastAPI:
     # Public endpoints
     # ------------------------------------------------------------------
 
-    @app.get("/api/v1/health")
+    @app.get("/api/v1/public/health")
     async def health() -> dict[str, Any]:
         return {"ok": True, "mock": True, "ts": _now_iso()}
 
-    @app.get("/api/v1/packs/latest.json")
+    @app.get("/api/v1/public/packs/latest.json")
     async def latest_pack(
         if_none_match: str | None = Header(None, alias="If-None-Match"),
     ) -> Response:
@@ -497,18 +512,36 @@ def create_app() -> FastAPI:
     # Admin: lesson drafts
     # ------------------------------------------------------------------
 
-    @app.get("/api/v1/admin/lesson-drafts")
+    def _lesson_family_key(family_id: str) -> str:
+        """Map the parent-web placeholder ``_`` to the mock's paired family id.
+
+        Production FastAPI rejects ``_`` so imported words stay family-scoped;
+        the Harmony ohosTest harness still calls ``/family/_/…`` against this
+        mock, so we normalize here only.
+        """
+        fid = family_id.strip()
+        if fid in ("", "_"):
+            return _PAIR_FAMILY_ID
+        return fid
+
+    @app.get("/api/v1/family/{family_id}/lesson-drafts")
     async def admin_list_drafts(
+        family_id: str,
         status: str | None = None,
         page: int = 1,
         size: int = 20,
     ) -> dict[str, Any]:
-        # Mirror the prod contract in `app/routers/admin_lessons.py`:
+        key = _lesson_family_key(family_id)
+        # Mirror the prod contract in `app/routers/family_lessons.py`:
         # `page` is 1-indexed (`Query(1, ge=1)`) and the slice is
         # `(page - 1) * size`. Earlier the mock used 0-indexing, which
         # masked a real-server bug where the client passed `page=0` and
         # got HTTP 422 from the prod validator.
-        filtered = list(_drafts.values())
+        filtered = [
+            d
+            for d in _drafts.values()
+            if str(d.get("family_id", _PAIR_FAMILY_ID)) == key
+        ]
         if status is not None:
             filtered = [d for d in filtered if d["status"] == status]
         normalized_page = max(1, page)
@@ -522,21 +555,24 @@ def create_app() -> FastAPI:
             "size": normalized_size,
         }
 
-    @app.get("/api/v1/admin/lesson-drafts/{draft_id}")
-    async def admin_get_draft(draft_id: str) -> dict[str, Any]:
+    @app.get("/api/v1/family/{family_id}/lesson-drafts/{draft_id}")
+    async def admin_get_draft(family_id: str, draft_id: str) -> dict[str, Any]:
+        key = _lesson_family_key(family_id)
         draft = _drafts.get(draft_id)
-        if draft is None:
+        if draft is None or str(draft.get("family_id", _PAIR_FAMILY_ID)) != key:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
         return draft
 
-    @app.patch("/api/v1/admin/lesson-drafts/{draft_id}")
-    @app.put("/api/v1/admin/lesson-drafts/{draft_id}")
+    @app.patch("/api/v1/family/{family_id}/lesson-drafts/{draft_id}")
+    @app.put("/api/v1/family/{family_id}/lesson-drafts/{draft_id}")
     async def admin_patch_draft(
+        family_id: str,
         draft_id: str,
         body: dict[str, Any],
     ) -> dict[str, Any]:
+        key = _lesson_family_key(family_id)
         draft = _drafts.get(draft_id)
-        if draft is None:
+        if draft is None or str(draft.get("family_id", _PAIR_FAMILY_ID)) != key:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
         if draft["status"] != "pending":
             raise HTTPException(
@@ -552,10 +588,11 @@ def create_app() -> FastAPI:
         draft["edited_extracted"] = edited
         return draft
 
-    @app.post("/api/v1/admin/lesson-drafts/{draft_id}/approve")
-    async def admin_approve_draft(draft_id: str) -> dict[str, Any]:
+    @app.post("/api/v1/family/{family_id}/lesson-drafts/{draft_id}/approve")
+    async def admin_approve_draft(family_id: str, draft_id: str) -> dict[str, Any]:
+        key = _lesson_family_key(family_id)
         draft = _drafts.get(draft_id)
-        if draft is None:
+        if draft is None or str(draft.get("family_id", _PAIR_FAMILY_ID)) != key:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
         if draft["status"] != "pending":
             raise HTTPException(
@@ -568,22 +605,27 @@ def create_app() -> FastAPI:
         kept_words = (
             (draft.get("edited_extracted") or draft["extracted"]).get("words") or []
         )
+        now = _now_iso()
         return {
             "created_category": {
                 "id": FIXTURE_DRAFT_CATEGORY_ID,
-                "name_en": "Mock Lesson",
-                "name_zh": "模拟课文",
-                "created_at": _now_iso(),
-                "deleted_at": None,
+                "label_en": "Mock Lesson",
+                "label_zh": "模拟课文",
+                "story_zh": None,
+                "source_image_url": draft.get("source_image_url"),
+                "source": "lesson-import",
+                "created_at": now,
+                "updated_at": now,
             },
-            "created_words": [{"word": w["word"]} for w in kept_words],
+            "created_words": [{"id": f"fam-mock-{w['word']}", "word": w["word"]} for w in kept_words],
             "skipped_words": [],
         }
 
-    @app.post("/api/v1/admin/lesson-drafts/{draft_id}/reject")
-    async def admin_reject_draft(draft_id: str) -> dict[str, Any]:
+    @app.post("/api/v1/family/{family_id}/lesson-drafts/{draft_id}/reject")
+    async def admin_reject_draft(family_id: str, draft_id: str) -> dict[str, Any]:
+        key = _lesson_family_key(family_id)
         draft = _drafts.get(draft_id)
-        if draft is None:
+        if draft is None or str(draft.get("family_id", _PAIR_FAMILY_ID)) != key:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
         if draft["status"] != "pending":
             raise HTTPException(
@@ -599,10 +641,12 @@ def create_app() -> FastAPI:
     # Admin: lesson import (multipart)
     # ------------------------------------------------------------------
 
-    @app.post("/api/v1/admin/lessons/import", status_code=201)
+    @app.post("/api/v1/family/{family_id}/lessons/import", status_code=201)
     async def admin_import_lesson(
+        family_id: str,
         image: UploadFile = File(...),
     ) -> JSONResponse:
+        key = _lesson_family_key(family_id)
         # Drain the upload so the client side completes its multipart
         # write before we respond. We don't persist the bytes — the
         # purpose is just to keep the wire-protocol contract identical
@@ -610,6 +654,7 @@ def create_app() -> FastAPI:
         _ = await image.read()
         new_id = f"ui-mock-draft-{len(_drafts) + 1:03d}"
         draft = _fresh_draft(new_id)
+        draft["family_id"] = key
         _drafts[new_id] = draft
         return JSONResponse(status_code=201, content=draft)
 
@@ -623,7 +668,7 @@ def create_app() -> FastAPI:
     # V0.6 device pairing + child binding
     # ------------------------------------------------------------------
     # Behaviour:
-    #  - POST /api/v1/pair/redeem succeeds when ``device_id`` is non-empty
+    #  - POST /api/v1/public/pair/redeem succeeds when ``device_id`` is non-empty
     #    AND (``token`` is non-empty OR ``short_code`` is exactly 6 digits).
     #    On success it adds the binding to ``_active_bindings`` and mints
     #    the deterministic device JWT defined above.
@@ -632,7 +677,7 @@ def create_app() -> FastAPI:
     #      "000000" → 410 TOKEN_EXPIRED
     #      "111111" → 409 TOKEN_REDEEMED
     #      "222222" → 422 TOKEN_INVALID
-    #  - POST /api/v1/child/unbind clears the binding when the Bearer
+    #  - POST /api/v1/family/_/unbind clears the binding when the Bearer
     #    token matches; returns 404 BINDING_REVOKED when already cleared.
 
     def _err(status: int, code: str, message: str) -> HTTPException:
@@ -641,7 +686,7 @@ def create_app() -> FastAPI:
             detail={"error": {"code": code, "message": message}},
         )
 
-    @app.post("/api/v1/pair/redeem")
+    @app.post("/api/v1/public/pair/redeem")
     async def pair_redeem(body: PairRedeemIn) -> dict[str, Any]:
         if not body.device_id:
             raise _err(422, "DEVICE_ID_REQUIRED", "device_id missing")
@@ -668,10 +713,12 @@ def create_app() -> FastAPI:
             "device_token": _PAIR_DEVICE_TOKEN,
         }
 
-    @app.post("/api/v1/child/unbind")
+    @app.post("/api/v1/family/{family_id}/unbind")
     async def child_unbind(
+        family_id: str,
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         if authorization is None or not authorization.startswith("Bearer "):
             raise _err(401, "UNAUTHORIZED", "missing bearer token")
         token = authorization[len("Bearer "):]
@@ -680,12 +727,14 @@ def create_app() -> FastAPI:
         if _PAIR_BINDING_ID not in _active_bindings:
             raise _err(404, "BINDING_REVOKED", "binding already revoked")
         _active_bindings.discard(_PAIR_BINDING_ID)
-        return {"ok": True}
+        return {"status": "unbound"}
 
-    @app.get("/api/v1/child/me")
+    @app.get("/api/v1/family/{family_id}/me")
     async def child_me(
+        family_id: str,
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
         return {
@@ -698,14 +747,16 @@ def create_app() -> FastAPI:
 
     # V0.6.8: device-side self-edit of the child nickname. Mirrors
     # `app/routers/child_profile.py::put_self_profile`. The mock keeps
-    # the nickname in module-global state so subsequent /child/me +
-    # /pair/redeem calls see the updated value, and `_reset_state()`
+    # the nickname in module-global state so subsequent /family/{id}/me +
+    # `/api/v1/public/pair/redeem` calls see the updated value, and `_reset_state()`
     # restores the default between mock-server lifetimes.
-    @app.put("/api/v1/child/profile")
+    @app.put("/api/v1/family/{family_id}/profile")
     async def child_profile_put(
+        family_id: str,
         body: ChildProfileUpdateIn,
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         global _pair_nickname, _pair_avatar_emoji
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
@@ -728,21 +779,7 @@ def create_app() -> FastAPI:
         }
 
     # ------------------------------------------------------------------
-    # V0.6.3 / V0.6.5 family pack overlay.
-    #
-    # Production serves merged JSON at legacy `/api/v1/child/family-packs/latest.json`
-    # and the route-pattern alias `/api/v1/family/{family_id}/family-packs/latest.json`.
-    # (see `app/routers/child_family_pack.py::get_family_packs`). Earlier
-    # versions of this mock served the same payload at `…/active.json`,
-    # which the client never actually called; the V0.6.5 three-layer
-    # rewrite of `services/FamilyPackService.ets` standardised on
-    # `latest.json` to match the public global-packs naming and to align
-    # with `PackManagerSyncButton`'s sync flow.
-    #
-    # V0.6.7.6: serves a single fixture pack (`family-snacks` /
-    # "Family Snacks") gated by the device JWT minted by
-    # `/api/v1/pair/redeem`. Returns 401 when the caller is not bound,
-    # 304 on ETag match, and 200 with the merged-JSON envelope otherwise.
+    # V0.6.3 / V0.6.5 family pack overlay (`FamilyPacksMergedOut`).
     # ------------------------------------------------------------------
 
     async def _family_packs_latest_get(
@@ -766,7 +803,7 @@ def create_app() -> FastAPI:
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
         return Response(status_code=200, headers={"ETag": FAMILY_PACK_ETAG})
 
-    @app.get("/api/v1/child/family-packs/latest.json")
+    @app.get("/api/v1/family/_/family-packs/latest.json")
     async def child_family_packs(
         authorization: str | None = Header(None, alias="Authorization"),
         if_none_match: str | None = Header(None, alias="If-None-Match"),
@@ -779,10 +816,10 @@ def create_app() -> FastAPI:
         authorization: str | None = Header(None, alias="Authorization"),
         if_none_match: str | None = Header(None, alias="If-None-Match"),
     ) -> Response:
-        _ = family_id  # decorative — mirrors production alias routes
+        _ = family_id
         return await _family_packs_latest_get(authorization, if_none_match)
 
-    @app.head("/api/v1/child/family-packs/latest.json")
+    @app.head("/api/v1/family/_/family-packs/latest.json")
     async def child_family_packs_head(
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> Response:
@@ -797,85 +834,172 @@ def create_app() -> FastAPI:
         return await _family_packs_latest_head(authorization)
 
     # ------------------------------------------------------------------
-    # V0.6.4 cloud sync (LWW). Always accepts pushes; pull returns no
-    # server-side updates so client state is authoritative in tests.
+    # V0.8.1 merged child vocabulary (`ChildPacksMergedOut` wire shape).
     # ------------------------------------------------------------------
 
-    @app.post("/api/v1/child/sync/word-stats")
+    async def _child_packs_latest_get(
+        authorization: str | None,
+        if_none_match: str | None,
+    ) -> Response:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        if if_none_match is not None and if_none_match.strip() == CHILD_VOCABULARY_ETAG:
+            return Response(status_code=304, headers={"ETag": CHILD_VOCABULARY_ETAG})
+        body = json.dumps(FIXTURE_CHILD_PACKS_LATEST_BODY, ensure_ascii=False)
+        return Response(
+            status_code=200,
+            content=body,
+            media_type="application/json",
+            headers={"ETag": CHILD_VOCABULARY_ETAG, "Cache-Control": "private, no-cache"},
+        )
+
+    async def _child_packs_latest_head(authorization: str | None) -> Response:
+        if not _is_authorized(authorization):
+            raise _err(401, "UNAUTHORIZED", "missing or invalid token")
+        return Response(
+            status_code=200,
+            headers={"ETag": CHILD_VOCABULARY_ETAG, "Cache-Control": "private, no-cache"},
+        )
+
+    @app.get("/api/v1/family/_/packs/latest.json")
+    async def child_packs_latest_under(
+        authorization: str | None = Header(None, alias="Authorization"),
+        if_none_match: str | None = Header(None, alias="If-None-Match"),
+    ) -> Response:
+        return await _child_packs_latest_get(authorization, if_none_match)
+
+    @app.get("/api/v1/family/{family_id}/packs/latest.json")
+    async def child_packs_latest(
+        family_id: str,
+        authorization: str | None = Header(None, alias="Authorization"),
+        if_none_match: str | None = Header(None, alias="If-None-Match"),
+    ) -> Response:
+        _ = family_id
+        return await _child_packs_latest_get(authorization, if_none_match)
+
+    @app.head("/api/v1/family/_/packs/latest.json")
+    async def child_packs_latest_head_under(
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> Response:
+        return await _child_packs_latest_head(authorization)
+
+    @app.head("/api/v1/family/{family_id}/packs/latest.json")
+    async def child_packs_latest_head(
+        family_id: str,
+        authorization: str | None = Header(None, alias="Authorization"),
+    ) -> Response:
+        _ = family_id
+        return await _child_packs_latest_head(authorization)
+
+    # ------------------------------------------------------------------
+    # V0.6.4 cloud sync (LWW). Mirrors `WordStatsSyncOut` / `WordStatsListOut`.
+    # ------------------------------------------------------------------
+
+    @app.post("/api/v1/family/{family_id}/word-stats/sync")
     async def child_sync_word_stats(
+        family_id: str,
         body: dict[str, Any],
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
-        # Echo back accept count for any words the client claimed to push.
         items = body.get("items") or []
+        accepted: list[str] = []
+        for it in items:
+            if isinstance(it, dict):
+                wid = it.get("word_id")
+                if isinstance(wid, str) and wid:
+                    accepted.append(wid)
         return {
-            "accepted": len(items),
-            "rejected": 0,
-            "pulls": [],
-            "server_now": _now_iso(),
+            "accepted": accepted,
+            "rejected": [],
+            "server_pulls": [],
+            "server_now_ms": int(datetime.now(tz=UTC).timestamp() * 1000),
         }
 
-    @app.get("/api/v1/child/sync/word-stats")
+    @app.get("/api/v1/family/{family_id}/word-stats")
     async def child_pull_word_stats(
+        family_id: str,
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
-        return {"items": [], "server_now": _now_iso()}
+        return {
+            "items": [],
+            "server_now_ms": int(datetime.now(tz=UTC).timestamp() * 1000),
+        }
 
     # ------------------------------------------------------------------
     # V0.6.6 cloud wishlist + redemption polling
     # ------------------------------------------------------------------
 
-    @app.get("/api/v1/child/wishlist")
+    @app.get("/api/v1/family/{family_id}/wishlist")
     async def child_wishlist(
+        family_id: str,
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
         return {"items": []}
 
-    @app.post("/api/v1/child/wishlist/sync-custom")
+    @app.post("/api/v1/family/{family_id}/wishlist/sync-custom")
     async def child_wishlist_sync_custom(
+        family_id: str,
         body: dict[str, Any],
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
-        return {"accepted": len(body.get("items") or [])}
+        return {"accepted": len(body.get("items") or []), "items": []}
 
-    @app.post("/api/v1/child/redemption-requests", status_code=201)
+    @app.post("/api/v1/family/{family_id}/redemption-requests", status_code=201)
     async def child_create_redemption(
+        family_id: str,
         body: dict[str, Any],
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
         return {
             "request_id": "ui-mock-rdm-001",
+            "child_profile_id": _PAIR_CHILD_PROFILE_ID,
             "wishlist_item_id": body.get("wishlist_item_id", ""),
             "cost_coins_at_request": body.get("cost_coins", 0),
             "status": "pending",
             "requested_at": _now_iso(),
+            "decided_at": None,
+            "decided_by": None,
+            "decision_note": None,
+            "expires_at": _now_iso(),
         }
 
-    @app.get("/api/v1/child/redemption-requests")
+    @app.get("/api/v1/family/{family_id}/redemption-requests")
     async def child_list_redemptions(
+        family_id: str,
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
         return {"items": []}
 
-    @app.get("/api/v1/child/redemption-requests/poll")
+    @app.get("/api/v1/family/{family_id}/redemption-requests/poll")
     async def child_poll_redemptions(
+        family_id: str,
         authorization: str | None = Header(None, alias="Authorization"),
     ) -> dict[str, Any]:
+        _ = family_id
         if not _is_authorized(authorization):
             raise _err(401, "UNAUTHORIZED", "missing or invalid token")
-        return {"decisions": [], "server_now": _now_iso()}
+        return {
+            "items": [],
+            "server_now_ms": int(datetime.now(tz=UTC).timestamp() * 1000),
+        }
 
     @app.get("/__mock_state__")
     async def mock_state() -> dict[str, Any]:

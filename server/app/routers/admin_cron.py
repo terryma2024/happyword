@@ -13,7 +13,7 @@ Streaming / heartbeat workarounds (`e50cf97`, `3101fb3`, `a4af3c0`)
 were defeated by Vercel's own ~5s response buffering, so V0.7 splits
 the flow:
 
-  1. ``POST /api/v1/admin/lessons/import`` — fast path. Uploads the
+  1. ``POST /api/v1/family/{family_id}/lessons/import`` — fast path. Uploads the
      image to Blob, inserts a draft in ``status="extracting"``,
      returns immediately.
   2. **This router** — runs on the scheduled Vercel cron (``GET`` or

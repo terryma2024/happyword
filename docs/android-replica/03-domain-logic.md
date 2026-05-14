@@ -79,12 +79,12 @@ Kotlin implementation rules:
 Preserve these API shapes:
 
 - `GET /api/v1/admin/stats`
-- `GET /api/v1/admin/lesson-drafts`
-- `GET /api/v1/admin/lesson-drafts/{draft_id}`
-- `PATCH /api/v1/admin/lesson-drafts/{draft_id}`
-- `POST /api/v1/admin/lesson-drafts/{draft_id}/approve`
-- `POST /api/v1/admin/lesson-drafts/{draft_id}/reject`
-- `POST /api/v1/admin/lessons/import`
+- `GET /api/v1/family/{family_id}/lesson-drafts`
+- `GET /api/v1/family/{family_id}/lesson-drafts/{draft_id}`
+- `PATCH /api/v1/family/{family_id}/lesson-drafts/{draft_id}`
+- `POST /api/v1/family/{family_id}/lesson-drafts/{draft_id}/approve`
+- `POST /api/v1/family/{family_id}/lesson-drafts/{draft_id}/reject`
+- `POST /api/v1/family/{family_id}/lessons/import`
 - `POST /api/v1/admin/packs/publish`
 
 ## Phase 2 Pack And Local Growth Types

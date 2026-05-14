@@ -186,7 +186,7 @@ async def current_device_binding(
 
     The token's typed sub is `device:<binding_id>`. We then load the
     DeviceBinding row and reject if `revoked_at` is set so unbound clients
-    cannot continue to call `/api/v1/child/*` endpoints with their cached
+    cannot continue to call `/api/v1/family/{family_id}/**` child-device endpoints with their cached
     token.
     """
     if creds is None or creds.scheme.lower() != "bearer":

@@ -16,8 +16,9 @@ Bypass secret resolution (first non-empty):
 Cron secret resolution:
   ``HW_CRON_SECRET``, ``E2E_CRON_SECRET``, ``VERCEL_CRON_SECRET``, ``CRON_SECRET``
 
-``--family-id`` is recorded for operator correlation only (lesson drafts are not
-family-scoped in V0.7 open-admin mode).
+``--family-id`` selects the ``{family_id}`` path segment for
+``/api/v1/family/{family_id}/lessons/import`` and matching draft reads
+(decorative on the server until drafts are family-scoped).
 """
 
 from __future__ import annotations
@@ -30,9 +31,20 @@ from pathlib import Path
 
 import httpx
 
-_IMPORT_PATH = "/api/v1/admin/lessons/import"
 _CRON_PATH = "/api/v1/admin/cron/extract-pending"
-_DRAFT_PATH_TMPL = "/api/v1/admin/lesson-drafts/{draft_id}"
+
+
+def _family_path_segment(family_id: str) -> str:
+    s = (family_id or "").strip()
+    return s if s else "_"
+
+
+def _import_path(family_id: str) -> str:
+    return f"/api/v1/family/{_family_path_segment(family_id)}/lessons/import"
+
+
+def _draft_path(family_id: str, draft_id: str) -> str:
+    return f"/api/v1/family/{_family_path_segment(family_id)}/lesson-drafts/{draft_id}"
 
 
 def _strip(name: str) -> str:
@@ -95,8 +107,8 @@ def main() -> int:
         "--family-id",
         default="",
         help=(
-            "Operator label only — echoed in JSON "
-            "(drafts are not scoped by family in open-admin)."
+            "Family path segment for /api/v1/family/{family_id}/… lesson routes "
+            "(use real fam-… when mirroring a device; default `_` when omitted)."
         ),
     )
     parser.add_argument(
@@ -145,22 +157,23 @@ def main() -> int:
         timeout=timeout,
         follow_redirects=False,
     ) as http:
-        health = http.get("/api/v1/health")
+        health = http.get("/api/v1/public/health")
         if health.status_code != 200:
             print(
-                f"error: GET /api/v1/health -> {health.status_code}\n{health.text[:500]}",
+                f"error: GET /api/v1/public/health -> {health.status_code}\n{health.text[:500]}",
                 file=sys.stderr,
             )
             return 1
 
         img_bytes = img_path.read_bytes()
+        import_path = _import_path(args.family_id)
         resp = http.post(
-            _IMPORT_PATH,
+            import_path,
             files={"image": (img_path.name, img_bytes, mime)},
         )
         if resp.status_code != 201:
             print(
-                f"error: POST {_IMPORT_PATH} -> {resp.status_code}\n{resp.text[:2000]}",
+                f"error: POST {import_path} -> {resp.status_code}\n{resp.text[:2000]}",
                 file=sys.stderr,
             )
             return 1
@@ -169,7 +182,7 @@ def main() -> int:
         draft_id = draft["id"]
         out: dict[str, object] = {
             "base_url": base,
-            "operator": {"family_id": args.family_id or None},
+            "operator": {"family_id": _family_path_segment(args.family_id)},
             "import": {"draft_id": draft_id, "status": draft.get("status")},
         }
 
@@ -204,7 +217,7 @@ def main() -> int:
         summary = cron.json()
         out["cron"] = summary
 
-        fetched = http.get(_DRAFT_PATH_TMPL.format(draft_id=draft_id))
+        fetched = http.get(_draft_path(args.family_id, draft_id))
         if fetched.status_code != 200:
             print(
                 f"error: GET draft -> {fetched.status_code}\n{fetched.text[:2000]}",

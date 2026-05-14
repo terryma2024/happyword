@@ -6,10 +6,10 @@ Source: `shared/contracts/openapi/happyword-api.openapi.json`
 
 | Method | Path | Contract notes |
 | --- | --- | --- |
-| POST | `/api/v1/parent/pair/create` | Parent creates a pair token and short code. |
-| GET | `/api/v1/parent/pair/status/{token}` | Parent polls pair token status. |
-| DELETE | `/api/v1/parent/pair/{token}` | Parent cancels a pair token. |
-| POST | `/api/v1/pair/redeem` | Child device redeems token or 6-digit short code. |
+| POST | `/api/v1/family/{family_id}/pair/create` | Parent creates a pair token and short code (cookie session). |
+| GET | `/api/v1/family/{family_id}/pair/status/{token}` | Parent polls pair token status (cookie session). |
+| DELETE | `/api/v1/family/{family_id}/pair/{token}` | Parent cancels a pair token (cookie session). |
+| POST | `/api/v1/public/pair/redeem` | Child device redeems token or 6-digit short code (no auth). |
 | GET | `/p/{token_short}` | Public landing page for QR / short-code pairing. Documentation-only for API clients. |
 
 ## Native Client Priority

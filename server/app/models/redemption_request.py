@@ -2,11 +2,11 @@
 
 The flow is:
 
-1. Bound device POSTs `/api/v1/child/redemption-requests { wishlist_item_id }`
+1. Bound device POSTs `/api/v1/family/{family_id}/redemption-requests { wishlist_item_id }`
    → server creates `RedemptionRequest(status=pending, expires_at=now+7d)`,
    snapshotting the item's current `cost_coins` so a later parent edit
    doesn't change the price after the fact.
-2. Parent decides via `/parent/redemption-requests/{id}/{approve,reject}`
+2. Parent decides via `/family/{family_id}/redemptions/{id}/{approve,reject}`
    → status flips, decided_at + decided_by + decision_note recorded.
 3. Auto-expiry sweep marks any pending row with `expires_at < now` as
    `expired` so polling devices can dismiss the overlay.

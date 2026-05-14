@@ -51,7 +51,7 @@ async def _publish_one_word(client: "AsyncClient", admin: User) -> int:
 @pytest.mark.asyncio
 async def test_latest_pack_returns_etag_header(client: "AsyncClient", admin: User) -> None:
     version = await _publish_one_word(client, admin)
-    resp = await client.get("/api/v1/packs/latest.json")
+    resp = await client.get("/api/v1/public/packs/latest.json")
     assert resp.status_code == 200
     assert resp.headers.get("etag") == f'"{version}"'
 
@@ -62,7 +62,7 @@ async def test_if_none_match_current_version_returns_304(
 ) -> None:
     version = await _publish_one_word(client, admin)
     resp = await client.get(
-        "/api/v1/packs/latest.json",
+        "/api/v1/public/packs/latest.json",
         headers={"If-None-Match": f'"{version}"'},
     )
     assert resp.status_code == 304
@@ -75,7 +75,7 @@ async def test_if_none_match_weak_current_version_returns_304(
 ) -> None:
     version = await _publish_one_word(client, admin)
     resp = await client.get(
-        "/api/v1/packs/latest.json",
+        "/api/v1/public/packs/latest.json",
         headers={"If-None-Match": f'W/"{version}"'},
     )
     assert resp.status_code == 304
@@ -88,7 +88,7 @@ async def test_if_none_match_stale_version_returns_full_body(
 ) -> None:
     await _publish_one_word(client, admin)
     resp = await client.get(
-        "/api/v1/packs/latest.json",
+        "/api/v1/public/packs/latest.json",
         headers={"If-None-Match": '"99"'},
     )
     assert resp.status_code == 200
@@ -99,6 +99,6 @@ async def test_if_none_match_stale_version_returns_full_body(
 async def test_if_none_match_when_no_pack_published(client: "AsyncClient") -> None:
     # Pre-V0.5.3 dev fallback: no pack ever published. Live serialization
     # still works; ETag exists with version 0.
-    resp = await client.get("/api/v1/packs/latest.json")
+    resp = await client.get("/api/v1/public/packs/latest.json")
     assert resp.status_code == 200
     assert resp.headers.get("etag") == '"0"'

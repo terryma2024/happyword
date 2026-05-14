@@ -130,7 +130,7 @@ async def _notify_redemption_request(
             body_md=(
                 f"**{nickname}** 想兑换 **{display_name}**（{cost} 金币）。\n"
                 f"申请编号：`{req.request_id}`。请到 [兑换审批]"
-                f"(/parent/redemptions) 处理。"
+                f"](/family/{req.family_id}/redemptions) 处理。"
             ),
             related_resource={"redemption_request_id": req.request_id},
         )
@@ -145,6 +145,7 @@ async def _notify_redemption_request(
         await notification_service.send_redemption_email(
             provider,
             to=parent.email,
+            family_id=req.family_id,
             child_nickname=nickname,
             item_display_name=display_name,
             cost_coins=cost,

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0229DC3FF1FA96BF049D43B5 /* AppMetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */; };
+		02807A455A26A592F5A50824 /* ParentLessonAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 055A58C7A27B41F82685F51B /* ParentLessonAPITests.swift */; };
 		030EFE16BBEEDAB01CC37A16 /* BattleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9983A8C2B2B01829EC9597FF /* BattleEngineTests.swift */; };
 		03E9C1A592065ACCA85467EA /* BattleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD73245074A18477196A675 /* BattleEngine.swift */; };
 		05BC6D224C27760A1DAD2210 /* DeviceBindingQRSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAEB370D2B26B2384DF6720 /* DeviceBindingQRSupport.swift */; };
@@ -59,6 +60,7 @@
 		EAE53652EC92AA7E09BFC13C /* LocalStores.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */; };
 		EC258499EC8DFFA676D2BE14 /* PronunciationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94513DF82FF4E789AD631AC0 /* PronunciationServiceTests.swift */; };
 		EC97934170054F8599E61696 /* WordMagicGameApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6701AF4311EDEC1FCAF0A8 /* WordMagicGameApp.swift */; };
+		F14F04992D8F1CBBFA5EC9F9 /* ParentLessonAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9641BC33332046468B83ECF /* ParentLessonAPI.swift */; };
 		F3A2B89FB00157C1840CBEFE /* ocean-realm.json in Resources */ = {isa = PBXBuildFile; fileRef = BAF3995E798608040E8CBADE /* ocean-realm.json */; };
 /* End PBXBuildFile section */
 
@@ -81,6 +83,7 @@
 
 /* Begin PBXFileReference section */
 		00F904781ED9F4E18758477D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		055A58C7A27B41F82685F51B /* ParentLessonAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentLessonAPITests.swift; sourceTree = "<group>"; };
 		09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationTests.swift; sourceTree = "<group>"; };
 		246D77D7D2CF1528AEECDA24 /* CloudSyncServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncServices.swift; sourceTree = "<group>"; };
 		270E555771AAF420876EE21A /* BattleAnimationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationEvent.swift; sourceTree = "<group>"; };
@@ -134,6 +137,7 @@
 		DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionGeneratorTests.swift; sourceTree = "<group>"; };
 		E1915D885E57624FF4078BDE /* MonsterCodexView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexView.swift; sourceTree = "<group>"; };
 		F0FC48A86BA4107999240DDC /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		F9641BC33332046468B83ECF /* ParentLessonAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentLessonAPI.swift; sourceTree = "<group>"; };
 		FAA3B5A205F686C79D19C337 /* AppThemeParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppThemeParityTests.swift; sourceTree = "<group>"; };
 		FD9FC5BBE0DF16B580028ED5 /* ParentApiClientDTOTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentApiClientDTOTests.swift; sourceTree = "<group>"; };
 		FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexTests.swift; sourceTree = "<group>"; };
@@ -228,6 +232,7 @@
 			children = (
 				76339196A09620CB46FEF4B8 /* LessonDraftReviewStoreTests.swift */,
 				FD9FC5BBE0DF16B580028ED5 /* ParentApiClientDTOTests.swift */,
+				055A58C7A27B41F82685F51B /* ParentLessonAPITests.swift */,
 			);
 			path = ParentAdmin;
 			sourceTree = "<group>";
@@ -288,6 +293,7 @@
 				A77053ADBABC5E1EEED849EA /* LessonDraftReviewStore.swift */,
 				2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */,
 				3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */,
+				F9641BC33332046468B83ECF /* ParentLessonAPI.swift */,
 				6FAE4997C3E18E4C154192C3 /* PronunciationService.swift */,
 			);
 			path = Services;
@@ -466,6 +472,7 @@
 				3612D5539B436F29F3A5F62D /* LocalGrowthTests.swift in Sources */,
 				B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */,
 				71F3BCC31AACAF5730934FAF /* ParentApiClientDTOTests.swift in Sources */,
+				02807A455A26A592F5A50824 /* ParentLessonAPITests.swift in Sources */,
 				EC258499EC8DFFA676D2BE14 /* PronunciationServiceTests.swift in Sources */,
 				170E596AC77D25C2588446A7 /* QuestionGeneratorTests.swift in Sources */,
 			);
@@ -501,6 +508,7 @@
 				707FB23DB88D874E8312DD0E /* PackSelectionStore.swift in Sources */,
 				4EF9263FA9C00E2D1120DAC1 /* ParentAdminView.swift in Sources */,
 				BFB2D10A293E35EAD0F46005 /* ParentApiModels.swift in Sources */,
+				F14F04992D8F1CBBFA5EC9F9 /* ParentLessonAPI.swift in Sources */,
 				B60048E8C6C4645BDD9762F9 /* PronunciationService.swift in Sources */,
 				E2A3173A4136798333A2AF0E /* Question.swift in Sources */,
 				2D9B8D104C526A576B6FF478 /* ResultView.swift in Sources */,

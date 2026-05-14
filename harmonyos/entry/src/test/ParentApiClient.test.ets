@@ -248,7 +248,7 @@ export default function parentApiClientTest(): void {
     it('parsesPendingDraft', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `GET ${BASE}/api/v1/admin/lesson-drafts/draft-1`,
+        `GET ${BASE}/api/v1/family/_/lesson-drafts/draft-1`,
         fakeOk(
           '{"id":"draft-1","source_image_url":"https://blob/lesson.jpg","extracted":{"category_id":"unit-1","label_en":"Unit 1","label_zh":"第一单元","story_zh":null,"words":[{"word":"apple","meaningZh":"苹果","difficulty":1}]},"edited_extracted":null,"status":"pending","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":"gpt-4o","prompt_version":1,"approval_summary":null,"extract_attempts":1,"extract_last_attempted_at":"2026-05-01T00:00:30Z","extract_last_error_code":null,"extract_last_error_message":null}',
         ),
@@ -274,7 +274,7 @@ export default function parentApiClientTest(): void {
       // `undefined` so callers can branch on `extracted !== undefined`.
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `GET ${BASE}/api/v1/admin/lesson-drafts/draft-2`,
+        `GET ${BASE}/api/v1/family/_/lesson-drafts/draft-2`,
         fakeOk(
           '{"id":"draft-2","source_image_url":"https://blob/x.jpg","extracted":null,"edited_extracted":null,"status":"extracting","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":null,"prompt_version":1,"approval_summary":null,"extract_attempts":0,"extract_last_attempted_at":null,"extract_last_error_code":null,"extract_last_error_message":null}',
         ),
@@ -289,7 +289,7 @@ export default function parentApiClientTest(): void {
     it('parsesExtractFailedDraft', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `GET ${BASE}/api/v1/admin/lesson-drafts/draft-3`,
+        `GET ${BASE}/api/v1/family/_/lesson-drafts/draft-3`,
         fakeOk(
           '{"id":"draft-3","source_image_url":"https://blob/y.jpg","extracted":null,"edited_extracted":null,"status":"extract_failed","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":null,"prompt_version":1,"approval_summary":null,"extract_attempts":3,"extract_last_attempted_at":"2026-05-01T00:03:00Z","extract_last_error_code":"LLM_CALL_FAILED","extract_last_error_message":"OpenAI vision call failed: HTTP 502"}',
         ),
@@ -306,7 +306,7 @@ export default function parentApiClientTest(): void {
     it('sendsEditedExtractedAsJsonBody', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `PUT ${BASE}/api/v1/admin/lesson-drafts/draft-1`,
+        `PUT ${BASE}/api/v1/family/_/lesson-drafts/draft-1`,
         fakeOk(
           '{"id":"draft-1","source_image_url":"u","extracted":{"category_id":"c","label_en":"a","label_zh":"b","story_zh":null,"words":[]},"edited_extracted":{"category_id":"c","label_en":"a","label_zh":"b","story_zh":null,"words":[{"word":"banana","meaningZh":"香蕉","difficulty":2}]},"status":"pending","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":"gpt-4o","prompt_version":1,"approval_summary":null}',
         ),
@@ -339,7 +339,7 @@ export default function parentApiClientTest(): void {
       r.status = 200;
       r.body =
         '{"created_category":{"id":"unit-1","label_en":"Unit 1","label_zh":"第一单元","story_zh":null,"source_image_url":"u","source":"lesson-import","created_at":"2026-05-01T00:00:00Z","updated_at":"2026-05-01T00:00:00Z"},"created_words":[{"id":"unit-1-apple"}],"skipped_words":[]}';
-      ad.responses.set(`POST ${BASE}/api/v1/admin/lesson-drafts/draft-1/approve`, r);
+      ad.responses.set(`POST ${BASE}/api/v1/family/_/lesson-drafts/draft-1/approve`, r);
       const c: ParentApiClient = new ParentApiClient(ad, BASE);
       const out: LessonApproveSummaryDto = await c.approveLessonDraft('draft-1');
       expect(out.created_category.id).assertEqual('unit-1');
@@ -352,7 +352,7 @@ export default function parentApiClientTest(): void {
     it('parsesRejectedDraft', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `POST ${BASE}/api/v1/admin/lesson-drafts/draft-1/reject`,
+        `POST ${BASE}/api/v1/family/_/lesson-drafts/draft-1/reject`,
         fakeOk(
           '{"id":"draft-1","source_image_url":"u","extracted":{"category_id":"c","label_en":"a","label_zh":"b","story_zh":null,"words":[]},"edited_extracted":null,"status":"rejected","created_at":"2026-05-01T00:00:00Z","reviewed_at":"2026-05-01T01:00:00Z","reviewer":"parent","model":"gpt-4o","prompt_version":1,"approval_summary":null}',
         ),
@@ -368,7 +368,7 @@ export default function parentApiClientTest(): void {
     it('parsesPendingPage', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `GET ${BASE}/api/v1/admin/lesson-drafts?status=pending&page=1&size=10`,
+        `GET ${BASE}/api/v1/family/_/lesson-drafts?status=pending&page=1&size=10`,
         fakeOk(
           '{"items":[{"id":"draft-1","source_image_url":"u","extracted":{"category_id":"c","label_en":"a","label_zh":"b","story_zh":null,"words":[]},"edited_extracted":null,"status":"pending","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":"gpt-4o","prompt_version":1,"approval_summary":null,"extract_attempts":1,"extract_last_attempted_at":"2026-05-01T00:00:30Z","extract_last_error_code":null,"extract_last_error_message":null}],"total":1,"page":1,"size":10}',
         ),
@@ -392,7 +392,7 @@ export default function parentApiClientTest(): void {
     it('encodesStatusFilterAndParsesDebugFields', 0, async () => {
       const ad: StubAdapter = new StubAdapter();
       ad.responses.set(
-        `GET ${BASE}/api/v1/admin/lesson-drafts?status=extract_failed&page=1&size=20`,
+        `GET ${BASE}/api/v1/family/_/lesson-drafts?status=extract_failed&page=1&size=20`,
         fakeOk(
           '{"items":[{"id":"draft-9","source_image_url":"u","extracted":null,"edited_extracted":null,"status":"extract_failed","created_at":"2026-05-01T00:00:00Z","reviewed_at":null,"reviewer":null,"model":null,"prompt_version":1,"approval_summary":null,"extract_attempts":3,"extract_last_attempted_at":"2026-05-01T00:03:00Z","extract_last_error_code":"LLM_CALL_FAILED","extract_last_error_message":"OpenAI vision call failed: HTTP 502"}],"total":1,"page":1,"size":20}',
         ),
@@ -492,7 +492,7 @@ export default function parentApiClientTest(): void {
       // payload yet — callers must NOT deref `out.extracted.words`.
       expect(out.status).assertEqual('extracting');
       expect(out.extracted === null || out.extracted === undefined).assertTrue();
-      expect(stub.lastUrl).assertEqual(`${BASE}/api/v1/admin/lessons/import`);
+      expect(stub.lastUrl).assertEqual(`${BASE}/api/v1/family/_/lessons/import`);
     });
 
     it('mapsHttpFailuresToLessonImportError', 0, async () => {

@@ -6,7 +6,7 @@
   {% set fill_ex_en = row.get("exampleEn") or row.get("example_en") or (_rn.get("en", "") if _rn is mapping else "") %}
   {% set fill_ex_zh = row.get("exampleZh") or row.get("example_zh") or (_rn.get("zh", "") if _rn is mapping else "") %}
   <header>
-    <a href="/parent/packs/{{ definition.pack_id }}" class="text-sm text-sky-700 hover:underline">返回 {{ definition.name }}</a>
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}" class="text-sm text-sky-700 hover:underline">返回 {{ definition.name }}</a>
     <h1 class="text-2xl font-semibold text-slate-900 mt-2">编辑草稿词条</h1>
     <p class="text-sm text-slate-500 mt-1 font-mono text-xs break-all">词条 ID：{{ word_id }}</p>
   </header>
@@ -22,7 +22,7 @@
       <p class="text-sm text-slate-700">
         当前为「隐藏全局词条」标记：孩子在同步时将看不到该词（仍占用草稿中的一行）。
       </p>
-      <form method="post" action="/parent/packs/{{ definition.pack_id }}/draft/edit" class="space-y-4">
+      <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/edit" class="space-y-4">
         <input type="hidden" name="word_id" value="{{ word_id }}" />
         <input type="hidden" name="action" value="unhide" />
         <button type="submit" class="bg-sky-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-sky-700">
@@ -32,7 +32,7 @@
     </section>
   {% elif kind == 'custom' %}
     <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-      <form method="post" action="/parent/packs/{{ definition.pack_id }}/draft/edit" class="grid gap-3 md:grid-cols-2">
+      <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/edit" class="grid gap-3 md:grid-cols-2">
         <input type="hidden" name="word_id" value="{{ word_id }}" />
         <label class="text-sm text-slate-700 md:col-span-2">英文
           <input name="word" required value="{{ row.get('word', '') }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
@@ -53,7 +53,7 @@
           <input name="example_zh" value="{{ fill_ex_zh }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
         </label>
         <div class="md:col-span-2 flex justify-end gap-2">
-          <a href="/parent/packs/{{ definition.pack_id }}" class="text-sm px-4 py-2 text-slate-600 hover:text-slate-900">取消</a>
+          <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}" class="text-sm px-4 py-2 text-slate-600 hover:text-slate-900">取消</a>
           <button type="submit" class="bg-slate-900 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-slate-800">保存</button>
         </div>
       </form>
@@ -63,7 +63,7 @@
       <p class="text-sm text-slate-600">
         此为从全局词库引用的词条。以下字段为可选覆盖；留空则仅保留引用（发布时合并全局内容）。
       </p>
-      <form method="post" action="/parent/packs/{{ definition.pack_id }}/draft/edit" class="grid gap-3 md:grid-cols-2">
+      <form method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/edit" class="grid gap-3 md:grid-cols-2">
         <input type="hidden" name="word_id" value="{{ word_id }}" />
         <label class="text-sm text-slate-700 md:col-span-2">英文（可选覆盖）
           <input name="word" value="{{ row.get('word', '') }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
@@ -84,7 +84,7 @@
           <input name="example_zh" value="{{ fill_ex_zh }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
         </label>
         <div class="md:col-span-2 flex justify-end gap-2">
-          <a href="/parent/packs/{{ definition.pack_id }}" class="text-sm px-4 py-2 text-slate-600 hover:text-slate-900">取消</a>
+          <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}" class="text-sm px-4 py-2 text-slate-600 hover:text-slate-900">取消</a>
           <button type="submit" class="bg-sky-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-sky-700">保存覆盖</button>
         </div>
       </form>

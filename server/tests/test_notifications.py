@@ -31,17 +31,17 @@ async def parent_with_device(
         transport=transport, base_url="http://test", follow_redirects=False
     ) as ac:
         await ac.post(
-            "/api/v1/parent/auth/request-code", json={"email": "nf@example.com"}
+            "/api/v1/family/_/auth/request-code", json={"email": "nf@example.com"}
         )
         code = "".join(c for c in provider.outbox[-1]["text"] if c.isdigit())[:6]
         await ac.post(
-            "/api/v1/parent/auth/verify-code",
+            "/api/v1/family/_/auth/verify-code",
             json={"email": "nf@example.com", "code": code},
         )
-        c = await ac.post("/api/v1/parent/pair/create")
+        c = await ac.post("/api/v1/family/_/pair/create")
         token = c.json()["token"]
         rd = await ac.post(
-            "/api/v1/pair/redeem",
+            "/api/v1/public/pair/redeem",
             json={"token": token, "device_id": "dev-nf-001"},
         )
         body = rd.json()
@@ -59,7 +59,7 @@ async def parent_with_device(
 
 async def _create_active_item(ac: AsyncClient, child_id: str, *, name: str = "冰棍") -> str:
     cr = await ac.post(
-        f"/api/v1/parent/children/{child_id}/wishlist",
+        f"/api/v1/family/_/children/{child_id}/wishlist",
         json={"display_name": name, "cost_coins": 15, "icon_emoji": "🍦"},
     )
     return cr.json()["item_id"]
@@ -72,7 +72,7 @@ async def test_redemption_submit_writes_inbox_msg(
     ac, _binding, child_id, token = parent_with_device
     item_id = await _create_active_item(ac, child_id, name="棒棒糖")
     sub = await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
@@ -102,7 +102,7 @@ async def test_redemption_submit_sends_email_with_subject(
     item_id = await _create_active_item(ac, child_id, name="棒棒糖")
     pre_count = len(provider.outbox)
     await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )
@@ -130,7 +130,7 @@ async def test_redemption_submit_skips_email_when_disabled(
     item_id = await _create_active_item(ac, child_id)
     pre_count = len(provider.outbox)
     await ac.post(
-        "/api/v1/child/redemption-requests",
+        "/api/v1/family/_/redemption-requests",
         headers={"Authorization": f"Bearer {token}"},
         json={"wishlist_item_id": item_id},
     )

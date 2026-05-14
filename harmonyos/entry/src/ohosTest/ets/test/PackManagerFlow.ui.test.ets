@@ -13,7 +13,7 @@ const MOCK_BASE_URL: string = 'http://127.0.0.1:8123';
 
 // Mock-server constants — must stay in sync with `server/mock_ui_server.py`
 // (`_PAIR_*` module constants and `FIXTURE_*_PACK_PAYLOAD`). These are the
-// deterministic identifiers the mock mints on a `/api/v1/pair/redeem`
+// deterministic identifiers the mock mints on a `/api/v1/public/pair/redeem`
 // success and the pack ids served by the global / family endpoints.
 const MOCK_DEVICE_TOKEN: string = 'ui-mock-device-jwt';
 const MOCK_VALID_SHORT_CODE: string = '654321';
@@ -273,7 +273,7 @@ async function seedMockBinding(): Promise<void> {
   try {
     const body: string =
       `{"device_id":"ui-mock-pack-suite","short_code":"${MOCK_VALID_SHORT_CODE}"}`;
-    await mockHttp(http.RequestMethod.POST, '/api/v1/pair/redeem', body, '');
+    await mockHttp(http.RequestMethod.POST, '/api/v1/public/pair/redeem', body, '');
   } catch (err) {
     throw err as Error;
   }
@@ -287,7 +287,7 @@ async function seedMockBinding(): Promise<void> {
  */
 async function unbindMockBinding(): Promise<void> {
   try {
-    await mockHttp(http.RequestMethod.POST, '/api/v1/child/unbind', '{}', MOCK_DEVICE_TOKEN);
+    await mockHttp(http.RequestMethod.POST, '/api/v1/family/_/unbind', '{}', MOCK_DEVICE_TOKEN);
   } catch (err) {
     throw err as Error;
   }
@@ -508,7 +508,7 @@ const PIN_LABEL_PINNED: string = '已固定';
  *   7. (V0.6.7.6) The PackManagerSync button drives the THREE-LAYER
  *      pack stack against the local mock — built-in (rawfile) +
  *      global (`/api/v1/public/global-packs/latest.json`) + family
- *      (`/api/v1/child/family-packs/latest.json`, gated by the
+ *      (`/api/v1/family/_/family-packs/latest.json`, gated by the
  *      device JWT). After sync, the new pack rows render with
  *      English names + the matching source pill ("官方" / "家庭"),
  *      and activating either grows the HomePage `RegionChip_<id>`

@@ -27,8 +27,6 @@ import {
 import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
 import { CoinSnapshot } from '../models/CoinSnapshot';
 import { getTodayPreferences, TodayPreferences } from '../services/TodayPreferences';
-import { WordPackCache, WordPackCacheRecord } from '../services/WordPackCache';
-import { CategoryCatalog, CategoryRow } from '../services/CategoryCatalog';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import BuildProfile from 'BuildProfile';
 import { VersionTripleTap } from '../services/VersionTripleTap';
@@ -83,7 +81,7 @@ struct HomePage {
    * Bumped on every successful loadHomeIntegration / setActiveIds /
    * togglePin / pruneAgainstLibrary call. ArkUI does not track through
    * helper methods, so the @Builder closures read this field to force
-   * a re-render after async chip-set changes.
+   * a re-render after async chip-set changes (including adventure card copy).
    */
   @State private packLibraryVersion: number = 0;
   private homeIntegration: HomeIntegrationBundle = new HomeIntegrationBundle();
@@ -102,16 +100,6 @@ struct HomePage {
   private battleBlockedToastTimer: number = -1;
   private coins: CoinAccount = getCoinAccount();
   private todayPrefs: TodayPreferences = getTodayPreferences();
-  /**
-   * V0.5.E: server-side category overlay. Empty until the WordPackCache
-   * has produced a v4+ record; v1 packs (current production) leave this
-   * empty so the bundled AdventureCatalog labels stay in place.
-   * `categoryCatalogVersion` is bumped on every refresh so the @Builder
-   * methods that read the overlay re-render after the async load.
-   */
-  @State private categoryCatalogVersion: number = 0;
-  private categoryCatalog: CategoryCatalog = new CategoryCatalog();
-  private wordPackCache: WordPackCache = new WordPackCache();
   // V0.6.2: top-right child badge ("<avatarEmoji> <nickname>") when the device
   // is bound to a parent account. Emoji matches CloudCredentials (same as
   // BoundDeviceInfoPage). Refreshed on aboutToAppear/onPageShow.
@@ -143,10 +131,6 @@ struct HomePage {
     }).catch((err: BusinessError): void => {
       console.error(`HomePage: TodayPreferences.init failed: ${JSON.stringify(err)}`);
     });
-    this.wordPackCache.init(ctx).then((): Promise<void> => this.refreshCategoryCatalog())
-      .catch((err: BusinessError): void => {
-        console.error(`HomePage: WordPackCache.init failed: ${JSON.stringify(err)}`);
-      });
     this.cloudCreds.init(ctx).then((): Promise<void> => this.refreshBoundChild())
       .catch((err: BusinessError): void => {
         console.error(`HomePage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
@@ -190,12 +174,6 @@ struct HomePage {
     this.refreshBalance();
     this.refreshWrongCount();
     this.refreshTodayState();
-    // V0.5.E: re-read the cache so a successful manual sync on
-    // ConfigPage shows fresh category overlays the next time the
-    // player returns to the home screen.
-    this.refreshCategoryCatalog().catch((err: BusinessError): void => {
-      console.error(`HomePage: refreshCategoryCatalog failed: ${JSON.stringify(err)}`);
-    });
     this.refreshBoundChild().catch((err: BusinessError): void => {
       console.error(`HomePage: refreshBoundChild failed: ${JSON.stringify(err)}`);
     });
@@ -244,42 +222,29 @@ struct HomePage {
       getLearningRecorder().recentWrongIds(REVIEW_WINDOW_SIZE).length;
   }
 
-  private async refreshCategoryCatalog(): Promise<void> {
-    const rec: WordPackCacheRecord | undefined = await this.wordPackCache.readRecord();
-    if (rec === undefined) {
-      this.categoryCatalog.setRows([]);
-      this.categoryCatalogVersion += 1;
-      return;
-    }
-    this.categoryCatalog.setRows(CategoryCatalog.parsePackCategories(rec.body));
-    this.categoryCatalogVersion += 1;
-  }
-
   /**
    * V0.6.7.5: HomePage labels — the `AdventureCardTitle` heading and
-   * the chip row — now follow PackManagerPage's English convention
+   * the chip row — follow PackManagerPage's English convention
    * (V0.6.7 spec: 词包名字用英文). `region.displayName` is sourced
-   * from `pack.name` via `regionFromPack`, so the heading is
-   * deterministically the English pack name regardless of whether
-   * the server pushed a `categoryCatalog` overlay.
-   *
-   * The legacy V0.5.E `categoryCatalog` Chinese overlay is no longer
-   * consulted from this path; the cache + sync machinery is kept so
-   * the storyZh body copy in `regionStory` and any future Chinese-
-   * label use-case still has a hook.
+   * from `pack.name` via `regionFromPack`.
    */
   private regionLabel(region: AdventureRegion): string {
     return region.displayName;
   }
 
   /**
-   * V0.5.E overlay: prefer the server `storyZh` for the active region
-   * when available; otherwise show the bundled static blurb.
+   * Prefer `Pack.scene.storyZh` from the active chip whose id matches
+   * `region.id` (global / family packs hydrated from server JSON).
    */
   private regionStory(region: AdventureRegion): string {
-    const overlay: CategoryRow | undefined = this.categoryCatalog.getById(region.id);
-    if (overlay !== undefined && overlay.storyZh !== undefined && overlay.storyZh.length > 0) {
-      return overlay.storyZh;
+    for (let i = 0; i < this.chipPacks.length; i++) {
+      if (this.chipPacks[i].id === region.id) {
+        const zh: string | undefined = this.chipPacks[i].scene.storyZh;
+        if (zh !== undefined && zh.length > 0) {
+          return zh;
+        }
+        break;
+      }
     }
     return '今天的冒险包含 5 关卡，含拼写、复习与首领关';
   }
@@ -692,9 +657,8 @@ struct HomePage {
   private adventureCard() {
     Column({ space: 10 }) {
       Row() {
-        // V0.5.E: read categoryCatalogVersion here so ArkUI re-runs the
-        // builder after a server pack overlay applies.
-        Text(this.categoryCatalogVersion >= 0 ? this.regionLabel(this.todayRegion) : this.todayRegion.displayName)
+        // Read packLibraryVersion so ArkUI re-runs the builder after chip / pack loads.
+        Text(this.packLibraryVersion >= 0 ? this.regionLabel(this.todayRegion) : this.todayRegion.displayName)
           .id('AdventureCardTitle')
           .fontSize(22)
           .fontWeight(FontWeight.Bold)
@@ -724,7 +688,7 @@ struct HomePage {
       }
       .width('100%');
 
-      Text(this.categoryCatalogVersion >= 0 ? this.regionStory(this.todayRegion) : '今天的冒险包含 5 关卡，含拼写、复习与首领关')
+      Text(this.packLibraryVersion >= 0 ? this.regionStory(this.todayRegion) : '今天的冒险包含 5 关卡，含拼写、复习与首领关')
         .id('AdventureCardStory')
         .fontSize(14)
         .fontColor('#5A4A35');

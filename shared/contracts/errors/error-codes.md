@@ -19,6 +19,7 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `EMPTY_PACK` | 409 | Family/global packs | Pack publish attempted without publishable words. |
 | `EMPTY_UPLOAD` | 400 | Admin LLM | Uploaded image body is empty. |
 | `FAMILY_MISMATCH` | 403 | Child word stats | Device is attempting to access a different family. |
+| `FAMILY_REQUIRED` | 400 | Family lessons | Lesson import/review requires a real `family_id` path segment (not `_`). |
 | `FORBIDDEN` | 403 | Auth dependencies | Authenticated principal lacks the required role. |
 | `IMAGE_TOO_LARGE` | 413 | Admin LLM | Uploaded image exceeds configured size limit. |
 | `INVALID_CODE` | 403 | Parent auth | Verification code is incorrect. |
@@ -28,6 +29,7 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `ITEM_NOT_FOUND` | 404 | Wishlist service | Wishlist item does not exist. |
 | `LLM_CALL_FAILED` | 502 | Admin LLM | Upstream LLM call failed. |
 | `LLM_NOT_CONFIGURED` | 503 | Admin LLM | LLM provider or key is not configured. |
+| `LESSON_APPROVE_INVALID` | 422 | Family lessons | Lesson draft approve failed while upserting family-pack rows (see `errors` array). |
 | `NAME_TAKEN` | 409 | Family/global packs | Pack name or id conflicts with an existing pack. |
 | `NO_PREVIOUS_VERSION` | 409 | Family/global packs | Rollback requested but no previous version exists. |
 | `PACK_FULL` | 409 | Family/global packs | Draft pack exceeds the word limit. |

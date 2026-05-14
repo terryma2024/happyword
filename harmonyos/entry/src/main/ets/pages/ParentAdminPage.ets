@@ -11,6 +11,7 @@ import {
   LessonImportError,
   PickedImage,
 } from '../services/ParentApiClient';
+import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import {
   IOrientationAdapter,
@@ -83,6 +84,7 @@ struct ParentAdminPage {
   @State private failedDrafts: LessonDraftDto[] = [];
   private toastTimer: number = -1;
   private serverBaseUrl: string = effectiveServerBaseUrl();
+  private cloudCreds: CloudCredentials = new CloudCredentials();
   private client: ParentApiClient = ParentApiClient.withRealHttp(this.serverBaseUrl);
   private orientation: IOrientationAdapter = new RealOrientationAdapter(
     this.getUIContext().getHostContext() as common.UIAbilityContext,
@@ -102,12 +104,17 @@ struct ParentAdminPage {
     lockPortrait(this.orientation).catch((err: BusinessError): void => {
       console.error(`ParentAdminPage.lockPortrait failed: ${JSON.stringify(err)}`);
     });
-    this.refreshStats().catch((err: BusinessError): void => {
-      console.error(`ParentAdminPage.refreshStats(initial) failed: ${JSON.stringify(err)}`);
-    });
-    this.refreshPendingDrafts().catch((err: BusinessError): void => {
-      console.error(`ParentAdminPage.refreshPendingDrafts(initial) failed: ${JSON.stringify(err)}`);
-    });
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    this.cloudCreds.init(ctx).then((): Promise<void> => this.bootstrapParentAdminNetwork())
+      .catch((err: BusinessError): void => {
+        console.error(`ParentAdminPage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
+        this.refreshStats().catch((e2: BusinessError): void => {
+          console.error(`ParentAdminPage.refreshStats(initial) failed: ${JSON.stringify(e2)}`);
+        });
+        this.refreshPendingDrafts().catch((e3: BusinessError): void => {
+          console.error(`ParentAdminPage.refreshPendingDrafts(initial) failed: ${JSON.stringify(e3)}`);
+        });
+      });
   }
 
   onPageShow(): void {
@@ -115,10 +122,14 @@ struct ParentAdminPage {
     lockPortrait(this.orientation).catch((err: BusinessError): void => {
       console.error(`ParentAdminPage.lockPortrait(onPageShow) failed: ${JSON.stringify(err)}`);
     });
-    // Refresh so an approved draft drops out of the pending list.
-    this.refreshPendingDrafts().catch((err: BusinessError): void => {
-      console.error(`ParentAdminPage.refreshPendingDrafts(onPageShow) failed: ${JSON.stringify(err)}`);
-    });
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    this.cloudCreds.init(ctx).then((): Promise<void> => this.resyncLessonFamilyAndDrafts())
+      .catch((err: BusinessError): void => {
+        console.error(`ParentAdminPage: CloudCredentials.init(onPageShow) failed: ${JSON.stringify(err)}`);
+        this.refreshPendingDrafts().catch((e2: BusinessError): void => {
+          console.error(`ParentAdminPage.refreshPendingDrafts(onPageShow) failed: ${JSON.stringify(e2)}`);
+        });
+      });
   }
 
   aboutToDisappear(): void {
@@ -129,6 +140,19 @@ struct ParentAdminPage {
     restoreAutoLandscape(this.orientation).catch((err: BusinessError): void => {
       console.error(`ParentAdminPage.restoreAutoLandscape failed: ${JSON.stringify(err)}`);
     });
+  }
+
+  private async bootstrapParentAdminNetwork(): Promise<void> {
+    const snap: CloudCredentialsSnapshot = await this.cloudCreds.load();
+    this.client.setFamilyIdForLessonApis(snap.familyId);
+    await this.refreshStats();
+    await this.refreshPendingDrafts();
+  }
+
+  private async resyncLessonFamilyAndDrafts(): Promise<void> {
+    const snap: CloudCredentialsSnapshot = await this.cloudCreds.load();
+    this.client.setFamilyIdForLessonApis(snap.familyId);
+    await this.refreshPendingDrafts();
   }
 
   private showToast(message: string): void {

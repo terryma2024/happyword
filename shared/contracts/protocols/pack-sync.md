@@ -6,7 +6,8 @@
 | --- | --- | --- | --- |
 | built-in | shipped app asset | none | app bundle version |
 | global | `GET /api/v1/public/global-packs/latest.json` | anonymous | ETag + fetchedAt |
-| family | `GET /api/v1/child/family-packs/latest.json` | device token | ETag + fetchedAt |
+| family | `GET /api/v1/family/{family_id}/family-packs/latest.json` | device token | ETag + fetchedAt |
+| merged (optional) | `GET /api/v1/family/{family_id}/packs/latest.json` | device token | ETag + fetchedAt |
 
 ## Status Handling
 

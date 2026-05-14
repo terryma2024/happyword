@@ -1,4 +1,4 @@
-"""V0.6.1 — /api/v1/parent/auth/* + /api/v1/parent/me HTTP behaviour contracts.
+"""V0.6.1 — /api/v1/family/_/auth/* + /api/v1/family/_/me HTTP behaviour contracts.
 
 Covers spec §V0.6.1 server contracts 1-16 (rate limit, cookie issue, role
 mismatch, verify edge cases, /me, logout, cookie renewal).
@@ -43,7 +43,7 @@ async def test_request_code_new_email_returns_202_and_sends_email(
 ) -> None:
     ac, provider = recording_client
     r = await ac.post(
-        "/api/v1/parent/auth/request-code",
+        "/api/v1/family/_/auth/request-code",
         json={"email": "alice@example.com"},
     )
     assert r.status_code == 202
@@ -63,10 +63,10 @@ async def test_request_code_rate_limited_within_60s(
 ) -> None:
     ac, provider = recording_client
     r1 = await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "rl@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "rl@example.com"}
     )
     r2 = await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "rl@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "rl@example.com"}
     )
     assert r1.status_code == 202
     assert r2.status_code == 202
@@ -91,7 +91,7 @@ async def test_request_code_degrades_unexpected_email_provider_failure(
     try:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             r = await ac.post(
-                "/api/v1/parent/auth/request-code",
+                "/api/v1/family/_/auth/request-code",
                 json={"email": "smtp-timeout@example.com"},
             )
     finally:
@@ -111,7 +111,7 @@ async def test_verify_code_success_creates_family_and_returns_cookie(
 ) -> None:
     ac, provider = recording_client
     await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "verify@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "verify@example.com"}
     )
     # Pluck plain code from the EmailVerification row by re-asking the service
     # for it via test seam: we call OTP service directly with a special hook.
@@ -121,7 +121,7 @@ async def test_verify_code_success_creates_family_and_returns_cookie(
     assert len(code) == 6
 
     r = await ac.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": "verify@example.com", "code": code},
     )
     assert r.status_code == 200
@@ -139,10 +139,10 @@ async def test_verify_code_wrong_returns_403(
 ) -> None:
     ac, _ = recording_client
     await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "wrong@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "wrong@example.com"}
     )
     r = await ac.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": "wrong@example.com", "code": "000000"},
     )
     assert r.status_code == 403
@@ -155,16 +155,16 @@ async def test_verify_code_5th_wrong_returns_410_too_many(
 ) -> None:
     ac, _ = recording_client
     await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "lock@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "lock@example.com"}
     )
     for _ in range(4):
         r = await ac.post(
-            "/api/v1/parent/auth/verify-code",
+            "/api/v1/family/_/auth/verify-code",
             json={"email": "lock@example.com", "code": "000000"},
         )
         assert r.status_code == 403
     r = await ac.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": "lock@example.com", "code": "000000"},
     )
     assert r.status_code == 410
@@ -177,7 +177,7 @@ async def test_verify_code_after_expiry_returns_410(
 ) -> None:
     ac, provider = recording_client
     await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "exp@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "exp@example.com"}
     )
     body = provider.outbox[-1]["text"]  # type: ignore[attr-defined]
     code = "".join(ch for ch in body if ch.isdigit())[:6]
@@ -187,7 +187,7 @@ async def test_verify_code_after_expiry_returns_410(
     real_now = datetime.now(tz=UTC)
     monkeypatch.setattr(otp_service, "_utcnow", lambda: real_now + timedelta(minutes=11))
     r = await ac.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": "exp@example.com", "code": code},
     )
     assert r.status_code == 410
@@ -201,11 +201,11 @@ async def test_verify_code_idempotent_for_existing_parent(
 ) -> None:
     ac, provider = recording_client
     await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "idem@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "idem@example.com"}
     )
     code = "".join(ch for ch in provider.outbox[-1]["text"] if ch.isdigit())[:6]  # type: ignore[attr-defined]
     r1 = await ac.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": "idem@example.com", "code": code},
     )
     assert r1.status_code == 200
@@ -220,11 +220,11 @@ async def test_verify_code_idempotent_for_existing_parent(
         otp_service, "_utcnow", lambda: real_now + timedelta(seconds=120)
     )
     await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "idem@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "idem@example.com"}
     )
     code2 = "".join(ch for ch in provider.outbox[-1]["text"] if ch.isdigit())[:6]  # type: ignore[attr-defined]
     r2 = await ac.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": "idem@example.com", "code": code2},
     )
     assert r2.status_code == 200
@@ -248,12 +248,12 @@ async def test_verify_code_admin_email_returns_403_role_mismatch(
         email="admin@example.com",
     ).insert()
     await ac.post(
-        "/api/v1/parent/auth/request-code",
+        "/api/v1/family/_/auth/request-code",
         json={"email": "admin@example.com"},
     )
     code = "".join(ch for ch in provider.outbox[-1]["text"] if ch.isdigit())[:6]  # type: ignore[attr-defined]
     r = await ac.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": "admin@example.com", "code": code},
     )
     assert r.status_code == 403
@@ -265,7 +265,7 @@ async def test_me_without_cookie_returns_401(
     recording_client: tuple[AsyncClient, object],
 ) -> None:
     ac, _ = recording_client
-    r = await ac.get("/api/v1/parent/me")
+    r = await ac.get("/api/v1/family/_/me")
     assert r.status_code == 401
 
 
@@ -278,7 +278,7 @@ async def test_me_with_admin_cookie_returns_403(
 
     admin_token = create_session_token(role="admin", identifier="root")
     ac.cookies.set("wm_session", admin_token)
-    r = await ac.get("/api/v1/parent/me")
+    r = await ac.get("/api/v1/family/_/me")
     assert r.status_code == 403
 
 
@@ -288,17 +288,17 @@ async def test_me_with_parent_cookie_returns_profile(
 ) -> None:
     ac, provider = recording_client
     await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "me@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "me@example.com"}
     )
     code = "".join(ch for ch in provider.outbox[-1]["text"] if ch.isdigit())[:6]  # type: ignore[attr-defined]
     r = await ac.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": "me@example.com", "code": code},
     )
     assert r.status_code == 200
     # The Set-Cookie from verify-code was already absorbed by the client,
     # so subsequent /me calls reuse the cookie.
-    me = await ac.get("/api/v1/parent/me")
+    me = await ac.get("/api/v1/family/_/me")
     assert me.status_code == 200
     body = me.json()
     assert body["email"] == "me@example.com"
@@ -313,14 +313,14 @@ async def test_logout_clears_cookie(
 ) -> None:
     ac, provider = recording_client
     await ac.post(
-        "/api/v1/parent/auth/request-code", json={"email": "out@example.com"}
+        "/api/v1/family/_/auth/request-code", json={"email": "out@example.com"}
     )
     code = "".join(ch for ch in provider.outbox[-1]["text"] if ch.isdigit())[:6]  # type: ignore[attr-defined]
     await ac.post(
-        "/api/v1/parent/auth/verify-code",
+        "/api/v1/family/_/auth/verify-code",
         json={"email": "out@example.com", "code": code},
     )
-    r = await ac.post("/api/v1/parent/auth/logout")
+    r = await ac.post("/api/v1/family/_/auth/logout")
     assert r.status_code == 200
     set_cookie = r.headers.get("set-cookie", "")
     # Either Max-Age=0 or expires in the past; both delete the cookie.

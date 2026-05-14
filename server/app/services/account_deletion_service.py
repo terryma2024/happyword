@@ -260,7 +260,7 @@ async def _delete_pair_tokens(family_id: str) -> int:
 async def export_account_data(
     *, user: User
 ) -> dict[str, list[dict[str, object]]]:
-    """Return a JSON-shaped snapshot for `/api/v1/parent/account/export`.
+    """Return a JSON-shaped snapshot for `/api/v1/family/{family_id}/account/export`.
 
     The router can stream this as a multipart download; for V0.6.7 we
     keep the implementation simple (single JSON response) so the test

@@ -13,7 +13,7 @@ import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Path, Request, Response, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -76,7 +76,7 @@ from app.services.redemption_service import (
 if TYPE_CHECKING:
     from app.services.email_provider import EmailProvider
 
-router = APIRouter(prefix="/parent", tags=["parent-web"])
+router = APIRouter(prefix="/family", tags=["parent-web"])
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -120,15 +120,21 @@ async def _load_active_device_for_parent(
     return binding, child
 
 
-@router.get("/login", response_class=HTMLResponse)
-async def get_login(request: Request) -> HTMLResponse:
+@router.get("/{family_id}/login", response_class=HTMLResponse)
+async def get_login(request: Request, family_id: str = Path(min_length=1, max_length=128)) -> HTMLResponse:
+    _ = family_id
     return templates.TemplateResponse(
         request, "parent/login.html", {"user": None}
     )
 
 
-@router.get("/verify", response_class=HTMLResponse)
-async def get_verify(request: Request, email: str = "") -> HTMLResponse:
+@router.get("/{family_id}/verify", response_class=HTMLResponse)
+async def get_verify(
+    request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
+    email: str = "",
+) -> HTMLResponse:
+    _ = family_id
     return templates.TemplateResponse(
         request,
         "parent/verify.html",
@@ -136,12 +142,14 @@ async def get_verify(request: Request, email: str = "") -> HTMLResponse:
     )
 
 
-@router.post("/auth/request-code")
+@router.post("/{family_id}/auth/request-code")
 async def post_request_code_form(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     email: str = Form(...),
     provider: EmailProvider = Depends(get_email_provider),
 ) -> HTMLResponse:
+    _ = family_id
     settings = get_settings()
     email_norm = _normalize_email(email)
     _, plain_code = await request_code(email_norm)
@@ -161,12 +169,14 @@ async def post_request_code_form(
     )
 
 
-@router.post("/auth/verify-code", response_model=None)
+@router.post("/{family_id}/auth/verify-code", response_model=None)
 async def post_verify_code_form(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     email: str = Form(...),
     code: str = Form(...),
 ) -> HTMLResponse | RedirectResponse:
+    _ = family_id
     email_norm = _normalize_email(email)
 
     existing = await User.find_one(User.email == email_norm)
@@ -232,36 +242,44 @@ async def post_verify_code_form(
             status_code=403,
         )
     token = create_session_token(role="parent", identifier=user.username)
-    redirect = RedirectResponse(url="/parent/", status_code=303)
+    fid = user.family_id or "_"
+    redirect = RedirectResponse(url=f"/family/{fid}/", status_code=303)
     set_parent_session_cookie(redirect, token)
     return redirect
 
 
-@router.post("/auth/logout")
-async def post_logout_form() -> RedirectResponse:
-    redirect = RedirectResponse(url="/parent/login", status_code=303)
+@router.post("/{family_id}/auth/logout")
+async def post_logout_form(
+    family_id: str = Path(min_length=1, max_length=128),
+) -> RedirectResponse:
+    _ = family_id
+    redirect = RedirectResponse(url="/family/_/login", status_code=303)
     clear_parent_session_cookie(redirect)
     return redirect
 
 
-@router.get("/", response_class=HTMLResponse, response_model=None)
-@router.get("", response_class=HTMLResponse, response_model=None)
-async def get_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
+@router.get("/{family_id}/", response_class=HTMLResponse, response_model=None)
+@router.get("/{family_id}", response_class=HTMLResponse, response_model=None)
+async def get_dashboard(
+    request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
+) -> HTMLResponse | RedirectResponse:
+    _ = family_id
     """Soft-auth: cookie missing or invalid → redirect to login (HTML flow)."""
     cookie_token = request.cookies.get(get_settings().session_cookie_name)
     if not cookie_token:
-        return RedirectResponse(url="/parent/login", status_code=303)
+        return RedirectResponse(url="/family/_/login", status_code=303)
     try:
         typed = decode_typed_token(cookie_token)
     except JwtError:
-        return RedirectResponse(url="/parent/login", status_code=303)
+        return RedirectResponse(url="/family/_/login", status_code=303)
     if typed.role != "parent":
-        return RedirectResponse(url="/parent/login", status_code=303)
+        return RedirectResponse(url="/family/_/login", status_code=303)
     user = await User.find_one(
         User.username == typed.identifier, User.role == UserRole.PARENT
     )
     if user is None:
-        return RedirectResponse(url="/parent/login", status_code=303)
+        return RedirectResponse(url="/family/_/login", status_code=303)
     bindings = await DeviceBinding.find(
         DeviceBinding.family_id == (user.family_id or ""),
         DeviceBinding.revoked_at == None,  # noqa: E711
@@ -338,11 +356,13 @@ async def _decorated_redemptions(
     return out
 
 
-@router.get("/redemptions", response_class=HTMLResponse, response_model=None)
+@router.get("/{family_id}/redemptions", response_class=HTMLResponse, response_model=None)
 async def get_redemption_inbox(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> HTMLResponse:
+    _ = family_id
     pending = await _decorated_redemptions(
         family_id=user.family_id or "", pending=True
     )
@@ -358,11 +378,13 @@ async def get_redemption_inbox(
     )
 
 
-@router.post("/redemptions/{request_id}/approve", response_model=None)
+@router.post("/{family_id}/redemptions/{request_id}/approve", response_model=None)
 async def post_approve_redemption(
     request_id: str = Path(min_length=4, max_length=64),
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> RedirectResponse:
+    _ = family_id
     with contextlib.suppress(RequestNotFound, AlreadyDecided):
         await redemption_approve(
             request_id=request_id,
@@ -370,14 +392,16 @@ async def post_approve_redemption(
             decided_by=user.username,
             note=None,
         )
-    return RedirectResponse(url="/parent/redemptions", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/redemptions", status_code=303)
 
 
-@router.post("/redemptions/{request_id}/reject", response_model=None)
+@router.post("/{family_id}/redemptions/{request_id}/reject", response_model=None)
 async def post_reject_redemption(
     request_id: str = Path(min_length=4, max_length=64),
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> RedirectResponse:
+    _ = family_id
     with contextlib.suppress(RequestNotFound, AlreadyDecided):
         await redemption_reject(
             request_id=request_id,
@@ -385,14 +409,16 @@ async def post_reject_redemption(
             decided_by=user.username,
             note=None,
         )
-    return RedirectResponse(url="/parent/redemptions", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/redemptions", status_code=303)
 
 
-@router.get("/feedback", response_class=HTMLResponse, response_model=None)
+@router.get("/{family_id}/feedback", response_class=HTMLResponse, response_model=None)
 async def get_feedback(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> HTMLResponse:
+    _ = family_id
     rows = await feedback_service.list_feedback_for_parent(parent_user_id=user.username)
     ok_map = {"created": "反馈已提交，感谢你的建议。"}
     return templates.TemplateResponse(
@@ -409,13 +435,15 @@ async def get_feedback(
     )
 
 
-@router.post("/feedback", response_class=HTMLResponse, response_model=None)
+@router.post("/{family_id}/feedback", response_class=HTMLResponse, response_model=None)
 async def post_feedback(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     subject: str = Form(...),
     body: str = Form(...),
     user: User = Depends(current_parent_user),
 ) -> HTMLResponse | RedirectResponse:
+    _ = family_id
     try:
         await feedback_service.create_feedback(user=user, subject=subject, body=body)
     except ValueError:
@@ -433,14 +461,16 @@ async def post_feedback(
             },
             status_code=400,
         )
-    return RedirectResponse(url="/parent/feedback?flash_ok=created", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/feedback?flash_ok=created", status_code=303)
 
 
-@router.get("/devices/add", response_class=HTMLResponse)
+@router.get("/{family_id}/devices/add", response_class=HTMLResponse)
 async def get_devices_add(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> HTMLResponse:
+    _ = family_id
     """V0.6.2 — render a fresh QR + 6-digit short code for the parent to share."""
     pt = await create_pair(family_id=user.family_id or "", parent_id=user.username)
     settings = get_settings()
@@ -459,12 +489,14 @@ async def get_devices_add(
     )
 
 
-@router.get("/devices/add/status", response_class=HTMLResponse)
+@router.get("/{family_id}/devices/add/status", response_class=HTMLResponse)
 async def get_devices_add_status(
     request: Request,
-    token: str,
+    family_id: str = Path(min_length=1, max_length=128),
+    token: str = Query(min_length=8),
     user: User = Depends(current_parent_user),
 ) -> HTMLResponse:
+    _ = family_id
     """HTMX poll endpoint returning the small status partial."""
     pt = await PairToken.find_one(
         PairToken.token == token, PairToken.family_id == (user.family_id or "")
@@ -489,23 +521,27 @@ async def get_devices_add_status(
     )
 
 
-@router.post("/devices/add/cancel", response_model=None)
+@router.post("/{family_id}/devices/add/cancel", response_model=None)
 async def post_devices_add_cancel(
     token: str = Form(...),
+    family_id: str = Path(min_length=1, max_length=128),
     user: User = Depends(current_parent_user),
 ) -> RedirectResponse:
+    _ = family_id
     with contextlib.suppress(PairTokenInvalid):
         await pair_cancel(token=token, family_id=user.family_id or "")
-    return RedirectResponse(url="/parent/", status_code=303)
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/", status_code=303)
 
 
-@router.get("/devices/{binding_id}/unbind", response_class=HTMLResponse, response_model=None)
+@router.get("/{family_id}/devices/{binding_id}/unbind", response_class=HTMLResponse, response_model=None)
 async def get_device_unbind_confirm(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     binding_id: str = Path(min_length=8, max_length=64),
     user: User = Depends(current_parent_user),
     provider: EmailProvider = Depends(get_email_provider),
 ) -> HTMLResponse:
+    _ = family_id
     binding, child = await _load_active_device_for_parent(
         binding_id=binding_id,
         family_id=user.family_id or "",
@@ -539,13 +575,15 @@ async def get_device_unbind_confirm(
     )
 
 
-@router.post("/devices/{binding_id}/unbind", response_class=HTMLResponse, response_model=None)
+@router.post("/{family_id}/devices/{binding_id}/unbind", response_class=HTMLResponse, response_model=None)
 async def post_device_unbind_confirm(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     binding_id: str = Path(min_length=8, max_length=64),
     code: str = Form(...),
     user: User = Depends(current_parent_user),
 ) -> HTMLResponse | RedirectResponse:
+    _ = family_id
     binding, child = await _load_active_device_for_parent(
         binding_id=binding_id,
         family_id=user.family_id or "",
@@ -581,7 +619,7 @@ async def post_device_unbind_confirm(
         child.updated_at = now
         await binding.save()
         await child.save()
-        return RedirectResponse(url="/parent/?flash_ok=device_unbound", status_code=303)
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/?flash_ok=device_unbound", status_code=303)
 
     return templates.TemplateResponse(
         request,
@@ -598,12 +636,14 @@ async def post_device_unbind_confirm(
     )
 
 
-@router.get("/devices/{binding_id}", response_class=HTMLResponse)
+@router.get("/{family_id}/devices/{binding_id}", response_class=HTMLResponse)
 async def get_device_detail(
     request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
     binding_id: str = Path(min_length=8, max_length=64),
     user: User = Depends(current_parent_user),
 ) -> HTMLResponse:
+    _ = family_id
     """V0.6.5 — render the per-device detail page with embedded report
     block. Other-family bindings raise 404."""
     binding, child = await _load_active_device_for_parent(
