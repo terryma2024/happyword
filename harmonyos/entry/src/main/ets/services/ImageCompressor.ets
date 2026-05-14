@@ -7,7 +7,7 @@ import { PickedImage } from './ParentApiClient';
  *
  * Why we need this
  * ----------------
- * The lesson-import upload (`POST /api/v1/admin/lessons/import`) is
+ * The lesson-import upload (`POST /api/v1/family/{family_id}/lessons/import`) is
  * deployed as a Vercel Function. Vercel's edge enforces a hard
  * **4.5 MB request body limit** independent of the FastAPI handler's
  * own check. Modern phone gallery photos are routinely 5–10 MB, so a

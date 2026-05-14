@@ -1,20 +1,22 @@
-"""V0.5.5 → V0.7 — admin lesson photo import tests.
+"""V0.5.5 → V0.7 — family-namespaced lesson photo import tests.
+
+Routes are under ``/api/v1/family/{family_id}/…``; tests use a fixed
+``fam-test-lessons`` segment (decorative until drafts are family-scoped).
 
 Behaviour contracts (LLM mocked):
-1. unsupported MIME → 415
 2. empty body → 400
 3. **import is fast-path**: HTTP 201 + draft `status="extracting"`,
    `extracted=None`, `model=None`, and the OpenAI vision call is NOT
    invoked. The cron router (`tests/test_admin_cron.py`) is what
    exercises the LLM. (V0.7 split — see git log around this commit.)
-4. PATCH /admin/lesson-drafts/{id} updates `edited_extracted` (only
+4. PATCH /api/v1/family/{family_id}/lesson-drafts/{id} updates `edited_extracted` (only
    meaningful once the cron has flipped the draft to "pending").
 5. POST approve creates a Category + upserts Words (skipping existing
    ids); existing Word.category gets included in skipped_words.
 6. POST reject leaves DB untouched.
 7. publish after approve produces schema_v4 with categories[].
 
-NOTE (V0.5.8): Auth was removed from admin routers; the negative auth
+NOTE (V0.5.8): Auth was removed from these routers; the negative auth
 tests have been deleted. The remaining tests still send bearer tokens
 (harmless — the dependency no longer reads them) so the test bodies stay
 tightly diff-aligned with V0.5.7.
@@ -136,7 +138,7 @@ async def _promote_to_pending(draft_id: str, payload: dict[str, object]) -> None
 @pytest.mark.asyncio
 async def test_lesson_import_rejects_unsupported_mime(client: "AsyncClient", admin: User) -> None:
     resp = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=_bearer(admin.username),
         files={"image": ("a.pdf", BytesIO(b"%PDF-1.7"), "application/pdf")},
     )
@@ -146,7 +148,7 @@ async def test_lesson_import_rejects_unsupported_mime(client: "AsyncClient", adm
 @pytest.mark.asyncio
 async def test_lesson_import_rejects_empty_body(client: "AsyncClient", admin: User) -> None:
     resp = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=_bearer(admin.username),
         files={"image": ("a.jpg", BytesIO(b""), "image/jpeg")},
     )
@@ -168,7 +170,7 @@ async def test_lesson_import_rejects_oversize_payload(
     """
     payload = b"\xff\xd8\xff\xe0" + b"x" * (4_500_001 - 4)
     resp = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=_bearer(admin.username),
         files={"image": ("big.jpg", BytesIO(payload), "image/jpeg")},
     )
@@ -193,7 +195,7 @@ async def test_lesson_import_returns_draft_extracting(
     _stub_blob_upload(monkeypatch)
     _install_extractor_tripwire(monkeypatch)
     resp = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=_bearer(admin.username),
         files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg" * 100), "image/jpeg")},
     )
@@ -216,7 +218,7 @@ async def test_patch_lesson_draft_updates_edited(
     _install_extractor_tripwire(monkeypatch)
     headers = _bearer(admin.username)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=headers,
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
@@ -228,7 +230,7 @@ async def test_patch_lesson_draft_updates_edited(
         "words": [{"word": "ruler", "meaningZh": "尺", "difficulty": 1}],
     }
     patched = await client.patch(
-        f"/api/v1/admin/lesson-drafts/{draft_id}",
+        f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}",
         json={"edited_extracted": edited},
         headers=headers,
     )
@@ -247,7 +249,7 @@ async def test_put_lesson_draft_updates_edited_same_as_patch(
     _install_extractor_tripwire(monkeypatch)
     headers = _bearer(admin.username)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=headers,
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
@@ -259,7 +261,7 @@ async def test_put_lesson_draft_updates_edited_same_as_patch(
         "words": [{"word": "glue", "meaningZh": "胶水", "difficulty": 1}],
     }
     put = await client.put(
-        f"/api/v1/admin/lesson-drafts/{draft_id}",
+        f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}",
         json={"edited_extracted": edited},
         headers=headers,
     )
@@ -281,14 +283,14 @@ async def test_patch_lesson_draft_rejected_while_extracting(
     _install_extractor_tripwire(monkeypatch)
     headers = _bearer(admin.username)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=headers,
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     draft_id = create.json()["id"]
 
     patched = await client.patch(
-        f"/api/v1/admin/lesson-drafts/{draft_id}",
+        f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}",
         json={"edited_extracted": _FIXED_EXTRACTED},
         headers=headers,
     )
@@ -303,14 +305,14 @@ async def test_approve_creates_category_and_words(
     _install_extractor_tripwire(monkeypatch)
     headers = _bearer(admin.username)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=headers,
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     draft_id = create.json()["id"]
     await _promote_to_pending(draft_id, _FIXED_EXTRACTED)
 
-    approve = await client.post(f"/api/v1/admin/lesson-drafts/{draft_id}/approve", headers=headers)
+    approve = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/approve", headers=headers)
     assert approve.status_code == 200, approve.text
     body = approve.json()
     assert body["created_category"]["id"] == "school-supplies"
@@ -353,13 +355,13 @@ async def test_approve_skips_existing_word_ids(
     _install_extractor_tripwire(monkeypatch)
     headers = _bearer(admin.username)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=headers,
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     draft_id = create.json()["id"]
     await _promote_to_pending(draft_id, _FIXED_EXTRACTED)
-    approve = await client.post(f"/api/v1/admin/lesson-drafts/{draft_id}/approve", headers=headers)
+    approve = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/approve", headers=headers)
     assert approve.status_code == 200
     body = approve.json()
     assert sorted(w["id"] for w in body["created_words"]) == [
@@ -384,7 +386,7 @@ async def test_list_lesson_drafts_rejects_page_zero(client: "AsyncClient") -> No
     pending-drafts list looked permanently empty even when fresh imports
     landed. See `entry/src/main/ets/pages/ParentAdminPage.ets`.
     """
-    resp = await client.get("/api/v1/admin/lesson-drafts?page=0&size=50")
+    resp = await client.get("/api/v1/family/fam-test-lessons/lesson-drafts?page=0&size=50")
     assert resp.status_code == 422
 
 
@@ -402,13 +404,13 @@ async def test_list_lesson_drafts_accepts_page_one(
     _install_extractor_tripwire(monkeypatch)
     headers = _bearer(admin.username)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=headers,
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     draft_id = create.json()["id"]
 
-    resp = await client.get("/api/v1/admin/lesson-drafts?status=extracting&page=1&size=50")
+    resp = await client.get("/api/v1/family/fam-test-lessons/lesson-drafts?status=extracting&page=1&size=50")
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["page"] == 1
@@ -423,13 +425,13 @@ async def test_reject_leaves_db_untouched(
     _install_extractor_tripwire(monkeypatch)
     headers = _bearer(admin.username)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         headers=headers,
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     draft_id = create.json()["id"]
     await _promote_to_pending(draft_id, _FIXED_EXTRACTED)
-    rej = await client.post(f"/api/v1/admin/lesson-drafts/{draft_id}/reject", headers=headers)
+    rej = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/reject", headers=headers)
     assert rej.status_code == 200
     assert rej.json()["status"] == "rejected"
 

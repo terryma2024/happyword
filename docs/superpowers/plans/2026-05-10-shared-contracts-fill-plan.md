@@ -22,7 +22,8 @@ Machine-contract scope:
 - **Child device APIs:** `/api/v1/family/{family_id}/profile`, `/api/v1/family/{family_id}/family-packs/latest.json`, `/api/v1/family/{family_id}/word-stats/**`, `/api/v1/family/{family_id}/wishlist/**`, `/api/v1/family/{family_id}/redemption-requests/**`, `/api/v1/family/{family_id}/unbind`
 - **Pairing APIs:** `/api/v1/family/{family_id}/pair/create`, `/api/v1/family/{family_id}/pair/status/{token}`, `/api/v1/family/{family_id}/pair/{token}`, `/api/v1/public/pair/redeem`, `/p/{token_short}`
 - **Parent app APIs:** `/api/v1/family/{family_id}/auth/**`, `/api/v1/family/{family_id}/me`, `/api/v1/family/{family_id}/devices`, `/api/v1/family/{family_id}/children/**`, `/api/v1/family/{family_id}/wishlist-items/**`, `/api/v1/family/{family_id}/redemption-requests/**`, `/api/v1/family/{family_id}/inbox/**`, `/api/v1/family/{family_id}/account/**`, `/api/v1/family/{family_id}/family-packs/**`
-- **Admin content APIs:** `/api/v1/admin/auth/**`, `/api/v1/admin/words/**`, `/api/v1/admin/packs/**`, `/api/v1/admin/categories/**`, `/api/v1/admin/lessons/**`, `/api/v1/admin/lesson-drafts/**`, `/api/v1/admin/drafts/**`, `/api/v1/admin/llm/**`, `/api/v1/admin/global-packs/**`, `/api/v1/admin/stats`, `/api/v1/admin/cron/**`
+- **Admin content APIs:** `/api/v1/admin/auth/**`, `/api/v1/admin/words/**`, `/api/v1/admin/packs/**`, `/api/v1/admin/categories/**`, `/api/v1/admin/drafts/**`, `/api/v1/admin/llm/**`, `/api/v1/admin/global-packs/**`, `/api/v1/admin/stats`, `/api/v1/admin/cron/**`
+- **Family lesson import:** `/api/v1/family/{family_id}/lessons/import`, `/api/v1/family/{family_id}/lesson-drafts/**`
 
 Documentation-only scope:
 
@@ -514,7 +515,7 @@ Source: `shared/contracts/openapi/happyword-api.openapi.json`
 | Legacy packs | `/api/v1/admin/packs`, `/api/v1/admin/packs/current`, `/api/v1/admin/packs/{version}`, `/api/v1/admin/packs/publish`, `/api/v1/admin/packs/rollback` |
 | Categories | `/api/v1/admin/categories`, `/api/v1/admin/categories/{category_id}` |
 | LLM drafts | `/api/v1/admin/llm/scan-words`, `/api/v1/admin/words/{word_id}/generate-distractors`, `/api/v1/admin/words/{word_id}/generate-example`, `/api/v1/admin/drafts/**` |
-| Lesson import | `/api/v1/admin/lessons/import`, `/api/v1/admin/lesson-drafts/**` |
+| Lesson import | `/api/v1/family/{family_id}/lessons/import`, `/api/v1/family/{family_id}/lesson-drafts/**` |
 | Global packs | `/api/v1/admin/global-packs/**` |
 | Stats and cron | `/api/v1/admin/stats`, `/api/v1/admin/cron/extract-pending` |
 

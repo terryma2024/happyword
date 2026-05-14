@@ -14,11 +14,6 @@
 /api/v1/admin/global-packs/{pack_id}/publish
 /api/v1/admin/global-packs/{pack_id}/rollback
 /api/v1/admin/global-packs/{pack_id}/versions
-/api/v1/admin/lesson-drafts
-/api/v1/admin/lesson-drafts/{draft_id}
-/api/v1/admin/lesson-drafts/{draft_id}/approve
-/api/v1/admin/lesson-drafts/{draft_id}/reject
-/api/v1/admin/lessons/import
 /api/v1/admin/llm/scan-words
 /api/v1/admin/packs
 /api/v1/admin/packs/current
@@ -48,6 +43,11 @@
 /api/v1/family/{family_id}/inbox
 /api/v1/family/{family_id}/inbox/mark-all-read
 /api/v1/family/{family_id}/inbox/{msg_id}/read
+/api/v1/family/{family_id}/lesson-drafts
+/api/v1/family/{family_id}/lesson-drafts/{draft_id}
+/api/v1/family/{family_id}/lesson-drafts/{draft_id}/approve
+/api/v1/family/{family_id}/lesson-drafts/{draft_id}/reject
+/api/v1/family/{family_id}/lessons/import
 /api/v1/family/{family_id}/me
 /api/v1/family/{family_id}/packs/latest.json
 /api/v1/family/{family_id}/pair/create

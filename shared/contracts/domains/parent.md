@@ -55,3 +55,15 @@ All JSON routes are mounted under `/api/v1/family/{family_id}/**`. The `family_i
 | POST | `/api/v1/family/{family_id}/family-packs/{pack_id}/publish` |
 | POST | `/api/v1/family/{family_id}/family-packs/{pack_id}/rollback` |
 | GET | `/api/v1/family/{family_id}/family-packs/{pack_id}/versions` |
+
+## Lesson photo import (family URL shape)
+
+| Method | Path |
+| --- | --- |
+| POST | `/api/v1/family/{family_id}/lessons/import` |
+| GET | `/api/v1/family/{family_id}/lesson-drafts` |
+| GET | `/api/v1/family/{family_id}/lesson-drafts/{draft_id}` |
+| PATCH | `/api/v1/family/{family_id}/lesson-drafts/{draft_id}` |
+| PUT | `/api/v1/family/{family_id}/lesson-drafts/{draft_id}` |
+| POST | `/api/v1/family/{family_id}/lesson-drafts/{draft_id}/approve` |
+| POST | `/api/v1/family/{family_id}/lesson-drafts/{draft_id}/reject` |

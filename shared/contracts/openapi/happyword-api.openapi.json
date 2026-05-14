@@ -294,7 +294,7 @@
         "title": "Body_import_image_to_pack_api_v1_family__family_scope__family_packs__pack_id__import_image_post",
         "type": "object"
       },
-      "Body_import_lesson_api_v1_admin_lessons_import_post": {
+      "Body_import_lesson_api_v1_family__family_id__lessons_import_post": {
         "properties": {
           "image": {
             "contentMediaType": "application/octet-stream",
@@ -306,7 +306,7 @@
         "required": [
           "image"
         ],
-        "title": "Body_import_lesson_api_v1_admin_lessons_import_post",
+        "title": "Body_import_lesson_api_v1_family__family_id__lessons_import_post",
         "type": "object"
       },
       "Body_post_device_unbind_confirm_family__family_id__devices__binding_id__unbind_post": {
@@ -2754,7 +2754,7 @@
       },
       "LessonApproveOut": {
         "additionalProperties": false,
-        "description": "Returned from POST /admin/lesson-drafts/{id}/approve.",
+        "description": "Returned from POST /api/v1/family/{family_id}/lesson-drafts/{id}/approve.",
         "properties": {
           "created_category": {
             "$ref": "#/components/schemas/CategoryOut"
@@ -5613,348 +5613,6 @@
         ]
       }
     },
-    "/api/v1/admin/lesson-drafts": {
-      "get": {
-        "operationId": "list_lesson_drafts_api_v1_admin_lesson_drafts_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 20,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "pending",
-              "title": "Status"
-            }
-          },
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "default": 1,
-              "minimum": 1,
-              "title": "Page",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "size",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "maximum": 500,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftListOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Lesson Drafts",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
-    "/api/v1/admin/lesson-drafts/{draft_id}": {
-      "get": {
-        "operationId": "get_lesson_draft_api_v1_admin_lesson_drafts__draft_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Lesson Draft",
-        "tags": [
-          "admin-lessons"
-        ]
-      },
-      "patch": {
-        "operationId": "patch_lesson_draft_api_v1_admin_lesson_drafts__draft_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LessonDraftPatchIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Patch Lesson Draft",
-        "tags": [
-          "admin-lessons"
-        ]
-      },
-      "put": {
-        "operationId": "patch_lesson_draft_api_v1_admin_lesson_drafts__draft_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LessonDraftPatchIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Patch Lesson Draft",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
-    "/api/v1/admin/lesson-drafts/{draft_id}/approve": {
-      "post": {
-        "operationId": "approve_lesson_api_v1_admin_lesson_drafts__draft_id__approve_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonApproveOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Approve Lesson",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
-    "/api/v1/admin/lesson-drafts/{draft_id}/reject": {
-      "post": {
-        "operationId": "reject_lesson_api_v1_admin_lesson_drafts__draft_id__reject_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Reject Lesson",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
-    "/api/v1/admin/lessons/import": {
-      "post": {
-        "description": "Fast-path import: validate the upload, persist the original\nimage to Vercel Blob, and create a draft row in\n`status=\"extracting\"`. The OpenAI vision extraction runs\nasynchronously on a Vercel cron (see `app.routers.admin_cron`).\n\nThe handler intentionally does NOT call `extract_lesson_payload`\nhere — the call could take 8–15s on a real OpenAI request, well\nover the simulator's ~900ms QEMU NAT idle timeout. Keeping the\nhandler under ~1s is the whole point of the V0.7 split.",
-        "operationId": "import_lesson_api_v1_admin_lessons_import_post",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_import_lesson_api_v1_admin_lessons_import_post"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LessonDraftOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Import Lesson",
-        "tags": [
-          "admin-lessons"
-        ]
-      }
-    },
     "/api/v1/admin/llm/scan-words": {
       "post": {
         "operationId": "scan_words_api_v1_admin_llm_scan_words_post",
@@ -8064,6 +7722,412 @@
         "summary": "Mark Read",
         "tags": [
           "parent-inbox"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/lesson-drafts": {
+      "get": {
+        "operationId": "list_lesson_drafts_api_v1_family__family_id__lesson_drafts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "pending",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Lesson Drafts",
+        "tags": [
+          "family-lessons"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/lesson-drafts/{draft_id}": {
+      "get": {
+        "operationId": "get_lesson_draft_api_v1_family__family_id__lesson_drafts__draft_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Lesson Draft",
+        "tags": [
+          "family-lessons"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_lesson_draft_api_v1_family__family_id__lesson_drafts__draft_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LessonDraftPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Lesson Draft",
+        "tags": [
+          "family-lessons"
+        ]
+      },
+      "put": {
+        "operationId": "patch_lesson_draft_api_v1_family__family_id__lesson_drafts__draft_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LessonDraftPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Lesson Draft",
+        "tags": [
+          "family-lessons"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/lesson-drafts/{draft_id}/approve": {
+      "post": {
+        "operationId": "approve_lesson_api_v1_family__family_id__lesson_drafts__draft_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonApproveOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Lesson",
+        "tags": [
+          "family-lessons"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/lesson-drafts/{draft_id}/reject": {
+      "post": {
+        "operationId": "reject_lesson_api_v1_family__family_id__lesson_drafts__draft_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Lesson",
+        "tags": [
+          "family-lessons"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/lessons/import": {
+      "post": {
+        "operationId": "import_lesson_api_v1_family__family_id__lessons_import_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_lesson_api_v1_family__family_id__lessons_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDraftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Lesson",
+        "tags": [
+          "family-lessons"
         ]
       }
     },

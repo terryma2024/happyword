@@ -86,7 +86,7 @@ async def test_import_succeeds_without_auth(
     _stub_blob_upload(monkeypatch)
     _install_extractor_tripwire(monkeypatch)
     resp = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"\xff\xd8\xff\xe0fakejpg" * 100), "image/jpeg")},
     )
     assert resp.status_code == 201, resp.text
@@ -105,7 +105,7 @@ async def test_patch_then_approve_anonymously_records_parent_reviewer(
     _stub_blob_upload(monkeypatch)
     _install_extractor_tripwire(monkeypatch)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     assert create.status_code == 201, create.text
@@ -117,13 +117,13 @@ async def test_patch_then_approve_anonymously_records_parent_reviewer(
         "words": [{"word": "alpha", "meaningZh": "甲改", "difficulty": 1}],
     }
     patched = await client.patch(
-        f"/api/v1/admin/lesson-drafts/{draft_id}",
+        f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}",
         json={"edited_extracted": edited},
     )
     assert patched.status_code == 200, patched.text
     assert patched.json()["edited_extracted"]["words"][0]["meaningZh"] == "甲改"
 
-    approve = await client.post(f"/api/v1/admin/lesson-drafts/{draft_id}/approve")
+    approve = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/approve")
     assert approve.status_code == 200, approve.text
     body = approve.json()
     created_ids = sorted(w["id"] for w in body["created_words"])
@@ -148,13 +148,13 @@ async def test_reject_anonymously_records_parent_reviewer(
     _stub_blob_upload(monkeypatch)
     _install_extractor_tripwire(monkeypatch)
     create = await client.post(
-        "/api/v1/admin/lessons/import",
+        "/api/v1/family/fam-test-lessons/lessons/import",
         files={"image": ("p.jpg", BytesIO(b"x" * 200), "image/jpeg")},
     )
     draft_id = create.json()["id"]
     await _promote_to_pending(draft_id)
 
-    rej = await client.post(f"/api/v1/admin/lesson-drafts/{draft_id}/reject")
+    rej = await client.post(f"/api/v1/family/fam-test-lessons/lesson-drafts/{draft_id}/reject")
     assert rej.status_code == 200, rej.text
     assert rej.json()["status"] == "rejected"
     assert rej.json()["reviewer"] == "parent"

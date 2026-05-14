@@ -1,20 +1,16 @@
-"""Admin lesson photo import endpoints (V0.5.5; V0.7 async-extract refactor).
+"""Family-scoped lesson photo import endpoints (V0.5.5 import; V0.7 async extract).
 
-NOTE (V0.5.8): Admin auth temporarily removed. Anyone reachable on the
-network can call these endpoints. Per-family auth returns in V0.6, when
-each draft will be scoped to the parent account that uploaded it. Until
-then the `reviewer` field is hard-coded to "parent".
+These routes live under ``/api/v1/family/{family_id}/...`` per the v0.6.5+ URL
+convention. The ``family_id`` segment is **decorative** for now (same as other
+family routers): handlers do not filter drafts by family yet. Native clients
+should pass the real ``fam-…`` id when the device is bound, and ``_`` when it
+is not (mirrors the parent web shell ``/family/_/…`` placeholder).
 
-NOTE (V0.7): the import endpoint here is the **fast path only** —
-upload the image to blob storage, insert a draft in
-`status="extracting"`, and return immediately. The slow OpenAI vision
-extraction runs in `app.routers.admin_cron` on a scheduled Vercel cron.
-The synchronous version repeatedly tripped the simulator's QEMU NAT
-idle timeout (the user-facing symptom was a `网络异常，请检查重试`
-toast even though the upload had landed); see git log around the
-revert of `e50cf97`. Decoupling upload from extraction also gives the
-operator a debug surface (`extract_last_error_*` on the draft) when
-the LLM call fails — the synchronous flow had nowhere to record that.
+V0.5.8 removed admin JWT from the legacy admin paths; behaviour is unchanged
+aside from the path prefix.
+
+V0.7 splits upload (fast) from OpenAI vision extraction (cron); see
+``app.routers.admin_cron``.
 """
 
 from datetime import UTC, datetime
@@ -31,16 +27,9 @@ from app.schemas.admin_lesson import (
 )
 from app.services import lesson_service
 
-router = APIRouter(prefix="/api/v1/admin", tags=["admin-lessons"])
+router = APIRouter(prefix="/api/v1/family/{family_id}", tags=["family-lessons"])
 
 
-# V0.7: Vercel's edge enforces a hard 4.5 MB request-body cap on
-# serverless functions independent of this handler — anything larger
-# is silently dropped before the function is invoked, so accepting
-# more here only papers over the real failure mode (the user sees
-# `网络异常` instead of a clear 413). The client-side compressor in
-# `entry/src/main/ets/services/ImageCompressor.ets` targets ~4 MB so
-# this 4.5 MB cap is just a defensive belt-and-braces check.
 _MAX_IMAGE_BYTES = 4_500_000
 _ACCEPTED_MIME = frozenset({"image/jpeg", "image/png", "image/webp"})
 
@@ -71,29 +60,16 @@ def _to_out(d: LessonImportDraft) -> LessonDraftOut:
     )
 
 
-# ---------------------------------------------------------------------------
-# Import (POST multipart) — V0.7 fast-path: validate + blob upload only.
-# ---------------------------------------------------------------------------
-
-
 @router.post(
     "/lessons/import",
     response_model=LessonDraftOut,
     status_code=status.HTTP_201_CREATED,
 )
 async def import_lesson(
+    family_id: str,
     image: UploadFile = File(..., description="Textbook page photo (JPEG/PNG/WebP)."),
 ) -> LessonDraftOut:
-    """Fast-path import: validate the upload, persist the original
-    image to Vercel Blob, and create a draft row in
-    `status="extracting"`. The OpenAI vision extraction runs
-    asynchronously on a Vercel cron (see `app.routers.admin_cron`).
-
-    The handler intentionally does NOT call `extract_lesson_payload`
-    here — the call could take 8–15s on a real OpenAI request, well
-    over the simulator's ~900ms QEMU NAT idle timeout. Keeping the
-    handler under ~1s is the whole point of the V0.7 split.
-    """
+    _ = family_id
     mime = (image.content_type or "").lower()
     if mime not in _ACCEPTED_MIME:
         raise _err(
@@ -109,11 +85,6 @@ async def import_lesson(
             "Uploaded image is empty",
         )
     if len(payload) > _MAX_IMAGE_BYTES:
-        # `HTTP_413_REQUEST_ENTITY_TOO_LARGE` is deprecated in starlette
-        # (renamed to `HTTP_413_CONTENT_TOO_LARGE` per RFC 9110); the
-        # numeric value is unchanged. Use the modern alias so the
-        # `filterwarnings=["error"]` test config doesn't trip when this
-        # branch fires from a regression test.
         raise _err(
             status.HTTP_413_CONTENT_TOO_LARGE,
             "IMAGE_TOO_LARGE",
@@ -132,17 +103,14 @@ async def import_lesson(
     return _to_out(draft)
 
 
-# ---------------------------------------------------------------------------
-# Read
-# ---------------------------------------------------------------------------
-
-
 @router.get("/lesson-drafts", response_model=LessonDraftListOut)
 async def list_lesson_drafts(
+    family_id: str,
     status: str | None = Query("pending", max_length=20),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
 ) -> LessonDraftListOut:
+    _ = family_id
     query: dict[str, object] = {}
     if status not in (None, "all"):
         query["status"] = status
@@ -179,13 +147,9 @@ async def _load_draft(draft_id: str) -> LessonImportDraft:
 
 
 @router.get("/lesson-drafts/{draft_id}", response_model=LessonDraftOut)
-async def get_lesson_draft(draft_id: str) -> LessonDraftOut:
+async def get_lesson_draft(family_id: str, draft_id: str) -> LessonDraftOut:
+    _ = family_id
     return _to_out(await _load_draft(draft_id))
-
-
-# ---------------------------------------------------------------------------
-# Review
-# ---------------------------------------------------------------------------
 
 
 def _ensure_pending(draft: LessonImportDraft) -> None:
@@ -200,9 +164,11 @@ def _ensure_pending(draft: LessonImportDraft) -> None:
 @router.patch("/lesson-drafts/{draft_id}", response_model=LessonDraftOut)
 @router.put("/lesson-drafts/{draft_id}", response_model=LessonDraftOut)
 async def patch_lesson_draft(
+    family_id: str,
     draft_id: str,
     body: LessonDraftPatchIn,
 ) -> LessonDraftOut:
+    _ = family_id
     draft = await _load_draft(draft_id)
     _ensure_pending(draft)
     draft.edited_extracted = body.edited_extracted
@@ -211,12 +177,11 @@ async def patch_lesson_draft(
 
 
 @router.post("/lesson-drafts/{draft_id}/approve", response_model=LessonApproveOut)
-async def approve_lesson(draft_id: str) -> LessonApproveOut:
+async def approve_lesson(family_id: str, draft_id: str) -> LessonApproveOut:
+    _ = family_id
     draft = await _load_draft(draft_id)
     _ensure_pending(draft)
 
-    # V0.5.8: open-admin reviewer is the literal "parent". V0.6 will replace
-    # this with the parent account id from the JWT.
     summary = await lesson_service.approve_lesson_draft(draft, reviewer="parent")
     draft.status = "approved"
     draft.reviewed_at = datetime.now(tz=UTC)
@@ -242,7 +207,8 @@ async def approve_lesson(draft_id: str) -> LessonApproveOut:
 
 
 @router.post("/lesson-drafts/{draft_id}/reject", response_model=LessonDraftOut)
-async def reject_lesson(draft_id: str) -> LessonDraftOut:
+async def reject_lesson(family_id: str, draft_id: str) -> LessonDraftOut:
+    _ = family_id
     draft = await _load_draft(draft_id)
     _ensure_pending(draft)
     draft.status = "rejected"

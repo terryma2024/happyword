@@ -652,7 +652,7 @@ export default function parentAdminFlowUiTest(): void {
     });
 
     /**
-     * V0.5.8 mock-server path #2: GET /api/v1/admin/lesson-drafts.
+     * V0.5.8 mock-server path #2: GET /api/v1/family/_/lesson-drafts.
      *
      * `server/mock_ui_server.py::_reset_state()` seeds one pending
      * draft with id `ui-mock-draft-001` on every process boot. The
@@ -751,7 +751,7 @@ export default function parentAdminFlowUiTest(): void {
     });
 
     /**
-     * V0.5.8 mock-server path #4: GET /api/v1/admin/lesson-drafts/{id}
+     * V0.5.8 mock-server path #4: GET /api/v1/family/_/lesson-drafts/{id}
      * exercised through the cross-page navigation
      * `ParentAdminPage` → `LessonDraftReviewPage`.
      *
@@ -804,7 +804,7 @@ export default function parentAdminFlowUiTest(): void {
 
       // The mock fixture returns 3 words; LessonReviewCount renders
       // "共 3 个候选词" once the draft loads. This is the canonical
-      // assertion that the GET /api/v1/admin/lesson-drafts/{id}
+      // assertion that the GET /api/v1/family/_/lesson-drafts/{id}
       // round-trip parsed the extracted.words array correctly. It
       // also exercises the null-vs-undefined edited_extracted guard
       // in `applyDraft`, since the mock seeds edited_extracted: null.
@@ -850,7 +850,7 @@ export default function parentAdminFlowUiTest(): void {
     });
 
     /**
-     * V0.5.8 mock-server path #5: POST /api/v1/admin/lessons/import
+     * V0.5.8 mock-server path #5: POST /api/v1/family/_/lessons/import
      * (multipart/form-data with a real on-device JPG).
      *
      * End-to-end flow exercised by this test:
@@ -872,7 +872,7 @@ export default function parentAdminFlowUiTest(): void {
      *      `fs.open` + `fs.read` against the on-device file (50 KB).
      *   5. `ParentApiClient.importLesson` builds the multipart body
      *      (`Content-Type: multipart/form-data`, field name `image`,
-     *      filename, MIME) and POSTs to /api/v1/admin/lessons/import
+     *      filename, MIME) and POSTs to /api/v1/family/_/lessons/import
      *      against the local mock.
      *   6. Mock drains the upload, allocates a fresh draft id, returns
      *      a 201 with a draft whose extracted.words has length 3

@@ -17,8 +17,9 @@ that previously made live HTTP requests to ``https://happyword.cool``:
   rows render with English names and the HomePage chip row grows when
   a synced pack is activated.
 * ``ParentAdminPage`` — stats + pending lesson drafts + publish notes
-  + photo import (``GET /api/v1/admin/stats``, ``GET /admin/lesson-drafts``,
-  ``POST /admin/packs/publish``, ``POST /admin/lessons/import``).
+  + photo import (``GET /api/v1/admin/stats``,
+  ``GET /api/v1/family/{family_id}/lesson-drafts``,
+  ``POST /admin/packs/publish``, ``POST /api/v1/family/{family_id}/lessons/import``).
 * ``LessonDraftReviewPage`` — load / patch / approve / reject lesson drafts.
 * (V0.6) ``ScanBindingPage`` / ``ConfigPage`` parent-account row —
   short-code redeem (``POST /api/v1/public/pair/redeem``) and device unbind
@@ -510,13 +511,15 @@ def create_app() -> FastAPI:
     # Admin: lesson drafts
     # ------------------------------------------------------------------
 
-    @app.get("/api/v1/admin/lesson-drafts")
+    @app.get("/api/v1/family/{family_id}/lesson-drafts")
     async def admin_list_drafts(
+        family_id: str,
         status: str | None = None,
         page: int = 1,
         size: int = 20,
     ) -> dict[str, Any]:
-        # Mirror the prod contract in `app/routers/admin_lessons.py`:
+        _ = family_id
+        # Mirror the prod contract in `app/routers/family_lessons.py`:
         # `page` is 1-indexed (`Query(1, ge=1)`) and the slice is
         # `(page - 1) * size`. Earlier the mock used 0-indexing, which
         # masked a real-server bug where the client passed `page=0` and
@@ -535,19 +538,22 @@ def create_app() -> FastAPI:
             "size": normalized_size,
         }
 
-    @app.get("/api/v1/admin/lesson-drafts/{draft_id}")
-    async def admin_get_draft(draft_id: str) -> dict[str, Any]:
+    @app.get("/api/v1/family/{family_id}/lesson-drafts/{draft_id}")
+    async def admin_get_draft(family_id: str, draft_id: str) -> dict[str, Any]:
+        _ = family_id
         draft = _drafts.get(draft_id)
         if draft is None:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
         return draft
 
-    @app.patch("/api/v1/admin/lesson-drafts/{draft_id}")
-    @app.put("/api/v1/admin/lesson-drafts/{draft_id}")
+    @app.patch("/api/v1/family/{family_id}/lesson-drafts/{draft_id}")
+    @app.put("/api/v1/family/{family_id}/lesson-drafts/{draft_id}")
     async def admin_patch_draft(
+        family_id: str,
         draft_id: str,
         body: dict[str, Any],
     ) -> dict[str, Any]:
+        _ = family_id
         draft = _drafts.get(draft_id)
         if draft is None:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
@@ -565,8 +571,9 @@ def create_app() -> FastAPI:
         draft["edited_extracted"] = edited
         return draft
 
-    @app.post("/api/v1/admin/lesson-drafts/{draft_id}/approve")
-    async def admin_approve_draft(draft_id: str) -> dict[str, Any]:
+    @app.post("/api/v1/family/{family_id}/lesson-drafts/{draft_id}/approve")
+    async def admin_approve_draft(family_id: str, draft_id: str) -> dict[str, Any]:
+        _ = family_id
         draft = _drafts.get(draft_id)
         if draft is None:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
@@ -593,8 +600,9 @@ def create_app() -> FastAPI:
             "skipped_words": [],
         }
 
-    @app.post("/api/v1/admin/lesson-drafts/{draft_id}/reject")
-    async def admin_reject_draft(draft_id: str) -> dict[str, Any]:
+    @app.post("/api/v1/family/{family_id}/lesson-drafts/{draft_id}/reject")
+    async def admin_reject_draft(family_id: str, draft_id: str) -> dict[str, Any]:
+        _ = family_id
         draft = _drafts.get(draft_id)
         if draft is None:
             raise HTTPException(status_code=404, detail={"code": "draft_not_found"})
@@ -612,10 +620,12 @@ def create_app() -> FastAPI:
     # Admin: lesson import (multipart)
     # ------------------------------------------------------------------
 
-    @app.post("/api/v1/admin/lessons/import", status_code=201)
+    @app.post("/api/v1/family/{family_id}/lessons/import", status_code=201)
     async def admin_import_lesson(
+        family_id: str,
         image: UploadFile = File(...),
     ) -> JSONResponse:
+        _ = family_id
         # Drain the upload so the client side completes its multipart
         # write before we respond. We don't persist the bytes — the
         # purpose is just to keep the wire-protocol contract identical

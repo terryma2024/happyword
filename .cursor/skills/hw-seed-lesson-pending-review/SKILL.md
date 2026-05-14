@@ -16,9 +16,9 @@ bash tools/hw_seed_lesson_pending_review.sh \
 ```
 
 - **`--base-url`** — Deployment origin (scheme optional; trailing slash stripped).
-- **`--family-id`** — Operator label only; echoed in JSON. Lesson drafts are **not** family-scoped in open-admin V0.7; use this to correlate runs with a HarmonyOS device / parent session.
+- **`--family-id`** — Path segment for `/api/v1/family/{family_id}/…` lesson routes (default `_` when omitted). Server-side draft rows are not filtered by this value yet; keep it aligned with a bound device when debugging.
 - **`--image`** — Optional path to JPEG/PNG/WebP (defaults to `server/tests/e2e/_fixtures/lesson_import_fixture.jpg`).
-- **`--skip-cron`** — Only `POST /api/v1/admin/lessons/import` (draft stays `extracting` until Vercel cron or a manual cron trigger).
+- **`--skip-cron`** — Only `POST /api/v1/family/{family_id}/lessons/import` (draft stays `extracting` until Vercel cron or a manual cron trigger).
 
 Direct Python (same behaviour):
 
@@ -41,9 +41,9 @@ Preview deployments without a bypass header typically return **401** HTML from V
 
 Aligned with `server/tests/e2e/test_lesson_import_cron_e2e.py`:
 
-1. `POST /api/v1/admin/lessons/import` → `201`, draft `extracting`.
+1. `POST /api/v1/family/{family_id}/lessons/import` → `201`, draft `extracting`.
 2. Unless `--skip-cron`: `POST /api/v1/admin/cron/extract-pending` with `Authorization: Bearer …`.
-3. `GET /api/v1/admin/lesson-drafts/{id}` → expect `pending` (success) or `extract_failed` (LLM/config failure on server).
+3. `GET /api/v1/family/{family_id}/lesson-drafts/{id}` → expect `pending` (success) or `extract_failed` (LLM/config failure on server).
 
 Exit **0** only when final draft status is **`pending`**. Mongo queue cleanup (deleting other `extracting` rows) is **not** performed — if multiple drafts are extracting, cron may claim another row first; see E2E test for deterministic DB cleanup when needed.
 
