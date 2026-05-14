@@ -16,8 +16,9 @@ the flow:
   1. ``POST /api/v1/family/{family_id}/lessons/import`` — fast path. Uploads the
      image to Blob, inserts a draft in ``status="extracting"``,
      returns immediately.
-  2. **This router** — runs on the scheduled Vercel cron, claims
-     one ``extracting`` draft, calls ``extract_lesson_payload``, and
+  2. **This router** — runs on the scheduled Vercel cron (``GET`` or
+     ``POST`` to the same path; Vercel's cron runner uses ``GET``),
+     claims one ``extracting`` draft, calls ``extract_lesson_payload``, and
      either flips the draft to ``pending`` (待复核) or records a
      structured error and (after ``MAX_EXTRACT_ATTEMPTS`` failures)
      ``extract_failed``.
@@ -157,9 +158,15 @@ async def _record_failure(
     await draft.save()
 
 
+@router.get(
+    "/extract-pending",
+    status_code=status.HTTP_200_OK,
+    operation_id="admin_cron_extract_pending_get",
+)
 @router.post(
     "/extract-pending",
     status_code=status.HTTP_200_OK,
+    operation_id="admin_cron_extract_pending_post",
 )
 async def extract_pending(
     authorization: str | None = Header(None),
