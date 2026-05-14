@@ -673,7 +673,12 @@ fun WordMagicGameApp() {
                     onBack = { route = AppRoute.Home },
                 )
                 AppRoute.LearningReport -> LearningReportScreen(
-                    report = LearningReportBuilder().build(packLibrary, selection.activePackIds, learningRecorder.statsSnapshot()),
+                    report = LearningReportBuilder().build(
+                        packLibrary,
+                        selection.activePackIds,
+                        learningRecorder.statsSnapshot(),
+                        System.currentTimeMillis(),
+                    ),
                     onBack = { route = AppRoute.TodayPlan },
                 )
                 AppRoute.ScanBinding -> ScanBindingScreen(

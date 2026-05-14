@@ -1,6 +1,6 @@
 """Android adapter — wraps am instrument + adb pull from internal storage.
 
-The existing AndroidScreenScreenshotTest exposes three @Test methods that each
+The existing AndroidScreenScreenshotTest exposes @Test methods that each
 capture a sequence of PNGs into the app's internal storage at
 `filesDir/screenshots/<filename>.png` (i.e.
 `/data/data/cool.happyword.wordmagic/files/screenshots/...`). For per-page

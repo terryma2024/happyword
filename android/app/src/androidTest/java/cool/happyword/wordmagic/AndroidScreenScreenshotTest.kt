@@ -20,6 +20,18 @@ class AndroidScreenScreenshotTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
+    fun captureLearningReportScreen() {
+        composeRule.onNodeWithTag("HomePlanButton").performClick()
+        composeRule.onNodeWithTag("TodayPlanReportButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("LearningReportScreen").fetchSemanticsNodes().isNotEmpty()
+        }
+        capture("learning-report.png")
+        composeRule.onNodeWithTag("LearningReportBackButton").performClick()
+        composeRule.onNodeWithTag("TodayPlanBackButton").performClick()
+    }
+
+    @Test
     fun captureGrowthAndCloudScreens() {
         capture("local-growth-home.png")
 
@@ -41,9 +53,6 @@ class AndroidScreenScreenshotTest {
 
         composeRule.onNodeWithTag("HomePlanButton").performClick()
         capture("today-plan.png")
-        composeRule.onNodeWithTag("TodayPlanReportButton").performClick()
-        capture("learning-report.png")
-        composeRule.onNodeWithText("返回").performClick()
         composeRule.onNodeWithTag("TodayPlanBackButton").performClick()
 
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
