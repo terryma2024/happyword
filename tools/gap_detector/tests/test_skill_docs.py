@@ -22,7 +22,10 @@ class SkillDocsTest(unittest.TestCase):
             "Build or update a probe manifest before running simulators.",
             "Run one suite/page probe batch at a time.",
             "Stop at evidence-backed gap findings.",
-            "Do not edit app source, create fix commits, or open PRs.",
+            "If the scoped feature, page, control, or behavior is absent on iOS/Android, record a direct `missing_flow` or `missing_feature` gap",
+            "If the feature exists but no UI test route, stable id, or screenshot path can exercise it, record the probe blocker as `test_coverage_gap`",
+            "Only edit UI tests when the counterpart feature already exists and the detector is blocked by missing automation.",
+            "Do not edit app product source, implement missing features, create fix commits, or open PRs.",
         )
         for path in SKILL_PATHS:
             text = path.read_text(encoding="utf-8")

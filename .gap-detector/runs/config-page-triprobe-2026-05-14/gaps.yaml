@@ -1,0 +1,115 @@
+run: config-page-triprobe-2026-05-14
+scope: Config
+classification_mode: manual_spec_source_screenshot_triage
+note: The current classifier returned zero because this scoped manifest has no expanded expected stable_ids. These findings come from the skill workflow: HarmonyOS baseline source/tests/spec plus live simulator screenshots. UI tree scratch files were intentionally omitted from tracked evidence.
+baseline:
+  platform: harmony
+  branch: origin/main
+  source:
+    - harmonyos/entry/src/main/ets/pages/ConfigPage.ets
+    - harmonyos/entry/src/ohosTest/ets/test/ConfigFlow.ui.test.ets
+    - docs/superpowers/specs/2026-05-11-question-type-config-design.md
+evidence:
+  harmony:
+    screenshots:
+      - probes/config/harmony/config-part1.png
+      - probes/config/harmony/config-part2.png
+      - probes/config/harmony/config-part3.png
+      - probes/config/harmony/config-part4.png
+  ios:
+    screenshots:
+      - probes/config/ios/config-rerun.png
+    source:
+      - ios/WordMagicGame/Features/Settings/ConfigView.swift
+      - ios/WordMagicGameUITests/WordMagicGameUITests.swift
+  android:
+    screenshots:
+      - probes/config/android/config.png
+      - probes/config/android/config-part2.png
+      - probes/config/android/config-part3.png
+    source:
+      - android/app/src/main/java/cool/happyword/wordmagic/MainActivity.kt
+      - android/app/src/androidTest/java/cool/happyword/wordmagic/ConfigCloudSyncVisibilityTest.kt
+gaps:
+  - id: config-ios-question-type-section-missing
+    platform: ios
+    severity: high
+    category: missing_flow
+    expected: Config page exposes the HarmonyOS question-type multi-select chips and last-enabled guard.
+    observed: iOS ConfigView has no question-type section or matching stable ids; the screenshot only shows HP, monster count, timer, auto speak, save/back.
+    evidence:
+      expected_source: docs/superpowers/specs/2026-05-11-question-type-config-design.md:61
+      baseline_test: harmonyos/entry/src/ohosTest/ets/test/ConfigFlow.ui.test.ets:245
+      observed_source: ios/WordMagicGame/Features/Settings/ConfigView.swift:27
+      screenshot: probes/config/ios/config-rerun.png
+    status: open
+  - id: config-android-question-type-section-missing
+    platform: android
+    severity: high
+    category: missing_flow
+    expected: Config page exposes the HarmonyOS question-type multi-select chips and last-enabled guard.
+    observed: Android ConfigScreen has no question-type section; the live scrolled screenshots move from timer/auto-play directly to parent/device/pack sections.
+    evidence:
+      expected_source: docs/superpowers/specs/2026-05-11-question-type-config-design.md:61
+      baseline_test: harmonyos/entry/src/ohosTest/ets/test/ConfigFlow.ui.test.ets:245
+      observed_source: android/app/src/main/java/cool/happyword/wordmagic/MainActivity.kt:1653
+      screenshots: probes/config/android/config-part2.png, probes/config/android/config-part3.png
+    status: open
+  - id: config-ios-custom-timer-dialog-missing
+    platform: ios
+    severity: medium
+    category: behavior_drift
+    expected: Custom timer opens a dedicated validated dialog and preserves arbitrary seconds in the allowed range, with ConfigTimerCustom as the automation anchor.
+    observed: iOS uses a plain inline numeric TextField named ConfigCustomTimerInput; no ConfigTimerCustom dialog flow or validation surface is present in ConfigView.
+    evidence:
+      expected_source: harmonyos/entry/src/main/ets/pages/ConfigPage.ets:604
+      baseline_test: harmonyos/entry/src/ohosTest/ets/test/ConfigFlow.ui.test.ets:380
+      observed_source: ios/WordMagicGame/Features/Settings/ConfigView.swift:38
+      screenshot: probes/config/ios/config-rerun.png
+    status: open
+  - id: config-android-custom-timer-hardcoded
+    platform: android
+    severity: medium
+    category: behavior_drift
+    expected: Custom timer supports arbitrary positive integer seconds through a validated custom input flow.
+    observed: Android exposes only a hard-coded "自定义 3秒" button and immediately writes 3 seconds; no arbitrary input or validation path is visible.
+    evidence:
+      expected_source: harmonyos/entry/src/main/ets/pages/ConfigPage.ets:604
+      baseline_test: harmonyos/entry/src/ohosTest/ets/test/ConfigFlow.ui.test.ets:380
+      observed_source: android/app/src/main/java/cool/happyword/wordmagic/MainActivity.kt:1663
+      screenshot: probes/config/android/config-part2.png
+    status: open
+  - id: config-android-save-cancel-model-drift
+    platform: android
+    severity: high
+    category: behavior_drift
+    expected: Config edits are staged in a draft and committed with Save or discarded with Cancel, matching HarmonyOS ConfigSaveButton and ConfigCancelButton.
+    observed: Android updates config through onConfigChange from each control and only exposes "返回首页"; no explicit Save/Cancel commit boundary exists.
+    evidence:
+      expected_source: harmonyos/entry/src/main/ets/pages/ConfigPage.ets:818
+      observed_source: android/app/src/main/java/cool/happyword/wordmagic/MainActivity.kt:1650
+      screenshot: probes/config/android/config.png
+    status: open
+  - id: config-android-visual-style-drift
+    platform: android
+    severity: medium
+    category: style_drift
+    expected: Config follows HarmonyOS compact centered rows with pill chips and bottom save/cancel actions.
+    observed: Android uses full-width rounded cards, large vertical spacing, red action buttons, and a different title copy ("设置" vs "游戏设置").
+    evidence:
+      baseline_screenshots: probes/config/harmony/config-part1.png, probes/config/harmony/config-part4.png
+      observed_screenshots: probes/config/android/config.png, probes/config/android/config-part3.png
+      observed_source: android/app/src/main/java/cool/happyword/wordmagic/MainActivity.kt:1647
+    status: open
+  - id: config-ios-android-test-coverage-gap
+    platform: ios,android
+    severity: medium
+    category: test_coverage_gap
+    expected: iOS and Android have counterpart Config suites for question-type chips, custom timer acceptance/rejection, and save/cancel behavior.
+    observed: HarmonyOS has focused ConfigFlow coverage for question types and custom timer; iOS Config coverage is mostly binding/admin route smoke, Android Config coverage is cloud-sync visibility plus screenshot capture.
+    evidence:
+      harmony_test: harmonyos/entry/src/ohosTest/ets/test/ConfigFlow.ui.test.ets:245
+      harmony_timer_test: harmonyos/entry/src/ohosTest/ets/test/ConfigFlow.ui.test.ets:380
+      ios_test: ios/WordMagicGameUITests/WordMagicGameUITests.swift:284
+      android_test: android/app/src/androidTest/java/cool/happyword/wordmagic/ConfigCloudSyncVisibilityTest.kt:37
+    status: open

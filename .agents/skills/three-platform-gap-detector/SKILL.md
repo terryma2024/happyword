@@ -23,9 +23,19 @@ Use this skill to find iOS and Android gaps against the latest HarmonyOS baselin
 4. After each batch, classify findings into the gap queue before continuing.
 5. Stop at evidence-backed gap findings.
 
+## Counterpart Availability Strategy
+
+For each iOS or Android counterpart in scope, decide whether the feature exists before trying to force a simulator probe.
+
+1. If the scoped feature, page, control, or behavior is absent on iOS/Android, record a direct `missing_flow` or `missing_feature` gap with source/spec/screenshot evidence. Do not write a UI test just to prove absence.
+2. If the feature exists but no UI test route, stable id, or screenshot path can exercise it, record the probe blocker as `test_coverage_gap`, add the smallest UI Test case needed to reach and observe that existing feature, then continue the detector run.
+3. Test-only additions must only expose or verify existing behavior for probing. They must not implement missing product behavior, redesign UI, or close the gap they are meant to detect.
+4. After adding a detector-enabling UI Test, rerun the single affected suite/page probe and classify gaps from the new evidence before moving on.
+
 ## Boundaries
 
-- Do not edit app source, create fix commits, or open PRs.
+- Do not edit app product source, implement missing features, create fix commits, or open PRs.
+- Only edit UI tests when the counterpart feature already exists and the detector is blocked by missing automation.
 - Do not treat screenshots as the only source of truth.
 - Do not silently skip missing counterpart suites; record a `test_coverage_gap`.
 - Do not force manual-only debug paths into automated UI suites; record `manual_gate`.

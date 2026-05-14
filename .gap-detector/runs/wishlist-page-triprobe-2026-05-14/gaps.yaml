@@ -1,0 +1,92 @@
+run: wishlist-page-triprobe-2026-05-14
+scope: Wishlist
+classification_mode: manual_spec_source_screenshot_triage
+note: The scoped planner did not have a built-in Wishlist mapping, so this run follows the user-selected Wishlist page directly. Findings use the detector skill workflow: HarmonyOS baseline source/tests plus iOS/Android source, UI tests, and live simulator screenshots. UI tree scratch files were intentionally omitted from tracked evidence.
+baseline:
+  platform: harmony
+  branch: origin/main
+  source:
+    - harmonyos/entry/src/main/ets/pages/WishlistPage.ets
+    - harmonyos/entry/src/main/ets/data/WishlistCatalog.ets
+    - harmonyos/entry/src/ohosTest/ets/test/WishlistFlow.ui.test.ets
+    - harmonyos/entry/src/ohosTest/ets/test/CustomWishlistFlow.ui.test.ets
+evidence:
+  harmony:
+    screenshots:
+      - probes/wishlist/harmony/wishlist.png
+  ios:
+    screenshots:
+      - probes/wishlist/ios/wishlist.png
+    source:
+      - ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift
+      - ios/WordMagicGame/Services/LocalStores.swift
+      - ios/WordMagicGameUITests/WordMagicGameUITests.swift
+  android:
+    screenshots:
+      - probes/wishlist/android/wishlist.png
+    source:
+      - android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt
+      - android/app/src/main/java/cool/happyword/wordmagic/core/GrowthModels.kt
+      - android/app/src/androidTest/java/cool/happyword/wordmagic/LocalGrowthFlowTest.kt
+gaps:
+  - id: wishlist-android-default-catalog-drift
+    platform: android
+    severity: high
+    category: behavior_drift
+    expected: Wishlist uses the HarmonyOS default catalog ids/names/costs: wish-ipad-20min, wish-watch-topup-10, wish-small-gift with costs 10/25/50.
+    observed: Android ships a different default catalog: sticker/story/park with names 贴纸/睡前故事/公园时间 and costs 5/8/12.
+    evidence:
+      expected_source: harmonyos/entry/src/main/ets/data/WishlistCatalog.ets:20
+      observed_source: android/app/src/main/java/cool/happyword/wordmagic/core/GrowthModels.kt:49
+      baseline_screenshot: probes/wishlist/harmony/wishlist.png
+      observed_screenshot: probes/wishlist/android/wishlist.png
+    status: open
+  - id: wishlist-android-custom-wish-entry-missing
+    platform: android
+    severity: high
+    category: missing_flow
+    expected: Wishlist header exposes an add-custom entry and routes through parent PIN before opening AddCustomWishDialog.
+    observed: Android WishlistScreen parameters and header include history/back only; no add-custom button, custom wish form, or custom-wish UI test path is present.
+    evidence:
+      expected_source: harmonyos/entry/src/main/ets/pages/WishlistPage.ets:274
+      expected_pin_gate: harmonyos/entry/src/main/ets/pages/WishlistPage.ets:348
+      observed_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt:196
+      observed_route: android/app/src/main/java/cool/happyword/wordmagic/MainActivity.kt:612
+      screenshot: probes/wishlist/android/wishlist.png
+    status: open
+  - id: wishlist-android-affordability-gate-missing
+    platform: android
+    severity: medium
+    category: behavior_drift
+    expected: Each wish card shows an apply button only when the current balance can afford the wish; otherwise it shows a "还差 N ✨" gap label.
+    observed: Android renders a redeem button for every wish card and defers insufficient-balance handling until after the redemption path.
+    evidence:
+      expected_source: harmonyos/entry/src/main/ets/pages/WishlistPage.ets:171
+      observed_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt:239
+      observed_model: android/app/src/main/java/cool/happyword/wordmagic/core/GrowthModels.kt:91
+    status: open
+  - id: wishlist-android-visual-style-drift
+    platform: android
+    severity: medium
+    category: style_drift
+    expected: Wishlist page presents the HarmonyOS "魔法愿望单" surface with pale gray background, centered title, scroll-icon history button, "+ 添加", "我的魔法币: X ✨", and white wish cards with large red apply buttons or gap labels.
+    observed: Android page title is "愿望", uses a beige background and purple card bands, text "历史"/"返回" buttons, no add entry, compact coin label "✨ 28", and smaller pink redeem buttons.
+    evidence:
+      baseline_screenshot: probes/wishlist/harmony/wishlist.png
+      observed_screenshot: probes/wishlist/android/wishlist.png
+      observed_source: android/app/src/main/java/cool/happyword/wordmagic/ui/LocalGrowthScreens.kt:214
+    status: open
+  - id: wishlist-ios-add-custom-pin-order-drift
+    platform: ios
+    severity: medium
+    category: behavior_drift
+    expected: Tapping "+ 添加" first opens a parent PIN gate, then opens the AddCustomWishDialog only after PIN confirmation.
+    observed: iOS tapping "添加愿望" opens the add-wish form immediately and includes a "家长 PIN" SecureField inside that form.
+    evidence:
+      expected_source: harmonyos/entry/src/main/ets/pages/WishlistPage.ets:348
+      expected_test: harmonyos/entry/src/ohosTest/ets/test/CustomWishlistFlow.ui.test.ets:143
+      observed_source: ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift:163
+      observed_form: ios/WordMagicGame/Features/CoreLoop/GrowthLoopViews.swift:217
+      observed_test: ios/WordMagicGameUITests/WordMagicGameUITests.swift:414
+      screenshot: probes/wishlist/ios/wishlist.png
+    status: open
