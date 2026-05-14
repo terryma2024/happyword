@@ -134,7 +134,7 @@ final class WordMagicGameUITests: XCTestCase {
 
         app.buttons["返回"].tap()
         XCTAssertTrue(app.staticTexts["游戏设置"].waitForExistence(timeout: 5))
-        app.buttons["返回"].tap()
+        app.buttons["取消"].tap()
         XCTAssertTrue(app.staticTexts["School Castle"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Fruit Forest"].exists)
     }
@@ -299,10 +299,11 @@ final class WordMagicGameUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["绑定成功：小明测试46373"].waitForExistence(timeout: 5))
         app.buttons["完成"].tap()
-        XCTAssertTrue(app.buttons["账号信息"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["已绑定 小明测试46373"].exists)
+        let boundProfile = app.buttons.matching(identifier: "ConfigBoundDeviceInfoButton").element
+        XCTAssertTrue(boundProfile.waitForExistence(timeout: 5))
+        XCTAssertTrue(boundProfile.label.contains("小明测试46373"))
 
-        app.buttons["账号信息"].tap()
+        boundProfile.tap()
         XCTAssertTrue(app.staticTexts["家长账户"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["🦁 小明测试46373"].exists)
         app.buttons["解除设备绑定"].tap()
@@ -372,7 +373,7 @@ final class WordMagicGameUITests: XCTestCase {
         app.buttons["设置"].tap()
         XCTAssertTrue(app.staticTexts["游戏设置"].waitForExistence(timeout: 5))
 
-        app.buttons["家长 PIN"].tap()
+        app.buttons["设置"].tap()
         XCTAssertTrue(app.secureTextFields["6 位数字"].waitForExistence(timeout: 5))
         app.secureTextFields["6 位数字"].tap()
         app.secureTextFields["6 位数字"].typeText("123456")
@@ -380,8 +381,8 @@ final class WordMagicGameUITests: XCTestCase {
         app.secureTextFields["再次输入 PIN"].typeText("123456")
         app.buttons["保存 PIN"].tap()
 
-        XCTAssertTrue(app.buttons["家长后台"].waitForExistence(timeout: 5))
-        app.buttons["家长后台"].tap()
+        XCTAssertTrue(app.buttons["家长管理后台"].waitForExistence(timeout: 5))
+        app.buttons["家长管理后台"].tap()
         XCTAssertTrue(app.secureTextFields["6 位数字"].waitForExistence(timeout: 5))
         app.secureTextFields["6 位数字"].tap()
         app.secureTextFields["6 位数字"].typeText("123456")

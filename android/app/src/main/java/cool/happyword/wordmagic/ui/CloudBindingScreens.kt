@@ -239,7 +239,7 @@ fun BoundDeviceInfoScreen(
                                     .testTag("EditChildNicknameEmoji_$emoji"),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text(emoji, fontSize = 22.sp)
+                                Text(emoji, style = circleGlyphTextStyle(22.sp))
                             }
                         }
                     }

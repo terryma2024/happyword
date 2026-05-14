@@ -25,6 +25,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,13 +59,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -122,6 +124,7 @@ import cool.happyword.wordmagic.core.LearningRecorder
 import cool.happyword.wordmagic.core.LearningReportBuilder
 import cool.happyword.wordmagic.core.MonsterCatalog
 import cool.happyword.wordmagic.core.PackLibrary
+import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.ParentPinStore
 import cool.happyword.wordmagic.core.Question
 import cool.happyword.wordmagic.core.QuestionKind
@@ -130,6 +133,8 @@ import cool.happyword.wordmagic.core.SessionResult
 import cool.happyword.wordmagic.core.TodayPlanService
 import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.WordPack
+import cool.happyword.wordmagic.ui.CenteredCircleTextButton
+import cool.happyword.wordmagic.ui.circleGlyphTextStyle
 import cool.happyword.wordmagic.core.WordStatsSyncClient
 import cool.happyword.wordmagic.core.WordStatsSyncResult
 import cool.happyword.wordmagic.core.WordStatsSyncStatus
@@ -464,15 +469,22 @@ fun WordMagicGameApp() {
                     onHome = { route = AppRoute.Home },
                 )
                 AppRoute.Config -> ConfigScreen(
-                    config = config,
+                    initialConfig = config,
+                    activePackCount = selection.activePackIds.size,
+                    maxActivePacks = PackSelectionStore.MAX_ACTIVE,
                     parentPinSet = parentPin.isNotEmpty(),
                     cloudBound = cloudCredentials != null,
+                    cloudChildNickname = cloudCredentials?.childNickname.orEmpty().ifBlank { "宝贝" },
                     learningSyncBusy = learningSyncBusy,
                     learningSyncStatus = learningSyncStatus,
                     learningSyncToast = learningSyncToast,
-                    onConfigChange = { config = it },
-                    onBack = { route = AppRoute.Home },
+                    onSave = { next ->
+                        config = next
+                        route = AppRoute.Home
+                    },
+                    onCancel = { route = AppRoute.Home },
                     onParentAdmin = { route = AppRoute.ParentPin },
+                    onParentPinSetup = { route = AppRoute.ParentPin },
                     onCloudBinding = { route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo },
                     onPackManager = { route = AppRoute.PackManager },
                     onLearningSync = {
@@ -1215,7 +1227,7 @@ private fun BattleScreen(
                                     .testTag("BattleSpeakerButton"),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text("🔊", fontSize = 30.sp)
+                                Text("🔊", style = circleGlyphTextStyle(30.sp))
                             }
                             Spacer(Modifier.height(18.dp))
                             Text("Monster ${state.monsterIndex} / ${config.monsterCount}", color = Color(0xFF777777), fontSize = 18.sp)
@@ -1407,6 +1419,7 @@ private fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onCompl
                         .height(52.dp)
                         .testTag("BattleSpellPool_$index"),
                     shape = CircleShape,
+                    contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
                             used -> Color(0xFFE0E0E0)
@@ -1417,16 +1430,20 @@ private fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onCompl
                         disabledContentColor = Color(0xFFA3A3A3),
                     ),
                 ) {
-                    Text(
-                        letter,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when {
-                            used -> Color(0xFFA3A3A3)
-                            wrong -> Color(0xFFE63946)
-                            else -> Color(0xFF1D3557)
-                        },
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            letter,
+                            style = circleGlyphTextStyle(20.sp, FontWeight.Bold),
+                            color = when {
+                                used -> Color(0xFFA3A3A3)
+                                wrong -> Color(0xFFE63946)
+                                else -> Color(0xFF1D3557)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -1636,119 +1653,490 @@ private fun formatLearningSyncToast(result: WordStatsSyncResult): String = when 
     WordStatsSyncStatus.NetworkError -> "同步失败：网络异常，请稍后重试"
 }
 
+private val HarmonyBattleHpRange = 1..10
+private val HarmonyMonsterCountRange = 1..10
+
+private fun harmonyTimerChipBase(seconds: Int): String =
+    if (seconds < 60) "${seconds}s" else "${seconds / 60}m"
+
+private fun harmonyTimerChipLabel(seconds: Int, selectedSeconds: Int): String {
+    val base = harmonyTimerChipBase(seconds)
+    return if (seconds == selectedSeconds) "\u2713$base" else base
+}
+
+private fun harmonyCustomTimerChipLabel(timerSeconds: Int): String {
+    val custom = timerSeconds !in GameConfig.timerPresets
+    return if (custom) "\u2713自定义 (${harmonyTimerChipBase(timerSeconds)})" else "自定义"
+}
+
+@Composable
+private fun HarmonyConfigStepperRow(
+    label: String,
+    value: Int,
+    testTagPrefix: String,
+    range: IntRange,
+    onValueChange: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, fontSize = 18.sp, modifier = Modifier.width(120.dp))
+        CenteredCircleTextButton(
+            text = "-",
+            onClick = { onValueChange((value - 1).coerceAtLeast(range.first)) },
+            modifier = Modifier.testTag("${testTagPrefix}Decrement"),
+            size = 44.dp,
+            enabled = value > range.first,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF213E66),
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFFE8E8E8),
+                disabledContentColor = Color(0xFFB0B0B0),
+            ),
+        )
+        Text(
+            "$value",
+            fontSize = 22.sp,
+            modifier = Modifier
+                .width(48.dp)
+                .testTag("${testTagPrefix}Value"),
+            textAlign = TextAlign.Center,
+        )
+        CenteredCircleTextButton(
+            text = "+",
+            onClick = { onValueChange((value + 1).coerceAtMost(range.last)) },
+            modifier = Modifier.testTag("${testTagPrefix}Increment"),
+            size = 44.dp,
+            enabled = value < range.last,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF213E66),
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFFE8E8E8),
+                disabledContentColor = Color(0xFFB0B0B0),
+            ),
+        )
+    }
+}
+
 @Composable
 private fun ConfigScreen(
-    config: GameConfig,
+    initialConfig: GameConfig,
+    activePackCount: Int,
+    maxActivePacks: Int,
     parentPinSet: Boolean,
     cloudBound: Boolean,
+    cloudChildNickname: String,
     learningSyncBusy: Boolean,
     learningSyncStatus: String,
     learningSyncToast: String,
-    onConfigChange: (GameConfig) -> Unit,
-    onBack: () -> Unit,
+    onSave: (GameConfig) -> Unit,
+    onCancel: () -> Unit,
     onParentAdmin: () -> Unit,
+    onParentPinSetup: () -> Unit,
     onCloudBinding: () -> Unit,
     onPackManager: () -> Unit,
     onLearningSync: () -> Unit,
 ) {
+    var draft by remember(initialConfig) { mutableStateOf(initialConfig) }
+    var showCustomTimerDialog by remember { mutableStateOf(false) }
+    var customTimerText by remember { mutableStateOf("") }
+    var customTimerError by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFFF6E7))
-            .padding(16.dp)
+            .background(Color.White)
+            .padding(horizontal = 40.dp, vertical = 16.dp)
             .verticalScroll(rememberScrollState())
             .testTag("ConfigScreen"),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("设置", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = onBack) { Text("返回首页") }
+        Text(
+            "游戏设置",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            textAlign = TextAlign.Center,
+        )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            HarmonyConfigStepperRow(
+                label = "玩家血量",
+                value = draft.playerHp,
+                testTagPrefix = "ConfigPlayerHp",
+                range = HarmonyBattleHpRange,
+                onValueChange = { draft = draft.copy(playerHp = it) },
+            )
+            HarmonyConfigStepperRow(
+                label = "怪物血量",
+                value = draft.monsterHp,
+                testTagPrefix = "ConfigMonsterHp",
+                range = HarmonyBattleHpRange,
+                onValueChange = { draft = draft.copy(monsterHp = it) },
+            )
+            HarmonyConfigStepperRow(
+                label = "怪物数量",
+                value = draft.monsterCount,
+                testTagPrefix = "ConfigMonsterCount",
+                range = HarmonyMonsterCountRange,
+                onValueChange = { draft = draft.copy(monsterCount = it) },
+            )
         }
-        Spacer(Modifier.height(12.dp))
-        StepperRow("玩家血量", config.playerHp, "ConfigPlayerHp") { onConfigChange(config.copy(playerHp = it.coerceIn(1, 20))) }
-        StepperRow("怪物血量", config.monsterHp, "ConfigMonsterHp") { onConfigChange(config.copy(monsterHp = it.coerceIn(1, 20))) }
-        StepperRow("怪物数量", config.monsterCount, "ConfigMonsterCount") { onConfigChange(config.copy(monsterCount = it.coerceIn(1, 20))) }
-        SettingCard("倒计时") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GameConfig.timerPresets.forEach { value ->
-                    OutlinedButton(onClick = { onConfigChange(config.copy(timerSeconds = value)) }) {
-                        Text(if (value >= 60) "${value / 60}分钟" else "${value}秒")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("倒计时", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                GameConfig.timerPresets.forEach { sec ->
+                    val selected = draft.timerSeconds == sec
+                    Button(
+                        onClick = { draft = draft.copy(timerSeconds = sec) },
+                        modifier = Modifier
+                            .height(40.dp)
+                            .testTag("ConfigTimer${sec}s"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (selected) Color(0xFFFFB400) else Color(0xFFEAF2F8),
+                            contentColor = if (selected) Color.White else Color(0xFF457B9D),
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(50),
+                    ) {
+                        Text(harmonyTimerChipLabel(sec, draft.timerSeconds), fontSize = 16.sp)
                     }
                 }
-                OutlinedButton(onClick = { onConfigChange(config.copy(timerSeconds = 3)) }) { Text("自定义 3秒") }
-            }
-        }
-        SettingCard("发音播放") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (config.autoPronunciation) "自动播放已开启" else "自动播放已关闭")
-                Spacer(Modifier.weight(1f))
-                Switch(checked = config.autoPronunciation, onCheckedChange = { onConfigChange(config.copy(autoPronunciation = it)) })
-            }
-        }
-        SettingCard("家长管理") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (parentPinSet) "家长密码已设置" else "需要先设置 6 位家长密码")
-                Spacer(Modifier.weight(1f))
-                Button(onClick = onParentAdmin, modifier = Modifier.testTag("ConfigParentAdminButton")) {
-                    Text("进入家长后台")
+                val customSelected = draft.timerSeconds !in GameConfig.timerPresets
+                Button(
+                    onClick = {
+                        customTimerText = "${draft.timerSeconds}"
+                        customTimerError = ""
+                        showCustomTimerDialog = true
+                    },
+                    modifier = Modifier
+                        .height(40.dp)
+                        .testTag("ConfigTimerCustom"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (customSelected) Color(0xFFFFB400) else Color(0xFFEAF2F8),
+                        contentColor = if (customSelected) Color.White else Color(0xFF457B9D),
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(50),
+                ) {
+                    Text(harmonyCustomTimerChipLabel(draft.timerSeconds), fontSize = 16.sp)
                 }
             }
         }
-        SettingCard("设备绑定") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (cloudBound) "已绑定家长账号" else "未绑定，仍可离线游玩")
-                Spacer(Modifier.weight(1f))
-                Button(onClick = onCloudBinding, modifier = Modifier.testTag("ConfigCloudBindingButton")) {
-                    Text(if (cloudBound) "查看绑定" else "绑定家长账号")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("发音播放", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+            Button(
+                onClick = { draft = draft.copy(autoPronunciation = !draft.autoPronunciation) },
+                modifier = Modifier
+                    .width(140.dp)
+                    .height(40.dp)
+                    .testTag("ConfigAutoSpeakToggle"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (draft.autoPronunciation) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
+                    contentColor = if (draft.autoPronunciation) Color(0xFFB8860B) else Color(0xFF666666),
+                ),
+                shape = RoundedCornerShape(8.dp),
+                border = if (draft.autoPronunciation) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
+            ) {
+                Text(
+                    if (draft.autoPronunciation) "\u2713 自动朗读" else "自动朗读",
+                    fontSize = 16.sp,
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("我的词包", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+            Row(
+                modifier = Modifier
+                    .width(220.dp)
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFEAF2F8))
+                    .clickable { onPackManager() }
+                    .padding(horizontal = 12.dp)
+                    .testTag("ConfigPackManagerButton"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "已激活 $activePackCount / $maxActivePacks",
+                    fontSize = 15.sp,
+                    color = Color(0xFF1F2937),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("ConfigPackPickerStatus"),
+                )
+                Text("管理 ›", fontSize = 15.sp, color = Color(0xFF457B9D))
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("家长密码", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+            Button(
+                onClick = onParentPinSetup,
+                modifier = Modifier
+                    .width(220.dp)
+                    .height(40.dp)
+                    .testTag("ConfigParentPinButton"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (parentPinSet) Color(0xFFFFF4D0) else Color(0xFFEAF2F8),
+                    contentColor = if (parentPinSet) Color(0xFFB8860B) else Color(0xFF457B9D),
+                ),
+                shape = RoundedCornerShape(8.dp),
+                border = if (parentPinSet) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
+            ) {
+                Text(
+                    if (parentPinSet) "修改 (•••••• 已设置)" else "设置",
+                    fontSize = 15.sp,
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("家长账户", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+            if (cloudBound) {
+                Button(
+                    onClick = onCloudBinding,
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(40.dp)
+                        .testTag("ConfigCloudBindingButton"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE0F2FE),
+                        contentColor = Color(0xFF0369A1),
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+                ) {
+                    Text(
+                        "孩子档案：$cloudChildNickname",
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            } else {
+                Button(
+                    onClick = onCloudBinding,
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(40.dp)
+                        .testTag("ConfigCloudBindingButton"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFFF4D0),
+                        contentColor = Color(0xFFB8860B),
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(2.dp, Color(0xFFFFB400)),
+                ) {
+                    Text("绑定家长账号", fontSize = 15.sp)
                 }
             }
         }
         if (cloudBound) {
-            SettingCard("学习记录") {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("ConfigCloudSyncRow")) {
-                    Text("上传本机学习记录到家长账户")
-                    Spacer(Modifier.weight(1f))
-                    OutlinedButton(
-                        onClick = onLearningSync,
-                        enabled = !learningSyncBusy,
-                        modifier = Modifier.testTag("ConfigCloudSyncButton"),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color(0xFFE0F2FE),
-                            contentColor = Color(0xFF0369A1),
-                        ),
-                    ) {
-                        Text(if (learningSyncBusy) "同步中…" else "立即同步学习记录")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+                    .testTag("ConfigCloudSyncRow"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("学习记录", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                OutlinedButton(
+                    onClick = onLearningSync,
+                    enabled = !learningSyncBusy,
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(40.dp)
+                        .testTag("ConfigCloudSyncButton"),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFFE0F2FE),
+                        contentColor = Color(0xFF0369A1),
+                    ),
+                    border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+                ) {
+                    Text(if (learningSyncBusy) "同步中…" else "立即同步学习记录", fontSize = 15.sp)
+                }
+            }
+            if (learningSyncStatus.isNotBlank()) {
+                Text(
+                    learningSyncStatus,
+                    color = Color(0xFF0369A1),
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 120.dp, bottom = 4.dp)
+                        .testTag("ConfigCloudSyncStatus"),
+                )
+            }
+            if (learningSyncToast.isNotBlank()) {
+                Text(
+                    learningSyncToast,
+                    color = Color(0xFFFF0050),
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 120.dp, bottom = 8.dp)
+                        .testTag("ConfigCloudSyncToast"),
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("管理后台", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+            Button(
+                onClick = onParentAdmin,
+                modifier = Modifier
+                    .width(220.dp)
+                    .height(40.dp)
+                    .testTag("ConfigParentAdminButton"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFFF4D0),
+                    contentColor = Color(0xFFB8860B),
+                ),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(2.dp, Color(0xFFFFB400)),
+            ) {
+                Text("家长管理后台", fontSize = 15.sp)
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 24.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(
+                onClick = onCancel,
+                modifier = Modifier
+                    .width(160.dp)
+                    .height(48.dp)
+                    .testTag("ConfigCancelButton"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFBDBDBD),
+                    contentColor = Color.White,
+                ),
+            ) {
+                Text("取消", fontSize = 16.sp)
+            }
+            Spacer(Modifier.width(16.dp))
+            Button(
+                onClick = { onSave(draft) },
+                modifier = Modifier
+                    .width(160.dp)
+                    .height(48.dp)
+                    .testTag("ConfigSaveButton"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF2ECC71),
+                    contentColor = Color.White,
+                ),
+            ) {
+                Text("保存", fontSize = 16.sp)
+            }
+        }
+    }
+
+    if (showCustomTimerDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomTimerDialog = false },
+            title = {
+                Text(
+                    "自定义倒计时",
+                    modifier = Modifier.testTag("CustomTimerDialogTitle"),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1D3557),
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "请输入倒计时秒数（${GameConfig.TIMER_CUSTOM_MIN} - ${GameConfig.TIMER_CUSTOM_MAX}）",
+                        fontSize = 14.sp,
+                        color = Color(0xFF6B7280),
+                        modifier = Modifier.testTag("CustomTimerDialogHint"),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = customTimerText,
+                        onValueChange = { raw ->
+                            customTimerText = raw.filter { it.isDigit() }.take(4)
+                            customTimerError = ""
+                        },
+                        placeholder = { Text("秒", color = Color(0xFFBBBBBB)) },
+                        modifier = Modifier.testTag("CustomTimerDialogInput"),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                    )
+                    if (customTimerError.isNotEmpty()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            customTimerError,
+                            color = Color(0xFFE63946),
+                            fontSize = 13.sp,
+                            modifier = Modifier.testTag("CustomTimerDialogError"),
+                        )
                     }
                 }
-                if (learningSyncStatus.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        learningSyncStatus,
-                        color = Color(0xFF0369A1),
-                        fontSize = 14.sp,
-                        modifier = Modifier.testTag("ConfigCloudSyncStatus"),
-                    )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val v = GameConfig.validateCustomTimerInput(customTimerText)
+                        if (!v.ok) {
+                            customTimerError = v.message
+                        } else {
+                            draft = draft.copy(timerSeconds = v.seconds)
+                            showCustomTimerDialog = false
+                        }
+                    },
+                    modifier = Modifier.testTag("CustomTimerDialogConfirmButton"),
+                ) {
+                    Text("确定", color = Color(0xFFE63946), fontWeight = FontWeight.Bold)
                 }
-                if (learningSyncToast.isNotBlank()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        learningSyncToast,
-                        color = Color(0xFFFF0050),
-                        fontSize = 14.sp,
-                        modifier = Modifier.testTag("ConfigCloudSyncToast"),
-                    )
-                }
-            }
-        }
-        SettingCard("我的词包") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("管理启用、固定与同步。")
-                Spacer(Modifier.weight(1f))
-                Button(onClick = onPackManager, modifier = Modifier.testTag("ConfigPackManagerButton")) {
-                    Text("进入")
-                }
-            }
-        }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showCustomTimerDialog = false },
+                    modifier = Modifier.testTag("CustomTimerDialogCancelButton"),
+                ) { Text("取消") }
+            },
+        )
     }
 }
 
@@ -2035,7 +2423,7 @@ private fun EmojiCircle(
             .then(clickableModifier),
         contentAlignment = Alignment.Center,
     ) {
-        Text(emoji, fontSize = 28.sp)
+        Text(emoji, style = circleGlyphTextStyle(28.sp))
     }
 }
 
@@ -2101,9 +2489,29 @@ private fun StatCard(label: String, value: String) {
 private fun StepperRow(label: String, value: Int, testTagPrefix: String, onValueChange: (Int) -> Unit) {
     SettingCard(label) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = { onValueChange(value - 1) }, modifier = Modifier.testTag("${testTagPrefix}Decrement")) { Text("-") }
+            CenteredCircleTextButton(
+                text = "-",
+                onClick = { onValueChange(value - 1) },
+                modifier = Modifier.testTag("${testTagPrefix}Decrement"),
+                size = 44.dp,
+                fontSize = 22.sp,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF213E66),
+                    contentColor = Color.White,
+                ),
+            )
             Text("$value", modifier = Modifier.width(72.dp).testTag("${testTagPrefix}Value"), textAlign = TextAlign.Center, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            OutlinedButton(onClick = { onValueChange(value + 1) }, modifier = Modifier.testTag("${testTagPrefix}Increment")) { Text("+") }
+            CenteredCircleTextButton(
+                text = "+",
+                onClick = { onValueChange(value + 1) },
+                modifier = Modifier.testTag("${testTagPrefix}Increment"),
+                size = 44.dp,
+                fontSize = 22.sp,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF213E66),
+                    contentColor = Color.White,
+                ),
+            )
         }
     }
 }

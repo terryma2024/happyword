@@ -3,6 +3,10 @@ import SwiftUI
 struct ConfigView: View {
     @ObservedObject var coordinator: AppCoordinator
     @State private var draft: GameConfig
+    @State private var showCustomTimerSheet = false
+    @State private var customTimerText = ""
+    @State private var customTimerError = ""
+    @State private var questionTypeHint = ""
 
     init(coordinator: AppCoordinator) {
         self.coordinator = coordinator
@@ -12,107 +16,451 @@ struct ConfigView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                HStack {
-                    Button("返回") { coordinator.route = .home }
-                    Spacer()
-                    Text("游戏设置")
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .accessibilityIdentifier("ConfigTitle")
-                    Spacer()
-                    Button("保存") { coordinator.saveConfig(draft) }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.red)
-                }
+                Text("游戏设置")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .accessibilityIdentifier("ConfigTitle")
 
                 settingStepper("玩家血量", value: $draft.playerMaxHp, range: GameConfig.hpRange)
                 settingStepper("怪物血量", value: $draft.monsterMaxHp, range: GameConfig.hpRange)
                 settingStepper("怪物数量", value: $draft.monstersTotal, range: GameConfig.monsterCountRange)
 
-                HStack(spacing: 24) {
-                    Text("倒计时")
-                        .font(.title2.weight(.bold))
-                        .frame(width: 120, alignment: .trailing)
-                    ForEach(GameConfig.timerChoices, id: \.self) { seconds in
-                        timerChoiceButton(seconds)
-                    }
-                    TextField("自定义秒数", value: $draft.startingSeconds, format: .number)
-                        .keyboardType(.numberPad)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 130)
-                        .accessibilityIdentifier("ConfigCustomTimerInput")
-                }
-
-                HStack(spacing: 24) {
-                    Text("自动朗读")
-                        .font(.title2.weight(.bold))
-                        .frame(width: 120, alignment: .trailing)
-                    Toggle("", isOn: $draft.autoSpeak)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .tint(AppTheme.gold)
-                        .accessibilityIdentifier("ConfigAutoSpeakSwitch")
-                    Spacer()
-                }
-                .frame(maxWidth: 560)
+                timerRow
+                autoSpeakRow
+                questionTypeSection
+                packPickerSection
+                parentPinRow
+                parentAccountSection
+                cloudSyncSection
+                adminRow
 
                 HStack(spacing: 16) {
-                    Button("家长 PIN") { coordinator.route = .pinSetup }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.gold)
-                        .accessibilityIdentifier("ParentPinSetupButton")
-                    Button("家长后台") { coordinator.openParentAdmin() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.red)
-                        .accessibilityIdentifier("ConfigParentAdminButton")
-                    Button("我的词包") { coordinator.route = .packManager }
+                    Button("取消") { coordinator.route = .home }
                         .buttonStyle(.bordered)
-                        .accessibilityIdentifier("ConfigPackManagerButton")
+                        .frame(minWidth: 160, minHeight: 48)
+                        .accessibilityIdentifier("ConfigCancelButton")
+                    Button("保存") { coordinator.saveConfig(draft) }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 0.18, green: 0.8, blue: 0.44))
+                        .frame(minWidth: 160, minHeight: 48)
+                        .accessibilityIdentifier("ConfigSaveButton")
                 }
-                .font(.headline.weight(.bold))
-
-                cloudBindingSection
-
+                .padding(.top, 8)
             }
-            .padding(.horizontal, 42)
+            .padding(.horizontal, 40)
             .padding(.vertical, 22)
         }
-        .background(AppTheme.page)
+        .background(Color.white)
+        .sheet(isPresented: $showCustomTimerSheet) {
+            customTimerSheetContent
+        }
+        .onAppear {
+            draft = coordinator.configStore.config
+            questionTypeHint = ""
+        }
     }
 
-    private var cloudBindingSection: some View {
-        HStack(spacing: 16) {
-            Text("家长云同步")
+    private var timerRow: some View {
+        HStack(spacing: 12) {
+            Text("倒计时")
                 .font(.title2.weight(.bold))
-                .frame(width: 130, alignment: .trailing)
-
-            if let credentials = coordinator.cloudCredentialsStore.credentials {
-                Text("已绑定 \(credentials.nickname)")
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(AppTheme.navy)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-                    .accessibilityIdentifier("CloudBindingStatus")
-                Button("账号信息") { coordinator.openBoundDeviceInfo() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.mint)
-                    .accessibilityIdentifier("账号信息")
-                Button("同步学习记录") {
-                    Task { await coordinator.syncWordStatsExplicitly() }
+                .frame(width: 120, alignment: .trailing)
+            HStack(spacing: 8) {
+                ForEach(GameConfig.timerChoices, id: \.self) { seconds in
+                    timerChoiceButton(seconds)
                 }
-                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                Button {
+                    openCustomTimerSheet()
+                } label: {
+                    Text(customTimerChipTitle)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .padding(.horizontal, 12)
+                        .frame(height: 40)
+                        .background(isCustomTimer ? AppTheme.gold : AppTheme.paleBlue, in: Capsule())
+                        .foregroundStyle(isCustomTimer ? Color.white : Color(red: 0.23, green: 0.45, blue: 0.61))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ConfigTimerCustom")
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: 560)
+    }
+
+    private var customTimerChipTitle: String {
+        if isCustomTimer {
+            return "✓自定义 (\(timerChipShortLabel(draft.startingSeconds)))"
+        }
+        return "自定义"
+    }
+
+    private func isCustomTimerValue(_ seconds: Int) -> Bool {
+        !GameConfig.timerChoices.contains(seconds)
+    }
+
+    private var isCustomTimer: Bool { isCustomTimerValue(draft.startingSeconds) }
+
+    private func timerChipShortLabel(_ seconds: Int) -> String {
+        if seconds < 60 { return "\(seconds)s" }
+        return "\(seconds / 60)m"
+    }
+
+    private func timerChipDisplayLabel(seconds: Int) -> String {
+        let base = timerChipShortLabel(seconds)
+        return draft.startingSeconds == seconds ? "✓\(base)" : base
+    }
+
+    private func openCustomTimerSheet() {
+        customTimerText = "\(draft.startingSeconds)"
+        customTimerError = ""
+        showCustomTimerSheet = true
+    }
+
+    private var customTimerSheetContent: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("自定义倒计时")
+                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color(red: 0.11, green: 0.21, blue: 0.34))
+                    .accessibilityIdentifier("CustomTimerDialogTitle")
+                Text(
+                    "请输入倒计时秒数（\(GameConfig.timerCustomRange.lowerBound) - \(GameConfig.timerCustomRange.upperBound)）",
+                )
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.5))
+                .accessibilityIdentifier("CustomTimerDialogHint")
+                TextField("秒", text: $customTimerText)
+                    .keyboardType(.numberPad)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("CustomTimerDialogInput")
+                    .onChange(of: customTimerText) { _, newValue in
+                        let filtered = String(newValue.filter(\.isNumber).prefix(4))
+                        if filtered != newValue {
+                            customTimerText = filtered
+                        }
+                        customTimerError = ""
+                    }
+                if !customTimerError.isEmpty {
+                    Text(customTimerError)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.9, green: 0.22, blue: 0.27))
+                        .accessibilityIdentifier("CustomTimerDialogError")
+                }
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("自定义")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") {
+                        customTimerError = ""
+                        showCustomTimerSheet = false
+                    }
+                    .accessibilityIdentifier("CustomTimerDialogCancelButton")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("确定") {
+                        confirmCustomTimerSheet()
+                    }
+                    .accessibilityIdentifier("CustomTimerDialogConfirmButton")
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    /// Harmony `CustomTimerDialog.handleConfirm`: validate first; only dismiss on success.
+    private func confirmCustomTimerSheet() {
+        let v = GameConfig.validateCustomTimerInput(customTimerText)
+        guard v.ok else {
+            customTimerError = v.message
+            return
+        }
+        draft.startingSeconds = v.seconds
+        customTimerError = ""
+        showCustomTimerSheet = false
+    }
+
+    private func timerChoiceButton(_ seconds: Int) -> some View {
+        let isSelected = draft.startingSeconds == seconds
+        return Button {
+            draft.startingSeconds = seconds
+        } label: {
+            Text(timerChipDisplayLabel(seconds: seconds))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
                 .lineLimit(1)
-                .minimumScaleFactor(0.78)
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("同步学习记录")
+                .minimumScaleFactor(0.75)
+                .padding(.horizontal, 12)
+                .frame(height: 40)
+                .background(isSelected ? AppTheme.gold : AppTheme.paleBlue, in: Capsule())
+                .foregroundStyle(isSelected ? Color.white : Color(red: 0.23, green: 0.45, blue: 0.61))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("ConfigTimer\(seconds)s")
+    }
+
+    private var autoSpeakRow: some View {
+        HStack(spacing: 12) {
+            Text("发音播放")
+                .font(.title2.weight(.bold))
+                .frame(width: 120, alignment: .trailing)
+            Button {
+                draft.autoSpeak.toggle()
+            } label: {
+                Text(draft.autoSpeak ? "✓ 自动朗读" : "自动朗读")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .frame(width: 140, height: 40)
+                    .background(draft.autoSpeak ? Color(red: 1, green: 0.96, blue: 0.82) : Color(red: 0.94, green: 0.94, blue: 0.94))
+                    .foregroundStyle(draft.autoSpeak ? Color(red: 0.72, green: 0.53, blue: 0.04) : Color(red: 0.4, green: 0.4, blue: 0.4))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: draft.autoSpeak ? 2 : 0)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("ConfigAutoSpeakToggle")
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: 560)
+    }
+
+    /// Parity with Harmony `ConfigPage.questionTypeRow` — two chip rows + last-type hint.
+    private var questionTypeSection: some View {
+        let ordered = BattleQuestionTypePolicy.defaultOrderedTypeIds
+        let row0 = Array(ordered.prefix(2))
+        let row1 = Array(ordered.dropFirst(2))
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .top, spacing: 12) {
+                Text("题型选择")
+                    .font(.title2.weight(.bold))
+                    .frame(width: 120, alignment: .trailing)
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        ForEach(row0, id: \.self) { typeId in
+                            questionTypeChip(typeId: typeId)
+                        }
+                    }
+                    HStack(spacing: 8) {
+                        ForEach(row1, id: \.self) { typeId in
+                            questionTypeChip(typeId: typeId)
+                        }
+                    }
+                }
+                .frame(width: 260, alignment: .center)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: 560)
+            Text("至少保留一种题型")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(
+                    questionTypeHint.isEmpty
+                        ? Color.clear
+                        : Color(red: 0.71, green: 0.33, blue: 0.04),
+                )
+                .padding(.leading, 132)
+                .accessibilityIdentifier("ConfigQuestionTypeLastEnabledHint")
+        }
+    }
+
+    private func isQuestionTypeEnabled(_ typeId: String) -> Bool {
+        let safe = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(draft.enabledQuestionTypes)
+        return safe.contains(typeId)
+    }
+
+    private func toggleQuestionType(_ typeId: String) {
+        var safe = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(draft.enabledQuestionTypes)
+        if let idx = safe.firstIndex(of: typeId) {
+            if safe.count <= 1 {
+                questionTypeHint = "至少保留一种题型"
+                return
+            }
+            safe.remove(at: idx)
+        } else {
+            safe.append(typeId)
+        }
+        questionTypeHint = ""
+        draft.enabledQuestionTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(safe)
+    }
+
+    private func questionTypeChip(typeId: String) -> some View {
+        let on = isQuestionTypeEnabled(typeId)
+        return Button {
+            toggleQuestionType(typeId)
+        } label: {
+            Text(chipLabel(typeId: typeId, selected: on))
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .padding(.horizontal, 12)
+                .frame(height: 40)
+                .background(on ? Color(red: 1, green: 0.96, blue: 0.82) : Color(red: 0.94, green: 0.94, blue: 0.94))
+                .foregroundStyle(on ? Color(red: 0.72, green: 0.53, blue: 0.04) : Color(red: 0.4, green: 0.4, blue: 0.4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: on ? 2 : 0)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("ConfigQuestionType_\(typeId)")
+    }
+
+    private func chipLabel(typeId: String, selected: Bool) -> String {
+        let base = BattleQuestionTypePolicy.displayLabel(forTypeId: typeId)
+        return selected ? "✓ \(base)" : base
+    }
+
+    private var packPickerSection: some View {
+        let active = coordinator.packSelectionStore.activePackIds.count
+        let limit = PackSelectionStore.maxActivePacks
+        return HStack(spacing: 12) {
+            Text("我的词包")
+                .font(.title2.weight(.bold))
+                .frame(width: 120, alignment: .trailing)
+            Button {
+                coordinator.route = .packManager
+            } label: {
+                HStack {
+                    Text("已激活 \(active) / \(limit)")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.23))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("ConfigPackPickerStatus")
+                    Text("管理 ›")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.27, green: 0.48, blue: 0.62))
+                }
+                .padding(.horizontal, 12)
+                .frame(width: 220, height: 40)
+                .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("ConfigPackManagerEntry")
+            .accessibilityLabel("我的词包")
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: 560)
+    }
+
+    private var parentPinRow: some View {
+        let pinReady = coordinator.configStore.config.parentPin.count == 6
+        return HStack(spacing: 12) {
+            Text("家长密码")
+                .font(.title2.weight(.bold))
+                .frame(width: 120, alignment: .trailing)
+            Button {
+                coordinator.route = .pinSetup
+            } label: {
+                Text(pinReady ? "修改 (•••••• 已设置)" : "设置")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .frame(width: 220, height: 40)
+                    .background(pinReady ? Color(red: 1, green: 0.96, blue: 0.82) : AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 8))
+                    .foregroundStyle(pinReady ? Color(red: 0.72, green: 0.53, blue: 0.04) : Color(red: 0.27, green: 0.48, blue: 0.62))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: pinReady ? 2 : 0)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("ConfigParentPinButton")
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: 560)
+    }
+
+    private var parentAccountSection: some View {
+        HStack(spacing: 12) {
+            Text("家长账户")
+                .font(.title2.weight(.bold))
+                .frame(width: 120, alignment: .trailing)
+            if let credentials = coordinator.cloudCredentialsStore.credentials {
+                Button {
+                    coordinator.openBoundDeviceInfo()
+                } label: {
+                    Text("孩子档案：\(credentials.nickname)")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                        .frame(width: 220, height: 40)
+                        .background(Color(red: 0.88, green: 0.95, blue: 0.99), in: RoundedRectangle(cornerRadius: 8))
+                        .foregroundStyle(Color(red: 0.01, green: 0.41, blue: 0.63))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(red: 0.05, green: 0.65, blue: 0.91), lineWidth: 2)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ConfigBoundDeviceInfoButton")
             } else {
                 Button("绑定家长账号") { coordinator.openBinding() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.mint)
-                    .accessibilityIdentifier("绑定家长账号")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .frame(width: 220, height: 40)
+                    .background(Color(red: 1, green: 0.96, blue: 0.82), in: RoundedRectangle(cornerRadius: 8))
+                    .foregroundStyle(Color(red: 0.72, green: 0.53, blue: 0.04))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: 2)
+                    )
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("ConfigBindParentButton")
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .font(.headline.weight(.bold))
+        .frame(maxWidth: 560)
+    }
+
+    @ViewBuilder
+    private var cloudSyncSection: some View {
+        if coordinator.cloudCredentialsStore.credentials != nil {
+            HStack(spacing: 12) {
+                Text("学习记录")
+                    .font(.title2.weight(.bold))
+                    .frame(width: 120, alignment: .trailing)
+                Button {
+                    Task { await coordinator.syncWordStatsExplicitly() }
+                } label: {
+                    Text("立即同步学习记录")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                        .frame(width: 220, height: 40)
+                        .background(Color(red: 0.88, green: 0.95, blue: 0.99), in: RoundedRectangle(cornerRadius: 8))
+                        .foregroundStyle(Color(red: 0.01, green: 0.41, blue: 0.63))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(red: 0.05, green: 0.65, blue: 0.91), lineWidth: 2)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ConfigCloudSyncButton")
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: 560)
+        }
+    }
+
+    private var adminRow: some View {
+        HStack(spacing: 12) {
+            Text("管理后台")
+                .font(.title2.weight(.bold))
+                .frame(width: 120, alignment: .trailing)
+            Button("家长管理后台") { coordinator.openParentAdmin() }
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .frame(width: 220, height: 40)
+                .background(Color(red: 1, green: 0.96, blue: 0.82), in: RoundedRectangle(cornerRadius: 8))
+                .foregroundStyle(Color(red: 0.72, green: 0.53, blue: 0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: 2)
+                )
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ConfigParentAdminButton")
+            Spacer(minLength: 0)
+        }
         .frame(maxWidth: 560)
     }
 
@@ -120,7 +468,7 @@ struct ConfigView: View {
         HStack(spacing: 22) {
             Text(title)
                 .font(.title2.weight(.bold))
-                .frame(width: 130, alignment: .trailing)
+                .frame(width: 120, alignment: .trailing)
             roundControl("−") { value.wrappedValue = max(range.lowerBound, value.wrappedValue - 1) }
             Text("\(value.wrappedValue)")
                 .font(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit())
@@ -129,24 +477,6 @@ struct ConfigView: View {
             Spacer()
         }
         .frame(maxWidth: 560)
-    }
-
-    private func timerChoiceButton(_ seconds: Int) -> some View {
-        let label = seconds == 30 ? "30s" : "\(seconds / 60)m"
-        let isSelected = draft.startingSeconds == seconds
-
-        return Button {
-            draft.startingSeconds = seconds
-        } label: {
-            Text(label)
-                .font(.title3.weight(.bold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.9)
-                .frame(width: 74, height: 54)
-                .background(isSelected ? AppTheme.gold : AppTheme.paleBlue, in: Capsule())
-                .foregroundStyle(isSelected ? .white : Color(red: 0.23, green: 0.45, blue: 0.61))
-        }
-        .buttonStyle(.plain)
     }
 
     private func roundControl(_ title: String, action: @escaping () -> Void) -> some View {

@@ -28,6 +28,7 @@
 		443F20D68ED6417108718DFF /* CloudSyncServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 246D77D7D2CF1528AEECDA24 /* CloudSyncServices.swift */; };
 		4EF9263FA9C00E2D1120DAC1 /* ParentAdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A34FBB768E5B1541E82EB7BF /* ParentAdminView.swift */; };
 		4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6288AB79A566478B8CD0BC1F /* Assets.xcassets */; };
+		54CE238928E274D0BB0B5A92 /* BattleQuestionTypePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8096273F6C5E474BA07021 /* BattleQuestionTypePolicy.swift */; };
 		55390F1AEF427177EFA5778D /* fruit-forest.json in Resources */ = {isa = PBXBuildFile; fileRef = 47BC3511BBA49EE9C87AD467 /* fruit-forest.json */; };
 		579EE45B2B7202F7B3269EFF /* WordEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD002304AC10A20B5A041CF4 /* WordEntry.swift */; };
 		5977BDCF4C1E492668878C0A /* GrowthLoopViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3244CB8E1A251419DDBF976E /* GrowthLoopViews.swift */; };
@@ -89,6 +90,7 @@
 		357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalGrowthTests.swift; sourceTree = "<group>"; };
 		38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordMagicGameUITests.swift; sourceTree = "<group>"; };
 		3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentApiModels.swift; sourceTree = "<group>"; };
+		3F8096273F6C5E474BA07021 /* BattleQuestionTypePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleQuestionTypePolicy.swift; sourceTree = "<group>"; };
 		46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetadataTests.swift; sourceTree = "<group>"; };
 		47BC3511BBA49EE9C87AD467 /* fruit-forest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "fruit-forest.json"; sourceTree = "<group>"; };
@@ -151,6 +153,7 @@
 			children = (
 				270E555771AAF420876EE21A /* BattleAnimationEvent.swift */,
 				8DD73245074A18477196A675 /* BattleEngine.swift */,
+				3F8096273F6C5E474BA07021 /* BattleQuestionTypePolicy.swift */,
 				7E7911CFA23216E3E25B0767 /* BuiltinPackLoader.swift */,
 				4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */,
 				9608B2C630968DC71F5D8092 /* Learning.swift */,
@@ -474,6 +477,7 @@
 				5CE532062EAAC36F72958B4D /* AppMetadata.swift in Sources */,
 				94E337DE08EB43CCE456B2EE /* BattleAnimationEvent.swift in Sources */,
 				03E9C1A592065ACCA85467EA /* BattleEngine.swift in Sources */,
+				54CE238928E274D0BB0B5A92 /* BattleQuestionTypePolicy.swift in Sources */,
 				6F5EF564EB875CA55F166AD3 /* BattleView.swift in Sources */,
 				E8B6A26967691A10987EEBBB /* BuiltinPackLoader.swift in Sources */,
 				1EC51AEF8DDD6E8ABCDDD57E /* ChildProfileView.swift in Sources */,

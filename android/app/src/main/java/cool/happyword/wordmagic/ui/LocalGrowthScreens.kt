@@ -33,6 +33,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -101,15 +103,18 @@ fun PackManagerScreen(
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Button(
+                CenteredCircleIconButton(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "返回",
                     onClick = onBack,
-                    modifier = Modifier.size(44.dp).testTag("PackManagerBack"),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3F4F6), contentColor = Color(0xFF1F2937)),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                ) {
-                    Text("←", fontSize = 22.sp)
-                }
+                    modifier = Modifier.testTag("PackManagerBack"),
+                    size = 44.dp,
+                    iconSize = 22.dp,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF3F4F6),
+                        contentColor = Color(0xFF1F2937),
+                    ),
+                )
                 Text(
                     "📦 我的词包",
                     modifier = Modifier.padding(start = 12.dp).testTag("PackManagerTitle"),
@@ -559,22 +564,21 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
                 .fillMaxWidth()
                 .height(52.dp),
         ) {
-            Button(
+            CenteredCircleTextButton(
+                text = "‹",
                 onClick = onBack,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .size(48.dp)
                     .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                     .testTag("MonsterCodexBack"),
-                shape = CircleShape,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                size = 48.dp,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Normal,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
                     contentColor = Color(0xFF0B3B63),
                 ),
-            ) {
-                Text("‹", fontSize = 36.sp, fontWeight = FontWeight.Normal)
-            }
+            )
             Text(
                 "怪物图鉴",
                 modifier = Modifier.align(Alignment.Center),
@@ -648,31 +652,23 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
 
 @Composable
 private fun CodexArrowButton(text: String, enabled: Boolean, tag: String, onClick: () -> Unit) {
-    Button(
+    CenteredCircleTextButton(
+        text = text,
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
-            .size(56.dp)
             .defaultMinSize(minWidth = 56.dp, minHeight = 56.dp)
             .testTag(tag),
-        shape = CircleShape,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+        size = 56.dp,
+        fontSize = 28.sp,
+        fontWeight = FontWeight.Bold,
         colors = ButtonDefaults.buttonColors(
             containerColor = if (enabled) Color(0xFFFDE3E7) else Color(0xFFF6F8FA),
-            contentColor = Color.Unspecified,
+            contentColor = Color(0xFF1F2937),
             disabledContainerColor = Color(0xFFF6F8FA),
-            disabledContentColor = Color.Unspecified,
+            disabledContentColor = Color(0xFF1F2937).copy(alpha = 0.42f),
         ),
-    ) {
-        Text(
-            text,
-            modifier = Modifier
-                .alpha(if (enabled) 1f else 0.42f),
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Unspecified,
-        )
-    }
+    )
 }
 
 @Composable
@@ -690,20 +686,18 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
         ) {
-            Button(
+            CenteredCircleIconButton(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "返回",
                 onClick = onBack,
-                modifier = Modifier
-                    .size(40.dp)
-                    .testTag("TodayPlanBackButton"),
-                shape = CircleShape,
+                modifier = Modifier.testTag("TodayPlanBackButton"),
+                size = 40.dp,
+                iconSize = 20.dp,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
                     contentColor = Color(0xFF1D3557),
                 ),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-            ) {
-                Text("←", fontSize = 20.sp)
-            }
+            )
             Text(
                 "今日学习计划",
                 modifier = Modifier
@@ -714,20 +708,18 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
                 color = Color(0xFF1D3557),
                 textAlign = TextAlign.Center,
             )
-            Button(
+            CenteredCircleTextButton(
+                text = "📊",
                 onClick = onReport,
-                modifier = Modifier
-                    .size(40.dp)
-                    .testTag("TodayPlanReportButton"),
-                shape = CircleShape,
+                modifier = Modifier.testTag("TodayPlanReportButton"),
+                size = 40.dp,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Normal,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
                     contentColor = Color(0xFF1D3557),
                 ),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-            ) {
-                Text("📊", fontSize = 20.sp)
-            }
+            )
         }
         Column(
             Modifier

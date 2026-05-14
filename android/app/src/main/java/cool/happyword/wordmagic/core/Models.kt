@@ -15,10 +15,34 @@ data class GameConfig(
 ) {
     companion object {
         val timerPresets = listOf(30, 180, 300, 600)
+        const val TIMER_CUSTOM_MIN = 1
+        const val TIMER_CUSTOM_MAX = 3600
 
-        fun sanitizeTimerSeconds(value: Int): Int = value.coerceIn(1, 3600)
+        fun sanitizeTimerSeconds(value: Int): Int = value.coerceIn(TIMER_CUSTOM_MIN, TIMER_CUSTOM_MAX)
+
+        /** Parity with Harmony `validateCustomTimerSeconds` in `CustomTimerDialog.ets`. */
+        fun validateCustomTimerInput(input: String): CustomTimerValidation {
+            val trimmed = input.trim()
+            if (trimmed.isEmpty()) {
+                return CustomTimerValidation(ok = false, seconds = 0, message = "请输入秒数")
+            }
+            if (!trimmed.all { it.isDigit() }) {
+                return CustomTimerValidation(ok = false, seconds = 0, message = "请输入正整数秒数")
+            }
+            val parsed = trimmed.toIntOrNull()
+                ?: return CustomTimerValidation(ok = false, seconds = 0, message = "请输入正整数秒数")
+            if (parsed < TIMER_CUSTOM_MIN) {
+                return CustomTimerValidation(ok = false, seconds = 0, message = "最少 $TIMER_CUSTOM_MIN 秒")
+            }
+            if (parsed > TIMER_CUSTOM_MAX) {
+                return CustomTimerValidation(ok = false, seconds = 0, message = "最多 $TIMER_CUSTOM_MAX 秒")
+            }
+            return CustomTimerValidation(ok = true, seconds = parsed, message = "")
+        }
     }
 }
+
+data class CustomTimerValidation(val ok: Boolean, val seconds: Int, val message: String)
 
 enum class BattleStatus {
     Playing,

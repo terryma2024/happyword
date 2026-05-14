@@ -203,8 +203,13 @@ final class AppCoordinator: ObservableObject {
     func startBattle() {
         pronunciationService.prepare()
         let repository = WordRepository(words: selectedPack.words)
+        let enabledTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(configStore.config.enabledQuestionTypes)
+        guard BattleQuestionTypePolicy.anyWordSupportsQuestionTypes(selectedPack.words, typeIds: enabledTypes) else {
+            showToast("当前词包没有支持所选题型的单词")
+            return
+        }
         let questionSource = PlanQuestionSource(
-            plan: BattleQuestionPlan.from(pack: selectedPack),
+            plan: BattleQuestionPlan.from(pack: selectedPack, enabledQuestionTypes: enabledTypes),
             repository: repository,
             randomSeed: makeBattleRandomSeed()
         )
@@ -296,7 +301,7 @@ final class AppCoordinator: ObservableObject {
 
     func saveConfig(_ config: GameConfig) {
         configStore.save(config)
-        route = .config
+        route = .home
     }
 
     func saveParentPin(_ pin: String, confirmation: String) {

@@ -109,10 +109,11 @@ class DebugRoutingTest {
         assertFalse(t.onTap(0L))
         assertFalse(t.onTap(100L))
         assertTrue(t.onTap(200L))
+        // After fire, lastTapMs is 0; 900-0 > window → new sequence starts at 900.
         assertFalse(t.onTap(900L))
         assertFalse(t.onTap(1000L))
-        assertFalse(t.onTap(1100L))
-        assertTrue(t.onTap(1200L))
+        assertTrue(t.onTap(1100L))
+        assertFalse(t.onTap(1200L))
     }
 
     @Test
