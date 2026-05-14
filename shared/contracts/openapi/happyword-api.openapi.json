@@ -4710,9 +4710,9 @@
       }
     },
     "/api/v1/admin/cron/extract-pending": {
-      "post": {
+      "get": {
         "description": "Claim and process at most one ``extracting`` draft.\n\nReturns a tiny summary so cron logs in Vercel show whether\nanything was done on this tick:\n\n    {\"claimed\": 0|1, \"succeeded\": 0|1, \"failed\": 0|1}\n\nThe numbers are 0/1 today because we cap at one draft per tick;\nif we ever lift that cap they widen naturally.",
-        "operationId": "extract_pending_api_v1_admin_cron_extract_pending_post",
+        "operationId": "admin_cron_extract_pending_get",
         "parameters": [
           {
             "in": "header",
@@ -4739,7 +4739,59 @@
                   "additionalProperties": {
                     "type": "integer"
                   },
-                  "title": "Response Extract Pending Api V1 Admin Cron Extract Pending Post",
+                  "title": "Response Admin Cron Extract Pending Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Extract Pending",
+        "tags": [
+          "admin-cron"
+        ]
+      },
+      "post": {
+        "description": "Claim and process at most one ``extracting`` draft.\n\nReturns a tiny summary so cron logs in Vercel show whether\nanything was done on this tick:\n\n    {\"claimed\": 0|1, \"succeeded\": 0|1, \"failed\": 0|1}\n\nThe numbers are 0/1 today because we cap at one draft per tick;\nif we ever lift that cap they widen naturally.",
+        "operationId": "admin_cron_extract_pending_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Admin Cron Extract Pending Post",
                   "type": "object"
                 }
               }
