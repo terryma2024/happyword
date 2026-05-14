@@ -45,7 +45,7 @@ class LocalGrowthFlowTest {
     fun wishlistRedeemWritesHistory() {
         composeRule.onNodeWithTag("HomeWishlistButton").performClick()
         composeRule.onNodeWithTag("WishlistScreen").assertIsDisplayed()
-        composeRule.onNodeWithTag("WishRedeem_sticker").performClick()
+        composeRule.onNodeWithTag("WishRedeem_wish-ipad-20min").performClick()
         composeRule.onNodeWithTag("ParentPinScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("ParentPinInput").performTextInput("123456")
         composeRule.onNodeWithTag("WishlistScreen").assertIsDisplayed()

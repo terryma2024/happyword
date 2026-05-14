@@ -621,6 +621,21 @@ fun WordMagicGameApp() {
                         route = AppRoute.ParentPin
                     },
                     onHistory = { route = AppRoute.RedemptionHistory },
+                    onAddCustom = {
+                        if (parentPin.length != 6) {
+                            Toast.makeText(
+                                context,
+                                "请先在设置页面配置家长密码（6 位数字），再使用此功能。",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "自定义愿望功能即将在 Android 版推出。",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
                     onBack = { route = AppRoute.Home },
                 )
                 AppRoute.RedemptionHistory -> RedemptionHistoryScreen(
