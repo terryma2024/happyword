@@ -20,6 +20,8 @@ import {
   AddCustomWishDialog,
   CustomWishFormResult,
 } from '../components/AddCustomWishDialog';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
+import { PageTopChrome } from '../components/PageTopChrome';
 
 /** Total time the GiftBox modal stays visible: anim cycle ~1.68s + 1.5s hold. */
 const GIFTBOX_MODAL_TOTAL_MS: number = 3180;
@@ -28,31 +30,20 @@ const GIFTBOX_MODAL_TOTAL_MS: number = 3180;
 const ACK_DELAY_MS: number = 1500;
 
 /**
- * V0.4.7 — what action the parent-PIN gate is currently guarding.
- * Used by the shared `onPinConfirmed` router so we don't keep three
- * near-identical PIN dialog ctors around.
+ * V0.4.7 — what action the parent-PIN gate is currently guarding
+ * (add / remove custom wishes only; redemption no longer uses PIN).
  */
-type PinIntent = 'redeem' | 'add-custom' | 'remove-custom';
+type PinIntent = 'add-custom' | 'remove-custom';
 
 /**
  * V0.3.9 WishlistPage — child-facing list of magic wishes.
  *
- * Redemption flow (replaces V0.3.8 Idle → Pending → ParentLongPressGate):
- *  1. Tap 申请兑换. If `GameConfig.parentPin` is unset, show an
- *     AlertDialog directing the parent to ConfigPage; refuse to open
- *     the PIN dialog.
- *  2. ParentPinDialog opens. Wrong PIN shakes + clears (no lockout).
- *     Right PIN dismisses the dialog and runs redeemNow.
- *  3. redeemNow calls `coins.redeem` → `store.markConfirmed` →
- *     appends a RedemptionRecord to the history store, then mounts
- *     the GiftBox modal overlay (3.18s blocking) and finally
- *     auto-acknowledges the card back to Idle 1.5s after the modal
- *     disappears.
+ * Redemption: tap 申请兑换 runs redeemNow directly (no parent PIN).
+ * Add/remove custom wishes require ParentPinDialog when a 6-digit PIN
+ * exists; those entry points are hidden until the PIN is configured.
  *
- * Header gains a 📜 icon button (left of "我的魔法币") that routes
- * to RedemptionHistoryPage. Cards are restructured: name + cost on
- * the left, prize emoji + 申请兑换 button right-aligned on a single
- * row (was: emoji+name on top, button centred below).
+ * Header routes to RedemptionHistoryPage. Cards: name + cost on the
+ * left, prize emoji + 申请兑换 button right-aligned on a single row.
  */
 @Entry
 @Component
@@ -65,7 +56,7 @@ struct WishlistPage {
   private coins: CoinAccount = getCoinAccount();
   private history: RedemptionHistoryStore = getRedemptionHistoryStore();
   private pendingWishId: string = '';
-  private pendingPinIntent: PinIntent = 'redeem';
+  private pendingPinIntent: PinIntent = 'add-custom';
   private pinDialog: CustomDialogController | null = null;
   private addDialog: CustomDialogController | null = null;
 
@@ -114,20 +105,25 @@ struct WishlistPage {
           .id('WishlistTitle')
           .fontSize(26)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#1D3557');
+          .fontColor('#1D3557')
+          .width('100%')
+          .padding({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP });
         Scroll() {
           Column({ space: 12 }) {
             ForEach(this.wishes, (w: MagicWish): void => {
               this.wishCardInline(w);
             }, (w: MagicWish): string => w.id);
           }
-          .padding({ top: 8, bottom: 24 });
+          .padding({
+            left: PAGE_BODY_EDGE_VP,
+            right: PAGE_BODY_EDGE_VP,
+            bottom: PAGE_BODY_EDGE_VP,
+          });
         }
         .layoutWeight(1);
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 16, right: 16, top: 24 })
       .backgroundColor('#F8F9FA');
 
       if (this.giftBoxVisible) {
@@ -201,7 +197,7 @@ struct WishlistPage {
 
       // V0.4.7: only parent-created custom wishes get a remove button.
       // The button itself opens a PIN gate before the actual delete.
-      if (w.isCustom) {
+      if (w.isCustom && this.isParentPinConfigured()) {
         Button('✕')
           .id(`WishRemove_${w.id}`)
           .width(32)
@@ -216,40 +212,20 @@ struct WishlistPage {
     }
     .id(`WishCard_${w.id}`)
     .width('92%')
-    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+    .padding({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP, top: 12, bottom: 12 })
     .backgroundColor('#FFFFFF')
     .borderRadius(14)
     .alignItems(VerticalAlign.Center)
     .shadow({ radius: 8, color: '#11000000', offsetX: 0, offsetY: 2 });
   }
 
+  private isParentPinConfigured(): boolean {
+    return this.getParentPin().length === PIN_LENGTH;
+  }
+
   @Builder
-  private headerRow() {
-    Row({ space: 12 }) {
-      Button('← 返回')
-        .id('WishlistBackButton')
-        .type(ButtonType.Normal)
-        .backgroundColor(Color.Transparent)
-        .fontColor('#457B9D')
-        .onClick((): void => {
-          if (this.giftBoxVisible) {
-            return;
-          }
-          try {
-            this.getUIContext().getRouter().back();
-          } catch (err) {
-            console.error(`WishlistPage.back failed: ${JSON.stringify(err as BusinessError)}`);
-          }
-        });
-      Blank()
-        .layoutWeight(1);
-      // V0.3.10: emoji-text 📜 replaced with the warm-parchment scroll
-      // glyph; id / dimensions / background colour preserved so
-      // existing by-id UI tests continue to match. borderRadius(8)
-      // explicitly set because the container Button() syntax does not
-      // inherit the default rectangular Button's soft-corner rounding.
-      // V0.5 follow-up: rasterized 96×96 PNG (was scroll.svg) so the
-      // rasterizer can't drop a placeholder frame on remount.
+  private wishlistHeaderTrailing(): void {
+    Row({ space: 8 }) {
       Button({ type: ButtonType.Normal, stateEffect: true }) {
         Image($rawfile('icons/scroll.png'))
           .width(22)
@@ -271,25 +247,47 @@ struct WishlistPage {
               console.error(`WishlistPage: pushUrl history failed: ${JSON.stringify(err)}`);
             });
         });
-      Button('+ 添加')
-        .id('WishlistAddCustomButton')
-        .type(ButtonType.Normal)
-        .height(36)
-        .padding({ left: 12, right: 12 })
-        .backgroundColor('#EAF2F8')
-        .fontColor('#1D3557')
-        .borderRadius(8)
-        .fontSize(14)
-        .onClick((): void => {
-          this.onTapAddCustom();
-        });
+      if (this.isParentPinConfigured()) {
+        Button('+ 添加')
+          .id('WishlistAddCustomButton')
+          .type(ButtonType.Normal)
+          .height(36)
+          .padding({ left: 12, right: 12 })
+          .backgroundColor('#EAF2F8')
+          .fontColor('#1D3557')
+          .borderRadius(8)
+          .fontSize(14)
+          .onClick((): void => {
+            this.onTapAddCustom();
+          });
+      }
       Text(`我的魔法币: ${this.balance} ✨`)
         .id('WishlistBalance')
         .fontSize(16)
         .fontColor('#FFB400');
     }
-    .width('100%')
     .alignItems(VerticalAlign.Center);
+  }
+
+  @Builder
+  private headerRow() {
+    PageTopChrome({
+      backButtonId: 'WishlistBackButton',
+      title: '',
+      onBack: (): void => {
+        if (this.giftBoxVisible) {
+          return;
+        }
+        try {
+          this.getUIContext().getRouter().back();
+        } catch (err) {
+          console.error(`WishlistPage.back failed: ${JSON.stringify(err as BusinessError)}`);
+        }
+      },
+      trailing: (): void => {
+        this.wishlistHeaderTrailing();
+      },
+    });
   }
 
   /**
@@ -335,14 +333,8 @@ struct WishlistPage {
     if (this.giftBoxVisible) {
       return;
     }
-    const expected: string = this.getParentPin();
-    if (expected.length !== PIN_LENGTH) {
-      this.showNoPinAlert();
-      return;
-    }
     this.pendingWishId = wishId;
-    this.pendingPinIntent = 'redeem';
-    this.openPinDialog(expected, '请输入家长密码以兑换');
+    this.redeemNow(wishId);
   }
 
   private onTapAddCustom(): void {
@@ -418,10 +410,6 @@ struct WishlistPage {
 
   private dispatchPinConfirmed(): void {
     const intent: PinIntent = this.pendingPinIntent;
-    if (intent === 'redeem') {
-      this.redeemNow(this.pendingWishId);
-      return;
-    }
     if (intent === 'add-custom') {
       this.openAddCustomDialog();
       return;

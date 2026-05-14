@@ -12,6 +12,8 @@ import {
   HomeIntegrationBundle,
   loadHomeIntegration,
 } from '../services/PackHomeIntegration';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
+import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
  * V0.6.7.8 — local learning report. Pure read-only view of:
@@ -128,7 +130,17 @@ struct LearningReportPage {
 
   build() {
     Column() {
-      this.topBar();
+      PageTopChrome({
+        backButtonId: 'LearningReportBackButton',
+        title: '学习报告',
+        titleId: 'LearningReportTitle',
+        onBack: (): void => {
+          this.getUIContext().getRouter().back();
+        },
+        trailing: (): void => {
+          this.learningReportTrailingBalance();
+        },
+      });
       Scroll() {
         // Outer Column fills the scroll viewport horizontally and
         // alignItems-centers the inner cards Column. On pads
@@ -146,7 +158,11 @@ struct LearningReportPage {
             }
           }
           .width(this.contentWidth())
-          .padding({ left: 16, right: 16, bottom: 24 });
+          .padding({
+            left: PAGE_BODY_EDGE_VP,
+            right: PAGE_BODY_EDGE_VP,
+            bottom: PAGE_BODY_EDGE_VP,
+          });
         }
         .width('100%')
         .alignItems(HorizontalAlign.Center);
@@ -162,31 +178,8 @@ struct LearningReportPage {
   }
 
   @Builder
-  private topBar() {
-    Row() {
-      Button('←')
-        .id('LearningReportBackButton')
-        .type(ButtonType.Circle)
-        .width(40)
-        .height(40)
-        .fontSize(20)
-        .fontColor('#1D3557')
-        .backgroundColor('#FFFFFF')
-        .onClick((): void => {
-          this.getUIContext().getRouter().back();
-        });
-
-      Text('学习报告')
-        .id('LearningReportTitle')
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1D3557')
-        .layoutWeight(1)
-        .textAlign(TextAlign.Center)
-        .margin({ right: 40 });
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 12 });
+  private learningReportTrailingBalance(): void {
+    Blank().width(40).height(40);
   }
 
   @Builder

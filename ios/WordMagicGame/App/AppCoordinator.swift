@@ -41,6 +41,8 @@ final class AppCoordinator: ObservableObject {
     @Published var packManagerMessage = ""
     @Published var learningReport: LearningReport?
     @Published var bindingMessage = ""
+    /// After first successful cloud bind, steer the parent to PIN setup once (Harmony parity).
+    @Published var pendingPostBindPinSetup: Bool = false
     @Published var packLibrary = PackLibrary()
     @Published var toastMessage: String?
 
@@ -302,7 +304,6 @@ final class AppCoordinator: ObservableObject {
 
     func saveConfig(_ config: GameConfig) {
         configStore.save(config)
-        route = .home
     }
 
     func saveParentPin(_ pin: String, confirmation: String) {
@@ -314,15 +315,29 @@ final class AppCoordinator: ObservableObject {
         config.parentPin = pin
         configStore.save(config)
         pinMessage = "PIN 已保存"
-        route = .config
+        if pendingPostBindPinSetup {
+            pendingPostBindPinSetup = false
+            route = .boundDeviceInfo
+        } else {
+            route = .config
+        }
+    }
+
+    func cancelParentPinSetup() {
+        if pendingPostBindPinSetup {
+            pendingPostBindPinSetup = false
+            route = .boundDeviceInfo
+        } else {
+            route = .config
+        }
     }
 
     func openParentAdmin() {
         pinMessage = ""
-        if configStore.config.parentPin.isEmpty {
-            route = .pinSetup
-        } else {
+        if GameConfig.isValidPin(configStore.config.parentPin) {
             route = .pinGate
+        } else {
+            route = .pinSetup
         }
     }
 
@@ -481,7 +496,15 @@ final class AppCoordinator: ObservableObject {
         do {
             let response = try await bindingClient.redeem(pairingInput: trimmed, deviceId: deviceIdProvider.deviceId())
             cloudCredentialsStore.save(response, apiBaseURL: developerMenuViewModel.effectiveBaseURL)
-            bindingMessage = "绑定成功：\(response.nickname)"
+            showToast("绑定成功：\(response.nickname)")
+            bindingMessage = ""
+            if GameConfig.isValidPin(configStore.config.parentPin) {
+                route = .boundDeviceInfo
+            } else {
+                pendingPostBindPinSetup = true
+                pinMessage = ""
+                route = .pinSetup
+            }
         } catch {
             bindingMessage = "短码无效，请重新输入"
         }
@@ -493,7 +516,13 @@ final class AppCoordinator: ObservableObject {
 
     func finishBinding() {
         bindingMessage = ""
-        route = .config
+        if GameConfig.isValidPin(configStore.config.parentPin) {
+            route = .boundDeviceInfo
+        } else {
+            pendingPostBindPinSetup = true
+            pinMessage = ""
+            route = .pinSetup
+        }
     }
 
     func unbind(pin: String) {

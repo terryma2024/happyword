@@ -27,12 +27,14 @@ import {
   loadHomeIntegration,
 } from '../services/PackHomeIntegration';
 import { MAX_ACTIVE_PACKS } from '../services/PackSelectionService';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
+import { PageTopChrome } from '../components/PageTopChrome';
 /**
- * ConfigPage exposes the five battle knobs (HP / monster count / timer /
- * autoSpeak / parent PIN) plus a single entry row that pushes
- * `pages/PackManagerPage` for three-layer pack selection. All edits
- * happen on a local @State draft; 保存 writes the snapshot to
- * AppStorage and 取消 returns to HomePage untouched.
+ * ConfigPage exposes battle knobs (HP / monster count / timer /
+ * autoSpeak / 题型选择) plus pack manager entry. Changes persist
+ * immediately to AppStorage + disk (no Save/Cancel). Parent rows
+ * (密码 / 学习记录 / 管理后台) render only after the device is bound;
+ * 管理后台 appears only when a 6-digit parent PIN exists.
  *
  * V0.6.6 cleanup: the legacy 词库类别 (enabledCategories) row and
  * its 自定义 / CustomWordsPage entry point were removed when
@@ -158,7 +160,7 @@ struct ConfigPage {
   private parentAccountRow() {
     Column() {
       Row() {
-        Text('家长账户').fontSize(18).width(120);
+        Text('家长账号').fontSize(18).width(120);
         if (this.bindingPresent) {
           Button(`孩子档案：${this.bindingNickname}`)
             .id('ConfigBoundDeviceInfoButton')
@@ -287,7 +289,7 @@ struct ConfigPage {
 
   private static formatCloudSyncToast(out: CloudSyncResult): string {
     switch (out.status) {
-      case 'unbound': return '未绑定家长账号，请先在“家长账户”中绑定';
+      case 'unbound': return '未绑定家长账号，请先在“家长账号”中绑定';
       case 'no_changes': return '没有新的学习记录';
       case 'pushed': return `已上传 ${out.pushed} 条学习记录`;
       case 'pulled': return `已合并 ${out.pulled} 条服务器记录`;
@@ -326,40 +328,62 @@ struct ConfigPage {
     .alignItems(VerticalAlign.Center);
   }
 
+  /** Writes battle-only fields from `draft` into persisted GameConfig. */
+  private persistBattleSettings(): void {
+    const storedNow: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    const merged: GameConfig =
+      cloneGameConfig(storedNow !== undefined ? storedNow : new GameConfig());
+    merged.playerMaxHp = this.draft.playerMaxHp;
+    merged.monsterMaxHp = this.draft.monsterMaxHp;
+    merged.monstersTotal = this.draft.monstersTotal;
+    merged.startingSeconds = this.draft.startingSeconds;
+    merged.autoSpeak = this.draft.autoSpeak;
+    merged.enabledQuestionTypes = sanitizeEnabledQuestionTypes(this.draft.enabledQuestionTypes);
+    AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
+    persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, merged);
+  }
+
   private decPlayerHp(): void {
     if (this.draft.playerMaxHp > HP_MIN) {
       this.draft.playerMaxHp -= 1;
       this.forceRerender();
+      this.persistBattleSettings();
     }
   }
   private incPlayerHp(): void {
     if (this.draft.playerMaxHp < HP_MAX) {
       this.draft.playerMaxHp += 1;
       this.forceRerender();
+      this.persistBattleSettings();
     }
   }
   private decMonsterHp(): void {
     if (this.draft.monsterMaxHp > HP_MIN) {
       this.draft.monsterMaxHp -= 1;
       this.forceRerender();
+      this.persistBattleSettings();
     }
   }
   private incMonsterHp(): void {
     if (this.draft.monsterMaxHp < HP_MAX) {
       this.draft.monsterMaxHp += 1;
       this.forceRerender();
+      this.persistBattleSettings();
     }
   }
   private decMonstersTotal(): void {
     if (this.draft.monstersTotal > MONSTER_COUNT_MIN) {
       this.draft.monstersTotal -= 1;
       this.forceRerender();
+      this.persistBattleSettings();
     }
   }
   private incMonstersTotal(): void {
     if (this.draft.monstersTotal < MONSTER_COUNT_MAX) {
       this.draft.monstersTotal += 1;
       this.forceRerender();
+      this.persistBattleSettings();
     }
   }
 
@@ -369,11 +393,13 @@ struct ConfigPage {
     }
     this.draft.startingSeconds = seconds;
     this.forceRerender();
+    this.persistBattleSettings();
   }
 
   private toggleAutoSpeak(): void {
     this.draft.autoSpeak = !this.draft.autoSpeak;
     this.forceRerender();
+    this.persistBattleSettings();
   }
 
   private questionTypeChipId(typeId: string): string {
@@ -423,6 +449,7 @@ struct ConfigPage {
     this.questionTypeLastEnabledHint = '';
     this.draft.enabledQuestionTypes = sanitizeEnabledQuestionTypes(safeTypes);
     this.forceRerender();
+    this.persistBattleSettings();
   }
 
   private openParentPinSetup(): void {
@@ -483,31 +510,6 @@ struct ConfigPage {
     });
     this.adminPinDialog = ctrl;
     ctrl.open();
-  }
-
-  private onSave(): void {
-    // V0.6.6: ConfigPage no longer owns the word pool, so there is no
-    // pool-size validation. The pack picker (我的词包) enforces
-    // its own min/max active-set rules; on save we just persist the
-    // battle knobs.
-    const storedNow: GameConfig | undefined =
-      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
-    const merged: GameConfig =
-      cloneGameConfig(storedNow !== undefined ? storedNow : new GameConfig());
-    merged.playerMaxHp = this.draft.playerMaxHp;
-    merged.monsterMaxHp = this.draft.monsterMaxHp;
-    merged.monstersTotal = this.draft.monstersTotal;
-    merged.startingSeconds = this.draft.startingSeconds;
-    merged.autoSpeak = this.draft.autoSpeak;
-    merged.enabledQuestionTypes = sanitizeEnabledQuestionTypes(this.draft.enabledQuestionTypes);
-
-    AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
-    persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, merged);
-    this.getUIContext().getRouter().back();
-  }
-
-  private onCancel(): void {
-    this.getUIContext().getRouter().back();
   }
 
   @Builder
@@ -635,6 +637,7 @@ struct ConfigPage {
         onSubmit: (seconds: number): void => {
           this.draft.startingSeconds = seconds;
           this.forceRerender();
+          this.persistBattleSettings();
         },
         onCancel: (): void => {},
       }),
@@ -779,63 +782,81 @@ struct ConfigPage {
     .alignItems(VerticalAlign.Center);
   }
 
+  @Builder
+  private configTopTrailingEmpty(): void {
+    Blank().width(1).height(1);
+  }
+
   build(): void {
-    // Scroll wrapper: the form's natural height exceeds the landscape
-    // viewport once ArkUI applies its minimum-tap-target sizing to the
-    // stepper/timer/category buttons. Without Scroll the Save/Cancel
-    // row ends up past the Column's bottom clip boundary and swallows
-    // touch events — see the regression hunted down in Task 7.
-    Scroll() {
-      Column() {
-        Text('游戏设置')
-          .id('ConfigTitle')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .margin({ bottom: 12 });
+    // Scroll keeps the long form reachable; top chrome stays fixed above it.
+    Column() {
+      PageTopChrome({
+        backButtonId: 'ConfigBackButton',
+        title: '',
+        onBack: (): void => {
+          this.getUIContext().getRouter().back();
+        },
+        trailing: (): void => {
+          this.configTopTrailingEmpty();
+        },
+      });
+      Scroll() {
+        Column() {
+          Text('游戏配置')
+            .id('ConfigTitle')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1f2937')
+            .margin({ bottom: 8, top: 4 });
 
-        this.stepperRow(
-          '玩家血量', 'ConfigPlayerHpValue', this.draft.playerMaxHp,
-          'ConfigPlayerHpDec', (): void => this.decPlayerHp(), this.draft.playerMaxHp > HP_MIN,
-          'ConfigPlayerHpInc', (): void => this.incPlayerHp(), this.draft.playerMaxHp < HP_MAX);
-        this.stepperRow(
-          '怪物血量', 'ConfigMonsterHpValue', this.draft.monsterMaxHp,
-          'ConfigMonsterHpDec', (): void => this.decMonsterHp(), this.draft.monsterMaxHp > HP_MIN,
-          'ConfigMonsterHpInc', (): void => this.incMonsterHp(), this.draft.monsterMaxHp < HP_MAX);
-        this.stepperRow(
-          '怪物数量', 'ConfigMonstersTotalValue', this.draft.monstersTotal,
-          'ConfigMonstersTotalDec', (): void => this.decMonstersTotal(), this.draft.monstersTotal > MONSTER_COUNT_MIN,
-          'ConfigMonstersTotalInc', (): void => this.incMonstersTotal(), this.draft.monstersTotal < MONSTER_COUNT_MAX);
+          this.stepperRow(
+            '玩家血量', 'ConfigPlayerHpValue', this.draft.playerMaxHp,
+            'ConfigPlayerHpDec', (): void => this.decPlayerHp(), this.draft.playerMaxHp > HP_MIN,
+            'ConfigPlayerHpInc', (): void => this.incPlayerHp(), this.draft.playerMaxHp < HP_MAX);
+          this.stepperRow(
+            '怪物血量', 'ConfigMonsterHpValue', this.draft.monsterMaxHp,
+            'ConfigMonsterHpDec', (): void => this.decMonsterHp(), this.draft.monsterMaxHp > HP_MIN,
+            'ConfigMonsterHpInc', (): void => this.incMonsterHp(), this.draft.monsterMaxHp < HP_MAX);
+          this.stepperRow(
+            '怪物数量', 'ConfigMonstersTotalValue', this.draft.monstersTotal,
+            'ConfigMonstersTotalDec', (): void => this.decMonstersTotal(), this.draft.monstersTotal > MONSTER_COUNT_MIN,
+            'ConfigMonstersTotalInc', (): void => this.incMonstersTotal(), this.draft.monstersTotal < MONSTER_COUNT_MAX);
 
-        this.timerRow();
-        this.autoSpeakRow();
-        this.questionTypeRow();
-        this.packPickerSection();
-        this.parentPinRow();
-        this.parentAccountRow();
-        this.cloudSyncRow();
-        this.adminRow();
+          this.timerRow();
+          this.autoSpeakRow();
+          this.questionTypeRow();
+          this.packPickerSection();
 
-        Row({ space: 16 }) {
-          Button('取消')
-            .id('ConfigCancelButton')
-            .width(160).height(48)
-            .backgroundColor('#BDBDBD')
-            .onClick((): void => this.onCancel());
-          Button('保存')
-            .id('ConfigSaveButton')
-            .width(160).height(48)
-            .backgroundColor('#2ECC71')
-            .onClick((): void => this.onSave());
+          Text('家长配置')
+            .id('ConfigSectionParentTitle')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1f2937')
+            .margin({ bottom: 8, top: 16 });
+
+          this.parentAccountRow();
+          if (this.bindingPresent) {
+            this.parentPinRow();
+          }
+          this.cloudSyncRow();
+          if (this.bindingPresent && this.parentPinIsConfigured()) {
+            this.adminRow();
+          }
         }
-        .margin({ top: 8, bottom: 24 });
+        .width('100%')
+        .padding({
+          left: PAGE_BODY_EDGE_VP,
+          right: PAGE_BODY_EDGE_VP,
+          bottom: PAGE_BODY_EDGE_VP,
+        })
+        .alignItems(HorizontalAlign.Center);
       }
+      .layoutWeight(1)
       .width('100%')
-      .padding({ top: 16, bottom: 24, left: 40, right: 40 })
-      .alignItems(HorizontalAlign.Center);
+      .scrollable(ScrollDirection.Vertical);
     }
     .width('100%')
     .height('100%')
-    .scrollable(ScrollDirection.Vertical)
     .backgroundColor('#FFFFFF')
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
       SafeAreaEdge.START, SafeAreaEdge.END]);

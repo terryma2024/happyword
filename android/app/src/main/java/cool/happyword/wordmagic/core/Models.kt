@@ -12,7 +12,10 @@ data class GameConfig(
     val monsterCount: Int = 5,
     val timerSeconds: Int = 300,
     val autoPronunciation: Boolean = true,
+    val enabledQuestionTypes: List<String> = BattleQuestionTypePolicy.defaultOrderedTypeIds,
 ) {
+    fun sanitizedQuestionTypes(): List<String> =
+        BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(enabledQuestionTypes)
     companion object {
         val timerPresets = listOf(30, 180, 300, 600)
         const val TIMER_CUSTOM_MIN = 1

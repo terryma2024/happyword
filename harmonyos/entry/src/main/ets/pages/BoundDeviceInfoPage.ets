@@ -20,6 +20,8 @@ import {
   EditChildNicknameDialog,
   NicknameSubmitResult,
 } from '../components/EditChildNicknameDialog';
+import { PageTopChrome } from '../components/PageTopChrome';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 
 @Entry
 @Component
@@ -268,15 +270,14 @@ struct BoundDeviceInfoPage {
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
       Column() {
-        Row() {
-          Text('家长账户').fontSize(20).fontWeight(FontWeight.Bold).fontColor('#1f2937')
-          Blank()
-          Button('返回').fontSize(14).backgroundColor('#e2e8f0').fontColor('#1f2937')
-            .onClick((): void => {
-              this.getUIContext().getRouter().back();
-            })
-        }
-        .width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
+        PageTopChrome({
+          backButtonId: 'BoundDeviceInfoBack',
+          title: '孩子档案',
+          titleId: 'BoundDeviceInfoTitle',
+          onBack: (): void => {
+            this.getUIContext().getRouter().back();
+          },
+        })
 
         if (!this.ready) {
           Text('加载中…').fontSize(14).fontColor('#64748b').padding(24)
@@ -316,7 +317,11 @@ struct BoundDeviceInfoPage {
             .borderRadius(12)
           }
           .width('100%')
-          .padding({ left: 16, right: 16 })
+          .padding({
+            left: PAGE_BODY_EDGE_VP,
+            right: PAGE_BODY_EDGE_VP,
+            bottom: PAGE_BODY_EDGE_VP,
+          })
           .alignItems(HorizontalAlign.Center)
         }
       }

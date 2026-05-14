@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
@@ -15,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
@@ -35,7 +38,7 @@ fun circleGlyphTextStyle(fontSize: TextUnit, fontWeight: FontWeight = FontWeight
 
 /**
  * Circular [Button] with no content padding and glyph text centered in the circle.
- * Use for back arrows, stepper −/+, and other single-glyph circle controls.
+ * Use for stepper −/+, emoji chips, and other single-glyph circle controls (not page back — use [HarmonyPageTopBackButton]).
  */
 @Composable
 fun CenteredCircleTextButton(
@@ -115,4 +118,30 @@ fun CenteredCircleIconButton(
             )
         }
     }
+}
+
+/** Page chrome back control — same look as Monster Codex (48dp circle, white fill, navy arrow). */
+@Composable
+fun HarmonyPageTopBackButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    size: Dp = 48.dp,
+    iconSize: Dp = 28.dp,
+    colors: ButtonColors = ButtonDefaults.buttonColors(
+        containerColor = Color.White,
+        contentColor = Color(0xFF0B3B63),
+    ),
+    contentDescription: String? = "Back",
+) {
+    CenteredCircleIconButton(
+        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+        contentDescription = contentDescription,
+        onClick = onClick,
+        modifier = modifier,
+        size = size,
+        iconSize = iconSize,
+        enabled = enabled,
+        colors = colors,
+    )
 }

@@ -16,6 +16,8 @@ import {
   RealOrientationAdapter,
   lockPortrait,
 } from '../utils/orientation';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
+import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
  * LessonDraftReviewPage — V0.5.8 Phase G.
@@ -390,24 +392,16 @@ struct LessonDraftReviewPage {
 
   build(): void {
     Stack() {
-      Column({ space: 12 }) {
-        Row() {
-          Button('← 返回')
-            .id('LessonReviewBack')
-            .height(40)
-            .fontSize(14)
-            .backgroundColor('#EAF2F8')
-            .fontColor('#457B9D')
-            .onClick((): void => this.back());
-          Text('课本单词复核')
-            .id('LessonReviewTitle')
-            .layoutWeight(1)
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .textAlign(TextAlign.Center);
-          Blank().width(72);
-        }
-        .width('100%');
+        Column({ space: 12 }) {
+        PageTopChrome({
+          backButtonId: 'LessonReviewBack',
+          title: '课本单词复核',
+          titleId: 'LessonReviewTitle',
+          pageGutterVp: 0,
+          onBack: (): void => {
+            this.back();
+          },
+        })
 
         if (this.draft === undefined && this.error.length === 0) {
           LoadingProgress().width(40).height(40).color('#457B9D');
@@ -424,7 +418,11 @@ struct LessonDraftReviewPage {
           this.actionRow();
         }
       }
-      .padding(16)
+      .padding({
+        left: PAGE_BODY_EDGE_VP,
+        right: PAGE_BODY_EDGE_VP,
+        bottom: PAGE_BODY_EDGE_VP,
+      })
       .width('100%')
       .height('100%')
       .alignItems(HorizontalAlign.Start);

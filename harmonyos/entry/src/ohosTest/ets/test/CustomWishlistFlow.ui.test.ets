@@ -2,6 +2,7 @@ import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
 import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import { bindMockParentViaShortCodeFromHome } from './UiTestBindingHelpers';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -96,6 +97,15 @@ async function waitForParentPinSetupKeypad(driver: Driver, maxMs: number): Promi
  */
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   try {
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(1500);
+    let pinRow: Component | null =
+      await driver.findComponent(ON.id('ConfigParentPinButton'));
+    if (pinRow === null) {
+      await tapConfigCancelShared(driver);
+      await driver.delayMs(800);
+      await bindMockParentViaShortCodeFromHome(driver, '345678');
+    }
     await clickByIdShared(driver, 'HomeConfigButton');
     await driver.delayMs(1500);
     await scrollToParentPinButton(driver);
@@ -205,6 +215,7 @@ export default function customWishlistFlowUiTest(): void {
     it('addCustomButtonRendersOnWishlistAndDefaultsHaveNoRemove', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await ensureParentPin(driver, '123456');
       await openWishlist(driver);
 
       await driver.assertComponentExist(ON.id('WishlistAddCustomButton'));

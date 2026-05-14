@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
-import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -47,54 +47,6 @@ async function openWishlist(driver: Driver): Promise<void> {
   }
 }
 
-async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
-  try {
-    await clickByIdShared(driver, `ParentPinDialogKey_${key}`);
-    await driver.delayMs(80);
-  } catch (err) {
-    throw err as Error;
-  }
-}
-
-async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
-  try {
-    await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
-    await driver.delayMs(80);
-  } catch (err) {
-    throw err as Error;
-  }
-}
-
-async function waitForParentPinSetupKeypad(driver: Driver, maxMs: number): Promise<boolean> {
-  try {
-    const stepMs: number = 300;
-    let waited: number = 0;
-    let nudge: number = 0;
-    while (waited < maxMs) {
-      const k: Component | null =
-        await driver.findComponent(ON.id('ParentPinSetupKey_1'));
-      if (k !== null) {
-        return true;
-      }
-      nudge += 1;
-      if (nudge % 4 === 0) {
-        await driver.swipe(360, 880, 360, 420, 550);
-      }
-      await driver.delayMs(stepMs);
-      waited += stepMs;
-    }
-    return false;
-  } catch (err) {
-    throw err as Error;
-  }
-}
-
-/**
- * Configure parent PIN to the given 6-digit code and return to Home.
- * Idempotent: re-running with the same PIN simply re-commits it. Used
- * by the GiftBox redemption case so the test self-prepares its
- * pre-condition without depending on configFlowUiTest's ordering.
- */
 /**
  * Read the current coin balance from WishlistPage's header text
  * (`我的魔法币: N ✨`). Returns -1 when the component is missing so
@@ -118,35 +70,6 @@ async function readWishlistBalance(driver: Driver): Promise<number> {
   }
 }
 
-async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
-  try {
-    await clickByIdShared(driver, 'HomeConfigButton');
-    await driver.delayMs(1500);
-    await scrollToParentPinButton(driver);
-    await clickByIdShared(driver, 'ConfigParentPinButton');
-    const keypadReady: boolean = await waitForParentPinSetupKeypad(driver, 12000);
-    if (!keypadReady) {
-      throw new Error('ParentPinSetup keypad not reachable');
-    }
-
-    for (let i: number = 0; i < pin.length; i++) {
-      await tapPinSetupKey(driver, pin.charAt(i));
-    }
-    await driver.delayMs(400);
-    for (let i: number = 0; i < pin.length; i++) {
-      await tapPinSetupKey(driver, pin.charAt(i));
-    }
-    await driver.delayMs(1500);
-
-    // commitOrReset routes back to ConfigPage. Cancel out to Home.
-    await tapConfigCancelShared(driver);
-    await driver.delayMs(800);
-    await returnToHome(driver);
-  } catch (err) {
-    throw err as Error;
-  }
-}
-
 /**
  * V0.3.9 acceptance for the wishlist surface (post-redesign):
  *  - Cards render with the new right-aligned button layout
@@ -156,10 +79,9 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
  *  - RedemptionHistoryPage reads RedemptionHistoryStore and shows
  *    the empty-state copy when no redemption has happened yet.
  *  - Both pages back-navigate cleanly.
- *  - Correct-PIN redemption flow shows the GiftBox modal, flips the
+ *  - Redemption without parent PIN shows the GiftBox modal, flips the
  *    card to its "已兑换 ✓" badge, and surfaces a record in
- *    RedemptionHistoryPage (regression coverage for the v0.3.9
- *    GiftBox-trigger and PIN-dismiss bugs).
+ *    RedemptionHistoryPage (regression coverage for GiftBox timing).
  */
 export default function wishlistFlowUiTest(): void {
   describe('WishlistFlow', () => {
@@ -218,14 +140,9 @@ export default function wishlistFlowUiTest(): void {
       done();
     });
 
-    it('applyWithoutPinPromptsParentPinSetupHint', 0, async (done: Function) => {
-      // This case requires a wish whose cost ≤ current balance so the
-      // WishApply button (not WishGap) actually renders. Coin balance
-      // depends on prior battles played in the same test session; if
-      // the cheapest wish (cost=10) is still locked behind WishGap
-      // we simply assert the gap label exists and bail. The test thus
-      // remains green on a cold emulator while still proving the
-      // V0.3.9 layout id contract.
+    it('applyRedeemSkipsParentPinDialog', 0, async (done: Function) => {
+      // Redemption no longer gates on parent PIN; WishApply should run
+      // without opening ParentPinDialog when the wish is affordable.
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openWishlist(driver);
@@ -236,7 +153,14 @@ export default function wishlistFlowUiTest(): void {
         await driver.findComponent(ON.id('WishGap_wish-ipad-20min'));
       expect(apply !== null || gap !== null).assertTrue();
 
-      // Return to HomePage.
+      if (apply !== null) {
+        await apply.click();
+        await driver.delayMs(600);
+        const dlg: Component | null =
+          await driver.findComponent(ON.id('ParentPinDialog'));
+        expect(dlg === null).assertTrue();
+      }
+
       await driver.pressBack();
       await driver.delayMs(600);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
@@ -272,12 +196,9 @@ export default function wishlistFlowUiTest(): void {
      * WishlistStore.markConfirmed) cover the core state machine
      * either way.
      */
-    it('correctPinShowsGiftBoxAndConfirmsRedemption', 0, async (done: Function) => {
+    it('redeemShowsGiftBoxAndConfirmsRedemption', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
-
-      // Configure PIN to 123456 (idempotent on re-runs).
-      await ensureParentPin(driver, '123456');
 
       await openWishlist(driver);
       await driver.assertComponentExist(ON.id('WishlistTitle'));
@@ -304,28 +225,10 @@ export default function wishlistFlowUiTest(): void {
       const balanceBefore: number = await readWishlistBalance(driver);
       expect(balanceBefore >= 10).assertTrue();
 
-      // Tap apply → ParentPinDialog opens.
+      // Tap apply → redeem runs immediately (no ParentPinDialog).
       await apply.click();
       await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('ParentPinDialog'));
 
-      // Enter the correct PIN one digit at a time. The dialog
-      // dismisses on the 6th tap (validatePin → dismiss → onConfirm
-      // → ctrl.close → redeemNow → showGiftBoxModal).
-      await tapPinDialogKey(driver, '1');
-      await tapPinDialogKey(driver, '2');
-      await tapPinDialogKey(driver, '3');
-      await tapPinDialogKey(driver, '4');
-      await tapPinDialogKey(driver, '5');
-      await tapPinDialogKey(driver, '6');
-      await driver.delayMs(400);
-
-      // (a) GiftBox modal mounted (regression: before the two-step
-      //     trigger fix it would mount but never animate, since
-      //     `@Watch('onTriggerChanged')` only fires on prop changes
-      //     not on initial mount). The dialog has dismissed by now,
-      //     so assertComponentExist on ParentPinDialog would fail —
-      //     we only verify the modal is up.
       await driver.assertComponentExist(ON.id('WishlistGiftBoxModal'));
 
       // (b) Modal auto-dismisses after GIFTBOX_MODAL_TOTAL_MS=3180ms

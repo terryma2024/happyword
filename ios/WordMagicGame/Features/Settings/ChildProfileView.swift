@@ -8,9 +8,10 @@ struct ChildProfileView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
-                Button("返回") { coordinator.route = .home }
-                    .font(.headline.weight(.bold))
-                    .buttonStyle(.plain)
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .home },
+                    accessibilityIdentifier: "ChildProfileBackButton"
+                )
                 Spacer()
             }
 

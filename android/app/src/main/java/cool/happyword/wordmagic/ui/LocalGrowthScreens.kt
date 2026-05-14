@@ -13,6 +13,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,10 +35,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -105,23 +103,20 @@ fun PackManagerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8FAFC))
-            .padding(horizontal = 32.dp, vertical = 16.dp)
+            .padding(
+                start = PageChromeInsets.bodyHorizontal,
+                top = PageChromeInsets.bodyTop,
+                end = PageChromeInsets.bodyHorizontal,
+                bottom = PageChromeInsets.bodyBottom,
+            )
             .testTag("PackManagerScreen"),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                CenteredCircleIconButton(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "返回",
+                HarmonyPageTopBackButton(
                     onClick = onBack,
                     modifier = Modifier.testTag("PackManagerBack"),
-                    size = 44.dp,
-                    iconSize = 22.dp,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF3F4F6),
-                        contentColor = Color(0xFF1F2937),
-                    ),
                 )
                 Text(
                     "📦 我的词包",
@@ -142,7 +137,7 @@ fun PackManagerScreen(
                 }
             }
             Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(activeCountText, modifier = Modifier.testTag("PackManagerActiveCount"), fontSize = 14.sp, color = Color(0xFF6B7280))
@@ -150,7 +145,7 @@ fun PackManagerScreen(
                 Text("固定：防止满分自动轮换 · 开关：切换激活", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
             if (message.isNotBlank()) {
-                Text(message, color = Color(0xFFD94141), modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).testTag("PackManagerLimitMessage"))
+                Text(message, color = Color(0xFFD94141), modifier = Modifier.padding(vertical = 6.dp).testTag("PackManagerLimitMessage"))
             }
         }
         items(packs) { pack ->
@@ -213,6 +208,7 @@ fun WishlistScreen(
     giftBoxVisible: Boolean = false,
     giftBoxTrigger: Int = 0,
     recentlyRedeemedWishId: String? = null,
+    showAddCustomEntry: Boolean = false,
     onRedeem: (WishItem) -> Unit,
     onHistory: () -> Unit,
     onAddCustom: () -> Unit,
@@ -228,20 +224,21 @@ fun WishlistScreen(
         LazyColumn(
             Modifier
                 .fillMaxSize()
-                .padding(horizontal = 44.dp, vertical = 24.dp),
+                .padding(
+                    start = PageChromeInsets.bodyHorizontal,
+                    top = PageChromeInsets.bodyTop,
+                    end = PageChromeInsets.bodyHorizontal,
+                    bottom = PageChromeInsets.bodyBottom,
+                ),
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Button(
+                    HarmonyPageTopBackButton(
                         onClick = {
                             if (!giftBoxVisible) onBack()
                         },
                         modifier = Modifier.testTag("WishlistBackButton"),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color(0xFF457B9D)),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                    ) {
-                        Text("← 返回", fontSize = 16.sp)
-                    }
+                    )
                     Spacer(Modifier.weight(1f))
                     Button(
                         onClick = {
@@ -256,19 +253,21 @@ fun WishlistScreen(
                     ) {
                         Text("历史", fontSize = 14.sp)
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (!giftBoxVisible) onAddCustom()
-                        },
-                        modifier = Modifier
-                            .height(36.dp)
-                            .testTag("WishlistAddCustomButton"),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAF2F8), contentColor = Color(0xFF1D3557)),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    ) {
-                        Text("+ 添加", fontSize = 14.sp)
+                    if (showAddCustomEntry) {
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (!giftBoxVisible) onAddCustom()
+                            },
+                            modifier = Modifier
+                                .height(36.dp)
+                                .testTag("WishlistAddCustomButton"),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAF2F8), contentColor = Color(0xFF1D3557)),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        ) {
+                            Text("+ 添加", fontSize = 14.sp)
+                        }
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(
@@ -540,7 +539,12 @@ fun RedemptionHistoryScreen(history: RedemptionHistoryStore, onBack: () -> Unit)
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
-            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .padding(
+                start = PageChromeInsets.bodyHorizontal,
+                top = PageChromeInsets.bodyTop,
+                end = PageChromeInsets.bodyHorizontal,
+                bottom = PageChromeInsets.bodyBottom,
+            )
             .testTag("RedemptionHistoryScreen"),
     ) {
         Row(
@@ -672,7 +676,12 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
         Modifier
             .fillMaxSize()
             .background(Color(0xFFFAFBFD))
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(
+                start = PageChromeInsets.bodyHorizontal,
+                top = PageChromeInsets.bodyTop,
+                end = PageChromeInsets.bodyHorizontal,
+                bottom = PageChromeInsets.bodyBottom,
+            )
             .testTag("MonsterCodexScreen"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -681,20 +690,11 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
                 .fillMaxWidth()
                 .height(52.dp),
         ) {
-            CenteredCircleTextButton(
-                text = "‹",
+            HarmonyPageTopBackButton(
                 onClick = onBack,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                     .testTag("MonsterCodexBack"),
-                size = 48.dp,
-                fontSize = 36.sp,
-                fontWeight = FontWeight.Normal,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF0B3B63),
-                ),
             )
             Text(
                 "怪物图鉴",
@@ -801,20 +801,16 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 44.dp)
-                .padding(top = 16.dp, bottom = 12.dp),
+                .padding(
+                    start = PageChromeInsets.bodyHorizontal,
+                    end = PageChromeInsets.bodyHorizontal,
+                    top = PageChromeInsets.bodyTop,
+                    bottom = 12.dp,
+                ),
         ) {
-            CenteredCircleIconButton(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "返回",
+            HarmonyPageTopBackButton(
                 onClick = onBack,
                 modifier = Modifier.testTag("TodayPlanBackButton"),
-                size = 40.dp,
-                iconSize = 20.dp,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF1D3557),
-                ),
             )
             Text(
                 "今日学习计划",
@@ -843,8 +839,8 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
             Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 44.dp)
-                .padding(bottom = 24.dp),
+                .padding(horizontal = PageChromeInsets.bodyHorizontal)
+                .padding(bottom = PageChromeInsets.bodyBottom),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             TodayPlanHeaderCard(plan)

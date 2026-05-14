@@ -10,13 +10,17 @@ struct ParentAdminView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    Button("返回") { coordinator.route = .config }
-                        .accessibilityIdentifier("ParentAdminBack")
+                    MonsterCodexStyleBackButton(
+                        action: { coordinator.route = .config },
+                        accessibilityIdentifier: "ParentAdminBack"
+                    )
                     Spacer()
                     Text("家长管理后台")
                         .font(.system(size: 30, weight: .heavy, design: .rounded))
+                        .foregroundStyle(AppTheme.navy)
                         .accessibilityIdentifier("ParentAdminTitle")
                     Spacer()
+                    Color.clear.frame(width: 54, height: 54)
                 }
 
                 Text("本地模拟家长服务")
@@ -123,13 +127,17 @@ struct LessonDraftReviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Button("返回") { coordinator.route = .parentAdmin }
-                    .accessibilityIdentifier("LessonReviewBack")
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .parentAdmin },
+                    accessibilityIdentifier: "LessonReviewBack"
+                )
                 Spacer()
                 Text("课本识别审核")
                     .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
                     .accessibilityIdentifier("LessonReviewTitle")
                 Spacer()
+                Color.clear.frame(width: 54, height: 54)
             }
 
             RoundedRectangle(cornerRadius: 18)

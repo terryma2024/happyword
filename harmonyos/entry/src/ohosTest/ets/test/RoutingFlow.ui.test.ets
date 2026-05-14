@@ -71,21 +71,15 @@ async function clickById(driver: Driver, id: string): Promise<void> {
 }
 
 /**
- * Tap the ConfigPage 取消 button. Since V0.6.2 added a parent-account
- * row + a per-device "AssetStoreKit unavailable" warning between the
- * parent-PIN row and the sync row, the cancel button at the bottom of
- * the form sometimes sits past the visible region after one upward
- * swipe (especially on the OpenHarmony emulator where the warning is
- * always visible because there is no AssetStoreKit). Swipe up to a
- * maximum of 3 times until the matcher finds the button, then tap.
- *
- * Falls back to `driver.pressBack()` after the third miss so the test
- * still leaves ConfigPage instead of hanging on the assertion.
+ * Leave ConfigPage via the circular back control (ConfigBackButton).
+ * Swipes up to a maximum of 3 times until the matcher finds the button,
+ * then falls back to `driver.pressBack()` so the test still leaves
+ * ConfigPage when the chrome is off-screen.
  */
 export async function tapConfigCancelShared(driver: Driver): Promise<void> {
   try {
     for (let attempt: number = 0; attempt < 3; attempt++) {
-      const comp = await driver.findComponent(ON.id('ConfigCancelButton'));
+      const comp = await driver.findComponent(ON.id('ConfigBackButton'));
       if (comp !== null) {
         await comp.click();
         return;
@@ -93,8 +87,6 @@ export async function tapConfigCancelShared(driver: Driver): Promise<void> {
       await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(400);
     }
-    // Final attempt: pressBack always works on ConfigPage and matches the
-    // semantic intent of "leave config".
     await driver.pressBack();
   } catch (err) {
     throw err as Error;
@@ -137,7 +129,7 @@ const QUESTION_TYPE_IDS: string[] = [
 async function tapConfigSaveShared(driver: Driver): Promise<void> {
   try {
     for (let attempt: number = 0; attempt < 5; attempt++) {
-      const comp: Component | null = await driver.findComponent(ON.id('ConfigSaveButton'));
+      const comp: Component | null = await driver.findComponent(ON.id('ConfigBackButton'));
       if (comp !== null) {
         await comp.click();
         return;
@@ -145,7 +137,7 @@ async function tapConfigSaveShared(driver: Driver): Promise<void> {
       await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(400);
     }
-    throw new Error('ConfigSaveButton remained off-screen after 5 swipes');
+    throw new Error('ConfigBackButton remained off-screen after 5 swipes');
   } catch (err) {
     throw err as Error;
   }

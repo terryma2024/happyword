@@ -6,18 +6,10 @@ struct PackManagerView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Button {
-                    coordinator.route = .config
-                } label: {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(AppTheme.navy)
-                        .frame(width: 46, height: 46)
-                        .background(Color.white, in: Circle())
-                }
-                .accessibilityLabel("返回")
-                .buttonStyle(.plain)
-                    .accessibilityIdentifier("PackManagerBack")
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .config },
+                    accessibilityIdentifier: "PackManagerBack"
+                )
                 Spacer()
                 HStack(spacing: 10) {
                     Text("📦")
@@ -28,26 +20,14 @@ struct PackManagerView: View {
                         .accessibilityIdentifier("PackManagerTitle")
                 }
                 Spacer()
-                HStack(spacing: 10) {
-                    Button("同步学习") {
-                        Task { await coordinator.syncWordStatsExplicitly() }
-                    }
+                Button("同步词包") { coordinator.syncPacks() }
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
-                    .padding(.horizontal, 16)
-                    .frame(height: 46)
-                    .background(AppTheme.cream, in: Capsule())
+                    .padding(.horizontal, 18)
+                    .frame(height: 54)
+                    .background(AppTheme.paleBlue, in: Capsule())
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("同步学习")
-
-                    Button("同步词包") { coordinator.syncPacks() }
-                        .font(.system(size: 17, weight: .heavy, design: .rounded))
-                        .foregroundStyle(AppTheme.navy)
-                        .padding(.horizontal, 18)
-                        .frame(height: 46)
-                        .background(AppTheme.paleBlue, in: Capsule())
-                        .buttonStyle(.plain)
-                }
+                    .accessibilityIdentifier("PackManagerSyncButton")
             }
 
             HStack {
@@ -134,9 +114,6 @@ struct PackManagerView: View {
 
 struct WishlistView: View {
     @ObservedObject var coordinator: AppCoordinator
-    @State private var pendingWish: MagicWish?
-    @State private var pin = ""
-    @State private var pinMessage = ""
     @State private var showingGiftBox = false
     @State private var showingAddWish = false
     @State private var wishName = ""
@@ -145,39 +122,14 @@ struct WishlistView: View {
     @State private var addWishPin = ""
     @State private var addWishMessage = ""
 
+    private var parentPinReady: Bool {
+        GameConfig.isValidPin(coordinator.configStore.config.parentPin)
+    }
+
     var body: some View {
         ZStack {
             VStack(spacing: 16) {
-                HStack {
-                    Button("← 返回") { coordinator.route = .home }
-                        .font(.system(size: 20, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color(red: 0.27, green: 0.48, blue: 0.62))
-                        .buttonStyle(.plain)
-                    Spacer()
-                    Button("📜") { coordinator.route = .redemptionHistory }
-                        .font(.system(size: 18))
-                        .frame(width: 48, height: 44)
-                        .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("兑换历史")
-                    Button("添加愿望") {
-                        wishName = ""
-                        wishCost = ""
-                        wishEmoji = "🎁"
-                        addWishPin = ""
-                        addWishMessage = ""
-                        showingAddWish = true
-                    }
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
-                    .foregroundStyle(AppTheme.navy)
-                    .padding(.horizontal, 18)
-                    .frame(height: 44)
-                    .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
-                    .buttonStyle(.plain)
-                    Text("我的魔法币: \(coordinator.coinAccount.balance) ✨")
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Color(red: 1.0, green: 0.68, blue: 0.0))
-                }
+                wishlistTopBar
 
                 Text("魔法愿望单")
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
@@ -196,10 +148,6 @@ struct WishlistView: View {
             .padding(.top, 24)
             .padding(.bottom, 12)
 
-            if let pendingWish {
-                pinDialog(wish: pendingWish)
-            }
-
             if showingAddWish {
                 addWishDialog
             }
@@ -212,6 +160,47 @@ struct WishlistView: View {
             }
         }
         .background(AppTheme.page)
+    }
+
+    private var wishlistTopBar: some View {
+        HStack(spacing: 12) {
+            MonsterCodexStyleBackButton(
+                action: { coordinator.route = .home },
+                accessibilityIdentifier: "WishlistBackButton"
+            )
+
+            Spacer(minLength: 0)
+
+            Button("📜") { coordinator.route = .redemptionHistory }
+                .font(.system(size: 18))
+                .frame(width: 48, height: 44)
+                .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
+                .buttonStyle(.plain)
+                .accessibilityLabel("兑换历史")
+                .accessibilityIdentifier("WishlistHistoryButton")
+
+            if parentPinReady {
+                Button("添加愿望") {
+                    wishName = ""
+                    wishCost = ""
+                    wishEmoji = "🎁"
+                    addWishPin = ""
+                    addWishMessage = ""
+                    showingAddWish = true
+                }
+                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                .foregroundStyle(AppTheme.navy)
+                .padding(.horizontal, 18)
+                .frame(height: 44)
+                .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("WishlistAddCustomButton")
+            }
+
+            Text("我的魔法币: \(coordinator.coinAccount.balance) ✨")
+                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                .foregroundStyle(Color(red: 1.0, green: 0.68, blue: 0.0))
+        }
     }
 
     private var addWishDialog: some View {
@@ -276,9 +265,9 @@ struct WishlistView: View {
             Spacer()
             if coordinator.coinAccount.balance >= wish.costCoins {
                 Button("申请兑换") {
-                    pendingWish = wish
-                    pin = ""
-                    pinMessage = ""
+                    if coordinator.wishlistStore.redeem(wishId: wish.id, coins: coordinator.coinAccount, history: coordinator.redemptionHistoryStore) != nil {
+                        showingGiftBox = true
+                    }
                 }
                 .font(.system(size: 16, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
@@ -297,43 +286,6 @@ struct WishlistView: View {
         .frame(height: 104)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
         .shadow(color: Color.black.opacity(0.06), radius: 5, y: 2)
-    }
-
-    private func pinDialog(wish: MagicWish) -> some View {
-        VStack(spacing: 12) {
-            Text("家长确认")
-                .font(.title2.weight(.heavy))
-            SecureField("家长 PIN", text: $pin)
-                .keyboardType(.numberPad)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 240)
-                .onChange(of: pin) { _, value in
-                    pin = GameConfig.sanitizePinInput(value)
-                }
-            Text(pinMessage)
-                .foregroundStyle(AppTheme.red)
-                .font(.subheadline.weight(.semibold))
-            HStack {
-                Button("取消") { pendingWish = nil }
-                Button("确认兑换") {
-                    guard pin == coordinator.configStore.config.parentPin else {
-                        pinMessage = "PIN 不正确"
-                        return
-                    }
-                    if coordinator.wishlistStore.redeem(wishId: wish.id, coins: coordinator.coinAccount, history: coordinator.redemptionHistoryStore) != nil {
-                        pendingWish = nil
-                        showingGiftBox = true
-                    } else {
-                        pinMessage = "魔法币不足"
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.red)
-            }
-        }
-        .padding(24)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 22))
-        .shadow(radius: 18)
     }
 
     private func saveCustomWish() {
@@ -574,12 +526,16 @@ struct RedemptionHistoryView: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack {
-                Button("返回") { coordinator.route = .wishlist }
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .wishlist },
+                    accessibilityIdentifier: "RedemptionHistoryBackButton"
+                )
                 Spacer()
                 Text("兑换历史")
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
                 Spacer()
+                Color.clear.frame(width: 54, height: 54)
             }
 
             if coordinator.redemptionHistoryStore.records.isEmpty {
@@ -624,17 +580,10 @@ struct TodayPlanView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Button {
-                    coordinator.route = .home
-                } label: {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(AppTheme.navy)
-                        .frame(width: 46, height: 46)
-                        .background(Color.white, in: Circle())
-                }
-                .accessibilityLabel("返回")
-                .buttonStyle(.plain)
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .home },
+                    accessibilityIdentifier: "TodayPlanBackButton"
+                )
 
                 Spacer()
                 Text("今日学习计划")
@@ -646,7 +595,7 @@ struct TodayPlanView: View {
                 } label: {
                     Text("📊")
                         .font(.system(size: 24))
-                        .frame(width: 46, height: 46)
+                        .frame(width: 54, height: 54)
                         .background(Color.white, in: Circle())
                 }
                 .accessibilityLabel("学习报告")
@@ -758,23 +707,16 @@ struct LearningReportView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Button {
-                    coordinator.route = .todayPlan
-                } label: {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(AppTheme.navy)
-                        .frame(width: 46, height: 46)
-                        .background(Color.white, in: Circle())
-                }
-                .accessibilityLabel("返回")
-                .buttonStyle(.plain)
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .todayPlan },
+                    accessibilityIdentifier: "LearningReportBackButton"
+                )
                 Spacer()
                 Text("学习报告")
                     .font(.system(size: 29, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
                 Spacer()
-                Color.clear.frame(width: 46, height: 46)
+                Color.clear.frame(width: 54, height: 54)
             }
 
             ScrollView {

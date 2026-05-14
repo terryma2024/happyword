@@ -8,6 +8,8 @@ import {
   RedemptionHistoryStore,
   getRedemptionHistoryStore,
 } from '../services/RedemptionHistoryStore';
+import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
+import { PageTopChrome } from '../components/PageTopChrome';
 
 /**
  * V0.3.9: history of every successful wishlist redemption. Reached
@@ -42,47 +44,25 @@ struct RedemptionHistoryPage {
     this.records = this.store.list();
   }
 
-  /** Back + title on one row; title is screen-centered (balanced thirds). */
   @Builder
-  private topBar() {
-    Row() {
-      Row() {
-        Button('← 返回')
-          .id('RedemptionHistoryBackButton')
-          .type(ButtonType.Normal)
-          .backgroundColor(Color.Transparent)
-          .fontColor('#457B9D')
-          .onClick((): void => {
-            try {
-              this.getUIContext().getRouter().back();
-            } catch (err) {
-              console.error(`RedemptionHistoryPage.back failed: ${JSON.stringify(err as BusinessError)}`);
-            }
-          });
-      }
-      .layoutWeight(1)
-      .justifyContent(FlexAlign.Start)
-      .alignItems(VerticalAlign.Center);
-
-      Text('兑换记录')
-        .id('RedemptionHistoryTitle')
-        .fontSize(26)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1D3557')
-        .layoutWeight(1)
-        .textAlign(TextAlign.Center);
-
-      Blank()
-        .layoutWeight(1);
-    }
-    .width('100%')
-    .alignItems(VerticalAlign.Center)
-    .padding({ bottom: 12 });
+  private headerRow() {
+    PageTopChrome({
+      backButtonId: 'RedemptionHistoryBackButton',
+      title: '兑换记录',
+      titleId: 'RedemptionHistoryTitle',
+      onBack: (): void => {
+        try {
+          this.getUIContext().getRouter().back();
+        } catch (err) {
+          console.error(`RedemptionHistoryPage.back failed: ${JSON.stringify(err as BusinessError)}`);
+        }
+      },
+    });
   }
 
   build(): void {
     Column() {
-      this.topBar();
+      this.headerRow();
 
       if (this.records.length === 0) {
         Column() {
@@ -101,14 +81,17 @@ struct RedemptionHistoryPage {
               this.recordCardInline(r);
             }, (r: RedemptionRecord): string => r.id);
           }
-          .padding({ top: 8, bottom: 24 });
+          .padding({
+            left: PAGE_BODY_EDGE_VP,
+            right: PAGE_BODY_EDGE_VP,
+            bottom: PAGE_BODY_EDGE_VP,
+          });
         }
         .layoutWeight(1);
       }
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 24 })
     .backgroundColor('#F8F9FA')
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
       SafeAreaEdge.START, SafeAreaEdge.END]);
@@ -140,7 +123,7 @@ struct RedemptionHistoryPage {
     }
     .id(`RedemptionRecordCard_${r.id}`)
     .width('92%')
-    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+    .padding({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP, top: 12, bottom: 12 })
     .backgroundColor('#FFFFFF')
     .borderRadius(12)
     .alignItems(VerticalAlign.Center)

@@ -66,17 +66,11 @@ struct MonsterCodexView: View {
     private func topBar(compactHeight: Bool) -> some View {
         ZStack {
             HStack {
-                Button {
-                    coordinator.route = .home
-                } label: {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: compactHeight ? 24 : 32, weight: .bold))
-                        .foregroundStyle(AppTheme.navy)
-                        .frame(width: compactHeight ? 54 : 70, height: compactHeight ? 54 : 70)
-                        .background(Color.white, in: Circle())
-                }
-                .accessibilityLabel("返回")
-                .accessibilityIdentifier("CodexBackButton")
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .home },
+                    compact: compactHeight,
+                    accessibilityIdentifier: "CodexBackButton"
+                )
                 Spacer()
             }
 

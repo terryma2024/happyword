@@ -123,8 +123,7 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
  * responsible for already being on `ConfigPage` (the 自定义 button
  * lives in the timer row near the top of the form, so no scroll is
  * needed on the landscape emulator viewport). On return the page is
- * still ConfigPage with the chosen seconds applied to the @State
- * draft — caller must tap `ConfigSaveButton` separately to persist.
+ * still ConfigPage with the chosen seconds applied and persisted.
  *
  * The numeric IME pops up over the 确定 button on the emulator the
  * same way it does for `ScanBindingPage` / `EditChildNicknameDialog`,
@@ -153,8 +152,7 @@ async function setCustomTimerSeconds(driver: Driver, seconds: number): Promise<v
     await driver.delayMs(500);
     await clickByIdShared(driver, 'CustomTimerDialogConfirmButton');
     await driver.delayMs(700);
-    // Belt-and-suspenders: poll until the dialog is gone before the
-    // caller goes on to tap ConfigSaveButton.
+    // Belt-and-suspenders: poll until the dialog is gone.
     for (let i: number = 0; i < 10; i++) {
       const dlg: Component | null =
         await driver.findComponent(ON.id('CustomTimerDialog'));
@@ -169,19 +167,14 @@ async function setCustomTimerSeconds(driver: Driver, seconds: number): Promise<v
 }
 
 /**
- * V0.6.7.7: scroll the ConfigPage Scroll until ConfigSaveButton is
- * visible and tap it. Mirrors `tapConfigCancelShared`'s defensive
- * "swipe up to 3 times then pressBack as last resort" loop, but
- * targets the 保存 button instead of 取消. Necessary because the
- * Save / Cancel row sits below the form fold on the narrow landscape
- * viewport (especially when the device is bound, which adds the
- * AssetStoreKit warning + 学习记录 row).
+ * Tap ConfigPage circular back (`ConfigBackButton`) with light scroll
+ * nudges if the fixed chrome is temporarily off-screen.
  */
 async function tapConfigSaveButton(driver: Driver): Promise<void> {
   try {
     for (let attempt: number = 0; attempt < 4; attempt++) {
       const comp: Component | null =
-        await driver.findComponent(ON.id('ConfigSaveButton'));
+        await driver.findComponent(ON.id('ConfigBackButton'));
       if (comp !== null) {
         await comp.click();
         return;
@@ -189,10 +182,7 @@ async function tapConfigSaveButton(driver: Driver): Promise<void> {
       await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(400);
     }
-    // Fallback: a stale Scroll position can leave Save permanently
-    // off-screen on the emulator. Surface a clear error rather than
-    // silently pressBack — pressBack would discard the test's edits.
-    throw new Error('ConfigSaveButton remained off-screen after 4 swipes');
+    throw new Error('ConfigBackButton remained unreachable after 4 swipes');
   } catch (err) {
     throw err as Error;
   }
@@ -200,13 +190,13 @@ async function tapConfigSaveButton(driver: Driver): Promise<void> {
 
 /**
  * V0.6.7.7: cleanup helper. After a custom-timer test we restore the
- * canonical 5m chip + 保存 so subsequent suites running in the same
- * `aa test` invocation see the expected default battle length. Mirrors
- * the defensive try/finally pattern in PackManagerFlow's pack-toggle
- * tests.
+ * canonical 5m chip (persisted on tap) and leave Config so subsequent
+ * suites in the same `aa test` invocation see the expected default
+ * battle length. Mirrors the defensive try/finally pattern in
+ * PackManagerFlow's pack-toggle tests.
  *
  * Caller can be anywhere in the navigation tree; the helper drives
- * Home → Config → tap chip → 保存 → Home itself, including IME
+ * Home → Config → tap chip → back → Home itself, including IME
  * dismissal for emulator robustness.
  */
 async function restoreDefaultTimerChip(driver: Driver): Promise<void> {
@@ -401,9 +391,8 @@ export default function configFlowUiTest(): void {
         const chip30Text: string = await chip30.getText();
         expect(chip30Text.indexOf('✓') < 0).assertTrue();
 
-        // Save and pop back to Home. ConfigSaveButton is below the
-        // form fold on a narrow landscape viewport, so use the
-        // swipe-then-tap helper rather than a bare clickByIdShared.
+        // Persist is immediate; pop back to Home via ConfigBackButton
+        // (same scroll helper as the old ConfigSaveButton path).
         await tapConfigSaveButton(driver);
         await driver.delayMs(800);
         await driver.assertComponentExist(ON.id('HomeStartButton'));

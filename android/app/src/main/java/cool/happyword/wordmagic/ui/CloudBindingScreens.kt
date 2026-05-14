@@ -71,7 +71,12 @@ fun ScanBindingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFFFF6E7))
-            .padding(horizontal = 44.dp, vertical = 22.dp)
+            .padding(
+                start = PageChromeInsets.bodyHorizontal,
+                top = PageChromeInsets.bodyTop,
+                end = PageChromeInsets.bodyHorizontal,
+                bottom = PageChromeInsets.bodyBottom,
+            )
             .testTag("ScanBindingScreen"),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -124,7 +129,12 @@ fun BoundDeviceInfoScreen(
             .fillMaxSize()
             .background(Color(0xFFF8FAFC))
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 32.dp, vertical = 16.dp)
+            .padding(
+                start = PageChromeInsets.bodyHorizontal,
+                top = PageChromeInsets.bodyTop,
+                end = PageChromeInsets.bodyHorizontal,
+                bottom = PageChromeInsets.bodyBottom,
+            )
             .testTag("BoundDeviceInfoScreen"),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {

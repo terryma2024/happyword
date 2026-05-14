@@ -151,7 +151,7 @@ class SmokeTest {
         repeat(4) {
             composeRule.onNodeWithTag("ConfigMonsterCountIncrement").performScrollTo().performClick()
         }
-        composeRule.onNodeWithText("返回首页").performClick()
+        composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             composeRule.onAllNodesWithText("Small Magician Word Adventure").fetchSemanticsNodes().isNotEmpty()
         }
