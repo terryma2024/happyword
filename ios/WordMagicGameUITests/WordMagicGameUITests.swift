@@ -291,8 +291,11 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.buttons["绑定家长账号"].exists)
         app.buttons["绑定家长账号"].tap()
 
-        XCTAssertTrue(app.staticTexts["绑定家长账号"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.textFields["6 位短码"].exists)
+        XCTAssertTrue(app.staticTexts.matching(identifier: "ScanBindingTitle").firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["ScanBindingManualEntry"].waitForExistence(timeout: 5))
+        app.buttons["ScanBindingManualEntry"].tap()
+
+        XCTAssertTrue(app.textFields["6 位短码"].waitForExistence(timeout: 5))
         app.textFields["6 位短码"].tap()
         app.textFields["6 位短码"].typeText("123456")
         app.buttons["绑定"].tap()

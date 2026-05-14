@@ -55,6 +55,7 @@ render.experimental.xml
 
 # Xcode / iOS (per-user IDE state; schemes belong under xcshareddata/)
 **/xcuserdata/
+ios/build-sim/
 
 # Keystore files
 *.jks
