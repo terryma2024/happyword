@@ -2,7 +2,9 @@ import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
 import {
+  clickParentPinSetupCancelShared,
   clickByIdShared,
+  scrollToQuestionTypeChipsShared,
   selectAllQuestionTypesShared,
   selectOnlyQuestionTypeShared,
   tapConfigCancelShared,
@@ -236,6 +238,7 @@ export default function configFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfig(driver);
+      await scrollToQuestionTypeChipsShared(driver);
 
       await driver.assertComponentExist(ON.id('ConfigQuestionType_choice'));
       await driver.assertComponentExist(ON.id('ConfigQuestionType_fill-letter'));
@@ -259,6 +262,7 @@ export default function configFlowUiTest(): void {
       await returnToHome(driver);
       await selectOnlyQuestionTypeShared(driver, 'spell');
       await openConfig(driver);
+      await scrollToQuestionTypeChipsShared(driver);
 
       const spellChip: Component =
         await driver.findComponent(ON.id('ConfigQuestionType_spell'));
@@ -300,7 +304,7 @@ export default function configFlowUiTest(): void {
       // so we anchor on ConfigParentPinButton (the row we swiped to)
       // instead of ConfigTitle (which sits at the top and may be off
       // screen).
-      await clickByIdShared(driver, 'ParentPinSetupCancel');
+      await clickParentPinSetupCancelShared(driver);
       await driver.delayMs(1200);
       await driver.assertComponentExist(ON.id('ConfigParentPinButton'));
 
@@ -514,7 +518,7 @@ export default function configFlowUiTest(): void {
       // Cancel sits below the keypad on a narrow viewport; swipe up.
       await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(300);
-      await clickByIdShared(driver, 'ParentPinSetupCancel');
+      await clickParentPinSetupCancelShared(driver);
       await driver.delayMs(1200);
       // Anchor on ConfigParentPinButton (the row we already scrolled
       // to) rather than ConfigTitle to avoid Scroll-position artefacts.

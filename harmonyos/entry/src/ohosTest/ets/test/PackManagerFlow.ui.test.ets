@@ -29,6 +29,10 @@ const FAMILY_PACK_NAME: string = 'Family Snacks';
 // (`wordmagic_global_packs`, `wordmagic_family_packs`) are intentionally
 // left alone — see `wipeBoundDeviceState` for the rationale.
 const PREFS_CLOUD: string = 'wordmagic_cloud';
+const PREFS_PACK_SELECTION: string = 'wordmagic_pack_selection';
+const PACK_SELECTION_KEY: string = 'selection_v1';
+const DEFAULT_PACK_SELECTION_BLOB: string =
+  '{"schemaVersion":1,"activePackIds":["fruit-forest","school-castle","home-cottage","animal-safari","ocean-realm"],"pinnedPackIds":[],"perfectScoresByPack":{}}';
 
 async function launchApp(): Promise<Driver> {
   // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
@@ -56,6 +60,24 @@ async function returnToHome(driver: Driver): Promise<void> {
       await driver.pressBack();
       await driver.delayMs(500);
     }
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+async function resetDefaultPackSelection(driver: Driver): Promise<void> {
+  try {
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const ctx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
+    const handle: preferences.Preferences =
+      await preferences.getPreferences(ctx, PREFS_PACK_SELECTION);
+    await handle.put(PACK_SELECTION_KEY, DEFAULT_PACK_SELECTION_BLOB);
+    await handle.flush();
+    await clickByIdShared(driver, 'HomeConfigButton');
+    await driver.delayMs(900);
+    await driver.pressBack();
+    await driver.delayMs(900);
+    await returnToHome(driver);
   } catch (err) {
     throw err as Error;
   }
@@ -122,23 +144,38 @@ async function scrollPackRowIntoView(driver: Driver, packId: string): Promise<vo
   try {
     const toggleId: string = `PackToggle_${packId}`;
     const labelId: string = `PackLabel_${packId}`;
-    // V0.6.7.8: builtins (fruit-forest … home-cottage) render above
-    // synced globals (space-station). Tests that first scroll DOWN to
-    // assert the global row must be able to scroll BACK UP to reach a
-    // builtin toggle — upward-only swipes never moved the viewport back,
-    // producing `PackToggle_home-cottage` not exist. Alternate swipe
-    // directions each attempt so rows above and below the current window
-    // are both reachable within a bounded loop.
-    for (let attempt: number = 0; attempt < 14; attempt++) {
+    const builtinTarget: boolean = isDefaultPackId(packId);
+    for (let attempt: number = 0; attempt < 12; attempt++) {
       const toggle: Component | null = await driver.findComponent(ON.id(toggleId));
       const label: Component | null = await driver.findComponent(ON.id(labelId));
       if (toggle !== null || label !== null) {
         return;
       }
-      if ((attempt % 2) === 0) {
-        await driver.swipe(1400, 1100, 1400, 400, 600);
+      // Built-ins are rendered above synced global/family rows. After
+      // a test scrolls down to Space Station / Family Snacks, looking
+      // for a builtin must scroll back toward the top first; doing many
+      // bottom-ward swipes on the already-bottomed list can leave the
+      // uitest driver stuck inside Driver.swipe and poison later tests.
+      if (builtinTarget) {
+        await driver.swipe(1400, 400, 1400, 1100, 450);
       } else {
-        await driver.swipe(1400, 400, 1400, 1100, 600);
+        await driver.swipe(1400, 1100, 1400, 400, 450);
+      }
+      await driver.delayMs(400);
+    }
+    // One bounded reverse pass covers rare cases where the current
+    // viewport starts on the opposite side of the target from the
+    // expected ordering. Keep this short so a missing row fails fast.
+    for (let attempt: number = 0; attempt < 3; attempt++) {
+      const toggle: Component | null = await driver.findComponent(ON.id(toggleId));
+      const label: Component | null = await driver.findComponent(ON.id(labelId));
+      if (toggle !== null || label !== null) {
+        return;
+      }
+      if (builtinTarget) {
+        await driver.swipe(1400, 1100, 1400, 400, 450);
+      } else {
+        await driver.swipe(1400, 400, 1400, 1100, 450);
       }
       await driver.delayMs(400);
     }
@@ -207,6 +244,39 @@ async function getTextById(driver: Driver, id: string): Promise<string> {
       return '';
     }
     return await comp.getText();
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+async function findHomeRegionChip(driver: Driver, packId: string): Promise<Component | null> {
+  try {
+    const id: string = `RegionChip_${packId}`;
+    for (let attempt: number = 0; attempt < 8; attempt++) {
+      const chip: Component | null = await driver.findComponent(ON.id(id));
+      if (chip !== null) {
+        return chip;
+      }
+      await driver.swipe(1050, 650, 250, 650, 450);
+      await driver.delayMs(250);
+    }
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const chip: Component | null = await driver.findComponent(ON.id(id));
+      if (chip !== null) {
+        return chip;
+      }
+      await driver.swipe(250, 650, 1050, 650, 450);
+      await driver.delayMs(250);
+    }
+    return await driver.findComponent(ON.id(id));
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+async function findVisibleHomeRegionChip(driver: Driver, packId: string): Promise<Component | null> {
+  try {
+    return await driver.findComponent(ON.id(`RegionChip_${packId}`));
   } catch (err) {
     throw err as Error;
   }
@@ -463,6 +533,10 @@ const ALL_DEFAULT_PACK_IDS: string[] = [
   'ocean-realm',
 ];
 
+function isDefaultPackId(packId: string): boolean {
+  return ALL_DEFAULT_PACK_IDS.indexOf(packId) >= 0;
+}
+
 const PIN_LABEL_UNPINNED: string = '📌 固定';
 const PIN_LABEL_PINNED: string = '已固定';
 
@@ -531,6 +605,7 @@ export default function packManagerFlowUiTest(): void {
     it('navigatesFromConfigAndRendersHeaderStatusAndSync', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetDefaultPackSelection(driver);
       await openPackManagerFromHome(driver);
 
       // Header bar (back + title + sync) and status line should all
@@ -556,6 +631,7 @@ export default function packManagerFlowUiTest(): void {
     it('activePacksRenderPinButtonsWithFixedLabelCopy', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetDefaultPackSelection(driver);
       await openPackManagerFromHome(driver);
 
       // Each of the 5 default packs is active, so each must expose
@@ -586,6 +662,7 @@ export default function packManagerFlowUiTest(): void {
     it('togglingPackOffHidesPinButtonAndOnRestoresIt', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetDefaultPackSelection(driver);
       await openPackManagerFromHome(driver);
 
       // Pick fruit-forest — first in the default list, always
@@ -643,6 +720,7 @@ export default function packManagerFlowUiTest(): void {
     it('homeRegionChipsRenderEnglishPackNames', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetDefaultPackSelection(driver);
 
       // (id, expected English name) pairs taken from the builtin
       // rawfile JSONs (entry/src/main/resources/rawfile/data/builtin).
@@ -656,8 +734,7 @@ export default function packManagerFlowUiTest(): void {
       for (let i: number = 0; i < pairs.length; i++) {
         const id: string = pairs[i][0];
         const expected: string = pairs[i][1];
-        const chip: Component | null =
-          await driver.findComponent(ON.id(`RegionChip_${id}`));
+        const chip: Component | null = await findHomeRegionChip(driver, id);
         expect(chip !== null).assertTrue();
         if (chip !== null) {
           const txt: string = await chip.getText();
@@ -682,6 +759,7 @@ export default function packManagerFlowUiTest(): void {
     it('togglingNonSelectedPackOffRemovesItsHomeRegionChip', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetDefaultPackSelection(driver);
 
       // We track whether the OFF toggle actually persisted so the
       // `finally` cleanup never tries to flip an already-on pack
@@ -693,8 +771,9 @@ export default function packManagerFlowUiTest(): void {
         // the default todayPack (fruit-forest → "Fruit Forest" since
         // V0.6.7.5 anchors HomePage labels on the English `p.name`).
         for (let i: number = 0; i < ALL_DEFAULT_PACK_IDS.length; i++) {
-          await driver.assertComponentExist(
-            ON.id(`RegionChip_${ALL_DEFAULT_PACK_IDS[i]}`));
+          const chip: Component | null =
+            await findHomeRegionChip(driver, ALL_DEFAULT_PACK_IDS[i]);
+          expect(chip !== null).assertTrue();
         }
         const titleBefore: string =
           await getTextById(driver, 'AdventureCardTitle');
@@ -705,13 +784,12 @@ export default function packManagerFlowUiTest(): void {
         toggledOff = true;
 
         // home-cottage's chip is gone, the other 4 are still rendered.
-        const removed: Component | null =
-          await driver.findComponent(ON.id('RegionChip_home-cottage'));
+        const removed: Component | null = await findVisibleHomeRegionChip(driver, 'home-cottage');
         expect(removed === null).assertTrue();
-        await driver.assertComponentExist(ON.id('RegionChip_fruit-forest'));
-        await driver.assertComponentExist(ON.id('RegionChip_school-castle'));
-        await driver.assertComponentExist(ON.id('RegionChip_animal-safari'));
-        await driver.assertComponentExist(ON.id('RegionChip_ocean-realm'));
+        expect((await findHomeRegionChip(driver, 'fruit-forest')) !== null).assertTrue();
+        expect((await findHomeRegionChip(driver, 'school-castle')) !== null).assertTrue();
+        expect((await findHomeRegionChip(driver, 'animal-safari')) !== null).assertTrue();
+        expect((await findHomeRegionChip(driver, 'ocean-realm')) !== null).assertTrue();
 
         // AdventureCardTitle is unchanged because the deselected pack
         // wasn't the currently-selected todayPack.
@@ -724,8 +802,9 @@ export default function packManagerFlowUiTest(): void {
         await togglePackAndReturnHome(driver, 'home-cottage');
         toggledOff = false;
         for (let i: number = 0; i < ALL_DEFAULT_PACK_IDS.length; i++) {
-          await driver.assertComponentExist(
-            ON.id(`RegionChip_${ALL_DEFAULT_PACK_IDS[i]}`));
+          const chip: Component | null =
+            await findHomeRegionChip(driver, ALL_DEFAULT_PACK_IDS[i]);
+          expect(chip !== null).assertTrue();
         }
         const titleAfter: string =
           await getTextById(driver, 'AdventureCardTitle');
@@ -763,6 +842,7 @@ export default function packManagerFlowUiTest(): void {
     it('togglingSelectedPackOffSwapsAdventureCardThenRestores', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetDefaultPackSelection(driver);
 
       let toggledOff: boolean = false;
       try {
@@ -841,6 +921,7 @@ export default function packManagerFlowUiTest(): void {
       0, async (done: Function) => {
         const driver: Driver = await launchApp();
         await returnToHome(driver);
+        await resetDefaultPackSelection(driver);
 
         let toggledOffBuiltin: boolean = false;
         let toggledOnGlobal: boolean = false;
@@ -883,15 +964,13 @@ export default function packManagerFlowUiTest(): void {
           // HomePage must reflect the new chipPacks composition: the
           // synced global pack is now visible, the deactivated builtin
           // is gone.
-          const chip: Component | null =
-            await driver.findComponent(ON.id(`RegionChip_${GLOBAL_PACK_ID}`));
+          const chip: Component | null = await findHomeRegionChip(driver, GLOBAL_PACK_ID);
           expect(chip !== null).assertTrue();
           if (chip !== null) {
             const chipTxt: string = await chip.getText();
             expect(chipTxt).assertEqual(GLOBAL_PACK_NAME);
           }
-          const removed: Component | null =
-            await driver.findComponent(ON.id('RegionChip_home-cottage'));
+          const removed: Component | null = await findVisibleHomeRegionChip(driver, 'home-cottage');
           expect(removed === null).assertTrue();
         } finally {
           // Defensive restore — independent of which assertion (if any)
@@ -959,6 +1038,7 @@ export default function packManagerFlowUiTest(): void {
         const driver: Driver = await launchApp();
         try {
           await returnToHome(driver);
+          await resetDefaultPackSelection(driver);
           // Drive UI-level bind so `CloudCredentials` is fully
           // populated on the live ability instance. Pre-seeding
           // preferences from the test process does not always
@@ -995,15 +1075,13 @@ export default function packManagerFlowUiTest(): void {
 
           // Home chip row must include the family pack's English name
           // and exclude the deactivated builtin.
-          const chip: Component | null =
-            await driver.findComponent(ON.id(`RegionChip_${FAMILY_PACK_ID}`));
+          const chip: Component | null = await findHomeRegionChip(driver, FAMILY_PACK_ID);
           expect(chip !== null).assertTrue();
           if (chip !== null) {
             const chipTxt: string = await chip.getText();
             expect(chipTxt).assertEqual(FAMILY_PACK_NAME);
           }
-          const removed: Component | null =
-            await driver.findComponent(ON.id('RegionChip_animal-safari'));
+          const removed: Component | null = await findVisibleHomeRegionChip(driver, 'animal-safari');
           expect(removed === null).assertTrue();
         } finally {
           // Toggle state back to the all-builtin defaults BEFORE
@@ -1041,6 +1119,7 @@ export default function packManagerFlowUiTest(): void {
     it('tappingPinFlipsLabelBetweenUnpinnedAndPinnedStates', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await resetDefaultPackSelection(driver);
       await openPackManagerFromHome(driver);
 
       // school-castle is the second pack in the default list — also

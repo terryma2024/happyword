@@ -108,7 +108,7 @@ export default function monsterCodexFlowUiTest(): void {
       await driver.assertComponentExist(ON.text('Pumpkin King'));
       await driver.assertComponentExist(ON.text('「秋夜灯王」'));
       await driver.assertComponentExist(ON.text('4 / 100'));
-      for (let i: number = 0; i < 6; i++) {
+      for (let i: number = 0; i < 7; i++) {
         await clickNextAndDelay(driver, 120);
       }
       await driver.assertComponentExist(ON.text('Jellyfish'));

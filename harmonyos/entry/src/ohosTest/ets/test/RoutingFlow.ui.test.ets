@@ -119,12 +119,57 @@ export async function scrollToParentPinButton(driver: Driver): Promise<void> {
   }
 }
 
+export async function clickParentPinSetupCancelShared(driver: Driver): Promise<void> {
+  try {
+    for (let attempt: number = 0; attempt < 6; attempt++) {
+      const cancel: Component | null =
+        await driver.findComponent(ON.id('ParentPinSetupCancel'));
+      if (cancel !== null) {
+        await cancel.click();
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(350);
+    }
+    await driver.assertComponentExist(ON.id('ParentPinSetupCancel'));
+    const cancel: Component = await driver.findComponent(ON.id('ParentPinSetupCancel'));
+    await cancel.click();
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 const QUESTION_TYPE_IDS: string[] = [
   'choice',
   'fill-letter',
   'fill-letter-medium',
   'spell',
 ];
+
+export async function scrollToQuestionTypeChipsShared(driver: Driver): Promise<void> {
+  try {
+    for (let attempt: number = 0; attempt < 3; attempt++) {
+      const choice: Component | null =
+        await driver.findComponent(ON.id('ConfigQuestionType_choice'));
+      if (choice !== null) {
+        return;
+      }
+      await driver.swipe(1400, 300, 1400, 1100, 600);
+      await driver.delayMs(300);
+    }
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      const choice: Component | null =
+        await driver.findComponent(ON.id('ConfigQuestionType_choice'));
+      if (choice !== null) {
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(300);
+    }
+  } catch (err) {
+    throw err as Error;
+  }
+}
 
 async function tapConfigSaveShared(driver: Driver): Promise<void> {
   try {
@@ -149,6 +194,7 @@ function hasCheckPrefix(text: string): boolean {
 
 export async function setQuestionTypeChipShared(driver: Driver, typeId: string, selected: boolean): Promise<void> {
   try {
+    await scrollToQuestionTypeChipsShared(driver);
     const id: string = `ConfigQuestionType_${typeId}`;
     await driver.assertComponentExist(ON.id(id));
     const chip: Component = await driver.findComponent(ON.id(id));
