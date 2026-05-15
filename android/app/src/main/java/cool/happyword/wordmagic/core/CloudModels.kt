@@ -182,10 +182,21 @@ class DeviceBindingClient(
     private val transport: BindingHttpTransport = UrlConnectionBindingHttpTransport(),
     private val clockMs: () -> Long = System::currentTimeMillis,
 ) {
-    suspend fun redeemShortCode(shortCode: String, deviceId: String): BindingResult {
-        val normalized = shortCode.trim()
-        if (!Regex("""^\d{6}$""").matches(normalized)) {
-            return BindingResult.Failure("请输入 6 位绑定码")
+    suspend fun redeemShortCode(shortCode: String, deviceId: String): BindingResult =
+        redeemPair(deviceId = deviceId, token = "", shortCode = shortCode)
+
+    suspend fun redeemToken(token: String, deviceId: String): BindingResult =
+        redeemPair(deviceId = deviceId, token = token, shortCode = "")
+
+    private suspend fun redeemPair(deviceId: String, token: String, shortCode: String): BindingResult {
+        val normalizedCode = shortCode.trim()
+        val normalizedToken = token.trim()
+        if (normalizedCode.isNotEmpty()) {
+            if (!Regex("""^\d{6}$""").matches(normalizedCode)) {
+                return BindingResult.Failure(messageForErrorCode("TOKEN_INVALID"))
+            }
+        } else if (normalizedToken.length < 4 || normalizedToken.length > 64) {
+            return BindingResult.Failure(messageForErrorCode("TOKEN_INVALID"))
         }
         if (deviceId.isBlank()) {
             return BindingResult.Failure("设备 ID 不可用，请重试")
@@ -197,17 +208,26 @@ class DeviceBindingClient(
         ).apply {
             putAll(extraHeadersProvider().filterValues { it.isNotBlank() })
         }
-        val body = """{"short_code":"${jsonEscape(normalized)}","device_id":"${jsonEscape(deviceId)}"}"""
+        val body = buildString {
+            append("""{"device_id":"${jsonEscape(deviceId)}"""")
+            if (normalizedToken.isNotEmpty()) {
+                append(""","token":"${jsonEscape(normalizedToken)}"""")
+            }
+            if (normalizedCode.isNotEmpty()) {
+                append(""","short_code":"${jsonEscape(normalizedCode)}"""")
+            }
+            append("}")
+        }
         val response = try {
             transport.postJson(url, headers, body)
         } catch (_: Exception) {
-            return BindingResult.Failure("网络不可用，请稍后重试")
+            return BindingResult.Failure(messageForErrorCode("NETWORK"))
         }
         if (response.status !in listOf(200, 201)) {
             return BindingResult.Failure(messageForErrorCode(parseErrorCode(response.body)))
         }
         val credentials = parseCredentials(response.body, deviceId)
-            ?: return BindingResult.Failure("绑定响应异常，请重试")
+            ?: return BindingResult.Failure(messageForErrorCode("UNKNOWN"))
         return BindingResult.Success(credentials)
     }
 
