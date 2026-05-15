@@ -95,11 +95,10 @@ struct ScanBindingView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
-            Button("返回") { coordinator.route = .config }
-                .font(.headline.weight(.bold))
-                .foregroundStyle(AppTheme.navy)
-
-            Spacer(minLength: 8)
+            MonsterCodexStyleBackButton(
+                action: { coordinator.route = .config },
+                accessibilityIdentifier: "ScanBindingBack"
+            )
 
             Text("扫码绑定家长账号")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
@@ -107,11 +106,10 @@ struct ScanBindingView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("ScanBindingTitle")
 
-            Spacer(minLength: 8)
-
-            Color.clear.frame(width: 52, height: 1)
+            Color.clear.frame(width: 54, height: 54)
         }
     }
 
