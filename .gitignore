@@ -14,6 +14,16 @@
 # Local UI screenshot comparisons (Android/Harmony harness output)
 .compare-screenshots/
 
+# Gap detector run artifacts
+# Track only the gap queue and screenshot evidence; keep manifests, UI trees,
+# command logs, and other probe scratch files local.
+.gap-detector/**
+!.gap-detector/
+!.gap-detector/runs/
+!.gap-detector/runs/**/
+!.gap-detector/runs/**/gaps.yaml
+!.gap-detector/runs/**/*.png
+
 # Gradle files (legacy / hybrid templates)
 .gradle/
 .build/
