@@ -1,11 +1,12 @@
 package cool.happyword.wordmagic
 
+import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsEqualTo
-import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -14,12 +15,33 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ActivityScenario
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
 class LocalGrowthFlowTest {
     @get:Rule
-    val composeRule = createAndroidComposeRule<MainActivity>()
+    val composeRule = createEmptyComposeRule()
+
+    private var scenario: ActivityScenario<MainActivity>? = null
+    private val targetContext: Context
+        get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Before
+    fun launchWithCleanLocalProgress() {
+        clearLocalProgress()
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+    }
+
+    @After
+    fun cleanup() {
+        scenario?.close()
+        scenario = null
+        clearLocalProgress()
+    }
 
     @Test
     fun packManagerCanToggleAndReturnHome() {
@@ -53,7 +75,8 @@ class LocalGrowthFlowTest {
             composeRule.onAllNodesWithTag("WishlistGiftBoxModal").fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithTag("WishlistGiftBoxModal").assertIsDisplayed()
-        composeRule.waitUntil(4_500) {
+        composeRule.mainClock.advanceTimeBy(4_000)
+        composeRule.waitUntil(2_000) {
             composeRule.onAllNodesWithTag("WishlistGiftBoxModal").fetchSemanticsNodes().isEmpty()
         }
         composeRule.onNodeWithTag("WishlistHistoryButton").performClick()
@@ -91,5 +114,12 @@ class LocalGrowthFlowTest {
         composeRule.onNodeWithTag("TodayPlanReportButton").performClick()
         composeRule.onNodeWithTag("LearningReportScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("LearningReportAccuracy").assertIsDisplayed()
+    }
+
+    private fun clearLocalProgress() {
+        targetContext.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
     }
 }

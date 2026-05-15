@@ -126,6 +126,7 @@ import cool.happyword.wordmagic.core.DevMenuRouteParams
 import cool.happyword.wordmagic.core.DevMenuViewModel
 import cool.happyword.wordmagic.core.VersionTripleTap
 import cool.happyword.wordmagic.core.DeviceBindingClient
+import cool.happyword.wordmagic.core.FixtureDeviceBindingClient
 import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
 import cool.happyword.wordmagic.core.CustomWishRules
 import cool.happyword.wordmagic.core.GameConfig
@@ -760,33 +761,8 @@ fun WordMagicGameApp() {
                             recentlyRedeemedWishId = recentlyRedeemedWishId,
                             showAddCustomEntry = parentPin.length == 6,
                             onRedeem = { wish ->
-                                val redeemed = redemptionHistory.redeem(
-                                    account = coinAccount,
-                                    wishlist = wishlist,
-                                    wishId = wish.id,
-                                    redeemedAtMs = System.currentTimeMillis(),
-                                    parentApproved = true,
-                                )
-                                coinAccount = redeemed.account
-                                redemptionHistory = redeemed.history
-                                localProgressMessage = redeemed.message
-                                repositories.saveCoinAccount(coinAccount)
-                                repositories.saveRedemptionHistory(redemptionHistory)
-                                if (redeemed.accepted) {
-                                    wishlistGiftBoxTrigger = 0
-                                    wishlistGiftBoxVisible = true
-                                    recentlyRedeemedWishId = wish.id
-                                    appScope.launch {
-                                        delay(GIFTBOX_TRIGGER_DELAY_MS)
-                                        wishlistGiftBoxTrigger += 1
-                                        delay(GIFTBOX_MODAL_TOTAL_MS - GIFTBOX_TRIGGER_DELAY_MS)
-                                        wishlistGiftBoxVisible = false
-                                        delay(WISH_REDEEMED_ACK_MS)
-                                        if (recentlyRedeemedWishId == wish.id) {
-                                            recentlyRedeemedWishId = null
-                                        }
-                                    }
-                                }
+                                pendingRedemptionWishId = wish.id
+                                route = AppRoute.ParentPin
                             },
                             onHistory = { route = AppRoute.RedemptionHistory },
                             onAddCustom = {
@@ -1658,6 +1634,7 @@ private fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onCompl
                 ) {
                     Text(
                         value.ifBlank { "_" },
+                        modifier = Modifier.testTag("BattleSpellSlotText_$index"),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Black,
                         color = if (value.isNotBlank()) Color(0xFF1D3557) else Color(0xFFE63946),
@@ -1674,12 +1651,12 @@ private fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onCompl
             question.spellPool.forEachIndexed { index, letter ->
                 val used = consumed.getOrElse(index) { false }
                 val wrong = wrongPoolIndex == index
+                val nextSlot = slots.indexOfFirst { it.isBlank() }
+                val expected = question.spellLetters.getOrNull(nextSlot)
                 Button(
                     onClick = {
                         if (feedbackLocked || used || completed || wrongPoolIndex >= 0) return@Button
-                        val nextSlot = slots.indexOfFirst { it.isBlank() }
                         if (nextSlot < 0) return@Button
-                        val expected = question.spellLetters.getOrNull(nextSlot)
                         if (letter != expected) {
                             wrongPoolIndex = index
                             return@Button
@@ -1695,7 +1672,14 @@ private fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onCompl
                     modifier = Modifier
                         .width(44.dp)
                         .height(52.dp)
-                        .testTag("BattleSpellPool_$index"),
+                        .testTag("BattleSpellPool_$index")
+                        .semantics {
+                            contentDescription = if (!used && !completed && letter == expected) {
+                                "BattleSpellCorrectPool"
+                            } else {
+                                "BattleSpellPool_$index"
+                            }
+                        },
                     shape = CircleShape,
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
