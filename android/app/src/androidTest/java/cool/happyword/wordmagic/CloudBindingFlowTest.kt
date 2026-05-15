@@ -23,12 +23,13 @@ class CloudBindingFlowTest {
         }
         if (hasNode("ScanBindingScreen")) {
             composeRule.onNodeWithTag("ScanBindingScreen").assertIsDisplayed()
-            composeRule.onNodeWithTag("ScanBindingManualCodeInput").performTextInput("abc123")
-            composeRule.onNodeWithTag("ScanBindingRedeemButton").performClick()
+            composeRule.onNodeWithTag("ScanBindingManualToggle").performClick()
+            composeRule.onNodeWithTag("ScanBindingManualInput").performTextInput("12345")
+            composeRule.onNodeWithTag("ScanBindingManualSubmit").performClick()
             composeRule.waitUntil(timeoutMillis = 2_000) {
-                hasNode("ScanBindingError")
+                hasNode("ScanBindingFailureHint")
             }
-            composeRule.onNodeWithTag("ScanBindingError").assertIsDisplayed()
+            composeRule.onNodeWithTag("ScanBindingFailureHint").assertIsDisplayed()
         } else {
             composeRule.onNodeWithTag("BoundDeviceInfoScreen").assertIsDisplayed()
         }
