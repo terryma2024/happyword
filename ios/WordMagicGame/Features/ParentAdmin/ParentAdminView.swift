@@ -92,7 +92,8 @@ struct ParentAdminView: View {
                         .accessibilityIdentifier("ParentAdminPublishSummary")
                 }
             }
-            .padding(20)
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
+            .padding(.vertical, 20)
         }
         .background(AppTheme.page)
         .task { await load() }
@@ -185,7 +186,8 @@ struct LessonDraftReviewView: View {
                     .accessibilityIdentifier("LessonReviewApproveButton")
             }
         }
-        .padding(20)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 20)
         .background(AppTheme.page)
     }
 }

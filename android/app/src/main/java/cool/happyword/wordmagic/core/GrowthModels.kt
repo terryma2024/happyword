@@ -59,6 +59,100 @@ data class WishlistState(
     }
 }
 
+/** Bounds aligned with `harmonyos/.../WishlistStore.ets` custom wish rules. */
+object CustomWishRules {
+    const val NAME_MIN_CHARS: Int = 1
+    const val NAME_MAX_CHARS: Int = 12
+    const val COST_MIN: Int = 5
+    const val COST_MAX: Int = 200
+    const val DEFAULT_EMOJI: String = "⭐"
+    const val ID_PREFIX: String = "custom-"
+}
+
+data class CustomWishFormValidation(val ok: Boolean, val message: String)
+
+fun validateCustomWishForm(name: String, costRaw: String, emoji: String): CustomWishFormValidation {
+    val trimmed = name.trim()
+    if (trimmed.length < CustomWishRules.NAME_MIN_CHARS) {
+        return CustomWishFormValidation(false, "请输入愿望名称")
+    }
+    if (trimmed.length > CustomWishRules.NAME_MAX_CHARS) {
+        return CustomWishFormValidation(false, "名称最多 ${CustomWishRules.NAME_MAX_CHARS} 字")
+    }
+    val costStr = costRaw.trim()
+    if (costStr.isEmpty() || !costStr.all { it.isDigit() }) {
+        return CustomWishFormValidation(false, "魔法币数量必须是数字")
+    }
+    val cost = costStr.toIntOrNull()
+        ?: return CustomWishFormValidation(false, "魔法币数量必须是数字")
+    if (cost < CustomWishRules.COST_MIN || cost > CustomWishRules.COST_MAX) {
+        return CustomWishFormValidation(false, "数量需在 ${CustomWishRules.COST_MIN} ~ ${CustomWishRules.COST_MAX} 之间")
+    }
+    val e = emoji.trim()
+    if (e.length > 4) {
+        return CustomWishFormValidation(false, "表情最多 1-2 个字符")
+    }
+    return CustomWishFormValidation(true, "")
+}
+
+/**
+ * Appends one custom wish after validation. Returns [this] with [Pair.second]
+ * set when validation fails; otherwise returns the new state and `null` message.
+ */
+fun WishlistState.tryAddCustomWish(
+    name: String,
+    costRaw: String,
+    emojiRaw: String,
+    nowMs: Long,
+): Pair<WishlistState, String?> {
+    val v = validateCustomWishForm(name, costRaw, emojiRaw)
+    if (!v.ok) {
+        return this to v.message
+    }
+    val trimmedName = name.trim().replace(Regex("[\t\n\r]"), " ")
+    val cost = costRaw.trim().toInt()
+    var emoji = emojiRaw.trim().replace(Regex("[\t\n\r]"), " ")
+    if (emoji.isEmpty()) {
+        emoji = CustomWishRules.DEFAULT_EMOJI
+    }
+    val id = generateCustomWishId(this, nowMs)
+    val item = WishItem(
+        id = id,
+        title = trimmedName,
+        cost = cost,
+        icon = emoji,
+        custom = true,
+    )
+    return copy(customWishes = customWishes + item) to null
+}
+
+/**
+ * Removes a parent-created custom wish by id. Missing ids, default-catalog ids,
+ * or rows with [WishItem.custom] false leave [this] unchanged (Harmony parity).
+ */
+fun WishlistState.removeCustomWish(wishId: String): WishlistState {
+    val idx = customWishes.indexOfFirst { it.id == wishId }
+    if (idx < 0) {
+        return this
+    }
+    val row = customWishes[idx]
+    if (!row.custom) {
+        return this
+    }
+    return copy(customWishes = customWishes.filterIndexed { i, _ -> i != idx })
+}
+
+private fun generateCustomWishId(wishlist: WishlistState, nowMs: Long): String {
+    var suffix = kotlin.random.Random.nextInt(0, 0x100000)
+    while (true) {
+        val candidate = "${CustomWishRules.ID_PREFIX}$nowMs-${suffix.toString(16)}"
+        if (wishlist.allWishes().none { it.id == candidate }) {
+            return candidate
+        }
+        suffix = (suffix + 1) and 0xFFFFF
+    }
+}
+
 data class RedemptionRecord(
     val id: String,
     val wishId: String,

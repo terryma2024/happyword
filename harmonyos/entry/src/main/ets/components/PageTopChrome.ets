@@ -23,6 +23,10 @@ export struct PageTopChrome {
   title: string = '';
   /** When set, applied as the title Text component id (uitest). */
   titleId: string = '';
+  /** Title line height; default matches other chrome pages. */
+  titleFontSize: number = 18;
+  /** Title text color (hex). */
+  titleFontColor: string = '#1f2937';
   onBack: () => void = (): void => {};
   @BuilderParam trailing: () => void = defaultPageTopTrailing;
   /**
@@ -51,9 +55,9 @@ export struct PageTopChrome {
           Text(this.title)
             .id(this.titleId.length > 0 ? this.titleId : 'PageTopChromeTitle')
             .layoutWeight(1)
-            .fontSize(18)
+            .fontSize(this.titleFontSize)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#1f2937')
+            .fontColor(this.titleFontColor)
             .textAlign(TextAlign.Center)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis });

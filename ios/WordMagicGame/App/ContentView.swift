@@ -65,7 +65,7 @@ struct ContentView: View {
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 18)
+                        .padding(.horizontal, AppTheme.pageHorizontalPadding)
                         .padding(.vertical, 10)
                         .background(Color.black.opacity(0.82), in: Capsule())
                         .accessibilityIdentifier("AppToast")

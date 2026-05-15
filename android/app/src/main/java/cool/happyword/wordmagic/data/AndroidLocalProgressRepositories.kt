@@ -7,7 +7,9 @@ import cool.happyword.wordmagic.core.LearningRecorder
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.RedemptionHistoryStore
 import cool.happyword.wordmagic.core.RedemptionRecord
+import cool.happyword.wordmagic.core.WishItem
 import cool.happyword.wordmagic.core.WishlistState
+import cool.happyword.wordmagic.core.CustomWishRules
 import cool.happyword.wordmagic.core.WordLearningStat
 
 class AndroidLocalProgressRepositories(context: Context) {
@@ -58,7 +60,37 @@ class AndroidLocalProgressRepositories(context: Context) {
             .apply()
     }
 
-    fun loadWishlist(): WishlistState = WishlistState.default()
+    fun loadWishlist(): WishlistState {
+        val base = WishlistState.default()
+        val raw = prefs.getString("wishlistCustom", null).orEmpty()
+        if (raw.isBlank()) {
+            return base
+        }
+        val customs = raw.lineSequence().mapNotNull { line ->
+            val parts = line.split('\t')
+            if (parts.size < 4) {
+                return@mapNotNull null
+            }
+            val id = parts[0].trim()
+            val title = parts[1].trim()
+            val cost = parts[2].toIntOrNull() ?: return@mapNotNull null
+            val icon = parts[3].trim().ifEmpty { CustomWishRules.DEFAULT_EMOJI }
+            if (!id.startsWith(CustomWishRules.ID_PREFIX) || title.isEmpty()) {
+                return@mapNotNull null
+            }
+            WishItem(id = id, title = title, cost = cost, icon = icon, custom = true)
+        }.toList()
+        return base.copy(customWishes = customs)
+    }
+
+    fun saveWishlist(state: WishlistState) {
+        val serialized = state.customWishes.joinToString("\n") { w ->
+            val safeTitle = w.title.replace(Regex("[\t\n\r]"), " ")
+            val safeIcon = w.icon.replace(Regex("[\t\n\r]"), " ")
+            "${w.id}\t$safeTitle\t${w.cost}\t$safeIcon"
+        }
+        prefs.edit().putString("wishlistCustom", serialized).apply()
+    }
 
     fun loadRedemptionHistory(): RedemptionHistoryStore {
         val records = prefs.getString("redemptionHistory", "").orEmpty()

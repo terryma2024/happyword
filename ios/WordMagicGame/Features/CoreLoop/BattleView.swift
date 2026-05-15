@@ -84,7 +84,7 @@ struct BattleView: View {
 
                     answerRow
                 }
-                .padding(.horizontal, 26)
+                .padding(.horizontal, AppTheme.pageHorizontalPadding)
                 .padding(.top, 14)
                 .padding(.bottom, 10)
                 .frame(width: proxy.size.width, height: proxy.size.height)

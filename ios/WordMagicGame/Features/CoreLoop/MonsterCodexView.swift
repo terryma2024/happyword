@@ -55,7 +55,7 @@ struct MonsterCodexView: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, compactHeight ? 18 : 28)
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
             .padding(.top, compactHeight ? 10 : 18)
             .padding(.bottom, compactHeight ? 8 : 14)
             .frame(width: proxy.size.width, height: proxy.size.height)

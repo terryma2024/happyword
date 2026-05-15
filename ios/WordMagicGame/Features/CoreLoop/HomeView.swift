@@ -24,7 +24,7 @@ struct HomeView: View {
                     adventureCard
                         .frame(maxHeight: .infinity)
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, AppTheme.pageHorizontalPadding)
                 .padding(.top, 18)
                 .padding(.bottom, 10)
                 .frame(width: proxy.size.width, height: proxy.size.height)
@@ -36,9 +36,9 @@ struct HomeView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
                         .frame(maxWidth: proxy.size.width * 0.55, alignment: .leading)
-                        .padding(.leading, 16)
-                        .padding(.top, 16)
-                        .padding(.trailing, 16)
+                    .padding(.leading, AppTheme.pageHorizontalPadding)
+                    .padding(.top, 16)
+                    .padding(.trailing, AppTheme.pageHorizontalPadding)
                         .padding(.bottom, 8)
                         .accessibilityIdentifier("HomeVersionLabel")
                         .contentShape(Rectangle())
@@ -163,7 +163,8 @@ struct HomeView: View {
             .tint(AppTheme.red)
             .accessibilityIdentifier("HomeStartButton")
         }
-        .padding(14)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 14)
         .background(scenePalette.primary, in: RoundedRectangle(cornerRadius: 24))
         .overlay {
             RoundedRectangle(cornerRadius: 24)

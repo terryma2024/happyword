@@ -732,4 +732,6 @@ enum AppTheme {
     static let paleBlue = Color(red: 0.86, green: 0.93, blue: 0.98)
     static let palePink = Color(red: 0.98, green: 0.82, blue: 0.82)
     static let page = Color(red: 0.98, green: 0.99, blue: 1.00)
+    /// Standard horizontal gutter for full-screen flows (pt).
+    static let pageHorizontalPadding: CGFloat = 24
 }

@@ -51,11 +51,11 @@ struct ConfigView: View {
                             adminRow
                         }
                     }
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, AppTheme.pageHorizontalPadding)
                     .padding(.vertical, 22)
                 }
             }
-            .padding(.horizontal, compactHeight ? 18 : 28)
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
             .padding(.top, compactHeight ? 10 : 18)
             .padding(.bottom, compactHeight ? 8 : 14)
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -574,7 +574,8 @@ struct DevMenuView: View {
                 }
                 Spacer()
             }
-            .padding(16)
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
+            .padding(.vertical, 16)
         }
         .background(Color.white)
         .onAppear {
@@ -737,7 +738,8 @@ struct BypassSecretView: View {
                 .accessibilityIdentifier("BypassSecretPageSave")
             }
         }
-        .padding(32)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 32)
         .frame(width: 520)
         .background(AppTheme.cream, in: RoundedRectangle(cornerRadius: 22))
     }
@@ -777,7 +779,8 @@ struct ParentPinSetupView: View {
             }
         }
         .frame(width: 380)
-        .padding(26)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 26)
         .background(AppTheme.cream, in: RoundedRectangle(cornerRadius: 22))
     }
 }
@@ -808,7 +811,8 @@ struct ParentPinGateView: View {
             }
         }
         .frame(width: 380)
-        .padding(26)
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 26)
         .background(AppTheme.cream, in: RoundedRectangle(cornerRadius: 22))
     }
 }

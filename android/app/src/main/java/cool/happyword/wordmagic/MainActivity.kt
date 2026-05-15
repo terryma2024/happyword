@@ -122,6 +122,7 @@ import cool.happyword.wordmagic.core.DevMenuViewModel
 import cool.happyword.wordmagic.core.VersionTripleTap
 import cool.happyword.wordmagic.core.DeviceBindingClient
 import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
+import cool.happyword.wordmagic.core.CustomWishRules
 import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.LearningRecorder
 import cool.happyword.wordmagic.core.LearningReportBuilder
@@ -136,9 +137,10 @@ import cool.happyword.wordmagic.core.SessionResult
 import cool.happyword.wordmagic.core.TodayPlanService
 import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.WordPack
+import cool.happyword.wordmagic.core.tryAddCustomWish
+import cool.happyword.wordmagic.core.removeCustomWish
 import cool.happyword.wordmagic.ui.CenteredCircleTextButton
 import cool.happyword.wordmagic.ui.HarmonyPageTopBackButton
-import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.circleGlyphTextStyle
 import cool.happyword.wordmagic.core.WordStatsSyncClient
 import cool.happyword.wordmagic.core.WordStatsSyncResult
@@ -151,6 +153,7 @@ import cool.happyword.wordmagic.ui.BoundDeviceInfoScreen
 import cool.happyword.wordmagic.ui.DevMenuScreen
 import cool.happyword.wordmagic.ui.LearningReportScreen
 import cool.happyword.wordmagic.ui.MonsterCodexScreen
+import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.PackManagerScreen
 import cool.happyword.wordmagic.ui.RedemptionHistoryScreen
 import cool.happyword.wordmagic.ui.ScanBindingScreen
@@ -307,6 +310,16 @@ fun WordMagicGameApp() {
     var wishlistGiftBoxVisible by remember { mutableStateOf(false) }
     var wishlistGiftBoxTrigger by remember { mutableIntStateOf(0) }
     var recentlyRedeemedWishId by remember { mutableStateOf<String?>(null) }
+    var addCustomWishPinVisible by remember { mutableStateOf(false) }
+    var addCustomWishFormVisible by remember { mutableStateOf(false) }
+    var addCustomWishPinInput by remember { mutableStateOf("") }
+    var addCustomWishName by remember { mutableStateOf("") }
+    var addCustomWishCost by remember { mutableStateOf("") }
+    var addCustomWishEmoji by remember { mutableStateOf("") }
+    var addCustomWishFormError by remember { mutableStateOf("") }
+    var removeCustomWishPinVisible by remember { mutableStateOf(false) }
+    var removeCustomWishPinInput by remember { mutableStateOf("") }
+    var pendingRemoveCustomWishId by remember { mutableStateOf<String?>(null) }
     var parentPin by remember { mutableStateOf("") }
     var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
 
@@ -376,6 +389,15 @@ fun WordMagicGameApp() {
                 result = engine.resultFor(timedOut)
                 route = AppRoute.Result
             }
+        }
+    }
+    LaunchedEffect(route) {
+        if (route != AppRoute.Wishlist) {
+            addCustomWishPinVisible = false
+            addCustomWishFormVisible = false
+            removeCustomWishPinVisible = false
+            removeCustomWishPinInput = ""
+            pendingRemoveCustomWishId = null
         }
     }
 
@@ -637,61 +659,177 @@ fun WordMagicGameApp() {
                     },
                     onBack = { route = AppRoute.Home },
                 )
-                AppRoute.Wishlist -> WishlistScreen(
-                    coinAccount = coinAccount,
-                    wishlist = wishlist,
-                    message = localProgressMessage,
-                    giftBoxVisible = wishlistGiftBoxVisible,
-                    giftBoxTrigger = wishlistGiftBoxTrigger,
-                    recentlyRedeemedWishId = recentlyRedeemedWishId,
-                    showAddCustomEntry = parentPin.length == 6,
-                    onRedeem = { wish ->
-                        val redeemed = redemptionHistory.redeem(
-                            account = coinAccount,
+                AppRoute.Wishlist -> {
+                    Box(Modifier.fillMaxSize()) {
+                        WishlistScreen(
+                            coinAccount = coinAccount,
                             wishlist = wishlist,
-                            wishId = wish.id,
-                            redeemedAtMs = System.currentTimeMillis(),
-                            parentApproved = true,
-                        )
-                        coinAccount = redeemed.account
-                        redemptionHistory = redeemed.history
-                        localProgressMessage = redeemed.message
-                        repositories.saveCoinAccount(coinAccount)
-                        repositories.saveRedemptionHistory(redemptionHistory)
-                        if (redeemed.accepted) {
-                            wishlistGiftBoxTrigger = 0
-                            wishlistGiftBoxVisible = true
-                            recentlyRedeemedWishId = wish.id
-                            appScope.launch {
-                                delay(GIFTBOX_TRIGGER_DELAY_MS)
-                                wishlistGiftBoxTrigger += 1
-                                delay(GIFTBOX_MODAL_TOTAL_MS - GIFTBOX_TRIGGER_DELAY_MS)
-                                wishlistGiftBoxVisible = false
-                                delay(WISH_REDEEMED_ACK_MS)
-                                if (recentlyRedeemedWishId == wish.id) {
-                                    recentlyRedeemedWishId = null
+                            message = localProgressMessage,
+                            giftBoxVisible = wishlistGiftBoxVisible,
+                            giftBoxTrigger = wishlistGiftBoxTrigger,
+                            recentlyRedeemedWishId = recentlyRedeemedWishId,
+                            showAddCustomEntry = parentPin.length == 6,
+                            onRedeem = { wish ->
+                                val redeemed = redemptionHistory.redeem(
+                                    account = coinAccount,
+                                    wishlist = wishlist,
+                                    wishId = wish.id,
+                                    redeemedAtMs = System.currentTimeMillis(),
+                                    parentApproved = true,
+                                )
+                                coinAccount = redeemed.account
+                                redemptionHistory = redeemed.history
+                                localProgressMessage = redeemed.message
+                                repositories.saveCoinAccount(coinAccount)
+                                repositories.saveRedemptionHistory(redemptionHistory)
+                                if (redeemed.accepted) {
+                                    wishlistGiftBoxTrigger = 0
+                                    wishlistGiftBoxVisible = true
+                                    recentlyRedeemedWishId = wish.id
+                                    appScope.launch {
+                                        delay(GIFTBOX_TRIGGER_DELAY_MS)
+                                        wishlistGiftBoxTrigger += 1
+                                        delay(GIFTBOX_MODAL_TOTAL_MS - GIFTBOX_TRIGGER_DELAY_MS)
+                                        wishlistGiftBoxVisible = false
+                                        delay(WISH_REDEEMED_ACK_MS)
+                                        if (recentlyRedeemedWishId == wish.id) {
+                                            recentlyRedeemedWishId = null
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                    },
-                    onHistory = { route = AppRoute.RedemptionHistory },
-                    onAddCustom = {
-                        if (parentPin.length != 6) {
-                            Toast.makeText(
-                                context,
-                                "请先在设置页面配置家长密码（6 位数字），再使用此功能。",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "自定义愿望功能即将在 Android 版推出。",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    },
-                    onBack = { route = AppRoute.Home },
-                )
+                            },
+                            onHistory = { route = AppRoute.RedemptionHistory },
+                            onAddCustom = {
+                                if (parentPin.length != 6) {
+                                    Toast.makeText(
+                                        context,
+                                        "请先在设置页面配置家长密码（6 位数字），再使用此功能。",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                } else {
+                                    removeCustomWishPinVisible = false
+                                    removeCustomWishPinInput = ""
+                                    pendingRemoveCustomWishId = null
+                                    addCustomWishPinInput = ""
+                                    addCustomWishPinVisible = true
+                                }
+                            },
+                            onRequestRemoveCustom = { wish ->
+                                if (parentPin.length != 6) {
+                                    Toast.makeText(
+                                        context,
+                                        "请先在设置页面配置家长密码（6 位数字），再使用此功能。",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                } else if (!wish.custom) {
+                                    // Defensive: only parent-created rows are removable.
+                                } else {
+                                    addCustomWishPinVisible = false
+                                    addCustomWishFormVisible = false
+                                    pendingRemoveCustomWishId = wish.id
+                                    removeCustomWishPinInput = ""
+                                    removeCustomWishPinVisible = true
+                                }
+                            },
+                            onBack = { route = AppRoute.Home },
+                        )
+                        AddCustomWishPinDialog(
+                            visible = addCustomWishPinVisible,
+                            pinInput = addCustomWishPinInput,
+                            onPinChange = { v -> addCustomWishPinInput = v.filter { it.isDigit() }.take(6) },
+                            onDismiss = {
+                                addCustomWishPinVisible = false
+                                addCustomWishPinInput = ""
+                            },
+                            onConfirm = {
+                                if (!ParentPinStore.isValidPin(addCustomWishPinInput)) {
+                                    return@AddCustomWishPinDialog
+                                }
+                                if (addCustomWishPinInput != parentPin) {
+                                    Toast.makeText(context, "密码不正确", Toast.LENGTH_SHORT).show()
+                                    return@AddCustomWishPinDialog
+                                }
+                                addCustomWishPinVisible = false
+                                addCustomWishPinInput = ""
+                                addCustomWishName = ""
+                                addCustomWishCost = ""
+                                addCustomWishEmoji = ""
+                                addCustomWishFormError = ""
+                                addCustomWishFormVisible = true
+                            },
+                        )
+                        RemoveCustomWishPinDialog(
+                            visible = removeCustomWishPinVisible,
+                            pinInput = removeCustomWishPinInput,
+                            onPinChange = { v -> removeCustomWishPinInput = v.filter { it.isDigit() }.take(6) },
+                            onDismiss = {
+                                removeCustomWishPinVisible = false
+                                removeCustomWishPinInput = ""
+                                pendingRemoveCustomWishId = null
+                            },
+                            onConfirm = {
+                                if (!ParentPinStore.isValidPin(removeCustomWishPinInput)) {
+                                    return@RemoveCustomWishPinDialog
+                                }
+                                if (removeCustomWishPinInput != parentPin) {
+                                    Toast.makeText(context, "密码不正确", Toast.LENGTH_SHORT).show()
+                                    return@RemoveCustomWishPinDialog
+                                }
+                                val id = pendingRemoveCustomWishId
+                                removeCustomWishPinVisible = false
+                                removeCustomWishPinInput = ""
+                                pendingRemoveCustomWishId = null
+                                if (id != null) {
+                                    val next = wishlist.removeCustomWish(id)
+                                    if (next !== wishlist) {
+                                        wishlist = next
+                                        repositories.saveWishlist(wishlist)
+                                        localProgressMessage = ""
+                                        Toast.makeText(context, "已删除愿望", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                        )
+                        AddCustomWishFormDialog(
+                            visible = addCustomWishFormVisible,
+                            name = addCustomWishName,
+                            costRaw = addCustomWishCost,
+                            emoji = addCustomWishEmoji,
+                            error = addCustomWishFormError,
+                            onNameChange = {
+                                addCustomWishName = it.take(CustomWishRules.NAME_MAX_CHARS)
+                                addCustomWishFormError = ""
+                            },
+                            onCostChange = {
+                                addCustomWishCost = it.filter { c -> c.isDigit() }.take(4)
+                                addCustomWishFormError = ""
+                            },
+                            onEmojiChange = {
+                                addCustomWishEmoji = it.take(4)
+                                addCustomWishFormError = ""
+                            },
+                            onDismiss = { addCustomWishFormVisible = false },
+                            onSubmit = {
+                                val (next, err) = wishlist.tryAddCustomWish(
+                                    addCustomWishName,
+                                    addCustomWishCost,
+                                    addCustomWishEmoji,
+                                    System.currentTimeMillis(),
+                                )
+                                if (err != null) {
+                                    addCustomWishFormError = err
+                                } else {
+                                    wishlist = next
+                                    repositories.saveWishlist(wishlist)
+                                    addCustomWishFormVisible = false
+                                    addCustomWishFormError = ""
+                                    localProgressMessage = ""
+                                    Toast.makeText(context, "已添加愿望", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        )
+                    }
+                }
                 AppRoute.RedemptionHistory -> RedemptionHistoryScreen(
                     history = redemptionHistory,
                     onBack = { route = AppRoute.Wishlist },
@@ -1211,7 +1349,7 @@ private fun BattleScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF9FAFC))
-            .padding(horizontal = 24.dp, vertical = 14.dp)
+            .padding(horizontal = PageChromeInsets.homeAlignedHorizontal, vertical = 14.dp)
             .testTag("BattleScreen"),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -2271,6 +2409,165 @@ private fun ConfigScreen(
             },
         )
     }
+}
+
+@Composable
+private fun AddCustomWishPinDialog(
+    visible: Boolean,
+    pinInput: String,
+    onPinChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    if (!visible) {
+        return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("请输入家长密码以添加自定义愿望") },
+        text = {
+            OutlinedTextField(
+                value = pinInput,
+                onValueChange = onPinChange,
+                label = { Text("6 位数字密码") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("AddCustomWishPinInput"),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                modifier = Modifier.testTag("AddCustomWishPinConfirm"),
+            ) { Text("继续") }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("AddCustomWishPinCancel"),
+            ) { Text("取消") }
+        },
+    )
+}
+
+@Composable
+private fun RemoveCustomWishPinDialog(
+    visible: Boolean,
+    pinInput: String,
+    onPinChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    if (!visible) {
+        return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("请输入家长密码以删除该愿望") },
+        text = {
+            OutlinedTextField(
+                value = pinInput,
+                onValueChange = onPinChange,
+                label = { Text("6 位数字密码") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("RemoveCustomWishPinInput"),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                modifier = Modifier.testTag("RemoveCustomWishPinConfirm"),
+            ) { Text("继续") }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("RemoveCustomWishPinCancel"),
+            ) { Text("取消") }
+        },
+    )
+}
+
+@Composable
+private fun AddCustomWishFormDialog(
+    visible: Boolean,
+    name: String,
+    costRaw: String,
+    emoji: String,
+    error: String,
+    onNameChange: (String) -> Unit,
+    onCostChange: (String) -> Unit,
+    onEmojiChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSubmit: () -> Unit,
+) {
+    if (!visible) {
+        return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("添加魔法愿望") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("愿望名称", fontSize = 14.sp, color = Color(0xFF888888))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    label = { Text("1-${CustomWishRules.NAME_MAX_CHARS} 字") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("AddCustomWishNameInput"),
+                )
+                Text("需要的魔法币数量", fontSize = 14.sp, color = Color(0xFF888888))
+                OutlinedTextField(
+                    value = costRaw,
+                    onValueChange = onCostChange,
+                    label = { Text("${CustomWishRules.COST_MIN}-${CustomWishRules.COST_MAX}") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("AddCustomWishCostInput"),
+                )
+                Text("表情图标 (留空使用 ⭐)", fontSize = 14.sp, color = Color(0xFF888888))
+                OutlinedTextField(
+                    value = emoji,
+                    onValueChange = onEmojiChange,
+                    label = { Text("emoji") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("AddCustomWishEmojiInput"),
+                )
+                if (error.isNotEmpty()) {
+                    Text(
+                        error,
+                        fontSize = 13.sp,
+                        color = Color(0xFFE63946),
+                        modifier = Modifier.testTag("AddCustomWishError"),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onSubmit,
+                modifier = Modifier.testTag("AddCustomWishSubmitButton"),
+            ) { Text("添加") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
 }
 
 @Composable

@@ -101,13 +101,6 @@ struct WishlistPage {
     Stack({ alignContent: Alignment.Center }) {
       Column({ space: 12 }) {
         this.headerRow();
-        Text('魔法愿望单')
-          .id('WishlistTitle')
-          .fontSize(26)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1D3557')
-          .width('100%')
-          .padding({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP });
         Scroll() {
           Column({ space: 12 }) {
             ForEach(this.wishes, (w: MagicWish): void => {
@@ -273,7 +266,10 @@ struct WishlistPage {
   private headerRow() {
     PageTopChrome({
       backButtonId: 'WishlistBackButton',
-      title: '',
+      title: '魔法愿望单',
+      titleId: 'WishlistTitle',
+      titleFontSize: 26,
+      titleFontColor: '#1D3557',
       onBack: (): void => {
         if (this.giftBoxVisible) {
           return;
