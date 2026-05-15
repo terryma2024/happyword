@@ -40,6 +40,7 @@ struct HomeView: View {
                     .padding(.top, 16)
                     .padding(.trailing, AppTheme.pageHorizontalPadding)
                         .padding(.bottom, 8)
+                        .accessibilityLabel("HomeVersionLabel")
                         .accessibilityIdentifier("HomeVersionLabel")
                         .contentShape(Rectangle())
                         .onTapGesture {

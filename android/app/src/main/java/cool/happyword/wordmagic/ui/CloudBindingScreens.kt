@@ -66,6 +66,7 @@ fun ScanBindingScreen(
     deviceId: String,
     error: String,
     onRedeem: (String) -> Unit,
+    onPickGalleryQr: () -> Unit,
     onBack: () -> Unit,
 ) {
     var code by remember { mutableStateOf("") }
@@ -97,7 +98,7 @@ fun ScanBindingScreen(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 18.dp)) {
             OutlinedButton(onClick = onBack) { Text("返回") }
-            OutlinedButton(onClick = {}, modifier = Modifier.testTag("ScanBindingGalleryButton")) { Text("相册") }
+            OutlinedButton(onClick = onPickGalleryQr, modifier = Modifier.testTag("ScanBindingGalleryButton")) { Text("相册") }
             OutlinedButton(onClick = {}, modifier = Modifier.testTag("ScanBindingCameraButton")) { Text("扫码") }
             Button(
                 onClick = { onRedeem(code) },

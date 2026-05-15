@@ -179,12 +179,13 @@ struct BattleView: View {
                         .foregroundStyle(AppTheme.navy)
                         .accessibilityIdentifier("BattlePrompt")
                     HStack(spacing: 7) {
-                        ForEach(Array(currentSpellSlots(for: question).enumerated()), id: \.offset) { _, letter in
+                        ForEach(Array(currentSpellSlots(for: question).enumerated()), id: \.offset) { index, letter in
                             Text(letter.isEmpty ? "_" : letter)
                                 .font(.system(size: 25, weight: .heavy, design: .rounded))
                                 .foregroundStyle(AppTheme.navy)
                                 .frame(width: 30, height: 38)
                                 .background(letter.isEmpty ? Color.white.opacity(0.7) : AppTheme.gold.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
+                                .accessibilityIdentifier("BattleSpellSlot_\(index)")
                         }
                     }
                     .accessibilityIdentifier("BattleSpellSlots")
@@ -243,6 +244,9 @@ struct BattleView: View {
     private func accessibilityLabel(for option: String, index: Int) -> String {
         if isExposedCorrectOption(option, index: index) {
             return "BattleCorrectOption"
+        }
+        if ProcessInfo.processInfo.arguments.contains("-UITestExposeCorrectAnswer") {
+            return "BattleIncorrectOption"
         }
         return option
     }
@@ -395,6 +399,7 @@ struct BattleView: View {
                 .font(.headline.monospacedDigit().weight(.bold))
                 .foregroundStyle(AppTheme.navy)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier(title == "Magician" ? "PlayerHpLabel" : "MonsterHpLabel")
             ProgressView(value: Double(hp), total: Double(max(maxHp, 1)))
                 .tint(Color(red: 0.15, green: 0.80, blue: 0.42))
                 .scaleEffect(x: 1, y: 1.8, anchor: .center)

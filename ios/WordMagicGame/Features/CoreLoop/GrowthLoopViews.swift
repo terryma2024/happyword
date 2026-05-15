@@ -203,6 +203,7 @@ struct WishlistView: View {
                     .frame(height: 44)
                     .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
                     .buttonStyle(.plain)
+                    .accessibilityLabel("添加愿望")
                     .accessibilityIdentifier("WishlistAddCustomButton")
                 }
 
@@ -727,6 +728,7 @@ struct LearningReportView: View {
                 Text("学习报告")
                     .font(.system(size: 29, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
+                    .accessibilityIdentifier("LearningReportTitle")
                 Spacer()
                 Color.clear.frame(width: 54, height: 54)
             }
@@ -754,9 +756,11 @@ struct LearningReportView: View {
             Text("\(overallAccuracy)%")
                 .font(.system(size: 56, weight: .heavy, design: .rounded))
                 .foregroundStyle(AppTheme.navy)
+                .accessibilityIdentifier("LearningReportAccuracy")
             Text("已答 \(report.correctAnswers) / \(report.totalAttempts) 题")
                 .font(.system(size: 22, weight: .medium, design: .rounded))
                 .foregroundStyle(Color(red: 0.34, green: 0.28, blue: 0.20))
+                .accessibilityIdentifier("LearningReportAccuracySub")
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .frame(maxWidth: .infinity, minHeight: 158, alignment: .leading)
@@ -773,10 +777,10 @@ struct LearningReportView: View {
                 .foregroundStyle(AppTheme.navy)
                 .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 12) {
-                statePill("掌握", 0, color: AppTheme.mint)
-                statePill("熟悉", max(report.totalSeenWords - 1, 0), color: Color(red: 0.28, green: 0.51, blue: 0.64))
-                statePill("学习中", min(report.totalSeenWords, 1), color: AppTheme.gold)
-                statePill("新词", max(coordinator.selectedPack.words.count - report.totalSeenWords, 0), color: Color(red: 0.66, green: 0.86, blue: 0.86))
+                statePill("掌握", 0, color: AppTheme.mint, accessibilityIdentifier: "LearningReportMastered")
+                statePill("熟悉", max(report.totalSeenWords - 1, 0), color: Color(red: 0.28, green: 0.51, blue: 0.64), accessibilityIdentifier: "LearningReportFamiliar")
+                statePill("学习中", min(report.totalSeenWords, 1), color: AppTheme.gold, accessibilityIdentifier: "LearningReportLearning")
+                statePill("新词", max(coordinator.selectedPack.words.count - report.totalSeenWords, 0), color: Color(red: 0.66, green: 0.86, blue: 0.86), accessibilityIdentifier: "LearningReportNewCount")
             }
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
@@ -799,6 +803,7 @@ struct LearningReportView: View {
                 Text("\(seen) / \(total)")
                     .font(.system(size: 20, weight: .medium, design: .rounded))
                     .foregroundStyle(Color(red: 0.34, green: 0.28, blue: 0.20))
+                    .accessibilityIdentifier("LearningReportReviewCount")
             }
             ProgressView(value: Double(seen), total: Double(max(total, 1)))
                 .tint(AppTheme.mint)
@@ -806,6 +811,7 @@ struct LearningReportView: View {
             Text(total == 0 ? "0% 完成" : "\(Int(Double(seen) / Double(total) * 100))% 完成")
                 .font(.system(size: 19, weight: .medium, design: .rounded))
                 .foregroundStyle(Color(red: 0.34, green: 0.28, blue: 0.20))
+                .accessibilityIdentifier("LearningReportReviewPct")
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 20)
@@ -851,7 +857,7 @@ struct LearningReportView: View {
         return Int(Double(report.correctAnswers) / Double(report.totalAttempts) * 100)
     }
 
-    private func statePill(_ label: String, _ value: Int, color: Color) -> some View {
+    private func statePill(_ label: String, _ value: Int, color: Color, accessibilityIdentifier: String) -> some View {
         VStack(spacing: 8) {
             Text("\(value)")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
@@ -863,5 +869,8 @@ struct LearningReportView: View {
         .frame(maxWidth: .infinity)
         .frame(height: 88)
         .background(color, in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label) \(value)")
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }

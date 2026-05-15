@@ -132,18 +132,21 @@ struct ScanBindingView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("ScanBindingOpenScanner")
 
-            PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
-                HStack(spacing: 10) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                    Text("从图库选择二维码")
+            if usesMockGalleryBinding {
+                Button {
+                    Task { await coordinator.bind(pairingInput: "123456") }
+                } label: {
+                    GalleryQRCodeButtonLabel()
                 }
-                .font(.title3.weight(.heavy))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .background(AppTheme.blue, in: Capsule())
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ScanBindingPickFromGallery")
+            } else {
+                PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
+                    GalleryQRCodeButtonLabel()
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ScanBindingPickFromGallery")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("ScanBindingPickFromGallery")
 
             Button("无法扫码？手动输入短码") {
                 galleryHint = ""
@@ -159,6 +162,10 @@ struct ScanBindingView: View {
             .accessibilityIdentifier("ScanBindingManualEntry")
         }
         .frame(maxWidth: 360)
+    }
+
+    private var usesMockGalleryBinding: Bool {
+        ProcessInfo.processInfo.arguments.contains("-UITestMockBinding")
     }
 
     private var manualEntrySheet: some View {
@@ -259,6 +266,19 @@ struct ScanBindingView: View {
     }
 }
 
+private struct GalleryQRCodeButtonLabel: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "photo.on.rectangle.angled")
+            Text("从图库选择二维码")
+        }
+        .font(.title3.weight(.heavy))
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, minHeight: 52)
+        .background(AppTheme.blue, in: Capsule())
+    }
+}
+
 struct BoundDeviceInfoView: View {
     @ObservedObject var coordinator: AppCoordinator
     @State private var pin = ""
@@ -273,7 +293,7 @@ struct BoundDeviceInfoView: View {
                     accessibilityIdentifier: "BoundDeviceInfoBack"
                 )
 
-                Text("孩子档案")
+                Text("家长账户")
                     .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
                     .frame(maxWidth: .infinity)

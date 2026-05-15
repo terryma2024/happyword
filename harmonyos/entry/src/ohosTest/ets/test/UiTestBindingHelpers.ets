@@ -7,7 +7,11 @@ import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { common } from '@kit.AbilityKit';
 import http from '@ohos.net.http';
 import preferences from '@ohos.data.preferences';
-import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import {
+  clickByIdShared,
+  clickParentPinSetupCancelShared,
+  tapConfigCancelShared,
+} from './RoutingFlow.ui.test';
 
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
@@ -138,7 +142,7 @@ export async function bindMockParentViaShortCodeFromHome(
       await driver.delayMs(400);
     }
     if (keypad !== null) {
-      await clickByIdShared(driver, 'ParentPinSetupCancel');
+      await clickParentPinSetupCancelShared(driver);
       await driver.delayMs(800);
     }
     let foundSuccess: boolean = false;
