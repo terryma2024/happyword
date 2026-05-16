@@ -25,7 +25,7 @@ Every new HTTP surface added to this repo MUST live under exactly one of three t
 
 - `/admin/**` — system admin web shells (e.g. global-pack authoring UI in v0.6.6+).
 - `/public/**` — anonymous landing pages (e.g. preview-urls dashboards).
-- `/family/{family_id}/**` — parent web shell scoped to a family (`_` is a decorative placeholder on pre-login pages such as `/family/_/login`).
+- `/family/{family_id}/**` — parent web shell scoped to a family (pre-login HTML entry: **`/family/login`**; decorative `_` remains on pre-login **`/family/_/auth/*`** form posts and JSON **`/api/v1/family/_/auth/*`** until a session exists).
 
 ## Historical legacy URLs (removed)
 
@@ -33,7 +33,7 @@ Older docs and clients referred to `/api/v1/parent/**`, `/api/v1/child/**`, bare
 
 ## Pre-login parent OTP
 
-Parent email OTP JSON endpoints and sibling HTML forms live at `/api/v1/family/{family_id}/auth/*` and `/family/{family_id}/auth/*`. Until a session exists, callers use a decorative `family_id` such as `_` (see apex `/` → `/family/_/login` in `server/app/main.py`).
+Parent email OTP JSON endpoints and sibling HTML forms live at `/api/v1/family/{family_id}/auth/*` and `/family/{family_id}/auth/*`. Until a session exists, callers use a decorative `family_id` such as `_` on those auth paths (see apex `/` → **`/family/login`** in `server/app/main.py`).
 
 ## Enforcement
 
