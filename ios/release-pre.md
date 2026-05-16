@@ -25,7 +25,7 @@
 - [x] App display name is `魔法背单词`.
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
 - [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.7.0-b1007004.xcarchive`.
-- [x] App Store Connect upload succeeded for replacement build `0.7.0 (1007004)`; App Store Connect reported the uploaded package is processing.
+- [x] App Store Connect upload succeeded for replacement build `0.7.0 (1007004)`; build is added to TestFlight internal group `Internal Smoke`.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
@@ -181,14 +181,13 @@ xcodebuild archive \
 - [x] App Store Connect export options are stored in `ios/ExportOptions.AppStore.plist`.
 - [x] Upload replacement build to TestFlight.
   - Previous internal smoke build: `0.7.0 (1007002)`.
-  - Latest internal smoke build: `0.7.0 (1007003)`.
-  - Latest uploaded replacement build: `0.7.0 (1007004)`.
+  - Latest internal smoke build: `0.7.0 (1007004)`.
   - Reason for replacement: previous `1007000` was built before latest `origin/main` and did not include the scan-binding parent login link; release version label was also hidden with the DevMenu gate.
   - Reason for second replacement: `1007001` did not include the iOS credential-persistence guard added after simulator smoke testing.
   - Reason for third replacement: `1007002` did not include the iOS force-light-mode release fix for system dark mode.
   - Reason for fourth replacement: `1007003` did not include the iOS parent-admin real backend flow, lesson-review scrolling/editing, and source-image preview fixes verified on simulator.
-  - Upload result: `xcodebuild -exportArchive` reported `Upload succeeded` for `WordMagicGame`; App Store Connect reported the uploaded package is processing.
-  - TestFlight result: `1007004` is pending App Store Connect processing, export compliance, and internal TestFlight group assignment. `1007003` remains the latest confirmed `正在测试` build in `Internal Smoke`.
+  - Upload result: `xcodebuild -exportArchive` reported `Upload succeeded` for `WordMagicGame`; App Store Connect processing completed.
+  - TestFlight result: `1007004` is now `正在测试` in `Internal Smoke`.
 - [ ] Install TestFlight build on a real iPhone.
 - [ ] Smoke test Release/TestFlight build:
   - [ ] First launch.
@@ -217,7 +216,7 @@ xcodebuild archive \
 - [ ] Age rating questionnaire.
 - [ ] Content rights declaration.
 - [x] Export compliance questionnaire for TestFlight build `1007003`.
-- [ ] Export compliance questionnaire for replacement TestFlight build `1007004` after App Store Connect processing completes.
+- [x] Export compliance status accepted for replacement TestFlight build `1007004`; App Store Connect allowed internal TestFlight testing.
 - [ ] App screenshots:
   - [ ] iPhone 6.9-inch or current required size.
   - [ ] iPhone 6.5-inch if App Store Connect requests it.
