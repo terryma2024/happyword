@@ -122,7 +122,29 @@ class FixtureDeviceBindingClient {
         if (normalized.length < 4) {
             return BindingResult.Failure("请输入有效绑定码")
         }
-        if (normalized == "EXPIRED") {
+        if (normalized == "EXPIRED" || normalized == "000001") {
+            return BindingResult.Failure(
+                if (normalized == "EXPIRED") "绑定码已过期" else "绑定码无效",
+            )
+        }
+        return BindingResult.Success(
+            CloudCredentials(
+                deviceId = deviceId,
+                deviceToken = "fixture-device-token-$normalized",
+                bindingId = "binding-$normalized",
+                childNickname = "小明测试46373",
+                avatarEmoji = "🦁",
+                familyLabel = "HappyWord Family",
+            ),
+        )
+    }
+
+    fun redeemToken(token: String, deviceId: String): BindingResult {
+        val normalized = token.trim()
+        if (normalized.length < 4) {
+            return BindingResult.Failure("二维码或短码无效")
+        }
+        if (normalized == "expired-token") {
             return BindingResult.Failure("绑定码已过期")
         }
         return BindingResult.Success(

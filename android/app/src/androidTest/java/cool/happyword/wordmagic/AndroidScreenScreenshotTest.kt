@@ -63,10 +63,11 @@ class AndroidScreenScreenshotTest {
         }
         if (hasNode("ScanBindingScreen")) {
             capture("scan-binding.png")
-            composeRule.onNodeWithTag("ScanBindingManualCodeInput").performTextInput("abc123")
-            composeRule.onNodeWithTag("ScanBindingRedeemButton").performClick()
+            composeRule.onNodeWithTag("ScanBindingManualToggle").performClick()
+            composeRule.onNodeWithTag("ScanBindingManualInput").performTextInput("000001")
+            composeRule.onNodeWithTag("ScanBindingManualSubmit").performClick()
             composeRule.waitUntil(timeoutMillis = 2_000) {
-                hasNode("ScanBindingError")
+                hasNode("ScanBindingFailureHint")
             }
             capture("scan-binding-error.png")
         } else {

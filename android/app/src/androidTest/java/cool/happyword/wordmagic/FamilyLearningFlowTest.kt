@@ -174,24 +174,27 @@ class FamilyLearningFlowTest {
         composeRule.onNodeWithTag("ConfigCloudBindingButton").performScrollTo().performClick()
         composeRule.onNodeWithTag("ScanBindingScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("ScanBindingGalleryButton").assertIsDisplayed()
-        composeRule.onNodeWithTag("ScanBindingCameraButton").assertIsDisplayed()
-        composeRule.onNodeWithTag("ScanBindingManualCodeInput").performTextInput("abc123")
-        composeRule.onNodeWithTag("ScanBindingRedeemButton").performClick()
-        composeRule.onNodeWithTag("ScanBindingError").assertIsDisplayed()
+        composeRule.onNodeWithTag("ScanBindingScannerButton").assertIsDisplayed()
+        composeRule.onNodeWithTag("ScanBindingManualToggle").performClick()
+        composeRule.onNodeWithTag("ScanBindingManualInput").performTextInput("000001")
+        composeRule.onNodeWithTag("ScanBindingManualSubmit").performClick()
+        composeRule.onNodeWithTag("ScanBindingFailureHint").assertIsDisplayed()
     }
 
     @Test
-    fun galleryQrBindingRedeemsAndShowsBoundDeviceInfo() {
+    fun manualShortCodeBindingRedeemsAndShowsBoundDeviceInfo() {
         launch(bound = false)
         openConfig()
         composeRule.onNodeWithTag("ConfigCloudBindingButton").performScrollTo().performClick()
         composeRule.onNodeWithTag("ScanBindingScreen").assertIsDisplayed()
 
-        composeRule.onNodeWithTag("ScanBindingGalleryButton").performClick()
-        composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("ParentPinScreen") || hasTag("BoundDeviceInfoScreen") }
+        composeRule.onNodeWithTag("ScanBindingManualToggle").performClick()
+        composeRule.onNodeWithTag("ScanBindingManualInput").performTextInput("123456")
+        composeRule.onNodeWithTag("ScanBindingManualSubmit").performClick()
+        composeRule.waitUntil(timeoutMillis = 3_000) { hasTag("ParentPinScreen") || hasTag("BoundDeviceInfoScreen") }
         if (hasTag("ParentPinScreen")) {
             composeRule.onNodeWithTag("ParentPinInput").performTextInput("123456")
-            composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("BoundDeviceInfoScreen") }
+            composeRule.waitUntil(timeoutMillis = 3_000) { hasTag("BoundDeviceInfoScreen") }
         }
         composeRule.onNodeWithTag("BoundDeviceInfoTitle").assertIsDisplayed()
         composeRule.onNodeWithTag("BoundDeviceInfoNicknameValue").assertTextContains("小明测试", substring = true)

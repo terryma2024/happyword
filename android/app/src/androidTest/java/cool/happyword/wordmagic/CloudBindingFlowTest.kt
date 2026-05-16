@@ -25,7 +25,7 @@ class CloudBindingFlowTest {
             composeRule.onNodeWithTag("ScanBindingScreen").assertIsDisplayed()
             composeRule.onNodeWithTag("ScanBindingParentLoginLink").assertIsDisplayed()
             composeRule.onNodeWithTag("ScanBindingManualToggle").performClick()
-            composeRule.onNodeWithTag("ScanBindingManualInput").performTextInput("12345")
+            composeRule.onNodeWithTag("ScanBindingManualInput").performTextInput("000001")
             composeRule.onNodeWithTag("ScanBindingManualSubmit").performClick()
             composeRule.waitUntil(timeoutMillis = 2_000) {
                 hasNode("ScanBindingFailureHint")
