@@ -31,6 +31,8 @@ from app.models.pair_token import PairToken
 from app.models.parent_inbox_msg import ParentInboxMsg
 from app.models.redemption_request import RedemptionRequest
 from app.models.synced_word_stat import SyncedWordStat
+from app.models.oauth_handoff_ticket import OAuthHandoffTicket
+from app.models.oauth_identity import OAuthIdentity
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.models.word_pack import WordPack
@@ -57,6 +59,7 @@ from app.routers import parent_auth as parent_auth_router
 from app.routers import parent_family_pack as parent_family_pack_router
 from app.routers import parent_inbox as parent_inbox_router
 from app.routers import parent_packs_pages as parent_packs_pages_router
+from app.routers import oauth_google as oauth_google_router
 from app.routers import parent_pages as parent_pages_router
 from app.routers import public_global_pack as public_global_pack_router
 from app.routers import public_packs as public_packs_router
@@ -121,6 +124,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             RedemptionRequest,
             ParentInboxMsg,
             AuditLog,
+            OAuthIdentity,
+            OAuthHandoffTicket,
         ],
     )
     app.state.mongo_client = client
@@ -181,6 +186,7 @@ app.include_router(parent_api_router.router)
 # `.../family-packs/{pack_id}` or `latest.json` is treated as a pack id.
 app.include_router(child_family_pack_router.router)
 app.include_router(parent_family_pack_router.router)
+app.include_router(oauth_google_router.router)
 app.include_router(parent_pages_router.router)
 app.include_router(parent_packs_pages_router.router)
 app.include_router(parent_inbox_router.router)

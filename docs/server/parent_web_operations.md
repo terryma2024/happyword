@@ -21,7 +21,24 @@
 
 ---
 
-## 2. 家长重置（忘记或更换邮箱）
+## 2. Google OAuth 登录（V0.6.8+）
+
+家长可在 **`/family/login`** 使用 **Continue with Google**（与邮箱 OTP 并列）。
+
+| 项 | 值 |
+| --- | --- |
+| Canonical callback（Google Console 仅注册这一条） | `https://happyword.cool/v1/oauth/google/callback` |
+| Vercel env | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `OAUTH_CANONICAL_BASE_URL`（默认 `https://happyword.cool`） |
+| 本地开发 | `http://127.0.0.1:8000` 在 `OAUTH_LOCAL_ORIGINS` 中；可从本地登录页跳到生产 `start` 并带 `return_origin`，回调后由 `/v1/oauth/google/finish` 在本地种 `wm_session` |
+| Vercel Preview | 登录页链到 `https://happyword.cool/v1/oauth/google/start?return_origin=<preview-origin>`；回调在生产完成，再 60s 内一次性 ticket 跳回 Preview `/finish` |
+
+未配置 `GOOGLE_OAUTH_*` 时登录页隐藏 Google 按钮（仅 OTP）。
+
+设计说明：[`docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md`](../superpowers/specs/2026-05-16-parent-oauth-login-design.md)
+
+---
+
+## 3. 家长重置（忘记或更换邮箱）
 
 家长账号靠邮箱 OTP 登录，没有密码。家长换邮箱时按下列顺序执行：
 
