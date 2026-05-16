@@ -30,18 +30,18 @@ async def _require_parent_html(request: Request) -> User | RedirectResponse:
     """Mirror `/family/{family_id}/` dashboard soft-auth (cookie missing → login redirect)."""
     cookie_token = request.cookies.get(get_settings().session_cookie_name)
     if not cookie_token:
-        return RedirectResponse(url="/family/_/login", status_code=303)
+        return RedirectResponse(url="/family/login", status_code=303)
     try:
         typed = decode_typed_token(cookie_token)
     except JwtError:
-        return RedirectResponse(url="/family/_/login", status_code=303)
+        return RedirectResponse(url="/family/login", status_code=303)
     if typed.role != "parent":
-        return RedirectResponse(url="/family/_/login", status_code=303)
+        return RedirectResponse(url="/family/login", status_code=303)
     user = await User.find_one(
         User.username == typed.identifier, User.role == UserRole.PARENT
     )
     if user is None:
-        return RedirectResponse(url="/family/_/login", status_code=303)
+        return RedirectResponse(url="/family/login", status_code=303)
     return user
 
 

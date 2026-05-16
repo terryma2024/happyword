@@ -120,12 +120,21 @@ async def _load_active_device_for_parent(
     return binding, child
 
 
-@router.get("/{family_id}/login", response_class=HTMLResponse)
-async def get_login(request: Request, family_id: str = Path(min_length=1, max_length=128)) -> HTMLResponse:
-    _ = family_id
+@router.get("/login", response_class=HTMLResponse)
+async def get_login(request: Request) -> HTMLResponse:
+    """Canonical pre-login parent shell entry (no decorative `{family_id}` segment)."""
     return templates.TemplateResponse(
         request, "parent/login.html", {"user": None}
     )
+
+
+@router.get("/{family_id}/login", include_in_schema=False)
+async def get_login_scoped_redirect(
+    family_id: str = Path(min_length=1, max_length=128),
+) -> RedirectResponse:
+    """Backward-compatible alias: `/family/_/login` (and any `{family_id}`) → `/family/login`."""
+    _ = family_id
+    return RedirectResponse(url="/family/login", status_code=308)
 
 
 @router.get("/{family_id}/verify", response_class=HTMLResponse)
@@ -253,7 +262,7 @@ async def post_logout_form(
     family_id: str = Path(min_length=1, max_length=128),
 ) -> RedirectResponse:
     _ = family_id
-    redirect = RedirectResponse(url="/family/_/login", status_code=303)
+    redirect = RedirectResponse(url="/family/login", status_code=303)
     clear_parent_session_cookie(redirect)
     return redirect
 
@@ -268,18 +277,18 @@ async def get_dashboard(
     """Soft-auth: cookie missing or invalid → redirect to login (HTML flow)."""
     cookie_token = request.cookies.get(get_settings().session_cookie_name)
     if not cookie_token:
-        return RedirectResponse(url="/family/_/login", status_code=303)
+        return RedirectResponse(url="/family/login", status_code=303)
     try:
         typed = decode_typed_token(cookie_token)
     except JwtError:
-        return RedirectResponse(url="/family/_/login", status_code=303)
+        return RedirectResponse(url="/family/login", status_code=303)
     if typed.role != "parent":
-        return RedirectResponse(url="/family/_/login", status_code=303)
+        return RedirectResponse(url="/family/login", status_code=303)
     user = await User.find_one(
         User.username == typed.identifier, User.role == UserRole.PARENT
     )
     if user is None:
-        return RedirectResponse(url="/family/_/login", status_code=303)
+        return RedirectResponse(url="/family/login", status_code=303)
     bindings = await DeviceBinding.find(
         DeviceBinding.family_id == (user.family_id or ""),
         DeviceBinding.revoked_at == None,  # noqa: E711

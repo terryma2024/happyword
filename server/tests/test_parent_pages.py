@@ -42,7 +42,17 @@ async def test_root_redirects_to_parent_shell(
     ac, _ = html_client
     r = await ac.get("/")
     assert r.status_code in (303, 307, 308)
-    assert r.headers["location"] == "/family/_/login"
+    assert r.headers["location"] == "/family/login"
+
+
+@pytest.mark.asyncio
+async def test_legacy_scoped_login_redirects_to_canonical(
+    html_client: tuple[AsyncClient, object],
+) -> None:
+    ac, _ = html_client
+    r = await ac.get("/family/_/login")
+    assert r.status_code == 308
+    assert r.headers["location"] == "/family/login"
 
 
 @pytest.mark.asyncio
@@ -50,7 +60,7 @@ async def test_login_page_has_email_form(
     html_client: tuple[AsyncClient, object],
 ) -> None:
     ac, _ = html_client
-    r = await ac.get("/family/_/login")
+    r = await ac.get("/family/login")
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
     soup = BeautifulSoup(r.text, "html.parser")
@@ -139,7 +149,7 @@ async def test_dashboard_without_cookie_redirects_to_login(
     ac, _ = html_client
     r = await ac.get("/family/_/")
     assert r.status_code == 303
-    assert r.headers["location"] == "/family/_/login"
+    assert r.headers["location"] == "/family/login"
 
 
 @pytest.mark.asyncio
@@ -177,7 +187,7 @@ async def test_logout_form_clears_cookie_and_redirects(
     fid = r_login.headers["location"].strip("/").split("/")[-1]
     r = await ac.post(f"/family/{fid}/auth/logout")
     assert r.status_code == 303
-    assert r.headers["location"] == "/family/_/login"
+    assert r.headers["location"] == "/family/login"
     sc = r.headers.get("set-cookie", "")
     assert "wm_session=" in sc
     assert "Max-Age=0" in sc or "expires=" in sc.lower()
