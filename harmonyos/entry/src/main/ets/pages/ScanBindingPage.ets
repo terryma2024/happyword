@@ -22,7 +22,8 @@ import {
 import { DeviceIdProvider } from '../services/DeviceIdProvider';
 import { BindingApiClient } from '../services/BindingApiClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
-import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { effectiveServerBaseUrl, parentFamilyLoginPageUrl } from '../services/RemoteWordPackConfig';
+import { openUrlInSystemBrowser } from '../services/SystemBrowser';
 import { ensureCloudSyncInstalled } from '../services/CloudSyncInstaller';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
@@ -234,6 +235,23 @@ struct ScanBindingPage {
     }
   }
 
+  private onParentLoginLinkTap(): void {
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const url: string = parentFamilyLoginPageUrl();
+    openUrlInSystemBrowser(ctx, url).catch((err: Error): void => {
+      console.error(`ScanBindingPage.onParentLoginLinkTap: ${err.message}`);
+      try {
+        this.getUIContext().getPromptAction().showToast({
+          message: 'Could not open browser',
+          duration: 2000,
+        });
+      } catch (toastErr) {
+        console.error(`ScanBindingPage.onParentLoginLinkTap toast: ${JSON.stringify(toastErr as BusinessError)}`);
+      }
+    });
+  }
+
   build() {
     Column() {
       PageTopChrome({
@@ -277,6 +295,16 @@ struct ScanBindingPage {
             .id('ScanBindingManualBackToScan')
             .backgroundColor('#e2e8f0').fontColor('#1f2937')
             .onClick(() => { this.manualMode = false; this.manualCode = ''; })
+          Button('创建或登录 家长账号')
+            .id('ScanBindingParentLoginLinkManual')
+            .fontSize(14)
+            .height(40)
+            .backgroundColor(Color.Transparent)
+            .fontColor('#2563eb')
+            .margin({ top: 8 })
+            .onClick((): void => {
+              this.onParentLoginLinkTap();
+            })
           if (this.reasonHint().length > 0) {
             Text(this.reasonHint()).fontColor('#dc2626').fontSize(13).margin({ top: 8 })
           }
@@ -299,6 +327,16 @@ struct ScanBindingPage {
             .id('ScanBindingManualToggle')
             .backgroundColor('#e2e8f0').fontColor('#1f2937')
             .onClick(() => { this.manualMode = true; })
+          Button('创建或登录 家长账号')
+            .id('ScanBindingParentLoginLink')
+            .fontSize(14)
+            .height(40)
+            .backgroundColor(Color.Transparent)
+            .fontColor('#2563eb')
+            .margin({ top: 8 })
+            .onClick((): void => {
+              this.onParentLoginLinkTap();
+            })
           if (this.reasonHint().length > 0) {
             Text(this.reasonHint()).fontColor('#dc2626').fontSize(13).margin({ top: 16 })
           }

@@ -106,4 +106,18 @@ export function effectiveServerBaseUrl(): string {
   return resolveServerBaseUrl(override, BuildProfile.BUILD_MODE_NAME);
 }
 
+/**
+ * Full URL for the server-hosted parent login HTML shell (`/family/login`).
+ * Origin matches `effectiveServerBaseUrl()` (DevMenu selection in debug builds;
+ * staging / prod defaults otherwise). Trailing slashes on the API base are
+ * stripped before appending the path.
+ */
+export function parentFamilyLoginPageUrl(): string {
+  let base: string = effectiveServerBaseUrl().trim();
+  while (base.endsWith('/')) {
+    base = base.substring(0, base.length - 1);
+  }
+  return `${base}/family/login`;
+}
+
 export const SERVER_BASE_URL: string = pickServerBaseUrl(BuildProfile.BUILD_MODE_NAME);

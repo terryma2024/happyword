@@ -158,6 +158,15 @@ struct ScanBindingView: View {
             .background(AppTheme.paleBlue, in: Capsule())
             .buttonStyle(.plain)
             .accessibilityIdentifier("ScanBindingManualEntry")
+
+            Button("创建或登录 家长账号") {
+                openParentLoginInBrowser()
+            }
+            .font(.headline.weight(.bold))
+            .foregroundStyle(Color(red: 0.15, green: 0.39, blue: 0.92))
+            .frame(maxWidth: .infinity, minHeight: 40)
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("ScanBindingParentLoginLink")
         }
         .frame(maxWidth: 360)
     }
@@ -199,6 +208,15 @@ struct ScanBindingView: View {
                         .multilineTextAlignment(.center)
                 }
 
+                Button("创建或登录 家长账号") {
+                    openParentLoginInBrowser()
+                }
+                .font(.headline.weight(.bold))
+                .foregroundStyle(Color(red: 0.15, green: 0.39, blue: 0.92))
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ScanBindingParentLoginLinkManual")
+
                 Spacer(minLength: 0)
             }
             .padding(20)
@@ -236,6 +254,13 @@ struct ScanBindingView: View {
             return .secondary
         }
         return AppTheme.red
+    }
+
+    private func openParentLoginInBrowser() {
+        let url = BackendURLProvider.parentFamilyLoginPageURL(
+            baseURL: coordinator.developerMenuViewModel.effectiveBaseURL
+        )
+        SystemBrowser.open(url)
     }
 
     private func decodeGalleryQR(from item: PhotosPickerItem) async {

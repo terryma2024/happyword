@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,6 +63,18 @@ private fun childAvatarEmojiChoices(initial: String): List<String> {
 }
 
 @Composable
+private fun ScanBindingParentLoginLink(onOpenParentLogin: () -> Unit, testTag: String) {
+    TextButton(
+        onClick = onOpenParentLogin,
+        modifier = Modifier
+            .padding(top = 8.dp)
+            .testTag(testTag),
+    ) {
+        Text("创建或登录 家长账号", color = Color(0xFF2563EB), fontSize = 14.sp)
+    }
+}
+
+@Composable
 fun ScanBindingScreen(
     busy: Boolean,
     failureReason: String,
@@ -69,6 +82,7 @@ fun ScanBindingScreen(
     onOpenScanner: () -> Unit,
     onPickGallery: () -> Unit,
     onRedeemShortCode: (String) -> Unit,
+    onOpenParentLogin: () -> Unit,
     onBack: () -> Unit,
     onSuccessBack: () -> Unit,
 ) {
@@ -173,6 +187,10 @@ fun ScanBindingScreen(
                             .testTag("ScanBindingFailureHint"),
                     )
                 }
+                ScanBindingParentLoginLink(
+                    onOpenParentLogin = onOpenParentLogin,
+                    testTag = "ScanBindingParentLoginLinkManual",
+                )
             }
         } else {
             Column(
@@ -225,6 +243,10 @@ fun ScanBindingScreen(
                             .testTag("ScanBindingFailureHint"),
                     )
                 }
+                ScanBindingParentLoginLink(
+                    onOpenParentLogin = onOpenParentLogin,
+                    testTag = "ScanBindingParentLoginLink",
+                )
             }
         }
     }

@@ -113,6 +113,7 @@ import cool.happyword.wordmagic.core.BackendEnv
 import cool.happyword.wordmagic.core.BackendHeaderProvider
 import cool.happyword.wordmagic.core.BackendRouteState
 import cool.happyword.wordmagic.core.BackendURLProvider
+import cool.happyword.wordmagic.core.SystemBrowser
 import cool.happyword.wordmagic.core.BindingResult
 import cool.happyword.wordmagic.core.CloudCredentials
 import cool.happyword.wordmagic.core.bindingFailureReasonFromMessage
@@ -926,35 +927,47 @@ fun WordMagicGameApp() {
                     ),
                     onBack = { route = AppRoute.TodayPlan },
                 )
-                AppRoute.ScanBinding -> ScanBindingScreen(
-                    busy = scanBindingBusy,
-                    failureReason = scanBindingFailureReason,
-                    boundChildNickname = scanBindingSuccessNickname,
-                    onOpenScanner = {
-                        scanBindingFailureReason = ""
-                        val options = ScanOptions().apply {
-                            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            setPrompt("请扫描家长端「添加设备」页面显示的二维码")
-                            setBeepEnabled(false)
-                            setOrientationLocked(false)
-                        }
-                        qrScanLauncher.launch(options)
-                    },
-                    onPickGallery = {
-                        scanBindingFailureReason = ""
-                        galleryQrLauncher.launch("image/*")
-                    },
-                    onRedeemShortCode = ::redeemBindingShortCode,
-                    onBack = {
-                        scanBindingFailureReason = ""
-                        scanBindingSuccessNickname = null
-                        route = AppRoute.Config
-                    },
-                    onSuccessBack = {
-                        scanBindingSuccessNickname = null
-                        route = AppRoute.Config
-                    },
-                )
+                AppRoute.ScanBinding -> {
+                    val scanBindingContext = LocalContext.current
+                    val backendUrlProvider = remember { BackendURLProvider() }
+                    ScanBindingScreen(
+                        busy = scanBindingBusy,
+                        failureReason = scanBindingFailureReason,
+                        boundChildNickname = scanBindingSuccessNickname,
+                        onOpenScanner = {
+                            scanBindingFailureReason = ""
+                            val options = ScanOptions().apply {
+                                setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                setPrompt("请扫描家长端「添加设备」页面显示的二维码")
+                                setBeepEnabled(false)
+                                setOrientationLocked(false)
+                            }
+                            qrScanLauncher.launch(options)
+                        },
+                        onPickGallery = {
+                            scanBindingFailureReason = ""
+                            galleryQrLauncher.launch("image/*")
+                        },
+                        onRedeemShortCode = ::redeemBindingShortCode,
+                        onOpenParentLogin = {
+                            val url = backendUrlProvider.parentFamilyLoginPageUrl(backendRouteState)
+                            try {
+                                SystemBrowser.openUrl(scanBindingContext, url)
+                            } catch (err: Exception) {
+                                Toast.makeText(scanBindingContext, "Could not open browser", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onBack = {
+                            scanBindingFailureReason = ""
+                            scanBindingSuccessNickname = null
+                            route = AppRoute.Config
+                        },
+                        onSuccessBack = {
+                            scanBindingSuccessNickname = null
+                            route = AppRoute.Config
+                        },
+                    )
+                }
                 AppRoute.BoundDeviceInfo -> BoundDeviceInfoScreen(
                     credentials = cloudCredentials,
                     syncStatus = cloudSyncStatus,
