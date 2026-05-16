@@ -20,7 +20,7 @@ final class AppMetadataTests: XCTestCase {
 
         XCTAssertEqual(plist?["NSCameraUsageDescription"], "用于家长拍摄课本照片导入单词，以及扫描家长账号绑定二维码。")
         XCTAssertEqual(plist?["NSPhotoLibraryUsageDescription"], "用于家长从相册选择课本照片并导入单词。")
-        XCTAssertEqual(plist?["NSPhotoLibraryAddUsageDescription"], "用于保存家长选择的课本导入图片。")
+        XCTAssertNil(plist?["NSPhotoLibraryAddUsageDescription"])
     }
 
     func testBundleIdentifierMatchesHarmonyOS() {

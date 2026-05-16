@@ -615,7 +615,7 @@ struct DeveloperMenuActivationResult: Equatable {
 
     static let environmentUpdated = DeveloperMenuActivationResult(
         didApply: true,
-        toastMessage: "Environment updated. Re-bind parent account if needed."
+        toastMessage: "已切换环境，请重新绑定家长账号"
     )
 
     static func blocked(_ message: String? = nil) -> DeveloperMenuActivationResult {

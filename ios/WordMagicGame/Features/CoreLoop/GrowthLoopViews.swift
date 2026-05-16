@@ -121,6 +121,9 @@ struct WishlistView: View {
     @State private var wishEmoji = "🎁"
     @State private var addWishPin = ""
     @State private var addWishMessage = ""
+    @State private var pendingRedemptionWish: MagicWish?
+    @State private var redemptionPin = ""
+    @State private var redemptionMessage = ""
 
     private var parentPinReady: Bool {
         GameConfig.isValidPin(coordinator.configStore.config.parentPin)
@@ -146,6 +149,10 @@ struct WishlistView: View {
 
             if showingAddWish {
                 addWishDialog
+            }
+
+            if let wish = pendingRedemptionWish {
+                redemptionDialog(wish)
             }
 
             if showingGiftBox {
@@ -203,6 +210,7 @@ struct WishlistView: View {
                     .frame(height: 44)
                     .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 10))
                     .buttonStyle(.plain)
+                    .accessibilityLabel("添加愿望")
                     .accessibilityIdentifier("WishlistAddCustomButton")
                 }
 
@@ -239,6 +247,7 @@ struct WishlistView: View {
                 .keyboardType(.numberPad)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 280)
+                .accessibilityIdentifier("家长 PIN")
                 .onChange(of: addWishPin) { _, value in
                     addWishPin = GameConfig.sanitizePinInput(value)
                 }
@@ -277,9 +286,9 @@ struct WishlistView: View {
             Spacer()
             if coordinator.coinAccount.balance >= wish.costCoins {
                 Button("申请兑换") {
-                    if coordinator.wishlistStore.redeem(wishId: wish.id, coins: coordinator.coinAccount, history: coordinator.redemptionHistoryStore) != nil {
-                        showingGiftBox = true
-                    }
+                    redemptionPin = ""
+                    redemptionMessage = ""
+                    pendingRedemptionWish = wish
                 }
                 .font(.system(size: 16, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
@@ -300,6 +309,45 @@ struct WishlistView: View {
         .shadow(color: Color.black.opacity(0.06), radius: 5, y: 2)
     }
 
+    private func redemptionDialog(_ wish: MagicWish) -> some View {
+        VStack(spacing: 12) {
+            Text("家长 PIN")
+                .font(.title2.weight(.heavy))
+                .foregroundStyle(AppTheme.navy)
+            Text("确认兑换 \(wish.displayName)")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.secondary)
+            SecureField("家长 PIN", text: $redemptionPin)
+                .keyboardType(.numberPad)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 280)
+                .accessibilityIdentifier("家长 PIN")
+                .onChange(of: redemptionPin) { _, value in
+                    redemptionPin = GameConfig.sanitizePinInput(value)
+                }
+            Text(redemptionMessage.isEmpty ? "请输入家长 PIN 后兑换" : redemptionMessage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(redemptionMessage.isEmpty ? .secondary : AppTheme.red)
+                .frame(height: 20)
+            HStack(spacing: 16) {
+                Button("取消") {
+                    pendingRedemptionWish = nil
+                    redemptionPin = ""
+                    redemptionMessage = ""
+                }
+                Button("确认兑换") {
+                    confirmRedemption(wish)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.red)
+            }
+        }
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 24)
+        .background(Color.white, in: RoundedRectangle(cornerRadius: 22))
+        .shadow(radius: 18)
+    }
+
     private func saveCustomWish() {
         let trimmedName = wishName.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedEmoji = wishEmoji.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -318,6 +366,23 @@ struct WishlistView: View {
 
         _ = coordinator.wishlistStore.addCustomWish(name: trimmedName, costCoins: cost, iconEmoji: trimmedEmoji)
         showingAddWish = false
+    }
+
+    private func confirmRedemption(_ wish: MagicWish) {
+        guard parentPinReady else {
+            redemptionMessage = "请先让家长在设置中设置 PIN"
+            return
+        }
+        guard redemptionPin == coordinator.configStore.config.parentPin else {
+            redemptionMessage = "PIN 不正确"
+            return
+        }
+        if coordinator.wishlistStore.redeem(wishId: wish.id, coins: coordinator.coinAccount, history: coordinator.redemptionHistoryStore) != nil {
+            pendingRedemptionWish = nil
+            redemptionPin = ""
+            redemptionMessage = ""
+            showingGiftBox = true
+        }
     }
 }
 

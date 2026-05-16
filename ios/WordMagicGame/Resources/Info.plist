@@ -24,8 +24,6 @@
 	<string>Needed for parents to upload textbook photos and scan the parent-account QR code.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Needed for parents to import textbook photos for lesson review.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Needed to save lesson import images selected by parents.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

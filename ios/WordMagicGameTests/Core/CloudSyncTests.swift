@@ -253,7 +253,7 @@ final class CloudSyncTests: XCTestCase {
         await coordinator.activateDeveloperMenuCard(viewModel.cards[2])
 
         XCTAssertEqual(coordinator.route, .home)
-        XCTAssertEqual(coordinator.toastMessage, "Environment updated. Re-bind parent account if needed.")
+        XCTAssertEqual(coordinator.toastMessage, "已切换环境，请重新绑定家长账号")
     }
 
     @MainActor
@@ -366,7 +366,7 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(environmentStore.environment, .preview)
         XCTAssertEqual(environmentStore.previewURL?.absoluteString, "https://happyword-git-ok.vercel.app")
         XCTAssertEqual(coordinator.route, .home)
-        XCTAssertEqual(coordinator.toastMessage, "Environment updated. Re-bind parent account if needed.")
+        XCTAssertEqual(coordinator.toastMessage, "已切换环境，请重新绑定家长账号")
     }
 
     @MainActor

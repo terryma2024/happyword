@@ -23,10 +23,12 @@
 - [x] `CURRENT_PROJECT_VERSION` is `1007000` in `ios/project.yml`.
 - [x] Bundle ID is `com.terryma.wordmagicgame`.
 - [x] App display name is `魔法背单词`.
-- [x] Release build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
+- [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
-- [ ] Full iOS unit/UI test pass is not yet verified in this workspace because the available simulator/provisioning setup blocked `xcodebuild test`.
+- [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
+- [x] Release Simulator sanity check verified `-UITestRouteDevMenu` and `-UITestRouteBypassSecret` land on the normal home screen.
+- [x] `NSPhotoLibraryAddUsageDescription` was removed because the iOS client only reads from Photos via `PhotosPicker` and does not write to the photo library.
 - [ ] Real-device Release/TestFlight smoke test is not yet done.
 - [ ] App Store Connect app record is not verified from this repo.
 - [ ] App privacy questionnaire and privacy policy URL are not verified from this repo.
@@ -80,13 +82,13 @@ cd ios
 /opt/homebrew/bin/xcodegen generate --spec project.yml --project .
 ```
 
-- [ ] Lint localized InfoPlist strings.
+- [x] Lint localized InfoPlist strings.
 
 ```sh
 plutil -lint ios/WordMagicGame/Resources/zh-Hans.lproj/InfoPlist.strings
 ```
 
-- [ ] Run iOS unit tests on an available simulator.
+- [x] Run iOS unit/UI tests on an available simulator.
 
 ```sh
 cd ios
@@ -96,7 +98,18 @@ xcodebuild test \
   -derivedDataPath /private/tmp/wordmagic-ios-test
 ```
 
-- [ ] Run Release build.
+- [x] Run Release Simulator build.
+
+```sh
+cd ios
+xcodebuild build \
+  -scheme WordMagicGame \
+  -configuration Release \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /private/tmp/wordmagic-ios-release
+```
+
+- [ ] Run device Release build before archive/upload.
 
 ```sh
 cd ios
@@ -104,7 +117,7 @@ xcodebuild build \
   -scheme WordMagicGame \
   -configuration Release \
   -destination 'generic/platform=iOS' \
-  -derivedDataPath /private/tmp/wordmagic-ios-release
+  -derivedDataPath /private/tmp/wordmagic-ios-release-device
 ```
 
 - [ ] Archive for App Store distribution.
@@ -175,9 +188,9 @@ xcodebuild archive \
 
 ## iOS Work Queue
 
-1. [ ] Run and fix iOS tests on a valid simulator/device.
-2. [ ] Verify Release build hides every DevMenu and preview-routing entry.
-3. [ ] Decide whether `NSPhotoLibraryAddUsageDescription` is still needed; remove it if unused.
+1. [x] Run and fix iOS tests on a valid simulator/device.
+2. [x] Verify Release build hides every DevMenu and preview-routing entry.
+3. [x] Decide whether `NSPhotoLibraryAddUsageDescription` is still needed; remove it if unused.
 4. [ ] Validate account deletion entry and reviewer flow.
 5. [ ] Draft App Store privacy questionnaire answers from actual server/client data.
 6. [ ] Prepare privacy policy and support URL.
