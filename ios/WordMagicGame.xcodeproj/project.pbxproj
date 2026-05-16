@@ -27,9 +27,9 @@
 		35CA6F2A8474520D7933A336 /* MonsterCodexStyleBackButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A9EC8E570DA5CD48D36B4B /* MonsterCodexStyleBackButton.swift */; };
 		3612D5539B436F29F3A5F62D /* LocalGrowthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */; };
 		36A3AC8F104BA497DBDCA64F /* BattleStartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 729681DD70AD1933A6DBB022 /* BattleStartTests.swift */; };
+		3AC370A2BA76542B34B974E8 /* SystemBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CEAE6C7CF557B6369922034 /* SystemBrowser.swift */; };
 		3BA9690760CDAB437EC7555A /* WordRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710C4CE303108095BB4DD2C4 /* WordRepository.swift */; };
 		443F20D68ED6417108718DFF /* CloudSyncServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 246D77D7D2CF1528AEECDA24 /* CloudSyncServices.swift */; };
-		7C8D9E0F1A2B3C4D5E6F7081 /* SystemBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D9E0F1A2B3C4D5E6F708192 /* SystemBrowser.swift */; };
 		4EF9263FA9C00E2D1120DAC1 /* ParentAdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A34FBB768E5B1541E82EB7BF /* ParentAdminView.swift */; };
 		4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6288AB79A566478B8CD0BC1F /* Assets.xcassets */; };
 		54CE238928E274D0BB0B5A92 /* BattleQuestionTypePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8096273F6C5E474BA07021 /* BattleQuestionTypePolicy.swift */; };
@@ -51,6 +51,7 @@
 		B78D4D8347BED158B20C4848 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */; };
 		B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */; };
 		BFB2D10A293E35EAD0F46005 /* ParentApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */; };
+		C4EBC57B653E00711C0B4378 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 278A1A6949FE6B8D92879377 /* InfoPlist.strings */; };
 		C8ED1F2015EB743E6EED5556 /* GameConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */; };
 		D3A10531A50A7354A3613885 /* AppThemeParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAA3B5A205F686C79D19C337 /* AppThemeParityTests.swift */; };
 		DB7C81381850767CB9885D42 /* school-castle.json in Resources */ = {isa = PBXBuildFile; fileRef = 322D0A3007C7DA1E3A44E318 /* school-castle.json */; };
@@ -88,14 +89,15 @@
 		055A58C7A27B41F82685F51B /* ParentLessonAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentLessonAPITests.swift; sourceTree = "<group>"; };
 		09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationTests.swift; sourceTree = "<group>"; };
 		246D77D7D2CF1528AEECDA24 /* CloudSyncServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncServices.swift; sourceTree = "<group>"; };
-		8D9E0F1A2B3C4D5E6F708192 /* SystemBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBrowser.swift; sourceTree = "<group>"; };
 		270E555771AAF420876EE21A /* BattleAnimationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationEvent.swift; sourceTree = "<group>"; };
+		278A1A6949FE6B8D92879377 /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStores.swift; sourceTree = "<group>"; };
 		322D0A3007C7DA1E3A44E318 /* school-castle.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "school-castle.json"; sourceTree = "<group>"; };
 		3244CB8E1A251419DDBF976E /* GrowthLoopViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrowthLoopViews.swift; sourceTree = "<group>"; };
 		3282D4D1268FF1FE6DAB3358 /* BattleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleView.swift; sourceTree = "<group>"; };
 		357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalGrowthTests.swift; sourceTree = "<group>"; };
 		38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordMagicGameUITests.swift; sourceTree = "<group>"; };
+		3CEAE6C7CF557B6369922034 /* SystemBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBrowser.swift; sourceTree = "<group>"; };
 		3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentApiModels.swift; sourceTree = "<group>"; };
 		3F8096273F6C5E474BA07021 /* BattleQuestionTypePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleQuestionTypePolicy.swift; sourceTree = "<group>"; };
 		46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
@@ -295,12 +297,12 @@
 			isa = PBXGroup;
 			children = (
 				246D77D7D2CF1528AEECDA24 /* CloudSyncServices.swift */,
-				8D9E0F1A2B3C4D5E6F708192 /* SystemBrowser.swift */,
 				A77053ADBABC5E1EEED849EA /* LessonDraftReviewStore.swift */,
 				2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */,
 				3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */,
 				F9641BC33332046468B83ECF /* ParentLessonAPI.swift */,
 				6FAE4997C3E18E4C154192C3 /* PronunciationService.swift */,
+				3CEAE6C7CF557B6369922034 /* SystemBrowser.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -326,6 +328,7 @@
 			children = (
 				6288AB79A566478B8CD0BC1F /* Assets.xcassets */,
 				BAA403A88DE9B94849CC1EAD /* Info.plist */,
+				278A1A6949FE6B8D92879377 /* InfoPlist.strings */,
 				A51302A7AD01EFCACE20EE55 /* BuiltinPacks */,
 			);
 			path = Resources;
@@ -430,6 +433,7 @@
 			knownRegions = (
 				Base,
 				en,
+				"zh-Hans",
 			);
 			mainGroup = 07DEB62B40AC8911F7F5BBBE;
 			minimizedProjectReferenceProxies = 1;
@@ -451,6 +455,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */,
+				C4EBC57B653E00711C0B4378 /* InfoPlist.strings in Resources */,
 				6E05CEC0063F85029AD9E9CE /* animal-safari.json in Resources */,
 				55390F1AEF427177EFA5778D /* fruit-forest.json in Resources */,
 				A280B86F01527718C6864EE4 /* home-cottage.json in Resources */,
@@ -507,7 +512,6 @@
 				1EC51AEF8DDD6E8ABCDDD57E /* ChildProfileView.swift in Sources */,
 				307C8F11567A577C390D2D67 /* CloudBindingViews.swift in Sources */,
 				443F20D68ED6417108718DFF /* CloudSyncServices.swift in Sources */,
-				7C8D9E0F1A2B3C4D5E6F7081 /* SystemBrowser.swift in Sources */,
 				E7276A8FCD0B214B97D93205 /* ConfigView.swift in Sources */,
 				9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */,
 				05BC6D224C27760A1DAD2210 /* DeviceBindingQRSupport.swift in Sources */,
@@ -528,6 +532,7 @@
 				B60048E8C6C4645BDD9762F9 /* PronunciationService.swift in Sources */,
 				E2A3173A4136798333A2AF0E /* Question.swift in Sources */,
 				2D9B8D104C526A576B6FF478 /* ResultView.swift in Sources */,
+				3AC370A2BA76542B34B974E8 /* SystemBrowser.swift in Sources */,
 				579EE45B2B7202F7B3269EFF /* WordEntry.swift in Sources */,
 				EC97934170054F8599E61696 /* WordMagicGameApp.swift in Sources */,
 				3BA9690760CDAB437EC7555A /* WordRepository.swift in Sources */,
@@ -636,7 +641,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1006016;
+				CURRENT_PROJECT_VERSION = 1007002;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 99UX498DB4;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -650,7 +655,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.6.7.8;
+				MARKETING_VERSION = 0.7.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -692,7 +697,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.terryma.wordmagicgame;
 				PRODUCT_NAME = WordMagicGame;
 				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -732,7 +736,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1006016;
+				CURRENT_PROJECT_VERSION = 1007002;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 99UX498DB4;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -752,7 +756,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.6.7.8;
+				MARKETING_VERSION = 0.7.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

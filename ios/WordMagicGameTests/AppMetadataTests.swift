@@ -12,13 +12,24 @@ final class AppMetadataTests: XCTestCase {
         XCTAssertEqual(plist?["CFBundleDisplayName"] as? String, "魔法背单词")
     }
 
+    func testPermissionUsageDescriptionsHaveChineseLocalization() throws {
+        let localizedStrings = try repoRoot()
+            .appending(path: "ios/WordMagicGame/Resources/zh-Hans.lproj/InfoPlist.strings")
+        let data = try Data(contentsOf: localizedStrings)
+        let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String]
+
+        XCTAssertEqual(plist?["NSCameraUsageDescription"], "用于家长拍摄课本照片导入单词，以及扫描家长账号绑定二维码。")
+        XCTAssertEqual(plist?["NSPhotoLibraryUsageDescription"], "用于家长从相册选择课本照片并导入单词。")
+        XCTAssertNil(plist?["NSPhotoLibraryAddUsageDescription"])
+    }
+
     func testBundleIdentifierMatchesHarmonyOS() {
         XCTAssertEqual(AppMetadata.bundleIdentifier, "com.terryma.wordmagicgame")
     }
 
     func testVersionMatchesHarmonyOSBaseline() {
-        XCTAssertEqual(AppMetadata.harmonyVersionName, "0.6.7.8")
-        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_006_016)
+        XCTAssertEqual(AppMetadata.harmonyVersionName, "0.7.0")
+        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_007_000)
     }
 
     func testAppIconAssetReferencesHarmonyLauncherImage() throws {

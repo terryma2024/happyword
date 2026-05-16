@@ -10935,22 +10935,6 @@
               "title": "Family Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
           }
         ],
         "responses": {
@@ -10975,11 +10959,6 @@
             "description": "Validation Error"
           }
         },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "summary": "Get Settings Html",
         "tags": [
           "parent-account-html"
@@ -11000,22 +10979,6 @@
               "title": "Family Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
           }
         ],
         "responses": {
@@ -11038,11 +11001,6 @@
             "description": "Validation Error"
           }
         },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "summary": "Post Cancel Delete Form",
         "tags": [
           "parent-account-html"
@@ -11063,22 +11021,6 @@
               "title": "Family Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "wm_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Wm Session"
-            }
           }
         ],
         "responses": {
@@ -11101,11 +11043,6 @@
             "description": "Validation Error"
           }
         },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "summary": "Post Delete Form",
         "tags": [
           "parent-account-html"
@@ -13010,6 +12947,48 @@
         "summary": "Get Landing",
         "tags": [
           "pair-landing"
+        ]
+      }
+    },
+    "/privacy": {
+      "get": {
+        "operationId": "get_privacy_privacy_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Privacy",
+        "tags": [
+          "public-pages"
+        ]
+      }
+    },
+    "/support": {
+      "get": {
+        "operationId": "get_support_support_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Support",
+        "tags": [
+          "public-pages"
         ]
       }
     }

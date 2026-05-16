@@ -1,0 +1,2 @@
+"NSCameraUsageDescription" = "用于家长拍摄课本照片导入单词，以及扫描家长账号绑定二维码。";
+"NSPhotoLibraryUsageDescription" = "用于家长从相册选择课本照片并导入单词。";

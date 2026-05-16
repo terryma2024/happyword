@@ -52,6 +52,7 @@ import {
 } from '../main/ets/services/WrongAnswerStore';
 import { LearningRecorder } from '../main/ets/services/LearningRecorder';
 import { MemoryState } from '../main/ets/services/MemoryScheduler';
+import { shouldShowDebugBattleFinishButton } from '../main/ets/services/ReleaseGate';
 import {
   RedemptionRecord,
   RedemptionHistorySnapshot,
@@ -1966,6 +1967,14 @@ export default function localUnitTest() {
     it('formatLocalTimestampKeepsDoubleDigitComponentsUnchanged', 0, () => {
       const t2: Date = new Date(2026, 11, 31, 23, 59);
       expect(formatLocalTimestamp(t2.getTime())).assertEqual('2026-12-31 23:59');
+    });
+  });
+
+  describe('ReleaseGate', () => {
+    it('battleDebugFinishButtonOnlyRendersInDebugBuilds', 0, () => {
+      expect(shouldShowDebugBattleFinishButton('debug')).assertTrue();
+      expect(shouldShowDebugBattleFinishButton('release')).assertFalse();
+      expect(shouldShowDebugBattleFinishButton('')).assertFalse();
     });
   });
 }

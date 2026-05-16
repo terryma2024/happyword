@@ -456,6 +456,14 @@ final class AppCoordinator: ObservableObject {
         return DateFormatter.localizedString(from: pairedAt, dateStyle: .short, timeStyle: .medium)
     }
 
+    func parentAccountSettingsURL(for credentials: CloudCredentials) -> URL {
+        let baseURL = credentials.apiBaseURL.flatMap(URL.init(string:)) ?? developerMenuViewModel.effectiveBaseURL
+        return baseURL
+            .appendingPathComponent("family")
+            .appendingPathComponent(credentials.familyId)
+            .appendingPathComponent("account")
+    }
+
     func updateChildNickname(_ nickname: String) async {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -495,7 +503,12 @@ final class AppCoordinator: ObservableObject {
         }
         do {
             let response = try await bindingClient.redeem(pairingInput: trimmed, deviceId: deviceIdProvider.deviceId())
-            cloudCredentialsStore.save(response, apiBaseURL: developerMenuViewModel.effectiveBaseURL)
+            guard cloudCredentialsStore.save(response, apiBaseURL: developerMenuViewModel.effectiveBaseURL) else {
+                bindingMessage = "绑定保存失败，请重试"
+                toastMessage = nil
+                route = .scanBinding
+                return
+            }
             showToast("绑定成功：\(response.nickname)")
             bindingMessage = ""
             if GameConfig.isValidPin(configStore.config.parentPin) {

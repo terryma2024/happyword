@@ -112,3 +112,5 @@
 /family/{family_id}/redemptions/{request_id}/reject
 /family/{family_id}/verify
 /p/{token_short}
+/privacy
+/support

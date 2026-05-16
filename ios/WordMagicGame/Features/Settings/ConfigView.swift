@@ -41,13 +41,9 @@ struct ConfigView: View {
                             .accessibilityIdentifier("ConfigSectionParentTitle")
 
                         parentAccountSection
-                        if coordinator.cloudCredentialsStore.credentials != nil {
-                            parentPinRow
-                        }
+                        parentPinRow
                         cloudSyncSection
-                        if coordinator.cloudCredentialsStore.credentials != nil,
-                           coordinator.configStore.config.parentPin.count == 6
-                        {
+                        if coordinator.configStore.config.parentPin.count == 6 {
                             adminRow
                         }
                     }

@@ -304,6 +304,7 @@ private struct GalleryQRCodeButtonLabel: View {
 
 struct BoundDeviceInfoView: View {
     @ObservedObject var coordinator: AppCoordinator
+    @Environment(\.openURL) private var openURL
     @State private var pin = ""
     @State private var isUnbindDialogPresented = false
     @State private var isUnbinding = false
@@ -328,51 +329,53 @@ struct BoundDeviceInfoView: View {
             .padding(.top, 56)
             .padding(.bottom, 12)
 
-            Spacer(minLength: 8)
+            ScrollView {
+                if let credentials = coordinator.cloudCredentialsStore.credentials {
+                    VStack(spacing: 4) {
+                        editableNicknameRow(credentials)
+                        infoRow("Family ID", credentials.familyId)
+                        infoRow("Binding ID", credentials.bindingId)
+                        infoRow("Device ID 末四位", coordinator.currentDeviceIdSuffix())
+                        infoRow("Device ID 来源", coordinator.currentDeviceIdSourceLabel())
+                        infoRow("绑定时间", coordinator.currentBindingTimeText())
+                        accountManagementButton(credentials)
 
-            if let credentials = coordinator.cloudCredentialsStore.credentials {
-                VStack(spacing: 4) {
-                    editableNicknameRow(credentials)
-                    infoRow("Family ID", credentials.familyId)
-                    infoRow("Binding ID", credentials.bindingId)
-                    infoRow("Device ID 末四位", coordinator.currentDeviceIdSuffix())
-                    infoRow("Device ID 来源", coordinator.currentDeviceIdSourceLabel())
-                    infoRow("绑定时间", coordinator.currentBindingTimeText())
+                        Button(isUnbinding ? "正在解除…" : "解除设备绑定") {
+                            pin = ""
+                            coordinator.bindingMessage = ""
+                            isUnbindDialogPresented = true
+                        }
+                        .font(.title3.weight(.heavy))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(AppTheme.red, in: Capsule())
+                        .buttonStyle(.plain)
+                        .disabled(isUnbinding)
+                        .accessibilityIdentifier("解除设备绑定")
 
-                    Button(isUnbinding ? "正在解除…" : "解除设备绑定") {
-                        pin = ""
-                        coordinator.bindingMessage = ""
-                        isUnbindDialogPresented = true
+                        if !coordinator.bindingMessage.isEmpty && !isUnbindDialogPresented {
+                            Text(coordinator.bindingMessage)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(AppTheme.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
-                    .font(.title3.weight(.heavy))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .background(AppTheme.red, in: Capsule())
-                    .buttonStyle(.plain)
-                    .disabled(isUnbinding)
-                    .accessibilityIdentifier("解除设备绑定")
-
-                    if !coordinator.bindingMessage.isEmpty && !isUnbindDialogPresented {
-                        Text(coordinator.bindingMessage)
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(AppTheme.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: 620)
+                    .padding(16)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.10), lineWidth: 1)
                     }
+                    .padding(.vertical, 8)
+                } else {
+                    Text("当前未绑定家长账号。")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
                 }
-                .frame(maxWidth: 620)
-                .padding(16)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 16))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.10), lineWidth: 1)
-                }
-            } else {
-                Text("当前未绑定家长账号。")
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
             }
-
-            Spacer(minLength: 16)
+            .scrollIndicators(.hidden)
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -422,6 +425,32 @@ struct BoundDeviceInfoView: View {
             .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+    }
+
+    private func accountManagementButton(_ credentials: CloudCredentials) -> some View {
+        Button {
+            openURL(coordinator.parentAccountSettingsURL(for: credentials))
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("账号与数据管理")
+                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    Text("打开家长账号设置，可导出数据或删除账号")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right.square.fill")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(AppTheme.navy)
+            }
+            .foregroundStyle(AppTheme.navy)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("账号与数据管理")
     }
 
     private var unbindDialog: some View {

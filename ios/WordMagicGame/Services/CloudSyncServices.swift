@@ -630,7 +630,7 @@ struct DeveloperMenuActivationResult: Equatable {
 
     static let environmentUpdated = DeveloperMenuActivationResult(
         didApply: true,
-        toastMessage: "Environment updated. Re-bind parent account if needed."
+        toastMessage: "已切换环境，请重新绑定家长账号"
     )
 
     static func blocked(_ message: String? = nil) -> DeveloperMenuActivationResult {
@@ -924,7 +924,8 @@ final class CloudCredentialsStore {
         )
     }
 
-    func save(_ response: PairRedeemResponse, apiBaseURL: URL? = nil) {
+    @discardableResult
+    func save(_ response: PairRedeemResponse, apiBaseURL: URL? = nil) -> Bool {
         save(CloudCredentials(
             bindingId: response.bindingId,
             familyId: response.familyId,
@@ -937,7 +938,8 @@ final class CloudCredentialsStore {
         ))
     }
 
-    func save(_ credentials: CloudCredentials) {
+    @discardableResult
+    func save(_ credentials: CloudCredentials) -> Bool {
         secureStore.set(credentials.deviceToken, forKey: Self.deviceTokenKey)
         let metadata = Metadata(
             bindingId: credentials.bindingId,
@@ -948,9 +950,24 @@ final class CloudCredentialsStore {
             pairedAt: credentials.pairedAt ?? Date(),
             apiBaseURL: credentials.apiBaseURL
         )
-        if let data = try? JSONEncoder().encode(metadata) {
-            defaults.set(data, forKey: metadataKey)
+        guard let data = try? JSONEncoder().encode(metadata) else {
+            clear()
+            return false
         }
+        defaults.set(data, forKey: metadataKey)
+        guard let persisted = self.credentials,
+              persisted.bindingId == credentials.bindingId,
+              persisted.familyId == credentials.familyId,
+              persisted.childProfileId == credentials.childProfileId,
+              persisted.nickname == credentials.nickname,
+              persisted.avatarEmoji == credentials.avatarEmoji,
+              persisted.deviceToken == credentials.deviceToken,
+              persisted.apiBaseURL == credentials.apiBaseURL
+        else {
+            clear()
+            return false
+        }
+        return true
     }
 
     func clear() {

@@ -1,5 +1,6 @@
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
+import BuildProfile from 'BuildProfile';
 import { CharacterCard, CharacterKind } from '../components/CharacterCard';
 import { ChoiceButton, ChoiceState } from '../components/ChoiceButton';
 import { SpellingArea } from '../components/SpellingArea';
@@ -54,6 +55,7 @@ import { CritOverlay } from '../components/CritOverlay';
 import { MagicProjectile } from '../components/MagicProjectile';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
+import { shouldShowDebugBattleFinishButton } from '../services/ReleaseGate';
 
 /**
  * BattlePage is the core gameplay screen.
@@ -1488,20 +1490,22 @@ struct BattlePage {
       .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center);
 
-      // Dev-only escape hatch: jump straight to ResultPage with whatever
-      // stats are current. Builds a SessionResult from the *current*
-      // BattleState (treating the mid-session numbers as a synthetic
-      // Lost), so ResultPage always has real data to render. Mirrors the
-      // production path — it goes through navigateToResult so the
-      // tick-timer is cleaned up and the end-handled guard is honoured.
-      Text('[debug] end battle')
-        .id('BattleFinishButton')
-        .fontSize(12)
-        .fontColor('#888888')
-        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-        .onClick((): void => {
-          this.onDebugEndBattle();
-        });
+      if (shouldShowDebugBattleFinishButton(BuildProfile.BUILD_MODE_NAME)) {
+        // Dev-only escape hatch: jump straight to ResultPage with whatever
+        // stats are current. Builds a SessionResult from the *current*
+        // BattleState (treating the mid-session numbers as a synthetic
+        // Lost), so ResultPage always has real data to render. Mirrors the
+        // production path — it goes through navigateToResult so the
+        // tick-timer is cleaned up and the end-handled guard is honoured.
+        Text('[debug] end battle')
+          .id('BattleFinishButton')
+          .fontSize(12)
+          .fontColor('#888888')
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .onClick((): void => {
+            this.onDebugEndBattle();
+          });
+      }
     }
     .id('QuestionArea')
     .layoutWeight(2)

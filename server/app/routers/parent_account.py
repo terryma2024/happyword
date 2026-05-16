@@ -13,13 +13,14 @@ HTML:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
+from fastapi import APIRouter, Depends, Path, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app.config import get_settings
 from app.deps import current_parent_user
+from app.models.user import User, UserRole
 from app.schemas.account import (
     AccountCancelDeleteOut,
     AccountDeleteOut,
@@ -27,9 +28,7 @@ from app.schemas.account import (
     AccountStatusOut,
 )
 from app.services import account_deletion_service
-
-if TYPE_CHECKING:
-    from app.models.user import User
+from app.services.auth_service import JwtError, decode_typed_token
 
 
 router = APIRouter(prefix="/api/v1/family", tags=["parent-account"])
@@ -41,6 +40,25 @@ templates = Jinja2Templates(directory="app/templates")
 def _account_home(user: User) -> str:
     fid = user.family_id or "_"
     return f"/family/{fid}/account"
+
+
+async def _require_parent_html(request: Request) -> User | RedirectResponse:
+    """Soft-auth for browser routes: missing/invalid parent cookie goes to login."""
+    cookie_token = request.cookies.get(get_settings().session_cookie_name)
+    if not cookie_token:
+        return RedirectResponse(url="/family/login", status_code=303)
+    try:
+        typed = decode_typed_token(cookie_token)
+    except JwtError:
+        return RedirectResponse(url="/family/login", status_code=303)
+    if typed.role != "parent":
+        return RedirectResponse(url="/family/login", status_code=303)
+    user = await User.find_one(
+        User.username == typed.identifier, User.role == UserRole.PARENT
+    )
+    if user is None or user.parent_login_suspended_at is not None:
+        return RedirectResponse(url="/family/login", status_code=303)
+    return user
 
 
 @router.get("/{family_id}/account/status", response_model=AccountStatusOut)
@@ -116,13 +134,18 @@ async def post_export(
     return JSONResponse(body, headers=headers)
 
 
-@html_router.get("/{family_id}/account", response_class=HTMLResponse)
+@html_router.get(
+    "/{family_id}/account", response_class=HTMLResponse, response_model=None
+)
 async def get_settings_html(
     request: Request,
     family_id: str = Path(min_length=1, max_length=128),
-    user: User = Depends(current_parent_user),
-) -> HTMLResponse:
+) -> HTMLResponse | RedirectResponse:
     _ = family_id
+    gate = await _require_parent_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    user = gate
     grace = account_deletion_service.grace_days_remaining(
         scheduled=user.scheduled_deletion_at
     )
@@ -139,10 +162,14 @@ async def get_settings_html(
 
 @html_router.post("/{family_id}/account/delete", response_model=None)
 async def post_delete_form(
+    request: Request,
     family_id: str = Path(min_length=1, max_length=128),
-    user: User = Depends(current_parent_user),
 ) -> RedirectResponse:
     _ = family_id
+    gate = await _require_parent_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    user = gate
     await account_deletion_service.schedule_deletion(
         user_id=user.username, requested_by=user.username
     )
@@ -151,17 +178,17 @@ async def post_delete_form(
 
 @html_router.post("/{family_id}/account/cancel-delete", response_model=None)
 async def post_cancel_delete_form(
+    request: Request,
     family_id: str = Path(min_length=1, max_length=128),
-    user: User = Depends(current_parent_user),
 ) -> RedirectResponse:
     _ = family_id
+    gate = await _require_parent_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    user = gate
     await account_deletion_service.cancel_deletion(
         user_id=user.username, requested_by=user.username
     )
     return RedirectResponse(url=_account_home(user), status_code=303)
-
-
-# Reference unused imports so linters stay quiet about HTTPException + status.
-_ = HTTPException, status
 
 __all__ = ["router", "html_router"]

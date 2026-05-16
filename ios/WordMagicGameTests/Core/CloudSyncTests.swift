@@ -270,7 +270,7 @@ final class CloudSyncTests: XCTestCase {
         await coordinator.activateDeveloperMenuCard(viewModel.cards[2])
 
         XCTAssertEqual(coordinator.route, .home)
-        XCTAssertEqual(coordinator.toastMessage, "Environment updated. Re-bind parent account if needed.")
+        XCTAssertEqual(coordinator.toastMessage, "已切换环境，请重新绑定家长账号")
     }
 
     @MainActor
@@ -383,7 +383,7 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(environmentStore.environment, .preview)
         XCTAssertEqual(environmentStore.previewURL?.absoluteString, "https://happyword-git-ok.vercel.app")
         XCTAssertEqual(coordinator.route, .home)
-        XCTAssertEqual(coordinator.toastMessage, "Environment updated. Re-bind parent account if needed.")
+        XCTAssertEqual(coordinator.toastMessage, "已切换环境，请重新绑定家长账号")
     }
 
     @MainActor
@@ -512,6 +512,33 @@ final class CloudSyncTests: XCTestCase {
 
         XCTAssertNil(keychain.string(forKey: CloudCredentialsStore.deviceTokenKey))
         XCTAssertNil(store.credentials)
+    }
+
+    @MainActor
+    func testCoordinatorDoesNotReportBindingSuccessWhenCredentialsCannotBeReadBack() async {
+        let credentialsStore = CloudCredentialsStore(
+            secureStore: DroppingSecureStore(),
+            defaults: UserDefaults(suiteName: "CoordinatorBindingPersistenceFailure-\(UUID().uuidString)")!
+        )
+        let configStore = GameConfigStore(defaults: UserDefaults(suiteName: "CoordinatorBindingPersistenceConfig-\(UUID().uuidString)")!)
+        var config = configStore.config
+        config.parentPin = "123456"
+        configStore.save(config)
+        let coordinator = AppCoordinator(
+            configStore: configStore,
+            pronunciationService: MockPronunciationService(),
+            cloudCredentialsStore: credentialsStore,
+            deviceIdProvider: DeviceIdProvider(secureStore: MemorySecureStore()),
+            bindingClient: MockDeviceBindingClient()
+        )
+        coordinator.route = .scanBinding
+
+        await coordinator.bind(pairingInput: "123456")
+
+        XCTAssertNil(credentialsStore.credentials)
+        XCTAssertEqual(coordinator.route, .scanBinding)
+        XCTAssertEqual(coordinator.bindingMessage, "绑定保存失败，请重试")
+        XCTAssertNil(coordinator.toastMessage)
     }
 
     func testDeviceIdProviderReturnsStableKeychainBackedId() {
@@ -766,6 +793,37 @@ final class CloudSyncTests: XCTestCase {
     }
 
     @MainActor
+    func testCoordinatorBuildsParentAccountSettingsURLFromBoundEnvironment() {
+        let credentials = CloudCredentials(
+            bindingId: PairRedeemResponse.demoBinding.bindingId,
+            familyId: PairRedeemResponse.demoBinding.familyId,
+            childProfileId: PairRedeemResponse.demoBinding.childProfileId,
+            nickname: PairRedeemResponse.demoBinding.nickname,
+            avatarEmoji: PairRedeemResponse.demoBinding.avatarEmoji,
+            deviceToken: PairRedeemResponse.demoBinding.deviceToken,
+            pairedAt: Date(timeIntervalSince1970: 1_778_400_000),
+            apiBaseURL: "https://happyword-preview.example.test"
+        )
+        let credentialsStore = CloudCredentialsStore(
+            secureStore: MemorySecureStore(),
+            defaults: UserDefaults(suiteName: "CoordinatorParentAccountURL-\(UUID().uuidString)")!
+        )
+        credentialsStore.save(credentials)
+        let coordinator = AppCoordinator(
+            configStore: GameConfigStore(defaults: UserDefaults(suiteName: "CoordinatorParentAccountURLConfig-\(UUID().uuidString)")!),
+            pronunciationService: MockPronunciationService(),
+            cloudCredentialsStore: credentialsStore,
+            deviceIdProvider: DeviceIdProvider(secureStore: MemorySecureStore()),
+            bindingClient: MockDeviceBindingClient()
+        )
+
+        XCTAssertEqual(
+            coordinator.parentAccountSettingsURL(for: credentials).absoluteString,
+            "https://happyword-preview.example.test/family/family-demo/account"
+        )
+    }
+
+    @MainActor
     func testCoordinatorReturnsHomeAfterChildNicknameCloudSave() async {
         let credentialsStore = CloudCredentialsStore(
             secureStore: MemorySecureStore(),
@@ -1004,6 +1062,16 @@ private final class RecordingHTTPTransport: HTTPTransporting, @unchecked Sendabl
     func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         try handler(request)
     }
+}
+
+private final class DroppingSecureStore: SecureStore {
+    func string(forKey key: String) -> String? {
+        nil
+    }
+
+    func set(_ value: String, forKey key: String) {}
+
+    func remove(forKey key: String) {}
 }
 
 private final class RequestCounter: @unchecked Sendable {
