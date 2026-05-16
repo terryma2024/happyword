@@ -55,7 +55,7 @@ Third-party login uses **`/v1/oauth/{provider}/start|callback|finish`** (not und
 
 **Vercel Preview:** use the production callback + signed `return_origin` allowlist (`GET /api/v1/public/preview-urls.json` + `*.vercel.app` + local dev origins). After callback on production, redirect to `{return_origin}/v1/oauth/{provider}/finish?ticket=...` — never rely on cross-domain cookies between `happyword.cool` and `*.vercel.app`.
 
-**Login UI:** `/family/login` keeps email OTP in parallel; OAuth buttons link to `start` (preview/local may use absolute `https://happyword.cool/v1/oauth/.../start?return_origin=...`).
+**Login UI:** `/family/login` keeps email OTP in parallel; OAuth buttons link to same-origin `/v1/oauth/{provider}/start` (Preview runs start locally; Google callback remains on canonical Production).
 
 **Design reference:** [`docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md`](docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md).
 

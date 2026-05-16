@@ -56,10 +56,10 @@ def test_build_google_start_url_relative_on_canonical(monkeypatch: pytest.Monkey
     assert url == "/v1/oauth/google/start"
 
 
-def test_build_google_start_url_absolute_for_preview(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_google_start_url_relative_on_preview(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "cid")
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "secret")
     monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "https://happyword.cool")
     get_settings.cache_clear()
     url = build_google_start_url("https://branch-preview.vercel.app")
-    assert url.startswith("https://happyword.cool/v1/oauth/google/start?return_origin=")
+    assert url == "/v1/oauth/google/start"

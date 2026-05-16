@@ -117,23 +117,21 @@ async def require_allowed_origin(origin: str, settings: Settings | None = None) 
     return normalized
 
 
-def build_google_start_url(request_base_url: str, settings: Settings | None = None) -> str:
-    """Relative start on canonical host; absolute production start elsewhere."""
+def build_google_start_url(
+    request_base_url: str,  # noqa: ARG001 — kept for call-site stability
+    settings: Settings | None = None,
+) -> str:
+    """Same-origin OAuth start; callback stays on canonical production host.
+
+    Preview/local login pages link here so `/v1/oauth/google/start` runs on the
+    current deployment. That handler signs `return_origin` from the request and
+    sends Google to `https://happyword.cool/.../callback`, which then handoffs
+    back to preview via `/v1/oauth/google/finish` when needed.
+    """
     settings = settings or get_settings()
     if not settings.google_oauth_configured():
         return ""
-
-    current = normalize_origin(request_base_url)
-    canonical = canonical_origin(settings)
-    if current == canonical:
-        return "/v1/oauth/google/start"
-
-    from urllib.parse import quote
-
-    return (
-        f"{canonical}/v1/oauth/google/start"
-        f"?return_origin={quote(current, safe='')}"
-    )
+    return "/v1/oauth/google/start"
 
 
 def clear_manifest_cache_for_tests() -> None:

@@ -192,9 +192,7 @@ Implementation: `oauth_return_origin_service.is_allowed(origin: str) -> bool` fe
 
 1. Existing email OTP block (unchanged).
 2. Visual divider 「或」.
-3. **Continue with Google** → link built server-side:
-   - If `request.base_url` origin is allowlisted and **is** production → relative `/v1/oauth/google/start`.
-   - Else → absolute `https://happyword.cool/v1/oauth/google/start?return_origin={urlencode(current_origin)}`.
+3. **Continue with Google** → same-origin `/v1/oauth/google/start` on whichever host serves `/family/login` (Preview or Production). The start handler signs `return_origin` from the request; Google always callbacks to canonical Production, then handoffs to Preview when needed.
 4. Hide Google block when `GOOGLE_OAUTH_CLIENT_ID` unset (dev without credentials).
 
 Display `oauth_error` query param when present.

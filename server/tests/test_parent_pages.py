@@ -207,9 +207,10 @@ async def test_login_shows_google_when_configured(
     ac, _ = html_client
     r = await ac.get("/family/login")
     soup = BeautifulSoup(r.text, "html.parser")
-    link = soup.find("a", string=lambda t: t and "Google" in t)
+    link = soup.find("a", href="/v1/oauth/google/start")
     assert link is not None
-    assert link.get("href") == "/v1/oauth/google/start"
+    assert "Continue with Google" in link.get_text()
+    assert link.find("svg", attrs={"aria-hidden": "true"}) is not None
 
 
 @pytest.mark.asyncio
