@@ -95,11 +95,10 @@ struct ScanBindingView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
-            Button("返回") { coordinator.route = .config }
-                .font(.headline.weight(.bold))
-                .foregroundStyle(AppTheme.navy)
-
-            Spacer(minLength: 8)
+            MonsterCodexStyleBackButton(
+                action: { coordinator.route = .config },
+                accessibilityIdentifier: "ScanBindingBack"
+            )
 
             Text("扫码绑定家长账号")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
@@ -107,11 +106,10 @@ struct ScanBindingView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("ScanBindingTitle")
 
-            Spacer(minLength: 8)
-
-            Color.clear.frame(width: 52, height: 1)
+            Color.clear.frame(width: 54, height: 54)
         }
     }
 
@@ -132,18 +130,21 @@ struct ScanBindingView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("ScanBindingOpenScanner")
 
-            PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
-                HStack(spacing: 10) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                    Text("从图库选择二维码")
+            if usesMockGalleryBinding {
+                Button {
+                    Task { await coordinator.bind(pairingInput: "123456") }
+                } label: {
+                    GalleryQRCodeButtonLabel()
                 }
-                .font(.title3.weight(.heavy))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .background(AppTheme.blue, in: Capsule())
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ScanBindingPickFromGallery")
+            } else {
+                PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
+                    GalleryQRCodeButtonLabel()
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ScanBindingPickFromGallery")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("ScanBindingPickFromGallery")
 
             Button("无法扫码？手动输入短码") {
                 galleryHint = ""
@@ -157,8 +158,21 @@ struct ScanBindingView: View {
             .background(AppTheme.paleBlue, in: Capsule())
             .buttonStyle(.plain)
             .accessibilityIdentifier("ScanBindingManualEntry")
+
+            Button("创建或登录 家长账号") {
+                openParentLoginInBrowser()
+            }
+            .font(.headline.weight(.bold))
+            .foregroundStyle(Color(red: 0.15, green: 0.39, blue: 0.92))
+            .frame(maxWidth: .infinity, minHeight: 40)
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("ScanBindingParentLoginLink")
         }
         .frame(maxWidth: 360)
+    }
+
+    private var usesMockGalleryBinding: Bool {
+        ProcessInfo.processInfo.arguments.contains("-UITestMockBinding")
     }
 
     private var manualEntrySheet: some View {
@@ -193,6 +207,15 @@ struct ScanBindingView: View {
                         .foregroundStyle(coordinator.bindingMessage.hasPrefix("绑定成功") ? AppTheme.mint : AppTheme.red)
                         .multilineTextAlignment(.center)
                 }
+
+                Button("创建或登录 家长账号") {
+                    openParentLoginInBrowser()
+                }
+                .font(.headline.weight(.bold))
+                .foregroundStyle(Color(red: 0.15, green: 0.39, blue: 0.92))
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ScanBindingParentLoginLinkManual")
 
                 Spacer(minLength: 0)
             }
@@ -233,6 +256,13 @@ struct ScanBindingView: View {
         return AppTheme.red
     }
 
+    private func openParentLoginInBrowser() {
+        let url = BackendURLProvider.parentFamilyLoginPageURL(
+            baseURL: coordinator.developerMenuViewModel.effectiveBaseURL
+        )
+        SystemBrowser.open(url)
+    }
+
     private func decodeGalleryQR(from item: PhotosPickerItem) async {
         galleryHint = ""
         isDecodingGalleryQR = true
@@ -259,6 +289,19 @@ struct ScanBindingView: View {
     }
 }
 
+private struct GalleryQRCodeButtonLabel: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "photo.on.rectangle.angled")
+            Text("从图库选择二维码")
+        }
+        .font(.title3.weight(.heavy))
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, minHeight: 52)
+        .background(AppTheme.blue, in: Capsule())
+    }
+}
+
 struct BoundDeviceInfoView: View {
     @ObservedObject var coordinator: AppCoordinator
     @State private var pin = ""
@@ -273,7 +316,7 @@ struct BoundDeviceInfoView: View {
                     accessibilityIdentifier: "BoundDeviceInfoBack"
                 )
 
-                Text("孩子档案")
+                Text("家长账户")
                     .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
                     .frame(maxWidth: .infinity)

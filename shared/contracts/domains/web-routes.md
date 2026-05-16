@@ -2,11 +2,12 @@
 
 These routes are HTML routes served by FastAPI templates. They are not native-client JSON contracts, but they are kept here so monorepo route ownership is visible.
 
-`{family_id}` is a path segment. Pre-login pages use the decorative `_` placeholder (for example `/family/_/login` from the apex redirect); after login, routes use the real Mongo `family_id`.
+`{family_id}` is a path segment. Pre-login HTML entry is **`GET /family/login`** (canonical). `GET /family/{family_id}/login` (including `/family/_/login`) **308-redirects** to `/family/login` for bookmarks. Pre-login **forms** still post to `/family/_/auth/*` with decorative `_` until a session exists; after login, routes use the real Mongo `family_id`.
 
 | Method | Path |
 | --- | --- |
-| GET | `/family/{family_id}/login` |
+| GET | `/family/login` |
+| GET | `/family/{family_id}/login` → `308` `/family/login` |
 | GET | `/family/{family_id}/verify` |
 | POST | `/family/{family_id}/auth/request-code` |
 | POST | `/family/{family_id}/auth/verify-code` |

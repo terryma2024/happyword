@@ -17,7 +17,9 @@ import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.annotation.RawRes
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -109,7 +111,11 @@ import cool.happyword.wordmagic.core.BackendEnv
 import cool.happyword.wordmagic.core.BackendHeaderProvider
 import cool.happyword.wordmagic.core.BackendRouteState
 import cool.happyword.wordmagic.core.BackendURLProvider
+import cool.happyword.wordmagic.core.SystemBrowser
 import cool.happyword.wordmagic.core.BindingResult
+import cool.happyword.wordmagic.core.CloudCredentials
+import cool.happyword.wordmagic.core.bindingFailureReasonFromMessage
+import cool.happyword.wordmagic.core.extractTokenFromQrPayload
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.ChildProfileClient
 import cool.happyword.wordmagic.core.ChildProfileException
@@ -155,6 +161,9 @@ import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.PackManagerScreen
 import cool.happyword.wordmagic.ui.RedemptionHistoryScreen
 import cool.happyword.wordmagic.ui.ScanBindingScreen
+import cool.happyword.wordmagic.ui.decodeQrPayloadFromUri
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import cool.happyword.wordmagic.ui.TodayPlanScreen
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
@@ -210,7 +219,9 @@ fun WordMagicGameApp() {
     var learningSyncStatus by remember { mutableStateOf(cloudRepositories.loadLearningSyncStatus()) }
     var learningSyncToast by remember { mutableStateOf("") }
     var learningSyncBusy by remember { mutableStateOf(false) }
-    var bindingError by remember { mutableStateOf("") }
+    var scanBindingBusy by remember { mutableStateOf(false) }
+    var scanBindingFailureReason by remember { mutableStateOf("") }
+    var scanBindingSuccessNickname by remember { mutableStateOf<String?>(null) }
     var pendingCloudUnbind by remember { mutableStateOf(false) }
     var pendingPostBindPinSetup by remember { mutableStateOf(false) }
     var backendRouteState by remember { mutableStateOf(BuildGate.coerceBackendRouteForBuild(isDebuggable, debugRoutingRepository.loadRouteState())) }
@@ -285,6 +296,82 @@ fun WordMagicGameApp() {
     var pendingRemoveCustomWishId by remember { mutableStateOf<String?>(null) }
     var parentPin by remember { mutableStateOf("") }
     var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
+
+    fun applyBindingSuccess(credentials: CloudCredentials) {
+        cloudRepositories.saveCredentials(credentials)
+        cloudCredentials = credentials
+        val syncResult = cloudCoordinator.syncPacks(cloudCredentials)
+        globalPacks = syncResult.globalPacks.ifEmpty { globalPacks }
+        familyPacks = syncResult.familyPacks.ifEmpty { familyPacks }
+        cloudRepositories.saveGlobalPacks(globalPacks)
+        cloudRepositories.saveFamilyPacks(familyPacks)
+        cloudSyncStatus = syncResult.statusMessage
+        cloudRepositories.saveSyncStatus(cloudSyncStatus)
+        scanBindingSuccessNickname = credentials.childNickname.ifBlank { "宝贝" }
+        scanBindingFailureReason = ""
+        if (parentPin.length == 6) {
+            route = AppRoute.BoundDeviceInfo
+        } else {
+            pendingPostBindPinSetup = true
+            route = AppRoute.ParentPin
+        }
+    }
+
+    fun redeemBindingShortCode(code: String) {
+        if (scanBindingBusy) return
+        appScope.launch {
+            scanBindingBusy = true
+            scanBindingFailureReason = ""
+            when (val result = bindingClient.redeemShortCode(code, cloudRepositories.deviceIdProvider.getOrCreate())) {
+                is BindingResult.Success -> applyBindingSuccess(result.credentials)
+                is BindingResult.Failure -> scanBindingFailureReason = bindingFailureReasonFromMessage(result.message)
+            }
+            scanBindingBusy = false
+        }
+    }
+
+    fun redeemBindingToken(token: String) {
+        if (scanBindingBusy) return
+        appScope.launch {
+            scanBindingBusy = true
+            scanBindingFailureReason = ""
+            when (val result = bindingClient.redeemToken(token, cloudRepositories.deviceIdProvider.getOrCreate())) {
+                is BindingResult.Success -> applyBindingSuccess(result.credentials)
+                is BindingResult.Failure -> scanBindingFailureReason = bindingFailureReasonFromMessage(result.message)
+            }
+            scanBindingBusy = false
+        }
+    }
+
+    val qrScanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val payload = result.contents.orEmpty()
+        if (payload.isBlank()) return@rememberLauncherForActivityResult
+        val token = extractTokenFromQrPayload(payload)
+        if (token.length < 4) {
+            scanBindingFailureReason = "TOKEN_INVALID"
+            return@rememberLauncherForActivityResult
+        }
+        redeemBindingToken(token)
+    }
+    val galleryQrLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        appScope.launch {
+            scanBindingFailureReason = ""
+            val payload = decodeQrPayloadFromUri(context, uri)
+            if (payload.isNullOrBlank()) {
+                scanBindingFailureReason = "TOKEN_INVALID"
+            } else {
+                val token = extractTokenFromQrPayload(payload)
+                if (token.length < 4) {
+                    scanBindingFailureReason = "TOKEN_INVALID"
+                } else {
+                    redeemBindingToken(token)
+                }
+            }
+        }
+    }
 
     fun resetForBackendSwitch() {
         cloudRepositories.resetForBackendSwitch()
@@ -476,7 +563,11 @@ fun WordMagicGameApp() {
                     onBack = { route = AppRoute.Home },
                     onParentAdmin = { route = AppRoute.ParentPin },
                     onParentPinSetup = { route = AppRoute.ParentPin },
-                    onCloudBinding = { route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo },
+                    onCloudBinding = {
+                        scanBindingFailureReason = ""
+                        scanBindingSuccessNickname = null
+                        route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo
+                    },
                     onPackManager = { route = AppRoute.PackManager },
                     onLearningSync = {
                         if (learningSyncBusy) return@ConfigScreen
@@ -798,38 +889,47 @@ fun WordMagicGameApp() {
                     ),
                     onBack = { route = AppRoute.TodayPlan },
                 )
-                AppRoute.ScanBinding -> ScanBindingScreen(
-                    deviceId = cloudRepositories.deviceIdProvider.getOrCreate(),
-                    error = bindingError,
-                    onRedeem = { code ->
-                        if (bindingError == "正在绑定...") return@ScanBindingScreen
-                        appScope.launch {
-                            bindingError = "正在绑定..."
-                            when (val result = bindingClient.redeemShortCode(code, cloudRepositories.deviceIdProvider.getOrCreate())) {
-                                is BindingResult.Success -> {
-                                    cloudRepositories.saveCredentials(result.credentials)
-                                    cloudCredentials = result.credentials
-                                    bindingError = ""
-                                    val syncResult = cloudCoordinator.syncPacks(cloudCredentials)
-                                    globalPacks = syncResult.globalPacks.ifEmpty { globalPacks }
-                                    familyPacks = syncResult.familyPacks.ifEmpty { familyPacks }
-                                    cloudRepositories.saveGlobalPacks(globalPacks)
-                                    cloudRepositories.saveFamilyPacks(familyPacks)
-                                    cloudSyncStatus = syncResult.statusMessage
-                                    cloudRepositories.saveSyncStatus(cloudSyncStatus)
-                                    if (parentPin.length == 6) {
-                                        route = AppRoute.BoundDeviceInfo
-                                    } else {
-                                        pendingPostBindPinSetup = true
-                                        route = AppRoute.ParentPin
-                                    }
-                                }
-                                is BindingResult.Failure -> bindingError = result.message
+                AppRoute.ScanBinding -> {
+                    val scanBindingContext = LocalContext.current
+                    val backendUrlProvider = remember { BackendURLProvider() }
+                    ScanBindingScreen(
+                        busy = scanBindingBusy,
+                        failureReason = scanBindingFailureReason,
+                        boundChildNickname = scanBindingSuccessNickname,
+                        onOpenScanner = {
+                            scanBindingFailureReason = ""
+                            val options = ScanOptions().apply {
+                                setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                setPrompt("请扫描家长端「添加设备」页面显示的二维码")
+                                setBeepEnabled(false)
+                                setOrientationLocked(false)
                             }
-                        }
-                    },
-                    onBack = { route = AppRoute.Config },
-                )
+                            qrScanLauncher.launch(options)
+                        },
+                        onPickGallery = {
+                            scanBindingFailureReason = ""
+                            galleryQrLauncher.launch("image/*")
+                        },
+                        onRedeemShortCode = ::redeemBindingShortCode,
+                        onOpenParentLogin = {
+                            val url = backendUrlProvider.parentFamilyLoginPageUrl(backendRouteState)
+                            try {
+                                SystemBrowser.openUrl(scanBindingContext, url)
+                            } catch (err: Exception) {
+                                Toast.makeText(scanBindingContext, "Could not open browser", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onBack = {
+                            scanBindingFailureReason = ""
+                            scanBindingSuccessNickname = null
+                            route = AppRoute.Config
+                        },
+                        onSuccessBack = {
+                            scanBindingSuccessNickname = null
+                            route = AppRoute.Config
+                        },
+                    )
+                }
                 AppRoute.BoundDeviceInfo -> BoundDeviceInfoScreen(
                     credentials = cloudCredentials,
                     syncStatus = cloudSyncStatus,

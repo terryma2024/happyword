@@ -41,7 +41,7 @@ async def test_parent_packs_requires_login(db: object) -> None:
 
         assert resp.status_code in (303, 307)
         loc = resp.headers.get("location", "")
-        assert loc.endswith("/family/_/login") or loc.endswith("/family/_/login/")
+        assert loc.endswith("/family/login") or loc.endswith("/family/login/")
 
 
 @pytest.mark.asyncio

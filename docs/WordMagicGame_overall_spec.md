@@ -726,7 +726,7 @@ Idle ──[家长 PIN 通过]──> Confirmed
 | `parent_account.py`（JSON + HTML） | `/api/v1/family` + `/family` | `/{family_id}/account/*` JSON；`/family/{family_id}/account` 设置页 |
 | `parent_family_pack.py` | `/api/v1/family` | `/{family_id}/family-packs/**`（CRUD / draft / publish / import-image / batch-upsert） |
 | `child_family_pack.py` / `child_word_stats.py` / `child_wishlist.py` / `child_profile.py` | `/api/v1/family` | device token：`/{family_id}/family-packs/latest.json`、`/{family_id}/packs/latest.json`、`/{family_id}/word-stats/*`、`/{family_id}/wishlist/*`、`/{family_id}/redemption-requests/*`、`/{family_id}/profile`、`/{family_id}/unbind` |
-| `parent_pages.py` / `parent_inbox.py`（HTML） / `parent_packs_pages.py` | `/family` | `/family/{family_id}/**` 家长 Web shell（登录、设备绑定、兑换审批、inbox、词库工作台 `/packs` 等） |
+| `parent_pages.py` / `parent_inbox.py`（HTML） / `parent_packs_pages.py` | `/family` | **`GET /family/login`** 为家长登录规范入口；`GET /family/{family_id}/login` **308** → `/family/login`（兼容旧书签）。其余 `/family/{family_id}/**`：设备绑定、兑换审批、inbox、词库工作台 `/packs` 等 |
 | `admin_*.py` 系列 | `/api/v1/admin/**` | 词 / 词包 / 类目 / LLM / lesson import / cron / stats 等后台管理面 |
 
 > **V0.5.8 起所有 `admin_*` 路由不再要求 JWT bearer**：`Depends(current_admin_user)` 统一移除，家长设备直接调用。代价是单个家庭的设备目前都看到全局数据；V0.6 + V0.6.5 计划用家长账户 / family_id 做行级隔离（家长 / 设备 token 已经在 `/api/v1/family/{family_id}/**` 上线，admin 路由的鉴权重接入留给后续版本）。

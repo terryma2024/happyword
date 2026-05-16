@@ -29,6 +29,7 @@
 		36A3AC8F104BA497DBDCA64F /* BattleStartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 729681DD70AD1933A6DBB022 /* BattleStartTests.swift */; };
 		3BA9690760CDAB437EC7555A /* WordRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710C4CE303108095BB4DD2C4 /* WordRepository.swift */; };
 		443F20D68ED6417108718DFF /* CloudSyncServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 246D77D7D2CF1528AEECDA24 /* CloudSyncServices.swift */; };
+		7C8D9E0F1A2B3C4D5E6F7081 /* SystemBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D9E0F1A2B3C4D5E6F708192 /* SystemBrowser.swift */; };
 		4EF9263FA9C00E2D1120DAC1 /* ParentAdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A34FBB768E5B1541E82EB7BF /* ParentAdminView.swift */; };
 		4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6288AB79A566478B8CD0BC1F /* Assets.xcassets */; };
 		54CE238928E274D0BB0B5A92 /* BattleQuestionTypePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8096273F6C5E474BA07021 /* BattleQuestionTypePolicy.swift */; };
@@ -87,6 +88,7 @@
 		055A58C7A27B41F82685F51B /* ParentLessonAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentLessonAPITests.swift; sourceTree = "<group>"; };
 		09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationTests.swift; sourceTree = "<group>"; };
 		246D77D7D2CF1528AEECDA24 /* CloudSyncServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncServices.swift; sourceTree = "<group>"; };
+		8D9E0F1A2B3C4D5E6F708192 /* SystemBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBrowser.swift; sourceTree = "<group>"; };
 		270E555771AAF420876EE21A /* BattleAnimationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationEvent.swift; sourceTree = "<group>"; };
 		2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStores.swift; sourceTree = "<group>"; };
 		322D0A3007C7DA1E3A44E318 /* school-castle.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "school-castle.json"; sourceTree = "<group>"; };
@@ -293,6 +295,7 @@
 			isa = PBXGroup;
 			children = (
 				246D77D7D2CF1528AEECDA24 /* CloudSyncServices.swift */,
+				8D9E0F1A2B3C4D5E6F708192 /* SystemBrowser.swift */,
 				A77053ADBABC5E1EEED849EA /* LessonDraftReviewStore.swift */,
 				2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */,
 				3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */,
@@ -504,6 +507,7 @@
 				1EC51AEF8DDD6E8ABCDDD57E /* ChildProfileView.swift in Sources */,
 				307C8F11567A577C390D2D67 /* CloudBindingViews.swift in Sources */,
 				443F20D68ED6417108718DFF /* CloudSyncServices.swift in Sources */,
+				7C8D9E0F1A2B3C4D5E6F7081 /* SystemBrowser.swift in Sources */,
 				E7276A8FCD0B214B97D93205 /* ConfigView.swift in Sources */,
 				9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */,
 				05BC6D224C27760A1DAD2210 /* DeviceBindingQRSupport.swift in Sources */,
@@ -688,6 +692,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.terryma.wordmagicgame;
 				PRODUCT_NAME = WordMagicGame;
 				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;

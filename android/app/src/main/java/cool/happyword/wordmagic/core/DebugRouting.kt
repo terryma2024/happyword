@@ -39,6 +39,11 @@ class BackendURLProvider {
         }
         return state.env.defaultUrl.ifBlank { BackendEnv.Staging.defaultUrl }
     }
+
+    fun parentFamilyLoginPageUrl(state: BackendRouteState): String {
+        val base = resolve(state).trim().trimEnd('/')
+        return "$base/family/login"
+    }
 }
 
 class BackendHeaderProvider {

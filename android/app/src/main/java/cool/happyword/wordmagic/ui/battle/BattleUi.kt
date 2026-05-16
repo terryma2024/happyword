@@ -554,6 +554,7 @@ internal fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onComp
                 ) {
                     Text(
                         value.ifBlank { "_" },
+                        modifier = Modifier.testTag("BattleSpellSlotText_$index"),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Black,
                         color = if (value.isNotBlank()) Color(0xFF1D3557) else Color(0xFFE63946),
@@ -570,12 +571,12 @@ internal fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onComp
             question.spellPool.forEachIndexed { index, letter ->
                 val used = consumed.getOrElse(index) { false }
                 val wrong = wrongPoolIndex == index
+                val nextSlot = slots.indexOfFirst { it.isBlank() }
+                val expected = question.spellLetters.getOrNull(nextSlot)
                 Button(
                     onClick = {
                         if (feedbackLocked || used || completed || wrongPoolIndex >= 0) return@Button
-                        val nextSlot = slots.indexOfFirst { it.isBlank() }
                         if (nextSlot < 0) return@Button
-                        val expected = question.spellLetters.getOrNull(nextSlot)
                         if (letter != expected) {
                             wrongPoolIndex = index
                             return@Button
@@ -591,7 +592,14 @@ internal fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onComp
                     modifier = Modifier
                         .width(44.dp)
                         .height(52.dp)
-                        .testTag("BattleSpellPool_$index"),
+                        .testTag("BattleSpellPool_$index")
+                        .semantics {
+                            contentDescription = if (!used && !completed && letter == expected) {
+                                "BattleSpellCorrectPool"
+                            } else {
+                                "BattleSpellPool_$index"
+                            }
+                        },
                     shape = CircleShape,
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
