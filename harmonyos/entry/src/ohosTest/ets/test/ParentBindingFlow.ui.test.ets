@@ -4,7 +4,12 @@ import { application, Want, common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import http from '@ohos.net.http';
 import preferences from '@ohos.data.preferences';
-import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import {
+  clickByIdShared,
+  clickParentPinSetupCancelShared,
+  scrollToParentPinButton,
+  tapConfigCancelShared,
+} from './RoutingFlow.ui.test';
 import {
   SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY,
   SCAN_BINDING_PHOTO_PICKER_OVERRIDE_URI_KEY,
@@ -349,6 +354,30 @@ async function waitForBindEntryButton(driver: Driver, maxMs: number): Promise<bo
   }
 }
 
+async function waitForCloudSyncButton(driver: Driver, maxMs: number): Promise<boolean> {
+  try {
+    const stepMs: number = 250;
+    let waited: number = 0;
+    let nudge: number = 0;
+    while (waited < maxMs) {
+      const c: Component | null =
+        await driver.findComponent(ON.id('ConfigCloudSyncButton'));
+      if (c !== null) {
+        return true;
+      }
+      nudge += 1;
+      if (nudge % 4 === 0) {
+        await driver.swipe(1400, 1100, 1400, 300, 600);
+      }
+      await driver.delayMs(stepMs);
+      waited += stepMs;
+    }
+    return false;
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 /**
  * V0.6.x — materialise the scan-binding QR fixture into the app
  * sandbox. Mirrors `ensureLessonImportFixtureOnDevice()` in
@@ -581,7 +610,7 @@ export default function parentBindingFlowUiTest(): void {
         await driver.delayMs(400);
       }
       if (keypad !== null) {
-        await clickByIdShared(driver, 'ParentPinSetupCancel');
+        await clickParentPinSetupCancelShared(driver);
         await driver.delayMs(800);
       }
 
@@ -607,7 +636,8 @@ export default function parentBindingFlowUiTest(): void {
       // lives on BoundDeviceInfoPage (孩子档案页) instead.
       const haveBound: boolean = await waitForBoundButton(driver, 8000);
       expect(haveBound).assertTrue();
-      await driver.assertComponentExist(ON.id('ConfigCloudSyncButton'));
+      const haveCloudSync: boolean = await waitForCloudSyncButton(driver, 8000);
+      expect(haveCloudSync).assertTrue();
 
       await exitConfigPage(driver);
       done();
@@ -746,8 +776,31 @@ export default function parentBindingFlowUiTest(): void {
 
         // Picker stub returns the fixture path instantly; decoder
         // stub returns SCAN_QR_FIXTURE_PAYLOAD instantly; redeem
-        // round-trips against the local mock. Poll up to 8 s for
-        // the success label.
+        // round-trips against the local mock. A successful bind can
+        // auto-open ParentPinSetupPage before the success label is
+        // visible, so dismiss that one-time prompt just like the
+        // manual short-code path above.
+        let keypad: Component | null = null;
+        for (let i: number = 0; i < 20; i++) {
+          keypad = await driver.findComponent(ON.id('ParentPinSetupKey_1'));
+          if (keypad !== null) {
+            break;
+          }
+          const successEarly: Component | null =
+            await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
+          if (successEarly !== null) {
+            keypad = null;
+            break;
+          }
+          await driver.delayMs(400);
+        }
+        if (keypad !== null) {
+          await clickParentPinSetupCancelShared(driver);
+          await driver.delayMs(800);
+        }
+
+        // Poll up to 8 s for the success label after any auto PIN
+        // prompt has been dismissed.
         let foundSuccess: boolean = false;
         for (let i: number = 0; i < 16; i++) {
           const c: Component | null =

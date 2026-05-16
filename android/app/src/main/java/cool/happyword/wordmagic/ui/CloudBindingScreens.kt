@@ -63,57 +63,191 @@ private fun childAvatarEmojiChoices(initial: String): List<String> {
 }
 
 @Composable
+private fun ScanBindingParentLoginLink(onOpenParentLogin: () -> Unit, testTag: String) {
+    TextButton(
+        onClick = onOpenParentLogin,
+        modifier = Modifier
+            .padding(top = 8.dp)
+            .testTag(testTag),
+    ) {
+        Text("创建或登录 家长账号", color = Color(0xFF2563EB), fontSize = 14.sp)
+    }
+}
+
+@Composable
 fun ScanBindingScreen(
-    deviceId: String,
-    error: String,
-    onRedeem: (String) -> Unit,
+    busy: Boolean,
+    failureReason: String,
+    boundChildNickname: String?,
+    onOpenScanner: () -> Unit,
+    onPickGallery: () -> Unit,
+    onRedeemShortCode: (String) -> Unit,
     onOpenParentLogin: () -> Unit,
     onBack: () -> Unit,
+    onSuccessBack: () -> Unit,
 ) {
-    var code by remember { mutableStateOf("") }
+    var manualMode by remember { mutableStateOf(false) }
+    var manualCode by remember { mutableStateOf("") }
+    val hint = cool.happyword.wordmagic.core.bindingFailureHint(failureReason)
+
+    LaunchedEffect(boundChildNickname) {
+        if (boundChildNickname != null) {
+            manualMode = false
+            manualCode = ""
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFFF6E7))
-            .padding(
-                start = PageChromeInsets.bodyHorizontal,
-                top = PageChromeInsets.bodyTop,
-                end = PageChromeInsets.bodyHorizontal,
-                bottom = PageChromeInsets.bodyBottom,
-            )
+            .background(Color(0xFFF8FAFC))
             .testTag("ScanBindingScreen"),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("扫码绑定家长账号", fontSize = 30.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
-        Text("设备 ${deviceId.takeLast(8)}", color = Color(0xFF6A5843), modifier = Modifier.padding(top = 8.dp))
-        OutlinedTextField(
-            value = code,
-            onValueChange = { code = it.filter(Char::isDigit).take(6) },
-            label = { Text("输入绑定码") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.padding(top = 18.dp).testTag("ScanBindingManualCodeInput"),
+        PageTopChrome(
+            backButtonId = "ScanBindingTopBack",
+            title = "扫码绑定家长账号",
+            titleId = "ScanBindingTitle",
+            onBack = onBack,
         )
-        if (error.isNotBlank()) {
-            Text(error, color = Color(0xFFD94141), modifier = Modifier.padding(top = 8.dp).testTag("ScanBindingError"))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 18.dp)) {
-            OutlinedButton(onClick = onBack) { Text("返回") }
-            OutlinedButton(onClick = {}, modifier = Modifier.testTag("ScanBindingGalleryButton")) { Text("相册") }
-            OutlinedButton(onClick = {}, modifier = Modifier.testTag("ScanBindingCameraButton")) { Text("扫码") }
-            Button(
-                onClick = { onRedeem(code) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0050)),
-                modifier = Modifier.testTag("ScanBindingRedeemButton"),
-            ) { Text("绑定") }
-        }
-        TextButton(
-            onClick = onOpenParentLogin,
-            modifier = Modifier
-                .padding(top = 8.dp)
-                .testTag("ScanBindingParentLoginLink"),
-        ) {
-            Text("创建或登录 家长账号", color = Color(0xFF2563EB), fontSize = 14.sp)
+
+        if (boundChildNickname != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = PageChromeInsets.bodyHorizontal,
+                        end = PageChromeInsets.bodyHorizontal,
+                        bottom = PageChromeInsets.bodyBottom,
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("🎉", fontSize = 48.sp, modifier = Modifier.testTag("ScanBindingSuccessEmoji"))
+                Text(
+                    "绑定成功，${boundChildNickname.ifBlank { "宝贝" }}！",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .testTag("ScanBindingSuccessLabel"),
+                )
+                Button(
+                    onClick = onSuccessBack,
+                    modifier = Modifier
+                        .padding(top = 24.dp)
+                        .testTag("ScanBindingSuccessBack"),
+                ) {
+                    Text("返回首页")
+                }
+            }
+        } else if (manualMode) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = PageChromeInsets.bodyHorizontal,
+                        end = PageChromeInsets.bodyHorizontal,
+                        bottom = PageChromeInsets.bodyBottom,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("输入家长网页显示的 6 位短码", fontSize = 14.sp, color = Color(0xFF475569))
+                OutlinedTextField(
+                    value = manualCode,
+                    onValueChange = { manualCode = it.filter(Char::isDigit).take(6) },
+                    label = { Text("000000") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .testTag("ScanBindingManualInput"),
+                )
+                Button(
+                    onClick = { onRedeemShortCode(manualCode) },
+                    enabled = !busy && manualCode.length == 6,
+                    modifier = Modifier.testTag("ScanBindingManualSubmit"),
+                ) {
+                    Text(if (busy) "正在验证…" else "提交")
+                }
+                OutlinedButton(
+                    onClick = {
+                        manualMode = false
+                        manualCode = ""
+                    },
+                    modifier = Modifier.testTag("ScanBindingManualBackToScan"),
+                ) {
+                    Text("返回扫码")
+                }
+                if (hint.isNotBlank()) {
+                    Text(
+                        hint,
+                        color = Color(0xFFDC2626),
+                        fontSize = 13.sp,
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .testTag("ScanBindingFailureHint"),
+                    )
+                }
+                ScanBindingParentLoginLink(
+                    onOpenParentLogin = onOpenParentLogin,
+                    testTag = "ScanBindingParentLoginLinkManual",
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = PageChromeInsets.bodyHorizontal,
+                        end = PageChromeInsets.bodyHorizontal,
+                        bottom = PageChromeInsets.bodyBottom,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    "请扫描家长端「添加设备」页面显示的二维码",
+                    fontSize = 14.sp,
+                    color = Color(0xFF475569),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("ScanBindingIdlePrompt"),
+                )
+                Button(
+                    onClick = onOpenScanner,
+                    enabled = !busy,
+                    modifier = Modifier
+                        .padding(top = 16.dp)
+                        .testTag("ScanBindingScannerButton"),
+                ) {
+                    Text(if (busy) "正在打开扫码器…" else "打开扫码器")
+                }
+                OutlinedButton(
+                    onClick = onPickGallery,
+                    enabled = !busy,
+                    modifier = Modifier.testTag("ScanBindingGalleryButton"),
+                ) {
+                    Text("📷 从图库选择二维码")
+                }
+                OutlinedButton(
+                    onClick = { manualMode = true },
+                    modifier = Modifier.testTag("ScanBindingManualToggle"),
+                ) {
+                    Text("无法扫码？手动输入短码")
+                }
+                if (hint.isNotBlank()) {
+                    Text(
+                        hint,
+                        color = Color(0xFFDC2626),
+                        fontSize = 13.sp,
+                        modifier = Modifier
+                            .padding(top = 16.dp)
+                            .testTag("ScanBindingFailureHint"),
+                    )
+                }
+                ScanBindingParentLoginLink(
+                    onOpenParentLogin = onOpenParentLogin,
+                    testTag = "ScanBindingParentLoginLink",
+                )
+            }
         }
     }
 }

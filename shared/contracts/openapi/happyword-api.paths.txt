@@ -80,6 +80,7 @@
 /api/v1/public/packs/latest.json
 /api/v1/public/pair/redeem
 /api/v1/public/preview-urls.json
+/family/login
 /family/{family_id}
 /family/{family_id}/
 /family/{family_id}/account
@@ -95,7 +96,6 @@
 /family/{family_id}/devices/{binding_id}/unbind
 /family/{family_id}/feedback
 /family/{family_id}/inbox
-/family/{family_id}/login
 /family/{family_id}/packs/
 /family/{family_id}/packs/new
 /family/{family_id}/packs/{pack_id}

@@ -692,6 +692,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.terryma.wordmagicgame;
 				PRODUCT_NAME = WordMagicGame;
 				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
