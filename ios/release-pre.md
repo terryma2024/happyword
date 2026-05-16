@@ -222,6 +222,8 @@ xcodebuild archive \
   - [ ] iPhone 6.5-inch if App Store Connect requests it.
   - [x] iPad screenshots if iPad is supported.
   - [x] Screens show actual app UI, not debug/dev screens.
+  - [x] iPhone screenshots regenerated on `WordMagic AppStore iPhone 13 Pro Max` because App Store Connect rejected the prior `2622x1206` iPhone 17 Pro size. Current iPhone active screenshots are `2778x1284`, which matches the App Store Connect accepted size list.
+  - [ ] Upload active iPhone/iPad screenshots in App Store Connect. Chrome automation could not set the file input reliably; upload manually from the active screenshot folders below.
 - [ ] App preview video: optional; skip unless polished.
 - [x] Review notes draft prepared below.
   - [x] Reviewer-owned email OTP path finalized: reviewer should use their own reachable email address to receive the one-time code.
@@ -332,13 +334,17 @@ Notes:
 
 - Captured from an equivalent Release simulator build for `0.7.0 (1007004)`.
 - iPhone screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/iphone/`.
-  - Device: `iPhone 17 Pro (iOS 26.4)`.
-  - Size: `2622x1206`.
+  - Device: `WordMagic AppStore iPhone 13 Pro Max (iOS 26.4)`.
+  - Size: `2778x1284`.
   - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-pack-manager.png`.
 - iPad screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/ipad/`.
   - Device: `WordMagic AppStore iPad Pro 13 (iOS 26.4)`.
   - Size: `2064x2752`.
   - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-pack-manager.png`.
+- App Store Connect in-progress state as of 2026-05-16:
+  - Version metadata fields filled on the `iOS App 版本 1.0` draft page: promotional text, description, keywords, support URL, version `0.7.0`, copyright, reviewer notes, manual release.
+  - Build `1007004` selected for submission.
+  - Remaining manual fields: upload screenshots and enter a required App Review contact phone number.
 - Screenshots cover:
   1. Child home screen.
   2. Battle/practice screen.
