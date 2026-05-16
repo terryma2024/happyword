@@ -62,7 +62,7 @@
   - The bound child-device screen provides an in-app initiation path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
   - The iOS entry opens the parent Web account settings page, where the authenticated parent can delete the account or cancel deletion during the grace period.
   - Server route source: `server/app/routers/parent_account.py` (`POST /api/v1/family/{family_id}/account/delete` and HTML `/family/{family_id}/account`).
-  - Reviewer note draft: bind or seed a child profile, open `游戏配置` -> `孩子档案` -> `账号与数据管理`; log in to the parent web page with the demo parent email/OTP; use `删除账号`.
+  - Reviewer note draft: bind or seed a child profile, open `游戏配置` -> `孩子档案` -> `账号与数据管理`; log in to the parent web page with a reachable reviewer email and OTP; use `删除账号`.
 
 - [x] Confirm privacy policy URL.
   - Public URL: `https://happyword.cool/privacy`.
@@ -212,22 +212,22 @@ xcodebuild archive \
 - [x] Support URL: public, reachable, and preferably Chinese: `https://happyword.cool/support`.
 - [x] Marketing URL: skip for v0.7.0 unless a polished public product page is added.
 - [x] Privacy Policy URL: required: `https://happyword.cool/privacy`.
-- [x] Copyright and contact-info draft prepared below.
+- [x] Copyright and contact-info finalized below.
 - [x] Age rating questionnaire draft prepared below.
 - [x] Content rights declaration draft prepared below.
 - [x] Export compliance questionnaire for TestFlight build `1007003`.
 - [x] Export compliance status accepted for replacement TestFlight build `1007004`; App Store Connect allowed internal TestFlight testing.
-- [ ] App screenshots:
-  - [ ] iPhone 6.9-inch or current required size.
+- [x] App screenshots:
+  - [x] iPhone 6.9-inch or current required size.
   - [ ] iPhone 6.5-inch if App Store Connect requests it.
-  - [ ] iPad screenshots if iPad is supported.
-  - [ ] Screens show actual app UI, not debug/dev screens.
+  - [x] iPad screenshots if iPad is supported.
+  - [x] Screens show actual app UI, not debug/dev screens.
 - [ ] App preview video: optional; skip unless polished.
 - [x] Review notes draft prepared below.
-  - [ ] Demo parent account or reviewer-owned email OTP path must be finalized in App Store Connect.
-  - [ ] Demo child profile.
-  - [ ] Steps for QR binding or an alternative review path.
-  - [ ] Sample textbook photo flow.
+  - [x] Reviewer-owned email OTP path finalized: reviewer should use their own reachable email address to receive the one-time code.
+  - [x] Demo child profile.
+  - [x] Steps for QR binding or an alternative review path.
+  - [x] Sample textbook photo flow.
   - [x] Account deletion path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
   - [ ] Any server-side delays reviewers should expect.
 
@@ -245,7 +245,7 @@ Use the following values for the App Store Connect version metadata unless the r
 | Privacy Policy URL | `https://happyword.cool/privacy` |
 | Support URL | `https://happyword.cool/support` |
 | Marketing URL | Leave empty for v0.7.0. |
-| Copyright | Draft: `© 2026 TianYi Ma`. Confirm the legal owner before final submission. |
+| Copyright | `© 2026 TianYi Ma` |
 | Contact email | `support@happyword.cool` |
 
 ### Description Draft
@@ -288,7 +288,7 @@ Recommended review path:
 1. Launch the iOS app.
 2. Use the child learning flow from the home screen to start a word battle and complete a short practice session.
 3. Open 游戏配置, then 孩子档案.
-4. For parent features, use 家长账号 to bind a parent account. The parent web login uses email one-time codes. Please use a reachable reviewer email address, or use the review account provided in App Store Connect if one is added before submission.
+4. For parent features, use 家长账号 to bind a parent account. The parent web login uses email one-time codes. Please use your own reachable reviewer email address to receive the OTP.
 5. After binding, open 家长管理后台 to test textbook import.
 6. Use 拍照导入 or 从相册导入 with a sample textbook/word-list image. The server may take several seconds to extract words from the image.
 7. Open the pending lesson draft, review the source image preview and extracted words, edit if needed, then publish the word pack.
@@ -330,15 +330,21 @@ Notes:
 
 ### Screenshot Plan
 
-- Required iPhone screenshot set: capture real `0.7.0 (1007004)` UI from TestFlight or an equivalent Release build.
-- Because the target supports iPhone and iPad (`TARGETED_DEVICE_FAMILY = 1,2`), App Store Connect may also request iPad screenshots. Either provide iPad screenshots or intentionally remove iPad support in a future build.
-- Recommended screenshots:
+- Captured from an equivalent Release simulator build for `0.7.0 (1007004)`.
+- iPhone screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/iphone/`.
+  - Device: `iPhone 17 Pro (iOS 26.4)`.
+  - Size: `2622x1206`.
+  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-lesson-review.png`.
+- iPad screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/ipad/`.
+  - Device: `WordMagic AppStore iPad Pro 13 (iOS 26.4)`.
+  - Size: `2064x2752`.
+  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-lesson-review.png`.
+- Screenshots cover:
   1. Child home screen.
   2. Battle/practice screen.
   3. Practice result screen.
   4. Parent profile / binding entry.
-  5. Parent admin import screen.
-  6. Lesson review/edit screen.
+  5. Lesson review/edit screen.
 - Do not show DevMenu, preview URLs, local mock labels, browser errors, OTP codes, personal email, or private child data.
 
 ## P2 Compliance And Operational Prep
@@ -362,5 +368,5 @@ Notes:
 6. [x] Prepare privacy policy and support URL.
 7. [x] Archive and upload v0.7.0 to TestFlight.
 8. [x] Complete real-device TestFlight smoke test.
-9. [ ] Prepare screenshots and App Store metadata.
+9. [x] Prepare screenshots and App Store metadata.
 10. [ ] Submit for Apple review.
