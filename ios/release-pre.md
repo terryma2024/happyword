@@ -31,7 +31,8 @@
 - [x] `NSPhotoLibraryAddUsageDescription` was removed because the iOS client only reads from Photos via `PhotosPicker` and does not write to the photo library.
 - [ ] Real-device Release/TestFlight smoke test is not yet done.
 - [ ] App Store Connect app record is not verified from this repo.
-- [ ] App privacy questionnaire and privacy policy URL are not verified from this repo.
+- [x] App privacy questionnaire draft is derived from the current repo behavior.
+- [ ] Privacy policy URL is not verified from this repo.
 - [x] In-app account deletion initiation path is verified from this repo: `孩子档案` -> `账号与数据管理` opens `/family/<family_id>/account`.
 
 ## P0 Blockers To Clear Before Upload
@@ -68,6 +69,44 @@
   - Inventory data collected by the app and server: account/binding data, child profile name, learning progress, uploaded textbook photos, generated word lists, device identifier, diagnostics/logs if any.
   - Decide whether each item is linked to identity.
   - Decide whether any data is used for tracking. Target answer should be no unless third-party tracking is actually present.
+
+## App Store Privacy Questionnaire Draft
+
+> Repo-derived draft, not a legal/privacy-policy substitute. Apple asks for app-level collection practices, including third-party partners; data is generally treated as linked when it is tied to account, device, or family identifiers.
+
+### Top-Level Answers
+
+- Does the app collect data from this app? **Yes**.
+- Is any collected data used for tracking? **No** based on the current repo: no `AdSupport`, `AppTrackingTransparency`, ad SDK, analytics SDK, or third-party tracking integration is present in the iOS target.
+- Is data linked to the user? **Yes** for parent account, child profile, device binding, learning sync, wishlist/redemption, and lesson-import data because these are tied to `family_id`, `child_profile_id`, `device_id`, account email, or device token.
+- Third-party services involved by the backend: Vercel hosting/CDN/blob storage, MongoDB data store, configured email provider for OTP, and OpenAI vision extraction for textbook-image lesson import. No third-party SDK is embedded in the iOS app target.
+
+### Data Types To Declare
+
+| App Store data type | Collected? | Linked? | Tracking? | Purpose | Repo evidence |
+| --- | --- | --- | --- | --- | --- |
+| Contact Info - Email Address | Yes | Yes | No | App Functionality, Account Management | Parent OTP login stores `users.email`; parent web/API auth uses email verification. |
+| Identifiers - User ID | Yes | Yes | No | App Functionality, Account Management | `family_id`, `child_profile_id`, `binding_id`, parent `username` identify account/family records. |
+| Identifiers - Device ID | Yes | Yes | No | App Functionality, Security | iOS creates a local device id and sends it during pair redeem; server stores `device_bindings.device_id`. |
+| User Content - Photos or Videos | Yes, if parent imports lessons from camera/photos | Yes | No | App Functionality | Lesson import uploads textbook photos to backend/blob before extraction. |
+| User Content - Other User Content | Yes | Yes | No | App Functionality | Family word packs, lesson drafts, child wishlist item names, redemption requests, and child nickname/avatar. |
+| Usage Data - Product Interaction | Yes | Yes | No | App Functionality, Personalization | Synced word stats include seen/correct/wrong counts, review timing, mastery, and memory state. |
+| Diagnostics - Crash Data / Performance Data / Other Diagnostics | Not intentionally collected by app code | TBD | No | TBD | No iOS diagnostics SDK is present; verify Vercel/server request logs before final App Store Connect entry. |
+
+### Data Types To Answer No Unless Product Changes
+
+- Location, Contacts, Health, Fitness, Financial Info, Purchases, Browsing History, Search History, Sensitive Info.
+- Phone Number and Physical Address.
+- Advertising Data.
+- Precise or coarse location.
+- Audio data: pronunciation uses on-device `AVSpeechSynthesizer`; no microphone path is present.
+
+### Privacy Policy Notes To Match
+
+- Explain parent email OTP login, family/device binding, child profile nickname/avatar, generated/custom word packs, learning progress sync, wishlist/redemption flow, and textbook image import.
+- Explain that textbook images may be processed by backend services and OpenAI vision extraction when lesson import is used.
+- Explain account deletion: in iOS open `游戏配置` -> `孩子档案` -> `账号与数据管理`; parent deletes from the Web account page with a grace period and cancel option.
+- State that data is not used for third-party tracking or targeted advertising unless that changes before submission.
 
 - [ ] Confirm permission usage is accurate.
   - Camera: textbook photo upload and parent QR binding.
@@ -193,7 +232,7 @@ xcodebuild archive \
 2. [x] Verify Release build hides every DevMenu and preview-routing entry.
 3. [x] Decide whether `NSPhotoLibraryAddUsageDescription` is still needed; remove it if unused.
 4. [x] Validate account deletion entry and reviewer flow.
-5. [ ] Draft App Store privacy questionnaire answers from actual server/client data.
+5. [x] Draft App Store privacy questionnaire answers from actual server/client data.
 6. [ ] Prepare privacy policy and support URL.
 7. [ ] Archive and upload v0.7.0 to TestFlight.
 8. [ ] Complete real-device TestFlight smoke test.
