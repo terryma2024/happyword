@@ -23,6 +23,7 @@ class CloudBindingFlowTest {
         }
         if (hasNode("ScanBindingScreen")) {
             composeRule.onNodeWithTag("ScanBindingScreen").assertIsDisplayed()
+            composeRule.onNodeWithTag("ScanBindingParentLoginLink").assertIsDisplayed()
             composeRule.onNodeWithTag("ScanBindingManualCodeInput").performTextInput("abc123")
             composeRule.onNodeWithTag("ScanBindingRedeemButton").performClick()
             composeRule.waitUntil(timeoutMillis = 2_000) {

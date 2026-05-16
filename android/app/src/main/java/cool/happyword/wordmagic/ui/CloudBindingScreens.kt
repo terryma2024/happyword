@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,6 +67,7 @@ fun ScanBindingScreen(
     deviceId: String,
     error: String,
     onRedeem: (String) -> Unit,
+    onOpenParentLogin: () -> Unit,
     onBack: () -> Unit,
 ) {
     var code by remember { mutableStateOf("") }
@@ -104,6 +106,14 @@ fun ScanBindingScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0050)),
                 modifier = Modifier.testTag("ScanBindingRedeemButton"),
             ) { Text("绑定") }
+        }
+        TextButton(
+            onClick = onOpenParentLogin,
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .testTag("ScanBindingParentLoginLink"),
+        ) {
+            Text("创建或登录 家长账号", color = Color(0xFF2563EB), fontSize = 14.sp)
         }
     }
 }

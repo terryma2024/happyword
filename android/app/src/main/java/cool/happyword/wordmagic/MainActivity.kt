@@ -111,6 +111,7 @@ import cool.happyword.wordmagic.core.BackendEnv
 import cool.happyword.wordmagic.core.BackendHeaderProvider
 import cool.happyword.wordmagic.core.BackendRouteState
 import cool.happyword.wordmagic.core.BackendURLProvider
+import cool.happyword.wordmagic.core.SystemBrowser
 import cool.happyword.wordmagic.core.BindingResult
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.ChildProfileClient
@@ -860,9 +861,20 @@ fun WordMagicGameApp() {
                     ),
                     onBack = { route = AppRoute.TodayPlan },
                 )
-                AppRoute.ScanBinding -> ScanBindingScreen(
+                AppRoute.ScanBinding -> {
+                    val scanBindingContext = LocalContext.current
+                    val backendUrlProvider = remember { BackendURLProvider() }
+                    ScanBindingScreen(
                     deviceId = cloudRepositories.deviceIdProvider.getOrCreate(),
                     error = bindingError,
+                    onOpenParentLogin = {
+                        val url = backendUrlProvider.parentFamilyLoginPageUrl(backendRouteState)
+                        try {
+                            SystemBrowser.openUrl(scanBindingContext, url)
+                        } catch (err: Exception) {
+                            Toast.makeText(scanBindingContext, "Could not open browser", Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     onRedeem = { code ->
                         if (bindingError == "正在绑定...") return@ScanBindingScreen
                         appScope.launch {
@@ -891,7 +903,8 @@ fun WordMagicGameApp() {
                         }
                     },
                     onBack = { route = AppRoute.Config },
-                )
+                    )
+                }
                 AppRoute.BoundDeviceInfo -> BoundDeviceInfoScreen(
                     credentials = cloudCredentials,
                     syncStatus = cloudSyncStatus,

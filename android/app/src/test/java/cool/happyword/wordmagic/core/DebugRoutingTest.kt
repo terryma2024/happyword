@@ -20,6 +20,17 @@ class DebugRoutingTest {
     }
 
     @Test
+    fun parentFamilyLoginPageUrlMatchesEffectiveBaseOrigin() {
+        val provider = BackendURLProvider()
+        val stagingState = BackendRouteState(env = BackendEnv.Staging)
+        assertEquals("https://happyword.cool/family/login", provider.parentFamilyLoginPageUrl(stagingState))
+
+        val preview = PreviewTarget("p1", "P1", "https://preview.example.com/")
+        val previewState = BackendRouteState(env = BackendEnv.Preview, selectedPreview = preview)
+        assertEquals("https://preview.example.com/family/login", provider.parentFamilyLoginPageUrl(previewState))
+    }
+
+    @Test
     fun bypassHeaderOnlyAppliesToPreview() {
         val provider = BackendHeaderProvider()
 
