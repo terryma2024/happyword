@@ -70,10 +70,11 @@
   - It describes collected data, purpose, deletion/export path, third-party services, child/minor handling, and support contact.
   - Support URL: `https://happyword.cool/support`.
 
-- [ ] Confirm App Privacy details.
+- [x] Confirm App Privacy details.
   - Inventory data collected by the app and server: account/binding data, child profile name, learning progress, uploaded textbook photos, generated word lists, device identifier, diagnostics/logs if any.
-  - Decide whether each item is linked to identity.
-  - Decide whether any data is used for tracking. Target answer should be no unless third-party tracking is actually present.
+  - App Store Connect privacy labels were published on 2026-05-17.
+  - Declared data types: Email Address, User ID, Device ID, Photos or Videos, Other User Content, Product Interaction.
+  - Declared as linked to the user and not used for tracking.
 
 ## App Store Privacy Questionnaire Draft
 
@@ -219,11 +220,11 @@ xcodebuild archive \
 - [x] Export compliance status accepted for replacement TestFlight build `1007004`; App Store Connect allowed internal TestFlight testing.
 - [x] App screenshots:
   - [x] iPhone 6.9-inch or current required size.
-  - [ ] iPhone 6.5-inch if App Store Connect requests it.
+  - [x] iPhone 6.5-inch accepted by App Store Connect via the `2778x1284` active iPhone set.
   - [x] iPad screenshots if iPad is supported.
   - [x] Screens show actual app UI, not debug/dev screens.
   - [x] iPhone screenshots regenerated on `WordMagic AppStore iPhone 13 Pro Max` because App Store Connect rejected the prior `2622x1206` iPhone 17 Pro size. Current iPhone active screenshots are `2778x1284`, which matches the App Store Connect accepted size list.
-  - [ ] Upload active iPhone/iPad screenshots in App Store Connect. Chrome automation could not set the file input reliably; upload manually from the active screenshot folders below.
+  - [x] Active iPhone/iPad screenshots uploaded in App Store Connect.
 - [ ] App preview video: optional; skip unless polished.
 - [x] Review notes draft prepared below.
   - [x] Reviewer-owned email OTP path finalized: reviewer should use their own reachable email address to receive the one-time code.
@@ -231,7 +232,7 @@ xcodebuild archive \
   - [x] Steps for QR binding or an alternative review path.
   - [x] Sample textbook photo flow.
   - [x] Account deletion path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
-  - [ ] Any server-side delays reviewers should expect.
+  - [x] Reviewer notes mention that server word extraction may take several seconds.
 
 ### App Store Connect Draft Values
 
@@ -341,10 +342,13 @@ Notes:
   - Device: `WordMagic AppStore iPad Pro 13 (iOS 26.4)`.
   - Size: `2064x2752`.
   - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-pack-manager.png`.
-- App Store Connect in-progress state as of 2026-05-16:
-  - Version metadata fields filled on the `iOS App 版本 1.0` draft page: promotional text, description, keywords, support URL, version `0.7.0`, copyright, reviewer notes, manual release.
+- App Store Connect submission state as of 2026-05-17:
+  - Version metadata fields filled for `iOS App 版本 0.7.0`: promotional text, description, keywords, support URL, version, copyright, reviewer notes, App Review contact, and manual release.
   - Build `1007004` selected for submission.
-  - Remaining manual fields: upload screenshots and enter a required App Review contact phone number.
+  - App Privacy labels published.
+  - App Info completed: subtitle, content rights, primary category `Education`, and age rating `4+`.
+  - Pricing completed: free app, public distribution, Mac and Vision Pro compatibility distribution disabled for this release.
+  - Version `0.7.0 (1007004)` submitted to Apple review; App Store Connect status is `正在等待审核`.
 - Screenshots cover:
   1. Child home screen.
   2. Battle/practice screen.
@@ -377,4 +381,4 @@ Notes:
 7. [x] Archive and upload v0.7.0 to TestFlight.
 8. [x] Complete real-device TestFlight smoke test.
 9. [x] Prepare screenshots and App Store metadata.
-10. [ ] Submit for Apple review.
+10. [x] Submit for Apple review.
