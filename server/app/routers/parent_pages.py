@@ -39,6 +39,7 @@ from app.services.auth_service import (
 from app.services.family_service import ParentLoginSuspended, create_family_for_parent
 from app.services.notification_service import (
     EmailDeliveryDegraded,
+    send_device_unbind_otp_email,
     send_otp_email,
 )
 from app.services.otp_service import (
@@ -561,12 +562,15 @@ async def get_device_unbind_confirm(
         settings = get_settings()
         _, plain_code = await request_code(email)
         if plain_code is not None:
+            device_tail = binding.device_id[-4:] if binding.device_id else "----"
             try:
-                await send_otp_email(
+                await send_device_unbind_otp_email(
                     provider,
                     to=email,
                     code=plain_code,
                     expires_in_minutes=settings.otp_expiry_minutes,
+                    child_nickname=child.nickname,
+                    device_tail=device_tail,
                 )
             except EmailDeliveryDegraded:
                 delivery_degraded = True

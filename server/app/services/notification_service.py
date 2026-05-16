@@ -85,6 +85,48 @@ async def send_otp_email(
     await send_email(provider, to=to, subject=subject, html=html, text=text)
 
 
+async def send_device_unbind_otp_email(
+    provider: EmailProvider,
+    *,
+    to: str,
+    code: str,
+    expires_in_minutes: int,
+    child_nickname: str,
+    device_tail: str,
+) -> None:
+    """OTP for parent-web device unbind; distinct copy from login OTP."""
+    nickname = child_nickname.strip() or "孩子"
+    tail = device_tail.strip() or "----"
+    subject = f"魔法背单词 - 解除设备绑定验证码 {code}"
+    text = (
+        f"您正在家长后台申请解除「{nickname}」这台学习设备的绑定。\n\n"
+        f"验证码：{code}\n"
+        f"设备尾号：{tail}\n\n"
+        f"请在「解除设备绑定」确认页输入以上 6 位验证码。\n"
+        f"验证码有效期 {expires_in_minutes} 分钟。\n"
+        "如非本人操作，请忽略本邮件，设备绑定将保持不变。\n\n"
+        "如果未在收件箱看到本邮件，请检查垃圾邮件文件夹，并将本发件地址加入通讯录，避免后续邮件被拦截。\n"
+    )
+    html = (
+        '<div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;'
+        'margin:0 auto;padding:24px;color:#222">'
+        '<h2 style="margin:0 0 16px;font-size:18px">解除设备绑定</h2>'
+        f'<p style="font-size:14px;color:#444;margin:0 0 12px">'
+        f"您正在家长后台申请解除 <strong>{nickname}</strong> 这台学习设备的绑定。</p>"
+        '<p style="font-size:14px;color:#444;margin:0 0 4px">验证码：</p>'
+        '<p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#111;'
+        f'margin:8px 0">{code}</p>'
+        f'<p style="font-size:13px;color:#555;margin:0 0 8px">设备尾号：<span style="font-family:monospace">{tail}</span></p>'
+        '<p style="font-size:12px;color:#888;margin:8px 0">'
+        "请在「解除设备绑定」确认页输入以上 6 位验证码。"
+        f"有效期 {expires_in_minutes} 分钟。如非本人操作，请忽略本邮件。</p>"
+        '<p style="font-size:12px;color:#888;margin:8px 0">'
+        "如果未在收件箱看到本邮件，请检查垃圾邮件文件夹。</p>"
+        "</div>"
+    )
+    await send_email(provider, to=to, subject=subject, html=html, text=text)
+
+
 # ---------------------------------------------------------------------------
 # V0.6.7 — inbox + redemption notifications
 # ---------------------------------------------------------------------------

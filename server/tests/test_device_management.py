@@ -249,6 +249,7 @@ async def test_parent_unbind_form_verifies_code_before_revoking(db: object) -> N
             page = await ac.get(f"/family/{fid}/devices/{binding_id}/unbind")
             assert page.status_code == 200
             assert "解除设备绑定" in page.text
+            assert "解除设备绑定" in provider.outbox[-1]["subject"]
             unbind_code = "".join(
                 c for c in provider.outbox[-1]["text"] if c.isdigit()
             )[:6]
