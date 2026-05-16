@@ -205,16 +205,16 @@ xcodebuild archive \
 
 ## P1 App Store Connect Metadata
 
-- [ ] App name: `魔法背单词`.
-- [ ] Subtitle: prepare a short Chinese value proposition.
-- [ ] Description: explain learning flow, parent import, child practice, and privacy posture.
-- [ ] Keywords: prepare Chinese keywords within Apple limits.
+- [x] App name: `魔法背单词`.
+- [x] Subtitle draft: `家长导入，孩子闯关背单词`.
+- [x] Description draft prepared below.
+- [x] Keywords draft prepared below.
 - [x] Support URL: public, reachable, and preferably Chinese: `https://happyword.cool/support`.
-- [ ] Marketing URL: optional; use only if public and polished.
+- [x] Marketing URL: skip for v0.7.0 unless a polished public product page is added.
 - [x] Privacy Policy URL: required: `https://happyword.cool/privacy`.
-- [ ] Copyright and contact info.
-- [ ] Age rating questionnaire.
-- [ ] Content rights declaration.
+- [x] Copyright and contact-info draft prepared below.
+- [x] Age rating questionnaire draft prepared below.
+- [x] Content rights declaration draft prepared below.
 - [x] Export compliance questionnaire for TestFlight build `1007003`.
 - [x] Export compliance status accepted for replacement TestFlight build `1007004`; App Store Connect allowed internal TestFlight testing.
 - [ ] App screenshots:
@@ -223,13 +223,123 @@ xcodebuild archive \
   - [ ] iPad screenshots if iPad is supported.
   - [ ] Screens show actual app UI, not debug/dev screens.
 - [ ] App preview video: optional; skip unless polished.
-- [ ] Review notes:
-  - [ ] Demo parent account.
+- [x] Review notes draft prepared below.
+  - [ ] Demo parent account or reviewer-owned email OTP path must be finalized in App Store Connect.
   - [ ] Demo child profile.
   - [ ] Steps for QR binding or an alternative review path.
   - [ ] Sample textbook photo flow.
   - [x] Account deletion path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
   - [ ] Any server-side delays reviewers should expect.
+
+### App Store Connect Draft Values
+
+Use the following values for the App Store Connect version metadata unless the release owner chooses different positioning.
+
+| Field | Draft |
+| --- | --- |
+| App name | `魔法背单词` |
+| Subtitle | `家长导入，孩子闯关背单词` |
+| Primary category | Education |
+| Secondary category | Games, optional. Skip if App Store Connect does not require it. |
+| Kids Category | Do not select for v0.7.0 unless legal/product explicitly wants the stricter Kids Category obligations. The app is child-facing, but it also has parent account, web login, support, and textbook-image import flows. |
+| Privacy Policy URL | `https://happyword.cool/privacy` |
+| Support URL | `https://happyword.cool/support` |
+| Marketing URL | Leave empty for v0.7.0. |
+| Copyright | Draft: `© 2026 TianYi Ma`. Confirm the legal owner before final submission. |
+| Contact email | `support@happyword.cool` |
+
+### Description Draft
+
+```text
+魔法背单词是一款面向孩子的英语单词练习应用，也为家长提供词库导入和学习同步工具。
+
+孩子可以在闯关式练习中认识单词、选择释义、复习错题，并通过本地学习记录逐步巩固。家长可以绑定孩子设备，从课本照片或相册图片中导入单词，审核识别结果后发布为孩子可练习的词包。
+
+主要功能：
+- 闯关式英语单词练习
+- 错题复习与学习进度记录
+- 家长账号绑定与孩子档案管理
+- 拍照或相册导入课本单词
+- 识别结果审核、编辑与发布
+- 家庭词包和学习数据同步
+- 账号与数据管理入口
+
+我们重视儿童与家庭数据保护。应用不包含广告 SDK，不做跨应用追踪。家长主动上传的教材图片仅用于生成可审核的单词草稿；家长可在账号与数据管理页面导出数据或发起账号删除。
+```
+
+### Keywords Draft
+
+```text
+少儿英语,背单词,英语启蒙,单词练习,亲子学习,课本导入,自然拼读,小学英语,记忆复习,英语游戏
+```
+
+### Promotional Text Draft
+
+```text
+把课本里的单词变成孩子可以闯关练习的家庭词包。
+```
+
+### Review Notes Draft
+
+```text
+Thank you for reviewing WordMagicGame / 魔法背单词.
+
+Recommended review path:
+1. Launch the iOS app.
+2. Use the child learning flow from the home screen to start a word battle and complete a short practice session.
+3. Open 游戏配置, then 孩子档案.
+4. For parent features, use 家长账号 to bind a parent account. The parent web login uses email one-time codes. Please use a reachable reviewer email address, or use the review account provided in App Store Connect if one is added before submission.
+5. After binding, open 家长管理后台 to test textbook import.
+6. Use 拍照导入 or 从相册导入 with a sample textbook/word-list image. The server may take several seconds to extract words from the image.
+7. Open the pending lesson draft, review the source image preview and extracted words, edit if needed, then publish the word pack.
+8. Restart the app and confirm the synced word pack is available to the child learning flow.
+9. To review account deletion, open 游戏配置 -> 孩子档案 -> 账号与数据管理. This opens the parent account page where the parent can export account data or request account deletion.
+
+Notes:
+- The app does not include ads, in-app purchases, or third-party tracking SDKs.
+- Camera permission is used for textbook photo import and parent account QR binding.
+- Photo Library permission is used to choose textbook images for lesson import.
+- Release builds do not expose developer backend switching or preview routing controls.
+```
+
+### Privacy Answers Draft
+
+- Data collection: Yes.
+- Tracking: No.
+- Linked to user: Yes for parent email, family/account identifiers, child profile, device binding, learning progress, family packs, wishlist/redemption data, and uploaded lesson images.
+- Third-party tracking SDKs: No.
+- Ads: No.
+- Purchases / IAP: No for v0.7.0.
+- Photos or videos: Yes, only when the parent chooses textbook images for lesson import.
+- Diagnostics: No intentional client-side diagnostics SDK in the iOS target. Server request logs may exist for service operation.
+
+### Age Rating Draft
+
+- Cartoon or fantasy violence: None or infrequent/mild if App Store Connect treats battle animations as fantasy conflict.
+- Realistic violence, sexual content, profanity, alcohol/drugs, gambling, contests, unrestricted web access: No.
+- User-generated content / social networking: No public UGC or social feed.
+- Medical/treatment information: No.
+- In-app purchases / loot boxes: No.
+- Target age rating expectation: likely 4+, subject to App Store Connect questionnaire result.
+
+### Content Rights Draft
+
+- The app contains original app UI, game art, built-in word data, and generated/imported family word content.
+- No paid third-party media, streaming media, or copyrighted textbook pages are redistributed by the app.
+- Parent-uploaded textbook images are used for private lesson extraction and review, not for public distribution.
+
+### Screenshot Plan
+
+- Required iPhone screenshot set: capture real `0.7.0 (1007004)` UI from TestFlight or an equivalent Release build.
+- Because the target supports iPhone and iPad (`TARGETED_DEVICE_FAMILY = 1,2`), App Store Connect may also request iPad screenshots. Either provide iPad screenshots or intentionally remove iPad support in a future build.
+- Recommended screenshots:
+  1. Child home screen.
+  2. Battle/practice screen.
+  3. Practice result screen.
+  4. Parent profile / binding entry.
+  5. Parent admin import screen.
+  6. Lesson review/edit screen.
+- Do not show DevMenu, preview URLs, local mock labels, browser errors, OTP codes, personal email, or private child data.
 
 ## P2 Compliance And Operational Prep
 
