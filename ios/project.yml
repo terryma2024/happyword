@@ -7,9 +7,9 @@ options:
 settings:
   base:
     CODE_SIGN_STYLE: Automatic
-    CURRENT_PROJECT_VERSION: 1006016
+    CURRENT_PROJECT_VERSION: 1007000
     DEVELOPMENT_TEAM: 99UX498DB4
-    MARKETING_VERSION: 0.6.7.8
+    MARKETING_VERSION: 0.7.0
     SWIFT_VERSION: 6.0
     VERSIONING_SYSTEM: apple-generic
 packages: {}
@@ -22,6 +22,7 @@ targets:
       - path: WordMagicGame
     resources:
       - path: WordMagicGame/Resources/BuiltinPacks
+      - path: WordMagicGame/Resources/zh-Hans.lproj/InfoPlist.strings
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

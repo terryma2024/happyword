@@ -50,6 +50,7 @@
 		B78D4D8347BED158B20C4848 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */; };
 		B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */; };
 		BFB2D10A293E35EAD0F46005 /* ParentApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */; };
+		C4EBC57B653E00711C0B4378 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 278A1A6949FE6B8D92879377 /* InfoPlist.strings */; };
 		C8ED1F2015EB743E6EED5556 /* GameConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */; };
 		D3A10531A50A7354A3613885 /* AppThemeParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAA3B5A205F686C79D19C337 /* AppThemeParityTests.swift */; };
 		DB7C81381850767CB9885D42 /* school-castle.json in Resources */ = {isa = PBXBuildFile; fileRef = 322D0A3007C7DA1E3A44E318 /* school-castle.json */; };
@@ -88,6 +89,7 @@
 		09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationTests.swift; sourceTree = "<group>"; };
 		246D77D7D2CF1528AEECDA24 /* CloudSyncServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncServices.swift; sourceTree = "<group>"; };
 		270E555771AAF420876EE21A /* BattleAnimationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationEvent.swift; sourceTree = "<group>"; };
+		278A1A6949FE6B8D92879377 /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		2ECEF6809FEDA427DBB7B167 /* LocalStores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStores.swift; sourceTree = "<group>"; };
 		322D0A3007C7DA1E3A44E318 /* school-castle.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "school-castle.json"; sourceTree = "<group>"; };
 		3244CB8E1A251419DDBF976E /* GrowthLoopViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrowthLoopViews.swift; sourceTree = "<group>"; };
@@ -323,6 +325,7 @@
 			children = (
 				6288AB79A566478B8CD0BC1F /* Assets.xcassets */,
 				BAA403A88DE9B94849CC1EAD /* Info.plist */,
+				278A1A6949FE6B8D92879377 /* InfoPlist.strings */,
 				A51302A7AD01EFCACE20EE55 /* BuiltinPacks */,
 			);
 			path = Resources;
@@ -427,6 +430,7 @@
 			knownRegions = (
 				Base,
 				en,
+				"zh-Hans",
 			);
 			mainGroup = 07DEB62B40AC8911F7F5BBBE;
 			minimizedProjectReferenceProxies = 1;
@@ -448,6 +452,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */,
+				C4EBC57B653E00711C0B4378 /* InfoPlist.strings in Resources */,
 				6E05CEC0063F85029AD9E9CE /* animal-safari.json in Resources */,
 				55390F1AEF427177EFA5778D /* fruit-forest.json in Resources */,
 				A280B86F01527718C6864EE4 /* home-cottage.json in Resources */,
@@ -632,7 +637,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1006016;
+				CURRENT_PROJECT_VERSION = 1007000;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 99UX498DB4;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -646,7 +651,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.6.7.8;
+				MARKETING_VERSION = 0.7.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -727,7 +732,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1006016;
+				CURRENT_PROJECT_VERSION = 1007000;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 99UX498DB4;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -747,7 +752,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.6.7.8;
+				MARKETING_VERSION = 0.7.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
