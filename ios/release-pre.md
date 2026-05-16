@@ -334,17 +334,19 @@ Notes:
 - iPhone screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/iphone/`.
   - Device: `iPhone 17 Pro (iOS 26.4)`.
   - Size: `2622x1206`.
-  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-lesson-review.png`.
+  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-pack-manager.png`.
 - iPad screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/ipad/`.
   - Device: `WordMagic AppStore iPad Pro 13 (iOS 26.4)`.
   - Size: `2064x2752`.
-  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-lesson-review.png`.
+  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-pack-manager.png`.
 - Screenshots cover:
   1. Child home screen.
   2. Battle/practice screen.
   3. Practice result screen.
   4. Parent profile / binding entry.
-  5. Lesson review/edit screen.
+  5. Word-pack manager screen.
+- Rejected screenshot archive: `assets/screenshots/appstore/ios/v0.7.0-b1007004/rejected/lesson-review-image-load-failed/`.
+  - Reason: the lesson-review screenshots showed `图片加载失败`, so they must not be used for App Store submission.
 - Do not show DevMenu, preview URLs, local mock labels, browser errors, OTP codes, personal email, or private child data.
 
 ## P2 Compliance And Operational Prep
