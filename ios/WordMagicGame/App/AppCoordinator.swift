@@ -456,6 +456,14 @@ final class AppCoordinator: ObservableObject {
         return DateFormatter.localizedString(from: pairedAt, dateStyle: .short, timeStyle: .medium)
     }
 
+    func parentAccountSettingsURL(for credentials: CloudCredentials) -> URL {
+        let baseURL = credentials.apiBaseURL.flatMap(URL.init(string:)) ?? developerMenuViewModel.effectiveBaseURL
+        return baseURL
+            .appendingPathComponent("family")
+            .appendingPathComponent(credentials.familyId)
+            .appendingPathComponent("account")
+    }
+
     func updateChildNickname(_ nickname: String) async {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {

@@ -749,6 +749,37 @@ final class CloudSyncTests: XCTestCase {
     }
 
     @MainActor
+    func testCoordinatorBuildsParentAccountSettingsURLFromBoundEnvironment() {
+        let credentials = CloudCredentials(
+            bindingId: PairRedeemResponse.demoBinding.bindingId,
+            familyId: PairRedeemResponse.demoBinding.familyId,
+            childProfileId: PairRedeemResponse.demoBinding.childProfileId,
+            nickname: PairRedeemResponse.demoBinding.nickname,
+            avatarEmoji: PairRedeemResponse.demoBinding.avatarEmoji,
+            deviceToken: PairRedeemResponse.demoBinding.deviceToken,
+            pairedAt: Date(timeIntervalSince1970: 1_778_400_000),
+            apiBaseURL: "https://happyword-preview.example.test"
+        )
+        let credentialsStore = CloudCredentialsStore(
+            secureStore: MemorySecureStore(),
+            defaults: UserDefaults(suiteName: "CoordinatorParentAccountURL-\(UUID().uuidString)")!
+        )
+        credentialsStore.save(credentials)
+        let coordinator = AppCoordinator(
+            configStore: GameConfigStore(defaults: UserDefaults(suiteName: "CoordinatorParentAccountURLConfig-\(UUID().uuidString)")!),
+            pronunciationService: MockPronunciationService(),
+            cloudCredentialsStore: credentialsStore,
+            deviceIdProvider: DeviceIdProvider(secureStore: MemorySecureStore()),
+            bindingClient: MockDeviceBindingClient()
+        )
+
+        XCTAssertEqual(
+            coordinator.parentAccountSettingsURL(for: credentials).absoluteString,
+            "https://happyword-preview.example.test/family/family-demo/account"
+        )
+    }
+
+    @MainActor
     func testCoordinatorReturnsHomeAfterChildNicknameCloudSave() async {
         let credentialsStore = CloudCredentialsStore(
             secureStore: MemorySecureStore(),

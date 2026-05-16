@@ -274,6 +274,7 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Device ID 来源"].exists)
         XCTAssertTrue(app.staticTexts["Keychain (持久)"].exists)
         XCTAssertTrue(app.staticTexts["绑定时间"].exists)
+        XCTAssertTrue(app.buttons["账号与数据管理"].exists)
         XCTAssertTrue(app.buttons["解除设备绑定"].exists)
 
         app.buttons["✏️ 编辑"].tap()

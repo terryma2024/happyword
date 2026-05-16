@@ -32,7 +32,7 @@
 - [ ] Real-device Release/TestFlight smoke test is not yet done.
 - [ ] App Store Connect app record is not verified from this repo.
 - [ ] App privacy questionnaire and privacy policy URL are not verified from this repo.
-- [ ] In-app account deletion path is not verified from this repo.
+- [x] In-app account deletion initiation path is verified from this repo: `孩子档案` -> `账号与数据管理` opens `/family/<family_id>/account`.
 
 ## P0 Blockers To Clear Before Upload
 
@@ -53,10 +53,11 @@
   - Parent binding, QR scan, photo import, word extraction, sync, and child practice flows must be reviewable.
   - Any Vercel preview/local/staging routing must be unreachable in Release.
 
-- [ ] Confirm account deletion.
-  - If the app lets a parent create or bind an account, the app must provide an in-app way to initiate account deletion.
-  - Confirm deletion removes user data unless a specific legal retention reason exists.
-  - Prepare reviewer notes describing where the deletion entry is.
+- [x] Confirm account deletion.
+  - The bound child-device screen provides an in-app initiation path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
+  - The iOS entry opens the parent Web account settings page, where the authenticated parent can delete the account or cancel deletion during the grace period.
+  - Server route source: `server/app/routers/parent_account.py` (`POST /api/v1/family/{family_id}/account/delete` and HTML `/family/{family_id}/account`).
+  - Reviewer note draft: bind or seed a child profile, open `游戏配置` -> `孩子档案` -> `账号与数据管理`; log in to the parent web page with the demo parent email/OTP; use `删除账号`.
 
 - [ ] Confirm privacy policy URL.
   - Public URL must be accessible without login.
@@ -172,7 +173,7 @@ xcodebuild archive \
   - [ ] Demo child profile.
   - [ ] Steps for QR binding or an alternative review path.
   - [ ] Sample textbook photo flow.
-  - [ ] Account deletion path.
+  - [x] Account deletion path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
   - [ ] Any server-side delays reviewers should expect.
 
 ## P2 Compliance And Operational Prep
@@ -191,7 +192,7 @@ xcodebuild archive \
 1. [x] Run and fix iOS tests on a valid simulator/device.
 2. [x] Verify Release build hides every DevMenu and preview-routing entry.
 3. [x] Decide whether `NSPhotoLibraryAddUsageDescription` is still needed; remove it if unused.
-4. [ ] Validate account deletion entry and reviewer flow.
+4. [x] Validate account deletion entry and reviewer flow.
 5. [ ] Draft App Store privacy questionnaire answers from actual server/client data.
 6. [ ] Prepare privacy policy and support URL.
 7. [ ] Archive and upload v0.7.0 to TestFlight.
