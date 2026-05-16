@@ -514,6 +514,33 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertNil(store.credentials)
     }
 
+    @MainActor
+    func testCoordinatorDoesNotReportBindingSuccessWhenCredentialsCannotBeReadBack() async {
+        let credentialsStore = CloudCredentialsStore(
+            secureStore: DroppingSecureStore(),
+            defaults: UserDefaults(suiteName: "CoordinatorBindingPersistenceFailure-\(UUID().uuidString)")!
+        )
+        let configStore = GameConfigStore(defaults: UserDefaults(suiteName: "CoordinatorBindingPersistenceConfig-\(UUID().uuidString)")!)
+        var config = configStore.config
+        config.parentPin = "123456"
+        configStore.save(config)
+        let coordinator = AppCoordinator(
+            configStore: configStore,
+            pronunciationService: MockPronunciationService(),
+            cloudCredentialsStore: credentialsStore,
+            deviceIdProvider: DeviceIdProvider(secureStore: MemorySecureStore()),
+            bindingClient: MockDeviceBindingClient()
+        )
+        coordinator.route = .scanBinding
+
+        await coordinator.bind(pairingInput: "123456")
+
+        XCTAssertNil(credentialsStore.credentials)
+        XCTAssertEqual(coordinator.route, .scanBinding)
+        XCTAssertEqual(coordinator.bindingMessage, "绑定保存失败，请重试")
+        XCTAssertNil(coordinator.toastMessage)
+    }
+
     func testDeviceIdProviderReturnsStableKeychainBackedId() {
         let keychain = MemorySecureStore()
         let provider = DeviceIdProvider(secureStore: keychain)
@@ -1035,6 +1062,16 @@ private final class RecordingHTTPTransport: HTTPTransporting, @unchecked Sendabl
     func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         try handler(request)
     }
+}
+
+private final class DroppingSecureStore: SecureStore {
+    func string(forKey key: String) -> String? {
+        nil
+    }
+
+    func set(_ value: String, forKey key: String) {}
+
+    func remove(forKey key: String) {}
 }
 
 private final class RequestCounter: @unchecked Sendable {
