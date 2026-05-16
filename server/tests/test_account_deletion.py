@@ -70,6 +70,54 @@ async def parent_with_device(
 
 
 @pytest.mark.asyncio
+async def test_account_api_without_session_returns_json_401(db: object) -> None:
+    from app.main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        follow_redirects=False,
+    ) as ac:
+        r = await ac.get("/api/v1/family/_/account/status")
+
+    assert r.status_code == 401
+    assert r.json()["detail"]["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_account_html_without_session_redirects_to_login(db: object) -> None:
+    from app.main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        follow_redirects=False,
+    ) as ac:
+        r = await ac.get("/family/_/account")
+
+    assert r.status_code == 303
+    assert r.headers["location"] == "/family/login"
+
+
+@pytest.mark.asyncio
+async def test_account_html_forms_without_session_redirect_to_login(db: object) -> None:
+    from app.main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        follow_redirects=False,
+    ) as ac:
+        delete = await ac.post("/family/_/account/delete")
+        cancel = await ac.post("/family/_/account/cancel-delete")
+
+    assert delete.status_code == 303
+    assert delete.headers["location"] == "/family/login"
+    assert cancel.status_code == 303
+    assert cancel.headers["location"] == "/family/login"
+
+
+@pytest.mark.asyncio
 async def test_status_returns_no_schedule_initially(
     parent_with_device: tuple[AsyncClient, str, str, str, str],
 ) -> None:
