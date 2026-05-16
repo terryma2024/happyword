@@ -31,7 +31,7 @@
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
 - [x] Release Simulator sanity check verified `-UITestRouteDevMenu` and `-UITestRouteBypassSecret` land on the normal home screen.
 - [x] `NSPhotoLibraryAddUsageDescription` was removed because the iOS client only reads from Photos via `PhotosPicker` and does not write to the photo library.
-- [ ] Real-device Release/TestFlight smoke test is not yet done for build `0.7.0 (1007004)`.
+- [x] Real-device Release/TestFlight smoke test passed for build `0.7.0 (1007004)`.
 - [x] App Store Connect app record is verified by successful upload (`adamId: 6768499286`).
 - [x] App privacy questionnaire draft is derived from the current repo behavior.
 - [x] Privacy policy URL exists in repo as public server page: `https://happyword.cool/privacy`.
@@ -188,20 +188,20 @@ xcodebuild archive \
   - Reason for fourth replacement: `1007003` did not include the iOS parent-admin real backend flow, lesson-review scrolling/editing, and source-image preview fixes verified on simulator.
   - Upload result: `xcodebuild -exportArchive` reported `Upload succeeded` for `WordMagicGame`; App Store Connect processing completed.
   - TestFlight result: `1007004` is now `正在测试` in `Internal Smoke`.
-- [ ] Install TestFlight build on a real iPhone.
-- [ ] Smoke test Release/TestFlight build:
-  - [ ] First launch.
-  - [ ] Child home to battle to result.
-  - [ ] Parent profile entry.
-  - [ ] Parent binding.
-  - [ ] QR scan.
-  - [ ] Photo library import.
-  - [ ] Camera import.
-  - [ ] Word extraction result and review.
-  - [ ] Sync after app restart.
-  - [ ] Settings page has no developer backend entry.
-  - [ ] Home version-label triple-tap does not open DevMenu in Release.
-  - [ ] Bypass secret route cannot be opened in Release.
+- [x] Install TestFlight build on a real iPhone.
+- [x] Smoke test Release/TestFlight build:
+  - [x] First launch.
+  - [x] Child home to battle to result.
+  - [x] Parent profile entry.
+  - [x] Parent binding.
+  - [x] QR scan.
+  - [x] Photo library import.
+  - [x] Camera import.
+  - [x] Word extraction result and review.
+  - [x] Sync after app restart.
+  - [x] Settings page has no developer backend entry.
+  - [x] Home version-label triple-tap does not open DevMenu in Release.
+  - [x] Bypass secret route cannot be opened in Release.
 
 ## P1 App Store Connect Metadata
 
@@ -251,6 +251,6 @@ xcodebuild archive \
 5. [x] Draft App Store privacy questionnaire answers from actual server/client data.
 6. [x] Prepare privacy policy and support URL.
 7. [x] Archive and upload v0.7.0 to TestFlight.
-8. [ ] Complete real-device TestFlight smoke test.
+8. [x] Complete real-device TestFlight smoke test.
 9. [ ] Prepare screenshots and App Store metadata.
 10. [ ] Submit for Apple review.
