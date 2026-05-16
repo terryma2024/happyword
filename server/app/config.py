@@ -120,6 +120,8 @@ class Settings(BaseSettings):
     google_oauth_client_id: str = ""
     google_oauth_client_secret: str = ""
     oauth_canonical_base_url: str = "https://happyword.cool"
+    # Fixed Vercel Preview URL with its own Google redirect URI (optional).
+    oauth_preview_base_url: str = ""
     oauth_handoff_ttl_seconds: int = 60
     oauth_state_ttl_seconds: int = 600
     oauth_local_origins: str = "http://127.0.0.1:8000,http://localhost:8000"

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import pytest
@@ -13,7 +13,9 @@ from app.main import app
 from app.models.oauth_identity import OAuthProvider
 from app.services.google_oauth_service import (
     GoogleTokenResponse,
+    canonical_callback_url,
     get_google_oauth_client,
+    preview_callback_url,
 )
 from app.services.oauth_login_service import GoogleUserClaims
 from app.services.oauth_state_service import issue_state
@@ -24,23 +26,25 @@ if TYPE_CHECKING:
 
 @dataclass
 class StubGoogleOAuthClient:
-  claims: GoogleUserClaims = GoogleUserClaims(
-      subject="stub-google-sub",
-      email="oauth-route@example.com",
-      email_verified=True,
-  )
+    claims: GoogleUserClaims = GoogleUserClaims(
+        subject="stub-google-sub",
+        email="oauth-route@example.com",
+        email_verified=True,
+    )
+    last_redirect_uri: str = ""
 
-  def build_authorize_url(self, *, state: str, redirect_uri: str) -> str:
-      _ = redirect_uri
-      return f"https://accounts.google.com/o/oauth2/v2/auth?state={state}"
+    def build_authorize_url(self, *, state: str, redirect_uri: str) -> str:
+        self.last_redirect_uri = redirect_uri
+        return f"https://accounts.google.com/o/oauth2/v2/auth?state={state}"
 
-  async def exchange_code(self, code: str, *, redirect_uri: str) -> GoogleTokenResponse:
-      _ = code, redirect_uri
-      return GoogleTokenResponse(id_token="stub-id-token")
+    async def exchange_code(self, code: str, *, redirect_uri: str) -> GoogleTokenResponse:
+        self.last_redirect_uri = redirect_uri
+        _ = code
+        return GoogleTokenResponse(id_token="stub-id-token")
 
-  async def verify_id_token(self, id_token: str) -> GoogleUserClaims:
-      _ = id_token
-      return self.claims
+    async def verify_id_token(self, id_token: str) -> GoogleUserClaims:
+        _ = id_token
+        return self.claims
 
 
 @pytest.fixture
@@ -49,6 +53,7 @@ def oauth_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "test-secret")
     monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "http://test")
     monkeypatch.setenv("PARENT_WEB_BASE_URL", "http://test")
+    monkeypatch.setenv("OAUTH_PREVIEW_BASE_URL", "")
     get_settings.cache_clear()
 
 
@@ -56,7 +61,7 @@ def oauth_env(monkeypatch: pytest.MonkeyPatch) -> None:
 async def oauth_client(
     db: object,
     oauth_env: None,
-) -> AsyncIterator[AsyncClient]:
+) -> AsyncIterator[tuple[AsyncClient, StubGoogleOAuthClient]]:
     stub = StubGoogleOAuthClient()
     app.dependency_overrides[get_google_oauth_client] = lambda: stub
     transport = ASGITransport(app=app)
@@ -65,13 +70,16 @@ async def oauth_client(
         base_url="http://test",
         follow_redirects=False,
     ) as ac:
-        yield ac
+        yield ac, stub
     app.dependency_overrides.pop(get_google_oauth_client, None)
 
 
 @pytest.mark.asyncio
-async def test_start_rejects_disallowed_return_origin(oauth_client: AsyncClient) -> None:
-    r = await oauth_client.get(
+async def test_start_rejects_disallowed_return_origin(
+    oauth_client: tuple[AsyncClient, StubGoogleOAuthClient],
+) -> None:
+    ac, _ = oauth_client
+    r = await ac.get(
         "/v1/oauth/google/start",
         params={"return_origin": "https://evil.example"},
     )
@@ -80,56 +88,133 @@ async def test_start_rejects_disallowed_return_origin(oauth_client: AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_start_redirects_to_google(
-    oauth_client: AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
+async def test_start_uses_canonical_callback_on_production(
+    oauth_client: tuple[AsyncClient, StubGoogleOAuthClient],
 ) -> None:
-    monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "http://test")
-    get_settings.cache_clear()
-    r = await oauth_client.get("/v1/oauth/google/start")
+    ac, stub = oauth_client
+    r = await ac.get("/v1/oauth/google/start")
     assert r.status_code == 302
-    assert "accounts.google.com" in r.headers["location"]
-    settings = get_settings()
-    assert settings.oauth_state_cookie_name in r.headers.get("set-cookie", "")
+    assert stub.last_redirect_uri == canonical_callback_url()
 
 
 @pytest.mark.asyncio
-async def test_callback_production_sets_session_cookie(oauth_client: AsyncClient) -> None:
+async def test_start_uses_preview_callback_when_configured(
+    oauth_client: tuple[AsyncClient, StubGoogleOAuthClient],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    preview_origin = "https://happyword-zjumty-2580-terrymas-projects.vercel.app"
+    monkeypatch.setenv("OAUTH_PREVIEW_BASE_URL", preview_origin)
+    get_settings.cache_clear()
+
+    ac, stub = oauth_client
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url=preview_origin,
+        follow_redirects=False,
+    ) as preview_ac:
+        r = await preview_ac.get("/v1/oauth/google/start")
+    assert r.status_code == 302
+    assert stub.last_redirect_uri == preview_callback_url()
+
+
+@pytest.mark.asyncio
+async def test_callback_production_sets_session_cookie(
+    oauth_client: tuple[AsyncClient, StubGoogleOAuthClient],
+) -> None:
+    ac, stub = oauth_client
     settings = get_settings()
-    state = issue_state(return_origin="http://test", provider=OAuthProvider.GOOGLE.value)
-    oauth_client.cookies.set(settings.oauth_state_cookie_name, state)
-    r = await oauth_client.get(
+    redirect_uri = canonical_callback_url()
+    state = issue_state(
+        return_origin="http://test",
+        provider=OAuthProvider.GOOGLE.value,
+        redirect_uri=redirect_uri,
+    )
+    ac.cookies.set(settings.oauth_state_cookie_name, state)
+    r = await ac.get(
         "/v1/oauth/google/callback",
         params={"code": "auth-code", "state": state},
     )
     assert r.status_code == 302
     assert r.headers["location"].startswith("/family/fam-")
-    assert settings.session_cookie_name in r.cookies
+    assert stub.last_redirect_uri == redirect_uri
+    assert settings.session_cookie_name in r.headers.get("set-cookie", "")
 
 
 @pytest.mark.asyncio
-async def test_callback_preview_issues_handoff(oauth_client: AsyncClient) -> None:
+async def test_callback_fixed_preview_sets_session_directly(
+    oauth_client: tuple[AsyncClient, StubGoogleOAuthClient],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    preview_origin = "https://happyword-zjumty-2580-terrymas-projects.vercel.app"
+    monkeypatch.setenv("OAUTH_PREVIEW_BASE_URL", preview_origin)
+    get_settings.cache_clear()
+
+    _, stub = oauth_client
     settings = get_settings()
-    preview_origin = "https://happyword-preview.vercel.app"
-    state = issue_state(return_origin=preview_origin, provider=OAuthProvider.GOOGLE.value)
-    oauth_client.cookies.set(settings.oauth_state_cookie_name, state)
-    r = await oauth_client.get(
+    redirect_uri = preview_callback_url()
+    assert redirect_uri is not None
+    state = issue_state(
+        return_origin=preview_origin,
+        provider=OAuthProvider.GOOGLE.value,
+        redirect_uri=redirect_uri,
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url=preview_origin,
+        follow_redirects=False,
+    ) as preview_ac:
+        preview_ac.cookies.set(settings.oauth_state_cookie_name, state)
+        r = await preview_ac.get(
+            "/v1/oauth/google/callback",
+            params={"code": "auth-code", "state": state},
+        )
+    assert r.status_code == 302
+    assert r.headers["location"].startswith("/family/fam-")
+    assert stub.last_redirect_uri == redirect_uri
+    assert settings.session_cookie_name in r.headers.get("set-cookie", "")
+
+
+@pytest.mark.asyncio
+async def test_callback_other_preview_uses_handoff_ticket(
+    oauth_client: tuple[AsyncClient, StubGoogleOAuthClient],
+) -> None:
+    ac, stub = oauth_client
+    settings = get_settings()
+    other_preview = "https://happyword-other-branch.vercel.app"
+    redirect_uri = canonical_callback_url()
+    state = issue_state(
+        return_origin=other_preview,
+        provider=OAuthProvider.GOOGLE.value,
+        redirect_uri=redirect_uri,
+    )
+    ac.cookies.set(settings.oauth_state_cookie_name, state)
+    r = await ac.get(
         "/v1/oauth/google/callback",
         params={"code": "auth-code", "state": state},
     )
     assert r.status_code == 302
-    location = r.headers["location"]
-    assert location.startswith(f"{preview_origin}/v1/oauth/google/finish?ticket=")
-    assert settings.session_cookie_name not in r.cookies
+    assert r.headers["location"].startswith(f"{other_preview}/v1/oauth/google/finish?ticket=")
+    assert stub.last_redirect_uri == redirect_uri
 
 
 @pytest.mark.asyncio
-async def test_finish_redeems_ticket(oauth_client: AsyncClient) -> None:
+async def test_finish_redeems_ticket(
+    oauth_client: tuple[AsyncClient, StubGoogleOAuthClient],
+) -> None:
+    ac, _ = oauth_client
     settings = get_settings()
-    preview_origin = "https://happyword-preview.vercel.app"
-    state = issue_state(return_origin=preview_origin, provider=OAuthProvider.GOOGLE.value)
-    oauth_client.cookies.set(settings.oauth_state_cookie_name, state)
-    cb = await oauth_client.get(
+    other_preview = "https://happyword-other-branch.vercel.app"
+    redirect_uri = canonical_callback_url()
+    state = issue_state(
+        return_origin=other_preview,
+        provider=OAuthProvider.GOOGLE.value,
+        redirect_uri=redirect_uri,
+    )
+    ac.cookies.set(settings.oauth_state_cookie_name, state)
+    cb = await ac.get(
         "/v1/oauth/google/callback",
         params={"code": "auth-code", "state": state},
     )
@@ -137,30 +222,29 @@ async def test_finish_redeems_ticket(oauth_client: AsyncClient) -> None:
 
     parsed = urlparse(cb.headers["location"])
     ticket_id = parse_qs(parsed.query)["ticket"][0]
-    preview_origin = f"{parsed.scheme}://{parsed.netloc}"
     transport = ASGITransport(app=app)
     async with AsyncClient(
         transport=transport,
-        base_url=preview_origin,
+        base_url=other_preview,
         follow_redirects=False,
-    ) as preview_client:
-        r = await preview_client.get(
+    ) as preview_ac:
+        r = await preview_ac.get(
             "/v1/oauth/google/finish",
             params={"ticket": ticket_id},
         )
     assert r.status_code == 302
     assert r.headers["location"].startswith("/family/fam-")
-    assert settings.session_cookie_name in r.headers.get("set-cookie", "")
 
 
 @pytest.mark.asyncio
 async def test_start_without_credentials_redirects_to_login(
-    oauth_client: AsyncClient,
+    oauth_client: tuple[AsyncClient, StubGoogleOAuthClient],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    ac, _ = oauth_client
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "")
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
     get_settings.cache_clear()
-    r = await oauth_client.get("/v1/oauth/google/start")
+    r = await ac.get("/v1/oauth/google/start")
     assert r.status_code == 302
     assert r.headers["location"] == "/family/login"

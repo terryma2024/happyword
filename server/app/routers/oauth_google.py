@@ -8,14 +8,15 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import RedirectResponse
 
 from app.config import Settings, get_settings
-from app.deps import set_parent_session_cookie
 from app.models.oauth_identity import OAuthProvider
 from app.services.auth_service import create_session_token
 from app.services.family_service import ParentLoginSuspended
 from app.services.google_oauth_service import (
     GoogleOAuthClient,
-    canonical_callback_url,
+    google_callback_url_for_origin,
     get_google_oauth_client,
+    registered_google_callback_urls,
+    uses_direct_session_on_callback,
 )
 from app.services.oauth_handoff_service import (
     OAuthHandoffError,
@@ -47,6 +48,29 @@ def _dashboard_redirect(family_id: str) -> RedirectResponse:
     )
 
 
+def _session_redirect(
+    *,
+    settings: Settings,
+    user_id: str,
+    family_id: str,
+    return_origin: str,
+) -> RedirectResponse:
+    token = create_session_token(role="parent", identifier=user_id)
+    redirect = _dashboard_redirect(family_id)
+    redirect.delete_cookie(key=settings.oauth_state_cookie_name, path="/")
+    redirect.set_cookie(
+        key=settings.session_cookie_name,
+        value=token,
+        max_age=settings.parent_session_expire_hours * 3600,
+        httponly=True,
+        secure=return_origin.startswith("https://"),
+        samesite="lax",
+        domain=settings.session_cookie_domain or None,
+        path="/",
+    )
+    return redirect
+
+
 @router.get("/start")
 async def google_start(
     request: Request,
@@ -60,11 +84,15 @@ async def google_start(
     origin = return_origin or str(request.base_url).rstrip("/")
     try:
         allowed_origin = await require_allowed_origin(origin, settings)
+        redirect_uri = google_callback_url_for_origin(allowed_origin, settings)
     except InvalidOriginError:
         return _login_redirect("invalid_origin")
 
-    state = issue_state(return_origin=allowed_origin, provider=OAuthProvider.GOOGLE.value)
-    redirect_uri = canonical_callback_url(settings)
+    state = issue_state(
+        return_origin=allowed_origin,
+        provider=OAuthProvider.GOOGLE.value,
+        redirect_uri=redirect_uri,
+    )
     location = google.build_authorize_url(state=state, redirect_uri=redirect_uri)
     redirect = RedirectResponse(url=location, status_code=status.HTTP_302_FOUND)
     redirect.set_cookie(
@@ -72,7 +100,7 @@ async def google_start(
         value=state,
         max_age=settings.oauth_state_ttl_seconds,
         httponly=True,
-        secure=settings.oauth_canonical_base_url.startswith("https"),
+        secure=allowed_origin.startswith("https://"),
         samesite="lax",
         path="/",
     )
@@ -103,12 +131,15 @@ async def google_callback(
         return _login_redirect("invalid_state")
 
     return_origin = payload.get("return_origin", canonical_origin(settings))
+    redirect_uri = payload.get("redirect_uri", "")
+    if redirect_uri not in registered_google_callback_urls(settings):
+        return _login_redirect("invalid_state")
+
     try:
         allowed_origin = await require_allowed_origin(return_origin, settings)
     except InvalidOriginError:
         return _login_redirect("invalid_origin")
 
-    redirect_uri = canonical_callback_url(settings)
     try:
         tokens = await google.exchange_code(code, redirect_uri=redirect_uri)
         claims = await google.verify_id_token(tokens.id_token)
@@ -120,12 +151,13 @@ async def google_callback(
     except ValueError:
         return _login_redirect("provider_error")
 
-    if allowed_origin == canonical_origin(settings):
-        token = create_session_token(role="parent", identifier=user.username)
-        redirect = _dashboard_redirect(family.family_id)
-        redirect.delete_cookie(key=settings.oauth_state_cookie_name, path="/")
-        set_parent_session_cookie(redirect, token)
-        return redirect
+    if uses_direct_session_on_callback(allowed_origin, settings):
+        return _session_redirect(
+            settings=settings,
+            user_id=user.username,
+            family_id=family.family_id,
+            return_origin=allowed_origin,
+        )
 
     ticket_id = await create_handoff_ticket(
         user_id=user.username,
@@ -158,7 +190,9 @@ async def google_finish(
     if user.family_id is None:
         return _login_redirect("provider_error")
 
-    token = create_session_token(role="parent", identifier=user.username)
-    redirect = _dashboard_redirect(user.family_id)
-    set_parent_session_cookie(redirect, token)
-    return redirect
+    return _session_redirect(
+        settings=settings,
+        user_id=user.username,
+        family_id=user.family_id,
+        return_origin=request_origin,
+    )

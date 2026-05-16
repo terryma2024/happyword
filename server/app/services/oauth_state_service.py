@@ -13,13 +13,14 @@ class OAuthStateError(Exception):
     """Invalid or expired OAuth state."""
 
 
-def issue_state(*, return_origin: str, provider: str) -> str:
+def issue_state(*, return_origin: str, provider: str, redirect_uri: str) -> str:
     settings = get_settings()
     serializer = URLSafeTimedSerializer(settings.jwt_secret, salt="oauth-state-v1")
     payload = {
         "nonce": secrets.token_urlsafe(16),
         "return_origin": return_origin,
         "provider": provider,
+        "redirect_uri": redirect_uri,
     }
     return serializer.dumps(payload)
 
