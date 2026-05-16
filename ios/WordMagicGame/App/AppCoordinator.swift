@@ -646,6 +646,13 @@ final class AppCoordinator: ObservableObject {
             route = .todayPlan
         } else if arguments.contains("-UITestRouteLearningReport") {
             openLearningReport()
+        } else if arguments.contains("-UITestRouteLearningReportEmpty") {
+            learningReport = LearningReportBuilder().build(
+                library: packLibrary,
+                activePackIds: packSelectionStore.activePackIds,
+                recorder: learningRecorder
+            )
+            route = .learningReport
         } else if arguments.contains("-UITestRouteScanBinding") {
             route = .scanBinding
         } else if arguments.contains("-UITestRouteBoundDeviceInfo") {
@@ -720,6 +727,9 @@ final class AppCoordinator: ObservableObject {
         if arguments.contains("-UITestResetState") {
             packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id))
             selectedPack = Pack.builtin[0]
+        }
+        if arguments.contains("-UITestBattleBossFirst") {
+            selectedPack.scene.monsterPlan = [MonsterPlanSlot(kind: .boss, catalogIndex: 4)]
         }
         if arguments.contains("-UITestRouteTodayPlan") || arguments.contains("-UITestRouteLearningReport") {
             learningRecorder.record(wordId: "fruit-apple", correct: true, at: Date(timeIntervalSinceNow: -86_400 * 3))

@@ -29,6 +29,8 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("com.caverock:androidsvg-aar:1.4")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

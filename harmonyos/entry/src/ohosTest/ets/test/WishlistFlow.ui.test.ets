@@ -163,6 +163,7 @@ export default function wishlistFlowUiTest(): void {
 
       await driver.pressBack();
       await driver.delayMs(600);
+      await returnToHome(driver);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
     });

@@ -10811,6 +10811,28 @@
         ]
       }
     },
+    "/family/login": {
+      "get": {
+        "description": "Canonical pre-login parent shell entry (no decorative `{family_id}` segment).",
+        "operationId": "get_login_family_login_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Login",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
     "/family/{family_id}": {
       "get": {
         "operationId": "get_dashboard_family__family_id__get",
@@ -11885,50 +11907,6 @@
         "summary": "Get Inbox Html",
         "tags": [
           "parent-inbox-html"
-        ]
-      }
-    },
-    "/family/{family_id}/login": {
-      "get": {
-        "operationId": "get_login_family__family_id__login_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "family_id",
-            "required": true,
-            "schema": {
-              "maxLength": 128,
-              "minLength": 1,
-              "title": "Family Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Login",
-        "tags": [
-          "parent-web"
         ]
       }
     },

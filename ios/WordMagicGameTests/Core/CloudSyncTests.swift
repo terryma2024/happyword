@@ -56,6 +56,23 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(provider.effectiveBaseURL().absoluteString, "http://127.0.0.1:8123")
     }
 
+    func testParentFamilyLoginPageURLMatchesEffectiveBaseOrigin() {
+        let defaults = UserDefaults(suiteName: "ParentLoginURL-\(UUID().uuidString)")!
+        let store = BackendEnvironmentStore(defaults: defaults)
+
+        store.save(environment: .staging)
+        XCTAssertEqual(
+            BackendURLProvider.parentFamilyLoginPageURL(baseURL: BackendURLProvider(store: store).effectiveBaseURL()).absoluteString,
+            "https://happyword.cool/family/login"
+        )
+
+        store.save(environment: .preview, previewURL: URL(string: "https://happyword-preview.example.test/")!)
+        XCTAssertEqual(
+            BackendURLProvider.parentFamilyLoginPageURL(baseURL: BackendURLProvider(store: store).effectiveBaseURL()).absoluteString,
+            "https://happyword-preview.example.test/family/login"
+        )
+    }
+
     func testBackendHeaderProviderAttachesVercelBypassOnlyForPreview() {
         let defaults = UserDefaults(suiteName: "BackendHeaders-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)

@@ -168,10 +168,10 @@ async def root() -> RedirectResponse:
     through to FastAPI's default 404 handler and returns
     `{"detail":"Not Found"}`, which looks broken to anyone landing on the
     domain. The parent shell is the only public HTML surface this server
-    has, so `/` -> `/family/_/login` (decorative family id until the web
-    shell is fully path-scoped) is the most useful landing experience.
+    has, so `/` -> `/family/login` (canonical pre-login parent shell entry)
+    is the most useful landing experience.
     """
-    return RedirectResponse(url="/family/_/login", status_code=307)
+    return RedirectResponse(url="/family/login", status_code=307)
 
 
 app.include_router(auth_router.router)

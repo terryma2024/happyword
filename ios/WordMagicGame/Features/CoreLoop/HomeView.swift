@@ -40,9 +40,11 @@ struct HomeView: View {
                     .padding(.top, 16)
                     .padding(.trailing, AppTheme.pageHorizontalPadding)
                         .padding(.bottom, 8)
+                        .accessibilityLabel("HomeVersionLabel")
                         .accessibilityIdentifier("HomeVersionLabel")
                         .contentShape(Rectangle())
                         .onTapGesture {
+                            guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
                             let nowMs = Date().timeIntervalSince1970 * 1000
                             if versionTripleTap.consumeTap(nowMs: nowMs) {
                                 coordinator.openDeveloperMenu(presetEnv: DevMenuRouteParams.presetPreview)
@@ -246,10 +248,11 @@ private struct VersionTripleTapState {
     }
 }
 
-/// Debug-only home version line: `v{CFBundleShortVersionString}({YYMMDDHHmm})`.
+/// Home version line: `v{CFBundleShortVersionString}({YYMMDDHHmm})`.
+/// Release builds keep the label visible for store smoke tests, but the hidden
+/// triple-tap DevMenu entry remains gated by `DeveloperToolsPolicy`.
 private enum HomeVersionLabel {
     static func text() -> String? {
-        guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return nil }
         let versionName: String
         if let name = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !name.isEmpty {
             versionName = name

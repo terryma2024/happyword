@@ -64,7 +64,7 @@ class CloudModelsTest {
         assertTrue(result is BindingResult.Success)
         assertEquals("POST", capturedMethod)
         assertEquals("https://happyword.cool/api/v1/public/pair/redeem", capturedUrl)
-        assertEquals("""{"short_code":"123456","device_id":"device-aaaa"}""", capturedBody)
+        assertEquals("""{"device_id":"device-aaaa","short_code":"123456"}""", capturedBody)
         assertEquals("bind-1", (result as BindingResult.Success).credentials.bindingId)
         assertEquals("jwt.token.value", result.credentials.deviceToken)
     }

@@ -151,6 +151,21 @@ struct BackendURLProvider: BackendURLProviding {
             return store.previewURL ?? Self.stagingBaseURL
         }
     }
+
+    /// Parent web login shell at `/family/login` on the same origin as API calls.
+    static func parentFamilyLoginPageURL(baseURL: URL) -> URL {
+        var base = baseURL.absoluteString.trimmingCharacters(in: .whitespacesAndNewlines)
+        while base.hasSuffix("/") {
+            base.removeLast()
+        }
+        return URL(string: "\(base)/family/login")!
+    }
+}
+
+extension BackendURLProviding {
+    func parentFamilyLoginPageURL() -> URL {
+        BackendURLProvider.parentFamilyLoginPageURL(baseURL: effectiveBaseURL())
+    }
 }
 
 protocol BackendHeaderProviding: Sendable {
