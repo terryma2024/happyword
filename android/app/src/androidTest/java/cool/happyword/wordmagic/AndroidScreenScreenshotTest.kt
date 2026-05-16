@@ -45,8 +45,8 @@ class AndroidScreenScreenshotTest {
         capture("wishlist.png")
         composeRule.onNodeWithTag("WishlistHistoryButton").performClick()
         capture("redemption-history.png")
-        composeRule.onNodeWithText("返回").performClick()
-        composeRule.onNodeWithText("返回").performClick()
+        composeRule.onNodeWithTag("RedemptionHistoryBackButton").performClick()
+        composeRule.onNodeWithTag("WishlistBackButton").performClick()
 
         composeRule.onNodeWithTag("HomeCodexButton").performClick()
         capture("monster-codex.png")
@@ -83,7 +83,9 @@ class AndroidScreenScreenshotTest {
     @Test
     fun captureCoreParentAndDebugScreens() {
         seedCloudBindingPrefs()
-        composeRule.activity.recreate()
+        composeRule.runOnUiThread {
+            composeRule.activity.recreate()
+        }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
