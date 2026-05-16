@@ -36,6 +36,30 @@ struct ParentPackPublished: Codable, Equatable {
     var notes: String?
 }
 
+struct LessonApprovedCategory: Codable, Equatable {
+    var id: String
+    var labelEn: String
+    var labelZh: String
+    var storyZh: String?
+    var source: String?
+    var sourceImageUrl: String?
+    var createdAt: String?
+    var updatedAt: String?
+}
+
+struct LessonApprovedWord: Codable, Equatable {
+    var id: String?
+    var word: String?
+    var meaningZh: String?
+    var difficulty: Int?
+}
+
+struct LessonApproveSummary: Codable, Equatable {
+    var createdCategory: LessonApprovedCategory
+    var createdWords: [LessonApprovedWord]
+    var skippedWords: [LessonApprovedWord]
+}
+
 enum LessonDraftStatus: String, Codable, Equatable {
     case extracting
     case extractFailed = "extract_failed"
@@ -149,13 +173,16 @@ struct LessonReviewWord: Codable, Equatable, Identifiable {
     var keep: Bool
 }
 
-struct LessonApprovePayload: Codable, Equatable {
+struct LessonEditPayload: Equatable {
     var categoryId: String
+    var labelEn: String
     var labelZh: String
-    var words: [LessonReviewWord]
+    var storyZh: String?
+    var words: [LessonExtractedWord]
 }
 
 struct PickedLessonImage: Equatable {
+    var data: Data
     var filename: String
     var mimeType: String
     var sizeBytes: Int
@@ -167,8 +194,8 @@ protocol ParentApiClient {
     func fetchLessonDrafts() async throws -> LessonDraftListPage
     func fetchLessonDraft(id: String) async throws -> LessonDraft
     func importLessonImage(_ image: PickedLessonImage) async throws -> LessonDraft
-    func patchLessonDraft(id: String, payload: LessonApprovePayload) async throws -> LessonDraft
-    func approveLessonDraft(id: String) async throws -> ParentPackPublished
+    func patchLessonDraft(id: String, payload: LessonEditPayload) async throws -> LessonDraft
+    func approveLessonDraft(id: String) async throws -> LessonApproveSummary
     func rejectLessonDraft(id: String) async throws
     func publishPack(notes: String) async throws -> ParentPackPublished
 }
@@ -199,12 +226,28 @@ struct MockParentApiClient: ParentApiClient {
         LessonDraft.fixtureReviewedDraft
     }
 
-    func patchLessonDraft(id: String, payload: LessonApprovePayload) async throws -> LessonDraft {
+    func patchLessonDraft(id: String, payload: LessonEditPayload) async throws -> LessonDraft {
         LessonDraft.fixtureReviewedDraft
     }
 
-    func approveLessonDraft(id: String) async throws -> ParentPackPublished {
-        ParentPackPublished(version: 7, schemaVersion: 5, wordCount: 18, publishedAt: "2026-05-10", publishedBy: "mock-parent", notes: "approved")
+    func approveLessonDraft(id: String) async throws -> LessonApproveSummary {
+        LessonApproveSummary(
+            createdCategory: LessonApprovedCategory(
+                id: "magic-school",
+                labelEn: "Magic School",
+                labelZh: "魔法学校",
+                storyZh: nil,
+                source: "lesson-import",
+                sourceImageUrl: "https://example.test/lesson.png",
+                createdAt: "2026-05-10",
+                updatedAt: "2026-05-10"
+            ),
+            createdWords: [
+                LessonApprovedWord(id: "wand", word: "wand", meaningZh: "魔杖", difficulty: 1),
+                LessonApprovedWord(id: "spell", word: "spell", meaningZh: "咒语", difficulty: 1),
+            ],
+            skippedWords: []
+        )
     }
 
     func rejectLessonDraft(id: String) async throws {}

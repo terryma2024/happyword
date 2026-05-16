@@ -48,7 +48,8 @@ final class AppCoordinator: ObservableObject {
 
     let configStore: GameConfigStore
     let coinAccount = CoinAccount()
-    let parentClient: ParentApiClient = MockParentApiClient()
+    let parentClient: any ParentApiClient
+    let parentAdminUsesLocalMock: Bool
     let wishlistStore = WishlistStore()
     let redemptionHistoryStore = RedemptionHistoryStore()
     let learningRecorder = LearningRecorder()
@@ -96,6 +97,7 @@ final class AppCoordinator: ObservableObject {
         wordStatsSyncStateStore: WordStatsSyncStateStore = WordStatsSyncStateStore(),
         unbindClient: any DeviceUnbindClienting = CloudClientFactory.unbindClient(),
         childProfileClient: any ChildProfileClienting = CloudClientFactory.childProfileClient(),
+        parentClient: (any ParentApiClient)? = nil,
         developerMenuViewModel: DeveloperMenuViewModel = DeveloperMenuViewModel(),
         battleRandomSeed: UInt64? = nil
     ) {
@@ -110,6 +112,12 @@ final class AppCoordinator: ObservableObject {
         self.wordStatsSyncStateStore = wordStatsSyncStateStore
         self.unbindClient = unbindClient
         self.childProfileClient = childProfileClient
+        self.parentClient = parentClient ?? CloudClientFactory.parentApiClient(cloudCredentialsStore: cloudCredentialsStore)
+        parentAdminUsesLocalMock = parentClient == nil && (
+            CloudClientFactory.shouldUseLocalMocks(arguments: ProcessInfo.processInfo.arguments)
+                || ProcessInfo.processInfo.arguments.contains("-UITestRouteParentAdmin")
+                || ProcessInfo.processInfo.arguments.contains("-UITestRouteLessonReview")
+        )
         self.developerMenuViewModel = developerMenuViewModel
         self.battleRandomSeed = battleRandomSeed
         packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id))
@@ -608,9 +616,35 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    func approveLessonReview() {
-        parentAdminMessage = "已发布词包 v7，包含 \(reviewStore.approvePayload().words.count) 个单词"
-        route = .parentAdmin
+    func importLessonImage(_ image: PickedLessonImage) async throws -> LessonDraft {
+        try await parentClient.importLessonImage(image)
+    }
+
+    func approveLessonReview() async {
+        let draftId = reviewStore.draft.id
+        let payload = reviewStore.editedExtractedPayload()
+        guard !payload.words.isEmpty else {
+            parentAdminMessage = "请至少保留一个单词"
+            return
+        }
+        do {
+            _ = try await parentClient.patchLessonDraft(id: draftId, payload: payload)
+            let summary = try await parentClient.approveLessonDraft(id: draftId)
+            parentAdminMessage = "复核完成，已加入词表（\(summary.createdWords.count) 个词）"
+            route = .parentAdmin
+        } catch {
+            parentAdminMessage = "审核失败，请稍后重试"
+        }
+    }
+
+    func rejectLessonReview() async {
+        do {
+            try await parentClient.rejectLessonDraft(id: reviewStore.draft.id)
+            parentAdminMessage = "已丢弃草稿"
+            route = .parentAdmin
+        } catch {
+            parentAdminMessage = "拒绝失败，请稍后重试"
+        }
     }
 
     private func applyLaunchRouteOverride() {
