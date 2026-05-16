@@ -24,13 +24,15 @@
 - [x] Bundle ID is `com.terryma.wordmagicgame`.
 - [x] App display name is `魔法背单词`.
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
+- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.7.0.xcarchive`.
+- [x] App Store Connect upload succeeded; build `0.7.0 (1007000)` is processing for TestFlight.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
 - [x] Release Simulator sanity check verified `-UITestRouteDevMenu` and `-UITestRouteBypassSecret` land on the normal home screen.
 - [x] `NSPhotoLibraryAddUsageDescription` was removed because the iOS client only reads from Photos via `PhotosPicker` and does not write to the photo library.
 - [ ] Real-device Release/TestFlight smoke test is not yet done.
-- [ ] App Store Connect app record is not verified from this repo.
+- [x] App Store Connect app record is verified by successful upload (`adamId: 6768499286`).
 - [x] App privacy questionnaire draft is derived from the current repo behavior.
 - [x] Privacy policy URL exists in repo as public server page: `https://happyword.cool/privacy`.
 - [x] Support URL exists in repo as public server page: `https://happyword.cool/support`.
@@ -38,12 +40,13 @@
 
 ## P0 Blockers To Clear Before Upload
 
-- [ ] Confirm Apple Developer Program team access.
+- [x] Confirm Apple Developer Program team access.
   - Expected team in repo: `DEVELOPMENT_TEAM: 99UX498DB4`.
-  - Confirm this team can create distribution signing assets and upload to App Store Connect.
+  - Confirmed by successful App Store Connect upload from local archive.
 
-- [ ] Confirm App Store Connect app record.
+- [x] Confirm App Store Connect app record.
   - Bundle ID: `com.terryma.wordmagicgame`.
+  - App Store Connect app id: `6768499286`.
   - SKU: choose a stable internal SKU, for example `wordmagicgame-ios`.
   - Primary language: recommend `zh-Hans` if the first market is mainland China.
   - Category: choose Education or Games only after product positioning is confirmed.
@@ -151,7 +154,7 @@ xcodebuild build \
   -derivedDataPath /private/tmp/wordmagic-ios-release
 ```
 
-- [ ] Run device Release build before archive/upload.
+- [x] Run device Release build before archive/upload.
 
 ```sh
 cd ios
@@ -162,7 +165,7 @@ xcodebuild build \
   -derivedDataPath /private/tmp/wordmagic-ios-release-device
 ```
 
-- [ ] Archive for App Store distribution.
+- [x] Archive for App Store distribution.
 
 ```sh
 cd ios
@@ -173,8 +176,9 @@ xcodebuild archive \
   -archivePath /private/tmp/WordMagicGame-v0.7.0.xcarchive
 ```
 
-- [ ] Export or upload archive using Xcode Organizer or `xcodebuild -exportArchive`.
-- [ ] Upload to TestFlight.
+- [x] Export or upload archive using Xcode Organizer or `xcodebuild -exportArchive`.
+- [x] App Store Connect export options are stored in `ios/ExportOptions.AppStore.plist`.
+- [x] Upload to TestFlight.
 - [ ] Install TestFlight build on a real iPhone.
 - [ ] Smoke test Release/TestFlight build:
   - [ ] First launch.
@@ -236,7 +240,7 @@ xcodebuild archive \
 4. [x] Validate account deletion entry and reviewer flow.
 5. [x] Draft App Store privacy questionnaire answers from actual server/client data.
 6. [x] Prepare privacy policy and support URL.
-7. [ ] Archive and upload v0.7.0 to TestFlight.
+7. [x] Archive and upload v0.7.0 to TestFlight.
 8. [ ] Complete real-device TestFlight smoke test.
 9. [ ] Prepare screenshots and App Store metadata.
 10. [ ] Submit for Apple review.
