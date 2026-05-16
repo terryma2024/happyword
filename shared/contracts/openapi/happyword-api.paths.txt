@@ -114,3 +114,6 @@
 /p/{token_short}
 /privacy
 /support
+/v1/oauth/google/callback
+/v1/oauth/google/finish
+/v1/oauth/google/start

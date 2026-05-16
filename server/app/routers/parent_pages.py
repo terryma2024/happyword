@@ -120,11 +120,41 @@ async def _load_active_device_for_parent(
     return binding, child
 
 
+def _oauth_error_message(code: str) -> str:
+    messages = {
+        "invalid_origin": "无法从当前站点发起 Google 登录，请使用官方家长后台地址。",
+        "cancelled": "已取消 Google 登录。",
+        "invalid_state": "登录状态已失效，请重试。",
+        "invalid_request": "登录请求无效，请重试。",
+        "role_mismatch": "该邮箱归属于管理员账号；请使用管理员登录入口。",
+        "suspended": "家长账号已被管理员暂停登录。",
+        "provider_error": "Google 登录失败，请稍后重试或使用邮箱验证码登录。",
+        "invalid_ticket": "登录凭证已失效，请重新使用 Google 登录。",
+    }
+    return messages.get(code, "登录失败，请重试或使用邮箱验证码登录。")
+
+
 @router.get("/login", response_class=HTMLResponse)
-async def get_login(request: Request) -> HTMLResponse:
+async def get_login(
+    request: Request,
+    oauth_error: str = "",
+) -> HTMLResponse:
     """Canonical pre-login parent shell entry (no decorative `{family_id}` segment)."""
+    from app.services.oauth_return_origin_service import (
+        build_google_start_url,
+        google_oauth_enabled,
+    )
+
     return templates.TemplateResponse(
-        request, "parent/login.html", {"user": None}
+        request,
+        "parent/login.html",
+        {
+            "user": None,
+            "google_oauth_enabled": google_oauth_enabled(),
+            "google_start_url": build_google_start_url(str(request.base_url)),
+            "oauth_error": oauth_error,
+            "oauth_error_message": _oauth_error_message(oauth_error) if oauth_error else "",
+        },
     )
 
 

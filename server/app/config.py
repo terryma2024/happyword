@@ -116,6 +116,18 @@ class Settings(BaseSettings):
     notification_email_enabled: bool = True
     account_deletion_grace_days: int = 7
 
+    # V0.6.8 — parent Google OAuth (see docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md)
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    oauth_canonical_base_url: str = "https://happyword.cool"
+    oauth_handoff_ttl_seconds: int = 60
+    oauth_state_ttl_seconds: int = 600
+    oauth_local_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
+    oauth_state_cookie_name: str = "wm_oauth_state"
+
+    def google_oauth_configured(self) -> bool:
+        return bool(self.google_oauth_client_id.strip() and self.google_oauth_client_secret.strip())
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

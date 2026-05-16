@@ -49,6 +49,8 @@ async def db() -> AsyncIterator[object]:
     from app.models.parent_inbox_msg import ParentInboxMsg  # noqa: PLC0415
     from app.models.redemption_request import RedemptionRequest  # noqa: PLC0415
     from app.models.synced_word_stat import SyncedWordStat  # noqa: PLC0415
+    from app.models.oauth_handoff_ticket import OAuthHandoffTicket  # noqa: PLC0415
+    from app.models.oauth_identity import OAuthIdentity  # noqa: PLC0415
     from app.models.user import User  # noqa: PLC0415 - lazy to avoid early import
     from app.models.word import Word  # noqa: PLC0415
     from app.models.word_pack import WordPack  # noqa: PLC0415
@@ -79,6 +81,8 @@ async def db() -> AsyncIterator[object]:
             RedemptionRequest,
             ParentInboxMsg,
             AuditLog,
+            OAuthIdentity,
+            OAuthHandoffTicket,
         ],
     )
     yield mock["happyword_test"]
