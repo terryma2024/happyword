@@ -32,6 +32,15 @@ final class AppMetadataTests: XCTestCase {
         XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_007_000)
     }
 
+    func testAppForcesLightAppearance() throws {
+        let infoPlist = try repoRoot()
+            .appending(path: "ios/WordMagicGame/Resources/Info.plist")
+        let data = try Data(contentsOf: infoPlist)
+        let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+
+        XCTAssertEqual(plist?["UIUserInterfaceStyle"] as? String, "Light")
+    }
+
     func testAppIconAssetReferencesHarmonyLauncherImage() throws {
         let appIconSet = try repoRoot()
             .appending(path: "ios/WordMagicGame/Resources/Assets.xcassets/AppIcon.appiconset")
