@@ -4,7 +4,7 @@
 > App: `WordMagicGame` / `魔法背单词`
 > Bundle ID: `com.terryma.wordmagicgame`
 > Version: `0.7.0`
-> Build: `1007002`
+> Build: `1007003`
 > Last updated: 2026-05-16
 
 ## Source Of Truth
@@ -20,18 +20,18 @@
 ## Current Repo State
 
 - [x] `MARKETING_VERSION` is `0.7.0` in `ios/project.yml`.
-- [x] `CURRENT_PROJECT_VERSION` is `1007002` in `ios/project.yml`.
+- [x] `CURRENT_PROJECT_VERSION` is `1007003` in `ios/project.yml`.
 - [x] Bundle ID is `com.terryma.wordmagicgame`.
 - [x] App display name is `魔法背单词`.
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
-- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.7.0-b1007002.xcarchive`.
-- [x] App Store Connect upload succeeded for replacement build `0.7.0 (1007002)`; build is added to TestFlight internal group `Internal Smoke`.
+- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.7.0-b1007003.xcarchive`.
+- [x] App Store Connect upload succeeded for replacement build `0.7.0 (1007003)`; build is added to TestFlight internal group `Internal Smoke`.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
 - [x] Release Simulator sanity check verified `-UITestRouteDevMenu` and `-UITestRouteBypassSecret` land on the normal home screen.
 - [x] `NSPhotoLibraryAddUsageDescription` was removed because the iOS client only reads from Photos via `PhotosPicker` and does not write to the photo library.
-- [ ] Real-device Release/TestFlight smoke test is not yet done for build `0.7.0 (1007002)`.
+- [ ] Real-device Release/TestFlight smoke test is not yet done for build `0.7.0 (1007003)`.
 - [x] App Store Connect app record is verified by successful upload (`adamId: 6768499286`).
 - [x] App privacy questionnaire draft is derived from the current repo behavior.
 - [x] Privacy policy URL exists in repo as public server page: `https://happyword.cool/privacy`.
@@ -120,7 +120,7 @@
 
 ## P1 Build And Verification Checklist
 
-- [x] Regenerate Xcode project after the `1007002` build-number change.
+- [x] Regenerate Xcode project after the `1007003` build-number change.
 
 ```sh
 cd ios
@@ -166,7 +166,7 @@ xcodebuild build \
 ```
 
 - [x] Archive for App Store distribution.
-  - Latest archive: `/private/tmp/WordMagicGame-v0.7.0-b1007002.xcarchive`.
+  - Latest archive: `/private/tmp/WordMagicGame-v0.7.0-b1007003.xcarchive`.
 
 ```sh
 cd ios
@@ -180,12 +180,13 @@ xcodebuild archive \
 - [x] Export or upload archive using Xcode Organizer or `xcodebuild -exportArchive`.
 - [x] App Store Connect export options are stored in `ios/ExportOptions.AppStore.plist`.
 - [x] Upload replacement build to TestFlight.
-  - Previous internal smoke build: `0.7.0 (1007001)`.
-  - Latest internal smoke build: `0.7.0 (1007002)`.
+  - Previous internal smoke build: `0.7.0 (1007002)`.
+  - Latest internal smoke build: `0.7.0 (1007003)`.
   - Reason for replacement: previous `1007000` was built before latest `origin/main` and did not include the scan-binding parent login link; release version label was also hidden with the DevMenu gate.
   - Reason for second replacement: `1007001` did not include the iOS credential-persistence guard added after simulator smoke testing.
+  - Reason for third replacement: `1007002` did not include the iOS force-light-mode release fix for system dark mode.
   - Upload result: `xcodebuild -exportArchive` reported `Upload succeeded` for `WordMagicGame`; App Store Connect processing completed.
-  - TestFlight result: `1007002` export compliance was answered in App Store Connect and the build is now `正在测试` in `Internal Smoke`.
+  - TestFlight result: `1007003` export compliance was answered in App Store Connect and the build is now `正在测试` in `Internal Smoke`.
 - [ ] Install TestFlight build on a real iPhone.
 - [ ] Smoke test Release/TestFlight build:
   - [ ] First launch.
@@ -213,7 +214,7 @@ xcodebuild archive \
 - [ ] Copyright and contact info.
 - [ ] Age rating questionnaire.
 - [ ] Content rights declaration.
-- [x] Export compliance questionnaire for TestFlight build `1007002`.
+- [x] Export compliance questionnaire for TestFlight build `1007003`.
 - [ ] App screenshots:
   - [ ] iPhone 6.9-inch or current required size.
   - [ ] iPhone 6.5-inch if App Store Connect requests it.
