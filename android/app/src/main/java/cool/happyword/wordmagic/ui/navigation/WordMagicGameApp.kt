@@ -125,6 +125,7 @@ import cool.happyword.wordmagic.core.DevMenuRouteParams
 import cool.happyword.wordmagic.core.DevMenuViewModel
 import cool.happyword.wordmagic.core.VersionTripleTap
 import cool.happyword.wordmagic.core.DeviceBindingClient
+import cool.happyword.wordmagic.core.FixtureDeviceBindingClient
 import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
 import cool.happyword.wordmagic.core.CustomWishRules
 import cool.happyword.wordmagic.core.GameConfig
@@ -236,6 +237,7 @@ fun WordMagicGameApp() {
             },
         )
     }
+    val fixtureBindingClient = remember { FixtureDeviceBindingClient() }
     val childProfileClient = remember {
         ChildProfileClient(
             baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
@@ -322,7 +324,13 @@ fun WordMagicGameApp() {
         appScope.launch {
             scanBindingBusy = true
             scanBindingFailureReason = ""
-            when (val result = bindingClient.redeemShortCode(code, cloudRepositories.deviceIdProvider.getOrCreate())) {
+            val deviceId = cloudRepositories.deviceIdProvider.getOrCreate()
+            val result = if (isDebuggable) {
+                fixtureBindingClient.redeemShortCode(code, deviceId)
+            } else {
+                bindingClient.redeemShortCode(code, deviceId)
+            }
+            when (result) {
                 is BindingResult.Success -> applyBindingSuccess(result.credentials)
                 is BindingResult.Failure -> scanBindingFailureReason = bindingFailureReasonFromMessage(result.message)
             }
@@ -335,7 +343,13 @@ fun WordMagicGameApp() {
         appScope.launch {
             scanBindingBusy = true
             scanBindingFailureReason = ""
-            when (val result = bindingClient.redeemToken(token, cloudRepositories.deviceIdProvider.getOrCreate())) {
+            val deviceId = cloudRepositories.deviceIdProvider.getOrCreate()
+            val result = if (isDebuggable) {
+                fixtureBindingClient.redeemToken(token, deviceId)
+            } else {
+                bindingClient.redeemToken(token, deviceId)
+            }
+            when (result) {
                 is BindingResult.Success -> applyBindingSuccess(result.credentials)
                 is BindingResult.Failure -> scanBindingFailureReason = bindingFailureReasonFromMessage(result.message)
             }
