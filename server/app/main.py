@@ -60,6 +60,7 @@ from app.routers import parent_packs_pages as parent_packs_pages_router
 from app.routers import parent_pages as parent_pages_router
 from app.routers import public_global_pack as public_global_pack_router
 from app.routers import public_packs as public_packs_router
+from app.routers import public_pages as public_pages_router
 from app.services.auth_service import hash_password, verify_password
 from app.services.category_service import seed_manual_categories
 from app.services.email_provider import build_email_provider
@@ -194,6 +195,7 @@ app.include_router(pair_router.family_router)
 app.include_router(pair_router.public_router)
 app.include_router(pair_router.landing_router)
 app.include_router(public_packs_router.router)
+app.include_router(public_pages_router.router)
 # V0.6.5 — three-layer pack model: public global packs + admin CRUD.
 app.include_router(public_global_pack_router.router)
 app.include_router(admin_global_pack_router.router)

@@ -13034,6 +13034,48 @@
           "pair-landing"
         ]
       }
+    },
+    "/privacy": {
+      "get": {
+        "operationId": "get_privacy_privacy_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Privacy",
+        "tags": [
+          "public-pages"
+        ]
+      }
+    },
+    "/support": {
+      "get": {
+        "operationId": "get_support_support_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Support",
+        "tags": [
+          "public-pages"
+        ]
+      }
     }
   }
 }

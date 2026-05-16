@@ -32,7 +32,8 @@
 - [ ] Real-device Release/TestFlight smoke test is not yet done.
 - [ ] App Store Connect app record is not verified from this repo.
 - [x] App privacy questionnaire draft is derived from the current repo behavior.
-- [ ] Privacy policy URL is not verified from this repo.
+- [x] Privacy policy URL exists in repo as public server page: `https://happyword.cool/privacy`.
+- [x] Support URL exists in repo as public server page: `https://happyword.cool/support`.
 - [x] In-app account deletion initiation path is verified from this repo: `孩子档案` -> `账号与数据管理` opens `/family/<family_id>/account`.
 
 ## P0 Blockers To Clear Before Upload
@@ -60,10 +61,11 @@
   - Server route source: `server/app/routers/parent_account.py` (`POST /api/v1/family/{family_id}/account/delete` and HTML `/family/{family_id}/account`).
   - Reviewer note draft: bind or seed a child profile, open `游戏配置` -> `孩子档案` -> `账号与数据管理`; log in to the parent web page with the demo parent email/OTP; use `删除账号`.
 
-- [ ] Confirm privacy policy URL.
-  - Public URL must be accessible without login.
-  - It must describe collected data, purpose, retention, deletion, third-party services, child/minor handling, and contact method.
-  - It must match App Store Connect privacy answers.
+- [x] Confirm privacy policy URL.
+  - Public URL: `https://happyword.cool/privacy`.
+  - It is implemented as `/privacy` without a parent session requirement.
+  - It describes collected data, purpose, deletion/export path, third-party services, child/minor handling, and support contact.
+  - Support URL: `https://happyword.cool/support`.
 
 - [ ] Confirm App Privacy details.
   - Inventory data collected by the app and server: account/binding data, child profile name, learning progress, uploaded textbook photos, generated word lists, device identifier, diagnostics/logs if any.
@@ -194,9 +196,9 @@ xcodebuild archive \
 - [ ] Subtitle: prepare a short Chinese value proposition.
 - [ ] Description: explain learning flow, parent import, child practice, and privacy posture.
 - [ ] Keywords: prepare Chinese keywords within Apple limits.
-- [ ] Support URL: public, reachable, and preferably Chinese.
+- [x] Support URL: public, reachable, and preferably Chinese: `https://happyword.cool/support`.
 - [ ] Marketing URL: optional; use only if public and polished.
-- [ ] Privacy Policy URL: required.
+- [x] Privacy Policy URL: required: `https://happyword.cool/privacy`.
 - [ ] Copyright and contact info.
 - [ ] Age rating questionnaire.
 - [ ] Content rights declaration.
@@ -233,7 +235,7 @@ xcodebuild archive \
 3. [x] Decide whether `NSPhotoLibraryAddUsageDescription` is still needed; remove it if unused.
 4. [x] Validate account deletion entry and reviewer flow.
 5. [x] Draft App Store privacy questionnaire answers from actual server/client data.
-6. [ ] Prepare privacy policy and support URL.
+6. [x] Prepare privacy policy and support URL.
 7. [ ] Archive and upload v0.7.0 to TestFlight.
 8. [ ] Complete real-device TestFlight smoke test.
 9. [ ] Prepare screenshots and App Store metadata.
