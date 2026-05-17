@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -29,6 +30,7 @@ from app.services.oauth_return_origin_service import (
 from app.services.oauth_state_service import OAuthStateError, issue_state, verify_state
 
 router = APIRouter(prefix="/v1/oauth/alipay", tags=["oauth-alipay"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/start")
@@ -102,7 +104,8 @@ async def alipay_callback(
         return oauth_login_redirect("invalid_origin")
     except ParentLoginSuspended:
         return oauth_login_redirect("suspended")
-    except ValueError:
+    except ValueError as exc:
+        logger.warning("Alipay OAuth provider error: %s", exc)
         return oauth_login_redirect("provider_error")
 
     if existing is not None:
