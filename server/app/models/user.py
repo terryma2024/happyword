@@ -27,6 +27,9 @@ class User(Document):
     scheduled_deletion_at: datetime | None = None
     # V0.8.2 — when set, parent OTP/session is rejected (system admin console).
     parent_login_suspended_at: datetime | None = None
+    # Parent password login (web shell).
+    password_failed_attempts: int = 0
+    password_locked_until: datetime | None = None
 
     class Settings:
         name = "users"
