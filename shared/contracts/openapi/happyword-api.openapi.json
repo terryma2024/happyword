@@ -117,6 +117,45 @@
         "title": "AudioOut",
         "type": "object"
       },
+      "Body_apple_callback_post_v1_oauth_apple_callback_post": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "title": "Body_apple_callback_post_v1_oauth_apple_callback_post",
+        "type": "object"
+      },
       "Body_create_pack_page_family__family_id__packs__post": {
         "properties": {
           "description": {
@@ -351,6 +390,47 @@
           "body"
         ],
         "title": "Body_post_feedback_family__family_id__feedback_post",
+        "type": "object"
+      },
+      "Body_post_oauth_bind_email_request_code_family_oauth_bind_email_request_code_post": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "ticket": {
+            "title": "Ticket",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticket",
+          "email"
+        ],
+        "title": "Body_post_oauth_bind_email_request_code_family_oauth_bind_email_request_code_post",
+        "type": "object"
+      },
+      "Body_post_oauth_bind_email_verify_code_family_oauth_bind_email_verify_code_post": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "ticket": {
+            "title": "Ticket",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticket",
+          "email",
+          "code"
+        ],
+        "title": "Body_post_oauth_bind_email_verify_code_family_oauth_bind_email_verify_code_post",
         "type": "object"
       },
       "Body_post_request_code_form_family__family_id__auth_request_code_post": {
@@ -10855,6 +10935,131 @@
         ]
       }
     },
+    "/family/oauth/bind-email": {
+      "get": {
+        "operationId": "get_oauth_bind_email_family_oauth_bind_email_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Ticket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Oauth Bind Email",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
+    "/family/oauth/bind-email/request-code": {
+      "post": {
+        "operationId": "post_oauth_bind_email_request_code_family_oauth_bind_email_request_code_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_oauth_bind_email_request_code_family_oauth_bind_email_request_code_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Oauth Bind Email Request Code",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
+    "/family/oauth/bind-email/verify-code": {
+      "post": {
+        "operationId": "post_oauth_bind_email_verify_code_family_oauth_bind_email_verify_code_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_oauth_bind_email_verify_code_family_oauth_bind_email_verify_code_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Oauth Bind Email Verify Code",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
     "/family/{family_id}": {
       "get": {
         "operationId": "get_dashboard_family__family_id__get",
@@ -13014,6 +13219,389 @@
         ]
       }
     },
+    "/v1/oauth/alipay/callback": {
+      "get": {
+        "operationId": "alipay_callback_v1_oauth_alipay_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "auth_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Alipay Callback",
+        "tags": [
+          "oauth-alipay"
+        ]
+      }
+    },
+    "/v1/oauth/alipay/finish": {
+      "get": {
+        "operationId": "alipay_finish_v1_oauth_alipay_finish_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Alipay Finish",
+        "tags": [
+          "oauth-alipay"
+        ]
+      }
+    },
+    "/v1/oauth/alipay/start": {
+      "get": {
+        "operationId": "alipay_start_v1_oauth_alipay_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "return_origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Alipay Start",
+        "tags": [
+          "oauth-alipay"
+        ]
+      }
+    },
+    "/v1/oauth/apple/callback": {
+      "get": {
+        "description": "Fallback for local tests; Apple production uses form_post on POST.",
+        "operationId": "apple_callback_get_v1_oauth_apple_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apple Callback Get",
+        "tags": [
+          "oauth-apple"
+        ]
+      },
+      "post": {
+        "operationId": "apple_callback_post_v1_oauth_apple_callback_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_apple_callback_post_v1_oauth_apple_callback_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apple Callback Post",
+        "tags": [
+          "oauth-apple"
+        ]
+      }
+    },
+    "/v1/oauth/apple/finish": {
+      "get": {
+        "operationId": "apple_finish_v1_oauth_apple_finish_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apple Finish",
+        "tags": [
+          "oauth-apple"
+        ]
+      }
+    },
+    "/v1/oauth/apple/start": {
+      "get": {
+        "operationId": "apple_start_v1_oauth_apple_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "return_origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apple Start",
+        "tags": [
+          "oauth-apple"
+        ]
+      }
+    },
     "/v1/oauth/google/callback": {
       "get": {
         "operationId": "google_callback_v1_oauth_google_callback_get",
@@ -13184,6 +13772,179 @@
         "summary": "Google Start",
         "tags": [
           "oauth-google"
+        ]
+      }
+    },
+    "/v1/oauth/wechat/callback": {
+      "get": {
+        "operationId": "wechat_callback_v1_oauth_wechat_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wechat Callback",
+        "tags": [
+          "oauth-wechat"
+        ]
+      }
+    },
+    "/v1/oauth/wechat/finish": {
+      "get": {
+        "operationId": "wechat_finish_v1_oauth_wechat_finish_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wechat Finish",
+        "tags": [
+          "oauth-wechat"
+        ]
+      }
+    },
+    "/v1/oauth/wechat/start": {
+      "get": {
+        "operationId": "wechat_start_v1_oauth_wechat_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "return_origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wechat Start",
+        "tags": [
+          "oauth-wechat"
         ]
       }
     }

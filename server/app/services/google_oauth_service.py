@@ -11,14 +11,24 @@ from jose import jwt
 from jose.exceptions import JWTError
 
 from app.config import Settings, get_settings
-from app.services.oauth_login_service import GoogleUserClaims
-from app.services.oauth_return_origin_service import (
-    InvalidOriginError,
-    canonical_origin,
-    normalize_origin,
+from app.services.oauth_login_service import GoogleUserClaims, OAuthUserClaims
+from app.services.oauth_redirect_urls import (
+    callback_url_for_origin as _callback_url_for_origin,
+)
+from app.services.oauth_redirect_urls import (
+    canonical_callback_url as _canonical_callback_url,
+)
+from app.services.oauth_redirect_urls import (
+    preview_callback_url as _preview_callback_url,
+)
+from app.services.oauth_redirect_urls import (
+    registered_callback_urls as _registered_callback_urls,
+)
+from app.services.oauth_redirect_urls import (
+    uses_direct_session_on_callback as _uses_direct_session_on_callback,
 )
 
-_GOOGLE_CALLBACK_PATH = "/v1/oauth/google/callback"
+_GOOGLE_PROVIDER = "google"
 
 _GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -112,7 +122,7 @@ class GoogleOAuthClientImpl:
             msg = "Google account email not verified"
             raise ValueError(msg)
 
-        return GoogleUserClaims(
+        return OAuthUserClaims(
             subject=subject,
             email=email,
             email_verified=True,
@@ -132,57 +142,26 @@ class GoogleOAuthClientImpl:
 
 
 def canonical_callback_url(settings: Settings | None = None) -> str:
-    settings = settings or get_settings()
-    return f"{settings.oauth_canonical_base_url.rstrip('/')}{_GOOGLE_CALLBACK_PATH}"
-
-
-def preview_origin(settings: Settings | None = None) -> str | None:
-    settings = settings or get_settings()
-    raw = settings.oauth_preview_base_url.strip()
-    if not raw:
-        return None
-    return normalize_origin(raw)
+    return _canonical_callback_url(_GOOGLE_PROVIDER, settings)
 
 
 def preview_callback_url(settings: Settings | None = None) -> str | None:
-    origin = preview_origin(settings)
-    if origin is None:
-        return None
-    return f"{origin}{_GOOGLE_CALLBACK_PATH}"
+    return _preview_callback_url(_GOOGLE_PROVIDER, settings)
 
 
 def google_callback_url_for_origin(origin: str, settings: Settings | None = None) -> str:
-    """Pick the Google redirect URI registered for this return_origin."""
-    settings = settings or get_settings()
-    normalized = normalize_origin(origin)
-    if normalized == canonical_origin(settings):
-        return canonical_callback_url(settings)
-    preview = preview_origin(settings)
-    if preview is not None and normalized == preview:
-        url = preview_callback_url(settings)
-        if url is None:
-            raise InvalidOriginError("preview OAuth base URL is not configured")
-        return url
-    return canonical_callback_url(settings)
+    return _callback_url_for_origin(_GOOGLE_PROVIDER, origin, settings)
 
 
 def registered_google_callback_urls(settings: Settings | None = None) -> frozenset[str]:
-    settings = settings or get_settings()
-    urls = {canonical_callback_url(settings)}
-    preview_url = preview_callback_url(settings)
-    if preview_url is not None:
-        urls.add(preview_url)
-    return frozenset(urls)
+    return _registered_callback_urls(_GOOGLE_PROVIDER, settings)
 
 
-def uses_direct_session_on_callback(origin: str, settings: Settings | None = None) -> bool:
-    """True when Google callbacks on the same host that should set wm_session."""
-    settings = settings or get_settings()
-    normalized = normalize_origin(origin)
-    if normalized == canonical_origin(settings):
-        return True
-    preview = preview_origin(settings)
-    return preview is not None and normalized == preview
+def uses_direct_session_on_callback(
+    origin: str,
+    settings: Settings | None = None,
+) -> bool:
+    return _uses_direct_session_on_callback(origin, settings)
 
 
 def get_google_oauth_client() -> GoogleOAuthClient:

@@ -51,6 +51,7 @@ async def db() -> AsyncIterator[object]:
     from app.models.synced_word_stat import SyncedWordStat  # noqa: PLC0415
     from app.models.oauth_handoff_ticket import OAuthHandoffTicket  # noqa: PLC0415
     from app.models.oauth_identity import OAuthIdentity  # noqa: PLC0415
+    from app.models.oauth_pending_identity import OAuthPendingIdentity  # noqa: PLC0415
     from app.models.user import User  # noqa: PLC0415 - lazy to avoid early import
     from app.models.word import Word  # noqa: PLC0415
     from app.models.word_pack import WordPack  # noqa: PLC0415
@@ -83,9 +84,24 @@ async def db() -> AsyncIterator[object]:
             AuditLog,
             OAuthIdentity,
             OAuthHandoffTicket,
+            OAuthPendingIdentity,
         ],
     )
     yield mock["happyword_test"]
+
+
+@pytest.fixture(scope="session")
+def apple_test_private_key_pem() -> str:
+    from cryptography.hazmat.primitives import serialization  # noqa: PLC0415
+    from cryptography.hazmat.primitives.asymmetric import ec  # noqa: PLC0415
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    pem_bytes = key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    return pem_bytes.decode("utf-8")
 
 
 @pytest.fixture
