@@ -9,6 +9,7 @@ from httpx import AsyncClient
     ("path", "expected"),
     [
         ("/privacy", "魔法背单词隐私政策"),
+        ("/terms", "魔法背单词用户协议"),
         ("/support", "魔法背单词支持"),
     ],
 )

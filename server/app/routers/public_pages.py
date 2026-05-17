@@ -23,6 +23,15 @@ async def get_privacy(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/terms", response_class=HTMLResponse)
+async def get_terms(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "public/terms.html",
+        {"user": None},
+    )
+
+
 @router.get("/support", response_class=HTMLResponse)
 async def get_support(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(

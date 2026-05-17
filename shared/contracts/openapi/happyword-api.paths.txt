@@ -117,6 +117,7 @@
 /p/{token_short}
 /privacy
 /support
+/terms
 /v1/oauth/alipay/callback
 /v1/oauth/alipay/finish
 /v1/oauth/alipay/start
