@@ -22,6 +22,7 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 | Install deps | `cd harmonyos && ohpm install` | Exit 0, `harmonyos/oh_modules` resolvable |
 | Assemble HAP (debug) | `cd harmonyos && hvigorw assembleHap` | Exit 0, `.hap` under `harmonyos/entry/build/...` (path may vary) |
 | (Optional) single module | `cd harmonyos && hvigorw -p module=entry@default assembleHap` or `cd harmonyos && hvigorw --mode module -p module=entry assembleHap` | Exit 0 |
+| Assemble APP (release mode compile gate) | `cd harmonyos && hvigorw assembleApp -p buildMode=release --no-daemon` | Exit 0, `.app` under `harmonyos/build/outputs/...`; still requires official signing before AppGallery upload |
 
 **Working directory:** `harmonyos/`.
 
@@ -30,6 +31,12 @@ Read this file before running HarmonyOS build or test commands. **Do not invent 
 The `:CompileArkTS` step must emit **zero** `ArkTS:WARN` lines before a Harmony-side change is considered merge-ready. Typical causes: deprecated module-level `router` / `getContext`, legacy `@kit.CoreFileKit` picker types, `ImagePacker.packing`, etc. Migrate to `this.getUIContext().getRouter()`, `this.getUIContext().getHostContext()`, `@kit.MediaLibraryKit` / `photoAccessHelper`, `ImagePacker#packToData`, and related SDK replacements.
 
 **Verify:** after assembleHap, `cd harmonyos && hvigorw ... 2>&1 | grep 'ArkTS:WARN'` must print nothing (exit code 1 from grep is OK). Agents fix warnings at the source; do not silence the compiler for convenience.
+
+### Release build / smoke handoff
+
+`hvigorw assembleApp -p buildMode=release --no-daemon` is a release-mode compile gate, not proof of an uploadable AppGallery package. Before upload, replace the local debug signing material in `harmonyos/build-profile.json5` with official release certificate / profile / keystore material without committing private passwords or personal absolute credential paths.
+
+After an officially signed package is built, install it on a real HarmonyOS device and smoke test: first launch, child home → battle → result, parent profile, binding, QR scan, gallery import, camera import, word extraction review, sync after restart, and the absence of debug-only controls (`Developer / Backend environment`, version-label DevMenu triple-tap, bypass secret page, and `[debug] end battle`).
 
 ### CodeLinter (after successful build) — `harmony-codelinter`
 

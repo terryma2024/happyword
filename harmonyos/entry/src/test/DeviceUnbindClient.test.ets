@@ -105,7 +105,7 @@ export default function deviceUnbindClientTest(): void {
       expect(out.ok).assertEqual(true);
       expect(out.cleared).assertEqual(true);
       expect(out.status).assertEqual(200);
-      expect(adapter.requests[0].url).assertEqual(`${BASE}/api/v1/family/_/unbind`);
+      expect(adapter.requests[0].url).assertEqual(`${BASE}/api/v1/family/fam-12345678/unbind`);
       expect(adapter.requests[0].auth).assertEqual('Bearer jwt.body.sig');
       const after: CloudCredentialsSnapshot = await cc.load();
       expect(after.isBound()).assertEqual(false);

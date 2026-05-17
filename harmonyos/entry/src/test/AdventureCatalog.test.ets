@@ -85,57 +85,47 @@ export default function adventureCatalogTest() {
     });
   });
 
-  describe('V0.3.8 region bossCandidates', () => {
-    it('forestHostsThreeBossCandidatesForestRange', 0, () => {
+  describe('V0.7.0 expanded region bossCandidates', () => {
+    it('forestHostsExpandedBossCandidatesAndLegacySeeds', 0, () => {
       const r: AdventureRegion = getRegionById('fruit-forest');
-      expect(r.bossCandidates.length).assertEqual(3);
-      // V0.3.8 (post V0.2 retirement): bosses occupy catalog 4..10.
-      // Forest owns the first three (Pumpkin King / Imp King / Phoenix).
-      for (let i: number = 0; i < r.bossCandidates.length; i++) {
-        const v: number = r.bossCandidates[i];
-        expect(v >= 4 && v <= 6).assertTrue();
-      }
+      expect(r.bossCandidates.length).assertEqual(19);
+      expect(r.bossCandidates.indexOf(4) >= 0).assertTrue();
+      expect(r.bossCandidates.indexOf(5) >= 0).assertTrue();
+      expect(r.bossCandidates.indexOf(6) >= 0).assertTrue();
     });
 
-    it('castleHostsTwoBossCandidatesCastleRange', 0, () => {
+    it('castleHostsExpandedBossCandidatesAndLegacySeeds', 0, () => {
       const r: AdventureRegion = getRegionById('school-castle');
-      expect(r.bossCandidates.length).assertEqual(2);
-      // Castle owns Witch / Snow Queen at catalog 7..8.
-      for (let i: number = 0; i < r.bossCandidates.length; i++) {
-        const v: number = r.bossCandidates[i];
-        expect(v >= 7 && v <= 8).assertTrue();
-      }
+      expect(r.bossCandidates.length).assertEqual(16);
+      expect(r.bossCandidates.indexOf(7) >= 0).assertTrue();
+      expect(r.bossCandidates.indexOf(8) >= 0).assertTrue();
     });
 
-    it('cottageHostsUnicornAfterV046KrakenMigration', 0, () => {
-      // V0.4.6: cottage drops Kraken; only Unicorn (#9) remains.
+    it('cottageHostsExpandedBossCandidatesAfterV046KrakenMigration', 0, () => {
+      // V0.4.6: cottage drops Kraken; the expanded V0.7.0 pool keeps Unicorn (#9).
       const r: AdventureRegion = getRegionById('home-cottage');
-      expect(r.bossCandidates.length).assertEqual(1);
-      expect(r.bossCandidates[0]).assertEqual(9);
+      expect(r.bossCandidates.length).assertEqual(14);
+      expect(r.bossCandidates.indexOf(9) >= 0).assertTrue();
+      expect(r.bossCandidates.indexOf(10)).assertEqual(-1);
     });
 
-    it('safariHostsPhoenixAndUnicornCandidates', 0, () => {
+    it('safariHostsExpandedBossCandidatesAndLegacySeeds', 0, () => {
       const r: AdventureRegion = getRegionById('animal-safari');
-      // V0.4.6: borrows Phoenix (#6) and Unicorn (#9) — both
-      // fairy-tale creature-themed bosses.
-      expect(r.bossCandidates.length).assertEqual(2);
+      expect(r.bossCandidates.length).assertEqual(14);
       expect(r.bossCandidates.indexOf(6) >= 0).assertTrue();
       expect(r.bossCandidates.indexOf(9) >= 0).assertTrue();
     });
 
-    it('oceanHostsKrakenSoleBoss', 0, () => {
+    it('oceanHostsExpandedBossCandidatesAndLegacySeed', 0, () => {
       const r: AdventureRegion = getRegionById('ocean-realm');
-      expect(r.bossCandidates.length).assertEqual(1);
-      expect(r.bossCandidates[0]).assertEqual(10);
+      expect(r.bossCandidates.length).assertEqual(11);
+      expect(r.bossCandidates.indexOf(10) >= 0).assertTrue();
     });
 
     it('bossCandidatesUnionCoversFullCatalogPossiblyShared', 0, () => {
-      // V0.4.6 relaxes the V0.3.8 uniqueness invariant — multiple
-      // regions can share the same boss in their rotation pool
-      // (Phoenix appears in fruit-forest AND animal-safari; Unicorn
-      // appears in home-cottage AND animal-safari). The remaining
-      // contract is "every catalog index 4..10 is reachable from at
-      // least one region".
+      // Expanded pools may share entries across regions. The release
+      // contract is that every catalog boss index remains reachable
+      // from at least one region.
       const seen: Set<number> = new Set<number>();
       for (let i: number = 0; i < ADVENTURE_REGIONS.length; i++) {
         const cands: number[] = ADVENTURE_REGIONS[i].bossCandidates;
@@ -146,6 +136,7 @@ export default function adventureCatalogTest() {
       for (let i: number = 4; i <= 10; i++) {
         expect(seen.has(i)).assertTrue();
       }
+      expect(seen.has(100)).assertTrue();
     });
   });
 }
