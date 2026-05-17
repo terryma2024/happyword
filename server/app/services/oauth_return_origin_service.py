@@ -121,12 +121,11 @@ def build_google_start_url(
     request_base_url: str,  # noqa: ARG001 — kept for call-site stability
     settings: Settings | None = None,
 ) -> str:
-    """Same-origin OAuth start; callback stays on canonical production host.
+    """Same-origin OAuth start on the host serving /family/login.
 
-    Preview/local login pages link here so `/v1/oauth/google/start` runs on the
-    current deployment. That handler signs `return_origin` from the request and
-    sends Google to `https://happyword.cool/.../callback`, which then handoffs
-    back to preview via `/v1/oauth/google/finish` when needed.
+    When `OAUTH_PREVIEW_BASE_URL` matches the current origin, Google callbacks
+    use that host's redirect URI; other allowlisted previews still use production
+    callback plus `/finish` handoff.
     """
     settings = settings or get_settings()
     if not settings.google_oauth_configured():

@@ -27,10 +27,12 @@
 
 | 项 | 值 |
 | --- | --- |
-| Canonical callback（Google Console 仅注册这一条） | `https://happyword.cool/v1/oauth/google/callback` |
-| Vercel env | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `OAUTH_CANONICAL_BASE_URL`（默认 `https://happyword.cool`） |
-| 本地开发 | `http://127.0.0.1:8000` 在 `OAUTH_LOCAL_ORIGINS` 中；可从本地登录页跳到生产 `start` 并带 `return_origin`，回调后由 `/v1/oauth/google/finish` 在本地种 `wm_session` |
-| Vercel Preview | 登录页链到 `https://happyword.cool/v1/oauth/google/start?return_origin=<preview-origin>`；回调在生产完成，再 60s 内一次性 ticket 跳回 Preview `/finish` |
+| Canonical callback | `https://happyword.cool/v1/oauth/google/callback` |
+| Fixed Preview callback | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/google/callback`（与 `OAUTH_PREVIEW_BASE_URL` 一致） |
+| Vercel env | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `OAUTH_CANONICAL_BASE_URL` / `OAUTH_PREVIEW_BASE_URL` |
+| 本地开发 | `http://127.0.0.1:8000` 在 `OAUTH_LOCAL_ORIGINS` 中；未配置 Preview base 时走生产 callback + `/finish` handoff |
+| 固定 Vercel Preview | 同域 `start` → Google → **Preview callback** → 直接种 `wm_session`（无需 handoff） |
+| 其它 `*.vercel.app` Preview | 仍用生产 callback + `/finish` ticket（需在 Google Console 单独登记才能直回） |
 
 未配置 `GOOGLE_OAUTH_*` 时登录页隐藏 Google 按钮（仅 OTP）。
 

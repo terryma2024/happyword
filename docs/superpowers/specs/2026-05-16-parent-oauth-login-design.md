@@ -16,8 +16,8 @@
 | Mobile | Mobile **browser** OAuth redirect only (no App WebView / custom URL scheme in Phase 1) |
 | Multiple providers | `oauth_identities` table; many providers per `User` |
 | OAuth URL shape | **`/v1/oauth/{provider}/...`** (site-root namespace, not under `/api/v1/family/...`) |
-| Google redirect URI | Single canonical callback on production: `https://happyword.cool/v1/oauth/google/callback` |
-| Vercel Preview | **Advanced hop:** OAuth on production + signed `return_origin` + one-time ticket → preview `finish` |
+| Google redirect URI | Production: `https://happyword.cool/v1/oauth/google/callback`; optional fixed Preview URL (see `OAUTH_PREVIEW_BASE_URL`) |
+| Vercel Preview | **Fixed Preview host:** same-origin callback, direct session. **Other allowlisted previews:** production callback + `/finish` handoff ticket |
 
 ---
 
