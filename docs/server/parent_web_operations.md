@@ -21,9 +21,11 @@
 
 ---
 
-## 2. Google OAuth 登录（V0.6.8+）
+## 2. 第三方 OAuth 登录（V0.6.8+）
 
 家长可在 **`/family/login`** 使用 **Continue with Google**（与邮箱 OTP 并列）。
+
+### Google
 
 | 项 | 值 |
 | --- | --- |
@@ -35,6 +37,26 @@
 | 其它 `*.vercel.app` Preview | 仍用生产 callback + `/finish` ticket（需在 Google Console 单独登记才能直回） |
 
 未配置 `GOOGLE_OAUTH_*` 时登录页隐藏 Google 按钮（仅 OTP）。
+
+### Apple
+
+| 项 | 值 |
+| --- | --- |
+| Canonical callback | `https://happyword.cool/v1/oauth/apple/callback` |
+| Fixed Preview callback | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/apple/callback`（与 `OAUTH_PREVIEW_BASE_URL` 一致） |
+| Apple Developer | Services ID + Sign in with Apple；Website URLs 填 `happyword.cool` 和固定 Preview 域名；Return URLs 填上面两个 callback |
+| Vercel env | `APPLE_OAUTH_CLIENT_ID`（Services ID）/ `APPLE_OAUTH_TEAM_ID` / `APPLE_OAUTH_KEY_ID` / `APPLE_OAUTH_PRIVATE_KEY` |
+
+Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏 Apple 按钮。
+
+### WeChat / Alipay
+
+| Provider | Canonical callback | Fixed Preview callback | Env |
+| --- | --- | --- | --- |
+| WeChat | `https://happyword.cool/v1/oauth/wechat/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/wechat/callback` | `WECHAT_OAUTH_APP_ID` / `WECHAT_OAUTH_APP_SECRET` |
+| Alipay | `https://happyword.cool/v1/oauth/alipay/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/alipay/callback` | `ALIPAY_OAUTH_APP_ID` / `ALIPAY_OAUTH_APP_PRIVATE_KEY` / `ALIPAY_OAUTH_PUBLIC_KEY` |
+
+微信网站应用使用 `snsapi_login`；支付宝网站登录使用 `auth_user`。两者首次登录通常不返回可验证邮箱，因此流程为：OAuth 回调 → `/family/oauth/bind-email?ticket=...` → 邮箱 OTP 验证 → 写入 `oauth_identities` → 种 `wm_session`。已绑定过的用户下次直接登录。
 
 设计说明：[`docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md`](../superpowers/specs/2026-05-16-parent-oauth-login-design.md)
 

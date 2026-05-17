@@ -116,19 +116,62 @@ class Settings(BaseSettings):
     notification_email_enabled: bool = True
     account_deletion_grace_days: int = 7
 
-    # V0.6.8 — parent Google OAuth (see docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md)
+    # V0.6.8 — parent OAuth.
+    # See docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md.
     google_oauth_client_id: str = ""
     google_oauth_client_secret: str = ""
     oauth_canonical_base_url: str = "https://happyword.cool"
     # Fixed Vercel Preview URL with its own Google redirect URI (optional).
     oauth_preview_base_url: str = ""
     oauth_handoff_ttl_seconds: int = 60
+    oauth_pending_bind_ttl_seconds: int = 600
     oauth_state_ttl_seconds: int = 600
     oauth_local_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
     oauth_state_cookie_name: str = "wm_oauth_state"
 
     def google_oauth_configured(self) -> bool:
         return bool(self.google_oauth_client_id.strip() and self.google_oauth_client_secret.strip())
+
+    # V0.6.8 — Sign in with Apple (Services ID + .p8 key; see parent OAuth design doc)
+    apple_oauth_client_id: str = ""
+    apple_oauth_team_id: str = ""
+    apple_oauth_key_id: str = ""
+    apple_oauth_private_key: str = ""
+
+    @field_validator("apple_oauth_private_key", mode="after")
+    @classmethod
+    def _normalize_apple_private_key(cls, value: str) -> str:
+        return value.replace("\\n", "\n").strip()
+
+    def apple_oauth_configured(self) -> bool:
+        return bool(
+            self.apple_oauth_client_id.strip()
+            and self.apple_oauth_team_id.strip()
+            and self.apple_oauth_key_id.strip()
+            and self.apple_oauth_private_key.strip()
+        )
+
+    # V0.6.8 — WeChat / Alipay web OAuth; first-time login binds email by OTP.
+    wechat_oauth_app_id: str = ""
+    wechat_oauth_app_secret: str = ""
+    alipay_oauth_app_id: str = ""
+    alipay_oauth_app_private_key: str = ""
+    alipay_oauth_public_key: str = ""
+
+    @field_validator("alipay_oauth_app_private_key", "alipay_oauth_public_key", mode="after")
+    @classmethod
+    def _normalize_alipay_key(cls, value: str) -> str:
+        return value.replace("\\n", "\n").strip()
+
+    def wechat_oauth_configured(self) -> bool:
+        return bool(self.wechat_oauth_app_id.strip() and self.wechat_oauth_app_secret.strip())
+
+    def alipay_oauth_configured(self) -> bool:
+        return bool(
+            self.alipay_oauth_app_id.strip()
+            and self.alipay_oauth_app_private_key.strip()
+            and self.alipay_oauth_public_key.strip()
+        )
 
 
 @lru_cache(maxsize=1)

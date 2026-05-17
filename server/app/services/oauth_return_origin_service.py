@@ -37,6 +37,21 @@ def google_oauth_enabled(settings: Settings | None = None) -> bool:
     return settings.google_oauth_configured()
 
 
+def apple_oauth_enabled(settings: Settings | None = None) -> bool:
+    settings = settings or get_settings()
+    return settings.apple_oauth_configured()
+
+
+def wechat_oauth_enabled(settings: Settings | None = None) -> bool:
+    settings = settings or get_settings()
+    return settings.wechat_oauth_configured()
+
+
+def alipay_oauth_enabled(settings: Settings | None = None) -> bool:
+    settings = settings or get_settings()
+    return settings.alipay_oauth_configured()
+
+
 def _local_origins(settings: Settings) -> set[str]:
     return {
         normalize_origin(part)
@@ -117,20 +132,51 @@ async def require_allowed_origin(origin: str, settings: Settings | None = None) 
     return normalized
 
 
-def build_google_start_url(
+def build_oauth_start_url(
+    provider: str,
+    *,
     request_base_url: str,  # noqa: ARG001 — kept for call-site stability
     settings: Settings | None = None,
 ) -> str:
-    """Same-origin OAuth start on the host serving /family/login.
-
-    When `OAUTH_PREVIEW_BASE_URL` matches the current origin, Google callbacks
-    use that host's redirect URI; other allowlisted previews still use production
-    callback plus `/finish` handoff.
-    """
+    """Same-origin OAuth start on the host serving /family/login."""
     settings = settings or get_settings()
-    if not settings.google_oauth_configured():
+    if provider == "google" and not settings.google_oauth_configured():
         return ""
-    return "/v1/oauth/google/start"
+    if provider == "apple" and not settings.apple_oauth_configured():
+        return ""
+    if provider == "wechat" and not settings.wechat_oauth_configured():
+        return ""
+    if provider == "alipay" and not settings.alipay_oauth_configured():
+        return ""
+    return f"/v1/oauth/{provider}/start"
+
+
+def build_google_start_url(
+    request_base_url: str,  # noqa: ARG001
+    settings: Settings | None = None,
+) -> str:
+    return build_oauth_start_url("google", request_base_url=request_base_url, settings=settings)
+
+
+def build_apple_start_url(
+    request_base_url: str,  # noqa: ARG001
+    settings: Settings | None = None,
+) -> str:
+    return build_oauth_start_url("apple", request_base_url=request_base_url, settings=settings)
+
+
+def build_wechat_start_url(
+    request_base_url: str,  # noqa: ARG001
+    settings: Settings | None = None,
+) -> str:
+    return build_oauth_start_url("wechat", request_base_url=request_base_url, settings=settings)
+
+
+def build_alipay_start_url(
+    request_base_url: str,  # noqa: ARG001
+    settings: Settings | None = None,
+) -> str:
+    return build_oauth_start_url("alipay", request_base_url=request_base_url, settings=settings)
 
 
 def clear_manifest_cache_for_tests() -> None:

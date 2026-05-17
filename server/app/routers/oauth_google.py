@@ -13,10 +13,9 @@ from app.services.auth_service import create_session_token
 from app.services.family_service import ParentLoginSuspended
 from app.services.google_oauth_service import (
     GoogleOAuthClient,
-    google_callback_url_for_origin,
     get_google_oauth_client,
+    google_callback_url_for_origin,
     registered_google_callback_urls,
-    uses_direct_session_on_callback,
 )
 from app.services.oauth_handoff_service import (
     OAuthHandoffError,
@@ -24,6 +23,7 @@ from app.services.oauth_handoff_service import (
     create_handoff_ticket,
 )
 from app.services.oauth_login_service import OAuthRoleMismatch, resolve_google_login
+from app.services.oauth_redirect_urls import uses_direct_session_on_callback
 from app.services.oauth_return_origin_service import (
     InvalidOriginError,
     canonical_origin,
