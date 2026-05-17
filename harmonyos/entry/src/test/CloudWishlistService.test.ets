@@ -179,7 +179,8 @@ export default function cloudWishlistServiceTest(): void {
       const svc: CloudWishlistService = makeService(adapter, prefs, true);
       const id: string = await svc.requestRedemption('wsh-1', '冰棍', 15);
       expect(id).assertEqual('rdm-aaaa1111');
-      expect(adapter.requests[0].url.indexOf('/api/v1/family/_/redemption-requests')).assertLargerOrEqual(0);
+      expect(adapter.requests[0].url.indexOf('/api/v1/family/fam-12345678/redemption-requests'))
+        .assertLargerOrEqual(0);
       expect(adapter.requests[0].body.indexOf('"wishlist_item_id":"wsh-1"')).assertLargerOrEqual(0);
       const pending: PendingRedemption | undefined = svc.pendingFor('wsh-1');
       expect(pending !== undefined).assertEqual(true);

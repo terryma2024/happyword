@@ -31,6 +31,7 @@ import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCre
 import BuildProfile from 'BuildProfile';
 import { VersionTripleTap } from '../services/VersionTripleTap';
 import { formatVersionLabel, readVersionInfo, VersionInfo } from '../services/BuildInfo';
+import { isDebugBuild } from '../services/ReleaseGate';
 import {
   HomeIntegrationBundle,
   fallbackPacks,
@@ -146,7 +147,7 @@ struct HomePage {
       console.error(`HomePage: loadHomeIntegration failed: ${JSON.stringify(err)}`);
     });
     this.refreshWrongCount();
-    if (BuildProfile.BUILD_MODE_NAME === 'debug') {
+    if (isDebugBuild(BuildProfile.BUILD_MODE_NAME)) {
       readVersionInfo().then((v: VersionInfo): void => {
         this.versionLabel = formatVersionLabel(v);
       }).catch((err: BusinessError): void => {
@@ -613,7 +614,7 @@ struct HomePage {
       // Triple-tap (≤1000ms window) navigates to DevMenuPage with the
       // PREVIEW environment pre-selected. Production / release builds
       // never render or hydrate this — see aboutToAppear gate.
-      if (BuildProfile.BUILD_MODE_NAME === 'debug') {
+      if (isDebugBuild(BuildProfile.BUILD_MODE_NAME)) {
         Column() {
           Text(this.versionLabel)
             .id('HomeVersionLabel')

@@ -14,11 +14,15 @@
     },
     {
       "name": "permission_internet_reason",
-      "value": "Sync the latest word pack from the Magic Word server."
+      "value": "用于同步最新词包和家长账号绑定数据。"
     },
     {
       "name": "permission_camera_reason",
-      "value": "为家长上传课本照片识别单词所需。"
+      "value": "用于扫码绑定家长账号。"
+    },
+    {
+      "name": "permission_persistent_id_reason",
+      "value": "用于保存稳定的设备标识，确保家长绑定在应用重装后仍可恢复。"
     }
   ]
 }

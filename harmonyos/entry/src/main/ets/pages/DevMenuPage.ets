@@ -25,6 +25,7 @@ import {
 } from '../services/PreviewManifestService';
 import { resetForEnvSwitch } from '../services/SessionResetService';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { isDebugBuild } from '../services/ReleaseGate';
 import BuildProfile from 'BuildProfile';
 import { BypassSecretDialog } from '../components/BypassSecretDialog';
 
@@ -132,7 +133,7 @@ struct DevMenuPage {
    * effective API base URL — the value every outgoing HTTP call resolves to.
    */
   private refreshRoutingDebugPanel(): void {
-    if (BuildProfile.BUILD_MODE_NAME !== 'debug') {
+    if (!isDebugBuild(BuildProfile.BUILD_MODE_NAME)) {
       this.routingDebugText = '';
       return;
     }
@@ -579,7 +580,7 @@ struct DevMenuPage {
             .width('100%');
         }
 
-        if (BuildProfile.BUILD_MODE_NAME === 'debug' && this.routingDebugText.length > 0) {
+        if (isDebugBuild(BuildProfile.BUILD_MODE_NAME) && this.routingDebugText.length > 0) {
           Text(this.routingDebugText)
             .id('DevMenuRoutingDebug')
             .fontSize(11)

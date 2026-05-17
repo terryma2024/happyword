@@ -4,7 +4,7 @@
 > App: `魔法背单词`
 > Bundle name: `com.terryma.wordmagicgame`
 > Version name: `0.7.0`
-> Version code: `1007000`
+> Version code: `1007001`
 > Last updated: 2026-05-16
 
 ## Source Of Truth
@@ -20,18 +20,19 @@
 ## Current Repo State
 
 - [x] `versionName` is `0.7.0` in `harmonyos/AppScope/app.json5`.
-- [x] `versionCode` is `1007000` in `harmonyos/AppScope/app.json5`.
+- [x] `versionCode` is `1007001` in `harmonyos/AppScope/app.json5`.
 - [x] Bundle name is `com.terryma.wordmagicgame`.
 - [x] Debug-only battle finish button is gated by `BuildProfile.BUILD_MODE_NAME`.
 - [x] Home version-label triple-tap is gated to debug builds.
 - [x] Backend environment override falls back to production/staging behavior outside debug builds.
 - [x] Debug HAP build passed locally with no observed `ArkTS:WARN` lines.
 - [x] CodeLinter passed locally with no defects after the successful HAP build.
-- [ ] Release APP/HAP build with production signing is not verified.
-- [ ] Full `hvigorw test --no-daemon` is not complete in this workspace; it reached `UnitTestArkTS` and then hung in the local runner.
+- [ ] No-device unit tests need a clean rerun: the latest local run completed `UnitTestArkTS`, printed `Darwin`, then the runner hung before reporting pass/fail.
+- [x] Release-mode APP build passed locally with official AppGallery release certificate / profile and no observed `ArkTS:WARN` lines.
+- [x] Official signing material was generated locally under `~/.ohos/config`; the local `build-profile.json5` credential-path/password change is intentionally not safe to commit.
 - [ ] Real-device Release smoke test is not yet done.
-- [ ] AppGallery Connect app record is not verified from this repo.
-- [ ] Huawei privacy, permission, and filing metadata are not verified from this repo.
+- [x] AppGallery Connect app record was created and verified for `com.terryma.wordmagicgame`.
+- [x] Huawei release metadata was filled in AppGallery Connect; final submission confirmation is still manual.
 
 ## P0 Blockers To Clear Before Upload
 
@@ -44,6 +45,7 @@
 - [ ] Confirm AppGallery Connect app record.
   - Bundle name: `com.terryma.wordmagicgame`.
   - App name: `魔法背单词`.
+  - Vendor string: `马天一`.
   - Category: education or game, decided intentionally.
   - Distribution country/region: confirm initial market.
   - Paid/free status: confirm free unless monetization is implemented.
@@ -76,42 +78,43 @@
 
 ## P1 Build And Verification Checklist
 
-- [ ] Install HarmonyOS dependencies.
+- [x] Install HarmonyOS dependencies.
 
 ```sh
 cd harmonyos
 ohpm install
 ```
 
-- [ ] Run debug HAP build as a local compiler gate.
+- [x] Run debug HAP build as a local compiler gate.
 
 ```sh
 cd harmonyos
 hvigorw assembleHap -p buildMode=debug --no-daemon
 ```
 
-- [ ] Confirm build log has no `ArkTS:WARN` lines.
-- [ ] Run CodeLinter after successful HAP build.
+- [x] Confirm build log has no `ArkTS:WARN` lines.
+- [x] Run CodeLinter after successful HAP build.
 
 ```sh
 cd harmonyos
 codelinter -c ./code-linter.json5 . --fix
 ```
 
-- [ ] Run HarmonyOS unit tests once the local runner hang is resolved.
+- [ ] Run HarmonyOS unit tests to completion.
 
 ```sh
 cd harmonyos
-hvigorw test --no-daemon
+hvigorw -p module=entry@default test --no-daemon
 ```
 
-- [ ] Build Release package with official signing.
+- [x] Build Release package in release mode with official AppGallery signing material.
 
 ```sh
 cd harmonyos
 hvigorw assembleApp -p buildMode=release --no-daemon
 ```
 
+- [x] Rebuild Release package with official AppGallery / production signing after signing material is ready.
 - [ ] Install release package on a real HarmonyOS device.
 - [ ] Smoke test Release build:
   - [ ] First launch.
@@ -152,21 +155,22 @@ hvigorw assembleApp -p buildMode=release --no-daemon
 
 ## P2 Repo Follow-Ups
 
-- [ ] Add missing Chinese localized string for `permission_persistent_id_reason` in `harmonyos/entry/src/main/resources/zh_CN/element/string.json`.
-- [ ] Decide whether English permission strings should be localized to Chinese in the base resources or only in `zh_CN`.
+- [x] Add missing Chinese localized string for `permission_persistent_id_reason` in `harmonyos/entry/src/main/resources/zh_CN/element/string.json`.
+- [x] Localize the `zh_CN` Internet / Camera permission reason strings to Chinese while leaving base resources as fallback English.
 - [ ] Create a safe release-signing config pattern that avoids committing private secrets.
-- [ ] Investigate the local `hvigorw test --no-daemon` runner hang and document the fix.
-- [ ] Add a repeatable release smoke-test note under `.cursor/ohos-dev-commands.md` if the current command doc lacks a Release path.
+- [ ] Resolve no-device unit-test runner hang; latest scoped Hvigor test run did not report final pass/fail.
+- [x] Add a repeatable release smoke-test note under `.cursor/ohos-dev-commands.md`.
 
 ## HarmonyOS Work Queue
 
-1. [ ] Obtain official release signing material from AppGallery Connect / DevEco workflow.
-2. [ ] Update signing configuration without committing private credentials.
-3. [ ] Fix `permission_persistent_id_reason` Chinese localization.
-4. [ ] Resolve `hvigorw test --no-daemon` runner hang or document the approved workaround.
-5. [ ] Build signed Release package.
-6. [ ] Install signed Release package on a real HarmonyOS device.
-7. [ ] Complete Release smoke test.
-8. [ ] Prepare Huawei privacy/permission declarations.
-9. [ ] Prepare screenshots and AppGallery metadata.
-10. [ ] Submit v0.7.0 for Huawei review.
+1. [x] Obtain official release signing material from AppGallery Connect / DevEco workflow.
+2. [x] Update local signing configuration without committing private credentials.
+3. [x] Fix `permission_persistent_id_reason` Chinese localization.
+4. [ ] Resolve no-device unit-test runner hang; latest scoped Hvigor test run did not report final pass/fail.
+5. [x] Build release-mode APP with current local signing config.
+6. [x] Build officially signed Release package.
+7. [ ] Install signed Release package on a real HarmonyOS device.
+8. [ ] Complete Release smoke test.
+9. [x] Prepare Huawei privacy/permission declarations.
+10. [x] Prepare screenshots and AppGallery metadata.
+11. [ ] Submit v0.7.0 for Huawei review.

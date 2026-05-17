@@ -410,7 +410,7 @@ export const MONSTER_CODEX: CodexEntry[] = [
     'reef-sprite',
     'Reef Sprite',
     '礁石小灵',
-    '礁石小灵躲在彩色海葵旁，头发像软软的海草。它每天给珊瑚浇海水，还会把贝壳擦亮。',
+    '礁石小灵躲在彩色海葵旁，头发像软软的海草。它每天给珊瑚浇海水，还会把贝壳擦得亮亮的。',
     'character/reef-sprite.svg'
   ),
   makeCodexEntry(
@@ -487,7 +487,7 @@ export const MONSTER_CODEX: CodexEntry[] = [
     'sky-whale',
     'Sky Whale',
     '天空鲸鱼',
-    '天空鲸鱼慢慢游过蓝天，肚子下面挂着几颗小星铃。它唱歌时，云朵会排成柔软的楼梯。',
+    '天空鲸鱼慢慢游过蓝天，肚子下面挂着几颗小星铃。它唱歌时，云朵会排成柔软的楼梯和小桥。',
     'character/sky-whale.svg'
   ),
   makeCodexEntry(
@@ -508,7 +508,7 @@ export const MONSTER_CODEX: CodexEntry[] = [
     'comet-dragon',
     'Comet Dragon',
     '彗星小龙',
-    '彗星小龙尾巴后面拖着星尘，飞过夜空像一支亮亮的铅笔。它会在天空写下晚安两个字。',
+    '彗星小龙尾巴后面拖着星尘，飞过夜空像一支亮亮的铅笔。它会在天空写下温柔的晚安句子。',
     'character/comet-dragon.svg'
   ),
   makeCodexEntry(
@@ -529,14 +529,14 @@ export const MONSTER_CODEX: CodexEntry[] = [
     'sphinx-cub',
     'Sphinx Cub',
     '谜语狮崽',
-    '谜语狮崽喜欢坐在小石台上问简单问题。答对了它会眯眼点头，答错了也会给一个提示。',
+    '谜语狮崽喜欢坐在小石台上问简单问题。答对了它会眯眼点头，答错了也会给一个小提示。',
     'character/sphinx-cub.svg'
   ),
   makeCodexEntry(
     'scarab-knight',
     'Scarab Knight',
     '甲虫骑士',
-    '甲虫骑士穿着亮亮的壳甲，盾牌像一颗小太阳。它很守规矩，过桥前一定排队。',
+    '甲虫骑士穿着亮亮的壳甲，盾牌像一颗小太阳。它很守规矩，过桥前一定排队等伙伴一起走。',
     'character/scarab-knight.svg'
   ),
   makeCodexEntry(
@@ -550,7 +550,7 @@ export const MONSTER_CODEX: CodexEntry[] = [
     'sun-salamander',
     'Sun Salamander',
     '阳光蝾螈',
-    '阳光蝾螈趴在暖石头上晒太阳，背上有小小太阳斑。它会把冷掉的面包轻轻烤热。',
+    '阳光蝾螈趴在暖石头上晒太阳，背上有小小太阳斑。它会把冷掉的面包轻轻烤热再分享给朋友。',
     'character/sun-salamander.svg'
   ),
   makeCodexEntry(
@@ -564,7 +564,7 @@ export const MONSTER_CODEX: CodexEntry[] = [
     'oasis-frog',
     'Oasis Frog',
     '绿洲青蛙',
-    '绿洲青蛙坐在荷叶伞下，口袋里装着清凉薄荷叶。它叫一声，水面就会冒出圆圆泡泡。',
+    '绿洲青蛙坐在荷叶伞下，口袋里装着清凉薄荷叶。它叫一声，水面就会冒出圆圆泡泡和水花。',
     'character/oasis-frog.svg'
   ),
   makeCodexEntry(
@@ -585,7 +585,7 @@ export const MONSTER_CODEX: CodexEntry[] = [
     'lava-toad',
     'Lava Toad',
     '熔岩圆蛙',
-    '熔岩圆蛙坐在温热岩石上，肚子一鼓一鼓像小灯笼。它只会吐出暖气泡，给冷手取暖。',
+    '熔岩圆蛙坐在温热岩石上，肚子一鼓一鼓像小灯笼。它只会吐出暖气泡，给小朋友暖手。',
     'character/lava-toad.svg'
   ),
   makeCodexEntry(
@@ -620,7 +620,7 @@ export const MONSTER_CODEX: CodexEntry[] = [
     'molten-snail',
     'Molten Snail',
     '暖壳蜗牛',
-    '暖壳蜗牛背着像小火山的壳，里面只冒温柔热气。它走得慢，适合陪大家练习耐心。',
+    '暖壳蜗牛背着像小火山的壳，里面只冒温柔热气。它走得慢，适合陪大家练习耐心走路和等待。',
     'character/molten-snail.svg'
   ),
   makeCodexEntry(
