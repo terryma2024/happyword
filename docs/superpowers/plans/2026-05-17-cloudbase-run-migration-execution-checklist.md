@@ -53,7 +53,7 @@
 - Create: `docs/server/cloudbase-run.md`
 - Modify: `docs/ci-secrets.md`
 
-- [ ] **Step 1: Create the CloudBase runbook skeleton**
+- [x] **Step 1: Create the CloudBase runbook skeleton**
 
   Create `docs/server/cloudbase-run.md` with this initial structure:
 
@@ -101,7 +101,7 @@
   - Known-good Vercel production URL:
   ````
 
-- [ ] **Step 2: Inventory current Vercel production variables**
+- [x] **Step 2: Inventory current Vercel production variables**
 
   Record these names in `docs/server/cloudbase-run.md`; do not write secret values:
 
@@ -136,7 +136,7 @@
 
   Acceptance: the runbook clearly marks which variables are required for staging, production, cron, OAuth, and Wave A Blob compatibility.
 
-- [ ] **Step 3: Add CloudBase secrets to CI docs**
+- [x] **Step 3: Add CloudBase secrets to CI docs**
 
   Append a section to `docs/ci-secrets.md`:
 
@@ -154,7 +154,7 @@
 
   Acceptance: the existing Vercel secret table is not removed; CloudBase secrets are clearly marked as migration/new path.
 
-- [ ] **Step 4: Confirm domain management path**
+- [x] **Step 4: Confirm domain management path**
 
   Use the logged-in browser only for read-only checks:
 

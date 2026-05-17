@@ -42,6 +42,11 @@ now only handles cleanup-on-close and manual repair runs.
 | [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-cd` | optional | `pytest -m smoke` runs without a DB target → likely fails |
 | [`SLACK_WEBHOOK_URL`](#slack_webhook_url) | `server-ci`, `server-cd` | optional | Failure alert step prints a warning; CI itself unaffected |
 | [`CURSOR_API_KEY`](#cursor_api_key) | `server-ci` (autofix), `cursor-autofix-e2e` | optional | The whole `cursor / autofix e2e` path warns once and exits — no agent is spawned |
+| [`TCB_SECRET_ID`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow cannot authenticate to Tencent Cloud. |
+| [`TCB_SECRET_KEY`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow cannot authenticate to Tencent Cloud. |
+| [`TCB_ENV_ID`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow does not know which environment to deploy to. |
+| [`CLOUDBASE_STAGING_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase smoke | optional during migration | Staging smoke checks cannot run against CloudBase. |
+| [`CLOUDBASE_PROD_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase smoke | optional during migration | Production smoke checks cannot run against CloudBase. |
 
 ## Setting secrets in the repo
 
@@ -56,6 +61,25 @@ now only handles cleanup-on-close and manual repair runs.
   do not use environments.
 
 ## How to obtain each secret
+
+### CloudBase Run migration secrets
+
+These secrets are only needed once the backend migration starts deploying
+`server/` to Tencent CloudBase Run. They do not replace the existing Vercel
+secrets until the Vercel retirement phase.
+
+| Secret | Required by | Purpose |
+| --- | --- | --- |
+| `TCB_SECRET_ID` | CloudBase CD | Tencent Cloud API credential id for CloudBase CLI login. |
+| `TCB_SECRET_KEY` | CloudBase CD | Tencent Cloud API credential key for CloudBase CLI login. |
+| `TCB_ENV_ID` | CloudBase CD | CloudBase environment id. |
+| `CLOUDBASE_STAGING_BASE_URL` | CloudBase smoke | Staging CloudBase HTTP Access URL. |
+| `CLOUDBASE_PROD_BASE_URL` | CloudBase smoke | Production canonical URL, normally `https://happyword.cool`. |
+
+Create the Tencent Cloud API credential with the narrowest permissions that can
+deploy the target CloudBase Run service and read deployment status. Store the
+credential only as GitHub Actions secrets or in Tencent Cloud Secret Manager;
+do not commit the values to this repository.
 
 ### `VERCEL_TOKEN`
 
