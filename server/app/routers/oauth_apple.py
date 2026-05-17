@@ -68,7 +68,10 @@ async def apple_start(
         max_age=settings.oauth_state_ttl_seconds,
         httponly=True,
         secure=allowed_origin.startswith("https://"),
-        samesite="lax",
+        # Apple returns the authorization code with response_mode=form_post.
+        # Cross-site POST callbacks do not send SameSite=Lax cookies, so the
+        # CSRF state cookie must be SameSite=None on HTTPS preview/production.
+        samesite="none" if allowed_origin.startswith("https://") else "lax",
         path="/",
     )
     return redirect

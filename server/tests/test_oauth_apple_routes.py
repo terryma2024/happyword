@@ -100,6 +100,30 @@ async def test_apple_start_uses_canonical_callback(
 
 
 @pytest.mark.asyncio
+async def test_apple_start_uses_samesite_none_state_cookie_on_https_preview(
+    apple_oauth_client: tuple[AsyncClient, StubAppleOAuthClient],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    preview_origin = "https://happyword-zjumty-2580-terrymas-projects.vercel.app"
+    monkeypatch.setenv("OAUTH_PREVIEW_BASE_URL", preview_origin)
+    get_settings.cache_clear()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url=preview_origin,
+        follow_redirects=False,
+    ) as preview_ac:
+        r = await preview_ac.get("/v1/oauth/apple/start")
+
+    assert r.status_code == 302
+    set_cookie = r.headers.get("set-cookie", "")
+    assert "wm_oauth_state=" in set_cookie
+    assert "SameSite=none" in set_cookie
+    assert "Secure" in set_cookie
+
+
+@pytest.mark.asyncio
 async def test_apple_callback_post_sets_session(
     apple_oauth_client: tuple[AsyncClient, StubAppleOAuthClient],
 ) -> None:
