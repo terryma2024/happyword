@@ -187,8 +187,23 @@ async def get_login(
             "alipay_start_url": build_alipay_start_url(base),
             "oauth_error": oauth_error,
             "oauth_error_message": _oauth_error_message(oauth_error) if oauth_error else "",
+        },
+    )
+
+
+@router.get("/login/password", response_class=HTMLResponse)
+async def get_login_password(
+    request: Request,
+    email: str = "",
+) -> HTMLResponse:
+    """Dedicated email + password login page (linked from /family/login)."""
+    return templates.TemplateResponse(
+        request,
+        "parent/login_password.html",
+        {
+            "user": None,
             "password_error": "",
-            "password_email": "",
+            "password_email": _normalize_email(email) if email else "",
         },
     )
 
@@ -498,31 +513,20 @@ async def post_password_login_form(
 ) -> HTMLResponse | RedirectResponse:
     _ = family_id
     email_norm = _normalize_email(email)
-    from app.services.oauth_return_origin_service import (
-        alipay_oauth_enabled,
-        apple_oauth_enabled,
-        build_alipay_start_url,
-        build_apple_start_url,
-        build_google_start_url,
-        build_wechat_start_url,
-        google_oauth_enabled,
-        wechat_oauth_enabled,
-    )
 
-    base = str(request.base_url)
-    oauth_ctx = {
-        "user": None,
-        "google_oauth_enabled": google_oauth_enabled(),
-        "google_start_url": build_google_start_url(base),
-        "apple_oauth_enabled": apple_oauth_enabled(),
-        "apple_start_url": build_apple_start_url(base),
-        "wechat_oauth_enabled": wechat_oauth_enabled(),
-        "wechat_start_url": build_wechat_start_url(base),
-        "alipay_oauth_enabled": alipay_oauth_enabled(),
-        "alipay_start_url": build_alipay_start_url(base),
-        "oauth_error": "",
-        "oauth_error_message": "",
-    }
+    def _password_page(
+        *, error: str, status_code: int
+    ) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "parent/login_password.html",
+            {
+                "user": None,
+                "password_error": error,
+                "password_email": email_norm,
+            },
+            status_code=status_code,
+        )
 
     try:
         user = await authenticate_parent_password(email=email_norm, password=password)
@@ -533,64 +537,28 @@ async def post_password_login_form(
             {"user": None, "email": email_norm},
         )
     except RoleMismatch:
-        return templates.TemplateResponse(
-            request,
-            "parent/login.html",
-            {
-                **oauth_ctx,
-                "password_error": "该邮箱归属于管理员账号；请使用管理员登录入口。",
-                "password_email": email_norm,
-            },
+        return _password_page(
+            error="该邮箱归属于管理员账号；请使用管理员登录入口。",
             status_code=400,
         )
     except ParentLoginSuspended:
-        return templates.TemplateResponse(
-            request,
-            "parent/login.html",
-            {
-                **oauth_ctx,
-                "password_error": "该家长账号已被管理员暂停登录，请联系支持。",
-                "password_email": email_norm,
-            },
+        return _password_page(
+            error="该家长账号已被管理员暂停登录，请联系支持。",
             status_code=403,
         )
     except PasswordNotSet as e:
-        return templates.TemplateResponse(
-            request,
-            "parent/login.html",
-            {
-                **oauth_ctx,
-                "password_error": e.message,
-                "password_email": email_norm,
-            },
-            status_code=409,
-        )
+        return _password_page(error=e.message, status_code=409)
     except (PasswordInvalid, PasswordLocked) as e:
-        return templates.TemplateResponse(
-            request,
-            "parent/login.html",
-            {
-                **oauth_ctx,
-                "password_error": (
-                    "密码错误，请重试。"
-                    if isinstance(e, PasswordInvalid)
-                    else "尝试次数过多，请稍后再试或使用邮箱验证码登录。"
-                ),
-                "password_email": email_norm,
-            },
+        return _password_page(
+            error=(
+                "密码错误，请重试。"
+                if isinstance(e, PasswordInvalid)
+                else "尝试次数过多，请稍后再试或使用邮箱验证码登录。"
+            ),
             status_code=403 if isinstance(e, PasswordInvalid) else 410,
         )
     except ParentPasswordError as e:
-        return templates.TemplateResponse(
-            request,
-            "parent/login.html",
-            {
-                **oauth_ctx,
-                "password_error": e.message,
-                "password_email": email_norm,
-            },
-            status_code=400,
-        )
+        return _password_page(error=e.message, status_code=400)
 
     token = create_session_token(role="parent", identifier=user.username)
     fid = user.family_id or "_"

@@ -218,11 +218,25 @@ async def test_password_change_success(
 
 
 @pytest.mark.asyncio
-async def test_login_page_has_password_form(
+async def test_login_page_has_password_login_link(
     html_client: tuple[AsyncClient, object],
 ) -> None:
     ac, _ = html_client
     r = await ac.get("/family/login")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    link = soup.find("a", href="/family/login/password")
+    assert link is not None
+    assert "Login with Password" in link.get_text()
+    assert soup.find("form", action="/family/_/auth/password-login") is None
+
+
+@pytest.mark.asyncio
+async def test_login_password_page_has_form(
+    html_client: tuple[AsyncClient, object],
+) -> None:
+    ac, _ = html_client
+    r = await ac.get("/family/login/password")
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     form = soup.find("form", action="/family/_/auth/password-login")
