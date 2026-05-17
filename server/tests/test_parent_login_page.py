@@ -51,6 +51,6 @@ async def test_login_page_renders_privacy_consent_checkbox(
     # the interception logic is wired, not just dead markup.
     assert "privacy-consent" in body
     assert "preventDefault" in body
-    # OAuth links are targeted by selector even when no provider is
-    # enabled in this env, so the prefix string must appear in the script.
+    # OAuth and password-login links are gated by the consent script.
     assert "/v1/oauth/" in body
+    assert "/family/login/password" in body

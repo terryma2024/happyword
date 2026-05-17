@@ -38,6 +38,15 @@ from app.services.auth_service import (
     decode_typed_token,
 )
 from app.services.family_service import ParentLoginSuspended, create_family_for_parent
+from app.services.parent_password_service import (
+    EmailNotRegistered,
+    ParentPasswordError,
+    PasswordInvalid,
+    PasswordLocked,
+    PasswordNotSet,
+    RoleMismatch,
+    authenticate_parent_password,
+)
 from app.services.notification_service import (
     EmailDeliveryDegraded,
     send_device_unbind_otp_email,
@@ -178,6 +187,23 @@ async def get_login(
             "alipay_start_url": build_alipay_start_url(base),
             "oauth_error": oauth_error,
             "oauth_error_message": _oauth_error_message(oauth_error) if oauth_error else "",
+        },
+    )
+
+
+@router.get("/login/password", response_class=HTMLResponse)
+async def get_login_password(
+    request: Request,
+    email: str = "",
+) -> HTMLResponse:
+    """Dedicated email + password login page (linked from /family/login)."""
+    return templates.TemplateResponse(
+        request,
+        "parent/login_password.html",
+        {
+            "user": None,
+            "password_error": "",
+            "password_email": _normalize_email(email) if email else "",
         },
     )
 
@@ -471,6 +497,69 @@ async def post_verify_code_form(
             },
             status_code=403,
         )
+    token = create_session_token(role="parent", identifier=user.username)
+    fid = user.family_id or "_"
+    redirect = RedirectResponse(url=f"/family/{fid}/", status_code=303)
+    set_parent_session_cookie(redirect, token)
+    return redirect
+
+
+@router.post("/{family_id}/auth/password-login", response_model=None)
+async def post_password_login_form(
+    request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
+    email: str = Form(...),
+    password: str = Form(...),
+) -> HTMLResponse | RedirectResponse:
+    _ = family_id
+    email_norm = _normalize_email(email)
+
+    def _password_page(
+        *, error: str, status_code: int
+    ) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "parent/login_password.html",
+            {
+                "user": None,
+                "password_error": error,
+                "password_email": email_norm,
+            },
+            status_code=status_code,
+        )
+
+    try:
+        user = await authenticate_parent_password(email=email_norm, password=password)
+    except EmailNotRegistered:
+        return templates.TemplateResponse(
+            request,
+            "parent/password_register_confirm.html",
+            {"user": None, "email": email_norm},
+        )
+    except RoleMismatch:
+        return _password_page(
+            error="该邮箱归属于管理员账号；请使用管理员登录入口。",
+            status_code=400,
+        )
+    except ParentLoginSuspended:
+        return _password_page(
+            error="该家长账号已被管理员暂停登录，请联系支持。",
+            status_code=403,
+        )
+    except PasswordNotSet as e:
+        return _password_page(error=e.message, status_code=409)
+    except (PasswordInvalid, PasswordLocked) as e:
+        return _password_page(
+            error=(
+                "密码错误，请重试。"
+                if isinstance(e, PasswordInvalid)
+                else "尝试次数过多，请稍后再试或使用邮箱验证码登录。"
+            ),
+            status_code=403 if isinstance(e, PasswordInvalid) else 410,
+        )
+    except ParentPasswordError as e:
+        return _password_page(error=e.message, status_code=400)
+
     token = create_session_token(role="parent", identifier=user.username)
     fid = user.family_id or "_"
     redirect = RedirectResponse(url=f"/family/{fid}/", status_code=303)

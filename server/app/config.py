@@ -97,6 +97,7 @@ class Settings(BaseSettings):
     otp_expiry_minutes: int = 10
     otp_max_attempts: int = 5
     otp_request_min_interval_seconds: int = 60
+    password_lockout_minutes: int = 15
 
     # V0.6.1 — email backend (Gmail SMTP default; EmailProvider abstraction)
     email_provider: Literal["gmail_smtp", "resend", "ses"] = "gmail_smtp"

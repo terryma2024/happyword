@@ -30,8 +30,12 @@
 /api/v1/family/{family_id}/account/cancel-delete
 /api/v1/family/{family_id}/account/delete
 /api/v1/family/{family_id}/account/export
+/api/v1/family/{family_id}/account/password/change
+/api/v1/family/{family_id}/account/password/request-otp
+/api/v1/family/{family_id}/account/password/set
 /api/v1/family/{family_id}/account/status
 /api/v1/family/{family_id}/auth/logout
+/api/v1/family/{family_id}/auth/password-login
 /api/v1/family/{family_id}/auth/request-code
 /api/v1/family/{family_id}/auth/verify-code
 /api/v1/family/{family_id}/children
@@ -81,6 +85,7 @@
 /api/v1/public/pair/redeem
 /api/v1/public/preview-urls.json
 /family/login
+/family/login/password
 /family/oauth/bind-email
 /family/oauth/bind-email/request-code
 /family/oauth/bind-email/verify-code
@@ -89,7 +94,11 @@
 /family/{family_id}/account
 /family/{family_id}/account/cancel-delete
 /family/{family_id}/account/delete
+/family/{family_id}/account/password/change
+/family/{family_id}/account/password/request-otp
+/family/{family_id}/account/password/set
 /family/{family_id}/auth/logout
+/family/{family_id}/auth/password-login
 /family/{family_id}/auth/request-code
 /family/{family_id}/auth/verify-code
 /family/{family_id}/devices/add

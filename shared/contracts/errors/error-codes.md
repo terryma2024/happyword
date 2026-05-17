@@ -15,6 +15,7 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `CRON_SECRET_NOT_CONFIGURED` | 503 | Admin cron | Cron secret is not configured. |
 | `DRAFT_VALIDATION_FAILED` | 422 | Family packs | Draft rows failed validation before publish (details in payload `rows`). |
 | `DUPLICATE_ID` | 409 | Admin words | Word id already exists. |
+| `EMAIL_NOT_REGISTERED` | 404 | Parent auth | No parent account exists for this email (password login). |
 | `EMPTY_BODY` | 400 | Admin assets / parent family pack import | Uploaded body is empty (image/audio/import). |
 | `EMPTY_PACK` | 409 | Family/global packs | Pack publish attempted without publishable words. |
 | `EMPTY_UPLOAD` | 400 | Admin LLM | Uploaded image body is empty. |
@@ -31,8 +32,13 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `LLM_NOT_CONFIGURED` | 503 | Admin LLM | LLM provider or key is not configured. |
 | `LESSON_APPROVE_INVALID` | 422 | Family lessons | Lesson draft approve failed while upserting family-pack rows (see `errors` array). |
 | `NAME_TAKEN` | 409 | Family/global packs | Pack name or id conflicts with an existing pack. |
+| `NO_EMAIL` | 400 | Parent account | Parent user has no email on file for OTP/password flows. |
 | `NO_PREVIOUS_VERSION` | 409 | Family/global packs | Rollback requested but no previous version exists. |
+| `OLD_PASSWORD_INVALID` | 403 | Parent account | Current password is incorrect when changing password. |
 | `PACK_FULL` | 409 | Family/global packs | Draft pack exceeds the word limit. |
+| `PASSWORD_INVALID` | 403 | Parent auth | Password login failed (wrong password). |
+| `PASSWORD_MISMATCH` | 400 | Parent account | New password and confirmation do not match. |
+| `PASSWORD_NOT_SET` | 409 | Parent auth | Parent account exists but has no password hash yet. |
 | `PACK_NOT_FOUND` | 404 | Family/global packs | Pack definition or published version does not exist. |
 | `PARENT_LOGIN_SUSPENDED` | 403 | Parent auth / deps | Parent account login is suspended by an administrator; OTP session invalid. |
 | `PAIR_FAILED` | 400 | Pairing | Pair service rejected redeem operation. |
@@ -45,7 +51,8 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `TOKEN_EXPIRED` | 410 | Pairing | Pair token expired. |
 | `TOKEN_INVALID` | 404 | Pairing | Pair token or short code does not exist. |
 | `TOKEN_REDEEMED` | 409 | Pairing | Pair token was already redeemed. |
-| `TOO_MANY_ATTEMPTS` | 410 | Parent auth | Verification code was locked after too many failed attempts. |
+| `TOO_MANY_ATTEMPTS` | 410 | Parent auth | Verification code or password login locked after too many failed attempts. |
+| `WEAK_PASSWORD` | 400 | Parent account | Password shorter than the minimum length (8). |
 | `UNAUTHORIZED` | 401 | Auth dependencies | Missing or invalid token/session. |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Admin LLM | Uploaded file type is unsupported. |
 | `USER_NOT_FOUND` | 404 | Account deletion | Parent account no longer exists. |
