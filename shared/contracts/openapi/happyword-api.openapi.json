@@ -13931,6 +13931,27 @@
         ]
       }
     },
+    "/terms": {
+      "get": {
+        "operationId": "get_terms_terms_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Terms",
+        "tags": [
+          "public-pages"
+        ]
+      }
+    },
     "/v1/oauth/alipay/callback": {
       "get": {
         "operationId": "alipay_callback_v1_oauth_alipay_callback_get",
