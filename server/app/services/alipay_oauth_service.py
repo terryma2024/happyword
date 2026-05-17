@@ -29,8 +29,7 @@ _ALIPAY_GATEWAY_URL = "https://openapi.alipay.com/gateway.do"
 
 @dataclass(frozen=True)
 class AlipayTokenResponse:
-    access_token: str
-    user_id: str
+    subject: str
 
 
 @dataclass(frozen=True)
@@ -90,15 +89,23 @@ class AlipayOAuthClientImpl:
         if body.get("code") and body.get("code") != "10000":
             msg = f"Alipay token exchange failed: {body.get('sub_code') or body.get('code')}"
             raise ValueError(msg)
-        access_token = body.get("access_token")
-        user_id = body.get("user_id")
-        if not isinstance(access_token, str) or not isinstance(user_id, str):
-            msg = "Alipay token response missing access_token/user_id"
+        subject = _alipay_subject_from_token_body(body)
+        if subject is None:
+            keys = ",".join(sorted(str(key) for key in body))
+            msg = f"Alipay token response missing user identifier; keys={keys}"
             raise ValueError(msg)
-        return AlipayTokenResponse(access_token=access_token, user_id=user_id)
+        return AlipayTokenResponse(subject=subject)
 
     async def fetch_identity(self, tokens: AlipayTokenResponse) -> AlipayIdentity:
-        return AlipayIdentity(subject=tokens.user_id)
+        return AlipayIdentity(subject=tokens.subject)
+
+
+def _alipay_subject_from_token_body(body: dict[str, object]) -> str | None:
+    for key in ("user_id", "open_id", "alipay_user_id"):
+        value = body.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
 
 
 def _sign_params(params: dict[str, str], private_key_pem: str) -> str:

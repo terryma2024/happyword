@@ -32,10 +32,10 @@ class StubAlipayOAuthClient:
 
     async def exchange_code(self, code: str) -> AlipayTokenResponse:
         _ = code
-        return AlipayTokenResponse(access_token="access-token", user_id=self.identity.subject)
+        return AlipayTokenResponse(subject=self.identity.subject)
 
     async def fetch_identity(self, tokens: AlipayTokenResponse) -> AlipayIdentity:
-        return AlipayIdentity(subject=tokens.user_id)
+        return AlipayIdentity(subject=tokens.subject)
 
 
 @pytest.fixture

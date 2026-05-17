@@ -8,7 +8,10 @@ import pytest
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
-from app.services.alipay_oauth_service import _verify_alipay_response_signature
+from app.services.alipay_oauth_service import (
+    _alipay_subject_from_token_body,
+    _verify_alipay_response_signature,
+)
 
 
 def _signed_alipay_response(payload: str) -> tuple[str, str]:
@@ -56,3 +59,14 @@ def test_verify_alipay_response_signature_rejects_tampered_response() -> None:
             response_key="alipay_system_oauth_token_response",
             public_key_pem=public_key_pem,
         )
+
+
+def test_alipay_subject_accepts_open_id_when_user_id_missing() -> None:
+    assert _alipay_subject_from_token_body({"open_id": "op_2088"}) == "op_2088"
+
+
+def test_alipay_subject_prefers_user_id() -> None:
+    assert (
+        _alipay_subject_from_token_body({"user_id": "2088", "open_id": "op_2088"})
+        == "2088"
+    )
