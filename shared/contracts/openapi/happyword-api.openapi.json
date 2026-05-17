@@ -11405,6 +11405,50 @@
         ]
       }
     },
+    "/family/login/password": {
+      "get": {
+        "description": "Dedicated email + password login page (linked from /family/login).",
+        "operationId": "get_login_password_family_login_password_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "email",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Email",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Login Password",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
     "/family/oauth/bind-email": {
       "get": {
         "operationId": "get_oauth_bind_email_family_oauth_bind_email_get",

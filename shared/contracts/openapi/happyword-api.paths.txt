@@ -85,6 +85,7 @@
 /api/v1/public/pair/redeem
 /api/v1/public/preview-urls.json
 /family/login
+/family/login/password
 /family/oauth/bind-email
 /family/oauth/bind-email/request-code
 /family/oauth/bind-email/verify-code
