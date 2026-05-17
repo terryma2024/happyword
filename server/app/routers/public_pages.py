@@ -8,17 +8,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+
+from app.template_paths import templates
 
 router = APIRouter(tags=["public-pages"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/privacy", response_class=HTMLResponse)
 async def get_privacy(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
-        "public/privacy.html",
+        "legal/privacy.html",
         {"user": None},
     )
 
@@ -27,7 +27,7 @@ async def get_privacy(request: Request) -> HTMLResponse:
 async def get_terms(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
-        "public/terms.html",
+        "legal/terms.html",
         {"user": None},
     )
 
@@ -36,7 +36,7 @@ async def get_terms(request: Request) -> HTMLResponse:
 async def get_support(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
-        "public/support.html",
+        "legal/support.html",
         {"user": None},
     )
 
