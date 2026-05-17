@@ -33,8 +33,8 @@
 
 ## Milestone Map
 
-- [ ] **M0: Migration control plane ready** - accounts, domain, secrets inventory, and rollback policy are documented.
-- [ ] **M1: Container runtime ready** - `server/` builds and runs locally as a CloudBase-compatible container.
+- [x] **M0: Migration control plane ready** - accounts, domain, secrets inventory, and rollback policy are documented.
+- [x] **M1: Container runtime ready** - `server/` builds and runs locally as a CloudBase-compatible container.
 - [ ] **M2: CloudBase staging online** - default CloudBase domain serves health, public pages, admin login, and pack JSON.
 - [ ] **M3: Cron replacement online** - CloudBase timer or fallback GitHub schedule calls the existing cron endpoint successfully.
 - [ ] **M4: Production domain ready** - `happyword.cool` can be bound to CloudBase with SSL and required filing state confirmed.
@@ -165,7 +165,7 @@
 
   Record the result in `docs/server/cloudbase-run.md`.
 
-- [ ] **Step 5: Commit M0 documentation**
+- [x] **Step 5: Commit M0 documentation**
 
   Run:
 
@@ -186,7 +186,7 @@
 - Create: `server/.dockerignore`
 - Test with: `server/tests/test_health.py`
 
-- [ ] **Step 1: Add `server/Dockerfile`**
+- [x] **Step 1: Add `server/Dockerfile`**
 
   Use:
 
@@ -213,10 +213,10 @@
 
   EXPOSE 8080
 
-  CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers"]
+  CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers"]
   ```
 
-- [ ] **Step 2: Add `server/.dockerignore`**
+- [x] **Step 2: Add `server/.dockerignore`**
 
   Use:
 
@@ -232,7 +232,7 @@
   *.pyc
   ```
 
-- [ ] **Step 3: Run server tests**
+- [x] **Step 3: Run server tests**
 
   Run:
 
@@ -243,7 +243,7 @@
 
   Expected: full server test suite finishes with `0 errors` and `0 warnings`.
 
-- [ ] **Step 4: Build AMD64 image locally**
+- [x] **Step 4: Build AMD64 image locally**
 
   Run:
 
@@ -254,7 +254,7 @@
 
   Expected: image builds successfully.
 
-- [ ] **Step 5: Run local container**
+- [x] **Step 5: Run local container**
 
   Run:
 
@@ -273,7 +273,13 @@
 
   Expected: health returns JSON, admin/login and privacy return HTTP 200 or 3xx HTML responses.
 
-- [ ] **Step 6: Commit container runtime**
+  Execution note, 2026-05-17: local smoke used a temporary MongoDB Docker
+  container and dummy local environment variables. `GET /api/v1/public/health`
+  returned `200` with `{"ok":true,...}`; `GET /admin/login` and `GET /privacy`
+  both returned `200`. Existing page routes return `405` for `HEAD`, so GET was
+  used for the page reachability checks.
+
+- [x] **Step 6: Commit container runtime**
 
   Run:
 
