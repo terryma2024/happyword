@@ -1,9 +1,7 @@
 """E2E: public legal pages must render HTML without a parent session.
 
-Regression guard for Vercel deployments where templates under
-``app/templates/public/`` were omitted from the serverless bundle
-(``public`` is reserved for static assets). Pages now live under
-``app/templates/legal/``.
+Regression guard for Vercel deployments where legal templates must
+live under ``app/templates/parent/`` (same bundle as ``parent/login.html``).
 """
 
 import httpx
