@@ -95,26 +95,33 @@ Snapshot date: 2026-05-18.
 - Package resource points consumed: 0.07 / 3000.
 - Pay-as-you-go toggle: off.
 - Cloud Run current usage: 0 CPU seconds, 0 GBs memory, 0 Byte outbound traffic.
+- Attempted to enable pay-as-you-go on 2026-05-18. Tencent CloudBase blocked the
+  action with: free trial tier does not support resource-pack add-ons or
+  pay-as-you-go; upgrade to a paid package first if needed.
 
-M2 staging is blocked until the operator confirms billing/overage behavior and
-provides staging secrets. Do not create `happyword-server-staging` with dummy
-or production values.
+M2 staging is blocked until the operator confirms whether to upgrade from the
+free trial tier. Do not create `happyword-server-staging` with dummy or
+production values.
 
 Required staging secrets:
 
-- `MONGODB_URI`
-- `MONGO_DB_NAME`
-- `JWT_SECRET`
-- `ADMIN_BOOTSTRAP_USER`
-- `ADMIN_BOOTSTRAP_PASS`
-- `CRON_SECRET`
-- `OPENAI_API_KEY`
-- `PREVIEW_MANIFEST_BLOB_URL`
+- `MONGODB_URI` - present in local `~/.env.tcb` on 2026-05-18
+- `MONGO_DB_NAME` - not present in local `~/.env.tcb`; use
+  `happyword_cloudbase_staging` unless the operator specifies another value
+- `JWT_SECRET` - present in local `~/.env.tcb` on 2026-05-18
+- `ADMIN_BOOTSTRAP_USER` - present in local `~/.env.tcb` on 2026-05-18
+- `ADMIN_BOOTSTRAP_PASS` - present in local `~/.env.tcb` on 2026-05-18
+- `CRON_SECRET` - not present in local `~/.env.tcb`; generate a new staging-only
+  value before configuring CloudBase
+- `OPENAI_API_KEY` - present in local `~/.env.tcb` on 2026-05-18
+- `PREVIEW_MANIFEST_BLOB_URL` - not present in local `~/.env.tcb`; required only
+  if staging must validate `/api/v1/public/preview-urls.json`
 - `BLOB_READ_WRITE_TOKEN`, only if upload paths must be tested during staging
 
 Required operator decisions:
 
-- Whether to enable CloudBase pay-as-you-go before staging deploy.
+- Whether to upgrade the CloudBase environment from free trial to a paid package
+  so pay-as-you-go can be enabled.
 - Whether MongoDB Atlas will allow all CloudBase egress IPs for staging, or
   whether Cloud Run fixed public IP should be enabled and added to the Atlas
   allowlist first.

@@ -314,6 +314,11 @@
   toggle is off and staging secrets are not yet available in the local context.
   Findings are recorded in `docs/server/cloudbase-run.md`.
 
+  Follow-up note, 2026-05-18: attempting to enable pay-as-you-go showed that
+  the CloudBase free trial tier cannot enable pay-as-you-go or add resource
+  packs. The operator must upgrade to a paid package before this acceptance
+  item can pass.
+
 - [ ] **Step 2: Create staging service**
 
   Create CloudBase Run service:
