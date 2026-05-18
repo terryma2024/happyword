@@ -4,9 +4,9 @@
 
 **Goal:** Migrate the `server/` FastAPI backend and HTML admin/parent web shell from Vercel to Tencent CloudBase Run without breaking production traffic, preview QA, cron extraction, OAuth callbacks, or uploaded assets.
 
-**Architecture:** Use a phased migration. Phase 1 containerizes the existing FastAPI app and deploys it to CloudBase Run while keeping MongoDB Atlas and Vercel Blob as compatibility dependencies. Phase 2 cuts production traffic to CloudBase Run. Phase 3 removes Vercel-specific runtime, CI, preview-manifest, cron, and Blob dependencies after the CloudBase route is proven stable.
+**Architecture:** Use a phased migration. Phase 1 containerizes the existing FastAPI app and deploys it to CloudBase Run while keeping MongoDB Atlas and Vercel Blob as compatibility dependencies. Phase 2 cuts production traffic to CloudBase Run. Phase 3 removes Vercel-specific runtime, CI, preview-manifest, cron, and Blob dependencies after the CloudBase route is proven stable. Phase 4 replaces MongoDB Atlas with a Tencent-side MongoDB-compatible database after runtime/domain/storage behavior is no longer moving.
 
-**Tech Stack:** Python 3.12, FastAPI, Uvicorn, uv, MongoDB/Beanie, CloudBase Run container mode, CloudBase HTTP Access Service, GitHub Actions, CloudBase CLI, CloudBase Cloud Function timer trigger or GitHub scheduled workflow for cron replacement.
+**Tech Stack:** Python 3.12, FastAPI, Uvicorn, uv, MongoDB/Beanie, CloudBase Run container mode, CloudBase HTTP Access Service, Tencent COS, TencentDB for MongoDB, Tencent Cloud DTS, GitHub Actions, CloudBase CLI, CloudBase Cloud Function timer trigger or GitHub scheduled workflow for cron replacement.
 
 ---
 
@@ -87,9 +87,72 @@ Critical endpoints to preserve:
 Use a two-wave migration:
 
 1. **Wave A: runtime-only move.** Deploy the FastAPI app to CloudBase Run with the same MongoDB Atlas database and the same Vercel Blob asset store. Bind a staging CloudBase default domain first. Then bind and fully validate CloudBase production on `happyword.com.cn`. Only after `happyword.com.cn` health, admin pages, OAuth/cookie behavior, cron, LLM import, and client smoke checks pass, change `happyword.cool` from Vercel DNS/CNAME to the CloudBase target. This proves the CloudBase container, network, env vars, cookies, OAuth, and request limits before removing any storage or CI assumptions.
-2. **Wave B: Vercel retirement.** Replace Vercel Blob with CloudBase Storage or Tencent COS, replace Vercel Cron with a CloudBase Cloud Function timer or GitHub scheduled workflow, redesign the preview manifest around CloudBase Run revisions or a maintained QA environment list, and delete Vercel-only workflows after green validation.
+2. **Wave B: Vercel retirement.** Replace Vercel Blob with Tencent COS first, or CloudBase Storage only if its server-side public URL and SDK behavior prove simpler for this backend. Replace Vercel Cron with a CloudBase Cloud Function timer or GitHub scheduled workflow, redesign the preview manifest around CloudBase Run revisions or a maintained QA environment list, and delete Vercel-only workflows after green validation.
+3. **Wave C: MongoDB Atlas replacement.** Replace Atlas with TencentDB for MongoDB using Tencent Cloud DTS full + incremental migration. Keep the application contract as a MongoDB URI so Motor/Beanie code remains unchanged; cut over by changing `MONGODB_URI`/`MONGO_DB_NAME` only after data consistency, index checks, and production smoke pass.
 
-Do not attempt a one-shot full migration. The codebase has enough Vercel-specific preview and Blob machinery that moving runtime, storage, preview QA, cron, and production DNS in one release would make rollback noisy.
+Do not attempt a one-shot full migration. The codebase has enough Vercel-specific preview and Blob machinery that moving runtime, storage, preview QA, cron, database, and production DNS in one release would make rollback noisy.
+
+## Replacement Strategy: MongoDB Atlas
+
+Recommended target: **TencentDB for MongoDB**, not CloudBase Database.
+
+Why:
+
+- The current backend uses Motor + Beanie and expects normal MongoDB wire protocol semantics, indexes, update operators, and collection behavior.
+- TencentDB for MongoDB preserves the `MONGODB_URI` application boundary, so cutover can be done by environment-variable replacement.
+- Tencent Cloud DTS supports MongoDB migration with full and incremental modes, which lets us backfill historical data and keep catching up while Atlas remains the production writer.
+
+Do not choose CloudBase Database for this migration wave unless we explicitly plan a data-access rewrite. It is a document database product in the CloudBase ecosystem, but this server is not written against the CloudBase database SDK.
+
+Atlas replacement phases:
+
+1. **Target provisioning.** Create a TencentDB for MongoDB instance in the same region/VPC strategy as CloudBase Run, with a MongoDB major version compatible with the current Atlas cluster.
+2. **Schema and index inventory.** Export current collection names, index definitions, TTL indexes, unique constraints, and document counts from Atlas before migration.
+3. **DTS precheck.** Create a DTS MongoDB migration task from Atlas to TencentDB. Use public network access first only if Atlas allowlisting and TLS settings pass; prefer private connectivity later if operationally justified.
+4. **Full + incremental sync.** Run full migration, then keep incremental sync active while Atlas remains production.
+5. **Consistency check.** Compare collection counts, important indexes, sample documents, and auth/admin flows against the TencentDB target.
+6. **Application staging cutover.** Change CloudBase staging `MONGODB_URI` to TencentDB, run smoke tests, admin login, pack reads, write paths, async lesson import, and cron extraction.
+7. **Production maintenance window.** Freeze or minimize writes, wait for DTS lag to reach zero, change CloudBase production `MONGODB_URI`, redeploy/restart, and run production smoke.
+8. **Rollback window.** Keep Atlas read/write credentials and the old URI intact until CloudBase production has run cleanly for at least one release cycle.
+9. **Retirement.** Stop DTS, make Atlas read-only or archive backup, then remove Atlas credentials only after rollback is no longer needed.
+
+Key risks:
+
+- Atlas network allowlisting may need DTS public egress IPs or a private network path.
+- Atlas SRV/TLS connection strings may need special DTS settings.
+- Index differences can cause subtle query or uniqueness regressions even when document counts match.
+- Any cutover with live writes needs a short write freeze or a clearly defined final sync point.
+
+## Replacement Strategy: Vercel Blob
+
+Recommended target: **Tencent COS** for backend-owned asset storage, with an optional CDN/custom domain later.
+
+Why:
+
+- The backend already performs server-side uploads and only needs stable HTTPS object URLs in stored documents.
+- COS is a general object store with Python SDK support, REST APIs, public URL/custom-domain patterns, lifecycle management, and CDN integration.
+- Existing Vercel Blob URLs can remain readable; the first implementation only needs to route new uploads to COS.
+
+CloudBase Storage remains a candidate for a later simplification pass if its server SDK and public URL behavior fit the Python backend cleanly, but COS is the lower-risk first replacement because it is a standalone object storage service.
+
+Blob replacement phases:
+
+1. **Bucket provisioning.** Create separate staging and production COS buckets, preferably in the same mainland region strategy as CloudBase Run.
+2. **URL policy.** Decide whether public assets use the default COS domain, a CDN domain, or a custom asset domain. Record cache and CORS behavior.
+3. **Provider abstraction.** Keep existing call sites stable and add `ASSET_STORAGE_PROVIDER=vercel_blob|tencent_cos|cloudbase_storage`.
+4. **COS implementation.** Add env vars for `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_REGION`, `COS_BUCKET`, and `COS_PUBLIC_BASE_URL`. Upload new assets to deterministic prefixes matching current asset categories.
+5. **Compatibility.** Keep Vercel Blob reads as-is for old URLs. Do not rewrite stored Vercel Blob URLs during the first COS rollout.
+6. **Delete semantics.** Only delete objects from the provider that owns the URL. A Vercel URL should never trigger a COS delete and vice versa.
+7. **Staging validation.** Upload one word illustration/audio and one lesson image through CloudBase staging, then verify the returned URL is public and stable.
+8. **Production switch.** Change production `ASSET_STORAGE_PROVIDER=tencent_cos` after staging passes.
+9. **Backfill decision.** Later decide whether to copy old Vercel Blob objects to COS and rewrite DB URLs. This is optional and should be a separate, reversible migration.
+10. **Vercel Blob retirement.** Remove `BLOB_READ_WRITE_TOKEN` only after all write paths use COS and any remaining Vercel URLs are either intentionally kept as historical external URLs or backfilled.
+
+Key risks:
+
+- Public bucket policy and CDN cache settings can accidentally expose too much or break client image/audio loading.
+- Existing DB rows store absolute URLs, so backfill requires careful URL rewrite and rollback.
+- Upload content type, cache headers, and object key generation must remain stable across admin assets and lesson-import images.
 
 ## Target CloudBase Layout
 
@@ -639,10 +702,16 @@ Wave A keeps Vercel Blob. Wave B replaces it.
       provider = os.environ.get("ASSET_STORAGE_PROVIDER", "vercel_blob")
       if provider == "vercel_blob":
           return await _upload_vercel_blob(path, payload, mime)
+      if provider == "tencent_cos":
+          return await _upload_tencent_cos(path, payload, mime)
       if provider == "cloudbase_storage":
           return await _upload_cloudbase_storage(path, payload, mime)
       raise RuntimeError(f"Unsupported ASSET_STORAGE_PROVIDER={provider}")
   ```
+
+  Use `tencent_cos` as the first production replacement target. Keep
+  `cloudbase_storage` as an optional future provider only if console/API
+  validation shows simpler public URL behavior for this Python backend.
 
 - [ ] **Step 2: Backfill tests**
 
@@ -656,6 +725,22 @@ Wave A keeps Vercel Blob. Wave B replaces it.
 - [ ] **Step 3: Migrate existing asset URLs**
 
   Do not rewrite existing Mongo rows in the first CloudBase runtime release. Existing Vercel Blob URLs can remain readable. New uploads move after provider switch.
+
+- [ ] **Step 3A: Configure Tencent COS**
+
+  Required env vars:
+
+  ```text
+  ASSET_STORAGE_PROVIDER=tencent_cos
+  COS_SECRET_ID=from-secret-store
+  COS_SECRET_KEY=from-secret-store
+  COS_REGION=selected-region
+  COS_BUCKET=selected-bucket
+  COS_PUBLIC_BASE_URL=https://selected-public-cos-or-cdn-domain
+  ```
+
+  Acceptance: new upload paths return COS URLs, old Vercel Blob URLs remain
+  readable, and delete logic only deletes URLs owned by the matching provider.
 
 - [ ] **Step 4: Replace preview manifest storage**
 
@@ -738,7 +823,8 @@ These are the only decisions that should be confirmed before implementation:
 1. **Scope of "migrate from Vercel":** runtime-only first, or runtime plus storage in the same project. Recommendation: runtime-only first.
 2. **Production domain readiness:** whether `happyword.cool` has ICP filing and Tencent Cloud access filing ready. If not, CloudBase can only be staging until filing is done.
 3. **Preview replacement target:** one shared CloudBase staging service first, or per-PR CloudBase revisions. Recommendation: shared staging first.
-4. **Storage replacement target:** CloudBase Storage or Tencent COS direct. Recommendation: CloudBase Storage first if it provides the public URL and CDN behavior needed by clients; COS direct if CloudBase Storage SDK/API is awkward from FastAPI.
+4. **Storage replacement target:** Tencent COS first, with CloudBase Storage kept as an alternate only if its server-side SDK and public URL behavior prove simpler for this Python backend.
+5. **Database replacement target:** TencentDB for MongoDB via DTS full + incremental migration. Do not rewrite to CloudBase Database SDK in this migration unless a separate data-access rewrite is approved.
 
 ## Rollback Plan
 

@@ -4,9 +4,9 @@
 
 **Goal:** Move the `server/` FastAPI backend from Vercel to Tencent CloudBase Run through small, reversible milestones that can be executed over multiple work sessions.
 
-**Architecture:** Treat the migration as a long-running project with four gates: prepare, prove CloudBase staging, cut over production, then retire Vercel-specific dependencies. The first production cutover keeps MongoDB Atlas and Vercel Blob in place so runtime migration can be verified independently from storage and preview-system migration.
+**Architecture:** Treat the migration as a long-running project with five gates: prepare, prove CloudBase staging, cut over production, retire Vercel-specific dependencies, then replace MongoDB Atlas. The first production cutover keeps MongoDB Atlas and Vercel Blob in place so runtime migration can be verified independently from storage, preview-system, and database migration.
 
-**Tech Stack:** Python 3.12, FastAPI, Uvicorn, uv, Docker, CloudBase Run, CloudBase HTTP Access Service, CloudBase Cloud Functions timer trigger, GitHub Actions, MongoDB Atlas, Vercel Blob compatibility during Wave A, CloudBase Storage or Tencent COS during Wave B.
+**Tech Stack:** Python 3.12, FastAPI, Uvicorn, uv, Docker, CloudBase Run, CloudBase HTTP Access Service, CloudBase Cloud Functions timer trigger, GitHub Actions, MongoDB Atlas compatibility during Wave A, Vercel Blob compatibility during Wave A, Tencent COS during Wave B, TencentDB for MongoDB and Tencent Cloud DTS during Wave C.
 
 ---
 
@@ -42,7 +42,8 @@
 - [ ] **M4: Production domain ready** - `happyword.com.cn` can be bound to CloudBase with SSL and required filing state confirmed.
 - [ ] **M5: Production cutover complete** - `happyword.com.cn` points to CloudBase and smoke validation passes; `happyword.cool` moves only after that.
 - [ ] **M6: CloudBase CI/CD active** - `main` deployment and smoke checks no longer depend on Vercel production deployment status.
-- [ ] **M7: Storage migration complete** - new uploads use CloudBase Storage or Tencent COS, existing Vercel Blob URLs stay readable.
+- [ ] **M7: Storage migration complete** - new uploads use Tencent COS, existing Vercel Blob URLs stay readable.
+- [ ] **M7A: MongoDB Atlas replacement complete** - CloudBase uses TencentDB for MongoDB after DTS sync, consistency checks, and rollback validation.
 - [ ] **M8: Preview/QA replacement complete** - Vercel Preview dependency is removed from the QA path.
 - [ ] **M9: Vercel retired** - Vercel deploy, cron, preview, prune, and Blob-specific secrets are removed or archived.
 
@@ -68,9 +69,10 @@
   - Production domain: happyword.cool
   - Production service name: happyword-server
   - Staging service name: happyword-server-staging
-  - MongoDB provider: MongoDB Atlas
+  - MongoDB provider during Wave A: MongoDB Atlas
+  - MongoDB provider after Wave C: TencentDB for MongoDB, planned
   - Asset storage provider during Wave A: Vercel Blob
-  - Asset storage provider during Wave B: undecided, CloudBase Storage or Tencent COS
+  - Asset storage provider during Wave B: Tencent COS, planned
 
   ## CloudBase Environment
 
@@ -992,14 +994,42 @@
 
 - [ ] **Step 1: Choose storage provider**
 
-  Pick one:
+  Recommended choice:
 
-  - CloudBase Storage if public URL generation and server-side upload are straightforward.
-  - Tencent COS Python SDK if Python backend support and CDN/domain controls are clearer.
+  ```text
+  Primary target: Tencent COS
+  Alternative: CloudBase Storage only if its server-side Python/public URL behavior is simpler in console validation
+  Compatibility default: Vercel Blob
+  ```
+
+  Rationale:
+
+  - Current backend upload paths are server-side Python and store absolute public
+    URLs in MongoDB documents.
+  - Tencent COS is a standalone object store with REST/SDK support, lifecycle
+    controls, and CDN/custom-domain integration.
+  - CloudBase Storage can still be evaluated, but it should not delay the
+    lower-risk COS provider abstraction.
 
   Record the selected provider and required env vars in `docs/server/cloudbase-run.md`.
 
-- [ ] **Step 2: Add failing storage-provider tests**
+- [ ] **Step 2: Provision COS buckets**
+
+  Create:
+
+  ```text
+  Staging bucket: happyword-assets-staging
+  Production bucket: happyword-assets-prod
+  Region: same mainland region strategy as CloudBase Run unless pricing/networking says otherwise
+  Public access: allow public read only for intended asset prefixes, or use CDN/custom asset domain
+  CORS: allow GET/HEAD from happyword.com.cn, happyword.cool, and staging validation domains
+  Lifecycle: no auto-delete for production assets unless explicitly scoped to temporary imports
+  ```
+
+  Acceptance: a manually uploaded test object has a stable HTTPS URL and can be
+  fetched from a browser without credentials.
+
+- [ ] **Step 3: Add failing storage-provider tests**
 
   Add `server/tests/test_storage_provider.py` with tests for:
 
@@ -1027,7 +1057,7 @@
 
   Expected before implementation: import or assertion failure.
 
-- [ ] **Step 3: Implement provider selection**
+- [ ] **Step 4: Implement provider selection**
 
   Add `server/app/services/storage_provider.py`:
 
@@ -1045,7 +1075,7 @@
       raise RuntimeError(f"Unsupported ASSET_STORAGE_PROVIDER={raw!r}")
   ```
 
-- [ ] **Step 4: Refactor `blob_service.py` without changing callers**
+- [ ] **Step 5: Refactor `blob_service.py` without changing callers**
 
   Keep public functions stable:
 
@@ -1058,11 +1088,12 @@
 
   Internally route to the selected provider. Preserve Vercel Blob behavior as the default.
 
-- [ ] **Step 5: Add provider-specific implementation**
+- [ ] **Step 6: Add Tencent COS implementation**
 
-  For Tencent COS, create:
+  Add these environment variables:
 
   ```text
+  ASSET_STORAGE_PROVIDER=tencent_cos
   COS_SECRET_ID
   COS_SECRET_KEY
   COS_REGION
@@ -1070,9 +1101,31 @@
   COS_PUBLIC_BASE_URL
   ```
 
+  Implementation requirements:
+
+  - Preserve content type for PNG/JPEG/WebP/audio uploads.
+  - Use deterministic prefixes by asset category, for example
+    `word-illustrations/`, `word-audio/`, and `lesson-imports/`.
+  - Return public HTTPS URLs based on `COS_PUBLIC_BASE_URL`.
+  - Keep Vercel Blob as the default until staging switch is explicit.
+
   Acceptance: upload returns a stable public URL and existing callers do not change.
 
-- [ ] **Step 6: Run storage tests**
+- [ ] **Step 7: Preserve old Vercel Blob reads**
+
+  Do not rewrite existing DB rows in the first storage wave.
+
+  Required behavior:
+
+  - Existing Vercel Blob URLs stay readable as external historical URLs.
+  - New uploads use COS only when `ASSET_STORAGE_PROVIDER=tencent_cos`.
+  - Deletion code must delete only objects owned by the selected URL/provider.
+    A Vercel Blob URL must not trigger a COS delete request, and a COS URL must
+    not trigger a Vercel Blob delete request.
+
+  Acceptance: tests cover mixed old/new URL behavior.
+
+- [ ] **Step 8: Run storage tests**
 
   Run:
 
@@ -1084,27 +1137,233 @@
 
   Expected: `0 errors`, `0 warnings`.
 
-- [ ] **Step 7: Deploy storage switch to staging**
+- [ ] **Step 9: Deploy storage switch to staging**
 
   Set staging:
 
   ```text
   ASSET_STORAGE_PROVIDER=tencent_cos
+  COS_SECRET_ID=from-secret-store
+  COS_SECRET_KEY=from-secret-store
+  COS_REGION=selected-region
+  COS_BUCKET=happyword-assets-staging
+  COS_PUBLIC_BASE_URL=https://selected-public-cos-or-cdn-domain
   ```
 
-  Upload one test illustration/audio from admin UI and verify the returned URL renders publicly.
+  Validate:
 
-- [ ] **Step 8: Deploy storage switch to production**
+  - Upload one test illustration from admin UI.
+  - Upload one test audio asset if that path is enabled.
+  - Upload one lesson image through import flow.
+  - Fetch each returned URL with `curl -I`.
+  - Confirm MongoDB stores the COS URL for new objects and old Vercel Blob URLs remain unchanged.
+
+- [ ] **Step 10: Deploy storage switch to production**
 
   Set production `ASSET_STORAGE_PROVIDER` after staging passes. Do not rewrite existing Vercel Blob URLs.
 
-- [ ] **Step 9: Commit storage migration**
+- [ ] **Step 11: Decide whether to backfill old Vercel Blob objects**
+
+  Default decision: do not backfill during M7.
+
+  If a later backfill is approved, create a separate migration plan that:
+
+  - Lists every collection and field containing Vercel Blob URLs.
+  - Copies objects to COS.
+  - Writes a reversible URL rewrite script.
+  - Keeps a rollback map from new COS URL back to old Vercel Blob URL.
+  - Runs on staging before production.
+
+- [ ] **Step 12: Commit storage migration**
 
   Run:
 
   ```bash
   git add server/app/services/storage_provider.py server/app/services/blob_service.py server/tests/test_storage_provider.py docs/ci-secrets.md docs/server/cloudbase-run.md
   git commit -m "feat: support cloud storage provider for assets"
+  ```
+
+## M7A: MongoDB Atlas Replacement
+
+**Goal:** Move the CloudBase backend from MongoDB Atlas to a Tencent-side MongoDB-compatible database without changing app data-access code.
+
+**Recommended target:** TencentDB for MongoDB.
+
+**Non-goal:** Do not rewrite the server to CloudBase Database SDK in this milestone. The current app uses Motor + Beanie and should keep the MongoDB URI boundary.
+
+**Files:**
+
+- Modify: `docs/server/cloudbase-run.md`
+- Modify: `docs/ci-secrets.md`
+- Optional add: `server/scripts/db_inventory.py`
+- Optional add tests: `server/tests/test_db_inventory.py`
+
+- [ ] **Step 1: Confirm target database product**
+
+  Choose:
+
+  ```text
+  Primary target: TencentDB for MongoDB
+  Migration tool: Tencent Cloud DTS for MongoDB
+  Migration mode: full + incremental
+  Application change: environment variable switch only
+  ```
+
+  Record target version, region, topology, backup policy, and estimated monthly
+  cost in `docs/server/cloudbase-run.md`.
+
+- [ ] **Step 2: Inventory current Atlas database**
+
+  Record:
+
+  ```text
+  Atlas cluster name:
+  Current production database name:
+  MongoDB major version:
+  Collection list:
+  Document counts by collection:
+  Indexes by collection:
+  TTL indexes:
+  Unique indexes:
+  Largest collections:
+  Current Atlas backup/restore status:
+  ```
+
+  Acceptance: inventory is recorded without committing connection strings or credentials.
+
+- [ ] **Step 3: Provision TencentDB for MongoDB staging target**
+
+  Create a staging-size TencentDB for MongoDB instance first.
+
+  Requirements:
+
+  - MongoDB major version compatible with Atlas and Beanie queries.
+  - Network reachable from CloudBase Run staging.
+  - Dedicated application user with least required privileges.
+  - Backup enabled.
+
+  Acceptance: CloudBase staging can connect with a test `MONGODB_URI` and
+  `GET /api/v1/public/health` returns `200`.
+
+- [ ] **Step 4: Create DTS migration task for staging rehearsal**
+
+  Configure DTS:
+
+  ```text
+  Source: MongoDB Atlas
+  Source access type: public network unless private connectivity is ready
+  Source SSL mode: Mongo Atlas SSL when required by Atlas connection settings
+  Target: TencentDB for MongoDB staging instance
+  Migration type: full + incremental
+  Migration objects: application database only; exclude admin/local/config
+  ```
+
+  Acceptance: DTS precheck passes. If Atlas allowlist blocks DTS, record the
+  required DTS egress IPs or networking path before proceeding.
+
+- [ ] **Step 5: Run staging full + incremental sync**
+
+  Let DTS complete full sync and enter incremental catch-up.
+
+  Acceptance:
+
+  - Full sync completes.
+  - Incremental lag is visible and reaches a stable low value.
+  - DTS reports no failed collections.
+
+- [ ] **Step 6: Run consistency checks**
+
+  Check:
+
+  - Collection counts match expected staging snapshot.
+  - Indexes exist on target.
+  - Sample documents deserialize through Beanie models.
+  - Admin login works.
+  - Public pack read works.
+  - One write path works in staging.
+  - Async lesson import + cron extraction works.
+
+  Record exact commands and redacted results in `docs/server/cloudbase-run.md`.
+
+- [ ] **Step 7: Switch CloudBase staging to TencentDB**
+
+  Set staging:
+
+  ```text
+  MONGODB_URI=staging-tencentdb-uri-from-secret-store
+  MONGO_DB_NAME=happyword_cloudbase_staging
+  ```
+
+  Run:
+
+  ```bash
+  cd server
+  E2E_BASE_URL="$CLOUDBASE_STAGING_BASE_URL" uv run pytest -v -m smoke
+  ```
+
+  Acceptance: staging smoke passes with TencentDB target.
+
+- [ ] **Step 8: Provision production TencentDB for MongoDB target**
+
+  Create production instance sized for current Atlas workload.
+
+  Requirements:
+
+  - Backup policy and restore test defined.
+  - Monitoring alarms configured.
+  - Connection URI stored only in CloudBase/Tencent secret store.
+  - Rollback Atlas URI preserved.
+
+- [ ] **Step 9: Run production DTS full + incremental sync**
+
+  Configure production DTS from Atlas production to TencentDB production.
+
+  Acceptance:
+
+  - Precheck passes.
+  - Full sync completes.
+  - Incremental lag reaches zero or a documented acceptable cutover value.
+
+- [ ] **Step 10: Production database cutover**
+
+  Cutover sequence:
+
+  1. Announce a short maintenance/write-freeze window.
+  2. Stop or pause write-heavy admin/import jobs.
+  3. Confirm DTS incremental lag is zero.
+  4. Change CloudBase production `MONGODB_URI` to TencentDB.
+  5. Restart/redeploy CloudBase production service.
+  6. Run health, public pack, admin login, parent login, one safe write, and cron smoke.
+
+  Rollback: restore the previous Atlas `MONGODB_URI` and restart CloudBase.
+
+- [ ] **Step 11: Keep Atlas during rollback window**
+
+  Do not delete Atlas immediately.
+
+  Minimum rollback window:
+
+  ```text
+  One full release cycle or at least 7 days of clean production operation, whichever is longer.
+  ```
+
+- [ ] **Step 12: Retire Atlas credentials**
+
+  After rollback window:
+
+  - Stop DTS.
+  - Take/export final Atlas backup if needed.
+  - Remove Atlas URI from CloudBase env vars and local secret inventory.
+  - Update `docs/ci-secrets.md`.
+  - Record retirement in `docs/server/cloudbase-run.md`.
+
+- [ ] **Step 13: Commit database migration notes**
+
+  Run:
+
+  ```bash
+  git add docs/server/cloudbase-run.md docs/ci-secrets.md
+  git commit -m "docs: add cloudbase database replacement plan"
   ```
 
 ## M8: Preview and QA Replacement

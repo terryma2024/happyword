@@ -47,6 +47,10 @@ now only handles cleanup-on-close and manual repair runs.
 | [`TCB_ENV_ID`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow does not know which environment to deploy to. |
 | [`CLOUDBASE_STAGING_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase smoke | optional during migration | Staging smoke checks cannot run against CloudBase. |
 | [`CLOUDBASE_PROD_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase smoke | optional during migration | Production smoke checks cannot run against CloudBase. |
+| `ASSET_STORAGE_PROVIDER` | CloudBase runtime env | optional until M7 | Defaults to Vercel Blob; set to `tencent_cos` after COS staging validation. |
+| `COS_SECRET_ID` / `COS_SECRET_KEY` | CloudBase runtime env | optional until M7 | New COS uploads cannot run without these when `ASSET_STORAGE_PROVIDER=tencent_cos`. |
+| `COS_REGION` / `COS_BUCKET` / `COS_PUBLIC_BASE_URL` | CloudBase runtime env | optional until M7 | COS URLs cannot be generated correctly without bucket and public base URL config. |
+| `TENCENTDB_MONGODB_URI` | Operator secret inventory | optional until M7A | Holds the future TencentDB for MongoDB URI before it replaces runtime `MONGODB_URI`. |
 
 ## Setting secrets in the repo
 
@@ -87,6 +91,40 @@ The current M3 implementation deploys `cloudbase/functions/cron-extract-pending`
 manually through the CloudBase CLI and stores function env vars in CloudBase,
 not in GitHub Actions. The `CLOUDBASE_CRON_*` names are reserved for future CI/CD
 automation if function deployment is moved into GitHub Actions.
+
+### CloudBase storage and database replacement secrets
+
+These names are for post-runtime migration waves. They are not required for the
+initial CloudBase Run cutover.
+
+#### Tencent COS asset storage
+
+Use these after M7 switches new uploads away from Vercel Blob:
+
+| Name | Where to store | Purpose |
+| --- | --- | --- |
+| `ASSET_STORAGE_PROVIDER` | CloudBase env | `vercel_blob` by default; set `tencent_cos` after staging validation. |
+| `COS_SECRET_ID` | CloudBase/Tencent secret store | Tencent COS API credential id. |
+| `COS_SECRET_KEY` | CloudBase/Tencent secret store | Tencent COS API credential key. |
+| `COS_REGION` | CloudBase env | Bucket region. |
+| `COS_BUCKET` | CloudBase env | Separate staging and production bucket names. |
+| `COS_PUBLIC_BASE_URL` | CloudBase env | Public HTTPS base URL, CDN domain, or custom asset domain used to form stored URLs. |
+
+Keep `BLOB_READ_WRITE_TOKEN` until all write paths use COS and any remaining
+Vercel Blob URLs are intentionally retained or backfilled.
+
+#### TencentDB for MongoDB
+
+Use these during M7A. The final runtime variable remains `MONGODB_URI`; the
+temporary names below are only for operator inventory and staged cutover.
+
+| Name | Where to store | Purpose |
+| --- | --- | --- |
+| `TENCENTDB_MONGODB_URI` | Operator password manager / Tencent secret store | Future TencentDB URI before it replaces runtime `MONGODB_URI`. |
+| `TENCENTDB_MONGO_DB_NAME` | Operator password manager / Tencent secret store | Target database name if different from current `MONGO_DB_NAME`. |
+| `ATLAS_MONGODB_URI_ROLLBACK` | Operator password manager only | Old Atlas URI retained for rollback; do not put this in GitHub logs. |
+
+Do not remove Atlas credentials until the database rollback window is complete.
 
 ### `VERCEL_TOKEN`
 

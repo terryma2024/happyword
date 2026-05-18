@@ -7,9 +7,10 @@
 - First CloudBase production validation domain: happyword.com.cn
 - Production service name: happyword-server
 - Staging service name: happyword-server-staging
-- MongoDB provider: MongoDB Atlas
+- MongoDB provider during Wave A: MongoDB Atlas
+- MongoDB provider after Wave C: TencentDB for MongoDB, planned
 - Asset storage provider during Wave A: Vercel Blob
-- Asset storage provider during Wave B: undecided, CloudBase Storage or Tencent COS
+- Asset storage provider during Wave B: Tencent COS, planned; CloudBase Storage remains an alternate only if server-side public URL behavior proves simpler
 
 ## CloudBase Environment
 
@@ -176,6 +177,103 @@ Required operator decisions:
   `httpx.ConnectTimeout` / `openai.APITimeoutError`. The server can now switch
   lesson image parsing through `LLM_PROVIDER`; validate `qwen`, `doubao`, and
   `kimi` from CloudBase before production cutover.
+
+## Replacement Strategy
+
+### MongoDB Atlas Replacement
+
+Target: TencentDB for MongoDB.
+
+Rationale:
+
+- The FastAPI backend uses Motor + Beanie and should keep the MongoDB wire
+  protocol/application contract.
+- A TencentDB for MongoDB target can be adopted by changing
+  `MONGODB_URI`/`MONGO_DB_NAME`, instead of rewriting data-access code.
+- Tencent Cloud DTS supports MongoDB full + incremental migration, which is the
+  preferred way to copy historical data and keep catching up while Atlas remains
+  the production writer.
+
+Rejected for the first replacement wave:
+
+- CloudBase Database: not MongoDB-driver compatible with the current server
+  code; choosing it would be a data-access rewrite project.
+- Self-managed MongoDB on CVM/Lighthouse: higher operational burden than a
+  managed TencentDB instance.
+
+Planned sequence:
+
+1. Inventory Atlas collections, document counts, index definitions, TTL indexes,
+   unique indexes, and backup status.
+2. Create TencentDB for MongoDB staging instance.
+3. Run DTS rehearsal from Atlas to TencentDB staging using full + incremental
+   migration.
+4. Switch CloudBase staging `MONGODB_URI` to TencentDB and run smoke tests.
+5. Create production TencentDB for MongoDB instance with backup and monitoring.
+6. Run production DTS full + incremental migration.
+7. During a short maintenance/write-freeze window, wait for DTS lag to reach
+   zero, switch CloudBase production `MONGODB_URI`, restart the service, and run
+   production smoke.
+8. Keep Atlas and its old URI as rollback for at least one full release cycle or
+   7 clean production days, whichever is longer.
+9. Retire Atlas credentials only after the rollback window.
+
+Cutover acceptance:
+
+- `GET /api/v1/public/health` returns `200`.
+- `GET /api/v1/public/packs/latest.json` returns `200` from TencentDB-backed
+  CloudBase production.
+- Admin login, parent login, one safe write path, and cron extraction pass.
+- Collection counts and critical indexes match the recorded Atlas inventory.
+
+### Vercel Blob Replacement
+
+Target: Tencent COS for new backend-owned uploads.
+
+Rationale:
+
+- The server already performs server-side uploads and stores absolute HTTPS URLs
+  in MongoDB documents.
+- COS provides object storage with SDK/REST access, lifecycle management,
+  public URL/custom-domain patterns, and CDN integration.
+- Existing Vercel Blob URLs can remain readable; the first migration only needs
+  to route new uploads to COS.
+
+CloudBase Storage remains an alternate if a later console/API validation proves
+that its Python server-side upload and public URL behavior is simpler than COS.
+
+Planned env vars:
+
+| Variable | Required for | Notes |
+| --- | --- | --- |
+| `ASSET_STORAGE_PROVIDER` | Wave B storage switch | `vercel_blob` by default; set `tencent_cos` after staging validation. |
+| `COS_SECRET_ID` | Tencent COS uploads | Secret store only. |
+| `COS_SECRET_KEY` | Tencent COS uploads | Secret store only. |
+| `COS_REGION` | Tencent COS uploads | Region selected for the bucket. |
+| `COS_BUCKET` | Tencent COS uploads | Separate staging and production buckets. |
+| `COS_PUBLIC_BASE_URL` | Tencent COS public URLs | Default COS domain, CDN domain, or custom asset domain. |
+
+Planned sequence:
+
+1. Create staging and production COS buckets.
+2. Decide public URL policy: default COS domain, CDN domain, or custom asset
+   domain.
+3. Add a storage-provider abstraction while keeping existing
+   `blob_service.py` call sites stable.
+4. Keep `vercel_blob` as the default provider until staging passes.
+5. Upload new staging assets to COS and verify image/audio URLs load publicly.
+6. Switch production `ASSET_STORAGE_PROVIDER=tencent_cos`.
+7. Do not rewrite existing Vercel Blob URLs during the first rollout.
+8. Decide later whether old Vercel Blob objects should be copied to COS and DB
+   URLs rewritten. If approved, that backfill must be a separate reversible
+   migration with a rollback map.
+
+Cutover acceptance:
+
+- New admin-uploaded illustration/audio assets return COS URLs.
+- New lesson-import image uploads return COS URLs.
+- Existing Vercel Blob URLs stored in MongoDB remain readable.
+- Delete logic only deletes objects owned by the URL provider.
 
 ### Filing and Certificate Readiness
 
@@ -359,7 +457,7 @@ M3 CloudBase cron replacement status:
 | Variable | Required for | Notes |
 | --- | --- | --- |
 | `PREVIEW_MANIFEST_BLOB_URL` | Wave A staging, Wave A production | Keeps `/api/v1/public/preview-urls.json` working while Vercel Blob remains the manifest source. |
-| `BLOB_READ_WRITE_TOKEN` | Wave A upload paths | Keeps existing asset upload code working until storage moves to CloudBase Storage or Tencent COS. |
+| `BLOB_READ_WRITE_TOKEN` | Wave A upload paths | Keeps existing asset upload code working until storage moves to Tencent COS. |
 
 ### OAuth Providers
 
