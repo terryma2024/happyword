@@ -628,14 +628,16 @@
   HTTP Access custom domain. Tencent Cloud SSL certificate `XjNs7qFU` for
   `happyword.com.cn` was issued on 2026-05-18 and covers both
   `happyword.com.cn` and `www.happyword.com.cn`, so certificate availability is
-  no longer a blocker. ICP is not submitted yet: the ICP console shows
-  `happyword.com.cn` as `未备案`. The CloudBase Standard monthly package is not
-  listed as an eligible filing resource, but Tencent Lighthouse instance
-  `lhins-nxph0u6i` was purchased on 2026-05-18 and is now recognized by the
-  `验证备案` form as a `轻量应用服务器` cloud resource. The form reports that the
-  current server IP has 0 bound websites and 5 remaining available website
-  filing slots. Remaining action: the user must fill or confirm the subject
-  identity fields, filing region, and domain, then submit for initial review.
+  no longer a blocker. The CloudBase Standard monthly package is not listed as
+  an eligible filing resource, but Tencent Lighthouse instance
+  `lhins-nxph0u6i` was purchased on 2026-05-18 and was recognized by the
+  `验证备案` form as a `轻量应用服务器` cloud resource. ICP order
+  `30177909141643864` was submitted on 2026-05-18 as a first filing
+  (`首次备案`) and is now in Tencent Cloud review (`腾讯云审核`). The console says
+  Tencent Cloud will perform phone verification within 1-2 business days; if
+  the calls are missed, the order can be rejected. Remaining action: wait for
+  Tencent Cloud review, then complete MIIT SMS verification and communications
+  administration review before retrying CloudBase custom-domain binding.
 
 - [x] **Step 3: Create CloudBase production service**
 
