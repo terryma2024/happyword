@@ -132,10 +132,10 @@ async def extract_target_vocabulary(
     settings = get_settings()
     if settings.llm_provider != "openai":
         from app.services.llm_providers import (  # noqa: PLC0415
-            extract_json_payload_with_responses_provider,
+            extract_json_payload_with_provider,
         )
 
-        model_used, payload = await extract_json_payload_with_responses_provider(
+        model_used, payload = await extract_json_payload_with_provider(
             image_bytes,
             mime,
             prompt=_RESPONSES_SCAN_PROMPT,

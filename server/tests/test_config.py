@@ -86,3 +86,21 @@ def test_settings_defaults_to_openai_llm_provider(monkeypatch: pytest.MonkeyPatc
     assert s.llm_provider == "openai"
     assert s.qwen_model_vision == "qwen3.6-plus"
     assert s.doubao_model_vision == "doubao-seed-2-0-pro-260215"
+    assert s.kimi_model_vision == "kimi-k2.6"
+
+
+def test_settings_accepts_kimi_api_key_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    for k in (
+        "MONGODB_URI",
+        "MONGO_DB_NAME",
+        "JWT_SECRET",
+        "ADMIN_BOOTSTRAP_USER",
+        "ADMIN_BOOTSTRAP_PASS",
+    ):
+        monkeypatch.setenv(k, "x")
+    monkeypatch.delenv("MOONSHOT_API_KEY", raising=False)
+    monkeypatch.setenv("KIMI_API_KEY", "kimi-test-key")
+
+    s = Settings()  # type: ignore[call-arg]
+
+    assert s.moonshot_api_key == "kimi-test-key"

@@ -20,7 +20,7 @@ from openai import AsyncOpenAI
 from app.config import Settings, get_settings
 from app.services.llm_service import LlmCallError, LlmConfigError
 
-ProviderKind = Literal["openai_chat", "responses"]
+ProviderKind = Literal["openai_chat", "openai_compatible_chat", "responses"]
 
 
 @dataclass(frozen=True)
@@ -34,6 +34,7 @@ class LessonProviderSpec:
     default_vision_model: str
     base_url: str | None = None
     supports_thinking: bool = False
+    disable_thinking: bool = False
     supports_json_object_mode: bool = False
     comparison_notes: str = ""
 
@@ -77,6 +78,22 @@ LESSON_PROVIDER_SPECS: dict[str, LessonProviderSpec] = {
         base_url="https://ark.cn-beijing.volces.com/api/v3",
         comparison_notes=(
             "China-hosted OpenAI-compatible Responses API; useful second local provider."
+        ),
+    ),
+    "kimi": LessonProviderSpec(
+        id="kimi",
+        display_name="Kimi",
+        kind="openai_compatible_chat",
+        api_key_env="MOONSHOT_API_KEY",
+        settings_api_key_attr="moonshot_api_key",
+        settings_model_attr="kimi_model_vision",
+        default_vision_model="kimi-k2.6",
+        base_url="https://api.moonshot.cn/v1",
+        supports_thinking=True,
+        disable_thinking=True,
+        supports_json_object_mode=True,
+        comparison_notes=(
+            "Moonshot OpenAI-compatible Chat Completions API with native multimodal input."
         ),
     ),
 }
@@ -201,6 +218,48 @@ async def _extract_lesson_payload_openai_chat(
     return model, _json_object_from_text(content, provider=provider)
 
 
+async def _extract_lesson_payload_openai_compatible_chat(
+    *,
+    provider: LessonProviderSpec,
+    api_key: str,
+    model: str,
+    image_bytes: bytes,
+    mime: str,
+    prompt: str,
+    timeout_seconds: float,
+) -> tuple[str, dict[str, Any]]:
+    client = _build_openai_compatible_client(api_key=api_key, base_url=provider.base_url)
+    image_url = _build_image_data_url(image_bytes, mime)
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": prompt},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": image_url}},
+                    {"type": "text", "text": "Extract the lesson metadata + words."},
+                ],
+            },
+        ],
+        "timeout": timeout_seconds,
+    }
+    if provider.supports_json_object_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    if provider.disable_thinking:
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+
+    try:
+        completion = await client.chat.completions.create(**kwargs)
+    except openai.OpenAIError as exc:
+        raise LlmCallError(f"{provider.display_name} vision call failed: {exc}") from exc
+
+    content = completion.choices[0].message.content
+    if not content:
+        raise LlmCallError(f"{provider.display_name} vision returned no JSON content")
+    return model, _json_object_from_text(content, provider=provider)
+
+
 async def _extract_lesson_payload_responses(
     *,
     provider: LessonProviderSpec,
@@ -257,12 +316,37 @@ async def extract_lesson_payload_with_provider(
             prompt=prompt,
             timeout_seconds=timeout_seconds,
         )
+    if provider.kind == "openai_compatible_chat":
+        return await _extract_lesson_payload_openai_compatible_chat(
+            provider=provider,
+            api_key=api_key,
+            model=model,
+            image_bytes=image_bytes,
+            mime=mime,
+            prompt=prompt,
+            timeout_seconds=timeout_seconds,
+        )
     return await _extract_lesson_payload_responses(
         provider=provider,
         api_key=api_key,
         model=model,
         image_bytes=image_bytes,
         mime=mime,
+        prompt=prompt,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+async def extract_json_payload_with_provider(
+    image_bytes: bytes,
+    mime: str,
+    *,
+    prompt: str,
+    timeout_seconds: float,
+) -> tuple[str, dict[str, Any]]:
+    return await extract_lesson_payload_with_provider(
+        image_bytes,
+        mime,
         prompt=prompt,
         timeout_seconds=timeout_seconds,
     )

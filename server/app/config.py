@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     jwt_expire_hours: int = 24
     admin_bootstrap_user: str
     admin_bootstrap_pass: str
-    llm_provider: Literal["openai", "qwen", "doubao"] = "openai"
+    llm_provider: Literal["openai", "qwen", "doubao", "kimi"] = "openai"
     openai_api_key: str = ""
     openai_model_text: str = "gpt-4o-mini"
     openai_model_vision: str = "gpt-4o"
@@ -85,6 +85,11 @@ class Settings(BaseSettings):
     qwen_model_vision: str = "qwen3.6-plus"
     ark_api_key: str = ""
     doubao_model_vision: str = "doubao-seed-2-0-pro-260215"
+    moonshot_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("MOONSHOT_API_KEY", "KIMI_API_KEY"),
+    )
+    kimi_model_vision: str = "kimi-k2.6"
     cors_allow_origins: str = "*"
     log_level: Literal["debug", "info", "warning", "error"] = "info"
 

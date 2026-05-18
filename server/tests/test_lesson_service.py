@@ -149,9 +149,11 @@ async def test_extract_lesson_payload_bounds_openai_call_below_function_timeout(
 def test_lesson_provider_registry_includes_initial_providers() -> None:
     from app.services.llm_providers import LESSON_PROVIDER_SPECS  # noqa: PLC0415
 
-    assert set(LESSON_PROVIDER_SPECS) >= {"openai", "qwen", "doubao"}
+    assert set(LESSON_PROVIDER_SPECS) >= {"openai", "qwen", "doubao", "kimi"}
     assert LESSON_PROVIDER_SPECS["qwen"].default_vision_model == "qwen3.6-plus"
     assert LESSON_PROVIDER_SPECS["doubao"].default_vision_model == "doubao-seed-2-0-pro-260215"
+    assert LESSON_PROVIDER_SPECS["kimi"].default_vision_model == "kimi-k2.6"
+    assert LESSON_PROVIDER_SPECS["kimi"].api_key_env == "MOONSHOT_API_KEY"
     assert LESSON_PROVIDER_SPECS["openai"].api_key_env == "OPENAI_API_KEY"
 
 
@@ -256,6 +258,70 @@ async def test_extract_lesson_payload_routes_doubao_to_responses_api(
 
 
 @pytest.mark.asyncio
+async def test_extract_lesson_payload_routes_kimi_to_chat_completions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "kimi")
+    monkeypatch.setenv("MOONSHOT_API_KEY", "moonshot-test")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "admin")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "pw")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.services import llm_providers  # noqa: PLC0415
+
+    get_settings.cache_clear()
+    captured_client: dict[str, object] = {}
+    captured_request: dict[str, object] = {}
+
+    class _FakeMessage:
+        content = '{"category_id":"lesson","words":[]}'
+
+    class _FakeChoice:
+        message = _FakeMessage()
+
+    class _FakeCompletion:
+        choices = [_FakeChoice()]
+
+    class _FakeCompletions:
+        async def create(self, **kwargs: object) -> object:
+            captured_request.update(kwargs)
+            return _FakeCompletion()
+
+    class _FakeChat:
+        completions = _FakeCompletions()
+
+    class _FakeClient:
+        chat = _FakeChat()
+
+    def _fake_client(**kwargs: object) -> _FakeClient:
+        captured_client.update(kwargs)
+        return _FakeClient()
+
+    monkeypatch.setattr(llm_providers, "_build_openai_compatible_client", _fake_client)
+
+    model_used, payload = await lesson_service.extract_lesson_payload(
+        b"fake-image-bytes",
+        "image/jpeg",
+    )
+
+    assert model_used == "kimi-k2.6"
+    assert captured_client == {
+        "api_key": "moonshot-test",
+        "base_url": "https://api.moonshot.cn/v1",
+    }
+    assert captured_request["model"] == "kimi-k2.6"
+    assert captured_request["response_format"] == {"type": "json_object"}
+    assert captured_request["extra_body"] == {"thinking": {"type": "disabled"}}
+    first_content = captured_request["messages"][1]["content"]  # type: ignore[index]
+    assert first_content[0]["type"] == "image_url"
+    assert first_content[0]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+    assert first_content[1]["type"] == "text"
+    assert payload == {"category_id": "lesson", "words": []}
+
+
+@pytest.mark.asyncio
 async def test_extract_lesson_payload_requires_selected_provider_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -324,5 +390,60 @@ async def test_extract_target_vocabulary_routes_qwen_scan_words(
     assert model_used == "qwen3.6-plus"
     assert captured["model"] == "qwen3.6-plus"
     assert captured["extra_body"] == {"enable_thinking": True}
+    assert [word.word for word in result.words] == ["shirt"]
+    assert result.words[0].gloss_zh == "衬衫"
+
+
+@pytest.mark.asyncio
+async def test_extract_target_vocabulary_routes_kimi_scan_words(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "kimi")
+    monkeypatch.setenv("MOONSHOT_API_KEY", "moonshot-test")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "admin")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "pw")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.services import llm_providers  # noqa: PLC0415
+
+    get_settings.cache_clear()
+    captured: dict[str, object] = {}
+
+    class _FakeMessage:
+        content = '{"words":[{"word":"shirt","gloss_zh":"衬衫"}],"note":"ok"}'
+
+    class _FakeChoice:
+        message = _FakeMessage()
+
+    class _FakeCompletion:
+        choices = [_FakeChoice()]
+
+    class _FakeCompletions:
+        async def create(self, **kwargs: object) -> object:
+            captured.update(kwargs)
+            return _FakeCompletion()
+
+    class _FakeChat:
+        completions = _FakeCompletions()
+
+    class _FakeClient:
+        chat = _FakeChat()
+
+    monkeypatch.setattr(
+        llm_providers,
+        "_build_openai_compatible_client",
+        lambda **_kwargs: _FakeClient(),
+    )
+
+    model_used, result = await llm_service.extract_target_vocabulary(
+        b"fake-image-bytes",
+        mime="image/jpeg",
+    )
+
+    assert model_used == "kimi-k2.6"
+    assert captured["model"] == "kimi-k2.6"
+    assert captured["extra_body"] == {"thinking": {"type": "disabled"}}
     assert [word.word for word in result.words] == ["shirt"]
     assert result.words[0].gloss_zh == "衬衫"
