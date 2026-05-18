@@ -16,6 +16,81 @@
     </dl>
   </section>
 
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-2">登录密码</h2>
+    {% if password_ok %}
+    <p class="text-sm text-emerald-700 mb-3" role="status">密码已保存。</p>
+    {% endif %}
+    {% if password_error %}
+    <p class="text-sm text-red-600 mb-3" role="alert">{{ password_error }}</p>
+    {% endif %}
+    {% if has_password %}
+    <p class="text-sm text-slate-600 mb-4">修改密码需要输入当前密码。</p>
+    <form method="post"
+          action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/account/password/change"
+          class="space-y-3 max-w-md">
+      <label class="block text-sm">
+        <span class="text-slate-700">当前密码</span>
+        <input type="password" name="old_password" required autocomplete="current-password"
+               class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md" />
+      </label>
+      <label class="block text-sm">
+        <span class="text-slate-700">新密码（至少 8 个字符）</span>
+        <input type="password" name="new_password" required autocomplete="new-password" minlength="8"
+               class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md" />
+      </label>
+      <label class="block text-sm">
+        <span class="text-slate-700">确认新密码</span>
+        <input type="password" name="confirm_password" required autocomplete="new-password" minlength="8"
+               class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md" />
+      </label>
+      <button type="submit"
+              class="bg-indigo-600 text-white hover:bg-indigo-700 text-sm px-4 py-2 rounded-md font-medium">
+        保存新密码
+      </button>
+    </form>
+    <p class="text-sm text-slate-500 mt-6 mb-2">忘记当前密码？通过邮箱验证码重置：</p>
+    {% else %}
+    <p class="text-sm text-slate-600 mb-4">
+      设置密码后，可在登录页使用邮箱 + 密码登录。保存前我们会向 {{ user.email }} 发送验证码。
+    </p>
+    {% endif %}
+    {% if password_otp_sent %}
+    <p class="text-sm text-slate-600 mb-3">验证码已发送（如未收到请检查垃圾邮件）。</p>
+    {% endif %}
+    <form method="post"
+          action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/account/password/request-otp"
+          class="mb-4">
+      <button type="submit"
+              class="border border-slate-300 text-slate-800 hover:bg-slate-50 text-sm px-4 py-2 rounded-md font-medium">
+        {% if has_password %}发送验证码以重置密码{% else %}发送验证码{% endif %}
+      </button>
+    </form>
+    <form method="post"
+          action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/account/password/set"
+          class="space-y-3 max-w-md">
+      <label class="block text-sm">
+        <span class="text-slate-700">6 位验证码</span>
+        <input type="text" name="code" required pattern="[0-9]{6}" maxlength="6" inputmode="numeric"
+               class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md font-mono tracking-widest" />
+      </label>
+      <label class="block text-sm">
+        <span class="text-slate-700">新密码（至少 8 个字符）</span>
+        <input type="password" name="new_password" required autocomplete="new-password" minlength="8"
+               class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md" />
+      </label>
+      <label class="block text-sm">
+        <span class="text-slate-700">确认新密码</span>
+        <input type="password" name="confirm_password" required autocomplete="new-password" minlength="8"
+               class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md" />
+      </label>
+      <button type="submit"
+              class="bg-indigo-600 text-white hover:bg-indigo-700 text-sm px-4 py-2 rounded-md font-medium">
+        {% if has_password %}重置密码{% else %}设置密码{% endif %}
+      </button>
+    </form>
+  </section>
+
   <section id="delete-section" class="bg-white border border-rose-200 rounded-lg shadow-sm p-6">
     <h2 class="text-lg font-semibold text-rose-700 mb-2">删除账号</h2>
     {% if user.scheduled_deletion_at %}

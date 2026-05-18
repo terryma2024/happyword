@@ -296,6 +296,26 @@ enum CloudClientFactory {
                 transport: transport
             )
     }
+
+    @MainActor
+    static func parentApiClient(
+        arguments: [String] = ProcessInfo.processInfo.arguments,
+        cloudCredentialsStore: CloudCredentialsStore,
+        environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
+        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
+        transport: any HTTPTransporting = URLSessionHTTPTransport()
+    ) -> any ParentApiClient {
+        shouldUseLocalMocks(arguments: arguments)
+            || arguments.contains("-UITestRouteParentAdmin")
+            || arguments.contains("-UITestRouteLessonReview")
+            ? MockParentApiClient()
+            : HTTPParentApiClient(
+                baseURLProvider: BackendURLProvider(store: environmentStore),
+                headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: bypassSecretStore),
+                credentialsProvider: { cloudCredentialsStore.credentials },
+                transport: transport
+            )
+    }
 }
 
 extension JSONDecoder {

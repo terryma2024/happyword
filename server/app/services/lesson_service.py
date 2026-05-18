@@ -7,9 +7,9 @@ Responsibilities:
    import flow needs the URL to be in the DB row so admins can audit
    the source after approval.
 2. Extract structured ``{category_id, label_en, label_zh, story_zh,
-   words[]}`` from the uploaded image via OpenAI vision. The function
-   :func:`extract_lesson_payload` is the boundary tests own (they
-   monkeypatch it to return a fixed dict).
+   words[]}`` from the uploaded image via the configured LLM vision
+   provider. The function :func:`extract_lesson_payload` is the
+   boundary tests own (they monkeypatch it to return a fixed dict).
 3. Approval is implemented in :mod:`app.services.family_pack_import_service`
    — words are written only into that family's lesson-import pack (see
    :func:`family_pack_service.ensure_lesson_import_pack_definition`).
@@ -18,8 +18,7 @@ Responsibilities:
 from typing import Any
 
 from app.models.lesson_import_draft import LessonImportDraft
-from app.services import llm_service
-from app.services.llm_service import LlmCallError, LlmConfigError
+from app.services.llm_providers import extract_lesson_payload_with_provider
 
 OPENAI_VISION_TIMEOUT_SECONDS = 45.0
 
@@ -126,67 +125,18 @@ async def fetch_lesson_image(url: str) -> tuple[bytes, str]:
 
 
 async def extract_lesson_payload(image_bytes: bytes, mime: str) -> tuple[str, dict[str, Any]]:
-    """Run the OpenAI vision call and return (model, structured payload).
+    """Run the configured LLM vision call and return (model, structured payload).
 
     Tests override this to skip the real network call. The production
-    path reuses `llm_service.extract_target_vocabulary` only as a
-    last-resort fallback; V0.5.5's structured output is richer and uses
-    its own prompt, so we ship a fresh thin wrapper.
+    path uses the lesson-specific provider router because V0.5.5's
+    structured output is richer than the older vocabulary-only helper.
     """
-    import base64  # noqa: PLC0415
-
-    import openai  # noqa: PLC0415
-
-    from app.config import get_settings  # noqa: PLC0415
-
-    settings = get_settings()
-    if not settings.openai_api_key:
-        raise LlmConfigError("OPENAI_API_KEY is not configured on this server instance.")
-
-    # Reuse the shared client cache so tests can also reset us via
-    # `llm_service.reset_openai_client()`.
-    client = llm_service._get_openai_client()  # noqa: SLF001 - shared cache
-
-    encoded = base64.b64encode(image_bytes).decode("ascii")
-    image_url = f"data:{mime};base64,{encoded}"
-
-    try:
-        completion = await client.chat.completions.create(
-            model=settings.openai_model_vision,
-            messages=[
-                {"role": "system", "content": _LESSON_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "Extract the lesson metadata + words."},
-                        {"type": "image_url", "image_url": {"url": image_url}},
-                    ],
-                },
-            ],
-            response_format={"type": "json_object"},
-            temperature=0,
-            timeout=OPENAI_VISION_TIMEOUT_SECONDS,
-        )
-    except openai.OpenAIError as exc:
-        # Without this catch, OpenAI client exceptions (BadRequestError,
-        # AuthenticationError, RateLimitError, APIConnectionError, …)
-        # bubble past the router's narrow `except LlmCallError` and the
-        # user gets Starlette's bare `Internal Server Error` 500 instead
-        # of the structured 502 LLM_CALL_FAILED. Wrap once here so every
-        # OpenAI failure travels the same blessed path.
-        raise LlmCallError(f"OpenAI vision call failed: {exc}") from exc
-    content = completion.choices[0].message.content
-    if not content:
-        raise LlmCallError("OpenAI vision returned no JSON content")
-    import json  # noqa: PLC0415
-
-    try:
-        payload = json.loads(content)
-    except json.JSONDecodeError as exc:
-        raise LlmCallError(f"OpenAI returned invalid JSON: {exc}") from exc
-    if not isinstance(payload, dict):
-        raise LlmCallError("OpenAI vision payload is not an object")
-    return settings.openai_model_vision, payload
+    return await extract_lesson_payload_with_provider(
+        image_bytes,
+        mime,
+        prompt=_LESSON_SYSTEM_PROMPT,
+        timeout_seconds=OPENAI_VISION_TIMEOUT_SECONDS,
+    )
 
 
 # --------------------------------------------------------------------------

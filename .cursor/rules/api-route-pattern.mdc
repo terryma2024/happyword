@@ -1,25 +1,29 @@
 ---
 description: API route prefix convention for FastAPI server + parent web shell
-globs: server/app/routers/**/*.py, server/app/main.py, docs/WordMagicGame_overall_spec.md, docs/superpowers/specs/**/*.md, docs/superpowers/plans/**/*.md
+globs: server/app/routers/**/*.py, server/app/main.py, docs/WordMagicGame_overall_spec.md, docs/superpowers/specs/**/*.md, docs/superpowers/plans/**/*.md, .cursor/rules/api-route-pattern.mdc
 alwaysApply: true
 ---
 
 # API route prefix convention (V0.6.5+)
 
-Every new HTTP surface added to this repo MUST live under exactly one of three top-level prefixes. The audience determines the prefix; pick the prefix first, design the handler second.
+Every new HTTP surface added to this repo MUST live under exactly one of the top-level prefixes below. The audience determines the prefix; pick the prefix first, design the handler second.
 
 | Prefix                          | Audience                                              | Auth                                                                                                      | Examples                                                                                       |
 | ------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `/api/v1/admin/**`              | System administrators                                 | `current_admin_user` FastAPI dependency (session-cookie based). Long-lived admin tokens deferred.         | `/api/v1/admin/words`, `/api/v1/admin/packs`, `/api/v1/admin/global-packs`, `/api/v1/admin/cron` |
 | `/api/v1/public/**`             | Anonymous (any caller)                                | None. Vercel deployment-protection still gates preview deploys; production is fully public.              | `/api/v1/public/health`, `/api/v1/public/packs/latest.json`, `/api/v1/public/global-packs/latest.json`, future AB-flag manifests |
 | `/api/v1/family/{family_id}/**` | Members of one family (parents + bound child devices) | Per-family auth (parent session OR child Bearer device-token belonging to `family_id`). Auth deferred until later version; for now, accept the path param as decorative. | `/api/v1/family/{family_id}/family-packs`, `/api/v1/family/{family_id}/inbox`, `/api/v1/family/{family_id}/account` |
+| `/v1/oauth/{provider}/**`       | Pre-login parent (browser redirect OAuth)             | None on `start`; `callback` exchanges IdP code on **canonical production host**; `finish` redeems a one-time handoff ticket. Issues parent `wm_session` when complete. | `/v1/oauth/google/start`, `/v1/oauth/google/callback`, `/v1/oauth/google/finish`; future `/v1/oauth/apple/*`, `/v1/oauth/wechat/*`, `/v1/oauth/alipay/*` |
+
+**Note:** `/v1/oauth/**` is intentionally **not** under `/api/v1/...`. It is a site-root OAuth redirect namespace (browser flows, not JSON family APIs). Do **not** nest OAuth under `/api/v1/family/{family_id}/auth/oauth/...`.
 
 ## Rule of thumb
 
 1. If the resource is per-family or per-device-bound → `/api/v1/family/{family_id}/...`
 2. Else, if it requires admin context (cross-tenant management, system content authoring) → `/api/v1/admin/...`
 3. Else, if it is anonymous-readable platform content → `/api/v1/public/...`
-4. Otherwise, **stop and discuss** — you probably haven't named the audience precisely.
+4. Else, if it is a **pre-login third-party OAuth redirect** (Google / Apple / WeChat / Alipay) → `/v1/oauth/{provider}/...` (see § Pre-login parent OAuth below)
+5. Otherwise, **stop and discuss** — you probably haven't named the audience precisely.
 
 ## Web (HTML) pages mirror the same pattern
 
@@ -29,19 +33,41 @@ Every new HTTP surface added to this repo MUST live under exactly one of three t
 
 ## Historical legacy URLs (removed)
 
-Older docs and clients referred to `/api/v1/parent/**`, `/api/v1/child/**`, bare `/api/v1/health`, `/api/v1/packs/latest.json`, `/api/v1/preview-urls.json`, `/api/v1/auth/**` (admin), `/api/v1/pair/redeem`, and `/parent/**`. Those entrypoints are **not served anymore**; use the `admin`, `public`, `/api/v1/family/{family_id}/**`, and `/family/{family_id}/**` prefixes above. When you touch routing, update `docs/WordMagicGame_overall_spec.md` section 13 (route table + prefix convention) in the same change.
+Older docs and clients referred to `/api/v1/parent/**`, `/api/v1/child/**`, bare `/api/v1/health`, `/api/v1/packs/latest.json`, `/api/v1/preview-urls.json`, `/api/v1/auth/**` (admin), `/api/v1/pair/redeem`, and `/parent/**`. Those entrypoints are **not served anymore**; use the `admin`, `public`, `/api/v1/family/{family_id}/**`, `/v1/oauth/{provider}/**`, and `/family/{family_id}/**` prefixes above. Do **not** add `/api/v1/family/{family_id}/auth/oauth/**` — OAuth uses `/v1/oauth/` only. When you touch routing, update `docs/WordMagicGame_overall_spec.md` section 13 (route table + prefix convention) in the same change.
 
 ## Pre-login parent OTP
 
 Parent email OTP JSON endpoints and sibling HTML forms live at `/api/v1/family/{family_id}/auth/*` and `/family/{family_id}/auth/*`. Until a session exists, callers use a decorative `family_id` such as `_` on those auth paths (see apex `/` → **`/family/login`** in `server/app/main.py`).
 
+## Pre-login parent OAuth (V0.6.8+)
+
+Third-party login uses **`/v1/oauth/{provider}/start|callback|finish`** (not under decorative `family_id`).
+
+| Step | Path | Host | Purpose |
+| ---- | ---- | ---- | ------- |
+| Start | `/v1/oauth/{provider}/start` | Any deployment | Signed `state` + optional `return_origin`; 302 to IdP |
+| Callback | `/v1/oauth/{provider}/callback` | **Canonical production only** (`OAUTH_CANONICAL_BASE_URL`, default `https://happyword.cool`) | Exchange code, verify `id_token`, merge/link `oauth_identities`, issue session **or** handoff ticket |
+| Finish | `/v1/oauth/{provider}/finish` | Deployment matching signed `return_origin` | Redeem one-time ticket → `set_parent_session_cookie` on that host |
+
+**Providers (path segment):** `google`, `apple`, `wechat`, `alipay` — add new providers only under `/v1/oauth/<name>/...`.
+
+**Google Console redirect URI (production):** register exactly one callback per provider, e.g. `https://happyword.cool/v1/oauth/google/callback`. Do not register per-preview URLs.
+
+**Vercel Preview:** use the production callback + signed `return_origin` allowlist (`GET /api/v1/public/preview-urls.json` + `*.vercel.app` + local dev origins). After callback on production, redirect to `{return_origin}/v1/oauth/{provider}/finish?ticket=...` — never rely on cross-domain cookies between `happyword.cool` and `*.vercel.app`.
+
+**Login UI:** `/family/login` keeps email OTP in parallel; OAuth buttons link to same-origin `/v1/oauth/{provider}/start` (Preview runs start locally; Google callback remains on canonical Production).
+
+**Design reference:** [`docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md`](docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md).
+
 ## Enforcement
 
 When adding a new `APIRouter(prefix=...)` line:
 
-- The prefix MUST start with `/api/v1/admin`, `/api/v1/public`, or `/api/v1/family` (HTML routers: `/admin`, `/public`, or `/family`).
+- JSON/API routers: prefix MUST start with `/api/v1/admin`, `/api/v1/public`, or `/api/v1/family`.
+- OAuth redirect routers: prefix MUST be `/v1/oauth/<provider>` (one router file per provider or a shared factory — do not use `/api/v1/family/.../oauth/...`).
+- HTML routers: `/admin`, `/public`, or `/family` (unchanged).
 - Do not resurrect removed legacy prefixes for new work.
-- Update [docs/WordMagicGame_overall_spec.md](docs/WordMagicGame_overall_spec.md) §13.3 (route table) and §13.7 (route prefix convention) in the same PR.
+- Update [docs/WordMagicGame_overall_spec.md](docs/WordMagicGame_overall_spec.md) §13.3 (route table) and §13.7 (route prefix convention) in the same PR that adds or changes routes.
 
 ## When this rule does NOT apply
 

@@ -28,6 +28,12 @@ from app.schemas.parent_auth import (
     VerifyCodeIn,
     VerifyCodeOut,
 )
+from app.schemas.parent_password import PasswordLoginIn, PasswordLoginOut
+from app.services.parent_password_service import (
+    ParentPasswordError,
+    RoleMismatch,
+    authenticate_parent_password,
+)
 from app.services.auth_service import create_session_token
 from app.services.family_service import ParentLoginSuspended, create_family_for_parent
 from app.services.notification_service import (
@@ -50,6 +56,59 @@ router = APIRouter(prefix="/api/v1/family", tags=["parent-auth"])
 
 def _normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def _password_error_http(exc: ParentPasswordError) -> HTTPException:
+    return HTTPException(
+        status_code=exc.http_status,
+        detail={"error": {"code": exc.code, "message": exc.message}},
+    )
+
+
+@router.post(
+    "/{family_id}/auth/password-login",
+    response_model=PasswordLoginOut,
+)
+async def post_password_login(
+    payload: PasswordLoginIn,
+    response: Response,
+    family_id: str = Path(min_length=1, max_length=128),
+) -> PasswordLoginOut:
+    _ = family_id
+    email = _normalize_email(payload.email)
+    try:
+        user = await authenticate_parent_password(email=email, password=payload.password)
+    except RoleMismatch as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": {
+                    "code": "ROLE_MISMATCH",
+                    "message": "This email belongs to an admin account; use /api/v1/admin/auth/login.",
+                }
+            },
+        ) from e
+    except ParentLoginSuspended:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": {
+                    "code": "PARENT_LOGIN_SUSPENDED",
+                    "message": "Parent account login is suspended by an administrator.",
+                }
+            },
+        ) from None
+    except ParentPasswordError as e:
+        raise _password_error_http(e) from e
+
+    token = create_session_token(role="parent", identifier=user.username)
+    set_parent_session_cookie(response, token)
+    return PasswordLoginOut(
+        user_id=user.username,
+        family_id=user.family_id or "",
+        email=user.email or email,
+        display_name=user.display_name,
+    )
 
 
 @router.post(

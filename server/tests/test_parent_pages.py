@@ -191,3 +191,59 @@ async def test_logout_form_clears_cookie_and_redirects(
     sc = r.headers.get("set-cookie", "")
     assert "wm_session=" in sc
     assert "Max-Age=0" in sc or "expires=" in sc.lower()
+
+
+@pytest.mark.asyncio
+async def test_login_shows_google_when_configured(
+    html_client: tuple[AsyncClient, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "test-client")
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "test-secret")
+    monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "http://test")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    ac, _ = html_client
+    r = await ac.get("/family/login")
+    soup = BeautifulSoup(r.text, "html.parser")
+    link = soup.find("a", href="/v1/oauth/google/start")
+    assert link is not None
+    assert "Continue with Google" in link.get_text()
+    assert link.find("svg", attrs={"aria-hidden": "true"}) is not None
+
+
+@pytest.mark.asyncio
+async def test_login_shows_apple_when_configured(
+    html_client: tuple[AsyncClient, object],
+    monkeypatch: pytest.MonkeyPatch,
+    apple_test_private_key_pem: str,
+) -> None:
+    monkeypatch.setenv("APPLE_OAUTH_CLIENT_ID", "com.happyword.parent")
+    monkeypatch.setenv("APPLE_OAUTH_TEAM_ID", "TEAM123456")
+    monkeypatch.setenv("APPLE_OAUTH_KEY_ID", "KEY123456")
+    monkeypatch.setenv("APPLE_OAUTH_PRIVATE_KEY", apple_test_private_key_pem)
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    ac, _ = html_client
+    r = await ac.get("/family/login")
+    soup = BeautifulSoup(r.text, "html.parser")
+    link = soup.find("a", href="/v1/oauth/apple/start")
+    assert link is not None
+    assert "Continue with Apple" in link.get_text()
+
+
+@pytest.mark.asyncio
+async def test_login_hides_google_without_credentials(
+    html_client: tuple[AsyncClient, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "")
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    ac, _ = html_client
+    r = await ac.get("/family/login")
+    assert "Continue with Google" not in r.text

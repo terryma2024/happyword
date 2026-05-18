@@ -26,23 +26,26 @@ from app.models.family_word_pack import FamilyWordPack
 from app.models.feedback import UserFeedback
 from app.models.lesson_import_draft import LessonImportDraft
 from app.models.llm_draft import LlmDraft
+from app.models.oauth_handoff_ticket import OAuthHandoffTicket
+from app.models.oauth_identity import OAuthIdentity
+from app.models.oauth_pending_identity import OAuthPendingIdentity
 from app.models.pack_pointer import PackPointer
 from app.models.pair_token import PairToken
 from app.models.parent_inbox_msg import ParentInboxMsg
 from app.models.redemption_request import RedemptionRequest
 from app.models.synced_word_stat import SyncedWordStat
+from app.models.system_config import SystemConfig
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.models.word_pack import WordPack
-from app.routers import admin_pages as admin_pages_router
 from app.routers import admin_assets as admin_assets_router
 from app.routers import admin_categories as admin_categories_router
 from app.routers import admin_cron as admin_cron_router
 from app.routers import admin_drafts as admin_drafts_router
 from app.routers import admin_global_pack as admin_global_pack_router
-from app.routers import family_lessons as family_lessons_router
 from app.routers import admin_llm as admin_llm_router
 from app.routers import admin_packs as admin_packs_router
+from app.routers import admin_pages as admin_pages_router
 from app.routers import admin_stats as admin_stats_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
@@ -50,6 +53,11 @@ from app.routers import child_family_pack as child_family_pack_router
 from app.routers import child_profile as child_profile_router
 from app.routers import child_wishlist as child_wishlist_router
 from app.routers import child_word_stats as child_word_stats_router
+from app.routers import family_lessons as family_lessons_router
+from app.routers import oauth_alipay as oauth_alipay_router
+from app.routers import oauth_apple as oauth_apple_router
+from app.routers import oauth_google as oauth_google_router
+from app.routers import oauth_wechat as oauth_wechat_router
 from app.routers import pair as pair_router
 from app.routers import parent_account as parent_account_router
 from app.routers import parent_api as parent_api_router
@@ -121,6 +129,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             RedemptionRequest,
             ParentInboxMsg,
             AuditLog,
+            OAuthIdentity,
+            OAuthHandoffTicket,
+            OAuthPendingIdentity,
+            SystemConfig,
         ],
     )
     app.state.mongo_client = client
@@ -181,6 +193,10 @@ app.include_router(parent_api_router.router)
 # `.../family-packs/{pack_id}` or `latest.json` is treated as a pack id.
 app.include_router(child_family_pack_router.router)
 app.include_router(parent_family_pack_router.router)
+app.include_router(oauth_google_router.router)
+app.include_router(oauth_apple_router.router)
+app.include_router(oauth_wechat_router.router)
+app.include_router(oauth_alipay_router.router)
 app.include_router(parent_pages_router.router)
 app.include_router(parent_packs_pages_router.router)
 app.include_router(parent_inbox_router.router)

@@ -30,7 +30,15 @@ from app.services.auth_service import (
     decode_typed_token,
     verify_password,
 )
+from app.services.llm_providers import (
+    LESSON_PROVIDER_SPECS,
+    effective_lesson_provider_status,
+    is_effective_lesson_provider_configured,
+    lesson_provider_options,
+    test_lesson_provider_connectivity,
+)
 from app.services.llm_service import LlmCallError, LlmConfigError
+from app.services.system_config_service import set_llm_provider_override
 
 router = APIRouter(
     prefix="/admin",
@@ -155,21 +163,36 @@ def _global_pack_detail_url(
     return f"{base}?{'&'.join(qs)}" if qs else base
 
 
-_VISION_IMPORT_UNAVAILABLE_CN = (
-    "当前环境未配置 OPENAI_API_KEY（或值为空），无法解析教材图片。"
-    "请在部署环境变量中设置该密钥并重启服务后再试。"
-)
-
-
-def _vision_import_configured() -> bool:
-    settings = get_settings()
-    return bool((settings.openai_api_key or "").strip())
+async def _vision_import_configured() -> bool:
+    return await is_effective_lesson_provider_configured()
 
 
 def _flash_err_for_vision_import(exc: BaseException) -> str:
     if isinstance(exc, LlmConfigError):
-        return _VISION_IMPORT_UNAVAILABLE_CN
+        return "LLM Provider 未配置或不可用。请到系统配置页面检查当前模型和密钥。"
     return str(exc)
+
+
+def _flash_map_system_config(request: Request) -> tuple[str | None, str | None]:
+    ok = request.query_params.get("flash_ok")
+    err = request.query_params.get("flash_err")
+    detail = request.query_params.get("detail")
+    tested = request.query_params.get("tested_llm_provider")
+    ok_msgs = {
+        "llm_provider_updated": "已更新课程解析模型。",
+        "llm_provider_connected": "连通性测试通过。",
+    }
+    err_msgs = {
+        "invalid_llm_provider": "请选择一个支持的课程解析模型。",
+        "llm_provider_connectivity_failed": "连通性测试失败，模型未生效。",
+    }
+    ok_msg = ok_msgs.get(ok) if ok else None
+    if ok == "llm_provider_connected" and tested in LESSON_PROVIDER_SPECS:
+        ok_msg = f"{LESSON_PROVIDER_SPECS[tested].display_name} 连通性测试通过。"
+    err_msg = err_msgs.get(err, err) if err else None
+    if err == "llm_provider_connectivity_failed" and detail:
+        err_msg = f"{err_msg}（{detail}）"
+    return (ok_msg, err_msg)
 
 
 def _existing_global_draft_word_ids(words: list[dict[str, Any]]) -> set[str]:
@@ -294,6 +317,99 @@ async def admin_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
             "overview": overview,
             "audit_ts": format_audit_timestamp,
         },
+    )
+
+
+# --- system config -------------------------------------------------------------
+
+
+@router.get("/system-config", response_class=HTMLResponse, response_model=None)
+async def admin_system_config_page(request: Request) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    flash_ok, flash_err = _flash_map_system_config(request)
+    return templates.TemplateResponse(
+        request,
+        "admin/system_config.html",
+        {
+            "admin_user": gate,
+            "flash_ok": flash_ok,
+            "flash_err": flash_err,
+            "provider_options": lesson_provider_options(),
+            "current_provider": await effective_lesson_provider_status(),
+        },
+    )
+
+
+@router.post("/system-config/llm-provider", response_model=None)
+async def admin_system_config_llm_provider_post(
+    request: Request,
+    llm_provider: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    provider_id = llm_provider.strip()
+    if provider_id not in LESSON_PROVIDER_SPECS:
+        return RedirectResponse(
+            url="/admin/system-config?flash_err=invalid_llm_provider",
+            status_code=303,
+        )
+    try:
+        await test_lesson_provider_connectivity(provider_id=provider_id)
+    except (LlmConfigError, LlmCallError) as exc:
+        return RedirectResponse(
+            url=(
+                "/admin/system-config?flash_err=llm_provider_connectivity_failed"
+                f"&detail={quote(str(exc))}"
+            ),
+            status_code=303,
+        )
+    await set_llm_provider_override(provider_id=provider_id, updated_by=gate.username)
+    await record_admin_action(
+        admin_username=gate.username,
+        action="system_config.update_llm_provider",
+        target_collection="system_config",
+        target_id="llm_provider",
+        payload_summary={"llm_provider": provider_id},
+    )
+    return RedirectResponse(
+        url="/admin/system-config?flash_ok=llm_provider_updated",
+        status_code=303,
+    )
+
+
+@router.post("/system-config/llm-provider/test", response_model=None)
+async def admin_system_config_llm_provider_test_post(
+    request: Request,
+    llm_provider: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    provider_id = llm_provider.strip()
+    if provider_id not in LESSON_PROVIDER_SPECS:
+        return RedirectResponse(
+            url="/admin/system-config?flash_err=invalid_llm_provider",
+            status_code=303,
+        )
+    try:
+        await test_lesson_provider_connectivity(provider_id=provider_id)
+    except (LlmConfigError, LlmCallError) as exc:
+        return RedirectResponse(
+            url=(
+                "/admin/system-config?flash_err=llm_provider_connectivity_failed"
+                f"&detail={quote(str(exc))}"
+            ),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=(
+            "/admin/system-config?flash_ok=llm_provider_connected"
+            f"&tested_llm_provider={quote(provider_id)}"
+        ),
+        status_code=303,
     )
 
 
@@ -805,7 +921,7 @@ async def admin_global_pack_detail_page(
             status_code=303,
         )
     flash_ok, flash_err = _flash_map_global(request)
-    vision_ready = _vision_import_configured()
+    vision_ready = await _vision_import_configured()
     draft_words = sorted(
         detail["draft_words"], key=lambda w: str(w.get("id", ""))
     )

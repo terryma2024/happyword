@@ -28,7 +28,26 @@ struct LessonDraftReviewStore: Equatable {
         rows[index].meaningZh = meaningZh
     }
 
-    func approvePayload() -> LessonApprovePayload {
-        LessonApprovePayload(categoryId: categoryId, labelZh: categoryLabel, words: rows.filter(\.keep))
+    func approvePayload() -> LessonEditPayload {
+        editedExtractedPayload()
+    }
+
+    func editedExtractedPayload() -> LessonEditPayload {
+        let source = draft.editedExtracted ?? draft.extracted
+        return LessonEditPayload(
+            categoryId: categoryId,
+            labelEn: source?.labelEn ?? categoryId,
+            labelZh: categoryLabel,
+            storyZh: source?.storyZh,
+            words: rows.filter(\.keep).map {
+                LessonExtractedWord(word: $0.word, meaningZh: $0.meaningZh, difficulty: $0.difficulty)
+            }
+        )
+    }
+}
+
+extension LessonDraft {
+    func editedExtractedPayload() -> LessonEditPayload {
+        LessonDraftReviewStore(draft: self).editedExtractedPayload()
     }
 }

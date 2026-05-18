@@ -59,3 +59,55 @@ async def test_send_otp_email_degraded_when_provider_fails() -> None:
             code="111111",
             expires_in_minutes=10,
         )
+
+
+@pytest.mark.asyncio
+async def test_send_device_unbind_otp_email_states_purpose_and_child() -> None:
+    from app.services.email_provider import RecordingEmailProvider
+    from app.services.notification_service import send_device_unbind_otp_email
+
+    provider = RecordingEmailProvider()
+    await send_device_unbind_otp_email(
+        provider,
+        to="parent@example.com",
+        code="824193",
+        expires_in_minutes=10,
+        child_nickname="小明",
+        device_tail="9a2f",
+    )
+    assert len(provider.outbox) == 1
+    msg = provider.outbox[0]
+    assert "解除设备绑定" in msg["subject"]
+    assert "824193" in msg["subject"]
+    assert "小明" in msg["text"]
+    assert "9a2f" in msg["text"]
+    assert "解除设备绑定" in msg["text"]
+    assert "设备尾号" in msg["text"]
+    body_lower = msg["text"].lower()
+    for forbidden in ("verify", "otp", "verification"):
+        assert forbidden not in body_lower
+
+
+@pytest.mark.asyncio
+async def test_send_device_unbind_otp_email_degraded_when_provider_fails() -> None:
+    from app.services.email_provider import EmailDeliveryError
+    from app.services.notification_service import (
+        EmailDeliveryDegraded,
+        send_device_unbind_otp_email,
+    )
+
+    class _FailingProvider:
+        async def send(
+            self, *, to: str, subject: str, html: str, text: str
+        ) -> None:
+            raise EmailDeliveryError("simulated auth fail")
+
+    with pytest.raises(EmailDeliveryDegraded, match="simulated auth fail"):
+        await send_device_unbind_otp_email(
+            _FailingProvider(),
+            to="x@y.com",
+            code="111111",
+            expires_in_minutes=10,
+            child_nickname="Kid",
+            device_tail="abcd",
+        )

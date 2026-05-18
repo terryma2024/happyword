@@ -117,6 +117,45 @@
         "title": "AudioOut",
         "type": "object"
       },
+      "Body_apple_callback_post_v1_oauth_apple_callback_post": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "title": "Body_apple_callback_post_v1_oauth_apple_callback_post",
+        "type": "object"
+      },
       "Body_create_pack_page_family__family_id__packs__post": {
         "properties": {
           "description": {
@@ -351,6 +390,111 @@
           "body"
         ],
         "title": "Body_post_feedback_family__family_id__feedback_post",
+        "type": "object"
+      },
+      "Body_post_oauth_bind_email_request_code_family_oauth_bind_email_request_code_post": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "ticket": {
+            "title": "Ticket",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticket",
+          "email"
+        ],
+        "title": "Body_post_oauth_bind_email_request_code_family_oauth_bind_email_request_code_post",
+        "type": "object"
+      },
+      "Body_post_oauth_bind_email_verify_code_family_oauth_bind_email_verify_code_post": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "ticket": {
+            "title": "Ticket",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticket",
+          "email",
+          "code"
+        ],
+        "title": "Body_post_oauth_bind_email_verify_code_family_oauth_bind_email_verify_code_post",
+        "type": "object"
+      },
+      "Body_post_password_change_form_family__family_id__account_password_change_post": {
+        "properties": {
+          "confirm_password": {
+            "title": "Confirm Password",
+            "type": "string"
+          },
+          "new_password": {
+            "title": "New Password",
+            "type": "string"
+          },
+          "old_password": {
+            "title": "Old Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "old_password",
+          "new_password",
+          "confirm_password"
+        ],
+        "title": "Body_post_password_change_form_family__family_id__account_password_change_post",
+        "type": "object"
+      },
+      "Body_post_password_login_form_family__family_id__auth_password_login_post": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "Body_post_password_login_form_family__family_id__auth_password_login_post",
+        "type": "object"
+      },
+      "Body_post_password_set_form_family__family_id__account_password_set_post": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "confirm_password": {
+            "title": "Confirm Password",
+            "type": "string"
+          },
+          "new_password": {
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "new_password",
+          "confirm_password"
+        ],
+        "title": "Body_post_password_set_form_family__family_id__account_password_set_post",
         "type": "object"
       },
       "Body_post_request_code_form_family__family_id__auth_request_code_post": {
@@ -3468,6 +3612,132 @@
           "timezone"
         ],
         "title": "ParentMeOut",
+        "type": "object"
+      },
+      "PasswordChangeIn": {
+        "properties": {
+          "confirm_password": {
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Confirm Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "New Password",
+            "type": "string"
+          },
+          "old_password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Old Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "old_password",
+          "new_password",
+          "confirm_password"
+        ],
+        "title": "PasswordChangeIn",
+        "type": "object"
+      },
+      "PasswordLoginIn": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "PasswordLoginIn",
+        "type": "object"
+      },
+      "PasswordLoginOut": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "family_id": {
+            "title": "Family Id",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "family_id",
+          "email",
+          "display_name"
+        ],
+        "title": "PasswordLoginOut",
+        "type": "object"
+      },
+      "PasswordOkOut": {
+        "properties": {
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "PasswordOkOut",
+        "type": "object"
+      },
+      "PasswordSetIn": {
+        "properties": {
+          "code": {
+            "maxLength": 6,
+            "minLength": 6,
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "confirm_password": {
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Confirm Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "new_password",
+          "confirm_password"
+        ],
+        "title": "PasswordSetIn",
         "type": "object"
       },
       "PointerOut": {
@@ -6661,6 +6931,232 @@
         ]
       }
     },
+    "/api/v1/family/{family_id}/account/password/change": {
+      "post": {
+        "operationId": "post_password_change_api_v1_family__family_id__account_password_change_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordOkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Password Change",
+        "tags": [
+          "parent-account"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/account/password/request-otp": {
+      "post": {
+        "operationId": "post_password_request_otp_api_v1_family__family_id__account_password_request_otp_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "title": "Response Post Password Request Otp Api V1 Family  Family Id  Account Password Request Otp Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Password Request Otp",
+        "tags": [
+          "parent-account"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/account/password/set": {
+      "post": {
+        "operationId": "post_password_set_api_v1_family__family_id__account_password_set_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordSetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordOkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Password Set",
+        "tags": [
+          "parent-account"
+        ]
+      }
+    },
     "/api/v1/family/{family_id}/account/status": {
       "get": {
         "operationId": "get_status_api_v1_family__family_id__account_status_get",
@@ -6769,6 +7265,60 @@
           }
         },
         "summary": "Post Logout",
+        "tags": [
+          "parent-auth"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/auth/password-login": {
+      "post": {
+        "operationId": "post_password_login_api_v1_family__family_id__auth_password_login_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordLoginOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Password Login",
         "tags": [
           "parent-auth"
         ]
@@ -10815,6 +11365,18 @@
       "get": {
         "description": "Canonical pre-login parent shell entry (no decorative `{family_id}` segment).",
         "operationId": "get_login_family_login_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "oauth_error",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Oauth Error",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -10825,9 +11387,188 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Get Login",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
+    "/family/login/password": {
+      "get": {
+        "description": "Dedicated email + password login page (linked from /family/login).",
+        "operationId": "get_login_password_family_login_password_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "email",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Email",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Login Password",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
+    "/family/oauth/bind-email": {
+      "get": {
+        "operationId": "get_oauth_bind_email_family_oauth_bind_email_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Ticket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Oauth Bind Email",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
+    "/family/oauth/bind-email/request-code": {
+      "post": {
+        "operationId": "post_oauth_bind_email_request_code_family_oauth_bind_email_request_code_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_oauth_bind_email_request_code_family_oauth_bind_email_request_code_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Oauth Bind Email Request Code",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
+    "/family/oauth/bind-email/verify-code": {
+      "post": {
+        "operationId": "post_oauth_bind_email_verify_code_family_oauth_bind_email_verify_code_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_oauth_bind_email_verify_code_family_oauth_bind_email_verify_code_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Oauth Bind Email Verify Code",
         "tags": [
           "parent-web"
         ]
@@ -11049,6 +11790,152 @@
         ]
       }
     },
+    "/family/{family_id}/account/password/change": {
+      "post": {
+        "operationId": "post_password_change_form_family__family_id__account_password_change_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_password_change_form_family__family_id__account_password_change_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Password Change Form",
+        "tags": [
+          "parent-account-html"
+        ]
+      }
+    },
+    "/family/{family_id}/account/password/request-otp": {
+      "post": {
+        "operationId": "post_password_request_otp_form_family__family_id__account_password_request_otp_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Password Request Otp Form",
+        "tags": [
+          "parent-account-html"
+        ]
+      }
+    },
+    "/family/{family_id}/account/password/set": {
+      "post": {
+        "operationId": "post_password_set_form_family__family_id__account_password_set_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_password_set_form_family__family_id__account_password_set_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Password Set Form",
+        "tags": [
+          "parent-account-html"
+        ]
+      }
+    },
     "/family/{family_id}/auth/logout": {
       "post": {
         "operationId": "post_logout_form_family__family_id__auth_logout_post",
@@ -11086,6 +11973,58 @@
           }
         },
         "summary": "Post Logout Form",
+        "tags": [
+          "parent-web"
+        ]
+      }
+    },
+    "/family/{family_id}/auth/password-login": {
+      "post": {
+        "operationId": "post_password_login_form_family__family_id__auth_password_login_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_password_login_form_family__family_id__auth_password_login_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Password Login Form",
         "tags": [
           "parent-web"
         ]
@@ -13010,6 +13949,756 @@
         "summary": "Get Support",
         "tags": [
           "public-pages"
+        ]
+      }
+    },
+    "/terms": {
+      "get": {
+        "operationId": "get_terms_terms_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Terms",
+        "tags": [
+          "public-pages"
+        ]
+      }
+    },
+    "/v1/oauth/alipay/callback": {
+      "get": {
+        "operationId": "alipay_callback_v1_oauth_alipay_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "auth_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Alipay Callback",
+        "tags": [
+          "oauth-alipay"
+        ]
+      }
+    },
+    "/v1/oauth/alipay/finish": {
+      "get": {
+        "operationId": "alipay_finish_v1_oauth_alipay_finish_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Alipay Finish",
+        "tags": [
+          "oauth-alipay"
+        ]
+      }
+    },
+    "/v1/oauth/alipay/start": {
+      "get": {
+        "operationId": "alipay_start_v1_oauth_alipay_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "return_origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Alipay Start",
+        "tags": [
+          "oauth-alipay"
+        ]
+      }
+    },
+    "/v1/oauth/apple/callback": {
+      "get": {
+        "description": "Fallback for local tests; Apple production uses form_post on POST.",
+        "operationId": "apple_callback_get_v1_oauth_apple_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apple Callback Get",
+        "tags": [
+          "oauth-apple"
+        ]
+      },
+      "post": {
+        "operationId": "apple_callback_post_v1_oauth_apple_callback_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_apple_callback_post_v1_oauth_apple_callback_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apple Callback Post",
+        "tags": [
+          "oauth-apple"
+        ]
+      }
+    },
+    "/v1/oauth/apple/finish": {
+      "get": {
+        "operationId": "apple_finish_v1_oauth_apple_finish_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apple Finish",
+        "tags": [
+          "oauth-apple"
+        ]
+      }
+    },
+    "/v1/oauth/apple/start": {
+      "get": {
+        "operationId": "apple_start_v1_oauth_apple_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "return_origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apple Start",
+        "tags": [
+          "oauth-apple"
+        ]
+      }
+    },
+    "/v1/oauth/google/callback": {
+      "get": {
+        "operationId": "google_callback_v1_oauth_google_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Callback",
+        "tags": [
+          "oauth-google"
+        ]
+      }
+    },
+    "/v1/oauth/google/finish": {
+      "get": {
+        "operationId": "google_finish_v1_oauth_google_finish_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Finish",
+        "tags": [
+          "oauth-google"
+        ]
+      }
+    },
+    "/v1/oauth/google/start": {
+      "get": {
+        "operationId": "google_start_v1_oauth_google_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "return_origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Start",
+        "tags": [
+          "oauth-google"
+        ]
+      }
+    },
+    "/v1/oauth/wechat/callback": {
+      "get": {
+        "operationId": "wechat_callback_v1_oauth_wechat_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wechat Callback",
+        "tags": [
+          "oauth-wechat"
+        ]
+      }
+    },
+    "/v1/oauth/wechat/finish": {
+      "get": {
+        "operationId": "wechat_finish_v1_oauth_wechat_finish_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wechat Finish",
+        "tags": [
+          "oauth-wechat"
+        ]
+      }
+    },
+    "/v1/oauth/wechat/start": {
+      "get": {
+        "operationId": "wechat_start_v1_oauth_wechat_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "return_origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wechat Start",
+        "tags": [
+          "oauth-wechat"
         ]
       }
     }

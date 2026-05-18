@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
-from httpx import AsyncClient
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
@@ -9,6 +13,7 @@ from httpx import AsyncClient
     ("path", "expected"),
     [
         ("/privacy", "魔法背单词隐私政策"),
+        ("/terms", "魔法背单词用户协议"),
         ("/support", "魔法背单词支持"),
         ("/report_and_appeal", "投诉与举报入口"),
     ],

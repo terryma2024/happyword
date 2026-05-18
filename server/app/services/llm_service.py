@@ -1,4 +1,4 @@
-"""OpenAI vision integration for extracting memorisable vocabulary.
+"""LLM vision integration for extracting memorisable vocabulary.
 
 The single public entry point is :func:`extract_target_vocabulary`. It
 sends a base64-encoded image to a vision-capable chat model with a strict
@@ -18,6 +18,7 @@ import base64
 from typing import TYPE_CHECKING
 
 from openai import AsyncOpenAI
+from pydantic import ValidationError
 
 from app.config import get_settings
 from app.schemas.llm import DistractorsResult, ExampleSentenceResult, ScanResult
@@ -33,11 +34,11 @@ if TYPE_CHECKING:
 
 
 class LlmConfigError(RuntimeError):
-    """Raised when the server has no OPENAI_API_KEY configured."""
+    """Raised when the selected LLM provider is not configured."""
 
 
 class LlmCallError(RuntimeError):
-    """Raised when the OpenAI call returns an unparseable / refused result."""
+    """Raised when the LLM call returns an unparseable / refused result."""
 
 
 _SYSTEM_PROMPT = (
@@ -62,6 +63,15 @@ _SYSTEM_PROMPT = (
 )
 
 _USER_TEXT = "Extract the target vocabulary from this textbook page."
+
+_RESPONSES_SCAN_PROMPT = (
+    f"{_SYSTEM_PROMPT}\n\n{_USER_TEXT}\n"
+    "Return only a JSON object with this exact shape: "
+    '{"words":[{"word":"shirt","gloss_zh":"衬衫"}],"note":"short note"}. '
+    "If there are no target words, return an empty words array."
+)
+
+_VISION_TIMEOUT_SECONDS = 45.0
 
 # Module-level client cache. We deliberately avoid `functools.lru_cache`
 # because the cached object is an `AsyncOpenAI` (owns an httpx
@@ -120,6 +130,22 @@ async def extract_target_vocabulary(
         LlmCallError: when the model returns no parsed payload.
     """
     settings = get_settings()
+    if settings.llm_provider != "openai":
+        from app.services.llm_providers import (  # noqa: PLC0415
+            extract_json_payload_with_provider,
+        )
+
+        model_used, payload = await extract_json_payload_with_provider(
+            image_bytes,
+            mime,
+            prompt=_RESPONSES_SCAN_PROMPT,
+            timeout_seconds=_VISION_TIMEOUT_SECONDS,
+        )
+        try:
+            return model_used, ScanResult.model_validate(payload)
+        except ValidationError as exc:
+            raise LlmCallError(f"LLM returned invalid scan payload: {exc}") from exc
+
     client = _get_openai_client()
     chosen_model = model or settings.openai_model_vision
 

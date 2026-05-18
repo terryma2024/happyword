@@ -394,9 +394,15 @@ final class WordMagicGameUITests: XCTestCase {
 
         app.buttons["从相册导入"].tap()
         XCTAssertTrue(app.staticTexts["课本识别审核"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["LessonReviewThumbnail"].exists)
+        XCTAssertTrue(app.staticTexts["LessonReviewCount"].waitForExistence(timeout: 5))
+        app.buttons["LessonReviewRowEdit_0"].tap()
+        XCTAssertTrue(app.textFields["LessonReviewRowWordInput_0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["LessonReviewRowMeaningInput_0"].exists)
+        app.buttons["LessonReviewRowCancel_0"].tap()
         app.switches.element(boundBy: 1).tap()
         app.buttons["审核通过"].tap()
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "已发布词包")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "复核完成")).firstMatch.waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -601,7 +607,12 @@ final class WordMagicGameUITests: XCTestCase {
 
         app.buttons["从相册导入"].tap()
         XCTAssertTrue(app.staticTexts["课本识别审核"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["LessonReviewThumbnail"].exists)
+        XCTAssertTrue(app.staticTexts["LessonReviewCount"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.switches.element(boundBy: 1).exists)
+        app.buttons["LessonReviewRowEdit_0"].tap()
+        XCTAssertTrue(app.textFields["LessonReviewRowWordInput_0"].waitForExistence(timeout: 5))
+        app.buttons["LessonReviewRowCancel_0"].tap()
         app.buttons["返回"].tap()
         XCTAssertTrue(app.staticTexts["ParentAdminTitle"].waitForExistence(timeout: 5))
 

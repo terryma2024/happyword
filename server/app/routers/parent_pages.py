@@ -27,6 +27,7 @@ from app.deps_email import get_email_provider
 from app.models.child_profile import ChildProfile
 from app.models.cloud_wishlist_item import CloudWishlistItem
 from app.models.device_binding import DeviceBinding
+from app.models.oauth_identity import OAuthProvider
 from app.models.pair_token import PairToken
 from app.models.redemption_request import RedemptionRequest
 from app.models.user import User, UserRole
@@ -37,9 +38,25 @@ from app.services.auth_service import (
     decode_typed_token,
 )
 from app.services.family_service import ParentLoginSuspended, create_family_for_parent
+from app.services.parent_password_service import (
+    EmailNotRegistered,
+    ParentPasswordError,
+    PasswordInvalid,
+    PasswordLocked,
+    PasswordNotSet,
+    RoleMismatch,
+    authenticate_parent_password,
+)
 from app.services.notification_service import (
     EmailDeliveryDegraded,
+    send_device_unbind_otp_email,
     send_otp_email,
+)
+from app.services.oauth_login_service import OAuthRoleMismatch, OAuthUserClaims, resolve_oauth_login
+from app.services.oauth_pending_identity_service import (
+    OAuthPendingIdentityError,
+    consume_pending_identity,
+    load_pending_identity,
 )
 from app.services.otp_service import (
     OtpExpired,
@@ -120,12 +137,242 @@ async def _load_active_device_for_parent(
     return binding, child
 
 
+def _oauth_error_message(code: str) -> str:
+    messages = {
+        "invalid_origin": "无法从当前站点发起 Google 登录，请使用官方家长后台地址。",
+        "cancelled": "已取消 Google 登录。",
+        "invalid_state": "登录状态已失效，请重试。",
+        "invalid_request": "登录请求无效，请重试。",
+        "role_mismatch": "该邮箱归属于管理员账号；请使用管理员登录入口。",
+        "suspended": "家长账号已被管理员暂停登录。",
+        "provider_error": "第三方登录失败，请稍后重试或使用邮箱验证码登录。",
+        "invalid_ticket": "登录凭证已失效，请重新登录。",
+        "email_unavailable": (
+            "无法获取邮箱信息，请使用邮箱验证码登录，或先在 Apple 账号设置中共享邮箱。"
+        ),
+    }
+    return messages.get(code, "登录失败，请重试或使用邮箱验证码登录。")
+
+
 @router.get("/login", response_class=HTMLResponse)
-async def get_login(request: Request) -> HTMLResponse:
+async def get_login(
+    request: Request,
+    oauth_error: str = "",
+) -> HTMLResponse:
     """Canonical pre-login parent shell entry (no decorative `{family_id}` segment)."""
-    return templates.TemplateResponse(
-        request, "parent/login.html", {"user": None}
+    from app.services.oauth_return_origin_service import (
+        alipay_oauth_enabled,
+        apple_oauth_enabled,
+        build_alipay_start_url,
+        build_apple_start_url,
+        build_google_start_url,
+        build_wechat_start_url,
+        google_oauth_enabled,
+        wechat_oauth_enabled,
     )
+
+    base = str(request.base_url)
+    return templates.TemplateResponse(
+        request,
+        "parent/login.html",
+        {
+            "user": None,
+            "google_oauth_enabled": google_oauth_enabled(),
+            "google_start_url": build_google_start_url(base),
+            "apple_oauth_enabled": apple_oauth_enabled(),
+            "apple_start_url": build_apple_start_url(base),
+            "wechat_oauth_enabled": wechat_oauth_enabled(),
+            "wechat_start_url": build_wechat_start_url(base),
+            "alipay_oauth_enabled": alipay_oauth_enabled(),
+            "alipay_start_url": build_alipay_start_url(base),
+            "oauth_error": oauth_error,
+            "oauth_error_message": _oauth_error_message(oauth_error) if oauth_error else "",
+        },
+    )
+
+
+@router.get("/login/password", response_class=HTMLResponse)
+async def get_login_password(
+    request: Request,
+    email: str = "",
+) -> HTMLResponse:
+    """Dedicated email + password login page (linked from /family/login)."""
+    return templates.TemplateResponse(
+        request,
+        "parent/login_password.html",
+        {
+            "user": None,
+            "password_error": "",
+            "password_email": _normalize_email(email) if email else "",
+        },
+    )
+
+
+@router.get("/oauth/bind-email", response_class=HTMLResponse, response_model=None)
+async def get_oauth_bind_email(
+    request: Request,
+    ticket: str = Query(min_length=1),
+) -> HTMLResponse | RedirectResponse:
+    try:
+        pending = await load_pending_identity(
+            ticket_id=ticket,
+            request_origin=f"{request.url.scheme}://{request.url.netloc}",
+        )
+    except OAuthPendingIdentityError:
+        return RedirectResponse(url="/family/login?oauth_error=invalid_ticket", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "parent/oauth_bind_email.html",
+        {
+            "user": None,
+            "ticket": ticket,
+            "provider": pending.provider.value,
+            "email": "",
+            "sent": False,
+        },
+    )
+
+
+@router.post(
+    "/oauth/bind-email/request-code",
+    response_class=HTMLResponse,
+    response_model=None,
+)
+async def post_oauth_bind_email_request_code(
+    request: Request,
+    ticket: str = Form(...),
+    email: str = Form(...),
+    provider: EmailProvider = Depends(get_email_provider),
+) -> HTMLResponse | RedirectResponse:
+    try:
+        pending = await load_pending_identity(
+            ticket_id=ticket,
+            request_origin=f"{request.url.scheme}://{request.url.netloc}",
+        )
+    except OAuthPendingIdentityError:
+        return RedirectResponse(url="/family/login?oauth_error=invalid_ticket", status_code=303)
+
+    settings = get_settings()
+    email_norm = _normalize_email(email)
+    _, plain_code = await request_code(email_norm)
+    if plain_code is not None:
+        with contextlib.suppress(EmailDeliveryDegraded):
+            await send_otp_email(
+                provider,
+                to=email_norm,
+                code=plain_code,
+                expires_in_minutes=settings.otp_expiry_minutes,
+            )
+    return templates.TemplateResponse(
+        request,
+        "parent/oauth_bind_email.html",
+        {
+            "user": None,
+            "ticket": ticket,
+            "provider": pending.provider.value,
+            "email": email_norm,
+            "sent": True,
+        },
+    )
+
+
+@router.post(
+    "/oauth/bind-email/verify-code",
+    response_class=HTMLResponse,
+    response_model=None,
+)
+async def post_oauth_bind_email_verify_code(
+    request: Request,
+    ticket: str = Form(...),
+    email: str = Form(...),
+    code: str = Form(...),
+) -> HTMLResponse | RedirectResponse:
+    try:
+        pending = await load_pending_identity(
+            ticket_id=ticket,
+            request_origin=f"{request.url.scheme}://{request.url.netloc}",
+        )
+    except OAuthPendingIdentityError:
+        return RedirectResponse(url="/family/login?oauth_error=invalid_ticket", status_code=303)
+
+    email_norm = _normalize_email(email)
+    base_context = {
+        "user": None,
+        "ticket": ticket,
+        "provider": pending.provider.value,
+        "email": email_norm,
+        "sent": True,
+    }
+
+    existing = await User.find_one(User.email == email_norm)
+    if existing is not None and existing.role == UserRole.ADMIN:
+        return templates.TemplateResponse(
+            request,
+            "parent/oauth_bind_email.html",
+            {**base_context, "error": "该邮箱归属于管理员账号；请使用管理员登录入口。"},
+            status_code=400,
+        )
+
+    try:
+        await verify_code(email=email_norm, code=code)
+    except OtpInvalid:
+        return templates.TemplateResponse(
+            request,
+            "parent/oauth_bind_email.html",
+            {**base_context, "error": "验证码错误，请重新输入。"},
+            status_code=400,
+        )
+    except OtpTooManyAttempts:
+        return templates.TemplateResponse(
+            request,
+            "parent/oauth_bind_email.html",
+            {**base_context, "error": "尝试次数过多，请重新发送验证码。"},
+            status_code=400,
+        )
+    except OtpExpired:
+        return templates.TemplateResponse(
+            request,
+            "parent/oauth_bind_email.html",
+            {**base_context, "error": "验证码已过期，请重新发送。"},
+            status_code=400,
+        )
+
+    try:
+        user, family = await resolve_oauth_login(
+            OAuthProvider(pending.provider),
+            OAuthUserClaims(
+                subject=pending.provider_subject,
+                email=email_norm,
+                email_verified=True,
+            ),
+        )
+    except OAuthRoleMismatch:
+        return templates.TemplateResponse(
+            request,
+            "parent/oauth_bind_email.html",
+            {**base_context, "error": "该邮箱归属于管理员账号；请使用管理员登录入口。"},
+            status_code=400,
+        )
+    except ParentLoginSuspended:
+        return templates.TemplateResponse(
+            request,
+            "parent/oauth_bind_email.html",
+            {**base_context, "error": "该家长账号已被管理员暂停登录，请联系支持。"},
+            status_code=403,
+        )
+    except ValueError:
+        return templates.TemplateResponse(
+            request,
+            "parent/oauth_bind_email.html",
+            {**base_context, "error": "第三方登录绑定失败，请重新登录。"},
+            status_code=400,
+        )
+
+    await consume_pending_identity(ticket)
+    token = create_session_token(role="parent", identifier=user.username)
+    redirect = RedirectResponse(url=f"/family/{family.family_id}/", status_code=303)
+    set_parent_session_cookie(redirect, token)
+    return redirect
 
 
 @router.get("/{family_id}/login", include_in_schema=False)
@@ -250,6 +497,69 @@ async def post_verify_code_form(
             },
             status_code=403,
         )
+    token = create_session_token(role="parent", identifier=user.username)
+    fid = user.family_id or "_"
+    redirect = RedirectResponse(url=f"/family/{fid}/", status_code=303)
+    set_parent_session_cookie(redirect, token)
+    return redirect
+
+
+@router.post("/{family_id}/auth/password-login", response_model=None)
+async def post_password_login_form(
+    request: Request,
+    family_id: str = Path(min_length=1, max_length=128),
+    email: str = Form(...),
+    password: str = Form(...),
+) -> HTMLResponse | RedirectResponse:
+    _ = family_id
+    email_norm = _normalize_email(email)
+
+    def _password_page(
+        *, error: str, status_code: int
+    ) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "parent/login_password.html",
+            {
+                "user": None,
+                "password_error": error,
+                "password_email": email_norm,
+            },
+            status_code=status_code,
+        )
+
+    try:
+        user = await authenticate_parent_password(email=email_norm, password=password)
+    except EmailNotRegistered:
+        return templates.TemplateResponse(
+            request,
+            "parent/password_register_confirm.html",
+            {"user": None, "email": email_norm},
+        )
+    except RoleMismatch:
+        return _password_page(
+            error="该邮箱归属于管理员账号；请使用管理员登录入口。",
+            status_code=400,
+        )
+    except ParentLoginSuspended:
+        return _password_page(
+            error="该家长账号已被管理员暂停登录，请联系支持。",
+            status_code=403,
+        )
+    except PasswordNotSet as e:
+        return _password_page(error=e.message, status_code=409)
+    except (PasswordInvalid, PasswordLocked) as e:
+        return _password_page(
+            error=(
+                "密码错误，请重试。"
+                if isinstance(e, PasswordInvalid)
+                else "尝试次数过多，请稍后再试或使用邮箱验证码登录。"
+            ),
+            status_code=403 if isinstance(e, PasswordInvalid) else 410,
+        )
+    except ParentPasswordError as e:
+        return _password_page(error=e.message, status_code=400)
+
     token = create_session_token(role="parent", identifier=user.username)
     fid = user.family_id or "_"
     redirect = RedirectResponse(url=f"/family/{fid}/", status_code=303)
@@ -470,7 +780,10 @@ async def post_feedback(
             },
             status_code=400,
         )
-    return RedirectResponse(url=f"/family/{user.family_id or '_'}/feedback?flash_ok=created", status_code=303)
+    return RedirectResponse(
+        url=f"/family/{user.family_id or '_'}/feedback?flash_ok=created",
+        status_code=303,
+    )
 
 
 @router.get("/{family_id}/devices/add", response_class=HTMLResponse)
@@ -542,7 +855,11 @@ async def post_devices_add_cancel(
     return RedirectResponse(url=f"/family/{user.family_id or '_'}/", status_code=303)
 
 
-@router.get("/{family_id}/devices/{binding_id}/unbind", response_class=HTMLResponse, response_model=None)
+@router.get(
+    "/{family_id}/devices/{binding_id}/unbind",
+    response_class=HTMLResponse,
+    response_model=None,
+)
 async def get_device_unbind_confirm(
     request: Request,
     family_id: str = Path(min_length=1, max_length=128),
@@ -561,12 +878,15 @@ async def get_device_unbind_confirm(
         settings = get_settings()
         _, plain_code = await request_code(email)
         if plain_code is not None:
+            device_tail = binding.device_id[-4:] if binding.device_id else "----"
             try:
-                await send_otp_email(
+                await send_device_unbind_otp_email(
                     provider,
                     to=email,
                     code=plain_code,
                     expires_in_minutes=settings.otp_expiry_minutes,
+                    child_nickname=child.nickname,
+                    device_tail=device_tail,
                 )
             except EmailDeliveryDegraded:
                 delivery_degraded = True
@@ -584,7 +904,11 @@ async def get_device_unbind_confirm(
     )
 
 
-@router.post("/{family_id}/devices/{binding_id}/unbind", response_class=HTMLResponse, response_model=None)
+@router.post(
+    "/{family_id}/devices/{binding_id}/unbind",
+    response_class=HTMLResponse,
+    response_model=None,
+)
 async def post_device_unbind_confirm(
     request: Request,
     family_id: str = Path(min_length=1, max_length=128),
@@ -628,7 +952,10 @@ async def post_device_unbind_confirm(
         child.updated_at = now
         await binding.save()
         await child.save()
-        return RedirectResponse(url=f"/family/{user.family_id or '_'}/?flash_ok=device_unbound", status_code=303)
+        return RedirectResponse(
+            url=f"/family/{user.family_id or '_'}/?flash_ok=device_unbound",
+            status_code=303,
+        )
 
     return templates.TemplateResponse(
         request,

@@ -4,7 +4,7 @@
 > App: `WordMagicGame` / `魔法背单词`
 > Bundle ID: `com.terryma.wordmagicgame`
 > Version: `0.7.0`
-> Build: `1007002`
+> Build: `1007004`
 > Last updated: 2026-05-16
 
 ## Source Of Truth
@@ -20,18 +20,18 @@
 ## Current Repo State
 
 - [x] `MARKETING_VERSION` is `0.7.0` in `ios/project.yml`.
-- [x] `CURRENT_PROJECT_VERSION` is `1007002` in `ios/project.yml`.
+- [x] `CURRENT_PROJECT_VERSION` is `1007004` in `ios/project.yml`.
 - [x] Bundle ID is `com.terryma.wordmagicgame`.
 - [x] App display name is `魔法背单词`.
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
-- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.7.0-b1007002.xcarchive`.
-- [x] App Store Connect upload succeeded for replacement build `0.7.0 (1007002)`; build is added to TestFlight internal group `Internal Smoke`.
+- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.7.0-b1007004.xcarchive`.
+- [x] App Store Connect upload succeeded for replacement build `0.7.0 (1007004)`; build is added to TestFlight internal group `Internal Smoke`.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
 - [x] Release Simulator sanity check verified `-UITestRouteDevMenu` and `-UITestRouteBypassSecret` land on the normal home screen.
 - [x] `NSPhotoLibraryAddUsageDescription` was removed because the iOS client only reads from Photos via `PhotosPicker` and does not write to the photo library.
-- [ ] Real-device Release/TestFlight smoke test is not yet done for build `0.7.0 (1007002)`.
+- [x] Real-device Release/TestFlight smoke test passed for build `0.7.0 (1007004)`.
 - [x] App Store Connect app record is verified by successful upload (`adamId: 6768499286`).
 - [x] App privacy questionnaire draft is derived from the current repo behavior.
 - [x] Privacy policy URL exists in repo as public server page: `https://happyword.cool/privacy`.
@@ -62,7 +62,7 @@
   - The bound child-device screen provides an in-app initiation path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
   - The iOS entry opens the parent Web account settings page, where the authenticated parent can delete the account or cancel deletion during the grace period.
   - Server route source: `server/app/routers/parent_account.py` (`POST /api/v1/family/{family_id}/account/delete` and HTML `/family/{family_id}/account`).
-  - Reviewer note draft: bind or seed a child profile, open `游戏配置` -> `孩子档案` -> `账号与数据管理`; log in to the parent web page with the demo parent email/OTP; use `删除账号`.
+  - Reviewer note draft: bind or seed a child profile, open `游戏配置` -> `孩子档案` -> `账号与数据管理`; log in to the parent web page with a reachable reviewer email and OTP; use `删除账号`.
 
 - [x] Confirm privacy policy URL.
   - Public URL: `https://happyword.cool/privacy`.
@@ -70,10 +70,11 @@
   - It describes collected data, purpose, deletion/export path, third-party services, child/minor handling, and support contact.
   - Support URL: `https://happyword.cool/support`.
 
-- [ ] Confirm App Privacy details.
+- [x] Confirm App Privacy details.
   - Inventory data collected by the app and server: account/binding data, child profile name, learning progress, uploaded textbook photos, generated word lists, device identifier, diagnostics/logs if any.
-  - Decide whether each item is linked to identity.
-  - Decide whether any data is used for tracking. Target answer should be no unless third-party tracking is actually present.
+  - App Store Connect privacy labels were published on 2026-05-17.
+  - Declared data types: Email Address, User ID, Device ID, Photos or Videos, Other User Content, Product Interaction.
+  - Declared as linked to the user and not used for tracking.
 
 ## App Store Privacy Questionnaire Draft
 
@@ -120,7 +121,7 @@
 
 ## P1 Build And Verification Checklist
 
-- [x] Regenerate Xcode project after the `1007002` build-number change.
+- [x] Regenerate Xcode project after the `1007004` build-number change.
 
 ```sh
 cd ios
@@ -166,7 +167,7 @@ xcodebuild build \
 ```
 
 - [x] Archive for App Store distribution.
-  - Latest archive: `/private/tmp/WordMagicGame-v0.7.0-b1007002.xcarchive`.
+  - Latest archive: `/private/tmp/WordMagicGame-v0.7.0-b1007004.xcarchive`.
 
 ```sh
 cd ios
@@ -180,53 +181,183 @@ xcodebuild archive \
 - [x] Export or upload archive using Xcode Organizer or `xcodebuild -exportArchive`.
 - [x] App Store Connect export options are stored in `ios/ExportOptions.AppStore.plist`.
 - [x] Upload replacement build to TestFlight.
-  - Previous internal smoke build: `0.7.0 (1007001)`.
-  - Latest internal smoke build: `0.7.0 (1007002)`.
+  - Previous internal smoke build: `0.7.0 (1007002)`.
+  - Latest internal smoke build: `0.7.0 (1007004)`.
   - Reason for replacement: previous `1007000` was built before latest `origin/main` and did not include the scan-binding parent login link; release version label was also hidden with the DevMenu gate.
   - Reason for second replacement: `1007001` did not include the iOS credential-persistence guard added after simulator smoke testing.
+  - Reason for third replacement: `1007002` did not include the iOS force-light-mode release fix for system dark mode.
+  - Reason for fourth replacement: `1007003` did not include the iOS parent-admin real backend flow, lesson-review scrolling/editing, and source-image preview fixes verified on simulator.
   - Upload result: `xcodebuild -exportArchive` reported `Upload succeeded` for `WordMagicGame`; App Store Connect processing completed.
-  - TestFlight result: `1007002` export compliance was answered in App Store Connect and the build is now `正在测试` in `Internal Smoke`.
-- [ ] Install TestFlight build on a real iPhone.
-- [ ] Smoke test Release/TestFlight build:
-  - [ ] First launch.
-  - [ ] Child home to battle to result.
-  - [ ] Parent profile entry.
-  - [ ] Parent binding.
-  - [ ] QR scan.
-  - [ ] Photo library import.
-  - [ ] Camera import.
-  - [ ] Word extraction result and review.
-  - [ ] Sync after app restart.
-  - [ ] Settings page has no developer backend entry.
-  - [ ] Home version-label triple-tap does not open DevMenu in Release.
-  - [ ] Bypass secret route cannot be opened in Release.
+  - TestFlight result: `1007004` is now `正在测试` in `Internal Smoke`.
+- [x] Install TestFlight build on a real iPhone.
+- [x] Smoke test Release/TestFlight build:
+  - [x] First launch.
+  - [x] Child home to battle to result.
+  - [x] Parent profile entry.
+  - [x] Parent binding.
+  - [x] QR scan.
+  - [x] Photo library import.
+  - [x] Camera import.
+  - [x] Word extraction result and review.
+  - [x] Sync after app restart.
+  - [x] Settings page has no developer backend entry.
+  - [x] Home version-label triple-tap does not open DevMenu in Release.
+  - [x] Bypass secret route cannot be opened in Release.
 
 ## P1 App Store Connect Metadata
 
-- [ ] App name: `魔法背单词`.
-- [ ] Subtitle: prepare a short Chinese value proposition.
-- [ ] Description: explain learning flow, parent import, child practice, and privacy posture.
-- [ ] Keywords: prepare Chinese keywords within Apple limits.
+- [x] App name: `魔法背单词`.
+- [x] Subtitle draft: `家长导入，孩子闯关背单词`.
+- [x] Description draft prepared below.
+- [x] Keywords draft prepared below.
 - [x] Support URL: public, reachable, and preferably Chinese: `https://happyword.cool/support`.
-- [ ] Marketing URL: optional; use only if public and polished.
+- [x] Marketing URL: skip for v0.7.0 unless a polished public product page is added.
 - [x] Privacy Policy URL: required: `https://happyword.cool/privacy`.
-- [ ] Copyright and contact info.
-- [ ] Age rating questionnaire.
-- [ ] Content rights declaration.
-- [x] Export compliance questionnaire for TestFlight build `1007002`.
-- [ ] App screenshots:
-  - [ ] iPhone 6.9-inch or current required size.
-  - [ ] iPhone 6.5-inch if App Store Connect requests it.
-  - [ ] iPad screenshots if iPad is supported.
-  - [ ] Screens show actual app UI, not debug/dev screens.
+- [x] Copyright and contact-info finalized below.
+- [x] Age rating questionnaire draft prepared below.
+- [x] Content rights declaration draft prepared below.
+- [x] Export compliance questionnaire for TestFlight build `1007003`.
+- [x] Export compliance status accepted for replacement TestFlight build `1007004`; App Store Connect allowed internal TestFlight testing.
+- [x] App screenshots:
+  - [x] iPhone 6.9-inch or current required size.
+  - [x] iPhone 6.5-inch accepted by App Store Connect via the `2778x1284` active iPhone set.
+  - [x] iPad screenshots if iPad is supported.
+  - [x] Screens show actual app UI, not debug/dev screens.
+  - [x] iPhone screenshots regenerated on `WordMagic AppStore iPhone 13 Pro Max` because App Store Connect rejected the prior `2622x1206` iPhone 17 Pro size. Current iPhone active screenshots are `2778x1284`, which matches the App Store Connect accepted size list.
+  - [x] Active iPhone/iPad screenshots uploaded in App Store Connect.
 - [ ] App preview video: optional; skip unless polished.
-- [ ] Review notes:
-  - [ ] Demo parent account.
-  - [ ] Demo child profile.
-  - [ ] Steps for QR binding or an alternative review path.
-  - [ ] Sample textbook photo flow.
+- [x] Review notes draft prepared below.
+  - [x] Reviewer-owned email OTP path finalized: reviewer should use their own reachable email address to receive the one-time code.
+  - [x] Demo child profile.
+  - [x] Steps for QR binding or an alternative review path.
+  - [x] Sample textbook photo flow.
   - [x] Account deletion path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
-  - [ ] Any server-side delays reviewers should expect.
+  - [x] Reviewer notes mention that server word extraction may take several seconds.
+
+### App Store Connect Draft Values
+
+Use the following values for the App Store Connect version metadata unless the release owner chooses different positioning.
+
+| Field | Draft |
+| --- | --- |
+| App name | `魔法背单词` |
+| Subtitle | `家长导入，孩子闯关背单词` |
+| Primary category | Education |
+| Secondary category | Games, optional. Skip if App Store Connect does not require it. |
+| Kids Category | Do not select for v0.7.0 unless legal/product explicitly wants the stricter Kids Category obligations. The app is child-facing, but it also has parent account, web login, support, and textbook-image import flows. |
+| Privacy Policy URL | `https://happyword.cool/privacy` |
+| Support URL | `https://happyword.cool/support` |
+| Marketing URL | Leave empty for v0.7.0. |
+| Copyright | `© 2026 TianYi Ma` |
+| Contact email | `support@happyword.cool` |
+
+### Description Draft
+
+```text
+魔法背单词是一款面向孩子的英语单词练习应用，也为家长提供词库导入和学习同步工具。
+
+孩子可以在闯关式练习中认识单词、选择释义、复习错题，并通过本地学习记录逐步巩固。家长可以绑定孩子设备，从课本照片或相册图片中导入单词，审核识别结果后发布为孩子可练习的词包。
+
+主要功能：
+- 闯关式英语单词练习
+- 错题复习与学习进度记录
+- 家长账号绑定与孩子档案管理
+- 拍照或相册导入课本单词
+- 识别结果审核、编辑与发布
+- 家庭词包和学习数据同步
+- 账号与数据管理入口
+
+我们重视儿童与家庭数据保护。应用不包含广告 SDK，不做跨应用追踪。家长主动上传的教材图片仅用于生成可审核的单词草稿；家长可在账号与数据管理页面导出数据或发起账号删除。
+```
+
+### Keywords Draft
+
+```text
+少儿英语,背单词,英语启蒙,单词练习,亲子学习,课本导入,自然拼读,小学英语,记忆复习,英语游戏
+```
+
+### Promotional Text Draft
+
+```text
+把课本里的单词变成孩子可以闯关练习的家庭词包。
+```
+
+### Review Notes Draft
+
+```text
+Thank you for reviewing WordMagicGame / 魔法背单词.
+
+Recommended review path:
+1. Launch the iOS app.
+2. Use the child learning flow from the home screen to start a word battle and complete a short practice session.
+3. Open 游戏配置, then 孩子档案.
+4. For parent features, use 家长账号 to bind a parent account. The parent web login uses email one-time codes. Please use your own reachable reviewer email address to receive the OTP.
+5. After binding, open 家长管理后台 to test textbook import.
+6. Use 拍照导入 or 从相册导入 with a sample textbook/word-list image. The server may take several seconds to extract words from the image.
+7. Open the pending lesson draft, review the source image preview and extracted words, edit if needed, then publish the word pack.
+8. Restart the app and confirm the synced word pack is available to the child learning flow.
+9. To review account deletion, open 游戏配置 -> 孩子档案 -> 账号与数据管理. This opens the parent account page where the parent can export account data or request account deletion.
+
+Notes:
+- The app does not include ads, in-app purchases, or third-party tracking SDKs.
+- Camera permission is used for textbook photo import and parent account QR binding.
+- Photo Library permission is used to choose textbook images for lesson import.
+- Release builds do not expose developer backend switching or preview routing controls.
+```
+
+### Privacy Answers Draft
+
+- Data collection: Yes.
+- Tracking: No.
+- Linked to user: Yes for parent email, family/account identifiers, child profile, device binding, learning progress, family packs, wishlist/redemption data, and uploaded lesson images.
+- Third-party tracking SDKs: No.
+- Ads: No.
+- Purchases / IAP: No for v0.7.0.
+- Photos or videos: Yes, only when the parent chooses textbook images for lesson import.
+- Diagnostics: No intentional client-side diagnostics SDK in the iOS target. Server request logs may exist for service operation.
+
+### Age Rating Draft
+
+- Cartoon or fantasy violence: None or infrequent/mild if App Store Connect treats battle animations as fantasy conflict.
+- Realistic violence, sexual content, profanity, alcohol/drugs, gambling, contests, unrestricted web access: No.
+- User-generated content / social networking: No public UGC or social feed.
+- Medical/treatment information: No.
+- In-app purchases / loot boxes: No.
+- Target age rating expectation: likely 4+, subject to App Store Connect questionnaire result.
+
+### Content Rights Draft
+
+- The app contains original app UI, game art, built-in word data, and generated/imported family word content.
+- No paid third-party media, streaming media, or copyrighted textbook pages are redistributed by the app.
+- Parent-uploaded textbook images are used for private lesson extraction and review, not for public distribution.
+
+### Screenshot Plan
+
+- Captured from an equivalent Release simulator build for `0.7.0 (1007004)`.
+- iPhone screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/iphone/`.
+  - Device: `WordMagic AppStore iPhone 13 Pro Max (iOS 26.4)`.
+  - Size: `2778x1284`.
+  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-pack-manager.png`.
+- iPad screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/ipad/`.
+  - Device: `WordMagic AppStore iPad Pro 13 (iOS 26.4)`.
+  - Size: `2064x2752`.
+  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-pack-manager.png`.
+- App Store Connect submission state as of 2026-05-17:
+  - Version metadata fields filled for `iOS App 版本 0.7.0`: promotional text, description, keywords, support URL, version, copyright, reviewer notes, App Review contact, and manual release.
+  - Build `1007004` selected for submission.
+  - App Privacy labels published.
+  - App Info completed: subtitle, content rights, primary category `Education`, and age rating `4+`.
+  - Pricing completed: free app, public distribution, Mac and Vision Pro compatibility distribution disabled for this release.
+  - Version `0.7.0 (1007004)` submitted to Apple review; App Store Connect status is `正在等待审核`.
+- Screenshots cover:
+  1. Child home screen.
+  2. Battle/practice screen.
+  3. Practice result screen.
+  4. Parent profile / binding entry.
+  5. Word-pack manager screen.
+- Rejected screenshot archive: `assets/screenshots/appstore/ios/v0.7.0-b1007004/rejected/lesson-review-image-load-failed/`.
+  - Reason: the lesson-review screenshots showed `图片加载失败`, so they must not be used for App Store submission.
+- Do not show DevMenu, preview URLs, local mock labels, browser errors, OTP codes, personal email, or private child data.
 
 ## P2 Compliance And Operational Prep
 
@@ -248,6 +379,6 @@ xcodebuild archive \
 5. [x] Draft App Store privacy questionnaire answers from actual server/client data.
 6. [x] Prepare privacy policy and support URL.
 7. [x] Archive and upload v0.7.0 to TestFlight.
-8. [ ] Complete real-device TestFlight smoke test.
-9. [ ] Prepare screenshots and App Store metadata.
-10. [ ] Submit for Apple review.
+8. [x] Complete real-device TestFlight smoke test.
+9. [x] Prepare screenshots and App Store metadata.
+10. [x] Submit for Apple review.
