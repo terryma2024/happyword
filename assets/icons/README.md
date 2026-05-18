@@ -13,8 +13,9 @@ each) caused intermittent placeholder flashes on `Image` remount.
 | `codex.svg`   | HomePage `HomeCodexButton`  | Restored from commit `f6c87f3^`.                     |
 | `gear.svg`    | HomePage `HomeConfigButton` | Restored from commit `f6c87f3^`.                     |
 | `review.svg`  | HomePage `HomeReviewButton` | Restored from commit `f6c87f3^`.                     |
-| `wishlist.svg`| HomePage `HomeWishlistButton` | Restored from commit `f6c87f3^`.                   |
+| `wishlist.svg`| HomePage `HomeWishlistButton` | Regenerated with Recraft V4 Vector on 2026-05-18; transparent background. |
 | `scroll.svg`  | WishlistPage `WishlistHistoryButton` | Restored from commit `f6c87f3^`.            |
+| `retired/wishlist-with-background-2026-05-18.svg` | Backup only | Previous wishlist icon source with off-white canvas background. |
 
 ## When to touch these
 

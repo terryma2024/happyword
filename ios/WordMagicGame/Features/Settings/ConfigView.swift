@@ -33,6 +33,7 @@ struct ConfigView: View {
                         autoSpeakRow
                         questionTypeSection
                         packPickerSection
+                        reportChannelRow
 
                         Text("家长配置")
                             .font(.system(size: 20, weight: .bold, design: .rounded))
@@ -99,8 +100,8 @@ struct ConfigView: View {
                         .minimumScaleFactor(0.75)
                         .padding(.horizontal, 12)
                         .frame(height: 40)
-                        .background(isCustomTimer ? AppTheme.gold : AppTheme.paleBlue, in: Capsule())
-                        .foregroundStyle(isCustomTimer ? Color.white : Color(red: 0.23, green: 0.45, blue: 0.61))
+                        .background(isCustomTimer ? Color(red: 0.71, green: 0.33, blue: 0.04) : AppTheme.paleBlue, in: Capsule())
+                        .foregroundStyle(isCustomTimer ? Color.white : Color(red: 0.11, green: 0.3, blue: 0.85))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("ConfigTimerCustom")
@@ -217,8 +218,8 @@ struct ConfigView: View {
                 .minimumScaleFactor(0.75)
                 .padding(.horizontal, 12)
                 .frame(height: 40)
-                .background(isSelected ? AppTheme.gold : AppTheme.paleBlue, in: Capsule())
-                .foregroundStyle(isSelected ? Color.white : Color(red: 0.23, green: 0.45, blue: 0.61))
+                .background(isSelected ? Color(red: 0.71, green: 0.33, blue: 0.04) : AppTheme.paleBlue, in: Capsule())
+                .foregroundStyle(isSelected ? Color.white : Color(red: 0.11, green: 0.3, blue: 0.85))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("ConfigTimer\(seconds)s")
@@ -236,7 +237,7 @@ struct ConfigView: View {
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .frame(width: 140, height: 40)
                     .background(draft.autoSpeak ? Color(red: 1, green: 0.96, blue: 0.82) : Color(red: 0.94, green: 0.94, blue: 0.94))
-                    .foregroundStyle(draft.autoSpeak ? Color(red: 0.72, green: 0.53, blue: 0.04) : Color(red: 0.4, green: 0.4, blue: 0.4))
+                    .foregroundStyle(draft.autoSpeak ? Color(red: 0.49, green: 0.18, blue: 0.07) : Color(red: 0.29, green: 0.33, blue: 0.39))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: draft.autoSpeak ? 2 : 0)
@@ -320,7 +321,7 @@ struct ConfigView: View {
                 .padding(.horizontal, 12)
                 .frame(height: 40)
                 .background(on ? Color(red: 1, green: 0.96, blue: 0.82) : Color(red: 0.94, green: 0.94, blue: 0.94))
-                .foregroundStyle(on ? Color(red: 0.72, green: 0.53, blue: 0.04) : Color(red: 0.4, green: 0.4, blue: 0.4))
+                .foregroundStyle(on ? Color(red: 0.49, green: 0.18, blue: 0.07) : Color(red: 0.29, green: 0.33, blue: 0.39))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: on ? 2 : 0)
@@ -368,6 +369,31 @@ struct ConfigView: View {
         .frame(maxWidth: 560)
     }
 
+    private var reportChannelRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Text("投诉与举报")
+                    .font(.title2.weight(.bold))
+                    .frame(width: 120, alignment: .trailing)
+                Button("投诉与举报入口") {
+                    SystemBrowser.open(CompliancePolicy.reportChannelURL)
+                }
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .frame(width: 220, height: 40)
+                .background(Color(red: 0.88, green: 0.95, blue: 0.99), in: RoundedRectangle(cornerRadius: 8))
+                .foregroundStyle(Color(red: 0.01, green: 0.41, blue: 0.63))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(red: 0.05, green: 0.65, blue: 0.91), lineWidth: 2)
+                )
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ConfigReportChannelButton")
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: 560)
+    }
+
     private var parentPinRow: some View {
         let pinReady = coordinator.configStore.config.parentPin.count == 6
         return HStack(spacing: 12) {
@@ -381,7 +407,7 @@ struct ConfigView: View {
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .frame(width: 220, height: 40)
                     .background(pinReady ? Color(red: 1, green: 0.96, blue: 0.82) : AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 8))
-                    .foregroundStyle(pinReady ? Color(red: 0.72, green: 0.53, blue: 0.04) : Color(red: 0.27, green: 0.48, blue: 0.62))
+                    .foregroundStyle(pinReady ? Color(red: 0.49, green: 0.18, blue: 0.07) : Color(red: 0.11, green: 0.3, blue: 0.85))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: pinReady ? 2 : 0)
@@ -422,7 +448,7 @@ struct ConfigView: View {
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .frame(width: 220, height: 40)
                     .background(Color(red: 1, green: 0.96, blue: 0.82), in: RoundedRectangle(cornerRadius: 8))
-                    .foregroundStyle(Color(red: 0.72, green: 0.53, blue: 0.04))
+                    .foregroundStyle(Color(red: 0.49, green: 0.18, blue: 0.07))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: 2)
@@ -474,7 +500,7 @@ struct ConfigView: View {
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .frame(width: 220, height: 40)
                 .background(Color(red: 1, green: 0.96, blue: 0.82), in: RoundedRectangle(cornerRadius: 8))
-                .foregroundStyle(Color(red: 0.72, green: 0.53, blue: 0.04))
+                .foregroundStyle(Color(red: 0.49, green: 0.18, blue: 0.07))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: 2)

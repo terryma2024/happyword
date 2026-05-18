@@ -43,9 +43,7 @@ export default function critSpectacleUiTest() {
       // fruit-forest region is a basic Match question with 3 HP and
       // English fruit options drawn from WORD_MAP, so 3 correct taps
       // still trigger the combo burst exactly as the old normal-mode
-      // 5×3 free-practice flow did. resetToDefaultConfigShared is no
-      // longer needed (today-mode ignores cfg.playerHp / monsterHp /
-      // monstersTotal / customWords).
+      // 5×3 free-practice flow did.
       await clickByIdShared(driver, 'HomeStartButton');
       // Today-mode loads WordRepository + LearningRecorder
       // asynchronously before pushing BattlePage; bumped from 1000ms

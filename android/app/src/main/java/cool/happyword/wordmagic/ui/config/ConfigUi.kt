@@ -114,6 +114,7 @@ import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.ChildProfileClient
 import cool.happyword.wordmagic.core.ChildProfileException
 import cool.happyword.wordmagic.core.CloudSyncCoordinator
+import cool.happyword.wordmagic.core.CompliancePolicy
 import cool.happyword.wordmagic.core.CoinAccount
 import cool.happyword.wordmagic.core.DevMenuRouteParams
 import cool.happyword.wordmagic.core.DevMenuViewModel
@@ -281,6 +282,7 @@ internal fun ConfigScreen(
     onCloudBinding: () -> Unit,
     onPackManager: () -> Unit,
     onLearningSync: () -> Unit,
+    onReportChannel: () -> Unit,
 ) {
     var showCustomTimerDialog by remember { mutableStateOf(false) }
     var customTimerText by remember { mutableStateOf("") }
@@ -393,8 +395,8 @@ internal fun ConfigScreen(
                                 .height(40.dp)
                                 .testTag("ConfigTimer${sec}s"),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (selected) Color(0xFFFFB400) else Color(0xFFEAF2F8),
-                                contentColor = if (selected) Color.White else Color(0xFF457B9D),
+                                containerColor = if (selected) Color(0xFFB45309) else Color(0xFFEAF2F8),
+                                contentColor = if (selected) Color.White else Color(0xFF1D4ED8),
                             ),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                             shape = RoundedCornerShape(50),
@@ -413,8 +415,8 @@ internal fun ConfigScreen(
                             .height(40.dp)
                             .testTag("ConfigTimerCustom"),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (customSelected) Color(0xFFFFB400) else Color(0xFFEAF2F8),
-                            contentColor = if (customSelected) Color.White else Color(0xFF457B9D),
+                            containerColor = if (customSelected) Color(0xFFB45309) else Color(0xFFEAF2F8),
+                            contentColor = if (customSelected) Color.White else Color(0xFF1D4ED8),
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         shape = RoundedCornerShape(50),
@@ -433,7 +435,7 @@ internal fun ConfigScreen(
                         .testTag("ConfigAutoSpeakToggle"),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (config.autoPronunciation) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
-                        contentColor = if (config.autoPronunciation) Color(0xFFB8860B) else Color(0xFF666666),
+                        contentColor = if (config.autoPronunciation) Color(0xFF7C2D12) else Color(0xFF4B5563),
                     ),
                     shape = RoundedCornerShape(8.dp),
                     border = if (config.autoPronunciation) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
@@ -457,7 +459,7 @@ internal fun ConfigScreen(
                                     .testTag("ConfigQuestionType_$typeId"),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (selected) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
-                                    contentColor = if (selected) Color(0xFFB8860B) else Color(0xFF666666),
+                                    contentColor = if (selected) Color(0xFF7C2D12) else Color(0xFF4B5563),
                                 ),
                                 shape = RoundedCornerShape(8.dp),
                                 border = if (selected) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
@@ -480,7 +482,7 @@ internal fun ConfigScreen(
                                     .testTag("ConfigQuestionType_$typeId"),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (selected) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
-                                    contentColor = if (selected) Color(0xFFB8860B) else Color(0xFF666666),
+                                    contentColor = if (selected) Color(0xFF7C2D12) else Color(0xFF4B5563),
                                 ),
                                 shape = RoundedCornerShape(8.dp),
                                 border = if (selected) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
@@ -528,6 +530,24 @@ internal fun ConfigScreen(
                     Text("管理 ›", fontSize = 15.sp, color = Color(0xFF457B9D))
                 }
             }
+            ConfigCenteredFormRow(bottomPadding = 4.dp) {
+                Text("投诉与举报", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                Button(
+                    onClick = onReportChannel,
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(40.dp)
+                        .testTag("ConfigReportChannelButton"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE0F2FE),
+                        contentColor = Color(0xFF0369A1),
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+                ) {
+                    Text("投诉与举报入口", fontSize = 15.sp)
+                }
+            }
             Text(
                 "家长配置",
                 fontSize = 24.sp,
@@ -570,7 +590,7 @@ internal fun ConfigScreen(
                             .testTag("ConfigCloudBindingButton"),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFFFF4D0),
-                            contentColor = Color(0xFFB8860B),
+                            contentColor = Color(0xFF7C2D12),
                         ),
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(2.dp, Color(0xFFFFB400)),
@@ -590,7 +610,7 @@ internal fun ConfigScreen(
                             .testTag("ConfigParentPinButton"),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (parentPinReady) Color(0xFFFFF4D0) else Color(0xFFEAF2F8),
-                            contentColor = if (parentPinReady) Color(0xFFB8860B) else Color(0xFF457B9D),
+                            contentColor = if (parentPinReady) Color(0xFF7C2D12) else Color(0xFF1D4ED8),
                         ),
                         shape = RoundedCornerShape(8.dp),
                         border = if (parentPinReady) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
@@ -657,7 +677,7 @@ internal fun ConfigScreen(
                                 .testTag("ConfigParentAdminButton"),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFFFF4D0),
-                                contentColor = Color(0xFFB8860B),
+                                contentColor = Color(0xFF7C2D12),
                             ),
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(2.dp, Color(0xFFFFB400)),
@@ -897,4 +917,3 @@ internal fun AddCustomWishFormDialog(
         },
     )
 }
-

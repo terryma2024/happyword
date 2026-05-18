@@ -5,7 +5,7 @@
 > Bundle name: `com.terryma.wordmagicgame`
 > Version name: `0.7.0`
 > Version code: `1007001`
-> Last updated: 2026-05-16
+> Last updated: 2026-05-18
 
 ## Source Of Truth
 
@@ -33,8 +33,25 @@
 - [ ] Real-device Release smoke test is not yet done.
 - [x] AppGallery Connect app record was created and verified for `com.terryma.wordmagicgame`.
 - [x] Huawei release metadata was filled in AppGallery Connect; final submission confirmation is still manual.
+- [ ] AppGallery rejection hotfix is in progress; see `docs/release/appgallery-v0.7.0-rejection-hotfix-todo.md`.
 
 ## P0 Blockers To Clear Before Upload
+
+- [ ] Wait for APP备案 approval and fill the approved APP备案 / 核准信息 in AppGallery Connect.
+  - The current legal/server reality must not be represented as "服务器不在中国大陆" unless the approved备案 and deployment facts support that selection.
+  - Do not resubmit until the filing information can be filled correctly.
+
+- [x] Add in-app privacy-policy disclosure surfaces for AppGallery review.
+  - First launch now blocks normal use behind a Privacy Policy / User Agreement consent dialog.
+  - The parent binding/login entry also shows Privacy Policy / User Agreement links.
+
+- [x] Add an in-app minor-protection complaint/report channel.
+  - Settings now exposes `投诉与举报`, opening `https://happyword.cool/support`.
+  - Support email for fallback review notes: `zjumty@gmail.com`.
+
+- [ ] Replace AppGallery screenshots after rebuilding.
+  - Upload at least three same-size, clear, complete, landscape screenshots.
+  - Recommended set: Home, Settings/Config with report channel, Battle, plus optional parent binding/import scene.
 
 - [ ] Replace local debug signing with official release signing.
   - Current `harmonyos/build-profile.json5` points to local `.ohos/config/...` files and `keyAlias: "debugKey"`.
@@ -117,7 +134,7 @@ hvigorw assembleApp -p buildMode=release --no-daemon
 - [x] Rebuild Release package with official AppGallery / production signing after signing material is ready.
 - [ ] Install release package on a real HarmonyOS device.
 - [ ] Smoke test Release build:
-  - [ ] First launch.
+  - [ ] First launch privacy dialog: user agreement link, privacy policy link, agree flow.
   - [ ] Child home to battle to result.
   - [ ] Parent profile entry.
   - [ ] Parent binding.
@@ -127,6 +144,7 @@ hvigorw assembleApp -p buildMode=release --no-daemon
   - [ ] Word extraction result and review.
   - [ ] Sync after app restart.
   - [ ] Settings page has no developer backend entry.
+  - [ ] Settings page has `投诉与举报` and HP / monster count values update immediately.
   - [ ] Home version-label triple-tap does not open DevMenu in Release.
   - [ ] Battle page has no `[debug] end battle`.
   - [ ] Network calls target production/staging-approved backend only.
@@ -139,7 +157,8 @@ hvigorw assembleApp -p buildMode=release --no-daemon
 - [ ] App icon and screenshots:
   - [ ] Use real app screenshots.
   - [ ] Do not show debug/dev screens.
-  - [ ] Include parent import and child practice flows.
+  - [ ] Use at least three same-size landscape screenshots with different content.
+  - [ ] Include home, settings/report, battle, and optionally parent import / binding flows.
 - [ ] Privacy statement URL.
 - [ ] Permission declarations:
   - [ ] `ohos.permission.INTERNET`: sync latest word packs and cloud binding data.
@@ -151,6 +170,7 @@ hvigorw assembleApp -p buildMode=release --no-daemon
   - [ ] QR binding steps or alternative review path.
   - [ ] Sample textbook photo flow.
   - [ ] Account/data deletion path.
+  - [ ] AppGallery rejection hotfix notes: privacy prompt added, registration/login policy links added, complaint/report channel added, screenshots replaced, config realtime update fixed.
   - [ ] Any server-side processing delay reviewers should expect.
 
 ## P2 Repo Follow-Ups
@@ -172,5 +192,5 @@ hvigorw assembleApp -p buildMode=release --no-daemon
 7. [ ] Install signed Release package on a real HarmonyOS device.
 8. [ ] Complete Release smoke test.
 9. [x] Prepare Huawei privacy/permission declarations.
-10. [x] Prepare screenshots and AppGallery metadata.
+10. [ ] Replace screenshots and AppGallery metadata after rejection hotfix rebuild.
 11. [ ] Submit v0.7.0 for Huawei review.

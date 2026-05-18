@@ -26,9 +26,7 @@ export default function speakerButtonUiTest(): void {
       const driver: Driver = await launchAppShared();
 
       await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // v0.3.6: HomeStartButton routes to today's adventure. Today-mode
-      // ignores cfg.playerHp / monsterHp / monstersTotal so the legacy
-      // resetToDefaultConfigShared() guard is no longer needed; the
+      // v0.3.6: HomeStartButton routes to today's adventure; the
       // speaker tap path is mode-agnostic.
       await clickByIdShared(driver, 'HomeStartButton');
       // Today-mode loads WordRepository + LearningRecorder

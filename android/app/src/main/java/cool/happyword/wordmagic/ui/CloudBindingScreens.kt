@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +50,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import cool.happyword.wordmagic.core.CloudCredentials
+import cool.happyword.wordmagic.core.CompliancePolicy
+import cool.happyword.wordmagic.core.SystemBrowser
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -71,6 +74,36 @@ private fun ScanBindingParentLoginLink(onOpenParentLogin: () -> Unit, testTag: S
             .testTag(testTag),
     ) {
         Text("创建或登录 家长账号", color = Color(0xFF2563EB), fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun ScanBindingComplianceLinks() {
+    val context = LocalContext.current
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            "绑定或登录前请阅读",
+            color = Color(0xFF475569),
+            fontSize = 12.sp,
+            modifier = Modifier.testTag("ScanBindingCompliancePrompt"),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                onClick = { SystemBrowser.openUrl(context, CompliancePolicy.TERMS_OF_SERVICE_URL) },
+                modifier = Modifier.testTag("ScanBindingTermsButton"),
+            ) {
+                Text("用户协议", color = Color(0xFF2563EB), fontSize = 13.sp)
+            }
+            TextButton(
+                onClick = { SystemBrowser.openUrl(context, CompliancePolicy.PRIVACY_POLICY_URL) },
+                modifier = Modifier.testTag("ScanBindingPrivacyButton"),
+            ) {
+                Text("隐私政策", color = Color(0xFF2563EB), fontSize = 13.sp)
+            }
+        }
     }
 }
 
@@ -191,6 +224,7 @@ fun ScanBindingScreen(
                     onOpenParentLogin = onOpenParentLogin,
                     testTag = "ScanBindingParentLoginLinkManual",
                 )
+                ScanBindingComplianceLinks()
             }
         } else {
             Column(
@@ -247,6 +281,7 @@ fun ScanBindingScreen(
                     onOpenParentLogin = onOpenParentLogin,
                     testTag = "ScanBindingParentLoginLink",
                 )
+                ScanBindingComplianceLinks()
             }
         }
     }

@@ -167,8 +167,34 @@ struct ScanBindingView: View {
             .frame(maxWidth: .infinity, minHeight: 40)
             .buttonStyle(.plain)
             .accessibilityIdentifier("ScanBindingParentLoginLink")
+
+            complianceLinks
         }
         .frame(maxWidth: 360)
+    }
+
+    private var complianceLinks: some View {
+        VStack(spacing: 6) {
+            Text("绑定或登录前请阅读")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("ScanBindingCompliancePrompt")
+            HStack(spacing: 12) {
+                policyButton("用户协议", id: "ScanBindingTermsButton", url: CompliancePolicy.termsOfServiceURL)
+                policyButton("隐私政策", id: "ScanBindingPrivacyButton", url: CompliancePolicy.privacyPolicyURL)
+            }
+        }
+    }
+
+    private func policyButton(_ title: String, id: String, url: URL) -> some View {
+        Button(title) {
+            SystemBrowser.open(url)
+        }
+        .font(.subheadline.weight(.bold))
+        .foregroundStyle(Color(red: 0.15, green: 0.39, blue: 0.92))
+        .frame(maxWidth: .infinity, minHeight: 34)
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
     }
 
     private var usesMockGalleryBinding: Bool {
@@ -216,6 +242,8 @@ struct ScanBindingView: View {
                 .frame(maxWidth: .infinity, minHeight: 40)
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("ScanBindingParentLoginLinkManual")
+
+                complianceLinks
 
                 Spacer(minLength: 0)
             }

@@ -505,6 +505,8 @@ export default function parentBindingFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ScanBindingScannerButton'));
       await driver.assertComponentExist(ON.id('ScanBindingManualToggle'));
       await driver.assertComponentExist(ON.id('ScanBindingParentLoginLink'));
+      await driver.assertComponentExist(ON.id('ScanBindingTermsButton'));
+      await driver.assertComponentExist(ON.id('ScanBindingPrivacyButton'));
 
       // The scanner button MUST become enabled once bootstrapService
       // resolves — it gates on the @State `serviceReady` mirror of
@@ -534,6 +536,8 @@ export default function parentBindingFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ScanBindingManualSubmit'));
       await driver.assertComponentExist(ON.id('ScanBindingManualBackToScan'));
       await driver.assertComponentExist(ON.id('ScanBindingParentLoginLinkManual'));
+      await driver.assertComponentExist(ON.id('ScanBindingTermsButton'));
+      await driver.assertComponentExist(ON.id('ScanBindingPrivacyButton'));
 
       // Flip back to scan mode (in-page state), then leave the page via
       // the top "返回" button so we land on ConfigPage deterministically

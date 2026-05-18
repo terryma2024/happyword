@@ -360,12 +360,9 @@ async function tapWrongAnswer(driver: Driver): Promise<string> {
 
 // V0.6.6 cleanup: the legacy `openConfigAndApply` /
 // `openCustomWordsAndSave` / `setChipSelected` / `categoryChipId` /
-// `stepStepperTo` / `TestGameConfig` / `applyConfigShared` /
-// `resetToDefaultConfigShared` helpers were dropped when GameConfig
-// removed `enabledCategories` and `customWordsRaw` and ConfigPage
-// removed the 词库类别 row + the CustomWordsPage entry point. The
-// V0.3.6 cleanup notes below explain why no surviving `it()` block
-// referenced them: today's adventure ignores the old battle knobs.
+// `TestGameConfig` / `applyConfigShared` helpers were dropped when
+// GameConfig removed `enabledCategories` and `customWordsRaw` and
+// ConfigPage removed the 词库类别 row + the CustomWordsPage entry point.
 //
 // Sibling UI test files import only `launchAppShared`,
 // `clickByIdShared`, `tapConfigCancelShared`, `tapCorrectAnswerShared`,
@@ -506,11 +503,9 @@ export default function routingFlowUiTest(): void {
     // four config-driven tests (configShortWin / configTimerExpiry /
     // configHpZero / configCustomWordsOnly) were removed because they
     // depend on the legacy normal-mode entry that v0.3.6 deleted.
-    // Today's adventure ignores cfg.playerHp / monsterHp / monstersTotal
-    // / timer / customWords (it consumes a TodaySessionPlan whose monster
-    // shape and word pool are region-curated), so those flows can no
-    // longer be exercised end-to-end from HomePage. Their engine-level
-    // win/lose / timer / HP / custom-pool semantics remain covered by
-    // the no-device unit tests under entry/src/test/.
+    // The old CustomWordsPage-specific flows can no longer be
+    // exercised end-to-end from HomePage. Engine-level win/lose /
+    // timer / HP semantics remain covered by no-device unit tests
+    // under entry/src/test/.
   });
 }
