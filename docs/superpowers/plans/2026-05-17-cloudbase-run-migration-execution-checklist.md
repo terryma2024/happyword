@@ -628,13 +628,14 @@
   HTTP Access custom domain. Tencent Cloud SSL certificate `XjNs7qFU` for
   `happyword.com.cn` was issued on 2026-05-18 and covers both
   `happyword.com.cn` and `www.happyword.com.cn`, so certificate availability is
-  no longer a blocker. ICP remains blocked: the ICP console shows
-  `happyword.com.cn` as `未备案`, and the filing form requires an eligible cloud
-  resource. The current CloudBase Standard monthly package is not listed as an
-  eligible filing resource. Tencent Cloud ICP docs require CloudBase resources
-  to have more than 6 months remaining during filing and fixed public IP
-  enabled; the current CloudBase package period ends on 2026-06-18 and fixed
-  public IP is disabled.
+  no longer a blocker. ICP is not submitted yet: the ICP console shows
+  `happyword.com.cn` as `未备案`. The CloudBase Standard monthly package is not
+  listed as an eligible filing resource, but Tencent Lighthouse instance
+  `lhins-nxph0u6i` was purchased on 2026-05-18 and is now recognized by the
+  `验证备案` form as a `轻量应用服务器` cloud resource. The form reports that the
+  current server IP has 0 bound websites and 5 remaining available website
+  filing slots. Remaining action: the user must fill or confirm the subject
+  identity fields, filing region, and domain, then submit for initial review.
 
 - [x] **Step 3: Create CloudBase production service**
 

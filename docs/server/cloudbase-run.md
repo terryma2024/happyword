@@ -194,9 +194,12 @@ Current CloudBase custom-domain state as of 2026-05-18:
 - DNS for `happyword.com.cn` is hosted by DNSPod and has no apex A or CNAME
   record yet.
 - ICP console shows `happyword.com.cn` status as `未备案`.
-- Starting a new ICP filing reaches the `验证备案` form, but the form requires
-  an eligible cloud resource. The current CloudBase Standard monthly package is
-  not shown as an eligible备案云资源.
+- Tencent Lighthouse instance `lhins-nxph0u6i` was purchased on 2026-05-18 as
+  the ICP filing resource. The ICP `验证备案` form now recognizes it as a
+  `轻量应用服务器` resource and reports that the current server IP has 0 bound
+  websites and 5 remaining available website filing slots.
+- The current CloudBase Standard monthly package is not shown as an eligible
+  备案云资源.
 - Tencent Cloud ICP documentation says CloudBase resources used for filing must
   have more than 6 months remaining during filing and fixed public IP enabled.
   The current CloudBase package period ends on 2026-06-18 and fixed public IP is
@@ -206,12 +209,9 @@ Current CloudBase custom-domain state as of 2026-05-18:
 
 Required before production custom-domain binding:
 
-- Choose an ICP filing resource path:
-  - buy/renew an eligible mainland Tencent Cloud resource, such as Lighthouse
-    or CVM for at least 3 months; or
-  - make CloudBase eligible by using a package with more than 6 months remaining
-    and enabling fixed public IP, if the console supports this path for the
-    current environment.
+- Complete the ICP filing draft for `happyword.com.cn` using Lighthouse
+  instance `lhins-nxph0u6i` as the filing cloud resource. The remaining form
+  inputs include subject identity fields, filing region, and the website domain.
 - Complete ICP filing or access filing for `happyword.com.cn`.
 - Bind `happyword.com.cn` in CloudBase HTTP Access after both prerequisites are
   satisfied, then create the route to CloudBase Run service `happyword-server`.
