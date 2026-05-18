@@ -589,7 +589,7 @@
 
 - Modify: `docs/server/cloudbase-run.md`
 
-- [ ] **Step 1: Confirm domain path**
+- [x] **Step 1: Confirm domain path**
 
   Record in `docs/server/cloudbase-run.md`:
 
@@ -602,6 +602,17 @@
   DNS rollback target for happyword.cool:
   ```
 
+  Execution note, 2026-05-18:
+
+  ```text
+  First CloudBase production validation domain: happyword.com.cn
+  DNS host for happyword.com.cn: DNSPod
+  Current happyword.cool production target: Vercel DNS, apex A 216.150.1.193 / 216.150.1.129
+  Planned CloudBase CNAME for happyword.com.cn: blocked until CloudBase custom-domain binding creates one
+  Final happyword.cool CloudBase CNAME target: same CloudBase custom-domain target after happyword.com.cn is green
+  DNS rollback target for happyword.cool: keep Vercel DNS/ns1.vercel-dns.com and ns2.vercel-dns.com until final cutover
+  ```
+
 - [ ] **Step 2: Confirm filing and certificate**
 
   In Tencent Cloud console:
@@ -612,7 +623,15 @@
 
   If filing blocks the bind, pause production cutover and continue only with staging.
 
-- [ ] **Step 3: Create CloudBase production service**
+  Execution note, 2026-05-18: CloudBase CLI and official docs require a valid
+  Tencent Cloud SSL certificate ID and completed ICP filing before adding an
+  HTTP Access custom domain. Tencent Cloud SSL certificate search returned no
+  `happyword.com.cn` certificate, so there is currently no `CertId` to bind.
+  `happyword.com.cn` also has no apex A/CNAME DNS record yet. Treat M4 custom
+  domain binding as blocked until SSL certificate issuance/upload and ICP filing
+  state are completed or explicitly confirmed in the Tencent console.
+
+- [x] **Step 3: Create CloudBase production service**
 
   Create service:
 
@@ -631,7 +650,17 @@
 
   Acceptance: production service has a healthy version with no public production traffic.
 
-- [ ] **Step 4: Configure production env vars**
+  Execution note, 2026-05-18: production service `happyword-server` was created
+  from `server/` with Dockerfile `server/Dockerfile`, port `8080`, min replicas
+  `1`, max replicas `3`, `InitialDelaySeconds=15`, and logs
+  `stdout,stderr`. Version `001` failed because it was submitted before
+  required env vars were configured. After env configuration, version
+  `happyword-server-002` deployed successfully with 100% traffic on the
+  CloudBase Run default domain only:
+  `https://happyword-server-255236-5-1429584068.sh.run.tcloudbase.com`.
+  `happyword.com.cn` and `happyword.cool` were not pointed at CloudBase.
+
+- [x] **Step 4: Configure production env vars**
 
   Set the same production values currently used by Vercel for:
 
@@ -655,6 +684,20 @@
 
   Acceptance: production CloudBase service boots with the production DB name in logs and no missing-settings exception.
 
+  Execution note, 2026-05-18: production env vars were configured from local
+  secret source values without committing secret values. CloudBase production
+  validation currently uses `PARENT_WEB_BASE_URL=https://happyword.com.cn`,
+  `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and
+  `SESSION_COOKIE_DOMAIN=.happyword.com.cn`. Read-only default-domain smoke
+  passed after redeploy:
+
+  ```text
+  GET /api/v1/public/health -> 200
+  GET /api/v1/public/packs/latest.json -> 200
+  GET /privacy -> 200
+  GET /admin/login -> 200
+  ```
+
 - [ ] **Step 5: Bind `happyword.com.cn` custom domain**
 
   In CloudBase HTTP Access Service:
@@ -666,6 +709,10 @@
 
   Acceptance: CloudBase produces a CNAME target for `happyword.com.cn`; current
   public `happyword.cool` DNS still points to Vercel.
+
+  Status, 2026-05-18: blocked. CloudBase HTTP Access has no custom domains or
+  routes. Binding cannot proceed until a Tencent Cloud SSL certificate ID exists
+  for `happyword.com.cn` and the ICP filing/access filing state is valid.
 
 - [ ] **Step 6: Commit domain readiness notes**
 

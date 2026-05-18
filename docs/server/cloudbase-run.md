@@ -14,12 +14,16 @@
 ## CloudBase Environment
 
 - Environment name: happyword
-- Environment tier: 体验版
+- Environment tier: Standard, continuous monthly subscription
 - Environment ID: happyword-d5g66zmq8ef2430b8
 - Region: ap-shanghai
 - HTTP Access Service: enabled
-- Production default domain: happyword-d5g66zmq8ef2430b8-1429584068.ap-shanghai.app.tcloudbase.com
+- Production Cloud Run default domain:
+  https://happyword-server-255236-5-1429584068.sh.run.tcloudbase.com
+- HTTP Access default domain:
+  happyword-d5g66zmq8ef2430b8-1429584068.ap-shanghai.app.tcloudbase.com
 - Staging default domain:
+  https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com
 - Custom domains: none
 - Routes: none
 
@@ -63,7 +67,7 @@ Snapshot date: 2026-05-17.
 | Domain | Query | Result |
 | --- | --- | --- |
 | `happyword.cool` | `NS` | `ns1.vercel-dns.com`, `ns2.vercel-dns.com` |
-| `happyword.cool` | apex A | `216.150.16.65`, `216.150.1.65` |
+| `happyword.cool` | apex A | `216.150.1.193`, `216.150.1.129` |
 | `happyword.com.cn` | `NS` | `cob.dnspod.net`, `user.dnspod.net` |
 | `happyword.com.cn` | apex A/CNAME | no answer yet |
 
@@ -105,6 +109,11 @@ Snapshot date: 2026-05-18.
 - Cloud Run current usage: 0 CPU seconds, 0 GBs memory, 0 Byte outbound traffic.
 - Earlier attempt to enable pay-as-you-go on the free trial tier was blocked by
   Tencent CloudBase. Upgrading to Standard removed the blocker.
+- Production Cloud Run service `happyword-server` exists as a container service.
+  Version `happyword-server-002` is online with 100% traffic on the Cloud Run
+  default domain. The first deploy attempt, version `001`, failed because it was
+  submitted before required environment variables were configured; version
+  `002` was redeployed after configuration and started successfully.
 
 M2 staging is now unblocked for CloudBase Run service creation. Do not create
 `happyword-server-staging` with dummy or production values.
@@ -121,6 +130,24 @@ Staging service:
 - Logs: enabled after initial OpenAI smoke returned `500`
 - Current staging LLM provider: `LLM_PROVIDER=qwen`,
   `QWEN_MODEL_VISION=qwen3.6-plus`
+
+Production service:
+
+- Service name: `happyword-server`
+- Default domain:
+  `https://happyword-server-255236-5-1429584068.sh.run.tcloudbase.com`
+- Runtime port: `8080`
+- Deploy method: CloudBase CLI local code upload, archive rooted at `server/`
+- Active version: `happyword-server-002`, deployed 2026-05-18 15:19
+- Traffic: 100% on the Cloud Run default domain only. `happyword.com.cn` and
+  `happyword.cool` DNS were not changed.
+- Production Mongo database: `MONGO_DB_NAME=happyword`
+- Current production LLM provider: `LLM_PROVIDER=qwen`,
+  `QWEN_MODEL_VISION=qwen3.6-plus`
+- Production canonical URLs staged for first validation domain:
+  `PARENT_WEB_BASE_URL=https://happyword.com.cn`,
+  `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and
+  `SESSION_COOKIE_DOMAIN=.happyword.com.cn`
 
 Required staging secrets:
 
@@ -153,21 +180,27 @@ Required operator decisions:
 CloudBase filing page says mainland China servers used for websites or apps
 must complete ICP filing and obtain an ICP filing number before opening access.
 
-Current blockers shown for the `happyword` CloudBase environment:
+Current CloudBase custom-domain state as of 2026-05-18:
 
-- Current tier does not support filing: `体验版`
-- Cloud Run fixed IP is not enabled
+- CloudBase HTTP Access has only the default domain. No custom domains or
+  routes are bound.
+- Tencent Cloud SSL certificate search for `happyword.com.cn` returned no
+  certificates, so there is no `CertId` available for CloudBase binding.
+- `tcb domains add` requires a valid Tencent Cloud SSL certificate ID and
+  explicitly states that the domain must have completed ICP filing.
+- DNS for `happyword.com.cn` is hosted by DNSPod and has no apex A or CNAME
+  record yet.
+- DNS for `happyword.cool` is still hosted by Vercel DNS and remains the
+  production and rollback path.
 
 Required before production custom-domain binding:
 
-- Upgrade the CloudBase environment to a filing-eligible tier, personal edition
-  or above.
-- Enable Cloud Run fixed IP.
-- Complete ICP filing or access filing for the chosen production domain.
-- Confirm SSL certificate availability in CloudBase custom-domain binding. The
-  custom-domain table currently has certificate status columns, but no
-  `happyword.cool` or `happyword.com.cn` binding exists yet, so no usable
-  certificate is currently shown.
+- Apply for or upload a Tencent Cloud SSL certificate for `happyword.com.cn` and
+  record its certificate ID.
+- Complete ICP filing or access filing for `happyword.com.cn`, or confirm in
+  the CloudBase console that the domain has a valid filing state.
+- Bind `happyword.com.cn` in CloudBase HTTP Access after both prerequisites are
+  satisfied, then create the route to CloudBase Run service `happyword-server`.
 
 ## Deployment Commands
 
@@ -212,6 +245,18 @@ M2 smoke results on 2026-05-18 against version `002`:
   `model=qwen3.6-plus`, `category_id=clothing`, `label_en=Clothing`, and 15
   extracted words.
 
+M4 production default-domain smoke results on 2026-05-18 against
+`happyword-server-002`:
+
+- `GET /api/v1/public/health`: `200`
+- `GET /api/v1/public/packs/latest.json`: `200`, proving the production
+  CloudBase service can read MongoDB Atlas using `MONGO_DB_NAME=happyword`.
+- `GET /privacy`: `200`
+- `GET /admin/login`: `200`
+- No `happyword.com.cn` or `happyword.cool` DNS change was made during this
+  smoke. The only public production traffic path still in use is
+  `happyword.cool` on Vercel.
+
 ### LLM Provider Switching
 
 Lesson image extraction is controlled by `LLM_PROVIDER`:
@@ -253,9 +298,9 @@ manager.
 | `DOUBAO_MODEL_VISION` | Optional | Defaults to `doubao-seed-2-0-pro-260215`. |
 | `CORS_ALLOW_ORIGINS` | Staging, production | Current default can remain `*` unless tightened later. |
 | `LOG_LEVEL` | Staging, production | Use `info` for normal deployment. |
-| `PARENT_WEB_BASE_URL` | Staging, production | Canonical parent web shell base URL for the deployed environment. |
-| `OAUTH_CANONICAL_BASE_URL` | Staging, production | Canonical OAuth host. Production should be `https://happyword.cool`. |
-| `SESSION_COOKIE_DOMAIN` | Production | Use `.happyword.cool` for production; leave empty for staging default domains. |
+| `PARENT_WEB_BASE_URL` | Staging, production | Canonical parent web shell base URL for the deployed environment. CloudBase production validation uses `https://happyword.com.cn` before final `happyword.cool` cutover. |
+| `OAUTH_CANONICAL_BASE_URL` | Staging, production | Canonical OAuth host. CloudBase production validation uses `https://happyword.com.cn` before final `happyword.cool` cutover. |
+| `SESSION_COOKIE_DOMAIN` | Production | CloudBase production validation uses `.happyword.com.cn`; final `happyword.cool` cutover should switch this to `.happyword.cool`. Leave empty for staging default domains. |
 | `ADMIN_SESSION_COOKIE_NAME` | Staging, production | Current value is `wm_admin_session`. |
 
 ### Cron
