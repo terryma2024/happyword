@@ -103,7 +103,7 @@ CloudBase environment:
 - HTTP Access route: exact production domain `happyword.cool` path `/` routes to `happyword-server`.
 - Initial traffic when deploying a new version: `0%` for manual smoke, then promote to `100%`.
 - Production replicas: high-availability mode with min `1`, max `3` for first cut. Move to min `0` only after login/OAuth latency is acceptable.
-- Suggested first spec: `0.5 CPU / 1 GiB` or `1 CPU / 2 GiB`. Start with `1 CPU / 2 GiB` if OpenAI vision import and Beanie startup are slow.
+- Suggested first spec: `0.5 CPU / 1 GiB` or `1 CPU / 2 GiB`. Start with `1 CPU / 2 GiB` if LLM vision import and Beanie startup are slow.
 - InitialDelaySeconds: `15` to allow Mongo/Beanie initialization before health checks.
 - Logs: `stdout,stderr`.
 
@@ -116,7 +116,14 @@ JWT_SECRET=use-same-signing-secret-as-vercel-during-cutover
 ADMIN_BOOTSTRAP_USER=use-current-admin-bootstrap-user
 ADMIN_BOOTSTRAP_PASS=use-current-admin-bootstrap-password
 CRON_SECRET=use-same-value-used-by-scheduled-cron-caller
-OPENAI_API_KEY=use-production-key-if-lesson-image-extraction-is-enabled
+LLM_PROVIDER=qwen-or-doubao-after-cloudbase-smoke
+OPENAI_API_KEY=use-production-key-if-openai-is-enabled
+OPENAI_MODEL_TEXT=gpt-4o-mini
+OPENAI_MODEL_VISION=gpt-4o
+DASHSCOPE_API_KEY=use-if-LLM_PROVIDER-qwen
+QWEN_MODEL_VISION=qwen3.6-plus
+ARK_API_KEY=use-if-LLM_PROVIDER-doubao
+DOUBAO_MODEL_VISION=doubao-seed-2-0-pro-260215
 CORS_ALLOW_ORIGINS=*
 LOG_LEVEL=info
 PARENT_WEB_BASE_URL=https://happyword.cool
@@ -245,7 +252,7 @@ OAuth provider consoles:
 - No code changes required.
 - Update docs after actual values are known: `docs/ci-secrets.md` and a new `docs/server/cloudbase-run.md`.
 
-- [ ] **Step 1: Read-only console check**
+- [x] **Step 1: Read-only console check**
 
   In Tencent Cloud console, confirm:
 
@@ -255,13 +262,13 @@ OAuth provider consoles:
   - `happyword.cool` ICP filing state is valid for Tencent Cloud access filing.
   - SSL certificate for `happyword.cool` is available or uploadable.
 
-- [ ] **Step 2: Deploy by console or CLI**
+- [x] **Step 2: Deploy by console or CLI**
 
   Preferred first deploy is console/Git repository deploy so the UI-created service settings are visible. Use:
 
   - Source path: `server/`
   - Dockerfile: `Dockerfile`
-  - Service name: `happyword-server`
+  - Service name: `happyword-server-staging`
   - Port: `8080`
   - Traffic after deploy: `0%`
   - InitialDelaySeconds: `15`
@@ -276,7 +283,7 @@ OAuth provider consoles:
 
   Expected: CloudBase Run creates a new version and shows normal status after health checks.
 
-- [ ] **Step 3: Configure staging env vars**
+- [x] **Step 3: Configure staging env vars**
 
   Use a staging Mongo DB name first:
 
@@ -305,6 +312,20 @@ OAuth provider consoles:
   - Public pack is 200 or 304 with `ETag`.
   - Privacy/admin login pages return HTML.
   - CloudBase Run logs show app startup, resolved Mongo DB name, and no uncaught exception.
+
+  2026-05-18 execution note:
+
+  - `happyword-server-staging` version `002` is normal on the CloudBase default
+    domain.
+  - `GET /api/v1/public/health`, `GET /api/v1/public/packs/latest.json`,
+    `GET /api/v1/public/preview-urls.json`, `GET /privacy`, and
+    `GET /admin/login` passed.
+  - Blob write + staging Mongo insert passed via
+    `POST /api/v1/family/cloudbase-smoke/lessons/import`.
+  - OpenAI server-to-server smoke failed from CloudBase with
+    `httpx.ConnectTimeout` / `openai.APITimeoutError`.
+  - Server now supports `LLM_PROVIDER=openai|qwen|doubao`; keep Step 4 open
+    until the selected CloudBase provider is smoke-tested from CloudBase.
 
 ## Task 3: Replace Vercel Cron
 

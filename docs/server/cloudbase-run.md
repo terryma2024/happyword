@@ -85,46 +85,62 @@ Snapshot date: 2026-05-18.
 - CloudBase CLI version checked through `npx --package @cloudbase/cli tcb`:
   `3.3.3`.
 - CLI device authorization completed from the logged-in Tencent Cloud console.
-- Cloud Run service list: empty; `happyword-server-staging` has not been
-  created yet.
+- Cloud Run service `happyword-server-staging` exists as a container service.
+  Version `002` is normal and serves the staging traffic.
 - Cloud Run deploy options visible in console: Git repository, container image,
   public Git repository, and local code upload.
 - Cloud Run fixed public IP: disabled.
 - Image repository: personal image repository selected.
-- Package: CloudBase free trial tier, valid until 2026-11-08.
-- Package resource points consumed: 0.07 / 3000.
-- Pay-as-you-go toggle: off.
+- Package: CloudBase Standard, continuous monthly subscription, purchased on
+  2026-05-18. Current package period ends on 2026-06-18.
+- Package resource points consumed: 0.07 / 330,000.
+- Auto-renewal: enabled. A Google Calendar reminder named
+  `停止 CloudBase 连续包月提醒` was created for 2026-06-15 09:00
+  Asia/Shanghai, three days before the first renewal date.
+- Pay-as-you-go toggle: on; enabled on 2026-05-18 after upgrading to Standard.
 - Cloud Run current usage: 0 CPU seconds, 0 GBs memory, 0 Byte outbound traffic.
-- Attempted to enable pay-as-you-go on 2026-05-18. Tencent CloudBase blocked the
-  action with: free trial tier does not support resource-pack add-ons or
-  pay-as-you-go; upgrade to a paid package first if needed.
+- Earlier attempt to enable pay-as-you-go on the free trial tier was blocked by
+  Tencent CloudBase. Upgrading to Standard removed the blocker.
 
-M2 staging is blocked until the operator confirms whether to upgrade from the
-free trial tier. Do not create `happyword-server-staging` with dummy or
-production values.
+M2 staging is now unblocked for CloudBase Run service creation. Do not create
+`happyword-server-staging` with dummy or production values.
+
+Staging service:
+
+- Service name: `happyword-server-staging`
+- Default domain:
+  `https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com`
+- Runtime port: `8080`
+- Deploy method: console local code upload, archive rooted at `server/`
+- Active version: `002`, deployed 2026-05-18
+- Staging Mongo database override: `MONGO_DB_NAME=happyword_cloudbase_staging`
+- Logs: enabled after initial OpenAI smoke returned `500`
 
 Required staging secrets:
 
 - `MONGODB_URI` - present in local `~/.env.tcb` on 2026-05-18
-- `MONGO_DB_NAME` - not present in local `~/.env.tcb`; use
-  `happyword_cloudbase_staging` unless the operator specifies another value
+- `MONGO_DB_NAME` - present in local `~/.env.tcb` on 2026-05-18
 - `JWT_SECRET` - present in local `~/.env.tcb` on 2026-05-18
 - `ADMIN_BOOTSTRAP_USER` - present in local `~/.env.tcb` on 2026-05-18
 - `ADMIN_BOOTSTRAP_PASS` - present in local `~/.env.tcb` on 2026-05-18
-- `CRON_SECRET` - not present in local `~/.env.tcb`; generate a new staging-only
-  value before configuring CloudBase
-- `OPENAI_API_KEY` - present in local `~/.env.tcb` on 2026-05-18
-- `PREVIEW_MANIFEST_BLOB_URL` - not present in local `~/.env.tcb`; required only
-  if staging must validate `/api/v1/public/preview-urls.json`
-- `BLOB_READ_WRITE_TOKEN`, only if upload paths must be tested during staging
+- `CRON_SECRET` - present in local `~/.env.tcb` on 2026-05-18
+- `LLM_PROVIDER` - recommended for CloudBase; use `qwen` or `doubao` after
+  provider smoke passes
+- `OPENAI_API_KEY` - present in local `~/.env.tcb` on 2026-05-18; useful for
+  non-mainland deployments or local comparison
+- `DASHSCOPE_API_KEY` - required when `LLM_PROVIDER=qwen`
+- `ARK_API_KEY` - required when `LLM_PROVIDER=doubao`
+- `PREVIEW_MANIFEST_BLOB_URL` - present in local `~/.env.tcb` on 2026-05-18;
+  required only if staging must validate `/api/v1/public/preview-urls.json`
+- `BLOB_READ_WRITE_TOKEN` - present in local `~/.env.tcb` on 2026-05-18;
+  required only if upload paths must be tested during staging
 
 Required operator decisions:
 
-- Whether to upgrade the CloudBase environment from free trial to a paid package
-  so pay-as-you-go can be enabled.
-- Whether MongoDB Atlas will allow all CloudBase egress IPs for staging, or
-  whether Cloud Run fixed public IP should be enabled and added to the Atlas
-  allowlist first.
+- OpenAI connectivity from CloudBase Shanghai is currently blocked by
+  `httpx.ConnectTimeout` / `openai.APITimeoutError`. The server can now switch
+  lesson image parsing through `LLM_PROVIDER`; validate `qwen` and `doubao`
+  from CloudBase before production cutover.
 
 ### Filing and Certificate Readiness
 
@@ -158,10 +174,44 @@ tcb cloudrun deploy -e "$TCB_ENV_ID" -s happyword-server --port 8080 --source . 
 
 ```bash
 curl -fsS "$CLOUDBASE_BASE_URL/api/v1/public/health"
-curl -fsS -I "$CLOUDBASE_BASE_URL/api/v1/public/packs/latest.json"
-curl -fsS -I "$CLOUDBASE_BASE_URL/privacy"
-curl -fsS -I "$CLOUDBASE_BASE_URL/admin/login"
+curl -fsS "$CLOUDBASE_BASE_URL/api/v1/public/packs/latest.json"
+curl -fsS "$CLOUDBASE_BASE_URL/privacy"
+curl -fsS "$CLOUDBASE_BASE_URL/admin/login"
 ```
+
+M2 smoke results on 2026-05-18 against version `002`:
+
+- `GET /api/v1/public/health`: `200`
+- `GET /api/v1/public/packs/latest.json`: `200`, proving CloudBase Run can
+  reach MongoDB Atlas with the current staging allowlist strategy.
+- `GET /api/v1/public/preview-urls.json`: `200`, proving CloudBase Run can
+  read the Wave A Vercel Blob preview manifest.
+- `GET /privacy`: `200`
+- `GET /admin/login`: `200`
+- `POST /api/v1/family/cloudbase-smoke/lessons/import`: `201`, proving
+  CloudBase Run can write to Vercel Blob and insert the draft into the staging
+  MongoDB database.
+- `POST /api/v1/admin/llm/scan-words`: `500`; CloudBase logs show
+  `httpx.ConnectTimeout` followed by `openai.APITimeoutError: Request timed
+  out`. The same local `OPENAI_API_KEY` validates against OpenAI with `200`, so
+  the remaining blocker is CloudBase-to-OpenAI network reachability rather than
+  key configuration.
+
+### LLM Provider Switching
+
+Lesson image extraction is controlled by `LLM_PROVIDER`:
+
+| Provider | `LLM_PROVIDER` | Required key | Default vision model | Runtime notes |
+| --- | --- | --- | --- | --- |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-4o` | Existing baseline; currently times out from CloudBase Shanghai. |
+| Qwen | `qwen` | `DASHSCOPE_API_KEY` | `qwen3.6-plus` | Uses DashScope OpenAI-compatible Responses API with thinking enabled. |
+| Doubao | `doubao` | `ARK_API_KEY` | `doubao-seed-2-0-pro-260215` | Uses Volcengine Ark OpenAI-compatible Responses API. |
+
+When adding another provider, compare it on these dimensions before enabling it
+in staging: CloudBase network reachability, JSON validity without manual repair,
+lesson word recall/precision on `assets/lessons/1.jpg`, example sentence
+quality, latency, timeout rate, cost per image, data residency, and SDK/API
+compatibility with the existing provider registry.
 
 ## Environment Variable Inventory
 
@@ -178,7 +228,14 @@ manager.
 | `JWT_SECRET` | Staging, production | Must match the old production value during cutover so existing sessions remain valid. |
 | `ADMIN_BOOTSTRAP_USER` | Staging, production | Seeds or updates the bootstrap admin row at startup. |
 | `ADMIN_BOOTSTRAP_PASS` | Staging, production | Seeds or updates the bootstrap admin password at startup. |
-| `OPENAI_API_KEY` | Production, optional staging | Required for lesson image extraction and LLM-assisted admin flows. |
+| `LLM_PROVIDER` | Staging, production | Lesson image extraction provider: `openai`, `qwen`, or `doubao`. |
+| `OPENAI_API_KEY` | Production, optional staging | Required when `LLM_PROVIDER=openai`; still used by older OpenAI-only admin flows. |
+| `OPENAI_MODEL_TEXT` | Optional | Defaults to `gpt-4o-mini` for older word-level OpenAI helpers. |
+| `OPENAI_MODEL_VISION` | Optional | Defaults to `gpt-4o` for OpenAI lesson image parsing. |
+| `DASHSCOPE_API_KEY` | Optional | Required when `LLM_PROVIDER=qwen`. |
+| `QWEN_MODEL_VISION` | Optional | Defaults to `qwen3.6-plus`. |
+| `ARK_API_KEY` | Optional | Required when `LLM_PROVIDER=doubao`. |
+| `DOUBAO_MODEL_VISION` | Optional | Defaults to `doubao-seed-2-0-pro-260215`. |
 | `CORS_ALLOW_ORIGINS` | Staging, production | Current default can remain `*` unless tightened later. |
 | `LOG_LEVEL` | Staging, production | Use `info` for normal deployment. |
 | `PARENT_WEB_BASE_URL` | Staging, production | Canonical parent web shell base URL for the deployed environment. |
