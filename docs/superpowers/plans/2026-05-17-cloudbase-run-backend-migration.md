@@ -116,7 +116,7 @@ JWT_SECRET=use-same-signing-secret-as-vercel-during-cutover
 ADMIN_BOOTSTRAP_USER=use-current-admin-bootstrap-user
 ADMIN_BOOTSTRAP_PASS=use-current-admin-bootstrap-password
 CRON_SECRET=use-same-value-used-by-scheduled-cron-caller
-LLM_PROVIDER=qwen-or-doubao-after-cloudbase-smoke
+LLM_PROVIDER=qwen-or-doubao-or-kimi-after-cloudbase-smoke
 OPENAI_API_KEY=use-production-key-if-openai-is-enabled
 OPENAI_MODEL_TEXT=gpt-4o-mini
 OPENAI_MODEL_VISION=gpt-4o
@@ -124,6 +124,8 @@ DASHSCOPE_API_KEY=use-if-LLM_PROVIDER-qwen
 QWEN_MODEL_VISION=qwen3.6-plus
 ARK_API_KEY=use-if-LLM_PROVIDER-doubao
 DOUBAO_MODEL_VISION=doubao-seed-2-0-pro-260215
+MOONSHOT_API_KEY=use-if-LLM_PROVIDER-kimi
+KIMI_MODEL_VISION=kimi-k2.6
 CORS_ALLOW_ORIGINS=*
 LOG_LEVEL=info
 PARENT_WEB_BASE_URL=https://happyword.cool
@@ -324,8 +326,8 @@ OAuth provider consoles:
     `POST /api/v1/family/cloudbase-smoke/lessons/import`.
   - OpenAI server-to-server smoke failed from CloudBase with
     `httpx.ConnectTimeout` / `openai.APITimeoutError`.
-  - Server now supports `LLM_PROVIDER=openai|qwen|doubao`; keep Step 4 open
-    until the selected CloudBase provider is smoke-tested from CloudBase.
+  - Server now supports `LLM_PROVIDER=openai|qwen|doubao|kimi`; keep Step 4
+    open until the selected CloudBase provider is smoke-tested from CloudBase.
   - `LLM_PROVIDER=qwen` was configured on CloudBase staging and the service was
     redeployed on 2026-05-18 14:11. `/api/v1/admin/llm/scan-words` with
     `assets/lessons/1.jpg` returned `200` from `qwen3.6-plus` with 15 extracted

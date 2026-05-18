@@ -157,12 +157,14 @@ Required staging secrets:
 - `ADMIN_BOOTSTRAP_USER` - present in local `~/.env.tcb` on 2026-05-18
 - `ADMIN_BOOTSTRAP_PASS` - present in local `~/.env.tcb` on 2026-05-18
 - `CRON_SECRET` - present in local `~/.env.tcb` on 2026-05-18
-- `LLM_PROVIDER` - recommended for CloudBase; use `qwen` or `doubao` after
-  provider smoke passes
+- `LLM_PROVIDER` - recommended for CloudBase; use `qwen`, `doubao`, or `kimi`
+  after provider smoke passes
 - `OPENAI_API_KEY` - present in local `~/.env.tcb` on 2026-05-18; useful for
   non-mainland deployments or local comparison
 - `DASHSCOPE_API_KEY` - required when `LLM_PROVIDER=qwen`
 - `ARK_API_KEY` - required when `LLM_PROVIDER=doubao`
+- `MOONSHOT_API_KEY` - required when `LLM_PROVIDER=kimi`; `KIMI_API_KEY` is
+  accepted as a local compatibility alias
 - `PREVIEW_MANIFEST_BLOB_URL` - present in local `~/.env.tcb` on 2026-05-18;
   required only if staging must validate `/api/v1/public/preview-urls.json`
 - `BLOB_READ_WRITE_TOKEN` - present in local `~/.env.tcb` on 2026-05-18;
@@ -172,8 +174,8 @@ Required operator decisions:
 
 - OpenAI connectivity from CloudBase Shanghai is currently blocked by
   `httpx.ConnectTimeout` / `openai.APITimeoutError`. The server can now switch
-  lesson image parsing through `LLM_PROVIDER`; validate `qwen` and `doubao`
-  from CloudBase before production cutover.
+  lesson image parsing through `LLM_PROVIDER`; validate `qwen`, `doubao`, and
+  `kimi` from CloudBase before production cutover.
 
 ### Filing and Certificate Readiness
 
@@ -281,6 +283,7 @@ Lesson image extraction is controlled by `LLM_PROVIDER`:
 | OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-4o` | Existing baseline; currently times out from CloudBase Shanghai. |
 | Qwen | `qwen` | `DASHSCOPE_API_KEY` | `qwen3.6-plus` | Uses DashScope OpenAI-compatible Responses API with thinking enabled. |
 | Doubao | `doubao` | `ARK_API_KEY` | `doubao-seed-2-0-pro-260215` | Uses Volcengine Ark OpenAI-compatible Responses API. |
+| Kimi | `kimi` | `MOONSHOT_API_KEY` | `kimi-k2.6` | Uses Moonshot OpenAI-compatible Chat Completions API with image input and thinking disabled for JSON extraction. `KIMI_API_KEY` is accepted as a compatibility alias. |
 
 When adding another provider, compare it on these dimensions before enabling it
 in staging: CloudBase network reachability, JSON validity without manual repair,
@@ -303,7 +306,7 @@ manager.
 | `JWT_SECRET` | Staging, production | Must match the old production value during cutover so existing sessions remain valid. |
 | `ADMIN_BOOTSTRAP_USER` | Staging, production | Seeds or updates the bootstrap admin row at startup. |
 | `ADMIN_BOOTSTRAP_PASS` | Staging, production | Seeds or updates the bootstrap admin password at startup. |
-| `LLM_PROVIDER` | Staging, production | Lesson image extraction provider: `openai`, `qwen`, or `doubao`. |
+| `LLM_PROVIDER` | Staging, production | Lesson image extraction provider: `openai`, `qwen`, `doubao`, or `kimi`. |
 | `OPENAI_API_KEY` | Production, optional staging | Required when `LLM_PROVIDER=openai`; still used by older OpenAI-only admin flows. |
 | `OPENAI_MODEL_TEXT` | Optional | Defaults to `gpt-4o-mini` for older word-level OpenAI helpers. |
 | `OPENAI_MODEL_VISION` | Optional | Defaults to `gpt-4o` for OpenAI lesson image parsing. |
@@ -311,6 +314,8 @@ manager.
 | `QWEN_MODEL_VISION` | Optional | Defaults to `qwen3.6-plus`. |
 | `ARK_API_KEY` | Optional | Required when `LLM_PROVIDER=doubao`. |
 | `DOUBAO_MODEL_VISION` | Optional | Defaults to `doubao-seed-2-0-pro-260215`. |
+| `MOONSHOT_API_KEY` | Optional | Required when `LLM_PROVIDER=kimi`; `KIMI_API_KEY` is accepted as a compatibility alias. |
+| `KIMI_MODEL_VISION` | Optional | Defaults to `kimi-k2.6`. |
 | `CORS_ALLOW_ORIGINS` | Staging, production | Current default can remain `*` unless tightened later. |
 | `LOG_LEVEL` | Staging, production | Use `info` for normal deployment. |
 | `PARENT_WEB_BASE_URL` | Staging, production | Canonical parent web shell base URL for the deployed environment. CloudBase production validation uses `https://happyword.com.cn` before final `happyword.cool` cutover. |
