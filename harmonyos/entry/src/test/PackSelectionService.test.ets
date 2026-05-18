@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import {
+  AppendOutcome,
   PackCandidateProvider,
   PackSelectionService,
   PerfectAdventureResult,
@@ -85,13 +86,15 @@ export default function PackSelectionServiceTest() {
       done();
     });
 
-    it('setActiveIds rejects sets larger than 5', 0, async (done: () => void) => {
+    it('setActiveIds rejects sets larger than 10', 0, async (done: () => void) => {
       const svc: PackSelectionService = new PackSelectionService();
       svc.injectPreferences(new MemPrefs());
       await svc.initWithDefaults(DEFAULTS);
       let threw: boolean = false;
       try {
-        await svc.setActiveIds(['a', 'b', 'c', 'd', 'e', 'f']);
+        await svc.setActiveIds([
+          'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
+        ]);
       } catch (_err) {
         threw = true;
       }
@@ -147,6 +150,76 @@ export default function PackSelectionServiceTest() {
       await svc.togglePin('fruit-forest');
       await svc.setActiveIds(['school-castle', 'animal-safari']);
       expect(svc.isPinned('fruit-forest')).assertFalse();
+      done();
+    });
+  });
+
+  describe('PackSelectionService appendOrRotate (V0.8.3)', () => {
+    it('appendOrRotateAtUnderCapJustAppends', 0, async (done: () => void) => {
+      const svc: PackSelectionService = new PackSelectionService();
+      svc.injectPreferences(new MemPrefs());
+      const nine: string[] = [
+        'fruit-forest', 'school-castle', 'home-cottage', 'animal-safari', 'ocean-realm',
+        'a', 'b', 'c', 'd',
+      ];
+      await svc.setActiveIds(nine);
+      const out: AppendOutcome = await svc.appendOrRotate('space-station');
+      expect(out.result).assertEqual('activated');
+      expect(out.autoClosed === null).assertTrue();
+      expect(svc.getActiveIds().indexOf('space-station') >= 0).assertTrue();
+      expect(svc.getActiveIds().length).assertEqual(10);
+      done();
+    });
+
+    it('appendOrRotateAtCapClosesEarliestNonPinned', 0, async (done: () => void) => {
+      const svc: PackSelectionService = new PackSelectionService();
+      svc.injectPreferences(new MemPrefs());
+      const ten: string[] = [
+        'fruit-forest', 'school-castle', 'home-cottage', 'animal-safari', 'ocean-realm',
+        'a', 'b', 'c', 'd', 'e',
+      ];
+      await svc.setActiveIds(ten);
+      await svc.togglePin('home-cottage');
+      const out: AppendOutcome = await svc.appendOrRotate('space-station');
+      expect(out.result).assertEqual('activated');
+      expect(out.autoClosed).assertEqual('fruit-forest');
+      const ids: string[] = svc.getActiveIds();
+      expect(ids.indexOf('fruit-forest')).assertEqual(-1);
+      expect(ids.indexOf('space-station') >= 0).assertTrue();
+      expect(ids.indexOf('home-cottage') >= 0).assertTrue();
+      expect(ids.length).assertEqual(10);
+      done();
+    });
+
+    it('appendOrRotateAtCapAllPinnedRefuses', 0, async (done: () => void) => {
+      const svc: PackSelectionService = new PackSelectionService();
+      svc.injectPreferences(new MemPrefs());
+      const ten: string[] = [
+        'fruit-forest', 'school-castle', 'home-cottage', 'animal-safari', 'ocean-realm',
+        'a', 'b', 'c', 'd', 'e',
+      ];
+      await svc.setActiveIds(ten);
+      for (let i = 0; i < ten.length; i++) {
+        await svc.togglePin(ten[i]);
+      }
+      const before: string = JSON.stringify(svc.getActiveIds());
+      const out: AppendOutcome = await svc.appendOrRotate('space-station');
+      expect(out.result).assertEqual('refused-all-pinned');
+      expect(out.autoClosed === null).assertTrue();
+      expect(JSON.stringify(svc.getActiveIds())).assertEqual(before);
+      expect(svc.getActiveIds().indexOf('space-station')).assertEqual(-1);
+      done();
+    });
+
+    it('appendOrRotateNoOpOnAlreadyActive', 0, async (done: () => void) => {
+      const svc: PackSelectionService = new PackSelectionService();
+      svc.injectPreferences(new MemPrefs());
+      await svc.initWithDefaults(DEFAULTS);
+      const before: string = JSON.stringify(svc.getActiveIds());
+      const out: AppendOutcome = await svc.appendOrRotate('fruit-forest');
+      expect(out.result).assertEqual('activated');
+      expect(out.autoClosed === null).assertTrue();
+      expect(JSON.stringify(svc.getActiveIds())).assertEqual(before);
       done();
     });
   });

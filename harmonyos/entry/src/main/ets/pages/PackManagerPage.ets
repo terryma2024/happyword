@@ -42,6 +42,7 @@ struct PackManagerPage {
   @State private packSyncBusy: boolean = false;
   @State private packSyncStatusText: string = '';
   @State private packSyncToastText: string = '';
+  @State private packToastId: string = 'PackManagerSyncToast';
   @State private loaded: boolean = false;
   private packPickerToastTimer: number = -1;
   private homeIntegration: HomeIntegrationBundle = new HomeIntegrationBundle();
@@ -84,27 +85,42 @@ struct PackManagerPage {
     this.packPickerVersion = this.packPickerVersion + 1;
   }
 
-  /** Toggle a pack in/out of the active selection. Enforces the cap. */
+  /** Toggle a pack in/out of the active selection. At cap, auto-closes earliest unpinned. */
   private async togglePackActive(packId: string): Promise<void> {
     const idx: number = this.activePackIds.indexOf(packId);
-    let next: string[];
     if (idx >= 0) {
-      next = this.activePackIds.slice();
+      const next: string[] = this.activePackIds.slice();
       next.splice(idx, 1);
-    } else {
-      if (this.activePackIds.length >= MAX_ACTIVE_PACKS) {
-        this.showPackToast(`最多可激活 ${MAX_ACTIVE_PACKS} 个词包，请先取消其他词包`);
-        return;
+      try {
+        await this.homeIntegration.selection.setActiveIds(next);
+        this.refreshPackPickerState();
+      } catch (err) {
+        console.error(`PackManagerPage.togglePackActive failed: ${JSON.stringify(err as BusinessError)}`);
+        this.showPackToast('保存失败，请重试', 'PackManagerSyncToast');
       }
-      next = this.activePackIds.slice();
-      next.push(packId);
+      return;
     }
     try {
-      await this.homeIntegration.selection.setActiveIds(next);
+      const outcome = await this.homeIntegration.selection.appendOrRotate(packId);
+      if (outcome.result === 'refused-all-pinned') {
+        this.showPackToast('请先取消固定一个词包', 'PackManagerCapRefuseToast');
+        return;
+      }
       this.refreshPackPickerState();
+      if (outcome.autoClosed !== null) {
+        const closedName: string = this.packDisplayNameById(outcome.autoClosed);
+        const addedName: string = this.packDisplayNameById(packId);
+        this.showPackToast(
+          `已关闭 '${closedName}' 以激活 '${addedName}'`,
+          'PackManagerAutoRotateToast',
+        );
+        console.info(
+          `pack.selection.auto-rotated victimId=${outcome.autoClosed} addedId=${packId}`,
+        );
+      }
     } catch (err) {
       console.error(`PackManagerPage.togglePackActive failed: ${JSON.stringify(err as BusinessError)}`);
-      this.showPackToast('保存失败，请重试');
+      this.showPackToast('保存失败，请重试', 'PackManagerSyncToast');
     }
   }
 
@@ -187,13 +203,15 @@ struct PackManagerPage {
     return '已是最新 (仅全局可同步，未绑定家长账号)';
   }
 
-  private showPackToast(text: string): void {
+  private showPackToast(text: string, toastId: string = 'PackManagerSyncToast'): void {
     this.packSyncToastText = text;
+    this.packToastId = toastId;
     if (this.packPickerToastTimer >= 0) {
       clearTimeout(this.packPickerToastTimer);
     }
     this.packPickerToastTimer = setTimeout((): void => {
       this.packSyncToastText = '';
+      this.packToastId = 'PackManagerSyncToast';
       this.packPickerToastTimer = -1;
       this.forceRerender();
     }, 2400);
@@ -208,6 +226,15 @@ struct PackManagerPage {
     if (p.name.length > 0) return p.name;
     if (p.labelZh.length > 0) return p.labelZh;
     return p.id;
+  }
+
+  private packDisplayNameById(packId: string): string {
+    for (let i = 0; i < this.availablePacks.length; i++) {
+      if (this.availablePacks[i].id === packId) {
+        return this.packDisplayName(this.availablePacks[i]);
+      }
+    }
+    return packId;
   }
 
   private packSourceTag(p: Pack): string {
@@ -385,7 +412,7 @@ struct PackManagerPage {
 
       if (this.packSyncToastText.length > 0) {
         Text(this.packSyncToastText)
-          .id('PackManagerSyncToast')
+          .id(this.packToastId)
           .fontSize(13).fontColor('#1D3557')
           .padding({ left: 10, right: 10, top: 6, bottom: 6 })
           .backgroundColor('#FFF4D0')
