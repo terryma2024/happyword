@@ -124,10 +124,10 @@
 
   <div class="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
     <h2 class="font-semibold text-slate-900">图片导入草稿</h2>
-    <p class="text-xs text-slate-500">上传教材页照片，解析词条并写入<strong>本词包</strong>草稿（与家庭端导入同一管线）。支持 JPEG / PNG / WebP，最大 8MB。解析依赖 OpenAI 视觉接口，需在服务器配置 <span class="font-mono">OPENAI_API_KEY</span>。</p>
+    <p class="text-xs text-slate-500">上传教材页照片，解析词条并写入<strong>本词包</strong>草稿（与家庭端导入同一管线）。支持 JPEG / PNG / WebP，最大 8MB。解析依赖当前服务器选择的 LLM 视觉 Provider。</p>
     {% if not vision_import_ready %}
     <p class="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-      当前实例未配置可用的 OPENAI_API_KEY，无法解析图片。请在部署环境（如 Vercel / Docker）设置环境变量并重新部署或重启后再试。
+      当前实例未配置可用的 LLM Provider 密钥，无法解析图片。请在部署环境设置当前 Provider 对应的环境变量并重新部署或重启后再试。
     </p>
     {% endif %}
     <form method="post" action="/admin/global-packs/packs/{{ pack_id }}/import-image" enctype="multipart/form-data" class="space-y-3 max-w-lg" {% if not vision_import_ready %}aria-disabled="true"{% endif %}>

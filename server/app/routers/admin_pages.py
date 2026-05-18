@@ -30,6 +30,10 @@ from app.services.auth_service import (
     decode_typed_token,
     verify_password,
 )
+from app.services.llm_providers import (
+    is_selected_lesson_provider_configured,
+    selected_lesson_provider_missing_message,
+)
 from app.services.llm_service import LlmCallError, LlmConfigError
 
 router = APIRouter(
@@ -155,20 +159,13 @@ def _global_pack_detail_url(
     return f"{base}?{'&'.join(qs)}" if qs else base
 
 
-_VISION_IMPORT_UNAVAILABLE_CN = (
-    "当前环境未配置 OPENAI_API_KEY（或值为空），无法解析教材图片。"
-    "请在部署环境变量中设置该密钥并重启服务后再试。"
-)
-
-
 def _vision_import_configured() -> bool:
-    settings = get_settings()
-    return bool((settings.openai_api_key or "").strip())
+    return is_selected_lesson_provider_configured()
 
 
 def _flash_err_for_vision_import(exc: BaseException) -> str:
     if isinstance(exc, LlmConfigError):
-        return _VISION_IMPORT_UNAVAILABLE_CN
+        return selected_lesson_provider_missing_message()
     return str(exc)
 
 

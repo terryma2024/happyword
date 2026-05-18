@@ -68,3 +68,21 @@ def test_settings_defaults_when_optional_missing(monkeypatch: pytest.MonkeyPatch
     s = Settings()  # type: ignore[call-arg]
     assert s.jwt_expire_hours == 24
     assert s.log_level == "info"
+
+
+def test_settings_defaults_to_openai_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    for k in (
+        "MONGODB_URI",
+        "MONGO_DB_NAME",
+        "JWT_SECRET",
+        "ADMIN_BOOTSTRAP_USER",
+        "ADMIN_BOOTSTRAP_PASS",
+    ):
+        monkeypatch.setenv(k, "x")
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+
+    s = Settings()  # type: ignore[call-arg]
+
+    assert s.llm_provider == "openai"
+    assert s.qwen_model_vision == "qwen3.6-plus"
+    assert s.doubao_model_vision == "doubao-seed-2-0-pro-260215"

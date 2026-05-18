@@ -26,6 +26,8 @@ smoke is gated behind ``LIVE_OPENAI=1`` in ``test_llm_live_smoke.py``.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import openai
 import pytest
 
@@ -142,3 +144,185 @@ async def test_extract_lesson_payload_bounds_openai_call_below_function_timeout(
 
     assert seen_kwargs["timeout"] == lesson_service.OPENAI_VISION_TIMEOUT_SECONDS
     assert seen_kwargs["timeout"] < 60.0
+
+
+def test_lesson_provider_registry_includes_initial_providers() -> None:
+    from app.services.llm_providers import LESSON_PROVIDER_SPECS  # noqa: PLC0415
+
+    assert set(LESSON_PROVIDER_SPECS) >= {"openai", "qwen", "doubao"}
+    assert LESSON_PROVIDER_SPECS["qwen"].default_vision_model == "qwen3.6-plus"
+    assert LESSON_PROVIDER_SPECS["doubao"].default_vision_model == "doubao-seed-2-0-pro-260215"
+    assert LESSON_PROVIDER_SPECS["openai"].api_key_env == "OPENAI_API_KEY"
+
+
+@pytest.mark.asyncio
+async def test_extract_lesson_payload_routes_qwen_to_responses_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "qwen")
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-test-dashscope")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "admin")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "pw")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.services import llm_providers  # noqa: PLC0415
+
+    get_settings.cache_clear()
+    captured: dict[str, object] = {}
+
+    class _FakeResponses:
+        async def create(self, **kwargs: object) -> object:
+            captured.update(kwargs)
+            message = SimpleNamespace(
+                type="message",
+                content=[
+                    SimpleNamespace(
+                        text='```json\n{"category_id":"lesson","label_en":"Lesson","label_zh":"课","words":[]}\n```'
+                    )
+                ],
+            )
+            return SimpleNamespace(output=[message])
+
+    class _FakeClient:
+        responses = _FakeResponses()
+
+    monkeypatch.setattr(
+        llm_providers,
+        "_build_openai_compatible_client",
+        lambda **_kwargs: _FakeClient(),
+    )
+
+    model_used, payload = await lesson_service.extract_lesson_payload(
+        b"fake-image-bytes",
+        "image/jpeg",
+    )
+
+    assert model_used == "qwen3.6-plus"
+    assert captured["model"] == "qwen3.6-plus"
+    assert captured["extra_body"] == {"enable_thinking": True}
+    first_content = captured["input"][0]["content"]  # type: ignore[index]
+    assert first_content[0]["type"] == "input_image"
+    assert first_content[0]["image_url"].startswith("data:image/jpeg;base64,")
+    assert first_content[1]["type"] == "input_text"
+    assert payload == {"category_id": "lesson", "label_en": "Lesson", "label_zh": "课", "words": []}
+
+
+@pytest.mark.asyncio
+async def test_extract_lesson_payload_routes_doubao_to_responses_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "doubao")
+    monkeypatch.setenv("ARK_API_KEY", "ark-test")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "admin")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "pw")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.services import llm_providers  # noqa: PLC0415
+
+    get_settings.cache_clear()
+    captured: dict[str, object] = {}
+
+    class _FakeResponses:
+        async def create(self, **kwargs: object) -> object:
+            captured.update(kwargs)
+            message = SimpleNamespace(
+                type="message",
+                content=[SimpleNamespace(text='{"category_id":"lesson","words":[]}')],
+            )
+            return SimpleNamespace(output=[message])
+
+    class _FakeClient:
+        responses = _FakeResponses()
+
+    monkeypatch.setattr(
+        llm_providers,
+        "_build_openai_compatible_client",
+        lambda **_kwargs: _FakeClient(),
+    )
+
+    model_used, payload = await lesson_service.extract_lesson_payload(
+        b"fake-image-bytes",
+        "image/jpeg",
+    )
+
+    assert model_used == "doubao-seed-2-0-pro-260215"
+    assert captured["model"] == "doubao-seed-2-0-pro-260215"
+    assert "extra_body" not in captured
+    assert payload == {"category_id": "lesson", "words": []}
+
+
+@pytest.mark.asyncio
+async def test_extract_lesson_payload_requires_selected_provider_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "qwen")
+    monkeypatch.delenv("DASHSCOPE_API_KEY", raising=False)
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "admin")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "pw")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.services.llm_service import LlmConfigError  # noqa: PLC0415
+
+    get_settings.cache_clear()
+
+    with pytest.raises(LlmConfigError) as excinfo:
+        await lesson_service.extract_lesson_payload(b"fake-image-bytes", "image/jpeg")
+
+    assert "DASHSCOPE_API_KEY" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_extract_target_vocabulary_routes_qwen_scan_words(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "qwen")
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-test-dashscope")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "admin")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "pw")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.services import llm_providers  # noqa: PLC0415
+
+    get_settings.cache_clear()
+    captured: dict[str, object] = {}
+
+    class _FakeResponses:
+        async def create(self, **kwargs: object) -> object:
+            captured.update(kwargs)
+            message = SimpleNamespace(
+                type="message",
+                content=[
+                    SimpleNamespace(
+                        text='{"words":[{"word":"shirt","gloss_zh":"衬衫"}],"note":"ok"}'
+                    )
+                ],
+            )
+            return SimpleNamespace(output=[message])
+
+    class _FakeClient:
+        responses = _FakeResponses()
+
+    monkeypatch.setattr(
+        llm_providers,
+        "_build_openai_compatible_client",
+        lambda **_kwargs: _FakeClient(),
+    )
+
+    model_used, result = await llm_service.extract_target_vocabulary(
+        b"fake-image-bytes",
+        mime="image/jpeg",
+    )
+
+    assert model_used == "qwen3.6-plus"
+    assert captured["model"] == "qwen3.6-plus"
+    assert captured["extra_body"] == {"enable_thinking": True}
+    assert [word.word for word in result.words] == ["shirt"]
+    assert result.words[0].gloss_zh == "衬衫"
