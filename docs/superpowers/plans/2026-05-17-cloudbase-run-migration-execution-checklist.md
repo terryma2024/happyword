@@ -337,7 +337,7 @@
   ADMIN_BOOTSTRAP_USER=use-staging-admin-user
   ADMIN_BOOTSTRAP_PASS=use-staging-admin-password
   CRON_SECRET=use-staging-cron-secret
-  OPENAI_API_KEY=
+  OPENAI_API_KEY=use-staging-openai-api-key-from-secret-store
   CORS_ALLOW_ORIGINS=*
   LOG_LEVEL=info
   PARENT_WEB_BASE_URL=https://staging-domain-recorded-in-docs-server-cloudbase-run-md
@@ -363,7 +363,36 @@
 
   Expected: no `404`, no platform error page, no startup exception in CloudBase logs.
 
-- [ ] **Step 5: Run staging E2E smoke**
+- [ ] **Step 5: Verify staging outbound dependency connectivity**
+
+  Verify these server-to-server paths from the CloudBase Run staging service,
+  not only from the developer machine:
+
+  - CloudBase Run -> MongoDB Atlas
+  - CloudBase Run -> OpenAI API
+
+  Atlas acceptance:
+
+  - CloudBase Run startup logs show Beanie/Mongo initialization completes.
+  - `GET /api/v1/public/health` returns `200`.
+  - At least one staging smoke case performs a real MongoDB read/write through
+    the CloudBase service.
+
+  OpenAI acceptance:
+
+  - `OPENAI_API_KEY` is configured in CloudBase staging from the secret store.
+  - Trigger one low-cost, controlled LLM route through the CloudBase staging
+    service, such as the admin scan/import flow, using a staging admin account
+    and a small fixture image.
+  - Expected result is either a successful parsed response or an application
+    level LLM validation error from OpenAI. DNS/connectivity errors, timeout
+    before reaching OpenAI, TLS failures, or CloudBase egress failures block M2.
+
+  Record the exact command, endpoint, HTTP status, and redacted result summary
+  in `docs/server/cloudbase-run.md`. Do not commit API keys, bearer tokens, or
+  full provider responses.
+
+- [ ] **Step 6: Run staging E2E smoke**
 
   Run:
 
@@ -380,7 +409,7 @@
 
   Expected: smoke tests pass or failures are triaged as pre-existing staging data/setup issues and documented before continuing.
 
-- [ ] **Step 6: Commit staging runbook updates**
+- [ ] **Step 7: Commit staging runbook updates**
 
   Run:
 
