@@ -34,6 +34,7 @@ from app.models.pair_token import PairToken
 from app.models.parent_inbox_msg import ParentInboxMsg
 from app.models.redemption_request import RedemptionRequest
 from app.models.synced_word_stat import SyncedWordStat
+from app.models.system_config import SystemConfig
 from app.models.user import User, UserRole
 from app.models.word import Word
 from app.models.word_pack import WordPack
@@ -131,6 +132,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             OAuthIdentity,
             OAuthHandoffTicket,
             OAuthPendingIdentity,
+            SystemConfig,
         ],
     )
     app.state.mongo_client = client
