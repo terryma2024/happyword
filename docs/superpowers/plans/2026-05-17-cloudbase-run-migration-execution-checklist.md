@@ -625,11 +625,16 @@
 
   Execution note, 2026-05-18: CloudBase CLI and official docs require a valid
   Tencent Cloud SSL certificate ID and completed ICP filing before adding an
-  HTTP Access custom domain. Tencent Cloud SSL certificate search returned no
-  `happyword.com.cn` certificate, so there is currently no `CertId` to bind.
-  `happyword.com.cn` also has no apex A/CNAME DNS record yet. Treat M4 custom
-  domain binding as blocked until SSL certificate issuance/upload and ICP filing
-  state are completed or explicitly confirmed in the Tencent console.
+  HTTP Access custom domain. Tencent Cloud SSL certificate `XjNs7qFU` for
+  `happyword.com.cn` was issued on 2026-05-18 and covers both
+  `happyword.com.cn` and `www.happyword.com.cn`, so certificate availability is
+  no longer a blocker. ICP remains blocked: the ICP console shows
+  `happyword.com.cn` as `未备案`, and the filing form requires an eligible cloud
+  resource. The current CloudBase Standard monthly package is not listed as an
+  eligible filing resource. Tencent Cloud ICP docs require CloudBase resources
+  to have more than 6 months remaining during filing and fixed public IP
+  enabled; the current CloudBase package period ends on 2026-06-18 and fixed
+  public IP is disabled.
 
 - [x] **Step 3: Create CloudBase production service**
 
@@ -711,8 +716,9 @@
   public `happyword.cool` DNS still points to Vercel.
 
   Status, 2026-05-18: blocked. CloudBase HTTP Access has no custom domains or
-  routes. Binding cannot proceed until a Tencent Cloud SSL certificate ID exists
-  for `happyword.com.cn` and the ICP filing/access filing state is valid.
+  routes. Binding with certificate `XjNs7qFU` was attempted and failed with
+  `CreateHTTPServiceRoute: 域名未备案`. Binding cannot proceed until
+  `happyword.com.cn` has a valid ICP filing/access filing state.
 
 - [ ] **Step 6: Commit domain readiness notes**
 

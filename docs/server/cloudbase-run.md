@@ -184,21 +184,35 @@ Current CloudBase custom-domain state as of 2026-05-18:
 
 - CloudBase HTTP Access has only the default domain. No custom domains or
   routes are bound.
-- Tencent Cloud SSL certificate search for `happyword.com.cn` returned no
-  certificates, so there is no `CertId` available for CloudBase binding.
+- Tencent Cloud SSL certificate `XjNs7qFU` for `happyword.com.cn` was issued on
+  2026-05-18. It covers `happyword.com.cn` and `www.happyword.com.cn`, and is
+  valid until 2026-08-16 07:59:59.
 - `tcb domains add` requires a valid Tencent Cloud SSL certificate ID and
   explicitly states that the domain must have completed ICP filing.
+- Attempting to bind `happyword.com.cn` to CloudBase HTTP Access with
+  certificate `XjNs7qFU` failed with `CreateHTTPServiceRoute: 域名未备案`.
 - DNS for `happyword.com.cn` is hosted by DNSPod and has no apex A or CNAME
   record yet.
+- ICP console shows `happyword.com.cn` status as `未备案`.
+- Starting a new ICP filing reaches the `验证备案` form, but the form requires
+  an eligible cloud resource. The current CloudBase Standard monthly package is
+  not shown as an eligible备案云资源.
+- Tencent Cloud ICP documentation says CloudBase resources used for filing must
+  have more than 6 months remaining during filing and fixed public IP enabled.
+  The current CloudBase package period ends on 2026-06-18 and fixed public IP is
+  disabled, so it is not eligible for this filing path.
 - DNS for `happyword.cool` is still hosted by Vercel DNS and remains the
   production and rollback path.
 
 Required before production custom-domain binding:
 
-- Apply for or upload a Tencent Cloud SSL certificate for `happyword.com.cn` and
-  record its certificate ID.
-- Complete ICP filing or access filing for `happyword.com.cn`, or confirm in
-  the CloudBase console that the domain has a valid filing state.
+- Choose an ICP filing resource path:
+  - buy/renew an eligible mainland Tencent Cloud resource, such as Lighthouse
+    or CVM for at least 3 months; or
+  - make CloudBase eligible by using a package with more than 6 months remaining
+    and enabling fixed public IP, if the console supports this path for the
+    current environment.
+- Complete ICP filing or access filing for `happyword.com.cn`.
 - Bind `happyword.com.cn` in CloudBase HTTP Access after both prerequisites are
   satisfied, then create the route to CloudBase Run service `happyword-server`.
 
