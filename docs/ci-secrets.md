@@ -74,12 +74,19 @@ secrets until the Vercel retirement phase.
 | `TCB_SECRET_KEY` | CloudBase CD | Tencent Cloud API credential key for CloudBase CLI login. |
 | `TCB_ENV_ID` | CloudBase CD | CloudBase environment id. |
 | `CLOUDBASE_STAGING_BASE_URL` | CloudBase smoke | Staging CloudBase HTTP Access URL. |
-| `CLOUDBASE_PROD_BASE_URL` | CloudBase smoke | Production canonical URL, normally `https://happyword.cool`. |
+| `CLOUDBASE_PROD_BASE_URL` | CloudBase smoke | First CloudBase production validation URL, normally `https://happyword.com.cn`; switch to `https://happyword.cool` only after the final DNS cutover. |
+| `CLOUDBASE_CRON_TARGET_URL` | CloudBase cron function | Target FastAPI cron endpoint, e.g. staging `/api/v1/admin/cron/extract-pending`. |
+| `CLOUDBASE_CRON_SECRET` | CloudBase cron function | Same bearer secret as the target CloudBase Run service `CRON_SECRET`. |
 
 Create the Tencent Cloud API credential with the narrowest permissions that can
 deploy the target CloudBase Run service and read deployment status. Store the
 credential only as GitHub Actions secrets or in Tencent Cloud Secret Manager;
 do not commit the values to this repository.
+
+The current M3 implementation deploys `cloudbase/functions/cron-extract-pending`
+manually through the CloudBase CLI and stores function env vars in CloudBase,
+not in GitHub Actions. The `CLOUDBASE_CRON_*` names are reserved for future CI/CD
+automation if function deployment is moved into GitHub Actions.
 
 ### `VERCEL_TOKEN`
 

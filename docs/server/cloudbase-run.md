@@ -3,8 +3,8 @@
 ## Current State
 
 - Runtime owner: CloudBase Run
-- Current production domain: happyword.cool
-- Tencent-owned candidate production domain: happyword.com.cn
+- Current production and rollback domain: happyword.cool
+- First CloudBase production validation domain: happyword.com.cn
 - Production service name: happyword-server
 - Staging service name: happyword-server-staging
 - MongoDB provider: MongoDB Atlas
@@ -28,12 +28,16 @@
 ### Domain Strategy
 
 - Current production and rollback domain: `happyword.cool`
-- Tencent-owned candidate production domain: `happyword.com.cn`
+- First CloudBase production validation domain: `happyword.com.cn`
 - Additional Tencent-registered reserve domain: `happyword.cloud`
-- Cutover rule: do not change `happyword.cool` DNS until CloudBase staging and
-  production smoke checks are ready.
-- Open decision: whether the final mainland production host remains
-  `happyword.cool` or moves to `happyword.com.cn`.
+- Production-domain sequence: bind and fully validate CloudBase production on
+  `happyword.com.cn` first. Only after health, admin pages, OAuth/cookie
+  behavior, cron, LLM import, and client smoke checks pass on
+  `happyword.com.cn`, change `happyword.cool` from Vercel DNS/CNAME to the
+  CloudBase target.
+- Cutover rule: do not change `happyword.cool` DNS while `happyword.com.cn`
+  validation is incomplete. Keep `happyword.cool` on Vercel as the rollback
+  domain until the final CNAME cutover.
 
 ### Tencent Cloud Domain Console Findings
 
@@ -259,6 +263,31 @@ manager.
 | Variable | Required for | Notes |
 | --- | --- | --- |
 | `CRON_SECRET` | Staging, production, cron caller | Shared bearer secret between CloudBase Run and the timer caller. |
+
+M3 CloudBase cron replacement status:
+
+- Function name: `cron-extract-pending`
+- Runtime: `Nodejs20.19`
+- Memory: `128 MB`
+- Timeout: `60s`
+- Trigger: `extractPendingEveryMinute`
+- Trigger cron: `0 * * * * * *` (CloudBase timer syntax includes seconds;
+  this fires once per minute at second 0)
+- Function env vars:
+  - `CRON_TARGET_URL`: CloudBase staging
+    `/api/v1/admin/cron/extract-pending`
+  - `CRON_SECRET`: same value as CloudBase Run staging `CRON_SECRET`
+- Source path: `cloudbase/functions/cron-extract-pending/`
+- `cloudbaserc.json` is not committed. The environment-specific deployment
+  config was generated under `/tmp` for the deployment command.
+- Manual validation on 2026-05-18:
+  `tcb fn invoke cron-extract-pending -e happyword-d5g66zmq8ef2430b8 --json`
+  returned `status=200`, body
+  `{"claimed":0,"succeeded":0,"failed":0}`, `attempt=1`.
+- The function includes short retries for transient CloudBase Run gateway
+  `502` / `503` / `504` responses because the first manual invocation saw a
+  temporary gateway `503` before the backend cron endpoint was confirmed
+  healthy.
 
 ### Wave A Vercel Blob Compatibility
 

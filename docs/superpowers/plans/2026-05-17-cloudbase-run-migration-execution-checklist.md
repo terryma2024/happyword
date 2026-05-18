@@ -27,7 +27,9 @@
 - Do not migrate storage in the same release as the first runtime cutover.
 - Do not change MongoDB production schema during the first runtime cutover.
 - Do not delete Vercel workflows, Blob tokens, or Vercel project resources until the Vercel retirement phase.
-- Use `happyword.cool` as the production canonical host after DNS cutover.
+- Use `happyword.com.cn` as the first CloudBase production validation host.
+  Keep `happyword.cool` on Vercel until `happyword.com.cn` is fully green, then
+  move `happyword.cool` CNAME/DNS to CloudBase as the final cutover.
 - Use `GET /api/v1/public/health` as the first health signal for every deployed environment.
 - Every commit touching `server/` must run `cd server && uv run pytest -v` with `0 errors` and `0 warnings`.
 
@@ -36,9 +38,9 @@
 - [x] **M0: Migration control plane ready** - accounts, domain, secrets inventory, and rollback policy are documented.
 - [x] **M1: Container runtime ready** - `server/` builds and runs locally as a CloudBase-compatible container.
 - [ ] **M2: CloudBase staging online** - default CloudBase domain serves health, public pages, admin login, and pack JSON.
-- [ ] **M3: Cron replacement online** - CloudBase timer or fallback GitHub schedule calls the existing cron endpoint successfully.
-- [ ] **M4: Production domain ready** - `happyword.cool` can be bound to CloudBase with SSL and required filing state confirmed.
-- [ ] **M5: Production cutover complete** - DNS points to CloudBase and smoke validation passes.
+- [x] **M3: Cron replacement online** - CloudBase timer calls the existing cron endpoint successfully.
+- [ ] **M4: Production domain ready** - `happyword.com.cn` can be bound to CloudBase with SSL and required filing state confirmed.
+- [ ] **M5: Production cutover complete** - `happyword.com.cn` points to CloudBase and smoke validation passes; `happyword.cool` moves only after that.
 - [ ] **M6: CloudBase CI/CD active** - `main` deployment and smoke checks no longer depend on Vercel production deployment status.
 - [ ] **M7: Storage migration complete** - new uploads use CloudBase Storage or Tencent COS, existing Vercel Blob URLs stay readable.
 - [ ] **M8: Preview/QA replacement complete** - Vercel Preview dependency is removed from the QA path.
@@ -440,7 +442,7 @@
 - Modify: `docs/server/cloudbase-run.md`
 - Modify: `docs/ci-secrets.md`
 
-- [ ] **Step 1: Add timer function package**
+- [x] **Step 1: Add timer function package**
 
   Create `cloudbase/functions/cron-extract-pending/package.json`:
 
@@ -453,9 +455,11 @@
   }
   ```
 
-- [ ] **Step 2: Add timer function implementation**
+- [x] **Step 2: Add timer function implementation**
 
-  Create `cloudbase/functions/cron-extract-pending/index.js`:
+  Create `cloudbase/functions/cron-extract-pending/index.js`. The deployed
+  implementation follows this contract and additionally includes short retries
+  for transient CloudBase Run gateway `502` / `503` / `504` responses:
 
   ```js
   exports.main = async () => {
@@ -485,7 +489,7 @@
   };
   ```
 
-- [ ] **Step 3: Add trigger config**
+- [x] **Step 3: Add trigger config**
 
   Create or extend `cloudbaserc.json`:
 
@@ -510,36 +514,39 @@
 
   Before committing, use the real CloudBase environment id if this repo convention accepts environment-specific config. If environment id should remain local-only, do not commit `cloudbaserc.json`; instead record the exact trigger JSON in `docs/server/cloudbase-run.md`.
 
-- [ ] **Step 4: Deploy function**
+- [x] **Step 4: Deploy function**
 
   Run:
 
   ```bash
-  tcb fn deploy cron-extract-pending --dir cloudbase/functions/cron-extract-pending -e "$TCB_ENV_ID" --force --yes
+  tcb fn deploy cron-extract-pending --dir cloudbase/functions/cron-extract-pending -e "$TCB_ENV_ID" --force
   ```
 
-  Expected: deploy succeeds.
+  Executed with a temporary `/tmp` CloudBase config carrying function env vars.
+  `cloudbaserc.json` was intentionally not committed. Deploy succeeded on
+  2026-05-18 with runtime `Nodejs20.19`.
 
-- [ ] **Step 5: Create timer trigger**
+- [x] **Step 5: Create timer trigger**
 
   Run:
 
   ```bash
-  tcb fn trigger create cron-extract-pending -e "$TCB_ENV_ID" --yes
+  tcb fn trigger create cron-extract-pending -e "$TCB_ENV_ID" --trigger-name extractPendingEveryMinute --cron "0 * * * * * *"
   ```
 
-  Expected: trigger list includes `extractPendingEveryMinute`.
+  Trigger creation returned `Trigger created`; function detail shows
+  `extractPendingEveryMinute` bound to `$LATEST`.
 
-- [ ] **Step 6: Configure function env vars**
+- [x] **Step 6: Configure function env vars**
 
-  In Tencent Cloud console set:
+  Configured through the temporary deployment config:
 
   ```text
-  CRON_TARGET_URL=https://staging-domain-recorded-in-docs-server-cloudbase-run-md/api/v1/admin/cron/extract-pending
+  CRON_TARGET_URL=https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com/api/v1/admin/cron/extract-pending
   CRON_SECRET=use-same-value-as-staging-cloudbase-run-cron-secret
   ```
 
-- [ ] **Step 7: Validate cron manually**
+- [x] **Step 7: Validate cron manually**
 
   Trigger function manually and check:
 
@@ -557,6 +564,12 @@
   {"claimed":1,"succeeded":1,"failed":0}
   ```
 
+  Manual invocation result on 2026-05-18:
+
+  ```json
+  {"status":200,"body":"{\"claimed\":0,\"succeeded\":0,\"failed\":0}","attempt":1}
+  ```
+
 - [ ] **Step 8: Commit cron replacement**
 
   Run:
@@ -570,7 +583,7 @@
 
 ## M4: Production Domain Readiness
 
-**Goal:** Prepare `happyword.cool` for CloudBase without cutting traffic.
+**Goal:** Prepare `happyword.com.cn` for CloudBase production validation without cutting `happyword.cool` traffic.
 
 **Files:**
 
@@ -581,20 +594,21 @@
   Record in `docs/server/cloudbase-run.md`:
 
   ```text
-  Domain registrar: Vercel
-  DNS host:
-  Current production target:
-  Planned CloudBase CNAME:
-  DNS rollback target:
+  First CloudBase production validation domain: happyword.com.cn
+  DNS host for happyword.com.cn:
+  Current happyword.cool production target:
+  Planned CloudBase CNAME for happyword.com.cn:
+  Final happyword.cool CloudBase CNAME target:
+  DNS rollback target for happyword.cool:
   ```
 
 - [ ] **Step 2: Confirm filing and certificate**
 
   In Tencent Cloud console:
 
-  - Check ICP filing/access filing requirement for `happyword.cool`.
+  - Check ICP filing/access filing requirement for `happyword.com.cn`.
   - Confirm SSL certificate can be issued or uploaded.
-  - Confirm CloudBase custom domain page accepts `happyword.cool`.
+  - Confirm CloudBase custom domain page accepts `happyword.com.cn`.
 
   If filing blocks the bind, pause production cutover and continue only with staging.
 
@@ -631,9 +645,9 @@
   OPENAI_API_KEY
   CORS_ALLOW_ORIGINS
   LOG_LEVEL
-  PARENT_WEB_BASE_URL=https://happyword.cool
-  OAUTH_CANONICAL_BASE_URL=https://happyword.cool
-  SESSION_COOKIE_DOMAIN=.happyword.cool
+  PARENT_WEB_BASE_URL=https://happyword.com.cn
+  OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn
+  SESSION_COOKIE_DOMAIN=.happyword.com.cn
   ADMIN_SESSION_COOKIE_NAME=wm_admin_session
   PREVIEW_MANIFEST_BLOB_URL=use-current-public-blob-url
   BLOB_READ_WRITE_TOKEN=use-current-vercel-blob-token-during-wave-a
@@ -641,16 +655,17 @@
 
   Acceptance: production CloudBase service boots with the production DB name in logs and no missing-settings exception.
 
-- [ ] **Step 5: Bind custom domain without DNS cutover**
+- [ ] **Step 5: Bind `happyword.com.cn` custom domain**
 
   In CloudBase HTTP Access Service:
 
-  - Add `happyword.cool`.
+  - Add `happyword.com.cn`.
   - Attach SSL certificate.
   - Route path `/` to CloudBase Run service `happyword-server`.
   - Copy the CloudBase CNAME target.
 
-  Acceptance: CloudBase produces a CNAME target; current public DNS still points to Vercel.
+  Acceptance: CloudBase produces a CNAME target for `happyword.com.cn`; current
+  public `happyword.cool` DNS still points to Vercel.
 
 - [ ] **Step 6: Commit domain readiness notes**
 
@@ -663,13 +678,13 @@
 
 ## M5: Production Cutover
 
-**Goal:** Move `https://happyword.cool` to CloudBase and prove production behavior before deleting any Vercel path.
+**Goal:** Move `https://happyword.com.cn` to CloudBase first, prove production behavior, then move `https://happyword.cool` after the `.com.cn` route is fully green.
 
 **Files:**
 
 - Modify: `docs/server/cloudbase-run.md`
 
-- [ ] **Step 1: Pre-cutover Vercel baseline**
+- [ ] **Step 1: Pre-cutover Vercel baseline for `happyword.cool`**
 
   Run:
 
@@ -696,21 +711,21 @@
 
   Acceptance: all checks are healthy before DNS change.
 
-- [ ] **Step 3: Lower DNS TTL**
+- [ ] **Step 3: Lower `happyword.com.cn` DNS TTL**
 
-  If the current DNS host allows TTL changes, lower `happyword.cool` TTL to 60 seconds at least 30 minutes before cutover. If not possible, record the existing TTL and expected propagation window.
+  If DNSPod allows TTL changes, lower `happyword.com.cn` TTL to 60 seconds at least 30 minutes before cutover. Do not change `happyword.cool` TTL yet.
 
-- [ ] **Step 4: Change DNS to CloudBase CNAME**
+- [ ] **Step 4: Change `happyword.com.cn` DNS to CloudBase CNAME**
 
   Update DNS record:
 
   ```text
-  Host: @ or happyword.cool, according to current DNS provider
+  Host: @ or happyword.com.cn, according to DNSPod record rules
   Type: CNAME or provider-supported alias/flattened CNAME
-  Value: CloudBase CNAME target recorded in `docs/server/cloudbase-run.md`
+  Value: CloudBase CNAME target for `happyword.com.cn` recorded in `docs/server/cloudbase-run.md`
   ```
 
-  If Vercel DNS cannot set an apex CNAME-compatible record, move DNS hosting to DNSPod while keeping the registrar at Vercel.
+  Do not change `happyword.cool` DNS in this step.
 
 - [ ] **Step 5: Poll production health**
 
@@ -719,8 +734,8 @@
   ```bash
   for i in 1 2 3 4 5 6 7 8 9 10; do
     date
-    dig +short happyword.cool
-    curl -fsS https://happyword.cool/api/v1/public/health
+    dig +short happyword.com.cn
+    curl -fsS https://happyword.com.cn/api/v1/public/health
     sleep 30
   done
   ```
@@ -733,7 +748,7 @@
 
   ```bash
   cd server
-  E2E_BASE_URL=https://happyword.cool \
+  E2E_BASE_URL=https://happyword.com.cn \
   E2E_MONGODB_URI=use-production-observation-uri-or-staging-uri \
   E2E_MONGO_DB_NAME=use-production-db-name \
   uv run pytest -v -m smoke
@@ -741,7 +756,7 @@
 
   Acceptance: smoke tests pass. If any smoke case mutates production data unexpectedly, stop and document the skipped case before continuing.
 
-- [ ] **Step 7: Manual browser validation**
+- [ ] **Step 7: Manual browser validation on `happyword.com.cn`**
 
   Validate:
 
@@ -759,6 +774,15 @@
   - Repoint DNS to the previous Vercel target.
   - Set CloudBase Run production traffic to 0 for the failing version.
   - Keep MongoDB and Vercel Blob unchanged.
+
+- [ ] **Step 9: Final `happyword.cool` CNAME cutover**
+
+  After `happyword.com.cn` has passed all smoke checks, bind/route
+  `happyword.cool` to the same CloudBase production service and update
+  `happyword.cool` DNS/CNAME from Vercel to CloudBase.
+
+  Acceptance: `https://happyword.cool/api/v1/public/health` is served by
+  CloudBase, and the same production smoke subset passes on `happyword.cool`.
   - Record failure timestamp, CloudBase version, and log snippet in `docs/server/cloudbase-run.md`.
 
 - [ ] **Step 9: Commit production cutover notes**

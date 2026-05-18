@@ -86,7 +86,7 @@ Critical endpoints to preserve:
 
 Use a two-wave migration:
 
-1. **Wave A: runtime-only move.** Deploy the FastAPI app to CloudBase Run with the same MongoDB Atlas database and the same Vercel Blob asset store. Bind a staging CloudBase default domain first. Then bind `happyword.cool` after ICP/SSL/domain routing is verified. This proves the CloudBase container, network, env vars, cookies, OAuth, and request limits before removing any storage or CI assumptions.
+1. **Wave A: runtime-only move.** Deploy the FastAPI app to CloudBase Run with the same MongoDB Atlas database and the same Vercel Blob asset store. Bind a staging CloudBase default domain first. Then bind and fully validate CloudBase production on `happyword.com.cn`. Only after `happyword.com.cn` health, admin pages, OAuth/cookie behavior, cron, LLM import, and client smoke checks pass, change `happyword.cool` from Vercel DNS/CNAME to the CloudBase target. This proves the CloudBase container, network, env vars, cookies, OAuth, and request limits before removing any storage or CI assumptions.
 2. **Wave B: Vercel retirement.** Replace Vercel Blob with CloudBase Storage or Tencent COS, replace Vercel Cron with a CloudBase Cloud Function timer or GitHub scheduled workflow, redesign the preview manifest around CloudBase Run revisions or a maintained QA environment list, and delete Vercel-only workflows after green validation.
 
 Do not attempt a one-shot full migration. The codebase has enough Vercel-specific preview and Blob machinery that moving runtime, storage, preview QA, cron, and production DNS in one release would make rollback noisy.
@@ -100,7 +100,7 @@ CloudBase environment:
 - Runtime mode: CloudBase Run container mode.
 - Port: `8080`.
 - Access: public network enabled for production, internal network optional.
-- HTTP Access route: exact production domain `happyword.cool` path `/` routes to `happyword-server`.
+- HTTP Access route: first production validation domain `happyword.com.cn` path `/` routes to `happyword-server`; final cutover later moves `happyword.cool` to the same CloudBase target.
 - Initial traffic when deploying a new version: `0%` for manual smoke, then promote to `100%`.
 - Production replicas: high-availability mode with min `1`, max `3` for first cut. Move to min `0` only after login/OAuth latency is acceptable.
 - Suggested first spec: `0.5 CPU / 1 GiB` or `1 CPU / 2 GiB`. Start with `1 CPU / 2 GiB` if LLM vision import and Beanie startup are slow.
@@ -152,7 +152,7 @@ OAuth provider consoles:
   - `https://happyword.cool/v1/oauth/apple/callback`
   - `https://happyword.cool/v1/oauth/wechat/callback`
   - `https://happyword.cool/v1/oauth/alipay/callback`
-- For staging, use the CloudBase generated domain only if provider consoles allow it and the route is stable enough. Otherwise test OAuth only after custom domain binding.
+- For staging, use the CloudBase generated domain only if provider consoles allow it and the route is stable enough. Production OAuth/cookie validation happens on `happyword.com.cn` before `happyword.cool` DNS changes.
 
 ## Task 1: Containerize `server/` for CloudBase Run
 
@@ -422,6 +422,23 @@ Recommended first implementation: CloudBase Cloud Function timer trigger that PO
 
 Fallback implementation: GitHub Actions schedule with `curl -X POST`. Use it only if CloudBase function timers are blocked by account policy.
 
+2026-05-18 execution note:
+
+- Added `cloudbase/functions/cron-extract-pending/`.
+- Deployed CloudBase function `cron-extract-pending` with runtime `Nodejs20.19`,
+  `128 MB` memory, and `60s` timeout.
+- Configured function env vars in CloudBase:
+  `CRON_TARGET_URL` points at the CloudBase staging
+  `/api/v1/admin/cron/extract-pending` endpoint, and `CRON_SECRET` matches the
+  staging Run service.
+- Created timer trigger `extractPendingEveryMinute` with cron
+  `0 * * * * * *`.
+- First manual invocation saw a transient CloudBase Run gateway `503`, so the
+  function implementation was hardened with short retries for `502` / `503` /
+  `504`.
+- Manual invocation after redeploy returned `status=200`, body
+  `{"claimed":0,"succeeded":0,"failed":0}`, `attempt=1`.
+
 ## Task 4: Production Domain Cutover
 
 **Files:**
@@ -445,40 +462,47 @@ Fallback implementation: GitHub Actions schedule with `curl -X POST`. Use it onl
   - admin login using bootstrap user
   - a public legal page: `/privacy`
 
-- [ ] **Step 2: Bind custom domain in CloudBase HTTP Access Service**
+- [ ] **Step 2: Bind first production custom domain in CloudBase HTTP Access Service**
 
   In CloudBase HTTP Access Service:
 
-  - Add domain `happyword.cool`.
+  - Add domain `happyword.com.cn`.
   - Attach SSL certificate.
-  - Create route: domain `happyword.cool`, path `/`, resource type `CloudBase Run`, service `happyword-server`.
+  - Create route: domain `happyword.com.cn`, path `/`, resource type `CloudBase Run`, service `happyword-server`.
   - Use no CDN first unless latency measurements need it.
   - Copy CNAME value.
 
-- [ ] **Step 3: DNS cutover**
+- [ ] **Step 3: DNS cutover for `happyword.com.cn`**
 
-  Lower DNS TTL before cutover if DNS provider allows it. Update CNAME for `happyword.cool` to CloudBase's provided target. Keep Vercel project and env vars unchanged until post-cutover smoke passes.
+  Lower DNS TTL before cutover if DNS provider allows it. Update CNAME for `happyword.com.cn` to CloudBase's provided target. Keep `happyword.cool` on Vercel until all `happyword.com.cn` smoke checks pass.
 
 - [ ] **Step 4: Production smoke**
 
   ```bash
-  curl -fsS https://happyword.cool/api/v1/public/health
-  curl -fsS https://happyword.cool/api/v1/public/packs/latest.json -I
-  curl -fsS https://happyword.cool/privacy -I
-  curl -fsS https://happyword.cool/admin/login -I
+  curl -fsS https://happyword.com.cn/api/v1/public/health
+  curl -fsS https://happyword.com.cn/api/v1/public/packs/latest.json -I
+  curl -fsS https://happyword.com.cn/privacy -I
+  curl -fsS https://happyword.com.cn/admin/login -I
   ```
 
   Then run:
 
   ```bash
   cd server
-  E2E_BASE_URL=https://happyword.cool \
+  E2E_BASE_URL=https://happyword.com.cn \
   E2E_MONGODB_URI=use-production-observation-uri-or-staging-uri \
   E2E_MONGO_DB_NAME=use-production-db-name \
   uv run pytest -v -m smoke
   ```
 
   Expected: smoke subset passes. If using production DB, only run smoke cases that do not mutate destructive data.
+
+- [ ] **Step 5: Final `happyword.cool` CNAME cutover**
+
+  Only after `happyword.com.cn` is fully green, bind/route `happyword.cool` to
+  the same CloudBase production service and update `happyword.cool` DNS/CNAME
+  from Vercel to CloudBase. Keep the Vercel project and env vars intact until
+  post-cutover smoke on `happyword.cool` passes.
 
 - [ ] **Step 5: Rollback rule**
 
