@@ -16,8 +16,8 @@ import { Question } from '../models/Question';
  * Interaction rules (spec §6):
  *   - tap a pool chip whose letter matches the next empty slot →
  *     letter slides into slot, chip becomes consumed (greyed).
- *   - tap a chip whose letter doesn't match → chip flashes red
- *     (220 ms), no slot mutation, no HP penalty, no consume.
+   *   - tap a chip whose letter doesn't match → chip flashes red
+   *     (220 ms), no slot mutation; V0.8.4 fires onWrongLetterTap for HP -1.
  *   - tap a consumed chip → no-op (silent).
  *   - completion: the moment the last slot fills correctly, schedule
  *     a 200 ms reveal pause then fire onSpellComplete. The pause
@@ -50,6 +50,8 @@ export struct SpellingArea {
   areaId: string = 'SpellingArea';
   /** Fired exactly once when every slot is correctly filled. */
   onSpellComplete: (answer: string) => void = (): void => {};
+  /** V0.8.4 — wrong pool letter tap (after shake starts). */
+  onWrongLetterTap: () => void = (): void => {};
 
   @State private slots: string[] = [];
   @State private consumedPool: boolean[] = [];
@@ -158,6 +160,7 @@ export struct SpellingArea {
     const tapped: string = this.question.spellPool[idx];
     if (tapped !== expected) {
       this.shakingPoolIdx = idx;
+      this.onWrongLetterTap();
       this.shakeTimer = setTimeout((): void => {
         this.shakeTimer = -1;
         this.shakingPoolIdx = -1;

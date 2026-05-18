@@ -11,6 +11,7 @@ import { FillLetterGenerator } from '../services/FillLetterGenerator';
 import { SpellGenerator } from '../services/SpellGenerator';
 import { IQuestionSource } from '../services/IQuestionSource';
 import { PlanQuestionSource } from '../services/PlanQuestionSource';
+import { BattleQuestionScheduler } from '../services/BattleQuestionScheduler';
 import {
   BattleEngine,
   BattleConfig,
@@ -48,10 +49,12 @@ import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question, QuestionKind } from '../models/Question';
 import { MonsterEntry, getMonsterByIndex } from '../data/MonsterCatalog';
+import { computeFinalCoinAward } from '../services/BattleRewardCalc';
 import { PLAYER_CHARACTER_ASSET, assetPathForEntry } from '../data/CharacterAssets';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
 import { CritOverlay } from '../components/CritOverlay';
+import { DamageFloaterLabel } from '../components/DamageFloaterLabel';
 import { MagicProjectile } from '../components/MagicProjectile';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
@@ -96,6 +99,10 @@ import { shouldShowDebugBattleFinishButton } from '../services/ReleaseGate';
 // keeps them green.
 const FEEDBACK_MS: number = 650;
 const TICK_MS: number = 1000;
+/** V0.8.3 — max concurrent damage floaters per battle side. */
+const MAX_FLOATERS_PER_SIDE: number = 4;
+/** V0.8.3 — vertical offset between stacked floaters on the same side. */
+const FLOATER_STACK_OFFSET_VP: number = 6;
 /**
  * Review-mode battle overrides. Kept as top-level constants so unit
  * tests can import the same values and assert the review pool
@@ -110,6 +117,13 @@ export const REVIEW_WINDOW_SIZE: number = 12;
 class AnswerCount {
   correct: number = 0;
   total: number = 0;
+}
+
+/** Pending damage floater instance (V0.8.3). */
+class FloaterPending {
+  amount: number = 1;
+  key: number = 0;
+  stackOffsetVp: number = 0;
 }
 
 /**
@@ -224,6 +238,8 @@ struct BattlePage {
   // colors). Initialised to entry 1 so the first paint of the page
   // before BattleEngine emits its first state still shows Slime.
   @State currentMonster: MonsterEntry = getMonsterByIndex(1);
+  /** V0.8.3 — mirrors engine {@link BattleState.currentMonsterBonus}. */
+  @State currentMonsterBonus: boolean = false;
   @State comboCount: number = 0;
   @State remainingSeconds: number = DEFAULT_STARTING_SECONDS;
 
@@ -260,6 +276,11 @@ struct BattlePage {
   @State projectileForwardPulse: number = 0;
   @State projectileBackwardPulse: number = 0;
   @State projectileIntensity: number = 1;
+
+  /** V0.8.3 — FIFO damage floater queues (player / monster). */
+  @State playerFloaters: FloaterPending[] = [];
+  @State monsterFloaters: FloaterPending[] = [];
+  private nextFloaterKey: number = 0;
 
   /**
    * V0.4.8: when the player is mid-cast (forward projectile in flight)
@@ -394,8 +415,14 @@ struct BattlePage {
           const fillGen: FillLetterGenerator = new FillLetterGenerator();
           const spellGen: SpellGenerator = new SpellGenerator();
           const planChoiceGen: QuestionGenerator = new QuestionGenerator(bundleRepo);
+          const planWordIds: string[] = [];
+          for (let wi: number = 0; wi < plan.wordPlan.length; wi++) {
+            planWordIds.push(plan.wordPlan[wi].wordId);
+          }
+          const questionScheduler: BattleQuestionScheduler =
+            new BattleQuestionScheduler(planWordIds, cfg.enabledQuestionTypes);
           const planSource: PlanQuestionSource = new PlanQuestionSource(
-            plan, bundleRepo, planChoiceGen, fillGen, spellGen);
+            plan, bundleRepo, planChoiceGen, fillGen, spellGen, questionScheduler);
           source = planSource;
           planMonsters = plan.monsterSlots.length;
           // The provider is wired right after engine construction so the
@@ -423,6 +450,17 @@ struct BattlePage {
         bc.monstersTotal = cfg.monstersTotal;
         bc.startingSeconds = cfg.startingSeconds;
       }
+
+      const planForCatalog: TodaySessionPlan | undefined = this.todayPlan;
+      bc.catalogIndexProvider = (): number => {
+        const eng: BattleEngine | undefined = this.engine;
+        const idx1: number = eng !== undefined ? eng.getState().monsterIndex : 1;
+        if (planForCatalog !== undefined && planForCatalog.monsterSlots.length > 0) {
+          const slotIdx: number = idx1 <= 0 ? 0 : (idx1 - 1) % planForCatalog.monsterSlots.length;
+          return planForCatalog.monsterSlots[slotIdx].catalogIndex;
+        }
+        return idx1 <= 0 ? 1 : idx1;
+      };
 
       const engine: BattleEngine = new BattleEngine(source, bc);
       // Now that the engine exists, wire the monster-index provider
@@ -606,6 +644,71 @@ struct BattlePage {
     this.impactTimers.push(id);
   }
 
+  private pushFloater(side: string, amount: number): void {
+    const dmg: number = amount >= 2 ? 2 : 1;
+    const pending: FloaterPending = new FloaterPending();
+    pending.amount = dmg;
+    pending.key = this.nextFloaterKey;
+    this.nextFloaterKey += 1;
+    if (side === 'player') {
+      pending.stackOffsetVp = this.playerFloaters.length * FLOATER_STACK_OFFSET_VP;
+      const next: FloaterPending[] = this.playerFloaters.slice();
+      if (next.length >= MAX_FLOATERS_PER_SIDE) {
+        next.shift();
+      }
+      next.push(pending);
+      this.playerFloaters = next;
+      return;
+    }
+    pending.stackOffsetVp = this.monsterFloaters.length * FLOATER_STACK_OFFSET_VP;
+    const monsterNext: FloaterPending[] = this.monsterFloaters.slice();
+    if (monsterNext.length >= MAX_FLOATERS_PER_SIDE) {
+      monsterNext.shift();
+    }
+    monsterNext.push(pending);
+    this.monsterFloaters = monsterNext;
+  }
+
+  private removeFloater(side: string, key: number): void {
+    if (side === 'player') {
+      this.playerFloaters = this.playerFloaters.filter((item: FloaterPending) => item.key !== key);
+      return;
+    }
+    this.monsterFloaters = this.monsterFloaters.filter((item: FloaterPending) => item.key !== key);
+  }
+
+  @Builder
+  playerDamageFloaters() {
+    ForEach(this.playerFloaters, (item: FloaterPending, index: number) => {
+      DamageFloaterLabel({
+        amount: item.amount,
+        stackOffsetVp: item.stackOffsetVp,
+        labelId: index === this.playerFloaters.length - 1
+          ? 'BattleDamageFloaterLabel_player'
+          : `BattleDamageFloaterLabel_player_${item.key}`,
+        onDispose: (): void => {
+          this.removeFloater('player', item.key);
+        },
+      });
+    }, (item: FloaterPending) => `floater_${item.key}`);
+  }
+
+  @Builder
+  monsterDamageFloaters() {
+    ForEach(this.monsterFloaters, (item: FloaterPending, index: number) => {
+      DamageFloaterLabel({
+        amount: item.amount,
+        stackOffsetVp: item.stackOffsetVp,
+        labelId: index === this.monsterFloaters.length - 1
+          ? 'BattleDamageFloaterLabel_monster'
+          : `BattleDamageFloaterLabel_monster_${item.key}`,
+        onDispose: (): void => {
+          this.removeFloater('monster', item.key);
+        },
+      });
+    }, (item: FloaterPending) => `floater_${item.key}`);
+  }
+
   private maybeAutoSpeakCurrent(isRevealing: boolean): void {
     if (!shouldAutoSpeak(this.autoSpeak, this.tts.isAvailable, isRevealing)) {
       return;
@@ -658,6 +761,7 @@ struct BattlePage {
     // assignment unconditional avoids a stale @State if the engine
     // ever resets monsterIndex back to 1 between battles.
     this.currentMonster = this.resolveMonsterEntry(state);
+    this.currentMonsterBonus = state.currentMonsterBonus;
     this.comboCount = state.comboCount;
     this.remainingSeconds = state.remainingSeconds;
 
@@ -854,6 +958,7 @@ struct BattlePage {
         this.monsterZoomPulse += 1;
         this.critDamage = outcome.damage;
         this.critPulse += 1;
+        this.pushFloater('monster', outcome.damage);
       });
     } else if (outcome.correct) {
       this.feedbackText = '正确！';
@@ -867,6 +972,7 @@ struct BattlePage {
       this.playerNudgePulse += 1;
       this.scheduleImpact((): void => {
         this.monsterHurtPulse += 1;
+        this.pushFloater('monster', outcome.damage);
       });
     } else {
       this.feedbackText = `正确答案是 ${correctWord}`;
@@ -884,6 +990,7 @@ struct BattlePage {
       this.projectileBackwardPulse += 1;
       this.scheduleImpact((): void => {
         this.playerHurtPulse += 1;
+        this.pushFloater('player', outcome.damage);
       });
     }
     // Layer a monster-defeat cue on top of the hit SFX when the final
@@ -962,6 +1069,38 @@ struct BattlePage {
   }
 
   /**
+   * V0.8.4 — wrong Spell pool letter: -1 HP without submitting the word.
+   */
+  private handleSpellWrongLetterTap(): void {
+    const engine: BattleEngine | undefined = this.engine;
+    if (engine === undefined) {
+      return;
+    }
+    if (this.feedbackTimer >= 0) {
+      return;
+    }
+    const damage: number = engine.applySpellLetterPenalty();
+    if (damage <= 0) {
+      return;
+    }
+    this.syncFromEngine();
+    this.audio.play(SoundKeys.ANSWER_WRONG);
+    this.schedulePlayerHurtGrunt();
+    this.projectileIntensity = 1;
+    this.projectileBackwardPulse += 1;
+    this.scheduleImpact((): void => {
+      this.playerHurtPulse += 1;
+      this.pushFloater('player', damage);
+    });
+    if (engine.getState().status === BattleStatus.Lost) {
+      const outcome: AnswerOutcome = new AnswerOutcome();
+      outcome.battleEnded = true;
+      outcome.endStatus = BattleStatus.Lost;
+      this.onBattleEnded(outcome);
+    }
+  }
+
+  /**
    * V0.4.1 Spell submit handler — invoked by SpellingArea when every
    * slot is correctly filled. By the time we get here the answer is
    * guaranteed correct (SpellingArea rejects wrong taps locally), so
@@ -1004,9 +1143,7 @@ struct BattlePage {
     this.currentQuestionKind = answeredKind;
     this.currentSpellQuestion = answeredSpellQuestion;
 
-    // Spell answers go through the correct-non-crit / crit branches
-    // only — wrong is impossible because SpellingArea rejects bad
-    // taps locally.
+    // Spell answers go through the correct-non-crit / crit branches only.
     if (outcome.comboTriggered) {
       this.feedbackText = `连击 3！魔法爆发 ×${outcome.damage}`;
       this.feedbackColor = '#FFB400';
@@ -1018,6 +1155,7 @@ struct BattlePage {
         this.monsterZoomPulse += 1;
         this.critDamage = outcome.damage;
         this.critPulse += 1;
+        this.pushFloater('monster', outcome.damage);
       });
     } else {
       this.feedbackText = '正确！';
@@ -1028,6 +1166,7 @@ struct BattlePage {
       this.playerNudgePulse += 1;
       this.scheduleImpact((): void => {
         this.monsterHurtPulse += 1;
+        this.pushFloater('monster', outcome.damage);
       });
     }
     if (outcome.monsterDefeated && !outcome.battleEnded) {
@@ -1230,18 +1369,24 @@ struct BattlePage {
     result.newWordCount = countByWordSource(plan, WordSource.New);
 
     const stars: number = result.stars;
+    result.coinsBaseFromStars = stars;
+    const awardAmount: number = computeFinalCoinAward(
+      stars,
+      result.bonusKillCount,
+      result.status === BattleStatus.Won,
+    );
     let earned: number = 0;
     if (plan.isFirstToday && result.status === BattleStatus.Won) {
       // computeStars guarantees stars >= 2 on a win, so this is
       // always the star-count even though earn() also flips the
       // 已完成 flag for amount === 0.
-      earned = this.coinAccount.earn(COIN_REASON_TODAY_FIRST, stars, now);
-    } else if (stars > 0) {
+      earned = this.coinAccount.earn(COIN_REASON_TODAY_FIRST, awardAmount, now);
+    } else if (awardAmount > 0) {
       // Replay-of-the-day or first-today loss with at least one
       // monster down: still award stars-as-coins, but tag the txn
       // with a generic reason so the badge gate above stays the
       // sole owner of the 已完成 flag transition.
-      earned = this.coinAccount.earn('stars', stars, now);
+      earned = this.coinAccount.earn('stars', awardAmount, now);
     }
     result.coinsEarned = earned;
     const snap: CoinSnapshot = this.coinAccount.snapshot();
@@ -1458,6 +1603,9 @@ struct BattlePage {
             onSpellComplete: (answer: string): void => {
               this.handleSpellSubmit(answer);
             },
+            onWrongLetterTap: (): void => {
+              this.handleSpellWrongLetterTap();
+            },
           })
         }
         // Speaker button — tap re-plays the English pronunciation
@@ -1565,28 +1713,37 @@ struct BattlePage {
 
         Row({ space: 16 }) {
           Column() {
-            CharacterCard({
-              kind: CharacterKind.Mage,
-              name: this.playerName,
-              hp: this.playerHp,
-              maxHp: this.playerMaxHp,
-              sublabel: '',
-              hurtPulse: this.playerHurtPulse,
-              nudgePulse: this.playerNudgePulse,
-              castPulse: this.playerCastPulse,
-              assetPath: PLAYER_CHARACTER_ASSET,
-              // V0.4.8: alt portrait toggled visible while a forward
-              // projectile is mid-flight. Both images mount once and
-              // are decoded once; the swap is opacity-only so it
-              // never blocks the UI thread on a cast.
-              altAssetPath: 'character/magican_fight.svg',
-              altActive: this.playerFighting,
-              // V0.6.x: swap to the "被攻击" pose for the duration of
-              // each hurt-pulse window. CharacterCard owns the timing
-              // (true on impact, false on settle) so this prop is just
-              // the asset path — no extra state plumbing here.
-              hurtAssetPath: 'character/magican_beaten.svg',
-            });
+            Stack({ alignContent: Alignment.Top }) {
+              CharacterCard({
+                kind: CharacterKind.Mage,
+                name: this.playerName,
+                hp: this.playerHp,
+                maxHp: this.playerMaxHp,
+                sublabel: '',
+                hurtPulse: this.playerHurtPulse,
+                nudgePulse: this.playerNudgePulse,
+                castPulse: this.playerCastPulse,
+                assetPath: PLAYER_CHARACTER_ASSET,
+                // V0.4.8: alt portrait toggled visible while a forward
+                // projectile is mid-flight. Both images mount once and
+                // are decoded once; the swap is opacity-only so it
+                // never blocks the UI thread on a cast.
+                altAssetPath: 'character/magican_fight.svg',
+                altActive: this.playerFighting,
+                // V0.6.x: swap to the "被攻击" pose for the duration of
+                // each hurt-pulse window. CharacterCard owns the timing
+                // (true on impact, false on settle) so this prop is just
+                // the asset path — no extra state plumbing here.
+                hurtAssetPath: 'character/magican_beaten.svg',
+              });
+              Column() {
+                this.playerDamageFloaters();
+              }
+              .width('100%')
+              .margin({ top: -10 })
+              .hitTestBehavior(HitTestMode.None);
+            }
+            .width('100%');
           }
           .id('PlayerArea')
           .layoutWeight(1)
@@ -1596,16 +1753,34 @@ struct BattlePage {
           this.questionArea();
 
           Column() {
-            CharacterCard({
-              kind: CharacterKind.Slime,
-              name: this.currentMonster.name,
-              hp: this.monsterHp,
-              maxHp: this.monsterMaxHp,
-              sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
-              hurtPulse: this.monsterHurtPulse,
-              zoomPulse: this.monsterZoomPulse,
-              assetPath: assetPathForEntry(this.currentMonster),
-            });
+            Stack({ alignContent: Alignment.Top }) {
+              Stack({ alignContent: Alignment.TopEnd }) {
+                CharacterCard({
+                  kind: CharacterKind.Slime,
+                  name: this.currentMonster.name,
+                  hp: this.monsterHp,
+                  maxHp: this.monsterMaxHp,
+                  sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
+                  hurtPulse: this.monsterHurtPulse,
+                  zoomPulse: this.monsterZoomPulse,
+                  assetPath: assetPathForEntry(this.currentMonster),
+                });
+                if (this.currentMonsterBonus) {
+                  Text('✨')
+                    .id(`MonsterBonusStar_${this.monsterIndex}`)
+                    .fontSize(22)
+                    .margin({ top: 4, right: 8 });
+                }
+              }
+              .width('100%');
+              Column() {
+                this.monsterDamageFloaters();
+              }
+              .width('100%')
+              .margin({ top: -12 })
+              .hitTestBehavior(HitTestMode.None);
+            }
+            .width('100%');
           }
           .id('MonsterArea')
           .layoutWeight(1)

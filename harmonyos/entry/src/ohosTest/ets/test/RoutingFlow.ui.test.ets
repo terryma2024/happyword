@@ -1,6 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
+import { findPlayerFullHpLabel } from './UiTestBattleHelpers.ets';
 
 /**
  * UI smoke test for the three-page routing skeleton (spec §6.1 / §6.2 / §6.3 /
@@ -369,7 +370,7 @@ async function tapWrongAnswer(driver: Driver): Promise<string> {
 // and `tapWrongAnswerShared` — those remain.
 
 export default function routingFlowUiTest(): void {
-  describe('RoutingFlowUiTest', () => {
+  describe('RoutingFlow', () => {
     /**
      * Main flow with content assertions and negative option-button coverage:
      *
@@ -413,11 +414,13 @@ export default function routingFlowUiTest(): void {
       // that depend on engine state. On a cold emulator, the repo load
       // typically finishes within ~200ms.
       //
-      // Content: player card renders full HP (5/5) and monster card shows
+      // Content: player card renders full HP (10/10) and monster card shows
       // its own HP (3/3). These are engine-driven defaults
       // (DEFAULT_PLAYER_HP / DEFAULT_MONSTER_HP), asserted so a regression
       // that zeros out HP on boot is caught immediately.
-      await driver.assertComponentExist(ON.text('HP 5 / 5'));
+      // V0.8.4 default max is 10; persisted GameConfig may still be 5.
+      const playerFullHp: string = await findPlayerFullHpLabel(driver);
+      expect(playerFullHp !== '').assertTrue();
       await driver.assertComponentExist(ON.text('HP 3 / 3'));
       await driver.assertComponentExist(ON.text('Combo: 0'));
       // Header labels: combo counter + timer. T8 wires a live 1Hz
@@ -443,7 +446,7 @@ export default function routingFlowUiTest(): void {
       // Behavioural coverage: tapping an option must NOT immediately route
       // away from BattlePage. The engine handles win/lose transitions but
       // a single tap on a cold game cannot end the session (default config
-      // is 5 monsters × 3 HP, player 5 HP), so we should stay on the
+      // is 5 monsters × 3 HP, player 10 HP), so we should stay on the
       // battle page after each tap. The 800ms delay covers the 650ms
       // reveal window plus a small margin.
       await clickById(driver, 'BattleOptionA');

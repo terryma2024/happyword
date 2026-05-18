@@ -177,6 +177,8 @@ Question-type routing per level (default battle plan):
 
 V0.9.1's `SentenceCloze` will join the `advanced` / `super` pools in V0.9.1's design, not here.
 
+> **V0.8.4 supersession:** For today / `PlanQuestionSource` battles, [V0.8.4](../2026-05-18-battle-balance-v0-8-4/00-design.md) replaces this level→type table with per-session intro + 50/50 challenge scheduling. `MonsterLevel` from V0.8.3 **remains** for bonus spawn and heavy attack only.
+
 ### 6.3 Bonus monster (G3)
 
 At spawn time, for each monster of level `advanced` or `super`:

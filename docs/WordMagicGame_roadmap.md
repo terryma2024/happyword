@@ -3,7 +3,7 @@
 > 文档状态：路线图基线（与仓库实现对齐）  
 > 关联基线：[WordMagicGame_overall_spec.md](WordMagicGame_overall_spec.md)（「现在跑的代码」）  
 > 当前路线选择：趣味学习与长期学习系统平衡推进；**HarmonyOS / iOS / Android 三端 bootstrap 功能已对齐**，后续新能力走 `docs/features/` 三端 SOP。  
-> 最近更新：**2026-05-18** — 新增 **V0.8.3 战斗与词包体验小优化**（已设计，待 Harmony 实施）：词包激活上限 5→10 + 满 10 自动关闭队首未 pin、怪物分级（10/60/20/10）+ 题型路由 + 30% bonus 与 50% HP-2 重击、HP -1 / -2 浮字。**V0.9 拆为子版本**：V0.9.1 句子填词 → V0.9.2 Boss 个性 → V0.9.3 区域剧情 → V0.9.4 听音 + 魔法书 → V0.9.5 个性化今日 + 错词幽灵 → V0.9.6 LLM 辅助内容生产。**2026-05-17** — V0.7.1 三端 parity 与 V0.8.1 / V0.8.2 后台体系标为已完成。设计基线见 [`2026-05-08-v0.8-backoffice-and-vocabulary-management-design.md`](superpowers/specs/2026-05-08-v0.8-backoffice-and-vocabulary-management-design.md) 与 [`docs/features/2026-05-18-battle-polish-v0-8-3/00-design.md`](features/2026-05-18-battle-polish-v0-8-3/00-design.md)。  
+> 最近更新：**2026-05-18** — 新增 **V0.8.4 战斗平衡与题型节奏**（已设计，待 Harmony 实施）：魔法师默认 HP 5→10、Spell 错点字母扣 1 HP、今日战斗题型节奏（中文选词 + 单字母填空各每词最多 1 次 → 之后双字母填空 / 多字母选择各 50%）。**V0.8.3 战斗与词包体验小优化**（已设计 / 实施中）：词包 10 槽、怪物分级 + bonus + 浮字。**V0.9 拆为子版本**：V0.9.1 句子填词 → V0.9.2 Boss 个性 → V0.9.3 区域剧情 → V0.9.4 听音 + 魔法书 → V0.9.5 个性化今日 + 错词幽灵 → V0.9.6 LLM 辅助内容生产。**2026-05-17** — V0.7.1 三端 parity 与 V0.8.1 / V0.8.2 后台体系标为已完成。设计基线见 [`2026-05-08-v0.8-backoffice-and-vocabulary-management-design.md`](superpowers/specs/2026-05-08-v0.8-backoffice-and-vocabulary-management-design.md) 与 [`docs/features/2026-05-18-battle-polish-v0-8-3/00-design.md`](features/2026-05-18-battle-polish-v0-8-3/00-design.md)、[`docs/features/2026-05-18-battle-balance-v0-8-4/00-design.md`](features/2026-05-18-battle-balance-v0-8-4/00-design.md)。  
 > 历史逐版本实施笔记（2026-05-10 及更早）仍保留在本文 §4–§11 与 [`WordMagicGame_overall_spec.md`](WordMagicGame_overall_spec.md) §2；下文不再在页首堆叠超长 changelog。  
 
 ## 1. 产品愿景
@@ -41,7 +41,8 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | **V0.7.1 三端 bootstrap parity** | **已完成** | Harmony / iOS / Android 17 页矩阵与 V0.6.7.8 语义对齐 |
 | **V0.8.1 家长词库** | **已完成** | `/family/{family_id}/packs/*` 工作台；合并子端点 `packs/latest.json`；`test_parent_packs_pages.py` / `test_child_packs_merged.py` |
 | **V0.8.2 系统管理员后台** | **已完成** | `/admin/*` HTML 控制台；登录会话 + `admin_audit_service`；`test_admin_pages.py` |
-| **V0.8.3 战斗与词包体验小优化** | **设计已锁** | 已建 [`docs/features/2026-05-18-battle-polish-v0-8-3/`](features/2026-05-18-battle-polish-v0-8-3/) — 词包上限 5→10、怪物 4 级分级 + bonus + HP-2、浮字反馈。下一步 Harmony 实施 |
+| **V0.8.3 战斗与词包体验小优化** | **设计已锁 / 实施中** | [`docs/features/2026-05-18-battle-polish-v0-8-3/`](features/2026-05-18-battle-polish-v0-8-3/) — 词包 10 槽、怪物分级 + bonus + HP-2、浮字 |
+| **V0.8.4 战斗平衡与题型节奏** | **设计已锁** | [`docs/features/2026-05-18-battle-balance-v0-8-4/`](features/2026-05-18-battle-balance-v0-8-4/) — 默认 HP 10、Spell 错点扣血、题型 intro→50/50 挑战。依赖 V0.8.3；下一步 Harmony 实施 |
 | V0.6 体验增强（非阻塞） | 可选 | 云端学习报告按 pack、兑换推送通知（未纳入 V0.8 范围） |
 | V0.9 系列（6 子版本）/ V0.10 / V0.11 | 计划中 | V0.9.1–V0.9.6（句子填词→Boss 个性→区域剧情→听音+魔法书→个性化今日→LLM 辅助内容）、V0.10 战斗 BGM 混音、V0.11 Cocos（顺序见 §23） |
 | **V0.7.1 之后新功能** | SOP | 走 `docs/features/<feature-id>/`：Harmony 先实现 → `20-replication-trigger.md` 签字 → iOS / Android 复制 |
@@ -83,6 +84,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.8.1 | 已完成 | 家长词库管理闭环 | 家长 Web `/family/{family_id}/packs/*`：创建/归档 family 词库、图片导入草稿、表格编辑与批量粘贴、发布/回滚；子端 `GET /api/v1/family/{family_id}/packs/latest.json` 返回 global + family 合并词库（ETag、`TENANT_MISMATCH` 闸） | 必需 |
 | V0.8.2 | 已完成 | 系统管理员后台 | 独立 `/admin/` HTML 控制台：总览、家长/家庭/设备、global/family 词库排查、有限干预（解绑、回滚等）、`/admin/audit-logs` 审计；管理员会话 cookie 登录；不代家长静默改草稿 | 必需 |
 | V0.8.3 | 设计已锁 | 战斗与词包体验小优化 | 三个子任务：① 词包激活上限 5→10，且满 10 时自动关闭"队首未 pin"词包并 toast；② 怪物分 4 级（初/中/高/Super = 10/60/20/10），按级别绑定题型，30% 高级/Super 怪带 bonus 标记（结算 ✨×1.3 向上取整），50% 高级/Super 攻击造成 HP-2；③ `DamageFloaterLabel` 在玩家与怪物受击时从头顶升起，HP-2 配深色。详见 [`docs/features/2026-05-18-battle-polish-v0-8-3/00-design.md`](features/2026-05-18-battle-polish-v0-8-3/00-design.md) | 无 |
+| V0.8.4 | 设计已锁 | 战斗平衡与题型节奏 | 魔法师默认 HP 10；`Spell` 错点字母每次 -1 HP；今日战斗：每词最多 1 次中文选词 + 1 次单字母填空，之后仅双字母填空 / 多字母选择各 50%。题型调度取代 V0.8.3 的「按怪物等级选题」（bonus / 重击保留）。详见 [`docs/features/2026-05-18-battle-balance-v0-8-4/00-design.md`](features/2026-05-18-battle-balance-v0-8-4/00-design.md) | 无 |
 | V0.9.1 | 计划中 | 句子填词题型（AI 语境第一步）  | 新 `QuestionKind.SentenceCloze`：例句留空目标词，3 选 1 填回；复用现有 `example.{en,zh}`；Boss 题型轮换加入 SentenceCloze；缺例句的词不出此题型 | 服务端例句草稿审核 |
 | V0.9.2 | 计划中 | Boss 个性与登场对话 | 每个 Boss 1 行登场 + 1 行被击败台词；`SceneMetadata.bossCandidates` 扩 `{introLine, defeatLine}`；`BattleBossDialogueOverlay` | 后台撰写/审核 |
 | V0.9.3 | 计划中 | 区域剧情卡 + 章节完成庆祝 | `Pack.scene` 扩 `introZh / outroZh`；HomePage 进入战斗前播 1s 章节标题；Pack 全 Boss 3⭐ 通关给章节完成弹窗 + ✨ 奖励 | 后台编辑入口 |
@@ -1213,6 +1215,50 @@ V0.8.3 明确不做：
 - 不动学习报告 / 遗忘曲线 / WordStat。
 - 不扩 Pack schema / 服务端契约。
 
+### 15.4 V0.8.4 战斗平衡与题型节奏
+
+> **状态：设计已锁，待 Harmony 实施（依赖 V0.8.3）。** 设计：[`docs/features/2026-05-18-battle-balance-v0-8-4/00-design.md`](features/2026-05-18-battle-balance-v0-8-4/00-design.md)。Harmony 计划：[`10-harmony-plan.md`](features/2026-05-18-battle-balance-v0-8-4/10-harmony-plan.md)。
+
+V0.8.4 在 V0.8.3 战斗反馈之上调整**默认血量**与**单局题型节奏**，让孩子先以轻量题型认词，再进入双空填空与完整拼写。
+
+**1. 魔法师默认 HP 10**
+
+- `BattleEngine.DEFAULT_PLAYER_HP` 与 `GameConfig.playerMaxHp` 默认由 **5 → 10**（家长 Config 仍可在 1–10 调节）。
+- 已保存的配置 **不自动迁移**（仍为 5 直到家长改设置）。
+
+**2. 多字母选择（`Spell` / `SpellingArea`）错点扣血**
+
+- V0.4.1 起错点字母仅红抖、不扣血；V0.8.4 改为**每错点一次字母池 -1 HP**，走与答错选项相同的受击反馈（含 V0.8.3 伤害浮字 `-1`）。
+- 仅在字母点错时扣血；拼完全词后 `submitAnswer` 仍按原逻辑结算对怪伤害。
+- 错点字母**不触发** V0.8.3 高级怪 50% HP-2 重击（重击保留给整题答错的 `submitAnswer` 路径）。
+
+**3. 题型出现频率（今日 / `PlanQuestionSource` 战斗）**
+
+与 Config **`enabledQuestionTypes`** 求交后，由调度器在战斗开局判定 **schedule mode**（详见 feature `00-design.md` §5.3）：
+
+| 勾选组合 | Schedule mode | 行为 |
+| --- | --- | --- |
+| **仅 1 种题型** | `single_type` | 整局 **100%** 该题型 |
+| **仅 Intro 类**（`choice` / `fill-letter`） | `intro_only` | 整局只有 Intro；先 Intro pass（每词各题型最多 1 次）→ 再 intro sustain |
+| **仅 Challenge 类**（`fill-letter-medium` / `spell`） | `challenge_only` | **跳过 Intro**，从第 1 题起就是 Challenge |
+| **Intro + Challenge 混合** | `two_phase` | Intro pass → Challenge（Challenge 内两者都勾选时 50/50） |
+
+- **取代** V0.8.3 的「按 `MonsterLevel` 绑定题型」用于**出题**；怪物等级仍管 bonus ✨ 与重击。
+- ohosTest **专测模式 A**：`FillLetterFlow` / `SpellQuestionFlow` 只开一种题型，**不再**依赖「第 N 只怪 / Elite 槽位」；见 feature plan **Sub-task E**。
+- 复习模式是否套用同一调度器：Harmony 首版以**今日冒险**为主。
+
+V0.8.4 验收（三端均需）：
+
+- 新装 / 默认配置开局玩家 HP 为 10。
+- Spell 题连续 3 次错点字母 → HP 减 3（可见浮字）。
+- 今日战斗：同一单词不出现第二次 `Choice` 或第二次单字母 `FillLetter`；Intro 结束后观测到 medium 与 Spell 混合（约各半）。
+
+V0.8.4 明确不做：
+
+- 不改词包 10 槽、怪物分级 UI、bonus 公式、⭐ cap。
+- 不改服务端契约。
+- 不新增题型枚举（句子填词仍属 V0.9.1）。
+
 ## 16. V0.9 AI 剧情与语境学习版（拆为 6 个子版本）
 
 V0.9 的目标是让学习从单词识别进入语境理解，并让战斗更有故事感。V0.9 被拆成 **6 个可独立发布的子版本**，按"题型 → 故事 → 收集 → 个性化 → 内容工厂"顺序推进。AI 始终是"后台辅助内容生产 + 人工审核"，**儿童端不直接调 LLM**。
@@ -1383,7 +1429,9 @@ V0.3 完成时建议满足：
 下一步最适合推进的主题（2026-05-18）：
 
 ```text
-V0.8.3 战斗与词包体验小优化（设计已锁）
+V0.8.3 战斗与词包体验小优化（设计已锁 / 实施中）
+  ↓ Harmony 实施 → 三端 SOP 签字
+V0.8.4 战斗平衡与题型节奏（设计已锁，依赖 0.8.3）
   ↓ Harmony 实施 → 三端 SOP 签字 → iOS / Android 复制
 V0.9 系列（6 子版本，docs/features/ 三端 SOP）
   → V0.9.1 句子填词
@@ -1396,4 +1444,4 @@ V0.9 系列（6 子版本，docs/features/ 三端 SOP）
   → V0.11 Cocos2D 战斗表现层
 ```
 
-V0.3–V0.8.2 已构成当前产品的 **三端可玩、可绑、可运营词库、可后台排查** 底座；V0.8.3 起重点是 **战斗与学习体验的趣味升级 + 跨端 SOP 持续 parity**，而不是重复建设 replica 或后台骨架。
+V0.3–V0.8.2 已构成当前产品的 **三端可玩、可绑、可运营词库、可后台排查** 底座；V0.8.3–V0.8.4 起重点是 **战斗与学习体验的趣味升级 + 跨端 SOP 持续 parity**，而不是重复建设 replica 或后台骨架。

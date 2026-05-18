@@ -71,6 +71,20 @@ struct PackManagerPage {
     }
   }
 
+  onPageShow(): void {
+    if (!this.loaded) {
+      return;
+    }
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
+      this.homeIntegration = bundle;
+      this.refreshPackPickerState();
+    }).catch((err: BusinessError): void => {
+      console.error(`PackManagerPage.onPageShow: loadHomeIntegration failed: ${JSON.stringify(err)}`);
+    });
+  }
+
   /** Mirror selection state into @State so ArkUI re-renders the picker. */
   private refreshPackPickerState(): void {
     this.availablePacks = this.homeIntegration.library.allPacks();

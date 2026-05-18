@@ -6,14 +6,19 @@ import { FillLetterGenerator } from './FillLetterGenerator';
 import { SpellGenerator } from './SpellGenerator';
 import { IQuestionSource } from './IQuestionSource';
 import {
-  questionTypeForMonsterKind,
+  resolveQuestionTypeForWord,
+  resolveQuestionTypeWithinPool,
   wordSupportsQuestionType,
 } from './BattleQuestionTypePolicy';
+import {
+  BattleQuestionPick,
+  BattleQuestionScheduler,
+  WordKindSupportFn,
+} from './BattleQuestionScheduler';
 import {
   TodaySessionPlan,
   WordSlot,
 } from '../models/AdventureRegion';
-import { MonsterKind } from '../data/MonsterCatalog';
 
 /**
  * Provider that returns the current 1-based BattleEngine monster
@@ -25,17 +30,8 @@ export type MonsterIndexProvider = () => number;
 
 /**
  * PlanQuestionSource — IQuestionSource that walks `plan.wordPlan`
- * deterministically while letting the current monster's
- * MonsterKind decide what kind of question to render.
- *
- *   Normal / Review               -> Choice
- *   Spelling                      -> FillLetter (1 blank), degrades to Choice
- *   Elite                         -> FillLetterMedium (2 blanks), degrades to FillLetter -> Choice
- *   Boss                          -> Spell (full word), degrades to FillLetterMedium -> FillLetter -> Choice
- *
- * V0.4.1 split Boss from the previous shared Elite/Boss branch so
- * the Boss tier could insert SpellGenerator at the head of its
- * fallback chain without changing Elite behaviour.
+ * while V0.8.4 {@link BattleQuestionScheduler} picks question kinds
+ * from Config-enabled types (intro pass → challenge, or mode-specific).
  *
  * Cycling: when wordPlan runs out the source wraps back to index
  * 0 so a long battle never stalls. The skip-last-word constraint
@@ -47,6 +43,7 @@ export class PlanQuestionSource implements IQuestionSource {
   private readonly choiceGen: QuestionGenerator;
   private readonly fillGen: FillLetterGenerator;
   private readonly spellGen: SpellGenerator;
+  private readonly scheduler: BattleQuestionScheduler | undefined;
   private monsterIndexProvider: MonsterIndexProvider;
   private cursor: number = 0;
 
@@ -55,13 +52,15 @@ export class PlanQuestionSource implements IQuestionSource {
     repo: WordRepository,
     choiceGen: QuestionGenerator,
     fillGen: FillLetterGenerator,
-    spellGen: SpellGenerator
+    spellGen: SpellGenerator,
+    scheduler?: BattleQuestionScheduler,
   ) {
     this.plan = plan;
     this.repo = repo;
     this.choiceGen = choiceGen;
     this.fillGen = fillGen;
     this.spellGen = spellGen;
+    this.scheduler = scheduler;
     this.monsterIndexProvider = (): number => 1;
   }
 
@@ -70,17 +69,49 @@ export class PlanQuestionSource implements IQuestionSource {
   }
 
   nextQuestion(lastWordId?: string): Question {
-    const kind: MonsterKind = this.currentMonsterKind();
-    const targetType: string = questionTypeForMonsterKind(kind);
-    const word: WordEntry = this.pickWordForQuestionType(targetType, lastWordId);
-    const exact: Question | undefined = this.generateExactQuestion(targetType, word, lastWordId);
+    const canServe: WordKindSupportFn = (wordId: string, kind: string): boolean => {
+      const w: WordEntry | undefined = this.repo.findById(wordId);
+      return w !== undefined && wordSupportsQuestionType(w, kind);
+    };
+
+    let primaryType: string;
+    let preferredWordId: string = '';
+    if (this.scheduler !== undefined) {
+      const pick: BattleQuestionPick = this.scheduler.pickNext(lastWordId, canServe);
+      primaryType = pick.kind;
+      preferredWordId = pick.preferredWordId;
+    } else {
+      primaryType = 'choice';
+    }
+
+    const phasePool: string[] = this.scheduler !== undefined
+      ? this.scheduler.activePhasePool()
+      : [];
+
+    let word: WordEntry;
+    if (preferredWordId.length > 0) {
+      const preferred: WordEntry | undefined = this.repo.findById(preferredWordId);
+      word = preferred !== undefined ? preferred : this.pickWordForQuestionType(primaryType, lastWordId);
+    } else {
+      word = this.pickWordForQuestionType(primaryType, lastWordId);
+    }
+
+    const resolvedType: string = this.scheduler !== undefined
+      ? resolveQuestionTypeWithinPool(word, primaryType, phasePool)
+      : resolveQuestionTypeForWord(word, primaryType);
+
+    const exact: Question | undefined = this.generateExactQuestion(resolvedType, word, lastWordId);
     if (exact !== undefined) {
+      if (this.scheduler !== undefined) {
+        this.scheduler.markServed(word.id, exact.kind, canServe);
+      }
       return exact;
     }
-    // Defensive fallback only. HomePage blocks starts where no selected
-    // type can be generated for the active pack, but a stale or corrupt
-    // plan should still render a playable prompt instead of softlocking.
-    return this.choiceGen.nextQuestionForWord(word, lastWordId);
+    const fallback: Question = this.choiceGen.nextQuestionForWord(word, lastWordId);
+    if (this.scheduler !== undefined) {
+      this.scheduler.markServed(word.id, fallback.kind, canServe);
+    }
+    return fallback;
   }
 
   private generateExactQuestion(
@@ -123,8 +154,6 @@ export class PlanQuestionSource implements IQuestionSource {
         return w;
       }
     }
-    // Fallback: first known word in the plan, then first word in the
-    // repo. We never want to throw mid-battle.
     for (let i = 0; i < this.plan.wordPlan.length; i++) {
       const w: WordEntry | undefined = this.repo.findById(this.plan.wordPlan[i].wordId);
       if (w !== undefined) {
@@ -159,15 +188,5 @@ export class PlanQuestionSource implements IQuestionSource {
       return undefined;
     }
     return this.plan.wordPlan[this.cursor % this.plan.wordPlan.length];
-  }
-
-  private currentMonsterKind(): MonsterKind {
-    const idx1: number = this.monsterIndexProvider();
-    const slots: number = this.plan.monsterSlots.length;
-    if (slots === 0) {
-      return MonsterKind.Normal;
-    }
-    const i: number = idx1 <= 0 ? 0 : (idx1 - 1) % slots;
-    return this.plan.monsterSlots[i].kind;
   }
 }

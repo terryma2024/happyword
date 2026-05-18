@@ -43,7 +43,7 @@ export default function reviewModeUiTest(): void {
       // with 3-HP monster; tapWrongAnswerShared resolves the prompt
       // to its English answer via WORD_MAP and clicks any other
       // option, which works because fruit-forest's word pool is a
-      // subset of WORD_MAP. Default cfg.playerHp = 5 is still
+      // subset of WORD_MAP. Default cfg.playerHp = 10 is still
       // honoured by today-mode (BattlePage reads it before merging
       // the plan), so 3 misses keep us on BattlePage.
       await clickByIdShared(driver, 'HomeStartButton');
@@ -53,7 +53,7 @@ export default function reviewModeUiTest(): void {
       await driver.assertComponentExist(ON.id('BattleTitle'));
       for (let i = 0; i < 3; i++) {
         await tapWrongAnswerShared(driver);
-        // Each wrong tap deals 1 damage; playerHp starts at 5 in the
+        // Each wrong tap deals 1 damage; playerHp starts at 10 in the
         // default config, so 3 misses keep us on BattlePage. 800ms
         // covers the feedback window.
         await driver.delayMs(800);

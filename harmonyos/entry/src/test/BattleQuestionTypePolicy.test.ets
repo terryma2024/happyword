@@ -1,14 +1,16 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { GameConfig, cloneGameConfig } from '../main/ets/models/GameConfig';
 import { gameConfigFromJson, gameConfigToJson } from '../main/ets/services/GameConfigPersistence';
-import { MonsterKind } from '../main/ets/data/MonsterCatalog';
+import { MonsterKind, MonsterLevel } from '../main/ets/data/MonsterCatalog';
 import { QuestionKind } from '../main/ets/models/Question';
 import { WordEntry } from '../main/ets/models/WordEntry';
 import {
   BATTLE_QUESTION_TYPE_SENTENCE_FILL,
   DEFAULT_ENABLED_QUESTION_TYPES,
   questionTypeForMonsterKind,
+  questionTypeForMonsterLevel,
   questionTypeToMonsterKind,
+  resolveQuestionTypeForWord,
   sanitizeEnabledQuestionTypes,
   wordSupportsQuestionType,
 } from '../main/ets/services/BattleQuestionTypePolicy';
@@ -61,6 +63,22 @@ export default function battleQuestionTypePolicyTest() {
       expect(questionTypeToMonsterKind(QuestionKind.FillLetterMedium)).assertEqual(MonsterKind.Elite);
       expect(questionTypeToMonsterKind(QuestionKind.Spell)).assertEqual(MonsterKind.Boss);
       expect(questionTypeForMonsterKind(MonsterKind.Review)).assertEqual(QuestionKind.Choice);
+    });
+
+    it('routesQuestionTypesByMonsterLevel', 0, () => {
+      expect(questionTypeForMonsterLevel(MonsterLevel.Beginner)).assertEqual(QuestionKind.Choice);
+      expect(questionTypeForMonsterLevel(MonsterLevel.Intermediate)).assertEqual(QuestionKind.FillLetter);
+      expect(questionTypeForMonsterLevel(MonsterLevel.Advanced)).assertEqual(QuestionKind.FillLetterMedium);
+      expect(questionTypeForMonsterLevel(MonsterLevel.Super)).assertEqual(QuestionKind.Spell);
+    });
+
+    it('degradesGracefullyForShortWordOnAdvanced', 0, () => {
+      const zoo: WordEntry = makeWord('place-zoo', 'zoo');
+      const resolved: string = resolveQuestionTypeForWord(
+        zoo,
+        questionTypeForMonsterLevel(MonsterLevel.Advanced),
+      );
+      expect(resolved).assertEqual(QuestionKind.Choice);
     });
 
     it('checksWordEligibilityForImplementedTypes', 0, () => {

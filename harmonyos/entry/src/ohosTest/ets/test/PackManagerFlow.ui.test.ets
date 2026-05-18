@@ -38,6 +38,8 @@ const MOCK_EXTRA_GLOBAL_PACK_IDS: string[] = [
 // left alone — see `wipeBoundDeviceState` for the rationale.
 const PREFS_CLOUD: string = 'wordmagic_cloud';
 const PREFS_PACK_SELECTION: string = 'wordmagic_pack_selection';
+const PREFS_GLOBAL_PACKS: string = 'wordmagic_global_packs';
+const GLOBAL_PACKS_KEY: string = 'global_packs_v1';
 const PACK_SELECTION_KEY: string = 'selection_v1';
 const DEFAULT_PACK_SELECTION_BLOB: string =
   '{"schemaVersion":1,"activePackIds":["fruit-forest","school-castle","home-cottage","animal-safari","ocean-realm"],"pinnedPackIds":[],"perfectScoresByPack":{}}';
@@ -533,25 +535,23 @@ async function togglePackActiveInPlace(driver: Driver, packId: string): Promise<
   }
 }
 
+const TEN_ACTIVE_PACK_IDS: string[] = [
+  'fruit-forest',
+  'school-castle',
+  'home-cottage',
+  'animal-safari',
+  'ocean-realm',
+  GLOBAL_PACK_ID,
+  MOCK_EXTRA_GLOBAL_PACK_IDS[0],
+  MOCK_EXTRA_GLOBAL_PACK_IDS[1],
+  MOCK_EXTRA_GLOBAL_PACK_IDS[2],
+  MOCK_EXTRA_GLOBAL_PACK_IDS[3],
+];
+
 function buildTenActiveSelectionBlob(pinnedIds: string[]): string {
-  const active: string[] = [
-    'fruit-forest',
-    'school-castle',
-    'home-cottage',
-    'animal-safari',
-    'ocean-realm',
-    GLOBAL_PACK_ID,
-    MOCK_EXTRA_GLOBAL_PACK_IDS[0],
-    MOCK_EXTRA_GLOBAL_PACK_IDS[1],
-    MOCK_EXTRA_GLOBAL_PACK_IDS[2],
-    MOCK_EXTRA_GLOBAL_PACK_IDS[3],
-  ];
-  return JSON.stringify({
-    schemaVersion: 1,
-    activePackIds: active,
-    pinnedPackIds: pinnedIds,
-    perfectScoresByPack: {},
-  });
+  const activeJson: string = JSON.stringify(TEN_ACTIVE_PACK_IDS);
+  const pinnedJson: string = JSON.stringify(pinnedIds);
+  return `{"schemaVersion":1,"activePackIds":${activeJson},"pinnedPackIds":${pinnedJson},"perfectScoresByPack":{}}`;
 }
 
 async function seedPackSelectionBlob(driver: Driver, blob: string): Promise<void> {
@@ -567,30 +567,53 @@ async function seedPackSelectionBlob(driver: Driver, blob: string): Promise<void
   }
 }
 
-async function syncPacksOnPackManagerPage(driver: Driver): Promise<void> {
+/** Drop stale global-pack etag so sync pulls the full mock catalog (incl. gpk-mock-*). */
+async function clearGlobalPackCacheForUiTest(): Promise<void> {
   try {
-    await clickByIdShared(driver, 'PackManagerSyncButton');
-    await driver.delayMs(2500);
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const ctx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
+    const handle: preferences.Preferences =
+      await preferences.getPreferences(ctx, PREFS_GLOBAL_PACKS);
+    await handle.delete(GLOBAL_PACKS_KEY);
+    await handle.flush();
   } catch (err) {
     throw err as Error;
   }
 }
 
-/** Leave PackManagerPage to Config and re-enter so selection prefs reload. */
-async function reopenPackManagerFromConfig(driver: Driver): Promise<void> {
+/**
+ * Sync globals into the library, seed a 10-active selection blob, leave
+ * the page stack, and re-open PackManager so prefs + prune run on a
+ * fresh loadHomeIntegration (V0.8.3 cap / auto-rotate tests).
+ */
+async function preparePackManagerWithTenActive(
+  driver: Driver,
+  pinnedIds: string[],
+): Promise<void> {
   try {
-    await driver.pressBack();
-    await driver.delayMs(700);
-    await clickByIdShared(driver, 'ConfigPackManagerEntry');
-    await driver.delayMs(1500);
-    for (let attempt: number = 0; attempt < 5; attempt++) {
-      const title: Component | null =
-        await driver.findComponent(ON.id('PackManagerTitle'));
-      if (title !== null) {
-        return;
+    await clearGlobalPackCacheForUiTest();
+    await openPackManagerFromHome(driver);
+    await tapPackSyncAndWaitForToast(driver);
+    await seedPackSelectionBlob(driver, buildTenActiveSelectionBlob(pinnedIds));
+    await leaveToHome(driver);
+    await openPackManagerFromHome(driver);
+
+    let statusOk: boolean = false;
+    for (let attempt: number = 0; attempt < 25; attempt++) {
+      const status: string = await getTextById(driver, 'PackManagerStatus');
+      if (status.indexOf('10 / 10') >= 0) {
+        statusOk = true;
+        break;
       }
       await driver.delayMs(400);
     }
+    expect(statusOk).assertTrue();
+
+    const eleventhId: string = MOCK_EXTRA_GLOBAL_PACK_IDS[4];
+    await scrollPackRowIntoView(driver, eleventhId);
+    const toggle: Component | null =
+      await driver.findComponent(ON.id(`PackToggle_${eleventhId}`));
+    expect(toggle !== null).assertTrue();
   } catch (err) {
     throw err as Error;
   }
@@ -1236,16 +1259,9 @@ export default function packManagerFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await resetDefaultPackSelection(driver);
-      await openPackManagerFromHome(driver);
-      await syncPacksOnPackManagerPage(driver);
-      await seedPackSelectionBlob(driver, buildTenActiveSelectionBlob([]));
-      await reopenPackManagerFromConfig(driver);
-
-      const statusFull: string = await getTextById(driver, 'PackManagerStatus');
-      expect(statusFull.indexOf('10 / 10') >= 0).assertTrue();
+      await preparePackManagerWithTenActive(driver, []);
 
       const eleventhId: string = MOCK_EXTRA_GLOBAL_PACK_IDS[4];
-      await scrollPackRowIntoView(driver, eleventhId);
       await clickByIdShared(driver, `PackToggle_${eleventhId}`);
       await driver.delayMs(900);
 
@@ -1271,26 +1287,9 @@ export default function packManagerFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await resetDefaultPackSelection(driver);
-      await openPackManagerFromHome(driver);
-      await syncPacksOnPackManagerPage(driver);
-
-      const tenActive: string[] = [
-        'fruit-forest',
-        'school-castle',
-        'home-cottage',
-        'animal-safari',
-        'ocean-realm',
-        GLOBAL_PACK_ID,
-        MOCK_EXTRA_GLOBAL_PACK_IDS[0],
-        MOCK_EXTRA_GLOBAL_PACK_IDS[1],
-        MOCK_EXTRA_GLOBAL_PACK_IDS[2],
-        MOCK_EXTRA_GLOBAL_PACK_IDS[3],
-      ];
-      await seedPackSelectionBlob(driver, buildTenActiveSelectionBlob(tenActive));
-      await reopenPackManagerFromConfig(driver);
+      await preparePackManagerWithTenActive(driver, TEN_ACTIVE_PACK_IDS);
 
       const eleventhId: string = MOCK_EXTRA_GLOBAL_PACK_IDS[4];
-      await scrollPackRowIntoView(driver, eleventhId);
       await clickByIdShared(driver, `PackToggle_${eleventhId}`);
       await driver.delayMs(900);
 

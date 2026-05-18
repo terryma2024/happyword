@@ -272,8 +272,7 @@ hdc_t rport "tcp:${MOCK_PORT}" "tcp:${MOCK_PORT}"
 if [[ "${DO_REBUILD}" -eq 1 ]]; then
   echo "[run_ui_tests] rebuilding HAPs"
   (cd "${HARMONY_ROOT}" && hvigorw assembleHap --no-daemon)
-  (cd "${HARMONY_ROOT}" && hvigorw assembleOhosTest --no-daemon || \
-    hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon)
+  (cd "${HARMONY_ROOT}" && hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon)
 
   HAP_DEFAULT="$(find "${HARMONY_ROOT}/entry/build" -name 'entry-default-signed.hap' | head -1 || true)"
   HAP_TEST="$(find "${HARMONY_ROOT}/entry/build" -name 'entry-ohosTest-signed.hap' | head -1 || true)"
@@ -319,6 +318,20 @@ if [[ -n "${SUITE_FILTER}" ]]; then
 fi
 
 echo "[run_ui_tests] ${TEST_CMD[*]}"
-"${TEST_CMD[@]}"
+TEST_OUTPUT="$("${TEST_CMD[@]}" 2>&1)" || true
+printf '%s\n' "${TEST_OUTPUT}"
+
+if printf '%s\n' "${TEST_OUTPUT}" | grep -q 'OHOS_REPORT_RESULT:.*Failure: [1-9]'; then
+  echo "[run_ui_tests] UI tests reported failures — see OHOS_REPORT_RESULT above." >&2
+  exit 1
+fi
+if printf '%s\n' "${TEST_OUTPUT}" | grep -q 'OHOS_REPORT_RESULT:.*Error: [1-9]'; then
+  echo "[run_ui_tests] UI tests reported errors — see OHOS_REPORT_RESULT above." >&2
+  exit 1
+fi
+if printf '%s\n' "${TEST_OUTPUT}" | grep -q 'OHOS_REPORT_CODE: -'; then
+  echo "[run_ui_tests] UI tests finished with OHOS_REPORT_CODE failure." >&2
+  exit 1
+fi
 
 echo "[run_ui_tests] done."

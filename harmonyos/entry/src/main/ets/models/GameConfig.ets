@@ -24,7 +24,7 @@ import {
  * directly; non-today battles use the merged built-in repo pool.
  */
 export class GameConfig {
-  playerMaxHp: number = 5;
+  playerMaxHp: number = 10;
   monsterMaxHp: number = 3;
   monstersTotal: number = 5;
   startingSeconds: number = 300;
