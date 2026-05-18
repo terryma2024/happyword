@@ -80,6 +80,45 @@ Snapshot date: 2026-05-17.
 - Web security domains currently include the CloudBase default domains and
   Tencent console defaults.
 
+Snapshot date: 2026-05-18.
+
+- CloudBase CLI version checked through `npx --package @cloudbase/cli tcb`:
+  `3.3.3`.
+- CLI device authorization completed from the logged-in Tencent Cloud console.
+- Cloud Run service list: empty; `happyword-server-staging` has not been
+  created yet.
+- Cloud Run deploy options visible in console: Git repository, container image,
+  public Git repository, and local code upload.
+- Cloud Run fixed public IP: disabled.
+- Image repository: personal image repository selected.
+- Package: CloudBase free trial tier, valid until 2026-11-08.
+- Package resource points consumed: 0.07 / 3000.
+- Pay-as-you-go toggle: off.
+- Cloud Run current usage: 0 CPU seconds, 0 GBs memory, 0 Byte outbound traffic.
+
+M2 staging is blocked until the operator confirms billing/overage behavior and
+provides staging secrets. Do not create `happyword-server-staging` with dummy
+or production values.
+
+Required staging secrets:
+
+- `MONGODB_URI`
+- `MONGO_DB_NAME`
+- `JWT_SECRET`
+- `ADMIN_BOOTSTRAP_USER`
+- `ADMIN_BOOTSTRAP_PASS`
+- `CRON_SECRET`
+- `OPENAI_API_KEY`
+- `PREVIEW_MANIFEST_BLOB_URL`
+- `BLOB_READ_WRITE_TOKEN`, only if upload paths must be tested during staging
+
+Required operator decisions:
+
+- Whether to enable CloudBase pay-as-you-go before staging deploy.
+- Whether MongoDB Atlas will allow all CloudBase egress IPs for staging, or
+  whether Cloud Run fixed public IP should be enabled and added to the Atlas
+  allowlist first.
+
 ### Filing and Certificate Readiness
 
 CloudBase filing page says mainland China servers used for websites or apps

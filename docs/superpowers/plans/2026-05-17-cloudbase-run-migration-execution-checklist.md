@@ -309,6 +309,11 @@
 
   Record the environment id and service URL in `docs/server/cloudbase-run.md`.
 
+  Execution note, 2026-05-18: environment and Cloud Run console were confirmed,
+  but M2 is blocked before service creation because the package pay-as-you-go
+  toggle is off and staging secrets are not yet available in the local context.
+  Findings are recorded in `docs/server/cloudbase-run.md`.
+
 - [ ] **Step 2: Create staging service**
 
   Create CloudBase Run service:
