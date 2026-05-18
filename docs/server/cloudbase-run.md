@@ -112,9 +112,11 @@ Staging service:
   `https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com`
 - Runtime port: `8080`
 - Deploy method: console local code upload, archive rooted at `server/`
-- Active version: `002`, deployed 2026-05-18
+- Active version: `002`, redeployed/configured 2026-05-18 14:11
 - Staging Mongo database override: `MONGO_DB_NAME=happyword_cloudbase_staging`
 - Logs: enabled after initial OpenAI smoke returned `500`
+- Current staging LLM provider: `LLM_PROVIDER=qwen`,
+  `QWEN_MODEL_VISION=qwen3.6-plus`
 
 Required staging secrets:
 
@@ -196,6 +198,15 @@ M2 smoke results on 2026-05-18 against version `002`:
   out`. The same local `OPENAI_API_KEY` validates against OpenAI with `200`, so
   the remaining blocker is CloudBase-to-OpenAI network reachability rather than
   key configuration.
+- After switching staging to `LLM_PROVIDER=qwen`, `POST
+  /api/v1/admin/llm/scan-words` with `assets/lessons/1.jpg` returned `200` from
+  `qwen3.6-plus` and extracted 15 clothing vocabulary words.
+- Full async lesson import smoke also passed:
+  `POST /api/v1/family/cloudbase-qwen-smoke/lessons/import` created an
+  `extracting` draft, then `POST /api/v1/admin/cron/extract-pending` returned
+  `{"claimed":1,"succeeded":1,"failed":0}`. The draft became `pending` with
+  `model=qwen3.6-plus`, `category_id=clothing`, `label_en=Clothing`, and 15
+  extracted words.
 
 ### LLM Provider Switching
 

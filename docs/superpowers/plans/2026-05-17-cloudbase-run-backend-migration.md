@@ -326,6 +326,15 @@ OAuth provider consoles:
     `httpx.ConnectTimeout` / `openai.APITimeoutError`.
   - Server now supports `LLM_PROVIDER=openai|qwen|doubao`; keep Step 4 open
     until the selected CloudBase provider is smoke-tested from CloudBase.
+  - `LLM_PROVIDER=qwen` was configured on CloudBase staging and the service was
+    redeployed on 2026-05-18 14:11. `/api/v1/admin/llm/scan-words` with
+    `assets/lessons/1.jpg` returned `200` from `qwen3.6-plus` with 15 extracted
+    clothing words.
+  - Full async lesson import smoke passed after a second cron tick:
+    `POST /api/v1/family/cloudbase-qwen-smoke/lessons/import` created an
+    `extracting` draft, `POST /api/v1/admin/cron/extract-pending` returned
+    `{"claimed":1,"succeeded":1,"failed":0}`, and the draft became `pending`
+    with `model=qwen3.6-plus`.
 
 ## Task 3: Replace Vercel Cron
 
