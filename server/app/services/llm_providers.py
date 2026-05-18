@@ -312,7 +312,6 @@ async def _test_connectivity_openai_compatible_chat(
             {"role": "system", "content": _CONNECTIVITY_SYSTEM_PROMPT},
             {"role": "user", "content": _CONNECTIVITY_USER_PROMPT},
         ],
-        "temperature": 0,
         "timeout": timeout_seconds,
     }
     if provider.supports_json_object_mode:

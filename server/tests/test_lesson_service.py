@@ -66,6 +66,7 @@ def test_lesson_system_prompt_requests_example_en() -> None:
 
 @pytest.mark.asyncio
 async def test_extract_lesson_payload_wraps_openai_error(
+    db: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Any `openai.OpenAIError` from `chat.completions.create` must be
@@ -104,6 +105,7 @@ async def test_extract_lesson_payload_wraps_openai_error(
 
 @pytest.mark.asyncio
 async def test_extract_lesson_payload_bounds_openai_call_below_function_timeout(
+    db: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Cron must regain control before Vercel kills the serverless function."""
@@ -252,12 +254,14 @@ async def test_lesson_provider_connectivity_routes_kimi_to_chat_completions(
     }
     assert captured_request["model"] == "kimi-k2.6"
     assert captured_request["timeout"] == 3
+    assert "temperature" not in captured_request
     assert captured_request["response_format"] == {"type": "json_object"}
     assert captured_request["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
 @pytest.mark.asyncio
 async def test_extract_lesson_payload_routes_qwen_to_responses_api(
+    db: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "qwen")
@@ -312,6 +316,7 @@ async def test_extract_lesson_payload_routes_qwen_to_responses_api(
 
 @pytest.mark.asyncio
 async def test_extract_lesson_payload_routes_doubao_to_responses_api(
+    db: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "doubao")
@@ -358,6 +363,7 @@ async def test_extract_lesson_payload_routes_doubao_to_responses_api(
 
 @pytest.mark.asyncio
 async def test_extract_lesson_payload_routes_kimi_to_chat_completions(
+    db: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "kimi")
@@ -422,6 +428,7 @@ async def test_extract_lesson_payload_routes_kimi_to_chat_completions(
 
 @pytest.mark.asyncio
 async def test_extract_lesson_payload_requires_selected_provider_key(
+    db: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "qwen")
@@ -444,6 +451,7 @@ async def test_extract_lesson_payload_requires_selected_provider_key(
 
 @pytest.mark.asyncio
 async def test_extract_target_vocabulary_routes_qwen_scan_words(
+    db: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "qwen")
@@ -495,6 +503,7 @@ async def test_extract_target_vocabulary_routes_qwen_scan_words(
 
 @pytest.mark.asyncio
 async def test_extract_target_vocabulary_routes_kimi_scan_words(
+    db: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "kimi")
