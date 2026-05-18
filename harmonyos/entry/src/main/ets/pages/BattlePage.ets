@@ -417,7 +417,7 @@ struct BattlePage {
         bc.monstersTotal = REVIEW_MODE_MONSTERS_TOTAL;
         bc.startingSeconds = REVIEW_MODE_STARTING_SECONDS;
       } else if (this.isTodayMode && planMonsters > 0) {
-        bc.monstersTotal = planMonsters;
+        bc.monstersTotal = cfg.monstersTotal;
         bc.startingSeconds = cfg.startingSeconds;
       } else {
         bc.monstersTotal = cfg.monstersTotal;

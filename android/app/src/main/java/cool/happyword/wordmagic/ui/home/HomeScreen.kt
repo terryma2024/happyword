@@ -346,7 +346,7 @@ internal fun HomeScreen(
                     .align(Alignment.TopCenter)
                     .padding(top = 96.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xCC3A3A3A))
+                    .background(Color(0xE63A3A3A))
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .testTag("HomeReviewLockedToast"),
                 fontSize = 14.sp,

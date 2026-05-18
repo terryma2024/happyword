@@ -19,6 +19,7 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
 // The corresponding chip preset ('5m' = 300s) is rendered by
 // `pages/ConfigPage.timerRow` for every TIMER_CHOICES entry.
 const DEFAULT_TIMER_CHIP_ID: string = 'ConfigTimer300s';
+const STEPPER_MAX_VALUE: number = 10;
 
 async function launchApp(): Promise<Driver> {
   // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
@@ -38,6 +39,12 @@ async function launchApp(): Promise<Driver> {
 async function returnToHome(driver: Driver): Promise<void> {
   try {
     for (let i: number = 0; i < 5; i++) {
+      const consent: Component | null =
+        await driver.findComponent(ON.id('PrivacyConsentAgreeButton'));
+      if (consent !== null) {
+        await consent.click();
+        await driver.delayMs(600);
+      }
       const home: Component | null =
         await driver.findComponent(ON.id('HomeStartButton'));
       if (home !== null) {
@@ -55,6 +62,30 @@ async function openConfig(driver: Driver): Promise<void> {
   try {
     await clickByIdShared(driver, 'HomeConfigButton');
     await driver.delayMs(1500);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+async function readIntById(driver: Driver, id: string): Promise<number> {
+  try {
+    const c: Component = await driver.findComponent(ON.id(id));
+    const text: string = await c.getText();
+    return Number.parseInt(text, 10);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+async function ensureStepperCanIncrement(driver: Driver, valueId: string, decId: string): Promise<number> {
+  try {
+    let value: number = await readIntById(driver, valueId);
+    if (value >= STEPPER_MAX_VALUE) {
+      await clickByIdShared(driver, decId);
+      await driver.delayMs(400);
+      value = await readIntById(driver, valueId);
+    }
+    return value;
   } catch (err) {
     throw err as Error;
   }
@@ -234,6 +265,52 @@ async function restoreDefaultTimerChip(driver: Driver): Promise<void> {
  */
 export default function configFlowUiTest(): void {
   describe('ConfigFlow', () => {
+    it('configSteppersUpdateVisibleValuesImmediately', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+      await openConfig(driver);
+
+      const playerBefore: number =
+        await ensureStepperCanIncrement(driver, 'ConfigPlayerHpValue', 'ConfigPlayerHpDec');
+      await clickByIdShared(driver, 'ConfigPlayerHpInc');
+      await driver.delayMs(400);
+      const playerAfter: number = await readIntById(driver, 'ConfigPlayerHpValue');
+      expect(playerAfter === playerBefore + 1).assertTrue();
+      await clickByIdShared(driver, 'ConfigPlayerHpDec');
+
+      const monsterHpBefore: number =
+        await ensureStepperCanIncrement(driver, 'ConfigMonsterHpValue', 'ConfigMonsterHpDec');
+      await clickByIdShared(driver, 'ConfigMonsterHpInc');
+      await driver.delayMs(400);
+      const monsterHpAfter: number = await readIntById(driver, 'ConfigMonsterHpValue');
+      expect(monsterHpAfter === monsterHpBefore + 1).assertTrue();
+      await clickByIdShared(driver, 'ConfigMonsterHpDec');
+
+      const monsterCountBefore: number =
+        await ensureStepperCanIncrement(driver, 'ConfigMonstersTotalValue', 'ConfigMonstersTotalDec');
+      await clickByIdShared(driver, 'ConfigMonstersTotalInc');
+      await driver.delayMs(400);
+      const monsterCountAfter: number = await readIntById(driver, 'ConfigMonstersTotalValue');
+      expect(monsterCountAfter === monsterCountBefore + 1).assertTrue();
+      await clickByIdShared(driver, 'ConfigMonstersTotalDec');
+
+      await tapConfigCancelShared(driver);
+      await returnToHome(driver);
+      done();
+    });
+
+    it('configPageShowsMinorReportChannel', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+      await openConfig(driver);
+
+      await driver.assertComponentExist(ON.id('ConfigReportChannelButton'));
+
+      await tapConfigCancelShared(driver);
+      await returnToHome(driver);
+      done();
+    });
+
     it('questionTypeSectionRendersImplementedChineseChipsOnly', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);

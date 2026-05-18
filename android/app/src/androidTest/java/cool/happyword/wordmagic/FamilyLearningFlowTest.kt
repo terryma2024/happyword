@@ -175,10 +175,21 @@ class FamilyLearningFlowTest {
         composeRule.onNodeWithTag("ScanBindingScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("ScanBindingGalleryButton").assertIsDisplayed()
         composeRule.onNodeWithTag("ScanBindingScannerButton").assertIsDisplayed()
+        composeRule.onNodeWithTag("ScanBindingTermsButton").assertIsDisplayed()
+        composeRule.onNodeWithTag("ScanBindingPrivacyButton").assertIsDisplayed()
         composeRule.onNodeWithTag("ScanBindingManualToggle").performClick()
         composeRule.onNodeWithTag("ScanBindingManualInput").performTextInput("000001")
+        composeRule.onNodeWithTag("ScanBindingTermsButton").assertIsDisplayed()
+        composeRule.onNodeWithTag("ScanBindingPrivacyButton").assertIsDisplayed()
         composeRule.onNodeWithTag("ScanBindingManualSubmit").performClick()
         composeRule.onNodeWithTag("ScanBindingFailureHint").assertIsDisplayed()
+    }
+
+    @Test
+    fun configScreenShowsMinorReportChannel() {
+        launch(bound = false)
+        openConfig()
+        composeRule.onNodeWithTag("ConfigReportChannelButton").performScrollTo().assertIsDisplayed()
     }
 
     @Test

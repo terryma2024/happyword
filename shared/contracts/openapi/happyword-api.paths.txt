@@ -113,4 +113,5 @@
 /family/{family_id}/verify
 /p/{token_short}
 /privacy
+/report_and_appeal
 /support

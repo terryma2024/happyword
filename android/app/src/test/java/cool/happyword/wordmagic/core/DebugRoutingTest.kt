@@ -31,6 +31,15 @@ class DebugRoutingTest {
     }
 
     @Test
+    fun compliancePolicyMatchesReleaseSubmission() {
+        assertEquals("https://happyword.cool/privacy", CompliancePolicy.PRIVACY_POLICY_URL)
+        assertEquals("https://happyword.cool/terms", CompliancePolicy.TERMS_OF_SERVICE_URL)
+        assertEquals("https://happyword.cool/report_and_appeal", CompliancePolicy.REPORT_CHANNEL_URL)
+        assertEquals("wordmagic_compliance", CompliancePolicy.PREFS_NAME)
+        assertEquals("privacy_consent_v1", CompliancePolicy.PRIVACY_CONSENT_KEY)
+    }
+
+    @Test
     fun bypassHeaderOnlyAppliesToPreview() {
         val provider = BackendHeaderProvider()
 
