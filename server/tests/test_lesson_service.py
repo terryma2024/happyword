@@ -158,6 +158,105 @@ def test_lesson_provider_registry_includes_initial_providers() -> None:
 
 
 @pytest.mark.asyncio
+async def test_lesson_provider_connectivity_routes_qwen_to_responses_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-test-dashscope")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.services import llm_providers  # noqa: PLC0415
+
+    get_settings.cache_clear()
+    captured: dict[str, object] = {}
+
+    class _FakeResponses:
+        async def create(self, **kwargs: object) -> object:
+            captured.update(kwargs)
+            message = SimpleNamespace(
+                type="message",
+                content=[SimpleNamespace(text='{"ok": true}')],
+            )
+            return SimpleNamespace(output=[message])
+
+    class _FakeClient:
+        responses = _FakeResponses()
+
+    monkeypatch.setattr(
+        llm_providers,
+        "_build_openai_compatible_client",
+        lambda **_kwargs: _FakeClient(),
+    )
+
+    status = await llm_providers.test_lesson_provider_connectivity(
+        provider_id="qwen",
+        timeout_seconds=3,
+    )
+
+    assert status.provider.id == "qwen"
+    assert status.model == "qwen3.6-plus"
+    assert status.source == "connectivity_test"
+    assert captured["model"] == "qwen3.6-plus"
+    assert captured["timeout"] == 3
+    assert captured["extra_body"] == {"enable_thinking": True}
+    first_content = captured["input"][0]["content"]  # type: ignore[index]
+    assert first_content[0]["type"] == "input_text"
+
+
+@pytest.mark.asyncio
+async def test_lesson_provider_connectivity_routes_kimi_to_chat_completions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MOONSHOT_API_KEY", "moonshot-test")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.services import llm_providers  # noqa: PLC0415
+
+    get_settings.cache_clear()
+    captured_client: dict[str, object] = {}
+    captured_request: dict[str, object] = {}
+
+    class _FakeMessage:
+        content = '{"ok": true}'
+
+    class _FakeChoice:
+        message = _FakeMessage()
+
+    class _FakeCompletion:
+        choices = [_FakeChoice()]
+
+    class _FakeCompletions:
+        async def create(self, **kwargs: object) -> object:
+            captured_request.update(kwargs)
+            return _FakeCompletion()
+
+    class _FakeChat:
+        completions = _FakeCompletions()
+
+    class _FakeClient:
+        chat = _FakeChat()
+
+    def _fake_client(**kwargs: object) -> _FakeClient:
+        captured_client.update(kwargs)
+        return _FakeClient()
+
+    monkeypatch.setattr(llm_providers, "_build_openai_compatible_client", _fake_client)
+
+    status = await llm_providers.test_lesson_provider_connectivity(
+        provider_id="kimi",
+        timeout_seconds=3,
+    )
+
+    assert status.provider.id == "kimi"
+    assert status.model == "kimi-k2.6"
+    assert captured_client == {
+        "api_key": "moonshot-test",
+        "base_url": "https://api.moonshot.cn/v1",
+    }
+    assert captured_request["model"] == "kimi-k2.6"
+    assert captured_request["timeout"] == 3
+    assert captured_request["response_format"] == {"type": "json_object"}
+    assert captured_request["extra_body"] == {"thinking": {"type": "disabled"}}
+
+
+@pytest.mark.asyncio
 async def test_extract_lesson_payload_routes_qwen_to_responses_api(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

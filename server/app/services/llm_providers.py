@@ -21,6 +21,10 @@ from app.config import Settings, get_settings
 from app.services.llm_service import LlmCallError, LlmConfigError
 
 ProviderKind = Literal["openai_chat", "openai_compatible_chat", "responses"]
+_CONNECTIVITY_SYSTEM_PROMPT = (
+    "You are a JSON-only connectivity checker. Return the requested JSON object exactly."
+)
+_CONNECTIVITY_USER_PROMPT = 'Return exactly this JSON object and no other text: {"ok": true}'
 
 
 @dataclass(frozen=True)
@@ -216,6 +220,20 @@ def _build_openai_compatible_client(*, api_key: str, base_url: str | None = None
     return AsyncOpenAI(api_key=api_key, base_url=base_url)
 
 
+def _provider_status(
+    *,
+    settings: Settings,
+    provider: LessonProviderSpec,
+    source: str,
+) -> LessonProviderStatus:
+    return LessonProviderStatus(
+        provider=provider,
+        model=_provider_model(settings, provider),
+        api_key_configured=bool(_provider_api_key(settings, provider)),
+        source=source,
+    )
+
+
 def _message_text_from_responses_api(response: Any) -> str:
     for item in getattr(response, "output", []) or []:
         if getattr(item, "type", None) != "message":
@@ -241,6 +259,150 @@ def _json_object_from_text(text: str, *, provider: LessonProviderSpec) -> dict[s
     if not isinstance(payload, dict):
         raise LlmCallError(f"{provider.display_name} vision payload is not an object")
     return payload
+
+
+def _verify_connectivity_payload(payload: dict[str, Any], *, provider: LessonProviderSpec) -> None:
+    if payload.get("ok") is True:
+        return
+    raise LlmCallError(f"{provider.display_name} connectivity test returned unexpected JSON")
+
+
+async def _test_connectivity_openai_chat(
+    *,
+    provider: LessonProviderSpec,
+    model: str,
+    timeout_seconds: float,
+) -> None:
+    from app.services import llm_service  # noqa: PLC0415
+
+    client = llm_service._get_openai_client()  # noqa: SLF001 - shared legacy cache
+    try:
+        completion = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": _CONNECTIVITY_SYSTEM_PROMPT},
+                {"role": "user", "content": _CONNECTIVITY_USER_PROMPT},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0,
+            timeout=timeout_seconds,
+        )
+    except openai.OpenAIError as exc:
+        raise LlmCallError(f"{provider.display_name} connectivity test failed: {exc}") from exc
+    content = completion.choices[0].message.content
+    if not content:
+        raise LlmCallError(f"{provider.display_name} connectivity test returned no content")
+    _verify_connectivity_payload(
+        _json_object_from_text(content, provider=provider),
+        provider=provider,
+    )
+
+
+async def _test_connectivity_openai_compatible_chat(
+    *,
+    provider: LessonProviderSpec,
+    api_key: str,
+    model: str,
+    timeout_seconds: float,
+) -> None:
+    client = _build_openai_compatible_client(api_key=api_key, base_url=provider.base_url)
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": _CONNECTIVITY_SYSTEM_PROMPT},
+            {"role": "user", "content": _CONNECTIVITY_USER_PROMPT},
+        ],
+        "temperature": 0,
+        "timeout": timeout_seconds,
+    }
+    if provider.supports_json_object_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    if provider.disable_thinking:
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    try:
+        completion = await client.chat.completions.create(**kwargs)
+    except openai.OpenAIError as exc:
+        raise LlmCallError(f"{provider.display_name} connectivity test failed: {exc}") from exc
+    content = completion.choices[0].message.content
+    if not content:
+        raise LlmCallError(f"{provider.display_name} connectivity test returned no content")
+    _verify_connectivity_payload(
+        _json_object_from_text(content, provider=provider),
+        provider=provider,
+    )
+
+
+async def _test_connectivity_responses(
+    *,
+    provider: LessonProviderSpec,
+    api_key: str,
+    model: str,
+    timeout_seconds: float,
+) -> None:
+    client = _build_openai_compatible_client(api_key=api_key, base_url=provider.base_url)
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": (
+                            f"{_CONNECTIVITY_SYSTEM_PROMPT}\n\n{_CONNECTIVITY_USER_PROMPT}"
+                        ),
+                    }
+                ],
+            }
+        ],
+        "timeout": timeout_seconds,
+    }
+    if provider.supports_thinking:
+        kwargs["extra_body"] = {"enable_thinking": True}
+    try:
+        response = await client.responses.create(**kwargs)
+    except openai.OpenAIError as exc:
+        raise LlmCallError(f"{provider.display_name} connectivity test failed: {exc}") from exc
+    text = _message_text_from_responses_api(response)
+    _verify_connectivity_payload(_json_object_from_text(text, provider=provider), provider=provider)
+
+
+async def test_lesson_provider_connectivity(
+    *,
+    provider_id: str,
+    timeout_seconds: float = 15.0,
+    settings: Settings | None = None,
+) -> LessonProviderStatus:
+    settings = settings or get_settings()
+    provider = LESSON_PROVIDER_SPECS.get(provider_id)
+    if provider is None:
+        available = ", ".join(sorted(LESSON_PROVIDER_SPECS))
+        raise LlmConfigError(
+            f"Unsupported LLM provider {provider_id!r}; choose one of: {available}."
+        )
+    api_key = _require_provider_api_key(settings, provider)
+    model = _provider_model(settings, provider)
+    if provider.kind == "openai_chat":
+        await _test_connectivity_openai_chat(
+            provider=provider,
+            model=model,
+            timeout_seconds=timeout_seconds,
+        )
+    elif provider.kind == "openai_compatible_chat":
+        await _test_connectivity_openai_compatible_chat(
+            provider=provider,
+            api_key=api_key,
+            model=model,
+            timeout_seconds=timeout_seconds,
+        )
+    else:
+        await _test_connectivity_responses(
+            provider=provider,
+            api_key=api_key,
+            model=model,
+            timeout_seconds=timeout_seconds,
+        )
+    return _provider_status(settings=settings, provider=provider, source="connectivity_test")
 
 
 async def _extract_lesson_payload_openai_chat(

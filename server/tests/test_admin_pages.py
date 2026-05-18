@@ -109,8 +109,14 @@ async def test_admin_system_config_can_change_llm_provider(
     monkeypatch.setenv("KIMI_API_KEY", "moonshot-test")
     from app.config import get_settings  # noqa: PLC0415
     from app.models.system_config import SystemConfig  # noqa: PLC0415
+    from app.routers import admin_pages  # noqa: PLC0415
 
     get_settings.cache_clear()
+
+    async def _fake_connectivity(**kwargs: object) -> object:
+        return {"provider_id": kwargs["provider_id"], "model": "kimi-k2.6"}
+
+    monkeypatch.setattr(admin_pages, "test_lesson_provider_connectivity", _fake_connectivity)
     login = await client.post(
         "/admin/login",
         data={"username": "console-admin", "password": _CONSOLE_PW},
@@ -142,6 +148,86 @@ async def test_admin_system_config_can_change_llm_provider(
     assert refreshed.status_code == 200
     assert "已更新课程解析模型。" in refreshed.text
     assert "kimi-k2.6" in refreshed.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_system_config_can_test_llm_provider_without_saving(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.models.system_config import SystemConfig  # noqa: PLC0415
+    from app.routers import admin_pages  # noqa: PLC0415
+
+    async def _fake_connectivity(**kwargs: object) -> object:
+        return {"provider_id": kwargs["provider_id"], "model": "kimi-k2.6"}
+
+    monkeypatch.setattr(
+        admin_pages,
+        "test_lesson_provider_connectivity",
+        _fake_connectivity,
+        raising=False,
+    )
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+
+    tested = await client.post(
+        "/admin/system-config/llm-provider/test",
+        data={"llm_provider": "kimi"},
+        follow_redirects=False,
+    )
+
+    assert tested.status_code == 303
+    assert (
+        tested.headers["location"]
+        == "/admin/system-config?flash_ok=llm_provider_connected&tested_llm_provider=kimi"
+    )
+    row = await SystemConfig.find_one(SystemConfig.key == "llm_provider")
+    assert row is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_system_config_refuses_save_when_connectivity_fails(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.models.system_config import SystemConfig  # noqa: PLC0415
+    from app.routers import admin_pages  # noqa: PLC0415
+    from app.services.llm_service import LlmCallError  # noqa: PLC0415
+
+    async def _fake_connectivity(**_kwargs: object) -> object:
+        raise LlmCallError("simulated connectivity failure")
+
+    monkeypatch.setattr(
+        admin_pages,
+        "test_lesson_provider_connectivity",
+        _fake_connectivity,
+        raising=False,
+    )
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+
+    saved = await client.post(
+        "/admin/system-config/llm-provider",
+        data={"llm_provider": "kimi"},
+        follow_redirects=False,
+    )
+
+    assert saved.status_code == 303
+    assert saved.headers["location"].startswith(
+        "/admin/system-config?flash_err=llm_provider_connectivity_failed"
+    )
+    row = await SystemConfig.find_one(SystemConfig.key == "llm_provider")
+    assert row is None
 
 
 @pytest.mark.asyncio

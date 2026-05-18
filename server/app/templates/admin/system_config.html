@@ -66,10 +66,22 @@
         {% endif %}
       </div>
 
-      <button type="submit"
-              class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">
-        保存模型选择
-      </button>
+      <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        保存前会自动执行一次连通性测试；测试失败时不会切换生效模型。
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button type="submit"
+                formaction="/admin/system-config/llm-provider/test"
+                class="rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-sm px-4 py-2">
+          测试连接
+        </button>
+        <button type="submit"
+                formaction="/admin/system-config/llm-provider"
+                class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">
+          测试并保存
+        </button>
+      </div>
     </form>
   </section>
 </section>

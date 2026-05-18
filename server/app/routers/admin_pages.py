@@ -35,6 +35,7 @@ from app.services.llm_providers import (
     effective_lesson_provider_status,
     is_effective_lesson_provider_configured,
     lesson_provider_options,
+    test_lesson_provider_connectivity,
 )
 from app.services.llm_service import LlmCallError, LlmConfigError
 from app.services.system_config_service import set_llm_provider_override
@@ -175,9 +176,23 @@ def _flash_err_for_vision_import(exc: BaseException) -> str:
 def _flash_map_system_config(request: Request) -> tuple[str | None, str | None]:
     ok = request.query_params.get("flash_ok")
     err = request.query_params.get("flash_err")
-    ok_msgs = {"llm_provider_updated": "已更新课程解析模型。"}
-    err_msgs = {"invalid_llm_provider": "请选择一个支持的课程解析模型。"}
-    return (ok_msgs.get(ok) if ok else None, err_msgs.get(err, err) if err else None)
+    detail = request.query_params.get("detail")
+    tested = request.query_params.get("tested_llm_provider")
+    ok_msgs = {
+        "llm_provider_updated": "已更新课程解析模型。",
+        "llm_provider_connected": "连通性测试通过。",
+    }
+    err_msgs = {
+        "invalid_llm_provider": "请选择一个支持的课程解析模型。",
+        "llm_provider_connectivity_failed": "连通性测试失败，模型未生效。",
+    }
+    ok_msg = ok_msgs.get(ok) if ok else None
+    if ok == "llm_provider_connected" and tested in LESSON_PROVIDER_SPECS:
+        ok_msg = f"{LESSON_PROVIDER_SPECS[tested].display_name} 连通性测试通过。"
+    err_msg = err_msgs.get(err, err) if err else None
+    if err == "llm_provider_connectivity_failed" and detail:
+        err_msg = f"{err_msg}（{detail}）"
+    return (ok_msg, err_msg)
 
 
 def _existing_global_draft_word_ids(words: list[dict[str, Any]]) -> set[str]:
@@ -341,6 +356,16 @@ async def admin_system_config_llm_provider_post(
             url="/admin/system-config?flash_err=invalid_llm_provider",
             status_code=303,
         )
+    try:
+        await test_lesson_provider_connectivity(provider_id=provider_id)
+    except (LlmConfigError, LlmCallError) as exc:
+        return RedirectResponse(
+            url=(
+                "/admin/system-config?flash_err=llm_provider_connectivity_failed"
+                f"&detail={quote(str(exc))}"
+            ),
+            status_code=303,
+        )
     await set_llm_provider_override(provider_id=provider_id, updated_by=gate.username)
     await record_admin_action(
         admin_username=gate.username,
@@ -351,6 +376,39 @@ async def admin_system_config_llm_provider_post(
     )
     return RedirectResponse(
         url="/admin/system-config?flash_ok=llm_provider_updated",
+        status_code=303,
+    )
+
+
+@router.post("/system-config/llm-provider/test", response_model=None)
+async def admin_system_config_llm_provider_test_post(
+    request: Request,
+    llm_provider: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    provider_id = llm_provider.strip()
+    if provider_id not in LESSON_PROVIDER_SPECS:
+        return RedirectResponse(
+            url="/admin/system-config?flash_err=invalid_llm_provider",
+            status_code=303,
+        )
+    try:
+        await test_lesson_provider_connectivity(provider_id=provider_id)
+    except (LlmConfigError, LlmCallError) as exc:
+        return RedirectResponse(
+            url=(
+                "/admin/system-config?flash_err=llm_provider_connectivity_failed"
+                f"&detail={quote(str(exc))}"
+            ),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=(
+            "/admin/system-config?flash_ok=llm_provider_connected"
+            f"&tested_llm_provider={quote(provider_id)}"
+        ),
         status_code=303,
     )
 
