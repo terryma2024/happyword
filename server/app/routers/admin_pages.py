@@ -31,10 +31,13 @@ from app.services.auth_service import (
     verify_password,
 )
 from app.services.llm_providers import (
-    is_selected_lesson_provider_configured,
-    selected_lesson_provider_missing_message,
+    LESSON_PROVIDER_SPECS,
+    effective_lesson_provider_status,
+    is_effective_lesson_provider_configured,
+    lesson_provider_options,
 )
 from app.services.llm_service import LlmCallError, LlmConfigError
+from app.services.system_config_service import set_llm_provider_override
 
 router = APIRouter(
     prefix="/admin",
@@ -159,14 +162,22 @@ def _global_pack_detail_url(
     return f"{base}?{'&'.join(qs)}" if qs else base
 
 
-def _vision_import_configured() -> bool:
-    return is_selected_lesson_provider_configured()
+async def _vision_import_configured() -> bool:
+    return await is_effective_lesson_provider_configured()
 
 
 def _flash_err_for_vision_import(exc: BaseException) -> str:
     if isinstance(exc, LlmConfigError):
-        return selected_lesson_provider_missing_message()
+        return "LLM Provider 未配置或不可用。请到系统配置页面检查当前模型和密钥。"
     return str(exc)
+
+
+def _flash_map_system_config(request: Request) -> tuple[str | None, str | None]:
+    ok = request.query_params.get("flash_ok")
+    err = request.query_params.get("flash_err")
+    ok_msgs = {"llm_provider_updated": "已更新课程解析模型。"}
+    err_msgs = {"invalid_llm_provider": "请选择一个支持的课程解析模型。"}
+    return (ok_msgs.get(ok) if ok else None, err_msgs.get(err, err) if err else None)
 
 
 def _existing_global_draft_word_ids(words: list[dict[str, Any]]) -> set[str]:
@@ -291,6 +302,56 @@ async def admin_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
             "overview": overview,
             "audit_ts": format_audit_timestamp,
         },
+    )
+
+
+# --- system config -------------------------------------------------------------
+
+
+@router.get("/system-config", response_class=HTMLResponse, response_model=None)
+async def admin_system_config_page(request: Request) -> HTMLResponse | RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    flash_ok, flash_err = _flash_map_system_config(request)
+    return templates.TemplateResponse(
+        request,
+        "admin/system_config.html",
+        {
+            "admin_user": gate,
+            "flash_ok": flash_ok,
+            "flash_err": flash_err,
+            "provider_options": lesson_provider_options(),
+            "current_provider": await effective_lesson_provider_status(),
+        },
+    )
+
+
+@router.post("/system-config/llm-provider", response_model=None)
+async def admin_system_config_llm_provider_post(
+    request: Request,
+    llm_provider: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    provider_id = llm_provider.strip()
+    if provider_id not in LESSON_PROVIDER_SPECS:
+        return RedirectResponse(
+            url="/admin/system-config?flash_err=invalid_llm_provider",
+            status_code=303,
+        )
+    await set_llm_provider_override(provider_id=provider_id, updated_by=gate.username)
+    await record_admin_action(
+        admin_username=gate.username,
+        action="system_config.update_llm_provider",
+        target_collection="system_config",
+        target_id="llm_provider",
+        payload_summary={"llm_provider": provider_id},
+    )
+    return RedirectResponse(
+        url="/admin/system-config?flash_ok=llm_provider_updated",
+        status_code=303,
     )
 
 
@@ -802,7 +863,7 @@ async def admin_global_pack_detail_page(
             status_code=303,
         )
     flash_ok, flash_err = _flash_map_global(request)
-    vision_ready = _vision_import_configured()
+    vision_ready = await _vision_import_configured()
     draft_words = sorted(
         detail["draft_words"], key=lambda w: str(w.get("id", ""))
     )

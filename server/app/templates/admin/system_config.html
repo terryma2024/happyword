@@ -1,0 +1,76 @@
+{% extends "admin/base.html" %}
+{% block title %}系统配置{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <header>
+    <h1 class="text-2xl font-semibold text-slate-900">系统配置</h1>
+    <p class="text-sm text-slate-500 mt-1">调整后台运行时配置。变更会写入数据库，并立即影响后续任务。</p>
+  </header>
+
+  {% if flash_ok %}
+  <div class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+    {{ flash_ok }}
+  </div>
+  {% endif %}
+  {% if flash_err %}
+  <div class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+    {{ flash_err }}
+  </div>
+  {% endif %}
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm">
+    <div class="px-4 py-3 border-b border-slate-200">
+      <h2 class="text-lg font-semibold text-slate-900">课程解析模型</h2>
+      <p class="text-sm text-slate-500 mt-1">用于教材图片解析、全局词包图片导入和管理员扫码识别。</p>
+    </div>
+    <form method="post" action="/admin/system-config/llm-provider" class="p-4 space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {% for option in provider_options %}
+        <label class="block border rounded-lg p-4 cursor-pointer hover:border-sky-300 {% if option.provider.id == current_provider.provider.id %}border-sky-500 bg-sky-50{% else %}border-slate-200 bg-white{% endif %}">
+          <div class="flex items-start gap-3">
+            <input type="radio"
+                   name="llm_provider"
+                   value="{{ option.provider.id }}"
+                   class="mt-1"
+                   {% if option.provider.id == current_provider.provider.id %}checked{% endif %} />
+            <div class="space-y-1">
+              <p class="text-sm font-semibold text-slate-900">
+                {{ option.provider.display_name }}
+                <span class="font-mono text-xs text-slate-500">({{ option.provider.id }})</span>
+              </p>
+              <p class="text-sm text-slate-700">模型：<span class="font-mono">{{ option.model }}</span></p>
+              <p class="text-xs {% if option.api_key_configured %}text-emerald-700{% else %}text-rose-700{% endif %}">
+                {% if option.api_key_configured %}
+                  密钥已配置
+                {% else %}
+                  缺少 {{ option.provider.api_key_env }}
+                {% endif %}
+              </p>
+              {% if option.provider.comparison_notes %}
+              <p class="text-xs text-slate-500">{{ option.provider.comparison_notes }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="rounded-md bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-700">
+        当前生效：
+        <span class="font-semibold">{{ current_provider.provider.display_name }}</span>
+        <span class="font-mono">{{ current_provider.model }}</span>
+        {% if current_provider.source == "system_config" %}
+          <span class="text-slate-500">（后台配置）</span>
+        {% else %}
+          <span class="text-slate-500">（环境变量默认值）</span>
+        {% endif %}
+      </div>
+
+      <button type="submit"
+              class="rounded-md bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2">
+        保存模型选择
+      </button>
+    </form>
+  </section>
+</section>
+{% endblock %}

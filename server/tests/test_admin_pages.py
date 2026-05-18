@@ -74,6 +74,7 @@ async def test_admin_stub_pages_require_auth(client: AsyncClient) -> None:
         "/admin/devices",
         "/admin/global-packs",
         "/admin/family-packs",
+        "/admin/system-config",
         "/admin/audit-logs",
     ):
         res = await client.get(path, follow_redirects=False)
@@ -95,6 +96,52 @@ async def test_admin_logout_clears_cookie(client: AsyncClient) -> None:
     out = await client.post("/admin/logout", follow_redirects=False)
     assert out.status_code == 303
     assert out.headers["location"] == "/admin/login"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_system_config_can_change_llm_provider(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "qwen")
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-test-dashscope")
+    monkeypatch.setenv("KIMI_API_KEY", "moonshot-test")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.models.system_config import SystemConfig  # noqa: PLC0415
+
+    get_settings.cache_clear()
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+
+    page = await client.get("/admin/system-config")
+    assert page.status_code == 200
+    assert "系统配置" in page.text
+    assert "课程解析模型" in page.text
+    assert "Qwen" in page.text
+    assert "Kimi" in page.text
+
+    saved = await client.post(
+        "/admin/system-config/llm-provider",
+        data={"llm_provider": "kimi"},
+        follow_redirects=False,
+    )
+
+    assert saved.status_code == 303
+    assert saved.headers["location"] == "/admin/system-config?flash_ok=llm_provider_updated"
+    row = await SystemConfig.find_one(SystemConfig.key == "llm_provider")
+    assert row is not None
+    assert row.value == "kimi"
+    assert row.updated_by == "console-admin"
+
+    refreshed = await client.get("/admin/system-config?flash_ok=llm_provider_updated")
+    assert refreshed.status_code == 200
+    assert "已更新课程解析模型。" in refreshed.text
+    assert "kimi-k2.6" in refreshed.text
 
 
 @pytest.mark.asyncio

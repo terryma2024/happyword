@@ -39,6 +39,14 @@ class LessonProviderSpec:
     comparison_notes: str = ""
 
 
+@dataclass(frozen=True)
+class LessonProviderStatus:
+    provider: LessonProviderSpec
+    model: str
+    api_key_configured: bool
+    source: str
+
+
 LESSON_PROVIDER_SPECS: dict[str, LessonProviderSpec] = {
     "openai": LessonProviderSpec(
         id="openai",
@@ -114,6 +122,21 @@ def _selected_lesson_provider(settings: Settings) -> LessonProviderSpec:
     return provider
 
 
+async def _selected_lesson_provider_async(settings: Settings) -> tuple[LessonProviderSpec, str]:
+    from app.services.system_config_service import get_llm_provider_override  # noqa: PLC0415
+
+    provider_id = await get_llm_provider_override()
+    source = "system_config" if provider_id else "environment"
+    selected_id = provider_id or settings.llm_provider
+    provider = LESSON_PROVIDER_SPECS.get(selected_id)
+    if provider is None:
+        available = ", ".join(sorted(LESSON_PROVIDER_SPECS))
+        raise LlmConfigError(
+            f"Unsupported LLM_PROVIDER={selected_id!r}; choose one of: {available}."
+        )
+    return provider, source
+
+
 def _provider_api_key(settings: Settings, provider: LessonProviderSpec) -> str:
     return str(getattr(settings, provider.settings_api_key_attr, "") or "").strip()
 
@@ -129,9 +152,50 @@ def is_selected_lesson_provider_configured(settings: Settings | None = None) -> 
     return bool(_provider_api_key(settings, provider))
 
 
+def lesson_provider_options(settings: Settings | None = None) -> list[LessonProviderStatus]:
+    settings = settings or get_settings()
+    return [
+        LessonProviderStatus(
+            provider=provider,
+            model=_provider_model(settings, provider),
+            api_key_configured=bool(_provider_api_key(settings, provider)),
+            source="option",
+        )
+        for provider in LESSON_PROVIDER_SPECS.values()
+    ]
+
+
+async def effective_lesson_provider_status(
+    settings: Settings | None = None,
+) -> LessonProviderStatus:
+    settings = settings or get_settings()
+    provider, source = await _selected_lesson_provider_async(settings)
+    return LessonProviderStatus(
+        provider=provider,
+        model=_provider_model(settings, provider),
+        api_key_configured=bool(_provider_api_key(settings, provider)),
+        source=source,
+    )
+
+
+async def is_effective_lesson_provider_configured(
+    settings: Settings | None = None,
+) -> bool:
+    return (await effective_lesson_provider_status(settings)).api_key_configured
+
+
 def selected_lesson_provider_missing_message(settings: Settings | None = None) -> str:
     settings = settings or get_settings()
     provider = _selected_lesson_provider(settings)
+    return (
+        f"当前环境选择的 LLM_PROVIDER={provider.id}，但未配置 {provider.api_key_env}"
+        "（或值为空），无法解析教材图片。请在部署环境变量中设置该密钥并重启服务后再试。"
+    )
+
+
+async def effective_lesson_provider_missing_message(settings: Settings | None = None) -> str:
+    status = await effective_lesson_provider_status(settings)
+    provider = status.provider
     return (
         f"当前环境选择的 LLM_PROVIDER={provider.id}，但未配置 {provider.api_key_env}"
         "（或值为空），无法解析教材图片。请在部署环境变量中设置该密钥并重启服务后再试。"
@@ -304,7 +368,7 @@ async def extract_lesson_payload_with_provider(
     timeout_seconds: float,
 ) -> tuple[str, dict[str, Any]]:
     settings = get_settings()
-    provider = _selected_lesson_provider(settings)
+    provider, _source = await _selected_lesson_provider_async(settings)
     api_key = _require_provider_api_key(settings, provider)
     model = _provider_model(settings, provider)
     if provider.kind == "openai_chat":
@@ -360,7 +424,7 @@ async def extract_json_payload_with_responses_provider(
     timeout_seconds: float,
 ) -> tuple[str, dict[str, Any]]:
     settings = get_settings()
-    provider = _selected_lesson_provider(settings)
+    provider, _source = await _selected_lesson_provider_async(settings)
     if provider.kind != "responses":
         raise LlmConfigError(
             f"LLM_PROVIDER={provider.id!r} does not use the Responses API provider path."

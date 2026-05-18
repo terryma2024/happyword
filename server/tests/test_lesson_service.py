@@ -447,3 +447,61 @@ async def test_extract_target_vocabulary_routes_kimi_scan_words(
     assert captured["extra_body"] == {"thinking": {"type": "disabled"}}
     assert [word.word for word in result.words] == ["shirt"]
     assert result.words[0].gloss_zh == "衬衫"
+
+
+@pytest.mark.asyncio
+async def test_extract_lesson_payload_uses_admin_configured_provider(
+    db: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "qwen")
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-test-dashscope")
+    monkeypatch.setenv("MOONSHOT_API_KEY", "moonshot-test")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGO_DB_NAME", "happyword_test")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-32-bytes-please-pad")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_USER", "admin")
+    monkeypatch.setenv("ADMIN_BOOTSTRAP_PASS", "pw")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.models.system_config import SystemConfig  # noqa: PLC0415
+    from app.services import llm_providers  # noqa: PLC0415
+
+    await SystemConfig(key="llm_provider", value="kimi", updated_by="console-admin").insert()
+    get_settings.cache_clear()
+    captured_client: dict[str, object] = {}
+    captured_request: dict[str, object] = {}
+
+    class _FakeMessage:
+        content = '{"category_id":"lesson","words":[]}'
+
+    class _FakeChoice:
+        message = _FakeMessage()
+
+    class _FakeCompletion:
+        choices = [_FakeChoice()]
+
+    class _FakeCompletions:
+        async def create(self, **kwargs: object) -> object:
+            captured_request.update(kwargs)
+            return _FakeCompletion()
+
+    class _FakeChat:
+        completions = _FakeCompletions()
+
+    class _FakeClient:
+        chat = _FakeChat()
+
+    def _fake_client(**kwargs: object) -> _FakeClient:
+        captured_client.update(kwargs)
+        return _FakeClient()
+
+    monkeypatch.setattr(llm_providers, "_build_openai_compatible_client", _fake_client)
+
+    model_used, _payload = await lesson_service.extract_lesson_payload(
+        b"fake-image-bytes",
+        "image/jpeg",
+    )
+
+    assert model_used == "kimi-k2.6"
+    assert captured_client["base_url"] == "https://api.moonshot.cn/v1"
+    assert captured_request["model"] == "kimi-k2.6"

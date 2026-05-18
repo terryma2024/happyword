@@ -44,14 +44,15 @@ async def db() -> AsyncIterator[object]:
     from app.models.feedback import UserFeedback  # noqa: PLC0415
     from app.models.lesson_import_draft import LessonImportDraft  # noqa: PLC0415
     from app.models.llm_draft import LlmDraft  # noqa: PLC0415
+    from app.models.oauth_handoff_ticket import OAuthHandoffTicket  # noqa: PLC0415
+    from app.models.oauth_identity import OAuthIdentity  # noqa: PLC0415
+    from app.models.oauth_pending_identity import OAuthPendingIdentity  # noqa: PLC0415
     from app.models.pack_pointer import PackPointer  # noqa: PLC0415
     from app.models.pair_token import PairToken  # noqa: PLC0415
     from app.models.parent_inbox_msg import ParentInboxMsg  # noqa: PLC0415
     from app.models.redemption_request import RedemptionRequest  # noqa: PLC0415
     from app.models.synced_word_stat import SyncedWordStat  # noqa: PLC0415
-    from app.models.oauth_handoff_ticket import OAuthHandoffTicket  # noqa: PLC0415
-    from app.models.oauth_identity import OAuthIdentity  # noqa: PLC0415
-    from app.models.oauth_pending_identity import OAuthPendingIdentity  # noqa: PLC0415
+    from app.models.system_config import SystemConfig  # noqa: PLC0415
     from app.models.user import User  # noqa: PLC0415 - lazy to avoid early import
     from app.models.word import Word  # noqa: PLC0415
     from app.models.word_pack import WordPack  # noqa: PLC0415
@@ -85,6 +86,7 @@ async def db() -> AsyncIterator[object]:
             OAuthIdentity,
             OAuthHandoffTicket,
             OAuthPendingIdentity,
+            SystemConfig,
         ],
     )
     yield mock["happyword_test"]
