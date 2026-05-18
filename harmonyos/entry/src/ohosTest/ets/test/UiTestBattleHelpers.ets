@@ -1,5 +1,9 @@
 import { Driver, ON, Component } from '@kit.TestKit';
-import { tapCorrectAnswerShared } from './RoutingFlow.ui.test';
+import {
+  clickByIdShared,
+  selectOnlyQuestionTypeShared,
+  tapCorrectAnswerShared,
+} from './RoutingFlow.ui.test';
 
 /** V0.8.4 default player max HP on fresh config. */
 export const DEFAULT_PLAYER_HP_UI: number = 10;
@@ -398,9 +402,51 @@ export async function tapPoolByIndex(driver: Driver, idx: number): Promise<void>
   }
 }
 
+export function isChallengeSurface(surface: QuestionSurfaceKind): boolean {
+  return surface === 'fill-letter-medium' || surface === 'spell';
+}
+
+async function tapCurrentFillLetterStep(driver: Driver): Promise<void> {
+  const slots: string[] = await readLetterSlots(driver);
+  const word: string = wordForPattern(slots);
+  if (word === '') {
+    throw new Error('tapCurrentFillLetterStep: could not resolve word');
+  }
+  const missingIdx: number = slots.indexOf('_');
+  const letter: string = word.toLowerCase().charAt(missingIdx);
+  const tapped: boolean = await tapOptionWithText(driver, letter);
+  if (!tapped) {
+    throw new Error('tapCurrentFillLetterStep: option not found');
+  }
+}
+
+/**
+ * Complete the current Spell question by tapping pool letters in order.
+ */
+export async function completeSpellQuestion(driver: Driver): Promise<void> {
+  try {
+    const entry: SpellEntryState = await readSpellEntryState(driver);
+    if (entry.answer === '') {
+      throw new Error('completeSpellQuestion: empty answer');
+    }
+    const lower: string = entry.answer.toLowerCase();
+    for (let pos: number = 1; pos < lower.length; pos++) {
+      const letter: string = lower.charAt(pos);
+      const tappedIdx: number = await tapSpellPoolLetter(driver, letter);
+      if (tappedIdx < 0) {
+        throw new Error(`completeSpellQuestion: pool letter ${letter} not found`);
+      }
+      await driver.delayMs(150);
+    }
+    await driver.delayMs(750);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 /**
  * Answer one question correctly for Choice or FillLetter surfaces.
- * Spell completion is not handled here (use spell-specific helpers).
+ * Spell completion is not handled here (use advanceBattleTurnCorrect).
  */
 export async function advanceOneCorrect(driver: Driver): Promise<void> {
   try {
@@ -411,21 +457,119 @@ export async function advanceOneCorrect(driver: Driver): Promise<void> {
       return;
     }
     if (surface === 'fill-letter' || surface === 'fill-letter-medium') {
-      const slots: string[] = await readLetterSlots(driver);
-      const word: string = wordForPattern(slots);
-      if (word === '') {
-        throw new Error('advanceOneCorrect: could not resolve fill-letter word');
-      }
-      const missingIdx: number = slots.indexOf('_');
-      const letter: string = word.toLowerCase().charAt(missingIdx);
-      const tapped: boolean = await tapOptionWithText(driver, letter);
-      if (!tapped) {
-        throw new Error('advanceOneCorrect: fill-letter option not found');
-      }
+      await tapCurrentFillLetterStep(driver);
       await driver.delayMs(900);
       return;
     }
     throw new Error(`advanceOneCorrect: unsupported surface ${surface}`);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+async function tapCorrectChoice(driver: Driver): Promise<void> {
+  const zh: string = await getPromptText(driver);
+  const en: string = enForZh(zh);
+  if (en.length > 0) {
+    const tapped: boolean = await tapOptionWithText(driver, en);
+    if (tapped) {
+      return;
+    }
+  }
+  await tapCorrectAnswerShared(driver);
+}
+
+/** Correctly answer the current battle question for any supported surface. */
+export async function advanceBattleTurnCorrect(driver: Driver): Promise<void> {
+  try {
+    const surface: QuestionSurfaceKind = await detectQuestionSurface(driver);
+    if (surface === 'choice') {
+      await tapCorrectChoice(driver);
+      await driver.delayMs(900);
+      return;
+    }
+    if (surface === 'fill-letter') {
+      await tapCurrentFillLetterStep(driver);
+      await driver.delayMs(900);
+      return;
+    }
+    if (surface === 'fill-letter-medium') {
+      for (let step: number = 0; step < 2; step++) {
+        const again: QuestionSurfaceKind = await detectQuestionSurface(driver);
+        if (again !== 'fill-letter-medium') {
+          break;
+        }
+        const slots: string[] = await readLetterSlots(driver);
+        if (countUnderscores(slots) === 0) {
+          break;
+        }
+        await tapCurrentFillLetterStep(driver);
+        await driver.delayMs(800);
+      }
+      return;
+    }
+    if (surface === 'spell') {
+      await completeSpellQuestion(driver);
+      return;
+    }
+    throw new Error(`advanceBattleTurnCorrect: unsupported surface ${surface}`);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+export async function isBattlePageActive(driver: Driver): Promise<boolean> {
+  try {
+    const title: Component | null = await driver.findComponent(ON.id('BattleTitle'));
+    return title !== null;
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/** Press back until HomeStartButton is visible (ohosTest suite hygiene). */
+export async function returnToHome(driver: Driver, maxBackPresses: number = 8): Promise<void> {
+  try {
+    for (let i: number = 0; i < maxBackPresses; i++) {
+      const home: Component | null = await driver.findComponent(ON.id('HomeStartButton'));
+      if (home !== null) {
+        return;
+      }
+      await driver.pressBack();
+      await driver.delayMs(500);
+    }
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/** Poll until BattlePage title is mounted (today-mode async load). */
+export async function waitForBattlePage(driver: Driver, maxAttempts: number = 15): Promise<void> {
+  try {
+    for (let attempt: number = 0; attempt < maxAttempts; attempt++) {
+      const title: Component | null = await driver.findComponent(ON.id('BattleTitle'));
+      if (title !== null) {
+        await driver.delayMs(200);
+        return;
+      }
+      await driver.delayMs(400);
+    }
+    await driver.assertComponentExist(ON.id('BattleTitle'));
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/**
+ * Home → today's adventure with Config forced to Choice-only (V0.8.4
+ * schedule single_type). Callers that tap BattleOption* require this.
+ */
+export async function startTodayBattleChoiceOnly(driver: Driver): Promise<void> {
+  try {
+    await selectOnlyQuestionTypeShared(driver, 'choice');
+    await clickByIdShared(driver, 'HomeStartButton');
+    await waitForBattlePage(driver);
+    await driver.assertComponentExist(ON.id('BattlePrompt'));
   } catch (err) {
     throw err as Error;
   }

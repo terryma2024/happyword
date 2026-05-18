@@ -9,6 +9,7 @@ import adventureFlowUiTest from './AdventureFlow.ui.test';
 import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
 import fillLetterFlowUiTest from './FillLetterFlow.ui.test';
 import spellQuestionFlowUiTest from './SpellQuestionFlow.ui.test';
+import battlePacingUiTest from './BattlePacing.ui.test';
 import monsterCodexFlowUiTest from './MonsterCodexFlow.ui.test';
 import todayPlanFlowUiTest from './TodayPlanFlow.ui.test';
 import learningReportFlowUiTest from './LearningReportFlow.ui.test';
@@ -85,6 +86,8 @@ export default function testsuite() {
   fillLetterFlowUiTest();
   // V0.8.4: spell-only Config; first question is Spell on fruit-forest.
   spellQuestionFlowUiTest();
+  // V0.8.4: multi-type Config schedule modes (two_phase / intro_only / challenge_only).
+  battlePacingUiTest();
   adventureFlowUiTest();
   // V0.4.4: read-only daily plan page. Navigation-only test —
   // verifies HomePlanButton → TodayPlanPage → back works and the

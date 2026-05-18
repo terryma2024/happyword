@@ -333,7 +333,9 @@ async function exitParentAdminPage(driver: Driver): Promise<void> {
  */
 async function ensureLessonImportFixtureOnDevice(): Promise<string> {
   try {
-    const appCtx: common.Context = DELEGATOR.getAppContext();
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const appCtx: common.UIAbilityContext =
+      ability.context as common.UIAbilityContext;
     const dest: string = `${appCtx.tempDir}/lesson_import_fixture.jpg`;
 
     // Idempotent: if the file is already there from a previous it()

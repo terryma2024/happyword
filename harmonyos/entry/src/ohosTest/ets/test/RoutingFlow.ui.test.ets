@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
-import { findPlayerFullHpLabel } from './UiTestBattleHelpers.ets';
+import { enForZh, findPlayerFullHpLabel } from './UiTestBattleHelpers.ets';
 
 /**
  * UI smoke test for the three-page routing skeleton (spec §6.1 / §6.2 / §6.3 /
@@ -286,7 +286,8 @@ function lookupEnglishAnswer(zhPrompt: string): string {
       return WORD_MAP[i].en;
     }
   }
-  return '';
+  const fromCatalog: string = enForZh(zhPrompt);
+  return fromCatalog;
 }
 
 /**

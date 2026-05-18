@@ -9,6 +9,7 @@ import {
   countUnderscores,
   readLetterSlots,
   tapOptionWithText,
+  waitForBattlePage,
   waitForLetterBlanks,
   wordForPattern,
 } from './UiTestBattleHelpers.ets';
@@ -75,8 +76,7 @@ async function startFruitForestBattle(driver: Driver): Promise<void> {
     if (cta !== null) {
       await cta.click();
     }
-    await driver.delayMs(1500);
-    await driver.assertComponentExist(ON.id('BattleTitle'));
+    await waitForBattlePage(driver);
   } catch (err) {
     throw err as Error;
   }
@@ -106,9 +106,10 @@ export default function fillLetterFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await selectOnlyQuestionTypeShared(driver, 'fill-letter');
+      await driver.delayMs(900);
       await startFruitForestBattle(driver);
 
-      const ready: boolean = await waitForLetterBlanks(driver, 1, 8);
+      const ready: boolean = await waitForLetterBlanks(driver, 1, 18);
       expect(ready).assertTrue();
 
       const slots: string[] = await readLetterSlots(driver);
@@ -132,9 +133,10 @@ export default function fillLetterFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await selectOnlyQuestionTypeShared(driver, 'fill-letter-medium');
+      await driver.delayMs(900);
       await startFruitForestBattle(driver);
 
-      const ready: boolean = await waitForLetterBlanks(driver, 2, 8);
+      const ready: boolean = await waitForLetterBlanks(driver, 2, 18);
       expect(ready).assertTrue();
 
       const slots: string[] = await readLetterSlots(driver);

@@ -1,7 +1,13 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { common, Want } from '@kit.AbilityKit';
-import { clickByIdShared, tapWrongAnswerShared } from './RoutingFlow.ui.test';
+import {
+  clickByIdShared,
+  selectAllQuestionTypesShared,
+  selectOnlyQuestionTypeShared,
+  tapWrongAnswerShared,
+} from './RoutingFlow.ui.test';
+import { waitForBattlePage } from './UiTestBattleHelpers.ets';
 import { getLearningRecorder } from '../../../main/ets/services/LearningRecorder';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
@@ -75,9 +81,9 @@ async function clearLearningRecordsAndRefreshHome(driver: Driver): Promise<void>
 
 async function seedThreeWrongAnswersViaBattle(driver: Driver): Promise<void> {
   try {
+    await selectOnlyQuestionTypeShared(driver, 'choice');
     await clickByIdShared(driver, 'HomeStartButton');
-    await driver.delayMs(1500);
-    await driver.assertComponentExist(ON.id('BattleTitle'));
+    await waitForBattlePage(driver);
     await driver.assertComponentExist(ON.id('BattlePrompt'));
     for (let i = 0; i < 3; i++) {
       await tapWrongAnswerShared(driver);
@@ -155,12 +161,12 @@ export default function homeToolbarLockedUiTest(): void {
         await seedThreeWrongAnswersViaBattle(driver);
 
         await clickByIdShared(driver, 'HomeReviewButton');
-        await driver.delayMs(1500);
-        await driver.assertComponentExist(ON.id('BattleTitle'));
+        await waitForBattlePage(driver);
         await driver.assertComponentExist(ON.text('Monster 1 / 3'));
         await finishBattleAndReturnHome(driver);
       } finally {
         await clearLearningRecordsAndRefreshHome(driver);
+        await selectAllQuestionTypesShared(driver);
       }
       done();
     });

@@ -3,8 +3,14 @@ import { Driver, ON } from '@kit.TestKit';
 import {
   launchAppShared,
   clickByIdShared,
+  selectAllQuestionTypesShared,
   tapWrongAnswerShared,
 } from './RoutingFlow.ui.test';
+import {
+  returnToHome,
+  startTodayBattleChoiceOnly,
+  waitForBattlePage,
+} from './UiTestBattleHelpers.ets';
 
 /**
  * ReviewMode UI test (spec §15 V0.2 Track D). Exercises the
@@ -28,6 +34,7 @@ export default function reviewModeUiTest(): void {
   describe('ReviewModeUiTest', () => {
     it('reviewButtonUnlocksAfterThreeWrongAnswers', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
+      await returnToHome(driver);
 
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       // v0.3.6: HomeReviewButton lives in the top toolbar (replacing
@@ -46,11 +53,7 @@ export default function reviewModeUiTest(): void {
       // subset of WORD_MAP. Default cfg.playerHp = 10 is still
       // honoured by today-mode (BattlePage reads it before merging
       // the plan), so 3 misses keep us on BattlePage.
-      await clickByIdShared(driver, 'HomeStartButton');
-      // Today-mode loads WordRepository + LearningRecorder
-      // asynchronously; bumped from 1000ms to 1500ms.
-      await driver.delayMs(1500);
-      await driver.assertComponentExist(ON.id('BattleTitle'));
+      await startTodayBattleChoiceOnly(driver);
       for (let i = 0; i < 3; i++) {
         await tapWrongAnswerShared(driver);
         // Each wrong tap deals 1 damage; playerHp starts at 10 in the
@@ -71,7 +74,7 @@ export default function reviewModeUiTest(): void {
       // --- Review button must now be enabled (review.svg in top toolbar) ---
       await driver.assertComponentExist(ON.id('HomeReviewButton'));
       await clickByIdShared(driver, 'HomeReviewButton');
-      await driver.delayMs(1500);
+      await waitForBattlePage(driver);
       // The 3-monster override lives in REVIEW_MODE_MONSTERS_TOTAL.
       // Asserting on the header text "Monster 1 / 3" catches both
       // the mode flag and the override in one shot.
@@ -85,6 +88,7 @@ export default function reviewModeUiTest(): void {
       await clickByIdShared(driver, 'ResultHomeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await selectAllQuestionTypesShared(driver);
 
       expect(true).assertTrue();
       done();
