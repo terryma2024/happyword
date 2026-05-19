@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // Triggered by:
-//   - .github/workflows/server-ci.yml (auto, when `server / e2e (preview)` fails)
 //   - .github/workflows/cursor-autofix-e2e.yml (manual, workflow_dispatch)
 //
 // Spawns a Cursor Cloud Agent against the PR's head branch and asks it to
@@ -12,7 +11,7 @@
 //      the latest commit message embeds a resumable cloud agent id (see
 //      Agent.resume below).
 //   2. Per-PR round cap (MAX_ROUNDS) — once that many marker comments exist
-//      on the PR (auto + manual combined), refuse to trigger another agent.
+//      on the PR, refuse to trigger another agent.
 //   3. Unfixable failure filter — if the pytest log clearly indicates an
 //      environmental / deployment problem, refuse to trigger and explain why.
 //      Bypass via FORCE_TRIGGER=1.
