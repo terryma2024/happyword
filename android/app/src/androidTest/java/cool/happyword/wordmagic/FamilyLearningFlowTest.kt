@@ -308,7 +308,7 @@ class FamilyLearningFlowTest {
     private fun waitForBattleFeedbackToClear() {
         composeRule.waitUntil(timeoutMillis = 3_000) {
             composeRule.onAllNodesWithText("Correct: apple").fetchSemanticsNodes().isEmpty() &&
-                composeRule.onAllNodesWithText("Hit! -1").fetchSemanticsNodes().isEmpty() &&
+                composeRule.onAllNodesWithText("Correct!").fetchSemanticsNodes().isEmpty() &&
                 composeRule.onAllNodesWithText("Combo 3! Magic Burst x2").fetchSemanticsNodes().isEmpty()
         }
     }

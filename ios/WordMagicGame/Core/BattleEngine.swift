@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 enum BattleStatus: String, Codable, Equatable {
@@ -71,12 +72,12 @@ struct SessionResult: Equatable {
     var coinsTotal: Int = 0
 }
 
-final class BattleEngine {
+final class BattleEngine: ObservableObject {
     static let comboBurstThreshold = 3
     static let comboBurstDamage = 2
 
     private let questionSource: QuestionSource
-    private(set) var state: BattleState
+    @Published private(set) var state: BattleState
 
     init(questionSource: QuestionSource, config: GameConfig = .default) {
         self.questionSource = questionSource
@@ -90,6 +91,21 @@ final class BattleEngine {
             state.currentQuestion = question
             rememberWord(question.wordId)
         }
+    }
+
+    /// V0.8.4 — Spell wrong letter tap: −1 HP without advancing the question.
+    func applySpellLetterPenalty() -> Int {
+        guard state.status == .playing else { return 0 }
+        let damage = 1
+        var next = state
+        next.playerHp -= damage
+        if next.playerHp <= 0 {
+            next.playerHp = 0
+            next.status = .lost
+            next.currentQuestion = nil
+        }
+        state = next
+        return damage
     }
 
     func submitAnswer(_ option: String) throws -> AnswerOutcome {
@@ -153,6 +169,12 @@ final class BattleEngine {
         state.currentQuestion = next
         rememberWord(next.wordId)
         return outcome
+    }
+
+    /// Ends the battle immediately as a loss (Escape button).
+    func escapeBattle() {
+        guard state.status == .playing else { return }
+        finish(status: .lost)
     }
 
     func tick(deltaSeconds: Int) -> TickOutcome {

@@ -24,6 +24,21 @@ struct BattleAnimationEvent: Equatable {
     let damageLabel: String
     let playsMonsterDefeatCue: Bool
 
+    /// V0.8.4 — Spell letter-pool wrong tap (player −1 HP, question unchanged).
+    static func spellWrongTapPenalty(damage: Int) -> BattleAnimationEvent {
+        BattleAnimationEvent(
+            projectileDirection: .backward,
+            projectileIntensity: damage,
+            projectileLabel: "",
+            playerMotion: .hurt,
+            monsterMotion: .idle,
+            feedbackText: "Try again",
+            showsCritOverlay: false,
+            damageLabel: "-\(damage)",
+            playsMonsterDefeatCue: false,
+        )
+    }
+
     init(outcome: AnswerOutcome, word: String) {
         projectileLabel = word
         projectileIntensity = max(outcome.damage, 1)
@@ -49,5 +64,27 @@ struct BattleAnimationEvent: Equatable {
             feedbackText = "Correct answer: \(word)"
             showsCritOverlay = false
         }
+    }
+
+    private init(
+        projectileDirection: ProjectileDirection,
+        projectileIntensity: Int,
+        projectileLabel: String,
+        playerMotion: FighterMotion,
+        monsterMotion: FighterMotion,
+        feedbackText: String,
+        showsCritOverlay: Bool,
+        damageLabel: String,
+        playsMonsterDefeatCue: Bool,
+    ) {
+        self.projectileDirection = projectileDirection
+        self.projectileIntensity = projectileIntensity
+        self.projectileLabel = projectileLabel
+        self.playerMotion = playerMotion
+        self.monsterMotion = monsterMotion
+        self.feedbackText = feedbackText
+        self.showsCritOverlay = showsCritOverlay
+        self.damageLabel = damageLabel
+        self.playsMonsterDefeatCue = playsMonsterDefeatCue
     }
 }

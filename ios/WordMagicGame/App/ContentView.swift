@@ -17,7 +17,9 @@ struct ContentView: View {
             case .home:
                 HomeView(coordinator: coordinator)
             case .battle:
-                BattleView(coordinator: coordinator)
+                if let engine = coordinator.battleEngine {
+                    BattleView(coordinator: coordinator, engine: engine)
+                }
             case .result:
                 ResultView(coordinator: coordinator)
             case .config:

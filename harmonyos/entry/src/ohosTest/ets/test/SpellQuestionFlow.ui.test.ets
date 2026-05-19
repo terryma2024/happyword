@@ -89,7 +89,7 @@ async function startFruitForestBattle(driver: Driver): Promise<void> {
 
 async function exitToHome(driver: Driver): Promise<void> {
   try {
-    const finish: Component | null = await driver.findComponent(ON.id('BattleFinishButton'));
+    const finish: Component | null = await driver.findComponent(ON.id('BattleEscapeButton'));
     if (finish !== null) {
       await finish.click();
       await driver.delayMs(800);

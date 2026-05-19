@@ -7,7 +7,7 @@ data class WordEntry(
 )
 
 data class GameConfig(
-    val playerHp: Int = 5,
+    val playerHp: Int = 10,
     val monsterHp: Int = 3,
     val monsterCount: Int = 5,
     val timerSeconds: Int = 300,

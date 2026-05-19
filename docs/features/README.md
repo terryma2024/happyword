@@ -24,7 +24,7 @@ For every feature, agents work inside `docs/features/<feature-id>/`, where `<fea
 
 | Feature ID | Slug | Owner | Status | Replication approved | Folder |
 | --- | --- | --- | --- | --- | --- |
-| `2026-05-18-battle-balance-v0-8-4` | battle-balance-v0-8-4 | (V0.8.4 — 战斗平衡与题型节奏) | Stage 1 | no | [`2026-05-18-battle-balance-v0-8-4/`](2026-05-18-battle-balance-v0-8-4/) |
+| `2026-05-18-battle-balance-v0-8-4` | battle-balance-v0-8-4 | (V0.8.4 — 战斗平衡与题型节奏) | Stage 5 | yes | [`2026-05-18-battle-balance-v0-8-4/`](2026-05-18-battle-balance-v0-8-4/) |
 | `2026-05-18-battle-polish-v0-8-3` | battle-polish-v0-8-3 | (V0.8.3 — 战斗与词包体验小优化) | Stage 2 | no | [`2026-05-18-battle-polish-v0-8-3/`](2026-05-18-battle-polish-v0-8-3/) |
 | `_example` | example-stable-id-toggle | (worked-through reference) | Done | yes | [`_example/`](_example/) |
 <!-- Append new rows above this line, newest at the top. -->

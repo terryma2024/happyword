@@ -39,7 +39,7 @@ export default function battleFlowUiTest() {
       }
       expect(floaterGone).assertTrue();
 
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await clickByIdShared(driver, 'ResultHomeButton');
       await driver.delayMs(800);

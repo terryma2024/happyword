@@ -90,7 +90,7 @@ async function seedThreeWrongAnswersViaBattle(driver: Driver): Promise<void> {
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('BattlePrompt'));
     }
-    await clickByIdShared(driver, 'BattleFinishButton');
+    await clickByIdShared(driver, 'BattleEscapeButton');
     await driver.delayMs(800);
     await driver.assertComponentExist(ON.id('ResultTitle'));
     await clickByIdShared(driver, 'ResultHomeButton');
@@ -103,7 +103,7 @@ async function seedThreeWrongAnswersViaBattle(driver: Driver): Promise<void> {
 
 async function finishBattleAndReturnHome(driver: Driver): Promise<void> {
   try {
-    await clickByIdShared(driver, 'BattleFinishButton');
+    await clickByIdShared(driver, 'BattleEscapeButton');
     await driver.delayMs(800);
     await driver.assertComponentExist(ON.id('ResultTitle'));
     await clickByIdShared(driver, 'ResultHomeButton');

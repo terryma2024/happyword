@@ -1,6 +1,5 @@
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
-import BuildProfile from 'BuildProfile';
 import { CharacterCard, CharacterKind } from '../components/CharacterCard';
 import { ChoiceButton, ChoiceState } from '../components/ChoiceButton';
 import { SpellingArea } from '../components/SpellingArea';
@@ -58,7 +57,6 @@ import { DamageFloaterLabel } from '../components/DamageFloaterLabel';
 import { MagicProjectile } from '../components/MagicProjectile';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
-import { shouldShowDebugBattleFinishButton } from '../services/ReleaseGate';
 
 /**
  * BattlePage is the core gameplay screen.
@@ -86,9 +84,8 @@ import { shouldShowDebugBattleFinishButton } from '../services/ReleaseGate';
  *   handed to ResultPage via router params so the page renders stats
  *   without needing the engine to outlive the navigation.
  *
- * The dev-only `[debug] end battle` link is kept as a smoke-test escape
- * hatch; it now also builds a best-effort SessionResult so the result
- * screen still displays plausible numbers.
+ * Escape in the header ends the battle early (timer forced to zero → Lost)
+ * and routes to ResultPage with a SessionResult built from current stats.
  */
 
 // V0.1 FEEDBACK_MS = 650 kept for V0.2. CritOverlay's ~700 ms
@@ -1278,13 +1275,12 @@ struct BattlePage {
   }
 
   /**
-   * Smoke-test affordance — ends the battle immediately by advancing the
-   * engine's clock past zero, which flips it to Lost, then hands the
-   * resulting SessionResult to ResultPage. If the engine hasn't finished
-   * loading yet, fall back to an empty result so the navigation still
-   * completes and the user can return to Home.
+   * Escape — ends the battle immediately by advancing the engine's clock
+   * past zero (Lost), then routes to ResultPage. If the engine hasn't
+   * finished loading yet, fall back to an empty result so navigation still
+   * completes.
    */
-  private onDebugEndBattle(): void {
+  private onEscapeBattle(): void {
     const engine: BattleEngine | undefined = this.engine;
     if (engine === undefined) {
       this.navigateToResult(new SessionResult());
@@ -1469,6 +1465,22 @@ struct BattlePage {
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
         .fontColor('#1D3557');
+      Button('Escape', { type: ButtonType.Normal })
+        .id('BattleEscapeButton')
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .fontColor('#1D3557')
+        .backgroundColor(Color.Transparent)
+        .borderWidth(1)
+        .borderColor('#A8CCF0')
+        .borderRadius(18)
+        .height(36)
+        .padding({ left: 12, right: 12 })
+        .margin({ left: 8 })
+        .enabled(this.feedbackTimer < 0)
+        .onClick((): void => {
+          this.onEscapeBattle();
+        });
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 12, bottom: 12 });
@@ -1638,22 +1650,6 @@ struct BattlePage {
       .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center);
 
-      if (shouldShowDebugBattleFinishButton(BuildProfile.BUILD_MODE_NAME)) {
-        // Dev-only escape hatch: jump straight to ResultPage with whatever
-        // stats are current. Builds a SessionResult from the *current*
-        // BattleState (treating the mid-session numbers as a synthetic
-        // Lost), so ResultPage always has real data to render. Mirrors the
-        // production path — it goes through navigateToResult so the
-        // tick-timer is cleaned up and the end-handled guard is honoured.
-        Text('[debug] end battle')
-          .id('BattleFinishButton')
-          .fontSize(12)
-          .fontColor('#888888')
-          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-          .onClick((): void => {
-            this.onDebugEndBattle();
-          });
-      }
     }
     .id('QuestionArea')
     .layoutWeight(2)

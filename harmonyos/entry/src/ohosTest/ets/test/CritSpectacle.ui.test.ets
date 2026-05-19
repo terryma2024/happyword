@@ -68,7 +68,7 @@ export default function critSpectacleUiTest() {
       await driver.assertComponentExist(ON.text('Combo: 0'));
 
       // Return to HomePage so the suite remains re-runnable.
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BattleView: View {
     @ObservedObject var coordinator: AppCoordinator
+    @ObservedObject var engine: BattleEngine
     @State private var feedbackQuestion: Question?
     @State private var feedbackOptions: [String] = []
     @State private var selectedOption: String?
@@ -23,20 +24,28 @@ struct BattleView: View {
     @State private var pendingBattleEnd = false
     @State private var spellSlots: [String] = []
     @State private var spellConsumedIndices: Set<Int> = []
+    @State private var spellShakingPoolIndex: Int?
+    @State private var playerFloaters: [FloaterPending] = []
+    @State private var monsterFloaters: [FloaterPending] = []
+    @State private var nextFloaterKey = 0
 
-    private var state: BattleState? {
-        coordinator.battleEngine?.state
+    private let maxFloatersPerSide = 4
+    private let floaterStackOffset: CGFloat = 6
+    private let battleImpactDelayNs: UInt64 = 340_000_000
+
+    private var state: BattleState {
+        engine.state
     }
 
     private var displayedQuestion: Question? {
-        feedbackQuestion ?? state?.currentQuestion
+        feedbackQuestion ?? state.currentQuestion
     }
 
     private var displayedOptions: [String] {
         if feedbackQuestion != nil {
             return feedbackOptions
         }
-        guard let question = state?.currentQuestion else { return [] }
+        guard let question = state.currentQuestion else { return [] }
         return options(for: question)
     }
 
@@ -51,14 +60,16 @@ struct BattleView: View {
                             imageName: playerImageName,
                             title: "Magician",
                             subtitle: "Player",
-                            hp: state?.playerHp ?? 0,
-                            maxHp: state?.playerMaxHp ?? 1,
+                            hp: state.playerHp,
+                            maxHp: state.playerMaxHp,
                             tint: AppTheme.paleBlue,
                             scale: playerScale,
                             offsetX: playerOffsetX,
                             rotation: playerRotation,
                             glowOpacity: playerGlowOpacity,
-                            hurtOpacity: playerHurtOpacity
+                            hurtOpacity: playerHurtOpacity,
+                            floaters: playerFloaters,
+                            floaterSide: .player
                         )
                         .accessibilityIdentifier("PlayerArea")
 
@@ -68,15 +79,17 @@ struct BattleView: View {
                         fighterCard(
                             imageName: currentMonsterArt.imageName,
                             title: currentMonsterArt.name,
-                            subtitle: "Monster \(state?.monsterIndex ?? 1) / \(state?.monstersTotal ?? 5)",
-                            hp: state?.monsterHp ?? 0,
-                            maxHp: state?.monsterMaxHp ?? 1,
+                            subtitle: "Monster \(state.monsterIndex) / \(state.monstersTotal)",
+                            hp: state.monsterHp,
+                            maxHp: state.monsterMaxHp,
                             tint: AppTheme.palePink,
                             scale: monsterScale,
                             offsetX: monsterOffsetX,
                             rotation: 0,
                             glowOpacity: 0,
-                            hurtOpacity: monsterHurtOpacity
+                            hurtOpacity: monsterHurtOpacity,
+                            floaters: monsterFloaters,
+                            floaterSide: .monster
                         )
                         .accessibilityIdentifier("MonsterArea")
                     }
@@ -99,10 +112,11 @@ struct BattleView: View {
         }
         .background(AppTheme.page)
         .onAppear {
-            resetSpellProgress(for: state?.currentQuestion)
+            resetSpellProgress(for: state.currentQuestion)
             coordinator.autoSpeakCurrentBattleAnswer(isRevealing: false)
         }
-        .onChange(of: state?.currentQuestion) { _, question in
+        .onChange(of: state.currentQuestion?.wordId) { _, _ in
+            let question = state.currentQuestion
             resetSpellProgress(for: question)
         }
         .onDisappear {
@@ -118,7 +132,7 @@ struct BattleView: View {
 
     private var topStatus: some View {
         HStack {
-            Text("Combo: \(state?.comboCount ?? 0)")
+            Text("Combo: \(state.comboCount)")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(AppTheme.navy)
                 .accessibilityIdentifier("BattleComboLabel")
@@ -128,10 +142,16 @@ struct BattleView: View {
                 .foregroundStyle(AppTheme.navy)
                 .accessibilityIdentifier("BattleTitle")
             Spacer()
-            Text("Countdown \(formatTime(state?.remainingSeconds ?? 0))")
+            Text("Countdown \(formatTime(state.remainingSeconds))")
                 .font(.title3.monospacedDigit().weight(.bold))
                 .foregroundStyle(AppTheme.navy)
                 .accessibilityIdentifier("BattleTimerLabel")
+            Button("Escape") {
+                coordinator.escapeBattle()
+            }
+            .buttonStyle(.bordered)
+            .disabled(feedbackQuestion != nil)
+            .accessibilityIdentifier("BattleEscapeButton")
         }
     }
 
@@ -306,6 +326,9 @@ struct BattleView: View {
         guard displayedQuestion?.kind == .spell else {
             return false
         }
+        if spellShakingPoolIndex != nil {
+            return true
+        }
         return spellConsumedIndices.contains(index)
     }
 
@@ -319,20 +342,51 @@ struct BattleView: View {
     }
 
     private func handleSpellLetterTap(_ letter: String, poolIndex: Int, question: Question) {
-        guard !spellConsumedIndices.contains(poolIndex),
+        guard feedbackQuestion == nil,
+              spellShakingPoolIndex == nil,
+              !spellConsumedIndices.contains(poolIndex),
+              poolIndex >= 0,
+              poolIndex < question.spellPool.count,
               let nextIndex = spellSlots.firstIndex(where: \.isEmpty),
               question.spellLetters.indices.contains(nextIndex)
         else { return }
 
-        if letter == question.spellLetters[nextIndex] {
-            spellSlots[nextIndex] = letter
+        let tapped = question.spellPool[poolIndex]
+        let expected = question.spellLetters[nextIndex]
+
+        if tapped == expected {
+            spellSlots[nextIndex] = tapped
             spellConsumedIndices.insert(poolIndex)
             if !spellSlots.contains("") {
                 handleOptionTap(question.answer)
             }
         } else {
-            feedbackText = "Try again"
+            let damage = engine.applySpellLetterPenalty()
+            guard damage > 0 else { return }
+
+            spellShakingPoolIndex = poolIndex
+            feedbackQuestion = question
+            feedbackOptions = question.spellPool
+            selectedOption = letter
+            optionFeedback = .wrong
+
+            let event = BattleAnimationEvent.spellWrongTapPenalty(damage: damage)
+            feedbackText = event.feedbackText
             feedbackColor = AppTheme.red
+            pendingBattleEnd = engine.state.status == .lost
+            feedbackSerial += 1
+            triggerAnimation(event)
+
+            Task {
+                try? await Task.sleep(nanoseconds: 220_000_000)
+                await MainActor.run {
+                    spellShakingPoolIndex = nil
+                    if pendingBattleEnd {
+                        return
+                    }
+                    clearFeedback()
+                }
+            }
         }
     }
 
@@ -368,27 +422,36 @@ struct BattleView: View {
         offsetX: Double,
         rotation: Double,
         glowOpacity: Double,
-        hurtOpacity: Double
+        hurtOpacity: Double,
+        floaters: [FloaterPending],
+        floaterSide: BattleFloaterSide
     ) -> some View {
         VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .fill(AppTheme.gold.opacity(glowOpacity))
-                    .frame(width: 112, height: 112)
-                    .blur(radius: 1)
-                    .accessibilityIdentifier("CritCastGlow")
-                Image(imageName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 112, height: 88)
-                Circle()
-                    .fill(Color(red: 0.90, green: 0.22, blue: 0.28).opacity(hurtOpacity))
-                    .frame(width: 112, height: 92)
-                    .accessibilityIdentifier(title == "Magician" ? "PlayerHurtOverlay" : "MonsterHurtOverlay")
+            ZStack(alignment: .top) {
+                ZStack {
+                    Circle()
+                        .fill(AppTheme.gold.opacity(glowOpacity))
+                        .frame(width: 112, height: 112)
+                        .blur(radius: 1)
+                        .accessibilityIdentifier("CritCastGlow")
+                    Image(imageName)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 112, height: 88)
+                    Circle()
+                        .fill(Color(red: 0.90, green: 0.22, blue: 0.28).opacity(hurtOpacity))
+                        .frame(width: 112, height: 92)
+                        .accessibilityIdentifier(title == "Magician" ? "PlayerHurtOverlay" : "MonsterHurtOverlay")
+                }
+                .scaleEffect(scale)
+                .offset(x: offsetX)
+                .rotationEffect(.degrees(rotation))
+
+                damageFloaterStack(floaters: floaters, side: floaterSide)
+                    .offset(y: floaterSide == .player ? -10 : -12)
+                    .allowsHitTesting(false)
             }
-            .scaleEffect(scale)
-            .offset(x: offsetX)
-            .rotationEffect(.degrees(rotation))
+            .frame(maxWidth: .infinity)
             Text(title)
                 .font(.title2.weight(.heavy))
                 .foregroundStyle(AppTheme.navy)
@@ -483,12 +546,16 @@ struct BattleView: View {
     }
 
     private func triggerAnimation(_ event: BattleAnimationEvent) {
+        let damage = max(event.projectileIntensity, 1)
         triggerProjectile(event)
         switch event.playerMotion {
         case .nudge:
             triggerPlayerNudge()
         case .hurt:
-            triggerPlayerHurt()
+            scheduleBattleImpact {
+                triggerPlayerHurt()
+                pushFloater(side: .player, amount: damage)
+            }
         case .cast:
             triggerPlayerCast()
         case .idle, .zoom:
@@ -496,18 +563,94 @@ struct BattleView: View {
         }
 
         Task {
-            try? await Task.sleep(nanoseconds: 320_000_000)
+            try? await Task.sleep(nanoseconds: battleImpactDelayNs)
             if Task.isCancelled { return }
             await MainActor.run {
                 switch event.monsterMotion {
                 case .hurt:
                     triggerMonsterHurt()
+                    pushFloater(side: .monster, amount: damage)
                 case .zoom:
                     triggerMonsterZoom()
                     triggerCritOverlay(damageLabel: event.damageLabel)
+                    pushFloater(side: .monster, amount: damage)
                 case .idle, .nudge, .cast:
                     break
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func damageFloaterStack(floaters: [FloaterPending], side: BattleFloaterSide) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(floaters.enumerated()), id: \.element.id) { index, item in
+                DamageFloaterLabel(
+                    amount: item.amount,
+                    stackOffset: item.stackOffset,
+                    accessibilityId: floaterAccessibilityId(side: side, index: index, count: floaters.count, key: item.id),
+                    onDispose: { removeFloater(side: side, key: item.id) },
+                )
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func floaterAccessibilityId(side: BattleFloaterSide, index: Int, count: Int, key: Int) -> String {
+        let base = side == .player ? "BattleDamageFloaterLabel_player" : "BattleDamageFloaterLabel_monster"
+        if index == count - 1 {
+            return base
+        }
+        return "\(base)_\(key)"
+    }
+
+    private func pushFloater(side: BattleFloaterSide, amount: Int) {
+        let dmg = amount >= 2 ? 2 : 1
+        switch side {
+        case .player:
+            var next = playerFloaters
+            if next.count >= maxFloatersPerSide {
+                next.removeFirst()
+            }
+            let pending = FloaterPending(
+                id: nextFloaterKey,
+                amount: dmg,
+                stackOffset: CGFloat(next.count) * floaterStackOffset,
+            )
+            nextFloaterKey += 1
+            next.append(pending)
+            playerFloaters = next
+        case .monster:
+            var next = monsterFloaters
+            if next.count >= maxFloatersPerSide {
+                next.removeFirst()
+            }
+            let pending = FloaterPending(
+                id: nextFloaterKey,
+                amount: dmg,
+                stackOffset: CGFloat(next.count) * floaterStackOffset,
+            )
+            nextFloaterKey += 1
+            next.append(pending)
+            monsterFloaters = next
+        }
+    }
+
+    private func removeFloater(side: BattleFloaterSide, key: Int) {
+        switch side {
+        case .player:
+            playerFloaters.removeAll { $0.id == key }
+        case .monster:
+            monsterFloaters.removeAll { $0.id == key }
+        }
+    }
+
+    private func scheduleBattleImpact(_ action: @escaping () -> Void) {
+        Task {
+            try? await Task.sleep(nanoseconds: battleImpactDelayNs)
+            if Task.isCancelled { return }
+            await MainActor.run {
+                action()
             }
         }
     }
@@ -720,7 +863,7 @@ struct BattleView: View {
     }
 
     private var currentMonsterCatalogIndex: Int {
-        let battleIndex = max(state?.monsterIndex ?? 1, 1)
+        let battleIndex = max(state.monsterIndex, 1)
         let slots = coordinator.selectedPack.scene.monsterPlan
         guard !slots.isEmpty else { return battleIndex }
 

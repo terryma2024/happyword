@@ -64,7 +64,7 @@ export default function reviewModeUiTest(): void {
       }
 
       // Exit via [debug] so we land on ResultPage deterministically.
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');
@@ -82,7 +82,7 @@ export default function reviewModeUiTest(): void {
       await driver.assertComponentExist(ON.text('Monster 1 / 3'));
 
       // Clean up so the suite can continue — debug finish + home.
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');

@@ -379,7 +379,7 @@ export default function routingFlowUiTest(): void {
      * 2. Click Start -> BattlePage renders title, player HP, monster HP, combo.
      * 3. Clicking each of the three option buttons keeps us on BattlePage
      *    (they are skeleton stubs until QuestionGenerator wires up in T6).
-     * 4. Click BattleFinishButton -> ResultPage renders title + all stat rows.
+     * 4. Click BattleEscapeButton -> ResultPage renders title + all stat rows.
      * 5. Click ResultHomeButton -> back on HomePage.
      */
     it('mainFlow_homeBattleResultHome', 0, async (done: Function) => {
@@ -460,7 +460,7 @@ export default function routingFlowUiTest(): void {
       // Use the debug escape hatch to jump to ResultPage deterministically —
       // testing the full win/lose flow with random words would require
       // seeding the engine from outside the app, which is out of scope.
-      await clickById(driver, 'BattleFinishButton');
+      await clickById(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
 
       // --- ResultPage ---

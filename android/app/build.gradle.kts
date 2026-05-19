@@ -11,8 +11,8 @@ android {
         applicationId = "cool.happyword.wordmagic"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1_007_000
-        versionName = "0.7.0"
+        versionCode = 1_008_004
+        versionName = "0.8.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

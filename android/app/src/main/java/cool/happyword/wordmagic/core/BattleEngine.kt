@@ -13,8 +13,41 @@ class BattleEngine(
     private val shuffleOptions: (List<String>) -> List<String> = { options -> options.shuffled() },
     private val randomDouble: () -> Double = { Math.random() },
 ) {
+    private val scheduler: BattleQuestionScheduler = BattleQuestionScheduler(
+        rawPlanWordIds = words.map { it.id },
+        enabledTypes = config.sanitizedQuestionTypes(),
+        rng = randomDouble,
+    )
+
+    /** V0.8.4 — Spell wrong letter tap: −1 HP without advancing the question. */
+    fun applySpellLetterPenalty(state: BattleState): Pair<Int, BattleState> {
+        if (state.status != BattleStatus.Playing) return 0 to state
+        val nextPlayerHp = (state.playerHp - 1).coerceAtLeast(0)
+        val nextState = state.copy(
+            playerHp = nextPlayerHp,
+            status = if (nextPlayerHp <= 0) BattleStatus.Lost else BattleStatus.Playing,
+        )
+        return 1 to nextState
+    }
+
+    fun spellLetterPenaltyOutcome(state: BattleState): BattleAnswerOutcome {
+        val (damage, nextState) = applySpellLetterPenalty(state)
+        return BattleAnswerOutcome(
+            selectedAnswer = "",
+            correctAnswer = state.question.correctAnswer,
+            question = state.question,
+            correct = false,
+            damage = damage,
+            comboTriggered = false,
+            monsterDefeated = false,
+            playerDamaged = damage > 0,
+            battleEnded = nextState.status != BattleStatus.Playing,
+            nextState = nextState,
+        )
+    }
+
     fun initialState(): BattleState {
-        val question = questionFor(words.first(), monsterIndex = 1)
+        val question = nextScheduledQuestion(words.firstOrNull()?.id, monsterIndex = 1)
         return BattleState(
             playerHp = config.playerHp,
             monsterHp = config.monsterHp,
@@ -161,33 +194,59 @@ class BattleEngine(
 
     private fun kindEnabled(kind: QuestionKind): Boolean = enabledKindSet().contains(kind)
 
-    private fun questionFor(word: WordEntry, monsterIndex: Int): Question {
-        val role = questionRoleFor(monsterIndex)
-        val builders: List<(WordEntry) -> Question?> = when (role) {
-            MonsterQuestionRole.Boss -> listOf(
-                ::spellQuestionFor,
-                ::mediumFillLetterQuestionFor,
-                ::fillLetterQuestionFor,
-                { w -> choiceQuestionFor(w) },
-            )
-            MonsterQuestionRole.Elite -> listOf(
-                ::mediumFillLetterQuestionFor,
-                ::fillLetterQuestionFor,
-                { w -> choiceQuestionFor(w) },
-            )
-            MonsterQuestionRole.Spelling -> listOf(
-                ::fillLetterQuestionFor,
-                { w -> choiceQuestionFor(w) },
-            )
-            MonsterQuestionRole.Normal -> listOf(
-                { w -> choiceQuestionFor(w) },
-            )
+    private fun nextScheduledQuestion(lastWordId: String?, monsterIndex: Int): Question {
+        if (words.isEmpty()) {
+            return stateFallbackQuestion(lastWordId ?: "")
         }
-        for (b in builders) {
-            val q = b(word) ?: continue
+        val canServe: WordKindSupportFn = { wordId, kind ->
+            words.find { it.id == wordId }?.let { BattleQuestionTypePolicy.wordSupportsQuestionType(it, kind) }
+                ?: false
+        }
+        val pick = scheduler.pickNext(lastWordId, canServe)
+        val word = when {
+            pick.preferredWordId.isNotEmpty() -> words.find { it.id == pick.preferredWordId }
+            else -> null
+        } ?: pickWordForType(pick.kind, lastWordId) ?: words.first()
+        val phasePool = scheduler.activePhasePool()
+        val resolvedType = BattleQuestionTypePolicy.resolveQuestionTypeWithinPool(word, pick.kind, phasePool)
+        val question = questionForType(word, resolvedType, monsterIndex)
+        scheduler.markServed(word.id, BattleQuestionTypePolicy.kindToTypeId(question.kind), canServe)
+        return question
+    }
+
+    private fun pickWordForType(typeId: String, lastWordId: String?): WordEntry? {
+        for (entry in words) {
+            if (BattleQuestionTypePolicy.wordSupportsQuestionType(entry, typeId)) {
+                if (words.size > 1 && entry.id == lastWordId) continue
+                return entry
+            }
+        }
+        if (words.isEmpty()) return null
+        val currentIndex = words.indexOfFirst { it.id == lastWordId }
+        val nextIndex = when {
+            words.size == 1 -> 0
+            currentIndex < 0 -> 0
+            else -> (currentIndex + 1) % words.size
+        }
+        return words[nextIndex]
+    }
+
+    private fun questionForType(word: WordEntry, typeId: String, monsterIndex: Int): Question {
+        val builders: List<(WordEntry) -> Question?> = when (typeId) {
+            BattleQuestionTypePolicy.SPELL -> listOf(::spellQuestionFor, ::mediumFillLetterQuestionFor, ::fillLetterQuestionFor, { w -> choiceQuestionFor(w) })
+            BattleQuestionTypePolicy.FILL_LETTER_MEDIUM -> listOf(::mediumFillLetterQuestionFor, ::fillLetterQuestionFor, { w -> choiceQuestionFor(w) })
+            BattleQuestionTypePolicy.FILL_LETTER -> listOf(::fillLetterQuestionFor, { w -> choiceQuestionFor(w) })
+            else -> listOf({ w -> choiceQuestionFor(w) })
+        }
+        for (builder in builders) {
+            val q = builder(word) ?: continue
             if (kindEnabled(q.kind)) return q
         }
         return choiceQuestionFor(word)
+    }
+
+    private fun questionFor(word: WordEntry, monsterIndex: Int): Question {
+        return nextScheduledQuestion(word.id, monsterIndex)
     }
 
     private fun choiceQuestionFor(word: WordEntry): Question {
@@ -291,18 +350,8 @@ class BattleEngine(
         )
     }
 
-    private fun nextQuestionAfter(currentWordId: String, monsterIndex: Int): Question {
-        if (words.isEmpty()) {
-            return stateFallbackQuestion(currentWordId)
-        }
-        val currentIndex = words.indexOfFirst { it.id == currentWordId || it.word == currentWordId }
-        val nextIndex = when {
-            words.size == 1 -> 0
-            currentIndex < 0 -> 0
-            else -> (currentIndex + 1) % words.size
-        }
-        return questionFor(words[nextIndex], monsterIndex)
-    }
+    private fun nextQuestionAfter(currentWordId: String, monsterIndex: Int): Question =
+        nextScheduledQuestion(currentWordId, monsterIndex)
 
     private fun stateFallbackQuestion(currentAnswer: String): Question {
         return Question(

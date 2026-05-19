@@ -59,7 +59,7 @@ export default function speakerButtonUiTest(): void {
       await driver.assertComponentExist(ON.text('Combo: 0'));
 
       // Leave the suite in a clean state for the next test.
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');

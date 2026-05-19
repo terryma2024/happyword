@@ -151,7 +151,7 @@ export default function monsterCatalogTest() {
     it('monsterIndexForKindMapsDifficultyToLevelRepresentatives', 0, () => {
       expect(monsterIndexForKind(MonsterKind.Normal)).assertEqual(1);
       expect(monsterIndexForKind(MonsterKind.Spelling)).assertEqual(2);
-      expect(monsterIndexForKind(MonsterKind.Review)).assertEqual(2);
+      expect(monsterIndexForKind(MonsterKind.Review)).assertEqual(1);
       expect(monsterIndexForKind(MonsterKind.Elite)).assertEqual(8);
       expect(monsterIndexForKind(MonsterKind.Boss)).assertEqual(10);
     });

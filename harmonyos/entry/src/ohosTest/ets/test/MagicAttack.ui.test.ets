@@ -73,7 +73,7 @@ export default function magicAttackUiTest() {
       }
 
       // Return to HomePage so the suite stays re-runnable.
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');
@@ -102,7 +102,7 @@ export default function magicAttackUiTest() {
       await driver.delayMs(900);
       await driver.assertComponentExist(ON.text('HP 2 / 3'));
 
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');

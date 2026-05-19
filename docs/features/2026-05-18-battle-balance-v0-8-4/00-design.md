@@ -1,7 +1,7 @@
 # V0.8.4 — 战斗平衡与题型节奏 — Cross-Platform Design
 
 > Feature ID: `2026-05-18-battle-balance-v0-8-4`
-> Status: `ready-for-harmony`
+> Status: `ready-for-replication`
 > Owner: Terry Ma (orchestrating); HarmonyOS implementer = first
 > Last updated: 2026-05-18
 

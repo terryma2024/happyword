@@ -262,15 +262,34 @@ final class PlanQuestionSource: QuestionSource {
     private let choiceGenerator: QuestionGenerator
     private let fillGenerator: FillLetterGenerator
     private let spellGenerator: SpellGenerator
+    private let scheduler: BattleQuestionScheduler?
     private var monsterIndexProvider: () -> Int = { 1 }
     private var cursor = 0
 
-    init(plan: BattleQuestionPlan, repository: WordRepository, randomSeed: UInt64 = 42) {
+    init(
+        plan: BattleQuestionPlan,
+        repository: WordRepository,
+        randomSeed: UInt64 = 42,
+        enabledQuestionTypes: [String]? = nil,
+        scheduler: BattleQuestionScheduler? = nil,
+    ) {
         self.plan = plan
         self.repository = repository
         choiceGenerator = QuestionGenerator(repository: repository, random: SeededRandom(seed: randomSeed))
         fillGenerator = FillLetterGenerator(random: SeededRandom(seed: randomSeed &+ 1))
         spellGenerator = SpellGenerator(random: SeededRandom(seed: randomSeed &+ 2))
+        if let scheduler {
+            self.scheduler = scheduler
+        } else if let enabledQuestionTypes {
+            var rng = SeededRandom(seed: randomSeed &+ 3)
+            self.scheduler = BattleQuestionScheduler(
+                planWordIds: plan.wordIds,
+                enabledTypes: enabledQuestionTypes,
+                rng: { rng.nextDouble() },
+            )
+        } else {
+            self.scheduler = nil
+        }
     }
 
     func setMonsterIndexProvider(_ provider: @escaping () -> Int) {
@@ -278,6 +297,9 @@ final class PlanQuestionSource: QuestionSource {
     }
 
     func nextQuestion(lastWordId: String? = nil) throws -> Question {
+        if let scheduler {
+            return try nextScheduledQuestion(lastWordId: lastWordId, scheduler: scheduler)
+        }
         let word = pickWord(lastWordId: lastWordId)
         switch currentMonsterKind() {
         case .boss:
@@ -294,6 +316,70 @@ final class PlanQuestionSource: QuestionSource {
                 ?? choiceGenerator.nextQuestionForWord(word, lastWordId: lastWordId)
         case .normal, .review:
             return try choiceGenerator.nextQuestionForWord(word, lastWordId: lastWordId)
+        }
+    }
+
+    private func nextScheduledQuestion(
+        lastWordId: String?,
+        scheduler: BattleQuestionScheduler,
+    ) throws -> Question {
+        let canServe: WordKindSupportFn = { [repository] wordId, kind in
+            guard let word = repository.word(id: wordId) else { return false }
+            return BattleQuestionTypePolicy.wordSupportsQuestionType(word, typeId: kind)
+        }
+        let pick = scheduler.pickNext(lastWordId: lastWordId, canServe: canServe)
+        let word: WordEntry
+        if !pick.preferredWordId.isEmpty, let preferred = repository.word(id: pick.preferredWordId) {
+            word = preferred
+        } else {
+            word = pickWordForQuestionType(pick.kind, lastWordId: lastWordId)
+        }
+        let phasePool = scheduler.activePhasePool()
+        let resolvedType = BattleQuestionTypePolicy.resolveQuestionTypeWithinPool(
+            word,
+            primaryType: pick.kind,
+            pool: phasePool,
+        )
+        if let exact = try generateExactQuestion(resolvedType, word: word, lastWordId: lastWordId) {
+            scheduler.markServed(wordId: word.id, kind: exact.kind.rawValue, canServe: canServe)
+            return exact
+        }
+        let fallback = try choiceGenerator.nextQuestionForWord(word, lastWordId: lastWordId)
+        scheduler.markServed(wordId: word.id, kind: fallback.kind.rawValue, canServe: canServe)
+        return fallback
+    }
+
+    private func pickWordForQuestionType(_ typeId: String, lastWordId: String?) -> WordEntry {
+        let all = repository.all()
+        guard !all.isEmpty else {
+            return WordEntry(id: "", word: "", meaningZh: "", category: "", difficulty: 1)
+        }
+        for wordId in plan.wordIds {
+            if let word = repository.word(id: wordId),
+               BattleQuestionTypePolicy.wordSupportsQuestionType(word, typeId: typeId) {
+                if plan.wordIds.count > 1, wordId == lastWordId { continue }
+                return word
+            }
+        }
+        return pickWord(lastWordId: lastWordId)
+    }
+
+    private func generateExactQuestion(
+        _ targetType: String,
+        word: WordEntry,
+        lastWordId: String?,
+    ) throws -> Question? {
+        switch targetType {
+        case QuestionKind.choice.rawValue:
+            return try choiceGenerator.nextQuestionForWord(word, lastWordId: lastWordId)
+        case QuestionKind.fillLetter.rawValue:
+            return try fillGenerator.generate(word)
+        case QuestionKind.fillLetterMedium.rawValue:
+            return try fillGenerator.generateMedium(word)
+        case QuestionKind.spell.rawValue:
+            return try spellGenerator.generate(word)
+        default:
+            return nil
         }
     }
 

@@ -78,7 +78,8 @@ export default function battleQuestionTypePolicyTest() {
         zoo,
         questionTypeForMonsterLevel(MonsterLevel.Advanced),
       );
-      expect(resolved).assertEqual(QuestionKind.Choice);
+      // "zoo" (3 letters) supports single-blank fill; Advanced primary degrades to fill-letter.
+      expect(resolved).assertEqual(QuestionKind.FillLetter);
     });
 
     it('checksWordEligibilityForImplementedTypes', 0, () => {
