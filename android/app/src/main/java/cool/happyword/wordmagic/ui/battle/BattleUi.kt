@@ -184,12 +184,16 @@ internal fun BattleScreen(
     config: GameConfig,
     timeLeft: Int,
     onAnswer: (String) -> BattleAnswerOutcome,
+    onSpellWrongTap: () -> BattleAnswerOutcome,
     onBattleFinished: (BattleState) -> Unit,
-    onExit: () -> Unit,
+    onEscape: () -> Unit,
 ) {
     val context = LocalContext.current
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
     var activeOutcome by remember(runId) { mutableStateOf<BattleAnswerOutcome?>(null) }
+    var playerFloaters by remember(runId) { mutableStateOf(emptyList<FloaterPending>()) }
+    var monsterFloaters by remember(runId) { mutableStateOf(emptyList<FloaterPending>()) }
+    var nextFloaterKey by remember(runId) { mutableIntStateOf(0) }
     var ttsReady by remember { mutableStateOf(false) }
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
@@ -298,6 +302,9 @@ internal fun BattleScreen(
         }
         if (outcome.correct) {
             delay(PROJECTILE_IMPACT_MS)
+            val pushed = pushBattleFloater(monsterFloaters, nextFloaterKey, outcome.damage)
+            monsterFloaters = pushed.first
+            nextFloaterKey = pushed.second
             playBattleSound(context, if (outcome.comboTriggered) R.raw.hit_crit else R.raw.hit_normal)
             if (outcome.monsterDefeated && !outcome.battleEnded) {
                 delay(120)
@@ -306,6 +313,11 @@ internal fun BattleScreen(
         } else {
             playBattleSound(context, R.raw.answer_wrong)
             delay(PROJECTILE_IMPACT_MS)
+            if (outcome.playerDamaged) {
+                val pushed = pushBattleFloater(playerFloaters, nextFloaterKey, outcome.damage)
+                playerFloaters = pushed.first
+                nextFloaterKey = pushed.second
+            }
             playBattleSound(context, R.raw.player_hurt)
         }
         val remainingFeedback = BATTLE_FEEDBACK_MS - PROJECTILE_IMPACT_MS
@@ -343,25 +355,41 @@ internal fun BattleScreen(
                 Spacer(Modifier.weight(1f))
                 Badge("Time ${formatCountdown(timeLeft)}")
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = onExit, enabled = !feedbackLocked) { Text("Back") }
+                OutlinedButton(
+                    onClick = onEscape,
+                    enabled = !feedbackLocked,
+                    modifier = Modifier.testTag("BattleEscapeButton"),
+                ) {
+                    Text("Escape")
+                }
             }
             Spacer(Modifier.height(18.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(30.dp)) {
-                    CharacterPanel(
-                        title = "Small Magician",
-                        hp = state.playerHp,
-                        maxHp = config.playerHp,
-                        image = R.raw.character_magican,
-                        fightImage = R.raw.character_magican_fight,
-                        hurtImage = R.raw.character_magican_beaten,
-                        modifier = Modifier.weight(0.86f),
-                        panelColor = Color(0xFFDCEEFF),
-                        borderColor = Color(0xFFA8CCF0),
-                        isCasting = activeOutcome?.correct == true,
-                        isCritCasting = activeOutcome?.comboTriggered == true,
-                        isHurt = activeOutcome?.playerDamaged == true,
-                    )
+                    Box(modifier = Modifier.weight(0.86f)) {
+                        CharacterPanel(
+                            title = "Small Magician",
+                            hp = state.playerHp,
+                            maxHp = config.playerHp,
+                            image = R.raw.character_magican,
+                            fightImage = R.raw.character_magican_fight,
+                            hurtImage = R.raw.character_magican_beaten,
+                            modifier = Modifier.fillMaxSize(),
+                            panelColor = Color(0xFFDCEEFF),
+                            borderColor = Color(0xFFA8CCF0),
+                            isCasting = activeOutcome?.correct == true,
+                            isCritCasting = activeOutcome?.comboTriggered == true,
+                            isHurt = activeOutcome?.playerDamaged == true,
+                        )
+                        DamageFloaterStack(
+                            floaters = playerFloaters,
+                            side = BattleFloaterSide.Player,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = (-10).dp),
+                            onDispose = { key -> playerFloaters = playerFloaters.filter { it.id != key } },
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .weight(1.58f)
@@ -380,6 +408,11 @@ internal fun BattleScreen(
                                 SpellAnswerArea(
                                     question = displayQuestion,
                                     feedbackLocked = feedbackLocked,
+                                    onWrongLetterTap = {
+                                        if (activeOutcome == null) {
+                                            activeOutcome = onSpellWrongTap()
+                                        }
+                                    },
                                     onComplete = { option ->
                                         if (activeOutcome == null) {
                                             activeOutcome = onAnswer(option)
@@ -407,17 +440,27 @@ internal fun BattleScreen(
                             Text("Monster ${state.monsterIndex} / ${config.monsterCount}", color = Color(0xFF777777), fontSize = 18.sp)
                         }
                     }
-                    CharacterPanel(
-                        title = "Word Monster",
-                        hp = state.monsterHp,
-                        maxHp = config.monsterHp,
-                        image = monsterResourceForPack(pack.id),
-                        modifier = Modifier.weight(0.86f),
-                        panelColor = Color(0xFFF7D2D2),
-                        borderColor = Color(0xFFEAA0A0),
-                        isHurt = activeOutcome?.correct == true && activeOutcome?.comboTriggered != true,
-                        isZoomHit = activeOutcome?.comboTriggered == true,
-                    )
+                    Box(modifier = Modifier.weight(0.86f)) {
+                        CharacterPanel(
+                            title = "Word Monster",
+                            hp = state.monsterHp,
+                            maxHp = config.monsterHp,
+                            image = monsterResourceForPack(pack.id),
+                            modifier = Modifier.fillMaxSize(),
+                            panelColor = Color(0xFFF7D2D2),
+                            borderColor = Color(0xFFEAA0A0),
+                            isHurt = activeOutcome?.correct == true && activeOutcome?.comboTriggered != true,
+                            isZoomHit = activeOutcome?.comboTriggered == true,
+                        )
+                        DamageFloaterStack(
+                            floaters = monsterFloaters,
+                            side = BattleFloaterSide.Monster,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = (-12).dp),
+                            onDispose = { key -> monsterFloaters = monsterFloaters.filter { it.id != key } },
+                        )
+                    }
                 }
                 BattleProjectileOverlay(outcome = activeOutcome, modifier = Modifier.fillMaxSize().zIndex(2f))
             }
@@ -506,7 +549,12 @@ internal fun BattleAnswerArea(
 }
 
 @Composable
-internal fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onComplete: (String) -> Unit) {
+internal fun SpellAnswerArea(
+    question: Question,
+    feedbackLocked: Boolean,
+    onWrongLetterTap: () -> Unit,
+    onComplete: (String) -> Unit,
+) {
     var slots by remember(question.wordId, question.correctAnswer) {
         mutableStateOf(question.spellLetters.mapIndexed { index, letter ->
             if (question.spellRevealedMask.getOrElse(index) { false }) letter else ""
@@ -579,6 +627,7 @@ internal fun SpellAnswerArea(question: Question, feedbackLocked: Boolean, onComp
                         if (nextSlot < 0) return@Button
                         if (letter != expected) {
                             wrongPoolIndex = index
+                            onWrongLetterTap()
                             return@Button
                         }
                         val nextSlots = slots.toMutableList().also { it[nextSlot] = letter }
@@ -646,7 +695,7 @@ internal fun BattleFeedbackText(outcome: BattleAnswerOutcome) {
     val text = when {
         outcome.advancedStep -> "Good! Next letter"
         outcome.comboTriggered -> "Combo 3! Magic Burst x2"
-        outcome.correct -> "Hit! -${outcome.damage}"
+        outcome.correct -> "Correct!"
         else -> "Correct: ${correctOptionForOutcome(outcome)}"
     }
     val color = when {

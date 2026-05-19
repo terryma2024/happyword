@@ -51,7 +51,20 @@ struct ResultPage {
     merged.coinsEarned = incoming.coinsEarned !== undefined ? incoming.coinsEarned : merged.coinsEarned;
     merged.coinsTotal = incoming.coinsTotal !== undefined ? incoming.coinsTotal : merged.coinsTotal;
     merged.dailyCapHit = incoming.dailyCapHit !== undefined ? incoming.dailyCapHit : merged.dailyCapHit;
+    merged.bonusKillCount = incoming.bonusKillCount !== undefined ? incoming.bonusKillCount : merged.bonusKillCount;
+    merged.coinsBaseFromStars = incoming.coinsBaseFromStars !== undefined
+      ? incoming.coinsBaseFromStars
+      : merged.coinsBaseFromStars;
     this.result = merged;
+  }
+
+  private bonusCoinDelta(): number {
+    return this.result.coinsEarned - this.result.coinsBaseFromStars;
+  }
+
+  private bonusCoinRowText(): string {
+    const delta: number = this.bonusCoinDelta();
+    return `Bonus 怪物 ×${this.result.bonusKillCount} → +${delta} ✨`;
   }
 
   private coinLineText(): string {
@@ -136,6 +149,15 @@ struct ResultPage {
             .fontWeight(FontWeight.Medium)
             .fontColor('#FFB400')
             .margin({ top: 12 });
+          if (this.result.bonusKillCount > 0 &&
+              this.result.status === BattleStatus.Won &&
+              this.bonusCoinDelta() > 0) {
+            Text(this.bonusCoinRowText())
+              .id('BattleResultBonusCoinRow')
+              .fontSize(14)
+              .fontColor('#9A6B00')
+              .margin({ top: 6 });
+          }
           Text(`累计余额 ${this.result.coinsTotal} ✨`)
             .id('ResultCoinsTotal')
             .fontSize(13)

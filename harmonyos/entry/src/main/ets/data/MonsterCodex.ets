@@ -585,7 +585,7 @@ export const MONSTER_CODEX: CodexEntry[] = [
     'lava-toad',
     'Lava Toad',
     '熔岩圆蛙',
-    '熔岩圆蛙坐在温热岩石上，肚子一鼓一鼓像小灯笼。它只会吐出暖气泡，给小朋友暖手。',
+    '熔岩圆蛙坐在温热岩石上，肚子一鼓一鼓像小灯笼。它只会吐出暖气泡，给小朋友暖手取暖。',
     'character/lava-toad.svg'
   ),
   makeCodexEntry(

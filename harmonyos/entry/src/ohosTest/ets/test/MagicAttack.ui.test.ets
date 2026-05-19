@@ -3,9 +3,17 @@ import { Driver, ON } from '@kit.TestKit';
 import {
   launchAppShared,
   clickByIdShared,
+  selectAllQuestionTypesShared,
   tapCorrectAnswerShared,
   tapWrongAnswerShared,
 } from './RoutingFlow.ui.test';
+import {
+  assertPlayerHp,
+  findPlayerFullHpLabel,
+  parseHpLabel,
+  returnToHome,
+  startTodayBattleChoiceOnly,
+} from './UiTestBattleHelpers.ets';
 
 /**
  * MagicAttack UI test (BattlePage magic-projectile overhaul).
@@ -21,8 +29,8 @@ import {
  * pulse pipeline must preserve: damage is still applied even though it
  * is now delayed by ~320 ms (one projectile travel) past the click.
  *
- *   - tapping a wrong answer must drop the player's HP from "HP 5 / 5"
- *     to "HP 4 / 5" within the 650 ms feedback window. This proves the
+ *   - tapping a wrong answer must drop the player's HP from "HP 10 / 10"
+ *     to "HP 9 / 10" within the 650 ms feedback window. This proves the
  *     backward-projectile path still routes through `playerHurtPulse`
  *     and the engine's `submitAnswer` still applied damage to the
  *     player despite the new `scheduleImpact` setTimeout split.
@@ -40,44 +48,38 @@ import {
  * `.cursor/ohos-dev-commands.md` for the canonical invocation.
  */
 export default function magicAttackUiTest() {
-  describe('MagicAttackUiTest', () => {
+  describe('MagicAttack', () => {
     /**
      * Wrong answer: monster's backward projectile must land and apply
-     * exactly 1 damage to the player, taking HP 5 -> 4.
+     * exactly 1 damage to the player, taking HP 10 -> 9.
      */
     it('wrongAnswerDecreasesPlayerHpAfterProjectileImpact', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
-
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // v0.3.6: HomeStartButton routes to today's adventure. Today-mode
-      // honours cfg.playerHp (default 5) but its monster HP comes from
-      // the region monster plan; fruit-forest's first slot is a basic
-      // 3-HP Match question, so the projectile-damage invariants below
-      // ("HP 5 / 5" -> "HP 4 / 5", "HP 3 / 3" -> "HP 2 / 3") are still
-      // valid on the first slot.
-      await clickByIdShared(driver, 'HomeStartButton');
-      // Today-mode loads WordRepository + LearningRecorder
-      // asynchronously; bumped from 1000ms to 1500ms.
-      await driver.delayMs(1500);
-      await driver.assertComponentExist(ON.id('BattleTitle'));
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
+      await returnToHome(driver);
+      await startTodayBattleChoiceOnly(driver);
       // Pre-tap baseline: player at full HP.
-      await driver.assertComponentExist(ON.text('HP 5 / 5'));
+      const hpBefore: string = await findPlayerFullHpLabel(driver);
+      expect(hpBefore !== '').assertTrue();
+      const parsed = parseHpLabel(hpBefore);
+      expect(parsed !== null).assertTrue();
 
       await tapWrongAnswerShared(driver);
       // Wait long enough for: scheduleImpact (320 ms) + the
       // playerHurtPulse animation start + the 650 ms feedback window
       // tail. 900 ms covers all of it on a cold emulator.
       await driver.delayMs(900);
-      await driver.assertComponentExist(ON.text('HP 4 / 5'));
+      if (parsed !== null) {
+        await assertPlayerHp(driver, parsed.current - 1, parsed.max);
+      }
 
       // Return to HomePage so the suite stays re-runnable.
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await selectAllQuestionTypesShared(driver);
 
       expect(true).assertTrue();
       done();
@@ -89,30 +91,24 @@ export default function magicAttackUiTest() {
      */
     it('correctAnswerDecreasesMonsterHpAfterProjectileImpact', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
-
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // v0.3.6: HomeStartButton routes to today's adventure (see above).
-      await clickByIdShared(driver, 'HomeStartButton');
-      // Today-mode loads WordRepository + LearningRecorder
-      // asynchronously; bumped from 1000ms to 1500ms.
-      await driver.delayMs(1500);
-      await driver.assertComponentExist(ON.id('BattleTitle'));
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
+      await returnToHome(driver);
+      await startTodayBattleChoiceOnly(driver);
       // Pre-tap baseline: monster at full HP. Both cards render an HP
       // label so we use the monster's "HP 3 / 3" string to disambiguate
-      // from the player's "HP 5 / 5".
+      // from the player's "HP 10 / 10".
       await driver.assertComponentExist(ON.text('HP 3 / 3'));
 
       await tapCorrectAnswerShared(driver);
       await driver.delayMs(900);
       await driver.assertComponentExist(ON.text('HP 2 / 3'));
 
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await selectAllQuestionTypesShared(driver);
 
       expect(true).assertTrue();
       done();

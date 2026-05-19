@@ -1,4 +1,8 @@
 import { CodexEntry, MONSTER_CODEX } from '../data/MonsterCodex';
+import {
+  getMonsterByIndex,
+  levelBadgeZhForMonsterLevel,
+} from '../data/MonsterCatalog';
 import display from '@ohos.display';
 import { BusinessError } from '@ohos.base';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
@@ -95,6 +99,10 @@ struct MonsterCodexPage {
 
   private current(): CodexEntry {
     return MONSTER_CODEX[this.currentIndex];
+  }
+
+  private currentLevelBadgeZh(): string {
+    return levelBadgeZhForMonsterLevel(getMonsterByIndex(this.currentIndex + 1).level);
   }
 
   private goPrev(): void {
@@ -198,11 +206,23 @@ struct MonsterCodexPage {
   @Builder
   private nameBlock() {
     Column({ space: 6 }) {
-      Text(this.current().nameEn)
-        .id('CodexName')
-        .fontSize(this.nameFontSize())
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1D3557');
+      Row({ space: 8 }) {
+        Text(this.current().nameEn)
+          .id('CodexName')
+          .fontSize(this.nameFontSize())
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1D3557');
+
+        Text(this.currentLevelBadgeZh())
+          .id(`MonsterCodexLevelBadge_${this.current().key}`)
+          .fontSize(this.isPad() ? 14 : 11)
+          .fontColor('#FFFFFF')
+          .backgroundColor('#457B9D')
+          .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+          .borderRadius(9)
+          .constraintSize({ minWidth: 28, minHeight: 18 });
+      }
+      .justifyContent(FlexAlign.Center);
 
       Text(`「${this.current().kindLabelZh}」`)
         .id('CodexKindLabel')

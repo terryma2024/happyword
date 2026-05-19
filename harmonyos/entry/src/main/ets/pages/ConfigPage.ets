@@ -104,7 +104,7 @@ struct ConfigPage {
       });
 
     // V0.6.7: bootstrap the unified pack library + selection so the
-    // entry row can show "已激活 X/5". The full picker UI lives on
+    // entry row can show "已激活 X/10". The full picker UI lives on
     // `pages/PackManagerPage`.
     loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
       this.homeIntegration = bundle;
@@ -146,7 +146,7 @@ struct ConfigPage {
       console.error(`ConfigPage.onPageShow: refreshBindingState failed: ${JSON.stringify(err)}`);
     });
     // V0.6.7: PackManagerPage may have edited the active set; reload
-    // so the entry row's "已激活 X/5" text mirrors the persisted state.
+    // so the entry row's "已激活 X/10" text mirrors the persisted state.
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {

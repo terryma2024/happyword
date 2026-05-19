@@ -1,4 +1,4 @@
-import { MonsterKind } from '../data/MonsterCatalog';
+import { MonsterKind, MonsterLevel } from '../data/MonsterCatalog';
 import { QuestionKind } from '../models/Question';
 import { WordEntry } from '../models/WordEntry';
 
@@ -68,6 +68,74 @@ export function questionTypeForMonsterKind(kind: MonsterKind): string {
   }
   if (kind === MonsterKind.Boss) {
     return QuestionKind.Spell;
+  }
+  return QuestionKind.Choice;
+}
+
+/** V0.8.3 — primary question type from monster level (not MonsterKind). */
+export function questionTypeForMonsterLevel(level: MonsterLevel): string {
+  if (level === MonsterLevel.Intermediate) {
+    return QuestionKind.FillLetter;
+  }
+  if (level === MonsterLevel.Advanced) {
+    return QuestionKind.FillLetterMedium;
+  }
+  if (level === MonsterLevel.Super) {
+    return QuestionKind.Spell;
+  }
+  return QuestionKind.Choice;
+}
+
+/** Degrade one tier toward Choice when the word cannot host the primary type. */
+export function questionTypeFallbackChain(primaryType: string): string[] {
+  if (primaryType === QuestionKind.Spell) {
+    return [
+      QuestionKind.Spell,
+      QuestionKind.FillLetterMedium,
+      QuestionKind.FillLetter,
+      QuestionKind.Choice,
+    ];
+  }
+  if (primaryType === QuestionKind.FillLetterMedium) {
+    return [
+      QuestionKind.FillLetterMedium,
+      QuestionKind.FillLetter,
+      QuestionKind.Choice,
+    ];
+  }
+  if (primaryType === QuestionKind.FillLetter) {
+    return [QuestionKind.FillLetter, QuestionKind.Choice];
+  }
+  return [QuestionKind.Choice];
+}
+
+export function resolveQuestionTypeForWord(word: WordEntry, primaryType: string): string {
+  const chain: string[] = questionTypeFallbackChain(primaryType);
+  for (let i: number = 0; i < chain.length; i++) {
+    if (wordSupportsQuestionType(word, chain[i])) {
+      return chain[i];
+    }
+  }
+  return QuestionKind.Choice;
+}
+
+/** V0.8.4 — degrade only within the active schedule pool (intro or challenge). */
+export function resolveQuestionTypeWithinPool(
+  word: WordEntry,
+  primaryType: string,
+  pool: string[],
+): string {
+  const chain: string[] = questionTypeFallbackChain(primaryType);
+  for (let i: number = 0; i < chain.length; i++) {
+    const t: string = chain[i];
+    if (pool.indexOf(t) >= 0 && wordSupportsQuestionType(word, t)) {
+      return t;
+    }
+  }
+  for (let j: number = 0; j < pool.length; j++) {
+    if (wordSupportsQuestionType(word, pool[j])) {
+      return pool[j];
+    }
   }
   return QuestionKind.Choice;
 }

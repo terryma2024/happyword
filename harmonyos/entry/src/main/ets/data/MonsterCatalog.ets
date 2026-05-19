@@ -10,12 +10,21 @@ export enum MonsterKind {
   Boss = 'boss',
 }
 
+/** V0.8.3 difficulty tier — orthogonal to {@link MonsterKind} art grouping. */
+export enum MonsterLevel {
+  Beginner = 'beginner',
+  Intermediate = 'intermediate',
+  Advanced = 'advanced',
+  Super = 'super',
+}
+
 export class MonsterEntry {
   name: string = '';
   fill: string = '';
   stroke: string = '';
   kind: MonsterKind = MonsterKind.Normal;
   assetPath: string = '';
+  level: MonsterLevel = MonsterLevel.Beginner;
 }
 
 export function makeMonsterEntryWithKind(
@@ -150,6 +159,70 @@ export const MONSTER_CATALOG: MonsterEntry[] = [
   makeBossEntry('Music Box Fairy', '#227AB4', '#0F476C', 'character/music-box-fairy.svg'), // 100
 ];
 
+for (let i: number = 0; i < MONSTER_CATALOG.length; i++) {
+  MONSTER_CATALOG[i].level = monsterLevelForCatalogIndex(i + 1);
+}
+
+/**
+ * Level for a 1-based catalog index. Indices 1–10 follow the V0.8.3
+ * design table; 11–100 fill the 10 / 60 / 20 / 10 ratio bands.
+ */
+export function monsterLevelForCatalogIndex(index1Based: number): MonsterLevel {
+  if (index1Based <= 0) {
+    return MonsterLevel.Beginner;
+  }
+  const i: number = ((index1Based - 1) % MONSTER_CATALOG.length) + 1;
+  if (i === 1) {
+    return MonsterLevel.Beginner;
+  }
+  if (i >= 2 && i <= 7) {
+    return MonsterLevel.Intermediate;
+  }
+  if (i >= 8 && i <= 9) {
+    return MonsterLevel.Advanced;
+  }
+  if (i === 10) {
+    return MonsterLevel.Super;
+  }
+  if (i >= 11 && i <= 19) {
+    return MonsterLevel.Beginner;
+  }
+  if (i >= 20 && i <= 73) {
+    return MonsterLevel.Intermediate;
+  }
+  if (i >= 74 && i <= 91) {
+    return MonsterLevel.Advanced;
+  }
+  return MonsterLevel.Super;
+}
+
+/** Representative catalog index per level (today-plan slot wiring). */
+export function monsterCatalogIndexForLevel(level: MonsterLevel): number {
+  if (level === MonsterLevel.Beginner) {
+    return 1;
+  }
+  if (level === MonsterLevel.Intermediate) {
+    return 2;
+  }
+  if (level === MonsterLevel.Advanced) {
+    return 8;
+  }
+  return 10;
+}
+
+export function levelBadgeZhForMonsterLevel(level: MonsterLevel): string {
+  if (level === MonsterLevel.Beginner) {
+    return '初';
+  }
+  if (level === MonsterLevel.Intermediate) {
+    return '中';
+  }
+  if (level === MonsterLevel.Advanced) {
+    return '高';
+  }
+  return 'Super';
+}
+
 export function getMonsterByIndex(index1Based: number): MonsterEntry {
   if (index1Based <= 0) {
     return MONSTER_CATALOG[0];
@@ -159,11 +232,14 @@ export function getMonsterByIndex(index1Based: number): MonsterEntry {
 }
 
 export function monsterIndexForKind(kind: MonsterKind): number {
-  if (kind === MonsterKind.Normal) {
-    return 1;
+  if (kind === MonsterKind.Normal || kind === MonsterKind.Review) {
+    return monsterCatalogIndexForLevel(MonsterLevel.Beginner);
   }
-  if (kind === MonsterKind.Spelling || kind === MonsterKind.Review) {
-    return 2;
+  if (kind === MonsterKind.Spelling) {
+    return monsterCatalogIndexForLevel(MonsterLevel.Intermediate);
   }
-  return 3;
+  if (kind === MonsterKind.Elite) {
+    return monsterCatalogIndexForLevel(MonsterLevel.Advanced);
+  }
+  return monsterCatalogIndexForLevel(MonsterLevel.Super);
 }

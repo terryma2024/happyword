@@ -435,6 +435,33 @@ fun WordMagicGameApp() {
         }
     }
 
+    fun finishBattleSession(finishedState: BattleState) {
+        val sessionResult = engine.resultFor(finishedState).copy(packId = selectedPack.id)
+        val credited = coinAccount.creditBattleReward(sessionResult.stars, LocalDate.now().toString())
+        val sessionRecord = BattleSessionRecord(
+            packId = selectedPack.id,
+            won = sessionResult.won,
+            stars = sessionResult.stars,
+            correctCount = sessionResult.correctCount,
+            wrongCount = sessionResult.wrongCount,
+            defeatedMonsters = sessionResult.defeatedMonsters,
+            completedAtMs = System.currentTimeMillis(),
+        )
+        learningRecorder.recordSession(sessionRecord)
+        repositories.saveLearningRecorder(learningRecorder)
+        cloudCoordinator.syncStats(learningRecorder.statsSnapshot(), System.currentTimeMillis())
+        if (sessionRecord.perfect) {
+            val rotation = selection.recordPerfectRun(selectedPack.id, packLibrary)
+            selection = rotation.selection
+            repositories.saveSelection(selection)
+            selectedPackId = selection.activePackIds.firstOrNull() ?: selectedPack.id
+        }
+        coinAccount = credited.account
+        repositories.saveCoinAccount(coinAccount)
+        result = sessionResult.copy(coinDelta = credited.delta)
+        route = AppRoute.Result
+    }
+
     ApplyOrientation(route)
     LaunchedEffect(route, devMenuRoutePreset) {
         if (route != AppRoute.DevMenu) return@LaunchedEffect
@@ -523,6 +550,12 @@ fun WordMagicGameApp() {
                     pack = selectedPack,
                     config = config,
                     timeLeft = battleTimeLeft,
+                    onSpellWrongTap = {
+                        val current = battleState ?: engine.initialState()
+                        val outcome = engine.spellLetterPenaltyOutcome(current)
+                        battleState = outcome.nextState
+                        outcome
+                    },
                     onAnswer = { answer ->
                         val outcome = engine.submitAnswerWithOutcome(battleState ?: engine.initialState(), answer)
                         selectedPack.words.firstOrNull { it.word == outcome.correctAnswer }?.let { answeredWord ->
@@ -538,33 +571,13 @@ fun WordMagicGameApp() {
                         battleState = next
                         outcome
                     },
-                    onBattleFinished = { finishedState ->
-                        val sessionResult = engine.resultFor(finishedState).copy(packId = selectedPack.id)
-                        val credited = coinAccount.creditBattleReward(sessionResult.stars, LocalDate.now().toString())
-                        val sessionRecord = BattleSessionRecord(
-                            packId = selectedPack.id,
-                            won = sessionResult.won,
-                            stars = sessionResult.stars,
-                            correctCount = sessionResult.correctCount,
-                            wrongCount = sessionResult.wrongCount,
-                            defeatedMonsters = sessionResult.defeatedMonsters,
-                            completedAtMs = System.currentTimeMillis(),
-                        )
-                        learningRecorder.recordSession(sessionRecord)
-                        repositories.saveLearningRecorder(learningRecorder)
-                        cloudCoordinator.syncStats(learningRecorder.statsSnapshot(), System.currentTimeMillis())
-                        if (sessionRecord.perfect) {
-                            val rotation = selection.recordPerfectRun(selectedPack.id, packLibrary)
-                            selection = rotation.selection
-                            repositories.saveSelection(selection)
-                            selectedPackId = selection.activePackIds.firstOrNull() ?: selectedPack.id
-                        }
-                        coinAccount = credited.account
-                        repositories.saveCoinAccount(coinAccount)
-                        result = sessionResult.copy(coinDelta = credited.delta)
-                        route = AppRoute.Result
+                    onBattleFinished = ::finishBattleSession,
+                    onEscape = {
+                        val current = battleState ?: engine.initialState()
+                        val escaped = current.copy(status = BattleStatus.Lost)
+                        battleState = escaped
+                        finishBattleSession(escaped)
                     },
-                    onExit = { route = AppRoute.Home },
                 )
                 AppRoute.Result -> ResultScreen(
                     result = result ?: SessionResult(false, 0, 0, 0, 0, 0, 0),

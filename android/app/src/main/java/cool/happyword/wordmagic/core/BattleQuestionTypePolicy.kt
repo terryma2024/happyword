@@ -44,4 +44,43 @@ object BattleQuestionTypePolicy {
             QuestionKind.FillLetterMedium -> FILL_LETTER_MEDIUM
             QuestionKind.Spell -> SPELL
         }
+
+    private fun alphaLetterCount(word: String): Int =
+        word.lowercase().count { it in 'a'..'z' }
+
+    fun wordSupportsQuestionType(word: WordEntry, typeId: String): Boolean {
+        val letters = alphaLetterCount(word.word)
+        return when (typeId) {
+            CHOICE -> word.word.isNotEmpty()
+            FILL_LETTER -> letters >= 3
+            FILL_LETTER_MEDIUM -> letters >= 4
+            SPELL -> letters in 4..9
+            else -> false
+        }
+    }
+
+    fun questionTypeFallbackChain(primaryType: String): List<String> =
+        when (primaryType) {
+            SPELL -> listOf(SPELL, FILL_LETTER_MEDIUM, FILL_LETTER, CHOICE)
+            FILL_LETTER_MEDIUM -> listOf(FILL_LETTER_MEDIUM, FILL_LETTER, CHOICE)
+            FILL_LETTER -> listOf(FILL_LETTER, CHOICE)
+            else -> listOf(CHOICE)
+        }
+
+    fun resolveQuestionTypeForWord(word: WordEntry, primaryType: String): String {
+        for (typeId in questionTypeFallbackChain(primaryType)) {
+            if (wordSupportsQuestionType(word, typeId)) return typeId
+        }
+        return CHOICE
+    }
+
+    fun resolveQuestionTypeWithinPool(word: WordEntry, primaryType: String, pool: List<String>): String {
+        for (typeId in questionTypeFallbackChain(primaryType)) {
+            if (pool.contains(typeId) && wordSupportsQuestionType(word, typeId)) return typeId
+        }
+        for (typeId in pool) {
+            if (wordSupportsQuestionType(word, typeId)) return typeId
+        }
+        return CHOICE
+    }
 }

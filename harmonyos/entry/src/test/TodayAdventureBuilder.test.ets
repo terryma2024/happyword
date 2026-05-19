@@ -14,7 +14,7 @@ import {
   MONSTER_PLAN_SLOT_COUNT,
   WORD_PLAN_MULTIPLIER,
 } from '../main/ets/models/AdventureRegion';
-import { MonsterKind } from '../main/ets/data/MonsterCatalog';
+import { MonsterKind, monsterIndexForKind } from '../main/ets/data/MonsterCatalog';
 import { QuestionKind } from '../main/ets/models/Question';
 
 function makeWord(id: string, word: string, category: string): WordEntry {
@@ -234,7 +234,7 @@ export default function todayAdventureBuilderTest() {
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
       const p: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
       const bossSlot: number = 3;
-      expect(p.monsterSlots[bossSlot].catalogIndex).assertEqual(3);
+      expect(p.monsterSlots[bossSlot].catalogIndex).assertEqual(monsterIndexForKind(MonsterKind.Boss));
       expect(p.monsterSlots[bossSlot].kind).assertEqual(MonsterKind.Boss);
     });
 
@@ -246,9 +246,11 @@ export default function todayAdventureBuilderTest() {
       const p: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
       for (let i: number = 0; i < p.monsterSlots.length; i++) {
         if (p.monsterSlots[i].kind === MonsterKind.Boss) {
-          expect(p.monsterSlots[i].catalogIndex > 3).assertTrue();
+          expect(region.bossCandidates.indexOf(p.monsterSlots[i].catalogIndex) >= 0).assertTrue();
         } else {
-          expect(p.monsterSlots[i].catalogIndex <= 3).assertTrue();
+          expect(p.monsterSlots[i].catalogIndex).assertEqual(
+            monsterIndexForKind(p.monsterSlots[i].kind),
+          );
         }
       }
     });

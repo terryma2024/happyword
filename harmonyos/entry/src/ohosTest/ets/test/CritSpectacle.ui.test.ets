@@ -3,8 +3,13 @@ import { Driver, ON } from '@kit.TestKit';
 import {
   launchAppShared,
   clickByIdShared,
+  selectAllQuestionTypesShared,
   tapCorrectAnswerShared,
 } from './RoutingFlow.ui.test';
+import {
+  returnToHome,
+  startTodayBattleChoiceOnly,
+} from './UiTestBattleHelpers.ets';
 
 /**
  * CritSpectacle UI test (spec §4.3 V0.2). The burst visuals themselves
@@ -35,22 +40,10 @@ export default function critSpectacleUiTest() {
   describe('CritSpectacleUiTest', () => {
     it('comboResetsToZeroOnThirdCorrectTap', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
-
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // v0.3.6: HomeStartButton routes to today's adventure (the
-      // legacy normal-mode entry was deleted along with the right-
-      // hand HomePage column). Today's first slot in the default
-      // fruit-forest region is a basic Match question with 3 HP and
-      // English fruit options drawn from WORD_MAP, so 3 correct taps
-      // still trigger the combo burst exactly as the old normal-mode
-      // 5×3 free-practice flow did.
-      await clickByIdShared(driver, 'HomeStartButton');
-      // Today-mode loads WordRepository + LearningRecorder
-      // asynchronously before pushing BattlePage; bumped from 1000ms
-      // to 1500ms so the first prompt is painted before the assert.
-      await driver.delayMs(1500);
-      await driver.assertComponentExist(ON.id('BattleTitle'));
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
+      await returnToHome(driver);
+      // V0.8.4: default Config enables all types (two_phase); combo
+      // test needs Choice options on every tap.
+      await startTodayBattleChoiceOnly(driver);
       // Rest-state: no taps yet, combo must be 0.
       await driver.assertComponentExist(ON.text('Combo: 0'));
 
@@ -75,12 +68,13 @@ export default function critSpectacleUiTest() {
       await driver.assertComponentExist(ON.text('Combo: 0'));
 
       // Return to HomePage so the suite remains re-runnable.
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await selectAllQuestionTypesShared(driver);
 
       expect(true).assertTrue();
       done();

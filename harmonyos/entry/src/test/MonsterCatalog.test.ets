@@ -2,9 +2,11 @@ import { describe, it, expect } from '@ohos/hypium';
 import {
   MonsterEntry,
   MonsterKind,
+  MonsterLevel,
   getMonsterByIndex,
   MONSTER_CATALOG,
-  monsterIndexForKind
+  monsterIndexForKind,
+  monsterLevelForCatalogIndex,
 } from '../main/ets/data/MonsterCatalog';
 
 const MONSTER_COUNT_CAP: number = 100;
@@ -146,18 +148,61 @@ export default function monsterCatalogTest() {
       expect(getMonsterByIndex(3).name).assertEqual('Dragon');
     });
 
-    it('monsterIndexForKindMapsDifficultyToArchetype', 0, () => {
+    it('monsterIndexForKindMapsDifficultyToLevelRepresentatives', 0, () => {
       expect(monsterIndexForKind(MonsterKind.Normal)).assertEqual(1);
       expect(monsterIndexForKind(MonsterKind.Spelling)).assertEqual(2);
-      expect(monsterIndexForKind(MonsterKind.Review)).assertEqual(2);
-      expect(monsterIndexForKind(MonsterKind.Elite)).assertEqual(3);
-      expect(monsterIndexForKind(MonsterKind.Boss)).assertEqual(3);
+      expect(monsterIndexForKind(MonsterKind.Review)).assertEqual(1);
+      expect(monsterIndexForKind(MonsterKind.Elite)).assertEqual(8);
+      expect(monsterIndexForKind(MonsterKind.Boss)).assertEqual(10);
     });
 
     it('archetypeEntriesHaveEmptyAssetPath', 0, () => {
       for (let i: number = 1; i <= 3; i++) {
         expect(getMonsterByIndex(i).assetPath).assertEqual('');
       }
+    });
+  });
+
+  describe('MonsterLevel (V0.8.3)', () => {
+    it('firstTenLevelsMatchDesignTable', 0, () => {
+      expect(getMonsterByIndex(1).level).assertEqual(MonsterLevel.Beginner);
+      expect(getMonsterByIndex(2).level).assertEqual(MonsterLevel.Intermediate);
+      expect(getMonsterByIndex(3).level).assertEqual(MonsterLevel.Intermediate);
+      expect(getMonsterByIndex(4).level).assertEqual(MonsterLevel.Intermediate);
+      expect(getMonsterByIndex(5).level).assertEqual(MonsterLevel.Intermediate);
+      expect(getMonsterByIndex(6).level).assertEqual(MonsterLevel.Intermediate);
+      expect(getMonsterByIndex(7).level).assertEqual(MonsterLevel.Intermediate);
+      expect(getMonsterByIndex(8).level).assertEqual(MonsterLevel.Advanced);
+      expect(getMonsterByIndex(9).level).assertEqual(MonsterLevel.Advanced);
+      expect(getMonsterByIndex(10).level).assertEqual(MonsterLevel.Super);
+    });
+
+    it('catalogLevelCountsMatchTargetRatio', 0, () => {
+      let beginner: number = 0;
+      let intermediate: number = 0;
+      let advanced: number = 0;
+      let superCount: number = 0;
+      for (let i: number = 1; i <= MONSTER_CATALOG.length; i++) {
+        const level: MonsterLevel = monsterLevelForCatalogIndex(i);
+        if (level === MonsterLevel.Beginner) {
+          beginner += 1;
+        } else if (level === MonsterLevel.Intermediate) {
+          intermediate += 1;
+        } else if (level === MonsterLevel.Advanced) {
+          advanced += 1;
+        } else {
+          superCount += 1;
+        }
+      }
+      expect(beginner).assertEqual(10);
+      expect(intermediate).assertEqual(60);
+      expect(advanced).assertEqual(20);
+      expect(superCount).assertEqual(10);
+    });
+
+    it('bossesAreNotForcedToAdvanced', 0, () => {
+      expect(getMonsterByIndex(4).kind).assertEqual(MonsterKind.Boss);
+      expect(getMonsterByIndex(4).level).assertEqual(MonsterLevel.Intermediate);
     });
   });
 

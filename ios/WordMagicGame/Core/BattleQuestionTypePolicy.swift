@@ -86,6 +86,51 @@ enum BattleQuestionTypePolicy {
         return false
     }
 
+    static func questionTypeFallbackChain(primaryType: String) -> [String] {
+        switch primaryType {
+        case QuestionKind.spell.rawValue:
+            return [
+                QuestionKind.spell.rawValue,
+                QuestionKind.fillLetterMedium.rawValue,
+                QuestionKind.fillLetter.rawValue,
+                QuestionKind.choice.rawValue,
+            ]
+        case QuestionKind.fillLetterMedium.rawValue:
+            return [
+                QuestionKind.fillLetterMedium.rawValue,
+                QuestionKind.fillLetter.rawValue,
+                QuestionKind.choice.rawValue,
+            ]
+        case QuestionKind.fillLetter.rawValue:
+            return [QuestionKind.fillLetter.rawValue, QuestionKind.choice.rawValue]
+        default:
+            return [QuestionKind.choice.rawValue]
+        }
+    }
+
+    static func resolveQuestionTypeForWord(_ word: WordEntry, primaryType: String) -> String {
+        for typeId in questionTypeFallbackChain(primaryType: primaryType)
+            where wordSupportsQuestionType(word, typeId: typeId) {
+            return typeId
+        }
+        return QuestionKind.choice.rawValue
+    }
+
+    static func resolveQuestionTypeWithinPool(
+        _ word: WordEntry,
+        primaryType: String,
+        pool: [String],
+    ) -> String {
+        for typeId in questionTypeFallbackChain(primaryType: primaryType)
+            where pool.contains(typeId) && wordSupportsQuestionType(word, typeId: typeId) {
+            return typeId
+        }
+        for typeId in pool where wordSupportsQuestionType(word, typeId: typeId) {
+            return typeId
+        }
+        return QuestionKind.choice.rawValue
+    }
+
     static func displayLabel(forTypeId typeId: String) -> String {
         switch typeId {
         case QuestionKind.choice.rawValue:

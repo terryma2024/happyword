@@ -1,6 +1,6 @@
 # Android Replica Design Index
 
-> Status: Phase 5 release-hardening gate in progress
+> Status: **bootstrap parity shipped (V0.7.1)** — Phase 5 release-hardening gate verified (2026-05-12); see [`07-release-readiness-checklist.md`](07-release-readiness-checklist.md).
 > Implementation branch: `codex/android-replica-phase5` merged via PR #66
 > Scope: native Kotlin / Jetpack Compose Android replication of the current HarmonyOS client.
 
@@ -21,7 +21,7 @@ This plan is grounded in:
 
 `android/` now contains a native Kotlin / Jetpack Compose project with Gradle wrapper, core battle flow, parent/admin flow, local growth and pack-management screens, cloud binding/debug routing surfaces, copied HarmonyOS art/audio resources, JVM tests, Compose UI tests, screenshot capture tests, and release-hardening gates.
 
-Phase 0-4 feature work has landed in the Android module. Phase 5 is the active gate: keep release/debug policy, offline fallback, screenshot baselines, and Gradle verification current before treating Android as release-ready. `shared/` remains contracts/fixtures only.
+Phases 0–5 have landed in the Android module for the **17-page bootstrap matrix** aligned with HarmonyOS V0.6.7.8. Phase 5 gates (screenshot baselines, release/debug policy, offline fallback, Gradle verification) were verified 2026-05-12. **After V0.7.1**, new capabilities use [`docs/sop/00-three-platform-feature-sop.md`](../sop/00-three-platform-feature-sop.md), not ad-hoc expansion of this index. `shared/` remains contracts/fixtures only.
 
 ## Document Map
 
@@ -86,7 +86,7 @@ Future Android work should continue to use focused Superpowers plans for each fo
 | Phase 2 | Local growth and pack management | Landed: PackManager, wishlist, codex, today plan, local learning report. |
 | Phase 3 | Parent cloud and device binding | Landed: binding surfaces, fixture-backed family/global pack sync, word-stats sync payload, device info. |
 | Phase 4 | Debug and preview operations | Landed: DevMenu, backend switcher, preview bypass, mock/preview routing. |
-| Phase 5 | Release hardening | Active gate: screenshot parity, release/debug policy, offline fallback tests, release variant and CI readiness. |
+| Phase 5 | Release hardening | **Landed** — screenshot parity, release/debug policy, offline fallback tests, `assembleRelease` (see checklist). |
 
 ## Non-Goals For This Planning Pass
 
