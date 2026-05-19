@@ -3,6 +3,10 @@
 build/
 */build/
 local.properties
+release-signing.properties
+release-keys/
+*.jks
+*.keystore
 .idea/
 captures/
 *.iml

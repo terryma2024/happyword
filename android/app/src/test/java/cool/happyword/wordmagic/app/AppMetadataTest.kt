@@ -14,6 +14,15 @@ class AppMetadataTest {
     }
 
     @Test
+    fun launcherLabelUsesChineseAppNameResource() {
+        val manifest = File("src/main/AndroidManifest.xml").readText()
+        val strings = File("src/main/res/values/strings.xml").readText()
+
+        assertTrue(manifest.contains("""android:label="@string/app_name""""))
+        assertTrue(strings.contains("""<string name="app_name">魔法背单词</string>"""))
+    }
+
+    @Test
     fun releaseManifestDoesNotAllowCleartextTraffic() {
         val manifest = File("src/main/AndroidManifest.xml").readText()
 

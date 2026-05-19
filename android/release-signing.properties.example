@@ -1,0 +1,6 @@
+# Copy to `release-signing.properties` for local release uploads.
+# Do not commit the copied file or any private keystore.
+WORDMAGIC_ANDROID_STORE_FILE=/absolute/path/to/wordmagic-upload.jks
+WORDMAGIC_ANDROID_STORE_PASSWORD=change-me
+WORDMAGIC_ANDROID_KEY_ALIAS=upload
+WORDMAGIC_ANDROID_KEY_PASSWORD=change-me

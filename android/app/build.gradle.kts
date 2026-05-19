@@ -1,7 +1,32 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+val releaseSigningProperties = Properties().apply {
+    val localFile = rootProject.file("release-signing.properties")
+    if (localFile.isFile) {
+        localFile.inputStream().use(::load)
+    }
+}
+
+fun releaseSigningValue(name: String): String? =
+    providers.gradleProperty(name).orNull
+        ?: providers.environmentVariable(name).orNull
+        ?: releaseSigningProperties.getProperty(name)
+
+val releaseStoreFilePath = releaseSigningValue("WORDMAGIC_ANDROID_STORE_FILE")
+val releaseStorePassword = releaseSigningValue("WORDMAGIC_ANDROID_STORE_PASSWORD")
+val releaseKeyAlias = releaseSigningValue("WORDMAGIC_ANDROID_KEY_ALIAS")
+val releaseKeyPassword = releaseSigningValue("WORDMAGIC_ANDROID_KEY_PASSWORD")
+val hasReleaseUploadSigning = listOf(
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
 
 android {
     namespace = "cool.happyword.wordmagic"
@@ -18,6 +43,25 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    signingConfigs {
+        if (hasReleaseUploadSigning) {
+            create("releaseUpload") {
+                storeFile = file(requireNotNull(releaseStoreFilePath))
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseUploadSigning) {
+                signingConfig = signingConfigs.getByName("releaseUpload")
+            }
+        }
     }
 }
 
