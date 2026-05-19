@@ -275,6 +275,61 @@ Cutover acceptance:
 - Existing Vercel Blob URLs stored in MongoDB remain readable.
 - Delete logic only deletes objects owned by the URL provider.
 
+### Vercel Preview Replacement
+
+First target: shared CloudBase staging preview.
+
+Current Vercel Preview responsibilities:
+
+- Per-PR preview URL for server E2E.
+- Preview manifest publishing to Vercel Blob.
+- Mobile DevMenu target discovery through `/api/v1/public/preview-urls.json`.
+- Cleanup on PR close and Vercel deployment pruning.
+
+Replacement sequence:
+
+1. **M8A shared staging.** Use existing CloudBase staging service
+   `happyword-server-staging` as the default QA/DevMenu target.
+2. **M8A manifest source.** Keep the public endpoint
+   `/api/v1/public/preview-urls.json`, but serve a CloudBase staging row from a
+   non-Vercel source such as `PREVIEW_MANIFEST_INLINE_JSON`.
+3. **M8A CI behavior.** Keep normal PR CI offline by default. Run CloudBase
+   staging smoke only on `workflow_dispatch`, a maintainer-approved label, or a
+   scheduled validation window.
+4. **M8B on-demand PR previews.** Later, selected PRs may deploy a temporary
+   CloudBase Run version or service only after service quota, route URL,
+   database isolation, and cleanup are implemented.
+5. **M8C retirement.** Remove Vercel preview deployment detection and Vercel
+   Blob manifest publishing only after DevMenu and CI can use CloudBase staging.
+
+Planned environment variables:
+
+| Variable | Required for | Notes |
+| --- | --- | --- |
+| `CLOUDBASE_STAGING_BASE_URL` | M8A shared staging smoke | CloudBase staging URL used by CI and DevMenu manifest. |
+| `PREVIEW_MANIFEST_INLINE_JSON` | M8A manifest replacement | JSON payload served by `/api/v1/public/preview-urls.json` before a Mongo-backed manifest exists. |
+| `CLOUDBASE_PREVIEW_MODE` | Future M8B | Suggested values: `shared_staging`, `on_demand_version`, `on_demand_service`. |
+
+Initial inline manifest shape:
+
+```json
+{
+  "items": [
+    {
+      "name": "CloudBase Staging",
+      "url": "https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com",
+      "branch": "shared-staging",
+      "provider": "cloudbase",
+      "source": "inline"
+    }
+  ]
+}
+```
+
+Do not enable automatic CloudBase service-per-PR preview creation until cleanup
+exists for PR close, TTL expiry, manifest row removal, and optional PR database
+cleanup.
+
 ### Filing and Certificate Readiness
 
 CloudBase filing page says mainland China servers used for websites or apps

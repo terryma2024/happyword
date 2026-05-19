@@ -1370,6 +1370,19 @@
 
 **Goal:** Remove dependency on Vercel Preview while keeping a useful QA target for server and mobile DevMenu validation.
 
+**Recommended staged replacement:**
+
+1. **M8A shared staging preview** - one long-lived CloudBase staging service
+   replaces Vercel Preview as the default QA target for server E2E and mobile
+   DevMenu. This is the first implementation because CloudBase service quota,
+   custom-domain filing, and per-PR route strategy are not proven yet.
+2. **M8B on-demand PR preview** - selected PRs can deploy a temporary CloudBase
+   Run version or service only when a maintainer adds a label or triggers a
+   workflow manually. Do not create one CloudBase service per PR by default.
+3. **M8C preview manifest replacement** - DevMenu keeps consuming
+   `GET /api/v1/public/preview-urls.json`, but the backing source is no longer
+   Vercel deployments or Vercel Blob.
+
 **Files:**
 
 - Modify: `.github/workflows/server-ci.yml`
@@ -1379,19 +1392,62 @@
 - Modify tests: `server/tests/test_preview_manifest_endpoint.py`
 - Modify docs: `docs/superpowers/runbooks/dev-menu-runbook.md`, `docs/ci-secrets.md`, `docs/server/cloudbase-run.md`
 
-- [ ] **Step 1: Choose preview model**
+- [ ] **Step 1: Choose M8A shared staging preview model**
 
   Use this first:
 
   ```text
   Model: shared CloudBase staging service
-  Manifest source: static/Mongo-maintained row for the staging URL
+  URL: CLOUDBASE_STAGING_BASE_URL
+  Manifest source: PREVIEW_MANIFEST_INLINE_JSON first, Mongo-maintained row later
+  CI trigger: pull_request runs offline pytest; smoke against shared staging is manual or gated
   PR-specific previews: disabled until service quota and routing strategy are clear
   ```
 
+  Acceptance:
+
+  - The DevMenu can show a `CloudBase Staging` row.
+  - `server-ci` does not deploy a new Vercel Preview for every PR.
+  - Shared staging smoke is opt-in/gated so two PRs cannot overwrite each
+    other's CloudBase staging data unexpectedly.
+
   Record this in `docs/server/cloudbase-run.md`.
 
-- [ ] **Step 2: Preserve endpoint contract**
+- [ ] **Step 2: Define M8B on-demand PR preview model**
+
+  Do not implement by default in M8A. Document the later model:
+
+  ```text
+  Trigger: workflow_dispatch or GitHub label, e.g. cloudbase-preview
+  Deploy target option A: temporary CloudBase Run version under happyword-server-staging
+  Deploy target option B: temporary service happyword-server-pr-<number>, only if service quota allows
+  Traffic: 0% for shared production/staging routes unless manually promoted
+  URL source: CloudBase default service/version URL or route recorded by deployment output
+  Cleanup trigger: PR closed, label removed, or TTL expiry
+  ```
+
+  Acceptance for the design stage:
+
+  - The plan names the quota, routing, data isolation, and cleanup risks.
+  - No automatic PR-specific CloudBase service is created until this model is
+    separately implemented and validated.
+
+- [ ] **Step 3: Define preview data isolation**
+
+  Shared staging preview uses one staging database. PR-specific previews must
+  not write to production data.
+
+  Required rules:
+
+  ```text
+  Shared staging: MONGO_DB_NAME=happyword_cloudbase_staging
+  PR-specific preview: MONGO_DB_NAME=happyword_pr_<number> or branch hash
+  Blob/COS provider: staging bucket only
+  Cron: disabled by default for PR-specific previews unless explicitly tested
+  OAuth: use staging callback domains only; do not add every PR URL to provider consoles
+  ```
+
+- [ ] **Step 4: Preserve endpoint contract**
 
   Keep client-facing endpoint:
 
@@ -1401,46 +1457,98 @@
 
   The response must continue to include preview rows compatible with current DevMenu expectations.
 
-- [ ] **Step 3: Add failing endpoint test for CloudBase manifest**
+- [ ] **Step 5: Add failing endpoint test for CloudBase manifest**
 
   Extend `server/tests/test_preview_manifest_endpoint.py` so it verifies a CloudBase staging row can be served without Vercel Blob.
 
   Expected before implementation: test fails because service still requires `PREVIEW_MANIFEST_BLOB_URL`.
 
-- [ ] **Step 4: Implement non-Vercel manifest source**
+- [ ] **Step 6: Implement non-Vercel manifest source**
 
   Recommended minimal implementation:
 
   - Add env var `PREVIEW_MANIFEST_INLINE_JSON`.
   - If set, serve it after JSON validation.
   - If unset, fall back to `PREVIEW_MANIFEST_BLOB_URL` for compatibility.
+  - Include fields needed by the current DevMenu, including label/name, base URL,
+    branch or source marker, commit SHA if known, and created/updated timestamp
+    when available.
+
+  Example CloudBase staging value:
+
+  ```json
+  {
+    "items": [
+      {
+        "name": "CloudBase Staging",
+        "url": "https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com",
+        "branch": "shared-staging",
+        "provider": "cloudbase",
+        "source": "inline"
+      }
+    ]
+  }
+  ```
 
   Acceptance: endpoint works on CloudBase without Vercel Blob.
 
-- [ ] **Step 5: Update DevMenu runbook**
+- [ ] **Step 7: Replace preview publishing workflow**
+
+  Replace the Vercel-specific publisher with one of these:
+
+  ```text
+  M8A publisher: GitHub Actions validates PREVIEW_MANIFEST_INLINE_JSON and smoke-tests CLOUDBASE_STAGING_BASE_URL.
+  M8B publisher: GitHub Actions deploys an on-demand CloudBase PR preview and writes the resulting URL into a manifest source.
+  ```
+
+  M8A should not require `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
+  `VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, or
+  `BLOB_READ_WRITE_TOKEN`.
+
+  M8B may require `TCB_SECRET_ID`, `TCB_SECRET_KEY`, `TCB_ENV_ID`, and a
+  cleanup workflow.
+
+- [ ] **Step 8: Update DevMenu runbook**
 
   Modify `docs/superpowers/runbooks/dev-menu-runbook.md`:
 
   - Explain that production `happyword.cool` still serves the manifest.
   - Mark Vercel Preview as retired after M8.
   - Add CloudBase staging target instructions.
+  - Explain that PR-specific CloudBase previews are manual/on-demand until quota,
+    routing, and cleanup are proven.
 
-- [ ] **Step 6: Simplify PR server CI**
+- [ ] **Step 9: Simplify PR server CI**
 
   In `.github/workflows/server-ci.yml`:
 
   - Keep offline pytest.
-  - Replace Vercel preview deploy/E2E with CloudBase staging E2E only if staging can safely be reused by PRs.
+  - Replace Vercel preview deploy/E2E with CloudBase shared staging smoke only
+    when a maintainer-triggered condition is present, such as
+    `workflow_dispatch` or a `cloudbase-smoke` label.
+  - Keep normal PR CI deterministic and offline by default.
   - Keep Cursor autofix only if its prompt reflects CloudBase staging, not Vercel preview.
 
-- [ ] **Step 7: Retire Vercel manifest workflow**
+- [ ] **Step 10: Add PR preview cleanup plan**
+
+  For M8B, define cleanup before enabling deploy:
+
+  - On PR close, delete or disable the temporary CloudBase service/version.
+  - On TTL expiry, clean any preview older than the configured retention window.
+  - Remove the preview row from the manifest source.
+  - Drop or archive the PR-specific Mongo database if one was created.
+
+  Acceptance: no PR-specific CloudBase resources can leak indefinitely.
+
+- [ ] **Step 11: Retire Vercel manifest workflow**
 
   After CloudBase manifest passes:
 
   - Disable `.github/workflows/preview-manifest.yml`, or replace it with a CloudBase manifest validation workflow.
   - Stop calling `server/scripts/update_preview_manifest.mjs` against Vercel deployments.
+  - Stop using Vercel deployment URL detection in `.github/workflows/server-ci.yml`.
 
-- [ ] **Step 8: Run validation**
+- [ ] **Step 12: Run validation**
 
   Run:
 
@@ -1449,11 +1557,13 @@
   uv run pytest -v tests/test_preview_manifest_endpoint.py
   uv run pytest -v
   curl -fsS https://happyword.cool/api/v1/public/preview-urls.json
+  curl -fsS "$CLOUDBASE_STAGING_BASE_URL/api/v1/public/health"
   ```
 
-  Expected: endpoint returns valid JSON without Vercel Blob.
+  Expected: endpoint returns valid JSON without Vercel Blob, and the CloudBase
+  staging row points to a healthy CloudBase service.
 
-- [ ] **Step 9: Commit preview replacement**
+- [ ] **Step 13: Commit preview replacement**
 
   Run:
 

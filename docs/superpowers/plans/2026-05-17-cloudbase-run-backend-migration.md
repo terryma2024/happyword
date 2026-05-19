@@ -154,6 +154,103 @@ Key risks:
 - Existing DB rows store absolute URLs, so backfill requires careful URL rewrite and rollback.
 - Upload content type, cache headers, and object key generation must remain stable across admin assets and lesson-import images.
 
+## Replacement Strategy: Vercel Preview Publishing
+
+Recommended first target: **shared CloudBase staging preview**, then optional
+**on-demand CloudBase PR previews** after quota, routing, and cleanup are proven.
+
+What Vercel Preview currently provides:
+
+- A deployable URL for each PR.
+- A target for `server-ci` E2E.
+- A source for `preview-urls.json`, which mobile DevMenu consumes.
+- A cleanup lifecycle tied to PR close and Vercel deployment pruning.
+- Vercel Deployment Protection bypass support for automation.
+
+CloudBase should replace these responsibilities in stages, not all at once.
+
+### M8A: Shared CloudBase Staging Preview
+
+Use one long-lived CloudBase Run service as the QA target:
+
+```text
+Service: happyword-server-staging
+URL: CLOUDBASE_STAGING_BASE_URL
+Database: happyword_cloudbase_staging
+Manifest row: CloudBase Staging
+PR-specific deploys: disabled by default
+```
+
+This becomes the replacement for normal Vercel Preview E2E and mobile DevMenu
+validation. It is intentionally not a per-PR environment. Normal PR CI should
+stay offline and deterministic; CloudBase staging smoke should be manual,
+scheduled, or label-gated so two PRs do not overwrite the same staging target
+at the same time.
+
+Manifest strategy:
+
+- Keep the public endpoint contract: `GET /api/v1/public/preview-urls.json`.
+- Add a non-Vercel source such as `PREVIEW_MANIFEST_INLINE_JSON`.
+- Fall back to `PREVIEW_MANIFEST_BLOB_URL` during Wave A.
+- The first CloudBase manifest can contain a single `CloudBase Staging` row.
+
+### M8B: On-Demand CloudBase PR Preview
+
+Use this only after M8A is stable.
+
+Trigger options:
+
+- `workflow_dispatch`
+- A GitHub label such as `cloudbase-preview`
+- A maintainer comment command, if a bot workflow is later added
+
+Deployment options:
+
+1. **Temporary version under `happyword-server-staging`.** Lower service-count
+   pressure, but routing/version URL semantics must be validated.
+2. **Temporary service `happyword-server-pr-<number>`.** Easier isolation, but
+   consumes CloudBase service quota and needs cleanup.
+
+Rules:
+
+- Do not create one CloudBase service for every PR by default.
+- Use a PR-specific database name such as `happyword_pr_<number>` or a branch
+  hash.
+- Use staging COS bucket/storage only.
+- Disable cron by default unless the PR explicitly tests cron.
+- Delete temporary services/versions and manifest rows when the PR closes or a
+  TTL expires.
+
+### M8C: Preview Manifest Replacement
+
+The manifest is operational metadata, not a static asset requirement.
+
+Preferred progression:
+
+1. `PREVIEW_MANIFEST_INLINE_JSON` for the shared staging row.
+2. Mongo-backed manifest rows if operators need to edit preview targets from
+   admin tools.
+3. GitHub Actions-generated manifest only if PR-specific previews become common.
+
+Vercel retirement acceptance:
+
+- `server-ci` no longer deploys or detects Vercel Preview URLs.
+- `.github/workflows/preview-manifest.yml` no longer writes Vercel Blob output.
+- `GET /api/v1/public/preview-urls.json` works without
+  `PREVIEW_MANIFEST_BLOB_URL`.
+- DevMenu can select `CloudBase Staging`.
+- Cursor autofix prompts mention CloudBase staging, not Vercel Preview.
+
+Key risks:
+
+- Shared staging is not isolated per PR, so PR smoke must be gated and
+  serialized.
+- CloudBase service quota can be exhausted if PR-specific services are
+  auto-created.
+- Custom domains may be blocked by ICP filing, so PR previews should initially
+  use CloudBase default domains.
+- Cleanup must exist before PR-specific previews are enabled.
+
 ## Target CloudBase Layout
 
 CloudBase environment:

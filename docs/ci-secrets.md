@@ -51,6 +51,8 @@ now only handles cleanup-on-close and manual repair runs.
 | `COS_SECRET_ID` / `COS_SECRET_KEY` | CloudBase runtime env | optional until M7 | New COS uploads cannot run without these when `ASSET_STORAGE_PROVIDER=tencent_cos`. |
 | `COS_REGION` / `COS_BUCKET` / `COS_PUBLIC_BASE_URL` | CloudBase runtime env | optional until M7 | COS URLs cannot be generated correctly without bucket and public base URL config. |
 | `TENCENTDB_MONGODB_URI` | Operator secret inventory | optional until M7A | Holds the future TencentDB for MongoDB URI before it replaces runtime `MONGODB_URI`. |
+| `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase runtime env | optional until M8 | Lets `/api/v1/public/preview-urls.json` serve CloudBase staging without Vercel Blob. |
+| `CLOUDBASE_PREVIEW_MODE` | CloudBase preview workflow | optional until M8B | Documents whether preview publishing is shared staging or on-demand CloudBase preview. |
 
 ## Setting secrets in the repo
 
@@ -125,6 +127,21 @@ temporary names below are only for operator inventory and staged cutover.
 | `ATLAS_MONGODB_URI_ROLLBACK` | Operator password manager only | Old Atlas URI retained for rollback; do not put this in GitHub logs. |
 
 Do not remove Atlas credentials until the database rollback window is complete.
+
+### CloudBase preview replacement secrets
+
+These names replace the Vercel Preview publishing path during M8.
+
+| Name | Where to store | Purpose |
+| --- | --- | --- |
+| `CLOUDBASE_STAGING_BASE_URL` | GitHub Actions / CloudBase env | Shared staging URL used for M8A smoke and DevMenu manifest. |
+| `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase env | Inline manifest payload used before a Mongo-backed manifest exists. |
+| `CLOUDBASE_PREVIEW_MODE` | GitHub Actions variable or CloudBase env | Suggested values: `shared_staging`, `on_demand_version`, `on_demand_service`. |
+
+M8A does not require `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
+`VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, or
+`BLOB_READ_WRITE_TOKEN` for preview publishing. Keep those Vercel values until
+the existing preview path is fully retired and rollback is no longer needed.
 
 ### `VERCEL_TOKEN`
 
