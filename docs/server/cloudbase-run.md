@@ -348,6 +348,39 @@ Do not enable automatic CloudBase service-per-PR preview creation until cleanup
 exists for PR close, TTL expiry, manifest row removal, and optional PR database
 cleanup.
 
+M8B on-demand PR preview design, not implemented yet:
+
+| Decision | M8B default |
+| --- | --- |
+| Trigger | `workflow_dispatch` or a maintainer-applied `cloudbase-preview` label. Never every PR by default. |
+| Preferred target | A temporary CloudBase Run version under `happyword-server-staging`, if CloudBase exposes a stable version URL that can be smoke-tested and added to the manifest. |
+| Fallback target | A temporary service named `happyword-server-pr-<number>` only if service quota, naming limits, and cleanup automation are proven. |
+| Traffic | 0% of production and shared staging traffic unless a maintainer explicitly promotes it. |
+| Manifest row | Add a row with `provider: cloudbase`, `source: github-actions`, PR number, branch, commit SHA, URL, and TTL expiry. |
+| Cleanup trigger | PR close, `cloudbase-preview` label removal, manual cleanup dispatch, or TTL expiry. |
+
+Preview data isolation rules:
+
+- Shared staging uses `MONGO_DB_NAME=happyword_cloudbase_staging`.
+- PR-specific previews use `MONGO_DB_NAME=happyword_pr_<number>`; fall back to
+  a branch hash only when no PR number exists.
+- PR-specific previews must use staging-only COS config. They must not write to
+  production buckets or reuse production asset domains.
+- Cron is disabled for PR-specific previews by default. Enable it only in a
+  dedicated smoke scenario with a short-lived database.
+- OAuth uses stable staging callback domains only. Do not register every PR URL
+  with Google, Apple, Alipay, or WeChat provider consoles.
+
+M8B cleanup requirements before implementation:
+
+- Delete or disable the temporary CloudBase Run version/service on PR close.
+- Remove the preview row from the manifest source on PR close, label removal,
+  manual cleanup, and TTL expiry.
+- Drop or archive the PR-specific Mongo database after the retention window.
+- Delete only PR-owned COS objects if the PR preview used a dedicated prefix;
+  never sweep shared staging or production asset prefixes.
+- Cleanup must be idempotent and safe to run repeatedly.
+
 Storage implementation status, 2026-05-20:
 
 - `ASSET_STORAGE_PROVIDER` defaults to `vercel_blob`, preserving current

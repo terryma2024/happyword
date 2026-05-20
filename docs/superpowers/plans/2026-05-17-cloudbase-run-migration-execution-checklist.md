@@ -1472,7 +1472,7 @@
   Completion note, 2026-05-20: M8A remains a single shared CloudBase staging row
   served by `PREVIEW_MANIFEST_INLINE_JSON`; PR-specific previews remain disabled.
 
-- [ ] **Step 2: Define M8B on-demand PR preview model**
+- [x] **Step 2: Define M8B on-demand PR preview model**
 
   Do not implement by default in M8A. Document the later model:
 
@@ -1491,7 +1491,13 @@
   - No automatic PR-specific CloudBase service is created until this model is
     separately implemented and validated.
 
-- [ ] **Step 3: Define preview data isolation**
+  Completion note, 2026-05-20: `docs/server/cloudbase-run.md` now defines the
+  M8B model as maintainer-triggered only (`workflow_dispatch` or
+  `cloudbase-preview` label), preferring temporary versions under the staging
+  service before considering per-PR services. No deployment workflow was
+  enabled.
+
+- [x] **Step 3: Define preview data isolation**
 
   Shared staging preview uses one staging database. PR-specific previews must
   not write to production data.
@@ -1505,6 +1511,11 @@
   Cron: disabled by default for PR-specific previews unless explicitly tested
   OAuth: use staging callback domains only; do not add every PR URL to provider consoles
   ```
+
+  Completion note, 2026-05-20: the CloudBase runbook now locks M8A to
+  `happyword_cloudbase_staging`, reserves PR-specific `happyword_pr_<number>`
+  databases for M8B, requires staging-only COS config, disables cron by
+  default, and forbids per-PR OAuth callback registration.
 
 - [x] **Step 4: Preserve endpoint contract**
 
@@ -1611,7 +1622,7 @@
   Vercel E2E, Blob manifest refresh, and Vercel E2E Cursor autofix were removed
   from `server-ci.yml`.
 
-- [ ] **Step 10: Add PR preview cleanup plan**
+- [x] **Step 10: Add PR preview cleanup plan**
 
   For M8B, define cleanup before enabling deploy:
 
@@ -1621,6 +1632,11 @@
   - Drop or archive the PR-specific Mongo database if one was created.
 
   Acceptance: no PR-specific CloudBase resources can leak indefinitely.
+
+  Completion note, 2026-05-20: the M8B design now requires idempotent cleanup
+  on PR close, label removal, manual dispatch, and TTL expiry, covering
+  CloudBase version/service removal, manifest row removal, optional PR database
+  cleanup, and PR-owned COS prefix cleanup only.
 
 - [ ] **Step 11: Retire Vercel manifest workflow**
 
