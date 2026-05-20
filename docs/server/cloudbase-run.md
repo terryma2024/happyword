@@ -310,6 +310,19 @@ Planned environment variables:
 | `PREVIEW_MANIFEST_INLINE_JSON` | M8A manifest replacement | JSON payload served by `/api/v1/public/preview-urls.json` before a Mongo-backed manifest exists. |
 | `CLOUDBASE_PREVIEW_MODE` | Future M8B | Suggested values: `shared_staging`, `on_demand_version`, `on_demand_service`. |
 
+Implementation status, 2026-05-20:
+
+- `server/app/services/preview_manifest_service.py` now checks
+  `PREVIEW_MANIFEST_INLINE_JSON` first and falls back to
+  `PREVIEW_MANIFEST_BLOB_URL` for legacy Vercel Preview compatibility.
+- Inline JSON can use the `items` shape below; the server normalizes it to the
+  existing `schema_version: 1` / `previews` response expected by current
+  clients.
+- HarmonyOS `PreviewManifestService` now accepts CloudBase default domains
+  ending in `.tcloudbase.com` as well as legacy `*.vercel.app` preview rows.
+- PR-specific CloudBase preview deployment is still disabled until quota,
+  routing, database isolation, and cleanup are implemented.
+
 Initial inline manifest shape:
 
 ```json
@@ -329,6 +342,20 @@ Initial inline manifest shape:
 Do not enable automatic CloudBase service-per-PR preview creation until cleanup
 exists for PR close, TTL expiry, manifest row removal, and optional PR database
 cleanup.
+
+Storage implementation status, 2026-05-20:
+
+- `ASSET_STORAGE_PROVIDER` defaults to `vercel_blob`, preserving current
+  behavior.
+- `ASSET_STORAGE_PROVIDER=tencent_cos` routes new uploads through the Tencent
+  COS XML API using `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_REGION`,
+  `COS_BUCKET`, and `COS_PUBLIC_BASE_URL`.
+- Delete routing is URL-owned: Vercel Blob URLs are sent only to Vercel delete,
+  COS URLs under `COS_PUBLIC_BASE_URL` are sent only to COS delete, and unknown
+  URLs are ignored.
+- Staging and production COS buckets are not provisioned yet, so CloudBase
+  services should keep `ASSET_STORAGE_PROVIDER=vercel_blob` until M7 staging
+  validation passes.
 
 ### Filing and Certificate Readiness
 

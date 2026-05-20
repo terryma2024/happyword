@@ -37,7 +37,7 @@
 
 - [x] **M0: Migration control plane ready** - accounts, domain, secrets inventory, and rollback policy are documented.
 - [x] **M1: Container runtime ready** - `server/` builds and runs locally as a CloudBase-compatible container.
-- [ ] **M2: CloudBase staging online** - default CloudBase domain serves health, public pages, admin login, and pack JSON.
+- [x] **M2: CloudBase staging online** - default CloudBase domain serves health, public pages, admin login, and pack JSON.
 - [x] **M3: Cron replacement online** - CloudBase timer calls the existing cron endpoint successfully.
 - [ ] **M4: Production domain ready** - `happyword.com.cn` can be bound to CloudBase with SSL and required filing state confirmed.
 - [ ] **M5: Production cutover complete** - `happyword.com.cn` points to CloudBase and smoke validation passes; `happyword.cool` moves only after that.
@@ -302,7 +302,7 @@
 
 - Modify: `docs/server/cloudbase-run.md`
 
-- [ ] **Step 1: Confirm CloudBase environment**
+- [x] **Step 1: Confirm CloudBase environment**
 
   In Tencent Cloud console:
 
@@ -323,7 +323,12 @@
   packs. The operator must upgrade to a paid package before this acceptance
   item can pass.
 
-- [ ] **Step 2: Create staging service**
+  Completion note, 2026-05-18: CloudBase was upgraded to Standard, pay-as-you-go
+  was enabled, environment `happyword-d5g66zmq8ef2430b8` was confirmed in
+  `ap-shanghai`, and the staging service URL is recorded in
+  `docs/server/cloudbase-run.md`.
+
+- [x] **Step 2: Create staging service**
 
   Create CloudBase Run service:
 
@@ -340,7 +345,10 @@
 
   Acceptance: service deploys and shows healthy version status.
 
-- [ ] **Step 3: Configure staging environment variables**
+  Completion note, 2026-05-18: `happyword-server-staging` version `002` is
+  normal and serving traffic on the CloudBase Run default domain.
+
+- [x] **Step 3: Configure staging environment variables**
 
   Set:
 
@@ -363,7 +371,11 @@
 
   Acceptance: values are set in CloudBase console; secrets are not committed to repo.
 
-- [ ] **Step 4: Smoke staging**
+  Completion note, 2026-05-18: required staging values were configured from the
+  operator secret source. Staging uses `MONGO_DB_NAME=happyword_cloudbase_staging`
+  and `LLM_PROVIDER=qwen`; no secret values were committed.
+
+- [x] **Step 4: Smoke staging**
 
   Run:
 
@@ -377,7 +389,11 @@
 
   Expected: no `404`, no platform error page, no startup exception in CloudBase logs.
 
-- [ ] **Step 5: Verify staging outbound dependency connectivity**
+  Completion note, 2026-05-18: health, public packs, privacy page, admin login,
+  preview manifest, and a lesson-image upload path passed against staging
+  version `002`; detailed statuses are recorded in `docs/server/cloudbase-run.md`.
+
+- [x] **Step 5: Verify staging outbound dependency connectivity**
 
   Verify these server-to-server paths from the CloudBase Run staging service,
   not only from the developer machine:
@@ -406,6 +422,10 @@
   in `docs/server/cloudbase-run.md`. Do not commit API keys, bearer tokens, or
   full provider responses.
 
+  Completion note, 2026-05-18: CloudBase Run can reach MongoDB Atlas and Vercel
+  Blob from staging. OpenAI timed out from CloudBase Shanghai, so staging was
+  switched to Qwen; `qwen3.6-plus` scan and async lesson import smoke passed.
+
 - [ ] **Step 6: Run staging E2E smoke**
 
   Run:
@@ -423,7 +443,11 @@
 
   Expected: smoke tests pass or failures are triaged as pre-existing staging data/setup issues and documented before continuing.
 
-- [ ] **Step 7: Commit staging runbook updates**
+  Status note, 2026-05-20: endpoint-level staging smoke passed, but the local
+  `uv run pytest -v -m smoke` command against CloudBase staging has not been
+  recorded yet. Keep this as the remaining optional M2 hardening check.
+
+- [x] **Step 7: Commit staging runbook updates**
 
   Run:
 
@@ -431,6 +455,9 @@
   git add docs/server/cloudbase-run.md
   git commit -m "docs: record cloudbase staging setup"
   ```
+
+  Completion note, 2026-05-18: staging runbook updates were committed across the
+  CloudBase migration branch history.
 
 ## M3: Cron Replacement
 
@@ -572,7 +599,7 @@
   {"status":200,"body":"{\"claimed\":0,\"succeeded\":0,\"failed\":0}","attempt":1}
   ```
 
-- [ ] **Step 8: Commit cron replacement**
+- [x] **Step 8: Commit cron replacement**
 
   Run:
 
@@ -582,6 +609,9 @@
   ```
 
   If `cloudbaserc.json` was intentionally committed, include it in the same commit.
+
+  Completion note, 2026-05-18: cron function source, runbook notes, and CI
+  secret docs were committed in `55298a9 add cloudbase cron extractor`.
 
 ## M4: Production Domain Readiness
 
@@ -992,7 +1022,7 @@
 - Modify: `docs/ci-secrets.md`
 - Modify: `docs/server/cloudbase-run.md`
 
-- [ ] **Step 1: Choose storage provider**
+- [x] **Step 1: Choose storage provider**
 
   Recommended choice:
 
@@ -1013,6 +1043,10 @@
 
   Record the selected provider and required env vars in `docs/server/cloudbase-run.md`.
 
+  Completion note, 2026-05-20: Tencent COS remains the selected first
+  replacement provider, with Vercel Blob as the default compatibility provider.
+  The selection and required env vars are recorded in `docs/server/cloudbase-run.md`.
+
 - [ ] **Step 2: Provision COS buckets**
 
   Create:
@@ -1029,7 +1063,7 @@
   Acceptance: a manually uploaded test object has a stable HTTPS URL and can be
   fetched from a browser without credentials.
 
-- [ ] **Step 3: Add failing storage-provider tests**
+- [x] **Step 3: Add failing storage-provider tests**
 
   Add `server/tests/test_storage_provider.py` with tests for:
 
@@ -1057,7 +1091,11 @@
 
   Expected before implementation: import or assertion failure.
 
-- [ ] **Step 4: Implement provider selection**
+  Completion note, 2026-05-20: `server/tests/test_storage_provider.py` was added
+  and initially failed because the provider module and COS routing helpers did
+  not exist.
+
+- [x] **Step 4: Implement provider selection**
 
   Add `server/app/services/storage_provider.py`:
 
@@ -1075,7 +1113,10 @@
       raise RuntimeError(f"Unsupported ASSET_STORAGE_PROVIDER={raw!r}")
   ```
 
-- [ ] **Step 5: Refactor `blob_service.py` without changing callers**
+  Completion note, 2026-05-20: `server/app/services/storage_provider.py` now
+  implements this provider selection.
+
+- [x] **Step 5: Refactor `blob_service.py` without changing callers**
 
   Keep public functions stable:
 
@@ -1088,7 +1129,10 @@
 
   Internally route to the selected provider. Preserve Vercel Blob behavior as the default.
 
-- [ ] **Step 6: Add Tencent COS implementation**
+  Completion note, 2026-05-20: public upload/delete helpers keep the same
+  signatures. `vercel_blob` remains the default provider.
+
+- [x] **Step 6: Add Tencent COS implementation**
 
   Add these environment variables:
 
@@ -1111,7 +1155,11 @@
 
   Acceptance: upload returns a stable public URL and existing callers do not change.
 
-- [ ] **Step 7: Preserve old Vercel Blob reads**
+  Completion note, 2026-05-20: `blob_service.py` includes a Tencent COS XML API
+  upload/delete path gated by `ASSET_STORAGE_PROVIDER=tencent_cos`. Live bucket
+  validation remains in Step 9.
+
+- [x] **Step 7: Preserve old Vercel Blob reads**
 
   Do not rewrite existing DB rows in the first storage wave.
 
@@ -1125,7 +1173,11 @@
 
   Acceptance: tests cover mixed old/new URL behavior.
 
-- [ ] **Step 8: Run storage tests**
+  Completion note, 2026-05-20: delete routing is based on URL ownership so
+  Vercel Blob URLs do not trigger COS delete and COS URLs do not trigger Vercel
+  delete. Existing DB URLs are not rewritten.
+
+- [x] **Step 8: Run storage tests**
 
   Run:
 
@@ -1136,6 +1188,10 @@
   ```
 
   Expected: `0 errors`, `0 warnings`.
+
+  Completion note, 2026-05-20: targeted storage/admin asset/lesson import tests
+  passed, and the full server suite passed with `539 passed, 64 skipped` and no
+  warnings.
 
 - [ ] **Step 9: Deploy storage switch to staging**
 
@@ -1392,7 +1448,7 @@
 - Modify tests: `server/tests/test_preview_manifest_endpoint.py`
 - Modify docs: `docs/superpowers/runbooks/dev-menu-runbook.md`, `docs/ci-secrets.md`, `docs/server/cloudbase-run.md`
 
-- [ ] **Step 1: Choose M8A shared staging preview model**
+- [x] **Step 1: Choose M8A shared staging preview model**
 
   Use this first:
 
@@ -1412,6 +1468,9 @@
     other's CloudBase staging data unexpectedly.
 
   Record this in `docs/server/cloudbase-run.md`.
+
+  Completion note, 2026-05-20: M8A remains a single shared CloudBase staging row
+  served by `PREVIEW_MANIFEST_INLINE_JSON`; PR-specific previews remain disabled.
 
 - [ ] **Step 2: Define M8B on-demand PR preview model**
 
@@ -1447,7 +1506,7 @@
   OAuth: use staging callback domains only; do not add every PR URL to provider consoles
   ```
 
-- [ ] **Step 4: Preserve endpoint contract**
+- [x] **Step 4: Preserve endpoint contract**
 
   Keep client-facing endpoint:
 
@@ -1457,13 +1516,19 @@
 
   The response must continue to include preview rows compatible with current DevMenu expectations.
 
-- [ ] **Step 5: Add failing endpoint test for CloudBase manifest**
+  Completion note, 2026-05-20: inline manifests are normalized to the existing
+  `schema_version: 1` / `previews` response shape.
+
+- [x] **Step 5: Add failing endpoint test for CloudBase manifest**
 
   Extend `server/tests/test_preview_manifest_endpoint.py` so it verifies a CloudBase staging row can be served without Vercel Blob.
 
   Expected before implementation: test fails because service still requires `PREVIEW_MANIFEST_BLOB_URL`.
 
-- [ ] **Step 6: Implement non-Vercel manifest source**
+  Completion note, 2026-05-20: server test failed with `503` before the inline
+  manifest implementation, then passed after implementation.
+
+- [x] **Step 6: Implement non-Vercel manifest source**
 
   Recommended minimal implementation:
 
@@ -1492,6 +1557,9 @@
 
   Acceptance: endpoint works on CloudBase without Vercel Blob.
 
+  Completion note, 2026-05-20: `PREVIEW_MANIFEST_INLINE_JSON` is served before
+  Vercel Blob and supports the documented `items` payload shape.
+
 - [ ] **Step 7: Replace preview publishing workflow**
 
   Replace the Vercel-specific publisher with one of these:
@@ -1508,7 +1576,7 @@
   M8B may require `TCB_SECRET_ID`, `TCB_SECRET_KEY`, `TCB_ENV_ID`, and a
   cleanup workflow.
 
-- [ ] **Step 8: Update DevMenu runbook**
+- [x] **Step 8: Update DevMenu runbook**
 
   Modify `docs/superpowers/runbooks/dev-menu-runbook.md`:
 
@@ -1517,6 +1585,9 @@
   - Add CloudBase staging target instructions.
   - Explain that PR-specific CloudBase previews are manual/on-demand until quota,
     routing, and cleanup are proven.
+
+  Completion note, 2026-05-20: the runbook now documents the inline CloudBase
+  manifest source, legacy Vercel fallback, and manual/on-demand PR preview caveat.
 
 - [ ] **Step 9: Simplify PR server CI**
 
