@@ -118,6 +118,8 @@ async def _render_pack_detail(
     *,
     user: User,
     definition: FamilyPackDefinition,
+    title_error: str = "",
+    title_ok: bool = False,
     publish_error: str = "",
     publish_row_errors: list[dict[str, object]] | None = None,
     batch_error: str = "",
@@ -137,6 +139,8 @@ async def _render_pack_detail(
             "pointer": pointer,
             "current_pack": pack,
             "draft": _serialize_draft(draft),
+            "title_error": title_error,
+            "title_ok": title_ok,
             "publish_error": publish_error,
             "publish_row_errors": publish_row_errors or [],
             "batch_error": batch_error,
@@ -197,6 +201,48 @@ async def create_pack_page(
         parent_user_id=user.username,
     )
     return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{definition.pack_id}", status_code=303)
+
+
+@router.post("/{family_id}/packs/{pack_id}/metadata", response_model=None)
+async def update_pack_metadata_page(
+    request: Request,
+    name: str = Form(...),
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
+) -> RedirectResponse | HTMLResponse:
+    _ = family_id
+    gate = await _require_parent_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    user = gate
+    definition = await _load_definition_or_redirect(pack_id, user)
+    if definition is None:
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
+    try:
+        updated = await svc.patch_definition(
+            pack_id=pack_id,
+            family_id=user.family_id or "",
+            name=name,
+            description=None,
+        )
+    except svc.NameTaken:
+        return await _render_pack_detail(
+            request,
+            user=user,
+            definition=definition,
+            title_error="name_taken",
+        )
+    except svc.InvalidPayload:
+        return await _render_pack_detail(
+            request,
+            user=user,
+            definition=definition,
+            title_error="invalid_name",
+        )
+    return RedirectResponse(
+        url=f"/family/{user.family_id or '_'}/packs/{updated.pack_id}?title_ok=1",
+        status_code=303,
+    )
 
 
 @router.get("/{family_id}/packs/{pack_id}/import", response_class=HTMLResponse, response_model=None)
@@ -471,6 +517,37 @@ async def draft_delete_word(
         word_id=word_id,
         parent_user_id=user.username,
     )
+    return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
+
+
+@router.post("/{family_id}/packs/{pack_id}/draft/batch-delete", response_model=None)
+async def draft_batch_delete_words(
+    request: Request,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
+) -> RedirectResponse:
+    _ = family_id
+    gate = await _require_parent_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    user = gate
+    definition = await _load_definition_or_redirect(pack_id, user)
+    if definition is None:
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
+    form = await request.form()
+    seen: set[str] = set()
+    word_ids: list[str] = []
+    for raw in form.getlist("word_ids"):
+        word_id = str(raw).strip()
+        if word_id and word_id not in seen:
+            seen.add(word_id)
+            word_ids.append(word_id)
+    for word_id in word_ids:
+        await svc.remove_draft_word(
+            definition=definition,
+            word_id=word_id,
+            parent_user_id=user.username,
+        )
     return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
 
 
@@ -769,6 +846,7 @@ async def detail_page(
     )
     import_ok = request.query_params.get("import_ok") == "1"
     import_hint = request.query_params.get("import_hint", "")
+    title_ok = request.query_params.get("title_ok") == "1"
     return templates.TemplateResponse(
         request,
         "parent/packs/detail.html",
@@ -778,6 +856,8 @@ async def detail_page(
             "pointer": pointer,
             "current_pack": pack,
             "draft": _serialize_draft(draft),
+            "title_error": "",
+            "title_ok": title_ok,
             "publish_error": "",
             "publish_row_errors": [],
             "batch_error": "",

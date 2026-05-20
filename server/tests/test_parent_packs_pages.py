@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 import pytest
 from bs4 import BeautifulSoup
@@ -77,6 +78,127 @@ async def test_pack_detail_renders_draft_table(parent_client: tuple[AsyncClient,
     assert soup.find(id="draft-word-table") is not None
     assert "发布词库" in resp.text
     assert f"/family/{fid}/packs/{pack_id}/import" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_pack_detail_renders_title_edit_form(parent_client: tuple[AsyncClient, str]) -> None:
+    ac, fid = parent_client
+    created = await ac.post(f"/api/v1/family/{fid}/family-packs", json={"name": "Old title"})
+    pack_id = created.json()["pack_id"]
+
+    resp = await ac.get(f"/family/{fid}/packs/{pack_id}")
+
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.text, "html.parser")
+    form = soup.find(id="pack-title-form")
+    title_input = soup.find(id="pack-title-input")
+    submit = soup.find(id="pack-title-submit")
+    assert form is not None
+    assert form.get("action") == f"/family/{fid}/packs/{pack_id}/metadata"
+    assert title_input is not None
+    assert title_input.get("name") == "name"
+    assert title_input.get("value") == "Old title"
+    assert title_input.get("data-original-value") == "Old title"
+    assert submit is not None
+    assert "hidden" in (submit.get("class") or [])
+    assert 'titleInput.addEventListener("input"' in resp.text
+    assert "titleSubmit.classList.toggle" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_pack_detail_renders_batch_delete_controls(parent_client: tuple[AsyncClient, str]) -> None:
+    ac, fid = parent_client
+    created = await ac.post(f"/api/v1/family/{fid}/family-packs", json={"name": "Batch"})
+    pack_id = created.json()["pack_id"]
+    prefix = f"fam-{fid.removeprefix('fam-')[:8]}-"
+    word_ids = [f"{prefix}apple", f"{prefix}banana"]
+    for word_id, word in zip(word_ids, ["apple", "banana"], strict=True):
+        upserted = await ac.put(
+            f"/api/v1/family/{fid}/family-packs/{pack_id}/draft/words/{word_id}",
+            json={
+                "source": "custom",
+                "word": word,
+                "meaning_zh": word,
+                "category": "fruit",
+                "difficulty": 1,
+            },
+        )
+        assert upserted.status_code == 200
+
+    resp = await ac.get(f"/family/{fid}/packs/{pack_id}")
+
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.text, "html.parser")
+    form = soup.find(id="draft-batch-delete-form")
+    select_all = soup.find(id="draft-select-all")
+    checkboxes = soup.find_all("input", attrs={"name": "word_ids"})
+    submit = soup.find(id="draft-batch-delete-submit")
+    assert form is not None
+    assert form.get("action") == f"/family/{fid}/packs/{pack_id}/draft/batch-delete"
+    assert select_all is not None
+    assert select_all.get("data-role") == "draft-select-all"
+    assert [box.get("value") for box in checkboxes] == word_ids
+    assert all(box.get("form") == "draft-batch-delete-form" for box in checkboxes)
+    assert submit is not None
+    assert submit.has_attr("disabled")
+    assert "draftSelectAll.addEventListener" in resp.text
+    assert "draftBatchDeleteSubmit.disabled" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_batch_delete_form_removes_selected_words(parent_client: tuple[AsyncClient, str]) -> None:
+    ac, fid = parent_client
+    created = await ac.post(f"/api/v1/family/{fid}/family-packs", json={"name": "Batch delete"})
+    pack_id = created.json()["pack_id"]
+    prefix = f"fam-{fid.removeprefix('fam-')[:8]}-"
+    word_ids = [f"{prefix}apple", f"{prefix}banana", f"{prefix}pear"]
+    for word_id, word in zip(word_ids, ["apple", "banana", "pear"], strict=True):
+        upserted = await ac.put(
+            f"/api/v1/family/{fid}/family-packs/{pack_id}/draft/words/{word_id}",
+            json={
+                "source": "custom",
+                "word": word,
+                "meaning_zh": word,
+                "category": "fruit",
+                "difficulty": 1,
+            },
+        )
+        assert upserted.status_code == 200
+
+    resp = await ac.post(
+        f"/family/{fid}/packs/{pack_id}/draft/batch-delete",
+        content=urlencode(
+            [("word_ids", word_ids[0]), ("word_ids", word_ids[2])]
+        ),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    assert resp.status_code in (303, 307)
+    assert resp.headers["location"] == f"/family/{fid}/packs/{pack_id}"
+    detail = await ac.get(f"/api/v1/family/{fid}/family-packs/{pack_id}")
+    remaining = [word["id"] for word in detail.json()["draft"]["words"]]
+    assert remaining == [word_ids[1]]
+
+
+@pytest.mark.asyncio
+async def test_pack_title_form_updates_definition(parent_client: tuple[AsyncClient, str]) -> None:
+    ac, fid = parent_client
+    created = await ac.post(f"/api/v1/family/{fid}/family-packs", json={"name": "Old title"})
+    pack_id = created.json()["pack_id"]
+
+    resp = await ac.post(
+        f"/family/{fid}/packs/{pack_id}/metadata",
+        data={"name": "New title"},
+    )
+
+    assert resp.status_code in (303, 307)
+    assert resp.headers["location"] == f"/family/{fid}/packs/{pack_id}?title_ok=1"
+    detail = await ac.get(f"/family/{fid}/packs/{pack_id}")
+    assert detail.status_code == 200
+    assert "New title" in detail.text
+    assert "Old title" not in detail.text
+    api_detail = await ac.get(f"/api/v1/family/{fid}/family-packs/{pack_id}")
+    assert api_detail.json()["definition"]["name"] == "New title"
 
 
 @pytest.mark.asyncio

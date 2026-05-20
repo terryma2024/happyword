@@ -112,10 +112,12 @@
 /family/{family_id}/packs/new
 /family/{family_id}/packs/{pack_id}
 /family/{family_id}/packs/{pack_id}/draft/add-custom
+/family/{family_id}/packs/{pack_id}/draft/batch-delete
 /family/{family_id}/packs/{pack_id}/draft/batch-json
 /family/{family_id}/packs/{pack_id}/draft/delete-word
 /family/{family_id}/packs/{pack_id}/draft/edit
 /family/{family_id}/packs/{pack_id}/import
+/family/{family_id}/packs/{pack_id}/metadata
 /family/{family_id}/packs/{pack_id}/publish
 /family/{family_id}/packs/{pack_id}/rollback
 /family/{family_id}/packs/{pack_id}/versions

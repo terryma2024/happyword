@@ -554,6 +554,19 @@
         "title": "Body_scan_words_api_v1_admin_llm_scan_words_post",
         "type": "object"
       },
+      "Body_update_pack_metadata_page_family__family_id__packs__pack_id__metadata_post": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Body_update_pack_metadata_page_family__family_id__packs__pack_id__metadata_post",
+        "type": "object"
+      },
       "Body_upload_audio_api_v1_admin_words__word_id__audio_post": {
         "properties": {
           "audio": {
@@ -13042,6 +13055,59 @@
         ]
       }
     },
+    "/family/{family_id}/packs/{pack_id}/draft/batch-delete": {
+      "post": {
+        "operationId": "draft_batch_delete_words_family__family_id__packs__pack_id__draft_batch_delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft Batch Delete Words",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
     "/family/{family_id}/packs/{pack_id}/draft/batch-json": {
       "post": {
         "operationId": "draft_batch_json_family__family_id__packs__pack_id__draft_batch_json_post",
@@ -13405,6 +13471,69 @@
           }
         },
         "summary": "Import Image Submit",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/family/{family_id}/packs/{pack_id}/metadata": {
+      "post": {
+        "operationId": "update_pack_metadata_page_family__family_id__packs__pack_id__metadata_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_update_pack_metadata_page_family__family_id__packs__pack_id__metadata_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Pack Metadata Page",
         "tags": [
           "parent-packs-html"
         ]
