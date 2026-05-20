@@ -893,7 +893,7 @@
 - Modify: `.github/workflows/server-ci.yml`
 - Modify: `docs/ci-secrets.md`
 
-- [ ] **Step 1: Add CloudBase CD workflow**
+- [x] **Step 1: Add CloudBase CD workflow**
 
   Create `.github/workflows/server-cloudbase-cd.yml`:
 
@@ -967,6 +967,12 @@
             E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
   ```
 
+  Completion note, 2026-05-20: `.github/workflows/server-cloudbase-cd.yml`
+  exists with manual dispatch and `main` push triggers. It gates on CloudBase
+  secrets, runs offline pytest, deploys with `tcb cloudrun deploy`, health
+  checks `CLOUDBASE_PROD_BASE_URL`, and runs smoke tests. The Vercel
+  `server-cd.yml` workflow remains active for the transition window.
+
 - [ ] **Step 2: Add GitHub secrets**
 
   Configure repository secrets:
@@ -996,9 +1002,13 @@
   - delete `server-cd.yml` in the Vercel retirement phase; or
   - change it to a documentation-only disabled workflow with a clear note that CloudBase CD replaced it.
 
-- [ ] **Step 5: Keep PR CI unchanged for now**
+- [x] **Step 5: Keep PR CI unchanged for now**
 
   Preserve `.github/workflows/server-ci.yml` Vercel preview E2E until M8. Do not remove the preview job in M6.
+
+  Completion note, 2026-05-20: `server-ci.yml` keeps legacy Vercel Preview
+  deploy/E2E/Blob manifest refresh and Cursor autofix during the transition,
+  while adding opt-in CloudBase staging smoke.
 
 - [ ] **Step 6: Commit CI/CD migration**
 
@@ -1463,7 +1473,8 @@
   Acceptance:
 
   - The DevMenu can show a `CloudBase Staging` row.
-  - `server-ci` does not deploy a new Vercel Preview for every PR.
+  - `server-ci` does not deploy a new CloudBase preview for every PR; legacy
+    Vercel Preview may continue during the transition window.
   - Shared staging smoke is opt-in/gated so two PRs cannot overwrite each
     other's CloudBase staging data unexpectedly.
 
@@ -1580,17 +1591,19 @@
   M8B publisher: GitHub Actions deploys an on-demand CloudBase PR preview and writes the resulting URL into a manifest source.
   ```
 
-  M8A should not require `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-  `VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, or
-  `BLOB_READ_WRITE_TOKEN`.
+  Transition rule: keep `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
+  `VERCEL_PROJECT_ID`, `VERCEL_AUTOMATION_BYPASS_SECRET`, and
+  `BLOB_READ_WRITE_TOKEN` configured while legacy Vercel Preview is still
+  deployed in parallel. Remove these requirements only in M8C/M9.
 
   M8B may require `TCB_SECRET_ID`, `TCB_SECRET_KEY`, `TCB_ENV_ID`, and a
   cleanup workflow.
 
-  Completion note, 2026-05-20: `server-ci.yml` no longer deploys Vercel
-  Preview or refreshes the Vercel Blob manifest. The M8A publisher path is the
-  CloudBase inline manifest plus opt-in staging smoke through
-  `workflow_dispatch` or the `cloudbase-smoke` PR label.
+  Completion note, 2026-05-20: transition policy updated after review:
+  `server-ci.yml` keeps the legacy Vercel Preview deploy and Vercel Blob
+  manifest refresh while CloudBase staging smoke is added as an opt-in path
+  through `workflow_dispatch` or the `cloudbase-smoke` PR label. Vercel removal
+  moves to M8C/M9 after the stability window.
 
 - [x] **Step 8: Update DevMenu runbook**
 
@@ -1610,17 +1623,18 @@
   In `.github/workflows/server-ci.yml`:
 
   - Keep offline pytest.
-  - Replace Vercel preview deploy/E2E with CloudBase shared staging smoke only
-    when a maintainer-triggered condition is present, such as
-    `workflow_dispatch` or a `cloudbase-smoke` label.
-  - Keep normal PR CI deterministic and offline by default.
+  - Keep Vercel preview deploy/E2E during the transition.
+  - Add CloudBase shared staging smoke only when a maintainer-triggered
+    condition is present, such as `workflow_dispatch` or a `cloudbase-smoke`
+    label.
+  - Keep normal PR CI deterministic through offline pytest plus the existing
+    legacy Vercel E2E gate.
   - Keep Cursor autofix only if its prompt reflects CloudBase staging, not Vercel preview.
 
-  Completion note, 2026-05-20: PR CI now runs only offline `uv run pytest -v`
-  by default. The CloudBase staging smoke job runs after pytest only for
-  `workflow_dispatch` or PRs carrying `cloudbase-smoke`; Vercel preview deploy,
-  Vercel E2E, Blob manifest refresh, and Vercel E2E Cursor autofix were removed
-  from `server-ci.yml`.
+  Completion note, 2026-05-20: PR CI keeps offline `uv run pytest -v` plus
+  legacy Vercel Preview deploy/E2E/Blob manifest refresh during the transition.
+  The CloudBase staging smoke job runs after pytest only for `workflow_dispatch`
+  or PRs carrying `cloudbase-smoke`.
 
 - [x] **Step 10: Add PR preview cleanup plan**
 

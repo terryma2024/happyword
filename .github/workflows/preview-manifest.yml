@@ -3,7 +3,9 @@ name: preview-manifest
 # Legacy cleanup-on-close + manual repair entrypoint for the public preview
 # manifest stored in Vercel Blob (`preview/preview-urls.json`). The M8A
 # CloudBase path serves `PREVIEW_MANIFEST_INLINE_JSON` first; this workflow is
-# retained only as a fallback while Vercel Preview remains available.
+# retained for close cleanup and manual repair while Vercel Preview remains
+# available. Open-PR refresh still runs from `server-ci.yml` during the
+# dual-deploy transition.
 #
 #   - PR closed → rebuild the Blob. The closed PR's preview may still
 #                 be alive on Vercel until the weekly prune cron deletes

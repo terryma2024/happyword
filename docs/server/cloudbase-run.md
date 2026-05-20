@@ -320,11 +320,14 @@ Implementation status, 2026-05-20:
   clients.
 - HarmonyOS `PreviewManifestService` now accepts CloudBase default domains
   ending in `.tcloudbase.com` as well as legacy `*.vercel.app` preview rows.
-- `.github/workflows/server-ci.yml` now keeps normal PR CI offline. It runs
-  CloudBase staging smoke against `CLOUDBASE_STAGING_BASE_URL` only through
-  `workflow_dispatch` or when a PR has the `cloudbase-smoke` label.
-- `server-ci.yml` no longer deploys Vercel Preview, detects Vercel deployment
-  URLs, or refreshes the Vercel Blob manifest.
+- `.github/workflows/server-ci.yml` is in a dual-track transition state: PRs
+  still run the legacy Vercel Preview deploy/E2E/Blob manifest refresh, while
+  CloudBase staging smoke runs only through `workflow_dispatch` or when a PR
+  has the `cloudbase-smoke` label.
+- `.github/workflows/server-cloudbase-cd.yml` deploys `main` to CloudBase Run
+  in parallel with the existing Vercel `server-cd.yml` workflow. Keep both
+  active until CloudBase has passed the stability window and rollback no longer
+  depends on Vercel.
 - PR-specific CloudBase preview deployment is still disabled until quota,
   routing, database isolation, and cleanup are implemented.
 

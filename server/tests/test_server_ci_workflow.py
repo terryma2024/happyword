@@ -8,6 +8,11 @@ def _server_ci_workflow() -> str:
     )
 
 
+def _workflow(name: str) -> str:
+    repo_root = Path(__file__).resolve().parents[2]
+    return (repo_root / ".github" / "workflows" / name).read_text(encoding="utf-8")
+
+
 def _step_with_id(workflow: str, step_id: str) -> str:
     id_marker = f"        id: {step_id}"
     id_index = workflow.index(id_marker)
@@ -22,13 +27,18 @@ def _step_named(workflow: str, name: str) -> str:
     return workflow[start : end if end != -1 else len(workflow)]
 
 
-def test_pr_ci_no_longer_deploys_vercel_preview() -> None:
-    """M8A keeps normal PR CI offline instead of deploying Vercel Preview."""
+def test_transition_keeps_legacy_vercel_preview_deploy() -> None:
+    """During migration, PR CI still deploys Vercel Preview as a fallback path."""
     workflow = _server_ci_workflow()
 
-    assert "vercel deploy" not in workflow
-    assert "update_preview_manifest.mjs" not in workflow
-    assert "VERCEL_TOKEN" not in workflow
+    assert "  server_e2e:" in workflow
+    assert "Deploy Vercel preview (E2E-controlled)" in workflow
+    assert "npx --yes" in workflow
+    assert "deploy --yes" in workflow
+    assert "VERCEL_TOKEN" in workflow
+    assert "  update_manifest:" in workflow
+    assert "node server/scripts/update_preview_manifest.mjs" in workflow
+    assert "  cursor_autofix_e2e:" in workflow
 
 
 def test_cloudbase_staging_smoke_is_gated_by_manual_or_label() -> None:
@@ -53,3 +63,16 @@ def test_cloudbase_staging_smoke_uses_shared_staging_url() -> None:
     smoke_step = _step_named(workflow, "Run CloudBase staging smoke")
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
     assert "uv run pytest -v -m smoke" in smoke_step
+
+
+def test_main_cd_deploys_to_both_vercel_and_cloudbase_during_transition() -> None:
+    vercel_cd = _workflow("server-cd.yml")
+    cloudbase_cd = _workflow("server-cloudbase-cd.yml")
+
+    assert "Wait for Vercel production deploy" in vercel_cd
+    assert "Run staging smoke" in vercel_cd
+
+    assert "name: server-cloudbase-cd" in cloudbase_cd
+    assert "tcb login --apiKeyId" in cloudbase_cd
+    assert "tcb cloudrun deploy" in cloudbase_cd
+    assert "CLOUDBASE_PROD_BASE_URL" in cloudbase_cd

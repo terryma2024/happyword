@@ -1,0 +1,106 @@
+name: server-cloudbase-cd
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - ".github/workflows/server-cloudbase-cd.yml"
+
+concurrency:
+  group: server-cloudbase-cd
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    name: server / cloudbase deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    env:
+      HAS_TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID != '' }}
+      HAS_TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY != '' }}
+      HAS_TCB_ENV_ID: ${{ secrets.TCB_ENV_ID != '' }}
+      HAS_CLOUDBASE_PROD_BASE_URL: ${{ secrets.CLOUDBASE_PROD_BASE_URL != '' }}
+    steps:
+      - name: CloudBase deploy gate
+        working-directory: .
+        run: |
+          set -euo pipefail
+          echo "HAS_TCB_SECRET_ID=${HAS_TCB_SECRET_ID}"
+          echo "HAS_TCB_SECRET_KEY=${HAS_TCB_SECRET_KEY}"
+          echo "HAS_TCB_ENV_ID=${HAS_TCB_ENV_ID}"
+          echo "HAS_CLOUDBASE_PROD_BASE_URL=${HAS_CLOUDBASE_PROD_BASE_URL}"
+          if [ "${HAS_TCB_SECRET_ID}" != "true" ] || \
+             [ "${HAS_TCB_SECRET_KEY}" != "true" ] || \
+             [ "${HAS_TCB_ENV_ID}" != "true" ] || \
+             [ "${HAS_CLOUDBASE_PROD_BASE_URL}" != "true" ]; then
+            echo "::warning::CloudBase deploy skipped: configure TCB_SECRET_ID, TCB_SECRET_KEY, TCB_ENV_ID, and CLOUDBASE_PROD_BASE_URL."
+          fi
+
+      - name: Checkout
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Sync dependencies
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        run: uv sync --dev
+
+      - name: Run pytest
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        run: uv run pytest -v
+
+      - name: Set up Node
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Install CloudBase CLI
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        run: npm install -g @cloudbase/cli
+
+      - name: Login to CloudBase
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        env:
+          TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID }}
+          TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY }}
+        run: tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"
+
+      - name: Deploy CloudBase Run
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        env:
+          TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
+        run: tcb cloudrun deploy -e "$TCB_ENV_ID" -s happyword-server --port 8080 --source . --force
+
+      - name: Health check
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        env:
+          CLOUDBASE_PROD_BASE_URL: ${{ secrets.CLOUDBASE_PROD_BASE_URL }}
+        run: curl -fsS "$CLOUDBASE_PROD_BASE_URL/api/v1/public/health"
+
+      - name: Smoke test
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        env:
+          E2E_BASE_URL: ${{ secrets.CLOUDBASE_PROD_BASE_URL }}
+          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
+          E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          E2E_CRON_SECRET: ${{ secrets.E2E_CRON_SECRET }}
+        run: uv run pytest -v -m smoke

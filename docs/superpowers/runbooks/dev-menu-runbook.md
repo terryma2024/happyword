@@ -45,11 +45,11 @@ The public preview manifest can now come from either source:
 
 The legacy Vercel Blob manifest at `preview/preview-urls.json` can still be
 rebuilt from Vercel's deployments API by
-`server/scripts/update_preview_manifest.mjs`, but this is now a compatibility
-fallback. Normal `server-ci` no longer refreshes the Blob mirror or deploys a
-Vercel Preview. Use `.github/workflows/preview-manifest.yml` only for legacy PR
-close cleanup or manual repair / backfill while Vercel Preview remains
-available.
+`server/scripts/update_preview_manifest.mjs`. During the transition,
+`server-ci` still deploys Vercel Preview and refreshes this Blob mirror for PRs,
+while CloudBase staging is available as an opt-in smoke target. Use
+`.github/workflows/preview-manifest.yml` for legacy PR close cleanup or manual
+repair / backfill while Vercel Preview remains available.
 
 A merged PR whose preview deployment hasn't been pruned by the weekly `vercel-prune.yml` cron stays in the manifest, because the source of truth is "what's alive on Vercel right now", not "what PR is currently open".
 
