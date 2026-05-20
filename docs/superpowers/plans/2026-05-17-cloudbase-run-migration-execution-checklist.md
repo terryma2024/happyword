@@ -1560,7 +1560,7 @@
   Completion note, 2026-05-20: `PREVIEW_MANIFEST_INLINE_JSON` is served before
   Vercel Blob and supports the documented `items` payload shape.
 
-- [ ] **Step 7: Replace preview publishing workflow**
+- [x] **Step 7: Replace preview publishing workflow**
 
   Replace the Vercel-specific publisher with one of these:
 
@@ -1576,6 +1576,11 @@
   M8B may require `TCB_SECRET_ID`, `TCB_SECRET_KEY`, `TCB_ENV_ID`, and a
   cleanup workflow.
 
+  Completion note, 2026-05-20: `server-ci.yml` no longer deploys Vercel
+  Preview or refreshes the Vercel Blob manifest. The M8A publisher path is the
+  CloudBase inline manifest plus opt-in staging smoke through
+  `workflow_dispatch` or the `cloudbase-smoke` PR label.
+
 - [x] **Step 8: Update DevMenu runbook**
 
   Modify `docs/superpowers/runbooks/dev-menu-runbook.md`:
@@ -1589,7 +1594,7 @@
   Completion note, 2026-05-20: the runbook now documents the inline CloudBase
   manifest source, legacy Vercel fallback, and manual/on-demand PR preview caveat.
 
-- [ ] **Step 9: Simplify PR server CI**
+- [x] **Step 9: Simplify PR server CI**
 
   In `.github/workflows/server-ci.yml`:
 
@@ -1599,6 +1604,12 @@
     `workflow_dispatch` or a `cloudbase-smoke` label.
   - Keep normal PR CI deterministic and offline by default.
   - Keep Cursor autofix only if its prompt reflects CloudBase staging, not Vercel preview.
+
+  Completion note, 2026-05-20: PR CI now runs only offline `uv run pytest -v`
+  by default. The CloudBase staging smoke job runs after pytest only for
+  `workflow_dispatch` or PRs carrying `cloudbase-smoke`; Vercel preview deploy,
+  Vercel E2E, Blob manifest refresh, and Vercel E2E Cursor autofix were removed
+  from `server-ci.yml`.
 
 - [ ] **Step 10: Add PR preview cleanup plan**
 

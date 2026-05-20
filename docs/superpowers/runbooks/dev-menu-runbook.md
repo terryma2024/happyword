@@ -43,12 +43,13 @@ The public preview manifest can now come from either source:
 - `PREVIEW_MANIFEST_BLOB_URL`, the legacy Vercel Blob mirror. This remains as a
   compatibility fallback until the Vercel Preview path is retired.
 
-The legacy Vercel Blob manifest at `preview/preview-urls.json` is rebuilt from
-Vercel's deployments API by `server/scripts/update_preview_manifest.mjs`. Two
-workflows trigger the rebuild:
-
-- `.github/workflows/server-ci.yml` (`update_manifest` job) — on PR open/sync/reopen, gated on `server_e2e` success.
-- `.github/workflows/preview-manifest.yml` — on PR close, and via **workflow_dispatch** for manual repair / backfill.
+The legacy Vercel Blob manifest at `preview/preview-urls.json` can still be
+rebuilt from Vercel's deployments API by
+`server/scripts/update_preview_manifest.mjs`, but this is now a compatibility
+fallback. Normal `server-ci` no longer refreshes the Blob mirror or deploys a
+Vercel Preview. Use `.github/workflows/preview-manifest.yml` only for legacy PR
+close cleanup or manual repair / backfill while Vercel Preview remains
+available.
 
 A merged PR whose preview deployment hasn't been pruned by the weekly `vercel-prune.yml` cron stays in the manifest, because the source of truth is "what's alive on Vercel right now", not "what PR is currently open".
 
@@ -63,5 +64,9 @@ the public Blob URL printed by the manifest rebuild job.
 PR-specific CloudBase previews are not automatic in M8A. Keep using the shared
 CloudBase staging row until service quota, route discovery, data isolation, and
 cleanup are implemented for on-demand PR previews.
+
+CloudBase staging smoke is opt-in: run `server-ci` manually or add the
+`cloudbase-smoke` label to a PR after `CLOUDBASE_STAGING_BASE_URL` points at a
+healthy staging service.
 
 **Server contract:** `GET /api/v1/public/preview-urls.json` is intentionally **unauthenticated** at the application layer (public router — no JWT, cookies, or API keys). Vercel Deployment Protection on *preview* deployments does not apply to this URL because the client always calls **production** `happyword.cool` for the manifest.

@@ -1,14 +1,9 @@
 name: preview-manifest
 
-# Cleanup-on-close + manual repair entrypoint for the public preview
-# manifest stored in Vercel Blob (`preview/preview-urls.json`). The
-# runtime FastAPI proxy `GET /api/v1/preview-urls.json` reads from that
-# Blob; this workflow rebuilds it.
-#
-# The "happy path" — refreshing the Blob after a successful preview
-# deployment for an OPEN PR — lives in `server-ci.yml` as the
-# `update_manifest` job (gated on `server_e2e` success). This file handles
-# the two cases server-ci doesn't cover:
+# Legacy cleanup-on-close + manual repair entrypoint for the public preview
+# manifest stored in Vercel Blob (`preview/preview-urls.json`). The M8A
+# CloudBase path serves `PREVIEW_MANIFEST_INLINE_JSON` first; this workflow is
+# retained only as a fallback while Vercel Preview remains available.
 #
 #   - PR closed → rebuild the Blob. The closed PR's preview may still
 #                 be alive on Vercel until the weekly prune cron deletes
@@ -35,9 +30,7 @@ permissions:
   contents: read
   pull-requests: read
 
-# Same group name as the `update_manifest` job in server-ci.yml so the two
-# workflows serialize on the Blob mirror even when a PR closes during an
-# in-flight CI run.
+# Serialize legacy Blob mirror rebuilds.
 concurrency:
   group: preview-manifest
   cancel-in-progress: false
