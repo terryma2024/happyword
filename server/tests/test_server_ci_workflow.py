@@ -95,3 +95,29 @@ def test_main_cd_deploys_to_both_vercel_and_cloudbase_during_transition() -> Non
     assert "tcb login --apiKeyId" in cloudbase_cd
     assert "tcb cloudrun deploy" in cloudbase_cd
     assert "CLOUDBASE_PROD_BASE_URL" in cloudbase_cd
+
+
+def test_cloudbase_cd_waits_for_a_real_new_deploy_before_smoke() -> None:
+    cloudbase_cd = _workflow("server-cloudbase-cd.yml")
+
+    capture_step = _step_named(cloudbase_cd, "Capture CloudBase deploy marker")
+    deploy_step = _step_named(cloudbase_cd, "Deploy CloudBase Run")
+    wait_step = _step_named(cloudbase_cd, "Wait for CloudBase deployment")
+    health_step = _step_named(cloudbase_cd, "Health check")
+
+    assert cloudbase_cd.index("Capture CloudBase deploy marker") < cloudbase_cd.index(
+        "Deploy CloudBase Run"
+    )
+    assert cloudbase_cd.index("Wait for CloudBase deployment") < cloudbase_cd.index(
+        "Health check"
+    )
+
+    assert "CLOUDBASE_PREVIOUS_DEPLOY_ID" in capture_step
+    assert "DescribeCloudRunDeployRecord" in capture_step
+    assert "printf '\\n' | tcb cloudrun deploy" in deploy_step
+    assert "previousDeployId" in wait_step
+    assert "Number(latest.BuildId) > 0" in wait_step
+    assert 'latest.Status === "normal"' in wait_step
+    assert 'String(latest.FlowRatio) === "100"' in wait_step
+    assert "latest.HasTraffic === true" in wait_step
+    assert "curl -fsS" in health_step
