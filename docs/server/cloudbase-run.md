@@ -331,6 +331,26 @@ Implementation status, 2026-05-20:
 - PR-specific CloudBase preview deployment is still disabled until quota,
   routing, database isolation, and cleanup are implemented.
 
+Default-domain smoke tooling, 2026-05-21:
+
+- `tools/cloudbase/smoke-default-domains.sh` runs no-secret public smoke checks
+  against staging and production CloudBase Run default domains.
+- The default checks cover `/api/v1/public/health`,
+  `/api/v1/public/packs/latest.json`, `/privacy`, `/admin/login`,
+  `/family/login`, and `/api/v1/public/preview-urls.json`.
+- Running the script without an expected preview title passed for both default
+  domains on 2026-05-21.
+- Running with `CLOUDBASE_EXPECT_PREVIEW_TITLE="CloudBase Staging"` passed for
+  both default domains after `PREVIEW_MANIFEST_INLINE_JSON` was added to the
+  CloudBase Run staging and production services and both services were
+  redeployed.
+- Staging was redeployed to `happyword-server-staging-005`; production was
+  redeployed to `happyword-server-004`. Both versions received 100% traffic and
+  returned the inline `CloudBase Staging` preview row.
+- CloudBase service settings support environment variables through either
+  Key-Value entries or JSON. Use the console to add this value so existing
+  secret environment variables are not copied through shell command arguments.
+
 Initial inline manifest shape:
 
 ```json

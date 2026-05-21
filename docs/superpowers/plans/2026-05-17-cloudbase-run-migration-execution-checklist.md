@@ -1668,12 +1668,23 @@
   cd server
   uv run pytest -v tests/test_preview_manifest_endpoint.py
   uv run pytest -v
-  curl -fsS https://happyword.cool/api/v1/public/preview-urls.json
-  curl -fsS "$CLOUDBASE_STAGING_BASE_URL/api/v1/public/health"
+  cd ..
+  bash tools/cloudbase/smoke-default-domains.sh
+  CLOUDBASE_EXPECT_PREVIEW_TITLE="CloudBase Staging" \
+    bash tools/cloudbase/smoke-default-domains.sh
   ```
 
   Expected: endpoint returns valid JSON without Vercel Blob, and the CloudBase
   staging row points to a healthy CloudBase service.
+
+  Status, 2026-05-21: `tools/cloudbase/smoke-default-domains.sh` passed the
+  public no-secret smoke for both CloudBase default domains. After
+  `PREVIEW_MANIFEST_INLINE_JSON` was configured on staging and production, both
+  services were redeployed (`happyword-server-staging-005` and
+  `happyword-server-004`) and the stricter
+  `CLOUDBASE_EXPECT_PREVIEW_TITLE="CloudBase Staging"` check passed. The
+  CloudBase endpoint now serves the M8A inline manifest row instead of the
+  legacy Vercel Blob manifest.
 
 - [ ] **Step 13: Commit preview replacement**
 
