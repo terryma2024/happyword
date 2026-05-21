@@ -138,6 +138,10 @@ jobs:
           VERCEL_META_ORG: ${{ github.repository_owner }}
           VERCEL_META_REPO: ${{ github.event.repository.name }}
           HAPPYWORD_PREVIEW_PR_ID: ${{ github.event.pull_request.number }}
+          # During the CloudBase transition this job must keep exercising the
+          # legacy Vercel upload path even if the Vercel project has a newer
+          # migration env var configured.
+          ASSET_STORAGE_PROVIDER: vercel_blob
           ADMIN_BOOTSTRAP_USER: ${{ secrets.E2E_ADMIN_USER }}
           ADMIN_BOOTSTRAP_PASS: ${{ secrets.E2E_ADMIN_PASS }}
         run: |
@@ -151,6 +155,7 @@ jobs:
             --meta githubRepo="$VERCEL_META_REPO" \
             --env HAPPYWORD_PREVIEW_PR_ID="$HAPPYWORD_PREVIEW_PR_ID" \
             --env HAPPYWORD_PREVIEW_BRANCH="$VERCEL_META_COMMIT_REF" \
+            --env ASSET_STORAGE_PROVIDER="$ASSET_STORAGE_PROVIDER" \
             --env ADMIN_BOOTSTRAP_USER="$ADMIN_BOOTSTRAP_USER" \
             --env ADMIN_BOOTSTRAP_PASS="$ADMIN_BOOTSTRAP_PASS" \
             2>&1 | tee "$DEPLOY_LOG"

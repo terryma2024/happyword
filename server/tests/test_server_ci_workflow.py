@@ -41,6 +41,16 @@ def test_transition_keeps_legacy_vercel_preview_deploy() -> None:
     assert "  cursor_autofix_e2e:" in workflow
 
 
+def test_legacy_vercel_preview_pins_storage_provider() -> None:
+    """CloudBase storage envs must not leak into the legacy Vercel E2E preview."""
+    workflow = _server_ci_workflow()
+
+    deploy_step = _step_with_id(workflow, "vercel_deploy")
+
+    assert "ASSET_STORAGE_PROVIDER: vercel_blob" in deploy_step
+    assert '--env ASSET_STORAGE_PROVIDER="$ASSET_STORAGE_PROVIDER"' in deploy_step
+
+
 def test_cloudbase_staging_smoke_is_gated_by_manual_or_label() -> None:
     workflow = _server_ci_workflow()
 
