@@ -4,6 +4,9 @@
 # Vercel CLI link metadata (project link is local-only, never committed)
 .vercel/
 
+# CloudBase CLI generated deploy metadata (local-only)
+server/cloudbaserc.json
+
 # Git worktrees (project-local isolated workspaces)
 .worktrees/
 

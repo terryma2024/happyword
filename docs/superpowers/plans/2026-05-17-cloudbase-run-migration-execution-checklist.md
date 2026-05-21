@@ -1217,7 +1217,7 @@
   request shape, unknown URL delete behavior when COS is not configured, and
   COS upstream-delete failures.
 
-- [ ] **Step 9: Deploy storage switch to staging**
+- [x] **Step 9: Deploy storage switch to staging**
 
   Set staging:
 
@@ -1253,6 +1253,17 @@
 
   The script uploads illustration, audio, and lesson-image smoke objects,
   verifies their public URLs, and deletes them unless `COS_SMOKE_KEEP_OBJECTS=1`.
+
+  Completion note, 2026-05-21: CloudBase staging service
+  `happyword-server-staging` now runs with `ASSET_STORAGE_PROVIDER=tencent_cos`,
+  Shanghai COS settings, bucket `happyword-assets-staging-1429584068`, and
+  public base URL
+  `https://happyword-assets-staging-1429584068.cos.ap-shanghai.myqcloud.com`.
+  The service was redeployed as CloudBase deploy record `009`, and a live
+  lesson-import upload returned a new COS URL under the staging bucket. A
+  public `curl -I` against that returned object responded `HTTP 200` from
+  `tencent-cos`. GitHub Actions run `26237301193` passed `server / pytest` and
+  `server / cloudbase staging smoke` after the redeploy.
 
 - [ ] **Step 10: Deploy storage switch to production**
 
