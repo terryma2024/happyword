@@ -624,6 +624,11 @@ Fallback implementation: GitHub Actions schedule with `curl -X POST`. Use it onl
   - admin login using bootstrap user
   - a public legal page: `/privacy`
 
+  Status, 2026-05-21: automated CloudBase production default-domain health and
+  smoke passed in GitHub Actions run `server-cloudbase-cd` `26199672079`.
+  Browser checks and custom-domain checks remain blocked until
+  `happyword.com.cn` finishes ICP filing and is bound in CloudBase HTTP Access.
+
 - [ ] **Step 2: Bind first production custom domain in CloudBase HTTP Access Service**
 
   In CloudBase HTTP Access Service:
@@ -685,11 +690,14 @@ Fallback implementation: GitHub Actions schedule with `curl -X POST`. Use it onl
 - Delete after Vercel preview deployments are retired: `.github/workflows/vercel-prune.yml`
 - Modify: `docs/ci-secrets.md`
 
-- [ ] **Step 1: Keep offline pytest unchanged**
+- [x] **Step 1: Keep offline pytest unchanged**
 
   Preserve `server_pytest` in `.github/workflows/server-ci.yml`.
 
-- [ ] **Step 2: Add CloudBase deployment workflow**
+  Status, 2026-05-21: preserved in `server-ci`, and `server-cloudbase-cd`
+  also runs the full offline `uv run pytest -v` suite before deploying.
+
+- [x] **Step 2: Add CloudBase deployment workflow**
 
   Production CD on `main` should:
 
@@ -738,9 +746,17 @@ Fallback implementation: GitHub Actions schedule with `curl -X POST`. Use it onl
             E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
   ```
 
-  Use this as the first working shape, then tighten permissions and add Slack alert parity with the current Vercel CD workflow.
+  Status, 2026-05-21: implemented by `.github/workflows/server-cloudbase-cd.yml`
+  and merged through PR #118. GitHub Actions run `26199672079` succeeded on
+  `main`, running offline pytest, CloudBase Run deploy, health check, and smoke.
+  `server-cd` remains active in parallel for the Vercel rollback path.
 
-- [ ] **Step 3: Decide preview strategy**
+  Follow-up: `QcloudTCBRFullAccess` was not enough for CloudBase CLI login.
+  `QcloudTCBFullAccess` currently works but is broader than desired; tighten the
+  CI API key after CloudBase Run deploy, HTTP access, function cron, and smoke
+  operations are fully enumerated.
+
+- [x] **Step 3: Decide preview strategy**
 
   Recommended first preview strategy:
 
@@ -755,7 +771,12 @@ Fallback implementation: GitHub Actions schedule with `curl -X POST`. Use it onl
   - Maintain a preview manifest from GitHub PR metadata plus CloudBase revision/domain data.
   - Remove Vercel deployment source from `server/scripts/update_preview_manifest.mjs`.
 
-- [ ] **Step 4: Update secrets doc**
+  Status, 2026-05-21: M8A uses a shared CloudBase staging service plus inline
+  manifest payload, while legacy Vercel Preview E2E and Blob manifest refresh
+  stay alive during the transition. M8B on-demand CloudBase PR previews remain
+  future work until quota, routing, database isolation, and cleanup are proven.
+
+- [x] **Step 4: Update secrets doc**
 
   Add:
 
@@ -778,6 +799,10 @@ Fallback implementation: GitHub Actions schedule with `curl -X POST`. Use it onl
   PREVIEW_MANIFEST_BLOB_URL
   ```
 
+  Status, 2026-05-21: `docs/ci-secrets.md` documents the CloudBase migration
+  secrets, dual-track transition, M8A preview env vars, and the current broad
+  Tencent Cloud permission caveat.
+
 ## Task 6: Remove Vercel Blob Dependency
 
 **Files:**
@@ -790,7 +815,7 @@ Fallback implementation: GitHub Actions schedule with `curl -X POST`. Use it onl
 
 Wave A keeps Vercel Blob. Wave B replaces it.
 
-- [ ] **Step 1: Introduce storage provider abstraction**
+- [x] **Step 1: Introduce storage provider abstraction**
 
   Keep router calls stable:
 
@@ -810,7 +835,12 @@ Wave A keeps Vercel Blob. Wave B replaces it.
   `cloudbase_storage` as an optional future provider only if console/API
   validation shows simpler public URL behavior for this Python backend.
 
-- [ ] **Step 2: Backfill tests**
+  Status, 2026-05-21: implemented in `server/app/services/storage_provider.py`
+  and `server/app/services/blob_service.py`. Default remains `vercel_blob`;
+  `tencent_cos` routes uploads through COS env vars; `cloudbase_storage` is
+  accepted as a named future provider but intentionally not implemented.
+
+- [x] **Step 2: Backfill tests**
 
   Add tests that monkeypatch each provider and assert:
 
@@ -819,9 +849,15 @@ Wave A keeps Vercel Blob. Wave B replaces it.
   - provider returns a public URL;
   - delete tolerates upstream failures.
 
-- [ ] **Step 3: Migrate existing asset URLs**
+  Status, 2026-05-21: covered by `server/tests/test_storage_provider.py` and
+  the full server pytest suite that passed before PR #118 merged.
+
+- [x] **Step 3: Migrate existing asset URLs**
 
   Do not rewrite existing Mongo rows in the first CloudBase runtime release. Existing Vercel Blob URLs can remain readable. New uploads move after provider switch.
+
+  Status, 2026-05-21: decision recorded. No data rewrite is planned for the
+  first CloudBase runtime wave; only new uploads move once COS is configured.
 
 - [ ] **Step 3A: Configure Tencent COS**
 
