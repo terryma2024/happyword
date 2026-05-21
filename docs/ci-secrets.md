@@ -12,7 +12,6 @@ end-to-end. If you only want one section, jump straight to
 | `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself; manual dispatch | Transitional dual track: offline pytest + legacy Vercel Preview E2E/manifest on PRs; opt-in CloudBase staging smoke through `workflow_dispatch` or the `cloudbase-smoke` PR label |
 | `server-cd` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Push to `main` touching `server/**` | Wait for Vercel **production** deploy, run staging smoke (`pytest -m smoke`) |
 | `server-cloudbase-cd` | [`.github/workflows/server-cloudbase-cd.yml`](../.github/workflows/server-cloudbase-cd.yml) | Push to `main` touching `server/**`; manual dispatch | Deploy server to CloudBase Run, then health check and smoke test |
-| `cursor-autofix-e2e` | [`.github/workflows/cursor-autofix-e2e.yml`](../.github/workflows/cursor-autofix-e2e.yml) | `workflow_dispatch` | Manually trigger a Cursor Cloud Agent for an open PR |
 | `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR `closed` + dispatch | Legacy cleanup-on-close + manual repair for the Vercel Blob preview manifest |
 | `atlas-cleanup` | [`.github/workflows/atlas-cleanup.yml`](../.github/workflows/atlas-cleanup.yml) | Cron Mon 09:00 UTC + dispatch | Drop stale per-PR Mongo Atlas DBs older than 14 days |
 | `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Cron Mon 10:00 UTC + dispatch | Keep only the newest Vercel deployment per non-`main` branch (production alias preserved) |
@@ -43,7 +42,6 @@ Pushes to `main` run both Vercel `server-cd` and CloudBase
 | [`E2E_CRON_SECRET`](#e2e_cron_secret) | `server-ci`, `server-cloudbase-cd` | optional | [`test_lesson_import_cron_e2e`](../server/tests/e2e/test_lesson_import_cron_e2e.py) skips if unset; must equal target **`CRON_SECRET`** |
 | [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-ci` CloudBase smoke, `server-cd`, `server-cloudbase-cd` | optional | `pytest -m smoke` runs without a DB target → likely fails for DB-backed smoke |
 | [`SLACK_WEBHOOK_URL`](#slack_webhook_url) | `server-ci`, `server-cd` | optional | Failure alert step prints a warning; CI itself unaffected |
-| [`CURSOR_API_KEY`](#cursor_api_key) | `server-ci`, `cursor-autofix-e2e` | optional | Automatic legacy Vercel E2E autofix or manual Cursor autofix cannot spawn a cloud agent |
 | [`TCB_SECRET_ID`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow cannot authenticate to Tencent Cloud. |
 | [`TCB_SECRET_KEY`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow cannot authenticate to Tencent Cloud. |
 | [`TCB_ENV_ID`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow does not know which environment to deploy to. |
@@ -291,8 +289,7 @@ Or just the URL fragment (happyword-<frag>-terrymas-projects.vercel.app):
 bash tools/vercel/trigger-cron.sh --url-fragment 9y7uijs1p --job extract-pending
 ```
 
-Further detail: Cursor skill **`vercel-trigger-cron`** and
-[`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh).
+Further detail: [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh).
 
 ### `E2E_CRON_SECRET`
 
@@ -376,29 +373,6 @@ by failure alert steps such as `server-cd` post-merge smoke failure.
 If your team already has a CI-alert Slack App, ask the admin to add a
 webhook for your channel under that app and reuse the URL.
 
-### `CURSOR_API_KEY`
-
-Lets `server-ci` spawn automatic legacy Vercel E2E fixes, and lets
-`cursor-autofix-e2e` spawn a manual
-[Cursor Cloud Agent](https://cursor.com/docs/background-agent/api/overview)
-that commits a fix to the PR branch.
-
-**Get it:**
-
-1. <https://cursor.com/dashboard/cloud-agents> → **API keys**.
-2. Create a key. **Service-account keys** are recommended for CI; user keys
-   work but follow the user's permissions.
-3. Save as `CURSOR_API_KEY`.
-
-**Also required:** the **Cursor GitHub App** must be installed on the
-repository (or the org) so the agent can push commits to the PR's head
-branch. Install at <https://github.com/apps/cursor-com>. Without it the
-agent's `git push` fails.
-
-If you protect the PR branch (Settings → Branches → Branch protection
-rules), the agent's push will be rejected. The current setup assumes only
-`main` is protected.
-
 ## Vercel-side environment variables
 
 Secrets above only let CI **talk to** Vercel. The deployed FastAPI server
@@ -451,12 +425,7 @@ For someone forking this repo and wanting CI fully working:
    - [ ] Create / reuse a Slack App with Incoming Webhooks for your alert
          channel.
 
-4. **Cursor** *(optional)*
-
-   - [ ] Install the Cursor GitHub App on the repo.
-   - [ ] Mint a `CURSOR_API_KEY` from the Cursor dashboard.
-
-5. **GitHub repo secrets** (Settings → Secrets and variables → Actions):
+4. **GitHub repo secrets** (Settings → Secrets and variables → Actions):
 
    | Secret | Value source |
    | --- | --- |
@@ -475,9 +444,8 @@ For someone forking this repo and wanting CI fully working:
    | `E2E_ADMIN_PASS` | freely chosen, mirrors target `ADMIN_BOOTSTRAP_PASS` |
    | `E2E_STAGING_DB_NAME` | e.g. `happyword_staging` |
    | `SLACK_WEBHOOK_URL` | Slack Incoming Webhook URL |
-   | `CURSOR_API_KEY` | Cursor Dashboard → Cloud agents → API keys |
 
-6. **Smoke test**
+5. **Smoke test**
 
    - [ ] Open a tiny PR that touches `server/`. `server-ci` should run
          offline `pytest`, legacy Vercel Preview E2E, and legacy manifest
@@ -485,9 +453,6 @@ For someone forking this repo and wanting CI fully working:
    - [ ] Add the `cloudbase-smoke` label, or manually dispatch `server-ci`.
          Confirm `server / cloudbase staging smoke` runs against
          `CLOUDBASE_STAGING_BASE_URL`.
-   - [ ] If you want Cursor help, trigger `cursor-autofix-e2e` manually and
-         confirm it posts a link to the
-         [Cursor Cloud Agents dashboard](https://cursor.com/dashboard/cloud-agents).
    - [ ] Merge a `server/**` change to `main`. Watch both `server-cd` and
          `server-cloudbase-cd`; Vercel should smoke after production deploy,
          and CloudBase should deploy, health check, and smoke.
@@ -503,20 +468,12 @@ For someone forking this repo and wanting CI fully working:
   this repo will skip — the workflow stays green and prints a warning.
   Push the branch into this repository and open the PR from there to
   exercise the full pipeline.
-- **Rotation.** Vercel tokens, Cursor keys, and Slack webhooks expire or
+- **Rotation.** Vercel tokens and Slack webhooks expire or
   get invalidated. The first symptom is silent skipping (the gate steps
-  print warnings). When a workflow stops doing E2E or autofix, check secret
-  presence and freshness first.
+  print warnings). When a workflow stops doing E2E, check secret presence
+  and freshness first.
 - **Scope.** All current secrets are **repository-level**. None are tied to
   a GitHub Environment, so a workflow re-run will not require approval.
-- **Cursor autofix loop.** The autofix script enforces `MAX_ROUNDS = 20`
-  per PR (counted across SHAs; raised from 10 after long-lived branches
-  hit the cap mid-debug). If you hit the cap on a long-running PR, either
-  delete some of the `<!-- cursor-autofix-triggered:* -->` marker comments
-  on the PR, raise `DEFAULT_MAX_ROUNDS` in
-  [`.github/scripts/trigger-cursor-fix-e2e.mjs`](../.github/scripts/trigger-cursor-fix-e2e.mjs),
-  or pass a one-off override via the `cursor-autofix-e2e` workflow's
-  `max_rounds` input.
 - **Per-PR DB hygiene.** `atlas-cleanup` drops `happyword_pr_<N>_e2e` DBs
   older than 14 days. If you keep a PR open longer, the next CI run on it
   re-creates the DB from scratch — no manual action needed.

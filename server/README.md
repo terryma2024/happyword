@@ -205,7 +205,7 @@ changes under `server/`**:
   Detects (or deploys as fallback) a Vercel preview URL, runs
    `scripts/e2e_reset_db.py`, then `uv run pytest -v -m e2e`.
 
-> **For the full list of CI secrets** (Vercel, Mongo, Slack, Cursor) and
+> **For the full list of CI secrets** (Vercel, Mongo, Slack) and
 > step-by-step instructions on how to obtain each one, see the dedicated
 > page: [`docs/ci-secrets.md`](../docs/ci-secrets.md). The notes below only
 > cover what is unique to the E2E pipeline.
@@ -223,57 +223,6 @@ every API call from CI is intercepted with a 401 + SSO HTML page and the
 whole suite fails with `assert 401 == 200`. Mint the secret in:
 *Project → Settings → Deployment Protection → "Protection Bypass for
 Automation"*.
-
-#### Optional: Cursor Cloud autofix on E2E failure
-
-When `server / e2e (preview)` **fails on a same-repo PR**, a follow-up job
-**`cursor / autofix e2e (preview)`** can spawn a Cursor Cloud Agent that:
-
-1. Reads the failing pytest log (uploaded as the `e2e-pytest-log` artifact).
-2. Investigates the failure on a freshly cloned copy of this repo at the PR's
-   head ref.
-3. **Commits the fix directly back to the PR branch** (`workOnCurrentBranch:
-   true`, `autoCreatePR: false`) — no separate PR is opened. The next CI run
-   on the PR re-evaluates the fix.
-
-To enable it, add the repository secret **`CURSOR_API_KEY`** and install
-the Cursor GitHub App on the repo. See
-[`docs/ci-secrets.md` — `CURSOR_API_KEY`](../docs/ci-secrets.md#cursor_api_key)
-for both. Without `CURSOR_API_KEY` the autofix job runs but prints a single
-`::warning::` and exits — it does not block CI.
-
-**Guards** (all in `.github/scripts/trigger-cursor-fix-e2e.mjs`):
-
-1. **Per-SHA debounce** — a hidden marker comment
-   (`<!-- cursor-autofix-triggered:<sha> -->`) is posted on the PR. Re-running
-   the workflow on the same commit is a no-op.
-2. **Per-PR round cap** — `MAX_ROUNDS = 20` (`DEFAULT_MAX_ROUNDS` in
-   [`.github/scripts/trigger-cursor-fix-e2e.mjs`](../.github/scripts/trigger-cursor-fix-e2e.mjs)).
-   Once that many marker comments exist on the PR (auto + manual combined),
-   further dispatches are blocked and a single `Cursor Cloud autofix paused`
-   warning is posted. Reset by removing some marker comments, raising
-   `DEFAULT_MAX_ROUNDS` in the script, or passing `max_rounds=<N>` to the
-   `cursor-autofix-e2e` `workflow_dispatch` for a one-off override.
-3. **Unfixable-failure filter** — the script scans the pytest log for clearly
-   environmental indicators (`E2E_BASE_URL` empty, Vercel preview unavailable,
-   Mongo unreachable, repeated 502/503/504s, no tests collected) and skips
-   dispatch with an explanation comment instead of burning a Cursor run on a
-   failure no code change can fix.
-
-**Manual override** (`.github/workflows/cursor-autofix-e2e.yml`,
-`workflow_dispatch`):
-
-Trigger from **Actions → cursor-autofix-e2e → Run workflow** with:
-
-| Input       | Purpose                                                                                                |
-| ----------- | ------------------------------------------------------------------------------------------------------ |
-| `pr_number` | PR number to dispatch the agent for (required).                                                        |
-| `reason`    | Optional free-text reason, recorded in the PR comment for audit.                                       |
-| `force`     | If `true`, bypass the per-SHA debounce and the unfixable filter (still respects the round cap).        |
-| `run_id`    | Optional Actions run ID of a failed `server-ci` run; the `e2e-pytest-log` artifact is pulled from it. |
-
-If `run_id` is omitted, the workflow auto-detects the latest completed
-`server-ci` run for the PR's head SHA and downloads the log from there.
 
 `E2E_ADMIN_USER` / `E2E_ADMIN_PASS` MUST match the deployment's
 `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` Vercel env vars — those
@@ -321,4 +270,3 @@ vercel link
 vercel env add MONGODB_URI     # or use the Marketplace integration which injects it; repeat for the rest in §9.3
 vercel --prod
 ```
-

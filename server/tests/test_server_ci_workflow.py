@@ -38,7 +38,15 @@ def test_transition_keeps_legacy_vercel_preview_deploy() -> None:
     assert "VERCEL_TOKEN" in workflow
     assert "  update_manifest:" in workflow
     assert "node server/scripts/update_preview_manifest.mjs" in workflow
-    assert "  cursor_autofix_e2e:" in workflow
+
+
+def test_cursor_autofix_action_is_removed() -> None:
+    """The Cursor autofix workflow was retired from server CI."""
+    workflow = _server_ci_workflow()
+
+    assert "cursor_autofix_e2e" not in workflow
+    assert "CURSOR_API_KEY" not in workflow
+    assert "trigger-cursor-fix-e2e.mjs" not in workflow
 
 
 def test_legacy_vercel_preview_pins_storage_provider() -> None:
@@ -59,7 +67,7 @@ def test_cloudbase_staging_smoke_is_gated_by_manual_or_label() -> None:
     assert "github.event.action == 'labeled'" in workflow
 
     smoke_job_start = workflow.index("  cloudbase_staging_smoke:")
-    smoke_job_end = workflow.find("\n  cursor_autofix", smoke_job_start)
+    smoke_job_end = workflow.find("\n  update_manifest", smoke_job_start)
     smoke_job = workflow[smoke_job_start : smoke_job_end if smoke_job_end != -1 else len(workflow)]
 
     assert "github.event_name == 'workflow_dispatch'" in smoke_job
