@@ -51,6 +51,7 @@ async def test_preview_manifest_returns_503_when_blob_url_is_missing(
     client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.delenv("PREVIEW_MANIFEST_INLINE_JSON", raising=False)
     monkeypatch.delenv("PREVIEW_MANIFEST_BLOB_URL", raising=False)
 
     resp = await client.get("/api/v1/public/preview-urls.json")
@@ -59,12 +60,61 @@ async def test_preview_manifest_returns_503_when_blob_url_is_missing(
     assert resp.json()["detail"] == "PREVIEW_MANIFEST_BLOB_URL is not configured"
 
 
+async def test_preview_manifest_serves_inline_cloudbase_manifest_without_blob(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services import preview_manifest_service
+
+    monkeypatch.delenv("PREVIEW_MANIFEST_BLOB_URL", raising=False)
+    monkeypatch.setenv(
+        "PREVIEW_MANIFEST_INLINE_JSON",
+        """
+        {
+          "updated_at": "2026-05-20T00:00:00Z",
+          "items": [
+            {
+              "name": "CloudBase Staging",
+              "url": "https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com",
+              "branch": "shared-staging",
+              "provider": "cloudbase",
+              "source": "inline"
+            }
+          ]
+        }
+        """,
+    )
+    monkeypatch.setattr(preview_manifest_service.httpx, "AsyncClient", _FakeBlobClient)
+
+    resp = await client.get("/api/v1/public/preview-urls.json")
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "schema_version": 1,
+        "updated_at": "2026-05-20T00:00:00Z",
+        "previews": [
+            {
+                "pr": 0,
+                "title": "CloudBase Staging",
+                "branch": "shared-staging",
+                "url": "https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com",
+                "author": "cloudbase",
+                "head_sha": "inline",
+                "updated_at": "2026-05-20T00:00:00Z",
+            }
+        ],
+    }
+    assert resp.headers["cache-control"] == "public, max-age=60"
+    assert _FakeBlobClient.requests == []
+
+
 async def test_preview_manifest_proxies_blob_json_with_cache_and_etag(
     client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from app.services import preview_manifest_service
 
+    monkeypatch.delenv("PREVIEW_MANIFEST_INLINE_JSON", raising=False)
     monkeypatch.setenv(
         "PREVIEW_MANIFEST_BLOB_URL",
         "https://happyword.public.blob.vercel-storage.com/preview/preview-urls.json",
@@ -99,6 +149,7 @@ async def test_preview_manifest_returns_502_when_blob_fetch_fails(
 ) -> None:
     from app.services import preview_manifest_service
 
+    monkeypatch.delenv("PREVIEW_MANIFEST_INLINE_JSON", raising=False)
     _FakeBlobClient.status_code = 500
     _FakeBlobClient.text = "upstream down"
     _FakeBlobClient.headers = {}

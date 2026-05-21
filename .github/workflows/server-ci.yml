@@ -1,13 +1,19 @@
 name: server-ci
 
 on:
+  workflow_dispatch:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
     paths:
       - "server/**"
       - ".github/workflows/server-ci.yml"
 
 concurrency:
-  group: server-ci-${{ github.event.pull_request.number }}
+  group: server-ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 env:
@@ -43,41 +49,33 @@ jobs:
         run: uv run pytest -v
 
   server_e2e:
-    name: server / e2e (preview)
+    name: server / e2e (legacy Vercel preview)
     runs-on: ubuntu-latest
     needs: server_pytest
-    # secrets cannot be referenced inside `if:` (job or step). Evaluate once into env, then gate steps on env.HAS_VERCEL_TOKEN == 'true'.
+    if: ${{ github.event_name == 'pull_request' }}
     env:
       HAS_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
     defaults:
       run:
         working-directory: server
     steps:
-      # Always runs: downstream steps are gated on HAS_VERCEL_TOKEN. Without VERCEL_TOKEN
-      # (or on fork PRs where secrets are unavailable), every other step is skipped and the
-      # job still shows green — this step explains why.
       - name: E2E preview gate (why steps may be skipped)
-        # Run from repo root: job default is `server/`, which does not exist before Checkout.
         working-directory: .
         run: |
           set -euo pipefail
           echo "HAS_VERCEL_TOKEN=${HAS_VERCEL_TOKEN}"
           if [ "${HAS_VERCEL_TOKEN}" = "true" ]; then
-            echo "Vercel token is configured; E2E preview steps will run."
+            echo "Vercel token is configured; legacy Vercel Preview E2E will run during the CloudBase transition."
             exit 0
           fi
           HEAD_REPO="${{ github.event.pull_request.head.repo.full_name }}"
           THIS_REPO="${{ github.repository }}"
           if [ "$HEAD_REPO" != "$THIS_REPO" ]; then
-            echo "::warning::server / e2e (preview) skipped: secrets are not passed to workflows for pull requests from forks (head repo: ${HEAD_REPO}). Push the branch to this repository or run E2E locally."
+            echo "::warning::server / e2e (legacy Vercel preview) skipped: secrets are not passed to workflows for pull requests from forks (head repo: ${HEAD_REPO})."
           else
-            echo "::warning::server / e2e (preview) skipped: add repository secret VERCEL_TOKEN (and Vercel org/project IDs for fallback deploy). Without it, preview URL detection / deploy cannot run."
+            echo "::warning::server / e2e (legacy Vercel preview) skipped: add VERCEL_TOKEN and Vercel org/project secrets."
           fi
 
-      # Default PR checkout is the temporary **merge commit** (`refs/pull/…/merge`),
-      # whose message is “Merge … into …”. `vercel deploy` then shows that ugly title.
-      # Checkout the PR **head** SHA so the deployment matches Git/Vercel auto-deploys
-      # (readable `git log -1 --pretty=%s`).
       - name: Checkout
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         uses: actions/checkout@v5
@@ -107,8 +105,6 @@ jobs:
               per_page: 100,
             });
 
-            // Vercel typically creates a single "Preview" deployment per commit.
-            // We walk newest-first and pick the first success status with an environment_url.
             for (const d of deployments.sort((a, b) => b.id - a.id)) {
               const statuses = await github.paginate(github.rest.repos.listDeploymentStatuses, {
                 owner,
@@ -132,14 +128,6 @@ jobs:
       - name: Deploy Vercel preview (E2E-controlled)
         id: vercel_deploy
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
-        # Run from the repo root because the linked Vercel project already
-        # has `server` configured as its Root Directory.
-        # Do not rely on a detected branch preview for E2E: if that deployment
-        # was created before the PR existed, Vercel leaves
-        # VERCEL_GIT_PULL_REQUEST_ID empty at runtime and the app resolves a
-        # branch-fallback Mongo DB while the test runner resets happyword_pr_N_e2e.
-        # This CLI deployment injects stable PR metadata and E2E admin creds so
-        # the deployed bootstrap user matches the pytest login fixture.
         working-directory: .
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -193,9 +181,6 @@ jobs:
         id: db_name
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         run: |
-          # Mirror app.config's runtime expansion. Vercel preview deployments
-          # for PRs expose the PR id to the function runtime; branch refs still
-          # provide a deterministic fallback when that id is unavailable.
           BRANCH="${{ github.head_ref || github.ref_name }}"
           DB=$(MONGO_DB_NAME='happyword_pr_{pr}_e2e' \
             VERCEL_GIT_PULL_REQUEST_ID='${{ github.event.pull_request.number }}' \
@@ -229,7 +214,7 @@ jobs:
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
         run: |
           if [ -z "$E2E_MONGODB_URI" ] || [ -z "$E2E_MONGO_DB_NAME" ]; then
-            echo "::warning::E2E_MONGODB_URI / E2E_MONGO_DB_NAME not configured; skipping DB reset (E2E tests requiring mongo will skip)."
+            echo "::warning::E2E_MONGODB_URI / E2E_MONGO_DB_NAME not configured; skipping DB reset."
             exit 0
           fi
           uv run python scripts/e2e_reset_db.py
@@ -251,7 +236,7 @@ jobs:
           # forwards this as the `x-vercel-protection-bypass` header so the
           # request is waved through to the real Function. Empty value =
           # no header is sent (safe for unprotected previews / local runs).
-          # Mint the secret in: Project → Settings → Deployment Protection →
+          # Mint the secret in: Project -> Settings -> Deployment Protection ->
           # "Protection Bypass for Automation".
           E2E_VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         # Tee output to a log file so failed E2E runs retain pytest context as an artifact.
@@ -283,42 +268,95 @@ jobs:
             --arg url "${{ github.event.pull_request.html_url }}" \
             --arg sha "${{ github.event.pull_request.head.sha }}" \
             '{
-              text: ("server-ci E2E FAILED on PR #" + $pr),
+              text: ("server-ci legacy Vercel E2E FAILED on PR #" + $pr),
               blocks: [
                 { type: "section", text: { type: "mrkdwn",
-                  text: ("*server-ci E2E failed*\nPR #" + $pr + "\n" + $url + "\nSHA: `" + $sha + "`")
+                  text: ("*server-ci legacy Vercel E2E failed*\nPR #" + $pr + "\n" + $url + "\nSHA: `" + $sha + "`")
                 }}
               ]
             }')
           curl -sS -X POST -H 'Content-Type: application/json' \
             --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
 
+  cloudbase_staging_smoke:
+    name: server / cloudbase staging smoke
+    runs-on: ubuntu-latest
+    needs: server_pytest
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'pull_request' &&
+          (
+            github.event.action == 'labeled' ||
+            contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')
+          ) &&
+          contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')
+        )
+      }}
+    env:
+      HAS_CLOUDBASE_STAGING_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL != '' }}
+      HAS_E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI != '' }}
+      HAS_E2E_STAGING_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME != '' }}
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: CloudBase staging smoke gate
+        working-directory: .
+        run: |
+          set -euo pipefail
+          echo "HAS_CLOUDBASE_STAGING_BASE_URL=${HAS_CLOUDBASE_STAGING_BASE_URL}"
+          echo "HAS_E2E_MONGODB_URI=${HAS_E2E_MONGODB_URI}"
+          echo "HAS_E2E_STAGING_DB_NAME=${HAS_E2E_STAGING_DB_NAME}"
+          if [ "${HAS_CLOUDBASE_STAGING_BASE_URL}" != "true" ]; then
+            echo "::warning::cloudbase staging smoke skipped: add CLOUDBASE_STAGING_BASE_URL or run against staging locally."
+          fi
+
+      - name: Checkout
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' }}
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' }}
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Sync dependencies
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' }}
+        run: uv sync --dev
+
+      - name: Run CloudBase staging smoke
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' }}
+        env:
+          E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}
+          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
+          E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          E2E_CRON_SECRET: ${{ secrets.E2E_CRON_SECRET }}
+        run: |
+          set -o pipefail
+          uv run pytest -v -m smoke
+
   update_manifest:
-    name: preview-manifest / refresh
+    name: preview-manifest / legacy Vercel refresh
     runs-on: ubuntu-latest
     needs: server_e2e
-    # Only rebuild the public preview manifest when E2E preview actually
-    # passed (we don't want to advertise a broken preview to clients).
-    # Skipped + failure are both no-ops here. Restricted to in-repo PRs
-    # because fork PRs don't expose secrets.
-    if: ${{ needs.server_e2e.result == 'success' && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event_name == 'pull_request' && needs.server_e2e.result == 'success' && github.event.pull_request.head.repo.full_name == github.repository }}
     permissions:
       contents: read
       pull-requests: read
     timeout-minutes: 10
-    # The closed-event cleanup half of preview-manifest.yml runs in parallel
-    # for some lifecycle events (e.g. a closing PR that also synchronizes).
-    # Same `concurrency: preview-manifest` group as that workflow forces them
-    # to serialize so we don't race on the Vercel Blob object.
     concurrency:
       group: preview-manifest
       cancel-in-progress: false
     steps:
-      # The script lives in the PR's diff while the PR is open, so check
-      # out the PR head ref. (Earlier revisions checked out `main` and
-      # then patched the script in-tree from the PR head — that workaround
-      # is unnecessary now that the script no longer writes a tracked
-      # file, so there is nothing to commit back to `main`.)
       - name: Checkout PR head
         uses: actions/checkout@v5
         with:
@@ -327,7 +365,7 @@ jobs:
       - name: Setup Node 24
         uses: actions/setup-node@v5
         with:
-          node-version: '24'
+          node-version: "24"
 
       - name: Install Octokit
         run: npm install --no-save @octokit/rest
@@ -339,5 +377,71 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # GITHUB_REPOSITORY is auto-set by Actions to "<owner>/<repo>".
         run: node server/scripts/update_preview_manifest.mjs
+
+  cursor_autofix_e2e:
+    name: cursor / autofix legacy Vercel e2e
+    runs-on: ubuntu-latest
+    needs: server_e2e
+    if: ${{ always() && github.event_name == 'pull_request' && needs.server_e2e.result == 'failure' && github.event.pull_request.head.repo.full_name == github.repository }}
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      HAS_CURSOR_KEY: ${{ secrets.CURSOR_API_KEY != '' }}
+    steps:
+      - name: Cursor autofix gate (why steps may be skipped)
+        run: |
+          set -euo pipefail
+          echo "HAS_CURSOR_KEY=${HAS_CURSOR_KEY}"
+          if [ "${HAS_CURSOR_KEY}" != "true" ]; then
+            echo "::warning::cursor / autofix legacy Vercel e2e skipped: add CURSOR_API_KEY to enable automatic Cloud Agent fixes."
+          fi
+
+      - name: Checkout
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        uses: actions/checkout@v5
+
+      - name: Download E2E pytest log
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: e2e-pytest-log
+          path: artifacts
+
+      - name: Setup Node.js
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Install @cursor/sdk
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        run: |
+          set -euo pipefail
+          if [ ! -f package.json ]; then
+            cat > package.json <<'JSON'
+          {
+            "name": "happyword-cursor-autofix-runner",
+            "version": "0.0.0",
+            "private": true
+          }
+          JSON
+          fi
+          npm install --silent --no-audit --no-fund --no-progress --no-save @cursor/sdk
+
+      - name: Trigger Cursor Cloud autofix
+        if: ${{ env.HAS_CURSOR_KEY == 'true' }}
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          REPO_URL: ${{ github.event.repository.clone_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          E2E_LOG_FILE: artifacts/e2e-pytest.log
+        run: node .github/scripts/trigger-cursor-fix-e2e.mjs

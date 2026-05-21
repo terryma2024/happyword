@@ -8,6 +8,11 @@ def _server_ci_workflow() -> str:
     )
 
 
+def _workflow(name: str) -> str:
+    repo_root = Path(__file__).resolve().parents[2]
+    return (repo_root / ".github" / "workflows" / name).read_text(encoding="utf-8")
+
+
 def _step_with_id(workflow: str, step_id: str) -> str:
     id_marker = f"        id: {step_id}"
     id_index = workflow.index(id_marker)
@@ -22,43 +27,52 @@ def _step_named(workflow: str, name: str) -> str:
     return workflow[start : end if end != -1 else len(workflow)]
 
 
-def test_e2e_uses_cli_preview_deployment_with_pr_metadata() -> None:
-    """The E2E suite must target a preview deployed with PR DB metadata."""
+def test_transition_keeps_legacy_vercel_preview_deploy() -> None:
+    """During migration, PR CI still deploys Vercel Preview as a fallback path."""
     workflow = _server_ci_workflow()
 
-    deploy_step = _step_with_id(workflow, "vercel_deploy")
-    assert "if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}" in deploy_step
-    assert "working-directory: ." in deploy_step
-    assert "steps.detect_preview.outputs.preview_url == ''" not in deploy_step
-
-    e2e_step = _step_named(workflow, "Run E2E pytest subset")
-    assert (
-        "E2E_BASE_URL: ${{ steps.vercel_deploy.outputs.preview-url || "
-        "steps.detect_preview.outputs.preview_url }}"
-        in e2e_step
-    )
+    assert "  server_e2e:" in workflow
+    assert "Deploy Vercel preview (E2E-controlled)" in workflow
+    assert "npx --yes" in workflow
+    assert "deploy --yes" in workflow
+    assert "VERCEL_TOKEN" in workflow
+    assert "  update_manifest:" in workflow
+    assert "node server/scripts/update_preview_manifest.mjs" in workflow
+    assert "  cursor_autofix_e2e:" in workflow
 
 
-def test_e2e_preview_deploy_injects_test_admin_credentials() -> None:
-    """The deployed preview and pytest driver must use the same admin creds."""
+def test_cloudbase_staging_smoke_is_gated_by_manual_or_label() -> None:
     workflow = _server_ci_workflow()
 
-    deploy_step = _step_with_id(workflow, "vercel_deploy")
-    assert "ADMIN_BOOTSTRAP_USER: ${{ secrets.E2E_ADMIN_USER }}" in deploy_step
-    assert "ADMIN_BOOTSTRAP_PASS: ${{ secrets.E2E_ADMIN_PASS }}" in deploy_step
-    assert '--env ADMIN_BOOTSTRAP_USER="$ADMIN_BOOTSTRAP_USER"' in deploy_step
-    assert '--env ADMIN_BOOTSTRAP_PASS="$ADMIN_BOOTSTRAP_PASS"' in deploy_step
+    assert "workflow_dispatch:" in workflow
+    assert "cloudbase-smoke" in workflow
+    assert "github.event.action == 'labeled'" in workflow
+
+    smoke_job_start = workflow.index("  cloudbase_staging_smoke:")
+    smoke_job_end = workflow.find("\n  cursor_autofix", smoke_job_start)
+    smoke_job = workflow[smoke_job_start : smoke_job_end if smoke_job_end != -1 else len(workflow)]
+
+    assert "github.event_name == 'workflow_dispatch'" in smoke_job
+    assert "contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')" in smoke_job
+    assert "CLOUDBASE_STAGING_BASE_URL" in smoke_job
 
 
-def test_e2e_prunes_stale_preview_dbs_before_reset() -> None:
-    """Per-PR Atlas DB cleanup must run before reset to stay under collection caps."""
+def test_cloudbase_staging_smoke_uses_shared_staging_url() -> None:
     workflow = _server_ci_workflow()
 
-    prune_step = _step_named(workflow, "Prune stale E2E PR databases")
-    reset_step = _step_named(workflow, "Reset E2E database (truncate test collections)")
-    assert workflow.index(prune_step) < workflow.index(reset_step)
-    assert "scripts/e2e_drop_old_pr_dbs.py" in prune_step
-    assert "--drop-empty" in prune_step
-    assert "--drop-collections-on-drop-error" in prune_step
-    assert "--ignore-drop-errors" in prune_step
-    assert '--exclude "$E2E_MONGO_DB_NAME"' in prune_step
+    smoke_step = _step_named(workflow, "Run CloudBase staging smoke")
+    assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
+    assert "uv run pytest -v -m smoke" in smoke_step
+
+
+def test_main_cd_deploys_to_both_vercel_and_cloudbase_during_transition() -> None:
+    vercel_cd = _workflow("server-cd.yml")
+    cloudbase_cd = _workflow("server-cloudbase-cd.yml")
+
+    assert "Wait for Vercel production deploy" in vercel_cd
+    assert "Run staging smoke" in vercel_cd
+
+    assert "name: server-cloudbase-cd" in cloudbase_cd
+    assert "tcb login --apiKeyId" in cloudbase_cd
+    assert "tcb cloudrun deploy" in cloudbase_cd
+    assert "CLOUDBASE_PROD_BASE_URL" in cloudbase_cd
