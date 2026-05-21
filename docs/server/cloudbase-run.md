@@ -255,7 +255,9 @@ Planned env vars:
 
 Planned sequence:
 
-1. Create staging and production COS buckets.
+1. Create staging and production COS buckets. Done on 2026-05-21:
+   `happyword-assets-staging-1429584068` and
+   `happyword-assets-prod-1429584068` in `ap-shanghai`.
 2. Decide public URL policy: default COS domain, CDN domain, or custom asset
    domain.
 3. Add a storage-provider abstraction while keeping existing

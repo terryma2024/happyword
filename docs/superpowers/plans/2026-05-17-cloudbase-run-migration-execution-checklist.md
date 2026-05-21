@@ -1057,7 +1057,7 @@
   replacement provider, with Vercel Blob as the default compatibility provider.
   The selection and required env vars are recorded in `docs/server/cloudbase-run.md`.
 
-- [ ] **Step 2: Provision COS buckets**
+- [x] **Step 2: Provision COS buckets**
 
   Create:
 
@@ -1072,6 +1072,15 @@
 
   Acceptance: a manually uploaded test object has a stable HTTPS URL and can be
   fetched from a browser without credentials.
+
+  Completion note, 2026-05-21: staging and production buckets were provisioned
+  in Shanghai (`ap-shanghai`) as
+  `happyword-assets-staging-1429584068` and
+  `happyword-assets-prod-1429584068`, both with public-read/private-write
+  access. Earlier Guangzhou buckets were deleted. The CAM user
+  `happyword-cos-uploader` now uses the Shanghai-scoped custom policy
+  `HappyWordCosAssetUploadDeleteShanghai`; the obsolete Guangzhou policy was
+  deleted.
 
 - [x] **Step 3: Add failing storage-provider tests**
 
@@ -1236,9 +1245,9 @@
   ASSET_STORAGE_PROVIDER=tencent_cos \
   COS_SECRET_ID=... \
   COS_SECRET_KEY=... \
-  COS_REGION=ap-guangzhou \
-  COS_BUCKET=happyword-assets-staging \
-  COS_PUBLIC_BASE_URL=https://... \
+  COS_REGION=ap-shanghai \
+  COS_BUCKET=happyword-assets-staging-1429584068 \
+  COS_PUBLIC_BASE_URL=https://happyword-assets-staging-1429584068.cos.ap-shanghai.myqcloud.com \
   uv run python -m scripts.cos_storage_smoke
   ```
 
