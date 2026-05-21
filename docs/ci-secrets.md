@@ -91,6 +91,15 @@ deploy the target CloudBase Run service and read deployment status. Store the
 credential only as GitHub Actions secrets or in Tencent Cloud Secret Manager;
 do not commit the values to this repository.
 
+Operational note, 2026-05-21: GitHub Actions run `server-cloudbase-cd`
+`26199672079` succeeded after the CI API key was granted `QcloudTCBFullAccess`.
+The narrower `QcloudTCBRFullAccess` policy was not sufficient for
+`tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"` and failed
+with Tencent Cloud key verification errors both locally and in CI. Keep the
+working key restricted to GitHub Actions while migrating, then replace it with a
+custom least-privilege policy once the exact CloudBase Run deploy, HTTP access,
+function cron, and smoke-test actions are known.
+
 The current M3 implementation deploys `cloudbase/functions/cron-extract-pending`
 manually through the CloudBase CLI and stores function env vars in CloudBase,
 not in GitHub Actions. The `CLOUDBASE_CRON_*` names are reserved for future CI/CD
@@ -482,6 +491,8 @@ For someone forking this repo and wanting CI fully working:
    - [ ] Merge a `server/**` change to `main`. Watch both `server-cd` and
          `server-cloudbase-cd`; Vercel should smoke after production deploy,
          and CloudBase should deploy, health check, and smoke.
+         First green main run: `server-cloudbase-cd` `26199672079` on
+         2026-05-21 after PR #118 merged.
    - [ ] Wait until Monday 09:00 UTC (or trigger `atlas-cleanup` manually)
          to confirm the cleanup script connects.
 
