@@ -33,6 +33,13 @@ import { VersionTripleTap } from '../services/VersionTripleTap';
 import { formatVersionLabel, readVersionInfo, VersionInfo } from '../services/BuildInfo';
 import { isDebugBuild } from '../services/ReleaseGate';
 import {
+  hasPrivacyConsent,
+  savePrivacyConsent,
+  PRIVACY_POLICY_URL,
+  TERMS_OF_SERVICE_URL,
+} from '../services/CompliancePolicy';
+import { openUrlInSystemBrowser } from '../services/SystemBrowser';
+import {
   HomeIntegrationBundle,
   fallbackPacks,
   loadHomeIntegration,
@@ -111,6 +118,8 @@ struct HomePage {
   // hydration call in aboutToAppear is gated on BuildProfile.BUILD_MODE_NAME.
   @State private versionLabel: string = '';
   private versionTap: VersionTripleTap = new VersionTripleTap();
+  @State private privacyConsentVisible: boolean = false;
+  private privacyConsentSaving: boolean = false;
 
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -136,6 +145,12 @@ struct HomePage {
       .catch((err: BusinessError): void => {
         console.error(`HomePage: CloudCredentials.init failed: ${JSON.stringify(err)}`);
       });
+    hasPrivacyConsent(ctx).then((accepted: boolean): void => {
+      this.privacyConsentVisible = !accepted;
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage: hasPrivacyConsent failed: ${JSON.stringify(err)}`);
+      this.privacyConsentVisible = true;
+    });
     // V0.6.5.1: load the unified PackLibrary + selection on first
     // appearance. The chip row falls back to the bundled
     // ADVENTURE_REGIONS until this resolves so the first paint is
@@ -165,6 +180,32 @@ struct HomePage {
       this.boundChildNickname = '';
       this.boundChildAvatarEmoji = '🦄';
     }
+  }
+
+  private openComplianceUrl(url: string): void {
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    openUrlInSystemBrowser(ctx, url).catch((err: Error): void => {
+      console.error(`HomePage.openComplianceUrl failed: ${err.message}`);
+    });
+  }
+
+  private acceptPrivacyConsent(): void {
+    if (this.privacyConsentSaving) {
+      return;
+    }
+    this.privacyConsentSaving = true;
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    savePrivacyConsent(ctx).then((ok: boolean): void => {
+      if (ok) {
+        this.privacyConsentVisible = false;
+      }
+      this.privacyConsentSaving = false;
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage.acceptPrivacyConsent failed: ${JSON.stringify(err)}`);
+      this.privacyConsentSaving = false;
+    });
   }
 
   onPageShow(): void {
@@ -451,7 +492,7 @@ struct HomePage {
             .id('HomeReviewLockedToast')
             .fontSize(14)
             .fontColor('#FFFFFF')
-            .backgroundColor('#3A3A3ACC')
+            .backgroundColor('#E63A3A3A')
             .borderRadius(18)
             .padding({ left: 16, right: 16, top: 8, bottom: 8 });
         }
@@ -466,7 +507,7 @@ struct HomePage {
             .id('HomeQuestionTypeBlockedToast')
             .fontSize(14)
             .fontColor('#FFFFFF')
-            .backgroundColor('#3A3A3ACC')
+            .backgroundColor('#E63A3A3A')
             .borderRadius(18)
             .padding({ left: 16, right: 16, top: 8, bottom: 8 });
         }
@@ -497,7 +538,7 @@ struct HomePage {
         Text(`✨ ${this.coinBalance}`)
           .id('HomeCoinBalance')
           .fontSize(16)
-          .fontColor('#FFB400')
+          .fontColor('#B45309')
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .backgroundColor('#FFF6E5')
           .borderRadius(20);
@@ -637,6 +678,10 @@ struct HomePage {
         .alignItems(HorizontalAlign.Start)
         .width('100%');
       }
+
+      if (this.privacyConsentVisible) {
+        this.privacyConsentOverlay();
+      }
     }
     .alignContent(Alignment.TopEnd)
     .width('100%')
@@ -644,6 +689,63 @@ struct HomePage {
     .backgroundColor('#FFFFFF')
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
       SafeAreaEdge.START, SafeAreaEdge.END]);
+  }
+
+  @Builder
+  private privacyConsentOverlay() {
+    Column() {
+      Column({ space: 12 }) {
+        Text('请阅读并同意隐私政策')
+          .id('PrivacyConsentTitle')
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1F2937');
+        Text('魔法背单词会在家长绑定、学习同步、课本图片导入和愿望兑换时处理必要信息。继续使用前，请阅读《用户协议》和《隐私政策》。')
+          .id('PrivacyConsentBody')
+          .fontSize(15)
+          .fontColor('#374151')
+          .lineHeight(22);
+        Row({ space: 12 }) {
+          Button('用户协议')
+            .id('PrivacyConsentTermsButton')
+            .height(40)
+            .backgroundColor('#EAF2F8')
+            .fontColor('#1D4ED8')
+            .onClick((): void => this.openComplianceUrl(TERMS_OF_SERVICE_URL));
+          Button('隐私政策')
+            .id('PrivacyConsentPolicyButton')
+            .height(40)
+            .backgroundColor('#EAF2F8')
+            .fontColor('#1D4ED8')
+            .onClick((): void => this.openComplianceUrl(PRIVACY_POLICY_URL));
+        }
+        .justifyContent(FlexAlign.Center)
+        .width('100%');
+        Button('同意并继续')
+          .id('PrivacyConsentAgreeButton')
+          .height(44)
+          .width('100%')
+          .backgroundColor('#E63946')
+          .fontColor('#FFFFFF')
+          .onClick((): void => this.acceptPrivacyConsent());
+      }
+      .id('PrivacyConsentDialog')
+      .width(520)
+      .constraintSize({ maxWidth: '86%' })
+      .padding(24)
+      .backgroundColor('#FFFFFEFB')
+      .border({ width: 2, color: '#FFD28A' })
+      .borderRadius(18)
+      .shadow({ radius: 24, color: '#33000000', offsetX: 0, offsetY: 10 });
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .backgroundColor('#80000000')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM,
+      SafeAreaEdge.START, SafeAreaEdge.END])
+    .zIndex(20);
   }
 
   /**

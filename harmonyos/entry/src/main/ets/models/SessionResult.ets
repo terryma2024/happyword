@@ -59,4 +59,8 @@ export class SessionResult {
   coinsEarned: number = 0;
   coinsTotal: number = 0;
   dailyCapHit: boolean = false;
+  /** V0.8.3 — defeated monsters that had the spawn-time bonus flag. */
+  bonusKillCount: number = 0;
+  /** Stars before the ×1.3 ceil bonus (today mode display only). */
+  coinsBaseFromStars: number = 0;
 }

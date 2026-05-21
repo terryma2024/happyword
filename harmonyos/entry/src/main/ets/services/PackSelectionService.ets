@@ -20,8 +20,17 @@ import { StringPreferencesLike } from './WrongAnswerStore';
 const PREFS_NAME: string = 'wordmagic_pack_selection';
 const KEY_BLOB: string = 'selection_v1';
 
-export const MAX_ACTIVE_PACKS: number = 5;
+export const MAX_ACTIVE_PACKS: number = 10;
 export const PERFECT_THRESHOLD: number = 3;
+
+export type AppendOutcomeResult = 'activated' | 'refused-all-pinned';
+
+/** Result of `appendOrRotate` (V0.8.3 pack-cap auto-rotate). */
+export class AppendOutcome {
+  result: AppendOutcomeResult = 'activated';
+  addedId: string = '';
+  autoClosed: string | null = null;
+}
 
 interface RawSelection {
   schemaVersion?: number;
@@ -167,6 +176,49 @@ export class PackSelectionService {
     if (this.pinnedIds.has(id)) this.pinnedIds.delete(id);
     else this.pinnedIds.add(id);
     await this.persist();
+  }
+
+  /**
+   * V0.8.3 — activate `packId` when under the cap, or when at cap swap out
+   * the earliest-activated non-pinned pack. Pinned packs are never auto-closed.
+   */
+  async appendOrRotate(packId: string): Promise<AppendOutcome> {
+    const out: AppendOutcome = new AppendOutcome();
+    out.addedId = packId;
+    if (this.activeIds.indexOf(packId) >= 0) {
+      out.result = 'activated';
+      out.autoClosed = null;
+      return out;
+    }
+    if (this.activeIds.length < MAX_ACTIVE_PACKS) {
+      this.activeIds.push(packId);
+      await this.persist();
+      out.result = 'activated';
+      out.autoClosed = null;
+      return out;
+    }
+    let victim: string | null = null;
+    for (let i = 0; i < this.activeIds.length; i++) {
+      const id: string = this.activeIds[i];
+      if (!this.pinnedIds.has(id)) {
+        victim = id;
+        break;
+      }
+    }
+    if (victim === null) {
+      out.result = 'refused-all-pinned';
+      out.autoClosed = null;
+      return out;
+    }
+    const victimIdx: number = this.activeIds.indexOf(victim);
+    if (victimIdx >= 0) {
+      this.activeIds.splice(victimIdx, 1);
+    }
+    this.activeIds.push(packId);
+    await this.persist();
+    out.result = 'activated';
+    out.autoClosed = victim;
+    return out;
   }
 
   perfectScore(id: string): number {

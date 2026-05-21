@@ -2,9 +2,7 @@ name: cursor-autofix-e2e
 
 # Manual entry point for the Cursor Cloud E2E autofix loop.
 # Use when:
-#   - the auto-trigger inside server-ci.yml was skipped (e.g. unfixable
-#     filter classified the failure as environmental, or the round cap was
-#     reached) but you still want to force a Cursor agent;
+#   - you want to dispatch a Cursor agent for a failed E2E run;
 #   - you want to retry on the same head SHA after fixing the underlying
 #     environment issue;
 #   - you want to attach a custom reason for an audit trail.

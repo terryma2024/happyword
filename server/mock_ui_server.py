@@ -155,57 +155,107 @@ GLOBAL_PACK_ID: str = "space-station"
 GLOBAL_PACK_NAME: str = "Space Station"
 GLOBAL_PACK_DESCRIPTION_ZH: str = "太空站"
 
+# V0.8.3 — extra globals so PackManagerFlow can fill a 10-active cap and
+# exercise appendOrRotate against an 11th pack (distinct from built-in ids).
+MOCK_UI_EXTRA_GLOBAL_PACK_IDS: list[str] = [
+    "gpk-mock-01",
+    "gpk-mock-02",
+    "gpk-mock-03",
+    "gpk-mock-04",
+    "gpk-mock-05",
+]
+
+
+def _minimal_ui_global_pack(pack_id: str, name: str) -> dict[str, Any]:
+    word_id = f"{pack_id}-alpha"
+    return {
+        "pack_id": pack_id,
+        "name": name,
+        "description": name,
+        "version": GLOBAL_PACK_VERSION,
+        "schema_version": 1,
+        "published_at": GLOBAL_PACK_PUBLISHED_AT,
+        "scene": {
+            "bgPrimary": "#0F172A",
+            "bgAccent": "#1E293B",
+            "bossName": "Comet Captain",
+            "bossCandidates": [0, 1, 2],
+            "monsterPlan": [
+                {"kind": "normal", "catalogIndex": 0},
+                {"kind": "boss", "catalogIndex": 2},
+            ],
+            "storyZh": f"Mock global pack {name}",
+        },
+        "words": [
+            {
+                "id": word_id,
+                "word": "alpha",
+                "meaningZh": "阿尔法",
+                "category": "test",
+                "difficulty": 1,
+                "distractors": ["beta", "gamma", "delta"],
+            },
+        ],
+    }
+
+
+_FIXTURE_GLOBAL_PACKS: list[dict[str, Any]] = [
+    {
+        "pack_id": GLOBAL_PACK_ID,
+        "name": GLOBAL_PACK_NAME,
+        "description": GLOBAL_PACK_DESCRIPTION_ZH,
+        "version": GLOBAL_PACK_VERSION,
+        "schema_version": 1,
+        "published_at": GLOBAL_PACK_PUBLISHED_AT,
+        "scene": {
+            "bgPrimary": "#0F172A",
+            "bgAccent": "#1E293B",
+            "bossName": "Comet Captain",
+            "bossCandidates": [0, 1, 2],
+            "monsterPlan": [
+                {"kind": "normal", "catalogIndex": 0},
+                {"kind": "normal", "catalogIndex": 1},
+                {"kind": "boss", "catalogIndex": 2},
+            ],
+            "storyZh": "在太空站里学习单词",
+        },
+        "words": [
+            {
+                "id": "space-station-rocket",
+                "word": "rocket",
+                "meaningZh": "火箭",
+                "category": "space",
+                "difficulty": 2,
+                "distractors": ["pocket", "racket", "socket"],
+            },
+            {
+                "id": "space-station-planet",
+                "word": "planet",
+                "meaningZh": "行星",
+                "category": "space",
+                "difficulty": 2,
+                "distractors": ["plant", "planer", "panel"],
+            },
+            {
+                "id": "space-station-comet",
+                "word": "comet",
+                "meaningZh": "彗星",
+                "category": "space",
+                "difficulty": 2,
+                "distractors": ["come", "covet", "cement"],
+            },
+        ],
+    },
+]
+for _idx, _gid in enumerate(MOCK_UI_EXTRA_GLOBAL_PACK_IDS):
+    _FIXTURE_GLOBAL_PACKS.append(
+        _minimal_ui_global_pack(_gid, f"Mock Global {_idx + 1}"),
+    )
+
 FIXTURE_GLOBAL_PACK_PAYLOAD: dict[str, Any] = {
     "schema_version": 1,
     "merged_at": GLOBAL_PACK_MERGED_AT,
-    "packs": [
-        {
-            "pack_id": GLOBAL_PACK_ID,
-            "name": GLOBAL_PACK_NAME,
-            "description": GLOBAL_PACK_DESCRIPTION_ZH,
-            "version": GLOBAL_PACK_VERSION,
-            "schema_version": 1,
-            "published_at": GLOBAL_PACK_PUBLISHED_AT,
-            "scene": {
-                "bgPrimary": "#0F172A",
-                "bgAccent": "#1E293B",
-                "bossName": "Comet Captain",
-                "bossCandidates": [0, 1, 2],
-                "monsterPlan": [
-                    {"kind": "normal", "catalogIndex": 0},
-                    {"kind": "normal", "catalogIndex": 1},
-                    {"kind": "boss", "catalogIndex": 2},
-                ],
-                "storyZh": "在太空站里学习单词",
-            },
-            "words": [
-                {
-                    "id": "space-station-rocket",
-                    "word": "rocket",
-                    "meaningZh": "火箭",
-                    "category": "space",
-                    "difficulty": 2,
-                    "distractors": ["pocket", "racket", "socket"],
-                },
-                {
-                    "id": "space-station-planet",
-                    "word": "planet",
-                    "meaningZh": "行星",
-                    "category": "space",
-                    "difficulty": 2,
-                    "distractors": ["plant", "planer", "panel"],
-                },
-                {
-                    "id": "space-station-comet",
-                    "word": "comet",
-                    "meaningZh": "彗星",
-                    "category": "space",
-                    "difficulty": 2,
-                    "distractors": ["come", "covet", "cement"],
-                },
-            ],
-        },
-    ],
+    "packs": _FIXTURE_GLOBAL_PACKS,
 }
 
 FAMILY_PACK_VERSION: int = 1

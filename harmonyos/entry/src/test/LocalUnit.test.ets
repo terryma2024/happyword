@@ -52,7 +52,7 @@ import {
 } from '../main/ets/services/WrongAnswerStore';
 import { LearningRecorder } from '../main/ets/services/LearningRecorder';
 import { MemoryState } from '../main/ets/services/MemoryScheduler';
-import { isDebugBuild, shouldShowDebugBattleFinishButton } from '../main/ets/services/ReleaseGate';
+import { isDebugBuild } from '../main/ets/services/ReleaseGate';
 import {
   RedemptionRecord,
   RedemptionHistorySnapshot,
@@ -1975,12 +1975,6 @@ export default function localUnitTest() {
       expect(isDebugBuild('debug')).assertTrue();
       expect(isDebugBuild('release')).assertFalse();
       expect(isDebugBuild('')).assertFalse();
-    });
-
-    it('battleDebugFinishButtonOnlyRendersInDebugBuilds', 0, () => {
-      expect(shouldShowDebugBattleFinishButton('debug')).assertTrue();
-      expect(shouldShowDebugBattleFinishButton('release')).assertFalse();
-      expect(shouldShowDebugBattleFinishButton('')).assertFalse();
     });
   });
 }

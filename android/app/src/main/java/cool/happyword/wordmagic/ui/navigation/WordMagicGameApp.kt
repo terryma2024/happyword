@@ -1,6 +1,7 @@
 package cool.happyword.wordmagic.ui.navigation
 
 import android.app.Activity
+import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
@@ -120,6 +121,7 @@ import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.ChildProfileClient
 import cool.happyword.wordmagic.core.ChildProfileException
 import cool.happyword.wordmagic.core.CloudSyncCoordinator
+import cool.happyword.wordmagic.core.CompliancePolicy
 import cool.happyword.wordmagic.core.CoinAccount
 import cool.happyword.wordmagic.core.DevMenuRouteParams
 import cool.happyword.wordmagic.core.DevMenuViewModel
@@ -210,6 +212,15 @@ fun WordMagicGameApp() {
     val cloudCoordinator = remember { CloudSyncCoordinator() }
     val isDebuggable = remember { (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
     val showDeveloperTools = BuildGate.showDeveloperTools(isDebuggable)
+    val compliancePrefs = remember {
+        context.applicationContext.getSharedPreferences(CompliancePolicy.PREFS_NAME, Context.MODE_PRIVATE)
+    }
+    var privacyConsentAccepted by remember {
+        mutableStateOf(
+            isDebuggable ||
+                compliancePrefs.getBoolean(CompliancePolicy.PRIVACY_CONSENT_KEY, false),
+        )
+    }
     val homeVersionLabel = remember(showDeveloperTools) {
         if (showDeveloperTools) BuildInfo.homeVersionLabel(context) else ""
     }
@@ -424,6 +435,33 @@ fun WordMagicGameApp() {
         }
     }
 
+    fun finishBattleSession(finishedState: BattleState) {
+        val sessionResult = engine.resultFor(finishedState).copy(packId = selectedPack.id)
+        val credited = coinAccount.creditBattleReward(sessionResult.stars, LocalDate.now().toString())
+        val sessionRecord = BattleSessionRecord(
+            packId = selectedPack.id,
+            won = sessionResult.won,
+            stars = sessionResult.stars,
+            correctCount = sessionResult.correctCount,
+            wrongCount = sessionResult.wrongCount,
+            defeatedMonsters = sessionResult.defeatedMonsters,
+            completedAtMs = System.currentTimeMillis(),
+        )
+        learningRecorder.recordSession(sessionRecord)
+        repositories.saveLearningRecorder(learningRecorder)
+        cloudCoordinator.syncStats(learningRecorder.statsSnapshot(), System.currentTimeMillis())
+        if (sessionRecord.perfect) {
+            val rotation = selection.recordPerfectRun(selectedPack.id, packLibrary)
+            selection = rotation.selection
+            repositories.saveSelection(selection)
+            selectedPackId = selection.activePackIds.firstOrNull() ?: selectedPack.id
+        }
+        coinAccount = credited.account
+        repositories.saveCoinAccount(coinAccount)
+        result = sessionResult.copy(coinDelta = credited.delta)
+        route = AppRoute.Result
+    }
+
     ApplyOrientation(route)
     LaunchedEffect(route, devMenuRoutePreset) {
         if (route != AppRoute.DevMenu) return@LaunchedEffect
@@ -512,6 +550,12 @@ fun WordMagicGameApp() {
                     pack = selectedPack,
                     config = config,
                     timeLeft = battleTimeLeft,
+                    onSpellWrongTap = {
+                        val current = battleState ?: engine.initialState()
+                        val outcome = engine.spellLetterPenaltyOutcome(current)
+                        battleState = outcome.nextState
+                        outcome
+                    },
                     onAnswer = { answer ->
                         val outcome = engine.submitAnswerWithOutcome(battleState ?: engine.initialState(), answer)
                         selectedPack.words.firstOrNull { it.word == outcome.correctAnswer }?.let { answeredWord ->
@@ -527,33 +571,13 @@ fun WordMagicGameApp() {
                         battleState = next
                         outcome
                     },
-                    onBattleFinished = { finishedState ->
-                        val sessionResult = engine.resultFor(finishedState).copy(packId = selectedPack.id)
-                        val credited = coinAccount.creditBattleReward(sessionResult.stars, LocalDate.now().toString())
-                        val sessionRecord = BattleSessionRecord(
-                            packId = selectedPack.id,
-                            won = sessionResult.won,
-                            stars = sessionResult.stars,
-                            correctCount = sessionResult.correctCount,
-                            wrongCount = sessionResult.wrongCount,
-                            defeatedMonsters = sessionResult.defeatedMonsters,
-                            completedAtMs = System.currentTimeMillis(),
-                        )
-                        learningRecorder.recordSession(sessionRecord)
-                        repositories.saveLearningRecorder(learningRecorder)
-                        cloudCoordinator.syncStats(learningRecorder.statsSnapshot(), System.currentTimeMillis())
-                        if (sessionRecord.perfect) {
-                            val rotation = selection.recordPerfectRun(selectedPack.id, packLibrary)
-                            selection = rotation.selection
-                            repositories.saveSelection(selection)
-                            selectedPackId = selection.activePackIds.firstOrNull() ?: selectedPack.id
-                        }
-                        coinAccount = credited.account
-                        repositories.saveCoinAccount(coinAccount)
-                        result = sessionResult.copy(coinDelta = credited.delta)
-                        route = AppRoute.Result
+                    onBattleFinished = ::finishBattleSession,
+                    onEscape = {
+                        val current = battleState ?: engine.initialState()
+                        val escaped = current.copy(status = BattleStatus.Lost)
+                        battleState = escaped
+                        finishBattleSession(escaped)
                     },
-                    onExit = { route = AppRoute.Home },
                 )
                 AppRoute.Result -> ResultScreen(
                     result = result ?: SessionResult(false, 0, 0, 0, 0, 0, 0),
@@ -583,6 +607,13 @@ fun WordMagicGameApp() {
                         route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo
                     },
                     onPackManager = { route = AppRoute.PackManager },
+                    onReportChannel = {
+                        try {
+                            SystemBrowser.openUrl(context, CompliancePolicy.REPORT_CHANNEL_URL)
+                        } catch (err: Exception) {
+                            Toast.makeText(context, "问题反馈暂时无法打开，请稍后重试", Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     onLearningSync = {
                         if (learningSyncBusy) return@ConfigScreen
                         val credentials = cloudCredentials
@@ -1037,6 +1068,73 @@ fun WordMagicGameApp() {
                     },
                 )
             }
+            if (!privacyConsentAccepted) {
+                PrivacyConsentDialog(
+                    onOpenTerms = {
+                        SystemBrowser.openUrl(context, CompliancePolicy.TERMS_OF_SERVICE_URL)
+                    },
+                    onOpenPrivacy = {
+                        SystemBrowser.openUrl(context, CompliancePolicy.PRIVACY_POLICY_URL)
+                    },
+                    onAgree = {
+                        compliancePrefs.edit()
+                            .putBoolean(CompliancePolicy.PRIVACY_CONSENT_KEY, true)
+                            .apply()
+                        privacyConsentAccepted = true
+                    },
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun PrivacyConsentDialog(
+    onOpenTerms: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onAgree: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = {
+            Text(
+                "请阅读并同意隐私政策",
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.testTag("PrivacyConsentTitle"),
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "魔法背单词会在家长绑定、学习同步、课本图片导入和愿望兑换时处理必要信息。继续使用前，请阅读《用户协议》和《隐私政策》。",
+                    color = Color(0xFF374151),
+                    modifier = Modifier.testTag("PrivacyConsentBody"),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(
+                        onClick = onOpenTerms,
+                        modifier = Modifier.testTag("PrivacyConsentTermsButton"),
+                    ) { Text("用户协议") }
+                    TextButton(
+                        onClick = onOpenPrivacy,
+                        modifier = Modifier.testTag("PrivacyConsentPolicyButton"),
+                    ) { Text("隐私政策") }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onAgree,
+                modifier = Modifier.testTag("PrivacyConsentAgreeButton"),
+            ) {
+                Text("同意并继续")
+            }
+        },
+        shape = RoundedCornerShape(28.dp),
+        containerColor = Color(0xFFFFFEFB),
+        tonalElevation = 10.dp,
+        modifier = Modifier
+            .testTag("PrivacyConsentDialog")
+            .border(2.dp, Color(0xFFFFD28A), RoundedCornerShape(28.dp)),
+    )
 }

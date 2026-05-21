@@ -27,6 +27,13 @@ final class AppMetadataTests: XCTestCase {
         XCTAssertEqual(AppMetadata.bundleIdentifier, "com.terryma.wordmagicgame")
     }
 
+    func testCompliancePolicyMatchesReleaseSubmission() {
+        XCTAssertEqual(CompliancePolicy.privacyPolicyURL.absoluteString, "https://happyword.cool/privacy")
+        XCTAssertEqual(CompliancePolicy.termsOfServiceURL.absoluteString, "https://happyword.cool/terms")
+        XCTAssertEqual(CompliancePolicy.reportChannelURL.absoluteString, "https://happyword.cool/report_and_appeal")
+        XCTAssertEqual(CompliancePolicy.privacyConsentUserDefaultsKey, "privacy_consent_v1")
+    }
+
     func testVersionMatchesHarmonyOSBaseline() {
         XCTAssertEqual(AppMetadata.harmonyVersionName, "0.7.0")
         XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_007_000)

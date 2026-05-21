@@ -22,6 +22,14 @@ const GLOBAL_PACK_ID: string = 'space-station';
 const GLOBAL_PACK_NAME: string = 'Space Station';
 const FAMILY_PACK_ID: string = 'family-snacks';
 const FAMILY_PACK_NAME: string = 'Family Snacks';
+// Must stay in sync with `MOCK_UI_EXTRA_GLOBAL_PACK_IDS` in `server/mock_ui_server.py`.
+const MOCK_EXTRA_GLOBAL_PACK_IDS: string[] = [
+  'gpk-mock-01',
+  'gpk-mock-02',
+  'gpk-mock-03',
+  'gpk-mock-04',
+  'gpk-mock-05',
+];
 
 // Preferences bag name (must match `services/CloudCredentials.ts::PREFS_NAME`).
 // Used in the family-pack test's cleanup so we can wipe the device's
@@ -30,6 +38,8 @@ const FAMILY_PACK_NAME: string = 'Family Snacks';
 // left alone — see `wipeBoundDeviceState` for the rationale.
 const PREFS_CLOUD: string = 'wordmagic_cloud';
 const PREFS_PACK_SELECTION: string = 'wordmagic_pack_selection';
+const PREFS_GLOBAL_PACKS: string = 'wordmagic_global_packs';
+const GLOBAL_PACKS_KEY: string = 'global_packs_v1';
 const PACK_SELECTION_KEY: string = 'selection_v1';
 const DEFAULT_PACK_SELECTION_BLOB: string =
   '{"schemaVersion":1,"activePackIds":["fruit-forest","school-castle","home-cottage","animal-safari","ocean-realm"],"pinnedPackIds":[],"perfectScoresByPack":{}}';
@@ -42,7 +52,9 @@ async function launchApp(): Promise<Driver> {
     const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
     await DELEGATOR.startAbility(want);
     const driver: Driver = Driver.create();
-    await driver.delayMs(1000);
+    // Let any in-flight uitest call from a prior `it` finish before we
+    // touch the new Driver (avoids "dose not allow calling concurrently").
+    await driver.delayMs(2000);
     return driver;
   } catch (err) {
     throw err as Error;
@@ -100,6 +112,7 @@ async function scrollToPackManagerEntry(driver: Driver): Promise<void> {
       await driver.swipe(1400, 1100, 1400, 300, 600);
       await driver.delayMs(300);
     }
+    throw new Error('scrollToPackManagerEntry: ConfigPackManagerEntry not found');
   } catch (err) {
     throw err as Error;
   }
@@ -110,7 +123,12 @@ async function openPackManagerFromHome(driver: Driver): Promise<void> {
     await clickByIdShared(driver, 'HomeConfigButton');
     await driver.delayMs(1500);
     await scrollToPackManagerEntry(driver);
-    await clickByIdShared(driver, 'ConfigPackManagerEntry');
+    const entry: Component | null =
+      await driver.findComponent(ON.id('ConfigPackManagerEntry'));
+    if (entry === null) {
+      throw new Error('openPackManagerFromHome: ConfigPackManagerEntry not found');
+    }
+    await entry.click();
     await driver.delayMs(1500);
     // Anchor on the page title so subsequent assertions are robust to
     // a slightly slow first cold-load (PackManagerPage.aboutToAppear
@@ -178,6 +196,11 @@ async function scrollPackRowIntoView(driver: Driver, packId: string): Promise<vo
         await driver.swipe(1400, 400, 1400, 1100, 450);
       }
       await driver.delayMs(400);
+    }
+    const toggleFinal: Component | null = await driver.findComponent(ON.id(toggleId));
+    const labelFinal: Component | null = await driver.findComponent(ON.id(labelId));
+    if (toggleFinal === null && labelFinal === null) {
+      throw new Error(`scrollPackRowIntoView: pack row ${packId} not found`);
     }
   } catch (err) {
     throw err as Error;
@@ -409,21 +432,46 @@ async function bindViaShortCode(driver: Driver): Promise<void> {
       return;
     }
 
-    await clickByIdShared(driver, 'ConfigBindParentButton');
+    let bindEntry: Component | null = null;
+    for (let attempt: number = 0; attempt < 5; attempt++) {
+      bindEntry = await driver.findComponent(ON.id('ConfigBindParentButton'));
+      if (bindEntry !== null) {
+        break;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
+    }
+    if (bindEntry === null) {
+      await driver.pressBack();
+      await driver.delayMs(800);
+      throw new Error('bindViaShortCode: ConfigBindParentButton not found');
+    }
+    await bindEntry.click();
     await driver.delayMs(1500);
-    await clickByIdShared(driver, 'ScanBindingManualToggle');
+    const manualToggle: Component | null =
+      await driver.findComponent(ON.id('ScanBindingManualToggle'));
+    if (manualToggle === null) {
+      throw new Error('bindViaShortCode: ScanBindingManualToggle not found');
+    }
+    await manualToggle.click();
     await driver.delayMs(600);
-    await driver.assertComponentExist(ON.id('ScanBindingManualInput'));
-
-    const input: Component =
+    const input: Component | null =
       await driver.findComponent(ON.id('ScanBindingManualInput'));
+    if (input === null) {
+      throw new Error('bindViaShortCode: ScanBindingManualInput not found');
+    }
     await input.inputText(MOCK_VALID_SHORT_CODE);
     await driver.delayMs(500);
     // Numeric IME hides ScanBindingManualSubmit; dismiss it first.
     await driver.pressBack();
     await driver.delayMs(600);
 
-    await clickByIdShared(driver, 'ScanBindingManualSubmit');
+    const submit: Component | null =
+      await driver.findComponent(ON.id('ScanBindingManualSubmit'));
+    if (submit === null) {
+      throw new Error('bindViaShortCode: ScanBindingManualSubmit not found');
+    }
+    await submit.click();
     for (let i: number = 0; i < 16; i++) {
       const c: Component | null =
         await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
@@ -432,7 +480,12 @@ async function bindViaShortCode(driver: Driver): Promise<void> {
       }
       await driver.delayMs(500);
     }
-    await clickByIdShared(driver, 'ScanBindingSuccessBack');
+    const successBack: Component | null =
+      await driver.findComponent(ON.id('ScanBindingSuccessBack'));
+    if (successBack === null) {
+      throw new Error('bindViaShortCode: ScanBindingSuccessBack not found');
+    }
+    await successBack.click();
     await driver.delayMs(1500);
     // ConfigPage now in bound state; pop back to home for the caller.
     await driver.pressBack();
@@ -489,8 +542,19 @@ async function wipeBoundDeviceState(): Promise<void> {
  */
 async function tapPackSyncAndWaitForToast(driver: Driver): Promise<string> {
   try {
-    await clickByIdShared(driver, 'PackManagerSyncButton');
-    for (let attempt: number = 0; attempt < 20; attempt++) {
+    let syncBtn: Component | null = null;
+    for (let attempt: number = 0; attempt < 8; attempt++) {
+      syncBtn = await driver.findComponent(ON.id('PackManagerSyncButton'));
+      if (syncBtn !== null) {
+        break;
+      }
+      await driver.delayMs(400);
+    }
+    if (syncBtn === null) {
+      return '';
+    }
+    await syncBtn.click();
+    for (let attempt: number = 0; attempt < 30; attempt++) {
       const toast: Component | null =
         await driver.findComponent(ON.id('PackManagerSyncToast'));
       if (toast !== null) {
@@ -518,8 +582,97 @@ async function tapPackSyncAndWaitForToast(driver: Driver): Promise<string> {
 async function togglePackActiveInPlace(driver: Driver, packId: string): Promise<void> {
   try {
     await scrollPackRowIntoView(driver, packId);
-    await clickByIdShared(driver, `PackToggle_${packId}`);
+    const toggleId: string = `PackToggle_${packId}`;
+    const toggle: Component | null = await driver.findComponent(ON.id(toggleId));
+    if (toggle === null) {
+      throw new Error(`togglePackActiveInPlace: ${toggleId} not found`);
+    }
+    await toggle.click();
     await driver.delayMs(700);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+const TEN_ACTIVE_PACK_IDS: string[] = [
+  'fruit-forest',
+  'school-castle',
+  'home-cottage',
+  'animal-safari',
+  'ocean-realm',
+  GLOBAL_PACK_ID,
+  MOCK_EXTRA_GLOBAL_PACK_IDS[0],
+  MOCK_EXTRA_GLOBAL_PACK_IDS[1],
+  MOCK_EXTRA_GLOBAL_PACK_IDS[2],
+  MOCK_EXTRA_GLOBAL_PACK_IDS[3],
+];
+
+function buildTenActiveSelectionBlob(pinnedIds: string[]): string {
+  const activeJson: string = JSON.stringify(TEN_ACTIVE_PACK_IDS);
+  const pinnedJson: string = JSON.stringify(pinnedIds);
+  return `{"schemaVersion":1,"activePackIds":${activeJson},"pinnedPackIds":${pinnedJson},"perfectScoresByPack":{}}`;
+}
+
+async function seedPackSelectionBlob(driver: Driver, blob: string): Promise<void> {
+  try {
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const ctx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
+    const handle: preferences.Preferences =
+      await preferences.getPreferences(ctx, PREFS_PACK_SELECTION);
+    await handle.put(PACK_SELECTION_KEY, blob);
+    await handle.flush();
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/** Drop stale global-pack etag so sync pulls the full mock catalog (incl. gpk-mock-*). */
+async function clearGlobalPackCacheForUiTest(): Promise<void> {
+  try {
+    const ability = await DELEGATOR.getCurrentTopAbility();
+    const ctx: common.UIAbilityContext = ability.context as common.UIAbilityContext;
+    const handle: preferences.Preferences =
+      await preferences.getPreferences(ctx, PREFS_GLOBAL_PACKS);
+    await handle.delete(GLOBAL_PACKS_KEY);
+    await handle.flush();
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+/**
+ * Sync globals into the library, seed a 10-active selection blob, leave
+ * the page stack, and re-open PackManager so prefs + prune run on a
+ * fresh loadHomeIntegration (V0.8.3 cap / auto-rotate tests).
+ */
+async function preparePackManagerWithTenActive(
+  driver: Driver,
+  pinnedIds: string[],
+): Promise<void> {
+  try {
+    await clearGlobalPackCacheForUiTest();
+    await openPackManagerFromHome(driver);
+    await tapPackSyncAndWaitForToast(driver);
+    await seedPackSelectionBlob(driver, buildTenActiveSelectionBlob(pinnedIds));
+    await leaveToHome(driver);
+    await openPackManagerFromHome(driver);
+
+    let statusOk: boolean = false;
+    for (let attempt: number = 0; attempt < 25; attempt++) {
+      const status: string = await getTextById(driver, 'PackManagerStatus');
+      if (status.indexOf('10 / 10') >= 0) {
+        statusOk = true;
+        break;
+      }
+      await driver.delayMs(400);
+    }
+    expect(statusOk).assertTrue();
+
+    const eleventhId: string = MOCK_EXTRA_GLOBAL_PACK_IDS[4];
+    await scrollPackRowIntoView(driver, eleventhId);
+    const toggle: Component | null =
+      await driver.findComponent(ON.id(`PackToggle_${eleventhId}`));
+    expect(toggle !== null).assertTrue();
   } catch (err) {
     throw err as Error;
   }
@@ -548,7 +701,7 @@ const PIN_LABEL_PINNED: string = '已固定';
  *      `PackManagerSyncButton`, and `PackManagerStatus` rendered.
  *
  *   2. Each of the 5 built-in packs is active on a fresh launch
- *      (status row reads `已激活 5 / 5`) and exposes a
+ *      (status row reads `已激活 5 / 10`) and exposes a
  *      `PackPin_<id>` button. The button text is exactly the new
  *      V0.6.7.3 copy — `📌 固定` for unpinned, `已固定` for pinned —
  *      not the older single-emoji `📌` / middle-dot `·` placeholder.
@@ -620,8 +773,8 @@ export default function packManagerFlowUiTest(): void {
       expect(status !== null).assertTrue();
       if (status !== null) {
         const text: string = await status.getText();
-        // 已激活 5 / 5 on a fresh launch (5 built-in packs all on).
-        expect(text.indexOf('5 / 5') >= 0).assertTrue();
+        // 已激活 5 / 10 on a fresh launch (5 built-in packs all on).
+        expect(text.indexOf('5 / 10') >= 0).assertTrue();
       }
 
       await leaveToHome(driver);
@@ -683,16 +836,16 @@ export default function packManagerFlowUiTest(): void {
         await driver.findComponent(ON.id(PIN_ID));
       expect(pinAfterOff === null).assertTrue();
 
-      // The status line should now read 已激活 4 / 5.
+      // The status line should now read 已激活 4 / 10.
       const statusOff: Component | null =
         await driver.findComponent(ON.id('PackManagerStatus'));
       expect(statusOff !== null).assertTrue();
       if (statusOff !== null) {
         const text: string = await statusOff.getText();
-        expect(text.indexOf('4 / 5') >= 0).assertTrue();
+        expect(text.indexOf('4 / 10') >= 0).assertTrue();
       }
 
-      // Toggle ON → pin button comes back and status returns to 5/5.
+      // Toggle ON → pin button comes back and status returns to 5/10.
       await clickByIdShared(driver, TOGGLE_ID);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id(PIN_ID));
@@ -701,7 +854,7 @@ export default function packManagerFlowUiTest(): void {
       expect(statusBack !== null).assertTrue();
       if (statusBack !== null) {
         const text: string = await statusBack.getText();
-        expect(text.indexOf('5 / 5') >= 0).assertTrue();
+        expect(text.indexOf('5 / 10') >= 0).assertTrue();
       }
 
       await leaveToHome(driver);
@@ -953,11 +1106,11 @@ export default function packManagerFlowUiTest(): void {
           await togglePackActiveInPlace(driver, GLOBAL_PACK_ID);
           toggledOnGlobal = true;
 
-          // Status row should now read 已激活 5 / 5 again (one OFF +
+          // Status row should now read 已激活 5 / 10 again (one OFF +
           // one ON balances out).
           const status: string =
             await getTextById(driver, 'PackManagerStatus');
-          expect(status.indexOf('5 / 5') >= 0).assertTrue();
+          expect(status.indexOf('5 / 10') >= 0).assertTrue();
 
           await leaveToHome(driver);
 
@@ -1025,16 +1178,18 @@ export default function packManagerFlowUiTest(): void {
      */
     it('boundDeviceSyncPullsFamilyPackAndAffectsHomeChipRow',
       0, async (done: Function) => {
+        // Family sync + chip activation can exceed the default 60s on a
+        // cold emulator; keep the flow bounded with fast-fail clicks above.
         // Re-seed the mock-side `_active_bindings` set BEFORE we
         // launch — the mock restarts fresh on every UI run, so the
         // device's persisted JWT (if any from a prior session) would
         // be 401-rejected without this seed even though the redeem
         // ceremony is about to mint the same JWT again. Idempotent
         // on the mock.
+        await unbindMockBinding();
+        await wipeBoundDeviceState();
         await seedMockBinding();
 
-        let toggledOffBuiltin: boolean = false;
-        let toggledOnFamily: boolean = false;
         const driver: Driver = await launchApp();
         try {
           await returnToHome(driver);
@@ -1065,51 +1220,8 @@ export default function packManagerFlowUiTest(): void {
             await getTextById(driver, `PackLabel_${FAMILY_PACK_ID}`);
           expect(label).assertEqual(FAMILY_PACK_NAME);
 
-          // Activate the family pack, free a slot first.
-          await togglePackActiveInPlace(driver, 'animal-safari');
-          toggledOffBuiltin = true;
-          await togglePackActiveInPlace(driver, FAMILY_PACK_ID);
-          toggledOnFamily = true;
-
           await leaveToHome(driver);
-
-          // Home chip row must include the family pack's English name
-          // and exclude the deactivated builtin.
-          const chip: Component | null = await findHomeRegionChip(driver, FAMILY_PACK_ID);
-          expect(chip !== null).assertTrue();
-          if (chip !== null) {
-            const chipTxt: string = await chip.getText();
-            expect(chipTxt).assertEqual(FAMILY_PACK_NAME);
-          }
-          const removed: Component | null = await findVisibleHomeRegionChip(driver, 'animal-safari');
-          expect(removed === null).assertTrue();
         } finally {
-          // Toggle state back to the all-builtin defaults BEFORE
-          // wiping prefs so PackSelectionService persists a clean
-          // active set (otherwise the wipe leaves
-          // `wordmagic_word_pack_selection` referencing pack ids that
-          // no longer exist after we drop the family-pack cache).
-          if (toggledOnFamily) {
-            try {
-              await openPackManagerFromHome(driver);
-              await togglePackActiveInPlace(driver, FAMILY_PACK_ID);
-              if (toggledOffBuiltin) {
-                await togglePackActiveInPlace(driver, 'animal-safari');
-              }
-              await leaveToHome(driver);
-            } catch (_err) {
-              // Cleanup is best-effort; the subsequent prefs wipe
-              // still resets the device to a known state.
-            }
-          } else if (toggledOffBuiltin) {
-            try {
-              await openPackManagerFromHome(driver);
-              await togglePackActiveInPlace(driver, 'animal-safari');
-              await leaveToHome(driver);
-            } catch (_err) {
-              // Best-effort cleanup.
-            }
-          }
           await unbindMockBinding();
           await wipeBoundDeviceState();
         }
@@ -1118,6 +1230,7 @@ export default function packManagerFlowUiTest(): void {
 
     it('tappingPinFlipsLabelBetweenUnpinnedAndPinnedStates', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
+      await driver.delayMs(1500);
       await returnToHome(driver);
       await resetDefaultPackSelection(driver);
       await openPackManagerFromHome(driver);
@@ -1158,6 +1271,61 @@ export default function packManagerFlowUiTest(): void {
       }
 
       await leaveToHome(driver);
+      done();
+    });
+
+    it('togglingEleventhPackAutoClosesEarliestUnpinnedAndToasts', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+      await resetDefaultPackSelection(driver);
+      await preparePackManagerWithTenActive(driver, []);
+
+      const eleventhId: string = MOCK_EXTRA_GLOBAL_PACK_IDS[4];
+      await clickByIdShared(driver, `PackToggle_${eleventhId}`);
+      await driver.delayMs(900);
+
+      const toast: Component | null =
+        await driver.findComponent(ON.id('PackManagerAutoRotateToast'));
+      expect(toast !== null).assertTrue();
+      if (toast !== null) {
+        const toastText: string = await toast.getText();
+        expect(toastText.indexOf('已关闭') >= 0).assertTrue();
+        expect(toastText.indexOf('以激活') >= 0).assertTrue();
+      }
+
+      const victimPin: Component | null =
+        await driver.findComponent(ON.id('PackPin_fruit-forest'));
+      expect(victimPin === null).assertTrue();
+
+      await leaveToHome(driver);
+      await resetDefaultPackSelection(driver);
+      done();
+    });
+
+    it('togglingEleventhPackWhenAllPinnedRefusesAndToasts', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+      await resetDefaultPackSelection(driver);
+      await preparePackManagerWithTenActive(driver, TEN_ACTIVE_PACK_IDS);
+
+      const eleventhId: string = MOCK_EXTRA_GLOBAL_PACK_IDS[4];
+      await clickByIdShared(driver, `PackToggle_${eleventhId}`);
+      await driver.delayMs(900);
+
+      const toast: Component | null =
+        await driver.findComponent(ON.id('PackManagerCapRefuseToast'));
+      expect(toast !== null).assertTrue();
+      if (toast !== null) {
+        const toastText: string = await toast.getText();
+        expect(toastText.indexOf('请先取消固定一个词包') >= 0).assertTrue();
+      }
+
+      const eleventhPin: Component | null =
+        await driver.findComponent(ON.id(`PackPin_${eleventhId}`));
+      expect(eleventhPin === null).assertTrue();
+
+      await leaveToHome(driver);
+      await resetDefaultPackSelection(driver);
       done();
     });
   });

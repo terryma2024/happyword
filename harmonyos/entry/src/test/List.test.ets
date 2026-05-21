@@ -51,6 +51,11 @@ import globalPackServiceTest from './GlobalPackService.test';
 import packLibraryTest from './PackLibrary.test';
 import packSelectionServiceTest from './PackSelectionService.test';
 import battleQuestionTypePolicyTest from './BattleQuestionTypePolicy.test';
+import compliancePolicyTest from './CompliancePolicy.test';
+import battleQuestionSchedulerTest from './BattleQuestionScheduler.test';
+import battleEngineTest from './BattleEngine.test';
+import battleRewardCalcTest from './BattleRewardCalc.test';
+import damageFloaterLabelTest from './DamageFloaterLabel.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -106,4 +111,9 @@ export default function testsuite() {
   packLibraryTest();
   packSelectionServiceTest();
   battleQuestionTypePolicyTest();
+  compliancePolicyTest();
+  battleQuestionSchedulerTest();
+  battleEngineTest();
+  battleRewardCalcTest();
+  damageFloaterLabelTest();
 }

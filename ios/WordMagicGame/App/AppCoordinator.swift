@@ -219,10 +219,12 @@ final class AppCoordinator: ObservableObject {
             showToast("当前词包没有支持所选题型的单词")
             return
         }
+        let battlePlan = BattleQuestionPlan.from(pack: selectedPack, enabledQuestionTypes: enabledTypes)
         let questionSource = PlanQuestionSource(
-            plan: BattleQuestionPlan.from(pack: selectedPack, enabledQuestionTypes: enabledTypes),
+            plan: battlePlan,
             repository: repository,
-            randomSeed: makeBattleRandomSeed()
+            randomSeed: makeBattleRandomSeed(),
+            enabledQuestionTypes: enabledTypes,
         )
         let engine = BattleEngine(questionSource: questionSource, config: configStore.config)
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
@@ -291,6 +293,12 @@ final class AppCoordinator: ObservableObject {
         } else {
             objectWillChange.send()
         }
+    }
+
+    func escapeBattle() {
+        guard let engine = battleEngine else { return }
+        engine.escapeBattle()
+        finishBattle()
     }
 
     func finishBattle() {

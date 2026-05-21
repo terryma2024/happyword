@@ -29,6 +29,8 @@ import {
 import { MAX_ACTIVE_PACKS } from '../services/PackSelectionService';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { REPORT_CHANNEL_URL } from '../services/CompliancePolicy';
+import { openUrlInSystemBrowser } from '../services/SystemBrowser';
 /**
  * ConfigPage exposes battle knobs (HP / monster count / timer /
  * autoSpeak / 题型选择) plus pack manager entry. Changes persist
@@ -56,6 +58,9 @@ import { PageTopChrome } from '../components/PageTopChrome';
 @Component
 struct ConfigPage {
   @State private draft: GameConfig = new GameConfig();
+  @State private playerMaxHpValue: number = new GameConfig().playerMaxHp;
+  @State private monsterMaxHpValue: number = new GameConfig().monsterMaxHp;
+  @State private monstersTotalValue: number = new GameConfig().monstersTotal;
   // V0.6.2: parent-account binding state. Reloaded on aboutToAppear / onPageShow
   // so the row reflects the latest binding without forcing a page rebuild.
   @State private bindingNickname: string = '';
@@ -89,7 +94,7 @@ struct ConfigPage {
   aboutToAppear(): void {
     const stored: GameConfig | undefined =
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
-    this.draft = cloneGameConfig(stored !== undefined ? stored : new GameConfig());
+    this.setBattleDraft(stored !== undefined ? stored : new GameConfig());
 
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
 
@@ -99,7 +104,7 @@ struct ConfigPage {
       });
 
     // V0.6.7: bootstrap the unified pack library + selection so the
-    // entry row can show "已激活 X/5". The full picker UI lives on
+    // entry row can show "已激活 X/10". The full picker UI lives on
     // `pages/PackManagerPage`.
     loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
       this.homeIntegration = bundle;
@@ -141,7 +146,7 @@ struct ConfigPage {
       console.error(`ConfigPage.onPageShow: refreshBindingState failed: ${JSON.stringify(err)}`);
     });
     // V0.6.7: PackManagerPage may have edited the active set; reload
-    // so the entry row's "已激活 X/5" text mirrors the persisted state.
+    // so the entry row's "已激活 X/10" text mirrors the persisted state.
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
@@ -154,6 +159,13 @@ struct ConfigPage {
 
   private forceRerender(): void {
     this.draft = cloneGameConfig(this.draft);
+  }
+
+  private setBattleDraft(nextDraft: GameConfig): void {
+    this.draft = cloneGameConfig(nextDraft);
+    this.playerMaxHpValue = this.draft.playerMaxHp;
+    this.monsterMaxHpValue = this.draft.monsterMaxHp;
+    this.monstersTotalValue = this.draft.monstersTotal;
   }
 
   @Builder
@@ -172,7 +184,7 @@ struct ConfigPage {
           Button('绑定家长账号')
             .id('ConfigBindParentButton')
             .width(220).height(40).fontSize(15)
-            .backgroundColor('#FFF4D0').fontColor('#B8860B')
+            .backgroundColor('#FFF4D0').fontColor('#7C2D12')
             .borderWidth(2).borderColor('#FFB400')
             .onClick((): void => this.openScanBinding());
         }
@@ -200,6 +212,22 @@ struct ConfigPage {
   private openBoundDeviceInfo(): void {
     this.getUIContext().getRouter().pushUrl({ url: 'pages/BoundDeviceInfoPage' }).catch((err: BusinessError): void => {
       console.error(`ConfigPage.openBoundDeviceInfo: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private openReportChannel(): void {
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    openUrlInSystemBrowser(ctx, REPORT_CHANNEL_URL).catch((err: Error): void => {
+      console.error(`ConfigPage.openReportChannel failed: ${err.message}`);
+      try {
+        this.getUIContext().getPromptAction().showToast({
+          message: '问题反馈暂时无法打开，请稍后重试',
+          duration: 2500,
+        });
+      } catch (toastErr) {
+        console.error(`ConfigPage.openReportChannel toast failed: ${JSON.stringify(toastErr as BusinessError)}`);
+      }
     });
   }
 
@@ -319,7 +347,7 @@ struct ConfigPage {
         .width(220).height(40)
         .fontSize(15)
         .backgroundColor('#FFF4D0')
-        .fontColor('#B8860B')
+        .fontColor('#7C2D12')
         .borderWidth(2)
         .borderColor('#FFB400')
         .onClick((): void => this.openParentAdmin());
@@ -344,46 +372,51 @@ struct ConfigPage {
     persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, merged);
   }
 
+  private applyBattleDraft(nextDraft: GameConfig): void {
+    this.setBattleDraft(nextDraft);
+    this.persistBattleSettings();
+  }
+
   private decPlayerHp(): void {
     if (this.draft.playerMaxHp > HP_MIN) {
-      this.draft.playerMaxHp -= 1;
-      this.forceRerender();
-      this.persistBattleSettings();
+      const nextDraft: GameConfig = cloneGameConfig(this.draft);
+      nextDraft.playerMaxHp -= 1;
+      this.applyBattleDraft(nextDraft);
     }
   }
   private incPlayerHp(): void {
     if (this.draft.playerMaxHp < HP_MAX) {
-      this.draft.playerMaxHp += 1;
-      this.forceRerender();
-      this.persistBattleSettings();
+      const nextDraft: GameConfig = cloneGameConfig(this.draft);
+      nextDraft.playerMaxHp += 1;
+      this.applyBattleDraft(nextDraft);
     }
   }
   private decMonsterHp(): void {
     if (this.draft.monsterMaxHp > HP_MIN) {
-      this.draft.monsterMaxHp -= 1;
-      this.forceRerender();
-      this.persistBattleSettings();
+      const nextDraft: GameConfig = cloneGameConfig(this.draft);
+      nextDraft.monsterMaxHp -= 1;
+      this.applyBattleDraft(nextDraft);
     }
   }
   private incMonsterHp(): void {
     if (this.draft.monsterMaxHp < HP_MAX) {
-      this.draft.monsterMaxHp += 1;
-      this.forceRerender();
-      this.persistBattleSettings();
+      const nextDraft: GameConfig = cloneGameConfig(this.draft);
+      nextDraft.monsterMaxHp += 1;
+      this.applyBattleDraft(nextDraft);
     }
   }
   private decMonstersTotal(): void {
     if (this.draft.monstersTotal > MONSTER_COUNT_MIN) {
-      this.draft.monstersTotal -= 1;
-      this.forceRerender();
-      this.persistBattleSettings();
+      const nextDraft: GameConfig = cloneGameConfig(this.draft);
+      nextDraft.monstersTotal -= 1;
+      this.applyBattleDraft(nextDraft);
     }
   }
   private incMonstersTotal(): void {
     if (this.draft.monstersTotal < MONSTER_COUNT_MAX) {
-      this.draft.monstersTotal += 1;
-      this.forceRerender();
-      this.persistBattleSettings();
+      const nextDraft: GameConfig = cloneGameConfig(this.draft);
+      nextDraft.monstersTotal += 1;
+      this.applyBattleDraft(nextDraft);
     }
   }
 
@@ -512,36 +545,6 @@ struct ConfigPage {
     ctrl.open();
   }
 
-  @Builder
-  private stepperRow(label: string, valueId: string, value: number,
-                     decId: string, decAction: () => void, decEnabled: boolean,
-                     incId: string, incAction: () => void, incEnabled: boolean) {
-    Row() {
-      Text(label).fontSize(18).width(120);
-      Button('-')
-        .id(decId)
-        .width(44).height(44)
-        .fontSize(24)
-        .enabled(decEnabled)
-        .opacity(decEnabled ? 1.0 : 0.4)
-        .onClick((): void => decAction());
-      Text(`${value}`)
-        .id(valueId)
-        .fontSize(22)
-        .width(48)
-        .textAlign(TextAlign.Center);
-      Button('+')
-        .id(incId)
-        .width(44).height(44)
-        .fontSize(24)
-        .enabled(incEnabled)
-        .opacity(incEnabled ? 1.0 : 0.4)
-        .onClick((): void => incAction());
-    }
-    .margin({ bottom: 12 })
-    .alignItems(VerticalAlign.Center);
-  }
-
   private timerLabel(seconds: number): string {
     if (seconds < 60) {
       return `${seconds}s`;
@@ -599,8 +602,8 @@ struct ConfigPage {
             .height(40)
             .padding({ left: 12, right: 12 })
             .fontSize(16)
-            .backgroundColor(this.draft.startingSeconds === sec ? '#FFB400' : '#EAF2F8')
-            .fontColor(this.draft.startingSeconds === sec ? '#FFFFFF' : '#457B9D')
+            .backgroundColor(this.draft.startingSeconds === sec ? '#B45309' : '#EAF2F8')
+            .fontColor(this.draft.startingSeconds === sec ? '#FFFFFF' : '#1D4ED8')
             .onClick((): void => this.selectTimer(sec));
         }, (sec: number) => `${sec}`);
         // V0.6.7.7: 自定义 button — opens CustomTimerDialog so the
@@ -613,8 +616,8 @@ struct ConfigPage {
           .height(40)
           .padding({ left: 12, right: 12 })
           .fontSize(16)
-          .backgroundColor(this.isCustomTimer() ? '#FFB400' : '#EAF2F8')
-          .fontColor(this.isCustomTimer() ? '#FFFFFF' : '#457B9D')
+          .backgroundColor(this.isCustomTimer() ? '#B45309' : '#EAF2F8')
+          .fontColor(this.isCustomTimer() ? '#FFFFFF' : '#1D4ED8')
           .onClick((): void => this.openCustomTimerDialog());
       };
     }
@@ -657,7 +660,7 @@ struct ConfigPage {
         .width(140).height(40)
         .fontSize(16)
         .backgroundColor(this.draft.autoSpeak ? '#FFF4D0' : '#F0F0F0')
-        .fontColor(this.draft.autoSpeak ? '#B8860B' : '#666666')
+        .fontColor(this.draft.autoSpeak ? '#7C2D12' : '#4B5563')
         .borderWidth(this.draft.autoSpeak ? 2 : 0)
         .borderColor('#FFB400')
         .onClick((): void => this.toggleAutoSpeak());
@@ -680,7 +683,7 @@ struct ConfigPage {
                 .padding({ left: 12, right: 12 })
                 .fontSize(14)
                 .backgroundColor(this.isQuestionTypeEnabled(typeId) ? '#FFF4D0' : '#F0F0F0')
-                .fontColor(this.isQuestionTypeEnabled(typeId) ? '#B8860B' : '#666666')
+                .fontColor(this.isQuestionTypeEnabled(typeId) ? '#7C2D12' : '#4B5563')
                 .borderWidth(this.isQuestionTypeEnabled(typeId) ? 2 : 0)
                 .borderColor('#FFB400')
                 .onClick((): void => this.toggleQuestionType(typeId));
@@ -696,7 +699,7 @@ struct ConfigPage {
                 .padding({ left: 12, right: 12 })
                 .fontSize(14)
                 .backgroundColor(this.isQuestionTypeEnabled(typeId) ? '#FFF4D0' : '#F0F0F0')
-                .fontColor(this.isQuestionTypeEnabled(typeId) ? '#B8860B' : '#666666')
+                .fontColor(this.isQuestionTypeEnabled(typeId) ? '#7C2D12' : '#4B5563')
                 .borderWidth(this.isQuestionTypeEnabled(typeId) ? 2 : 0)
                 .borderColor('#FFB400')
                 .onClick((): void => this.toggleQuestionType(typeId));
@@ -729,7 +732,7 @@ struct ConfigPage {
         .width(220).height(40)
         .fontSize(15)
         .backgroundColor(this.draft.parentPin.length === 6 ? '#FFF4D0' : '#EAF2F8')
-        .fontColor(this.draft.parentPin.length === 6 ? '#B8860B' : '#457B9D')
+        .fontColor(this.draft.parentPin.length === 6 ? '#7C2D12' : '#1D4ED8')
         .borderWidth(this.draft.parentPin.length === 6 ? 2 : 0)
         .borderColor('#FFB400')
         .onClick((): void => this.openParentPinSetup());
@@ -783,6 +786,28 @@ struct ConfigPage {
   }
 
   @Builder
+  private reportChannelRow() {
+    Column() {
+      Row() {
+        Text('投诉与举报').fontSize(18).width(120);
+        Button('投诉与举报入口')
+          .id('ConfigReportChannelButton')
+          .width(220).height(40)
+          .fontSize(15)
+          .backgroundColor('#E0F2FE')
+          .fontColor('#0369A1')
+          .borderWidth(2)
+          .borderColor('#0EA5E9')
+          .onClick((): void => this.openReportChannel());
+      }
+      .alignItems(VerticalAlign.Center);
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Center)
+    .margin({ bottom: 12 });
+  }
+
+  @Builder
   private configTopTrailingEmpty(): void {
     Blank().width(1).height(1);
   }
@@ -809,23 +834,86 @@ struct ConfigPage {
             .fontColor('#1f2937')
             .margin({ bottom: 8, top: 4 });
 
-          this.stepperRow(
-            '玩家血量', 'ConfigPlayerHpValue', this.draft.playerMaxHp,
-            'ConfigPlayerHpDec', (): void => this.decPlayerHp(), this.draft.playerMaxHp > HP_MIN,
-            'ConfigPlayerHpInc', (): void => this.incPlayerHp(), this.draft.playerMaxHp < HP_MAX);
-          this.stepperRow(
-            '怪物血量', 'ConfigMonsterHpValue', this.draft.monsterMaxHp,
-            'ConfigMonsterHpDec', (): void => this.decMonsterHp(), this.draft.monsterMaxHp > HP_MIN,
-            'ConfigMonsterHpInc', (): void => this.incMonsterHp(), this.draft.monsterMaxHp < HP_MAX);
-          this.stepperRow(
-            '怪物数量', 'ConfigMonstersTotalValue', this.draft.monstersTotal,
-            'ConfigMonstersTotalDec', (): void => this.decMonstersTotal(), this.draft.monstersTotal > MONSTER_COUNT_MIN,
-            'ConfigMonstersTotalInc', (): void => this.incMonstersTotal(), this.draft.monstersTotal < MONSTER_COUNT_MAX);
+          Row() {
+            Text('玩家血量').fontSize(18).width(120);
+            Button('-')
+              .id('ConfigPlayerHpDec')
+              .width(44).height(44)
+              .fontSize(24)
+              .enabled(this.playerMaxHpValue > HP_MIN)
+              .opacity(this.playerMaxHpValue > HP_MIN ? 1.0 : 0.4)
+              .onClick((): void => this.decPlayerHp());
+            Text(`${this.playerMaxHpValue}`)
+              .id('ConfigPlayerHpValue')
+              .fontSize(22)
+              .width(48)
+              .textAlign(TextAlign.Center);
+            Button('+')
+              .id('ConfigPlayerHpInc')
+              .width(44).height(44)
+              .fontSize(24)
+              .enabled(this.playerMaxHpValue < HP_MAX)
+              .opacity(this.playerMaxHpValue < HP_MAX ? 1.0 : 0.4)
+              .onClick((): void => this.incPlayerHp());
+          }
+          .margin({ bottom: 12 })
+          .alignItems(VerticalAlign.Center);
+
+          Row() {
+            Text('怪物血量').fontSize(18).width(120);
+            Button('-')
+              .id('ConfigMonsterHpDec')
+              .width(44).height(44)
+              .fontSize(24)
+              .enabled(this.monsterMaxHpValue > HP_MIN)
+              .opacity(this.monsterMaxHpValue > HP_MIN ? 1.0 : 0.4)
+              .onClick((): void => this.decMonsterHp());
+            Text(`${this.monsterMaxHpValue}`)
+              .id('ConfigMonsterHpValue')
+              .fontSize(22)
+              .width(48)
+              .textAlign(TextAlign.Center);
+            Button('+')
+              .id('ConfigMonsterHpInc')
+              .width(44).height(44)
+              .fontSize(24)
+              .enabled(this.monsterMaxHpValue < HP_MAX)
+              .opacity(this.monsterMaxHpValue < HP_MAX ? 1.0 : 0.4)
+              .onClick((): void => this.incMonsterHp());
+          }
+          .margin({ bottom: 12 })
+          .alignItems(VerticalAlign.Center);
+
+          Row() {
+            Text('怪物数量').fontSize(18).width(120);
+            Button('-')
+              .id('ConfigMonstersTotalDec')
+              .width(44).height(44)
+              .fontSize(24)
+              .enabled(this.monstersTotalValue > MONSTER_COUNT_MIN)
+              .opacity(this.monstersTotalValue > MONSTER_COUNT_MIN ? 1.0 : 0.4)
+              .onClick((): void => this.decMonstersTotal());
+            Text(`${this.monstersTotalValue}`)
+              .id('ConfigMonstersTotalValue')
+              .fontSize(22)
+              .width(48)
+              .textAlign(TextAlign.Center);
+            Button('+')
+              .id('ConfigMonstersTotalInc')
+              .width(44).height(44)
+              .fontSize(24)
+              .enabled(this.monstersTotalValue < MONSTER_COUNT_MAX)
+              .opacity(this.monstersTotalValue < MONSTER_COUNT_MAX ? 1.0 : 0.4)
+              .onClick((): void => this.incMonstersTotal());
+          }
+          .margin({ bottom: 12 })
+          .alignItems(VerticalAlign.Center);
 
           this.timerRow();
           this.autoSpeakRow();
           this.questionTypeRow();
           this.packPickerSection();
+          this.reportChannelRow();
 
           Text('家长配置')
             .id('ConfigSectionParentTitle')

@@ -2,6 +2,29 @@ import { Question, QuestionKind } from '../models/Question';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { IQuestionSource } from './IQuestionSource';
+import { getMonsterByIndex, MonsterLevel } from '../data/MonsterCatalog';
+import { RandomFn } from '../utils/shuffle';
+
+export type CatalogIndexProvider = () => number;
+
+/** V0.8.3 — advanced/super spawn bonus roll threshold. */
+export const BONUS_SPAWN_CHANCE: number = 0.30;
+/** V0.8.3 — advanced/super heavy attack roll threshold. */
+export const HEAVY_ATTACK_CHANCE: number = 0.50;
+
+export function computePlayerDamage(level: MonsterLevel, rng: RandomFn): number {
+  if (level !== MonsterLevel.Advanced && level !== MonsterLevel.Super) {
+    return 1;
+  }
+  return rng() < HEAVY_ATTACK_CHANCE ? 2 : 1;
+}
+
+export function rollMonsterBonus(level: MonsterLevel, rng: RandomFn): boolean {
+  if (level !== MonsterLevel.Advanced && level !== MonsterLevel.Super) {
+    return false;
+  }
+  return rng() < BONUS_SPAWN_CHANCE;
+}
 
 /**
  * Battle rules (spec §4.1, §4.2, §4.3, §4.4, §8.3) as of T8:
@@ -35,7 +58,7 @@ import { IQuestionSource } from './IQuestionSource';
  * Mulberry32) and production (Math.random).
  */
 
-export const DEFAULT_PLAYER_HP: number = 5;
+export const DEFAULT_PLAYER_HP: number = 10;
 export const DEFAULT_MONSTER_HP: number = 3;
 export const DEFAULT_MONSTERS_TOTAL: number = 5;
 export const DEFAULT_STARTING_SECONDS: number = 300;
@@ -55,6 +78,8 @@ export class BattleConfig {
   monsterMaxHp?: number;
   monstersTotal?: number;
   startingSeconds?: number;
+  rng?: RandomFn;
+  catalogIndexProvider?: CatalogIndexProvider;
 }
 
 /**
@@ -108,9 +133,15 @@ export class TickOutcome {
 export class BattleEngine {
   private readonly generator: IQuestionSource;
   private readonly state_: BattleState;
+  private readonly rng: RandomFn;
+  private readonly catalogIndexProvider: CatalogIndexProvider;
 
   constructor(generator: IQuestionSource, config?: BattleConfig) {
     this.generator = generator;
+    this.rng = (config !== undefined && config.rng !== undefined) ? config.rng : Math.random;
+    this.catalogIndexProvider = (config !== undefined && config.catalogIndexProvider !== undefined)
+      ? config.catalogIndexProvider
+      : (): number => 1;
     const state: BattleState = new BattleState();
 
     const playerMaxHp: number = (config !== undefined && config.playerMaxHp !== undefined)
@@ -151,6 +182,7 @@ export class BattleEngine {
       throw new Error('BattleEngine: cannot start() after battle has ended');
     }
     this.state_.status = BattleStatus.Playing;
+    this.rollBonusForCurrentMonster();
     const q: Question = this.generator.nextQuestion();
     this.state_.currentQuestion = q;
     this.rememberWord(q.wordId);
@@ -159,6 +191,24 @@ export class BattleEngine {
   /** Immutable-ish view of the current state. Callers must not mutate. */
   getState(): BattleState {
     return this.state_;
+  }
+
+  /**
+   * V0.8.4 — Spell letter-pool wrong tap: -1 player HP without advancing
+   * the question or totalAnswers. Returns damage dealt (always 1).
+   */
+  applySpellLetterPenalty(): number {
+    if (this.state_.status !== BattleStatus.Playing) {
+      return 0;
+    }
+    const damage: number = 1;
+    this.state_.playerHp -= damage;
+    if (this.state_.playerHp <= 0) {
+      this.state_.playerHp = 0;
+      this.state_.status = BattleStatus.Lost;
+      this.state_.currentQuestion = undefined;
+    }
+    return damage;
   }
 
   /**
@@ -237,6 +287,9 @@ export class BattleEngine {
 
       if (this.state_.monsterHp <= 0) {
         this.state_.monsterHp = 0;
+        if (this.state_.currentMonsterBonus) {
+          this.state_.bonusKillCount += 1;
+        }
         this.state_.defeatedMonsters += 1;
         outcome.monsterDefeated = true;
 
@@ -252,10 +305,13 @@ export class BattleEngine {
         // Spawn the next monster at full HP and pick a fresh question.
         this.state_.monsterIndex += 1;
         this.state_.monsterHp = this.state_.monsterMaxHp;
+        this.rollBonusForCurrentMonster();
         outcome.newMonsterSpawned = true;
       }
     } else {
       this.state_.comboCount = 0;
+      const level: MonsterLevel = this.currentMonsterLevel();
+      outcome.damage = computePlayerDamage(level, this.rng);
       this.state_.playerHp -= outcome.damage;
       if (this.state_.playerHp <= 0) {
         this.state_.playerHp = 0;
@@ -362,7 +418,16 @@ export class BattleEngine {
       : 0;
     r.learnedWordCount = this.state_.learnedWordIds.length;
     r.stars = this.computeStars();
+    r.bonusKillCount = this.state_.bonusKillCount;
     return r;
+  }
+
+  private currentMonsterLevel(): MonsterLevel {
+    return getMonsterByIndex(this.catalogIndexProvider()).level;
+  }
+
+  private rollBonusForCurrentMonster(): void {
+    this.state_.currentMonsterBonus = rollMonsterBonus(this.currentMonsterLevel(), this.rng);
   }
 
   /** Dedupe guard — learnedWordIds is conceptually a Set. */

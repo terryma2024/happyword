@@ -200,7 +200,7 @@ export class LearningReportBuilder {
 
     // Sort: active first (in activeIds order), then inactive by
     // accuracy ascending. Use simple O(n) lookups since n is small
-    // (active <= MAX_ACTIVE_PACKS = 5; inactive depends on family
+    // (active <= MAX_ACTIVE_PACKS = 10; inactive depends on family
     // pack count, typically < 10).
     const orderedActive: PackReport[] = [];
     for (let i: number = 0; i < activeIds.length; i++) {

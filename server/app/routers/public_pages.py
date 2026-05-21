@@ -46,4 +46,13 @@ async def get_support(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/report_and_appeal", response_class=HTMLResponse)
+async def get_report_and_appeal(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "parent/report_and_appeal.html",
+        {"user": None},
+    )
+
+
 __all__ = ["router"]

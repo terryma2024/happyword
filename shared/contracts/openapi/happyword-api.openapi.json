@@ -13910,6 +13910,27 @@
         ]
       }
     },
+    "/report_and_appeal": {
+      "get": {
+        "operationId": "get_report_and_appeal_report_and_appeal_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Report And Appeal",
+        "tags": [
+          "public-pages"
+        ]
+      }
+    },
     "/support": {
       "get": {
         "operationId": "get_support_support_get",

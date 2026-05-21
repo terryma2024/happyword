@@ -53,4 +53,8 @@ export class BattleState {
   learnedWordIds: string[] = [];
   currentQuestion?: Question;
   status: BattleStatus = BattleStatus.Ready;
+  /** V0.8.3 — active monster rolled bonus at spawn (advanced/super, 30%). */
+  currentMonsterBonus: boolean = false;
+  /** V0.8.3 — count of defeated monsters that had {@link currentMonsterBonus}. */
+  bonusKillCount: number = 0;
 }

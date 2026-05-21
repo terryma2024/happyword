@@ -85,7 +85,7 @@ export default function adventureFlowUiTest(): void {
 
       // Bail out via the [debug] end-battle escape hatch so the next
       // test starts on HomePage rather than mid-battle.
-      const finish = await driver.findComponent(ON.id('BattleFinishButton'));
+      const finish = await driver.findComponent(ON.id('BattleEscapeButton'));
       await finish.click();
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
@@ -137,7 +137,7 @@ export default function adventureFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('BattleTitle'));
 
       // Bail out so the suite stays re-runnable.
-      const finish = await driver.findComponent(ON.id('BattleFinishButton'));
+      const finish = await driver.findComponent(ON.id('BattleEscapeButton'));
       await finish.click();
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));

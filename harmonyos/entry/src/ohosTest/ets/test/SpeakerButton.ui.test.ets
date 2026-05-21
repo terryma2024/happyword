@@ -3,7 +3,12 @@ import { Driver, ON } from '@kit.TestKit';
 import {
   launchAppShared,
   clickByIdShared,
+  selectAllQuestionTypesShared,
 } from './RoutingFlow.ui.test';
+import {
+  returnToHome,
+  startTodayBattleChoiceOnly,
+} from './UiTestBattleHelpers.ets';
 
 /**
  * SpeakerButton UI test (spec §15 V0.2 Track B). Covers the
@@ -24,19 +29,8 @@ export default function speakerButtonUiTest(): void {
   describe('SpeakerButtonUiTest', () => {
     it('speakerButtonIsIdempotentOnTap', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
-
-      await driver.assertComponentExist(ON.id('HomeStartButton'));
-      // v0.3.6: HomeStartButton routes to today's adventure. Today-mode
-      // ignores cfg.playerHp / monsterHp / monstersTotal so the legacy
-      // resetToDefaultConfigShared() guard is no longer needed; the
-      // speaker tap path is mode-agnostic.
-      await clickByIdShared(driver, 'HomeStartButton');
-      // Today-mode loads WordRepository + LearningRecorder
-      // asynchronously before pushing BattlePage; bumped from 1000ms
-      // to 1500ms so BattlePage is mounted before the assertions.
-      await driver.delayMs(1500);
-      await driver.assertComponentExist(ON.id('BattleTitle'));
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
+      await returnToHome(driver);
+      await startTodayBattleChoiceOnly(driver);
       // Speaker button rendered unconditionally — even when TTS init
       // fails the layout is stable so the id must exist.
       await driver.assertComponentExist(ON.id('BattleSpeakerButton'));
@@ -65,12 +59,13 @@ export default function speakerButtonUiTest(): void {
       await driver.assertComponentExist(ON.text('Combo: 0'));
 
       // Leave the suite in a clean state for the next test.
-      await clickByIdShared(driver, 'BattleFinishButton');
+      await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('ResultTitle'));
       await clickByIdShared(driver, 'ResultHomeButton');
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await selectAllQuestionTypesShared(driver);
 
       expect(true).assertTrue();
       done();

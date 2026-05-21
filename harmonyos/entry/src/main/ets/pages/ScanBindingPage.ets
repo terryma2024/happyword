@@ -25,6 +25,7 @@ import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { effectiveServerBaseUrl, parentFamilyLoginPageUrl } from '../services/RemoteWordPackConfig';
 import { openUrlInSystemBrowser } from '../services/SystemBrowser';
 import { ensureCloudSyncInstalled } from '../services/CloudSyncInstaller';
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../services/CompliancePolicy';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
@@ -252,6 +253,44 @@ struct ScanBindingPage {
     });
   }
 
+  private openComplianceUrl(url: string): void {
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    openUrlInSystemBrowser(ctx, url).catch((err: Error): void => {
+      console.error(`ScanBindingPage.openComplianceUrl failed: ${err.message}`);
+    });
+  }
+
+  @Builder
+  private complianceLinks() {
+    Column({ space: 6 }) {
+      Text('绑定或登录前请阅读')
+        .id('ScanBindingCompliancePrompt')
+        .fontSize(12)
+        .fontColor('#475569');
+      Row({ space: 12 }) {
+        Button('用户协议')
+          .id('ScanBindingTermsButton')
+          .height(36)
+          .fontSize(13)
+          .backgroundColor(Color.Transparent)
+          .fontColor('#1D4ED8')
+          .onClick((): void => this.openComplianceUrl(TERMS_OF_SERVICE_URL));
+        Button('隐私政策')
+          .id('ScanBindingPrivacyButton')
+          .height(36)
+          .fontSize(13)
+          .backgroundColor(Color.Transparent)
+          .fontColor('#1D4ED8')
+          .onClick((): void => this.openComplianceUrl(PRIVACY_POLICY_URL));
+      }
+      .justifyContent(FlexAlign.Center);
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Center)
+    .margin({ top: 4 });
+  }
+
   build() {
     Column() {
       PageTopChrome({
@@ -305,6 +344,7 @@ struct ScanBindingPage {
             .onClick((): void => {
               this.onParentLoginLinkTap();
             })
+          this.complianceLinks();
           if (this.reasonHint().length > 0) {
             Text(this.reasonHint()).fontColor('#dc2626').fontSize(13).margin({ top: 8 })
           }
@@ -337,6 +377,7 @@ struct ScanBindingPage {
             .onClick((): void => {
               this.onParentLoginLinkTap();
             })
+          this.complianceLinks();
           if (this.reasonHint().length > 0) {
             Text(this.reasonHint()).fontColor('#dc2626').fontSize(13).margin({ top: 16 })
           }

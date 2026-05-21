@@ -1,6 +1,7 @@
 import { SERVER_BASE_URL_OVERRIDE_KEY } from '../../../main/ets/services/RemoteWordPackConfig';
 import routingFlowUiTest from './RoutingFlow.ui.test';
 import critSpectacleUiTest from './CritSpectacle.ui.test';
+import battleFlowUiTest from './BattleFlow.ui.test';
 import speakerButtonUiTest from './SpeakerButton.ui.test';
 import reviewModeUiTest from './ReviewMode.ui.test';
 import magicAttackUiTest from './MagicAttack.ui.test';
@@ -8,6 +9,7 @@ import adventureFlowUiTest from './AdventureFlow.ui.test';
 import homeToolbarLockedUiTest from './HomeToolbarLocked.ui.test';
 import fillLetterFlowUiTest from './FillLetterFlow.ui.test';
 import spellQuestionFlowUiTest from './SpellQuestionFlow.ui.test';
+import battlePacingUiTest from './BattlePacing.ui.test';
 import monsterCodexFlowUiTest from './MonsterCodexFlow.ui.test';
 import todayPlanFlowUiTest from './TodayPlanFlow.ui.test';
 import learningReportFlowUiTest from './LearningReportFlow.ui.test';
@@ -73,21 +75,19 @@ export default function testsuite() {
   // shouldn't be hidden behind long unrelated suites.
   monsterCodexFlowUiTest();
   routingFlowUiTest();
+  battleFlowUiTest();
   critSpectacleUiTest();
   speakerButtonUiTest();
   reviewModeUiTest();
   magicAttackUiTest();
   // FillLetterFlow / SpellQuestionFlow must run BEFORE AdventureFlow.
-  // AdventureFlow completes today's adventure session (todayCompleted /
-  // plan consumption); FillLetter's generator assumes the fruit-forest
-  // spelling prompts still match the bundled words_v1-derived catalog in
-  // the test file — after a full adventure, slot patterns can drift or
-  // wordForPattern() fails to resolve (hypium: singleLetterFill…).
+  // V0.8.4: each suite uses Config single-type (100% fill-letter /
+  // fill-letter-medium / spell) — not monster-slot ordering.
   fillLetterFlowUiTest();
-  // V0.4.1: drives a Boss Spell question end-to-end on the same
-  // fruit-forest plan as FillLetterFlow. Reuses the static zh→en
-  // catalog so the suite stays deterministic.
+  // V0.8.4: spell-only Config; first question is Spell on fruit-forest.
   spellQuestionFlowUiTest();
+  // V0.8.4: multi-type Config schedule modes (two_phase / intro_only / challenge_only).
+  battlePacingUiTest();
   adventureFlowUiTest();
   // V0.4.4: read-only daily plan page. Navigation-only test —
   // verifies HomePlanButton → TodayPlanPage → back works and the

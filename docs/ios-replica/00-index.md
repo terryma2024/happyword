@@ -1,12 +1,14 @@
 # iOS Replica Design Index
 
-> Status: design-for-implementation
-> Target branch: `codex/ios-replica-plan`
-> Scope: docs-only plan for native Swift / SwiftUI iOS replication. No iOS project files are created in this pass.
+> Status: **bootstrap parity shipped (V0.7.1)** — native app under `ios/WordMagicGame/`; TestFlight gate documented in [`ios/release-pre.md`](../../ios/release-pre.md) (v0.7.0 build 1007004 verified 2026-05-16).
+> Historical planning branch: `codex/ios-replica-plan`
+> Scope: this folder remains the **design + phase map** for the iOS port; implementation lives in `ios/`, not in these markdown files alone.
 
 ## Goal
 
-Create a staged, component-level plan for replicating the current HarmonyOS WordMagicGame client as a native iOS app. The first implementation target is iPhone landscape for the child learning flow, with ParentAdmin and LessonDraftReview included in Phase 1 as portrait-only parent surfaces.
+Replicate the HarmonyOS WordMagicGame client as a native iOS app (Swift / SwiftUI). **Phases 0–5 are landed** for the bootstrap 17-page matrix aligned with HarmonyOS V0.6.7.8 semantics (pack-keyed learning report, three-layer packs, binding, wishlist, local growth surfaces). Child learning flow is iPhone landscape-first; parent/admin surfaces are portrait-first.
+
+**After V0.7.1**, new product capabilities follow [`docs/sop/00-three-platform-feature-sop.md`](../sop/00-three-platform-feature-sop.md) (`docs/features/<feature-id>/`), not open-ended edits to this replica index.
 
 The plan is grounded in:
 
@@ -46,45 +48,49 @@ The detailed phase implementation specs live under `docs/superpowers/specs/` so 
 | --- | --- |
 | Phase 3 | `docs/superpowers/plans/2026-05-11-ios-replica-phase3-parent-cloud.md` |
 
+## Current Repository State
+
+`ios/` contains a native Swift / SwiftUI project (`ios/project.yml` → `WordMagicGame.xcodeproj`), JVM-equivalent XCTest coverage for domain logic, XCUITest smoke flows, copied HarmonyOS art/audio under `ios/WordMagicGame/Resources/`, and release metadata in `ios/release-pre.md`. Parity scope matches the 17 HarmonyOS routes below; **V0.9 / V0.10 / V0.11** roadmap items (AI sentences, battle BGM, Cocos) are **out of bootstrap parity**.
+
 ## Current HarmonyOS Route Coverage
 
-`harmonyos/entry/src/main/resources/base/profile/main_pages.json` currently registers 17 pages. iOS implementation planning assigns each page to a phase so the port can proceed in slices instead of as a single rewrite.
+`harmonyos/entry/src/main/resources/base/profile/main_pages.json` registers **17 pages**. iOS maps each page to a phase; **all rows are implemented** for V0.7.1 bootstrap.
 
-| HarmonyOS page | iOS phase | Notes |
+| HarmonyOS page | iOS phase | Bootstrap status |
 | --- | --- | --- |
-| `HomePage` | Phase 1 | iPhone landscape, core entry and pack chip row shell. |
-| `BattlePage` | Phase 1 | iPhone landscape, first playable combat surface. |
-| `ResultPage` | Phase 1 | iPhone landscape, stars and today reward summary. |
-| `ConfigPage` | Phase 1 | Landscape settings shell with ParentAdmin entry and Phase 2 PackManager entry placeholder. |
-| `ParentAdminPage` | Phase 1 | Portrait parent surface, included in first slice by product decision. |
-| `LessonDraftReviewPage` | Phase 1 | Portrait review surface with mock/fake adapter first, real API boundary preserved. |
-| `ParentPinSetupPage` | Phase 1 | Minimal PIN setup/edit flow needed to gate ParentAdmin. |
-| `PackManagerPage` | Phase 2 | Three-layer pack activation, pin, sync, and rotation UI. |
-| `WishlistPage` | Phase 2 | Local magic-wishlist loop after core battle rewards exist. |
-| `RedemptionHistoryPage` | Phase 2 | Local history store and list rendering. |
-| `MonsterCodexPage` | Phase 2 | Visual codex parity after character asset pipeline lands. |
-| `TodayPlanPage` | Phase 2 | Read-only daily plan from iOS TodayAdventureBuilder. |
-| `LearningReportPage` | Phase 2 | Pack-keyed report, aligned with V0.6.7.8. |
-| `ScanBindingPage` | Phase 3 | QR/short-code binding after local and pack sync surfaces are stable. |
-| `BoundDeviceInfoPage` | Phase 3 | Child profile and unbind flow. |
-| `DevMenuPage` | Phase 4 | Debug-only environment routing and preview bypass helpers. |
-| `BypassSecretPage` | Phase 4 | Debug-only preview deployment bypass token editor. |
+| `HomePage` | Phase 1 | Shipped — landscape entry + pack chip row. |
+| `BattlePage` | Phase 1 | Shipped — playable combat surface. |
+| `ResultPage` | Phase 1 | Shipped — stars and today reward summary. |
+| `ConfigPage` | Phase 1 | Shipped — settings + ParentAdmin + PackManager entry. |
+| `ParentAdminPage` | Phase 1 | Shipped — portrait parent surface. |
+| `LessonDraftReviewPage` | Phase 1 | Shipped — portrait lesson review. |
+| `ParentPinSetupPage` | Phase 1 | Shipped — PIN setup/edit gate. |
+| `PackManagerPage` | Phase 2 | Shipped — three-layer pack activation, pin, sync. |
+| `WishlistPage` | Phase 2 | Shipped — local wishlist + parent PIN redemption. |
+| `RedemptionHistoryPage` | Phase 2 | Shipped — capped local history. |
+| `MonsterCodexPage` | Phase 2 | Shipped — codex gallery. |
+| `TodayPlanPage` | Phase 2 | Shipped — read-only daily plan. |
+| `LearningReportPage` | Phase 2 | Shipped — pack-keyed report (V0.6.7.8). |
+| `ScanBindingPage` | Phase 3 | Shipped — QR / short-code binding. |
+| `BoundDeviceInfoPage` | Phase 3 | Shipped — profile + server unbind. |
+| `DevMenuPage` | Phase 4 | Shipped — debug-only backend routing. |
+| `BypassSecretPage` | Phase 4 | Shipped — debug-only preview bypass editor. |
 
 ## Phase Summary
 
 | Phase | Theme | Deliverable |
 | --- | --- | --- |
-| Phase 0 | Environment and project setup | Xcode, XcodeGen, lint/format policy, scheme/test plan design. |
-| Phase 1 | Core learning plus ParentAdmin | Home -> Battle -> Result and Config -> PIN -> ParentAdmin -> LessonDraftReview. |
-| Phase 2 | Local growth and pack management | PackManager, wishlist, codex, today plan, local learning report. |
-| Phase 3 | Parent cloud and device binding | Binding, family/global pack sync, word-stats sync, device info. |
-| Phase 4 | Debug and preview operations | DevMenu, backend environment switcher, preview bypass, smoke tooling. |
-| Phase 5 | Release hardening | Screenshot parity, accessibility identifiers, TestFlight readiness. |
+| Phase 0 | Environment and project setup | **Landed** — XcodeGen, schemes, lint/format policy. |
+| Phase 1 | Core learning plus ParentAdmin | **Landed** — Home → Battle → Result; Config → PIN → ParentAdmin → LessonDraftReview. |
+| Phase 2 | Local growth and pack management | **Landed** — PackManager, wishlist, codex, today plan, learning report. |
+| Phase 3 | Parent cloud and device binding | **Landed** — binding, family/global pack sync, word-stats, device info. |
+| Phase 4 | Debug and preview operations | **Landed** — DevMenu, backend switcher, preview bypass. |
+| Phase 5 | Release hardening | **Landed** — screenshot parity, accessibility IDs, TestFlight upload (see `ios/release-pre.md`). |
 
-## Non-Goals For This Docs Pass
+## Non-Goals For This Index (ongoing)
 
-- Do not create `ios/project.yml`, `.xcodeproj`, Swift files, assets, or tests.
-- Do not change HarmonyOS, server, or shared contract runtime code.
+- Do not treat this folder as the only spec for **post–V0.7.1 features** — use `docs/features/` + Harmony-first SOP.
+- Do not change HarmonyOS behavior when doing iOS-only follow-ups unless parity checklist requires it.
 - Do not introduce shared client runtime under `shared/`.
 - Do not redesign the product away from the existing child-friendly magic-learning experience.
 
@@ -93,5 +99,5 @@ The detailed phase implementation specs live under `docs/superpowers/specs/` so 
 - Native Swift / SwiftUI.
 - XCTest for pure logic and DTO decoding.
 - XCUITest for user operations, with stable `accessibilityIdentifier` coverage.
-- XcodeGen is preferred for project reproducibility, but this docs pass only records the choice.
+- XcodeGen generates `ios/WordMagicGame.xcodeproj` from `ios/project.yml`.
 - iPhone landscape is the first child-flow viewport; ParentAdmin remains portrait.
