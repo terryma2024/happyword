@@ -331,6 +331,23 @@ Implementation status, 2026-05-20:
 - PR-specific CloudBase preview deployment is still disabled until quota,
   routing, database isolation, and cleanup are implemented.
 
+Post-merge CD status, 2026-05-21:
+
+- PR #118 merged the dual-track CI/CD and M8A manifest changes to `main`.
+- GitHub Actions run `server-cloudbase-cd` `26199672079` succeeded on `main`
+  after the merge. The workflow ran offline pytest, deployed `server/` to
+  CloudBase Run, checked `/api/v1/public/health`, and ran the smoke subset
+  against `CLOUDBASE_PROD_BASE_URL`.
+- The legacy Vercel `server-cd` workflow also stays active and green on `main`.
+  During the transition, every `main` server deploy should keep deploying both
+  Vercel production and CloudBase production until CloudBase has passed the
+  stability window and the final `happyword.cool` cutover is complete.
+- `tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"` failed
+  when the API key only had `QcloudTCBRFullAccess`. Adding
+  `QcloudTCBFullAccess` allowed GitHub Actions and the local CLI to authenticate.
+  Treat this as a temporary broad permission; tighten to the minimum CloudBase
+  Run, HTTP access, and function permissions after the migration path is stable.
+
 Initial inline manifest shape:
 
 ```json
@@ -439,6 +456,17 @@ Required before production custom-domain binding:
   administration review for `happyword.com.cn`.
 - Bind `happyword.com.cn` in CloudBase HTTP Access after both prerequisites are
   satisfied, then create the route to CloudBase Run service `happyword-server`.
+
+CloudBase CD status as of 2026-05-21:
+
+- `server-cloudbase-cd` is live on `main` and succeeded in GitHub Actions run
+  `26199672079`. This validates the CloudBase default-domain deploy and smoke
+  path, not the custom-domain route.
+- `CLOUDBASE_PROD_BASE_URL` currently points at the CloudBase production HTTP
+  access URL used by CI smoke. Do not assume it is `https://happyword.com.cn`
+  until the ICP filing and HTTP Access custom-domain binding are complete.
+- `CLOUDBASE_STAGING_BASE_URL` remains the shared staging CloudBase URL used by
+  M8A smoke and the DevMenu manifest. It is not `happyword.com.cn`.
 
 ## Deployment Commands
 
