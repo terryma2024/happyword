@@ -3,9 +3,14 @@
 {% block content %}
 <section class="space-y-6">
   <header class="flex items-start justify-between gap-4 flex-wrap">
-    <div>
+    <div class="min-w-0 flex-1">
       <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs" class="text-sm text-sky-700 hover:underline">返回词库</a>
-      <h1 class="text-2xl font-semibold text-slate-900 mt-2">{{ definition.name }}</h1>
+      <h1 class="sr-only">{{ definition.name }}</h1>
+      <form id="pack-title-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/metadata" class="mt-2 flex flex-wrap items-center gap-2">
+        <label for="pack-title-input" class="sr-only">词包标题</label>
+        <input id="pack-title-input" name="name" required maxlength="120" value="{{ definition.name }}" data-original-value="{{ definition.name }}" class="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-0 py-1 text-2xl font-semibold text-slate-900 focus:border-sky-300 focus:bg-white focus:px-3 focus:outline-none focus:ring-2 focus:ring-sky-100" />
+        <button id="pack-title-submit" type="submit" class="hidden rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">保存标题</button>
+      </form>
       <p class="text-sm text-slate-500 mt-1">{{ definition.description or "无描述" }}</p>
       <p class="text-sm mt-2">
         <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/versions" class="text-sky-700 hover:underline">发布历史</a>
@@ -15,6 +20,22 @@
       图片导入
     </a>
   </header>
+
+  {% if title_ok %}
+    <div class="rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 px-4 py-3 text-sm">
+      词包标题已保存。
+    </div>
+  {% endif %}
+
+  {% if title_error %}
+    <div class="rounded-md border border-rose-200 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
+      {% if title_error == "name_taken" %}
+        已有同名词包，请换一个标题。
+      {% elif title_error == "invalid_name" %}
+        词包标题不能为空。
+      {% endif %}
+    </div>
+  {% endif %}
 
   {% if import_ok %}
     <div class="rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 px-4 py-3 text-sm">
@@ -150,10 +171,20 @@
   </section>
 
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-    <h2 class="text-lg font-semibold text-slate-900 mb-4">草稿词条</h2>
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <h2 class="text-lg font-semibold text-slate-900">草稿词条</h2>
+      <form id="draft-batch-delete-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/batch-delete" class="flex items-center gap-3">
+        <span id="draft-selection-count" class="text-xs text-slate-500">已选择 0 项</span>
+        <button id="draft-batch-delete-submit" type="submit" disabled class="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300">删除所选</button>
+      </form>
+    </div>
     <table id="draft-word-table" class="w-full text-sm">
       <thead>
         <tr class="text-left text-xs text-slate-500">
+          <th class="py-2 pr-3">
+            <label class="sr-only" for="draft-select-all">全选草稿词条</label>
+            <input id="draft-select-all" data-role="draft-select-all" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+          </th>
           <th class="py-2 pr-3">词条 ID</th>
           <th class="py-2 pr-3">英文</th>
           <th class="py-2 pr-3">中文</th>
@@ -168,10 +199,55 @@
         {% for word in draft.words %}
           {% include "partials/draft_word_row.html" %}
         {% else %}
-          <tr><td colspan="8" class="py-6 text-sm text-slate-500">草稿为空。可先图片导入，或使用上方表单 / 批量 JSON。</td></tr>
+          <tr><td colspan="9" class="py-6 text-sm text-slate-500">草稿为空。可先图片导入，或使用上方表单 / 批量 JSON。</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </section>
 </section>
+<script>
+  (() => {
+    const titleInput = document.getElementById("pack-title-input");
+    const titleSubmit = document.getElementById("pack-title-submit");
+    if (!titleInput || !titleSubmit) {
+      return;
+    }
+    const originalTitle = (titleInput.dataset.originalValue || "").trim();
+    const updateTitleSubmit = () => {
+      const changed = titleInput.value.trim() !== originalTitle;
+      titleSubmit.classList.toggle("hidden", !changed);
+    };
+    titleInput.addEventListener("input", updateTitleSubmit);
+    updateTitleSubmit();
+  })();
+
+  (() => {
+    const draftSelectAll = document.getElementById("draft-select-all");
+    const draftCheckboxes = Array.from(document.querySelectorAll(".draft-word-checkbox"));
+    const draftBatchDeleteSubmit = document.getElementById("draft-batch-delete-submit");
+    const draftSelectionCount = document.getElementById("draft-selection-count");
+    if (!draftSelectAll || !draftBatchDeleteSubmit) {
+      return;
+    }
+    const updateDraftBatchState = () => {
+      const checkedCount = draftCheckboxes.filter((box) => box.checked).length;
+      draftBatchDeleteSubmit.disabled = checkedCount === 0;
+      if (draftSelectionCount) {
+        draftSelectionCount.textContent = `已选择 ${checkedCount} 项`;
+      }
+      draftSelectAll.checked = checkedCount > 0 && checkedCount === draftCheckboxes.length;
+      draftSelectAll.indeterminate = checkedCount > 0 && checkedCount < draftCheckboxes.length;
+    };
+    draftSelectAll.addEventListener("change", () => {
+      draftCheckboxes.forEach((box) => {
+        box.checked = draftSelectAll.checked;
+      });
+      updateDraftBatchState();
+    });
+    draftCheckboxes.forEach((box) => {
+      box.addEventListener("change", updateDraftBatchState);
+    });
+    updateDraftBatchState();
+  })();
+</script>
 {% endblock %}

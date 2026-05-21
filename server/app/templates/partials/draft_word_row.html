@@ -2,6 +2,9 @@
   {% set _nest = word.get("example") %}
   {% set ex_en = word.get("exampleEn") or word.get("example_en") or (_nest.get("en", "") if _nest is mapping else "") %}
   {% set ex_zh = word.get("exampleZh") or word.get("example_zh") or (_nest.get("zh", "") if _nest is mapping else "") %}
+  <td class="py-2 pr-3 align-top">
+    <input type="checkbox" name="word_ids" value="{{ word.get('id', '') }}" form="draft-batch-delete-form" class="draft-word-checkbox h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+  </td>
   <td class="py-2 pr-3 font-mono text-xs text-slate-600">{{ word.get("id", "") }}</td>
   <td class="py-2 pr-3">{{ word.get("word", "") }}</td>
   <td class="py-2 pr-3">{{ word.get("meaningZh", "") }}</td>

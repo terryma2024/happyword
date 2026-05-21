@@ -64,6 +64,26 @@ def test_lesson_system_prompt_requests_example_en() -> None:
     )
 
 
+def test_lesson_system_prompt_includes_multi_word_phrases() -> None:
+    """Textbook vocabulary lists often include fixed expressions, not just words."""
+    prompt = lesson_service._LESSON_SYSTEM_PROMPT.lower()
+
+    assert "multi-word" in prompt
+    assert "phrase" in prompt
+    assert "fixed expression" in prompt
+    assert "single english word" not in prompt
+
+
+def test_lesson_system_prompt_audits_numbered_rows() -> None:
+    """Numbered vocabulary sheets should not silently drop visible rows."""
+    prompt = lesson_service._LESSON_SYSTEM_PROMPT.lower()
+
+    assert "source_no" in prompt
+    assert "visible printed numbers" in prompt
+    assert "visible numbered row" in prompt
+    assert "skipped" in prompt
+
+
 @pytest.mark.asyncio
 async def test_extract_lesson_payload_wraps_openai_error(
     db: object,
