@@ -42,7 +42,7 @@
 - [ ] **M4: Production domain ready** - `happyword.com.cn` can be bound to CloudBase with SSL and required filing state confirmed.
 - [ ] **M5: Production cutover complete** - `happyword.com.cn` points to CloudBase and smoke validation passes; `happyword.cool` moves only after that.
 - [ ] **M6: CloudBase CI/CD active** - `main` deployment and smoke checks no longer depend on Vercel production deployment status.
-- [ ] **M7: Storage migration complete** - new uploads use Tencent COS, existing Vercel Blob URLs stay readable.
+- [x] **M7: Storage migration complete** - new uploads use Tencent COS, existing Vercel Blob URLs stay readable.
 - [ ] **M7A: MongoDB Atlas replacement complete** - CloudBase uses TencentDB for MongoDB after DTS sync, consistency checks, and rollback validation.
 - [ ] **M8: Preview/QA replacement complete** - Vercel Preview dependency is removed from the QA path.
 - [ ] **M9: Vercel retired** - Vercel deploy, cron, preview, prune, and Blob-specific secrets are removed or archived.
@@ -1265,11 +1265,22 @@
   `tencent-cos`. GitHub Actions run `26237301193` passed `server / pytest` and
   `server / cloudbase staging smoke` after the redeploy.
 
-- [ ] **Step 10: Deploy storage switch to production**
+- [x] **Step 10: Deploy storage switch to production**
 
   Set production `ASSET_STORAGE_PROVIDER` after staging passes. Do not rewrite existing Vercel Blob URLs.
 
-- [ ] **Step 11: Decide whether to backfill old Vercel Blob objects**
+  Completion note, 2026-05-21: CloudBase production service
+  `happyword-server` now runs as `happyword-server-007` with
+  `ASSET_STORAGE_PROVIDER=tencent_cos`, `COS_REGION=ap-shanghai`, bucket
+  `happyword-assets-prod-1429584068`, and public base URL
+  `https://happyword-assets-prod-1429584068.cos.ap-shanghai.myqcloud.com`.
+  Read-only production smoke passed for health, latest pack JSON, and
+  `/admin/login` on the CloudBase default domain. A local
+  `scripts.cos_storage_smoke` run using the same production COS env uploaded,
+  publicly read, and deleted illustration, audio, and lesson-image smoke
+  objects without writing to production MongoDB.
+
+- [x] **Step 11: Decide whether to backfill old Vercel Blob objects**
 
   Default decision: do not backfill during M7.
 
@@ -1281,7 +1292,11 @@
   - Keeps a rollback map from new COS URL back to old Vercel Blob URL.
   - Runs on staging before production.
 
-- [ ] **Step 12: Commit storage migration**
+  Completion note, 2026-05-21: no backfill during M7. Existing Vercel Blob
+  URLs remain readable in place. A future backfill needs a separate reversible
+  migration plan and rollback map.
+
+- [x] **Step 12: Commit storage migration**
 
   Run:
 
@@ -1289,6 +1304,9 @@
   git add server/app/services/storage_provider.py server/app/services/blob_service.py server/tests/test_storage_provider.py docs/ci-secrets.md docs/server/cloudbase-run.md
   git commit -m "feat: support cloud storage provider for assets"
   ```
+
+  Completion note, 2026-05-21: M7 implementation, tests, COS bucket records,
+  staging validation, and production validation are all recorded on PR #121.
 
 ## M7A: MongoDB Atlas Replacement
 

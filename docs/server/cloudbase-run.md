@@ -10,7 +10,7 @@
 - MongoDB provider during Wave A: MongoDB Atlas
 - MongoDB provider after Wave C: TencentDB for MongoDB, planned
 - Asset storage provider during Wave A: Vercel Blob
-- Asset storage provider during Wave B: Tencent COS, planned; CloudBase Storage remains an alternate only if server-side public URL behavior proves simpler
+- Asset storage provider during Wave B: Tencent COS for new uploads; CloudBase Storage remains an alternate only if server-side public URL behavior proves simpler
 
 ## CloudBase Environment
 
@@ -125,8 +125,9 @@ Staging service:
 - Default domain:
   `https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com`
 - Runtime port: `8080`
-- Deploy method: console local code upload, archive rooted at `server/`
-- Active version: `002`, redeployed/configured 2026-05-18 14:11
+- Deploy method: CloudBase CLI local code upload, archive rooted at `server/`
+- Active version: `happyword-server-staging-009`, redeployed/configured
+  2026-05-21 after staging COS env validation
 - Staging Mongo database override: `MONGO_DB_NAME=happyword_cloudbase_staging`
 - Logs: enabled after initial OpenAI smoke returned `500`
 - Current staging LLM provider: `LLM_PROVIDER=qwen`,
@@ -139,7 +140,8 @@ Production service:
   `https://happyword-server-255236-5-1429584068.sh.run.tcloudbase.com`
 - Runtime port: `8080`
 - Deploy method: CloudBase CLI local code upload, archive rooted at `server/`
-- Active version: `happyword-server-002`, deployed 2026-05-18 15:19
+- Active version: `happyword-server-007`, updated 2026-05-21 after production
+  COS env validation
 - Traffic: 100% on the Cloud Run default domain only. `happyword.com.cn` and
   `happyword.cool` DNS were not changed.
 - Production Mongo database: `MONGO_DB_NAME=happyword`
@@ -266,8 +268,14 @@ Planned sequence:
 5. Upload new staging assets to COS and verify image/audio URLs load publicly.
    Use `cd server && uv run python -m scripts.cos_storage_smoke` with
    `ASSET_STORAGE_PROVIDER=tencent_cos` and the staging COS env vars before
-   flipping the CloudBase staging service.
-6. Switch production `ASSET_STORAGE_PROVIDER=tencent_cos`.
+   flipping the CloudBase staging service. Done on 2026-05-21:
+   `happyword-server-staging` deploy record `009` returns new lesson-import
+   COS URLs under `happyword-assets-staging-1429584068`.
+6. Switch production `ASSET_STORAGE_PROVIDER=tencent_cos`. Done on 2026-05-21:
+   `happyword-server` deploy record `007` uses `ap-shanghai` and
+   `happyword-assets-prod-1429584068`; read-only production smoke passed, and
+   `scripts.cos_storage_smoke` uploaded, publicly read, and deleted production
+   COS smoke objects without writing to production MongoDB.
 7. Do not rewrite existing Vercel Blob URLs during the first rollout.
 8. Decide later whether old Vercel Blob objects should be copied to COS and DB
    URLs rewritten. If approved, that backfill must be a separate reversible
@@ -426,7 +434,7 @@ M8B cleanup requirements before implementation:
   never sweep shared staging or production asset prefixes.
 - Cleanup must be idempotent and safe to run repeatedly.
 
-Storage implementation status, 2026-05-20:
+Storage implementation status, 2026-05-21:
 
 - `ASSET_STORAGE_PROVIDER` defaults to `vercel_blob`, preserving current
   behavior.
@@ -436,12 +444,12 @@ Storage implementation status, 2026-05-20:
 - Delete routing is URL-owned: Vercel Blob URLs are sent only to Vercel delete,
   COS URLs under `COS_PUBLIC_BASE_URL` are sent only to COS delete, and unknown
   URLs are ignored.
-- Staging and production COS buckets are not provisioned yet, so CloudBase
-  services should keep `ASSET_STORAGE_PROVIDER=vercel_blob` until M7 staging
-  validation passes.
-- `scripts.cos_storage_smoke` is available for live staging validation once a
-  bucket and credentials exist. It verifies illustration, audio, and lesson
-  image uploads, checks the public URLs, and deletes the smoke objects unless
+- Staging and production COS buckets are provisioned in `ap-shanghai`.
+- CloudBase staging and production services are configured for Tencent COS new
+  uploads. Existing Vercel Blob URLs remain stored as-is and readable through
+  their original public URLs.
+- `scripts.cos_storage_smoke` verifies illustration, audio, and lesson-image
+  uploads, checks the public URLs, and deletes the smoke objects unless
   `COS_SMOKE_KEEP_OBJECTS=1`.
 
 ### Filing and Certificate Readiness
