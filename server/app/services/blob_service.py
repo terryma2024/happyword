@@ -123,7 +123,9 @@ def _is_vercel_blob_url(url: str) -> bool:
 
 
 def _cos_path_from_public_url(url: str) -> str | None:
-    base = _cos_public_base_url()
+    base = os.environ.get("COS_PUBLIC_BASE_URL", "").strip().rstrip("/")
+    if not base:
+        return None
     if not url.startswith(f"{base}/"):
         return None
     return url[len(base) + 1 :]

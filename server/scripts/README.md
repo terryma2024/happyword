@@ -48,6 +48,30 @@ node server/scripts/update_preview_manifest.mjs
 
 The script prints the public URL on success; set that exact value as the Vercel project env var `PREVIEW_MANIFEST_BLOB_URL` for Production and Preview deployments the first time you wire up a new Blob path.
 
+## cos_storage_smoke.py
+
+Live M7 smoke for Tencent COS. It exercises the same high-level asset upload
+helpers the app uses (`upload_word_illustration`, `upload_word_audio`, and
+`upload_lesson_image`), verifies each returned public URL is readable with
+`HEAD` (falling back to `GET` on 405), then deletes the smoke objects by
+default.
+
+Run it only against a staging bucket until M7 has passed:
+
+```bash
+cd server
+ASSET_STORAGE_PROVIDER=tencent_cos \
+COS_SECRET_ID=... \
+COS_SECRET_KEY=... \
+COS_REGION=ap-guangzhou \
+COS_BUCKET=happyword-assets-staging \
+COS_PUBLIC_BASE_URL=https://... \
+uv run python -m scripts.cos_storage_smoke
+```
+
+Set `COS_SMOKE_KEEP_OBJECTS=1` when you want to inspect the uploaded objects in
+the COS console instead of deleting them at the end of the run.
+
 ## vercel_should_skip_build.sh
 
 Optional `ignoreCommand` can live in repo-root `vercel.json`. When the Vercel project **Root Directory** is `server/`, exit **0** skips a deployment if `VERCEL_GIT_PREVIOUS_SHA`..`VERCEL_GIT_COMMIT_SHA` touches no files under that directory; exit **1** runs the build. If the Vercel project root is the **repository** root instead, do not use this file as-is: use `git diff ... -- server/` in a small wrapper or set the Root Directory to `server/`.

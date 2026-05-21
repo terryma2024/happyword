@@ -124,6 +124,20 @@ Use these after M7 switches new uploads away from Vercel Blob:
 Keep `BLOB_READ_WRITE_TOKEN` until all write paths use COS and any remaining
 Vercel Blob URLs are intentionally retained or backfilled.
 
+After the staging bucket exists, validate the runtime credentials before
+switching CloudBase staging:
+
+```bash
+cd server
+ASSET_STORAGE_PROVIDER=tencent_cos \
+COS_SECRET_ID=... \
+COS_SECRET_KEY=... \
+COS_REGION=ap-guangzhou \
+COS_BUCKET=happyword-assets-staging \
+COS_PUBLIC_BASE_URL=https://... \
+uv run python -m scripts.cos_storage_smoke
+```
+
 #### TencentDB for MongoDB
 
 Use these during M7A. The final runtime variable remains `MONGODB_URI`; the

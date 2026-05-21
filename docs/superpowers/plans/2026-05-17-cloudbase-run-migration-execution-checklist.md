@@ -1203,6 +1203,11 @@
   passed, and the full server suite passed with `539 passed, 64 skipped` and no
   warnings.
 
+  Follow-up note, 2026-05-21: storage-provider coverage was tightened for COS
+  env completeness, deterministic high-level upload paths, signed COS PUT
+  request shape, unknown URL delete behavior when COS is not configured, and
+  COS upstream-delete failures.
+
 - [ ] **Step 9: Deploy storage switch to staging**
 
   Set staging:
@@ -1223,6 +1228,22 @@
   - Upload one lesson image through import flow.
   - Fetch each returned URL with `curl -I`.
   - Confirm MongoDB stores the COS URL for new objects and old Vercel Blob URLs remain unchanged.
+
+  Preflight available before CloudBase staging switch:
+
+  ```bash
+  cd server
+  ASSET_STORAGE_PROVIDER=tencent_cos \
+  COS_SECRET_ID=... \
+  COS_SECRET_KEY=... \
+  COS_REGION=ap-guangzhou \
+  COS_BUCKET=happyword-assets-staging \
+  COS_PUBLIC_BASE_URL=https://... \
+  uv run python -m scripts.cos_storage_smoke
+  ```
+
+  The script uploads illustration, audio, and lesson-image smoke objects,
+  verifies their public URLs, and deletes them unless `COS_SMOKE_KEEP_OBJECTS=1`.
 
 - [ ] **Step 10: Deploy storage switch to production**
 

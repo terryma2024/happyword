@@ -259,9 +259,12 @@ Planned sequence:
 2. Decide public URL policy: default COS domain, CDN domain, or custom asset
    domain.
 3. Add a storage-provider abstraction while keeping existing
-   `blob_service.py` call sites stable.
+   `blob_service.py` call sites stable. Done on 2026-05-20.
 4. Keep `vercel_blob` as the default provider until staging passes.
 5. Upload new staging assets to COS and verify image/audio URLs load publicly.
+   Use `cd server && uv run python -m scripts.cos_storage_smoke` with
+   `ASSET_STORAGE_PROVIDER=tencent_cos` and the staging COS env vars before
+   flipping the CloudBase staging service.
 6. Switch production `ASSET_STORAGE_PROVIDER=tencent_cos`.
 7. Do not rewrite existing Vercel Blob URLs during the first rollout.
 8. Decide later whether old Vercel Blob objects should be copied to COS and DB
@@ -434,6 +437,10 @@ Storage implementation status, 2026-05-20:
 - Staging and production COS buckets are not provisioned yet, so CloudBase
   services should keep `ASSET_STORAGE_PROVIDER=vercel_blob` until M7 staging
   validation passes.
+- `scripts.cos_storage_smoke` is available for live staging validation once a
+  bucket and credentials exist. It verifies illustration, audio, and lesson
+  image uploads, checks the public URLs, and deletes the smoke objects unless
+  `COS_SMOKE_KEEP_OBJECTS=1`.
 
 ### Filing and Certificate Readiness
 
