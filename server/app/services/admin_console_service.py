@@ -467,6 +467,24 @@ async def admin_rollback_global_pack_definition(
     )
 
 
+async def admin_delete_global_pack_definition(
+    *, admin_username: str, pack_id: str, reason: str
+) -> gpk_svc.GlobalPackDeleteSummary:
+    r = validate_reason_text(reason)
+    try:
+        summary = await gpk_svc.delete_definition(pack_id=pack_id)
+    except gpk_svc.PackNotFound as exc:
+        raise LookupError("pack_not_found") from exc
+    await record_admin_action(
+        admin_username=admin_username,
+        action="global_pack.definition_delete",
+        target_collection="family_pack_definitions",
+        target_id=pack_id,
+        payload_summary={"reason": r, **summary.__dict__},
+    )
+    return summary
+
+
 async def admin_family_pack_unarchive(
     *, admin_username: str, pack_id: str, reason: str
 ) -> None:

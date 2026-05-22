@@ -82,6 +82,14 @@ class GlobalPackImportImageOut(BaseModel):
     errors: list[FamilyPackDraftWordBatchError]
 
 
+class GlobalPackDeleteOut(BaseModel):
+    pack_id: str
+    deleted_definition_count: int
+    deleted_draft_count: int
+    deleted_version_count: int
+    deleted_pointer_count: int
+
+
 class GlobalPackEntryInMerged(BaseModel):
     pack_id: str
     name: str

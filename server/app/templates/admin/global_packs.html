@@ -83,7 +83,15 @@
             <td class="px-4 py-2">{{ row.draft_word_count }}</td>
             <td class="px-4 py-2 text-xs text-slate-600">{{ d.updated_at.strftime('%Y-%m-%d %H:%M') if d.updated_at else '—' }}</td>
             <td class="px-4 py-2 text-right">
-              <a href="/admin/global-packs/packs/{{ d.pack_id }}" class="text-sky-600 hover:underline">管理</a>
+              <div class="flex flex-wrap justify-end items-center gap-2">
+                <a href="/admin/global-packs/packs/{{ d.pack_id }}" class="text-sky-600 hover:underline">管理</a>
+                <form method="post" action="/admin/global-packs/packs/{{ d.pack_id }}/delete" class="inline-flex items-center gap-1"
+                      onsubmit="return confirm('确认永久删除全局词包 {{ d.name }}（{{ d.pack_id }}）？此操作会删除草稿、发布版本和指针，无法撤销。');">
+                  <input type="text" name="reason" required minlength="4" placeholder="删除原因"
+                         class="w-28 rounded-md border border-red-200 px-2 py-1 text-xs" />
+                  <button type="submit" class="rounded-md border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50">删除</button>
+                </form>
+              </div>
             </td>
           </tr>
           {% else %}

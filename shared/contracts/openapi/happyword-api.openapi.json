@@ -2512,6 +2512,39 @@
         "title": "GlobalPackDefinitionOut",
         "type": "object"
       },
+      "GlobalPackDeleteOut": {
+        "properties": {
+          "deleted_definition_count": {
+            "title": "Deleted Definition Count",
+            "type": "integer"
+          },
+          "deleted_draft_count": {
+            "title": "Deleted Draft Count",
+            "type": "integer"
+          },
+          "deleted_pointer_count": {
+            "title": "Deleted Pointer Count",
+            "type": "integer"
+          },
+          "deleted_version_count": {
+            "title": "Deleted Version Count",
+            "type": "integer"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack_id",
+          "deleted_definition_count",
+          "deleted_draft_count",
+          "deleted_version_count",
+          "deleted_pointer_count"
+        ],
+        "title": "GlobalPackDeleteOut",
+        "type": "object"
+      },
       "GlobalPackDraftWordIn": {
         "properties": {
           "audioUrl": {
@@ -5507,6 +5540,51 @@
       }
     },
     "/api/v1/admin/global-packs/{pack_id}": {
+      "delete": {
+        "operationId": "delete_global_pack_api_v1_admin_global_packs__pack_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalPackDeleteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Global Pack",
+        "tags": [
+          "admin-global-pack"
+        ]
+      },
       "get": {
         "operationId": "get_global_pack_api_v1_admin_global_packs__pack_id__get",
         "parameters": [

@@ -8,17 +8,18 @@ family-pack stack; this module is purely sugar.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import secrets
 from typing import TYPE_CHECKING, Any
 
 from app.models.family_pack_draft import FamilyPackDraft
+from app.models.family_pack_pointer import FamilyPackPointer
+from app.models.family_word_pack import FamilyWordPack
 from app.services import family_pack_import_service
 from app.services import family_pack_service as fps
 
 if TYPE_CHECKING:
     from app.models.family_pack_definition import FamilyPackDefinition
-    from app.models.family_pack_pointer import FamilyPackPointer
-    from app.models.family_word_pack import FamilyWordPack
 
 GLOBAL_PACK_FAMILY_ID = fps.GLOBAL_PACK_FAMILY_ID
 GlobalPackError = fps.FamilyPackError
@@ -33,6 +34,15 @@ MergedSlice = fps.MergedSlice
 
 def _gen_pack_id() -> str:
     return f"gpk-{secrets.token_hex(4)}"
+
+
+@dataclass(frozen=True)
+class GlobalPackDeleteSummary:
+    pack_id: str
+    deleted_definition_count: int
+    deleted_draft_count: int
+    deleted_version_count: int
+    deleted_pointer_count: int
 
 
 async def create_definition(
@@ -174,6 +184,44 @@ async def rollback(*, pack_id: str) -> FamilyPackPointer:
 async def list_versions(*, pack_id: str) -> list[FamilyWordPack]:
     definition = await get_definition(pack_id=pack_id)
     return await fps.list_versions(definition=definition)
+
+
+async def delete_definition(*, pack_id: str) -> GlobalPackDeleteSummary:
+    definition = await get_definition(pack_id=pack_id)
+    draft_count = await FamilyPackDraft.find(
+        FamilyPackDraft.pack_definition_id == pack_id,
+        FamilyPackDraft.family_id == GLOBAL_PACK_FAMILY_ID,
+    ).count()
+    version_count = await FamilyWordPack.find(
+        FamilyWordPack.pack_definition_id == pack_id,
+        FamilyWordPack.family_id == GLOBAL_PACK_FAMILY_ID,
+    ).count()
+    pointer_count = await FamilyPackPointer.find(
+        FamilyPackPointer.pack_definition_id == pack_id,
+        FamilyPackPointer.family_id == GLOBAL_PACK_FAMILY_ID,
+    ).count()
+
+    await FamilyPackDraft.find(
+        FamilyPackDraft.pack_definition_id == pack_id,
+        FamilyPackDraft.family_id == GLOBAL_PACK_FAMILY_ID,
+    ).delete()
+    await FamilyWordPack.find(
+        FamilyWordPack.pack_definition_id == pack_id,
+        FamilyWordPack.family_id == GLOBAL_PACK_FAMILY_ID,
+    ).delete()
+    await FamilyPackPointer.find(
+        FamilyPackPointer.pack_definition_id == pack_id,
+        FamilyPackPointer.family_id == GLOBAL_PACK_FAMILY_ID,
+    ).delete()
+    await definition.delete()
+
+    return GlobalPackDeleteSummary(
+        pack_id=pack_id,
+        deleted_definition_count=1,
+        deleted_draft_count=draft_count,
+        deleted_version_count=version_count,
+        deleted_pointer_count=pointer_count,
+    )
 
 
 async def current_pack(

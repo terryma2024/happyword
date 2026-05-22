@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from app.models.audit_log import AuditLog
+from app.models.family_pack_definition import FamilyPackDefinition
 from app.models.user import User, UserRole
 from app.services.auth_service import hash_password
 
@@ -96,6 +98,68 @@ async def test_admin_logout_clears_cookie(client: AsyncClient) -> None:
     out = await client.post("/admin/logout", follow_redirects=False)
     assert out.status_code == 303
     assert out.headers["location"] == "/admin/login"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_global_packs_page_renders_delete_form(
+    client: AsyncClient,
+) -> None:
+    from app.services import global_pack_service
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    await global_pack_service.create_definition(
+        name="Delete From HTML",
+        admin_id="console-admin",
+        pack_id="gpk-html-delete",
+    )
+
+    page = await client.get("/admin/global-packs")
+
+    assert page.status_code == 200
+    assert "/admin/global-packs/packs/gpk-html-delete/delete" in page.text
+    assert "删除" in page.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_global_pack_html_delete_removes_pack_and_audits(
+    client: AsyncClient,
+) -> None:
+    from app.services import global_pack_service
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    await global_pack_service.create_definition(
+        name="Delete From HTML",
+        admin_id="console-admin",
+        pack_id="gpk-html-delete",
+    )
+
+    res = await client.post(
+        "/admin/global-packs/packs/gpk-html-delete/delete",
+        data={"reason": "清理测试词包"},
+        follow_redirects=False,
+    )
+
+    assert res.status_code == 303
+    assert res.headers["location"] == "/admin/global-packs?flash_ok=gpk_deleted"
+    assert await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == "gpk-html-delete"
+    ) is None
+    audit = await AuditLog.find_one(AuditLog.action == "global_pack.definition_delete")
+    assert audit is not None
+    assert audit.target_id == "gpk-html-delete"
+    assert audit.payload_summary["reason"] == "清理测试词包"
 
 
 @pytest.mark.asyncio

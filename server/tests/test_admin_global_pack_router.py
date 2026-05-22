@@ -11,6 +11,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from app.models.family_pack_definition import FamilyPackDefinition
+from app.models.family_pack_draft import FamilyPackDraft
+from app.models.family_pack_pointer import FamilyPackPointer
+from app.models.family_word_pack import FamilyWordPack
 from app.models.user import User, UserRole
 from app.services.auth_service import create_access_token, hash_password
 
@@ -247,6 +251,90 @@ async def test_admin_get_unknown_pack_returns_404(
         "/api/v1/admin/global-packs/gpk-does-not-exist", headers=headers
     )
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_admin_delete_global_pack_removes_all_pack_records(
+    client: AsyncClient, admin: User
+) -> None:
+    headers = _bearer(admin.username)
+    await client.post(
+        "/api/v1/admin/global-packs",
+        json={"name": "Delete Me", "pack_id": "gpk-delete-me"},
+        headers=headers,
+    )
+    word_payload = {
+        "id": "fruit-apple",
+        "word": "apple",
+        "meaningZh": "苹果",
+        "category": "fruit",
+        "difficulty": 1,
+    }
+    await client.put(
+        "/api/v1/admin/global-packs/gpk-delete-me/draft/words/fruit-apple",
+        json=word_payload,
+        headers=headers,
+    )
+    await client.post(
+        "/api/v1/admin/global-packs/gpk-delete-me/publish",
+        json={"notes": "v1"},
+        headers=headers,
+    )
+    await client.put(
+        "/api/v1/admin/global-packs/gpk-delete-me/draft/words/fruit-banana",
+        json={**word_payload, "id": "fruit-banana", "word": "banana"},
+        headers=headers,
+    )
+    await client.post(
+        "/api/v1/admin/global-packs/gpk-delete-me/publish",
+        json={"notes": "v2"},
+        headers=headers,
+    )
+
+    res = await client.delete(
+        "/api/v1/admin/global-packs/gpk-delete-me",
+        headers=headers,
+    )
+
+    assert res.status_code == 200, res.text
+    assert res.json() == {
+        "pack_id": "gpk-delete-me",
+        "deleted_definition_count": 1,
+        "deleted_draft_count": 1,
+        "deleted_version_count": 2,
+        "deleted_pointer_count": 1,
+    }
+    assert await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == "gpk-delete-me"
+    ) is None
+    assert await FamilyPackDraft.find_one(
+        FamilyPackDraft.pack_definition_id == "gpk-delete-me"
+    ) is None
+    assert await FamilyPackPointer.find_one(
+        FamilyPackPointer.pack_definition_id == "gpk-delete-me"
+    ) is None
+    assert (
+        await FamilyWordPack.find(
+            FamilyWordPack.pack_definition_id == "gpk-delete-me"
+        ).count()
+        == 0
+    )
+
+    listed = await client.get("/api/v1/admin/global-packs", headers=headers)
+    assert all(row["pack_id"] != "gpk-delete-me" for row in listed.json())
+
+
+@pytest.mark.asyncio
+async def test_admin_delete_unknown_global_pack_returns_404(
+    client: AsyncClient, admin: User
+) -> None:
+    res = await client.delete(
+        "/api/v1/admin/global-packs/gpk-missing",
+        headers=_bearer(admin.username),
+    )
+
+    assert res.status_code == 404
+    assert res.json()["detail"]["error"]["code"] == "PACK_NOT_FOUND"
 
 
 @pytest.mark.asyncio

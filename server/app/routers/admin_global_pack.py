@@ -21,6 +21,7 @@ from app.models.family_pack_draft import FamilyPackDraft
 from app.schemas.family_pack import FamilyPackDraftOut, FamilyPackDraftWordBatchError
 from app.schemas.global_pack import (
     GlobalPackCreateIn,
+    GlobalPackDeleteOut,
     GlobalPackDefinitionOut,
     GlobalPackDraftWordIn,
     GlobalPackImportImageOut,
@@ -134,6 +135,22 @@ async def get_global_pack(
     except svc.PackNotFound as exc:
         raise _err("PACK_NOT_FOUND", str(exc), 404) from exc
     return _serialize_definition(d)
+
+
+@router.delete(
+    "/{pack_id}",
+    response_model=GlobalPackDeleteOut,
+)
+async def delete_global_pack(
+    pack_id: str,
+    admin: User = Depends(current_admin_user),  # noqa: B008
+) -> GlobalPackDeleteOut:
+    _ = admin
+    try:
+        summary = await svc.delete_definition(pack_id=pack_id)
+    except svc.PackNotFound as exc:
+        raise _err("PACK_NOT_FOUND", str(exc), 404) from exc
+    return GlobalPackDeleteOut(**summary.__dict__)
 
 
 @router.patch(
