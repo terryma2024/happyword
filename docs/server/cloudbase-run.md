@@ -194,9 +194,8 @@ Current M7A status, 2026-05-23:
 - Application change: switch `MONGODB_URI`/`MONGO_DB_NAME` only; no Beanie or
   data-access rewrite in this milestone.
 - Target version: choose a TencentDB MongoDB version compatible with the current
-  Atlas source (`8.0.23` reported by `serverInfo`) if available; otherwise pick
-  the newest TencentDB-supported major version validated by DTS precheck and
-  the staging smoke suite.
+  Atlas source (`8.0.23` reported by `serverInfo`) if available. Do not plan a
+  lower-major target unless DTS precheck explicitly accepts that path.
 - Topology: start with a managed replica set for staging; production should use
   the same version/topology class sized from the live inventory below, then
   raise capacity only if DTS or production monitoring shows pressure.
@@ -333,6 +332,65 @@ Next M7A steps:
 3. Configure DTS from Atlas to TencentDB staging with full + incremental sync.
 4. Run consistency checks against the inventory above, then switch staging
    `MONGODB_URI` and run smoke tests.
+
+TencentDB staging provisioning checklist:
+
+```text
+Product: TencentDB for MongoDB
+Region: ap-shanghai
+Topology: managed replica set
+Version: prefer MongoDB 8.0 if the TencentDB console offers it. If not, create
+         the newest available staging target only for a DTS precheck rehearsal;
+         do not cut over to a lower-major target without a successful precheck.
+Instance name: happyword-mongodb-staging
+Database name: happyword_cloudbase_staging
+Network: VPC/subnet reachable from CloudBase Run staging; public access only if
+         a private route is not available during the rehearsal.
+User: app-level user with readWrite on the application database.
+Backup: automatic backup enabled; confirm the default 7-day retention and create
+        one manual backup before destructive rehearsal changes.
+```
+
+Operator references checked on 2026-05-23:
+
+- Tencent Cloud DTS documents MongoDB -> TencentDB support for full and
+  full + incremental migration across supported MongoDB versions:
+  <https://www.tencentcloud.com/document/product/571/42647?lang=en>
+- The newer DTS MongoDB capability page currently lists third-party cloud /
+  Atlas sources up to MongoDB 7.0, while this Atlas source reports `8.0.23`.
+  Treat DTS support for Atlas 8.0 as unproven until the console precheck passes:
+  <https://intl.cloud.tencent.com/document/product/571/63300>
+- TencentDB for MongoDB backup FAQ states automatic and manual backups are
+  supported and backup data is retained for 7 days by default:
+  <https://www.tencentcloud.com/document/product/240/18685>
+- DTS MongoDB use instructions note that DTS creates checkpoint metadata under
+  `TencentDTSData`; do not delete that database during migration:
+  <https://www.tencentcloud.com/document/product/571/63301>
+
+Direct database connectivity smoke, before changing CloudBase runtime env:
+
+```bash
+cd server
+MONGODB_URI=... MONGO_DB_NAME=happyword_cloudbase_staging \
+  uv run python -m scripts.db_connectivity_smoke \
+  --write-probe
+```
+
+Expected: JSON with `ok: true`, redacted `connection_hosts`, server version,
+collection list, and `write_probe.deleted_count: 1`.
+
+DTS 8.0 fallback branch:
+
+If DTS refuses Atlas `8.0.23` as a source, pause Step 4 and choose one of these
+operator paths before provisioning production:
+
+1. Submit a Tencent Cloud support ticket asking whether Atlas 8.0 -> TencentDB
+   8.0 DTS is available in the target region/account.
+2. For the tiny current dataset, run a scheduled write-freeze and migrate by
+   `mongodump`/`mongorestore` or `mongoexport`/`mongoimport`, then run the same
+   inventory and application smoke checks before switching production.
+3. Keep Atlas as rollback exactly as planned; do not delete Atlas credentials
+   until the rollback window completes.
 
 ### Vercel Blob Replacement
 

@@ -94,6 +94,24 @@ MONGODB_URI=... MONGO_DB_NAME=happyword \
 For a machine-readable report, switch `--format json`. Keep generated reports
 out of Git unless they have been reviewed for secret-free metadata only.
 
+## db_connectivity_smoke.py
+
+Redacted MongoDB connectivity smoke for M7A staging/prod cutovers. It verifies
+that a URI can authenticate, `ping`, read server metadata, and list collections.
+Add `--write-probe` to perform a tiny insert/read/delete round trip in
+`_migration_probe`; leave it off when validating read-only rollback URIs.
+
+```bash
+cd server
+MONGODB_URI=... MONGO_DB_NAME=happyword_cloudbase_staging \
+  uv run python -m scripts.db_connectivity_smoke \
+  --write-probe
+```
+
+The output contains only redacted hosts and operational metadata. It should be
+safe to paste into the migration notes after checking that no provider-specific
+error text includes credentials.
+
 ## vercel_should_skip_build.sh
 
 Optional `ignoreCommand` can live in repo-root `vercel.json`. When the Vercel project **Root Directory** is `server/`, exit **0** skips a deployment if `VERCEL_GIT_PREVIOUS_SHA`..`VERCEL_GIT_COMMIT_SHA` touches no files under that directory; exit **1** runs the build. If the Vercel project root is the **repository** root instead, do not use this file as-is: use `git diff ... -- server/` in a small wrapper or set the Root Directory to `server/`.

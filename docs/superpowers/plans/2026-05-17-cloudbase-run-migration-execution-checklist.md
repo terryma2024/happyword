@@ -1385,6 +1385,13 @@
   Acceptance: CloudBase staging can connect with a test `MONGODB_URI` and
   `GET /api/v1/public/health` returns `200`.
 
+  Prep note, 2026-05-23: added `server/scripts/db_connectivity_smoke.py` so the
+  new TencentDB URI can be validated with a redacted `ping`/collection-list
+  smoke and optional write probe before CloudBase runtime env is switched. The
+  provisioning runbook now records `ap-shanghai`, replica-set topology,
+  app-level `readWrite` user, backup requirement, and the Atlas 8.0 DTS support
+  risk.
+
 - [ ] **Step 4: Create DTS migration task for staging rehearsal**
 
   Configure DTS:
@@ -1400,6 +1407,13 @@
 
   Acceptance: DTS precheck passes. If Atlas allowlist blocks DTS, record the
   required DTS egress IPs or networking path before proceeding.
+
+  Risk note, 2026-05-23: the live Atlas source reports MongoDB `8.0.23`.
+  Tencent DTS MongoDB capability docs should be checked in-console because the
+  public capability page currently lists third-party cloud / Atlas sources up
+  to 7.0. If DTS rejects Atlas 8.0, pause the hot-migration path and choose the
+  support-ticket or short write-freeze dump/restore fallback recorded in
+  `docs/server/cloudbase-run.md`.
 
 - [ ] **Step 5: Run staging full + incremental sync**
 
