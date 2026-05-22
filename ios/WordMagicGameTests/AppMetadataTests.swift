@@ -1,4 +1,6 @@
 @testable import WordMagicGame
+import SafariServices
+import UIKit
 import XCTest
 
 final class AppMetadataTests: XCTestCase {
@@ -32,6 +34,18 @@ final class AppMetadataTests: XCTestCase {
         XCTAssertEqual(CompliancePolicy.termsOfServiceURL.absoluteString, "https://happyword.cool/terms")
         XCTAssertEqual(CompliancePolicy.reportChannelURL.absoluteString, "https://happyword.cool/report_and_appeal")
         XCTAssertEqual(CompliancePolicy.privacyConsentUserDefaultsKey, "privacy_consent_v1")
+    }
+
+    @MainActor
+    func testSystemBrowserPresentsSafariViewControllerInApp() {
+        let host = BrowserPresentationHostSpy()
+        let url = URL(string: "https://happyword.cool/family/login")!
+
+        let didPresent = SystemBrowser.open(url, from: host)
+
+        XCTAssertTrue(didPresent)
+        XCTAssertTrue(host.presentedController is SFSafariViewController)
+        XCTAssertTrue(host.animated)
     }
 
     func testVersionMatchesHarmonyOSBaseline() {
@@ -153,4 +167,26 @@ private struct SourceAssetPair {
     let assetName: String
     let sourcePath: String
     let filename: String
+}
+
+@MainActor
+private final class BrowserPresentationHostSpy: BrowserPresentationHost {
+    private static var retainedPresentedControllers: [UIViewController] = []
+    private(set) var presentedController: UIViewController?
+    private(set) var animated = false
+
+    var presentedViewController: UIViewController? {
+        presentedController
+    }
+
+    func present(
+        _ viewControllerToPresent: UIViewController,
+        animated flag: Bool,
+        completion: (() -> Void)?
+    ) {
+        presentedController = viewControllerToPresent
+        Self.retainedPresentedControllers.append(viewControllerToPresent)
+        animated = flag
+        completion?()
+    }
 }

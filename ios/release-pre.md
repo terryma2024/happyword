@@ -1,11 +1,11 @@
-# iOS v0.7.0 Release Preparation
+# iOS v0.8.4 Review-Fix Release Preparation
 
 > Scope: Apple App Store only. Android release work is intentionally excluded.
 > App: `WordMagicGame` / `魔法背单词`
 > Bundle ID: `com.terryma.wordmagicgame`
-> Version: `0.7.0`
-> Build: `1007004`
-> Last updated: 2026-05-16
+> Version: `0.8.4`
+> Build: `1008006`
+> Last updated: 2026-05-23
 
 ## Source Of Truth
 
@@ -19,8 +19,8 @@
 
 ## Current Repo State
 
-- [x] `MARKETING_VERSION` is `0.7.0` in `ios/project.yml`.
-- [x] `CURRENT_PROJECT_VERSION` is `1007004` in `ios/project.yml`.
+- [x] `MARKETING_VERSION` is `0.8.4` in `ios/project.yml`.
+- [x] `CURRENT_PROJECT_VERSION` is `1008006` in `ios/project.yml`.
 - [x] Bundle ID is `com.terryma.wordmagicgame`.
 - [x] App display name is `魔法背单词`.
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
@@ -36,7 +36,7 @@
 - [x] App privacy questionnaire draft is derived from the current repo behavior.
 - [x] Privacy policy URL exists in repo as public server page: `https://happyword.cool/privacy`.
 - [x] Support URL exists in repo as public server page: `https://happyword.cool/support`.
-- [x] In-app account deletion initiation path is verified from this repo: `孩子档案` -> `账号与数据管理` opens `/family/<family_id>/account`.
+- [x] In-app account deletion initiation path is verified from this repo: `学习档案` -> `账号与数据管理` opens `/family/<family_id>/account`.
 
 ## P0 Blockers To Clear Before Upload
 
@@ -59,10 +59,10 @@
   - Any Vercel preview/local/staging routing must be unreachable in Release.
 
 - [x] Confirm account deletion.
-  - The bound child-device screen provides an in-app initiation path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
+  - The bound learning-device screen provides an in-app initiation path: `游戏配置` -> `学习档案` -> `账号与数据管理`.
   - The iOS entry opens the parent Web account settings page, where the authenticated parent can delete the account or cancel deletion during the grace period.
   - Server route source: `server/app/routers/parent_account.py` (`POST /api/v1/family/{family_id}/account/delete` and HTML `/family/{family_id}/account`).
-  - Reviewer note draft: bind or seed a child profile, open `游戏配置` -> `孩子档案` -> `账号与数据管理`; log in to the parent web page with a reachable reviewer email and OTP; use `删除账号`.
+  - Reviewer note draft: bind or seed a learner profile, open `游戏配置` -> `学习档案` -> `账号与数据管理`; log in to the parent web page with a reachable reviewer email and OTP; use `删除账号`.
 
 - [x] Confirm privacy policy URL.
   - Public URL: `https://happyword.cool/privacy`.
@@ -109,9 +109,9 @@
 
 ### Privacy Policy Notes To Match
 
-- Explain parent email OTP login, family/device binding, child profile nickname/avatar, generated/custom word packs, learning progress sync, wishlist/redemption flow, and textbook image import.
+- Explain parent email OTP login, family/device binding, learner profile nickname/avatar, generated/custom word packs, learning progress sync, wishlist/redemption flow, and textbook image import.
 - Explain that textbook images may be processed by backend services and OpenAI vision extraction when lesson import is used.
-- Explain account deletion: in iOS open `游戏配置` -> `孩子档案` -> `账号与数据管理`; parent deletes from the Web account page with a grace period and cancel option.
+- Explain account deletion: in iOS open `游戏配置` -> `学习档案` -> `账号与数据管理`; parent deletes from the Web account page with a grace period and cancel option.
 - State that data is not used for third-party tracking or targeted advertising unless that changes before submission.
 
 - [ ] Confirm permission usage is accurate.
@@ -121,7 +121,7 @@
 
 ## P1 Build And Verification Checklist
 
-- [x] Regenerate Xcode project after the `1007004` build-number change.
+- [x] Regenerate Xcode project after the `1008006` build-number change.
 
 ```sh
 cd ios
@@ -207,7 +207,7 @@ xcodebuild archive \
 ## P1 App Store Connect Metadata
 
 - [x] App name: `魔法背单词`.
-- [x] Subtitle draft: `家长导入，孩子闯关背单词`.
+- [x] Subtitle draft: `家长导入，闯关背单词`.
 - [x] Description draft prepared below.
 - [x] Keywords draft prepared below.
 - [x] Support URL: public, reachable, and preferably Chinese: `https://happyword.cool/support`.
@@ -228,10 +228,10 @@ xcodebuild archive \
 - [ ] App preview video: optional; skip unless polished.
 - [x] Review notes draft prepared below.
   - [x] Reviewer-owned email OTP path finalized: reviewer should use their own reachable email address to receive the one-time code.
-  - [x] Demo child profile.
+  - [x] Demo learner profile.
   - [x] Steps for QR binding or an alternative review path.
   - [x] Sample textbook photo flow.
-  - [x] Account deletion path: `游戏配置` -> `孩子档案` -> `账号与数据管理`.
+  - [x] Account deletion path: `游戏配置` -> `学习档案` -> `账号与数据管理`.
   - [x] Reviewer notes mention that server word extraction may take several seconds.
 
 ### App Store Connect Draft Values
@@ -241,7 +241,7 @@ Use the following values for the App Store Connect version metadata unless the r
 | Field | Draft |
 | --- | --- |
 | App name | `魔法背单词` |
-| Subtitle | `家长导入，孩子闯关背单词` |
+| Subtitle | `家长导入，闯关背单词` |
 | Primary category | Education |
 | Secondary category | Games, optional. Skip if App Store Connect does not require it. |
 | Kids Category | Do not select for v0.7.0 unless legal/product explicitly wants the stricter Kids Category obligations. The app is child-facing, but it also has parent account, web login, support, and textbook-image import flows. |
@@ -254,32 +254,32 @@ Use the following values for the App Store Connect version metadata unless the r
 ### Description Draft
 
 ```text
-魔法背单词是一款面向孩子的英语单词练习应用，也为家长提供词库导入和学习同步工具。
+魔法背单词是一款家庭英语单词练习应用，也为家长提供词库导入和学习同步工具。
 
-孩子可以在闯关式练习中认识单词、选择释义、复习错题，并通过本地学习记录逐步巩固。家长可以绑定孩子设备，从课本照片或相册图片中导入单词，审核识别结果后发布为孩子可练习的词包。
+学习者可以在闯关式练习中认识单词、选择释义、复习错题，并通过本地学习记录逐步巩固。家长可以绑定学习设备，从课本照片或相册图片中导入单词，审核识别结果后发布为可练习的词包。
 
 主要功能：
 - 闯关式英语单词练习
 - 错题复习与学习进度记录
-- 家长账号绑定与孩子档案管理
+- 家长账号绑定与学习档案管理
 - 拍照或相册导入课本单词
 - 识别结果审核、编辑与发布
 - 家庭词包和学习数据同步
 - 账号与数据管理入口
 
-我们重视儿童与家庭数据保护。应用不包含广告 SDK，不做跨应用追踪。家长主动上传的教材图片仅用于生成可审核的单词草稿；家长可在账号与数据管理页面导出数据或发起账号删除。
+我们重视家庭数据保护。应用不包含广告 SDK，不做跨应用追踪。家长主动上传的教材图片仅用于生成可审核的单词草稿；家长可在账号与数据管理页面导出数据或发起账号删除。
 ```
 
 ### Keywords Draft
 
 ```text
-少儿英语,背单词,英语启蒙,单词练习,亲子学习,课本导入,自然拼读,小学英语,记忆复习,英语游戏
+英语学习,背单词,英语启蒙,单词练习,家庭学习,课本导入,自然拼读,词汇记忆,复习巩固,英语游戏
 ```
 
 ### Promotional Text Draft
 
 ```text
-把课本里的单词变成孩子可以闯关练习的家庭词包。
+把课本里的单词变成可以闯关练习的家庭词包。
 ```
 
 ### Review Notes Draft
@@ -289,14 +289,14 @@ Thank you for reviewing WordMagicGame / 魔法背单词.
 
 Recommended review path:
 1. Launch the iOS app.
-2. Use the child learning flow from the home screen to start a word battle and complete a short practice session.
-3. Open 游戏配置, then 孩子档案.
+2. Use the learning flow from the home screen to start a word battle and complete a short practice session.
+3. Open 游戏配置, then 学习档案.
 4. For parent features, use 家长账号 to bind a parent account. The parent web login uses email one-time codes. Please use your own reachable reviewer email address to receive the OTP.
 5. After binding, open 家长管理后台 to test textbook import.
 6. Use 拍照导入 or 从相册导入 with a sample textbook/word-list image. The server may take several seconds to extract words from the image.
 7. Open the pending lesson draft, review the source image preview and extracted words, edit if needed, then publish the word pack.
-8. Restart the app and confirm the synced word pack is available to the child learning flow.
-9. To review account deletion, open 游戏配置 -> 孩子档案 -> 账号与数据管理. This opens the parent account page where the parent can export account data or request account deletion.
+8. Restart the app and confirm the synced word pack is available to the learning flow.
+9. To review account deletion, open 游戏配置 -> 学习档案 -> 账号与数据管理. This opens the account page in the app's Safari view where the parent can export account data or request account deletion.
 
 Notes:
 - The app does not include ads, in-app purchases, or third-party tracking SDKs.
@@ -334,14 +334,14 @@ Notes:
 ### Screenshot Plan
 
 - Captured from an equivalent Release simulator build for `0.7.0 (1007004)`.
-- iPhone screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/iphone/`.
-  - Device: `WordMagic AppStore iPhone 13 Pro Max (iOS 26.4)`.
+- iPhone screenshot set: `assets/screenshots/appstore/ios/v0.8.4-review-fix/iphone/`.
+  - Device: `WordMagic AppStore iPhone 13 Pro Max Review Fix (iOS 26.4)`.
   - Size: `2778x1284`.
-  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-pack-manager.png`.
-- iPad screenshot set: `assets/screenshots/appstore/ios/v0.7.0-b1007004/ipad/`.
-  - Device: `WordMagic AppStore iPad Pro 13 (iOS 26.4)`.
+  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-learning-profile.png`, `05-pack-manager.png`.
+- iPad screenshot set: `assets/screenshots/appstore/ios/v0.8.4-review-fix/ipad/`.
+  - Device: `iPad Pro 13-inch (M5) (iOS 26.4)`.
   - Size: `2064x2752`.
-  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-child-profile.png`, `05-pack-manager.png`.
+  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-learning-profile.png`, `05-pack-manager.png`.
 - App Store Connect submission state as of 2026-05-17:
   - Version metadata fields filled for `iOS App 版本 0.7.0`: promotional text, description, keywords, support URL, version, copyright, reviewer notes, App Review contact, and manual release.
   - Build `1007004` selected for submission.
@@ -350,10 +350,10 @@ Notes:
   - Pricing completed: free app, public distribution, Mac and Vision Pro compatibility distribution disabled for this release.
   - Version `0.7.0 (1007004)` submitted to Apple review; App Store Connect status is `正在等待审核`.
 - Screenshots cover:
-  1. Child home screen.
+  1. Learning home screen.
   2. Battle/practice screen.
   3. Practice result screen.
-  4. Parent profile / binding entry.
+  4. Learning profile / binding entry.
   5. Word-pack manager screen.
 - Rejected screenshot archive: `assets/screenshots/appstore/ios/v0.7.0-b1007004/rejected/lesson-review-image-load-failed/`.
   - Reason: the lesson-review screenshots showed `图片加载失败`, so they must not be used for App Store submission.

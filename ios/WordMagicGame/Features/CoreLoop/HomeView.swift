@@ -58,7 +58,7 @@ struct HomeView: View {
     }
 
     private var topBar: some View {
-        let childProfileLabel = "孩子档案 \(coordinator.currentChildNickname())"
+        let childProfileLabel = "学习档案 \(coordinator.currentChildNickname())"
         return HStack(spacing: 12) {
             Spacer(minLength: 0)
             if coordinator.showsChildProfileShortcut {

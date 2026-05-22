@@ -450,7 +450,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func currentChildNickname() -> String {
-        cloudCredentialsStore.credentials?.nickname ?? "孩子档案"
+        cloudCredentialsStore.credentials?.nickname ?? "学习档案"
     }
 
     func currentChildAvatarEmoji() -> String {
@@ -483,7 +483,7 @@ final class AppCoordinator: ObservableObject {
     func updateChildNickname(_ nickname: String) async {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            bindingMessage = "请输入孩子名字"
+            bindingMessage = "请输入学习者名字"
             return
         }
         guard var credentials = cloudCredentialsStore.credentials else {
@@ -492,7 +492,7 @@ final class AppCoordinator: ObservableObject {
         }
         credentials.nickname = trimmed
         cloudCredentialsStore.save(credentials)
-        bindingMessage = "已保存孩子名字"
+        bindingMessage = "已保存学习者名字"
         objectWillChange.send()
         do {
             let response = try await childProfileClient.update(
@@ -507,7 +507,7 @@ final class AppCoordinator: ObservableObject {
             cloudCredentialsStore.save(updatedCredentials)
             route = .home
         } catch {
-            bindingMessage = "已保存孩子名字，云端稍后重试"
+            bindingMessage = "已保存学习者名字，云端稍后重试"
         }
     }
 
