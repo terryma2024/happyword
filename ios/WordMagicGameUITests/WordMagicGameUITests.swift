@@ -216,15 +216,15 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(profileButton.label.contains("小明测试46373"))
         profileButton.tap()
 
-        XCTAssertTrue(app.staticTexts["孩子档案"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["学习档案"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Family ID"].exists)
-        XCTAssertTrue(app.staticTexts["孩子档案"].exists)
+        XCTAssertTrue(app.staticTexts["学习档案"].exists)
         app.buttons["✏️ 编辑"].tap()
 
-        XCTAssertTrue(app.staticTexts["孩子档案"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.textFields["孩子名字"].exists)
-        app.textFields["孩子名字"].tap()
-        app.textFields["孩子名字"].clearAndTypeText("小星星")
+        XCTAssertTrue(app.staticTexts["学习档案"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["学习者名字"].exists)
+        app.textFields["学习者名字"].tap()
+        app.textFields["学习者名字"].clearAndTypeText("小星星")
         app.buttons["保存名字"].tap()
 
         XCTAssertTrue(profileButton.waitForExistence(timeout: 5))
@@ -255,10 +255,10 @@ final class WordMagicGameUITests: XCTestCase {
         app.launch()
 
         assertLandscape(app)
-        let title = app.staticTexts["孩子档案"].firstMatch
+        let title = app.staticTexts["学习档案"].firstMatch
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         XCTAssertGreaterThan(title.frame.minY, app.windows.element(boundBy: 0).frame.minY + 20)
-        XCTAssertTrue(app.staticTexts["孩子档案"].exists)
+        XCTAssertTrue(app.staticTexts["学习档案"].exists)
         XCTAssertTrue(app.staticTexts["🦁 小明测试46373"].exists)
         XCTAssertTrue(app.buttons["✏️ 编辑"].exists)
         XCTAssertTrue(app.staticTexts["Family ID"].exists)
@@ -273,8 +273,8 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.buttons["解除设备绑定"].exists)
 
         app.buttons["✏️ 编辑"].tap()
-        XCTAssertTrue(app.staticTexts["孩子档案"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.textFields["孩子名字"].exists)
+        XCTAssertTrue(app.staticTexts["学习档案"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["学习者名字"].exists)
     }
 
     @MainActor
@@ -308,7 +308,7 @@ final class WordMagicGameUITests: XCTestCase {
             XCTAssertTrue(boundProfile.label.contains("小明测试46373"))
             boundProfile.tap()
         }
-        XCTAssertTrue(app.staticTexts["孩子档案"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["学习档案"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["🦁 小明测试46373"].exists)
         app.buttons["解除设备绑定"].tap()
         app.secureTextFields["家长 PIN"].tap()

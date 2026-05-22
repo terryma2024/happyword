@@ -858,7 +858,7 @@ final class CloudSyncTests: XCTestCase {
 
         XCTAssertEqual(childProfileClient.lastNickname, "Sophia")
         XCTAssertEqual(credentialsStore.credentials?.nickname, "Sophia")
-        XCTAssertEqual(coordinator.bindingMessage, "已保存孩子名字")
+        XCTAssertEqual(coordinator.bindingMessage, "已保存学习者名字")
         XCTAssertEqual(coordinator.route, .home)
     }
 

@@ -22,15 +22,15 @@ struct ChildProfileView: View {
                     .background(AppTheme.paleBlue, in: Circle())
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("孩子档案")
+                    Text("学习档案")
                         .font(.system(size: 34, weight: .heavy, design: .rounded))
                         .foregroundStyle(AppTheme.navy)
-                    TextField("孩子名字", text: $nickname)
+                    TextField("学习者名字", text: $nickname)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .frame(maxWidth: 360)
                         .focused($isNicknameFocused)
-                        .accessibilityIdentifier("孩子名字")
+                        .accessibilityIdentifier("学习者名字")
                     HStack(spacing: 14) {
                         Button("保存名字") {
                             isNicknameFocused = false

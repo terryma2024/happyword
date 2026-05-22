@@ -429,7 +429,7 @@ struct ConfigView: View {
                 Button {
                     coordinator.openBoundDeviceInfo()
                 } label: {
-                    Text("孩子档案：\(credentials.nickname)")
+                    Text("学习档案：\(credentials.nickname)")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)

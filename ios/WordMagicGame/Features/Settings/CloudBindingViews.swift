@@ -332,7 +332,6 @@ private struct GalleryQRCodeButtonLabel: View {
 
 struct BoundDeviceInfoView: View {
     @ObservedObject var coordinator: AppCoordinator
-    @Environment(\.openURL) private var openURL
     @State private var pin = ""
     @State private var isUnbindDialogPresented = false
     @State private var isUnbinding = false
@@ -433,7 +432,7 @@ struct BoundDeviceInfoView: View {
 
     private func editableNicknameRow(_ credentials: CloudCredentials) -> some View {
         HStack(alignment: .center, spacing: 16) {
-            Text("孩子档案")
+            Text("学习档案")
                 .font(.system(size: 17, weight: .bold, design: .rounded))
                 .foregroundStyle(.secondary)
                 .frame(width: 142, alignment: .leading)
@@ -457,7 +456,7 @@ struct BoundDeviceInfoView: View {
 
     private func accountManagementButton(_ credentials: CloudCredentials) -> some View {
         Button {
-            openURL(coordinator.parentAccountSettingsURL(for: credentials))
+            SystemBrowser.open(coordinator.parentAccountSettingsURL(for: credentials))
         } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
