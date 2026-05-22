@@ -122,6 +122,7 @@ def _flash_map_global(request: Request) -> tuple[str | None, str | None]:
         "definition_created": "已创建新的全局词包定义（gpk）。",
         "gpk_published": "已将该词包的草稿发布为新版本。",
         "gpk_rolled_back": "已回滚该词包的发布指针。",
+        "gpk_deleted": "已删除全局词包。",
         "draft_saved": "已保存草稿词条。",
         "draft_deleted": "已删除草稿词条。",
     }
@@ -1083,6 +1084,38 @@ async def admin_global_pack_rollback_definition_post(
         )
     return RedirectResponse(
         url=_global_pack_detail_url(pid, flash_ok="gpk_rolled_back"),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/delete", response_model=None)
+async def admin_global_pack_delete_definition_post(
+    request: Request,
+    pack_id: str,
+    reason: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    try:
+        await acs.admin_delete_global_pack_definition(
+            admin_username=gate.username,
+            pack_id=pid,
+            reason=reason,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(e)),
+            status_code=303,
+        )
+    except LookupError:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包。')}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url="/admin/global-packs?flash_ok=gpk_deleted",
         status_code=303,
     )
 
