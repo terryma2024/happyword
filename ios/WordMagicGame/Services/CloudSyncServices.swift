@@ -362,7 +362,8 @@ extension JSONEncoder {
 
 protocol SecureStore {
     func string(forKey key: String) -> String?
-    func set(_ value: String, forKey key: String)
+    @discardableResult
+    func set(_ value: String, forKey key: String) -> Bool
     func remove(forKey key: String)
 }
 
@@ -373,8 +374,9 @@ final class MemorySecureStore: SecureStore {
         values[key]
     }
 
-    func set(_ value: String, forKey key: String) {
+    func set(_ value: String, forKey key: String) -> Bool {
         values[key] = value
+        return true
     }
 
     func remove(forKey key: String) {
@@ -404,16 +406,20 @@ final class KeychainSecureStore: SecureStore {
         return String(data: data, encoding: .utf8)
     }
 
-    func set(_ value: String, forKey key: String) {
-        guard let data = value.data(using: .utf8) else { return }
+    func set(_ value: String, forKey key: String) -> Bool {
+        guard let data = value.data(using: .utf8) else { return false }
         var query = baseQuery(forKey: key)
         let attributes: [String: Any] = [kSecValueData as String: data]
 
         let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if status == errSecSuccess {
+            return true
+        }
         if status == errSecItemNotFound {
             query[kSecValueData as String] = data
-            SecItemAdd(query as CFDictionary, nil)
+            return SecItemAdd(query as CFDictionary, nil) == errSecSuccess
         }
+        return false
     }
 
     func remove(forKey key: String) {
@@ -960,7 +966,10 @@ final class CloudCredentialsStore {
 
     @discardableResult
     func save(_ credentials: CloudCredentials) -> Bool {
-        secureStore.set(credentials.deviceToken, forKey: Self.deviceTokenKey)
+        guard persistDeviceToken(credentials.deviceToken) else {
+            clear()
+            return false
+        }
         let metadata = Metadata(
             bindingId: credentials.bindingId,
             familyId: credentials.familyId,
@@ -988,6 +997,17 @@ final class CloudCredentialsStore {
             return false
         }
         return true
+    }
+
+    private func persistDeviceToken(_ token: String) -> Bool {
+        _ = secureStore.set(token, forKey: Self.deviceTokenKey)
+        if secureStore.string(forKey: Self.deviceTokenKey) == token {
+            return true
+        }
+
+        secureStore.remove(forKey: Self.deviceTokenKey)
+        _ = secureStore.set(token, forKey: Self.deviceTokenKey)
+        return secureStore.string(forKey: Self.deviceTokenKey) == token
     }
 
     func clear() {
@@ -1020,7 +1040,7 @@ final class DeviceIdProvider {
             return existing
         }
         let created = UUID().uuidString.lowercased()
-        secureStore.set(created, forKey: Self.deviceIdKey)
+        _ = secureStore.set(created, forKey: Self.deviceIdKey)
         return created
     }
 

@@ -514,6 +514,19 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertNil(store.credentials)
     }
 
+    func testCredentialsStoreRecoversWhenReplacingStaleKeychainTokenRequiresDeleteFirst() throws {
+        let response = try JSONDecoder.snakeCase.decode(PairRedeemResponse.self, from: Self.pairRedeemFixture)
+        let keychain = DeleteBeforeRewriteSecureStore()
+        let defaults = UserDefaults(suiteName: "CloudSyncKeychainRewrite-\(UUID().uuidString)")!
+        let store = CloudCredentialsStore(secureStore: keychain, defaults: defaults)
+
+        XCTAssertTrue(store.save(response))
+
+        XCTAssertEqual(store.credentials?.deviceToken, "device-token-demo-not-a-secret")
+        XCTAssertEqual(store.credentials?.familyId, "family-demo")
+        XCTAssertEqual(keychain.removeCalls, 1)
+    }
+
     @MainActor
     func testCoordinatorDoesNotReportBindingSuccessWhenCredentialsCannotBeReadBack() async {
         let credentialsStore = CloudCredentialsStore(
@@ -1069,9 +1082,33 @@ private final class DroppingSecureStore: SecureStore {
         nil
     }
 
-    func set(_ value: String, forKey key: String) {}
+    func set(_ value: String, forKey key: String) -> Bool {
+        false
+    }
 
     func remove(forKey key: String) {}
+}
+
+private final class DeleteBeforeRewriteSecureStore: SecureStore {
+    private var values: [String: String] = [:]
+    private var canWrite = false
+    private(set) var removeCalls = 0
+
+    func string(forKey key: String) -> String? {
+        values[key]
+    }
+
+    func set(_ value: String, forKey key: String) -> Bool {
+        guard canWrite else { return false }
+        values[key] = value
+        return true
+    }
+
+    func remove(forKey key: String) {
+        removeCalls += 1
+        values.removeValue(forKey: key)
+        canWrite = true
+    }
 }
 
 private final class RequestCounter: @unchecked Sendable {
