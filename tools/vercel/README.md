@@ -62,11 +62,11 @@ machine.
 
 Hobby plans require the HEAD commit's author email to be a confirmed
 member of the Vercel team — and they don't allow inviting members.
-Result: with `terry.ma@bytedance.com` as `git config user.email` but
+Result: with `terry.ma@gmail.com` as `git config user.email` but
 the team only registering `zjumty@gmail.com`, every deploy fails with:
 
 ```
-Git author terry.ma@bytedance.com must have access to the team
+Git author terry.ma@gmail.com must have access to the team
 terrymas-projects on Vercel to create deployments.
 ```
 
@@ -76,7 +76,7 @@ up the repo's git identity with the team-recognized email.
 1. **Repo-local config** — on first run, the script writes
    `user.email = zjumty@gmail.com` and `user.name = zjumty` into
    this repo's `.git/config`. Repo-local; your global identity
-   (e.g. `terry.ma@bytedance.com`) is untouched. All future commits
+   (e.g. `terry.ma@gmail.com`) is untouched. All future commits
    *in this repo* will be authored with the deploy email.
 
 2. **HEAD verification** — the script then checks HEAD's author

@@ -865,7 +865,7 @@ V0.5 拆分为 7 个子版本顺序推进：
 
 - **`Indexed(unique=True)` on `_id`**：Word 模型最初写成 `id: Annotated[str, Indexed(unique=True)]`。`mongomock-motor` 不强制 MongoDB 的「`_id` 隐式唯一，不允许显式 unique 索引」规则，本地全绿；Atlas 拒绝并抛 `InvalidIndexSpecificationOption`，整个 lifespan 在 `init_beanie → create_indexes` 阶段炸掉，所有 endpoint 返回 500 `FUNCTION_INVOCATION_FAILED`。修法：去掉 `Indexed(unique=True)`，仅保留 `id: str` type override。**已加结构性 regression 测试 `test_word_id_field_has_no_explicit_indexed_annotation`**，未来再误加 Indexed 会在本地 pytest 直接挂掉。
 - **Vercel CLI 旧版本 + 老 `vercel.json`**：CLI 44.7.3 不支持新 deploy endpoint（需 ≥47.2.2）；`vercel.json` 不能同时有 `builds` + `functions`（已改成 `rewrites + functions`）；`memory: 1024` 在 Active CPU billing 下被忽略，已删。
-- **Hobby 计划要求 git author 是团队成员**：本地 `git config user.email` 是 `terry.ma@bytedance.com`，但 Vercel 团队 `terrymas-projects` 只有 `zjumty@gmail.com`，部署被拒。Hobby 计划禁止 invite 新成员。临时 workaround：deploy 前 `mv .git .git.deploy_bak`、deploy 后立即恢复——CLI 无 git context 就不发送 author 校验。该 workaround 已封装进 deploy 脚本心智模型。
+- **Hobby 计划要求 git author 是团队成员**：本地 `git config user.email` 是 `terry.ma@gmail.com`，但 Vercel 团队 `terrymas-projects` 只有 `zjumty@gmail.com`，部署被拒。Hobby 计划禁止 invite 新成员。临时 workaround：deploy 前 `mv .git .git.deploy_bak`、deploy 后立即恢复——CLI 无 git context 就不发送 author 校验。该 workaround 已封装进 deploy 脚本心智模型。
 - **本地 prebuilt build 出 macOS wheel**：`vercel build --prod` 在 macOS arm64 上把 bcrypt native 打包成 macOS wheel，部署到 Vercel 的 Linux arm64 函数环境跑不起来。改用 `vercel deploy --prod`（不带 `--prebuilt`，让 Vercel 服务端用 uv 重新 install）替代；本机不再 prebuild。
 
 **明确不做（已留到后续）**
