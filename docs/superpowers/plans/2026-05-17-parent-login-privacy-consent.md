@@ -297,7 +297,7 @@ Expected: no new findings on the files we just touched. Pre-existing findings el
 - [ ] **Step 1.8: Commit Task 1**
 
 ```bash
-cd /Users/bytedance/.cursor/worktrees/happyword/yjcf
+cd /Users/matianyi/.cursor/worktrees/happyword/yjcf
 git add server/app/templates/public/terms.html \
         server/app/routers/public_pages.py \
         server/tests/test_public_pages.py
@@ -577,7 +577,7 @@ If any step fails, stop and diagnose before committing.
 - [ ] **Step 2.8: Commit Task 2**
 
 ```bash
-cd /Users/bytedance/.cursor/worktrees/happyword/yjcf
+cd /Users/matianyi/.cursor/worktrees/happyword/yjcf
 git add server/app/templates/parent/login.html \
         server/tests/test_parent_login_page.py
 git commit -m "feat(server): gate /family/login behind privacy + terms consent
@@ -638,7 +638,7 @@ Expected: no new findings. (Pre-existing repo-wide mypy findings are out of scop
 - [ ] **Step 3.4: Confirm branch + commit log**
 
 ```bash
-cd /Users/bytedance/.cursor/worktrees/happyword/yjcf
+cd /Users/matianyi/.cursor/worktrees/happyword/yjcf
 git log --oneline -5
 git branch --show-current
 ```

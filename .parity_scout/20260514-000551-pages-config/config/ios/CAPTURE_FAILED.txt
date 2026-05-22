@@ -5,8 +5,7 @@ ications/Xcode.app/Contents/Developer.
 [-[SimServiceContext initWithDeveloperDir:connectionType:error:]_block_invoke:468] ERROR : Could not get list of trusted mount directories: Error Domain=com.apple.CoreSimulator.SimError Code=410 "The service used to manage runtime disk images (simdiskimaged) crashed or is not responding" UserInfo={NSLocalizedDescription=The service used to manage runtime disk images (simdiskimaged) crashed or is not responding}
 [-[SimServiceContext sendRequest:reply:error:]:1771] ERROR : Unable to deliver request ({
     request = "notification_subscription";
-    "set_path" = "/Users/bytedance/Library/Developer/CoreSimulator/Devices";
+    "set_path" = "/Users/matianyi/Library/Developer/CoreSimulator/Devices";
 }) because we are not connected to CoreSimulatorService.
 2026-05-14 00:05:59.550 simctl[64292:21873138] Error Domain=NSPOSIXErrorDomain Code=61 "Connection refused" UserInfo={NSLocalizedDescription=CoreSimulatorService connection became invalid.  Simulator services will no longer be available.}
 Unable to locate device set: Error Domain=NSPOSIXErrorDomain Code=61 "Connection refused" UserInfo={NSLocalizedFailureReason=Failed to subscribe to notifications from CoreSimulatorService., NSLocalizedDescription=Failed to initialize simulator device set., NSUnderlyingError=0xcb31c0660 {Error Domain=NSPOSIXErrorDomain Code=61 "Connection refused" UserInfo={NSLocalizedDescription=CoreSimulatorService connection became invalid.  Simulator services will no longer be available.}}}
-

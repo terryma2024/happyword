@@ -5,12 +5,12 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "/Users/bytedance/.ohos/config/wordmagicgame_release_20260516.cer",
+          "certpath": "/Users/matianyi/.ohos/config/wordmagicgame_release_20260516.cer",
           "keyAlias": "wordmagicgame_release",
           "keyPassword": "00000050EC942B013754191ECC40C29243A0FA330A128CB3E294F13A3B34F7EDD9626497F331629D08F2AC5E1A0BAD010D918176AEECE4D9AE0D1EFFB125CDDF8CD26D16A04C5946BBA80CED716BC2FC8370708DCF1C27041D8633BF331938054C128F5C",
-          "profile": "/Users/bytedance/.ohos/config/wordmagicgame_release_profile_20260516.p7b",
+          "profile": "/Users/matianyi/.ohos/config/wordmagicgame_release_profile_20260516.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "/Users/bytedance/.ohos/config/wordmagicgame_release_20260516.p12",
+          "storeFile": "/Users/matianyi/.ohos/config/wordmagicgame_release_20260516.p12",
           "storePassword": "00000050EC942B013754191ECC40C29243A0FA330A128CB3E294F13A3B34F7EDD9626497F331629D08F2AC5E1A0BAD010D918176AEECE4D9AE0D1EFFB125CDDF8CD26D16A04C5946BBA80CED716BC2FC8370708DCF1C27041D8633BF331938054C128F5C"
         }
       }
