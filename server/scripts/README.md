@@ -72,6 +72,28 @@ uv run python -m scripts.cos_storage_smoke
 Set `COS_SMOKE_KEEP_OBJECTS=1` when you want to inspect the uploaded objects in
 the COS console instead of deleting them at the end of the run.
 
+## db_inventory.py
+
+Redacted MongoDB inventory helper for the M7A Atlas -> TencentDB migration. It
+prints schema and operational metadata only: collection names, document counts,
+indexes, TTL/unique flags, and collection stats when available. It does not
+print the MongoDB URI, credentials, or document payloads.
+
+Use `--skip-stats` when running against remote Atlas/TencentDB targets where
+`collStats` may be slow or unavailable:
+
+```bash
+cd server
+MONGODB_URI=... MONGO_DB_NAME=happyword \
+  uv run python -m scripts.db_inventory \
+  --format markdown \
+  --skip-stats \
+  --count-timeout-ms 5000
+```
+
+For a machine-readable report, switch `--format json`. Keep generated reports
+out of Git unless they have been reviewed for secret-free metadata only.
+
 ## vercel_should_skip_build.sh
 
 Optional `ignoreCommand` can live in repo-root `vercel.json`. When the Vercel project **Root Directory** is `server/`, exit **0** skips a deployment if `VERCEL_GIT_PREVIOUS_SHA`..`VERCEL_GIT_COMMIT_SHA` touches no files under that directory; exit **1** runs the build. If the Vercel project root is the **repository** root instead, do not use this file as-is: use `git diff ... -- server/` in a small wrapper or set the Root Directory to `server/`.

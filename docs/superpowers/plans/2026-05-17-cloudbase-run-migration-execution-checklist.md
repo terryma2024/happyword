@@ -1324,7 +1324,7 @@
 - Optional add: `server/scripts/db_inventory.py`
 - Optional add tests: `server/tests/test_db_inventory.py`
 
-- [ ] **Step 1: Confirm target database product**
+- [x] **Step 1: Confirm target database product**
 
   Choose:
 
@@ -1338,7 +1338,13 @@
   Record target version, region, topology, backup policy, and estimated monthly
   cost in `docs/server/cloudbase-run.md`.
 
-- [ ] **Step 2: Inventory current Atlas database**
+  Completion note, 2026-05-23: target confirmed as TencentDB for MongoDB in
+  `ap-shanghai`, migrated by Tencent Cloud DTS full + incremental sync. The app
+  cutover remains an env-var switch only. `docs/server/cloudbase-run.md` records
+  the version compatibility rule, staging/production topology guidance, backup
+  requirement, and cost as pending final console sizing.
+
+- [x] **Step 2: Inventory current Atlas database**
 
   Record:
 
@@ -1356,6 +1362,14 @@
   ```
 
   Acceptance: inventory is recorded without committing connection strings or credentials.
+
+  Completion note, 2026-05-23: live inventory ran against the current CloudBase
+  production Atlas URI via `server/scripts/db_inventory.py`. Recorded source:
+  `happyword` on MongoDB `8.0.23`, 25 collections, 275 documents, no TTL
+  indexes reported, and 15 collections with unique indexes. The first `collStats`
+  inventory attempt timed out, so the committed inventory intentionally records
+  counts and index metadata with stats skipped. Atlas backup/restore status still
+  needs manual Atlas console confirmation.
 
 - [ ] **Step 3: Provision TencentDB for MongoDB staging target**
 

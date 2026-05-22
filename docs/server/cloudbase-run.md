@@ -186,6 +186,26 @@ Required operator decisions:
 
 Target: TencentDB for MongoDB.
 
+Current M7A status, 2026-05-23:
+
+- Target product confirmed: TencentDB for MongoDB in Shanghai
+  (`ap-shanghai`) so CloudBase Run and COS stay in the same Tencent region.
+- Migration tool: Tencent Cloud DTS, MongoDB full + incremental migration.
+- Application change: switch `MONGODB_URI`/`MONGO_DB_NAME` only; no Beanie or
+  data-access rewrite in this milestone.
+- Target version: choose a TencentDB MongoDB version compatible with the current
+  Atlas source (`8.0.23` reported by `serverInfo`) if available; otherwise pick
+  the newest TencentDB-supported major version validated by DTS precheck and
+  the staging smoke suite.
+- Topology: start with a managed replica set for staging; production should use
+  the same version/topology class sized from the live inventory below, then
+  raise capacity only if DTS or production monitoring shows pressure.
+- Backup policy: enable automatic TencentDB backups at creation time. Keep at
+  least the platform minimum retention for staging and production, and perform
+  one restore rehearsal before production cutover.
+- Estimated monthly cost: pending TencentDB console quote after final instance
+  size is chosen.
+
 Rationale:
 
 - The FastAPI backend uses Motor + Beanie and should keep the MongoDB wire
@@ -227,6 +247,92 @@ Cutover acceptance:
   CloudBase production.
 - Admin login, parent login, one safe write path, and cron extraction pass.
 - Collection counts and critical indexes match the recorded Atlas inventory.
+
+Recorded Atlas inventory, generated 2026-05-23:
+
+```text
+Source provider: MongoDB Atlas
+Atlas SRV host: atlas-lime-garden.qwoxcy5.mongodb.net
+Production database: happyword
+MongoDB server version: 8.0.23
+Collections: 25
+Total documents: 275
+TTL indexes: none reported
+Unique index collections: 15
+Stats mode: skipped collStats because the remote command timed out during the
+first live inventory attempt; counts and index metadata were collected.
+Atlas backup/restore status: pending manual Atlas console confirmation.
+```
+
+Collection counts and index shape:
+
+| Collection | Documents | Indexes | TTL | Unique |
+| --- | ---: | ---: | ---: | ---: |
+| audit_log | 13 | 4 | 0 | 0 |
+| categories | 5 | 1 | 0 | 0 |
+| child_profiles | 9 | 5 | 0 | 1 |
+| cloud_wishlist_items | 0 | 5 | 0 | 1 |
+| device_bindings | 14 | 7 | 0 | 1 |
+| email_verifications | 8 | 3 | 0 | 0 |
+| families | 6 | 4 | 0 | 3 |
+| family_pack_definitions | 5 | 4 | 0 | 1 |
+| family_pack_drafts | 5 | 3 | 0 | 1 |
+| family_pack_pointers | 5 | 3 | 0 | 1 |
+| family_word_packs | 7 | 4 | 0 | 0 |
+| lesson_import_drafts | 2 | 3 | 0 | 0 |
+| llm_drafts | 0 | 3 | 0 | 0 |
+| oauth_handoff_tickets | 0 | 2 | 0 | 1 |
+| oauth_identities | 5 | 3 | 0 | 0 |
+| oauth_pending_identities | 2 | 4 | 0 | 0 |
+| pack_pointer | 1 | 2 | 0 | 1 |
+| pair_tokens | 21 | 5 | 0 | 2 |
+| parent_inbox_msgs | 0 | 4 | 0 | 1 |
+| redemption_requests | 0 | 5 | 0 | 1 |
+| synced_word_stats | 108 | 4 | 0 | 0 |
+| user_feedback | 0 | 6 | 0 | 1 |
+| users | 7 | 4 | 0 | 1 |
+| word_packs | 2 | 2 | 0 | 1 |
+| words | 50 | 2 | 0 | 0 |
+
+Collections with unique indexes:
+
+```text
+child_profiles: profile_id_1
+cloud_wishlist_items: item_id_1
+device_bindings: binding_id_1
+families: family_id_1, owner_user_id_1, primary_email_1
+family_pack_definitions: pack_id_1
+family_pack_drafts: pack_definition_id_1
+family_pack_pointers: pack_definition_id_1
+oauth_handoff_tickets: ticket_id_1
+pack_pointer: singleton_key_1
+pair_tokens: token_1, short_code_1
+parent_inbox_msgs: msg_id_1
+redemption_requests: request_id_1
+user_feedback: feedback_id_1
+users: username_1
+word_packs: version_1
+```
+
+Live inventory command, using secret values from the CloudBase service env and
+writing only redacted metadata:
+
+```bash
+cd server
+MONGODB_URI=... MONGO_DB_NAME=happyword \
+  uv run python -m scripts.db_inventory \
+  --format json \
+  --skip-stats \
+  --count-timeout-ms 5000
+```
+
+Next M7A steps:
+
+1. Provision a TencentDB for MongoDB staging instance in `ap-shanghai`.
+2. Create a least-privilege app user and verify CloudBase Run network reach.
+3. Configure DTS from Atlas to TencentDB staging with full + incremental sync.
+4. Run consistency checks against the inventory above, then switch staging
+   `MONGODB_URI` and run smoke tests.
 
 ### Vercel Blob Replacement
 
