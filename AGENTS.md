@@ -54,6 +54,22 @@ Every product feature added *after* the initial HarmonyOS / iOS / Android baseli
 - If a warning comes from a third-party dependency we cannot fix, add a *narrow* `ignore:...` entry to `[tool.pytest.ini_options].filterwarnings` with a comment explaining the source and why we cannot resolve it upstream.
 - Never use a blanket `ignore` (e.g. `ignore::DeprecationWarning`) — always pin by message + module.
 
+## Codex desktop GitHub CLI auth caveat
+
+When publishing from Codex desktop, `gh` commands run inside the default
+sandbox may not see the same macOS keyring / network state as the user's local
+terminal. A false negative can look like:
+
+- `gh auth status` says the token is invalid even though the user just logged in.
+- `gh repo view` reports an API/network connection error.
+
+Before asking the user to re-authenticate, rerun the relevant GitHub CLI
+command with sandbox escalation (`sandbox_permissions="require_escalated"`).
+For example, retry `gh auth status`, `gh pr create`, or other `gh` publishing
+steps outside the sandbox so the command can access the user's keyring-backed
+credential and normal network path. Only ask the user to run `gh auth login`
+again if the escalated `gh auth status` still fails.
+
 ## Cursor Cloud specific instructions
 
 This section captures non-obvious caveats for cloud agents working on the
