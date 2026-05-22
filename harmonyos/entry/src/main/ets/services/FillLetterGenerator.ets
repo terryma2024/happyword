@@ -6,6 +6,101 @@ const MIN_WORD_LETTERS: number = 3;
 const MIN_WORD_LETTERS_MEDIUM: number = 4;
 const ALPHABET: string = 'abcdefghijklmnopqrstuvwxyz';
 const TOTAL_OPTIONS: number = 3;
+const WORD_SPACE_TEMPLATE_TOKEN: string = ' ';
+
+class PhraseToken {
+  glyph: string = '';
+  originalIndex: number = -1;
+  isLetter: boolean = false;
+  isArticle: boolean = false;
+}
+
+function isAsciiLetter(c: string): boolean {
+  return c >= 'a' && c <= 'z';
+}
+
+function isArticleWord(word: string): boolean {
+  return word === 'a' || word === 'an' || word === 'the';
+}
+
+function phraseTokens(raw: string): PhraseToken[] {
+  const lower: string = raw.toLowerCase();
+  const articlePositions: Set<number> = new Set<number>();
+  let i: number = 0;
+  while (i < lower.length) {
+    const c: string = lower.charAt(i);
+    if (!isAsciiLetter(c)) {
+      i++;
+      continue;
+    }
+    const start: number = i;
+    let word: string = '';
+    while (i < lower.length && isAsciiLetter(lower.charAt(i))) {
+      word += lower.charAt(i);
+      i++;
+    }
+    if (isArticleWord(word)) {
+      for (let p: number = start; p < i; p++) {
+        articlePositions.add(p);
+      }
+    }
+  }
+
+  const out: PhraseToken[] = [];
+  for (let pos: number = 0; pos < lower.length; pos++) {
+    const c: string = lower.charAt(pos);
+    if (isAsciiLetter(c)) {
+      const token: PhraseToken = new PhraseToken();
+      token.glyph = c;
+      token.originalIndex = pos;
+      token.isLetter = true;
+      token.isArticle = articlePositions.has(pos);
+      out.push(token);
+    } else if (c === ' ') {
+      const token: PhraseToken = new PhraseToken();
+      token.glyph = WORD_SPACE_TEMPLATE_TOKEN;
+      token.originalIndex = pos;
+      token.isLetter = false;
+      token.isArticle = false;
+      out.push(token);
+    }
+  }
+  return out;
+}
+
+function fillableTokens(tokens: PhraseToken[]): PhraseToken[] {
+  const out: PhraseToken[] = [];
+  for (let i: number = 0; i < tokens.length; i++) {
+    const token: PhraseToken = tokens[i];
+    if (token.isLetter && !token.isArticle) {
+      out.push(token);
+    }
+  }
+  return out;
+}
+
+function allLetters(tokens: PhraseToken[]): string[] {
+  const out: string[] = [];
+  for (let i: number = 0; i < tokens.length; i++) {
+    if (tokens[i].isLetter) {
+      out.push(tokens[i].glyph);
+    }
+  }
+  return out;
+}
+
+function templateFromTokens(tokens: PhraseToken[], missingPositions: Set<number>): string {
+  const parts: string[] = [];
+  for (let i: number = 0; i < tokens.length; i++) {
+    const token: PhraseToken = tokens[i];
+    if (token.isLetter && missingPositions.has(token.originalIndex)) {
+      parts.push('_');
+    } else {
+      parts.push(token.glyph);
+    }
+  }
+  return parts.join(' ');
+}
 
 /**
  * Generate a beginner fill-letter question (one missing letter,
@@ -24,22 +119,18 @@ export class FillLetterGenerator {
   }
 
   generate(word: WordEntry, _lastWordId?: string): Question | undefined {
-    const lower: string = word.word.toLowerCase();
-    const letters: string[] = [];
-    for (let i = 0; i < lower.length; i++) {
-      const c: string = lower.charAt(i);
-      if (c >= 'a' && c <= 'z') {
-        letters.push(c);
-      }
-    }
-    if (letters.length < MIN_WORD_LETTERS) {
+    const tokens: PhraseToken[] = phraseTokens(word.word);
+    const letters: string[] = allLetters(tokens);
+    const fillable: PhraseToken[] = fillableTokens(tokens);
+    if (fillable.length < MIN_WORD_LETTERS) {
       return undefined;
     }
 
-    // Pick a missing index from [1, letters.length - 1] so the
-    // first letter is never hidden — easier for early readers.
-    const missingIndex: number = this.randomInt(1, letters.length - 1);
-    const letterAnswer: string = letters[missingIndex];
+    // Pick from content letters only: articles (a/an/the) and spaces are
+    // displayed, never asked for. Keep the first content letter visible.
+    const missingToken: PhraseToken = fillable[this.randomInt(1, fillable.length - 1)];
+    const missingIndex: number = missingToken.originalIndex;
+    const letterAnswer: string = missingToken.glyph;
 
     // Distractors: random letters not in the word at all (and not
     // equal to letterAnswer). Falls back to "letters not equal to
@@ -71,10 +162,8 @@ export class FillLetterGenerator {
     const optionsPlain: string[] = [letterAnswer, distractors[0], distractors[1]];
     const letterOptions: string[] = shuffle<string>(optionsPlain, this.rng);
 
-    const templateParts: string[] = [];
-    for (let i = 0; i < letters.length; i++) {
-      templateParts.push(i === missingIndex ? '_' : letters[i]);
-    }
+    const missingPositions: Set<number> = new Set<number>();
+    missingPositions.add(missingIndex);
 
     const q: Question = new Question();
     q.kind = QuestionKind.FillLetter;
@@ -82,7 +171,7 @@ export class FillLetterGenerator {
     q.answer = word.word;
     q.options = [];
     q.wordId = word.id;
-    q.letterTemplate = templateParts.join(' ');
+    q.letterTemplate = templateFromTokens(tokens, missingPositions);
     q.missingIndex = missingIndex;
     q.letterOptions = letterOptions;
     q.letterAnswer = letterAnswer;
@@ -95,45 +184,45 @@ export class FillLetterGenerator {
    * caller can degrade to beginner fill-letter or choice.
    */
   generateMedium(word: WordEntry, _lastWordId?: string): Question | undefined {
-    const lower: string = word.word.toLowerCase();
-    const letters: string[] = [];
-    for (let i = 0; i < lower.length; i++) {
-      const c: string = lower.charAt(i);
-      if (c >= 'a' && c <= 'z') {
-        letters.push(c);
-      }
-    }
-    if (letters.length < MIN_WORD_LETTERS_MEDIUM) {
+    const tokens: PhraseToken[] = phraseTokens(word.word);
+    const letters: string[] = allLetters(tokens);
+    const fillable: PhraseToken[] = fillableTokens(tokens);
+    if (fillable.length < MIN_WORD_LETTERS_MEDIUM) {
       return undefined;
     }
 
-    // Pick two distinct missing indices from [1, letters.length - 1].
+    // Pick two distinct missing content letters.
     // Invariants:
-    // - Never hide the first letter.
+    // - Never hide spaces or article letters.
+    // - Never hide the first content letter.
     // - Always fill blanks left-to-right: step 0 is the smaller index.
-    let idxA: number = this.randomInt(1, letters.length - 1);
-    let idxB: number = this.randomInt(1, letters.length - 1);
-    if (idxB === idxA) {
+    let fillIdxA: number = this.randomInt(1, fillable.length - 1);
+    let fillIdxB: number = this.randomInt(1, fillable.length - 1);
+    if (fillIdxB === fillIdxA) {
       // Deterministic "re-pick": shift by one within range.
-      idxB = idxB + 1;
-      if (idxB > letters.length - 1) {
-        idxB = 1;
+      fillIdxB = fillIdxB + 1;
+      if (fillIdxB > fillable.length - 1) {
+        fillIdxB = 1;
       }
     }
+    let idxA: number = fillable[fillIdxA].originalIndex;
+    let idxB: number = fillable[fillIdxB].originalIndex;
     if (idxA > idxB) {
       const tmp: number = idxA;
       idxA = idxB;
       idxB = tmp;
     }
     const missingIndices: number[] = [idxA, idxB];
-    const answers: string[] = [letters[idxA], letters[idxB]];
+    const answers: string[] = [
+      word.word.toLowerCase().charAt(idxA),
+      word.word.toLowerCase().charAt(idxB),
+    ];
 
     // Base template: both blanks shown as '_' so the UI can render two slots,
     // but the engine will only resolve one step at a time.
-    const templateParts: string[] = [];
-    for (let i = 0; i < letters.length; i++) {
-      templateParts.push((i === idxA || i === idxB) ? '_' : letters[i]);
-    }
+    const missingPositions: Set<number> = new Set<number>();
+    missingPositions.add(idxA);
+    missingPositions.add(idxB);
 
     // Shared candidate pool: letters not in the word at all.
     const wordLetters: Set<string> = new Set<string>();
@@ -188,7 +277,7 @@ export class FillLetterGenerator {
     q.answer = word.word;
     q.options = [];
     q.wordId = word.id;
-    q.letterTemplateBase = templateParts.join(' ');
+    q.letterTemplateBase = templateFromTokens(tokens, missingPositions);
     q.missingIndices = missingIndices;
     q.letterOptionsSteps = optionsSteps;
     q.letterAnswers = answers;

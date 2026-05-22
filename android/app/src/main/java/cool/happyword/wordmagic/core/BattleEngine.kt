@@ -263,11 +263,14 @@ class BattleEngine(
     }
 
     private fun fillLetterQuestionFor(word: WordEntry): Question? {
-        val letters = alphabeticLetters(word.word)
-        if (letters.size < 3) return null
-        val missingIndex = randomInt(1, letters.lastIndex)
-        val letterAnswer = letters[missingIndex]
-        val template = letters.mapIndexed { index, letter -> if (index == missingIndex) "_" else letter }.joinToString(" ")
+        val tokens = phraseTokens(word.word)
+        val letters = tokens.filter { it.isLetter }.map { it.glyph }
+        val fillable = tokens.filter { it.isLetter && !it.isArticle }
+        if (fillable.size < 3) return null
+        val missingToken = fillable[randomInt(1, fillable.lastIndex)]
+        val missingIndex = missingToken.originalIndex
+        val letterAnswer = missingToken.glyph
+        val template = templateFromTokens(tokens, setOf(missingIndex))
         val options = letterOptionsFor(letters, letterAnswer)
         return Question(
             prompt = word.meaning,
@@ -283,24 +286,26 @@ class BattleEngine(
     }
 
     private fun mediumFillLetterQuestionFor(word: WordEntry): Question? {
-        val letters = alphabeticLetters(word.word)
-        if (letters.size < 4) return null
-        var first = randomInt(1, letters.lastIndex)
-        var second = randomInt(1, letters.lastIndex)
+        val tokens = phraseTokens(word.word)
+        val letters = tokens.filter { it.isLetter }.map { it.glyph }
+        val fillable = tokens.filter { it.isLetter && !it.isArticle }
+        if (fillable.size < 4) return null
+        var first = randomInt(1, fillable.lastIndex)
+        var second = randomInt(1, fillable.lastIndex)
         if (second == first) {
             second += 1
-            if (second > letters.lastIndex) second = 1
+            if (second > fillable.lastIndex) second = 1
         }
-        if (first > second) {
-            val tmp = first
-            first = second
-            second = tmp
+        var firstToken = fillable[first]
+        var secondToken = fillable[second]
+        if (firstToken.originalIndex > secondToken.originalIndex) {
+            val tmp = firstToken
+            firstToken = secondToken
+            secondToken = tmp
         }
-        val missingIndices = listOf(first, second)
-        val answers = listOf(letters[first], letters[second])
-        val template = letters.mapIndexed { index, letter ->
-            if (index == first || index == second) "_" else letter
-        }.joinToString(" ")
+        val missingIndices = listOf(firstToken.originalIndex, secondToken.originalIndex)
+        val answers = listOf(firstToken.glyph, secondToken.glyph)
+        val template = templateFromTokens(tokens, missingIndices.toSet())
         val optionSteps = listOf(
             letterOptionsFor(letters, answers[0], answers[1]),
             letterOptionsFor(letters, answers[1], answers[0]),
@@ -320,10 +325,14 @@ class BattleEngine(
     }
 
     private fun spellQuestionFor(word: WordEntry): Question? {
-        val letters = alphabeticLetters(word.word)
-        if (letters.size !in 4..9) return null
-        val mask = letters.mapIndexed { index, _ -> index == 0 }
-        val pool = shuffleWithRandom(letters.drop(1))
+        val tokens = phraseTokens(word.word)
+        val fillableIndices = tokens.indices.filter { tokens[it].isLetter && !tokens[it].isArticle }
+        if (fillableIndices.size !in 4..9) return null
+        val letters = tokens.map { it.glyph }
+        val mask = tokens.mapIndexed { index, token ->
+            !token.isLetter || token.isArticle || index == fillableIndices.first()
+        }
+        val pool = shuffleWithRandom(fillableIndices.drop(1).map { letters[it] })
         return Question(
             prompt = word.meaning,
             correctAnswer = word.word,
@@ -337,14 +346,12 @@ class BattleEngine(
     }
 
     private fun advanceMediumQuestion(question: Question, chosen: String): Question {
-        val parts = question.letterTemplateBase.split(" ").toMutableList()
-        val index = question.missingIndices.getOrNull(question.currentStep) ?: return question
-        if (index in parts.indices) {
-            parts[index] = chosen
-        }
+        val blankIndex = question.letterTemplateBase.indexOf('_')
+        if (blankIndex < 0) return question
+        val template = question.letterTemplateBase.replaceRange(blankIndex, blankIndex + 1, chosen)
         val nextStep = (question.currentStep + 1).coerceAtMost(1)
         return question.copy(
-            letterTemplateBase = parts.joinToString(" "),
+            letterTemplateBase = template,
             currentStep = nextStep,
             options = question.letterOptionsSteps.getOrElse(nextStep) { emptyList() },
         )
@@ -393,10 +400,6 @@ class BattleEngine(
         }
     }
 
-    private fun alphabeticLetters(word: String): List<String> {
-        return word.lowercase().filter { it in 'a'..'z' }.map { it.toString() }
-    }
-
     private fun letterOptionsFor(letters: List<String>, answer: String, otherAnswer: String? = null): List<String> {
         val wordLetters = letters.toSet()
         val distractors = alphabet.filter { it !in wordLetters && it != answer && it != otherAnswer }
@@ -434,5 +437,48 @@ class BattleEngine(
             WordEntry("dog", "dog", "狗"),
             WordEntry("sun", "sun", "太阳"),
         )
+    }
+}
+
+private data class PhraseToken(
+    val glyph: String,
+    val originalIndex: Int,
+    val isLetter: Boolean,
+    val isArticle: Boolean,
+)
+
+private fun phraseTokens(raw: String): List<PhraseToken> {
+    val chars = raw.lowercase().toList()
+    val articlePositions = mutableSetOf<Int>()
+    var index = 0
+    while (index < chars.size) {
+        if (chars[index] !in 'a'..'z') {
+            index += 1
+            continue
+        }
+        val start = index
+        val builder = StringBuilder()
+        while (index < chars.size && chars[index] in 'a'..'z') {
+            builder.append(chars[index])
+            index += 1
+        }
+        if (builder.toString() in setOf("a", "an", "the")) {
+            for (position in start until index) {
+                articlePositions.add(position)
+            }
+        }
+    }
+    return chars.mapIndexedNotNull { position, char ->
+        when {
+            char in 'a'..'z' -> PhraseToken(char.toString(), position, isLetter = true, isArticle = position in articlePositions)
+            char == ' ' -> PhraseToken(" ", position, isLetter = false, isArticle = false)
+            else -> null
+        }
+    }
+}
+
+private fun templateFromTokens(tokens: List<PhraseToken>, missingPositions: Set<Int>): String {
+    return tokens.joinToString(" ") { token ->
+        if (token.isLetter && token.originalIndex in missingPositions) "_" else token.glyph
     }
 }

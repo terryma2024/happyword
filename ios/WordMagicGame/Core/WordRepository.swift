@@ -139,13 +139,16 @@ final class FillLetterGenerator {
     }
 
     func generate(_ word: WordEntry, lastWordId _: String? = nil) -> Question? {
-        let letters = alphabeticLetters(word.word)
-        guard letters.count >= 3 else { return nil }
+        let tokens = phraseTokens(word.word)
+        let letters = allLetters(tokens)
+        let fillable = fillableTokens(tokens)
+        guard fillable.count >= 3 else { return nil }
 
-        let missingIndex = randomIndex(in: 1 ... (letters.count - 1))
-        let answer = letters[missingIndex]
+        let missingToken = fillable[randomIndex(in: 1 ... (fillable.count - 1))]
+        let missingIndex = missingToken.originalIndex
+        let answer = missingToken.glyph
         let options = letterOptions(answer: answer, wordLetters: Set(letters), excludedAnswers: [answer])
-        let template = letters.enumerated().map { index, letter in index == missingIndex ? "_" : letter }.joined(separator: " ")
+        let template = template(from: tokens, missingPositions: [missingIndex])
 
         var question = Question(promptZh: word.meaningZh, answer: word.word, options: [], wordId: word.id, kind: .fillLetter)
         question.letterTemplate = template
@@ -156,27 +159,29 @@ final class FillLetterGenerator {
     }
 
     func generateMedium(_ word: WordEntry, lastWordId _: String? = nil) -> Question? {
-        let letters = alphabeticLetters(word.word)
-        guard letters.count >= 4 else { return nil }
+        let tokens = phraseTokens(word.word)
+        let letters = allLetters(tokens)
+        let fillable = fillableTokens(tokens)
+        guard fillable.count >= 4 else { return nil }
 
-        var first = randomIndex(in: 1 ... (letters.count - 1))
-        var second = randomIndex(in: 1 ... (letters.count - 1))
+        let first = randomIndex(in: 1 ... (fillable.count - 1))
+        var second = randomIndex(in: 1 ... (fillable.count - 1))
         if first == second {
             second += 1
-            if second > letters.count - 1 {
+            if second > fillable.count - 1 {
                 second = 1
             }
         }
-        if first > second {
-            swap(&first, &second)
+        var firstToken = fillable[first]
+        var secondToken = fillable[second]
+        if firstToken.originalIndex > secondToken.originalIndex {
+            swap(&firstToken, &secondToken)
         }
 
-        let missingIndices = [first, second]
-        let answers = [letters[first], letters[second]]
+        let missingIndices = [firstToken.originalIndex, secondToken.originalIndex]
+        let answers = [firstToken.glyph, secondToken.glyph]
         let wordLetters = Set(letters)
-        let template = letters.enumerated()
-            .map { index, letter in missingIndices.contains(index) ? "_" : letter }
-            .joined(separator: " ")
+        let template = template(from: tokens, missingPositions: Set(missingIndices))
         let steps = [
             letterOptions(answer: answers[0], wordLetters: wordLetters, excludedAnswers: answers),
             letterOptions(answer: answers[1], wordLetters: wordLetters, excludedAnswers: answers),
@@ -189,13 +194,6 @@ final class FillLetterGenerator {
         question.letterAnswers = answers
         question.currentStep = 0
         return question
-    }
-
-    private func alphabeticLetters(_ word: String) -> [String] {
-        word.lowercased().compactMap { character in
-            guard character >= "a", character <= "z" else { return nil }
-            return String(character)
-        }
     }
 
     private func letterOptions(answer: String, wordLetters: Set<String>, excludedAnswers: [String]) -> [String] {
@@ -223,22 +221,78 @@ final class SpellGenerator {
     }
 
     func generate(_ word: WordEntry) -> Question? {
-        let letters = alphabeticLetters(word.word)
-        guard (4 ... 9).contains(letters.count) else { return nil }
+        let tokens = phraseTokens(word.word)
+        let fillableIndices = tokens.indices.filter { tokens[$0].isLetter && !tokens[$0].isArticle }
+        guard (4 ... 9).contains(fillableIndices.count) else { return nil }
+        let letters = tokens.map(\.glyph)
 
         var question = Question(promptZh: word.meaningZh, answer: word.word, options: [], wordId: word.id, kind: .spell)
         question.spellLetters = letters
-        question.spellRevealedMask = letters.indices.map { $0 == 0 }
-        question.spellPool = shuffled(Array(letters.dropFirst()), random: { self.random.nextDouble() })
+        question.spellRevealedMask = tokens.indices.map { index in
+            !tokens[index].isLetter || tokens[index].isArticle || index == fillableIndices[0]
+        }
+        question.spellPool = shuffled(fillableIndices.dropFirst().map { letters[$0] }, random: { self.random.nextDouble() })
         return question
     }
+}
 
-    private func alphabeticLetters(_ word: String) -> [String] {
-        word.lowercased().compactMap { character in
-            guard character >= "a", character <= "z" else { return nil }
-            return String(character)
+private struct PhraseToken {
+    var glyph: String
+    var originalIndex: Int
+    var isLetter: Bool
+    var isArticle: Bool
+}
+
+private func phraseTokens(_ raw: String) -> [PhraseToken] {
+    let chars = Array(raw.lowercased())
+    var articlePositions = Set<Int>()
+    var index = 0
+    while index < chars.count {
+        guard isAsciiLetter(chars[index]) else {
+            index += 1
+            continue
+        }
+        let start = index
+        var word = ""
+        while index < chars.count, isAsciiLetter(chars[index]) {
+            word.append(chars[index])
+            index += 1
+        }
+        if ["a", "an", "the"].contains(word) {
+            for position in start ..< index {
+                articlePositions.insert(position)
+            }
         }
     }
+
+    return chars.enumerated().compactMap { index, character in
+        if isAsciiLetter(character) {
+            return PhraseToken(glyph: String(character), originalIndex: index, isLetter: true, isArticle: articlePositions.contains(index))
+        }
+        if character == " " {
+            return PhraseToken(glyph: " ", originalIndex: index, isLetter: false, isArticle: false)
+        }
+        return nil
+    }
+}
+
+private func isAsciiLetter(_ character: Character) -> Bool {
+    character >= "a" && character <= "z"
+}
+
+private func fillableTokens(_ tokens: [PhraseToken]) -> [PhraseToken] {
+    tokens.filter { $0.isLetter && !$0.isArticle }
+}
+
+private func allLetters(_ tokens: [PhraseToken]) -> [String] {
+    tokens.filter(\.isLetter).map(\.glyph)
+}
+
+private func template(from tokens: [PhraseToken], missingPositions: Set<Int>) -> String {
+    tokens.map { token in
+        token.isLetter && missingPositions.contains(token.originalIndex) ? "_" : token.glyph
+    }
+    .joined(separator: " ")
 }
 
 struct BattleQuestionPlan: Equatable {
@@ -373,11 +427,11 @@ final class PlanQuestionSource: QuestionSource {
         case QuestionKind.choice.rawValue:
             return try choiceGenerator.nextQuestionForWord(word, lastWordId: lastWordId)
         case QuestionKind.fillLetter.rawValue:
-            return try fillGenerator.generate(word)
+            return fillGenerator.generate(word)
         case QuestionKind.fillLetterMedium.rawValue:
-            return try fillGenerator.generateMedium(word)
+            return fillGenerator.generateMedium(word)
         case QuestionKind.spell.rawValue:
-            return try spellGenerator.generate(word)
+            return spellGenerator.generate(word)
         default:
             return nil
         }

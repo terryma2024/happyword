@@ -22,6 +22,63 @@ import { RandomFn, shuffle } from '../utils/shuffle';
 const SPELL_MIN_LEN: number = 4;
 const SPELL_MAX_LEN: number = 9;
 
+class PhraseToken {
+  glyph: string = '';
+  isLetter: boolean = false;
+  isArticle: boolean = false;
+}
+
+function isAsciiLetter(c: string): boolean {
+  return c >= 'a' && c <= 'z';
+}
+
+function isArticleWord(word: string): boolean {
+  return word === 'a' || word === 'an' || word === 'the';
+}
+
+function phraseTokens(raw: string): PhraseToken[] {
+  const lower: string = raw.toLowerCase();
+  const articlePositions: Set<number> = new Set<number>();
+  let i: number = 0;
+  while (i < lower.length) {
+    const c: string = lower.charAt(i);
+    if (!isAsciiLetter(c)) {
+      i++;
+      continue;
+    }
+    const start: number = i;
+    let word: string = '';
+    while (i < lower.length && isAsciiLetter(lower.charAt(i))) {
+      word += lower.charAt(i);
+      i++;
+    }
+    if (isArticleWord(word)) {
+      for (let p: number = start; p < i; p++) {
+        articlePositions.add(p);
+      }
+    }
+  }
+
+  const out: PhraseToken[] = [];
+  for (let pos: number = 0; pos < lower.length; pos++) {
+    const c: string = lower.charAt(pos);
+    if (isAsciiLetter(c)) {
+      const token: PhraseToken = new PhraseToken();
+      token.glyph = c;
+      token.isLetter = true;
+      token.isArticle = articlePositions.has(pos);
+      out.push(token);
+    } else if (c === ' ') {
+      const token: PhraseToken = new PhraseToken();
+      token.glyph = ' ';
+      token.isLetter = false;
+      token.isArticle = false;
+      out.push(token);
+    }
+  }
+  return out;
+}
+
 export class SpellGenerator {
   private readonly rng: RandomFn;
 
@@ -30,24 +87,28 @@ export class SpellGenerator {
   }
 
   generate(word: WordEntry): Question | undefined {
-    const lower: string = word.word.toLowerCase();
+    const tokens: PhraseToken[] = phraseTokens(word.word);
+    const fillableIndices: number[] = [];
     const letters: string[] = [];
-    for (let i = 0; i < lower.length; i++) {
-      const c: string = lower.charAt(i);
-      if (c >= 'a' && c <= 'z') {
-        letters.push(c);
+    for (let i: number = 0; i < tokens.length; i++) {
+      letters.push(tokens[i].glyph);
+      if (tokens[i].isLetter && !tokens[i].isArticle) {
+        fillableIndices.push(i);
       }
     }
-    if (letters.length < SPELL_MIN_LEN || letters.length > SPELL_MAX_LEN) {
+    if (fillableIndices.length < SPELL_MIN_LEN || fillableIndices.length > SPELL_MAX_LEN) {
       return undefined;
     }
 
     const mask: boolean[] = [];
     for (let i = 0; i < letters.length; i++) {
-      mask.push(i === 0);
+      mask.push(!tokens[i].isLetter || tokens[i].isArticle || i === fillableIndices[0]);
     }
 
-    const remaining: string[] = letters.slice(1);
+    const remaining: string[] = [];
+    for (let i: number = 1; i < fillableIndices.length; i++) {
+      remaining.push(letters[fillableIndices[i]]);
+    }
     const pool: string[] = shuffle<string>(remaining, this.rng);
 
     const q: Question = new Question();

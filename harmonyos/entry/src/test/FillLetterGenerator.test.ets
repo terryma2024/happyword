@@ -132,5 +132,26 @@ export default function fillLetterGeneratorTest() {
         }
       }
     });
+
+    it('phraseTemplatesPreserveWordSpaces', 0, () => {
+      const gen: FillLetterGenerator = new FillLetterGenerator(mulberry32(10));
+      const q: Question = gen.generate(makeWord('phrase-magic-wand', 'magic wand')) as Question;
+      expect(q.letterTemplate.indexOf('   ') >= 0).assertTrue();
+
+      const medium: Question = gen.generateMedium(makeWord('phrase-magic-wand', 'magic wand')) as Question;
+      expect(medium.letterTemplateBase.indexOf('   ') >= 0).assertTrue();
+    });
+
+    it('doesNotHideArticleLettersInPhrases', 0, () => {
+      const gen: FillLetterGenerator = new FillLetterGenerator(mulberry32(1));
+      for (let i = 0; i < 20; i++) {
+        const q: Question = gen.generate(makeWord(`phrase-an-puppy-${i}`, 'an puppy')) as Question;
+        expect(q.letterAnswer === 'a' || q.letterAnswer === 'n').assertFalse();
+
+        const medium: Question = gen.generateMedium(makeWord(`phrase-the-apple-${i}`, 'the apple')) as Question;
+        expect(medium.letterAnswers.indexOf('t') < 0).assertTrue();
+        expect(medium.letterAnswers.indexOf('h') < 0).assertTrue();
+      }
+    });
   });
 }

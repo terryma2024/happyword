@@ -68,6 +68,21 @@ final class QuestionGeneratorTests: XCTestCase {
         XCTAssertNil(generator.generateMedium(Self.word(id: "place-zoo", word: "zoo", meaningZh: "动物园")))
     }
 
+    func testFillLetterGeneratorPreservesPhraseSpacesAndSkipsArticles() throws {
+        let generator = FillLetterGenerator(random: SeededRandom(seed: 10))
+        let beginner = try XCTUnwrap(generator.generate(Self.word(id: "phrase-magic-wand", word: "magic wand", meaningZh: "魔法棒")))
+        XCTAssertTrue(beginner.letterTemplate.contains("   "))
+
+        let medium = try XCTUnwrap(generator.generateMedium(Self.word(id: "phrase-magic-wand", word: "magic wand", meaningZh: "魔法棒")))
+        XCTAssertTrue(medium.letterTemplateBase.contains("   "))
+
+        let articleGenerator = FillLetterGenerator(random: SeededRandom(seed: 1))
+        for index in 0 ..< 20 {
+            let article = try XCTUnwrap(articleGenerator.generate(Self.word(id: "phrase-an-puppy-\(index)", word: "an puppy", meaningZh: "一只小狗")))
+            XCTAssertFalse(["a", "n"].contains(article.letterAnswer))
+        }
+    }
+
     func testSpellGeneratorMatchesHarmonyBoundsAndShape() throws {
         let generator = SpellGenerator(random: SeededRandom(seed: 1))
         let question = try XCTUnwrap(generator.generate(Self.word(id: "fruit-apple", word: "apple", meaningZh: "苹果")))
@@ -83,6 +98,16 @@ final class QuestionGeneratorTests: XCTestCase {
         XCTAssertNil(generator.generate(Self.word(id: "fruit-strawberry", word: "strawberry", meaningZh: "草莓")))
         XCTAssertNotNil(generator.generate(Self.word(id: "w-fish", word: "fish", meaningZh: "鱼")))
         XCTAssertNotNil(generator.generate(Self.word(id: "w-elephant", word: "elephant", meaningZh: "大象")))
+    }
+
+    func testSpellGeneratorShowsPhraseSpacesAndPrefillsArticles() throws {
+        let generator = SpellGenerator(random: SeededRandom(seed: 8))
+        let question = try XCTUnwrap(generator.generate(Self.word(id: "phrase-the-apple", word: "the apple", meaningZh: "这个苹果")))
+
+        XCTAssertEqual(question.spellLetters.joined(), "the apple")
+        XCTAssertEqual(Array(question.spellRevealedMask.prefix(5)), [true, true, true, true, true])
+        XCTAssertEqual(question.spellPool.sorted(), ["e", "l", "p", "p"])
+        XCTAssertTrue(question.isValid)
     }
 
     func testPlanQuestionSourceUsesMonsterSlotQuestionChain() throws {

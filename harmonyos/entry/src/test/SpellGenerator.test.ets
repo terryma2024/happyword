@@ -117,5 +117,18 @@ export default function spellGeneratorTest() {
       expect(q.spellLetters.length).assertEqual(8);
       expect(q.isValid()).assertTrue();
     });
+
+    it('phraseSpellShowsSpacesAndPrefillsArticles', 0, () => {
+      const gen: SpellGenerator = new SpellGenerator(mulberry32(8));
+      const q: Question = gen.generate(makeWord('phrase-the-apple', 'the apple')) as Question;
+      expect(q.spellLetters.join('')).assertEqual('the apple');
+      expect(q.spellRevealedMask[0]).assertTrue();
+      expect(q.spellRevealedMask[1]).assertTrue();
+      expect(q.spellRevealedMask[2]).assertTrue();
+      expect(q.spellRevealedMask[3]).assertTrue();
+      expect(q.spellRevealedMask[4]).assertTrue();
+      expect(multisetEqual(q.spellPool, ['p', 'p', 'l', 'e'])).assertTrue();
+      expect(q.isValid()).assertTrue();
+    });
   });
 }

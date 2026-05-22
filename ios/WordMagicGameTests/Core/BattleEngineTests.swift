@@ -5,7 +5,7 @@ final class BattleEngineTests: XCTestCase {
     func testDefaultsMatchHarmonyBattleRules() {
         let config = GameConfig.default
 
-        XCTAssertEqual(config.playerMaxHp, 5)
+        XCTAssertEqual(config.playerMaxHp, 10)
         XCTAssertEqual(config.monsterMaxHp, 3)
         XCTAssertEqual(config.monstersTotal, 5)
         XCTAssertEqual(config.startingSeconds, 300)
