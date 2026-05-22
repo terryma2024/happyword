@@ -716,7 +716,7 @@
   LOG_LEVEL
   PARENT_WEB_BASE_URL=https://happyword.com.cn
   OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn
-  SESSION_COOKIE_DOMAIN=.happyword.com.cn
+  SESSION_COOKIE_DOMAIN=
   ADMIN_SESSION_COOKIE_NAME=wm_admin_session
   PREVIEW_MANIFEST_BLOB_URL=use-current-public-blob-url
   BLOB_READ_WRITE_TOKEN=use-current-vercel-blob-token-during-wave-a
@@ -727,8 +727,9 @@
   Execution note, 2026-05-18: production env vars were configured from local
   secret source values without committing secret values. CloudBase production
   validation currently uses `PARENT_WEB_BASE_URL=https://happyword.com.cn`,
-  `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and
-  `SESSION_COOKIE_DOMAIN=.happyword.com.cn`. Read-only default-domain smoke
+  `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and an empty
+  `SESSION_COOKIE_DOMAIN` while validation is still on the CloudBase default
+  domain. Read-only default-domain smoke
   passed after redeploy:
 
   ```text

@@ -140,8 +140,8 @@ Production service:
   `https://happyword-server-255236-5-1429584068.sh.run.tcloudbase.com`
 - Runtime port: `8080`
 - Deploy method: CloudBase CLI local code upload, archive rooted at `server/`
-- Active version: `happyword-server-007`, updated 2026-05-21 after production
-  COS env validation
+- Active version: `happyword-server-008`, updated 2026-05-22 after clearing
+  `SESSION_COOKIE_DOMAIN` for CloudBase default-domain admin login validation
 - Traffic: 100% on the Cloud Run default domain only. `happyword.com.cn` and
   `happyword.cool` DNS were not changed.
 - Production Mongo database: `MONGO_DB_NAME=happyword`
@@ -149,8 +149,8 @@ Production service:
   `QWEN_MODEL_VISION=qwen3.6-plus`
 - Production canonical URLs staged for first validation domain:
   `PARENT_WEB_BASE_URL=https://happyword.com.cn`,
-  `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and
-  `SESSION_COOKIE_DOMAIN=.happyword.com.cn`
+  `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and an empty
+  `SESSION_COOKIE_DOMAIN` while validating on the CloudBase default domain.
 
 Required staging secrets:
 
@@ -606,7 +606,7 @@ manager.
 | `LOG_LEVEL` | Staging, production | Use `info` for normal deployment. |
 | `PARENT_WEB_BASE_URL` | Staging, production | Canonical parent web shell base URL for the deployed environment. CloudBase production validation uses `https://happyword.com.cn` before final `happyword.cool` cutover. |
 | `OAUTH_CANONICAL_BASE_URL` | Staging, production | Canonical OAuth host. CloudBase production validation uses `https://happyword.com.cn` before final `happyword.cool` cutover. |
-| `SESSION_COOKIE_DOMAIN` | Production | CloudBase production validation uses `.happyword.com.cn`; final `happyword.cool` cutover should switch this to `.happyword.cool`. Leave empty for staging default domains. |
+| `SESSION_COOKIE_DOMAIN` | Production | Leave empty while validating on CloudBase default domains so browser sessions use a host-only cookie. An exact `happyword.com.cn` host also works with the empty value after binding. Set `.happyword.com.cn` or `.happyword.cool` only if cross-subdomain cookie sharing becomes necessary after custom-domain cutover. |
 | `ADMIN_SESSION_COOKIE_NAME` | Staging, production | Current value is `wm_admin_session`. |
 
 ### Cron
