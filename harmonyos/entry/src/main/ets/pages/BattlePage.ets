@@ -1497,9 +1497,9 @@ struct BattlePage {
     if (this.letterTemplate.length === 0) {
       return out;
     }
-    const parts: string[] = this.letterTemplate.split(' ');
     const missingIdx: number = this.letterMissingIndex;
     const pendingIdx: number = this.pendingMissingIndex;
+    const parts: string[] = this.letterTemplateGlyphs();
     for (let i = 0; i < parts.length; i++) {
       const slot: LetterSlot = new LetterSlot();
       slot.idx = i;
@@ -1507,6 +1507,28 @@ struct BattlePage {
       slot.isMissing = i === missingIdx;
       slot.isPending = i === pendingIdx;
       out.push(slot);
+    }
+    return out;
+  }
+
+  private letterTemplateGlyphs(): string[] {
+    const out: string[] = [];
+    let i: number = 0;
+    while (i < this.letterTemplate.length) {
+      const c: string = this.letterTemplate.charAt(i);
+      if (c !== ' ') {
+        out.push(c);
+        i++;
+        continue;
+      }
+      let run: number = 0;
+      while (i + run < this.letterTemplate.length && this.letterTemplate.charAt(i + run) === ' ') {
+        run++;
+      }
+      if (run >= 3) {
+        out.push(' ');
+      }
+      i += run;
     }
     return out;
   }
@@ -1520,7 +1542,7 @@ struct BattlePage {
    * dynamic without breaking @State observability for the Builder.
    */
   private letterMetrics(): LetterMetrics {
-    return letterMetricsForLength(this.letterTemplate.split(' ').length);
+    return letterMetricsForLength(this.letterTemplateGlyphs().length);
   }
 
   /**

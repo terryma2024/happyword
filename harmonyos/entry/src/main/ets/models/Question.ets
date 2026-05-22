@@ -152,19 +152,6 @@ export class Question {
       return false;
     }
 
-    const parts: string[] = this.letterTemplateBase.split(' ');
-    if (parts.length !== word.length) {
-      return false;
-    }
-    // Medium runtime UX may reveal a previously-correct letter in-place.
-    // Accept '_' or the correct answer letter at each missing index.
-    const expected0: string = this.letterAnswers[0];
-    const expected1: string = this.letterAnswers[1];
-    if (!((parts[idx0] === '_' || parts[idx0] === expected0)
-      && (parts[idx1] === '_' || parts[idx1] === expected1))) {
-      return false;
-    }
-
     for (let step: number = 0; step < 2; step++) {
       const options: string[] = this.letterOptionsSteps[step];
       if (options.length !== 3) {
@@ -210,38 +197,47 @@ export class Question {
     const SPELL_MIN_LEN: number = 4;
     const SPELL_MAX_LEN: number = 9;
     const len: number = this.spellLetters.length;
-    if (len < SPELL_MIN_LEN || len > SPELL_MAX_LEN) {
-      return false;
-    }
     if (this.spellRevealedMask.length !== len) {
       return false;
     }
-    if (!this.spellRevealedMask[0]) {
+    let fillableCount: number = 0;
+    for (let i = 0; i < len; i++) {
+      if (!this.spellRevealedMask[i]) {
+        fillableCount++;
+      }
+    }
+    // One non-article content letter is pre-revealed, so the fillable
+    // pool is content-length minus one.
+    const contentLetterCount: number = fillableCount + 1;
+    if (contentLetterCount < SPELL_MIN_LEN || contentLetterCount > SPELL_MAX_LEN) {
       return false;
     }
-    for (let i = 1; i < len; i++) {
-      if (this.spellRevealedMask[i]) {
-        return false;
-      }
+    if (len === 0 || !this.spellRevealedMask[0]) {
+      return false;
     }
     for (let i = 0; i < len; i++) {
       const c: string = this.spellLetters[i];
       if (c.length !== 1) {
         return false;
       }
+      if (c === ' ') {
+        if (!this.spellRevealedMask[i]) {
+          return false;
+        }
+        continue;
+      }
       const code: number = c.charCodeAt(0);
       if (code < 97 || code > 122) {
         return false;
       }
     }
-    // Compare joined letters against the alphabetic projection of `answer`
-    // so words with hyphens / uppercase (e.g. 'ice-cream', 'Apple') still
-    // validate after the generator strips non-a-z characters.
+    // Compare joined letters against the display projection of `answer`.
+    // Spaces are preserved for phrases; other non-a-z characters stay skipped.
     let normalizedAnswer: string = '';
     const lowerAnswer: string = this.answer.toLowerCase();
     for (let i = 0; i < lowerAnswer.length; i++) {
       const c: string = lowerAnswer.charAt(i);
-      if (c >= 'a' && c <= 'z') {
+      if ((c >= 'a' && c <= 'z') || c === ' ') {
         normalizedAnswer += c;
       }
     }
@@ -249,7 +245,7 @@ export class Question {
     if (joined !== normalizedAnswer) {
       return false;
     }
-    if (this.spellPool.length !== len - 1) {
+    if (this.spellPool.length !== fillableCount) {
       return false;
     }
     for (let i = 0; i < this.spellPool.length; i++) {
@@ -262,9 +258,12 @@ export class Question {
         return false;
       }
     }
-    // Multiset check: spellPool must equal spellLetters[1..] as a multiset.
+    // Multiset check: spellPool must equal unrevealed spell letters.
     const expectedCounts: Map<string, number> = new Map<string, number>();
-    for (let i = 1; i < len; i++) {
+    for (let i = 0; i < len; i++) {
+      if (this.spellRevealedMask[i]) {
+        continue;
+      }
       const c: string = this.spellLetters[i];
       const prev: number = expectedCounts.has(c) ? (expectedCounts.get(c) as number) : 0;
       expectedCounts.set(c, prev + 1);

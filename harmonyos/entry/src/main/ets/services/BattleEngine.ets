@@ -345,17 +345,16 @@ export class BattleEngine {
     if (q.currentStep < 0 || q.currentStep > 1) {
       return;
     }
-    const idx: number = q.missingIndices[q.currentStep];
     const expected: string = q.letterAnswers[q.currentStep];
     if (chosen !== expected) {
       return;
     }
-    const parts: string[] = q.letterTemplateBase.split(' ');
-    if (idx < 0 || idx >= parts.length) {
+    const blankIdx: number = q.letterTemplateBase.indexOf('_');
+    if (blankIdx < 0) {
       return;
     }
-    parts[idx] = expected;
-    q.letterTemplateBase = parts.join(' ');
+    q.letterTemplateBase =
+      q.letterTemplateBase.substring(0, blankIdx) + expected + q.letterTemplateBase.substring(blankIdx + 1);
   }
 
   /**

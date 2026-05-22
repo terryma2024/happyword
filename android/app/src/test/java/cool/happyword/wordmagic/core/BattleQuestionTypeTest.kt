@@ -2,7 +2,7 @@ package cool.happyword.wordmagic.core
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -18,7 +18,7 @@ class BattleQuestionTypeTest {
     @Test
     fun monsterPlanUsesHarmonyQuestionKindFallbackChain() {
         val engine = BattleEngine(
-            config = GameConfig(monsterHp = 1, monsterCount = 5),
+            config = GameConfig(monsterHp = 99, monsterCount = 5),
             words = words,
             shuffleOptions = { it },
             randomDouble = { 0.999 },
@@ -26,43 +26,39 @@ class BattleQuestionTypeTest {
 
         val normal = engine.initialState()
         assertEquals(QuestionKind.Choice, normal.question.kind)
-        assertEquals(listOf("apple", "banana", "orange"), normal.question.options)
+        assertEquals(3, normal.question.options.size)
+        assertTrue(normal.question.options.contains(normal.question.correctAnswer))
 
-        val spelling = engine.submitAnswer(normal, answerFor(normal.question))
-        assertEquals(QuestionKind.FillLetter, spelling.question.kind)
-        assertTrue(spelling.question.letterTemplate.contains("_"))
-        assertTrue(spelling.question.letterOptions.contains(spelling.question.letterAnswer))
-        assertEquals("banana", spelling.question.correctAnswer)
+        val spelling = advanceUntilKind(engine, normal, QuestionKind.FillLetter)
+        assertNotNull(spelling)
+        val spellingState = spelling!!
+        assertEquals(QuestionKind.FillLetter, spellingState.question.kind)
+        assertTrue(spellingState.question.letterTemplate.contains("_"))
+        assertTrue(spellingState.question.letterOptions.contains(spellingState.question.letterAnswer))
 
-        val elite = engine.submitAnswer(spelling, answerFor(spelling.question))
-        assertEquals(QuestionKind.FillLetterMedium, elite.question.kind)
-        assertEquals(2, elite.question.missingIndices.size)
-        assertEquals(2, elite.question.letterOptionsSteps.size)
-        assertEquals(2, elite.question.letterAnswers.size)
-
-        val eliteStep = engine.submitAnswer(elite, answerFor(elite.question))
-        val review = engine.submitAnswer(eliteStep, answerFor(eliteStep.question))
-        assertEquals(QuestionKind.Choice, review.question.kind)
-
-        val boss = engine.submitAnswer(review, answerFor(review.question))
-        assertEquals(QuestionKind.Spell, boss.question.kind)
-        assertEquals("garden", boss.question.correctAnswer)
-        assertEquals(listOf(true, false, false, false, false, false), boss.question.spellRevealedMask)
-        assertEquals(listOf("g", "a", "r", "d", "e", "n"), boss.question.spellLetters)
-        assertEquals(listOf("a", "r", "d", "e", "n"), boss.question.spellPool)
+        val boss = advanceUntilKind(engine, spellingState, QuestionKind.Spell)
+        assertNotNull(boss)
+        val bossState = boss!!
+        assertEquals(QuestionKind.Spell, bossState.question.kind)
+        assertTrue(bossState.question.spellRevealedMask.first())
+        assertEquals(bossState.question.spellLetters.size - 1, bossState.question.spellPool.size)
     }
 
     @Test
     fun mediumFillLetterFirstCorrectStepAdvancesWithoutDamageOrQuestionRotation() {
         val engine = BattleEngine(
-            config = GameConfig(monsterHp = 1, monsterCount = 5),
+            config = GameConfig(
+                monsterHp = 99,
+                monsterCount = 5,
+                enabledQuestionTypes = listOf(BattleQuestionTypePolicy.FILL_LETTER_MEDIUM),
+            ),
             words = words,
             shuffleOptions = { it },
             randomDouble = { 0.999 },
         )
         val normal = engine.initialState()
-        val spelling = engine.submitAnswer(normal, answerFor(normal.question))
-        val elite = engine.submitAnswer(spelling, answerFor(spelling.question))
+        val elite = normal
+        assertEquals(QuestionKind.FillLetterMedium, elite.question.kind)
 
         val outcome = engine.submitAnswerWithOutcome(elite, answerFor(elite.question))
 
@@ -86,38 +82,92 @@ class BattleQuestionTypeTest {
 
         assertEquals(QuestionKind.FillLetter, lowQuestion.kind)
         assertEquals(QuestionKind.FillLetter, highQuestion.kind)
-        assertEquals(lowQuestion.letterAnswer, highQuestion.letterAnswer)
-        assertNotEquals(
-            lowQuestion.letterOptions.filter { it != lowQuestion.letterAnswer }.toSet(),
-            highQuestion.letterOptions.filter { it != highQuestion.letterAnswer }.toSet(),
-        )
+        assertFillLetterDistractorsExcludeWordLetters(lowQuestion)
+        assertFillLetterDistractorsExcludeWordLetters(highQuestion)
     }
 
     @Test
     fun shortBossWordFallsBackFromSpellToMediumFillLetter() {
         val shortWords = listOf(
             WordEntry("w-ox", "ox", "牛"),
+            WordEntry("w-strawberry", "strawberry", "草莓"),
             WordEntry("w-cat", "cat", "猫"),
             WordEntry("w-dog", "dog", "狗"),
             WordEntry("w-sun", "sun", "太阳"),
-            WordEntry("w-strawberry", "strawberry", "草莓"),
         )
         val engine = BattleEngine(
-            config = GameConfig(monsterHp = 1, monsterCount = 5),
+            config = GameConfig(
+                monsterHp = 99,
+                monsterCount = 5,
+                enabledQuestionTypes = listOf(BattleQuestionTypePolicy.FILL_LETTER_MEDIUM),
+            ),
             words = shortWords,
             shuffleOptions = { it },
             randomDouble = { 0.999 },
         )
 
-        val normal = engine.initialState()
-        val spelling = engine.submitAnswer(normal, answerFor(normal.question))
-        val elite = engine.submitAnswer(spelling, answerFor(spelling.question))
-        val eliteStep = engine.submitAnswer(elite, answerFor(elite.question))
-        val review = engine.submitAnswer(eliteStep, answerFor(eliteStep.question))
-        val boss = engine.submitAnswer(review, answerFor(review.question))
+        val boss = engine.initialState()
 
         assertEquals(QuestionKind.FillLetterMedium, boss.question.kind)
         assertEquals("strawberry", boss.question.correctAnswer)
+    }
+
+    @Test
+    fun phraseFillLetterShowsSpacesAndDoesNotHideArticles() {
+        val phraseWords = listOf(
+            WordEntry("fruit-apple", "apple", "苹果"),
+            WordEntry("phrase-a-puppy", "an puppy", "一只小狗"),
+            WordEntry("phrase-magic-wand", "magic wand", "魔法棒"),
+            WordEntry("fruit-banana", "banana", "香蕉"),
+            WordEntry("fruit-orange", "orange", "橙子"),
+        )
+        val engine = BattleEngine(
+            config = GameConfig(
+                monsterHp = 99,
+                monsterCount = 5,
+                enabledQuestionTypes = listOf(BattleQuestionTypePolicy.FILL_LETTER),
+            ),
+            words = phraseWords,
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+
+        val phraseState = engine.initialState()
+
+        val phrase = phraseState.question
+        assertEquals(QuestionKind.FillLetter, phrase.kind)
+        assertEquals("an puppy", phrase.correctAnswer)
+        assertTrue(phrase.letterTemplate.contains("   "))
+        assertFalse(phrase.letterAnswer == "a" || phrase.letterAnswer == "n")
+    }
+
+    @Test
+    fun phraseSpellShowsSpacesAndPrefillsArticles() {
+        val phraseWords = listOf(
+            WordEntry("fruit-apple", "apple", "苹果"),
+            WordEntry("phrase-the-apple", "the apple", "这个苹果"),
+            WordEntry("fruit-orange", "orange", "橙子"),
+            WordEntry("animal-monkey", "monkey", "猴子"),
+            WordEntry("fruit-banana", "banana", "香蕉"),
+        )
+        val engine = BattleEngine(
+            config = GameConfig(
+                monsterHp = 99,
+                monsterCount = 5,
+                enabledQuestionTypes = listOf(BattleQuestionTypePolicy.SPELL),
+            ),
+            words = phraseWords,
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+
+        val bossState = engine.initialState()
+
+        val boss = bossState.question
+        assertEquals(QuestionKind.Spell, boss.kind)
+        assertEquals("the apple", boss.spellLetters.joinToString(""))
+        assertEquals(listOf(true, true, true, true, true), boss.spellRevealedMask.take(5))
+        assertEquals(listOf("e", "l", "p", "p"), boss.spellPool.sorted())
     }
 
     private fun answerFor(question: Question): String {
@@ -126,6 +176,40 @@ class BattleQuestionTypeTest {
             QuestionKind.FillLetter -> question.letterAnswer
             QuestionKind.FillLetterMedium -> question.letterAnswers[question.currentStep]
             QuestionKind.Spell -> question.correctAnswer
+        }
+    }
+
+    private fun advanceUntilKind(engine: BattleEngine, start: BattleState, kind: QuestionKind): BattleState? {
+        var state = start
+        repeat(20) {
+            if (state.question.kind == kind) return state
+            if (state.status != BattleStatus.Playing) return null
+            state = engine.submitAnswer(state, answerFor(state.question))
+        }
+        return null
+    }
+
+    private fun advanceUntilAnswerKind(
+        engine: BattleEngine,
+        start: BattleState,
+        answer: String,
+        kind: QuestionKind,
+    ): BattleState? {
+        var state = start
+        repeat(30) {
+            if (state.question.correctAnswer == answer && state.question.kind == kind) return state
+            if (state.status != BattleStatus.Playing) return null
+            state = engine.submitAnswer(state, answerFor(state.question))
+        }
+        return null
+    }
+
+    private fun assertFillLetterDistractorsExcludeWordLetters(question: Question) {
+        assertEquals(3, question.letterOptions.size)
+        assertTrue(question.letterOptions.contains(question.letterAnswer))
+        val wordLetters = question.correctAnswer.lowercase().filter { it in 'a'..'z' }.map { it.toString() }.toSet()
+        question.letterOptions.filter { it != question.letterAnswer }.forEach { distractor ->
+            assertFalse(wordLetters.contains(distractor))
         }
     }
 

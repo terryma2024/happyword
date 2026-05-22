@@ -241,11 +241,8 @@ final class BattleEngine: ObservableObject {
               question.missingIndices.indices.contains(question.currentStep)
         else { return }
 
-        let missingIndex = question.missingIndices[question.currentStep]
-        var parts = question.letterTemplateBase.split(separator: " ").map(String.init)
-        guard parts.indices.contains(missingIndex) else { return }
-        parts[missingIndex] = chosen
-        question.letterTemplateBase = parts.joined(separator: " ")
+        guard let blankRange = question.letterTemplateBase.range(of: "_") else { return }
+        question.letterTemplateBase.replaceSubrange(blankRange, with: chosen)
     }
 
     private func rememberWord(_ wordId: String) {
