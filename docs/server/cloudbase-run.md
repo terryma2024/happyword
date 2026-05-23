@@ -407,6 +407,33 @@ least one value includes shell-special characters. Load it with a dotenv parser
 or quote the values before using `source ~/.env.tcb`; do not print the secret
 values while debugging.
 
+Step 6 Beanie/Motor compatibility map, 2026-05-23:
+
+| Surface | Current usage | FlexDB API adapter impact |
+| --- | --- | --- |
+| ODM initialization | `init_beanie` wires 25 `Document` models in `server/app/main.py`. | URI path keeps this unchanged. API path must bypass or replace Beanie for every migrated model. |
+| Direct CRUD | Static scan found 101 `find_one`, 87 `find`, 32 `insert`, 77 `save`, and 25 `delete` calls across `server/app`. | Too broad for a generic one-off shim. Extract repositories by business domain if API path is chosen. |
+| Counts and pagination | 24 `count`, 26 `sort`, 8 `skip`, and 9 `limit` call sites; admin lists and drafts rely on them. | FlexDB `RunCommands` should support Mongo-style `find` options, but staging must prove `count`, `sort`, `skip`, and `limit` semantics before switching admin workflows. |
+| Regex/search | 11 `RegEx` call sites in `admin_console_service.py`, `admin_words.py`, and `pair_service.py`. | Not on the critical mobile read path, but needed for admin search and short-token lookup. Adapter must either support `$regex` or move these searches to exact-match/fallback scans. |
+| `$in` filters | 5 current `$in` filters, notably word-stat batch sync and account deletion cascade. | Likely maps to `RunCommands` queries, but must be covered by the adapter smoke because it is on the child sync path. |
+| High-throughput upsert | `word_stats_sync_service.py` uses `SyncedWordStat.get_motor_collection().update_one(..., upsert=True)` under `asyncio.gather`. | Highest-risk API adapter point. FlexDB must support update upsert with acceptable latency, or this path needs a dedicated batch/retry implementation. |
+| Ordered first item | Cron extraction uses `.sort("+extract_attempts", "+created_at").first_or_none()`. | Needs exact ordered-limit behavior to avoid starving old lesson import drafts. |
+| Multi-document publish | `family_pack_service.py` writes definitions, drafts, snapshots, and pointers using independent saves/inserts. | There are no Mongo transactions today, so FlexDB does not need transaction parity for current behavior; it does need idempotent publish/rollback tests. |
+| Cascading deletes | `account_deletion_service.py` queries rows then deletes one-by-one across many collections. | Easy to preserve semantically, but API adapter should prefer query/delete helpers to avoid many remote round trips. |
+| Aggregation/transactions | No app-level `aggregate` or transaction usage found in `server/app`. | Good for FlexDB API feasibility; the hard part is breadth and latency, not advanced Mongo features. |
+
+Compatibility conclusion:
+
+- If Tencent confirms a built-in FlexDB MongoDB URI usable from CloudBase Run,
+  M7A can remain a low-risk URI/data migration.
+- If only the CloudBase API is available, do not attempt to emulate the full
+  Beanie/Motor API. Start with repositories for the critical production paths:
+  public pack read, admin pack/word write, auth/session lookups, child word-stat
+  sync, lesson import drafts, and family/global pack publish.
+- The first API-adapter proof should target `SyncedWordStat` and pack publish
+  because they combine user-facing latency, write semantics, sort/order, and
+  uniqueness expectations.
+
 FlexDB adapter spike risks:
 
 - Beanie initialization currently owns the ODM model registry in

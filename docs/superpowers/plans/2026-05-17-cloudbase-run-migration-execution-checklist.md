@@ -1446,7 +1446,7 @@ URI compatibility vs API adapter.
   from CloudBase staging remains a follow-up under Step 8 because the deployed
   service needs runtime API credentials and a safe operator window.
 
-- [ ] **Step 6: Map Beanie/Motor usage to migration choices**
+- [x] **Step 6: Map Beanie/Motor usage to migration choices**
 
   Build a concise compatibility map from current server code:
 
@@ -1460,6 +1460,16 @@ URI compatibility vs API adapter.
 
   Acceptance: the runbook states whether URI switch is feasible or whether a
   repository/API adapter is required, with the riskiest call sites named.
+
+  Completion note, 2026-05-23: static app scan recorded the Beanie/Motor
+  compatibility map in `docs/server/cloudbase-run.md`. Current usage is broad:
+  101 `find_one`, 87 `find`, 32 `insert`, 77 `save`, and 25 `delete` calls
+  across `server/app`, plus pagination/count/regex and one direct Motor
+  `update_one(..., upsert=True)` path in `word_stats_sync_service.py`.
+  Conclusion: if FlexDB exposes a MongoDB URI, use it; if FlexDB is API-only,
+  do not emulate Beanie wholesale. Extract repositories around critical
+  production domains, with `SyncedWordStat` sync and pack publish as the first
+  adapter proof targets.
 
 - [ ] **Step 7: Build one staging migration rehearsal**
 
