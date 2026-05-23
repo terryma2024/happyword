@@ -78,10 +78,31 @@
       </form>
     </div>
 
+    <div class="p-4 border-b border-slate-100">
+      <form id="global-draft-split-form" method="post" action="/admin/global-packs/packs/{{ pack_id }}/draft/split" class="flex flex-wrap items-end gap-2">
+        <label class="text-xs text-slate-600">新词包名称
+          <input name="new_name" required maxlength="32" class="mt-1 w-44 rounded-md border border-slate-300 px-2 py-1.5 text-xs" />
+        </label>
+        <label class="text-xs text-slate-600">模式
+          <select name="mode" class="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-xs">
+            <option value="move">移动</option>
+            <option value="copy">复制</option>
+          </select>
+        </label>
+        <input name="new_description" maxlength="200" placeholder="描述（可选）" class="rounded-md border border-slate-300 px-2 py-1.5 text-xs" />
+        <span id="global-draft-selection-count" class="text-xs text-slate-500">已选择 0 项</span>
+        <button id="global-draft-split-submit" type="submit" disabled class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">拆分所选</button>
+      </form>
+    </div>
+
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
         <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
           <tr>
+            <th class="px-3 py-2">
+              <label class="sr-only" for="global-draft-select-all">全选草稿词条</label>
+              <input id="global-draft-select-all" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+            </th>
             <th class="px-3 py-2">词条 ID</th>
             <th class="px-3 py-2">英文</th>
             <th class="px-3 py-2">中文</th>
@@ -94,12 +115,16 @@
           {% for w in draft_words %}
           {% if w.get('hidden') %}
           <tr class="bg-slate-50 text-slate-500">
+            <td class="px-3 py-2"></td>
             <td class="px-3 py-2 font-mono text-xs">{{ w.id }}</td>
             <td colspan="4" class="px-3 py-2 text-xs">（隐藏占位，请在 API 或后续版本中处理）</td>
             <td class="px-3 py-2"></td>
           </tr>
           {% else %}
           <tr class="hover:bg-slate-50">
+            <td class="px-3 py-2 align-top">
+              <input type="checkbox" class="global-draft-word-checkbox h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" value="{{ w.id }}" />
+            </td>
             <td class="px-3 py-2 font-mono text-xs align-top">{{ w.id }}</td>
             <td class="px-3 py-2 align-top">{{ w.word or '—' }}</td>
             <td class="px-3 py-2 align-top">{{ w.meaningZh or w.meaning_zh or '—' }}</td>
@@ -115,7 +140,7 @@
           </tr>
           {% endif %}
           {% else %}
-          <tr><td colspan="6" class="px-3 py-8 text-center text-slate-500">暂无草稿词条，请新增或图片导入。</td></tr>
+          <tr><td colspan="7" class="px-3 py-8 text-center text-slate-500">暂无草稿词条，请新增或图片导入。</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -156,4 +181,46 @@
     </form>
   </div>
 </section>
+<script>
+  (() => {
+    const selectAll = document.getElementById("global-draft-select-all");
+    const checkboxes = Array.from(document.querySelectorAll(".global-draft-word-checkbox"));
+    const form = document.getElementById("global-draft-split-form");
+    const submit = document.getElementById("global-draft-split-submit");
+    const count = document.getElementById("global-draft-selection-count");
+    if (!selectAll || !form || !submit) {
+      return;
+    }
+    const syncHiddenInputs = () => {
+      form.querySelectorAll('input[data-generated-word-id="1"]').forEach((node) => node.remove());
+      checkboxes.filter((box) => box.checked).forEach((box) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "word_ids";
+        input.value = box.value;
+        input.dataset.generatedWordId = "1";
+        form.appendChild(input);
+      });
+    };
+    const update = () => {
+      const checked = checkboxes.filter((box) => box.checked).length;
+      submit.disabled = checked === 0;
+      if (count) {
+        count.textContent = `已选择 ${checked} 项`;
+      }
+      selectAll.checked = checked > 0 && checked === checkboxes.length;
+      selectAll.indeterminate = checked > 0 && checked < checkboxes.length;
+      syncHiddenInputs();
+    };
+    selectAll.addEventListener("change", () => {
+      checkboxes.forEach((box) => {
+        box.checked = selectAll.checked;
+      });
+      update();
+    });
+    checkboxes.forEach((box) => box.addEventListener("change", update));
+    form.addEventListener("submit", syncHiddenInputs);
+    update();
+  })();
+</script>
 {% endblock %}

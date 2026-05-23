@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 import pytest
 
@@ -160,6 +161,95 @@ async def test_admin_global_pack_html_delete_removes_pack_and_audits(
     assert audit is not None
     assert audit.target_id == "gpk-html-delete"
     assert audit.payload_summary["reason"] == "清理测试词包"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_global_pack_detail_renders_split_form(
+    client: AsyncClient,
+) -> None:
+    from app.services import global_pack_service
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    await global_pack_service.create_definition(
+        name="Split UI",
+        admin_id="console-admin",
+        pack_id="gpk-html-split-ui",
+    )
+
+    page = await client.get("/admin/global-packs/packs/gpk-html-split-ui")
+
+    assert page.status_code == 200
+    assert 'id="global-draft-split-form"' in page.text
+    assert 'name="new_name"' in page.text
+    assert 'name="mode"' in page.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_global_pack_split_form_moves_words_and_audits(
+    client: AsyncClient,
+) -> None:
+    from app.services import admin_console_service as acs
+    from app.services import global_pack_service
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    await global_pack_service.create_definition(
+        name="Split HTML Source",
+        admin_id="console-admin",
+        pack_id="gpk-html-split-src",
+    )
+    for word_id in ("fruit-apple", "fruit-banana", "fruit-pear"):
+        await global_pack_service.upsert_draft_word(
+            pack_id="gpk-html-split-src",
+            admin_id="console-admin",
+            entry={
+                "id": word_id,
+                "word": word_id,
+                "meaningZh": word_id,
+                "category": "fruit",
+                "difficulty": 1,
+            },
+        )
+
+    resp = await client.post(
+        "/admin/global-packs/packs/gpk-html-split-src/draft/split",
+        content=urlencode(
+            [
+                ("word_ids", "fruit-apple"),
+                ("word_ids", "fruit-pear"),
+                ("new_name", "Split HTML New"),
+                ("new_description", "from html"),
+                ("mode", "move"),
+            ]
+        ),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 303
+    assert resp.headers["location"].startswith("/admin/global-packs/packs/gpk-")
+    assert "flash_ok=gpk_split_move" in resp.headers["location"]
+
+    source_detail = await acs.load_global_pack_definition_console(
+        pack_id="gpk-html-split-src"
+    )
+    assert [w["id"] for w in source_detail["draft_words"]] == ["fruit-banana"]
+
+    audit = await AuditLog.find_one(AuditLog.action == "global_pack.draft_split")
+    assert audit is not None
+    assert audit.target_id == "gpk-html-split-src"
+    assert audit.payload_summary["mode"] == "move"
 
 
 @pytest.mark.asyncio
