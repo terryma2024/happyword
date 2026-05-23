@@ -153,7 +153,7 @@ URI and the API adapter path is too broad.
 | `FLEXDB_ENV_ID` | CloudBase env / operator password manager | CloudBase environment id for the built-in document database. |
 | `FLEXDB_TAG` | CloudBase env / operator password manager | FlexDB instance id, e.g. `tnt-jw1cesl68`; not a secret, but keep it with deployment config. |
 | `FLEXDB_MONGODB_URI` | Tencent/CloudBase secret store, if available | Optional URI if Tencent confirms built-in FlexDB supports direct MongoDB driver access from CloudBase Run. |
-| `FLEXDB_API_SECRET_ID` / `FLEXDB_API_SECRET_KEY` | Tencent secret store only | Runtime API credential pair only if the server must call CloudBase document database APIs directly. Scope with a narrow CAM policy before production. |
+| `FLEXDB_API_SECRET_ID` / `FLEXDB_API_SECRET_KEY` | Tencent secret store only | Runtime API credential pair only if the server must call CloudBase document database APIs directly. The smoke script also accepts `TCB_SECRET_ID` / `TCB_SECRET_KEY` and Tencent SDK-style `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY`; scope with a narrow CAM policy before production. |
 | `TENCENTDB_MONGODB_URI` | Operator password manager / Tencent secret store | Future TencentDB URI before it replaces runtime `MONGODB_URI`. |
 | `TENCENTDB_MONGO_DB_NAME` | Operator password manager / Tencent secret store | Target database name if different from current `MONGO_DB_NAME`. |
 | `ATLAS_MONGODB_URI_ROLLBACK` | Operator password manager only | Old Atlas URI retained for rollback; do not put this in GitHub logs. |

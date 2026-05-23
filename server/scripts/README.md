@@ -74,7 +74,7 @@ the COS console instead of deleting them at the end of the run.
 
 ## db_inventory.py
 
-Redacted MongoDB inventory helper for the M7A Atlas -> TencentDB migration. It
+Redacted MongoDB inventory helper for the M7A Atlas -> Tencent-side migration. It
 prints schema and operational metadata only: collection names, document counts,
 indexes, TTL/unique flags, and collection stats when available. It does not
 print the MongoDB URI, credentials, or document payloads.
@@ -111,6 +111,36 @@ MONGODB_URI=... MONGO_DB_NAME=happyword_cloudbase_staging \
 The output contains only redacted hosts and operational metadata. It should be
 safe to paste into the migration notes after checking that no provider-specific
 error text includes credentials.
+
+## flexdb_api_smoke.py
+
+CloudBase FlexDB API smoke for the M7A spike. It talks to Tencent Cloud API 3.0
+directly instead of shelling out to the local `tcb` CLI, so the same code path
+can be run from CloudBase Run after API credentials are scoped.
+
+Required env vars:
+
+```text
+FLEXDB_ENV_ID or TCB_ENV_ID
+FLEXDB_TAG
+FLEXDB_API_SECRET_ID or TCB_SECRET_ID or TENCENTCLOUD_SECRET_ID
+FLEXDB_API_SECRET_KEY or TCB_SECRET_KEY or TENCENTCLOUD_SECRET_KEY
+```
+
+Run:
+
+```bash
+cd server
+FLEXDB_ENV_ID=happyword-d5g66zmq8ef2430b8 \
+FLEXDB_TAG=tnt-jw1cesl68 \
+FLEXDB_API_SECRET_ID=... \
+FLEXDB_API_SECRET_KEY=... \
+  uv run python -m scripts.flexdb_api_smoke
+```
+
+The probe creates a temporary table, inserts/query/updates a document, creates a
+unique index, verifies duplicate-key enforcement, and deletes the temporary
+table. Use `--keep-table` only when debugging in the CloudBase console.
 
 ## vercel_should_skip_build.sh
 

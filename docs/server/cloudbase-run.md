@@ -363,9 +363,9 @@ Next M7A-FlexDB steps:
 
 1. Confirm the FlexDB connection model with Tencent Cloud support/API Explorer:
    built-in instance driver URI vs CloudBase API only.
-2. Create `server/scripts/flexdb_api_smoke.py` using Tencent Cloud SDK 3.0 for
-   Python or direct signed Cloud API calls, not the CLI, so the CloudBase Run
-   runtime path is testable.
+2. Create `server/scripts/flexdb_api_smoke.py` using direct signed Cloud API
+   calls, not the CLI, so the CloudBase Run runtime path is testable. Done
+   locally on 2026-05-23; CloudBase Run execution is still pending.
 3. Generate an Atlas collection/index manifest that can be replayed into
    FlexDB tables via `CreateTable`/`UpdateTable`/`RunCommands`.
 4. If URI-compatible, reuse the existing direct connectivity smoke before
@@ -380,6 +380,17 @@ MONGODB_URI=... MONGO_DB_NAME=happyword \
 
 Expected: JSON with `ok: true`, redacted `connection_hosts`, server version,
 collection list, and `write_probe.deleted_count: 1`.
+
+FlexDB API smoke, after setting runtime API credentials:
+
+```bash
+cd server
+FLEXDB_ENV_ID=happyword-d5g66zmq8ef2430b8 \
+FLEXDB_TAG=tnt-jw1cesl68 \
+FLEXDB_API_SECRET_ID=... \
+FLEXDB_API_SECRET_KEY=... \
+  uv run python -m scripts.flexdb_api_smoke
+```
 
 FlexDB adapter spike risks:
 

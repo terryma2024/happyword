@@ -1413,7 +1413,7 @@ URI compatibility vs API adapter.
   - If no, record Tencent's answer and proceed with API-adapter spike.
   - Do not put credentials or full URI values in docs or GitHub logs.
 
-- [ ] **Step 5: Add runtime FlexDB API smoke**
+- [x] **Step 5: Add runtime FlexDB API smoke**
 
   Add a Python smoke that does not depend on the local `tcb` CLI:
 
@@ -1432,6 +1432,14 @@ URI compatibility vs API adapter.
   - Works from CloudBase staging or a CloudBase Run job path.
   - Cleans up the temporary table even after expected duplicate-key failures.
   - Redacts EnvId/Tag where appropriate and never logs API secrets.
+
+  Completion note, 2026-05-23: added
+  `server/scripts/flexdb_api_smoke.py` with direct Tencent Cloud API 3.0
+  signing through `httpx`, plus offline tests covering the success path,
+  duplicate-key expectation, authorization header redaction, and cleanup after
+  a late probe failure. Local unit tests pass. Running it from CloudBase staging
+  remains a follow-up under Step 8 because the service needs runtime API
+  credentials and a safe operator window.
 
 - [ ] **Step 6: Map Beanie/Motor usage to migration choices**
 
