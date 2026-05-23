@@ -466,7 +466,8 @@ Server-side configuration:
 - Added MongoDB official RHEL 9 yum repo and installed `mongodb-org` 8.0.23.
 - Added a 2 GB swapfile on the 2 GB RAM instance.
 - Configured `/etc/mongod.conf` with `replSetName: rs0`,
-  `security.authorization: enabled`, and keyFile auth.
+  `security.authorization: enabled`, keyFile auth, and TLS
+  `requireTLS`.
 - Created three users: `happyword_admin` (`root`), `happyword_app`
   (`readWrite` on `happyword`), and `happyword_backup` (`backup` +
   `clusterMonitor`).
@@ -474,7 +475,8 @@ Server-side configuration:
   `/root/happyword-mongodb-credentials.env` with mode `600`.
 - Kept MongoDB bound to `127.0.0.1:27017` for now. It is not publicly exposed;
   CloudBase connectivity still needs a VPC/private route or a tightly
-  allowlisted public listener with TLS.
+  allowlisted public listener. A self-signed server cert is already installed
+  under `/etc/mongodb/tls/` for the public-listener path.
 - Configured daily local backups at 03:17 through
   `/usr/local/sbin/happyword-mongodb-backup.sh`; archives land in
   `/var/backups/happyword-mongodb`, mode `600`, retained for 7 days.
@@ -489,6 +491,18 @@ Listening address: 127.0.0.1:27017
 MongoDB version: 8.0.23
 Local app-user auth ping: ok
 Local backup script: ok
+TLS mode: requireTLS
+```
+
+Atlas data migration completed on 2026-05-23:
+
+```text
+Source database: happyword on MongoDB Atlas
+Target database: happyword on Lighthouse MongoDB
+Collections copied: 25
+Documents copied: 275
+Indexes recreated per collection: yes
+Post-copy app-user smoke: ok
 ```
 
 Validated through an SSH tunnel with the existing backend smoke:
@@ -508,7 +522,7 @@ Smoke result:
 ```text
 ok: true
 server.version: 8.0.23
-collection_count: 0
+collection_count: 25
 write_probe.insert_acknowledged: true
 write_probe.read_back: true
 write_probe.deleted_count: 1
@@ -518,10 +532,12 @@ Next Lighthouse MongoDB tasks:
 
 1. Decide CloudBase-to-Lighthouse network path:
    - preferred: private/VPC route if available;
-   - fallback: public `27017` only after TLS is enabled and Tencent firewall is
-     allowlisted to a fixed CloudBase egress IP.
-2. Run Atlas `mongodump`/`mongorestore` rehearsal into the Lighthouse instance
-   via SSH tunnel, then run `scripts.db_inventory` against the target.
+   - fallback: public `27017` only with TLS and Tencent firewall allowlisting
+     to a fixed CloudBase egress IP. Avoid opening `27017` to the whole
+     internet except as an explicitly approved, short-lived smoke window.
+2. After the network path is selected, set CloudBase Run `MONGODB_URI` to the
+   Lighthouse app-user TLS URI, redeploy/restart `happyword-server`, and run
+   `/api/v1/public/health` plus admin/course smoke.
 3. Perform a restore drill from `/var/backups/happyword-mongodb`.
 4. Move backups to COS or another off-instance destination before production
    cutover; local-only backups do not protect against instance loss.
