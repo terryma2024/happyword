@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import secrets
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from app.models.family_pack_draft import FamilyPackDraft
 from app.models.family_pack_pointer import FamilyPackPointer
@@ -30,6 +30,8 @@ NoPreviousVersion = fps.NoPreviousVersion
 InvalidPayload = fps.InvalidPayload
 NameTaken = fps.NameTaken
 MergedSlice = fps.MergedSlice
+DraftSplitResult = fps.DraftSplitResult
+DraftWordNotFound = fps.DraftWordNotFound
 
 
 def _gen_pack_id() -> str:
@@ -164,6 +166,27 @@ async def remove_draft_word(
         definition=definition,
         word_id=word_id,
         parent_user_id=admin_id,
+    )
+
+
+async def split_draft_to_new_pack(
+    *,
+    pack_id: str,
+    admin_id: str,
+    word_ids: list[str],
+    new_name: str,
+    new_description: str | None,
+    mode: Literal["copy", "move"],
+) -> DraftSplitResult:
+    definition = await get_definition(pack_id=pack_id)
+    return await fps.split_draft_to_new_pack(
+        source_definition=definition,
+        word_ids=word_ids,
+        new_name=new_name,
+        new_description=new_description,
+        mode=mode,
+        parent_user_id=admin_id,
+        new_pack_id=_gen_pack_id(),
     )
 
 

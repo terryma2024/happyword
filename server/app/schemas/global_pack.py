@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003 — pydantic v2 needs this at runtime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -80,6 +80,27 @@ class GlobalPackImportImageOut(BaseModel):
     model: str
     draft: FamilyPackDraftOut
     errors: list[FamilyPackDraftWordBatchError]
+
+
+class GlobalPackSplitNewPackIn(BaseModel):
+    name: str
+    description: str | None = None
+
+
+class GlobalPackDraftSplitIn(BaseModel):
+    mode: Literal["copy", "move"]
+    word_ids: list[str]
+    new_pack: GlobalPackSplitNewPackIn
+
+
+class GlobalPackDraftSplitOut(BaseModel):
+    mode: Literal["copy", "move"]
+    source_pack_id: str
+    new_pack: GlobalPackDefinitionOut
+    source_draft: FamilyPackDraftOut
+    new_draft: FamilyPackDraftOut
+    moved_count: int
+    copied_count: int
 
 
 class GlobalPackDeleteOut(BaseModel):
