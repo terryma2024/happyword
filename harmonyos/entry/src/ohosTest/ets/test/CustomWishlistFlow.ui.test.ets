@@ -1,8 +1,12 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
-import { clickByIdShared, scrollToParentPinButton, tapConfigCancelShared } from './RoutingFlow.ui.test';
-import { bindMockParentViaShortCodeFromHome } from './UiTestBindingHelpers';
+import { clickByIdShared } from './RoutingFlow.ui.test';
+import {
+  cloneGameConfig,
+  GameConfig,
+  GAME_CONFIG_STORAGE_KEY,
+} from '../../../main/ets/models/GameConfig';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -57,76 +61,20 @@ async function tapPinDialogKey(driver: Driver, key: string): Promise<void> {
   }
 }
 
-async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
-  try {
-    await clickByIdShared(driver, `ParentPinSetupKey_${key}`);
-    await driver.delayMs(80);
-  } catch (err) {
-    throw err as Error;
-  }
-}
-
-async function waitForParentPinSetupKeypad(driver: Driver, maxMs: number): Promise<boolean> {
-  try {
-    const stepMs: number = 300;
-    let waited: number = 0;
-    let nudge: number = 0;
-    while (waited < maxMs) {
-      const k: Component | null =
-        await driver.findComponent(ON.id('ParentPinSetupKey_1'));
-      if (k !== null) {
-        return true;
-      }
-      nudge += 1;
-      if (nudge % 4 === 0) {
-        await driver.swipe(360, 880, 360, 420, 550);
-      }
-      await driver.delayMs(stepMs);
-      waited += stepMs;
-    }
-    return false;
-  } catch (err) {
-    throw err as Error;
-  }
-}
-
 /**
- * Mirror WishlistFlow.ensureParentPin so this suite is self-sufficient.
- * Idempotent re-commit is fine — the parent PIN persists across pages
- * via GameConfig in AppStorage.
+ * Seed the parent PIN precondition directly. ConfigFlow owns coverage
+ * for the PIN setup UI; this suite exercises WishlistPage's PIN gate
+ * and custom-wish dialog, so using AppStorage keeps each case inside
+ * Hypium's 60s timeout without weakening the surface under test.
  */
 async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   try {
-    await clickByIdShared(driver, 'HomeConfigButton');
-    await driver.delayMs(1500);
-    let pinRow: Component | null =
-      await driver.findComponent(ON.id('ConfigParentPinButton'));
-    if (pinRow === null) {
-      await tapConfigCancelShared(driver);
-      await driver.delayMs(800);
-      await bindMockParentViaShortCodeFromHome(driver, '345678');
-    }
-    await clickByIdShared(driver, 'HomeConfigButton');
-    await driver.delayMs(1500);
-    await scrollToParentPinButton(driver);
-    await clickByIdShared(driver, 'ConfigParentPinButton');
-    const keypadReady: boolean = await waitForParentPinSetupKeypad(driver, 12000);
-    if (!keypadReady) {
-      throw new Error('ParentPinSetup keypad not reachable');
-    }
-
-    for (let i: number = 0; i < pin.length; i++) {
-      await tapPinSetupKey(driver, pin.charAt(i));
-    }
-    await driver.delayMs(400);
-    for (let i: number = 0; i < pin.length; i++) {
-      await tapPinSetupKey(driver, pin.charAt(i));
-    }
-    await driver.delayMs(1500);
-
-    await tapConfigCancelShared(driver);
-    await driver.delayMs(800);
-    await returnToHome(driver);
+    const stored: GameConfig | undefined =
+      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+    const next: GameConfig = cloneGameConfig(stored !== undefined ? stored : new GameConfig());
+    next.parentPin = pin;
+    AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, next);
+    await driver.delayMs(100);
   } catch (err) {
     throw err as Error;
   }

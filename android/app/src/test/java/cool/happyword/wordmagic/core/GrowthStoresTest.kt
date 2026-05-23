@@ -63,6 +63,23 @@ class GrowthStoresTest {
     }
 
     @Test
+    fun monsterCatalogExposesHarmonyLevelDistribution() {
+        val catalog = MonsterCatalog.default()
+
+        assertEquals(MonsterLevel.Beginner, catalog.entries[0].level)
+        assertEquals(MonsterLevel.Intermediate, catalog.entries[1].level)
+        assertEquals(MonsterLevel.Advanced, catalog.entries[7].level)
+        assertEquals(MonsterLevel.Super, catalog.entries[9].level)
+        assertEquals("Super", catalog.entries[9].levelLabelZh)
+
+        val counts = catalog.entries.groupingBy { it.level }.eachCount()
+        assertEquals(10, counts[MonsterLevel.Beginner])
+        assertEquals(60, counts[MonsterLevel.Intermediate])
+        assertEquals(20, counts[MonsterLevel.Advanced])
+        assertEquals(10, counts[MonsterLevel.Super])
+    }
+
+    @Test
     fun tryAddCustomWishRejectsNonNumericCost() {
         val s = WishlistState.default()
         val (next, err) = s.tryAddCustomWish("玩具", "abc", "", 1L)

@@ -7,6 +7,8 @@
 >
 > **Run loop:** [`.cursor/skills/harmony-autofix-orchestrator/SKILL.md`](../../../.cursor/skills/harmony-autofix-orchestrator/SKILL.md) drives build → codelinter → unit → emulator → ohosTest. Commands come from [`.cursor/ohos-dev-commands.md`](../../../.cursor/ohos-dev-commands.md). Do not invent flags.
 
+> **2026-05-21 hygiene note:** this plan was not checkbox-backfilled when the Harmony implementation landed and V0.8.4 was layered on top. Treat the unchecked task list below as historical execution detail; the current gate truth is in [`20-replication-trigger.md`](20-replication-trigger.md) and [`50-parity-checklist.md`](50-parity-checklist.md).
+
 **Goal:** Land V0.8.3 on HarmonyOS as three independently testable but co-released sub-tasks: pack-cap-and-auto-rotate, monster-tiering-with-bonus-and-heavy-attack, and damage floater label.
 
 **Architecture:**
@@ -241,4 +243,4 @@
 - [ ] Bump [`harmonyos/AppScope/app.json5`](../../../harmonyos/AppScope/app.json5): `versionName` → `0.8.3`, `versionCode` → `1008003` (per [`.cursor/rules/harmony-app-version-code.mdc`](../../../.cursor/rules/harmony-app-version-code.mdc)).
 - [ ] Refresh affected screens via `python3 scripts/capture_harmony_screenshots.py` (HomePage / PackManagerPage / BattlePage / ResultPage / MonsterCodexPage) and commit baseline updates under `assets/screenshots/harmonyos/`.
 - [ ] No server contract changed → skip `tools/contracts/export_openapi.py` and `tests/test_shared_contracts.py`.
-- [ ] Move on to [`20-replication-trigger.md`](20-replication-trigger.md) (to be created from template) and start filling in the gate evidence: ohosTest log excerpts, screenshot diff, version bump confirmation, and the human-signed `replication_approved: true` block.
+- [ ] Move on to [`20-replication-trigger.md`](20-replication-trigger.md) and start filling in the gate evidence: ohosTest log excerpts, screenshot diff, version bump confirmation, and the human-signed `replication_approved: true` block.

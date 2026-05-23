@@ -1,13 +1,15 @@
 # V0.8.4 — 战斗平衡与题型节奏 — Cross-Platform Design
 
 > Feature ID: `2026-05-18-battle-balance-v0-8-4`
-> Status: `ready-for-replication`
+> Status: `three-platform-core-implemented; gate-cleanup-open`
 > Owner: Terry Ma (orchestrating); HarmonyOS implementer = first
-> Last updated: 2026-05-18
+> Last updated: 2026-05-23
 
 Platform-neutral source of truth for V0.8.4. HarmonyOS, iOS, and Android plans cite this document; they do not redesign.
 
 **Prerequisite:** Ship on top of [V0.8.3 battle polish](../2026-05-18-battle-polish-v0-8-3/00-design.md) (pack cap 10, monster level metadata, bonus / heavy attack, damage floater). V0.8.4 does **not** revert those behaviors.
+
+**2026-05-23 gate cleanup:** the V0.8.4-specific core is present on all three clients (0.8.4 version bump, default HP 10, Spell wrong-tap penalty, scheduler-driven question pacing). The V0.8.3 prerequisite has now been copied to iOS / Android at code level; the broader release gate remains open on targeted verification and release checklist cleanup.
 
 V0.8.4 sits between V0.8.3 and the V0.9 AI/语境 line. It is a **client-only balance** release: no server contract, no new screens, no LLM.
 

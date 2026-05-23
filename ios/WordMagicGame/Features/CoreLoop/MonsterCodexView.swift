@@ -36,6 +36,14 @@ struct MonsterCodexView: View {
                         .background(AppTheme.paleBlue, in: Capsule())
                         .accessibilityIdentifier("CodexKindLabel")
 
+                    Text(current.levelBadgeZh)
+                        .font(.system(size: compactHeight ? 14 : 17, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, compactHeight ? 4 : 6)
+                        .background(AppTheme.red, in: Capsule())
+                        .accessibilityIdentifier("MonsterCodexLevelBadge_\(current.key)")
+
                     Text("\(currentIndex + 1) / \(entries.count)")
                         .font(.system(size: compactHeight ? 15 : 18, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)

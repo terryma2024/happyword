@@ -1,11 +1,13 @@
 # V0.8.3 — 战斗与词包体验小优化 — Cross-Platform Design
 
 > Feature ID: `2026-05-18-battle-polish-v0-8-3`
-> Status: `ready-for-harmony`
+> Status: `three-platform-code-complete; ios-verification-pending`
 > Owner: Terry Ma (orchestrating); HarmonyOS implementer = first
-> Last updated: 2026-05-18
+> Last updated: 2026-05-23
 
 This document is the platform-neutral source of truth for V0.8.3. HarmonyOS, iOS, and Android plans cite it; they do not redesign. Long-form spec notes — if needed — go under [`docs/superpowers/specs/`](../../superpowers/specs/) and back-link here.
+
+**2026-05-23 gate cleanup:** HarmonyOS contains the V0.8.3 implementation, and V0.8.4 was built on top of it. iOS / Android parity code now covers the full V0.8.3 polish contract (10-pack activation cap / auto-rotate, MonsterLevel badges, bonus/heavy-attack parity, stable IDs). Android targeted tests pass; iOS targeted tests still need a machine with active Xcode. See [`20-replication-trigger.md`](20-replication-trigger.md) and [`50-parity-checklist.md`](50-parity-checklist.md).
 
 V0.8.3 inserts between the V0.8 backoffice line (shipped) and the V0.9 AI/语境 line (not yet started). It is a **pure polish** release; no AI, no server contract changes, no new screens.
 
@@ -91,7 +93,7 @@ Every ID listed here must be implemented verbatim on **HarmonyOS / iOS / Android
 | `BattleDamageFloaterLabel_player` | Floater label spawned over the player CharacterCard | Asserts presence + text `-1` or `-2` after a damage event |
 | `BattleDamageFloaterLabel_monster` | Floater label spawned over the active monster card | Asserts presence + text `-1` or `-2` after a damage event |
 | `BattleResultBonusCoinRow` | ResultPage, below the existing coin total row | Asserts text contains the killed-bonus count and the bonus ✨ delta |
-| `MonsterCodexLevelBadge_{kind}` | MonsterCodexPage detail panel | Small badge `初/中/高/Super` next to the monster name |
+| `MonsterCodexLevelBadge_{monsterKey}` | MonsterCodexPage detail panel | Small badge `初/中/高/Super` next to the monster name |
 
 Platform mapping reminder:
 
@@ -286,7 +288,7 @@ No new server-side events. Local console log lines (HarmonyOS only, parity not r
 ## 11. Accessibility / Localization
 
 - `BattleResultBonusCoinRow` Chinese text template: `Bonus 怪物 ×{K} → +{M} ✨`. English fallback (for accessibility readers): `Bonus monsters x{K} → +{M} coins`.
-- `MonsterCodexLevelBadge_{kind}` short labels (zh-CN): `初` / `中` / `高` / `Super`. English fallback: `Beginner` / `Intermediate` / `Advanced` / `Super`.
+- `MonsterCodexLevelBadge_{monsterKey}` short labels (zh-CN): `初` / `中` / `高` / `Super`. English fallback: `Beginner` / `Intermediate` / `Advanced` / `Super`.
 - `PackManagerAutoRotateToast` zh-CN: `已关闭 '{old}' 以激活 '{new}'`. English fallback: `Deactivated '{old}' to activate '{new}'`.
 - `PackManagerCapRefuseToast` zh-CN: `请先取消固定一个词包`. English fallback: `Please unpin one pack first`.
 - Damage floater labels are pure text (`-1` / `-2`), no localization needed; screen-reader hint `loss {amount} HP`.

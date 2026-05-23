@@ -50,7 +50,7 @@ class LocalGrowthFlowTest {
         composeRule.onNodeWithTag("PackManagerScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("PackManagerActiveCount").assertIsDisplayed()
         composeRule.onNodeWithText("📦 我的词包").assertIsDisplayed()
-        composeRule.onNodeWithText("已激活 5 / 5").assertIsDisplayed()
+        composeRule.onNodeWithText("已激活 5 / 10").assertIsDisplayed()
         composeRule.onNodeWithText("固定：防止满分自动轮换 · 开关：切换激活").assertIsDisplayed()
         composeRule.onNodeWithText("🔄 同步词包").assertIsDisplayed()
         composeRule.onNodeWithTag("PackSourceTag_fruit-forest").assertIsDisplayed()

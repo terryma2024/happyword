@@ -16,8 +16,10 @@
   - Evidence: exit 0, `No defects found in your code.` (2026-05-18).
 - [x] **Version bumped** — `harmonyos/AppScope/app.json5`
   - To: `versionName=0.8.4` `versionCode=1008004`
-- [ ] **Feature merged to main**
-  - Harmony commits on feature branch: `4841da5` (feat), `1bd7a08` (ohosTest stabilize). Merge pending.
+- [x] **Feature present in current mainline worktree**
+  - Evidence: current history contains V0.8.4 battle parity plus iOS App Store review-fix release; app metadata is `0.8.4` / `1008004` on HarmonyOS and Android, and `0.8.4` / `1008006` on iOS.
+- [x] **V0.8.3 prerequisite parity closed at code level**
+  - Evidence: [`../2026-05-18-battle-polish-v0-8-3/50-parity-checklist.md`](../2026-05-18-battle-polish-v0-8-3/50-parity-checklist.md) shows iOS / Android rows filled for pack cap 10, auto-rotate, monster level, bonus, and HP-2 heavy attack. Android targeted tests pass; iOS targeted tests still need a machine with active Xcode.
 - [x] **Screenshots refreshed**
   - N/A — no new screens; battle HP / pacing changes only. Optional parity screenshots in Stage 5.
 - [x] **Server contracts up to date** — N/A (client-only; design §8).
@@ -89,5 +91,5 @@ None.
 approved_by: Terry Ma
 approved_at: 2026-05-18
 replication_approved: true
-notes: Harmony soft gates green on docs/shared-roadmap-reality-alignment (4841da5, 1bd7a08). Merge-to-main checkbox remains open until PR lands.
+notes: Harmony soft gates green on docs/shared-roadmap-reality-alignment (4841da5, 1bd7a08). V0.8.4-specific parity is present in the current worktree; V0.8.3 prerequisite parity is now code-complete on iOS / Android and awaits developer-machine verification.
 ```

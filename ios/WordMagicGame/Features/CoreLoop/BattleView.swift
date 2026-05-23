@@ -92,6 +92,17 @@ struct BattleView: View {
                             floaterSide: .monster
                         )
                         .accessibilityIdentifier("MonsterArea")
+                        .overlay(alignment: .topTrailing) {
+                            if state.currentMonsterBonus {
+                                Text("Bonus")
+                                    .font(.caption.weight(.heavy))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 5)
+                                    .background(AppTheme.gold, in: Capsule())
+                                    .accessibilityIdentifier("MonsterBonusStar_\(state.monsterIndex)")
+                            }
+                        }
                     }
                     .frame(height: max(170, proxy.size.height - 132))
 
@@ -381,10 +392,6 @@ struct BattleView: View {
                 try? await Task.sleep(nanoseconds: 220_000_000)
                 await MainActor.run {
                     spellShakingPoolIndex = nil
-                    if pendingBattleEnd {
-                        return
-                    }
-                    clearFeedback()
                 }
             }
         }

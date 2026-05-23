@@ -6,8 +6,13 @@ struct PerfectAdventureRotationResult: Equatable {
     var swappedInId = ""
 }
 
+struct PackActivationResult: Equatable {
+    var accepted = false
+    var autoClosedId = ""
+}
+
 final class PackSelectionStore: ObservableObject {
-    static let maxActivePacks = 5
+    static let maxActivePacks = 10
     static let perfectThreshold = 3
 
     @Published private(set) var activePackIds: [String]
@@ -37,9 +42,25 @@ final class PackSelectionStore: ObservableObject {
             pinnedPackIds.remove(id)
             return true
         }
-        guard activePackIds.count < Self.maxActivePacks else { return false }
+        return appendOrRotate(id).accepted
+    }
+
+    @discardableResult
+    func appendOrRotate(_ id: String) -> PackActivationResult {
+        guard !activePackIds.contains(id) else {
+            return PackActivationResult(accepted: true)
+        }
+        if activePackIds.count >= Self.maxActivePacks {
+            guard let autoClosed = activePackIds.first(where: { !pinnedPackIds.contains($0) }) else {
+                return PackActivationResult()
+            }
+            activePackIds.removeAll { $0 == autoClosed }
+            pinnedPackIds.remove(autoClosed)
+            activePackIds.append(id)
+            return PackActivationResult(accepted: true, autoClosedId: autoClosed)
+        }
         activePackIds.append(id)
-        return true
+        return PackActivationResult(accepted: true)
     }
 
     @discardableResult

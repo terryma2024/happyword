@@ -15,7 +15,17 @@ data class PackSelectionStore(
     fun activate(packId: String, nowMs: Long = System.currentTimeMillis()): PackSelectionMutation {
         if (packId in activePackIds) return PackSelectionMutation(this, true)
         if (activePackIds.size >= MAX_ACTIVE) {
-            return PackSelectionMutation(this, false, "最多只能同时启用 5 个词包")
+            val autoClosed = activePackIds.firstOrNull { it !in pinnedPackIds }
+                ?: return PackSelectionMutation(this, false, "请先取消固定一个词包")
+            return PackSelectionMutation(
+                copy(
+                    activePackIds = activePackIds.filterNot { it == autoClosed } + packId,
+                    pinnedPackIds = pinnedPackIds - autoClosed,
+                    lastSelectionUpdatedAtMs = nowMs,
+                ),
+                true,
+                "已关闭 '$autoClosed' 以激活 '$packId'",
+            )
         }
         return PackSelectionMutation(copy(activePackIds = activePackIds + packId, lastSelectionUpdatedAtMs = nowMs), true)
     }
@@ -91,7 +101,7 @@ data class PackSelectionStore(
     }
 
     companion object {
-        const val MAX_ACTIVE = 5
+        const val MAX_ACTIVE = 10
         const val PERFECT_RUNS_TO_ROTATE = 3
 
         fun initial(defaultIds: List<String>, nowMs: Long = 0L): PackSelectionStore {

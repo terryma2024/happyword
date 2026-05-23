@@ -133,14 +133,20 @@ final class AppCoordinator: ObservableObject {
     }
 
     func togglePackActive(_ pack: Pack) {
-        if packSelectionStore.toggleActive(pack.id) {
+        let wasActive = packSelectionStore.activePackIds.contains(pack.id)
+        let result = wasActive ? PackActivationResult(accepted: packSelectionStore.toggleActive(pack.id)) : packSelectionStore.appendOrRotate(pack.id)
+        if result.accepted {
             if !packSelectionStore.activePackIds.contains(selectedPack.id),
                let first = activePacks.first {
                 selectedPack = first
             }
-            packManagerMessage = "已激活 \(packSelectionStore.activePackIds.count) / \(PackSelectionStore.maxActivePacks)"
+            if result.autoClosedId.isEmpty {
+                packManagerMessage = "已激活 \(packSelectionStore.activePackIds.count) / \(PackSelectionStore.maxActivePacks)"
+            } else {
+                packManagerMessage = "已关闭 '\(result.autoClosedId)' 以激活 '\(pack.id)'"
+            }
         } else {
-            packManagerMessage = "最多只能激活 \(PackSelectionStore.maxActivePacks) 个词包"
+            packManagerMessage = "请先取消固定一个词包"
         }
     }
 
@@ -304,8 +310,7 @@ final class AppCoordinator: ObservableObject {
     func finishBattle() {
         guard let engine = battleEngine,
               var result = try? engine.buildSessionResult() else { return }
-        result.coinsEarned = result.stars
-        result.coinsTotal = coinAccount.earn(result.stars)
+        result.coinsTotal = coinAccount.earn(result.coinsEarned)
         lastResult = result
         route = .result
         Task { await syncWordStatsIfPossible(showStatus: false) }
@@ -766,6 +771,11 @@ final class AppCoordinator: ObservableObject {
         if arguments.contains("-UITestSeedParentPin") {
             var config = configStore.config
             config.parentPin = "123456"
+            configStore.save(config)
+        }
+        if arguments.contains("-UITestBattleSpellOnly") {
+            var config = configStore.config
+            config.enabledQuestionTypes = [QuestionKind.spell.rawValue]
             configStore.save(config)
         }
         if arguments.contains("-UITestSeedBoundDevice") {

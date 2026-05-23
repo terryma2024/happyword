@@ -31,16 +31,16 @@
 
 ### Task 3: XCUITest
 
-- [ ] Optional: spell wrong-tap HP + `BattlePacing` smokes (mirror Harmony `BattlePacing.ui.test.ets`)
+- [x] Optional XCUITest smokes explicitly deferred; not a V0.8.4 core parity blocker. Unit/domain parity plus stable runtime IDs cover this pass.
 
 ### Task 4: Version
 
 **Files:** `ios/project.yml`
 
-- [x] `MARKETING_VERSION` `0.8.4`, `CURRENT_PROJECT_VERSION` `1008004`
+- [x] `MARKETING_VERSION` `0.8.4`; `CURRENT_PROJECT_VERSION` is now `1008006` after the iOS App Store review-fix release train.
 
 ### Task 5: Verification
 
 - [x] `xcodebuild test -scheme WordMagicGame -only-testing:WordMagicGameTests/BattleQuestionSchedulerTests`
-- [ ] Full `WordMagicGameTests` green (run before merge)
-- [ ] Update [`50-parity-checklist.md`](50-parity-checklist.md)
+- [ ] Full `WordMagicGameTests` green (not rerun during 2026-05-23 roadmap hygiene; local Xcode is not active)
+- [x] Update [`50-parity-checklist.md`](50-parity-checklist.md)

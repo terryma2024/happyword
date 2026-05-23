@@ -8,7 +8,7 @@ data class CoinAccount(
     val earnedByDay: Map<String, Int> = emptyMap(),
 ) {
     fun creditBattleReward(stars: Int, dayKey: String): CoinCreditResult {
-        val reward = stars.coerceIn(0, 3)
+        val reward = stars.coerceAtLeast(0)
         val earnedToday = earnedByDay[dayKey] ?: 0
         val allowed = (DAILY_BATTLE_REWARD_CAP - earnedToday).coerceAtLeast(0)
         val delta = reward.coerceAtMost(allowed)
@@ -212,13 +212,36 @@ data class RedemptionHistoryStore(
     }
 }
 
+enum class MonsterLevel(val labelZh: String) {
+    Beginner("初"),
+    Intermediate("中"),
+    Advanced("高"),
+    Super("Super");
+
+    companion object {
+        fun forCatalogIndex(index1Based: Int): MonsterLevel {
+            if (index1Based <= 0) return Beginner
+            return when ((index1Based - 1) % 10) {
+                0 -> Beginner
+                in 1..6 -> Intermediate
+                7, 8 -> Advanced
+                else -> Super
+            }
+        }
+    }
+}
+
 data class MonsterEntry(
     val id: String,
     val nameEn: String,
     val kindZh: String,
     val descriptionZh: String,
     val rawResourceName: String,
-)
+    val level: MonsterLevel = MonsterLevel.Beginner,
+) {
+    val levelLabelZh: String
+        get() = level.labelZh
+}
 
 data class MonsterCatalog(
     val entries: List<MonsterEntry>,
@@ -333,7 +356,7 @@ data class MonsterCatalog(
                 MonsterEntry("sock-dragon", "Sock Dragon", "袜子小龙", "袜子小龙喜欢把丢失的袜子卷成小窝，打喷嚏会喷出棉絮云。它能帮大家找到另一只袜子。", "character_sock_dragon"),
                 MonsterEntry("kite-serpent", "Kite Serpent", "风筝长蛇", "风筝长蛇身体像彩色风筝串，尾巴系着长长飘带。它飞得很高，却总把线交给最小的朋友握着。", "character_kite_serpent"),
                 MonsterEntry("music-box-fairy", "Music Box Fairy", "八音盒仙子", "八音盒仙子站在小小发条台上，转一圈就洒出几颗音符星。她的音乐很轻，适合睡前复习单词。", "character_music_box_fairy"),
-            ),
+            ).mapIndexed { index, entry -> entry.copy(level = MonsterLevel.forCatalogIndex(index + 1)) },
         )
     }
 }

@@ -119,6 +119,9 @@ class AndroidScreenScreenshotTest {
     @Test
     fun captureResultScreen() {
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
         repeat(2) { composeRule.onNodeWithTag("ConfigMonsterHpDecrement").performScrollTo().performClick() }
         repeat(4) { composeRule.onNodeWithTag("ConfigMonsterCountDecrement").performScrollTo().performClick() }
         composeRule.onNodeWithTag("ConfigBackButton").performClick()
@@ -126,7 +129,7 @@ class AndroidScreenScreenshotTest {
 
         composeRule.onNodeWithTag("HomeStartButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("BattleScreen") }
-        composeRule.onNodeWithText("apple").performClick()
+        answerCurrentFruitChoice()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ResultScreen") }
         capture("result.png")
     }
@@ -145,6 +148,16 @@ class AndroidScreenScreenshotTest {
         return composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
     }
 
+    private fun answerCurrentFruitChoice() {
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            fruitPromptToAnswer.keys.any { prompt -> composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty() }
+        }
+        val answer = fruitPromptToAnswer.entries.first { (prompt, _) ->
+            composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty()
+        }.value
+        composeRule.onNodeWithText(answer).performClick()
+    }
+
     private fun seedCloudBindingPrefs() {
         val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
         targetContext.getSharedPreferences("wordmagic-cloud", Context.MODE_PRIVATE).edit().clear().apply()
@@ -161,5 +174,15 @@ class AndroidScreenScreenshotTest {
             parentFile?.mkdirs()
             writeText("device.jwt.token")
         }
+    }
+
+    private companion object {
+        val fruitPromptToAnswer = linkedMapOf(
+            "苹果" to "apple",
+            "香蕉" to "banana",
+            "梨" to "pear",
+            "橙子" to "orange",
+            "葡萄" to "grape",
+        )
     }
 }

@@ -21,6 +21,11 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
 const DEFAULT_TIMER_CHIP_ID: string = 'ConfigTimer300s';
 const STEPPER_MAX_VALUE: number = 10;
 
+class StepperProbe {
+  valueBeforeIncrement: number = 0;
+  decrementedFromMax: boolean = false;
+}
+
 async function launchApp(): Promise<Driver> {
   // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
   // helper body in try/catch+rethrow to silence the warning while
@@ -67,6 +72,22 @@ async function openConfig(driver: Driver): Promise<void> {
   }
 }
 
+async function scrollToConfigReportChannelButton(driver: Driver): Promise<void> {
+  try {
+    for (let attempt: number = 0; attempt < 6; attempt++) {
+      const report: Component | null =
+        await driver.findComponent(ON.id('ConfigReportChannelButton'));
+      if (report !== null) {
+        return;
+      }
+      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.delayMs(400);
+    }
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 async function readIntById(driver: Driver, id: string): Promise<number> {
   try {
     const c: Component = await driver.findComponent(ON.id(id));
@@ -77,15 +98,18 @@ async function readIntById(driver: Driver, id: string): Promise<number> {
   }
 }
 
-async function ensureStepperCanIncrement(driver: Driver, valueId: string, decId: string): Promise<number> {
+async function ensureStepperCanIncrement(driver: Driver, valueId: string, decId: string): Promise<StepperProbe> {
   try {
+    const probe: StepperProbe = new StepperProbe();
     let value: number = await readIntById(driver, valueId);
     if (value >= STEPPER_MAX_VALUE) {
       await clickByIdShared(driver, decId);
       await driver.delayMs(400);
       value = await readIntById(driver, valueId);
+      probe.decrementedFromMax = true;
     }
-    return value;
+    probe.valueBeforeIncrement = value;
+    return probe;
   } catch (err) {
     throw err as Error;
   }
@@ -270,29 +294,35 @@ export default function configFlowUiTest(): void {
       await returnToHome(driver);
       await openConfig(driver);
 
-      const playerBefore: number =
+      const playerProbe: StepperProbe =
         await ensureStepperCanIncrement(driver, 'ConfigPlayerHpValue', 'ConfigPlayerHpDec');
       await clickByIdShared(driver, 'ConfigPlayerHpInc');
       await driver.delayMs(400);
       const playerAfter: number = await readIntById(driver, 'ConfigPlayerHpValue');
-      expect(playerAfter === playerBefore + 1).assertTrue();
-      await clickByIdShared(driver, 'ConfigPlayerHpDec');
+      expect(playerAfter === playerProbe.valueBeforeIncrement + 1).assertTrue();
+      if (!playerProbe.decrementedFromMax) {
+        await clickByIdShared(driver, 'ConfigPlayerHpDec');
+      }
 
-      const monsterHpBefore: number =
+      const monsterHpProbe: StepperProbe =
         await ensureStepperCanIncrement(driver, 'ConfigMonsterHpValue', 'ConfigMonsterHpDec');
       await clickByIdShared(driver, 'ConfigMonsterHpInc');
       await driver.delayMs(400);
       const monsterHpAfter: number = await readIntById(driver, 'ConfigMonsterHpValue');
-      expect(monsterHpAfter === monsterHpBefore + 1).assertTrue();
-      await clickByIdShared(driver, 'ConfigMonsterHpDec');
+      expect(monsterHpAfter === monsterHpProbe.valueBeforeIncrement + 1).assertTrue();
+      if (!monsterHpProbe.decrementedFromMax) {
+        await clickByIdShared(driver, 'ConfigMonsterHpDec');
+      }
 
-      const monsterCountBefore: number =
+      const monsterCountProbe: StepperProbe =
         await ensureStepperCanIncrement(driver, 'ConfigMonstersTotalValue', 'ConfigMonstersTotalDec');
       await clickByIdShared(driver, 'ConfigMonstersTotalInc');
       await driver.delayMs(400);
       const monsterCountAfter: number = await readIntById(driver, 'ConfigMonstersTotalValue');
-      expect(monsterCountAfter === monsterCountBefore + 1).assertTrue();
-      await clickByIdShared(driver, 'ConfigMonstersTotalDec');
+      expect(monsterCountAfter === monsterCountProbe.valueBeforeIncrement + 1).assertTrue();
+      if (!monsterCountProbe.decrementedFromMax) {
+        await clickByIdShared(driver, 'ConfigMonstersTotalDec');
+      }
 
       await tapConfigCancelShared(driver);
       await returnToHome(driver);
@@ -303,6 +333,7 @@ export default function configFlowUiTest(): void {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfig(driver);
+      await scrollToConfigReportChannelButton(driver);
 
       await driver.assertComponentExist(ON.id('ConfigReportChannelButton'));
 
