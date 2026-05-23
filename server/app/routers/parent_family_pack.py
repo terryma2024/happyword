@@ -17,6 +17,8 @@ from app.schemas.family_pack import (
     FamilyPackCreateIn,
     FamilyPackDefinitionOut,
     FamilyPackDetailOut,
+    FamilyPackDraftSplitIn,
+    FamilyPackDraftSplitOut,
     FamilyPackDraftOut,
     FamilyPackDraftWordBatchError,
     FamilyPackDraftWordBatchIn,
@@ -408,6 +410,62 @@ async def import_image_to_pack(
         model=model_name,
         draft=_serialize_draft(draft),
         errors=[FamilyPackDraftWordBatchError(**e) for e in errors],
+    )
+
+
+@router.post(
+    "/{family_scope}/family-packs/{pack_id}/draft/split",
+    response_model=FamilyPackDraftSplitOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def split_draft_to_new_pack(
+    body: FamilyPackDraftSplitIn,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_scope: str = Path(min_length=1, max_length=128),
+    user: User = Depends(current_parent_user),
+) -> FamilyPackDraftSplitOut:
+    _ = family_scope
+    family_id = user.family_id or ""
+    definition = await _load_definition_or_404(pack_id, family_id)
+    try:
+        result = await svc.split_draft_to_new_pack(
+            source_definition=definition,
+            word_ids=body.word_ids,
+            new_name=body.new_pack.name,
+            new_description=body.new_pack.description,
+            mode=body.mode,
+            parent_user_id=user.username,
+        )
+    except svc.DraftWordNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": {
+                    "code": exc.code,
+                    "message": str(exc),
+                    "missing_word_ids": exc.missing_word_ids,
+                }
+            },
+        ) from exc
+    except svc.NameTaken as exc:
+        raise _conflict("NAME_TAKEN", "Pack name already in use") from exc
+    except svc.WordLimitExceeded as exc:
+        raise _conflict(
+            "WORD_LIMIT_EXCEEDED",
+            f"Pack exceeds {get_settings().family_pack_max_words}-word cap",
+        ) from exc
+    except svc.InvalidPayload as exc:
+        raise _bad_payload(str(exc)) from exc
+
+    count = result.selected_word_count
+    return FamilyPackDraftSplitOut(
+        mode=result.mode,
+        source_pack_id=pack_id,
+        new_pack=_serialize_definition(result.new_definition),
+        source_draft=_serialize_draft(result.source_draft),
+        new_draft=_serialize_draft(result.new_draft),
+        moved_count=count if result.mode == "move" else 0,
+        copied_count=count if result.mode == "copy" else 0,
     )
 
 
