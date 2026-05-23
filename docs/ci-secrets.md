@@ -50,7 +50,10 @@ Pushes to `main` run both Vercel `server-cd` and CloudBase
 | `ASSET_STORAGE_PROVIDER` | CloudBase runtime env | optional until M7 | Defaults to Vercel Blob; set to `tencent_cos` after COS staging validation. |
 | `COS_SECRET_ID` / `COS_SECRET_KEY` | CloudBase runtime env | optional until M7 | New COS uploads cannot run without these when `ASSET_STORAGE_PROVIDER=tencent_cos`. |
 | `COS_REGION` / `COS_BUCKET` / `COS_PUBLIC_BASE_URL` | CloudBase runtime env | optional until M7 | COS URLs cannot be generated correctly without bucket and public base URL config. |
-| `TENCENTDB_MONGODB_URI` | Operator secret inventory | optional until M7A | Holds the future TencentDB for MongoDB URI before it replaces runtime `MONGODB_URI`. |
+| `FLEXDB_ENV_ID` / `FLEXDB_TAG` | Operator secret inventory | optional until M7A | Identifies the CloudBase FlexDB document database target for the M7A spike. |
+| `FLEXDB_MONGODB_URI` | Tencent/CloudBase secret store, if available | optional until M7A | Holds a direct FlexDB URI only if Tencent confirms built-in FlexDB supports MongoDB driver access. |
+| `FLEXDB_API_SECRET_ID` / `FLEXDB_API_SECRET_KEY` | Tencent secret store only | optional until M7A | Runtime CloudBase document database API credentials if the adapter path is chosen. |
+| `TENCENTDB_MONGODB_URI` | Operator secret inventory | optional until M7A | TencentDB fallback URI if FlexDB cannot satisfy the migration path. |
 | `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase runtime env | optional until M8 | Lets `/api/v1/public/preview-urls.json` serve CloudBase staging without Vercel Blob. |
 | `CLOUDBASE_PREVIEW_MODE` | CloudBase preview workflow | optional until M8B | Documents whether preview publishing is shared staging or on-demand CloudBase preview. |
 
@@ -138,13 +141,19 @@ COS_PUBLIC_BASE_URL=https://happyword-assets-staging-1429584068.cos.ap-shanghai.
 uv run python -m scripts.cos_storage_smoke
 ```
 
-#### TencentDB for MongoDB
+#### CloudBase FlexDB / TencentDB database replacement
 
-Use these during M7A. The final runtime variable remains `MONGODB_URI`; the
-temporary names below are only for operator inventory and staged cutover.
+Use these during M7A. FlexDB is the first spike target because the existing
+CloudBase shared instance is acceptable at the current user volume. TencentDB
+for MongoDB remains the fallback if FlexDB cannot provide a driver-compatible
+URI and the API adapter path is too broad.
 
 | Name | Where to store | Purpose |
 | --- | --- | --- |
+| `FLEXDB_ENV_ID` | CloudBase env / operator password manager | CloudBase environment id for the built-in document database. |
+| `FLEXDB_TAG` | CloudBase env / operator password manager | FlexDB instance id, e.g. `tnt-jw1cesl68`; not a secret, but keep it with deployment config. |
+| `FLEXDB_MONGODB_URI` | Tencent/CloudBase secret store, if available | Optional URI if Tencent confirms built-in FlexDB supports direct MongoDB driver access from CloudBase Run. |
+| `FLEXDB_API_SECRET_ID` / `FLEXDB_API_SECRET_KEY` | Tencent secret store only | Runtime API credential pair only if the server must call CloudBase document database APIs directly. Scope with a narrow CAM policy before production. |
 | `TENCENTDB_MONGODB_URI` | Operator password manager / Tencent secret store | Future TencentDB URI before it replaces runtime `MONGODB_URI`. |
 | `TENCENTDB_MONGO_DB_NAME` | Operator password manager / Tencent secret store | Target database name if different from current `MONGO_DB_NAME`. |
 | `ATLAS_MONGODB_URI_ROLLBACK` | Operator password manager only | Old Atlas URI retained for rollback; do not put this in GitHub logs. |

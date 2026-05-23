@@ -8,7 +8,7 @@
 - Production service name: happyword-server
 - Staging service name: happyword-server-staging
 - MongoDB provider during Wave A: MongoDB Atlas
-- MongoDB provider after Wave C: TencentDB for MongoDB, planned
+- MongoDB provider after Wave C: CloudBase FlexDB first, TencentDB fallback
 - Asset storage provider during Wave A: Vercel Blob
 - Asset storage provider during Wave B: Tencent COS for new uploads; CloudBase Storage remains an alternate only if server-side public URL behavior proves simpler
 
@@ -184,65 +184,99 @@ Required operator decisions:
 
 ### MongoDB Atlas Replacement
 
-Target: TencentDB for MongoDB.
+Target: CloudBase FlexDB shared document database first; keep TencentDB for
+MongoDB as the scale-up/fallback option.
 
 Current M7A status, 2026-05-23:
 
-- Target product confirmed: TencentDB for MongoDB in Shanghai
-  (`ap-shanghai`) so CloudBase Run and COS stay in the same Tencent region.
-- Migration tool: Tencent Cloud DTS, MongoDB full + incremental migration.
-- Application change: switch `MONGODB_URI`/`MONGO_DB_NAME` only; no Beanie or
-  data-access rewrite in this milestone.
-- Target version: choose a TencentDB MongoDB version compatible with the current
-  Atlas source (`8.0.23` reported by `serverInfo`) if available. Do not plan a
-  lower-major target unless DTS precheck explicitly accepts that path.
-- Topology: start with a managed replica set for staging; production should use
-  the same version/topology class sized from the live inventory below, then
-  raise capacity only if DTS or production monitoring shows pressure.
-- Backup policy: enable automatic TencentDB backups at creation time. Keep at
-  least the platform minimum retention for staging and production, and perform
-  one restore rehearsal before production cutover.
-- Estimated monthly cost: pending TencentDB console quote after final instance
-  size is chosen.
+- The built-in CloudBase document database instance is
+  `tnt-jw1cesl68` in environment `happyword-d5g66zmq8ef2430b8`.
+- Console observation: `连接管理` creates a MongoDB connector to an external
+  TencentDB instance; it did not expose a copyable MongoDB URI for the built-in
+  shared FlexDB instance during the console spike.
+- Official docs describe CloudBase document database as MongoDB-based and
+  compatible with MongoDB protocol, but the validated automation surface today
+  is CloudBase/Tencent Cloud API, not a Python `motor` URI.
+- Live API spike created `m7a_flexdb_probe`, inserted/query/updated a document
+  through `RunCommands`, created a unique `word_1` index through `UpdateTable`,
+  confirmed duplicate insert failed with `E11000 duplicate key`, then deleted
+  the probe table with `DeleteTable`.
+- Cost stance: shared FlexDB is acceptable while user volume is low. Revisit an
+  isolated FlexDB instance or TencentDB when production traffic or contention
+  makes it necessary.
 
 Rationale:
 
-- The FastAPI backend uses Motor + Beanie and should keep the MongoDB wire
-  protocol/application contract.
-- A TencentDB for MongoDB target can be adopted by changing
-  `MONGODB_URI`/`MONGO_DB_NAME`, instead of rewriting data-access code.
-- Tencent Cloud DTS supports MongoDB full + incremental migration, which is the
-  preferred way to copy historical data and keep catching up while Atlas remains
-  the production writer.
+- The current FastAPI backend uses Motor + Beanie across the app, so a direct
+  URI-compatible target is still the lowest-risk cutover shape.
+- FlexDB is much cheaper to start than TencentDB. If a standard URI can be
+  obtained or officially confirmed for CloudBase Run, it becomes the preferred
+  target with minimal application change.
+- If no driver URI exists, FlexDB is still feasible but becomes an adapter
+  project: replace Beanie/Motor persistence with a repository layer backed by
+  CloudBase document database APIs. That is larger than the original env-var
+  switch, but may still be cheaper than TencentDB at the current scale.
 
-Rejected for the first replacement wave:
+Decision gates:
 
-- CloudBase Database: not MongoDB-driver compatible with the current server
-  code; choosing it would be a data-access rewrite project.
-- Self-managed MongoDB on CVM/Lighthouse: higher operational burden than a
-  managed TencentDB instance.
+1. Ask Tencent Cloud support or use API Explorer/console to confirm whether
+   built-in FlexDB exposes a MongoDB driver URI usable from CloudBase Run.
+2. If yes, perform the original URI-switch migration against FlexDB.
+3. If no, run a focused FlexDB adapter spike before changing production data.
+4. Keep TencentDB for MongoDB as the fallback if the adapter spike is too broad,
+   too slow, or exposes missing query semantics.
+
+Validated FlexDB API surface:
+
+| Operation | Result |
+| --- | --- |
+| `ListTables` | Returned an empty built-in FlexDB table list before/after cleanup. |
+| `CreateTable` | Created `m7a_flexdb_probe`. |
+| `RunCommands` `INSERT` | Inserted `_id=probe-1`, scalar fields, and nested JSON. |
+| `RunCommands` `QUERY` | Returned the inserted document with MongoDB extended JSON numeric fields. |
+| `RunCommands` `UPDATE` | `$set` update worked and modified one document. |
+| `UpdateTable` `CreateIndexes` | Created unique index `word_1`. |
+| `RunCommands` `listIndexes` | Returned `_id_`, `_openid_1`, and unique `word_1`. |
+| Duplicate insert | Failed with `E11000 duplicate key`, proving unique enforcement. |
+| `DeleteTable` | Deleted the temporary probe table; final `ListTables` total was `0`. |
+
+Operator references checked on 2026-05-23:
+
+- CloudBase document database overview states the product is MongoDB-based,
+  supports Shanghai, and offers shared vs isolated instance specs:
+  <https://cloud.tencent.com/document/product/876/46897>
+- `RunCommands` executes document database commands:
+  <https://cloud.tencent.com/document/product/876/129012>
+- `ListTables` lists document database tables:
+  <https://cloud.tencent.com/document/product/876/127965>
+- `DescribeTable` returns table index metadata:
+  <https://cloud.tencent.com/document/product/876/127966>
+- `DeleteTable` deletes document database tables:
+  <https://cloud.tencent.com/document/product/876/127967>
 
 Planned sequence:
 
 1. Inventory Atlas collections, document counts, index definitions, TTL indexes,
-   unique indexes, and backup status.
-2. Create TencentDB for MongoDB staging instance.
-3. Run DTS rehearsal from Atlas to TencentDB staging using full + incremental
-   migration.
-4. Switch CloudBase staging `MONGODB_URI` to TencentDB and run smoke tests.
-5. Create production TencentDB for MongoDB instance with backup and monitoring.
-6. Run production DTS full + incremental migration.
-7. During a short maintenance/write-freeze window, wait for DTS lag to reach
-   zero, switch CloudBase production `MONGODB_URI`, restart the service, and run
-   production smoke.
-8. Keep Atlas and its old URI as rollback for at least one full release cycle or
+   unique indexes, and backup status. Done on 2026-05-23.
+2. Complete FlexDB URI confirmation. If a URI exists, smoke it with the existing
+   Motor/Beanie app before any data migration.
+3. If there is no URI path, build a small local FlexDB adapter proof against the
+   highest-risk query shapes: unique indexes, upserts, sorted/limited queries,
+   regex/search filters, and aggregation-like paths used by pack publishing.
+4. Choose one migration path:
+   - URI path: export/import Atlas data, create indexes, set
+     `MONGODB_URI`/`MONGO_DB_NAME`, restart CloudBase, run smoke.
+   - Adapter path: introduce repository boundaries, run dual-backed tests,
+     migrate staging data through CloudBase APIs, then switch staging.
+5. Keep Atlas and its old URI as rollback for at least one full release cycle or
    7 clean production days, whichever is longer.
-9. Retire Atlas credentials only after the rollback window.
+6. Revisit TencentDB if shared FlexDB capacity, missing semantics, or rewrite
+   scope makes FlexDB worse than the managed MongoDB cost.
 
 Cutover acceptance:
 
 - `GET /api/v1/public/health` returns `200`.
-- `GET /api/v1/public/packs/latest.json` returns `200` from TencentDB-backed
+- `GET /api/v1/public/packs/latest.json` returns `200` from FlexDB-backed
   CloudBase production.
 - Admin login, parent login, one safe write path, and cron extraction pass.
 - Collection counts and critical indexes match the recorded Atlas inventory.
@@ -325,53 +359,21 @@ MONGODB_URI=... MONGO_DB_NAME=happyword \
   --count-timeout-ms 5000
 ```
 
-Next M7A steps:
+Next M7A-FlexDB steps:
 
-1. Provision a TencentDB for MongoDB staging instance in `ap-shanghai`.
-2. Create a least-privilege app user and verify CloudBase Run network reach.
-3. Configure DTS from Atlas to TencentDB staging with full + incremental sync.
-4. Run consistency checks against the inventory above, then switch staging
-   `MONGODB_URI` and run smoke tests.
-
-TencentDB staging provisioning checklist:
-
-```text
-Product: TencentDB for MongoDB
-Region: ap-shanghai
-Topology: managed replica set
-Version: prefer MongoDB 8.0 if the TencentDB console offers it. If not, create
-         the newest available staging target only for a DTS precheck rehearsal;
-         do not cut over to a lower-major target without a successful precheck.
-Instance name: happyword-mongodb-staging
-Database name: happyword_cloudbase_staging
-Network: VPC/subnet reachable from CloudBase Run staging; public access only if
-         a private route is not available during the rehearsal.
-User: app-level user with readWrite on the application database.
-Backup: automatic backup enabled; confirm the default 7-day retention and create
-        one manual backup before destructive rehearsal changes.
-```
-
-Operator references checked on 2026-05-23:
-
-- Tencent Cloud DTS documents MongoDB -> TencentDB support for full and
-  full + incremental migration across supported MongoDB versions:
-  <https://www.tencentcloud.com/document/product/571/42647?lang=en>
-- The newer DTS MongoDB capability page currently lists third-party cloud /
-  Atlas sources up to MongoDB 7.0, while this Atlas source reports `8.0.23`.
-  Treat DTS support for Atlas 8.0 as unproven until the console precheck passes:
-  <https://intl.cloud.tencent.com/document/product/571/63300>
-- TencentDB for MongoDB backup FAQ states automatic and manual backups are
-  supported and backup data is retained for 7 days by default:
-  <https://www.tencentcloud.com/document/product/240/18685>
-- DTS MongoDB use instructions note that DTS creates checkpoint metadata under
-  `TencentDTSData`; do not delete that database during migration:
-  <https://www.tencentcloud.com/document/product/571/63301>
-
-Direct database connectivity smoke, before changing CloudBase runtime env:
+1. Confirm the FlexDB connection model with Tencent Cloud support/API Explorer:
+   built-in instance driver URI vs CloudBase API only.
+2. Create `server/scripts/flexdb_api_smoke.py` using Tencent Cloud SDK 3.0 for
+   Python or direct signed Cloud API calls, not the CLI, so the CloudBase Run
+   runtime path is testable.
+3. Generate an Atlas collection/index manifest that can be replayed into
+   FlexDB tables via `CreateTable`/`UpdateTable`/`RunCommands`.
+4. If URI-compatible, reuse the existing direct connectivity smoke before
+   changing CloudBase runtime env:
 
 ```bash
 cd server
-MONGODB_URI=... MONGO_DB_NAME=happyword_cloudbase_staging \
+MONGODB_URI=... MONGO_DB_NAME=happyword \
   uv run python -m scripts.db_connectivity_smoke \
   --write-probe
 ```
@@ -379,18 +381,27 @@ MONGODB_URI=... MONGO_DB_NAME=happyword_cloudbase_staging \
 Expected: JSON with `ok: true`, redacted `connection_hosts`, server version,
 collection list, and `write_probe.deleted_count: 1`.
 
-DTS 8.0 fallback branch:
+FlexDB adapter spike risks:
 
-If DTS refuses Atlas `8.0.23` as a source, pause Step 4 and choose one of these
-operator paths before provisioning production:
+- Beanie initialization currently owns the ODM model registry in
+  `server/app/main.py`; removing it is not a local edit.
+- The codebase uses Beanie/Motor query builders directly in many routes and
+  services, including `find`, `find_one`, `update_one`, upserts, sorting,
+  regex filters, and direct Motor collection access. A full adapter means
+  repository extraction, not just a config change.
+- CloudBase API credentials would become runtime database credentials. Define a
+  narrow CAM policy before production instead of using broad
+  `QcloudTCBFullAccess`.
+- CloudBase API rate limits and latency must be measured from CloudBase Run;
+  the CLI spike proves semantics, not production throughput.
 
-1. Submit a Tencent Cloud support ticket asking whether Atlas 8.0 -> TencentDB
-   8.0 DTS is available in the target region/account.
-2. For the tiny current dataset, run a scheduled write-freeze and migrate by
-   `mongodump`/`mongorestore` or `mongoexport`/`mongoimport`, then run the same
-   inventory and application smoke checks before switching production.
-3. Keep Atlas as rollback exactly as planned; do not delete Atlas credentials
-   until the rollback window completes.
+TencentDB fallback branch:
+
+If FlexDB cannot be used through a driver URI and the adapter spike is too large
+for M7A, return to TencentDB for MongoDB. The earlier TencentDB plan remains
+valid technically: provision `ap-shanghai`, use a compatible MongoDB version,
+enable backup, validate `MONGODB_URI` with `scripts.db_connectivity_smoke`, then
+choose DTS or a short write-freeze dump/import for the tiny current dataset.
 
 ### Vercel Blob Replacement
 

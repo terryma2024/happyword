@@ -6,7 +6,7 @@
 
 **Architecture:** Treat the migration as a long-running project with five gates: prepare, prove CloudBase staging, cut over production, retire Vercel-specific dependencies, then replace MongoDB Atlas. The first production cutover keeps MongoDB Atlas and Vercel Blob in place so runtime migration can be verified independently from storage, preview-system, and database migration.
 
-**Tech Stack:** Python 3.12, FastAPI, Uvicorn, uv, Docker, CloudBase Run, CloudBase HTTP Access Service, CloudBase Cloud Functions timer trigger, GitHub Actions, MongoDB Atlas compatibility during Wave A, Vercel Blob compatibility during Wave A, Tencent COS during Wave B, TencentDB for MongoDB and Tencent Cloud DTS during Wave C.
+**Tech Stack:** Python 3.12, FastAPI, Uvicorn, uv, Docker, CloudBase Run, CloudBase HTTP Access Service, CloudBase Cloud Functions timer trigger, GitHub Actions, MongoDB Atlas compatibility during Wave A, Vercel Blob compatibility during Wave A, Tencent COS during Wave B, CloudBase FlexDB first and TencentDB fallback during Wave C.
 
 ---
 
@@ -43,7 +43,7 @@
 - [ ] **M5: Production cutover complete** - `happyword.com.cn` points to CloudBase and smoke validation passes; `happyword.cool` moves only after that.
 - [ ] **M6: CloudBase CI/CD active** - `main` deployment and smoke checks no longer depend on Vercel production deployment status.
 - [x] **M7: Storage migration complete** - new uploads use Tencent COS, existing Vercel Blob URLs stay readable.
-- [ ] **M7A: MongoDB Atlas replacement complete** - CloudBase uses TencentDB for MongoDB after DTS sync, consistency checks, and rollback validation.
+- [ ] **M7A: MongoDB Atlas replacement complete** - CloudBase uses FlexDB or a documented TencentDB fallback after migration rehearsal, consistency checks, and rollback validation.
 - [ ] **M8: Preview/QA replacement complete** - Vercel Preview dependency is removed from the QA path.
 - [ ] **M9: Vercel retired** - Vercel deploy, cron, preview, prune, and Blob-specific secrets are removed or archived.
 
@@ -70,7 +70,7 @@
   - Production service name: happyword-server
   - Staging service name: happyword-server-staging
   - MongoDB provider during Wave A: MongoDB Atlas
-  - MongoDB provider after Wave C: TencentDB for MongoDB, planned
+  - MongoDB provider after Wave C: CloudBase FlexDB first, TencentDB fallback
   - Asset storage provider during Wave A: Vercel Blob
   - Asset storage provider during Wave B: Tencent COS, planned
 
@@ -1311,11 +1311,15 @@
 
 ## M7A: MongoDB Atlas Replacement
 
-**Goal:** Move the CloudBase backend from MongoDB Atlas to a Tencent-side MongoDB-compatible database without changing app data-access code.
+**Goal:** Move the CloudBase backend from MongoDB Atlas to Tencent-side storage,
+starting with a CloudBase FlexDB shared-instance spike.
 
-**Recommended target:** TencentDB for MongoDB.
+**Recommended target:** CloudBase FlexDB shared document database first;
+TencentDB for MongoDB remains the scale-up/fallback path.
 
-**Non-goal:** Do not rewrite the server to CloudBase Database SDK in this milestone. The current app uses Motor + Beanie and should keep the MongoDB URI boundary.
+**Non-goal:** Do not rewrite all Beanie/Motor data access until the spike proves
+that FlexDB cannot provide a driver-compatible URI. The first decision gate is
+URI compatibility vs API adapter.
 
 **Files:**
 
@@ -1329,20 +1333,21 @@
   Choose:
 
   ```text
-  Primary target: TencentDB for MongoDB
-  Migration tool: Tencent Cloud DTS for MongoDB
-  Migration mode: full + incremental
-  Application change: environment variable switch only
+  Primary target: CloudBase FlexDB shared document database
+  Migration tool: TBD after URI/API decision
+  Migration mode: export/import or API replay first; DTS only if returning to TencentDB
+  Application change: URI switch if possible, otherwise repository/API adapter
   ```
 
   Record target version, region, topology, backup policy, and estimated monthly
   cost in `docs/server/cloudbase-run.md`.
 
-  Completion note, 2026-05-23: target confirmed as TencentDB for MongoDB in
-  `ap-shanghai`, migrated by Tencent Cloud DTS full + incremental sync. The app
-  cutover remains an env-var switch only. `docs/server/cloudbase-run.md` records
-  the version compatibility rule, staging/production topology guidance, backup
-  requirement, and cost as pending final console sizing.
+  Completion note, 2026-05-23: TencentDB was confirmed as technically clean but
+  too expensive for the current user volume. The migration now starts with the
+  existing CloudBase shared FlexDB instance `tnt-jw1cesl68` in Shanghai. The
+  runbook records the key decision gate: use a MongoDB driver URI if Tencent
+  exposes one for built-in FlexDB; otherwise run a focused adapter spike before
+  any production cutover.
 
 - [x] **Step 2: Inventory current Atlas database**
 
@@ -1371,123 +1376,128 @@
   counts and index metadata with stats skipped. Atlas backup/restore status still
   needs manual Atlas console confirmation.
 
-- [ ] **Step 3: Provision TencentDB for MongoDB staging target**
+- [x] **Step 3: Run live FlexDB API probe**
 
-  Create a staging-size TencentDB for MongoDB instance first.
+  Validate the built-in CloudBase document database without committing secrets.
 
-  Requirements:
+  Probe operations:
 
-  - MongoDB major version compatible with Atlas and Beanie queries.
-  - Network reachable from CloudBase Run staging.
-  - Dedicated application user with least required privileges.
-  - Backup enabled.
+  - List tables on `tnt-jw1cesl68`.
+  - Create a temporary probe table.
+  - Insert/query/update nested JSON through `RunCommands`.
+  - Create and inspect a unique index.
+  - Confirm duplicate insert is rejected.
+  - Delete the temporary probe table.
 
-  Acceptance: CloudBase staging can connect with a test `MONGODB_URI` and
-  `GET /api/v1/public/health` returns `200`.
+  Acceptance: API semantics are sufficient for a deeper adapter spike, and the
+  temporary table is cleaned up.
 
-  Prep note, 2026-05-23: added `server/scripts/db_connectivity_smoke.py` so the
-  new TencentDB URI can be validated with a redacted `ping`/collection-list
-  smoke and optional write probe before CloudBase runtime env is switched. The
-  provisioning runbook now records `ap-shanghai`, replica-set topology,
-  app-level `readWrite` user, backup requirement, and the Atlas 8.0 DTS support
-  risk.
+  Completion note, 2026-05-23: CloudBase API calls succeeded for
+  `ListTables`, `CreateTable`, `RunCommands` insert/query/update,
+  `UpdateTable` unique-index creation, `RunCommands` `listIndexes`, duplicate
+  key enforcement, and `DeleteTable`. Final `ListTables` returned total `0`, so
+  the probe table was removed.
 
-- [ ] **Step 4: Create DTS migration task for staging rehearsal**
+- [ ] **Step 4: Confirm FlexDB connection model**
 
-  Configure DTS:
+  Answer one question before code changes:
 
   ```text
-  Source: MongoDB Atlas
-  Source access type: public network unless private connectivity is ready
-  Source SSL mode: Mongo Atlas SSL when required by Atlas connection settings
-  Target: TencentDB for MongoDB staging instance
-  Migration type: full + incremental
-  Migration objects: application database only; exclude admin/local/config
+  Does built-in CloudBase FlexDB expose a MongoDB driver URI usable from
+  CloudBase Run Python/Motor?
   ```
-
-  Acceptance: DTS precheck passes. If Atlas allowlist blocks DTS, record the
-  required DTS egress IPs or networking path before proceeding.
-
-  Risk note, 2026-05-23: the live Atlas source reports MongoDB `8.0.23`.
-  Tencent DTS MongoDB capability docs should be checked in-console because the
-  public capability page currently lists third-party cloud / Atlas sources up
-  to 7.0. If DTS rejects Atlas 8.0, pause the hot-migration path and choose the
-  support-ticket or short write-freeze dump/restore fallback recorded in
-  `docs/server/cloudbase-run.md`.
-
-- [ ] **Step 5: Run staging full + incremental sync**
-
-  Let DTS complete full sync and enter incremental catch-up.
 
   Acceptance:
 
-  - Full sync completes.
-  - Incremental lag is visible and reaches a stable low value.
-  - DTS reports no failed collections.
+  - If yes, record URI format and required CloudBase/VPC/security settings.
+  - If no, record Tencent's answer and proceed with API-adapter spike.
+  - Do not put credentials or full URI values in docs or GitHub logs.
 
-- [ ] **Step 6: Run consistency checks**
+- [ ] **Step 5: Add runtime FlexDB API smoke**
 
-  Check:
+  Add a Python smoke that does not depend on the local `tcb` CLI:
 
-  - Collection counts match expected staging snapshot.
-  - Indexes exist on target.
-  - Sample documents deserialize through Beanie models.
-  - Admin login works.
-  - Public pack read works.
-  - One write path works in staging.
-  - Async lesson import + cron extraction works.
-
-  Record exact commands and redacted results in `docs/server/cloudbase-run.md`.
-
-- [ ] **Step 7: Switch CloudBase staging to TencentDB**
-
-  Set staging:
-
-  ```text
-  MONGODB_URI=staging-tencentdb-uri-from-secret-store
-  MONGO_DB_NAME=happyword_cloudbase_staging
+  ```bash
+  cd server
+  uv run python -m scripts.flexdb_api_smoke
   ```
 
-  Run:
+  It should use Tencent Cloud SDK/signing with env vars and perform the same
+  create/insert/query/update/index/delete probe against a caller-specified
+  temporary table.
+
+  Acceptance:
+
+  - Works from local terminal.
+  - Works from CloudBase staging or a CloudBase Run job path.
+  - Cleans up the temporary table even after expected duplicate-key failures.
+  - Redacts EnvId/Tag where appropriate and never logs API secrets.
+
+- [ ] **Step 6: Map Beanie/Motor usage to migration choices**
+
+  Build a concise compatibility map from current server code:
+
+  - direct model CRUD
+  - upserts
+  - sorted/limited queries
+  - regex/search filters
+  - unique indexes
+  - direct `get_motor_collection` usage
+  - transaction/aggregation-like needs
+
+  Acceptance: the runbook states whether URI switch is feasible or whether a
+  repository/API adapter is required, with the riskiest call sites named.
+
+- [ ] **Step 7: Build one staging migration rehearsal**
+
+  Choose based on Step 4:
+
+  ```text
+  URI path: import Atlas export into FlexDB, create indexes, point staging
+            MONGODB_URI/MONGO_DB_NAME at FlexDB.
+  API path: replay Atlas export into FlexDB tables, then run a small
+            adapter-backed staging service or branch deployment.
+  ```
+
+  Acceptance: collection counts and critical unique indexes match the recorded
+  Atlas inventory.
+
+- [ ] **Step 8: Run staging app smoke on FlexDB path**
+
+  Run the same product smoke set:
 
   ```bash
   cd server
   E2E_BASE_URL="$CLOUDBASE_STAGING_BASE_URL" uv run pytest -v -m smoke
   ```
 
-  Acceptance: staging smoke passes with TencentDB target.
+  Acceptance: health, public pack read, admin login, parent login, one safe
+  write path, and lesson-import/cron path pass against the FlexDB-backed target.
 
-- [ ] **Step 8: Provision production TencentDB for MongoDB target**
+- [ ] **Step 9: Decide production cutover path**
 
-  Create production instance sized for current Atlas workload.
+  Decide:
 
-  Requirements:
+  - FlexDB shared instance now.
+  - FlexDB isolated instance.
+  - TencentDB fallback.
+  - Delay database migration and keep Atlas during the rest of CloudBase cutover.
 
-  - Backup policy and restore test defined.
-  - Monitoring alarms configured.
-  - Connection URI stored only in CloudBase/Tencent secret store.
-  - Rollback Atlas URI preserved.
-
-- [ ] **Step 9: Run production DTS full + incremental sync**
-
-  Configure production DTS from Atlas production to TencentDB production.
-
-  Acceptance:
-
-  - Precheck passes.
-  - Full sync completes.
-  - Incremental lag reaches zero or a documented acceptable cutover value.
+  Acceptance: decision is recorded with cost, risk, rollback, and next
+  implementation steps.
 
 - [ ] **Step 10: Production database cutover**
 
-  Cutover sequence:
+  Cutover sequence depends on Step 9, but must include:
 
-  1. Announce a short maintenance/write-freeze window.
+  1. Announce a short maintenance/write-freeze window if the path is not
+     incremental.
   2. Stop or pause write-heavy admin/import jobs.
-  3. Confirm DTS incremental lag is zero.
-  4. Change CloudBase production `MONGODB_URI` to TencentDB.
+  3. Run final export/import or wait for the selected migration path to catch up.
+  4. Switch CloudBase production database settings or deployment version.
   5. Restart/redeploy CloudBase production service.
-  6. Run health, public pack, admin login, parent login, one safe write, and cron smoke.
+  6. Run health, public pack, admin login, parent login, one safe write, and
+     cron smoke.
 
   Rollback: restore the previous Atlas `MONGODB_URI` and restart CloudBase.
 
@@ -1505,7 +1515,7 @@
 
   After rollback window:
 
-  - Stop DTS.
+  - Stop any migration sync/replay task.
   - Take/export final Atlas backup if needed.
   - Remove Atlas URI from CloudBase env vars and local secret inventory.
   - Update `docs/ci-secrets.md`.
@@ -1516,8 +1526,9 @@
   Run:
 
   ```bash
-  git add docs/server/cloudbase-run.md docs/ci-secrets.md
-  git commit -m "docs: add cloudbase database replacement plan"
+  git add docs/server/cloudbase-run.md docs/ci-secrets.md \
+    docs/superpowers/plans/2026-05-17-cloudbase-run-migration-execution-checklist.md
+  git commit -m "docs: add cloudbase flexdb migration spike"
   ```
 
 ## M8: Preview and QA Replacement
