@@ -39,6 +39,7 @@ async def split_draft_to_new_pack(
     new_description: str | None,
     mode: Literal["copy", "move"],
     parent_user_id: str,
+    new_pack_id: str | None = None,
 ) -> DraftSplitResult:
     """Split selected draft words into a newly-created pack draft."""
 ```
@@ -60,7 +61,7 @@ Behavior:
 4. Verify every requested word id exists in the source draft.
 5. Build selected entries in source draft order, not request order.
 6. Validate selected count does not exceed `family_pack_max_words`.
-7. Create a new pack definition in the same `family_id` as the source definition.
+7. Create a new pack definition in the same `family_id` as the source definition. Family callers leave `new_pack_id` empty so the normal `pck-` id generator is used; global callers pass a generated `gpk-` id through the global wrapper.
 8. Create the new draft with copies of the selected word entry dictionaries.
 9. If `mode == "move"`, remove selected ids from the source draft and update source timestamps.
 10. Update the new definition timestamp via normal draft creation/update behavior.
