@@ -448,13 +448,92 @@ FlexDB adapter spike risks:
 - CloudBase API rate limits and latency must be measured from CloudBase Run;
   the CLI spike proves semantics, not production throughput.
 
+Lighthouse MongoDB fallback, configured 2026-05-23:
+
+```text
+Instance: lhins-nxph0u6i
+Public IP: 81.70.210.220
+OS: OpenCloudOS 9.4
+MongoDB: 8.0.23 Community Edition, matching the current Atlas source version
+Topology: single-node replica set rs0
+Database: happyword
+Risk stance: accepted for low current user volume; revisit managed/HA database
+             when traffic or operational risk increases.
+```
+
+Server-side configuration:
+
+- Added MongoDB official RHEL 9 yum repo and installed `mongodb-org` 8.0.23.
+- Added a 2 GB swapfile on the 2 GB RAM instance.
+- Configured `/etc/mongod.conf` with `replSetName: rs0`,
+  `security.authorization: enabled`, and keyFile auth.
+- Created three users: `happyword_admin` (`root`), `happyword_app`
+  (`readWrite` on `happyword`), and `happyword_backup` (`backup` +
+  `clusterMonitor`).
+- Stored generated credentials only on the server at
+  `/root/happyword-mongodb-credentials.env` with mode `600`.
+- Kept MongoDB bound to `127.0.0.1:27017` for now. It is not publicly exposed;
+  CloudBase connectivity still needs a VPC/private route or a tightly
+  allowlisted public listener with TLS.
+- Configured daily local backups at 03:17 through
+  `/usr/local/sbin/happyword-mongodb-backup.sh`; archives land in
+  `/var/backups/happyword-mongodb`, mode `600`, retained for 7 days.
+
+Validation completed on 2026-05-23:
+
+```text
+systemctl is-enabled mongod: enabled
+systemctl is-active mongod: active
+Replica set: rs0, isWritablePrimary: true
+Listening address: 127.0.0.1:27017
+MongoDB version: 8.0.23
+Local app-user auth ping: ok
+Local backup script: ok
+```
+
+Validated through an SSH tunnel with the existing backend smoke:
+
+```bash
+ssh -N -L 127.0.0.1:27018:127.0.0.1:27017 root@81.70.210.220
+
+cd server
+MONGODB_URI=... MONGO_DB_NAME=happyword \
+  uv run python -m scripts.db_connectivity_smoke \
+  --write-probe \
+  --probe-collection _lighthouse_migration_probe
+```
+
+Smoke result:
+
+```text
+ok: true
+server.version: 8.0.23
+collection_count: 0
+write_probe.insert_acknowledged: true
+write_probe.read_back: true
+write_probe.deleted_count: 1
+```
+
+Next Lighthouse MongoDB tasks:
+
+1. Decide CloudBase-to-Lighthouse network path:
+   - preferred: private/VPC route if available;
+   - fallback: public `27017` only after TLS is enabled and Tencent firewall is
+     allowlisted to a fixed CloudBase egress IP.
+2. Run Atlas `mongodump`/`mongorestore` rehearsal into the Lighthouse instance
+   via SSH tunnel, then run `scripts.db_inventory` against the target.
+3. Perform a restore drill from `/var/backups/happyword-mongodb`.
+4. Move backups to COS or another off-instance destination before production
+   cutover; local-only backups do not protect against instance loss.
+
 TencentDB fallback branch:
 
-If FlexDB cannot be used through a driver URI and the adapter spike is too large
-for M7A, return to TencentDB for MongoDB. The earlier TencentDB plan remains
-valid technically: provision `ap-shanghai`, use a compatible MongoDB version,
-enable backup, validate `MONGODB_URI` with `scripts.db_connectivity_smoke`, then
-choose DTS or a short write-freeze dump/import for the tiny current dataset.
+If FlexDB cannot be used through a driver URI, the adapter spike is too large
+for M7A, and Lighthouse single-node risk becomes unacceptable, return to
+TencentDB for MongoDB. The earlier TencentDB plan remains valid technically:
+provision `ap-shanghai`, use a compatible MongoDB version, enable backup,
+validate `MONGODB_URI` with `scripts.db_connectivity_smoke`, then choose DTS or
+a short write-freeze dump/import for the tiny current dataset.
 
 ### Vercel Blob Replacement
 
