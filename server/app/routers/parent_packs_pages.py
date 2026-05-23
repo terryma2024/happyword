@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from json import JSONDecodeError
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, File, Form, Path, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -125,6 +125,8 @@ async def _render_pack_detail(
     batch_error: str = "",
     batch_row_errors: list[dict[str, object]] | None = None,
     add_word_error: str = "",
+    split_ok: str = "",
+    split_error: str = "",
 ) -> HTMLResponse:
     pointer, pack = await svc.current_pack(definition=definition)
     draft = await svc.get_or_create_draft(
@@ -146,6 +148,8 @@ async def _render_pack_detail(
             "batch_error": batch_error,
             "batch_row_errors": batch_row_errors or [],
             "add_word_error": add_word_error,
+            "split_ok": split_ok,
+            "split_error": split_error,
             "import_ok": False,
             "import_hint": "",
         },
@@ -551,6 +555,57 @@ async def draft_batch_delete_words(
     return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs/{pack_id}", status_code=303)
 
 
+@router.post("/{family_id}/packs/{pack_id}/draft/split", response_model=None)
+async def draft_split_words(
+    request: Request,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
+) -> HTMLResponse | RedirectResponse:
+    _ = family_id
+    gate = await _require_parent_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    user = gate
+    definition = await _load_definition_or_redirect(pack_id, user)
+    if definition is None:
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
+
+    form = await request.form()
+    seen: set[str] = set()
+    word_ids: list[str] = []
+    for raw in form.getlist("word_ids"):
+        word_id = str(raw).strip()
+        if word_id and word_id not in seen:
+            seen.add(word_id)
+            word_ids.append(word_id)
+    mode = str(form.get("mode", "copy")).strip()
+    new_name = str(form.get("new_name", "")).strip()
+    new_description_raw = str(form.get("new_description", "")).strip()
+    new_description = new_description_raw or None
+
+    try:
+        result = await svc.split_draft_to_new_pack(
+            source_definition=definition,
+            word_ids=word_ids,
+            new_name=new_name,
+            new_description=new_description,
+            mode=cast("Literal['copy', 'move']", mode),
+            parent_user_id=user.username,
+        )
+    except (svc.InvalidPayload, svc.DraftWordNotFound, svc.NameTaken, svc.WordLimitExceeded) as exc:
+        return await _render_pack_detail(
+            request,
+            user=user,
+            definition=definition,
+            split_error=getattr(exc, "code", "INVALID_PAYLOAD"),
+        )
+
+    return RedirectResponse(
+        url=f"/family/{user.family_id or '_'}/packs/{result.new_definition.pack_id}?split_ok={result.mode}",
+        status_code=303,
+    )
+
+
 @router.post("/{family_id}/packs/{pack_id}/draft/batch-json", response_model=None)
 async def draft_batch_json(
     request: Request,
@@ -847,6 +902,7 @@ async def detail_page(
     import_ok = request.query_params.get("import_ok") == "1"
     import_hint = request.query_params.get("import_hint", "")
     title_ok = request.query_params.get("title_ok") == "1"
+    split_ok = request.query_params.get("split_ok", "")
     return templates.TemplateResponse(
         request,
         "parent/packs/detail.html",
@@ -863,6 +919,8 @@ async def detail_page(
             "batch_error": "",
             "batch_row_errors": [],
             "add_word_error": "",
+            "split_ok": split_ok,
+            "split_error": "",
             "import_ok": import_ok,
             "import_hint": import_hint,
         },

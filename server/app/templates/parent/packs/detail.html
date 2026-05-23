@@ -113,6 +113,30 @@
     </div>
   {% endif %}
 
+  {% if split_ok %}
+    <div class="rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 px-4 py-3 text-sm">
+      {% if split_ok == "copy" %}
+        已复制所选词条到新的词包。
+      {% elif split_ok == "move" %}
+        已移动所选词条到新的词包。
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if split_error %}
+    <div class="rounded-md border border-rose-200 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
+      {% if split_error == "INVALID_PAYLOAD" %}
+        请选择要拆分的词条，并填写新词包名称。
+      {% elif split_error == "DRAFT_WORD_NOT_FOUND" %}
+        所选词条已不在草稿中，请刷新后重试。
+      {% elif split_error == "NAME_TAKEN" %}
+        已有同名词包，请换一个名称。
+      {% elif split_error == "WORD_LIMIT_EXCEEDED" %}
+        所选词条超过单个词包上限。
+      {% endif %}
+    </div>
+  {% endif %}
+
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
     <h2 class="text-lg font-semibold text-slate-900">发布状态</h2>
     <p class="text-sm text-slate-600 mt-2">
@@ -173,10 +197,25 @@
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h2 class="text-lg font-semibold text-slate-900">草稿词条</h2>
-      <form id="draft-batch-delete-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/batch-delete" class="flex items-center gap-3">
-        <span id="draft-selection-count" class="text-xs text-slate-500">已选择 0 项</span>
-        <button id="draft-batch-delete-submit" type="submit" disabled class="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300">删除所选</button>
-      </form>
+      <div class="flex flex-wrap items-end gap-3">
+        <form id="draft-split-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/split" class="flex flex-wrap items-end gap-2">
+          <label class="text-xs text-slate-600">新词包名称
+            <input name="new_name" required maxlength="32" class="mt-1 w-40 rounded-md border border-slate-300 px-2 py-1.5 text-xs" />
+          </label>
+          <label class="text-xs text-slate-600">模式
+            <select name="mode" class="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-xs">
+              <option value="move">移动</option>
+              <option value="copy">复制</option>
+            </select>
+          </label>
+          <input name="new_description" maxlength="200" placeholder="描述（可选）" class="rounded-md border border-slate-300 px-2 py-1.5 text-xs" />
+          <button id="draft-split-submit" type="submit" disabled class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">拆分所选</button>
+        </form>
+        <form id="draft-batch-delete-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/batch-delete" class="flex items-center gap-3">
+          <span id="draft-selection-count" class="text-xs text-slate-500">已选择 0 项</span>
+          <button id="draft-batch-delete-submit" type="submit" disabled class="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300">删除所选</button>
+        </form>
+      </div>
     </div>
     <table id="draft-word-table" class="w-full text-sm">
       <thead>
@@ -225,18 +264,37 @@
     const draftSelectAll = document.getElementById("draft-select-all");
     const draftCheckboxes = Array.from(document.querySelectorAll(".draft-word-checkbox"));
     const draftBatchDeleteSubmit = document.getElementById("draft-batch-delete-submit");
+    const draftSplitForm = document.getElementById("draft-split-form");
+    const draftSplitSubmit = document.getElementById("draft-split-submit");
     const draftSelectionCount = document.getElementById("draft-selection-count");
     if (!draftSelectAll || !draftBatchDeleteSubmit) {
       return;
     }
+    const syncSelectionInputs = (form) => {
+      form.querySelectorAll('input[data-generated-word-id="1"]').forEach((node) => node.remove());
+      draftCheckboxes.filter((box) => box.checked).forEach((box) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "word_ids";
+        input.value = box.value;
+        input.dataset.generatedWordId = "1";
+        form.appendChild(input);
+      });
+    };
     const updateDraftBatchState = () => {
       const checkedCount = draftCheckboxes.filter((box) => box.checked).length;
       draftBatchDeleteSubmit.disabled = checkedCount === 0;
+      if (draftSplitSubmit) {
+        draftSplitSubmit.disabled = checkedCount === 0;
+      }
       if (draftSelectionCount) {
         draftSelectionCount.textContent = `已选择 ${checkedCount} 项`;
       }
       draftSelectAll.checked = checkedCount > 0 && checkedCount === draftCheckboxes.length;
       draftSelectAll.indeterminate = checkedCount > 0 && checkedCount < draftCheckboxes.length;
+      if (draftSplitForm) {
+        syncSelectionInputs(draftSplitForm);
+      }
     };
     draftSelectAll.addEventListener("change", () => {
       draftCheckboxes.forEach((box) => {
@@ -247,6 +305,9 @@
     draftCheckboxes.forEach((box) => {
       box.addEventListener("change", updateDraftBatchState);
     });
+    if (draftSplitForm) {
+      draftSplitForm.addEventListener("submit", () => syncSelectionInputs(draftSplitForm));
+    }
     updateDraftBatchState();
   })();
 </script>
