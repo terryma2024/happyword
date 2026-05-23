@@ -460,6 +460,20 @@ internal fun BattleScreen(
                                 .offset(y = (-12).dp),
                             onDispose = { key -> monsterFloaters = monsterFloaters.filter { it.id != key } },
                         )
+                        if (state.currentMonsterBonus) {
+                            Text(
+                                "Bonus",
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFFFFB400))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .testTag("MonsterBonusStar_${state.monsterIndex}"),
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
                 BattleProjectileOverlay(outcome = activeOutcome, modifier = Modifier.fillMaxSize().zIndex(2f))
@@ -841,4 +855,3 @@ internal fun monsterResourceForPack(packId: String): Int {
         else -> R.raw.character_slime
     }
 }
-

@@ -80,6 +80,54 @@ final class BattleEngineTests: XCTestCase {
         XCTAssertEqual(result.correctRate, 1.0)
     }
 
+    func testAdvancedAndSuperMonstersCanDealHeavyAttackDamage() throws {
+        let engine = BattleEngine(
+            questionSource: FixedQuestionSource(repeating: [
+                Question.choice(wordId: "apple", promptZh: "苹果", answer: "apple", options: ["apple", "pear", "banana"]),
+                Question.choice(wordId: "pear", promptZh: "梨", answer: "pear", options: ["pear", "apple", "banana"]),
+                Question.choice(wordId: "banana", promptZh: "香蕉", answer: "banana", options: ["banana", "apple", "pear"]),
+            ]),
+            config: GameConfig(playerMaxHp: 5, monsterMaxHp: 1, monstersTotal: 10, startingSeconds: 300),
+            randomDouble: { 0.25 }
+        )
+
+        engine.start()
+        for _ in 1...7 {
+            let answer = try XCTUnwrap(engine.state.currentQuestion?.answer)
+            _ = try engine.submitAnswer(answer)
+        }
+        let current = try XCTUnwrap(engine.state.currentQuestion)
+        let wrongAnswer = try XCTUnwrap(current.options.first { $0 != current.answer })
+        let outcome = try engine.submitAnswer(wrongAnswer)
+
+        XCTAssertFalse(outcome.correct)
+        XCTAssertEqual(outcome.damage, 2)
+        XCTAssertEqual(engine.state.playerHp, 3)
+    }
+
+    func testBonusMonsterKillsIncreaseWonCoinRewardByThirtyPercent() throws {
+        let engine = BattleEngine(
+            questionSource: FixedQuestionSource(repeating: [
+                Question.choice(wordId: "apple", promptZh: "苹果", answer: "apple", options: ["apple", "pear", "banana"]),
+                Question.choice(wordId: "pear", promptZh: "梨", answer: "pear", options: ["pear", "apple", "banana"]),
+            ]),
+            config: GameConfig(playerMaxHp: 5, monsterMaxHp: 1, monstersTotal: 8, startingSeconds: 300),
+            randomDouble: { 0.10 }
+        )
+
+        engine.start()
+        while engine.state.status == .playing {
+            let answer = try XCTUnwrap(engine.state.currentQuestion?.answer)
+            _ = try engine.submitAnswer(answer)
+        }
+
+        let result = try engine.buildSessionResult()
+        XCTAssertEqual(result.status, .won)
+        XCTAssertEqual(result.stars, 3)
+        XCTAssertEqual(result.bonusKillCount, 1)
+        XCTAssertEqual(result.coinsEarned, 4)
+    }
+
     func testTimerLossEndsBattleOnce() throws {
         let engine = BattleEngine(
             questionSource: FixedQuestionSource.single(

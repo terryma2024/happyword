@@ -31,6 +31,8 @@ struct BattleState: Equatable {
     var totalAnswers: Int = 0
     var correctAnswers: Int = 0
     var learnedWordIds: [String] = []
+    var currentMonsterBonus: Bool = false
+    var bonusKillCount: Int = 0
 
     init(config: GameConfig) {
         playerMaxHp = config.playerMaxHp
@@ -70,6 +72,7 @@ struct SessionResult: Equatable {
     var stars: Int
     var coinsEarned: Int = 0
     var coinsTotal: Int = 0
+    var bonusKillCount: Int = 0
 }
 
 final class BattleEngine: ObservableObject {
@@ -77,16 +80,19 @@ final class BattleEngine: ObservableObject {
     static let comboBurstDamage = 2
 
     private let questionSource: QuestionSource
+    private let randomDouble: () -> Double
     @Published private(set) var state: BattleState
 
-    init(questionSource: QuestionSource, config: GameConfig = .default) {
+    init(questionSource: QuestionSource, config: GameConfig = .default, randomDouble: @escaping () -> Double = { Double.random(in: 0..<1) }) {
         self.questionSource = questionSource
+        self.randomDouble = randomDouble
         state = BattleState(config: config)
     }
 
     func start() {
         guard state.status == .ready else { return }
         state.status = .playing
+        state.currentMonsterBonus = rollsBonusMonster(for: state.monsterIndex)
         if let question = try? questionSource.nextQuestion() {
             state.currentQuestion = question
             rememberWord(question.wordId)
@@ -118,7 +124,7 @@ final class BattleEngine: ObservableObject {
         }
 
         let correct = isCorrect(option: option, question: question)
-        var outcome = AnswerOutcome(correct: correct, damage: 1)
+        var outcome = AnswerOutcome(correct: correct, damage: correct ? 1 : monsterAttackDamage(for: state.monsterIndex))
 
         if question.kind == .fillLetterMedium && correct && question.currentStep < 1 {
             revealMediumStepLetter(&question, chosen: option)
@@ -142,6 +148,9 @@ final class BattleEngine: ObservableObject {
             if state.monsterHp <= 0 {
                 state.monsterHp = 0
                 state.defeatedMonsters += 1
+                if state.currentMonsterBonus {
+                    state.bonusKillCount += 1
+                }
                 outcome.monsterDefeated = true
                 if state.defeatedMonsters >= state.monstersTotal {
                     finish(status: .won)
@@ -151,6 +160,7 @@ final class BattleEngine: ObservableObject {
                 }
                 state.monsterIndex += 1
                 state.monsterHp = state.monsterMaxHp
+                state.currentMonsterBonus = rollsBonusMonster(for: state.monsterIndex)
                 outcome.newMonsterSpawned = true
             }
         } else {
@@ -193,6 +203,7 @@ final class BattleEngine: ObservableObject {
             throw BattleError.notPlaying
         }
         let rate = state.totalAnswers > 0 ? Double(state.correctAnswers) / Double(state.totalAnswers) : 0
+        let stars = computeStars(rate: rate)
         return SessionResult(
             status: state.status,
             defeatedMonsters: state.defeatedMonsters,
@@ -201,7 +212,9 @@ final class BattleEngine: ObservableObject {
             correctAnswers: state.correctAnswers,
             correctRate: rate,
             learnedWordCount: state.learnedWordIds.count,
-            stars: computeStars(rate: rate)
+            stars: stars,
+            coinsEarned: coinReward(stars: stars),
+            bonusKillCount: state.bonusKillCount
         )
     }
 
@@ -261,5 +274,22 @@ final class BattleEngine: ObservableObject {
             return 1
         }
         return 0
+    }
+
+    private func monsterAttackDamage(for catalogIndex1Based: Int) -> Int {
+        let level = MonsterCodex.level(forCatalogIndex1Based: catalogIndex1Based)
+        guard level == .advanced || level == .super else { return 1 }
+        return randomDouble() < 0.5 ? 2 : 1
+    }
+
+    private func rollsBonusMonster(for catalogIndex1Based: Int) -> Bool {
+        let level = MonsterCodex.level(forCatalogIndex1Based: catalogIndex1Based)
+        guard level == .advanced || level == .super else { return false }
+        return randomDouble() < 0.3
+    }
+
+    private func coinReward(stars: Int) -> Int {
+        guard state.status == .won, state.bonusKillCount > 0 else { return stars }
+        return Int(ceil(Double(stars) * 1.3))
     }
 }

@@ -99,7 +99,7 @@ fun PackManagerScreen(
     onSync: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val activeCountText = "已激活 ${selection.activePackIds.size} / 5"
+    val activeCountText = "已激活 ${selection.activePackIds.size} / ${PackSelectionStore.MAX_ACTIVE}"
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -146,7 +146,13 @@ fun PackManagerScreen(
                 Text("固定：防止满分自动轮换 · 开关：切换激活", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
             if (message.isNotBlank()) {
-                Text(message, color = Color(0xFFD94141), modifier = Modifier.padding(vertical = 6.dp).testTag("PackManagerLimitMessage"))
+                val messageTag = when {
+                    message.contains("已关闭") && message.contains("以激活") -> "PackManagerAutoRotateToast"
+                    message == "请先取消固定一个词包" -> "PackManagerCapRefuseToast"
+                    else -> "PackManagerLimitMessage"
+                }
+                val messageColor = if (messageTag == "PackManagerLimitMessage") Color(0xFF147C42) else Color(0xFFD94141)
+                Text(message, color = messageColor, modifier = Modifier.padding(vertical = 6.dp).testTag(messageTag))
             }
         }
         items(packs) { pack ->
@@ -786,6 +792,18 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
                 .testTag("MonsterCodexKind"),
             fontSize = 15.sp,
             color = Color(0xFF0C85B6),
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            current.levelLabelZh,
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFFD84545))
+                .padding(horizontal = 18.dp, vertical = 3.dp)
+                .testTag("MonsterCodexLevelBadge_${current.id}"),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
         )
         Spacer(Modifier.height(2.dp))
         Text("${catalog.index + 1} / ${catalog.entries.size}", modifier = Modifier.testTag("MonsterCodexPosition"), fontSize = 14.sp, color = Color(0xFF8A8A8A))

@@ -57,6 +57,7 @@ class BattleEngine(
             wrongCount = 0,
             defeatedMonsters = 0,
             question = question,
+            currentMonsterBonus = rollsBonusMonster(monsterIndex = 1),
         )
     }
 
@@ -99,7 +100,8 @@ class BattleEngine(
         }
 
         if (!correct) {
-            val nextPlayerHp = (state.playerHp - 1).coerceAtLeast(0)
+            val attackDamage = monsterAttackDamage(state.monsterIndex)
+            val nextPlayerHp = (state.playerHp - attackDamage).coerceAtLeast(0)
             val nextState = state.copy(
                 playerHp = nextPlayerHp,
                 combo = 0,
@@ -112,7 +114,7 @@ class BattleEngine(
                 correctAnswer = state.question.correctAnswer,
                 question = state.question,
                 correct = false,
-                damage = 1,
+                damage = attackDamage,
                 comboTriggered = false,
                 monsterDefeated = false,
                 playerDamaged = true,
@@ -137,12 +139,14 @@ class BattleEngine(
         }
 
         val defeated = state.defeatedMonsters + 1
+        val bonusKillCount = state.bonusKillCount + if (state.currentMonsterBonus) 1 else 0
         if (defeated >= config.monsterCount) {
             val nextState = state.copy(
                 monsterHp = 0,
                 combo = nextCombo,
                 correctCount = state.correctCount + 1,
                 defeatedMonsters = defeated,
+                bonusKillCount = bonusKillCount,
                 status = BattleStatus.Won,
             )
             return correctOutcome(state, answer, damage, comboTriggered, monsterDefeated = true, nextState = nextState)
@@ -155,7 +159,9 @@ class BattleEngine(
             combo = nextCombo,
             correctCount = state.correctCount + 1,
             defeatedMonsters = defeated,
+            bonusKillCount = bonusKillCount,
             question = nextQuestionAfter(state.question.wordId, nextMonsterIndex),
+            currentMonsterBonus = rollsBonusMonster(nextMonsterIndex),
         )
         return correctOutcome(state, answer, damage, comboTriggered, monsterDefeated = true, nextState = nextState)
     }
@@ -169,6 +175,11 @@ class BattleEngine(
             state.defeatedMonsters >= 1 -> 1
             else -> 0
         }
+        val coinDelta = if (state.status == BattleStatus.Won && state.bonusKillCount > 0) {
+            kotlin.math.ceil(stars.toDouble() * 1.3).toInt()
+        } else {
+            stars
+        }
         return SessionResult(
             won = state.status == BattleStatus.Won,
             stars = stars,
@@ -176,7 +187,8 @@ class BattleEngine(
             correctCount = state.correctCount,
             wrongCount = state.wrongCount,
             learnedWordCount = state.correctCount,
-            coinDelta = stars,
+            coinDelta = coinDelta,
+            bonusKillCount = state.bonusKillCount,
         )
     }
 
@@ -425,6 +437,21 @@ class BattleEngine(
         val span = maxInclusive - minInclusive + 1
         val offset = (randomDouble().coerceIn(0.0, 0.999999) * span).toInt().coerceIn(0, span - 1)
         return minInclusive + offset
+    }
+
+    private fun monsterAttackDamage(monsterIndex: Int): Int {
+        return when (MonsterLevel.forCatalogIndex(monsterIndex)) {
+            MonsterLevel.Advanced, MonsterLevel.Super -> if (randomDouble() < 0.5) 2 else 1
+            else -> 1
+        }
+    }
+
+    private fun rollsBonusMonster(monsterIndex: Int): Boolean {
+        when (MonsterLevel.forCatalogIndex(monsterIndex)) {
+            MonsterLevel.Advanced, MonsterLevel.Super -> Unit
+            else -> return false
+        }
+        return randomDouble() < 0.3
     }
 
     companion object {

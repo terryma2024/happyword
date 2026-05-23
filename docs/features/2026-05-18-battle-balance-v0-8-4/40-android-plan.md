@@ -30,7 +30,7 @@
 
 ### Task 3: UI tests
 
-- [ ] Optional Compose/UI Automator parity for spell penalty + pacing smokes
+- [x] Optional Compose/UI Automator smokes explicitly deferred; not a V0.8.4 core parity blocker. Unit/domain parity plus stable runtime tags cover this pass.
 
 ### Task 4: Version
 
@@ -41,6 +41,7 @@
 ### Task 5: Verification
 
 - [x] `./gradlew testDebugUnitTest --tests BattleQuestionSchedulerTest`
-- [ ] `./gradlew testDebugUnitTest` (full suite before merge)
-- [ ] `./gradlew assembleDebug`
-- [ ] Update [`50-parity-checklist.md`](50-parity-checklist.md)
+- [x] Targeted V0.8.3 parity/core suite: `./gradlew testDebugUnitTest --tests 'cool.happyword.wordmagic.core.PackSelectionStoreTest' --tests 'cool.happyword.wordmagic.core.GrowthStoresTest' --tests 'cool.happyword.wordmagic.core.BattleEngineTest'`
+- [ ] `./gradlew testDebugUnitTest` (full suite not rerun during 2026-05-23 roadmap hygiene)
+- [ ] `./gradlew assembleDebug` (not rerun during 2026-05-23 roadmap hygiene)
+- [x] Update [`50-parity-checklist.md`](50-parity-checklist.md)

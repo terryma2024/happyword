@@ -123,14 +123,14 @@ final class WordMagicGameUITests: XCTestCase {
         app.buttons["我的词包"].tap()
 
         XCTAssertTrue(app.staticTexts["我的词包"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["已激活 5 / 5"].exists)
+        XCTAssertTrue(app.staticTexts["已激活 5 / 10"].exists)
         XCTAssertTrue(app.staticTexts["内置"].exists)
         XCTAssertTrue(app.staticTexts["Fruit Forest"].exists)
 
         app.buttons["固定 Fruit Forest"].tap()
         XCTAssertTrue(app.buttons["已固定 Fruit Forest"].waitForExistence(timeout: 2))
         app.switches["PackToggle_fruit-forest"].tap()
-        XCTAssertTrue(app.staticTexts["已激活 4 / 5"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["已激活 4 / 10"].waitForExistence(timeout: 2))
 
         app.buttons["返回"].tap()
         XCTAssertTrue(app.staticTexts["ConfigTitle"].waitForExistence(timeout: 5))
@@ -148,6 +148,10 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["魔法愿望单"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["我的魔法币: 20 ✨"].exists)
         app.buttons["兑换 看 iPad 20 分钟"].tap()
+        XCTAssertTrue(app.secureTextFields["家长 PIN"].waitForExistence(timeout: 5))
+        app.secureTextFields["家长 PIN"].tap()
+        app.secureTextFields["家长 PIN"].typeText("123456")
+        app.buttons["确认兑换"].tap()
 
         XCTAssertTrue(app.otherElements["WishlistGiftBoxModal"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["知道了"].exists)
@@ -501,12 +505,12 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Battle"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Pronounce"].exists)
         XCTAssertTrue(app.staticTexts["Choose the right spell"].exists)
-        XCTAssertTrue(app.staticTexts["HP 5 / 5"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["HP 10 / 10"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["HP 3 / 3"].firstMatch.waitForExistence(timeout: 5))
 
         tapFirstIncorrectFruitOption(in: app)
         XCTAssertTrue(waitForBattleFeedback(in: app)?.hasPrefix("Correct answer:") == true)
-        XCTAssertTrue(app.staticTexts["HP 4 / 5"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["HP 9 / 10"].firstMatch.waitForExistence(timeout: 5))
         waitForBattleFeedbackToClear(in: app)
 
         let correct = app.buttons["BattleCorrectOption"]
@@ -530,13 +534,13 @@ final class WordMagicGameUITests: XCTestCase {
         waitForBattleFeedbackToClear(in: app)
 
         app.terminate()
-        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestBattleBossFirst", "-UITestRouteBattle"]
+        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestBattleSpellOnly", "-UITestBattleBossFirst", "-UITestRouteBattle"]
         app.launch()
         assertLandscape(app)
         XCTAssertTrue(app.staticTexts["_"].firstMatch.waitForExistence(timeout: 5))
 
         tapFirstIncorrectBattleOption(in: app)
-        XCTAssertTrue(app.staticTexts["Try again"].waitForExistence(timeout: 2))
+        XCTAssertEqual(waitForBattleFeedback(in: app), "Try again")
         XCTAssertTrue(app.staticTexts["_"].firstMatch.exists)
 
         tapCurrentCorrectBattleOption(in: app)
@@ -654,7 +658,20 @@ final class WordMagicGameUITests: XCTestCase {
     @MainActor
     private func tapCurrentCorrectBattleOption(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         let button = app.buttons["BattleCorrectOption"]
-        XCTAssertTrue(button.waitForExistence(timeout: 2), file: file, line: line)
+        let victory = app.staticTexts["胜利"]
+        let loss = app.staticTexts["继续练习"]
+        let deadline = Date().addingTimeInterval(2)
+        while (!button.exists || !button.isHittable) && !victory.exists && !loss.exists && Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        if victory.exists {
+            return
+        }
+        if loss.exists {
+            XCTFail("Battle ended before victory", file: file, line: line)
+            return
+        }
+        XCTAssertTrue(button.exists, file: file, line: line)
         XCTAssertTrue(button.isHittable, file: file, line: line)
         button.tap()
     }
@@ -674,16 +691,22 @@ final class WordMagicGameUITests: XCTestCase {
     @MainActor
     private func tapCorrectBattleOptionsUntilVictory(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         let victory = app.staticTexts["胜利"]
+        let loss = app.staticTexts["继续练习"]
         for _ in 0..<40 {
             if victory.exists {
                 return
             }
+            waitForBattleFeedbackToClear(in: app)
             let button = app.buttons["BattleCorrectOption"]
             let deadline = Date().addingTimeInterval(2)
-            while (!button.exists || !button.isHittable) && !victory.exists && Date() < deadline {
+            while (!button.exists || !button.isHittable) && !victory.exists && !loss.exists && Date() < deadline {
                 RunLoop.current.run(until: Date().addingTimeInterval(0.1))
             }
             if victory.exists {
+                return
+            }
+            if loss.exists {
+                XCTFail("Battle ended before victory", file: file, line: line)
                 return
             }
             tapCurrentCorrectBattleOption(in: app, file: file, line: line)

@@ -39,7 +39,7 @@ struct PackManagerView: View {
                 Text(coordinator.packManagerMessage.isEmpty ? "固定：防止满分自动轮换 · 开关：切换激活" : coordinator.packManagerMessage)
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("PackManagerStatus")
+                    .accessibilityIdentifier(packManagerMessageId)
             }
 
             ScrollView {
@@ -54,6 +54,16 @@ struct PackManagerView: View {
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 14)
         .background(AppTheme.page)
+    }
+
+    private var packManagerMessageId: String {
+        if coordinator.packManagerMessage.contains("已关闭") && coordinator.packManagerMessage.contains("以激活") {
+            return "PackManagerAutoRotateToast"
+        }
+        if coordinator.packManagerMessage.contains("请先取消固定一个词包") {
+            return "PackManagerCapRefuseToast"
+        }
+        return "PackManagerStatus"
     }
 
     private func packRow(_ pack: Pack) -> some View {

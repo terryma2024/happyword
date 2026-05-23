@@ -7,12 +7,29 @@ import org.junit.Test
 
 class PackSelectionStoreTest {
     @Test
-    fun defaultsUseFiveBuiltinIdsAndRejectSixthActivePack() {
-        val store = PackSelectionStore.initial(BuiltinPacks.defaultActiveOrder)
+    fun selectionAllowsTenActivePacksAndAutoRotatesUnpinnedOverflow() {
+        val ids = listOf("fruit-forest", "home-room", "animal-friends", "color-party", "school-day", "ocean", "space", "music", "art", "sport")
+        val store = PackSelectionStore.initial(ids).togglePin("fruit-forest").selection
 
-        assertEquals(5, store.activePackIds.size)
-        assertFalse(store.activate("extra-pack").accepted)
-        assertEquals("最多只能同时启用 5 个词包", store.activate("extra-pack").message)
+        assertEquals(10, PackSelectionStore.MAX_ACTIVE)
+        assertEquals(ids, store.activePackIds)
+
+        val rotated = store.activate("science").selection
+
+        assertEquals(listOf("fruit-forest", "animal-friends", "color-party", "school-day", "ocean", "space", "music", "art", "sport", "science"), rotated.activePackIds)
+        assertEquals(10, rotated.activePackIds.size)
+    }
+
+    @Test
+    fun selectionRefusesOverflowWhenAllActivePacksArePinned() {
+        val ids = listOf("fruit-forest", "home-room", "animal-friends", "color-party", "school-day", "ocean", "space", "music", "art", "sport")
+        val store = ids.fold(PackSelectionStore.initial(ids)) { next, id -> next.togglePin(id).selection }
+
+        val result = store.activate("science")
+
+        assertFalse(result.accepted)
+        assertEquals("请先取消固定一个词包", result.message)
+        assertEquals(ids, result.selection.activePackIds)
     }
 
     @Test

@@ -437,7 +437,7 @@ fun WordMagicGameApp() {
 
     fun finishBattleSession(finishedState: BattleState) {
         val sessionResult = engine.resultFor(finishedState).copy(packId = selectedPack.id)
-        val credited = coinAccount.creditBattleReward(sessionResult.stars, LocalDate.now().toString())
+        val credited = coinAccount.creditBattleReward(sessionResult.coinDelta, LocalDate.now().toString())
         val sessionRecord = BattleSessionRecord(
             packId = selectedPack.id,
             won = sessionResult.won,

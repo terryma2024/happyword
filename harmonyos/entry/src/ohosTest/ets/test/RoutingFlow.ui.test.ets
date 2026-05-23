@@ -1,6 +1,12 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
+import {
+  cloneGameConfig,
+  GameConfig,
+  GAME_CONFIG_STORAGE_KEY,
+  GAME_MODE_NORMAL,
+} from '../../../main/ets/models/GameConfig';
 import { enForZh, findPlayerFullHpLabel } from './UiTestBattleHelpers.ets';
 
 /**
@@ -147,6 +153,25 @@ const QUESTION_TYPE_IDS: string[] = [
   'spell',
 ];
 
+/**
+ * UI tests share one app process and persistent GameConfig. Normalize
+ * battle knobs before suites that assert HP/timer defaults, while
+ * preserving parent-owned state such as an existing PIN.
+ */
+export function resetBattleConfigForUiTestShared(selectedTypes: string[] = QUESTION_TYPE_IDS): void {
+  const stored: GameConfig | undefined =
+    AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+  const next: GameConfig = cloneGameConfig(stored !== undefined ? stored : new GameConfig());
+  const defaults: GameConfig = new GameConfig();
+  next.playerMaxHp = defaults.playerMaxHp;
+  next.monsterMaxHp = defaults.monsterMaxHp;
+  next.monstersTotal = defaults.monstersTotal;
+  next.startingSeconds = defaults.startingSeconds;
+  next.mode = GAME_MODE_NORMAL;
+  next.enabledQuestionTypes = selectedTypes.slice();
+  AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, next);
+}
+
 export async function scrollToQuestionTypeChipsShared(driver: Driver): Promise<void> {
   try {
     for (let attempt: number = 0; attempt < 3; attempt++) {
@@ -211,6 +236,7 @@ export async function setQuestionTypeChipShared(driver: Driver, typeId: string, 
 
 export async function selectQuestionTypesShared(driver: Driver, selectedTypes: string[]): Promise<void> {
   try {
+    resetBattleConfigForUiTestShared(selectedTypes);
     await clickByIdShared(driver, 'HomeConfigButton');
     await driver.delayMs(1000);
     for (let i: number = 0; i < QUESTION_TYPE_IDS.length; i++) {
@@ -384,6 +410,7 @@ export default function routingFlowUiTest(): void {
      */
     it('mainFlow_homeBattleResultHome', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
+      resetBattleConfigForUiTestShared();
 
       // --- HomePage ---
       await driver.assertComponentExist(ON.id('HomeTitle'));

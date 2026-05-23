@@ -1,5 +1,25 @@
 import Foundation
 
+enum MonsterLevel: String, CaseIterable, Equatable {
+    case beginner
+    case intermediate
+    case advanced
+    case `super`
+
+    var badgeZh: String {
+        switch self {
+        case .beginner:
+            "初"
+        case .intermediate:
+            "中"
+        case .advanced:
+            "高"
+        case .super:
+            "Super"
+        }
+    }
+}
+
 struct MonsterCodexEntry: Identifiable, Equatable {
     let key: String
     let nameEn: String
@@ -8,6 +28,8 @@ struct MonsterCodexEntry: Identifiable, Equatable {
     let assetName: String
 
     var id: String { key }
+    var level: MonsterLevel { MonsterCodex.level(forKey: key) }
+    var levelBadgeZh: String { level.badgeZh }
 }
 
 enum MonsterCodex {
@@ -717,5 +739,27 @@ enum MonsterCodex {
     static func entry(catalogIndex1Based: Int) -> MonsterCodexEntry {
         guard catalogIndex1Based > 0 else { return entries[0] }
         return entries[(catalogIndex1Based - 1) % entries.count]
+    }
+
+    static func level(forCatalogIndex1Based catalogIndex1Based: Int) -> MonsterLevel {
+        guard catalogIndex1Based > 0 else { return .beginner }
+        let position = (catalogIndex1Based - 1) % 10
+        switch position {
+        case 0:
+            return .beginner
+        case 1...6:
+            return .intermediate
+        case 7...8:
+            return .advanced
+        default:
+            return .super
+        }
+    }
+
+    static func level(forKey key: String) -> MonsterLevel {
+        guard let index = entries.firstIndex(where: { $0.key == key }) else {
+            return .beginner
+        }
+        return level(forCatalogIndex1Based: index + 1)
     }
 }

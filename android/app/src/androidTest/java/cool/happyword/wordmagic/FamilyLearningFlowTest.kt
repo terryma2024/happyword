@@ -19,6 +19,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
@@ -231,45 +232,40 @@ class FamilyLearningFlowTest {
     @Test
     fun battleWrongAnswerHpAndComboBurstMatchHarmony() {
         launch(bound = false)
+        configureChoiceOnly()
         composeRule.onNodeWithTag("HomeStartButton").performClick()
         composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
 
         composeRule.onNodeWithText("Combo 0").assertIsDisplayed()
-        assertTrue(composeRule.onAllNodesWithText("HP 5 / 5").fetchSemanticsNodes().isNotEmpty())
-        composeRule.onNodeWithText("banana").performClick()
-        composeRule.onNodeWithText("Correct: apple").assertIsDisplayed()
-        composeRule.onNodeWithText("HP 4 / 5").assertIsDisplayed()
+        assertPlayerHp(10, 10)
+        tapVisibleWrongFruitAnswer()
+        composeRule.onNodeWithText("HP 9 / 10").assertIsDisplayed()
         waitForBattleFeedbackToClear()
 
-        tapCorrect("banana")
+        tapCorrectCurrentFruitChoice()
         waitForBattleFeedbackToClear()
-        tapCorrect("pear")
+        tapCorrectCurrentFruitChoice()
         waitForBattleFeedbackToClear()
-        tapCorrect("orange")
-        composeRule.onNodeWithText("Combo 3! Magic Burst x2").assertIsDisplayed()
+        tapCorrectCurrentFruitChoice()
+        composeRule.onNodeWithText("HP 1 / 5").assertIsDisplayed()
         composeRule.onNodeWithText("Combo 0").assertIsDisplayed()
     }
 
     @Test
     fun battleSpellRejectsWrongLettersLikeHarmony() {
         launch(bound = false)
-        configureOneHitMonsters()
+        configureSpellOnly()
         composeRule.onNodeWithTag("HomeStartButton").performClick()
         composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
 
-        answerVisibleText("apple")
-        waitForBattleFeedbackToClear()
-        answerVisibleText("banana")
-        waitForBattleFeedbackToClear()
-        answerVisibleText("pear")
-        waitForBattleFeedbackToClear()
-        answerVisibleText("orange")
         composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("BattleSpellArea") }
         composeRule.onNodeWithTag("BattleSpellSlotText_1").assertTextContains("_")
-        tapFirstSpellPoolTextNot("r")
+        assertPlayerHp(10, 10)
+        tapFirstWrongSpellPool()
         composeRule.onNodeWithTag("BattleSpellSlotText_1").assertTextContains("_")
-        composeRule.mainClock.advanceTimeBy(300)
-        composeRule.onNodeWithContentDescription("BattleSpellCorrectPool").performClick()
+        composeRule.onNodeWithText("HP 9 / 10").assertIsDisplayed()
+        waitForBattleFeedbackToClear()
+        tapFirstCorrectSpellPool()
         composeRule.waitUntil(timeoutMillis = 2_000) { slotText("BattleSpellSlotText_1") != "_" }
     }
 
@@ -298,28 +294,37 @@ class FamilyLearningFlowTest {
     private fun hasTag(tag: String): Boolean =
         composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
 
-    private fun tapCorrect(text: String) {
-        composeRule.waitUntil(timeoutMillis = 2_000) {
-            composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
-        }
-        composeRule.onNodeWithText(text).performClick()
+    private fun assertPlayerHp(current: Int, max: Int) {
+        assertTrue(composeRule.onAllNodesWithText("HP $current / $max").fetchSemanticsNodes().isNotEmpty())
     }
 
     private fun waitForBattleFeedbackToClear() {
         composeRule.waitUntil(timeoutMillis = 3_000) {
-            composeRule.onAllNodesWithText("Correct: apple").fetchSemanticsNodes().isEmpty() &&
+            fruitPromptToAnswer.values.all { answer ->
+                composeRule.onAllNodesWithText("Correct: $answer").fetchSemanticsNodes().isEmpty()
+            } &&
                 composeRule.onAllNodesWithText("Correct!").fetchSemanticsNodes().isEmpty() &&
                 composeRule.onAllNodesWithText("Combo 3! Magic Burst x2").fetchSemanticsNodes().isEmpty()
         }
     }
 
-    private fun configureOneHitMonsters() {
+    private fun configureChoiceOnly() {
         openConfig()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
-        repeat(20) {
-            composeRule.onNodeWithTag("ConfigMonsterHpDecrement").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
+        repeat(2) {
+            composeRule.onNodeWithTag("ConfigMonsterHpIncrement").performScrollTo().performClick()
         }
+        composeRule.onNodeWithTag("ConfigBackButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("HomeScreen") }
+    }
+
+    private fun configureSpellOnly() {
+        openConfig()
+        composeRule.onNodeWithTag("ConfigQuestionType_choice").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("HomeScreen") }
     }
@@ -331,26 +336,51 @@ class FamilyLearningFlowTest {
         composeRule.onNode(hasText(text) and hasClickAction() and isEnabled()).performClick()
     }
 
-    private fun answerFirstVisibleText(candidates: List<String>) {
-        composeRule.waitUntil(timeoutMillis = 2_000) {
-            candidates.any(::enabledClickableTextExists)
-        }
-        val text = candidates.first(::enabledClickableTextExists)
-        composeRule.onNode(hasText(text) and hasClickAction() and isEnabled()).performClick()
+    private fun tapFirstWrongSpellPool() {
+        tapFirstSpellPoolMatching(expectCorrect = false)
     }
 
-    private fun tapFirstSpellPoolTextNot(text: String) {
-        for (candidate in listOf("g", "a", "p", "e")) {
-            if (candidate != text && enabledClickableTextExists(candidate)) {
-                composeRule.onNode(hasText(candidate) and hasClickAction() and isEnabled()).performClick()
+    private fun tapFirstCorrectSpellPool() {
+        tapFirstSpellPoolMatching(expectCorrect = true)
+    }
+
+    private fun tapFirstSpellPoolMatching(expectCorrect: Boolean) {
+        for (index in 0 until 9) {
+            val nodes = composeRule.onAllNodesWithTag("BattleSpellPool_$index").fetchSemanticsNodes()
+            if (nodes.isEmpty()) continue
+            val descriptions = nodes.first().config.getOrNull(SemanticsProperties.ContentDescription).orEmpty()
+            val isCorrect = descriptions.contains("BattleSpellCorrectPool")
+            if (isCorrect == expectCorrect) {
+                composeRule.onNodeWithTag("BattleSpellPool_$index").performClick()
                 return
             }
         }
-        throw AssertionError("No wrong spell pool letter found")
+        throw AssertionError("No ${if (expectCorrect) "correct" else "wrong"} spell pool found")
     }
 
     private fun enabledClickableTextExists(text: String): Boolean =
         composeRule.onAllNodes(hasText(text) and hasClickAction() and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+
+    private fun tapCorrectCurrentFruitChoice() {
+        val answer = currentFruitAnswer()
+        answerVisibleText(answer)
+    }
+
+    private fun tapVisibleWrongFruitAnswer() {
+        val correct = currentFruitAnswer()
+        val wrong = fruitPromptToAnswer.values.first { it != correct && enabledClickableTextExists(it) }
+        answerVisibleText(wrong)
+    }
+
+    private fun currentFruitAnswer(): String {
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            fruitPromptToAnswer.keys.any { prompt -> composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty() }
+        }
+        val prompt = fruitPromptToAnswer.keys.first { prompt ->
+            composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty()
+        }
+        return fruitPromptToAnswer.getValue(prompt)
+    }
 
     private fun slotText(tag: String): String =
         composeRule.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.Text].joinToString("") { it.text }
@@ -378,5 +408,15 @@ class FamilyLearningFlowTest {
             parentFile?.mkdirs()
             writeText("device.jwt.token")
         }
+    }
+
+    private companion object {
+        val fruitPromptToAnswer = linkedMapOf(
+            "苹果" to "apple",
+            "香蕉" to "banana",
+            "梨" to "pear",
+            "橙子" to "orange",
+            "葡萄" to "grape",
+        )
     }
 }

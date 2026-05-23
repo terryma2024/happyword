@@ -37,4 +37,19 @@ final class MonsterCodexTests: XCTestCase {
         XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: 11).nameEn, "Jellyfish")
         XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: 101).nameEn, "Slime")
     }
+
+    func testMonsterCodexExposesHarmonyLevelDistribution() {
+        XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: 1).level, .beginner)
+        XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: 2).level, .intermediate)
+        XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: 8).level, .advanced)
+        XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: 10).level, .super)
+        XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: 110).level, .super)
+
+        let counts = Dictionary(grouping: MonsterCodex.entries, by: \.level).mapValues(\.count)
+        XCTAssertEqual(counts[.beginner], 10)
+        XCTAssertEqual(counts[.intermediate], 60)
+        XCTAssertEqual(counts[.advanced], 20)
+        XCTAssertEqual(counts[.super], 10)
+        XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: 10).levelBadgeZh, "Super")
+    }
 }

@@ -37,28 +37,47 @@ final class LocalGrowthTests: XCTestCase {
         XCTAssertEqual(library.builtinIds(), ["forest"])
     }
 
-    func testPackSelectionDefaultsCapPinAndPerfectRotation() {
-        let store = PackSelectionStore(defaultIds: ["forest", "home", "park", "school", "castle"])
-        XCTAssertEqual(store.activePackIds, ["forest", "home", "park", "school", "castle"])
+    func testPackSelectionDefaultsCapPinAppendRotationAndPerfectRotation() {
+        let initialIds = ["forest", "home", "park", "school", "castle", "ocean", "space", "music", "art", "sport"]
+        let store = PackSelectionStore(defaultIds: initialIds)
+        XCTAssertEqual(store.activePackIds, initialIds)
+        XCTAssertEqual(PackSelectionStore.maxActivePacks, 10)
 
-        XCTAssertFalse(store.setActive(["forest", "home", "park", "school", "castle", "ocean"]))
+        XCTAssertFalse(store.setActive(initialIds + ["science"]))
         XCTAssertFalse(store.setActive(["forest", "forest"]))
 
         XCTAssertTrue(store.togglePin("forest"))
         XCTAssertTrue(store.pinnedPackIds.contains("forest"))
-        XCTAssertFalse(store.togglePin("ocean"))
+        XCTAssertFalse(store.togglePin("science"))
+
+        let appendResult = store.appendOrRotate("science")
+        XCTAssertTrue(appendResult.accepted)
+        XCTAssertEqual(appendResult.autoClosedId, "home")
+        XCTAssertEqual(store.activePackIds, ["forest", "park", "school", "castle", "ocean", "space", "music", "art", "sport", "science"])
 
         let pinnedResult = store.recordPerfectAdventure(on: "forest", candidates: ["ocean"])
         XCTAssertFalse(pinnedResult.rotated)
-        XCTAssertEqual(store.activePackIds, ["forest", "home", "park", "school", "castle"])
+        XCTAssertTrue(store.activePackIds.contains("forest"))
 
-        _ = store.recordPerfectAdventure(on: "home", candidates: ["ocean"])
-        _ = store.recordPerfectAdventure(on: "home", candidates: ["ocean"])
-        let result = store.recordPerfectAdventure(on: "home", candidates: ["ocean"])
+        _ = store.recordPerfectAdventure(on: "park", candidates: ["theater"])
+        _ = store.recordPerfectAdventure(on: "park", candidates: ["theater"])
+        let result = store.recordPerfectAdventure(on: "park", candidates: ["theater"])
         XCTAssertTrue(result.rotated)
-        XCTAssertEqual(result.swappedOutId, "home")
-        XCTAssertEqual(result.swappedInId, "ocean")
-        XCTAssertEqual(store.activePackIds, ["forest", "park", "school", "castle", "ocean"])
+        XCTAssertEqual(result.swappedOutId, "park")
+        XCTAssertEqual(result.swappedInId, "theater")
+        XCTAssertEqual(store.activePackIds.count, 10)
+    }
+
+    func testAppendRotationRefusesWhenAllActivePacksArePinned() {
+        let ids = ["forest", "home", "park", "school", "castle", "ocean", "space", "music", "art", "sport"]
+        let store = PackSelectionStore(defaultIds: ids)
+        ids.forEach { XCTAssertTrue(store.togglePin($0)) }
+
+        let result = store.appendOrRotate("science")
+
+        XCTAssertFalse(result.accepted)
+        XCTAssertEqual(result.autoClosedId, "")
+        XCTAssertEqual(store.activePackIds, ids)
     }
 
     @MainActor

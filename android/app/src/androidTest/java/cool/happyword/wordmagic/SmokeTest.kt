@@ -90,7 +90,7 @@ class SmokeTest {
         composeRule.onNodeWithText("Question").assertIsDisplayed()
         composeRule.onNodeWithText("Small Magician").assertIsDisplayed()
         composeRule.onNodeWithText("Word Monster").assertIsDisplayed()
-        composeRule.onNodeWithText("Back").assertIsDisplayed()
+        composeRule.onNodeWithText("Escape").assertIsDisplayed()
         composeRule.onNodeWithTag("BattleSpeakerButton").assertIsDisplayed()
 
         composeRule.waitUntil(timeoutMillis = 2_500) {
@@ -101,33 +101,31 @@ class SmokeTest {
 
     @Test
     fun battleAdvancesToNextWordAfterAnswer() {
+        configureChoiceOnly()
         composeRule.onNodeWithTag("HomeStartButton").performClick()
         composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
-        composeRule.onNodeWithText("苹果").assertIsDisplayed()
+        val firstPrompt = currentFruitPrompt()
+        composeRule.onNodeWithText(firstPrompt).assertIsDisplayed()
 
-        composeRule.onNodeWithText("apple").performClick()
+        answerVisibleText(fruitPromptToAnswer.getValue(firstPrompt))
 
         composeRule.waitUntil(timeoutMillis = 1_500) {
-            composeRule.onAllNodesWithText("香蕉").fetchSemanticsNodes().isNotEmpty()
+            fruitPromptToAnswer.keys.any { prompt ->
+                prompt != firstPrompt && composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty()
+            }
         }
-        composeRule.onNodeWithText("香蕉").assertIsDisplayed()
+        assertTrue(
+            fruitPromptToAnswer.keys.any { prompt ->
+                prompt != firstPrompt && composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty()
+            },
+        )
     }
 
     @Test
     fun bossSpellQuestionUsesHarmonyInlineSpellingArea() {
-        configureOneHitMonsters()
+        configureSpellOnly()
         composeRule.onNodeWithTag("HomeStartButton").performClick()
         composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
-
-        answerVisibleText("apple")
-        waitForBattleFeedback()
-        answerFirstVisibleText(listOf("a", "n"))
-        waitForBattleFeedback()
-        answerFirstVisibleText(listOf("e", "a", "r"))
-        waitForBattleStepFeedback()
-        answerFirstVisibleText(listOf("e", "a", "r"))
-        waitForBattleFeedback()
-        answerVisibleText("orange")
 
         composeRule.waitUntil(timeoutMillis = 2_000) {
             composeRule.onAllNodesWithTag("BattleSpellArea").fetchSemanticsNodes().isNotEmpty()
@@ -140,30 +138,26 @@ class SmokeTest {
         composeRule.onNodeWithTag("BattleOptionsRow_SpellPlaceholder").assertIsDisplayed()
     }
 
-    private fun configureOneHitMonsters() {
+    private fun configureChoiceOnly() {
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
-        repeat(20) {
-            composeRule.onNodeWithTag("ConfigMonsterHpDecrement").performScrollTo().performClick()
-        }
-        repeat(20) {
-            composeRule.onNodeWithTag("ConfigMonsterCountDecrement").performScrollTo().performClick()
-        }
-        repeat(4) {
-            composeRule.onNodeWithTag("ConfigMonsterCountIncrement").performScrollTo().performClick()
-        }
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             composeRule.onAllNodesWithText("Small Magician Word Adventure").fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithTag("RegionChip_fruit-forest").performClick()
     }
 
-    private fun answerFirstVisibleText(candidates: List<String>) {
+    private fun configureSpellOnly() {
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_choice").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
-            candidates.any { text -> enabledClickableTextExists(text) }
+            composeRule.onAllNodesWithText("Small Magician Word Adventure").fetchSemanticsNodes().isNotEmpty()
         }
-        val text = candidates.first { enabledClickableTextExists(it) }
-        composeRule.onNode(hasText(text) and hasClickAction() and isEnabled()).performClick()
     }
 
     private fun answerVisibleText(text: String) {
@@ -183,13 +177,22 @@ class SmokeTest {
             .isNotEmpty()
     }
 
-    private fun waitForBattleFeedback() {
-        Thread.sleep(750)
-        composeRule.waitForIdle()
+    private fun currentFruitPrompt(): String {
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            fruitPromptToAnswer.keys.any { prompt -> composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty() }
+        }
+        return fruitPromptToAnswer.keys.first { prompt ->
+            composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
-    private fun waitForBattleStepFeedback() {
-        Thread.sleep(750)
-        composeRule.waitForIdle()
+    private companion object {
+        val fruitPromptToAnswer = linkedMapOf(
+            "苹果" to "apple",
+            "香蕉" to "banana",
+            "梨" to "pear",
+            "橙子" to "orange",
+            "葡萄" to "grape",
+        )
     }
 }
