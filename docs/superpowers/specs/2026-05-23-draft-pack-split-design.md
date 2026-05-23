@@ -16,7 +16,7 @@ In scope:
 - Add parent API and parent HTML support for family packs.
 - Add admin API and admin HTML support for global packs.
 - Record admin audit history for global-pack HTML/API split actions.
-- Cover service, API, and HTML behavior with server tests.
+- Cover service, API, HTML, and E2E behavior with server tests.
 
 Out of scope:
 
@@ -233,6 +233,24 @@ HTML tests:
 - `server/tests/test_parent_packs_pages.py` verifies the parent detail page renders split controls and a successful form submission redirects to the new pack.
 - `server/tests/test_admin_pages.py` verifies global pack detail renders split controls, successful form submission redirects to the new global pack, and audit log is created.
 
+E2E tests:
+
+- Add coverage in `server/tests/e2e/test_parent_family_pack_e2e.py` for the parent API flow:
+  1. Parent creates a family pack.
+  2. Parent adds at least three draft words.
+  3. Parent splits two words into a new pack with `mode="move"`.
+  4. Parent publishes both the source pack and the new pack.
+  5. A device fetches `/api/v1/family/_/family-packs/latest.json`.
+  6. The response shows the moved words only under the new pack and the remaining word under the source pack.
+- Add coverage in `server/tests/e2e/test_global_packs_e2e.py` for the admin/global flow:
+  1. Admin creates a global pack with at least three draft words.
+  2. Admin splits two words into a new global pack with `mode="copy"`.
+  3. Admin publishes the source pack and the new pack.
+  4. Public `GET /api/v1/public/global-packs/latest.json` includes both packs.
+  5. The copied words appear in the new pack while the source pack still contains all original draft words after publish.
+- Every E2E test added under `server/tests/e2e/` must carry `@pytest.mark.e2e`, following `server/tests/test_e2e_async_runner_policy.py`.
+- E2E word and pack ids should include `run_id` to avoid collisions in shared preview databases.
+
 Final verification:
 
 ```sh
@@ -240,3 +258,5 @@ cd server && uv run pytest
 ```
 
 The suite must finish with 0 errors and 0 warnings.
+
+Preview E2E verification is expected through the existing `server / e2e (preview)` CI path. When running manually against a preview target, include the new E2E tests in the same way as existing `server/tests/e2e/*_e2e.py` tests.
