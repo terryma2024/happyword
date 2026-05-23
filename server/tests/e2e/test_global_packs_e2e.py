@@ -114,3 +114,75 @@ def test_admin_global_packs_anonymous_call_returns_401(
     """Admin endpoint requires Bearer + role=ADMIN. Anonymous → 401."""
     r = http.post("/api/v1/admin/global-packs", json={"name": "x"})
     assert r.status_code == 401
+
+
+@pytest.mark.e2e
+def test_global_pack_split_copy_publish_then_public_latest_contains_both(
+    http: httpx.Client,
+    admin_token: str,
+    run_id: str,
+) -> None:
+    """Copy selected global draft words, publish both packs, and verify public latest."""
+    headers = admin_headers(admin_token)
+    source_pack_id = f"e2e-gpk-split-src-{run_id}"
+    create = http.post(
+        "/api/v1/admin/global-packs",
+        headers=headers,
+        json={
+            "name": f"E2E {run_id} global split source",
+            "pack_id": source_pack_id,
+            "description": "global split e2e",
+        },
+    )
+    assert create.status_code in (200, 201), create.text
+    word_ids = [
+        f"e2e-{run_id}-split-ant",
+        f"e2e-{run_id}-split-bee",
+        f"e2e-{run_id}-split-cat",
+    ]
+    for word_id in word_ids:
+        upsert = http.put(
+            f"/api/v1/admin/global-packs/{source_pack_id}/draft/words/{word_id}",
+            headers=headers,
+            json={
+                "id": word_id,
+                "word": word_id,
+                "meaningZh": word_id,
+                "category": "e2e-split",
+                "difficulty": 1,
+            },
+        )
+        assert upsert.status_code == 200, upsert.text
+
+    split = http.post(
+        f"/api/v1/admin/global-packs/{source_pack_id}/draft/split",
+        headers=headers,
+        json={
+            "mode": "copy",
+            "word_ids": [word_ids[0], word_ids[1]],
+            "new_pack": {"name": f"E2E {run_id} global split copy"},
+        },
+    )
+    assert split.status_code == 201, split.text
+    new_pack_id = split.json()["new_pack"]["pack_id"]
+
+    source_publish = http.post(
+        f"/api/v1/admin/global-packs/{source_pack_id}/publish",
+        headers=headers,
+        json={"notes": "source split copy"},
+    )
+    assert source_publish.status_code == 201, source_publish.text
+    new_publish = http.post(
+        f"/api/v1/admin/global-packs/{new_pack_id}/publish",
+        headers=headers,
+        json={"notes": "new split copy"},
+    )
+    assert new_publish.status_code == 201, new_publish.text
+
+    latest = http.get("/api/v1/public/global-packs/latest.json")
+    assert latest.status_code == 200, latest.text
+    packs = {pack["pack_id"]: pack for pack in latest.json()["packs"]}
+    assert source_pack_id in packs
+    assert new_pack_id in packs
+    assert [w["id"] for w in packs[source_pack_id]["words"]] == word_ids
+    assert [w["id"] for w in packs[new_pack_id]["words"]] == word_ids[:2]
