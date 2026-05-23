@@ -1437,9 +1437,14 @@ URI compatibility vs API adapter.
   `server/scripts/flexdb_api_smoke.py` with direct Tencent Cloud API 3.0
   signing through `httpx`, plus offline tests covering the success path,
   duplicate-key expectation, authorization header redaction, and cleanup after
-  a late probe failure. Local unit tests pass. Running it from CloudBase staging
-  remains a follow-up under Step 8 because the service needs runtime API
-  credentials and a safe operator window.
+  a late probe failure. Local unit tests pass.
+
+  Live local smoke note, 2026-05-23: using `TCB_SECRET_ID` / `TCB_SECRET_KEY`
+  from `~/.env.tcb`, the script successfully created
+  `m7a_flexdb_probe_1779508470`, verified `word_1` duplicate-key enforcement,
+  deleted the temporary table, and ended with `final_table_count: 0`. Running it
+  from CloudBase staging remains a follow-up under Step 8 because the deployed
+  service needs runtime API credentials and a safe operator window.
 
 - [ ] **Step 6: Map Beanie/Motor usage to migration choices**
 

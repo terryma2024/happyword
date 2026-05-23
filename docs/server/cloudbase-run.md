@@ -392,6 +392,21 @@ FLEXDB_API_SECRET_KEY=... \
   uv run python -m scripts.flexdb_api_smoke
 ```
 
+Live local smoke result, 2026-05-23:
+
+```text
+ok: true
+probe_table: m7a_flexdb_probe_1779508470
+duplicate_key_enforced: true
+cleanup.deleted: true
+cleanup.final_table_count: 0
+```
+
+Operator note: `~/.env.tcb` contains `TCB_SECRET_ID` / `TCB_SECRET_KEY`, but at
+least one value includes shell-special characters. Load it with a dotenv parser
+or quote the values before using `source ~/.env.tcb`; do not print the secret
+values while debugging.
+
 FlexDB adapter spike risks:
 
 - Beanie initialization currently owns the ODM model registry in
