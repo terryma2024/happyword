@@ -27,7 +27,7 @@ export enum ChoiceState {
 @Component
 export struct ChoiceButton {
   @Prop text: string = '';
-  choiceId: string = '';
+  @Prop choiceId: string = '';
   @Prop state: ChoiceState = ChoiceState.Idle;
   onTap: (text: string) => void = (): void => {};
 
