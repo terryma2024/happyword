@@ -38,6 +38,8 @@
 /api/v1/family/{family_id}/auth/password-login
 /api/v1/family/{family_id}/auth/request-code
 /api/v1/family/{family_id}/auth/verify-code
+/api/v1/family/{family_id}/checkins
+/api/v1/family/{family_id}/checkins/sync
 /api/v1/family/{family_id}/children
 /api/v1/family/{family_id}/children/{profile_id}
 /api/v1/family/{family_id}/children/{profile_id}/report

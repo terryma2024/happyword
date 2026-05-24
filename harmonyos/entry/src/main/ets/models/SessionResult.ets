@@ -63,4 +63,10 @@ export class SessionResult {
   bonusKillCount: number = 0;
   /** Stars before the ×1.3 ceil bonus (today mode display only). */
   coinsBaseFromStars: number = 0;
+  /** V0.8.8 — whether this battle created a new local check-in day. */
+  checkInRecorded: boolean = false;
+  /** V0.8.8 — current contiguous daily check-in streak after this result. */
+  checkInCurrentStreak: number = 0;
+  /** V0.8.8 — weekly check-in bonus coins granted by this result. */
+  checkInBonusCoins: number = 0;
 }

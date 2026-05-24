@@ -20,6 +20,8 @@ All routes are mounted under `/api/v1/family/{family_id}/**` and authenticated w
 | POST | `/api/v1/family/{family_id}/redemption-requests` | Child requests wish redemption. |
 | GET | `/api/v1/family/{family_id}/redemption-requests` | Child lists own redemption requests. |
 | GET | `/api/v1/family/{family_id}/redemption-requests/poll` | Child polls redemption status. |
+| POST | `/api/v1/family/{family_id}/checkins/sync` | Sync daily check-ins and coin transactions. |
+| GET | `/api/v1/family/{family_id}/checkins` | Pull merged check-ins and cloud coin transactions. |
 | POST | `/api/v1/family/{family_id}/unbind` | Bound device unbind flow. |
 
 ## Tenant Boundary

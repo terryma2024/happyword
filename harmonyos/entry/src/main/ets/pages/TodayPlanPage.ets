@@ -133,18 +133,38 @@ struct TodayPlanPage {
   // budget stays at 5 buttons.
   @Builder
   private todayPlanReportTrailing(): void {
-    Button('📊')
-      .id('TodayPlanReportButton')
-      .type(ButtonType.Circle)
-      .width(40)
-      .height(40)
-      .fontSize(20)
-      .backgroundColor('#EAF2F8')
-      .onClick((): void => {
-        this.getUIContext().getRouter().pushUrl({ url: 'pages/LearningReportPage' }).catch((err: BusinessError): void => {
-          console.error(`TodayPlanPage: pushUrl LearningReportPage failed: ${JSON.stringify(err)}`);
+    Row({ space: 8 }) {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Image($rawfile('icons/checkin.png'))
+          .width(26)
+          .height(26)
+          .objectFit(ImageFit.Contain)
+          .syncLoad(true);
+      }
+        .id('TodayPlanCheckInButton')
+        .width(40)
+        .height(40)
+        .backgroundColor('#ECFDF5')
+        .onClick((): void => {
+          this.getUIContext().getRouter().pushUrl({ url: 'pages/CheckInPage' }).catch((err: BusinessError): void => {
+            console.error(`TodayPlanPage: pushUrl CheckInPage failed: ${JSON.stringify(err)}`);
+          });
         });
-      });
+
+      Button('📊')
+        .id('TodayPlanReportButton')
+        .type(ButtonType.Circle)
+        .width(40)
+        .height(40)
+        .fontSize(20)
+        .backgroundColor('#EAF2F8')
+        .onClick((): void => {
+          this.getUIContext().getRouter().pushUrl({ url: 'pages/LearningReportPage' }).catch((err: BusinessError): void => {
+            console.error(`TodayPlanPage: pushUrl LearningReportPage failed: ${JSON.stringify(err)}`);
+          });
+        });
+    }
+    .alignItems(VerticalAlign.Center);
   }
 
   @Builder

@@ -95,5 +95,40 @@ export default function coinAccountTest() {
       }
       expect(acct.snapshot().txns.length).assertEqual(MAX_TXN_HISTORY);
     });
+
+    it('applyExternalTxnAddsCheckInBonusWithTxnId', 0, () => {
+      const acct: CoinAccount = freshAccount();
+      const ok: boolean = acct.applyExternalTxn(
+        'checkin-weekly-bonus:2026-05-07',
+        50,
+        'checkin-weekly-bonus:2026-05-07',
+        NOW,
+      );
+      const snap: CoinSnapshot = acct.snapshot();
+      expect(ok).assertTrue();
+      expect(acct.balance()).assertEqual(50);
+      expect(snap.txns[0].txnId).assertEqual('checkin-weekly-bonus:2026-05-07');
+      expect(snap.txns[0].reason).assertEqual('checkin-weekly-bonus:2026-05-07');
+    });
+
+    it('applyExternalTxnIgnoresDuplicateTxnId', 0, () => {
+      const acct: CoinAccount = freshAccount();
+      const first: boolean = acct.applyExternalTxn(
+        'checkin-weekly-bonus:2026-05-07',
+        50,
+        'checkin-weekly-bonus:2026-05-07',
+        NOW,
+      );
+      const second: boolean = acct.applyExternalTxn(
+        'checkin-weekly-bonus:2026-05-07',
+        50,
+        'checkin-weekly-bonus:2026-05-07',
+        NOW + 1,
+      );
+      expect(first).assertTrue();
+      expect(second).assertFalse();
+      expect(acct.balance()).assertEqual(50);
+      expect(acct.snapshot().txns.length).assertEqual(1);
+    });
   });
 }

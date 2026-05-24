@@ -13,6 +13,7 @@ import {
 import { StringPreferencesLike } from './WrongAnswerStore';
 
 interface CoinTxnJson {
+  txnId?: string;
   ts?: number;
   delta?: number;
   reason?: string;
@@ -149,6 +150,20 @@ export class CoinAccount {
     return true;
   }
 
+  applyExternalTxn(txnId: string, delta: number, reason: string, ts: number): boolean {
+    if (txnId.length === 0 || delta === 0 || this.hasTxnId(txnId)) {
+      return false;
+    }
+    if (delta > 0) {
+      this.snap.totalCoins += delta;
+    } else {
+      this.snap.spentCoins += -delta;
+    }
+    this.pushTxn(ts, delta, reason, this.balance(), txnId);
+    this.scheduleSave();
+    return true;
+  }
+
   balance(): number {
     return this.snap.totalCoins - this.snap.spentCoins;
   }
@@ -187,8 +202,9 @@ export class CoinAccount {
     await this.prefs.flush();
   }
 
-  private pushTxn(ts: number, delta: number, reason: string, balanceAfter: number): void {
+  private pushTxn(ts: number, delta: number, reason: string, balanceAfter: number, txnId: string = ''): void {
     const t: CoinTxn = new CoinTxn();
+    t.txnId = txnId;
     t.ts = ts;
     t.delta = delta;
     t.reason = reason;
@@ -197,6 +213,15 @@ export class CoinAccount {
     while (this.snap.txns.length > MAX_TXN_HISTORY) {
       this.snap.txns.shift();
     }
+  }
+
+  private hasTxnId(txnId: string): boolean {
+    for (let i = 0; i < this.snap.txns.length; i++) {
+      if (this.snap.txns[i].txnId === txnId) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private scheduleSave(): void {
@@ -248,6 +273,7 @@ export function parseCoinSnapshot(raw: string): CoinSnapshot {
     for (let i = 0; i < txns.length; i++) {
       const j: CoinTxnJson = txns[i];
       const t: CoinTxn = new CoinTxn();
+      t.txnId = typeof j.txnId === 'string' ? j.txnId : '';
       t.ts = typeof j.ts === 'number' ? j.ts : 0;
       t.delta = typeof j.delta === 'number' ? j.delta : 0;
       t.reason = typeof j.reason === 'string' ? j.reason : '';

@@ -42,6 +42,10 @@ import { LibraryCandidateProvider } from '../services/PackHomeIntegration';
 import { PackLibrary } from '../services/PackLibrary';
 import { CoinAccount, getCoinAccount, COIN_REASON_TODAY_FIRST } from '../services/CoinAccount';
 import { CoinSnapshot, DAILY_CAP } from '../models/CoinSnapshot';
+import { CheckInRecordResult, CheckInStore, getCheckInStore } from '../services/CheckInStore';
+import { CloudCheckInService } from '../services/CloudCheckInService';
+import { CloudCredentials } from '../services/CloudCredentials';
+import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { WordEntry } from '../models/WordEntry';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import { BattleState, BattleStatus } from '../models/BattleState';
@@ -198,6 +202,7 @@ struct BattlePage {
    */
   private sessionAnswers: Map<string, AnswerCount> = new Map<string, AnswerCount>();
   private coinAccount: CoinAccount = getCoinAccount();
+  private checkInStore: CheckInStore = getCheckInStore();
   private feedbackTimer: number = -1;
   /**
    * Handle returned by setInterval for the 1Hz countdown driver. -1 when
@@ -354,6 +359,9 @@ struct BattlePage {
     });
     this.coinAccount.init(ctx).catch((err: BusinessError): void => {
       console.error(`BattlePage: CoinAccount.init failed: ${JSON.stringify(err)}`);
+    });
+    this.checkInStore.init(ctx).catch((err: BusinessError): void => {
+      console.error(`BattlePage: CheckInStore.init failed: ${JSON.stringify(err)}`);
     });
     WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
       const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
@@ -1385,6 +1393,21 @@ struct BattlePage {
       earned = this.coinAccount.earn('stars', awardAmount, now);
     }
     result.coinsEarned = earned;
+    if (result.status === BattleStatus.Won) {
+      const checkIn: CheckInRecordResult = this.checkInStore.recordWinSync(now);
+      result.checkInRecorded = checkIn.changed;
+      result.checkInCurrentStreak = checkIn.currentStreak;
+      if (checkIn.bonusCoins > 0 && checkIn.bonusDayKey.length > 0) {
+        const txnId: string = `checkin-weekly-bonus:${checkIn.bonusDayKey}`;
+        const applied: boolean = this.coinAccount.applyExternalTxn(
+          txnId,
+          checkIn.bonusCoins,
+          txnId,
+          now,
+        );
+        result.checkInBonusCoins = applied ? checkIn.bonusCoins : 0;
+      }
+    }
     const snap: CoinSnapshot = this.coinAccount.snapshot();
     result.coinsTotal = snap.totalCoins - snap.spentCoins;
     result.dailyCapHit = snap.todayCoinsEarned >= DAILY_CAP;
@@ -1398,6 +1421,10 @@ struct BattlePage {
     this.coinAccount.flushNow().catch((err: BusinessError): void => {
       console.error(`BattlePage: CoinAccount.flushNow failed: ${JSON.stringify(err)}`);
     });
+    this.checkInStore.flushNow().catch((err: BusinessError): void => {
+      console.error(`BattlePage: CheckInStore.flushNow failed: ${JSON.stringify(err)}`);
+    });
+    this.syncCheckInsBestEffort();
     // V0.6.5.1: perfect-adventure rotation hook. Fires only when the
     // session was launched from a real Pack chip (this.activePack
     // populated) AND the player won with all 3 stars (no mistakes
@@ -1433,6 +1460,25 @@ struct BattlePage {
         console.error(`BattlePage: recordPerfectAdventure failed: ${JSON.stringify(err as BusinessError)}`);
       }
     })();
+  }
+
+  private syncCheckInsBestEffort(): void {
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const creds: CloudCredentials = new CloudCredentials();
+    creds.init(ctx).then((): void => {
+      const svc: CloudCheckInService = new CloudCheckInService(
+        this.checkInStore,
+        this.coinAccount,
+        creds,
+        new RealParentFetchAdapter(),
+        (): string => CloudCheckInService.defaultBaseUrlResolver(),
+      );
+      svc.syncOnce().catch((err: BusinessError): void => {
+        console.error(`BattlePage: CloudCheckInService.syncOnce failed: ${JSON.stringify(err)}`);
+      });
+    }).catch((err: BusinessError): void => {
+      console.error(`BattlePage: CloudCredentials.init for check-in failed: ${JSON.stringify(err)}`);
+    });
   }
 
   private formatTime(totalSeconds: number): string {

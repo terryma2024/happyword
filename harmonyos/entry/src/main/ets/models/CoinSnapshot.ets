@@ -6,6 +6,7 @@
  * WishlistPage avoid replaying the whole log to display history.
  */
 export class CoinTxn {
+  txnId: string = '';
   ts: number = 0;
   delta: number = 0;
   reason: string = '';

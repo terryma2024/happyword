@@ -15,7 +15,9 @@ from app.config import get_settings
 from app.models.audit_log import AuditLog
 from app.models.category import Category
 from app.models.child_profile import ChildProfile
+from app.models.child_checkin import ChildCheckIn
 from app.models.cloud_wishlist_item import CloudWishlistItem
+from app.models.cloud_coin_txn import CloudCoinTxn
 from app.models.device_binding import DeviceBinding
 from app.models.email_verification import EmailVerification
 from app.models.family import Family
@@ -50,6 +52,7 @@ from app.routers import admin_stats as admin_stats_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
 from app.routers import child_family_pack as child_family_pack_router
+from app.routers import child_checkins as child_checkins_router
 from app.routers import child_profile as child_profile_router
 from app.routers import child_wishlist as child_wishlist_router
 from app.routers import child_word_stats as child_word_stats_router
@@ -119,6 +122,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             PairToken,
             DeviceBinding,
             ChildProfile,
+            ChildCheckIn,
+            CloudCoinTxn,
             FamilyPackDefinition,
             FamilyPackDraft,
             FamilyPackPointer,
@@ -205,6 +210,7 @@ app.include_router(parent_account_router.router)
 app.include_router(parent_account_router.html_router)
 app.include_router(admin_pages_router.router)
 app.include_router(child_word_stats_router.router)
+app.include_router(child_checkins_router.router)
 app.include_router(child_wishlist_router.router)
 app.include_router(child_profile_router.router)
 app.include_router(pair_router.family_router)
