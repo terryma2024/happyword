@@ -189,8 +189,57 @@ jobs:
           echo "db_name=$DB" >> "$GITHUB_OUTPUT"
           echo "Preview DB: $DB"
 
-      - name: Prune stale E2E PR databases
+      - name: Validate E2E MongoDB URI
+        id: e2e_mongo
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
+        env:
+          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlparse
+
+          def set_ready(value: bool) -> None:
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write(f"ready={'true' if value else 'false'}\n")
+
+          uri = os.environ.get("E2E_MONGODB_URI", "").strip()
+          if not uri:
+              print("::warning::E2E_MONGODB_URI not configured; skipping legacy Vercel E2E.")
+              set_ready(False)
+              raise SystemExit(0)
+
+          netloc = urlparse(uri).netloc.rsplit("@", 1)[-1]
+          hosts = []
+          for entry in netloc.split(","):
+              entry = entry.strip()
+              if not entry:
+                  continue
+              if entry.startswith("["):
+                  host = entry[1:].split("]", 1)[0]
+              else:
+                  host = entry.split(":", 1)[0]
+              hosts.append(host.lower())
+
+          if not hosts:
+              print("::warning::Could not parse E2E_MONGODB_URI host; skipping legacy Vercel E2E.")
+              set_ready(False)
+              raise SystemExit(0)
+
+          local_hosts = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+          if all(host in local_hosts or host.startswith("127.") for host in hosts):
+              print(
+                  "::warning::E2E_MONGODB_URI points at a local MongoDB host "
+                  f"({', '.join(hosts)}); skipping legacy Vercel E2E on GitHub runner."
+              )
+              set_ready(False)
+              raise SystemExit(0)
+
+          set_ready(True)
+          PY
+
+      - name: Prune stale E2E PR databases
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.e2e_mongo.outputs.ready == 'true' }}
         env:
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
@@ -208,7 +257,7 @@ jobs:
             --ignore-drop-errors
 
       - name: Reset E2E database (truncate test collections)
-        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.e2e_mongo.outputs.ready == 'true' }}
         env:
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
@@ -220,7 +269,7 @@ jobs:
           uv run python scripts/e2e_reset_db.py
 
       - name: Run E2E pytest subset
-        if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.e2e_mongo.outputs.ready == 'true' }}
         env:
           E2E_BASE_URL: ${{ steps.vercel_deploy.outputs.preview-url || steps.detect_preview.outputs.preview_url }}
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}

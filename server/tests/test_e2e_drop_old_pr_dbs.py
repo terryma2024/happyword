@@ -7,9 +7,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pymongo.errors import OperationFailure
+from pymongo.errors import PyMongoError
 
 from scripts.e2e_drop_old_pr_dbs import (
     UnsafePattern,
+    _amain,
     _list_candidate_dbs,
     _matches_safe_pattern,
     drop_stale,
@@ -155,6 +157,43 @@ async def test_drop_stale_can_ignore_unauthorized_drop_errors() -> None:
     assert len(ignored_errors) == 1
     assert "happyword_pr_30_e2e" in ignored_errors[0]
     assert "dropDatabase" in ignored_errors[0]
+
+
+@pytest.mark.asyncio
+async def test_amain_can_ignore_connection_errors_during_best_effort_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """PR cleanup should not fail CI when the stale-DB list cannot be read."""
+
+    class FakeClient:
+        def __init__(self, _uri: str) -> None:
+            self.closed = False
+
+        async def list_database_names(self) -> list[str]:
+            raise PyMongoError("server selection failed")
+
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setenv("E2E_MONGODB_URI", "mongodb://127.0.0.1:27017/?replicaSet=rs0")
+    monkeypatch.setattr("scripts.e2e_drop_old_pr_dbs.AsyncIOMotorClient", FakeClient)
+
+    exit_code = await _amain(
+        [
+            "--pattern",
+            r"^happyword_pr_\d+_e2e$",
+            "--older-than-days",
+            "2",
+            "--drop-empty",
+            "--ignore-drop-errors",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "Ignoring stale DB cleanup error" in captured.err
+    assert "server selection failed" in captured.err
 
 
 @pytest.mark.asyncio
