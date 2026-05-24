@@ -3,6 +3,7 @@ import monsterCatalogTest from './MonsterCatalog.test';
 import questionTest from './Question.test';
 import fillLetterGeneratorTest from './FillLetterGenerator.test';
 import spellGeneratorTest from './SpellGenerator.test';
+import sentenceClozeGeneratorTest from './SentenceClozeGenerator.test';
 import memorySchedulerTest from './MemoryScheduler.test';
 import adventureCatalogTest from './AdventureCatalog.test';
 import todayAdventureBuilderTest from './TodayAdventureBuilder.test';
@@ -59,6 +60,7 @@ import battleQuestionSchedulerTest from './BattleQuestionScheduler.test';
 import battleEngineTest from './BattleEngine.test';
 import battleRewardCalcTest from './BattleRewardCalc.test';
 import damageFloaterLabelTest from './DamageFloaterLabel.test';
+import pronunciationServiceTest from './PronunciationService.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -66,6 +68,7 @@ export default function testsuite() {
   questionTest();
   fillLetterGeneratorTest();
   spellGeneratorTest();
+  sentenceClozeGeneratorTest();
   memorySchedulerTest();
   adventureCatalogTest();
   todayAdventureBuilderTest();
@@ -122,4 +125,5 @@ export default function testsuite() {
   battleEngineTest();
   battleRewardCalcTest();
   damageFloaterLabelTest();
+  pronunciationServiceTest();
 }

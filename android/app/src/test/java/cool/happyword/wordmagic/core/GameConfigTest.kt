@@ -13,6 +13,31 @@ class GameConfigTest {
         assertEquals(5, config.monsterCount)
         assertEquals(300, config.timerSeconds)
         assertEquals(true, config.autoPronunciation)
+        assertEquals(
+            listOf(
+                BattleQuestionTypePolicy.CHOICE,
+                BattleQuestionTypePolicy.FILL_LETTER,
+                BattleQuestionTypePolicy.FILL_LETTER_MEDIUM,
+                BattleQuestionTypePolicy.SPELL,
+                BattleQuestionTypePolicy.SENTENCE_CLOZE,
+            ),
+            config.enabledQuestionTypes,
+        )
+    }
+
+    @Test
+    fun questionTypeSanitizerKeepsSentenceClozeInHarmonyOrder() {
+        assertEquals(
+            listOf(BattleQuestionTypePolicy.FILL_LETTER, BattleQuestionTypePolicy.SPELL, BattleQuestionTypePolicy.SENTENCE_CLOZE),
+            BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(
+                listOf(
+                    BattleQuestionTypePolicy.SENTENCE_CLOZE,
+                    "unknown",
+                    BattleQuestionTypePolicy.SPELL,
+                    BattleQuestionTypePolicy.FILL_LETTER,
+                ),
+            ),
+        )
     }
 
     @Test

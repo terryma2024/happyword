@@ -20,7 +20,19 @@ class TodayPlanServiceTest {
 
         assertEquals(listOf("fruit-banana"), plan.review.map { it.id })
         assertEquals(listOf("fruit-apple"), plan.learning.map { it.id })
-        assertEquals(listOf("fruit-pear", "fruit-orange", "fruit-grape"), plan.newWords.map { it.id })
+        assertEquals(
+            listOf(
+                "fruit-orange",
+                "fruit-grape",
+                "fruit-pear",
+                "fruit-peach",
+                "fruit-lemon",
+                "fruit-mango",
+                "fruit-melon",
+                "fruit-cherry",
+            ),
+            plan.newWords.map { it.id },
+        )
     }
 
     @Test

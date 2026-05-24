@@ -1,9 +1,16 @@
 package cool.happyword.wordmagic.core
 
+data class ExampleSentence(
+    val en: String,
+    val zh: String,
+)
+
 data class WordEntry(
     val id: String,
     val word: String,
     val meaning: String,
+    val distractors: List<String> = emptyList(),
+    val example: ExampleSentence? = null,
 )
 
 data class GameConfig(
@@ -58,6 +65,7 @@ enum class QuestionKind {
     FillLetter,
     FillLetterMedium,
     Spell,
+    SentenceCloze,
 }
 
 data class Question(
@@ -78,6 +86,8 @@ data class Question(
     val spellLetters: List<String> = emptyList(),
     val spellRevealedMask: List<Boolean> = emptyList(),
     val spellPool: List<String> = emptyList(),
+    val sentenceTemplate: String = "",
+    val sentenceZh: String = "",
 )
 
 data class BattleState(

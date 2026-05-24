@@ -52,70 +52,110 @@
       "word": "cat",
       "meaningZh": "猫",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The cat sleeps on the mat.",
+        "zh": "猫睡在垫子上。"
+      }
     },
     {
       "id": "animal-dog",
       "word": "dog",
       "meaningZh": "狗",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "My dog likes to run.",
+        "zh": "我的狗喜欢跑步。"
+      }
     },
     {
       "id": "animal-lion",
       "word": "lion",
       "meaningZh": "狮子",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The lion has a big mane.",
+        "zh": "狮子有大大的鬃毛。"
+      }
     },
     {
       "id": "animal-tiger",
       "word": "tiger",
       "meaningZh": "老虎",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "A tiger walks in the grass.",
+        "zh": "一只老虎在草地里走。"
+      }
     },
     {
       "id": "animal-bear",
       "word": "bear",
       "meaningZh": "熊",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The bear eats honey.",
+        "zh": "熊吃蜂蜜。"
+      }
     },
     {
       "id": "animal-frog",
       "word": "frog",
       "meaningZh": "青蛙",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The frog jumps high.",
+        "zh": "青蛙跳得很高。"
+      }
     },
     {
       "id": "animal-duck",
       "word": "duck",
       "meaningZh": "鸭子",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "A duck swims in the pond.",
+        "zh": "一只鸭子在池塘里游泳。"
+      }
     },
     {
       "id": "animal-mouse",
       "word": "mouse",
       "meaningZh": "老鼠",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The mouse hides under a box.",
+        "zh": "老鼠躲在盒子下面。"
+      }
     },
     {
       "id": "animal-sheep",
       "word": "sheep",
       "meaningZh": "绵羊",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The sheep eats green grass.",
+        "zh": "绵羊吃青草。"
+      }
     },
     {
       "id": "animal-horse",
       "word": "horse",
       "meaningZh": "马",
       "category": "animal",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The horse runs fast.",
+        "zh": "马跑得很快。"
+      }
     }
   ]
 }

@@ -11,6 +11,7 @@ export enum QuestionKind {
   FillLetter = 'fill-letter',
   FillLetterMedium = 'fill-letter-medium',
   Spell = 'spell',
+  SentenceCloze = 'sentence-cloze',
 }
 
 export class Question {
@@ -42,6 +43,10 @@ export class Question {
   spellRevealedMask: boolean[] = [];
   spellPool: string[] = [];
 
+  // V0.9.1: SentenceCloze — example-backed 3-option cloze.
+  sentenceTemplate: string = '';
+  sentenceZh: string = '';
+
   /**
    * Runtime invariant check. Returns true when the question is well-formed.
    * Keep this cheap: it runs during QuestionGenerator tests on every generated
@@ -62,6 +67,9 @@ export class Question {
     }
     if (this.kind === QuestionKind.Spell) {
       return this.isValidSpell();
+    }
+    if (this.kind === QuestionKind.SentenceCloze) {
+      return this.isValidSentenceCloze();
     }
     return this.isValidChoice();
   }
@@ -285,6 +293,30 @@ export class Question {
         return false;
       }
       next = keys.next();
+    }
+    return true;
+  }
+
+  private isValidSentenceCloze(): boolean {
+    if (this.sentenceTemplate.length === 0 || this.sentenceZh.length === 0) {
+      return false;
+    }
+    if (this.sentenceTemplate.indexOf('____') < 0) {
+      return false;
+    }
+    if (this.options.length !== 3) {
+      return false;
+    }
+    if (this.options.indexOf(this.answer) < 0) {
+      return false;
+    }
+    const seen: Set<string> = new Set<string>();
+    for (let i = 0; i < this.options.length; i++) {
+      const normalized: string = this.options[i].toLowerCase();
+      if (normalized.length === 0 || seen.has(normalized)) {
+        return false;
+      }
+      seen.add(normalized);
     }
     return true;
   }

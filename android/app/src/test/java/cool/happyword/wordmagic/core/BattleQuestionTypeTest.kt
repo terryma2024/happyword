@@ -16,12 +16,132 @@ class BattleQuestionTypeTest {
     )
 
     @Test
+    fun sentenceClozeQuestionMatchesHarmonyRules() {
+        val apple = WordEntry(
+            "fruit-apple",
+            "apple",
+            "苹果",
+            example = ExampleSentence(en = "I eat an apple.", zh = "我吃一个苹果。"),
+        )
+        val engine = BattleEngine(
+            config = GameConfig(
+                monsterHp = 99,
+                monsterCount = 1,
+                enabledQuestionTypes = listOf(BattleQuestionTypePolicy.SENTENCE_CLOZE),
+            ),
+            words = listOf(
+                apple,
+                WordEntry("fruit-banana", "banana", "香蕉"),
+                WordEntry("fruit-orange", "orange", "橙子"),
+            ),
+            targetWordIds = listOf("fruit-apple"),
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+
+        val question = engine.initialState().question
+
+        assertEquals(QuestionKind.SentenceCloze, question.kind)
+        assertEquals("I eat an ____.", question.sentenceTemplate)
+        assertEquals("我吃一个苹果。", question.sentenceZh)
+        assertEquals(3, question.options.size)
+        assertTrue(question.options.contains("apple"))
+        assertFalse(BattleQuestionTypePolicy.wordSupportsQuestionType(
+            WordEntry("animal-cat", "cat", "猫", example = ExampleSentence(en = "A caterpillar is small.", zh = "毛毛虫很小。")),
+            BattleQuestionTypePolicy.SENTENCE_CLOZE,
+        ))
+    }
+
+    @Test
+    fun sentenceClozeOnlyRotatesAcrossTargetPackWords() {
+        val pack = BuiltinPacks.all.first { it.id == "fruit-forest" }
+        val engine = BattleEngine(
+            config = GameConfig(
+                monsterHp = 99,
+                monsterCount = 1,
+                enabledQuestionTypes = listOf(BattleQuestionTypePolicy.SENTENCE_CLOZE),
+            ),
+            words = pack.words,
+            targetWordIds = pack.words.map { it.id },
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+        val expectedIds = pack.words.take(5).map { it.id }
+        val actualIds = mutableListOf<String>()
+        var state = engine.initialState()
+
+        repeat(expectedIds.size) {
+            assertEquals(QuestionKind.SentenceCloze, state.question.kind)
+            actualIds.add(state.question.wordId)
+            state = engine.submitAnswer(state, state.question.correctAnswer)
+        }
+
+        assertEquals(expectedIds, actualIds)
+    }
+
+    @Test
+    fun sentenceClozeSupportsPhrasesFirstMatchAndUniqueDistractors() {
+        val wand = WordEntry(
+            "magic-wand",
+            "magic wand",
+            "魔法棒",
+            example = ExampleSentence(en = "I hold a magic wand.", zh = "我拿着一根魔法棒。"),
+        )
+        val phraseEngine = BattleEngine(
+            config = GameConfig(monsterHp = 99, monsterCount = 1, enabledQuestionTypes = listOf(BattleQuestionTypePolicy.SENTENCE_CLOZE)),
+            words = listOf(wand, WordEntry("fruit-apple", "apple", "苹果"), WordEntry("fruit-banana", "banana", "香蕉")),
+            targetWordIds = listOf("magic-wand"),
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+        assertEquals("I hold a ____.", phraseEngine.initialState().question.sentenceTemplate)
+
+        val apple = WordEntry(
+            "fruit-apple",
+            "apple",
+            "苹果",
+            distractors = listOf("Apple", "banana"),
+            example = ExampleSentence(en = "Apple pie has apple slices.", zh = "苹果派里有苹果片。"),
+        )
+        val appleEngine = BattleEngine(
+            config = GameConfig(monsterHp = 99, monsterCount = 1, enabledQuestionTypes = listOf(BattleQuestionTypePolicy.SENTENCE_CLOZE)),
+            words = listOf(apple, WordEntry("fruit-orange", "orange", "橙子"), WordEntry("fruit-grape", "grape", "葡萄")),
+            targetWordIds = listOf("fruit-apple"),
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+        val question = appleEngine.initialState().question
+        assertEquals("____ pie has apple slices.", question.sentenceTemplate)
+        assertEquals(3, question.options.size)
+        assertTrue(question.options.contains("apple"))
+        assertTrue(question.options.contains("banana"))
+        assertFalse(question.options.contains("Apple"))
+    }
+
+    @Test
+    fun sentenceClozeOnlyFallsBackToChoiceWithoutExample() {
+        val engine = BattleEngine(
+            config = GameConfig(monsterHp = 99, monsterCount = 1, enabledQuestionTypes = listOf(BattleQuestionTypePolicy.SENTENCE_CLOZE)),
+            words = listOf(
+                WordEntry("fruit-orange", "orange", "橙子"),
+                WordEntry("fruit-banana", "banana", "香蕉"),
+                WordEntry("fruit-grape", "grape", "葡萄"),
+            ),
+            targetWordIds = listOf("fruit-orange"),
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+
+        assertEquals(QuestionKind.Choice, engine.initialState().question.kind)
+    }
+
+    @Test
     fun monsterPlanUsesHarmonyQuestionKindFallbackChain() {
         val engine = BattleEngine(
             config = GameConfig(monsterHp = 99, monsterCount = 5),
             words = words,
             shuffleOptions = { it },
-            randomDouble = { 0.999 },
+            randomDouble = { 0.5 },
         )
 
         val normal = engine.initialState()
@@ -175,6 +295,7 @@ class BattleQuestionTypeTest {
     private fun answerFor(question: Question): String {
         return when (question.kind) {
             QuestionKind.Choice -> question.correctAnswer
+            QuestionKind.SentenceCloze -> question.correctAnswer
             QuestionKind.FillLetter -> question.letterAnswer
             QuestionKind.FillLetterMedium -> question.letterAnswers[question.currentStep]
             QuestionKind.Spell -> question.correctAnswer

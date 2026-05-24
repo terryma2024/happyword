@@ -57,70 +57,110 @@
       "word": "apple",
       "meaningZh": "苹果",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "I eat an apple after lunch.",
+        "zh": "我午饭后吃一个苹果。"
+      }
     },
     {
       "id": "fruit-banana",
       "word": "banana",
       "meaningZh": "香蕉",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The banana is yellow.",
+        "zh": "这根香蕉是黄色的。"
+      }
     },
     {
       "id": "fruit-orange",
       "word": "orange",
       "meaningZh": "橙子",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "She peels an orange.",
+        "zh": "她剥开一个橙子。"
+      }
     },
     {
       "id": "fruit-grape",
       "word": "grape",
       "meaningZh": "葡萄",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "One grape rolls on the plate.",
+        "zh": "一颗葡萄在盘子上滚动。"
+      }
     },
     {
       "id": "fruit-pear",
       "word": "pear",
       "meaningZh": "梨",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "This pear tastes sweet.",
+        "zh": "这个梨尝起来很甜。"
+      }
     },
     {
       "id": "fruit-peach",
       "word": "peach",
       "meaningZh": "桃子",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "A peach grows on the tree.",
+        "zh": "一颗桃子长在树上。"
+      }
     },
     {
       "id": "fruit-lemon",
       "word": "lemon",
       "meaningZh": "柠檬",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The lemon smells fresh.",
+        "zh": "这个柠檬闻起来很清新。"
+      }
     },
     {
       "id": "fruit-mango",
       "word": "mango",
       "meaningZh": "芒果",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "Dad cuts a mango for me.",
+        "zh": "爸爸给我切了一个芒果。"
+      }
     },
     {
       "id": "fruit-melon",
       "word": "melon",
       "meaningZh": "瓜",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "We share a melon in summer.",
+        "zh": "夏天我们分享一个瓜。"
+      }
     },
     {
       "id": "fruit-cherry",
       "word": "cherry",
       "meaningZh": "樱桃",
       "category": "fruit",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The cherry is on the cake.",
+        "zh": "樱桃在蛋糕上。"
+      }
     }
   ]
 }

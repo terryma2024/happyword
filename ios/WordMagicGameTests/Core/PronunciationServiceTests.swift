@@ -4,10 +4,11 @@ import XCTest
 @MainActor
 final class PronunciationServiceTests: XCTestCase {
     func testShouldAutoSpeakMatchesHarmonyGate() {
-        XCTAssertTrue(shouldAutoSpeak(autoSpeakEnabled: true, ttsAvailable: true, isRevealing: false))
-        XCTAssertFalse(shouldAutoSpeak(autoSpeakEnabled: false, ttsAvailable: true, isRevealing: false))
-        XCTAssertFalse(shouldAutoSpeak(autoSpeakEnabled: true, ttsAvailable: false, isRevealing: false))
-        XCTAssertFalse(shouldAutoSpeak(autoSpeakEnabled: true, ttsAvailable: true, isRevealing: true))
+        XCTAssertTrue(shouldAutoSpeak(autoSpeakEnabled: true, ttsAvailable: true, isRevealing: false, questionKind: .choice))
+        XCTAssertFalse(shouldAutoSpeak(autoSpeakEnabled: false, ttsAvailable: true, isRevealing: false, questionKind: .choice))
+        XCTAssertFalse(shouldAutoSpeak(autoSpeakEnabled: true, ttsAvailable: false, isRevealing: false, questionKind: .choice))
+        XCTAssertFalse(shouldAutoSpeak(autoSpeakEnabled: true, ttsAvailable: true, isRevealing: true, questionKind: .choice))
+        XCTAssertFalse(shouldAutoSpeak(autoSpeakEnabled: true, ttsAvailable: true, isRevealing: false, questionKind: .sentenceCloze))
     }
 
     func testShouldAutoSpeakAfterAnswerFeedbackSuppressesFillLetterMediumStepAdvance() {
@@ -53,6 +54,19 @@ final class PronunciationServiceTests: XCTestCase {
         XCTAssertEqual(speaker.spokenWords.first, coordinator.battleEngine?.state.currentQuestion?.answer)
     }
 
+    func testSentenceClozeDoesNotAutoSpeakButManualSpeakerStillWorks() {
+        let speaker = RecordingPronunciationService()
+        let coordinator = makeCoordinator(pronunciationService: speaker)
+        coordinator.battleEngine = BattleEngine(questionSource: FixedQuestionSource.single(Self.sentenceClozeQuestion), config: coordinator.configStore.config)
+        coordinator.battleEngine?.start()
+
+        coordinator.autoSpeakCurrentBattleAnswer(isRevealing: false)
+        XCTAssertTrue(speaker.spokenWords.isEmpty)
+
+        coordinator.speakCurrentBattleAnswer()
+        XCTAssertEqual(speaker.spokenWords, ["apple"])
+    }
+
     func testAutoSpeakAfterAnswerUsesNextQuestionAnswer() {
         let speaker = RecordingPronunciationService()
         let coordinator = makeCoordinator(pronunciationService: speaker)
@@ -90,5 +104,18 @@ final class PronunciationServiceTests: XCTestCase {
         func dispose() {
             disposeCount += 1
         }
+    }
+
+    private static var sentenceClozeQuestion: Question {
+        var question = Question(
+            promptZh: "苹果",
+            answer: "apple",
+            options: ["apple", "banana", "orange"],
+            wordId: "fruit-apple",
+            kind: .sentenceCloze
+        )
+        question.sentenceTemplate = "I eat an ____."
+        question.sentenceZh = "我吃一个苹果。"
+        return question
     }
 }

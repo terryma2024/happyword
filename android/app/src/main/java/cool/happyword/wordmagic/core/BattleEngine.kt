@@ -37,6 +37,7 @@ class BattleEngine(
         enabledTypes = config.sanitizedQuestionTypes(),
         rng = randomDouble,
     )
+    private var typeWordCursor = 0
 
     /** V0.8.4 — Spell wrong letter tap: −1 HP without advancing the question. */
     fun applySpellLetterPenalty(state: BattleState): Pair<Int, BattleState> {
@@ -216,6 +217,7 @@ class BattleEngine(
     private fun isCorrectAnswer(question: Question, answer: String): Boolean {
         return when (question.kind) {
             QuestionKind.Choice -> answer == question.correctAnswer
+            QuestionKind.SentenceCloze -> answer == question.correctAnswer
             QuestionKind.FillLetter -> answer == question.letterAnswer
             QuestionKind.FillLetterMedium -> answer == question.letterAnswers.getOrNull(question.currentStep)
             QuestionKind.Spell -> answer == question.correctAnswer
@@ -249,18 +251,8 @@ class BattleEngine(
 
     private fun pickWordForType(typeId: String, lastWordId: String?): WordEntry? {
         val targetWords = targetWordIds.mapNotNull { id -> words.find { it.id == id } }
-        for (entry in targetWords) {
-            if (BattleQuestionTypePolicy.wordSupportsQuestionType(entry, typeId)) {
-                if (targetWords.size > 1 && entry.id == lastWordId) continue
-                return entry
-            }
-        }
-        for (entry in words) {
-            if (BattleQuestionTypePolicy.wordSupportsQuestionType(entry, typeId)) {
-                if (words.size > 1 && entry.id == lastWordId) continue
-                return entry
-            }
-        }
+        pickSupportedWordFrom(targetWords, typeId, lastWordId)?.let { return it }
+        pickSupportedWordFrom(words, typeId, lastWordId)?.let { return it }
         if (words.isEmpty()) return null
         val fallbackWords = targetWords.ifEmpty { words }
         val currentIndex = fallbackWords.indexOfFirst { it.id == lastWordId }
@@ -272,9 +264,26 @@ class BattleEngine(
         return fallbackWords[nextIndex]
     }
 
+    private fun pickSupportedWordFrom(candidates: List<WordEntry>, typeId: String, lastWordId: String?): WordEntry? {
+        if (candidates.isEmpty()) return null
+        var skippedLast: WordEntry? = null
+        repeat(candidates.size) {
+            val entry = candidates[typeWordCursor % candidates.size]
+            typeWordCursor = (typeWordCursor + 1) % candidates.size
+            if (!BattleQuestionTypePolicy.wordSupportsQuestionType(entry, typeId)) return@repeat
+            if (candidates.size > 1 && entry.id == lastWordId) {
+                if (skippedLast == null) skippedLast = entry
+                return@repeat
+            }
+            return entry
+        }
+        return skippedLast
+    }
+
     private fun questionForType(word: WordEntry, typeId: String, monsterIndex: Int): Question {
         val builders: List<(WordEntry) -> Question?> = when (typeId) {
             BattleQuestionTypePolicy.SPELL -> listOf(::spellQuestionFor, ::mediumFillLetterQuestionFor, ::fillLetterQuestionFor, { w -> choiceQuestionFor(w) })
+            BattleQuestionTypePolicy.SENTENCE_CLOZE -> listOf(::sentenceClozeQuestionFor, ::mediumFillLetterQuestionFor, ::spellQuestionFor, ::fillLetterQuestionFor, { w -> choiceQuestionFor(w) })
             BattleQuestionTypePolicy.FILL_LETTER_MEDIUM -> listOf(::mediumFillLetterQuestionFor, ::fillLetterQuestionFor, { w -> choiceQuestionFor(w) })
             BattleQuestionTypePolicy.FILL_LETTER -> listOf(::fillLetterQuestionFor, { w -> choiceQuestionFor(w) })
             else -> listOf({ w -> choiceQuestionFor(w) })
@@ -301,6 +310,42 @@ class BattleEngine(
             wordId = word.id,
             kind = QuestionKind.Choice,
         )
+    }
+
+    private fun sentenceClozeQuestionFor(word: WordEntry): Question? {
+        val example = word.example ?: return null
+        val span = findSentenceClozeTargetSpan(example.en, word.word) ?: return null
+        if (example.zh.trim().isEmpty()) return null
+        val options = sentenceClozeOptionsFor(word)
+        if (options.size < 3) return null
+        val template = example.en.substring(0, span.start) + "____" + example.en.substring(span.endExclusive)
+        return Question(
+            prompt = word.meaning,
+            correctAnswer = word.word,
+            options = shuffleWithRandom(options.take(3)),
+            wordId = word.id,
+            kind = QuestionKind.SentenceCloze,
+            sentenceTemplate = template,
+            sentenceZh = example.zh,
+        )
+    }
+
+    private fun sentenceClozeOptionsFor(word: WordEntry): List<String> {
+        val out = mutableListOf<String>()
+        fun push(value: String) {
+            val trimmed = value.trim()
+            if (trimmed.isNotEmpty() && out.none { it.equals(trimmed, ignoreCase = true) }) {
+                out.add(trimmed)
+            }
+        }
+        push(word.word)
+        word.distractors.forEach(::push)
+        for (entry in words) {
+            if (entry.id == word.id) continue
+            push(entry.word)
+            if (out.size >= 3) break
+        }
+        return out
     }
 
     private fun fillLetterQuestionFor(word: WordEntry): Question? {

@@ -49,70 +49,110 @@
       "word": "fish",
       "meaningZh": "鱼",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "A fish swims in the sea.",
+        "zh": "一条鱼在海里游。"
+      }
     },
     {
       "id": "ocean-whale",
       "word": "whale",
       "meaningZh": "鲸鱼",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The whale is very big.",
+        "zh": "鲸鱼非常大。"
+      }
     },
     {
       "id": "ocean-shark",
       "word": "shark",
       "meaningZh": "鲨鱼",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "A shark has sharp teeth.",
+        "zh": "鲨鱼有锋利的牙齿。"
+      }
     },
     {
       "id": "ocean-crab",
       "word": "crab",
       "meaningZh": "螃蟹",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The crab walks sideways.",
+        "zh": "螃蟹横着走。"
+      }
     },
     {
       "id": "ocean-dolphin",
       "word": "dolphin",
       "meaningZh": "海豚",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "A dolphin jumps over a wave.",
+        "zh": "一只海豚跃过海浪。"
+      }
     },
     {
       "id": "ocean-octopus",
       "word": "octopus",
       "meaningZh": "章鱼",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The octopus has eight arms.",
+        "zh": "章鱼有八只腕足。"
+      }
     },
     {
       "id": "ocean-seal",
       "word": "seal",
       "meaningZh": "海豹",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The seal rests on a rock.",
+        "zh": "海豹在岩石上休息。"
+      }
     },
     {
       "id": "ocean-turtle",
       "word": "turtle",
       "meaningZh": "海龟",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "A turtle moves slowly.",
+        "zh": "海龟慢慢地移动。"
+      }
     },
     {
       "id": "ocean-starfish",
       "word": "starfish",
       "meaningZh": "海星",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "A starfish rests on the sand.",
+        "zh": "一只海星躺在沙子上。"
+      }
     },
     {
       "id": "ocean-jellyfish",
       "word": "jellyfish",
       "meaningZh": "水母",
       "category": "ocean",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The jellyfish floats in the water.",
+        "zh": "水母漂在水中。"
+      }
     }
   ]
 }

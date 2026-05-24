@@ -54,70 +54,110 @@
       "word": "school",
       "meaningZh": "学校",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "We go to school by bus.",
+        "zh": "我们坐公交车去学校。"
+      }
     },
     {
       "id": "place-hospital",
       "word": "hospital",
       "meaningZh": "医院",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The hospital is near the park.",
+        "zh": "医院在公园附近。"
+      }
     },
     {
       "id": "place-park",
       "word": "park",
       "meaningZh": "公园",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "I fly a kite in the park.",
+        "zh": "我在公园里放风筝。"
+      }
     },
     {
       "id": "place-supermarket",
       "word": "supermarket",
       "meaningZh": "超市",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "Mom buys milk at the supermarket.",
+        "zh": "妈妈在超市买牛奶。"
+      }
     },
     {
       "id": "place-library",
       "word": "library",
       "meaningZh": "图书馆",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The library is quiet.",
+        "zh": "图书馆很安静。"
+      }
     },
     {
       "id": "place-zoo",
       "word": "zoo",
       "meaningZh": "动物园",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "We see pandas at the zoo.",
+        "zh": "我们在动物园看熊猫。"
+      }
     },
     {
       "id": "place-bank",
       "word": "bank",
       "meaningZh": "银行",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The bank opens at nine.",
+        "zh": "银行九点开门。"
+      }
     },
     {
       "id": "place-museum",
       "word": "museum",
       "meaningZh": "博物馆",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The museum has old maps.",
+        "zh": "博物馆里有旧地图。"
+      }
     },
     {
       "id": "place-station",
       "word": "station",
       "meaningZh": "车站",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The station is busy today.",
+        "zh": "今天车站很忙。"
+      }
     },
     {
       "id": "place-home",
       "word": "home",
       "meaningZh": "家",
       "category": "place",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "I read a book at home.",
+        "zh": "我在家读书。"
+      }
     }
   ]
 }

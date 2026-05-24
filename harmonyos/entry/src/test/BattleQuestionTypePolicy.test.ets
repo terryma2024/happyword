@@ -3,7 +3,7 @@ import { GameConfig, cloneGameConfig } from '../main/ets/models/GameConfig';
 import { gameConfigFromJson, gameConfigToJson } from '../main/ets/services/GameConfigPersistence';
 import { MonsterKind, MonsterLevel } from '../main/ets/data/MonsterCatalog';
 import { QuestionKind } from '../main/ets/models/Question';
-import { WordEntry } from '../main/ets/models/WordEntry';
+import { ExampleSentence, WordEntry } from '../main/ets/models/WordEntry';
 import {
   BATTLE_QUESTION_TYPE_SENTENCE_FILL,
   DEFAULT_ENABLED_QUESTION_TYPES,
@@ -25,14 +25,23 @@ function makeWord(id: string, word: string): WordEntry {
   return w;
 }
 
+function withExample(word: WordEntry, en: string, zh: string): WordEntry {
+  const ex: ExampleSentence = new ExampleSentence();
+  ex.en = en;
+  ex.zh = zh;
+  word.example = ex;
+  return word;
+}
+
 export default function battleQuestionTypePolicyTest() {
   describe('BattleQuestionTypePolicy', () => {
     it('defaultsToAllImplementedTypesInDifficultyOrder', 0, () => {
-      expect(DEFAULT_ENABLED_QUESTION_TYPES.length).assertEqual(4);
+      expect(DEFAULT_ENABLED_QUESTION_TYPES.length).assertEqual(5);
       expect(DEFAULT_ENABLED_QUESTION_TYPES[0]).assertEqual(QuestionKind.Choice);
       expect(DEFAULT_ENABLED_QUESTION_TYPES[1]).assertEqual(QuestionKind.FillLetter);
       expect(DEFAULT_ENABLED_QUESTION_TYPES[2]).assertEqual(QuestionKind.FillLetterMedium);
       expect(DEFAULT_ENABLED_QUESTION_TYPES[3]).assertEqual(QuestionKind.Spell);
+      expect(DEFAULT_ENABLED_QUESTION_TYPES[4]).assertEqual(QuestionKind.SentenceCloze);
     });
 
     it('sanitizesUnknownDuplicateAndFutureTypes', 0, () => {
@@ -41,11 +50,13 @@ export default function battleQuestionTypePolicyTest() {
         'unknown-kind',
         QuestionKind.FillLetter,
         BATTLE_QUESTION_TYPE_SENTENCE_FILL,
+        QuestionKind.SentenceCloze,
         QuestionKind.Spell,
       ]);
-      expect(out.length).assertEqual(2);
+      expect(out.length).assertEqual(3);
       expect(out[0]).assertEqual(QuestionKind.FillLetter);
       expect(out[1]).assertEqual(QuestionKind.Spell);
+      expect(out[2]).assertEqual(QuestionKind.SentenceCloze);
     });
 
     it('fallsBackToDefaultWhenStoredListHasNoImplementedType', 0, () => {
@@ -90,6 +101,14 @@ export default function battleQuestionTypePolicyTest() {
       expect(wordSupportsQuestionType(makeWord('w-fish', 'fish'), QuestionKind.FillLetterMedium)).assertTrue();
       expect(wordSupportsQuestionType(makeWord('w-fish', 'fish'), QuestionKind.Spell)).assertTrue();
       expect(wordSupportsQuestionType(makeWord('w-strawberry', 'strawberry'), QuestionKind.Spell)).assertFalse();
+      expect(wordSupportsQuestionType(
+        withExample(makeWord('w-apple', 'apple'), 'I eat an apple.', '我吃苹果。'),
+        QuestionKind.SentenceCloze,
+      )).assertTrue();
+      expect(wordSupportsQuestionType(
+        withExample(makeWord('w-cat', 'cat'), 'A caterpillar is small.', '毛毛虫很小。'),
+        QuestionKind.SentenceCloze,
+      )).assertFalse();
     });
   });
 

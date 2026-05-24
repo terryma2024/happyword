@@ -16,7 +16,11 @@ typealias WordKindSupportFn = (_ wordId: String, _ kind: String) -> Bool
 
 enum BattleQuestionSchedulerSupport {
     private static let introKinds = [QuestionKind.choice.rawValue, QuestionKind.fillLetter.rawValue]
-    private static let challengeKinds = [QuestionKind.fillLetterMedium.rawValue, QuestionKind.spell.rawValue]
+    private static let challengeKinds = [
+        QuestionKind.fillLetterMedium.rawValue,
+        QuestionKind.spell.rawValue,
+        QuestionKind.sentenceCloze.rawValue,
+    ]
 
     static func intersectKinds(_ pool: [String], enabled: [String]) -> [String] {
         pool.filter { enabled.contains($0) }
@@ -152,7 +156,9 @@ final class BattleQuestionScheduler {
             return effectiveChallengePool[0]
         }
         if effectiveChallengePool.count >= 2 {
-            return rng() < 0.5 ? QuestionKind.fillLetterMedium.rawValue : QuestionKind.spell.rawValue
+            let raw = Int((rng() * Double(effectiveChallengePool.count)).rounded(.down))
+            let index = min(max(raw, 0), effectiveChallengePool.count - 1)
+            return effectiveChallengePool[index]
         }
         return QuestionKind.choice.rawValue
     }

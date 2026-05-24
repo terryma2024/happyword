@@ -16,6 +16,7 @@ class PackModelsTest {
         assertEquals(PackSource.Builtin, packs.first().source)
         assertEquals("Fruit Forest", packs.first().nameEn)
         assertEquals("水果森林", packs.first().nameZh)
+        assertEquals(listOf(10, 10, 10, 10, 10), packs.map { it.words.size })
         assertTrue(packs.first().words.any { it.word == "apple" && it.meaning == "苹果" })
         assertTrue(packs.all { it.scene.monsterPlan.isNotEmpty() })
     }
@@ -29,5 +30,18 @@ class PackModelsTest {
         assertEquals("#FFF1E6" to "#F4B98A", colors["home-cottage"])
         assertEquals("#FFF4D9" to "#E0B973", colors["animal-safari"])
         assertEquals("#E0F4F7" to "#7BB6BF", colors["ocean-realm"])
+    }
+
+    @Test
+    fun builtinPacksHaveSentenceClozeExamplesForEveryWord() {
+        BuiltinPacks.all.forEach { pack ->
+            pack.words.forEach { word ->
+                assertTrue("${pack.id} ${word.id} missing example", word.example != null)
+                assertTrue(
+                    "${pack.id} ${word.id} cannot generate sentence cloze",
+                    BattleQuestionTypePolicy.wordSupportsQuestionType(word, BattleQuestionTypePolicy.SENTENCE_CLOZE),
+                )
+            }
+        }
     }
 }

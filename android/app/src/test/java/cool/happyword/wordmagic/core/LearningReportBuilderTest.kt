@@ -11,7 +11,7 @@ class LearningReportBuilderTest {
         val recorder = LearningRecorder()
         recorder.recordAnswer("fruit-forest", "fruit-apple", true, 100L)
         recorder.recordAnswer("fruit-forest", "fruit-apple", true, 200L)
-        recorder.recordAnswer("school-castle", "school-book", false, 300L)
+        recorder.recordAnswer("school-castle", "place-school", false, 300L)
 
         val report = LearningReportBuilder().build(
             library = library,

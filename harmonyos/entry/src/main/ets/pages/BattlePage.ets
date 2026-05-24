@@ -299,6 +299,8 @@ struct BattlePage {
   @State prompt: string = 'Loading…';
   @State feedbackText: string = ' ';
   @State feedbackColor: string = '#2ECC71';
+  @State sentenceTemplate: string = '';
+  @State sentenceZh: string = '';
 
   // V0.3 fill-letter render state. For Choice questions these stay
   // at their defaults and BattlePage renders the existing prompt
@@ -330,6 +332,18 @@ struct BattlePage {
     ChoiceState.Disabled,
   ];
   private readonly optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
+
+  private optionIdFor(index: number): string {
+    if (this.currentQuestionKind === QuestionKind.SentenceCloze) {
+      return `BattleSentenceClozeOption_${index}`;
+    }
+    return this.optionIds[index];
+  }
+
+  private applySentenceClozeText(template: string, zh: string): void {
+    this.sentenceTemplate = template;
+    this.sentenceZh = zh;
+  }
 
   aboutToAppear(): void {
     // Construct the engine off the UI thread: loading `words_v1.json` is
@@ -727,7 +741,7 @@ struct BattlePage {
   }
 
   private maybeAutoSpeakCurrent(isRevealing: boolean): void {
-    if (!shouldAutoSpeak(this.autoSpeak, this.tts.isAvailable, isRevealing)) {
+    if (!shouldAutoSpeak(this.autoSpeak, this.tts.isAvailable, isRevealing, this.currentQuestionKind)) {
       return;
     }
     if (this.lastAnswerWord.length === 0) {
@@ -788,6 +802,7 @@ struct BattlePage {
       this.lastAnswerWord = q.answer;
       this.currentWordId = q.wordId;
       this.currentQuestionKind = q.kind;
+      this.applySentenceClozeText('', '');
       if (q.kind === QuestionKind.FillLetterMedium) {
         this.isMedium = true;
         this.currentStep = q.currentStep;
@@ -817,6 +832,15 @@ struct BattlePage {
         this.letterMissingIndex = -1;
         this.options = ['', '', ''];
         this.currentSpellQuestion = q;
+      } else if (q.kind === QuestionKind.SentenceCloze) {
+        this.isMedium = false;
+        this.currentStep = 0;
+        this.totalSteps = 1;
+        this.pendingMissingIndex = -1;
+        this.letterTemplate = '';
+        this.letterMissingIndex = -1;
+        this.applySentenceClozeText(q.sentenceTemplate, q.sentenceZh);
+        this.options = [q.options[0], q.options[1], q.options[2]];
       } else {
         this.isMedium = false;
         this.currentStep = 0;
@@ -883,6 +907,8 @@ struct BattlePage {
     const answeredIsMedium: boolean = this.isMedium;
     const answeredStep: number = this.currentStep;
     const answeredTotalSteps: number = this.totalSteps;
+    const answeredSentenceTemplate: string = this.sentenceTemplate;
+    const answeredSentenceZh: string = this.sentenceZh;
     const correctWord: string = this.lastAnswerWord;
     const answeredWordId: string = this.currentWordId;
 
@@ -943,6 +969,7 @@ struct BattlePage {
     this.isMedium = answeredIsMedium;
     this.currentStep = answeredStep;
     this.totalSteps = answeredTotalSteps;
+    this.applySentenceClozeText(answeredSentenceTemplate, answeredSentenceZh);
 
     // Highlight the tapped button; keep the other two disabled so the
     // player can't race through feedback.
@@ -1040,6 +1067,7 @@ struct BattlePage {
         // with no text on the very first FillLetter shown after a
         // Choice question (e.g. monster-2 in today's adventure).
         this.currentQuestionKind = nextQuestion.kind;
+        this.applySentenceClozeText('', '');
         if (nextQuestion.kind === QuestionKind.FillLetterMedium) {
           this.isMedium = true;
           this.currentStep = nextQuestion.currentStep;
@@ -1064,6 +1092,19 @@ struct BattlePage {
           ];
           this.letterTemplate = nextQuestion.letterTemplate;
           this.letterMissingIndex = nextQuestion.missingIndex;
+        } else if (nextQuestion.kind === QuestionKind.SentenceCloze) {
+          this.isMedium = false;
+          this.currentStep = 0;
+          this.totalSteps = 1;
+          this.pendingMissingIndex = -1;
+          this.options = [
+            nextQuestion.options[0],
+            nextQuestion.options[1],
+            nextQuestion.options[2],
+          ];
+          this.letterTemplate = '';
+          this.letterMissingIndex = -1;
+          this.applySentenceClozeText(nextQuestion.sentenceTemplate, nextQuestion.sentenceZh);
         } else {
           this.isMedium = false;
           this.currentStep = 0;
@@ -1076,6 +1117,7 @@ struct BattlePage {
           ];
           this.letterTemplate = '';
           this.letterMissingIndex = -1;
+          this.applySentenceClozeText('', '');
         }
         // New question loaded — feedback window is closed so it's
         // safe to auto-speak the answer now.
@@ -1654,18 +1696,34 @@ struct BattlePage {
         Text('Question')
           .fontSize(14)
           .fontColor('#457B9D');
-        Text(this.prompt)
-          .id('BattlePrompt')
-          .fontSize((this.currentQuestionKind === QuestionKind.FillLetter
-            || this.currentQuestionKind === QuestionKind.FillLetterMedium) ? 20 : 28)
-          .fontWeight((this.currentQuestionKind === QuestionKind.FillLetter
-            || this.currentQuestionKind === QuestionKind.FillLetterMedium)
-            ? FontWeight.Medium : FontWeight.Bold)
-          .fontColor((this.currentQuestionKind === QuestionKind.FillLetter
-            || this.currentQuestionKind === QuestionKind.FillLetterMedium)
-            ? '#457B9D' : '#1D3557')
-          .margin({ top: (this.currentQuestionKind === QuestionKind.FillLetter
-            || this.currentQuestionKind === QuestionKind.FillLetterMedium) ? 8 : 16 });
+        if (this.currentQuestionKind === QuestionKind.SentenceCloze) {
+          Text(this.sentenceTemplate)
+            .id('BattleSentenceClozePrompt')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1D3557')
+            .textAlign(TextAlign.Center)
+            .margin({ top: 12 });
+          Text(this.sentenceZh)
+            .id('BattleSentenceClozeZh')
+            .fontSize(15)
+            .fontColor('#457B9D')
+            .textAlign(TextAlign.Center)
+            .margin({ top: 8 });
+        } else {
+          Text(this.prompt)
+            .id('BattlePrompt')
+            .fontSize((this.currentQuestionKind === QuestionKind.FillLetter
+              || this.currentQuestionKind === QuestionKind.FillLetterMedium) ? 20 : 28)
+            .fontWeight((this.currentQuestionKind === QuestionKind.FillLetter
+              || this.currentQuestionKind === QuestionKind.FillLetterMedium)
+              ? FontWeight.Medium : FontWeight.Bold)
+            .fontColor((this.currentQuestionKind === QuestionKind.FillLetter
+              || this.currentQuestionKind === QuestionKind.FillLetterMedium)
+              ? '#457B9D' : '#1D3557')
+            .margin({ top: (this.currentQuestionKind === QuestionKind.FillLetter
+              || this.currentQuestionKind === QuestionKind.FillLetterMedium) ? 8 : 16 });
+        }
         if (this.currentQuestionKind === QuestionKind.FillLetter
           || this.currentQuestionKind === QuestionKind.FillLetterMedium) {
           this.letterTemplateRow();
@@ -1725,7 +1783,7 @@ struct BattlePage {
       Row({ space: 4 }) {
         ChoiceButton({
           text: this.options[0],
-          choiceId: this.optionIds[0],
+          choiceId: this.optionIdFor(0),
           state: this.optionStates[0],
           onTap: (t: string): void => {
             this.onOptionTap(t);
@@ -1733,7 +1791,7 @@ struct BattlePage {
         });
         ChoiceButton({
           text: this.options[1],
-          choiceId: this.optionIds[1],
+          choiceId: this.optionIdFor(1),
           state: this.optionStates[1],
           onTap: (t: string): void => {
             this.onOptionTap(t);
@@ -1741,7 +1799,7 @@ struct BattlePage {
         });
         ChoiceButton({
           text: this.options[2],
-          choiceId: this.optionIds[2],
+          choiceId: this.optionIdFor(2),
           state: this.optionStates[2],
           onTap: (t: string): void => {
             this.onOptionTap(t);
@@ -1749,6 +1807,7 @@ struct BattlePage {
         });
       }
       .width('100%')
+      .id(this.currentQuestionKind === QuestionKind.SentenceCloze ? 'BattleOptionsRow_SentenceCloze' : 'BattleOptionsRow')
       .padding({ left: 20, right: 20, top: 16, bottom: 20 });
     } else {
       // Spell questions own their input via SpellingArea inside

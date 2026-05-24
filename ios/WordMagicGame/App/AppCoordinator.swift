@@ -303,7 +303,8 @@ final class AppCoordinator: ObservableObject {
         guard shouldAutoSpeak(
             autoSpeakEnabled: configStore.config.autoSpeak,
             ttsAvailable: pronunciationService.isAvailable,
-            isRevealing: isRevealing
+            isRevealing: isRevealing,
+            questionKind: battleEngine?.state.currentQuestion?.kind
         ) else { return }
         speakCurrentBattleAnswer()
     }
@@ -876,6 +877,8 @@ final class AppCoordinator: ObservableObject {
             saveUITestQuestionTypes([QuestionKind.fillLetter.rawValue])
         } else if arguments.contains("-UITestQuestionTypesSpellOnly") || arguments.contains("-UITestBattleSpellOnly") {
             saveUITestQuestionTypes([QuestionKind.spell.rawValue])
+        } else if arguments.contains("-UITestQuestionTypesSentenceClozeOnly") {
+            saveUITestQuestionTypes([QuestionKind.sentenceCloze.rawValue])
         }
         if arguments.contains("-UITestQuickBattle") {
             saveUITestQuickBattleConfig()

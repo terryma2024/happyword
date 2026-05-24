@@ -2,6 +2,7 @@ package cool.happyword.wordmagic
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -138,11 +139,30 @@ class SmokeTest {
         composeRule.onNodeWithTag("BattleOptionsRow_SpellPlaceholder").assertIsDisplayed()
     }
 
+    @Test
+    fun sentenceClozeQuestionUsesHarmonyPromptAndOptions() {
+        configureSentenceClozeOnly()
+        composeRule.onNodeWithTag("HomeStartButton").performClick()
+        composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
+
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            composeRule.onAllNodesWithTag("BattleSentenceClozePrompt").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("BattleSentenceClozePrompt").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleSentenceClozePrompt").assertHeightIsAtLeast(88.dp)
+        composeRule.onNodeWithTag("BattleSentenceClozeZh").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleOptionsRow_SentenceCloze").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleSentenceClozeOption_0").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleSentenceClozeOption_1").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleSentenceClozeOption_2").assertIsDisplayed()
+    }
+
     private fun configureChoiceOnly() {
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_sentence-cloze").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             composeRule.onAllNodesWithText("Small Magician Word Adventure").fetchSemanticsNodes().isNotEmpty()
@@ -154,6 +174,19 @@ class SmokeTest {
         composeRule.onNodeWithTag("ConfigQuestionType_choice").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_sentence-cloze").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigBackButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            composeRule.onAllNodesWithText("Small Magician Word Adventure").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun configureSentenceClozeOnly() {
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_choice").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             composeRule.onAllNodesWithText("Small Magician Word Adventure").fetchSemanticsNodes().isNotEmpty()

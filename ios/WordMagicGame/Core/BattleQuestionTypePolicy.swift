@@ -8,6 +8,7 @@ enum BattleQuestionTypePolicy {
         QuestionKind.fillLetter.rawValue,
         QuestionKind.fillLetterMedium.rawValue,
         QuestionKind.spell.rawValue,
+        QuestionKind.sentenceCloze.rawValue,
     ]
 
     static func sanitizeEnabledQuestionTypes(_ raw: [String]) -> [String] {
@@ -27,7 +28,7 @@ enum BattleQuestionTypePolicy {
             return .spelling
         case QuestionKind.fillLetterMedium.rawValue:
             return .elite
-        case QuestionKind.spell.rawValue:
+        case QuestionKind.spell.rawValue, QuestionKind.sentenceCloze.rawValue:
             return .boss
         default:
             return .normal
@@ -71,6 +72,8 @@ enum BattleQuestionTypePolicy {
             return letters >= 4
         case QuestionKind.spell.rawValue:
             return letters >= 4 && letters <= 9
+        case QuestionKind.sentenceCloze.rawValue:
+            return wordSupportsSentenceCloze(word)
         default:
             return false
         }
@@ -92,6 +95,14 @@ enum BattleQuestionTypePolicy {
             return [
                 QuestionKind.spell.rawValue,
                 QuestionKind.fillLetterMedium.rawValue,
+                QuestionKind.fillLetter.rawValue,
+                QuestionKind.choice.rawValue,
+            ]
+        case QuestionKind.sentenceCloze.rawValue:
+            return [
+                QuestionKind.sentenceCloze.rawValue,
+                QuestionKind.fillLetterMedium.rawValue,
+                QuestionKind.spell.rawValue,
                 QuestionKind.fillLetter.rawValue,
                 QuestionKind.choice.rawValue,
             ]
@@ -141,6 +152,8 @@ enum BattleQuestionTypePolicy {
             return "双字母填空"
         case QuestionKind.spell.rawValue:
             return "多字母选择"
+        case QuestionKind.sentenceCloze.rawValue:
+            return "句子填词"
         default:
             return "题型"
         }

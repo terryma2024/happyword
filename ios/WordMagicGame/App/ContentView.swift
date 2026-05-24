@@ -89,7 +89,6 @@ struct ContentView: View {
                 }
             }
         }
-        .accessibilityIdentifier("RootView")
         .onAppear {
             OrientationController.apply(for: coordinator.route)
         }

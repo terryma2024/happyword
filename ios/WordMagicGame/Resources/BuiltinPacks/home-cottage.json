@@ -52,70 +52,110 @@
       "word": "TV",
       "meaningZh": "电视",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The TV is on.",
+        "zh": "电视开着。"
+      }
     },
     {
       "id": "home-chair",
       "word": "chair",
       "meaningZh": "椅子",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The chair is by the table.",
+        "zh": "椅子在桌子旁边。"
+      }
     },
     {
       "id": "home-bed",
       "word": "bed",
       "meaningZh": "床",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "My bed is soft.",
+        "zh": "我的床很软。"
+      }
     },
     {
       "id": "home-table",
       "word": "table",
       "meaningZh": "桌子",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "A cup is on the table.",
+        "zh": "一个杯子在桌子上。"
+      }
     },
     {
       "id": "home-sofa",
       "word": "sofa",
       "meaningZh": "沙发",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The sofa is big.",
+        "zh": "沙发很大。"
+      }
     },
     {
       "id": "home-lamp",
       "word": "lamp",
       "meaningZh": "台灯",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The lamp is bright.",
+        "zh": "台灯很亮。"
+      }
     },
     {
       "id": "home-door",
       "word": "door",
       "meaningZh": "门",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "Please close the door.",
+        "zh": "请关上门。"
+      }
     },
     {
       "id": "home-window",
       "word": "window",
       "meaningZh": "窗户",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The window is open.",
+        "zh": "窗户开着。"
+      }
     },
     {
       "id": "home-book",
       "word": "book",
       "meaningZh": "书",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "This book is fun.",
+        "zh": "这本书很有趣。"
+      }
     },
     {
       "id": "home-cup",
       "word": "cup",
       "meaningZh": "杯子",
       "category": "home",
-      "difficulty": 1
+      "difficulty": 1,
+      "example": {
+        "en": "The cup has water.",
+        "zh": "杯子里有水。"
+      }
     }
   ]
 }

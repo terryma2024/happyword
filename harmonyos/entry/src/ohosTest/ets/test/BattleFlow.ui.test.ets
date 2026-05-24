@@ -3,6 +3,9 @@ import { Driver, ON, Component } from '@kit.TestKit';
 import {
   launchAppShared,
   clickByIdShared,
+  resetBattleConfigForUiTestShared,
+  selectAllQuestionTypesShared,
+  selectOnlyQuestionTypeShared,
   tapWrongAnswerShared,
 } from './RoutingFlow.ui.test';
 
@@ -14,6 +17,7 @@ export default function battleFlowUiTest() {
   describe('BattleFlow', () => {
     it('damageFloaterAppearsAndDisappearsOnHit', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
+      resetBattleConfigForUiTestShared();
       await clickByIdShared(driver, 'HomeStartButton');
       await driver.delayMs(1500);
       await driver.assertComponentExist(ON.id('BattlePrompt'));
@@ -43,6 +47,34 @@ export default function battleFlowUiTest() {
       await driver.delayMs(800);
       await clickByIdShared(driver, 'ResultHomeButton');
       await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
+      done();
+    });
+
+    it('sentenceClozeQuestionRendersExamplePromptAndOptions', 0, async (done: Function) => {
+      const driver: Driver = await launchAppShared();
+      await selectOnlyQuestionTypeShared(driver, 'sentence-cloze');
+
+      await clickByIdShared(driver, 'HomeStartButton');
+      await driver.delayMs(1500);
+
+      await driver.assertComponentExist(ON.id('BattleSentenceClozePrompt'));
+      await driver.assertComponentExist(ON.id('BattleSentenceClozeZh'));
+      await driver.assertComponentExist(ON.id('BattleOptionsRow_SentenceCloze'));
+      await driver.assertComponentExist(ON.id('BattleSentenceClozeOption_0'));
+      await driver.assertComponentExist(ON.id('BattleSentenceClozeOption_1'));
+      await driver.assertComponentExist(ON.id('BattleSentenceClozeOption_2'));
+
+      const prompt: Component =
+        await driver.findComponent(ON.id('BattleSentenceClozePrompt'));
+      const promptText: string = await prompt.getText();
+      expect(promptText.indexOf('____') >= 0).assertTrue();
+
+      await clickByIdShared(driver, 'BattleEscapeButton');
+      await driver.delayMs(800);
+      await clickByIdShared(driver, 'ResultHomeButton');
+      await driver.delayMs(800);
+      await selectAllQuestionTypesShared(driver);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
     });

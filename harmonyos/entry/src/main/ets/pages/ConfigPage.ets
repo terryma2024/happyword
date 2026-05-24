@@ -452,6 +452,9 @@ struct ConfigPage {
     if (typeId === QuestionKind.Spell) {
       return '多字母选择';
     }
+    if (typeId === QuestionKind.SentenceCloze) {
+      return '句子填词';
+    }
     return '题型';
   }
 

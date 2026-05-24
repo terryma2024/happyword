@@ -12,7 +12,11 @@ export enum BattleScheduleMode {
 }
 
 const INTRO_KINDS: string[] = [QuestionKind.Choice, QuestionKind.FillLetter];
-const CHALLENGE_KINDS: string[] = [QuestionKind.FillLetterMedium, QuestionKind.Spell];
+const CHALLENGE_KINDS: string[] = [
+  QuestionKind.FillLetterMedium,
+  QuestionKind.Spell,
+  QuestionKind.SentenceCloze,
+];
 
 export type WordKindSupportFn = (wordId: string, kind: string) => boolean;
 
@@ -159,10 +163,11 @@ export class BattleQuestionScheduler {
     if (this.effectiveChallengePool.length === 1) {
       return this.effectiveChallengePool[0];
     }
-    if (this.effectiveChallengePool.length >= 2) {
-      return this.rng() < 0.5
-        ? QuestionKind.FillLetterMedium
-        : QuestionKind.Spell;
+    if (this.effectiveChallengePool.length > 1) {
+      const idx: number = Math.floor(this.rng() * this.effectiveChallengePool.length);
+      const safeIdx: number = idx < 0 ? 0
+        : (idx >= this.effectiveChallengePool.length ? this.effectiveChallengePool.length - 1 : idx);
+      return this.effectiveChallengePool[safeIdx];
     }
     return QuestionKind.Choice;
   }

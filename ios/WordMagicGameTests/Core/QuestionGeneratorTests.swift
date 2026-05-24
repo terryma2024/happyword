@@ -110,6 +110,67 @@ final class QuestionGeneratorTests: XCTestCase {
         XCTAssertTrue(question.isValid)
     }
 
+    func testSentenceClozeGeneratorMatchesHarmonyRules() throws {
+        let apple = Self.word(
+            id: "fruit-apple",
+            word: "apple",
+            meaningZh: "苹果",
+            example: ExampleSentence(en: "I eat an apple.", zh: "我吃一个苹果。")
+        )
+        let repo = WordRepository(words: [
+            apple,
+            Self.word(id: "fruit-banana", word: "banana", meaningZh: "香蕉"),
+            Self.word(id: "fruit-orange", word: "orange", meaningZh: "橙子"),
+        ])
+
+        let question = try XCTUnwrap(SentenceClozeGenerator(random: SeededRandom(seed: 1)).generate(apple, repo: repo))
+
+        XCTAssertEqual(question.kind, .sentenceCloze)
+        XCTAssertEqual(question.sentenceTemplate, "I eat an ____.")
+        XCTAssertEqual(question.sentenceZh, "我吃一个苹果。")
+        XCTAssertEqual(Set(question.options).count, 3)
+        XCTAssertTrue(question.options.contains("apple"))
+        XCTAssertTrue(question.isValid)
+        XCTAssertNil(findSentenceClozeTargetSpan(exampleEn: "A caterpillar is small.", targetWord: "cat"))
+    }
+
+    func testSentenceClozeGeneratorMatchesPhrasesFirstMatchAndUniqueDistractors() throws {
+        let wand = Self.word(
+            id: "magic-wand",
+            word: "magic wand",
+            meaningZh: "魔法棒",
+            example: ExampleSentence(en: "I hold a magic wand.", zh: "我拿着一根魔法棒。")
+        )
+        let repo = WordRepository(words: [
+            wand,
+            Self.word(id: "fruit-apple", word: "apple", meaningZh: "苹果"),
+            Self.word(id: "fruit-banana", word: "banana", meaningZh: "香蕉"),
+        ])
+        XCTAssertEqual(
+            try XCTUnwrap(SentenceClozeGenerator(random: SeededRandom(seed: 2)).generate(wand, repo: repo)).sentenceTemplate,
+            "I hold a ____."
+        )
+
+        var apple = Self.word(
+            id: "fruit-apple",
+            word: "apple",
+            meaningZh: "苹果",
+            example: ExampleSentence(en: "Apple pie has apple slices.", zh: "苹果派里有苹果片。")
+        )
+        apple.distractors = ["Apple", "banana"]
+        let appleRepo = WordRepository(words: [
+            apple,
+            Self.word(id: "fruit-orange", word: "orange", meaningZh: "橙子"),
+            Self.word(id: "fruit-grape", word: "grape", meaningZh: "葡萄"),
+        ])
+        let question = try XCTUnwrap(SentenceClozeGenerator(random: SeededRandom(seed: 3)).generate(apple, repo: appleRepo))
+        XCTAssertEqual(question.sentenceTemplate, "____ pie has apple slices.")
+        XCTAssertEqual(question.options.count, 3)
+        XCTAssertTrue(question.options.contains("apple"))
+        XCTAssertTrue(question.options.contains("banana"))
+        XCTAssertFalse(question.options.contains("Apple"))
+    }
+
     func testPlanQuestionSourceUsesMonsterSlotQuestionChain() throws {
         let repo = WordRepository(words: Self.planWords)
         let source = PlanQuestionSource(
@@ -157,6 +218,65 @@ final class QuestionGeneratorTests: XCTestCase {
         XCTAssertEqual(try source.nextQuestion().kind, .spell)
     }
 
+    func testPlanQuestionSourceEmitsSentenceClozeWhenOnlySentenceClozeEnabled() throws {
+        let repo = WordRepository(words: Self.planWords)
+        let source = PlanQuestionSource(
+            plan: BattleQuestionPlan(
+                wordIds: ["fruit-apple"],
+                monsterSlots: [MonsterPlanSlot(kind: .boss, catalogIndex: 4)]
+            ),
+            repository: repo,
+            randomSeed: 3,
+            enabledQuestionTypes: [QuestionKind.sentenceCloze.rawValue]
+        )
+
+        let question = try source.nextQuestion()
+
+        XCTAssertEqual(question.kind, .sentenceCloze)
+        XCTAssertEqual(question.sentenceTemplate, "I eat an ____.")
+        XCTAssertEqual(question.sentenceZh, "我吃苹果。")
+    }
+
+    func testPlanQuestionSourceRotatesSingleEnabledTypeAcrossPackWords() throws {
+        let pack = try XCTUnwrap(Pack.builtin.first { $0.id == "fruit-forest" })
+        let expectedIds = pack.words.prefix(5).map(\.id)
+        let source = PlanQuestionSource(
+            plan: BattleQuestionPlan(
+                wordIds: pack.words.map(\.id),
+                monsterSlots: [MonsterPlanSlot(kind: .boss, catalogIndex: 4)]
+            ),
+            repository: WordRepository(words: pack.words),
+            randomSeed: 3,
+            enabledQuestionTypes: [QuestionKind.sentenceCloze.rawValue]
+        )
+        var lastWordId: String?
+        var actualIds: [String] = []
+
+        for _ in expectedIds {
+            let question = try source.nextQuestion(lastWordId: lastWordId)
+            XCTAssertEqual(question.kind, .sentenceCloze)
+            actualIds.append(question.wordId)
+            lastWordId = question.wordId
+        }
+
+        XCTAssertEqual(actualIds, Array(expectedIds))
+    }
+
+    func testPlanQuestionSourceFallsBackToChoiceWhenSentenceClozeUnsupported() throws {
+        let repo = WordRepository(words: Self.planWords)
+        let source = PlanQuestionSource(
+            plan: BattleQuestionPlan(
+                wordIds: ["fruit-orange"],
+                monsterSlots: [MonsterPlanSlot(kind: .boss, catalogIndex: 4)]
+            ),
+            repository: repo,
+            randomSeed: 3,
+            enabledQuestionTypes: [QuestionKind.sentenceCloze.rawValue]
+        )
+
+        XCTAssertEqual(try source.nextQuestion().kind, .choice)
+    }
+
     private static let words: [WordEntry] = [
         WordEntry(id: "fruit-apple", word: "apple", meaningZh: "苹果", category: "fruit", difficulty: 1),
         WordEntry(id: "fruit-pear", word: "pear", meaningZh: "梨", category: "fruit", difficulty: 1),
@@ -165,7 +285,7 @@ final class QuestionGeneratorTests: XCTestCase {
     ]
 
     private static let planWords: [WordEntry] = [
-        word(id: "fruit-apple", word: "apple", meaningZh: "苹果"),
+        word(id: "fruit-apple", word: "apple", meaningZh: "苹果", example: ExampleSentence(en: "I eat an apple.", zh: "我吃苹果。")),
         word(id: "fruit-banana", word: "banana", meaningZh: "香蕉"),
         word(id: "fruit-orange", word: "orange", meaningZh: "橙子"),
         word(id: "place-zoo", word: "zoo", meaningZh: "动物园", category: "place"),
@@ -175,7 +295,13 @@ final class QuestionGeneratorTests: XCTestCase {
         word(id: "w-elephant", word: "elephant", meaningZh: "大象"),
     ]
 
-    private static func word(id: String, word: String, meaningZh: String, category: String = "fruit") -> WordEntry {
-        WordEntry(id: id, word: word, meaningZh: meaningZh, category: category, difficulty: 1)
+    private static func word(
+        id: String,
+        word: String,
+        meaningZh: String,
+        category: String = "fruit",
+        example: ExampleSentence? = nil
+    ) -> WordEntry {
+        WordEntry(id: id, word: word, meaningZh: meaningZh, category: category, difficulty: 1, example: example)
     }
 }
