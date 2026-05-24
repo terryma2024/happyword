@@ -680,11 +680,13 @@ struct TodayPlanView: View {
                 Button {
                     coordinator.openCheckInCalendar()
                 } label: {
-                    Text("✓")
-                        .font(.system(size: 24, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Color(red: 0.13, green: 0.58, blue: 0.34))
+                    Image("ToolbarCheckIn")
+                        .renderingMode(.original)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 35, height: 35)
                         .frame(width: 54, height: 54)
-                        .background(Color.white, in: Circle())
+                        .background(Color(red: 0.93, green: 0.99, blue: 0.96), in: Circle())
                 }
                 .accessibilityLabel("打卡日历")
                 .accessibilityIdentifier("TodayPlanCheckInButton")

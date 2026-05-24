@@ -3,7 +3,7 @@
 > 文档状态：路线图基线（与仓库实现对齐）  
 > 关联基线：[WordMagicGame_overall_spec.md](WordMagicGame_overall_spec.md)（「现在跑的代码」）  
 > 当前路线选择：趣味学习与长期学习系统平衡推进；**HarmonyOS / iOS / Android 三端 bootstrap 功能已对齐**，后续新能力走 `docs/features/` 三端 SOP。  
-> 最近更新：**2026-05-24** — **V0.8.8 每日打卡与连续奖励** 已完成 HarmonyOS + server 基线并经模拟器手动验证：今日冒险胜利自动打卡、打卡日历可翻月、连续 7 天奖励 +50 积分，绑定设备走云端同步、未绑定保留本地。iOS / Android 功能对齐已落地：入口、结果奖励行、月历翻页、本地持久化、绑定后云端同步与 7 日奖励规则均按 Harmony delta letter 复制；三端版本 metadata 均提升到 **0.8.8 / 1008008**。功能进入 Stage 5 parity verification，截图与 owner sign-off 继续在 checklist 跟进。
+> 最近更新：**2026-05-24** — **V0.8.8 每日打卡与连续奖励** 已完成 HarmonyOS + server 基线、iOS / Android 功能对齐与三端模拟器验收：今日冒险胜利自动打卡、打卡日历可翻月、连续 7 天奖励 +50 积分，绑定设备走云端同步、未绑定保留本地；入口图标与月切换按钮已完成三端视觉对齐；三端版本 metadata 均提升到 **0.8.8 / 1008008**。功能 checklist 已标记 Done。
 > 历史逐版本实施笔记（2026-05-10 及更早）仍保留在本文 §4–§11 与 [`WordMagicGame_overall_spec.md`](WordMagicGame_overall_spec.md) §2；下文不再在页首堆叠超长 changelog。  
 
 ## 1. 产品愿景
@@ -45,7 +45,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | **Phrase rendering parity** | **已完成** | FillLetter / Spell 对短语（如 `magic wand`）保留空格、跳过冠词 `a/an/the` 遮挡；Harmony / iOS / Android 已同步 |
 | **V0.8.3 战斗与词包体验小优化** | **三端代码补齐 / iOS verification pending** | [`docs/features/2026-05-18-battle-polish-v0-8-3/`](features/2026-05-18-battle-polish-v0-8-3/) — Harmony 已有 10 槽、怪物分级 + bonus + HP-2、浮字；iOS / Android 已补 10 槽、auto-rotate、MonsterLevel、bonus、HP-2、稳定 ID；Android targeted tests 已通过，iOS 待 Xcode 开发机复核 |
 | **V0.8.4 战斗平衡与题型节奏** | **三端 core 已实现 / gate cleanup open** | [`docs/features/2026-05-18-battle-balance-v0-8-4/`](features/2026-05-18-battle-balance-v0-8-4/) — 默认 HP 10、Spell 错点扣血、题型 intro→50/50 挑战已在三端出现；V0.8.3 前置 parity 已补代码，剩余 gate 是环境验证与 release checklist |
-| **V0.8.8 每日打卡与连续奖励** | **Stage 5 parity verification** | [`docs/features/2026-05-23-daily-checkin-v0-8-8/`](features/2026-05-23-daily-checkin-v0-8-8/) — 今日冒险胜利自动打卡；日历可翻月；每连续 7 天 +50 积分；绑定设备同步云端、未绑定本地保存；Harmony 已手动验收，iOS / Android replication 已实现 |
+| **V0.8.8 每日打卡与连续奖励** | **Done** | [`docs/features/2026-05-23-daily-checkin-v0-8-8/`](features/2026-05-23-daily-checkin-v0-8-8/) — 今日冒险胜利自动打卡；日历可翻月；每连续 7 天 +50 积分；绑定设备同步云端、未绑定本地保存；Harmony / iOS / Android 模拟器验收通过 |
 | V0.6 体验增强（非阻塞） | 可选 | 云端学习报告按 pack、兑换推送通知（未纳入 V0.8 范围） |
 | V0.9 系列（6 子版本）/ V0.10 / V0.11 | 计划中 | V0.9.1–V0.9.6（句子填词→Boss 个性→区域剧情→听音+魔法书→个性化今日→LLM 辅助内容）、V0.10 战斗 BGM 混音、V0.11 Cocos（顺序见 §23） |
 | **V0.7.1 之后新功能** | SOP | 走 `docs/features/<feature-id>/`：Harmony 先实现 → `20-replication-trigger.md` 签字 → iOS / Android 复制 |
@@ -88,7 +88,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.8.2 | 已完成 | 系统管理员后台 | 独立 `/admin/` HTML 控制台：总览、家长/家庭/设备、global/family 词库排查、有限干预（解绑、回滚等）、`/admin/audit-logs` 审计；管理员会话 cookie 登录；不代家长静默改草稿 | 必需 |
 | V0.8.3 | 进行中 | 战斗与词包体验小优化 | 三端代码已覆盖三个子任务：① 词包激活上限 5→10，且满 10 时自动关闭"队首未 pin"词包并 toast；② 怪物分 4 级（初/中/高/Super = 10/60/20/10），30% 高级/Super 怪带 bonus 标记（结算 ✨×1.3 向上取整），50% 高级/Super 攻击造成 HP-2；③ `DamageFloaterLabel` 在玩家与怪物受击时从头顶升起。剩余工作是开发机验证；详见 [`docs/features/2026-05-18-battle-polish-v0-8-3/50-parity-checklist.md`](features/2026-05-18-battle-polish-v0-8-3/50-parity-checklist.md) | 无 |
 | V0.8.4 | 进行中 | 战斗平衡与题型节奏 | 三端 core 已实现：魔法师默认 HP 10；`Spell` 错点字母每次 -1 HP；今日战斗：每词最多 1 次中文选词 + 1 次单字母填空，之后仅双字母填空 / 多字母选择各 50%。V0.8.3 前置 parity 已补代码，剩余 gate 是 targeted tests / release checklist；详见 [`docs/features/2026-05-18-battle-balance-v0-8-4/50-parity-checklist.md`](features/2026-05-18-battle-balance-v0-8-4/50-parity-checklist.md) | 无 |
-| V0.8.8 | 进行中 | 每日打卡与连续奖励 | Harmony/server 已验收：今日冒险胜利自动打卡；`CheckInPage` 月历可翻月；连续 7 天奖励 +50 积分；绑定设备同步 `/api/v1/family/{family_id}/checkins/sync`，未绑定本地保存；iOS / Android replication 已实现并进入 parity verification | 必需 |
+| V0.8.8 | 已完成 | 每日打卡与连续奖励 | Harmony/server 已验收：今日冒险胜利自动打卡；`CheckInPage` 月历可翻月；连续 7 天奖励 +50 积分；绑定设备同步 `/api/v1/family/{family_id}/checkins/sync`，未绑定本地保存；iOS / Android replication 已实现，三端模拟器验收通过 | 必需 |
 | V0.9.1 | 计划中 | 句子填词题型（AI 语境第一步）  | 新 `QuestionKind.SentenceCloze`：例句留空目标词，3 选 1 填回；复用现有 `example.{en,zh}`；Boss 题型轮换加入 SentenceCloze；缺例句的词不出此题型 | 服务端例句草稿审核 |
 | V0.9.2 | 计划中 | Boss 个性与登场对话 | 每个 Boss 1 行登场 + 1 行被击败台词；`SceneMetadata.bossCandidates` 扩 `{introLine, defeatLine}`；`BattleBossDialogueOverlay` | 后台撰写/审核 |
 | V0.9.3 | 计划中 | 区域剧情卡 + 章节完成庆祝 | `Pack.scene` 扩 `introZh / outroZh`；HomePage 进入战斗前播 1s 章节标题；Pack 全 Boss 3⭐ 通关给章节完成弹窗 + ✨ 奖励 | 后台编辑入口 |

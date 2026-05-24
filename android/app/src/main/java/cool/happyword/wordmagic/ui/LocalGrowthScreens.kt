@@ -35,6 +35,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -60,6 +63,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -880,18 +884,32 @@ fun TodayPlanScreen(plan: TodayPlanUi, onCheckIn: () -> Unit, onReport: () -> Un
                 color = Color(0xFF1D3557),
                 textAlign = TextAlign.Center,
             )
-            CenteredCircleTextButton(
-                text = "✓",
+            Button(
                 onClick = onCheckIn,
-                modifier = Modifier.testTag("TodayPlanCheckInButton"),
-                size = 40.dp,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .size(40.dp)
+                    .testTag("TodayPlanCheckInButton"),
+                shape = CircleShape,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF15803D),
+                    containerColor = Color(0xFFECFDF5),
+                    contentColor = Color.Unspecified,
                 ),
-            )
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 0.dp,
+                    disabledElevation = 0.dp,
+                    hoveredElevation = 0.dp,
+                    focusedElevation = 0.dp,
+                ),
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.icon_checkin),
+                    contentDescription = "打卡日历",
+                    modifier = Modifier.size(26.dp),
+                    contentScale = ContentScale.Fit,
+                )
+            }
             Spacer(Modifier.width(8.dp))
             CenteredCircleTextButton(
                 text = "📊",
@@ -1050,12 +1068,13 @@ private fun CheckInMonthCard(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            CenteredCircleTextButton(
-                text = "←",
+            CenteredCircleIconButton(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = "上个月",
                 onClick = onPrevious,
                 modifier = Modifier.testTag("CheckInPrevMonthButton"),
                 size = 36.dp,
-                fontSize = 17.sp,
+                iconSize = 24.dp,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDCFCE7), contentColor = Color(0xFF065F46)),
             )
             Text(
@@ -1066,12 +1085,13 @@ private fun CheckInMonthCard(
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1D3557),
             )
-            CenteredCircleTextButton(
-                text = "→",
+            CenteredCircleIconButton(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "下个月",
                 onClick = onNext,
                 modifier = Modifier.testTag("CheckInNextMonthButton"),
                 size = 36.dp,
-                fontSize = 17.sp,
+                iconSize = 24.dp,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDCFCE7), contentColor = Color(0xFF065F46)),
             )
         }

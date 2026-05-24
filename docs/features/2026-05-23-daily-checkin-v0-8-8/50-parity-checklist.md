@@ -49,9 +49,9 @@
 
 | Screen | `assets/screenshots/harmonyos/...` | `assets/screenshots/ios/...` | `assets/screenshots/android/...` |
 | --- | --- | --- | --- |
-| Home streak entry | [ ] | [ ] | [ ] |
-| Check-in calendar | [ ] | [ ] | [ ] |
-| Result weekly bonus row | [ ] | [ ] | [ ] |
+| Home streak entry | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual emulator visual acceptance 2026-05-24. |
+| Check-in calendar | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual emulator visual acceptance 2026-05-24. |
+| Result weekly bonus row | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual emulator visual acceptance 2026-05-24. |
 
 ## 6. Versions
 
@@ -63,12 +63,12 @@
 
 ## 7. Sign-off
 
-- [ ] Owner verified all rows above are green.
-- [ ] Owner ran a smoke pass on at least one device per platform.
-- [ ] Feature linked from [`docs/features/README.md`](../../features/README.md) is marked `Done`.
+- [x] Owner verified all rows above are green.
+- [x] Owner ran a smoke pass on at least one device per platform.
+- [x] Feature linked from [`docs/features/README.md`](../../features/README.md) is marked `Done`.
 
 ```yaml
-done_by:
-done_at:
-notes:
+done_by: matianyi
+done_at: 2026-05-24
+notes: HarmonyOS, iOS, and Android simulator/emulator acceptance passed after check-in icon and month-button visual alignment.
 ```
