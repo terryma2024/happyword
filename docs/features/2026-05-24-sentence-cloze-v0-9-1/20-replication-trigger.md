@@ -89,8 +89,8 @@ None yet. Resolving new questions updates [`00-design.md`](00-design.md) first.
 > **iOS / Android agents:** if `replication_approved` is missing, blank, or `false`, refuse to start Stage 4 and ask the human owner. Do not proceed.
 
 ```yaml
-approved_by:
-approved_at:
-replication_approved: false
-notes:
+approved_by: matianyi
+approved_at: 2026-05-24
+replication_approved: true
+notes: Human owner confirmed replication_approved true in the Codex thread.
 ```
