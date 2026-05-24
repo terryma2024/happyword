@@ -92,10 +92,10 @@ final class GameConfigTests: XCTestCase {
     }
 
     func testEncodeRoundTripReordersQuestionTypesToPolicyOrder() throws {
-        let cfg = GameConfig(enabledQuestionTypes: [QuestionKind.spell.rawValue, QuestionKind.choice.rawValue])
+        let cfg = GameConfig(enabledQuestionTypes: [QuestionKind.sentenceCloze.rawValue, QuestionKind.spell.rawValue, QuestionKind.choice.rawValue])
         let data = try JSONEncoder().encode(cfg)
         let decoded = try JSONDecoder().decode(GameConfig.self, from: data)
-        XCTAssertEqual(decoded.enabledQuestionTypes, [QuestionKind.choice.rawValue, QuestionKind.spell.rawValue])
+        XCTAssertEqual(decoded.enabledQuestionTypes, [QuestionKind.choice.rawValue, QuestionKind.spell.rawValue, QuestionKind.sentenceCloze.rawValue])
     }
 
     func testBuildMonsterSlotsCyclesSanitizedTypes() {
@@ -112,6 +112,17 @@ final class GameConfigTests: XCTestCase {
         let long = WordEntry(id: "b", word: "abcd", meaningZh: "x", category: "c", difficulty: 1)
         XCTAssertTrue(
             BattleQuestionTypePolicy.anyWordSupportsQuestionTypes([long], typeIds: [QuestionKind.fillLetter.rawValue]),
+        )
+        let cloze = WordEntry(
+            id: "c",
+            word: "apple",
+            meaningZh: "x",
+            category: "c",
+            difficulty: 1,
+            example: ExampleSentence(en: "I eat an apple.", zh: "我吃苹果。")
+        )
+        XCTAssertTrue(
+            BattleQuestionTypePolicy.anyWordSupportsQuestionTypes([cloze], typeIds: [QuestionKind.sentenceCloze.rawValue]),
         )
     }
 }

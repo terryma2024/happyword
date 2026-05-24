@@ -42,6 +42,15 @@ final class BuiltinPackLoaderTests: XCTestCase {
         XCTAssertEqual(Pack.builtin.map(\.words.count), [10, 10, 10, 10, 10])
     }
 
+    func testIOSBuiltinPacksHaveSentenceClozeExamplesForEveryWord() {
+        for pack in Pack.builtin {
+            for word in pack.words {
+                XCTAssertNotNil(word.example, "\(pack.id) \(word.id) missing example")
+                XCTAssertTrue(BattleQuestionTypePolicy.wordSupportsQuestionType(word, typeId: QuestionKind.sentenceCloze.rawValue), "\(pack.id) \(word.id) cannot generate sentence cloze")
+            }
+        }
+    }
+
     private static let harmonyBuiltinFileNames = [
         "fruit-forest.json",
         "school-castle.json",

@@ -265,7 +265,7 @@ final class BattleEngine: ObservableObject {
 
     private func options(for question: Question) -> [String] {
         switch question.kind {
-        case .choice:
+        case .choice, .sentenceCloze:
             question.options
         case .fillLetter:
             question.letterOptions
@@ -278,7 +278,7 @@ final class BattleEngine: ObservableObject {
 
     private func isCorrect(option: String, question: Question) -> Bool {
         switch question.kind {
-        case .choice, .spell:
+        case .choice, .spell, .sentenceCloze:
             option == question.answer
         case .fillLetter:
             option == question.letterAnswer

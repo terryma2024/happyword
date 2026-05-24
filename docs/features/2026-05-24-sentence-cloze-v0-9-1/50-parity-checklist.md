@@ -3,18 +3,18 @@
 > Source of truth: [`00-design.md`](00-design.md)
 > Replication gate: [`20-replication-trigger.md`](20-replication-trigger.md)
 
-**Status:** HarmonyOS implemented; iOS / Android replication is blocked until [`20-replication-trigger.md`](20-replication-trigger.md) is fully gated and signed.
+**Status:** HarmonyOS implemented; iOS / Android replication started after [`20-replication-trigger.md`](20-replication-trigger.md) was signed with `replication_approved: true` on 2026-05-24.
 
 | Parity item | HarmonyOS | iOS | Android | Notes |
 | --- | --- | --- | --- | --- |
-| `sentence-cloze` question type exists and validates. | [x] | [ ] | [ ] | `QuestionKind.SentenceCloze`, `Question.isValidSentenceCloze()`, `SentenceClozeGenerator.test.ets` |
-| Default enabled question types include `sentence-cloze`. | [x] | [ ] | [ ] | `BattleQuestionTypePolicy.test.ets` |
-| Settings exposes `ConfigQuestionType_sentence-cloze`. | [x] | [ ] | [ ] | `ConfigFlow.ui.test.ets` updated; full UI suite still pending |
-| Challenge scheduler can select sentence cloze and can disable it. | [x] | [ ] | [ ] | `BattleQuestionScheduler.test.ets` |
-| Sentence cloze generator supports word and phrase matching rules from design §6.2. | [x] | [ ] | [ ] | `SentenceClozeGenerator.test.ets` |
-| Battle UI exposes `BattleSentenceClozePrompt`, `BattleSentenceClozeZh`, and option IDs. | [x] | [ ] | [ ] | `BattleFlow.ui.test.ets` targeted suite passed |
-| Sentence cloze suppresses automatic answer-word pronunciation while keeping manual speaker replay. | [x] | [ ] | [ ] | `PronunciationService.test.ets`; `BattleSpeakerButton` still calls manual speak |
-| Correct and wrong answers use normal Choice damage semantics. | [x] | [ ] | [ ] | `SentenceCloze` uses the existing 3-option `BattleEngine.submitAnswer` path |
-| All five built-in packs have examples for every word. | [x] | [ ] | [ ] | `scripts/validate-builtin-examples.mjs` passed |
-| Sparse remote packs without examples fall back without blocking battle. | [x] | [ ] | [ ] | `PlanQuestionSource.test.ets` fallback coverage |
-| Changed screenshots refreshed for visible settings and battle screens. | [ ] | [ ] | [ ] | |
+| `sentence-cloze` question type exists and validates. | [x] | [x] | [x] | iOS `QuestionKind.sentenceCloze`; Android `QuestionKind.SentenceCloze` |
+| Default enabled question types include `sentence-cloze`. | [x] | [x] | [x] | Covered by iOS / Android config tests |
+| Settings exposes `ConfigQuestionType_sentence-cloze`. | [x] | [x] | [x] | iOS XCUITest + Android Compose UI focused tests |
+| Challenge scheduler can select sentence cloze and can disable it. | [x] | [x] | [x] | Challenge pool is now `fill-letter-medium` / `spell` / `sentence-cloze` |
+| Sentence cloze generator supports word and phrase matching rules from design §6.2. | [x] | [x] | [x] | Word, phrase, first-match, substring rejection, unique distractors |
+| Battle UI exposes `BattleSentenceClozePrompt`, `BattleSentenceClozeZh`, and sentence-cloze option row. | [x] | [x] | [x] | iOS also removed top-level `RootView` accessibility override so nested IDs are visible; iOS option visibility asserted by labels |
+| Sentence cloze suppresses automatic answer-word pronunciation while keeping manual speaker replay. | [x] | [x] | [x] | iOS unit coverage; Android battle UI TTS gate mirrors policy |
+| Correct and wrong answers use normal Choice damage semantics. | [x] | [x] | [x] | `SentenceCloze` uses existing 3-option answer path |
+| All five built-in packs have examples for every word. | [x] | [x] | [x] | iOS JSON packs copied from Harmony rawfiles; Android built-ins populated |
+| Sparse remote packs without examples fall back without blocking battle. | [x] | [x] | [x] | iOS / Android sentence-cloze-only fallback tests |
+| Changed screenshots refreshed for visible settings and battle screens. | [ ] | [ ] | [ ] | Not refreshed in this pass; focused UI automation covered visible flows |

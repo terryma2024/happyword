@@ -236,6 +236,77 @@ final class SpellGenerator {
     }
 }
 
+struct SentenceClozeTargetSpan: Equatable {
+    var start: String.Index
+    var end: String.Index
+}
+
+func findSentenceClozeTargetSpan(exampleEn: String, targetWord: String) -> SentenceClozeTargetSpan? {
+    let target = targetWord.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !exampleEn.isEmpty, !target.isEmpty else { return nil }
+    var start = exampleEn.startIndex
+    while start < exampleEn.endIndex {
+        if let end = matchTargetAt(raw: exampleEn, target: target, start: start),
+           hasLetterBoundary(raw: exampleEn, start: start, end: end) {
+            return SentenceClozeTargetSpan(start: start, end: end)
+        }
+        start = exampleEn.index(after: start)
+    }
+    return nil
+}
+
+func wordSupportsSentenceCloze(_ word: WordEntry) -> Bool {
+    guard let example = word.example,
+          !example.en.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+          !example.zh.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else { return false }
+    return findSentenceClozeTargetSpan(exampleEn: example.en, targetWord: word.word) != nil
+}
+
+final class SentenceClozeGenerator {
+    private var random: SeededRandom
+
+    init(random: SeededRandom = SeededRandom(seed: 42)) {
+        self.random = random
+    }
+
+    func generate(_ word: WordEntry, repo: WordRepository, lastWordId: String? = nil) -> Question? {
+        guard let example = word.example,
+              let span = findSentenceClozeTargetSpan(exampleEn: example.en, targetWord: word.word),
+              !example.zh.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { return nil }
+        let options = buildOptions(word: word, repo: repo, lastWordId: lastWordId)
+        guard options.count >= 3 else { return nil }
+
+        var question = Question(promptZh: word.meaningZh, answer: word.word, options: shuffled(Array(options.prefix(3))) { self.random.nextDouble() }, wordId: word.id, kind: .sentenceCloze)
+        question.sentenceTemplate = String(example.en[..<span.start]) + "____" + String(example.en[span.end...])
+        question.sentenceZh = example.zh
+        return question.isValid ? question : nil
+    }
+
+    private func buildOptions(word: WordEntry, repo: WordRepository, lastWordId: String?) -> [String] {
+        var out: [String] = []
+        pushUnique(&out, word.word)
+        for distractor in word.distractors ?? [] {
+            pushUnique(&out, distractor)
+        }
+        for entry in repo.all() {
+            if entry.id == word.id || entry.id == lastWordId { continue }
+            pushUnique(&out, entry.word)
+            if out.count >= 3 { break }
+        }
+        return out
+    }
+
+    private func pushUnique(_ out: inout [String], _ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let normalized = trimmed.lowercased()
+        guard !out.contains(where: { $0.lowercased() == normalized }) else { return }
+        out.append(trimmed)
+    }
+}
+
 private struct PhraseToken {
     var glyph: String
     var originalIndex: Int
@@ -280,6 +351,46 @@ private func isAsciiLetter(_ character: Character) -> Bool {
     character >= "a" && character <= "z"
 }
 
+private func isWhitespace(_ character: Character) -> Bool {
+    character == " " || character == "\t" || character == "\n" || character == "\r"
+}
+
+private func matchTargetAt(raw: String, target: String, start: String.Index) -> String.Index? {
+    let lowerRaw = raw.lowercased()
+    let lowerTarget = target.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let rawStart = lowerRaw.index(lowerRaw.startIndex, offsetBy: raw.distance(from: raw.startIndex, to: start), limitedBy: lowerRaw.endIndex) else {
+        return nil
+    }
+    var rawIndex = rawStart
+    var targetIndex = lowerTarget.startIndex
+    while targetIndex < lowerTarget.endIndex {
+        let targetChar = lowerTarget[targetIndex]
+        if isWhitespace(targetChar) {
+            var targetSpaceEnd = targetIndex
+            while targetSpaceEnd < lowerTarget.endIndex, isWhitespace(lowerTarget[targetSpaceEnd]) {
+                targetSpaceEnd = lowerTarget.index(after: targetSpaceEnd)
+            }
+            guard rawIndex < lowerRaw.endIndex, isWhitespace(lowerRaw[rawIndex]) else { return nil }
+            while rawIndex < lowerRaw.endIndex, isWhitespace(lowerRaw[rawIndex]) {
+                rawIndex = lowerRaw.index(after: rawIndex)
+            }
+            targetIndex = targetSpaceEnd
+            continue
+        }
+        guard rawIndex < lowerRaw.endIndex, lowerRaw[rawIndex] == targetChar else { return nil }
+        rawIndex = lowerRaw.index(after: rawIndex)
+        targetIndex = lowerTarget.index(after: targetIndex)
+    }
+    let offset = lowerRaw.distance(from: lowerRaw.startIndex, to: rawIndex)
+    return raw.index(raw.startIndex, offsetBy: offset)
+}
+
+private func hasLetterBoundary(raw: String, start: String.Index, end: String.Index) -> Bool {
+    let before: Character? = start > raw.startIndex ? raw[raw.index(before: start)] : nil
+    let after: Character? = end < raw.endIndex ? raw[end] : nil
+    return !(before.map(isAsciiLetter) ?? false) && !(after.map(isAsciiLetter) ?? false)
+}
+
 private func fillableTokens(_ tokens: [PhraseToken]) -> [PhraseToken] {
     tokens.filter { $0.isLetter && !$0.isArticle }
 }
@@ -316,6 +427,7 @@ final class PlanQuestionSource: QuestionSource {
     private let choiceGenerator: QuestionGenerator
     private let fillGenerator: FillLetterGenerator
     private let spellGenerator: SpellGenerator
+    private let sentenceClozeGenerator: SentenceClozeGenerator
     private let scheduler: BattleQuestionScheduler?
     private var monsterIndexProvider: () -> Int = { 1 }
     private var cursor = 0
@@ -332,6 +444,7 @@ final class PlanQuestionSource: QuestionSource {
         choiceGenerator = QuestionGenerator(repository: repository, random: SeededRandom(seed: randomSeed))
         fillGenerator = FillLetterGenerator(random: SeededRandom(seed: randomSeed &+ 1))
         spellGenerator = SpellGenerator(random: SeededRandom(seed: randomSeed &+ 2))
+        sentenceClozeGenerator = SentenceClozeGenerator(random: SeededRandom(seed: randomSeed &+ 4))
         if let scheduler {
             self.scheduler = scheduler
         } else if let enabledQuestionTypes {
@@ -432,6 +545,8 @@ final class PlanQuestionSource: QuestionSource {
             return fillGenerator.generateMedium(word)
         case QuestionKind.spell.rawValue:
             return spellGenerator.generate(word)
+        case QuestionKind.sentenceCloze.rawValue:
+            return sentenceClozeGenerator.generate(word, repo: repository, lastWordId: lastWordId)
         default:
             return nil
         }

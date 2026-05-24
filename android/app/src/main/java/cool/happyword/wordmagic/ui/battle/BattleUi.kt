@@ -330,8 +330,14 @@ internal fun BattleScreen(
             onBattleFinished(finishedState)
         }
     }
-    LaunchedEffect(runId, state.question.correctAnswer, config.autoPronunciation, ttsReady, activeOutcome) {
-        if (config.autoPronunciation && ttsReady && activeOutcome == null && state.status == BattleStatus.Playing) {
+    LaunchedEffect(runId, state.question.correctAnswer, state.question.kind, config.autoPronunciation, ttsReady, activeOutcome) {
+        if (
+            config.autoPronunciation &&
+            ttsReady &&
+            activeOutcome == null &&
+            state.status == BattleStatus.Playing &&
+            state.question.kind != QuestionKind.SentenceCloze
+        ) {
             delay(250)
             speakWord(state.question.correctAnswer)
         }
@@ -507,6 +513,25 @@ internal fun BattleQuestionPrompt(question: Question) {
                     textAlign = TextAlign.Center,
                 )
             }
+            QuestionKind.SentenceCloze -> {
+                Text(
+                    question.sentenceTemplate,
+                    modifier = Modifier.testTag("BattleSentenceClozePrompt"),
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF1C3655),
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    question.sentenceZh,
+                    modifier = Modifier.testTag("BattleSentenceClozeZh"),
+                    color = Color(0xFF6A5843),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+            }
             QuestionKind.FillLetter, QuestionKind.FillLetterMedium -> {
                 Text(question.prompt, color = Color(0xFF6A5843), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
@@ -539,16 +564,26 @@ internal fun BattleAnswerArea(
         return
     }
     val options = answerOptions(question)
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+    val rowTag = if (question.kind == QuestionKind.SentenceCloze) {
+        "BattleOptionsRow_SentenceCloze"
+    } else {
+        "BattleOptionsRow"
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().testTag(rowTag)) {
         options.forEachIndexed { index, option ->
             val buttonColor = answerButtonColor(option, outcome)
+            val buttonTag = if (question.kind == QuestionKind.SentenceCloze) {
+                "BattleSentenceClozeOption_$index"
+            } else {
+                "BattleAnswer_$index"
+            }
             Button(
                 onClick = { onSelect(option) },
                 enabled = !feedbackLocked,
                 modifier = Modifier
                     .weight(1f)
                     .height(58.dp)
-                    .testTag("BattleAnswer_$index"),
+                    .testTag(buttonTag),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = buttonColor,
@@ -698,6 +733,7 @@ internal fun SpellAnswerArea(
 internal fun answerOptions(question: Question): List<String> {
     return when (question.kind) {
         QuestionKind.Choice -> question.options
+        QuestionKind.SentenceCloze -> question.options
         QuestionKind.FillLetter -> question.letterOptions
         QuestionKind.FillLetterMedium -> question.letterOptionsSteps.getOrElse(question.currentStep) { emptyList() }
         QuestionKind.Spell -> question.spellPool
@@ -734,6 +770,7 @@ internal fun answerButtonColor(option: String, outcome: BattleAnswerOutcome?): C
 internal fun correctOptionForOutcome(outcome: BattleAnswerOutcome): String {
     return when (outcome.question.kind) {
         QuestionKind.Choice -> outcome.correctAnswer
+        QuestionKind.SentenceCloze -> outcome.correctAnswer
         QuestionKind.FillLetter -> outcome.question.letterAnswer
         QuestionKind.FillLetterMedium -> outcome.question.letterAnswers.getOrElse(outcome.question.currentStep) { outcome.correctAnswer }
         QuestionKind.Spell -> outcome.correctAnswer

@@ -21,6 +21,7 @@ private val INTRO_KINDS = listOf(
 private val CHALLENGE_KINDS = listOf(
     BattleQuestionTypePolicy.FILL_LETTER_MEDIUM,
     BattleQuestionTypePolicy.SPELL,
+    BattleQuestionTypePolicy.SENTENCE_CLOZE,
 )
 
 fun intersectKinds(pool: List<String>, enabled: List<String>): List<String> =
@@ -121,11 +122,10 @@ class BattleQuestionScheduler(
     private fun rollChallengeKind(): String {
         if (effectiveChallengePool.size == 1) return effectiveChallengePool[0]
         if (effectiveChallengePool.size >= 2) {
-            return if (rng() < 0.5) {
-                BattleQuestionTypePolicy.FILL_LETTER_MEDIUM
-            } else {
-                BattleQuestionTypePolicy.SPELL
-            }
+            val index = (rng().coerceIn(0.0, 0.999999) * effectiveChallengePool.size)
+                .toInt()
+                .coerceIn(0, effectiveChallengePool.lastIndex)
+            return effectiveChallengePool[index]
         }
         return BattleQuestionTypePolicy.CHOICE
     }

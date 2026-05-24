@@ -221,6 +221,21 @@ struct BattleView: View {
                     }
                     .accessibilityIdentifier("BattleSpellSlots")
                 }
+            case .sentenceCloze:
+                VStack(spacing: 8) {
+                    Text(question.sentenceTemplate)
+                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        .foregroundStyle(AppTheme.navy)
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.65)
+                        .accessibilityIdentifier("BattleSentenceClozePrompt")
+                    Text(question.sentenceZh)
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.38, green: 0.43, blue: 0.50))
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.75)
+                        .accessibilityIdentifier("BattleSentenceClozeZh")
+                }
             }
         } else {
             Text("")
@@ -260,6 +275,14 @@ struct BattleView: View {
                 .accessibilityIdentifier(accessibilityIdentifier(for: option, index: index))
             }
         }
+        .accessibilityIdentifier(optionsRowIdentifier)
+    }
+
+    private var optionsRowIdentifier: String {
+        if displayedQuestion?.kind == .sentenceCloze {
+            return "BattleOptionsRow_SentenceCloze"
+        }
+        return "BattleOptionsRow"
     }
 
     private var answerButtons: [String] {
@@ -289,6 +312,9 @@ struct BattleView: View {
         if ProcessInfo.processInfo.arguments.contains("-UITestExposeCorrectAnswer") {
             return "BattleIncorrectOption"
         }
+        if displayedQuestion?.kind == .sentenceCloze {
+            return "BattleSentenceClozeOption_\(index)"
+        }
         return "BattleOption\(String(UnicodeScalar(65 + index)!))"
     }
 
@@ -299,6 +325,8 @@ struct BattleView: View {
 
         switch question.kind {
         case .choice:
+            return option == question.answer
+        case .sentenceCloze:
             return option == question.answer
         case .fillLetter:
             return option == question.letterAnswer
@@ -322,6 +350,8 @@ struct BattleView: View {
     private func options(for question: Question) -> [String] {
         switch question.kind {
         case .choice:
+            return question.options
+        case .sentenceCloze:
             return question.options
         case .fillLetter:
             return question.letterOptions

@@ -506,6 +506,7 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.buttons["ConfigQuestionType_fill-letter"].exists)
         XCTAssertTrue(app.buttons["ConfigQuestionType_fill-letter-medium"].exists)
         XCTAssertTrue(app.buttons["ConfigQuestionType_spell"].exists)
+        XCTAssertTrue(app.buttons["ConfigQuestionType_sentence-cloze"].exists)
 
         app.buttons["ConfigQuestionType_spell"].tap()
         app.buttons["ConfigQuestionType_spell"].tap()
@@ -578,6 +579,28 @@ final class WordMagicGameUITests: XCTestCase {
         tapCurrentCorrectBattleOption(in: app)
         XCTAssertTrue(app.staticTexts["Battle"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["BattleCorrectOption"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testBattleSentenceClozePromptAndOptionsMatchHarmony() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-UITestResetState",
+            "-UITestQuestionTypesSentenceClozeOnly",
+            "-UITestBattleBossFirst",
+            "-UITestRouteBattle",
+        ]
+        app.launch()
+
+        assertLandscape(app)
+        XCTAssertTrue(app.staticTexts["BattleSentenceClozePrompt"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["BattleSentenceClozePrompt"].label, "I eat an ____ after lunch.")
+        XCTAssertTrue(app.staticTexts["BattleSentenceClozeZh"].exists)
+        XCTAssertEqual(app.staticTexts["BattleSentenceClozeZh"].label, "我午饭后吃一个苹果。")
+        XCTAssertTrue(app.descendants(matching: .any)["BattleOptionsRow_SentenceCloze"].exists)
+        XCTAssertTrue(app.buttons["apple"].exists)
+        XCTAssertTrue(app.buttons["banana"].exists)
+        XCTAssertTrue(app.buttons["orange"].exists)
     }
 
     @MainActor

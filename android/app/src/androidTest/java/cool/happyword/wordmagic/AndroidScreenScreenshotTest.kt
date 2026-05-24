@@ -122,6 +122,7 @@ class AndroidScreenScreenshotTest {
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_sentence-cloze").performScrollTo().performClick()
         repeat(2) { composeRule.onNodeWithTag("ConfigMonsterHpDecrement").performScrollTo().performClick() }
         repeat(4) { composeRule.onNodeWithTag("ConfigMonsterCountDecrement").performScrollTo().performClick() }
         composeRule.onNodeWithTag("ConfigBackButton").performClick()

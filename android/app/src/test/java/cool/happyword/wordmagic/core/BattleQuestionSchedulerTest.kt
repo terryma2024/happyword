@@ -32,9 +32,44 @@ class BattleQuestionSchedulerTest {
             val kind = scheduler.pickNext(null, canServe).kind
             assertFalse(
                 kind == BattleQuestionTypePolicy.FILL_LETTER_MEDIUM ||
-                    kind == BattleQuestionTypePolicy.SPELL,
+                    kind == BattleQuestionTypePolicy.SPELL ||
+                    kind == BattleQuestionTypePolicy.SENTENCE_CLOZE,
             )
             scheduler.markServed("w-${index % 3}", kind, canServe)
+        }
+    }
+
+    @Test
+    fun challengeRollsAcrossAllEnabledChallengeTypes() {
+        val seen = mutableSetOf<String>()
+        for (seed in 0 until 80) {
+            val scheduler = BattleQuestionScheduler(
+                rawPlanWordIds = listOf("w-a"),
+                enabledTypes = listOf(
+                    BattleQuestionTypePolicy.FILL_LETTER_MEDIUM,
+                    BattleQuestionTypePolicy.SPELL,
+                    BattleQuestionTypePolicy.SENTENCE_CLOZE,
+                ),
+                rng = { (seed % 17).toDouble() / 17.0 },
+            )
+            seen.add(scheduler.pickNext(null) { _, _ -> true }.kind)
+        }
+
+        assertTrue(seen.contains(BattleQuestionTypePolicy.FILL_LETTER_MEDIUM))
+        assertTrue(seen.contains(BattleQuestionTypePolicy.SPELL))
+        assertTrue(seen.contains(BattleQuestionTypePolicy.SENTENCE_CLOZE))
+    }
+
+    @Test
+    fun challengeRollsNeverReturnSentenceClozeWhenDisabled() {
+        val scheduler = BattleQuestionScheduler(
+            rawPlanWordIds = listOf("w-a"),
+            enabledTypes = listOf(BattleQuestionTypePolicy.FILL_LETTER_MEDIUM, BattleQuestionTypePolicy.SPELL),
+            rng = { 0.99 },
+        )
+
+        repeat(10) {
+            assertFalse(scheduler.pickNext(null) { _, _ -> true }.kind == BattleQuestionTypePolicy.SENTENCE_CLOZE)
         }
     }
 

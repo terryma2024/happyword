@@ -152,6 +152,7 @@ class LocalGrowthFlowTest {
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_sentence-cloze").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             composeRule.onAllNodesWithTag("HomeScreen").fetchSemanticsNodes().isNotEmpty()

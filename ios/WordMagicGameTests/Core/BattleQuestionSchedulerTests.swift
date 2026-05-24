@@ -30,6 +30,41 @@ final class BattleQuestionSchedulerTests: XCTestCase {
         }
     }
 
+    func testChallengeRollsAcrossAllEnabledChallengeTypes() {
+        var seen = Set<String>()
+        for seed in 0 ..< 80 {
+            let scheduler = BattleQuestionScheduler(
+                planWordIds: ["w-a"],
+                enabledTypes: [
+                    QuestionKind.fillLetterMedium.rawValue,
+                    QuestionKind.spell.rawValue,
+                    QuestionKind.sentenceCloze.rawValue,
+                ],
+                rng: { Double(seed % 17) / 17.0 },
+            )
+            seen.insert(scheduler.pickNext(lastWordId: nil) { _, _ in true }.kind)
+        }
+
+        XCTAssertTrue(seen.contains(QuestionKind.fillLetterMedium.rawValue))
+        XCTAssertTrue(seen.contains(QuestionKind.spell.rawValue))
+        XCTAssertTrue(seen.contains(QuestionKind.sentenceCloze.rawValue))
+    }
+
+    func testChallengeRollNeverReturnsSentenceClozeWhenDisabled() {
+        let scheduler = BattleQuestionScheduler(
+            planWordIds: ["w-a"],
+            enabledTypes: [QuestionKind.fillLetterMedium.rawValue, QuestionKind.spell.rawValue],
+            rng: { 0.99 },
+        )
+
+        for _ in 0 ..< 10 {
+            XCTAssertNotEqual(
+                scheduler.pickNext(lastWordId: nil) { _, _ in true }.kind,
+                QuestionKind.sentenceCloze.rawValue
+            )
+        }
+    }
+
     func testSpellWrongTapPenaltyEndsBattleAtOneHp() {
         var config = GameConfig()
         config.playerMaxHp = 1

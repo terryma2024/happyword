@@ -53,11 +53,13 @@ class FamilyLearningFlowTest {
             "ConfigQuestionType_fill-letter",
             "ConfigQuestionType_fill-letter-medium",
             "ConfigQuestionType_spell",
+            "ConfigQuestionType_sentence-cloze",
         ).forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
         }
 
         composeRule.onNodeWithTag("ConfigQuestionType_spell").performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_sentence-cloze").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_choice").performScrollTo().performClick()
@@ -313,6 +315,7 @@ class FamilyLearningFlowTest {
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_sentence-cloze").performScrollTo().performClick()
         repeat(2) {
             composeRule.onNodeWithTag("ConfigMonsterHpIncrement").performScrollTo().performClick()
         }
@@ -325,6 +328,7 @@ class FamilyLearningFlowTest {
         composeRule.onNodeWithTag("ConfigQuestionType_choice").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_sentence-cloze").performScrollTo().performClick()
         composeRule.onNodeWithTag("ConfigBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("HomeScreen") }
     }

@@ -10,8 +10,13 @@ protocol PronunciationSpeaking: AnyObject {
     func dispose()
 }
 
-func shouldAutoSpeak(autoSpeakEnabled: Bool, ttsAvailable: Bool, isRevealing: Bool) -> Bool {
-    autoSpeakEnabled && ttsAvailable && !isRevealing
+func shouldAutoSpeak(
+    autoSpeakEnabled: Bool,
+    ttsAvailable: Bool,
+    isRevealing: Bool,
+    questionKind: QuestionKind? = nil
+) -> Bool {
+    autoSpeakEnabled && ttsAvailable && !isRevealing && questionKind != .sentenceCloze
 }
 
 func shouldAutoSpeakAfterAnswerFeedback(_ outcome: AnswerOutcome) -> Bool {

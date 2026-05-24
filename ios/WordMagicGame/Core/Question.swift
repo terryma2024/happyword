@@ -5,6 +5,7 @@ enum QuestionKind: String, Codable, Equatable {
     case fillLetter = "fill-letter"
     case fillLetterMedium = "fill-letter-medium"
     case spell
+    case sentenceCloze = "sentence-cloze"
 }
 
 struct Question: Codable, Equatable, Identifiable {
@@ -30,6 +31,9 @@ struct Question: Codable, Equatable, Identifiable {
     var spellRevealedMask: [Bool] = []
     var spellPool: [String] = []
 
+    var sentenceTemplate: String = ""
+    var sentenceZh: String = ""
+
     static func choice(wordId: String, promptZh: String, answer: String, options: [String]) -> Question {
         Question(promptZh: promptZh, answer: answer, options: options, wordId: wordId, kind: .choice)
     }
@@ -53,6 +57,12 @@ struct Question: Codable, Equatable, Identifiable {
             return (4...9).contains(spellLetters.count) &&
                 spellRevealedMask.count == spellLetters.count &&
                 spellRevealedMask.first == true
+        case .sentenceCloze:
+            return !sentenceTemplate.isEmpty &&
+                !sentenceZh.isEmpty &&
+                options.count == 3 &&
+                Set(options.map { $0.lowercased() }).count == 3 &&
+                options.contains(answer)
         }
     }
 }
