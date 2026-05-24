@@ -43,6 +43,7 @@ import deviceUnbindClientTest from './DeviceUnbindClient.test';
 import childProfileApiClientTest from './ChildProfileApiClient.test';
 import editChildNicknameDialogTest from './EditChildNicknameDialog.test';
 import customTimerDialogTest from './CustomTimerDialog.test';
+import configPageLayoutTest from './ConfigPageLayout.test';
 import photoPickerServiceTest from './PhotoPickerService.test';
 import barcodeImageDecoderTest from './BarcodeImageDecoder.test';
 import versionTripleTapTest from './VersionTripleTap.test';
@@ -61,6 +62,7 @@ import battleEngineTest from './BattleEngine.test';
 import battleRewardCalcTest from './BattleRewardCalc.test';
 import damageFloaterLabelTest from './DamageFloaterLabel.test';
 import pronunciationServiceTest from './PronunciationService.test';
+import themePolicyTest from './ThemePolicy.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -108,6 +110,7 @@ export default function testsuite() {
   childProfileApiClientTest();
   editChildNicknameDialogTest();
   customTimerDialogTest();
+  configPageLayoutTest();
   photoPickerServiceTest();
   barcodeImageDecoderTest();
   versionTripleTapTest();
@@ -126,4 +129,5 @@ export default function testsuite() {
   battleRewardCalcTest();
   damageFloaterLabelTest();
   pronunciationServiceTest();
+  themePolicyTest();
 }

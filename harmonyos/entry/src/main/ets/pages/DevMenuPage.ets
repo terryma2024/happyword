@@ -28,6 +28,7 @@ import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { isDebugBuild } from '../services/ReleaseGate';
 import BuildProfile from 'BuildProfile';
 import { BypassSecretDialog } from '../components/BypassSecretDialog';
+import { requestPageOrientation } from '../utils/orientation';
 
 /**
  * Route params bag for `pages/DevMenuPage`. Mirrors the class
@@ -104,6 +105,14 @@ struct DevMenuPage {
   /** Debug-only footer on Developer Options — env / preview / bypass / API base. */
   @State private routingDebugText: string = '';
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'DevMenuPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   private showToast(msg: string): void {
     try {
       this.getUIContext().getPromptAction().showToast({ message: msg, duration: 2000 });
@@ -113,6 +122,7 @@ struct DevMenuPage {
   }
 
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     // V0.6 PREVIEW preset (from HomePage's triple-tap) is now a
     // no-op for the layout — the card grid already shows every env
     // including Preview entries — so we drop the old `presetEnv`
@@ -125,6 +135,7 @@ struct DevMenuPage {
   }
 
   onPageShow(): void {
+    this.applyOrientationPolicy();
     this.refreshRoutingDebugPanel();
   }
 

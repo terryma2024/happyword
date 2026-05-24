@@ -560,6 +560,13 @@ final class AppCoordinator: ObservableObject {
     }
 
     func updateChildNickname(_ nickname: String) async {
+        await updateChildProfile(nickname: nickname, avatarEmoji: cloudCredentialsStore.credentials?.avatarEmoji ?? "🦄")
+        if bindingMessage.hasPrefix("已保存") {
+            route = .home
+        }
+    }
+
+    func updateChildProfile(nickname: String, avatarEmoji: String) async {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             bindingMessage = "请输入学习者名字"
@@ -570,6 +577,8 @@ final class AppCoordinator: ObservableObject {
             return
         }
         credentials.nickname = trimmed
+        let trimmedAvatar = avatarEmoji.trimmingCharacters(in: .whitespacesAndNewlines)
+        credentials.avatarEmoji = trimmedAvatar.isEmpty ? "🦄" : trimmedAvatar
         cloudCredentialsStore.save(credentials)
         bindingMessage = "已保存学习者名字"
         objectWillChange.send()
@@ -584,7 +593,6 @@ final class AppCoordinator: ObservableObject {
             updatedCredentials.nickname = response.nickname
             updatedCredentials.avatarEmoji = response.avatarEmoji
             cloudCredentialsStore.save(updatedCredentials)
-            route = .home
         } catch {
             bindingMessage = "已保存学习者名字，云端稍后重试"
         }
@@ -927,4 +935,6 @@ enum AppTheme {
     static let page = Color(red: 0.98, green: 0.99, blue: 1.00)
     /// Standard horizontal gutter for full-screen flows (pt).
     static let pageHorizontalPadding: CGFloat = 24
+    static let portraitPageTopPadding: CGFloat = 4
+    static let portraitPageBottomPadding: CGFloat = 16
 }

@@ -29,8 +29,19 @@ import {
 import { MAX_ACTIVE_PACKS } from '../services/PackSelectionService';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import {
+  CONFIG_CONTROL_GAP_VP,
+  CONFIG_CONTROL_COLUMN_WIDTH_VP,
+  CONFIG_FORM_ROW_WIDTH_VP,
+  CONFIG_LABEL_TEXT_COLOR,
+  CONFIG_LABEL_WIDTH_VP,
+  CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
+  questionTypeColumnRows,
+  timerOptionRows,
+} from '../components/ConfigPageLayout';
 import { REPORT_CHANNEL_URL } from '../services/CompliancePolicy';
 import { openUrlInSystemBrowser } from '../services/SystemBrowser';
+import { requestPageOrientation } from '../utils/orientation';
 /**
  * ConfigPage exposes battle knobs (HP / monster count / timer /
  * autoSpeak / 题型选择) plus pack manager entry. Changes persist
@@ -91,7 +102,16 @@ struct ConfigPage {
   @State private packPickerStatusText: string = '';
   private homeIntegration: HomeIntegrationBundle = new HomeIntegrationBundle();
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'ConfigPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     const stored: GameConfig | undefined =
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
     this.setBattleDraft(stored !== undefined ? stored : new GameConfig());
@@ -130,6 +150,7 @@ struct ConfigPage {
   }
 
   onPageShow(): void {
+    this.applyOrientationPolicy();
     // Re-sync draft fields owned by other pages so reading them on
     // this page (row labels) reflects the latest value. ConfigPage
     // never mutates these fields itself.
@@ -169,10 +190,19 @@ struct ConfigPage {
   }
 
   @Builder
+  private configLabel(text: string) {
+    Text(text)
+      .fontSize(18)
+      .fontColor(CONFIG_LABEL_TEXT_COLOR)
+      .width(CONFIG_LABEL_WIDTH_VP)
+      .textAlign(TextAlign.End);
+  }
+
+  @Builder
   private parentAccountRow() {
     Column() {
-      Row() {
-        Text('家长账号').fontSize(18).width(120);
+      Row({ space: CONFIG_CONTROL_GAP_VP }) {
+        this.configLabel('家长账号');
         if (this.bindingPresent) {
           Button(`孩子档案：${this.bindingNickname}`)
             .id('ConfigBoundDeviceInfoButton')
@@ -189,6 +219,7 @@ struct ConfigPage {
             .onClick((): void => this.openScanBinding());
         }
       }
+      .width(CONFIG_FORM_ROW_WIDTH_VP)
       .alignItems(VerticalAlign.Center);
       if (this.bindingDeviceIdSource === 'preferences_fallback') {
         Text('⚠ 此设备未启用 AssetStoreKit，重装后将丢失家长绑定。')
@@ -235,8 +266,8 @@ struct ConfigPage {
   private cloudSyncRow() {
     if (this.bindingPresent) {
       Column() {
-        Row() {
-          Text('学习记录').fontSize(18).width(120);
+        Row({ space: CONFIG_CONTROL_GAP_VP }) {
+          this.configLabel('学习记录');
           Button(this.cloudSyncBusy ? '同步中…' : '立即同步学习记录')
             .id('ConfigCloudSyncButton')
             .width(220).height(40).fontSize(15)
@@ -246,6 +277,7 @@ struct ConfigPage {
             .enabled(!this.cloudSyncBusy)
             .onClick((): void => this.onCloudSyncTap());
         }
+        .width(CONFIG_FORM_ROW_WIDTH_VP)
         .alignItems(VerticalAlign.Center);
         if (this.cloudSyncStatusText.length > 0) {
           Text(this.cloudSyncStatusText)
@@ -340,8 +372,8 @@ struct ConfigPage {
 
   @Builder
   private adminRow() {
-    Row() {
-      Text('管理后台').fontSize(18).width(120);
+    Row({ space: CONFIG_CONTROL_GAP_VP }) {
+      this.configLabel('管理后台');
       Button('家长管理后台')
         .id('ConfigParentAdminButton')
         .width(220).height(40)
@@ -353,6 +385,7 @@ struct ConfigPage {
         .onClick((): void => this.openParentAdmin());
     }
     .margin({ bottom: 16 })
+    .width(CONFIG_FORM_ROW_WIDTH_VP)
     .alignItems(VerticalAlign.Center);
   }
 
@@ -588,43 +621,64 @@ struct ConfigPage {
     return '自定义';
   }
 
+  private timerOptions(): number[] {
+    const options: number[] = [];
+    for (let i = 0; i < TIMER_CHOICES.length; i++) {
+      options.push(TIMER_CHOICES[i]);
+    }
+    options.push(0);
+    return options;
+  }
+
   @Builder
   private timerRow() {
-    Row() {
-      Text('倒计时').fontSize(18).width(120);
-      Row({ space: 8 }) {
+    Row({ space: CONFIG_CONTROL_GAP_VP }) {
+      this.configLabel('倒计时');
+      Column({ space: 8 }) {
         // V0.6.7.7: chips dropped the old `width(64)` because at
         // fontSize(16) the active prefix `✓` plus a 3-char body like
         // `5m` / `10m` overflowed and rendered as `✓...` / `1...`.
         // Padding-based intrinsic sizing (matching the 自定义 button
         // below) lets every chip take exactly the room its label
         // needs while keeping the row compact.
-        ForEach(TIMER_CHOICES, (sec: number) => {
-          Button(this.timerChipLabel(sec))
-            .id(this.timerChipId(sec))
-            .height(40)
-            .padding({ left: 12, right: 12 })
-            .fontSize(16)
-            .backgroundColor(this.draft.startingSeconds === sec ? '#B45309' : '#EAF2F8')
-            .fontColor(this.draft.startingSeconds === sec ? '#FFFFFF' : '#1D4ED8')
-            .onClick((): void => this.selectTimer(sec));
-        }, (sec: number) => `${sec}`);
-        // V0.6.7.7: 自定义 button — opens CustomTimerDialog so the
-        // parent can dial in any positive integer in [TIMER_CUSTOM_MIN,
-        // TIMER_CUSTOM_MAX] seconds. UI tests rely on this for the
-        // 3s-fast-timeout flow (see PackManagerFlow's battle-timeout
-        // companion test).
-        Button(this.customTimerButtonLabel())
-          .id('ConfigTimerCustom')
-          .height(40)
-          .padding({ left: 12, right: 12 })
-          .fontSize(16)
-          .backgroundColor(this.isCustomTimer() ? '#B45309' : '#EAF2F8')
-          .fontColor(this.isCustomTimer() ? '#FFFFFF' : '#1D4ED8')
-          .onClick((): void => this.openCustomTimerDialog());
-      };
+        ForEach(timerOptionRows(this.timerOptions()), (row: number[]) => {
+          Row({ space: 8 }) {
+            ForEach(row, (sec: number) => {
+              if (sec > 0) {
+                Button(this.timerChipLabel(sec))
+                  .id(this.timerChipId(sec))
+                  .height(40)
+                  .padding({ left: 12, right: 12 })
+                  .fontSize(16)
+                  .backgroundColor(this.draft.startingSeconds === sec ? '#B45309' : '#EAF2F8')
+                  .fontColor(this.draft.startingSeconds === sec ? '#FFFFFF' : '#1D4ED8')
+                  .onClick((): void => this.selectTimer(sec));
+              } else {
+                // V0.6.7.7: 自定义 button — opens CustomTimerDialog so the
+                // parent can dial in any positive integer in [TIMER_CUSTOM_MIN,
+                // TIMER_CUSTOM_MAX] seconds. UI tests rely on this for the
+                // 3s-fast-timeout flow (see PackManagerFlow's battle-timeout
+                // companion test).
+                Button(this.customTimerButtonLabel())
+                  .id('ConfigTimerCustom')
+                  .height(40)
+                  .padding({ left: 12, right: 12 })
+                  .fontSize(16)
+                  .backgroundColor(this.isCustomTimer() ? '#B45309' : '#EAF2F8')
+                  .fontColor(this.isCustomTimer() ? '#FFFFFF' : '#1D4ED8')
+                  .onClick((): void => this.openCustomTimerDialog());
+              }
+            }, (sec: number): string => `${sec}`);
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Start);
+        }, (row: number[]): string => `${row[0]}`);
+      }
+      .width(CONFIG_CONTROL_COLUMN_WIDTH_VP)
+      .alignItems(HorizontalAlign.Start);
     }
     .margin({ bottom: 12 })
+    .width(CONFIG_FORM_ROW_WIDTH_VP)
     .alignItems(VerticalAlign.Center);
   }
 
@@ -656,8 +710,8 @@ struct ConfigPage {
 
   @Builder
   private autoSpeakRow() {
-    Row() {
-      Text('发音播放').fontSize(18).width(120);
+    Row({ space: CONFIG_CONTROL_GAP_VP }) {
+      this.configLabel('发音播放');
       Button(this.draft.autoSpeak ? '✓ 自动朗读' : '自动朗读')
         .id('ConfigAutoSpeakToggle')
         .width(140).height(40)
@@ -669,57 +723,45 @@ struct ConfigPage {
         .onClick((): void => this.toggleAutoSpeak());
     }
     .margin({ bottom: 12 })
+    .width(CONFIG_FORM_ROW_WIDTH_VP)
     .alignItems(VerticalAlign.Center);
   }
 
   @Builder
   private questionTypeRow() {
     Column() {
-      Row() {
-        Text('题型选择').fontSize(18).width(120);
+      Row({ space: CONFIG_CONTROL_GAP_VP }) {
+        this.configLabel('题型选择');
         Column({ space: 8 }) {
-          Row({ space: 8 }) {
-            ForEach(DEFAULT_ENABLED_QUESTION_TYPES.slice(0, 2), (typeId: string) => {
-              Button(this.questionTypeChipLabel(typeId))
-                .id(this.questionTypeChipId(typeId))
-                .height(40)
-                .padding({ left: 12, right: 12 })
-                .fontSize(14)
-                .backgroundColor(this.isQuestionTypeEnabled(typeId) ? '#FFF4D0' : '#F0F0F0')
-                .fontColor(this.isQuestionTypeEnabled(typeId) ? '#7C2D12' : '#4B5563')
-                .borderWidth(this.isQuestionTypeEnabled(typeId) ? 2 : 0)
-                .borderColor('#FFB400')
-                .onClick((): void => this.toggleQuestionType(typeId));
-            }, (typeId: string): string => typeId);
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.Center);
-          Row({ space: 8 }) {
-            ForEach(DEFAULT_ENABLED_QUESTION_TYPES.slice(2), (typeId: string) => {
-              Button(this.questionTypeChipLabel(typeId))
-                .id(this.questionTypeChipId(typeId))
-                .height(40)
-                .padding({ left: 12, right: 12 })
-                .fontSize(14)
-                .backgroundColor(this.isQuestionTypeEnabled(typeId) ? '#FFF4D0' : '#F0F0F0')
-                .fontColor(this.isQuestionTypeEnabled(typeId) ? '#7C2D12' : '#4B5563')
-                .borderWidth(this.isQuestionTypeEnabled(typeId) ? 2 : 0)
-                .borderColor('#FFB400')
-                .onClick((): void => this.toggleQuestionType(typeId));
-            }, (typeId: string): string => typeId);
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.Center);
+          ForEach(questionTypeColumnRows(DEFAULT_ENABLED_QUESTION_TYPES), (row: string[]) => {
+            Row() {
+              ForEach(row, (typeId: string) => {
+                Button(this.questionTypeChipLabel(typeId))
+                  .id(this.questionTypeChipId(typeId))
+                  .height(40)
+                  .padding({ left: 12, right: 12 })
+                  .fontSize(14)
+                  .backgroundColor(this.isQuestionTypeEnabled(typeId) ? '#FFF4D0' : '#F0F0F0')
+                  .fontColor(this.isQuestionTypeEnabled(typeId) ? '#7C2D12' : '#4B5563')
+                  .borderWidth(this.isQuestionTypeEnabled(typeId) ? 2 : 0)
+                  .borderColor('#FFB400')
+                  .onClick((): void => this.toggleQuestionType(typeId));
+              }, (typeId: string): string => typeId);
+            }
+            .width('100%')
+            .justifyContent(CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED ? FlexAlign.Start : FlexAlign.Center);
+          }, (row: string[]): string => row[0]);
         }
-        .width(260)
-        .alignItems(HorizontalAlign.Center);
+        .width(CONFIG_CONTROL_COLUMN_WIDTH_VP)
+        .alignItems(CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED ? HorizontalAlign.Start : HorizontalAlign.Center);
       }
+      .width(CONFIG_FORM_ROW_WIDTH_VP)
       .alignItems(VerticalAlign.Center);
       Text('至少保留一种题型')
         .id('ConfigQuestionTypeLastEnabledHint')
         .fontSize(12)
         .fontColor(this.questionTypeLastEnabledHint.length > 0 ? '#B45309' : '#00FFFFFF')
-        .margin({ top: 4, left: 120 });
+        .margin({ top: 4, left: CONFIG_LABEL_WIDTH_VP + CONFIG_CONTROL_GAP_VP });
     }
     .width('100%')
     .alignItems(HorizontalAlign.Center)
@@ -728,8 +770,8 @@ struct ConfigPage {
 
   @Builder
   private parentPinRow() {
-    Row() {
-      Text('家长密码').fontSize(18).width(120);
+    Row({ space: CONFIG_CONTROL_GAP_VP }) {
+      this.configLabel('家长密码');
       Button(this.draft.parentPin.length === 6 ? '修改 (•••••• 已设置)' : '设置')
         .id('ConfigParentPinButton')
         .width(220).height(40)
@@ -741,6 +783,7 @@ struct ConfigPage {
         .onClick((): void => this.openParentPinSetup());
     }
     .margin({ bottom: 12 })
+    .width(CONFIG_FORM_ROW_WIDTH_VP)
     .alignItems(VerticalAlign.Center);
   }
 
@@ -756,12 +799,12 @@ struct ConfigPage {
 
   @Builder
   private packPickerSection() {
-    Row() {
+    Row({ space: CONFIG_CONTROL_GAP_VP }) {
       // V0.6.7.7: dropped the leading 📦 to match the rest of the
       // ConfigPage row labels (玩家血量 / 怪物血量 / 怪物数量 /
       // 倒计时 / 发音播放 / 家长密码 / 家长账户 / 学习记录 / 家长)
       // — none of those carry a leading emoji.
-      Text('我的词包').fontSize(18).width(120);
+      this.configLabel('我的词包');
       Row() {
         Text(this.packPickerStatusText.length > 0
           ? this.packPickerStatusText
@@ -785,14 +828,15 @@ struct ConfigPage {
       .onClick((): void => this.openPackManager());
     }
     .margin({ bottom: 12 })
+    .width(CONFIG_FORM_ROW_WIDTH_VP)
     .alignItems(VerticalAlign.Center);
   }
 
   @Builder
   private reportChannelRow() {
     Column() {
-      Row() {
-        Text('投诉与举报').fontSize(18).width(120);
+      Row({ space: CONFIG_CONTROL_GAP_VP }) {
+        this.configLabel('投诉与举报');
         Button('投诉与举报入口')
           .id('ConfigReportChannelButton')
           .width(220).height(40)
@@ -803,6 +847,7 @@ struct ConfigPage {
           .borderColor('#0EA5E9')
           .onClick((): void => this.openReportChannel());
       }
+      .width(CONFIG_FORM_ROW_WIDTH_VP)
       .alignItems(VerticalAlign.Center);
     }
     .width('100%')
@@ -837,8 +882,8 @@ struct ConfigPage {
             .fontColor('#1f2937')
             .margin({ bottom: 8, top: 4 });
 
-          Row() {
-            Text('玩家血量').fontSize(18).width(120);
+          Row({ space: CONFIG_CONTROL_GAP_VP }) {
+            this.configLabel('玩家血量');
             Button('-')
               .id('ConfigPlayerHpDec')
               .width(44).height(44)
@@ -860,10 +905,11 @@ struct ConfigPage {
               .onClick((): void => this.incPlayerHp());
           }
           .margin({ bottom: 12 })
+          .width(CONFIG_FORM_ROW_WIDTH_VP)
           .alignItems(VerticalAlign.Center);
 
-          Row() {
-            Text('怪物血量').fontSize(18).width(120);
+          Row({ space: CONFIG_CONTROL_GAP_VP }) {
+            this.configLabel('怪物血量');
             Button('-')
               .id('ConfigMonsterHpDec')
               .width(44).height(44)
@@ -885,10 +931,11 @@ struct ConfigPage {
               .onClick((): void => this.incMonsterHp());
           }
           .margin({ bottom: 12 })
+          .width(CONFIG_FORM_ROW_WIDTH_VP)
           .alignItems(VerticalAlign.Center);
 
-          Row() {
-            Text('怪物数量').fontSize(18).width(120);
+          Row({ space: CONFIG_CONTROL_GAP_VP }) {
+            this.configLabel('怪物数量');
             Button('-')
               .id('ConfigMonstersTotalDec')
               .width(44).height(44)
@@ -910,6 +957,7 @@ struct ConfigPage {
               .onClick((): void => this.incMonstersTotal());
           }
           .margin({ bottom: 12 })
+          .width(CONFIG_FORM_ROW_WIDTH_VP)
           .alignItems(VerticalAlign.Center);
 
           this.timerRow();

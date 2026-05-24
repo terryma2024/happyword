@@ -22,6 +22,8 @@ export const CHILD_NICKNAME_MAX_CHARS: number = 32;
 export const CHILD_AVATAR_EMOJI_BACKUP_POOL: string[] = [
   '🦄', '🐻', '🐰', '🦁', '🐼', '🦊', '🐶', '🐱', '🐨', '🐧',
 ];
+export const CHILD_AVATAR_EMOJI_WRAP_ENABLED: boolean = true;
+export const CHILD_AVATAR_EMOJI_GAP_VP: number = 10;
 
 export interface NicknameValidation {
   ok: boolean;
@@ -141,34 +143,36 @@ export struct EditChildNicknameDialog {
         Text('头像')
           .fontSize(14)
           .fontColor('#888888');
-        Scroll() {
-          Row({ space: 10 }) {
-            ForEach(buildChildAvatarEmojiChoices(this.initialAvatarEmoji), (emoji: string): void => {
-              Button() {
-                Text(emoji)
-                  .fontSize(22);
-              }
-              .id(`EditChildNicknameEmoji_${emoji}`)
-              .width(44)
-              .height(44)
-              .padding(0)
-              .backgroundColor(this.selectedEmoji === emoji ? '#CDE8FF' : '#F1F2F4')
-              .borderRadius(12)
-              .border({
-                width: this.selectedEmoji === emoji ? 2 : 1,
-                color: this.selectedEmoji === emoji ? '#457B9D' : '#E0E0E0',
-              })
-              .enabled(!this.busy)
-              .onClick((): void => {
-                this.selectedEmoji = emoji;
-              });
-            }, (emoji: string): string => emoji);
-          }
-          .padding({ left: 2, right: 2 });
+        Flex({
+          wrap: CHILD_AVATAR_EMOJI_WRAP_ENABLED ? FlexWrap.Wrap : FlexWrap.NoWrap,
+          justifyContent: FlexAlign.Start,
+          alignItems: ItemAlign.Center,
+        }) {
+          ForEach(buildChildAvatarEmojiChoices(this.initialAvatarEmoji), (emoji: string): void => {
+            Button() {
+              Text(emoji)
+                .fontSize(22);
+            }
+            .id(`EditChildNicknameEmoji_${emoji}`)
+            .width(44)
+            .height(44)
+            .padding(0)
+            .margin({ right: CHILD_AVATAR_EMOJI_GAP_VP, bottom: CHILD_AVATAR_EMOJI_GAP_VP })
+            .backgroundColor(this.selectedEmoji === emoji ? '#CDE8FF' : '#F1F2F4')
+            .borderRadius(12)
+            .border({
+              width: this.selectedEmoji === emoji ? 2 : 1,
+              color: this.selectedEmoji === emoji ? '#457B9D' : '#E0E0E0',
+            })
+            .enabled(!this.busy)
+            .onClick((): void => {
+              this.selectedEmoji = emoji;
+            });
+          }, (emoji: string): string => emoji);
         }
-        .scrollable(ScrollDirection.Horizontal)
-        .scrollBar(BarState.Off)
-        .width('100%');
+        .padding({ left: 2, right: 2 })
+        .width('100%')
+        .constraintSize({ maxHeight: 160 });
       }
       .alignItems(HorizontalAlign.Start)
       .width('100%');

@@ -1,6 +1,8 @@
 import { describe, it, expect } from '@ohos/hypium';
 import {
+  desiredOrientationForPage,
   lockPortrait,
+  PAD_SHORT_EDGE_BREAKPOINT_VP,
   restoreAutoLandscape,
   IOrientationAdapter,
   OrientationName,
@@ -46,6 +48,31 @@ export default function orientationTest(): void {
       a.shouldThrow = true;
       await restoreAutoLandscape(a);
       expect(a.setCalls.length).assertEqual(0);
+    });
+
+    it('phone landscape pages request auto-rotation landscape', 0, () => {
+      expect(desiredOrientationForPage('HomePage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
+        .assertEqual('AUTO_ROTATION_LANDSCAPE');
+      expect(desiredOrientationForPage('WishlistPage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
+        .assertEqual('AUTO_ROTATION_LANDSCAPE');
+      expect(desiredOrientationForPage('BypassSecretPage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
+        .assertEqual('AUTO_ROTATION_LANDSCAPE');
+    });
+
+    it('phone portrait pages request portrait', 0, () => {
+      expect(desiredOrientationForPage('ConfigPage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
+        .assertEqual('PORTRAIT');
+      expect(desiredOrientationForPage('TodayPlanPage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
+        .assertEqual('PORTRAIT');
+      expect(desiredOrientationForPage('LessonDraftReviewPage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
+        .assertEqual('PORTRAIT');
+    });
+
+    it('pad pages release to full auto-rotation', 0, () => {
+      expect(desiredOrientationForPage('BattlePage', PAD_SHORT_EDGE_BREAKPOINT_VP))
+        .assertEqual('AUTO_ROTATION');
+      expect(desiredOrientationForPage('PackManagerPage', PAD_SHORT_EDGE_BREAKPOINT_VP))
+        .assertEqual('AUTO_ROTATION');
     });
   });
 }

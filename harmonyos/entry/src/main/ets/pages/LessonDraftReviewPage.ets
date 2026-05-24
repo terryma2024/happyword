@@ -11,11 +11,7 @@ import {
 } from '../services/ParentApiClient';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
-import {
-  IOrientationAdapter,
-  RealOrientationAdapter,
-  lockPortrait,
-} from '../utils/orientation';
+import { requestPageOrientation } from '../utils/orientation';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 
@@ -32,9 +28,8 @@ import { PageTopChrome } from '../components/PageTopChrome';
  *   - Reject POSTs /reject. Success paths toast + back-nav where
  *     applicable. 409 ALREADY_REVIEWED auto-backs after a brief toast.
  *
- * Orientation: locks portrait on appear and re-locks on onPageShow
- * (idempotent) — outer ParentAdminPage owns the auto-landscape restore
- * via aboutToDisappear. See spec §6.3 "Screen orientation lifecycle".
+ * Orientation: phone layouts stay portrait; pad layouts release to full
+ * auto-rotation through the shared page policy.
  *
  * Route params: { draftId: string } from ParentAdminPage.gotoReview().
  * Missing draftId toasts and back-navs.
@@ -66,14 +61,17 @@ struct LessonDraftReviewPage {
   private draftId: string = '';
   private cloudCreds: CloudCredentials = new CloudCredentials();
   private client: ParentApiClient = ParentApiClient.withRealHttp(effectiveServerBaseUrl());
-  private orientation: IOrientationAdapter = new RealOrientationAdapter(
-    this.getUIContext().getHostContext() as common.UIAbilityContext,
-  );
+
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'LessonDraftReviewPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
 
   aboutToAppear(): void {
-    lockPortrait(this.orientation).catch((err: BusinessError): void => {
-      console.error(`LessonDraftReviewPage.lockPortrait failed: ${JSON.stringify(err)}`);
-    });
+    this.applyOrientationPolicy();
     const raw: object | undefined = this.getUIContext().getRouter().getParams() as object | undefined;
     if (raw !== undefined) {
       const p: LessonReviewRouteParams = raw as LessonReviewRouteParams;
@@ -92,9 +90,7 @@ struct LessonDraftReviewPage {
   }
 
   onPageShow(): void {
-    lockPortrait(this.orientation).catch((err: BusinessError): void => {
-      console.error(`LessonDraftReviewPage.lockPortrait(onPageShow) failed: ${JSON.stringify(err)}`);
-    });
+    this.applyOrientationPolicy();
   }
 
   aboutToDisappear(): void {
@@ -102,9 +98,6 @@ struct LessonDraftReviewPage {
       clearTimeout(this.toastTimer);
       this.toastTimer = -1;
     }
-    // Outer ParentAdminPage handles restoreAutoLandscape on its own
-    // aboutToDisappear; portrait stays locked across the back-pop so
-    // the parent's onPageShow re-lock is a no-op.
   }
 
   private async bootstrapLessonDraftClient(): Promise<void> {

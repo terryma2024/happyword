@@ -1,6 +1,8 @@
 import { BusinessError } from '@ohos.base';
+import { common } from '@kit.AbilityKit';
 import { BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
+import { requestPageOrientation } from '../utils/orientation';
 
 /**
  * ResultPage shows the session summary and navigation back to home or a replay.
@@ -23,7 +25,16 @@ import { SessionResult } from '../models/SessionResult';
 struct ResultPage {
   @State private result: SessionResult = new SessionResult();
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'ResultPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     // router.getParams() returns unknown; reshape into a SessionResult
     // field-by-field so ArkTS strict mode is satisfied and any missing
     // property stays at the SessionResult default rather than undefined.
@@ -102,6 +113,10 @@ struct ResultPage {
     .id('ResultStars')
     .justifyContent(FlexAlign.Center)
     .margin({ top: 4, bottom: 16 });
+  }
+
+  onPageShow(): void {
+    this.applyOrientationPolicy();
   }
 
   build(): void {

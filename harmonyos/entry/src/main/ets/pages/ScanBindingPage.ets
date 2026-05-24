@@ -28,6 +28,7 @@ import { ensureCloudSyncInstalled } from '../services/CloudSyncInstaller';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../services/CompliancePolicy';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { requestPageOrientation } from '../utils/orientation';
 
 class RealScanKitScanner implements BarcodeScannerLike {
   private ctx: common.UIAbilityContext;
@@ -90,8 +91,21 @@ struct ScanBindingPage {
   private service?: DeviceBindingService;
   private galleryPicker?: IPhotoPickerAdapter;
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'ScanBindingPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     this.bootstrapService();
+  }
+
+  onPageShow(): void {
+    this.applyOrientationPolicy();
   }
 
   private bootstrapService(): void {

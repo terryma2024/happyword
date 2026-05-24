@@ -22,6 +22,7 @@ import {
 } from '../components/EditChildNicknameDialog';
 import { PageTopChrome } from '../components/PageTopChrome';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
+import { requestPageOrientation } from '../utils/orientation';
 
 @Entry
 @Component
@@ -40,7 +41,16 @@ struct BoundDeviceInfoPage {
   private editDialog: CustomDialogController | null = null;
   private unbindPinDialog: CustomDialogController | null = null;
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'BoundDeviceInfoPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     Promise.all([this.credentials.init(ctx), this.provider.init(ctx)])
@@ -58,6 +68,10 @@ struct BoundDeviceInfoPage {
         console.error(`BoundDeviceInfoPage.bootstrap failed: ${JSON.stringify(err)}`);
         this.ready = true;
       });
+  }
+
+  onPageShow(): void {
+    this.applyOrientationPolicy();
   }
 
   private formatPairedAt(): string {

@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -59,8 +61,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val childAvatarEmojiBackupPool = listOf("🦄", "🐻", "🐰", "🦁", "🐼", "🦊", "🐶", "🐱", "🐨", "🐧")
+internal const val ChildAvatarEmojiWrapEnabled = true
 
-private fun childAvatarEmojiChoices(initial: String): List<String> {
+internal fun childAvatarEmojiChoices(initial: String): List<String> {
     val first = initial.trim().ifBlank { "🦄" }
     return (listOf(first) + childAvatarEmojiBackupPool).distinct().take(10)
 }
@@ -310,6 +313,7 @@ fun BoundDeviceInfoScreen(
             .fillMaxSize()
             .background(Color(0xFFF8FAFC))
             .verticalScroll(rememberScrollState())
+            .topChromeSafeInsets()
             .padding(
                 start = PageChromeInsets.bodyHorizontal,
                 top = PageChromeInsets.bodyTop,
@@ -426,7 +430,7 @@ fun BoundDeviceInfoScreen(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Text("头像", fontSize = 14.sp, color = Color(0xFF888888))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    AvatarEmojiFlowRow {
                         childAvatarEmojiChoices(credentials?.avatarEmoji.orEmpty()).forEach { emoji ->
                             Box(
                                 modifier = Modifier
@@ -490,6 +494,23 @@ fun BoundDeviceInfoScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AvatarEmojiFlowRow(content: @Composable () -> Unit) {
+    if (ChildAvatarEmojiWrapEnabled) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            content = { content() },
+        )
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            content()
         }
     }
 }

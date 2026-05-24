@@ -157,6 +157,7 @@ import cool.happyword.wordmagic.ui.RedemptionHistoryScreen
 import cool.happyword.wordmagic.ui.ScanBindingScreen
 import cool.happyword.wordmagic.ui.TodayPlanScreen
 import cool.happyword.wordmagic.ui.WishlistScreen
+import cool.happyword.wordmagic.ui.topChromeSafeInsets
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -175,33 +176,41 @@ import cool.happyword.wordmagic.ui.components.StatCard
 @Composable
 internal fun ParentPinScreen(hasPin: Boolean, onBack: () -> Unit, onSubmit: (String) -> Unit) {
     var pin by remember { mutableStateOf("") }
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFFFF6E7))
+            .topChromeSafeInsets()
             .padding(24.dp)
             .testTag("ParentPinScreen"),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
     ) {
-        Text(if (hasPin) "验证家长密码" else "设置家长密码", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
-            value = pin,
-            onValueChange = {
-                val nextPin = it.filter(Char::isDigit).take(6)
-                pin = nextPin
-                if (ParentPinStore.isValidPin(nextPin)) {
-                    onSubmit(nextPin)
-                }
-            },
-            label = { Text("6 位数字密码") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            modifier = Modifier.testTag("ParentPinInput"),
+        HarmonyPageTopBackButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .testTag("ParentPinBackButton"),
         )
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = onBack) { Text("返回") }
+
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(if (hasPin) "验证家长密码" else "设置家长密码", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(
+                value = pin,
+                onValueChange = {
+                    val nextPin = it.filter(Char::isDigit).take(6)
+                    pin = nextPin
+                    if (ParentPinStore.isValidPin(nextPin)) {
+                        onSubmit(nextPin)
+                    }
+                },
+                label = { Text("6 位数字密码") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                modifier = Modifier.testTag("ParentPinInput"),
+            )
+            Spacer(Modifier.height(12.dp))
             Button(
                 onClick = { if (ParentPinStore.isValidPin(pin)) onSubmit(pin) },
                 enabled = ParentPinStore.isValidPin(pin),
@@ -219,15 +228,25 @@ internal fun ParentAdminScreen(onBack: () -> Unit, onReview: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
+            .topChromeSafeInsets()
             .padding(20.dp)
             .testTag("ParentAdminScreen"),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("家长管理后台", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(0xFF2E2F33))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                HarmonyPageTopBackButton(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("ParentAdminBackButton"),
+                )
+                Text(
+                    "家长管理后台",
+                    modifier = Modifier.padding(start = 12.dp),
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF2E2F33),
+                )
                 Spacer(Modifier.weight(1f))
-                OutlinedButton(onClick = onBack) { Text("返回") }
             }
             Text("服务器：本地模拟数据", color = Color(0xFF666B74), fontSize = 16.sp)
         }
@@ -270,13 +289,18 @@ internal fun LessonDraftReviewScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFFFF6E7))
+            .topChromeSafeInsets()
             .padding(18.dp)
             .testTag("LessonDraftReviewScreen"),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            HarmonyPageTopBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("LessonDraftReviewBackButton"),
+            )
+            Spacer(Modifier.width(12.dp))
             Text("草稿审核", fontSize = 26.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = onBack) { Text("返回") }
         }
         Spacer(Modifier.height(12.dp))
         SettingCard("主题标签") { Text("水果森林 · 课本导入") }

@@ -60,6 +60,7 @@ fun DevMenuScreen(
             .fillMaxSize()
             .background(Color.White)
             .verticalScroll(rememberScrollState())
+            .topChromeSafeInsets()
             .padding(
                 start = PageChromeInsets.bodyHorizontal,
                 top = PageChromeInsets.bodyTop,
@@ -69,7 +70,10 @@ fun DevMenuScreen(
             .testTag("DevMenuScreen"),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            HarmonyDevMenuButton("Back", Modifier.testTag("DevMenuBackButton"), onClick = onBack)
+            HarmonyPageTopBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("DevMenuBackButton"),
+            )
             Text(
                 "Developer Options",
                 modifier = Modifier.padding(start = 16.dp),
@@ -249,6 +253,7 @@ fun BypassSecretScreen(
         Modifier
             .fillMaxSize()
             .background(Color(0xFFFFF6E7))
+            .topChromeSafeInsets()
             .padding(
                 start = PageChromeInsets.bodyHorizontal,
                 top = PageChromeInsets.bodyTop,
@@ -257,6 +262,13 @@ fun BypassSecretScreen(
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            HarmonyPageTopBackButton(
+                onClick = onCancel,
+                modifier = Modifier.testTag("BypassSecretPageBackButton"),
+            )
+            Spacer(Modifier.weight(1f))
+        }
         Text("Bypass Secret", fontSize = 28.sp, fontWeight = FontWeight.Black, modifier = Modifier.testTag("BypassSecretPageTitle"))
         OutlinedTextField(
             value = secret,
@@ -265,7 +277,6 @@ fun BypassSecretScreen(
             modifier = Modifier.padding(top = 18.dp).testTag("BypassSecretPageInput"),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 18.dp)) {
-            OutlinedButton(onClick = onCancel, modifier = Modifier.testTag("BypassSecretPageCancelButton")) { Text("取消") }
             OutlinedButton(onClick = onClear, modifier = Modifier.testTag("BypassSecretPageClearButton")) { Text("清除") }
             Button(onClick = { onSave(secret) }, modifier = Modifier.testTag("BypassSecretPageSaveButton")) { Text("保存") }
         }

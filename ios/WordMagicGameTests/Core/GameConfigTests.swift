@@ -67,6 +67,31 @@ final class GameConfigTests: XCTestCase {
         XCTAssertEqual(maxV.seconds, GameConfig.timerCustomRange.upperBound)
     }
 
+    func testConfigLayoutRulesMatchHarmonyV092() {
+        XCTAssertEqual(ConfigLayoutRules.labelWidth, 120)
+        XCTAssertEqual(ConfigLayoutRules.controlGap, 12)
+        XCTAssertEqual(ConfigLayoutRules.controlColumnWidth, 220)
+        XCTAssertEqual(ConfigLayoutRules.timerOptionsPerRow, 3)
+        XCTAssertTrue(ConfigLayoutRules.questionTypesLeftAligned)
+
+        XCTAssertEqual(
+            ConfigLayoutRules.questionTypeRows(["choice", "fill-letter", "fill-letter-medium", "spell"]),
+            [["choice"], ["fill-letter"], ["fill-letter-medium"], ["spell"]]
+        )
+        XCTAssertEqual(
+            ConfigLayoutRules.timerOptionRows([30, 180, 300, 600, 0]),
+            [[30, 180, 300], [600, 0]]
+        )
+    }
+
+    func testChildProfileEditAvatarChoicesWrapRuleMatchesHarmony() {
+        XCTAssertTrue(ChildProfileEditRules.avatarWrapEnabled)
+        let choices = ChildProfileEditRules.avatarChoices(initial: "🐻")
+        XCTAssertEqual(choices.count, 10)
+        XCTAssertEqual(choices.first, "🐻")
+        XCTAssertEqual(Set(choices).count, choices.count)
+    }
+
     // MARK: - Question types (Harmony `enabledQuestionTypes` parity)
 
     func testDecodeGameConfigWithoutQuestionTypesUsesDefaults() throws {

@@ -31,7 +31,7 @@ fun PageTopChrome(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth().topChromeSafeInsets()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

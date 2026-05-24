@@ -112,6 +112,7 @@ fun PackManagerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8FAFC))
+            .topChromeSafeInsets()
             .padding(
                 start = PageChromeInsets.homeAlignedHorizontal,
                 top = PageChromeInsets.bodyTop,
@@ -241,6 +242,7 @@ fun WishlistScreen(
         LazyColumn(
             Modifier
                 .fillMaxSize()
+                .topChromeSafeInsets()
                 .padding(
                     start = PageChromeInsets.homeAlignedHorizontal,
                     top = PageChromeInsets.bodyTop,
@@ -589,6 +591,7 @@ fun RedemptionHistoryScreen(history: RedemptionHistoryStore, onBack: () -> Unit)
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
+            .topChromeSafeInsets()
             .padding(
                 start = PageChromeInsets.bodyHorizontal,
                 top = PageChromeInsets.bodyTop,
@@ -603,23 +606,10 @@ fun RedemptionHistoryScreen(history: RedemptionHistoryStore, onBack: () -> Unit)
                 .padding(bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start,
-            ) {
-                Button(
-                    onClick = onBack,
-                    modifier = Modifier.testTag("RedemptionHistoryBackButton"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color(0xFF457B9D),
-                    ),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                ) {
-                    Text("← 返回", fontSize = 16.sp)
-                }
-            }
+            HarmonyPageTopBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("RedemptionHistoryBackButton"),
+            )
             Text(
                 text = "兑换记录",
                 modifier = Modifier
@@ -631,7 +621,7 @@ fun RedemptionHistoryScreen(history: RedemptionHistoryStore, onBack: () -> Unit)
                 textAlign = TextAlign.Center,
                 maxLines = 1,
             )
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(48.dp))
         }
         Spacer(Modifier.height(4.dp))
         if (history.records.isEmpty()) {
@@ -726,6 +716,7 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
         Modifier
             .fillMaxSize()
             .background(Color(0xFFFAFBFD))
+            .topChromeSafeInsets()
             .padding(
                 start = PageChromeInsets.bodyHorizontal,
                 top = PageChromeInsets.bodyTop,
@@ -863,6 +854,7 @@ fun TodayPlanScreen(plan: TodayPlanUi, onCheckIn: () -> Unit, onReport: () -> Un
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
+                .topChromeSafeInsets()
                 .padding(
                     start = PageChromeInsets.homeAlignedHorizontal,
                     end = PageChromeInsets.homeAlignedHorizontal,
@@ -982,6 +974,7 @@ fun CheckInCalendarScreen(snapshot: CheckInSnapshot, onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
+                .topChromeSafeInsets()
                 .padding(
                     start = PageChromeInsets.homeAlignedHorizontal,
                     end = PageChromeInsets.homeAlignedHorizontal,
@@ -1301,23 +1294,15 @@ fun LearningReportScreen(report: LearningReport, onBack: () -> Unit) {
         Row(
             Modifier
                 .fillMaxWidth()
+                .topChromeSafeInsets()
                 .padding(horizontal = 44.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Button(
+            HarmonyPageTopBackButton(
                 onClick = onBack,
                 modifier = Modifier
-                    .size(40.dp)
                     .testTag("LearningReportBackButton"),
-                shape = CircleShape,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF1D3557),
-                ),
-            ) {
-                Text("←", fontSize = 20.sp)
-            }
+            )
             Text(
                 "学习报告",
                 modifier = Modifier
@@ -1328,7 +1313,7 @@ fun LearningReportScreen(report: LearningReport, onBack: () -> Unit) {
                 color = Color(0xFF1D3557),
                 textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.width(40.dp))
+            Spacer(Modifier.width(48.dp))
         }
 
         Column(

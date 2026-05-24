@@ -10,6 +10,7 @@ import {
   pushDigit,
   popDigit,
 } from '../components/ParentPinDialog';
+import { requestPageOrientation } from '../utils/orientation';
 
 /**
  * V0.3.9: two-step parent PIN setup. The page is reachable from the
@@ -39,10 +40,23 @@ struct ParentPinSetupPage {
   @State private mismatch: boolean = false;
   @State private hadExistingPin: boolean = false;
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'ParentPinSetupPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     const stored: GameConfig | undefined =
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
     this.hadExistingPin = stored !== undefined && stored.parentPin.length === PIN_LENGTH;
+  }
+
+  onPageShow(): void {
+    this.applyOrientationPolicy();
   }
 
   build(): void {

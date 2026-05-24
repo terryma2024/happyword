@@ -190,7 +190,7 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.buttons["今日学习计划"].waitForExistence(timeout: 5))
         app.buttons["今日学习计划"].tap()
 
-        assertLandscape(app)
+        assertPortrait(app)
         XCTAssertTrue(app.staticTexts["今日学习计划"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["复习"].exists)
         XCTAssertTrue(app.staticTexts["学习中"].exists)
@@ -266,19 +266,19 @@ final class WordMagicGameUITests: XCTestCase {
     }
 
     @MainActor
-    func testLandscapeAccountPagesUseExpectedBackButtonPlacement() {
+    func testPortraitAccountPagesUseExpectedBackButtonPlacement() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice", "-UITestRouteRedemptionHistory"]
         app.launch()
 
-        assertLandscape(app)
+        assertPortrait(app)
         assertTopLeftBackButton(app.buttons["返回"], in: app)
 
         app.terminate()
         app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice", "-UITestRouteBoundDeviceInfo"]
         app.launch()
 
-        assertLandscape(app)
+        assertPortrait(app)
         assertTopLeftBackButton(app.buttons["返回"], in: app)
     }
 
@@ -288,7 +288,7 @@ final class WordMagicGameUITests: XCTestCase {
         app.launchArguments = ["-UITestResetState", "-UITestSeedBoundDevice", "-UITestRouteBoundDeviceInfo"]
         app.launch()
 
-        assertLandscape(app)
+        assertPortrait(app)
         let title = app.staticTexts["学习档案"].firstMatch
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         XCTAssertGreaterThan(title.frame.minY, app.windows.element(boundBy: 0).frame.minY + 20)

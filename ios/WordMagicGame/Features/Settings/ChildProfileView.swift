@@ -62,7 +62,8 @@ struct ChildProfileView: View {
             Spacer()
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .padding(.vertical, 20)
+        .padding(.top, AppTheme.portraitPageTopPadding)
+        .padding(.bottom, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(AppTheme.page)
         .ignoresSafeArea(.keyboard)

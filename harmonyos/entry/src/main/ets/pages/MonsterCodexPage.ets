@@ -5,8 +5,10 @@ import {
 } from '../data/MonsterCatalog';
 import display from '@ohos.display';
 import { BusinessError } from '@ohos.base';
+import { common } from '@kit.AbilityKit';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { requestPageOrientation } from '../utils/orientation';
 
 /**
  * MonsterCodexPage: read-only browse of the 100 codex monsters
@@ -52,7 +54,16 @@ struct MonsterCodexPage {
    */
   @State private shortEdgeVp: number = 360;
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'MonsterCodexPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     try {
       const d: display.Display = display.getDefaultDisplaySync();
       const widthVp: number = this.getUIContext().px2vp(d.width);
@@ -63,6 +74,10 @@ struct MonsterCodexPage {
       console.error(`MonsterCodexPage: display query failed: ${JSON.stringify(e)}`);
       // Keep the phone-class default; the page is still usable.
     }
+  }
+
+  onPageShow(): void {
+    this.applyOrientationPolicy();
   }
 
   private isPad(): boolean {

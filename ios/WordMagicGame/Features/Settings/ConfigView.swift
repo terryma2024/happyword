@@ -1,5 +1,23 @@
 import SwiftUI
 
+enum ConfigLayoutRules {
+    static let labelWidth: CGFloat = 120
+    static let controlGap: CGFloat = 12
+    static let controlColumnWidth: CGFloat = 220
+    static let timerOptionsPerRow = 3
+    static let questionTypesLeftAligned = true
+
+    static func questionTypeRows(_ typeIds: [String]) -> [[String]] {
+        typeIds.map { [$0] }
+    }
+
+    static func timerOptionRows(_ options: [Int]) -> [[Int]] {
+        stride(from: 0, to: options.count, by: timerOptionsPerRow).map { start in
+            Array(options[start..<min(start + timerOptionsPerRow, options.count)])
+        }
+    }
+}
+
 struct ConfigView: View {
     @ObservedObject var coordinator: AppCoordinator
     @State private var draft: GameConfig
@@ -53,7 +71,7 @@ struct ConfigView: View {
                 }
             }
             .padding(.horizontal, AppTheme.pageHorizontalPadding)
-            .padding(.top, compactHeight ? 10 : 18)
+            .padding(.top, AppTheme.portraitPageTopPadding)
             .padding(.bottom, compactHeight ? 8 : 14)
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
@@ -86,29 +104,41 @@ struct ConfigView: View {
         HStack(spacing: 12) {
             Text("倒计时")
                 .font(.title2.weight(.bold))
-                .frame(width: 120, alignment: .trailing)
-            HStack(spacing: 8) {
-                ForEach(GameConfig.timerChoices, id: \.self) { seconds in
-                    timerChoiceButton(seconds)
+                .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(ConfigLayoutRules.timerOptionRows(GameConfig.timerChoices + [0]), id: \.self) { row in
+                    HStack(spacing: 8) {
+                        ForEach(row, id: \.self) { seconds in
+                            if seconds > 0 {
+                                timerChoiceButton(seconds)
+                            } else {
+                                customTimerButton
+                            }
+                        }
+                    }
                 }
-                Button {
-                    openCustomTimerSheet()
-                } label: {
-                    Text(customTimerChipTitle)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .padding(.horizontal, 12)
-                        .frame(height: 40)
-                        .background(isCustomTimer ? Color(red: 0.71, green: 0.33, blue: 0.04) : AppTheme.paleBlue, in: Capsule())
-                        .foregroundStyle(isCustomTimer ? Color.white : Color(red: 0.11, green: 0.3, blue: 0.85))
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("ConfigTimerCustom")
             }
+            .frame(width: ConfigLayoutRules.controlColumnWidth, alignment: .leading)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+    }
+
+    private var customTimerButton: some View {
+        Button {
+            openCustomTimerSheet()
+        } label: {
+            Text(customTimerChipTitle)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .padding(.horizontal, 12)
+                .frame(height: 40)
+                .background(isCustomTimer ? Color(red: 0.71, green: 0.33, blue: 0.04) : AppTheme.paleBlue, in: Capsule())
+                .foregroundStyle(isCustomTimer ? Color.white : Color(red: 0.11, green: 0.3, blue: 0.85))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("ConfigTimerCustom")
     }
 
     private var customTimerChipTitle: String {
@@ -229,7 +259,7 @@ struct ConfigView: View {
         HStack(spacing: 12) {
             Text("发音播放")
                 .font(.title2.weight(.bold))
-                .frame(width: 120, alignment: .trailing)
+                .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
             Button {
                 draft.autoSpeak.toggle()
             } label: {
@@ -251,29 +281,24 @@ struct ConfigView: View {
         .frame(maxWidth: 560)
     }
 
-    /// Parity with Harmony `ConfigPage.questionTypeRow` — two chip rows + last-type hint.
+    /// Parity with Harmony `ConfigPage.questionTypeRow` — vertical chip column + last-type hint.
     private var questionTypeSection: some View {
         let ordered = BattleQuestionTypePolicy.defaultOrderedTypeIds
-        let row0 = Array(ordered.prefix(2))
-        let row1 = Array(ordered.dropFirst(2))
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .top, spacing: 12) {
                 Text("题型选择")
                     .font(.title2.weight(.bold))
-                    .frame(width: 120, alignment: .trailing)
-                VStack(spacing: 8) {
-                    HStack(spacing: 8) {
-                        ForEach(row0, id: \.self) { typeId in
-                            questionTypeChip(typeId: typeId)
-                        }
-                    }
-                    HStack(spacing: 8) {
-                        ForEach(row1, id: \.self) { typeId in
-                            questionTypeChip(typeId: typeId)
+                    .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(ConfigLayoutRules.questionTypeRows(ordered), id: \.self) { row in
+                        HStack(spacing: 8) {
+                            ForEach(row, id: \.self) { typeId in
+                                questionTypeChip(typeId: typeId)
+                            }
                         }
                     }
                 }
-                .frame(width: 260, alignment: .center)
+                .frame(width: ConfigLayoutRules.controlColumnWidth, alignment: .leading)
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: 560)
@@ -284,7 +309,7 @@ struct ConfigView: View {
                         ? Color.clear
                         : Color(red: 0.71, green: 0.33, blue: 0.04),
                 )
-                .padding(.leading, 132)
+                .padding(.leading, ConfigLayoutRules.labelWidth + ConfigLayoutRules.controlGap)
                 .accessibilityIdentifier("ConfigQuestionTypeLastEnabledHint")
         }
     }
@@ -343,7 +368,7 @@ struct ConfigView: View {
         return HStack(spacing: 12) {
             Text("我的词包")
                 .font(.title2.weight(.bold))
-                .frame(width: 120, alignment: .trailing)
+                .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
             Button {
                 coordinator.route = .packManager
             } label: {
@@ -374,7 +399,7 @@ struct ConfigView: View {
             HStack(spacing: 12) {
                 Text("投诉与举报")
                     .font(.title2.weight(.bold))
-                    .frame(width: 120, alignment: .trailing)
+                    .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
                 Button("投诉与举报入口") {
                     SystemBrowser.open(CompliancePolicy.reportChannelURL)
                 }
@@ -399,7 +424,7 @@ struct ConfigView: View {
         return HStack(spacing: 12) {
             Text("家长密码")
                 .font(.title2.weight(.bold))
-                .frame(width: 120, alignment: .trailing)
+                .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
             Button {
                 coordinator.route = .pinSetup
             } label: {
@@ -424,7 +449,7 @@ struct ConfigView: View {
         HStack(spacing: 12) {
             Text("家长账号")
                 .font(.title2.weight(.bold))
-                .frame(width: 120, alignment: .trailing)
+                .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
             if let credentials = coordinator.cloudCredentialsStore.credentials {
                 Button {
                     coordinator.openBoundDeviceInfo()
@@ -467,7 +492,7 @@ struct ConfigView: View {
             HStack(spacing: 12) {
                 Text("学习记录")
                     .font(.title2.weight(.bold))
-                    .frame(width: 120, alignment: .trailing)
+                    .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
                 Button {
                     Task { await coordinator.syncWordStatsExplicitly() }
                 } label: {
@@ -495,7 +520,7 @@ struct ConfigView: View {
         HStack(spacing: 12) {
             Text("管理后台")
                 .font(.title2.weight(.bold))
-                .frame(width: 120, alignment: .trailing)
+                .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
             Button("家长管理后台") { coordinator.openParentAdmin() }
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .frame(width: 220, height: 40)
@@ -516,7 +541,7 @@ struct ConfigView: View {
         HStack(spacing: 22) {
             Text(title)
                 .font(.title2.weight(.bold))
-                .frame(width: 120, alignment: .trailing)
+                .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
             roundControl("−") { value.wrappedValue = max(range.lowerBound, value.wrappedValue - 1) }
             Text("\(value.wrappedValue)")
                 .font(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit())
