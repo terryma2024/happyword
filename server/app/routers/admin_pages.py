@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, Query, Request, UploadFile
@@ -108,7 +108,11 @@ def _flash_map_devices(request: Request) -> tuple[str | None, str | None]:
 
 def _flash_map_family(request: Request) -> tuple[str | None, str | None]:
     ok = request.query_params.get("flash_ok")
-    msgs = {"unarchived": "已恢复词包为活跃状态。", "rolled_back": "已回滚家庭词包指针。"}
+    msgs = {
+        "unarchived": "已恢复词包为活跃状态。",
+        "rolled_back": "已回滚家庭词包指针。",
+        "deleted": "已删除家庭词包。",
+    }
     err = request.query_params.get("flash_err")
     return (msgs.get(ok) if ok else None, err)
 
@@ -1317,6 +1321,7 @@ async def admin_global_pack_draft_split_post(
     new_name = str(form.get("new_name", "")).strip()
     desc_raw = str(form.get("new_description", "")).strip()
     new_description = desc_raw or None
+    split_mode: Literal["copy", "move"] = "move" if mode == "move" else "copy"
 
     try:
         result = await gps.split_draft_to_new_pack(
@@ -1325,7 +1330,7 @@ async def admin_global_pack_draft_split_post(
             word_ids=word_ids,
             new_name=new_name,
             new_description=new_description,
-            mode=cast("Literal['copy', 'move']", mode),
+            mode=split_mode,
         )
     except gps.PackNotFound:
         return RedirectResponse(
@@ -1445,6 +1450,31 @@ async def admin_family_rollback_post(
     except LookupError:
         return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
     return RedirectResponse(url="/admin/family-packs?flash_ok=rolled_back", status_code=303)
+
+
+@router.post("/family-packs/{pack_id}/delete", response_model=None)
+async def admin_family_delete_post(
+    request: Request,
+    pack_id: str,
+    reason: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        await acs.admin_family_pack_delete(
+            admin_username=gate.username,
+            pack_id=pack_id,
+            reason=reason,
+        )
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/family-packs?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    except LookupError:
+        return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
+    return RedirectResponse(url="/admin/family-packs?flash_ok=deleted", status_code=303)
 
 
 # --- audit logs ---------------------------------------------------------------

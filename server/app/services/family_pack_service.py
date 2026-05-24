@@ -137,6 +137,16 @@ class DraftSplitResult:
     mode: Literal["copy", "move"]
 
 
+@dataclass(frozen=True)
+class FamilyPackDeleteSummary:
+    pack_id: str
+    family_id: str
+    deleted_definition_count: int
+    deleted_draft_count: int
+    deleted_version_count: int
+    deleted_pointer_count: int
+
+
 def _utcnow() -> datetime:
     return datetime.now(tz=UTC)
 
@@ -301,6 +311,45 @@ async def list_definitions(
             sort=[("updated_at", SortDirection.DESCENDING)],
         ).to_list()
     return rows
+
+
+async def delete_definition(*, pack_id: str, family_id: str) -> FamilyPackDeleteSummary:
+    definition = await get_definition_for_family(pack_id=pack_id, family_id=family_id)
+    draft_count = await FamilyPackDraft.find(
+        FamilyPackDraft.pack_definition_id == pack_id,
+        FamilyPackDraft.family_id == family_id,
+    ).count()
+    version_count = await FamilyWordPack.find(
+        FamilyWordPack.pack_definition_id == pack_id,
+        FamilyWordPack.family_id == family_id,
+    ).count()
+    pointer_count = await FamilyPackPointer.find(
+        FamilyPackPointer.pack_definition_id == pack_id,
+        FamilyPackPointer.family_id == family_id,
+    ).count()
+
+    await FamilyPackDraft.find(
+        FamilyPackDraft.pack_definition_id == pack_id,
+        FamilyPackDraft.family_id == family_id,
+    ).delete()
+    await FamilyWordPack.find(
+        FamilyWordPack.pack_definition_id == pack_id,
+        FamilyWordPack.family_id == family_id,
+    ).delete()
+    await FamilyPackPointer.find(
+        FamilyPackPointer.pack_definition_id == pack_id,
+        FamilyPackPointer.family_id == family_id,
+    ).delete()
+    await definition.delete()
+
+    return FamilyPackDeleteSummary(
+        pack_id=pack_id,
+        family_id=family_id,
+        deleted_definition_count=1,
+        deleted_draft_count=draft_count,
+        deleted_version_count=version_count,
+        deleted_pointer_count=pointer_count,
+    )
 
 
 # ---------------------------------------------------------------------------

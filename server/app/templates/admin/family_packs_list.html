@@ -46,6 +46,11 @@
               <textarea name="reason" placeholder="操作说明（≥4 字）" rows="2" required class="w-full text-xs rounded border border-slate-300 px-2 py-1"></textarea>
               <button type="submit" class="text-xs bg-amber-700 text-white px-2 py-1 rounded">回滚版本</button>
             </form>
+            <form method="post" action="/admin/family-packs/{{ d.pack_id }}/delete" class="space-y-1"
+                  onsubmit="return confirm('确认永久删除家庭词包 {{ d.name }}（{{ d.pack_id }}）？此操作会删除草稿、发布版本和指针，无法撤销。');">
+              <textarea name="reason" placeholder="删除原因（≥4 字）" rows="2" required class="w-full text-xs rounded border border-red-200 px-2 py-1"></textarea>
+              <button type="submit" class="text-xs bg-red-700 text-white px-2 py-1 rounded">删除</button>
+            </form>
           </td>
         </tr>
         {% else %}

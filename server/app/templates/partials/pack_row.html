@@ -1,13 +1,15 @@
-<a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ summary.definition.pack_id }}" class="block p-4 hover:bg-sky-50">
-  <div class="flex items-start justify-between gap-4">
-    <div>
+<div class="flex items-start justify-between gap-4 p-4 hover:bg-sky-50">
+  <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ summary.definition.pack_id }}" class="block min-w-0 flex-1">
+    <div class="min-w-0">
       <p class="font-semibold text-slate-900">{{ summary.definition.name }}</p>
       <p class="text-xs text-slate-500 mt-1">{{ summary.definition.description or "无描述" }}</p>
       <p class="text-xs text-slate-500 mt-2">
         草稿 {{ summary.draft_word_count }} 词 · 已发布 {{ summary.current_word_count }} 词
       </p>
     </div>
-    <div class="text-right text-xs">
+  </a>
+  <div class="flex shrink-0 flex-col items-end gap-3 text-right text-xs">
+    <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ summary.definition.pack_id }}" class="hover:underline">
       {% if summary.pointer %}
         <span class="text-sky-700">v{{ summary.pointer.current_version }}</span>
       {% else %}
@@ -16,6 +18,10 @@
       {% if summary.has_unpublished_changes %}
         <p class="mt-1 text-amber-700">有未发布修改</p>
       {% endif %}
-    </div>
+    </a>
+    <form id="pack-delete-form-{{ summary.definition.pack_id }}" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ summary.definition.pack_id }}/delete"
+          onsubmit="return confirm('确认删除词库 {{ summary.definition.name }}？此操作会删除草稿和已发布版本，无法撤销。');">
+      <button type="submit" class="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50">删除</button>
+    </form>
   </div>
-</a>
+</div>
