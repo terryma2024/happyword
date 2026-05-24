@@ -45,6 +45,30 @@ jobs:
       - name: Run pytest
         run: uv run pytest -v
 
+      - name: Package server source for CloudBase E2E
+        if: >-
+          ${{
+            github.event_name == 'workflow_dispatch' ||
+            (
+              github.event_name == 'pull_request' &&
+              (
+                github.event.action == 'labeled' ||
+                contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')
+              ) &&
+              contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')
+            )
+          }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: server-source-for-cloudbase-e2e
+          path: |
+            server
+            !server/.venv
+            !server/.pytest_cache
+            !server/artifacts
+          if-no-files-found: error
+          retention-days: 1
+
   cloudbase_staging_e2e:
     name: server / cloudbase staging e2e
     runs-on: [self-hosted, linux, x64, happyword-e2e-db]
@@ -85,25 +109,16 @@ jobs:
             echo "::warning::cloudbase staging E2E skipped: configure CLOUDBASE_STAGING_BASE_URL, E2E_MONGODB_URI, and E2E_STAGING_DB_NAME."
           fi
 
-      - name: Checkout
+      - name: Download server source
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
-        working-directory: .
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE"
-          curl -fsSL --retry 5 --retry-delay 5 \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/tarball/${GITHUB_SHA}" \
-            -o /tmp/happyword-source.tar.gz
-          tar -xzf /tmp/happyword-source.tar.gz -C "$GITHUB_WORKSPACE" --strip-components=1
+        uses: actions/download-artifact@v6
+        with:
+          name: server-source-for-cloudbase-e2e
+          path: server
 
       - name: Verify runner toolchain
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
         run: |
-          git --version
           python3.12 --version
           jq --version
 

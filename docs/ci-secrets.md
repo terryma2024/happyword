@@ -23,12 +23,12 @@ does not reset shared staging data on every PR. Pushes to `main` run both Vercel
 `server-cd` and CloudBase `server-cloudbase-cd`.
 
 The shared CloudBase staging E2E job runs on the Beijing self-hosted runner. The
-runner must have system `git`, `jq`, and `python3.12`; the workflow verifies
+runner must have system `jq` and `python3.12`; the workflow verifies
 those tools and uses `uv sync --python 3.12` against the Tencent Cloud PyPI
 mirror instead of `actions/setup-python`, because the runner OS is OpenCloudOS
-9.4 and cold-cache downloads from public PyPI are too slow. It downloads the
-source through the GitHub tarball API rather than `git fetch`, which is less
-reliable from the Beijing runner.
+9.4 and cold-cache downloads from public PyPI are too slow. The upstream pytest
+job uploads `server/` as a short-lived artifact, and the Beijing E2E job
+downloads that artifact instead of fetching source directly from GitHub.
 
 ## All secrets, in one table
 
