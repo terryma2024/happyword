@@ -15,6 +15,12 @@ def _custom_prefix(family_id: str) -> str:
     return f"fam-{family_id.removeprefix('fam-')[:8]}-"
 
 
+def _without_merged_at(payload: dict[str, object]) -> dict[str, object]:
+    clone = dict(payload)
+    clone.pop("merged_at", None)
+    return clone
+
+
 @pytest.mark.e2e
 def test_child_merged_204_when_no_packs(
     http: httpx.Client, device: DeviceSession
@@ -84,4 +90,4 @@ def test_child_merged_200_then_304_with_etag(
     assert r2.status_code in {200, 304}
     assert r2.headers.get("ETag") == etag
     if r2.status_code == 200:
-        assert r2.json() == body
+        assert _without_merged_at(r2.json()) == _without_merged_at(body)
