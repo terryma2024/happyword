@@ -1,6 +1,7 @@
 import { MonsterKind, MonsterLevel } from '../data/MonsterCatalog';
 import { QuestionKind } from '../models/Question';
 import { WordEntry } from '../models/WordEntry';
+import { wordSupportsSentenceCloze } from './SentenceClozeGenerator';
 
 export const BATTLE_QUESTION_TYPE_SENTENCE_FILL: string = 'sentence-fill';
 
@@ -9,6 +10,7 @@ export const DEFAULT_ENABLED_QUESTION_TYPES: string[] = [
   QuestionKind.FillLetter,
   QuestionKind.FillLetterMedium,
   QuestionKind.Spell,
+  QuestionKind.SentenceCloze,
 ];
 
 function alphaLength(raw: string): number {
@@ -27,7 +29,8 @@ function isImplementedQuestionType(t: string): boolean {
   return t === QuestionKind.Choice
     || t === QuestionKind.FillLetter
     || t === QuestionKind.FillLetterMedium
-    || t === QuestionKind.Spell;
+    || t === QuestionKind.Spell
+    || t === QuestionKind.SentenceCloze;
 }
 
 export function sanitizeEnabledQuestionTypes(raw: string[]): string[] {
@@ -54,6 +57,9 @@ export function questionTypeToMonsterKind(typeId: string): MonsterKind {
     return MonsterKind.Elite;
   }
   if (typeId === QuestionKind.Spell) {
+    return MonsterKind.Boss;
+  }
+  if (typeId === QuestionKind.SentenceCloze) {
     return MonsterKind.Boss;
   }
   return MonsterKind.Normal;
@@ -92,6 +98,15 @@ export function questionTypeFallbackChain(primaryType: string): string[] {
     return [
       QuestionKind.Spell,
       QuestionKind.FillLetterMedium,
+      QuestionKind.FillLetter,
+      QuestionKind.Choice,
+    ];
+  }
+  if (primaryType === QuestionKind.SentenceCloze) {
+    return [
+      QuestionKind.SentenceCloze,
+      QuestionKind.FillLetterMedium,
+      QuestionKind.Spell,
       QuestionKind.FillLetter,
       QuestionKind.Choice,
     ];
@@ -156,6 +171,9 @@ export function wordSupportsQuestionType(word: WordEntry, typeId: string): boole
   }
   if (typeId === QuestionKind.Spell) {
     return letters >= 4 && letters <= 9;
+  }
+  if (typeId === QuestionKind.SentenceCloze) {
+    return wordSupportsSentenceCloze(word);
   }
   return false;
 }

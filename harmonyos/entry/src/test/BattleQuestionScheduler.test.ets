@@ -9,7 +9,7 @@ import {
 import { mulberry32 } from '../main/ets/utils/shuffle';
 
 const INTRO = [QuestionKind.Choice, QuestionKind.FillLetter];
-const CHALLENGE = [QuestionKind.FillLetterMedium, QuestionKind.Spell];
+const CHALLENGE = [QuestionKind.FillLetterMedium, QuestionKind.Spell, QuestionKind.SentenceCloze];
 
 function scheduler(
   wordIds: string[],
@@ -37,7 +37,7 @@ export default function battleQuestionSchedulerTest() {
     });
 
     it('deriveScheduleModeChallengeOnly', 0, () => {
-      const enabled = [QuestionKind.FillLetterMedium, QuestionKind.Spell];
+      const enabled = [QuestionKind.FillLetterMedium, QuestionKind.Spell, QuestionKind.SentenceCloze];
       const intro = intersectKinds(INTRO, enabled);
       const challenge = intersectKinds(CHALLENGE, enabled);
       expect(deriveScheduleMode(enabled, intro, challenge))
@@ -50,6 +50,7 @@ export default function battleQuestionSchedulerTest() {
         QuestionKind.FillLetter,
         QuestionKind.FillLetterMedium,
         QuestionKind.Spell,
+        QuestionKind.SentenceCloze,
       ];
       const intro = intersectKinds(INTRO, enabled);
       const challenge = intersectKinds(CHALLENGE, enabled);
@@ -75,7 +76,9 @@ export default function battleQuestionSchedulerTest() {
       const canServe = (_wid: string, _k: string): boolean => true;
       for (let i = 0; i < 20; i++) {
         const kind = s.pickNext(undefined, canServe).kind;
-        expect(kind === QuestionKind.FillLetterMedium || kind === QuestionKind.Spell)
+        expect(kind === QuestionKind.FillLetterMedium
+          || kind === QuestionKind.Spell
+          || kind === QuestionKind.SentenceCloze)
           .assertFalse();
         s.markServed(`w-${i % 3}`, kind, canServe);
       }
@@ -135,19 +138,34 @@ export default function battleQuestionSchedulerTest() {
       ).assertTrue();
     });
 
-    it('challengeRollsAreFiftyFiftyWhenBothChallengeTypesEnabled', 0, () => {
+    it('challengeRollsAcrossAllEnabledChallengeTypes', 0, () => {
       let medium = 0;
       let spell = 0;
-      for (let seed = 0; seed < 40; seed++) {
-        const s = scheduler(['w-a'], [QuestionKind.FillLetterMedium, QuestionKind.Spell], seed);
+      let cloze = 0;
+      for (let seed = 0; seed < 80; seed++) {
+        const s = scheduler(
+          ['w-a'],
+          [QuestionKind.FillLetterMedium, QuestionKind.Spell, QuestionKind.SentenceCloze],
+          seed,
+        );
         const k = s.pickNext(undefined, (): boolean => true).kind;
         if (k === QuestionKind.FillLetterMedium) {
           medium += 1;
         } else if (k === QuestionKind.Spell) {
           spell += 1;
+        } else if (k === QuestionKind.SentenceCloze) {
+          cloze += 1;
         }
       }
-      expect(medium > 0 && spell > 0).assertTrue();
+      expect(medium > 0 && spell > 0 && cloze > 0).assertTrue();
+    });
+
+    it('challengeRollsNeverReturnSentenceClozeWhenDisabled', 0, () => {
+      for (let seed = 0; seed < 40; seed++) {
+        const s = scheduler(['w-a'], [QuestionKind.FillLetterMedium, QuestionKind.Spell], seed);
+        const k = s.pickNext(undefined, (): boolean => true).kind;
+        expect(k === QuestionKind.SentenceCloze).assertFalse();
+      }
     });
   });
 }

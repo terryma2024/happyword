@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { mulberry32 } from '../main/ets/utils/shuffle';
-import { WordEntry } from '../main/ets/models/WordEntry';
+import { ExampleSentence, WordEntry } from '../main/ets/models/WordEntry';
 import { Question, QuestionKind } from '../main/ets/models/Question';
 import { WordRepository } from '../main/ets/services/WordRepository';
 import { QuestionGenerator } from '../main/ets/services/QuestionGenerator';
@@ -28,11 +28,20 @@ function makeWord(id: string, word: string): WordEntry {
   return w;
 }
 
+function makeWordWithExample(id: string, word: string, exampleEn: string, exampleZh: string): WordEntry {
+  const w: WordEntry = makeWord(id, word);
+  const ex: ExampleSentence = new ExampleSentence();
+  ex.en = exampleEn;
+  ex.zh = exampleZh;
+  w.example = ex;
+  return w;
+}
+
 function makeRepo(): WordRepository {
   const repo: WordRepository = new WordRepository();
   repo.setEntries([
-    makeWord('fruit-apple', 'apple'),
-    makeWord('fruit-banana', 'banana'),
+    makeWordWithExample('fruit-apple', 'apple', 'I eat an apple.', '我吃苹果。'),
+    makeWordWithExample('fruit-banana', 'banana', 'The banana is yellow.', '香蕉是黄色的。'),
     makeWord('fruit-orange', 'orange'),
     makeWord('fruit-grape', 'grape'),
     makeWord('fruit-pear', 'pear'),
@@ -222,6 +231,32 @@ export default function planQuestionSourceTest() {
       expect(q.missingIndices.length).assertEqual(2);
     });
 
+    it('emitsSentenceClozeWhenOnlySentenceClozeEnabled', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Boss],
+        ['fruit-apple']
+      );
+      const src: PlanQuestionSource = buildSrc(
+        plan, repo, 3, 4, 5, [QuestionKind.SentenceCloze]);
+      const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.SentenceCloze);
+      expect(q.sentenceTemplate).assertEqual('I eat an ____.');
+      expect(q.sentenceZh).assertEqual('我吃苹果。');
+    });
+
+    it('sentenceClozeOnlyFallsBackToChoiceWhenNoWordHasExample', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Boss],
+        ['fruit-orange']
+      );
+      const src: PlanQuestionSource = buildSrc(
+        plan, repo, 3, 4, 5, [QuestionKind.SentenceCloze]);
+      const q: Question = src.nextQuestion();
+      expect(q.kind).assertEqual(QuestionKind.Choice);
+    });
+
     it('challengeOnlyNeverEmitsSpellFromEliteSlot', 0, () => {
       const repo: WordRepository = makeRepo();
       const plan: TodaySessionPlan = planWith(
@@ -304,7 +339,9 @@ export default function planQuestionSourceTest() {
       expect(kinds.indexOf(QuestionKind.FillLetter) >= 0).assertTrue();
       let sawChallenge = false;
       for (let i = 0; i < kinds.length; i++) {
-        if (kinds[i] === QuestionKind.FillLetterMedium || kinds[i] === QuestionKind.Spell) {
+        if (kinds[i] === QuestionKind.FillLetterMedium
+          || kinds[i] === QuestionKind.Spell
+          || kinds[i] === QuestionKind.SentenceCloze) {
           sawChallenge = true;
         }
       }

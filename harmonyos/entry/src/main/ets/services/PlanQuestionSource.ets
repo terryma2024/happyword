@@ -1,9 +1,10 @@
-import { Question } from '../models/Question';
+import { Question, QuestionKind } from '../models/Question';
 import { WordEntry } from '../models/WordEntry';
 import { WordRepository } from './WordRepository';
 import { QuestionGenerator } from './QuestionGenerator';
 import { FillLetterGenerator } from './FillLetterGenerator';
 import { SpellGenerator } from './SpellGenerator';
+import { SentenceClozeGenerator } from './SentenceClozeGenerator';
 import { IQuestionSource } from './IQuestionSource';
 import {
   resolveQuestionTypeForWord,
@@ -43,6 +44,7 @@ export class PlanQuestionSource implements IQuestionSource {
   private readonly choiceGen: QuestionGenerator;
   private readonly fillGen: FillLetterGenerator;
   private readonly spellGen: SpellGenerator;
+  private readonly sentenceGen: SentenceClozeGenerator;
   private readonly scheduler: BattleQuestionScheduler | undefined;
   private monsterIndexProvider: MonsterIndexProvider;
   private cursor: number = 0;
@@ -60,6 +62,7 @@ export class PlanQuestionSource implements IQuestionSource {
     this.choiceGen = choiceGen;
     this.fillGen = fillGen;
     this.spellGen = spellGen;
+    this.sentenceGen = new SentenceClozeGenerator();
     this.scheduler = scheduler;
     this.monsterIndexProvider = (): number => 1;
   }
@@ -127,6 +130,9 @@ export class PlanQuestionSource implements IQuestionSource {
     }
     if (targetType === 'spell') {
       return this.spellGen.generate(word);
+    }
+    if (targetType === QuestionKind.SentenceCloze) {
+      return this.sentenceGen.generate(word, this.repo, lastWordId);
     }
     return this.choiceGen.nextQuestionForWord(word, lastWordId);
   }
