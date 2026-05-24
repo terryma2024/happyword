@@ -534,3 +534,33 @@ async def admin_family_pack_rollback(
             "pointer_previous": ptr.previous_version,
         },
     )
+
+
+async def admin_family_pack_delete(
+    *, admin_username: str, pack_id: str, reason: str
+) -> fps.FamilyPackDeleteSummary:
+    r = validate_reason_text(reason)
+    definition = await FamilyPackDefinition.find_one(FamilyPackDefinition.pack_id == pack_id)
+    if definition is None:
+        raise LookupError("pack_not_found")
+    if definition.family_id == fps.GLOBAL_PACK_FAMILY_ID:
+        raise ValueError("请通过「全局词库」页面删除官方全局词包。")
+    try:
+        summary = await fps.delete_definition(
+            pack_id=pack_id,
+            family_id=definition.family_id,
+        )
+    except fps.PackNotFound as exc:
+        raise LookupError("pack_not_found") from exc
+    await record_admin_action(
+        admin_username=admin_username,
+        action="family_pack.definition_delete",
+        target_collection="family_pack_definitions",
+        target_id=pack_id,
+        payload_summary={
+            "reason": r,
+            "family_id": definition.family_id,
+            **summary.__dict__,
+        },
+    )
+    return summary

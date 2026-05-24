@@ -154,6 +154,62 @@ async def test_get_definition_for_other_family_raises_pack_not_found(
         )
 
 
+@pytest.mark.asyncio
+async def test_delete_definition_removes_all_pack_records(db: object) -> None:
+    from app.models.family_pack_definition import FamilyPackDefinition
+    from app.models.family_pack_draft import FamilyPackDraft
+    from app.models.family_pack_pointer import FamilyPackPointer
+    from app.models.family_word_pack import FamilyWordPack
+
+    family_id, parent = await _new_family()
+    definition = await svc.create_definition(
+        family_id=family_id,
+        name="Delete Me",
+        description=None,
+        parent_user_id=parent,
+    )
+    await svc.upsert_draft_word(
+        definition=definition,
+        word_id="apple",
+        payload=_global_payload(),
+        parent_user_id=parent,
+    )
+    await svc.publish(definition=definition, parent_user_id=parent, notes="v1")
+    await svc.upsert_draft_word(
+        definition=definition,
+        word_id="banana",
+        payload=_global_payload(),
+        parent_user_id=parent,
+    )
+    await svc.publish(definition=definition, parent_user_id=parent, notes="v2")
+
+    summary = await svc.delete_definition(
+        pack_id=definition.pack_id,
+        family_id=family_id,
+    )
+
+    assert summary.pack_id == definition.pack_id
+    assert summary.deleted_definition_count == 1
+    assert summary.deleted_draft_count == 1
+    assert summary.deleted_version_count == 2
+    assert summary.deleted_pointer_count == 1
+    assert await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == definition.pack_id
+    ) is None
+    assert await FamilyPackDraft.find_one(
+        FamilyPackDraft.pack_definition_id == definition.pack_id
+    ) is None
+    assert await FamilyPackPointer.find_one(
+        FamilyPackPointer.pack_definition_id == definition.pack_id
+    ) is None
+    assert (
+        await FamilyWordPack.find(
+            FamilyWordPack.pack_definition_id == definition.pack_id
+        ).count()
+        == 0
+    )
+
+
 # ---------------------------------------------------------------------------
 # Draft (contracts 8–13)
 # ---------------------------------------------------------------------------

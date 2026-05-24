@@ -166,6 +166,143 @@ async def test_admin_global_pack_html_delete_removes_pack_and_audits(
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_family_packs_page_renders_delete_form(
+    client: AsyncClient,
+) -> None:
+    from app.services import family_pack_service
+    from app.services.family_service import create_family_for_parent
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    family, user = await create_family_for_parent(email="family-delete-html@example.com")
+    await family_pack_service.create_definition(
+        family_id=family.family_id,
+        name="Family Delete From HTML",
+        description=None,
+        parent_user_id=user.username,
+        pack_id="pck-html-delete",
+    )
+
+    page = await client.get("/admin/family-packs")
+
+    assert page.status_code == 200
+    assert "/admin/family-packs/pck-html-delete/delete" in page.text
+    assert "删除" in page.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_family_pack_html_delete_removes_pack_and_audits(
+    client: AsyncClient,
+) -> None:
+    from app.models.family_pack_draft import FamilyPackDraft
+    from app.models.family_pack_pointer import FamilyPackPointer
+    from app.models.family_word_pack import FamilyWordPack
+    from app.services import family_pack_service
+    from app.services.family_service import create_family_for_parent
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    family, user = await create_family_for_parent(email="family-delete-post@example.com")
+    definition = await family_pack_service.create_definition(
+        family_id=family.family_id,
+        name="Family Delete From HTML",
+        description=None,
+        parent_user_id=user.username,
+        pack_id="pck-html-delete",
+    )
+    await family_pack_service.upsert_draft_word(
+        definition=definition,
+        word_id="apple",
+        payload={"source": "global"},
+        parent_user_id=user.username,
+    )
+    await family_pack_service.publish(
+        definition=definition, parent_user_id=user.username, notes="v1"
+    )
+    await family_pack_service.upsert_draft_word(
+        definition=definition,
+        word_id="banana",
+        payload={"source": "global"},
+        parent_user_id=user.username,
+    )
+    await family_pack_service.publish(
+        definition=definition, parent_user_id=user.username, notes="v2"
+    )
+
+    res = await client.post(
+        "/admin/family-packs/pck-html-delete/delete",
+        data={"reason": "清理家庭测试词包"},
+        follow_redirects=False,
+    )
+
+    assert res.status_code == 303
+    assert res.headers["location"] == "/admin/family-packs?flash_ok=deleted"
+    assert await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == "pck-html-delete"
+    ) is None
+    assert await FamilyPackDraft.find_one(
+        FamilyPackDraft.pack_definition_id == "pck-html-delete"
+    ) is None
+    assert await FamilyPackPointer.find_one(
+        FamilyPackPointer.pack_definition_id == "pck-html-delete"
+    ) is None
+    assert (
+        await FamilyWordPack.find(
+            FamilyWordPack.pack_definition_id == "pck-html-delete"
+        ).count()
+        == 0
+    )
+    audit = await AuditLog.find_one(AuditLog.action == "family_pack.definition_delete")
+    assert audit is not None
+    assert audit.target_id == "pck-html-delete"
+    assert audit.payload_summary["reason"] == "清理家庭测试词包"
+    assert audit.payload_summary["family_id"] == family.family_id
+    assert audit.payload_summary["deleted_version_count"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_family_pack_delete_rejects_global_sentinel(
+    client: AsyncClient,
+) -> None:
+    from app.services import global_pack_service
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    await global_pack_service.create_definition(
+        name="Global Guard",
+        admin_id="console-admin",
+        pack_id="gpk-family-delete-guard",
+    )
+
+    res = await client.post(
+        "/admin/family-packs/gpk-family-delete-guard/delete",
+        data={"reason": "错误入口保护"},
+        follow_redirects=False,
+    )
+
+    assert res.status_code == 303
+    assert res.headers["location"].startswith("/admin/family-packs?flash_err=")
+    assert await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == "gpk-family-delete-guard"
+    ) is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
 async def test_admin_global_pack_detail_renders_split_form(
     client: AsyncClient,
 ) -> None:
