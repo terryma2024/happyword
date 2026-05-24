@@ -190,13 +190,26 @@ async def test_pack_detail_renders_split_controls(parent_client: tuple[AsyncClie
     assert resp.status_code == 200
     soup = BeautifulSoup(resp.text, "html.parser")
     form = soup.find(id="draft-split-form")
+    dialog = soup.find(id="draft-split-dialog")
     submit = soup.find(id="draft-split-submit")
+    move_button = soup.find(id="draft-split-move-open")
+    copy_button = soup.find(id="draft-split-copy-open")
     assert form is not None
     assert form.get("action") == f"/family/{fid}/packs/{pack_id}/draft/split"
-    assert soup.find("input", attrs={"name": "new_name"}) is not None
-    assert soup.find("select", attrs={"name": "mode"}) is not None
+    assert dialog is not None
+    assert dialog.find("input", attrs={"name": "new_name"}) is not None
+    assert dialog.find("input", attrs={"name": "new_description"}) is not None
+    mode = dialog.find("input", attrs={"name": "mode"})
+    assert mode is not None
+    assert mode.get("type") == "hidden"
+    assert soup.find("select", attrs={"name": "mode"}) is None
+    assert move_button is not None
+    assert move_button.get_text(strip=True) == "移动到新包"
+    assert copy_button is not None
+    assert copy_button.get_text(strip=True) == "复制到新包"
     assert submit is not None
-    assert submit.has_attr("disabled")
+    assert move_button.has_attr("disabled")
+    assert copy_button.has_attr("disabled")
 
 
 @pytest.mark.asyncio

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 import pytest
+from bs4 import BeautifulSoup
 
 from app.models.audit_log import AuditLog
 from app.models.family_pack_definition import FamilyPackDefinition
@@ -185,9 +186,23 @@ async def test_admin_global_pack_detail_renders_split_form(
     page = await client.get("/admin/global-packs/packs/gpk-html-split-ui")
 
     assert page.status_code == 200
-    assert 'id="global-draft-split-form"' in page.text
-    assert 'name="new_name"' in page.text
-    assert 'name="mode"' in page.text
+    soup = BeautifulSoup(page.text, "html.parser")
+    form = soup.find(id="global-draft-split-form")
+    dialog = soup.find(id="global-draft-split-dialog")
+    move_button = soup.find(id="global-draft-split-move-open")
+    copy_button = soup.find(id="global-draft-split-copy-open")
+    assert form is not None
+    assert dialog is not None
+    assert dialog.find("input", attrs={"name": "new_name"}) is not None
+    assert dialog.find("input", attrs={"name": "new_description"}) is not None
+    mode = dialog.find("input", attrs={"name": "mode"})
+    assert mode is not None
+    assert mode.get("type") == "hidden"
+    assert soup.find("select", attrs={"name": "mode"}) is None
+    assert move_button is not None
+    assert move_button.get_text(strip=True) == "移动到新包"
+    assert copy_button is not None
+    assert copy_button.get_text(strip=True) == "复制到新包"
 
 
 @pytest.mark.asyncio

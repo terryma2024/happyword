@@ -197,24 +197,31 @@
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h2 class="text-lg font-semibold text-slate-900">草稿词条</h2>
-      <div class="flex flex-wrap items-end gap-3">
-        <form id="draft-split-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/split" class="flex flex-wrap items-end gap-2">
-          <label class="text-xs text-slate-600">新词包名称
-            <input name="new_name" required maxlength="32" class="mt-1 w-40 rounded-md border border-slate-300 px-2 py-1.5 text-xs" />
-          </label>
-          <label class="text-xs text-slate-600">模式
-            <select name="mode" class="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-xs">
-              <option value="move">移动</option>
-              <option value="copy">复制</option>
-            </select>
-          </label>
-          <input name="new_description" maxlength="200" placeholder="描述（可选）" class="rounded-md border border-slate-300 px-2 py-1.5 text-xs" />
-          <button id="draft-split-submit" type="submit" disabled class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">拆分所选</button>
-        </form>
+      <div class="flex flex-wrap items-center gap-3">
         <form id="draft-batch-delete-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/batch-delete" class="flex items-center gap-3">
-          <span id="draft-selection-count" class="text-xs text-slate-500">已选择 0 项</span>
-          <button id="draft-batch-delete-submit" type="submit" disabled class="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300">删除所选</button>
+          <span id="draft-selection-count" class="inline-flex h-9 items-center text-xs text-slate-500">已选择 0 项</span>
+          <button id="draft-batch-delete-submit" type="submit" disabled class="h-9 rounded-md bg-rose-600 px-3 text-xs font-medium text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300">删除所选</button>
         </form>
+        <button id="draft-split-move-open" type="button" disabled class="h-9 rounded-md bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">移动到新包</button>
+        <button id="draft-split-copy-open" type="button" disabled class="h-9 rounded-md bg-sky-600 px-3 text-xs font-medium text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300">复制到新包</button>
+        <dialog id="draft-split-dialog" class="w-full max-w-md rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/30">
+          <form id="draft-split-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/draft/split" class="space-y-4 p-5">
+            <input id="draft-split-mode" type="hidden" name="mode" value="move" />
+            <div>
+              <h3 id="draft-split-dialog-title" class="text-base font-semibold text-slate-900">移动到新包</h3>
+            </div>
+            <label class="block text-sm text-slate-700">新词包名称
+              <input name="new_name" required maxlength="32" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+            <label class="block text-sm text-slate-700">描述
+              <input name="new_description" maxlength="200" placeholder="可选" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+            <div class="flex justify-end gap-2">
+              <button id="draft-split-cancel" type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">取消</button>
+              <button id="draft-split-submit" type="submit" class="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">确认</button>
+            </div>
+          </form>
+        </dialog>
       </div>
     </div>
     <table id="draft-word-table" class="w-full text-sm">
@@ -265,7 +272,12 @@
     const draftCheckboxes = Array.from(document.querySelectorAll(".draft-word-checkbox"));
     const draftBatchDeleteSubmit = document.getElementById("draft-batch-delete-submit");
     const draftSplitForm = document.getElementById("draft-split-form");
-    const draftSplitSubmit = document.getElementById("draft-split-submit");
+    const draftSplitDialog = document.getElementById("draft-split-dialog");
+    const draftSplitDialogTitle = document.getElementById("draft-split-dialog-title");
+    const draftSplitMode = document.getElementById("draft-split-mode");
+    const draftSplitMoveOpen = document.getElementById("draft-split-move-open");
+    const draftSplitCopyOpen = document.getElementById("draft-split-copy-open");
+    const draftSplitCancel = document.getElementById("draft-split-cancel");
     const draftSelectionCount = document.getElementById("draft-selection-count");
     if (!draftSelectAll || !draftBatchDeleteSubmit) {
       return;
@@ -284,8 +296,11 @@
     const updateDraftBatchState = () => {
       const checkedCount = draftCheckboxes.filter((box) => box.checked).length;
       draftBatchDeleteSubmit.disabled = checkedCount === 0;
-      if (draftSplitSubmit) {
-        draftSplitSubmit.disabled = checkedCount === 0;
+      if (draftSplitMoveOpen) {
+        draftSplitMoveOpen.disabled = checkedCount === 0;
+      }
+      if (draftSplitCopyOpen) {
+        draftSplitCopyOpen.disabled = checkedCount === 0;
       }
       if (draftSelectionCount) {
         draftSelectionCount.textContent = `已选择 ${checkedCount} 项`;
@@ -307,6 +322,29 @@
     });
     if (draftSplitForm) {
       draftSplitForm.addEventListener("submit", () => syncSelectionInputs(draftSplitForm));
+    }
+    const openSplitDialog = (mode) => {
+      if (!draftSplitDialog || !draftSplitMode || !draftSplitDialogTitle) {
+        return;
+      }
+      const checkedCount = draftCheckboxes.filter((box) => box.checked).length;
+      if (checkedCount === 0) {
+        return;
+      }
+      draftSplitMode.value = mode;
+      draftSplitDialogTitle.textContent = mode === "copy" ? "复制到新包" : "移动到新包";
+      if (typeof draftSplitDialog.showModal === "function") {
+        draftSplitDialog.showModal();
+      }
+    };
+    if (draftSplitMoveOpen) {
+      draftSplitMoveOpen.addEventListener("click", () => openSplitDialog("move"));
+    }
+    if (draftSplitCopyOpen) {
+      draftSplitCopyOpen.addEventListener("click", () => openSplitDialog("copy"));
+    }
+    if (draftSplitCancel && draftSplitDialog) {
+      draftSplitCancel.addEventListener("click", () => draftSplitDialog.close());
     }
     updateDraftBatchState();
   })();
