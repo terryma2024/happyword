@@ -447,6 +447,20 @@
   `uv run pytest -v -m smoke` command against CloudBase staging has not been
   recorded yet. Keep this as the remaining optional M2 hardening check.
 
+  Progress note, 2026-05-23: online staging E2E is being consolidated to one
+  shared CloudBase staging environment backed by Beijing Lighthouse MongoDB
+  database `happyword_cloudbase_staging_e2e`. The GitHub job now runs on a
+  Beijing self-hosted runner with label `happyword-e2e-db`, resets only that
+  guarded `_e2e` database, and uses a global `cloudbase-staging-e2e`
+  concurrency group with `cancel-in-progress: false`. The runner is registered
+  and online.
+
+  Update, 2026-05-24: the MongoDB listener change was approved and applied,
+  CloudBase staging runtime now points at the Beijing E2E database, and
+  `happyword-server-staging-010` passed public health plus
+  `/api/v1/public/packs/latest.json` against that empty E2E database. Remaining
+  work: run and record the first `workflow_dispatch` E2E through GitHub Actions.
+
 - [x] **Step 7: Commit staging runbook updates**
 
   Run:
@@ -1485,6 +1499,23 @@ URI compatibility vs API adapter.
   Acceptance: collection counts and critical unique indexes match the recorded
   Atlas inventory.
 
+  Progress note, 2026-05-23: because CloudBase FlexDB did not yet expose a
+  confirmed Motor/Beanie URI and TencentDB was too expensive for current scale,
+  the rehearsal used the low-cost URI-compatible Lighthouse fallback instead.
+  A new Shanghai Lighthouse instance `happyword-mongodb-shanghai`
+  (`124.221.96.45`) was provisioned, MongoDB 8.0.23 was configured as a
+  single-node `rs0` replica set with auth and TLS, and data was migrated from
+  the Beijing Lighthouse copy of Atlas. Final inventory matched the recorded
+  source shape: 25 collections, 275 documents, 50 words, 2 word packs, and 92
+  indexes after Beanie model initialization. This does not complete Step 7 yet:
+  CloudBase Run still needs a private/VPC path or explicitly approved
+  allowlisted listener before staging can point `MONGODB_URI` at Shanghai.
+
+  E2E staging note, 2026-05-23: to keep online test data isolated from the
+  production migration path, CI E2E will use the Beijing Lighthouse MongoDB
+  instance and fixed database `happyword_cloudbase_staging_e2e`. Shanghai remains
+  the production migration rehearsal target.
+
 - [ ] **Step 8: Run staging app smoke on FlexDB path**
 
   Run the same product smoke set:
@@ -1505,9 +1536,17 @@ URI compatibility vs API adapter.
   - FlexDB isolated instance.
   - TencentDB fallback.
   - Delay database migration and keep Atlas during the rest of CloudBase cutover.
+  - Lighthouse single-node MongoDB fallback for the low-volume interim period.
 
   Acceptance: decision is recorded with cost, risk, rollback, and next
   implementation steps.
+
+  Progress note, 2026-05-23: current interim decision is Lighthouse single-node
+  MongoDB in Shanghai because it preserves the existing `MONGODB_URI` boundary
+  at much lower cost than TencentDB. Production cutover is intentionally blocked
+  until CloudBase-to-Lighthouse networking is private or tightly allowlisted,
+  production smoke passes, and the Beijing instance remains available as
+  rollback through the soak window.
 
 - [ ] **Step 10: Production database cutover**
 
@@ -1757,6 +1796,11 @@ URI compatibility vs API adapter.
   legacy Vercel Preview deploy/E2E/Blob manifest refresh during the transition.
   The CloudBase staging smoke job runs after pytest only for `workflow_dispatch`
   or PRs carrying `cloudbase-smoke`.
+
+  Update, 2026-05-23: after CloudBase staging became the single online E2E
+  target, PR CI removed the legacy Vercel preview deploy/E2E and Cursor autofix
+  paths. Online E2E is now opt-in/manual or label-gated against shared CloudBase
+  staging, serialized by the `cloudbase-staging-e2e` concurrency group.
 
 - [x] **Step 10: Add PR preview cleanup plan**
 

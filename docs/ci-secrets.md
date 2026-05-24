@@ -9,18 +9,18 @@ end-to-end. If you only want one section, jump straight to
 
 | Workflow | File | Trigger | Purpose |
 | --- | --- | --- | --- |
-| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself; manual dispatch | Transitional dual track: offline pytest + legacy Vercel Preview E2E/manifest on PRs; opt-in CloudBase staging smoke through `workflow_dispatch` or the `cloudbase-smoke` PR label |
+| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself; manual dispatch | Offline pytest plus opt-in shared CloudBase staging E2E through `workflow_dispatch` or the `cloudbase-smoke` PR label |
 | `server-cd` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Push to `main` touching `server/**` | Wait for Vercel **production** deploy, run staging smoke (`pytest -m smoke`) |
 | `server-cloudbase-cd` | [`.github/workflows/server-cloudbase-cd.yml`](../.github/workflows/server-cloudbase-cd.yml) | Push to `main` touching `server/**`; manual dispatch | Deploy server to CloudBase Run, then health check and smoke test |
 | `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR `closed` + dispatch | Legacy cleanup-on-close + manual repair for the Vercel Blob preview manifest |
 | `atlas-cleanup` | [`.github/workflows/atlas-cleanup.yml`](../.github/workflows/atlas-cleanup.yml) | Cron Mon 09:00 UTC + dispatch | Drop stale per-PR Mongo Atlas DBs older than 14 days |
 | `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Cron Mon 10:00 UTC + dispatch | Keep only the newest Vercel deployment per non-`main` branch (production alias preserved) |
 
-During the transition, both Vercel and CloudBase workflows stay alive. PRs keep
-the legacy Vercel Preview E2E and Blob manifest refresh, while CloudBase staging
-smoke is opt-in so it does not overwrite shared staging data on every PR.
-Pushes to `main` run both Vercel `server-cd` and CloudBase
-`server-cloudbase-cd`.
+During the transition, both Vercel and CloudBase deployment workflows stay
+alive. PR online E2E no longer deploys Vercel previews; it uses the shared
+CloudBase staging service and the Beijing Lighthouse E2E database, opt-in so it
+does not reset shared staging data on every PR. Pushes to `main` run both Vercel
+`server-cd` and CloudBase `server-cloudbase-cd`.
 
 ## All secrets, in one table
 
@@ -31,16 +31,16 @@ Pushes to `main` run both Vercel `server-cd` and CloudBase
 | Secret | Required by | Optional? | Effect when missing |
 | --- | --- | --- | --- |
 | `GITHUB_TOKEN` | every workflow | **Auto-provided.** No setup. | n/a |
-| [`VERCEL_TOKEN`](#vercel_token) | `server-ci`, `preview-manifest`, `vercel-prune`, legacy Vercel workflows | optional during M8A | Legacy Vercel Preview E2E / cleanup / manifest repair jobs skip with a warning |
-| [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | `server-ci`, legacy Vercel workflows | optional during M8A | Legacy Vercel fallback operations cannot identify the project |
+| [`VERCEL_TOKEN`](#vercel_token) | `preview-manifest`, `vercel-prune`, legacy Vercel workflows | optional during M8A | Legacy Vercel cleanup / manifest repair jobs skip with a warning |
+| [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflows | optional during M8A | Legacy Vercel fallback operations cannot identify the project |
 | [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflows | optional during M8A | same as above |
 | [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `server-ci`, `preview-manifest` legacy path | **required** only for the legacy manifest rebuild path | The legacy refresh / repair job skips with a warning; CloudBase inline manifest does not need it |
-| [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | `server-ci` legacy Vercel E2E | optional during M8A | Needed while Vercel-protected previews remain in the transition window |
+| [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | legacy Vercel E2E only | optional during M8A | No longer used by `server-ci`; keep only while any protected Vercel preview automation remains |
 | _operator_ [**`VERCEL_CRON_SECRET`**](#vercel_cron_secret-lesson-import-extraction-cron) | workstation `~/.env` | optional | Mirrors Vercel **`CRON_SECRET`** for [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh); not a GitHub Actions secret |
 | [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `server-cd`, `server-cloudbase-cd`, `atlas-cleanup` | optional | Mongo-dependent tests may skip or fail depending on target; cron cleanup is a no-op |
 | [`E2E_ADMIN_USER`](#e2e_admin_user--e2e_admin_pass), [`E2E_ADMIN_PASS`](#e2e_admin_user--e2e_admin_pass) | `server-ci`, `server-cloudbase-cd` | optional | E2E/smoke tests that need an admin login skip |
 | [`E2E_CRON_SECRET`](#e2e_cron_secret) | `server-ci`, `server-cloudbase-cd` | optional | [`test_lesson_import_cron_e2e`](../server/tests/e2e/test_lesson_import_cron_e2e.py) skips if unset; must equal target **`CRON_SECRET`** |
-| [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-ci` CloudBase smoke, `server-cd`, `server-cloudbase-cd` | optional | `pytest -m smoke` runs without a DB target → likely fails for DB-backed smoke |
+| [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-ci` CloudBase staging E2E, `server-cd`, `server-cloudbase-cd` | optional | Shared staging E2E cannot reset or validate the target DB |
 | [`SLACK_WEBHOOK_URL`](#slack_webhook_url) | `server-ci`, `server-cd` | optional | Failure alert step prints a warning; CI itself unaffected |
 | [`TCB_SECRET_ID`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow cannot authenticate to Tencent Cloud. |
 | [`TCB_SECRET_KEY`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow cannot authenticate to Tencent Cloud. |
@@ -171,10 +171,10 @@ These names replace the Vercel Preview publishing path during M8.
 | `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase env | Inline manifest payload used before a Mongo-backed manifest exists. |
 | `CLOUDBASE_PREVIEW_MODE` | GitHub Actions variable or CloudBase env | Suggested values: `shared_staging`, `on_demand_version`, `on_demand_service`. |
 
-M8A keeps the legacy Vercel Preview path alive during the transition, so keep
-`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
-`VERCEL_AUTOMATION_BYPASS_SECRET`, and `BLOB_READ_WRITE_TOKEN` configured until
-M8C/M9 retirement.
+M8A no longer uses the legacy Vercel Preview path for `server-ci` online E2E.
+Keep `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
+`VERCEL_AUTOMATION_BYPASS_SECRET`, and `BLOB_READ_WRITE_TOKEN` configured only
+for the remaining legacy cleanup / repair workflows until M8C/M9 retirement.
 
 ### `VERCEL_TOKEN`
 
@@ -320,15 +320,15 @@ Further detail: [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh
 Repository secret used only by GitHub Actions: the E2E job exports it so
 [`server/tests/e2e/test_lesson_import_cron_e2e.py`](../server/tests/e2e/test_lesson_import_cron_e2e.py)
 can call **`POST /api/v1/admin/cron/extract-pending`** with
-**`Authorization: Bearer …`**. Use the **same value** as Vercel **Preview**
-environment variable **`CRON_SECRET`** (see [`VERCEL_CRON_SECRET` §](#vercel_cron_secret-lesson-import-extraction-cron)).
+**`Authorization: Bearer …`**. Use the **same value** as the target CloudBase
+staging environment variable **`CRON_SECRET`**.
 When this secret is not configured, the test is **skipped** (the suite stays green).
 
 ### `E2E_MONGODB_URI`
 
 Mongo connection string used by:
 
-- `server-ci` legacy Vercel E2E and optional CloudBase staging smoke;
+- `server-ci` shared CloudBase staging E2E;
 - `server-cd` staging smoke;
 - `server-cloudbase-cd` smoke;
 - `atlas-cleanup` weekly cron to drop stale per-PR DBs.
@@ -338,7 +338,12 @@ against any DB whose name doesn't end in `_e2e` / `_test` / `_ci`, and
 refuses any name that contains `prod`. Still, do not point this at your
 production cluster credentials.
 
-**Get it (Mongo Atlas):**
+For `server-ci`, this secret is currently the Beijing self-hosted runner's
+loopback URI for `happyword_cloudbase_staging_e2e`, not a public CloudBase
+runtime URI. The CloudBase staging service has its own public TLS MongoDB URI in
+CloudBase runtime env.
+
+**Get it (Mongo Atlas, for legacy/fallback setups):**
 
 1. <https://cloud.mongodb.com> → create a Project + a dedicated **test**
    cluster (M0 free tier is enough).
@@ -352,32 +357,29 @@ production cluster credentials.
    user / password.
 5. Save as `E2E_MONGODB_URI`.
 
-M8A `server-ci` still computes per-PR DB names for legacy Vercel E2E
-(`happyword_pr_<N>_e2e`) and uses the static `E2E_STAGING_DB_NAME` for
-CloudBase smoke.
+M8A `server-ci` uses the static `E2E_STAGING_DB_NAME` for the shared CloudBase
+staging E2E database.
 
 ### `E2E_ADMIN_USER` & `E2E_ADMIN_PASS`
 
 Bootstrap admin credentials the E2E/smoke tests use to call admin-only endpoints
 (`/api/v1/admin/auth/login`). They must match the `ADMIN_BOOTSTRAP_USER` /
-`ADMIN_BOOTSTRAP_PASS` env vars on the Vercel Preview and CloudBase staging
-services, since the FastAPI startup hook seeds the admin row from those.
+`ADMIN_BOOTSTRAP_PASS` env vars on CloudBase staging, since the FastAPI startup
+hook seeds the admin row from those.
 
 **Pick any two strings** (treat as secrets), and:
 
 1. Save them as repo secrets `E2E_ADMIN_USER` / `E2E_ADMIN_PASS`.
 2. Save the **same** values as `ADMIN_BOOTSTRAP_USER` /
-   `ADMIN_BOOTSTRAP_PASS` on Vercel Preview and CloudBase staging.
+   `ADMIN_BOOTSTRAP_PASS` on CloudBase staging.
 
 ### `E2E_STAGING_DB_NAME`
 
-Static DB name that CloudBase staging smoke connects to — typically
-`happyword_staging`. The DB sits inside the same Atlas
-cluster pointed at by `E2E_MONGODB_URI`. The reset script's `_e2e/_test/_ci`
-suffix rule does not apply to smoke (smoke is read-mostly), but the name
-must still avoid `prod`.
+Static DB name that CloudBase staging E2E resets and validates. Current value:
+`happyword_cloudbase_staging_e2e`. The reset script requires `_e2e`, `_test`, or
+`_ci` and refuses any name containing `prod`.
 
-**Get it:** decide on a name (e.g. `happyword_staging`) and save it.
+**Get it:** use the fixed Beijing staging E2E database name and save it.
 
 ### `SLACK_WEBHOOK_URL`
 
@@ -463,19 +465,18 @@ For someone forking this repo and wanting CI fully working:
    | `TCB_ENV_ID` | CloudBase environment id |
    | `CLOUDBASE_STAGING_BASE_URL` | CloudBase staging HTTP access URL |
    | `CLOUDBASE_PROD_BASE_URL` | CloudBase production HTTP access URL during transition |
-   | `E2E_MONGODB_URI` | Atlas connect string |
+   | `E2E_MONGODB_URI` | Beijing self-hosted runner loopback URI for shared staging E2E |
    | `E2E_ADMIN_USER` | freely chosen, mirrors target `ADMIN_BOOTSTRAP_USER` |
    | `E2E_ADMIN_PASS` | freely chosen, mirrors target `ADMIN_BOOTSTRAP_PASS` |
-   | `E2E_STAGING_DB_NAME` | e.g. `happyword_staging` |
+   | `E2E_STAGING_DB_NAME` | `happyword_cloudbase_staging_e2e` |
    | `SLACK_WEBHOOK_URL` | Slack Incoming Webhook URL |
 
 5. **Smoke test**
 
    - [ ] Open a tiny PR that touches `server/`. `server-ci` should run
-         offline `pytest`, legacy Vercel Preview E2E, and legacy manifest
-         refresh.
+         offline `pytest` by default.
    - [ ] Add the `cloudbase-smoke` label, or manually dispatch `server-ci`.
-         Confirm `server / cloudbase staging smoke` runs against
+         Confirm `server / cloudbase staging e2e` runs against
          `CLOUDBASE_STAGING_BASE_URL`.
    - [ ] Merge a `server/**` change to `main`. Watch both `server-cd` and
          `server-cloudbase-cd`; Vercel should smoke after production deploy,

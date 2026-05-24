@@ -27,17 +27,17 @@ def _step_named(workflow: str, name: str) -> str:
     return workflow[start : end if end != -1 else len(workflow)]
 
 
-def test_transition_keeps_legacy_vercel_preview_deploy() -> None:
-    """During migration, PR CI still deploys Vercel Preview as a fallback path."""
+def test_server_ci_uses_single_cloudbase_staging_e2e_environment() -> None:
+    """PR E2E uses the shared CloudBase staging environment, not per-PR deploys."""
     workflow = _server_ci_workflow()
 
-    assert "  server_e2e:" in workflow
-    assert "Deploy Vercel preview (E2E-controlled)" in workflow
-    assert "npx --yes" in workflow
-    assert "deploy --yes" in workflow
-    assert "VERCEL_TOKEN" in workflow
-    assert "  update_manifest:" in workflow
-    assert "node server/scripts/update_preview_manifest.mjs" in workflow
+    assert "  server_e2e:" not in workflow
+    assert "Deploy Vercel preview (E2E-controlled)" not in workflow
+    assert "happyword_pr_{pr}_e2e" not in workflow
+    assert "  cloudbase_staging_e2e:" in workflow
+    assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in workflow
+    assert "uv run python scripts/e2e_reset_db.py" in workflow
+    assert "uv run pytest -v -m e2e" in workflow
 
 
 def test_cursor_autofix_action_is_removed() -> None:
@@ -49,38 +49,46 @@ def test_cursor_autofix_action_is_removed() -> None:
     assert "trigger-cursor-fix-e2e.mjs" not in workflow
 
 
-def test_legacy_vercel_preview_pins_storage_provider() -> None:
-    """CloudBase storage envs must not leak into the legacy Vercel E2E preview."""
+def test_server_ci_no_longer_deploys_legacy_vercel_preview_for_e2e() -> None:
     workflow = _server_ci_workflow()
 
-    deploy_step = _step_with_id(workflow, "vercel_deploy")
+    assert "VERCEL_TOKEN" not in workflow
+    assert "VERCEL_CLI_VERSION" not in workflow
+    assert "vercel_deploy" not in workflow
+    assert "update_manifest" not in workflow
 
-    assert "ASSET_STORAGE_PROVIDER: vercel_blob" in deploy_step
-    assert '--env ASSET_STORAGE_PROVIDER="$ASSET_STORAGE_PROVIDER"' in deploy_step
 
-
-def test_cloudbase_staging_smoke_is_gated_by_manual_or_label() -> None:
+def test_cloudbase_staging_e2e_is_gated_by_manual_or_label() -> None:
     workflow = _server_ci_workflow()
 
     assert "workflow_dispatch:" in workflow
     assert "cloudbase-smoke" in workflow
     assert "github.event.action == 'labeled'" in workflow
 
-    smoke_job_start = workflow.index("  cloudbase_staging_smoke:")
-    smoke_job_end = workflow.find("\n  update_manifest", smoke_job_start)
-    smoke_job = workflow[smoke_job_start : smoke_job_end if smoke_job_end != -1 else len(workflow)]
+    smoke_job_start = workflow.index("  cloudbase_staging_e2e:")
+    smoke_job = workflow[smoke_job_start:]
 
     assert "github.event_name == 'workflow_dispatch'" in smoke_job
     assert "contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')" in smoke_job
     assert "CLOUDBASE_STAGING_BASE_URL" in smoke_job
 
 
-def test_cloudbase_staging_smoke_uses_shared_staging_url() -> None:
+def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None:
     workflow = _server_ci_workflow()
 
-    smoke_step = _step_named(workflow, "Run CloudBase staging smoke")
+    smoke_job_start = workflow.index("  cloudbase_staging_e2e:")
+    smoke_job = workflow[smoke_job_start:]
+
+    assert "runs-on: [self-hosted, linux, x64, happyword-e2e-db]" in smoke_job
+    assert "concurrency:" in smoke_job
+    assert "group: cloudbase-staging-e2e" in smoke_job
+    assert "cancel-in-progress: false" in smoke_job
+
+    reset_step = _step_named(workflow, "Reset shared staging E2E database")
+    smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
-    assert "uv run pytest -v -m smoke" in smoke_step
+    assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
+    assert "uv run pytest -v -m e2e" in smoke_step
 
 
 def test_legacy_vercel_e2e_skips_unusable_local_mongo_uri() -> None:

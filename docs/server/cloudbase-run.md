@@ -8,7 +8,9 @@
 - Production service name: happyword-server
 - Staging service name: happyword-server-staging
 - MongoDB provider during Wave A: MongoDB Atlas
-- MongoDB provider after Wave C: CloudBase FlexDB first, TencentDB fallback
+- MongoDB provider after Wave C: CloudBase FlexDB first; Lighthouse single-node
+  MongoDB as the current low-cost URI-compatible fallback; TencentDB remains the
+  managed HA fallback when cost/risk allows
 - Asset storage provider during Wave A: Vercel Blob
 - Asset storage provider during Wave B: Tencent COS for new uploads; CloudBase Storage remains an alternate only if server-side public URL behavior proves simpler
 
@@ -451,8 +453,10 @@ FlexDB adapter spike risks:
 Lighthouse MongoDB fallback, configured 2026-05-23:
 
 ```text
-Instance: lhins-nxph0u6i
-Public IP: 81.70.210.220
+Current target instance: happyword-mongodb-shanghai
+Current target public IP: 124.221.96.45
+Current target region: Shanghai
+Previous Beijing instance: lhins-nxph0u6i, 81.70.210.220
 OS: OpenCloudOS 9.4
 MongoDB: 8.0.23 Community Edition, matching the current Atlas source version
 Topology: single-node replica set rs0
@@ -460,6 +464,20 @@ Database: happyword
 Risk stance: accepted for low current user volume; revisit managed/HA database
              when traffic or operational risk increases.
 ```
+
+Shanghai migration note, 2026-05-23:
+
+- A new Shanghai Lighthouse instance `happyword-mongodb-shanghai` was created
+  because CloudBase Run is also in Shanghai and TencentDB was too expensive for
+  the current scale.
+- SSH access uses the imported `hw_mongo_sh_key` key. The formal credentials
+  file remains only on the server at `/root/happyword-mongodb-credentials.env`
+  with mode `600`.
+- Data was migrated from the Beijing Lighthouse MongoDB backup into the Shanghai
+  instance. The restore used `--noIndexRestore`, then the backend's Beanie model
+  initialization recreated application indexes.
+- The Beijing instance remains a rollback/source reference until the Shanghai
+  target has passed the CloudBase cutover smoke and a soak window.
 
 Server-side configuration:
 
@@ -477,6 +495,10 @@ Server-side configuration:
   CloudBase connectivity still needs a VPC/private route or a tightly
   allowlisted public listener. A self-signed server cert is already installed
   under `/etc/mongodb/tls/` for the public-listener path.
+- TLS uses a local CA plus a server certificate with both `serverAuth` and
+  `clientAuth` extended key usages. MongoDB 8.0 rejected the first server-only
+  certificate for replica-set self-connections, which caused index builds to
+  stall at `draining writes`; the dual-use certificate fixed that condition.
 - Configured daily local backups at 03:17 through
   `/usr/local/sbin/happyword-mongodb-backup.sh`; archives land in
   `/var/backups/happyword-mongodb`, mode `600`, retained for 7 days.
@@ -492,40 +514,38 @@ MongoDB version: 8.0.23
 Local app-user auth ping: ok
 Local backup script: ok
 TLS mode: requireTLS
+Recent Shanghai backup:
+/var/backups/happyword-mongodb/happyword-20260523-192023.archive.gz
 ```
 
 Atlas data migration completed on 2026-05-23:
 
 ```text
-Source database: happyword on MongoDB Atlas
-Target database: happyword on Lighthouse MongoDB
+Source database: happyword on Beijing Lighthouse MongoDB, originally copied
+from MongoDB Atlas
+Target database: happyword on Shanghai Lighthouse MongoDB
 Collections copied: 25
 Documents copied: 275
-Indexes recreated per collection: yes
+Indexes recreated by Beanie app model initialization: yes, 92 total indexes
 Post-copy app-user smoke: ok
 ```
 
-Validated through an SSH tunnel with the existing backend smoke:
+Validated through an SSH tunnel with the backend's Beanie model initialization
+and a final app-user inventory:
 
 ```bash
-ssh -N -L 127.0.0.1:27018:127.0.0.1:27017 root@81.70.210.220
+ssh -N -L 127.0.0.1:27019:127.0.0.1:27017 root@124.221.96.45
 
 cd server
 MONGODB_URI=... MONGO_DB_NAME=happyword \
-  uv run python -m scripts.db_connectivity_smoke \
-  --write-probe \
-  --probe-collection _lighthouse_migration_probe
+  uv run python  # import app models and run init_beanie(...)
 ```
 
-Smoke result:
+Result:
 
 ```text
-ok: true
-server.version: 8.0.23
-collection_count: 25
-write_probe.insert_acknowledged: true
-write_probe.read_back: true
-write_probe.deleted_count: 1
+Beanie init completed
+Final inventory: 25 collections, 275 documents, 50 words, 2 word packs, 92 indexes
 ```
 
 Next Lighthouse MongoDB tasks:
@@ -541,6 +561,43 @@ Next Lighthouse MongoDB tasks:
 3. Perform a restore drill from `/var/backups/happyword-mongodb`.
 4. Move backups to COS or another off-instance destination before production
    cutover; local-only backups do not protect against instance loss.
+5. Keep the Beijing instance unchanged as rollback until Shanghai has passed
+   production CloudBase smoke and at least one agreed soak window.
+
+Beijing shared staging E2E target, configured 2026-05-23:
+
+- Purpose: the only online E2E staging database while ICP and production-domain
+  work are still pending. Do not create per-PR online databases for normal PR
+  CI.
+- Instance: previous Beijing Lighthouse `lhins-nxph0u6i`, public IP
+  `81.70.210.220`, private IP `10.2.0.15`.
+- Database: `happyword_cloudbase_staging_e2e`.
+- Mongo user: dedicated `happyword_e2e_ci` user with `readWrite` and `dbAdmin`
+  only on `happyword_cloudbase_staging_e2e`.
+- GitHub runner target: repository self-hosted runner
+  `happyword-beijing-lighthouse` with labels
+  `self-hosted`, `linux`, `x64`, `happyword-e2e-db`.
+- CI concurrency: `.github/workflows/server-ci.yml` uses one global
+  `cloudbase-staging-e2e` concurrency group with `cancel-in-progress: false`.
+  This serializes reset + E2E so two jobs cannot clear the shared staging DB at
+  the same time.
+- GitHub secrets required for this job:
+  `CLOUDBASE_STAGING_BASE_URL`, `E2E_MONGODB_URI`,
+  `E2E_STAGING_DB_NAME`, `E2E_ADMIN_USER`, `E2E_ADMIN_PASS`, and
+  `E2E_CRON_SECRET`.
+- `E2E_MONGODB_URI` should use the Beijing runner's local loopback MongoDB URI,
+  not the public URI, because the job runs on the same machine as the database.
+- CloudBase staging runtime `MONGODB_URI` and `MONGO_DB_NAME` now point to this
+  same E2E database. Runtime access uses the allowlisted public TLS URI because
+  CloudBase Run and the Beijing Lighthouse instance are not on the same private
+  network.
+- Tencent Lighthouse firewall allows CloudBase fixed egress
+  `43.142.39.118/32` to TCP `27017` with note
+  `CloudBase Run MongoDB E2E`. MongoDB listens on `127.0.0.1:27017` for the
+  local runner and `10.2.0.15:27017` for the public listener path behind the
+  Tencent firewall allowlist.
+- Safety rule: never open `27017` to `0.0.0.0/0`; use TLS plus the Tencent
+  firewall allowlist and keep the dedicated E2E user scoped to the E2E DB.
 
 TencentDB fallback branch:
 
@@ -629,9 +686,9 @@ Replacement sequence:
 2. **M8A manifest source.** Keep the public endpoint
    `/api/v1/public/preview-urls.json`, but serve a CloudBase staging row from a
    non-Vercel source such as `PREVIEW_MANIFEST_INLINE_JSON`.
-3. **M8A CI behavior.** Keep normal PR CI offline by default. Run CloudBase
-   staging smoke only on `workflow_dispatch`, a maintainer-approved label, or a
-   scheduled validation window.
+3. **M8A CI behavior.** Keep normal PR CI offline by default. Run shared
+   CloudBase staging E2E only on `workflow_dispatch`, a maintainer-approved
+   label, or a scheduled validation window.
 4. **M8B on-demand PR previews.** Later, selected PRs may deploy a temporary
    CloudBase Run version or service only after service quota, route URL,
    database isolation, and cleanup are implemented.
@@ -656,10 +713,10 @@ Implementation status, 2026-05-20:
   clients.
 - HarmonyOS `PreviewManifestService` now accepts CloudBase default domains
   ending in `.tcloudbase.com` as well as legacy `*.vercel.app` preview rows.
-- `.github/workflows/server-ci.yml` is in a dual-track transition state: PRs
-  still run the legacy Vercel Preview deploy/E2E/Blob manifest refresh, while
-  CloudBase staging smoke runs only through `workflow_dispatch` or when a PR
-  has the `cloudbase-smoke` label.
+- `.github/workflows/server-ci.yml` no longer deploys Vercel Preview for online
+  E2E. It runs offline pytest by default and the shared CloudBase staging E2E
+  job only through `workflow_dispatch` or when a PR has the `cloudbase-smoke`
+  label.
 - `.github/workflows/server-cloudbase-cd.yml` deploys `main` to CloudBase Run
   in parallel with the existing Vercel `server-cd.yml` workflow. Keep both
   active until CloudBase has passed the stability window and rollback no longer
@@ -828,6 +885,22 @@ CloudBase CD status as of 2026-05-21:
 - `CLOUDBASE_STAGING_BASE_URL` remains the shared staging CloudBase URL used by
   M8A smoke and the DevMenu manifest. It is not `happyword.com.cn`.
 
+Server CI E2E status as of 2026-05-23:
+
+- PR online E2E now targets one shared CloudBase staging environment instead of
+  deploying Vercel previews or creating per-PR online databases.
+- The shared E2E job is opt-in through `workflow_dispatch` or a PR carrying the
+  `cloudbase-smoke` label, and it runs on the Beijing self-hosted runner so the
+  reset script can reach the local Beijing E2E MongoDB over loopback.
+- The job resets only `happyword_cloudbase_staging_e2e`; the reset script's
+  suffix guard still requires `_e2e`, `_test`, or `_ci`.
+
+Update, 2026-05-24: CloudBase staging service
+`happyword-server-staging-010` was deployed with runtime `MONGODB_URI` and
+`MONGO_DB_NAME` pointing at the Beijing E2E database. Public health and
+`/api/v1/public/packs/latest.json` both returned 200 against the new empty E2E
+database.
+
 ## Deployment Commands
 
 ```bash
@@ -921,6 +994,17 @@ manager.
 | `OPENAI_MODEL_VISION` | Optional | Defaults to `gpt-4o` for OpenAI lesson image parsing. |
 | `DASHSCOPE_API_KEY` | Optional | Required when `LLM_PROVIDER=qwen`. |
 | `QWEN_MODEL_VISION` | Optional | Defaults to `qwen3.6-plus`. |
+
+### Shared Staging E2E CI
+
+| Variable | Required for | Notes |
+| --- | --- | --- |
+| `E2E_MONGODB_URI` | GitHub Actions shared staging E2E | Loopback URI for the Beijing self-hosted runner; do not use this as the CloudBase runtime URI. |
+| `E2E_STAGING_DB_NAME` | GitHub Actions shared staging E2E | Current value is `happyword_cloudbase_staging_e2e`. |
+| `CLOUDBASE_STAGING_BASE_URL` | GitHub Actions shared staging E2E | CloudBase staging service URL under the CloudBase default domain. |
+| `E2E_ADMIN_USER` | GitHub Actions shared staging E2E | Staging admin username only. |
+| `E2E_ADMIN_PASS` | GitHub Actions shared staging E2E | Staging admin password; keep separate from production. |
+| `E2E_CRON_SECRET` | GitHub Actions shared staging E2E | Must match CloudBase staging `CRON_SECRET`. |
 | `ARK_API_KEY` | Optional | Required when `LLM_PROVIDER=doubao`. |
 | `DOUBAO_MODEL_VISION` | Optional | Defaults to `doubao-seed-2-0-pro-260215`. |
 | `MOONSHOT_API_KEY` | Optional | Required when `LLM_PROVIDER=kimi`; `KIMI_API_KEY` is accepted as a compatibility alias. |
