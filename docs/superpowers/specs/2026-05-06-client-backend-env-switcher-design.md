@@ -62,7 +62,7 @@ Let HarmonyOS debug builds switch their backend at runtime among **Local**, **PR
 
 ```typescript
 // Static URL constants (no runtime substitution).
-export const LOCAL_BASE_URL: string  = 'http://10.0.2.2:8000';
+export const LOCAL_BASE_URL: string  = 'http://<android-emulator-host>:8000';
 export const STAGING_BASE_URL: string = 'https://happyword.cool';        // today's "PROD_BASE_URL", renamed
 export const PROD_BASE_URL: string | null = null;                              // reserved, V0.7+
 
@@ -88,7 +88,7 @@ export interface BackendEnvMeta {
 
 | env | label | defaultUrl | enabledInDebug | enabledInRelease |
 | --- | --- | --- | --- | --- |
-| LOCAL | "本地 (10.0.2.2:8000)" | `LOCAL_BASE_URL` | ✓ | ✗ |
+| LOCAL | "本地 (<android-emulator-host>:8000)" | `LOCAL_BASE_URL` | ✓ | ✗ |
 | PREVIEW | "PR 预览" | null (dropdown/paste) | ✓ | ✗ |
 | STAGING | "Staging" | `STAGING_BASE_URL` | ✓ | ✓ (release-locked) |
 | PROD | "Production" | `PROD_BASE_URL` | ✗ (until non-null) | ✗ (until non-null) |
@@ -136,7 +136,7 @@ Signature stays unchanged so the 6+ services already calling `effectiveServerBas
 ├──────────────────────────────────────────────┤
 │ 后端环境                                      │
 │                                              │
-│  ○ 本地  http://10.0.2.2:8000                 │
+│  ○ 本地  http://<android-emulator-host>:8000                 │
 │                                              │
 │  ● PR 预览                                    │
 │     ┌────────────────────────────────────┐   │

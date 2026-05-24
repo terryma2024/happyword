@@ -893,12 +893,12 @@ V0.5 follow-up 把工具栏 5 个图标（review / codex / wishlist / gear + Wis
 - 家长账户绑定：`ParentBindingFlow.ui.test.ets`（V0.6 + V0.6.x 增量），覆盖 `unboundConfigPageRendersBindEntryOnly` / `tapBindOpensScanBindingPage`（含 `ScanBindingScannerButton.isEnabled()` polling 防止 `bootstrapService` 异步链路退化为永久禁用）/ `shortCodeRedeemFlipsConfigToBound` / `unbindFromBoundDeviceInfoPageFlipsBackToUnbound`（V0.6.7.2：原 `unbindWithPinFlipsBackToUnbound` 重写 — 解除按钮迁移到 `BoundDeviceInfoPage`，测试驱动 `ConfigBoundDeviceInfoButton → BoundDeviceInfoUnbindButton → ParentPinDialog → BoundDeviceInfoUnbindToast → 自动 back → ConfigPage 翻回未绑定`），加上 V0.6.x 新增的 `pickQrFromGalleryRedeemsAndFlipsToBound`：沿用 V0.5.8 lesson-fixture 的「ohosTest rawfile 预打包 → tempDir 拷贝 → AppStorage 双 override key（`SCAN_BINDING_PHOTO_PICKER_OVERRIDE_URI_KEY` 喂 picker 路径，`SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY` 喂 ScanKit decode payload）」机制，端到端验证从图库选 QR → 解码 → redeem → 绑定成功的链路，固件 `scan_binding_qr_fixture.png` 由 `tools/generate_scan_binding_qr_fixture.py` 用 `qrcode[pil]` 生成并入仓。
 - 图鉴：`MonsterCodexFlow.ui.test.ets`。
 
-入口 `harmonyos/entry/src/ohosTest/ets/test/List.test.ets`，**`testsuite()` 第一行**就把 `serverBaseUrlOverride = http://127.0.0.1:8123` 写进 `AppStorage`，所有页面里通过 `effectiveServerBaseUrl()` 取 URL 的请求都被路由到本地 mock。生产 / release 包从不写这把 key，因此线上版本依然命中 Vercel。
+入口 `harmonyos/entry/src/ohosTest/ets/test/List.test.ets`，**`testsuite()` 第一行**就把 `serverBaseUrlOverride = http://localhost:8123` 写进 `AppStorage`，所有页面里通过 `effectiveServerBaseUrl()` 取 URL 的请求都被路由到本地 mock。生产 / release 包从不写这把 key，因此线上版本依然命中 Vercel。
 
 V0.5.8 起推荐用 `scripts/run_ui_tests.sh`，它会：
 
 1. 在 host 起 `server/mock_ui_server.py`（FastAPI，**无 MongoDB**，纯 fixture）；
-2. `hdc rport tcp:8123 tcp:8123` 把模拟器 / 真机的 `127.0.0.1:8123` 反向转回 host；
+2. `hdc rport tcp:8123 tcp:8123` 把模拟器 / 真机的 `localhost:8123` 反向转回 host；
 3. `hdc shell aa test ...`（per-test timeout 60s）；
 4. 退出时杀 mock 进程 + 清掉 rport 映射。
 
@@ -917,7 +917,7 @@ scripts/run_ui_tests.sh --rebuild           # 顺手重 build / 重装两个 HAP
 hdc rport tcp:8123 tcp:8123
 ```
 
-不起 mock 直接跑 ohosTest，`ParentAdminFlow` 会因为 127.0.0.1:8123 不可达而失败（这是有意的：测试不允许偷偷 fallback 到 prod）。
+不起 mock 直接跑 ohosTest，`ParentAdminFlow` 会因为 localhost:8123 不可达而失败（这是有意的：测试不允许偷偷 fallback 到 prod）。
 
 成功标志：`OHOS_REPORT_RESULT: stream=Tests run: N, Failure: 0, Error: 0`。
 

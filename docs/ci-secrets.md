@@ -61,10 +61,8 @@ E2E runs, so the credentials do not depend on a CloudBase service restart.
 | `ASSET_STORAGE_PROVIDER` | CloudBase runtime env | optional until M7 | Defaults to Vercel Blob; set to `tencent_cos` after COS staging validation. |
 | `COS_SECRET_ID` / `COS_SECRET_KEY` | CloudBase runtime env | optional until M7 | New COS uploads cannot run without these when `ASSET_STORAGE_PROVIDER=tencent_cos`. |
 | `COS_REGION` / `COS_BUCKET` / `COS_PUBLIC_BASE_URL` | CloudBase runtime env | optional until M7 | COS URLs cannot be generated correctly without bucket and public base URL config. |
-| `FLEXDB_ENV_ID` / `FLEXDB_TAG` | Operator secret inventory | optional until M7A | Identifies the CloudBase FlexDB document database target for the M7A spike. |
-| `FLEXDB_MONGODB_URI` | Tencent/CloudBase secret store, if available | optional until M7A | Holds a direct FlexDB URI only if Tencent confirms built-in FlexDB supports MongoDB driver access. |
-| `FLEXDB_API_SECRET_ID` / `FLEXDB_API_SECRET_KEY` | Tencent secret store only | optional until M7A | Runtime CloudBase document database API credentials if the adapter path is chosen. |
-| `TENCENTDB_MONGODB_URI` | Operator secret inventory | optional until M7A | TencentDB fallback URI if FlexDB cannot satisfy the migration path. |
+| `LIGHTHOUSE_MONGODB_URI` | Tencent secret store / operator password manager | optional until M7A | Current low-cost MongoDB Atlas replacement URI for Shanghai Lighthouse; do not put it in GitHub logs. |
+| `TENCENTDB_MONGODB_URI` | Operator secret inventory | optional until managed DB upgrade | Future TencentDB URI if/when Lighthouse operational risk or traffic justifies managed HA. |
 | `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase runtime env | optional until M8 | Lets `/api/v1/public/preview-urls.json` serve CloudBase staging without Vercel Blob. |
 | `CLOUDBASE_PREVIEW_MODE` | CloudBase preview workflow | optional until M8B | Documents whether preview publishing is shared staging or on-demand CloudBase preview. |
 
@@ -98,19 +96,17 @@ secrets until the Vercel retirement phase.
 | `CLOUDBASE_CRON_TARGET_URL` | CloudBase cron function | Target FastAPI cron endpoint, e.g. staging `/api/v1/admin/cron/extract-pending`. |
 | `CLOUDBASE_CRON_SECRET` | CloudBase cron function | Same bearer secret as the target CloudBase Run service `CRON_SECRET`. |
 
-Create the Tencent Cloud API credential with the narrowest permissions that can
-deploy the target CloudBase Run service and read deployment status. Store the
-credential only as GitHub Actions secrets or in Tencent Cloud Secret Manager;
-do not commit the values to this repository.
+Store the Tencent Cloud API credential only as GitHub Actions secrets or in
+Tencent Cloud Secret Manager; do not commit the values to this repository.
 
 Operational note, 2026-05-21: GitHub Actions run `server-cloudbase-cd`
 `26199672079` succeeded after the CI API key was granted `QcloudTCBFullAccess`.
 The narrower `QcloudTCBRFullAccess` policy was not sufficient for
 `tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"` and failed
 with Tencent Cloud key verification errors both locally and in CI. Keep the
-working key restricted to GitHub Actions while migrating, then replace it with a
-custom least-privilege policy once the exact CloudBase Run deploy, HTTP access,
-function cron, and smoke-test actions are known.
+working key restricted to GitHub Actions while migrating. Treat least-privilege
+CAM policy replacement as the final security follow-up after CloudBase cutover,
+Vercel retirement, and the stable deployment/smoke path are complete.
 
 The current M3 implementation deploys `cloudbase/functions/cron-extract-pending`
 manually through the CloudBase CLI and stores function env vars in CloudBase,
@@ -152,23 +148,25 @@ COS_PUBLIC_BASE_URL=https://happyword-assets-staging-1429584068.cos.ap-shanghai.
 uv run python -m scripts.cos_storage_smoke
 ```
 
-#### CloudBase FlexDB / TencentDB database replacement
+#### M7A MongoDB replacement
 
-Use these during M7A. FlexDB is the first spike target because the existing
-CloudBase shared instance is acceptable at the current user volume. TencentDB
-for MongoDB remains the fallback if FlexDB cannot provide a driver-compatible
-URI and the API adapter path is too broad.
+Use these during M7A. The active path is Shanghai Lighthouse MongoDB with a
+Beijing hidden backup secondary because it preserves the existing MongoDB driver
+boundary at the current user volume. Built-in CloudBase document database /
+FlexDB was investigated and is no longer on the migration path. TencentDB for
+MongoDB remains the future managed HA upgrade path.
 
 | Name | Where to store | Purpose |
 | --- | --- | --- |
-| `FLEXDB_ENV_ID` | CloudBase env / operator password manager | CloudBase environment id for the built-in document database. |
-| `FLEXDB_TAG` | CloudBase env / operator password manager | FlexDB instance id, e.g. `tnt-jw1cesl68`; not a secret, but keep it with deployment config. |
-| `FLEXDB_MONGODB_URI` | Tencent/CloudBase secret store, if available | Optional URI if Tencent confirms built-in FlexDB supports direct MongoDB driver access from CloudBase Run. |
-| `FLEXDB_API_SECRET_ID` / `FLEXDB_API_SECRET_KEY` | Tencent secret store only | Runtime API credential pair only if the server must call CloudBase document database APIs directly. The smoke script also accepts `TCB_SECRET_ID` / `TCB_SECRET_KEY` and Tencent SDK-style `TENCENTCLOUD_SECRET_ID` / `TENCENTCLOUD_SECRET_KEY`; scope with a narrow CAM policy before production. |
-| `LIGHTHOUSE_MONGODB_URI` | Tencent secret store / operator password manager | Optional single-node MongoDB fallback URI for the Lighthouse instance; do not put it in GitHub logs. |
+| `LIGHTHOUSE_MONGODB_URI` | Tencent secret store / operator password manager | Shanghai Lighthouse app-user TLS URI for the active M7A path; do not put it in GitHub logs. |
 | `TENCENTDB_MONGODB_URI` | Operator password manager / Tencent secret store | Future TencentDB URI before it replaces runtime `MONGODB_URI`. |
 | `TENCENTDB_MONGO_DB_NAME` | Operator password manager / Tencent secret store | Target database name if different from current `MONGO_DB_NAME`. |
 | `ATLAS_MONGODB_URI_ROLLBACK` | Operator password manager only | Old Atlas URI retained for rollback; do not put this in GitHub logs. |
+
+Historical FlexDB spike variables (`FLEXDB_ENV_ID`, `FLEXDB_TAG`,
+`FLEXDB_MONGODB_URI`, `FLEXDB_API_SECRET_ID`, and `FLEXDB_API_SECRET_KEY`) are
+not required for the active migration unless the project explicitly reopens the
+CloudBase document database API-adapter path.
 
 Do not remove Atlas credentials until the database rollback window is complete.
 
@@ -349,7 +347,7 @@ production cluster credentials.
 
 This secret is currently the Beijing self-hosted runner's loopback URI for
 `happyword_cloudbase_staging_e2e`, not a public CloudBase runtime URI. Do not
-use it from GitHub-hosted runners: on `ubuntu-latest`, `127.0.0.1` points at
+use it from GitHub-hosted runners: on `ubuntu-latest`, localhost points at
 the temporary GitHub runner, not the Beijing MongoDB. GitHub-hosted CD workflows
 therefore run only HTTP smoke checks; DB fixture injection stays on the
 self-hosted `server-ci` staging E2E runner.
@@ -360,10 +358,10 @@ self-hosted `server-ci` staging E2E runner.
    cluster (M0 free tier is enough).
 2. **Database Access** → create a user with `readWriteAnyDatabase` on this
    cluster (the per-PR DB names are dynamic, so a single-DB role won't fit).
-3. **Network Access** → either add `0.0.0.0/0` (open; OK for an isolated
-   test cluster) or use a VPC peering / IP allowlist that includes GitHub
-   Hosted Runner IPs. GitHub does not publish stable runner IP ranges, so
-   most teams just use `0.0.0.0/0` on the test cluster.
+3. **Network Access** → either use an open internet CIDR (acceptable only for an
+   isolated test cluster) or use a VPC peering / explicit allowlist that includes
+   GitHub Hosted Runner egress. GitHub does not publish stable runner egress
+   ranges, so keep this limited to disposable test clusters.
 4. **Connect → Drivers**, copy the `mongodb+srv://...` URI, fill in the
    user / password.
 5. Save as `E2E_MONGODB_URI`.
@@ -455,7 +453,8 @@ For someone forking this repo and wanting CI fully working:
 
    - [ ] Create a dedicated test cluster.
    - [ ] Create a user with `readWriteAnyDatabase` on it.
-   - [ ] Network Access → allow `0.0.0.0/0` (or explicit allowlist).
+   - [ ] Network Access → allow an open internet CIDR for the disposable test
+         cluster, or configure an explicit allowlist.
    - [ ] Copy the connection string.
 
 3. **Slack** *(optional but recommended)*

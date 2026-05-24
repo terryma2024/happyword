@@ -155,7 +155,7 @@ Acceptance:
 
 - Debug variant exposes DevMenu.
 - Release variant test verifies DevMenu route is unavailable.
-- Instrumentation can inject `serverBaseUrl=http://127.0.0.1:8123`.
+- Instrumentation can inject `serverBaseUrl=http://localhost:8123`.
 
 ## Phase 5: Release Hardening
 

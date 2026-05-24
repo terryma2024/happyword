@@ -8,9 +8,10 @@
 - Production service name: happyword-server
 - Staging service name: happyword-server-staging
 - MongoDB provider during Wave A: MongoDB Atlas
-- MongoDB provider after Wave C: CloudBase FlexDB first; Lighthouse single-node
-  MongoDB as the current low-cost URI-compatible fallback; TencentDB remains the
-  managed HA fallback when cost/risk allows
+- MongoDB provider after Wave C: Shanghai Lighthouse MongoDB for the current
+  low-cost URI-compatible path, with Beijing Lighthouse as a hidden backup
+  secondary; built-in CloudBase document database is no longer on the migration
+  path; TencentDB remains the managed HA upgrade path when cost/risk allows
 - Asset storage provider during Wave A: Vercel Blob
 - Asset storage provider during Wave B: Tencent COS for new uploads; CloudBase Storage remains an alternate only if server-side public URL behavior proves simpler
 
@@ -70,7 +71,7 @@ Snapshot date: 2026-05-17.
 | Domain | Query | Result |
 | --- | --- | --- |
 | `happyword.cool` | `NS` | `ns1.vercel-dns.com`, `ns2.vercel-dns.com` |
-| `happyword.cool` | apex A | `216.150.1.193`, `216.150.1.129` |
+| `happyword.cool` | apex A | Vercel-managed A records; check DNS provider for current values |
 | `happyword.com.cn` | `NS` | `cob.dnspod.net`, `user.dnspod.net` |
 | `happyword.com.cn` | apex A/CNAME | no answer yet |
 
@@ -186,13 +187,28 @@ Required operator decisions:
 
 ### MongoDB Atlas Replacement
 
-Target: CloudBase FlexDB shared document database first; keep TencentDB for
-MongoDB as the scale-up/fallback option.
+Target: Shanghai Lighthouse MongoDB first, with Beijing Lighthouse as a hidden
+non-query backup secondary. Built-in CloudBase document database / FlexDB is no
+longer on the migration path because it did not produce a validated
+Motor/Beanie-compatible URI and the API-adapter rewrite is too broad for M7A.
+TencentDB for MongoDB remains the future managed HA upgrade path.
 
-Current M7A status, 2026-05-23:
+Current M7A status, 2026-05-24:
 
-- The built-in CloudBase document database instance is
-  `tnt-jw1cesl68` in environment `happyword-d5g66zmq8ef2430b8`.
+- The active CloudBase production database target is Shanghai Lighthouse
+  `happyword-mongodb-shanghai` running MongoDB 8.0.23. Look up its current
+  public/private addresses in the Tencent Cloud console or operator inventory.
+- The Beijing Lighthouse instance now has a separate hidden, non-voting backup
+  secondary on port `27018`; the existing Beijing port `27017` MongoDB remains
+  dedicated to staging E2E.
+- CloudBase Run production reaches Shanghai MongoDB through a TLS listener
+  protected by Tencent Lighthouse firewall allowlisting and host-level
+  `iptables`. The allowlist is limited to the CloudBase fixed egress address;
+  do not publish concrete addresses in this runbook.
+- CloudBase production `happyword-server` has been redeployed with the
+  Shanghai Lighthouse app-user `MONGODB_URI` and `MONGO_DB_NAME=happyword`.
+- Built-in CloudBase document database / FlexDB spike is closed as a historical
+  investigation, not an active implementation path.
 - Console observation: `连接管理` creates a MongoDB connector to an external
   TencentDB instance; it did not expose a copyable MongoDB URI for the built-in
   shared FlexDB instance during the console spike.
@@ -203,32 +219,35 @@ Current M7A status, 2026-05-23:
   through `RunCommands`, created a unique `word_1` index through `UpdateTable`,
   confirmed duplicate insert failed with `E11000 duplicate key`, then deleted
   the probe table with `DeleteTable`.
-- Cost stance: shared FlexDB is acceptable while user volume is low. Revisit an
-  isolated FlexDB instance or TencentDB when production traffic or contention
-  makes it necessary.
+- Decision: do not continue with the API-adapter path now. It would require a
+  broad repository rewrite across Beanie/Motor call sites and new runtime API
+  credential policy, while Lighthouse preserves the existing `MONGODB_URI`
+  boundary.
 
 Rationale:
 
 - The current FastAPI backend uses Motor + Beanie across the app, so a direct
   URI-compatible target is still the lowest-risk cutover shape.
-- FlexDB is much cheaper to start than TencentDB. If a standard URI can be
-  obtained or officially confirmed for CloudBase Run, it becomes the preferred
-  target with minimal application change.
-- If no driver URI exists, FlexDB is still feasible but becomes an adapter
-  project: replace Beanie/Motor persistence with a repository layer backed by
-  CloudBase document database APIs. That is larger than the original env-var
-  switch, but may still be cheaper than TencentDB at the current scale.
+- Lighthouse MongoDB preserves that target shape at the current low traffic and
+  cost level.
+- Built-in CloudBase document database remains technically interesting, but the
+  validated API-only path is an application rewrite, not a migration env-var
+  switch. Do not resume it unless the product explicitly chooses that rewrite.
+- TencentDB for MongoDB is the cleaner managed HA destination once monthly cost
+  and operational risk justify moving off Lighthouse.
 
 Decision gates:
 
-1. Ask Tencent Cloud support or use API Explorer/console to confirm whether
-   built-in FlexDB exposes a MongoDB driver URI usable from CloudBase Run.
-2. If yes, perform the original URI-switch migration against FlexDB.
-3. If no, run a focused FlexDB adapter spike before changing production data.
-4. Keep TencentDB for MongoDB as the fallback if the adapter spike is too broad,
-   too slow, or exposes missing query semantics.
+1. Selected path: tightly allowlisted public TLS listener from CloudBase Run
+   production to Shanghai Lighthouse MongoDB. Private/VPC routing can be
+   revisited later, but is not required for the current low-traffic phase.
+2. Done: CloudBase production `MONGODB_URI` points to Shanghai Lighthouse and
+   production HTTP/admin-auth smoke passed after redeploy.
+3. Done: Beijing hidden secondary is backup only, not a read target.
+4. Revisit TencentDB for MongoDB when Lighthouse single-primary operational risk
+   becomes unacceptable.
 
-Validated FlexDB API surface:
+Retired FlexDB API spike findings:
 
 | Operation | Result |
 | --- | --- |
@@ -260,28 +279,36 @@ Planned sequence:
 
 1. Inventory Atlas collections, document counts, index definitions, TTL indexes,
    unique indexes, and backup status. Done on 2026-05-23.
-2. Complete FlexDB URI confirmation. If a URI exists, smoke it with the existing
-   Motor/Beanie app before any data migration.
-3. If there is no URI path, build a small local FlexDB adapter proof against the
-   highest-risk query shapes: unique indexes, upserts, sorted/limited queries,
-   regex/search filters, and aggregation-like paths used by pack publishing.
-4. Choose one migration path:
-   - URI path: export/import Atlas data, create indexes, set
-     `MONGODB_URI`/`MONGO_DB_NAME`, restart CloudBase, run smoke.
-   - Adapter path: introduce repository boundaries, run dual-backed tests,
-     migrate staging data through CloudBase APIs, then switch staging.
-5. Keep Atlas and its old URI as rollback for at least one full release cycle or
+2. Restore/copy Atlas-shaped data into Shanghai Lighthouse MongoDB and validate
+   collection counts/indexes. Done on 2026-05-23.
+3. Add Beijing hidden backup secondary and verify it stays separate from the
+   Beijing staging E2E database. Done on 2026-05-24.
+4. Select and configure CloudBase production network access to Shanghai
+   Lighthouse. Done on 2026-05-24 with allowlisted TLS listener plus host
+   firewall.
+5. Set CloudBase production `MONGODB_URI`/`MONGO_DB_NAME`, restart CloudBase,
+   and run smoke. Done on 2026-05-24; the online CloudBase version after the
+   env switch was `happyword-server-009`.
+6. Keep Atlas and its old URI as rollback for at least one full release cycle or
    7 clean production days, whichever is longer.
-6. Revisit TencentDB if shared FlexDB capacity, missing semantics, or rewrite
-   scope makes FlexDB worse than the managed MongoDB cost.
+7. Keep Beijing hidden secondary restore drills and COS/off-instance archive
+   validation on the operations calendar.
+8. Revisit TencentDB when managed HA is worth the cost.
 
 Cutover acceptance:
 
-- `GET /api/v1/public/health` returns `200`.
-- `GET /api/v1/public/packs/latest.json` returns `200` from FlexDB-backed
-  CloudBase production.
-- Admin login, parent login, one safe write path, and cron extraction pass.
-- Collection counts and critical indexes match the recorded Atlas inventory.
+- `GET /api/v1/public/health` returns `200`. Passed on 2026-05-24.
+- `GET /api/v1/public/packs/latest.json` returns `200` from Lighthouse-backed
+  CloudBase production. Passed on 2026-05-24.
+- `/privacy`, `/admin/login`, `/family/login`, and
+  `/api/v1/public/preview-urls.json` return successful responses on both
+  CloudBase default domains. Passed on 2026-05-24.
+- Remote pytest smoke against CloudBase production passed on 2026-05-24:
+  `2 passed, 656 deselected`.
+- Remote admin-auth E2E against CloudBase production passed on 2026-05-24:
+  `5 passed`.
+- Collection counts and critical indexes matched the recorded Atlas inventory
+  after Beanie initialization: 25 collections, 275 documents, 92 indexes.
 
 Recorded Atlas inventory, generated 2026-05-23:
 
@@ -361,17 +388,10 @@ MONGODB_URI=... MONGO_DB_NAME=happyword \
   --count-timeout-ms 5000
 ```
 
-Next M7A-FlexDB steps:
+Active Lighthouse connectivity smoke command:
 
-1. Confirm the FlexDB connection model with Tencent Cloud support/API Explorer:
-   built-in instance driver URI vs CloudBase API only.
-2. Create `server/scripts/flexdb_api_smoke.py` using direct signed Cloud API
-   calls, not the CLI, so the CloudBase Run runtime path is testable. Done
-   locally on 2026-05-23; CloudBase Run execution is still pending.
-3. Generate an Atlas collection/index manifest that can be replayed into
-   FlexDB tables via `CreateTable`/`UpdateTable`/`RunCommands`.
-4. If URI-compatible, reuse the existing direct connectivity smoke before
-   changing CloudBase runtime env:
+Use the existing MongoDB connectivity smoke before changing CloudBase runtime
+env:
 
 ```bash
 cd server
@@ -383,7 +403,10 @@ MONGODB_URI=... MONGO_DB_NAME=happyword \
 Expected: JSON with `ok: true`, redacted `connection_hosts`, server version,
 collection list, and `write_probe.deleted_count: 1`.
 
-FlexDB API smoke, after setting runtime API credentials:
+Historical FlexDB API smoke, after setting runtime API credentials:
+
+The FlexDB smoke script remains in the repo as a historical diagnostic helper,
+but it is no longer part of the active M7A migration path.
 
 ```bash
 cd server
@@ -426,15 +449,15 @@ Step 6 Beanie/Motor compatibility map, 2026-05-23:
 
 Compatibility conclusion:
 
-- If Tencent confirms a built-in FlexDB MongoDB URI usable from CloudBase Run,
-  M7A can remain a low-risk URI/data migration.
-- If only the CloudBase API is available, do not attempt to emulate the full
-  Beanie/Motor API. Start with repositories for the critical production paths:
-  public pack read, admin pack/word write, auth/session lookups, child word-stat
-  sync, lesson import drafts, and family/global pack publish.
-- The first API-adapter proof should target `SyncedWordStat` and pack publish
-  because they combine user-facing latency, write semantics, sort/order, and
-  uniqueness expectations.
+- FlexDB is no longer the active M7A target.
+- If the project ever reopens CloudBase document database, do not attempt to
+  emulate the full Beanie/Motor API. Start with repositories for the critical
+  production paths: public pack read, admin pack/word write, auth/session
+  lookups, child word-stat sync, lesson import drafts, and family/global pack
+  publish.
+- The first API-adapter proof would need to target `SyncedWordStat` and pack
+  publish because they combine user-facing latency, write semantics, sort/order,
+  and uniqueness expectations.
 
 FlexDB adapter spike risks:
 
@@ -454,12 +477,13 @@ Lighthouse MongoDB fallback, configured 2026-05-23:
 
 ```text
 Current target instance: happyword-mongodb-shanghai
-Current target public IP: 124.221.96.45
+Current target address: look up in Tencent Cloud console or operator inventory
 Current target region: Shanghai
-Previous Beijing instance: lhins-nxph0u6i, 81.70.210.220
+Previous Beijing instance: lhins-nxph0u6i
 OS: OpenCloudOS 9.4
 MongoDB: 8.0.23 Community Edition, matching the current Atlas source version
-Topology: single-node replica set rs0
+Topology: rs0 replica set; Shanghai primary plus Beijing hidden non-voting
+          backup secondary
 Database: happyword
 Risk stance: accepted for low current user volume; revisit managed/HA database
              when traffic or operational risk increases.
@@ -476,8 +500,10 @@ Shanghai migration note, 2026-05-23:
 - Data was migrated from the Beijing Lighthouse MongoDB backup into the Shanghai
   instance. The restore used `--noIndexRestore`, then the backend's Beanie model
   initialization recreated application indexes.
-- The Beijing instance remains a rollback/source reference until the Shanghai
-  target has passed the CloudBase cutover smoke and a soak window.
+- The Beijing instance now has two independent roles: its existing MongoDB
+  process on localhost port `27017` remains the staging E2E database, and a
+  separate MongoDB process on localhost port `27018` is a hidden backup secondary for the
+  Shanghai production rehearsal replica set.
 
 Server-side configuration:
 
@@ -491,10 +517,10 @@ Server-side configuration:
   `clusterMonitor`).
 - Stored generated credentials only on the server at
   `/root/happyword-mongodb-credentials.env` with mode `600`.
-- Kept MongoDB bound to `127.0.0.1:27017` for now. It is not publicly exposed;
-  CloudBase connectivity still needs a VPC/private route or a tightly
-  allowlisted public listener. A self-signed server cert is already installed
-  under `/etc/mongodb/tls/` for the public-listener path.
+- Shanghai MongoDB listens on localhost and the instance private listener path
+  for port `27017`. External production access is only through the Tencent
+  firewall and host `iptables` allowlist for the CloudBase fixed egress address.
+  Do not open this port to the whole internet.
 - TLS uses a local CA plus a server certificate with both `serverAuth` and
   `clientAuth` extended key usages. MongoDB 8.0 rejected the first server-only
   certificate for replica-set self-connections, which caused index builds to
@@ -509,13 +535,52 @@ Validation completed on 2026-05-23:
 systemctl is-enabled mongod: enabled
 systemctl is-active mongod: active
 Replica set: rs0, isWritablePrimary: true
-Listening address: 127.0.0.1:27017
+Listening address: localhost port 27017
 MongoDB version: 8.0.23
 Local app-user auth ping: ok
 Local backup script: ok
 TLS mode: requireTLS
 Recent Shanghai backup:
 /var/backups/happyword-mongodb/happyword-20260523-192023.archive.gz
+```
+
+Production network and CloudBase cutover completed on 2026-05-24:
+
+- Selected network path: public TLS listener on Shanghai Lighthouse, restricted
+  by Tencent Lighthouse firewall allowlisting and the server's `iptables`
+  allowlist. The allowlist source is the CloudBase fixed egress address; keep
+  concrete address values in the Tencent console/operator inventory, not in
+  docs.
+- CloudBase production service `happyword-server` was redeployed from the
+  previous image with only the database env changed to the Shanghai Lighthouse
+  app-user URI and `MONGO_DB_NAME=happyword`.
+- The previous CloudBase production env params were backed up locally as a
+  root/operator-only rollback artifact. Do not commit or paste that file because
+  it contains secrets.
+- Online CloudBase production version after redeploy: `happyword-server-009`
+  with 100% traffic.
+- Rollback remains simple during the soak window: restore the previous Atlas
+  `MONGODB_URI` in CloudBase production env, redeploy the same image, and rerun
+  the smoke set.
+
+Production smoke completed on 2026-05-24:
+
+```text
+tools/cloudbase/smoke-default-domains.sh:
+- staging default domain: health, public pack, privacy, admin login, family
+  login, preview manifest all returned successful responses.
+- production default domain: health, public pack, privacy, admin login, family
+  login, preview manifest all returned successful responses.
+- preview manifest contained the CloudBase Staging row.
+
+E2E_BASE_URL=<cloudbase-production-default-domain> uv run pytest -q -m smoke:
+2 passed, 656 deselected.
+
+E2E_BASE_URL=<cloudbase-production-default-domain> \
+E2E_ADMIN_USER=<from CloudBase prod env> \
+E2E_ADMIN_PASS=<from CloudBase prod env> \
+uv run pytest -q tests/e2e/test_admin_auth_e2e.py:
+5 passed.
 ```
 
 Atlas data migration completed on 2026-05-23:
@@ -534,7 +599,7 @@ Validated through an SSH tunnel with the backend's Beanie model initialization
 and a final app-user inventory:
 
 ```bash
-ssh -N -L 127.0.0.1:27019:127.0.0.1:27017 root@124.221.96.45
+ssh -N -L localhost:27019:localhost:27017 root@<shanghai-lighthouse-host>
 
 cd server
 MONGODB_URI=... MONGO_DB_NAME=happyword \
@@ -548,29 +613,99 @@ Beanie init completed
 Final inventory: 25 collections, 275 documents, 50 words, 2 word packs, 92 indexes
 ```
 
-Next Lighthouse MongoDB tasks:
+Beijing backup secondary configured on 2026-05-24:
 
-1. Decide CloudBase-to-Lighthouse network path:
-   - preferred: private/VPC route if available;
-   - fallback: public `27017` only with TLS and Tencent firewall allowlisting
-     to a fixed CloudBase egress IP. Avoid opening `27017` to the whole
-     internet except as an explicitly approved, short-lived smoke window.
-2. After the network path is selected, set CloudBase Run `MONGODB_URI` to the
-   Lighthouse app-user TLS URI, redeploy/restart `happyword-server`, and run
-   `/api/v1/public/health` plus admin/course smoke.
-3. Perform a restore drill from `/var/backups/happyword-mongodb`.
-4. Move backups to COS or another off-instance destination before production
-   cutover; local-only backups do not protect against instance loss.
-5. Keep the Beijing instance unchanged as rollback until Shanghai has passed
-   production CloudBase smoke and at least one agreed soak window.
+- Shanghai remains the only writable production-rehearsal member:
+  `happyword-mongodb-shanghai:27017`, priority `1`, votes `1`.
+- Beijing backup is `beijing-prod-backup-rs:27018`, priority `0`, votes `0`,
+  `hidden: true`. It must not serve production queries; use it only for backup,
+  restore drills, or emergency recovery.
+- Beijing E2E MongoDB remains separate on localhost port `27017`; do not reuse it
+  for production backup data or credentials.
+- Replica traffic is carried over restricted SSH tunnels instead of exposing
+  MongoDB ports publicly:
+  - Shanghai systemd service:
+    `happyword-mongo-tunnel-to-beijing-backup.service`
+    forwards a local loopback alias on port `27018` to Beijing localhost port
+    `27018`.
+  - Beijing systemd service: `happyword-mongo-tunnel-to-shanghai.service`
+    forwards a local loopback alias on port `27017` to Shanghai localhost port
+    `27017`.
+  - Dedicated SSH keys live at `/root/.ssh/happyword_mongo_replica`; each
+    server's `authorized_keys` entry is restricted with `permitopen`.
+- Beijing backup process:
+  - config: `/etc/mongod-prod-backup.conf`
+  - systemd service: `mongod-prod-backup.service`
+  - db path: `/var/lib/mongo-prod-backup`
+  - TLS/keyFile material: `/etc/mongodb-prod-backup/`
+- Validation after initial sync:
+
+  ```text
+  rs0 members:
+  - happyword-mongodb-shanghai:27017 PRIMARY, health 1
+  - beijing-prod-backup-rs:27018 SECONDARY, health 1, hidden true,
+    priority 0, votes 0, syncSourceHost happyword-mongodb-shanghai:27017
+  Beijing backup data dir: 204M
+  Initial sync: successful; cloned admin, config, and happyword
+  ```
+
+Beijing hidden-secondary restore drill completed on 2026-05-24:
+
+- Source: Beijing hidden secondary on localhost-only backup process.
+- Restore target: temporary scratch MongoDB process on the Beijing Lighthouse,
+  using a scratch database name and scratch data directory.
+- Method: `mongodump --archive --gzip` from the hidden secondary, then
+  `mongorestore --archive --gzip --drop` into the scratch database.
+- Verification:
+
+  ```text
+  Source: 25 collections, 275 documents.
+  Restored scratch database: 25 collections, 275 documents.
+  Restore result: 275 document(s) restored successfully, 0 failed.
+  Cleanup: archive, scratch dbpath, and scratch log removed.
+  ```
+
+- Disaster-recovery meaning: the Beijing hidden secondary is confirmed usable as
+  a backup source for a point-in-time restore drill. It remains hidden and
+  non-voting; do not direct production reads to it.
+
+Off-instance backup archive configured on 2026-05-24:
+
+- Shanghai local backup script:
+  `/usr/local/sbin/happyword-mongodb-backup.sh`
+- Schedule:
+  `/etc/cron.d/happyword-mongodb-backup` runs daily at 03:17 server time.
+- Local archive retention: `/var/backups/happyword-mongodb`, 7 days.
+- COS archive env: `/root/happyword-cos-backup.env`, root-only mode, populated
+  from existing CloudBase production COS credentials.
+- COS uploader: `/usr/local/sbin/happyword-cos-upload.py`, stdlib-only Tencent
+  COS V5 signed `PUT`.
+- Manual run after configuration produced a local archive and uploaded it under
+  the configured production COS backup prefix. Keep COS bucket and object names
+  in the console/operator inventory when sharing externally.
+
+Remaining Lighthouse MongoDB tasks:
+
+1. Monitor CloudBase production for at least one full release cycle or 7 clean
+   production days, whichever is longer, before retiring Atlas credentials.
+2. Run a full admin write/import smoke during an agreed operator window if we
+   want to revalidate the lesson-image path after the database cutover. The
+   2026-05-24 automated smoke covered HTTP health, public reads, login pages,
+   preview manifest, and admin authentication.
+3. Periodically repeat restore drills from both COS/off-instance archives and
+   the Beijing hidden secondary.
+4. Keep the Beijing E2E database independent from the Beijing backup secondary.
+   Never point staging E2E at the production backup process.
+5. Revisit TencentDB or another managed HA database when single-primary
+   Lighthouse operational risk becomes too high.
 
 Beijing shared staging E2E target, configured 2026-05-23:
 
 - Purpose: the only online E2E staging database while ICP and production-domain
   work are still pending. Do not create per-PR online databases for normal PR
   CI.
-- Instance: previous Beijing Lighthouse `lhins-nxph0u6i`, public IP
-  `81.70.210.220`, private IP `10.2.0.15`.
+- Instance: previous Beijing Lighthouse `lhins-nxph0u6i`; look up current
+  public/private addresses in Tencent Cloud console or operator inventory.
 - Database: `happyword_cloudbase_staging_e2e`.
 - Mongo user: dedicated `happyword_e2e_ci` user with `readWrite` and `dbAdmin`
   only on `happyword_cloudbase_staging_e2e`.
@@ -604,22 +739,20 @@ Beijing shared staging E2E target, configured 2026-05-23:
   same E2E database. Runtime access uses the allowlisted public TLS URI because
   CloudBase Run and the Beijing Lighthouse instance are not on the same private
   network.
-- Tencent Lighthouse firewall allows CloudBase fixed egress
-  `43.142.39.118/32` to TCP `27017` with note
-  `CloudBase Run MongoDB E2E`. MongoDB listens on `127.0.0.1:27017` for the
-  local runner and `10.2.0.15:27017` for the public listener path behind the
-  Tencent firewall allowlist.
-- Safety rule: never open `27017` to `0.0.0.0/0`; use TLS plus the Tencent
+- Tencent Lighthouse firewall allows the CloudBase fixed egress address to TCP
+  `27017` with note `CloudBase Run MongoDB E2E`. MongoDB listens on localhost
+  port `27017` for the local runner and on the instance private listener path
+  behind the Tencent firewall allowlist.
+- Safety rule: never open `27017` to the whole internet; use TLS plus the Tencent
   firewall allowlist and keep the dedicated E2E user scoped to the E2E DB.
 
-TencentDB fallback branch:
+TencentDB managed-upgrade branch:
 
-If FlexDB cannot be used through a driver URI, the adapter spike is too large
-for M7A, and Lighthouse single-node risk becomes unacceptable, return to
-TencentDB for MongoDB. The earlier TencentDB plan remains valid technically:
-provision `ap-shanghai`, use a compatible MongoDB version, enable backup,
-validate `MONGODB_URI` with `scripts.db_connectivity_smoke`, then choose DTS or
-a short write-freeze dump/import for the tiny current dataset.
+If Lighthouse operational risk becomes unacceptable, return to TencentDB for
+MongoDB. The earlier TencentDB plan remains valid technically: provision
+`ap-shanghai`, use a compatible MongoDB version, enable backup, validate
+`MONGODB_URI` with `scripts.db_connectivity_smoke`, then choose DTS or a short
+write-freeze dump/import for the tiny current dataset.
 
 ### Vercel Blob Replacement
 
@@ -757,8 +890,10 @@ Post-merge CD status, 2026-05-21:
 - `tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"` failed
   when the API key only had `QcloudTCBRFullAccess`. Adding
   `QcloudTCBFullAccess` allowed GitHub Actions and the local CLI to authenticate.
-  Treat this as a temporary broad permission; tighten to the minimum CloudBase
-  Run, HTTP access, and function permissions after the migration path is stable.
+  Treat this as a temporary broad permission, but do not make it a migration
+  blocker. Tighten to the minimum CloudBase Run, HTTP access, and function
+  permissions as a final security follow-up after CloudBase cutover, Vercel
+  retirement, and the stable deployment/smoke path are complete.
 
 Default-domain smoke tooling, 2026-05-21:
 
@@ -1095,3 +1230,9 @@ M3 CloudBase cron replacement status:
 - DNS rollback to Vercel: keep or restore `happyword.cool` nameservers to
   `ns1.vercel-dns.com` and `ns2.vercel-dns.com`.
 - Known-good Vercel production URL: `https://happyword.cool`
+
+## Final Follow-Ups
+
+- Replace the temporary `QcloudTCBFullAccess` CI credential with a custom
+  least-privilege CAM policy after CloudBase cutover, Vercel retirement, and the
+  stable deployment/smoke path are complete.

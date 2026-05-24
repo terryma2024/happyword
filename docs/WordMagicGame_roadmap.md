@@ -843,7 +843,7 @@ V0.5 拆分为 7 个子版本顺序推进：
 - **LLM**：OpenAI SDK，**仅服务端调用**；客户端永远不直接接触 LLM API。所有生成内容必须经审核才能进入儿童端。
 - **词包发布**：版本化 JSON（`/packs/latest.json` + 历史快照），客户端按 ETag / `If-None-Match` 走 304。schema_version 字段从 v1 渐进演进到 v5（V0.5.4 加 LLM 字段、V0.5.5 加 categories、V0.5.6 加 illustration/audio）。
 - **客户端集成边界**：V0.5.1 一次性新增 4 个服务类，后续 V0.5.x 只在这些类内部追加字段，不再扩 API：
-    - `RemoteWordPackConfig`：dev / prod `SERVER_BASE_URL`，dev 走 host loopback `http://10.0.2.2:8000`，prod 走 `https://happyword.cool`；通过 `BuildProfile.BUILD_MODE_NAME` 判定。
+    - `RemoteWordPackConfig`：dev / prod `SERVER_BASE_URL`，dev 走 host loopback `http://<android-emulator-host>:8000`，prod 走 `https://happyword.cool`；通过 `BuildProfile.BUILD_MODE_NAME` 判定。
     - `WordPackCache`：preferences 持久化 JSON 词包 + ETag + version。
     - `RemoteWordPackService`：`@kit.NetworkKit` HTTP 包装，错误归一为 `RemoteFetchResult`。
     - `WordPackBootstrapper`：编排 cache → rawfile → 远端 async refresh 三段冷启动；HomePage / BattlePage / TodayPlanPage / LearningReportPage / ConfigPage 五个 page 都接它。
@@ -868,7 +868,7 @@ V0.5 拆分为 7 个子版本顺序推进：
 
 - pytest 26/26 通过、0 errors / 0 warnings；ruff / format / mypy（`mypy app`）全清；no-device hvigor unit 测试 +21 case 通过（`RemoteWordPackConfig` / `WordPackCache` / `RemoteWordPackService` / `WordPackBootstrapper`）。
 - Vercel 生产 admin 登录拿到 JWT、`/auth/me` 返回 `{username:'admin', role:'admin', last_login_at: ...}`、`/packs/latest.json` 返回 1 词包并包含 `fruit-apple`。
-- 客户端 `SERVER_BASE_URL` 在 debug build 走 `http://10.0.2.2:8000`、release build 走 `https://happyword.cool`。
+- 客户端 `SERVER_BASE_URL` 在 debug build 走 `http://<android-emulator-host>:8000`、release build 走 `https://happyword.cool`。
 - 客户端 BootstrapDeps 4 个分支（cache hit / rawfile fallback / 远端 200 写入 cache / 远端 5xx 静默降级）都有单测覆盖。
 
 **踩过的生产坑（写进文档供 V0.5.2+ 参考）**

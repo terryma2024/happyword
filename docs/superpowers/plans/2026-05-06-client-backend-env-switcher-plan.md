@@ -86,10 +86,10 @@ import BuildProfile from 'BuildProfile';
  * the override entirely and always return STAGING_BASE_URL.
  *
  * For real devices on LAN: change `LOCAL_BASE_URL` to the dev machine's
- * LAN IP (e.g. `http://192.168.1.100:8000`). For USB
- * `hdc fport tcp:8000 tcp:8000`, use `http://127.0.0.1:8000`.
+ * LAN IP (e.g. `http://<lan-host>:8000`). For USB
+ * `hdc fport tcp:8000 tcp:8000`, use `http://localhost:8000`.
  */
-export const LOCAL_BASE_URL: string = 'http://10.0.2.2:8000';
+export const LOCAL_BASE_URL: string = 'http://<android-emulator-host>:8000';
 export const STAGING_BASE_URL: string = 'https://happyword.cool';
 export const PROD_BASE_URL: string | null = null;          // V0.7+ reserved
 
@@ -217,7 +217,7 @@ import {
 export default function remoteWordPackConfigTest() {
   describe('RemoteWordPackConfig', () => {
     it('localUrlIsEmulatorHostLoopback', 0, () => {
-      expect(LOCAL_BASE_URL).assertEqual('http://10.0.2.2:8000');
+      expect(LOCAL_BASE_URL).assertEqual('http://<android-emulator-host>:8000');
     });
     it('stagingUrlIsVercelDomain', 0, () => {
       expect(STAGING_BASE_URL).assertEqual('https://happyword.cool');
@@ -254,10 +254,10 @@ export default function remoteWordPackConfigTest() {
       expect(SERVER_BASE_URL_OVERRIDE_KEY).assertEqual('serverBaseUrlOverride');
     });
     it('resolveServerBaseUrlReturnsOverrideWhenPresent', 0, () => {
-      expect(resolveServerBaseUrl('http://127.0.0.1:8123', 'debug'))
-        .assertEqual('http://127.0.0.1:8123');
-      expect(resolveServerBaseUrl('http://127.0.0.1:8123', 'release'))
-        .assertEqual('http://127.0.0.1:8123');
+      expect(resolveServerBaseUrl('http://localhost:8123', 'debug'))
+        .assertEqual('http://localhost:8123');
+      expect(resolveServerBaseUrl('http://localhost:8123', 'release'))
+        .assertEqual('http://localhost:8123');
     });
     it('resolveServerBaseUrlIgnoresEmptyOverride', 0, () => {
       AppStorage.delete('backend_env_cache');
@@ -277,8 +277,8 @@ export default function remoteWordPackConfigTest() {
       AppStorage.delete('backend_env_cache');
       AppStorage.delete('backend_preview_url_cache');
       expect(effectiveServerBaseUrl()).assertEqual(STAGING_BASE_URL);
-      AppStorage.setOrCreate<string>(SERVER_BASE_URL_OVERRIDE_KEY, 'http://127.0.0.1:8123');
-      expect(effectiveServerBaseUrl()).assertEqual('http://127.0.0.1:8123');
+      AppStorage.setOrCreate<string>(SERVER_BASE_URL_OVERRIDE_KEY, 'http://localhost:8123');
+      expect(effectiveServerBaseUrl()).assertEqual('http://localhost:8123');
       AppStorage.delete(SERVER_BASE_URL_OVERRIDE_KEY);
       expect(effectiveServerBaseUrl()).assertEqual(STAGING_BASE_URL);
     });
@@ -392,7 +392,7 @@ export default function backendEnvTest() {
 
     it('metaForLocalReportsLocalUrl', 0, () => {
       const m = metaFor(BackendEnv.LOCAL);
-      expect(m.defaultUrl).assertEqual('http://10.0.2.2:8000');
+      expect(m.defaultUrl).assertEqual('http://<android-emulator-host>:8000');
       expect(m.allowsCustomUrl).assertFalse();
     });
 
@@ -518,7 +518,7 @@ const META: Map<BackendEnv, BackendEnvMeta> = new Map<BackendEnv, BackendEnvMeta
   [BackendEnv.LOCAL, {
     env: BackendEnv.LOCAL,
     label: '本地',
-    description: 'http://10.0.2.2:8000',
+    description: 'http://<android-emulator-host>:8000',
     defaultUrl: LOCAL_BASE_URL,
     allowsCustomUrl: false,
     enabledInDebug: true,
@@ -1478,7 +1478,7 @@ hdc install entry/build/default/outputs/default/entry-default-signed.hap
 - [ ] **Step 2: Manually verify**
 
 1. Open Settings page → "开发者选项" row visible (debug build only).
-2. Pick `本地`, Apply. Confirm next launch routes to `http://10.0.2.2:8000` (force-close + reopen + observe in DevEco logs).
+2. Pick `本地`, Apply. Confirm next launch routes to `http://<android-emulator-host>:8000` (force-close + reopen + observe in DevEco logs).
 3. Pick `PR 预览`, paste a known preview URL (or rely on Phase C dropdown). Apply. Observe routing change.
 4. Pick `Staging`. Apply. Observe routing back to `https://happyword.cool`.
 5. After each Apply, confirm parent login + device binding ask to re-link.
@@ -1755,7 +1755,7 @@ Confirm the row disappears from `docs/preview-urls.json` within ~30 s.
 
 Debug builds of the HarmonyOS app expose a "开发者选项" row on the Settings
 page that opens a DevMenu allowing the tester to point the app at:
-- 本地 (`http://10.0.2.2:8000`)
+- 本地 (`http://<android-emulator-host>:8000`)
 - PR 预览 (any open PR's Vercel preview URL — picked from a dropdown
   populated by `docs/preview-urls.json` or pasted manually)
 - Staging (`https://happyword.cool`)

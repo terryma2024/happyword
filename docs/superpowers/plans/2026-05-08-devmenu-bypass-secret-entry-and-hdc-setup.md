@@ -207,9 +207,9 @@ export default function bypassSecretEntryUiTest(): void {
 
 ```bash
 hvigorw --mode module -p module=entry@ohosTest assembleHap --no-daemon
-hdc -t 127.0.0.1:5555 install -r entry/build/default/outputs/default/entry-default-signed.hap
-hdc -t 127.0.0.1:5555 install -r entry/build/default/outputs/ohosTest/entry-ohosTest-signed.hap
-hdc -t 127.0.0.1:5555 shell aa test -b com.terryma.wordmagicgame -m entry_test \
+hdc -t localhost:5555 install -r entry/build/default/outputs/default/entry-default-signed.hap
+hdc -t localhost:5555 install -r entry/build/default/outputs/ohosTest/entry-ohosTest-signed.hap
+hdc -t localhost:5555 shell aa test -b com.terryma.wordmagicgame -m entry_test \
   -s unittest OpenHarmonyTestRunner -s class BypassSecretEntryUiTest -s timeout 60000 -w 1800
 ```
 
@@ -269,7 +269,7 @@ Drive:
 - [ ] **Step 3: Smoke run**
 
 ```bash
-scripts/setup_bypass_secret_on_device.sh --target 127.0.0.1:5555
+scripts/setup_bypass_secret_on_device.sh --target localhost:5555
 ```
 
 - [ ] **Step 4: Commit**
