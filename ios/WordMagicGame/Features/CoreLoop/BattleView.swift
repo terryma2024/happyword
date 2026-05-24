@@ -286,6 +286,9 @@ struct BattleView: View {
         if isExposedCorrectOption(option, index: index) {
             return "BattleCorrectOption"
         }
+        if ProcessInfo.processInfo.arguments.contains("-UITestExposeCorrectAnswer") {
+            return "BattleIncorrectOption"
+        }
         return "BattleOption\(String(UnicodeScalar(65 + index)!))"
     }
 

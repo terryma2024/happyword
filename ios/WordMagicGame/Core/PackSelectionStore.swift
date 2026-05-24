@@ -6,8 +6,17 @@ struct PerfectAdventureRotationResult: Equatable {
     var swappedInId = ""
 }
 
-struct PackActivationResult: Equatable {
-    var accepted = false
+enum PackActivationResult: Equatable {
+    case activated
+    case deactivated
+    case activatedAutoClosed
+    case refusedAllPinned
+}
+
+struct PackActivationChange: Equatable {
+    var result: PackActivationResult
+    var activatedId = ""
+    var deactivatedId = ""
     var autoClosedId = ""
 }
 
@@ -36,31 +45,23 @@ final class PackSelectionStore: ObservableObject {
     }
 
     @discardableResult
-    func toggleActive(_ id: String) -> Bool {
+    func toggleActive(_ id: String) -> PackActivationChange {
         if activePackIds.contains(id) {
             activePackIds.removeAll { $0 == id }
             pinnedPackIds.remove(id)
-            return true
+            return PackActivationChange(result: .deactivated, deactivatedId: id)
         }
-        return appendOrRotate(id).accepted
-    }
-
-    @discardableResult
-    func appendOrRotate(_ id: String) -> PackActivationResult {
-        guard !activePackIds.contains(id) else {
-            return PackActivationResult(accepted: true)
-        }
-        if activePackIds.count >= Self.maxActivePacks {
-            guard let autoClosed = activePackIds.first(where: { !pinnedPackIds.contains($0) }) else {
-                return PackActivationResult()
+        guard activePackIds.count < Self.maxActivePacks else {
+            guard let victim = activePackIds.first(where: { !pinnedPackIds.contains($0) }) else {
+                return PackActivationChange(result: .refusedAllPinned, activatedId: id)
             }
-            activePackIds.removeAll { $0 == autoClosed }
-            pinnedPackIds.remove(autoClosed)
+            activePackIds.removeAll { $0 == victim }
+            pinnedPackIds.remove(victim)
             activePackIds.append(id)
-            return PackActivationResult(accepted: true, autoClosedId: autoClosed)
+            return PackActivationChange(result: .activatedAutoClosed, activatedId: id, autoClosedId: victim)
         }
         activePackIds.append(id)
-        return PackActivationResult(accepted: true)
+        return PackActivationChange(result: .activated, activatedId: id)
     }
 
     @discardableResult

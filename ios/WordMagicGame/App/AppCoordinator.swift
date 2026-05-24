@@ -40,6 +40,7 @@ final class AppCoordinator: ObservableObject {
     @Published var reviewStore = LessonDraftReviewStore(draft: .fixtureReviewedDraft)
     @Published var packSelectionStore: PackSelectionStore
     @Published var packManagerMessage = ""
+    @Published var packManagerToastId = ""
     @Published var learningReport: LearningReport?
     @Published var bindingMessage = ""
     /// After first successful cloud bind, steer the parent to PIN setup once (Harmony parity).
@@ -141,25 +142,32 @@ final class AppCoordinator: ObservableObject {
     }
 
     func togglePackActive(_ pack: Pack) {
-        let wasActive = packSelectionStore.activePackIds.contains(pack.id)
-        let result = wasActive ? PackActivationResult(accepted: packSelectionStore.toggleActive(pack.id)) : packSelectionStore.appendOrRotate(pack.id)
-        if result.accepted {
+        let change = packSelectionStore.toggleActive(pack.id)
+        switch change.result {
+        case .activated, .deactivated:
+            packManagerToastId = ""
             if !packSelectionStore.activePackIds.contains(selectedPack.id),
                let first = activePacks.first {
                 selectedPack = first
             }
-            if result.autoClosedId.isEmpty {
-                packManagerMessage = "已激活 \(packSelectionStore.activePackIds.count) / \(PackSelectionStore.maxActivePacks)"
-            } else {
-                packManagerMessage = "已关闭 '\(result.autoClosedId)' 以激活 '\(pack.id)'"
+            packManagerMessage = "已激活 \(packSelectionStore.activePackIds.count) / \(PackSelectionStore.maxActivePacks)"
+        case .activatedAutoClosed:
+            packManagerToastId = "PackManagerAutoRotateToast"
+            if !packSelectionStore.activePackIds.contains(selectedPack.id),
+               let first = activePacks.first {
+                selectedPack = first
             }
-        } else {
+            let closedTitle = packLibrary.pack(id: change.autoClosedId)?.title ?? change.autoClosedId
+            packManagerMessage = "已关闭 \(closedTitle) 以激活 \(pack.title)"
+        case .refusedAllPinned:
+            packManagerToastId = "PackManagerCapRefuseToast"
             packManagerMessage = "请先取消固定一个词包"
         }
     }
 
     func togglePackPin(_ pack: Pack) {
         guard packSelectionStore.togglePin(pack.id) else { return }
+        packManagerToastId = ""
         packManagerMessage = packSelectionStore.pinnedPackIds.contains(pack.id) ? "已固定 \(pack.title)" : "已取消固定 \(pack.title)"
     }
 
@@ -647,6 +655,7 @@ final class AppCoordinator: ObservableObject {
         try? packLayerStore.clear()
         packLibrary = PackLibrary()
         packManagerMessage = ""
+        packManagerToastId = ""
         bindingMessage = ""
         route = .config
     }
@@ -826,6 +835,7 @@ final class AppCoordinator: ObservableObject {
         try? packLayerStore.clear()
         rebuildPackLibraryFromCaches()
         packManagerMessage = ""
+        packManagerToastId = ""
         bindingMessage = "请重新绑定家长账号"
     }
 
@@ -860,10 +870,15 @@ final class AppCoordinator: ObservableObject {
             config.parentPin = "123456"
             configStore.save(config)
         }
-        if arguments.contains("-UITestBattleSpellOnly") {
-            var config = configStore.config
-            config.enabledQuestionTypes = [QuestionKind.spell.rawValue]
-            configStore.save(config)
+        if arguments.contains("-UITestQuestionTypesChoiceOnly") {
+            saveUITestQuestionTypes([QuestionKind.choice.rawValue])
+        } else if arguments.contains("-UITestQuestionTypesFillLetterOnly") {
+            saveUITestQuestionTypes([QuestionKind.fillLetter.rawValue])
+        } else if arguments.contains("-UITestQuestionTypesSpellOnly") || arguments.contains("-UITestBattleSpellOnly") {
+            saveUITestQuestionTypes([QuestionKind.spell.rawValue])
+        }
+        if arguments.contains("-UITestQuickBattle") {
+            saveUITestQuickBattleConfig()
         }
         if arguments.contains("-UITestSeedBoundDevice") {
             cloudCredentialsStore.save(.demoBinding)
@@ -879,6 +894,19 @@ final class AppCoordinator: ObservableObject {
             learningRecorder.record(wordId: "fruit-apple", correct: true, at: Date(timeIntervalSinceNow: -86_400 * 3))
             learningRecorder.record(wordId: "home-door", correct: false, at: Date())
         }
+    }
+
+    private func saveUITestQuestionTypes(_ types: [String]) {
+        var config = configStore.config
+        config.enabledQuestionTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(types)
+        configStore.save(config)
+    }
+
+    private func saveUITestQuickBattleConfig() {
+        var config = configStore.config
+        config.monsterMaxHp = 1
+        config.monstersTotal = 1
+        configStore.save(config)
     }
 }
 

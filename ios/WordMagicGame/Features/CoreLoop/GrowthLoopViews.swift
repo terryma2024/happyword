@@ -42,6 +42,19 @@ struct PackManagerView: View {
                     .accessibilityIdentifier(packManagerMessageId)
             }
 
+            if !coordinator.packManagerToastId.isEmpty {
+                Text(coordinator.packManagerMessage)
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .foregroundStyle(coordinator.packManagerToastId == "PackManagerCapRefuseToast" ? AppTheme.red : AppTheme.navy)
+                    .frame(maxWidth: .infinity, minHeight: 38)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray.opacity(0.18), lineWidth: 1.2)
+                    }
+                    .accessibilityIdentifier(coordinator.packManagerToastId)
+            }
+
             ScrollView {
                 LazyVStack(spacing: 10) {
                     ForEach(coordinator.packs) { pack in
