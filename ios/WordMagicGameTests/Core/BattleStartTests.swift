@@ -45,6 +45,36 @@ final class BattleStartTests: XCTestCase {
         XCTAssertEqual(stat.correct, 1)
     }
 
+    func testReviewBattleWithoutWrongWordsShowsToastAndStaysHome() {
+        let coordinator = AppCoordinator(
+            configStore: GameConfigStore(defaults: UserDefaults(suiteName: "ReviewBattleEmpty-\(UUID().uuidString)")!),
+            pronunciationService: SilentPronunciationService(),
+            battleRandomSeed: 1
+        )
+
+        coordinator.startReviewBattle()
+
+        XCTAssertEqual(coordinator.route, .home)
+        XCTAssertNil(coordinator.battleEngine)
+        XCTAssertEqual(coordinator.toastMessage, "先答错几题再来复习吧")
+    }
+
+    func testReviewBattleUsesSingleRecentWrongWordAsFocusedPlan() throws {
+        let coordinator = AppCoordinator(
+            configStore: GameConfigStore(defaults: UserDefaults(suiteName: "ReviewBattleFocused-\(UUID().uuidString)")!),
+            pronunciationService: SilentPronunciationService(),
+            battleRandomSeed: 1
+        )
+        coordinator.learningRecorder.record(wordId: "fruit-apple", correct: false)
+
+        coordinator.startReviewBattle()
+
+        XCTAssertEqual(coordinator.route, .battle)
+        let question = try XCTUnwrap(coordinator.battleEngine?.state.currentQuestion)
+        XCTAssertEqual(question.wordId, "fruit-apple")
+        XCTAssertTrue(question.options.contains(question.answer))
+    }
+
     private final class SilentPronunciationService: PronunciationSpeaking {
         var isAvailable = true
 

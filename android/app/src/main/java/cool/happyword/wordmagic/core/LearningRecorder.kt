@@ -58,5 +58,18 @@ class LearningRecorder(
 
     fun sessionSnapshot(): List<BattleSessionRecord> = sessions.toList()
 
+    fun recentWrongIds(limit: Int): List<String> {
+        if (limit <= 0) return emptyList()
+        return statsByKey.values
+            .filter { it.wrongCount > 0 }
+            .sortedWith(
+                compareByDescending<WordLearningStat> { it.lastSeenAtMs }
+                    .thenBy { it.wordId },
+            )
+            .map { it.wordId }
+            .distinct()
+            .take(limit)
+    }
+
     private fun key(packId: String, wordId: String): String = "$packId::$wordId"
 }

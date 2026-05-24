@@ -198,6 +198,36 @@ final class WordMagicGameUITests: XCTestCase {
     }
 
     @MainActor
+    func testReviewToolbarUsesRecentWrongWordAndShowsToastWhenEmpty() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer"]
+        app.launch()
+
+        assertLandscape(app)
+        XCTAssertTrue(app.buttons["复习"].waitForExistence(timeout: 5))
+        app.buttons["复习"].tap()
+        XCTAssertTrue(app.staticTexts["先答错几题再来复习吧"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["开始冒险"].exists)
+
+        app.buttons["开始冒险"].tap()
+        XCTAssertTrue(app.buttons["BattleCorrectOption"].waitForExistence(timeout: 5))
+        let seededWrongPrompt = try XCTUnwrap(currentFruitPrompt(in: app, timeout: 5))
+        tapFirstIncorrectFruitOption(in: app)
+        XCTAssertTrue(waitForBattleFeedback(in: app)?.hasPrefix("Correct answer:") == true)
+        waitForBattleFeedbackToClear(in: app)
+
+        app.buttons["Escape"].tap()
+        XCTAssertTrue(app.staticTexts["继续练习"].waitForExistence(timeout: 5))
+        app.buttons["返回主页"].tap()
+        XCTAssertTrue(app.buttons["开始冒险"].waitForExistence(timeout: 5))
+
+        app.buttons["复习"].tap()
+        XCTAssertTrue(app.staticTexts["Battle"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Monster 1 / 3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[seededWrongPrompt].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testHomeHidesChildProfileBadgeWithoutDeviceBinding() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestResetState", "-UITestClearBinding"]
@@ -804,6 +834,21 @@ final class WordMagicGameUITests: XCTestCase {
                 && ((app.buttons[answer].exists && app.buttons[answer].isHittable)
                     || (app.buttons["BattleCorrectOption"].exists && app.buttons["BattleCorrectOption"].isHittable)) {
                 return answer
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return nil
+    }
+
+    @MainActor
+    private func currentFruitPrompt(in app: XCUIApplication, timeout: TimeInterval) -> String? {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            for (prompt, answer) in Self.fruitAnswers
+            where app.staticTexts[prompt].exists
+                && ((app.buttons[answer].exists && app.buttons[answer].isHittable)
+                    || (app.buttons["BattleCorrectOption"].exists && app.buttons["BattleCorrectOption"].isHittable)) {
+                return prompt
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }

@@ -40,4 +40,18 @@ class LearningRecorderTest {
         assertEquals(200L, stat.lastSeenAtMs)
         assertTrue(recorder.sessionSnapshot().single().perfect)
     }
+
+    @Test
+    fun recentWrongIdsAreMostRecentFirstAndLimited() {
+        val recorder = LearningRecorder()
+        recorder.recordAnswer("fruit-forest", "fruit-apple", correct = false, answeredAtMs = 100L)
+        recorder.recordAnswer("fruit-forest", "fruit-banana", correct = false, answeredAtMs = 300L)
+        recorder.recordAnswer("fruit-forest", "fruit-pear", correct = true, answeredAtMs = 400L)
+        recorder.recordAnswer("school-castle", "school-book", correct = false, answeredAtMs = 200L)
+
+        assertEquals(
+            listOf("fruit-banana", "school-book"),
+            recorder.recentWrongIds(limit = 2),
+        )
+    }
 }

@@ -63,8 +63,8 @@ export default function testsuite() {
   // HomeToolbarLocked must run before any suite that seeds wrong
   // answers into LearningRecorder (ReviewMode / MagicAttack / AdventureFlow etc.)
   // — its lockedReviewShowsToastAndStays case asserts the toast is
-  // surfaced when recentWrongCount < 3, which would silently flip to
-  // navigation once the recorder has accrued ≥3 wrongs.
+  // surfaced when recentWrongCount is 0, which would silently flip to
+  // navigation once the recorder has accrued at least one wrong answer.
   homeToolbarLockedUiTest();
   // DevMenuPage + version-label triple-tap are intentionally NOT in ohosTest —
   // developer data/env tooling; validate manually on debug builds (see

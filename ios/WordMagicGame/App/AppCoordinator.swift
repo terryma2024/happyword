@@ -72,6 +72,7 @@ final class AppCoordinator: ObservableObject {
     private var pendingDeveloperMenuCard: DeveloperMenuCard?
     /// Consumed once when `DevMenuView` appears. Matches Harmony `presetEnv` route param.
     private var devMenuRoutePreset: String?
+    private let reviewWindowSize = 12
 
     var packs: [Pack] {
         packLibrary.allPacks()
@@ -233,6 +234,50 @@ final class AppCoordinator: ObservableObject {
             enabledQuestionTypes: enabledTypes,
         )
         let engine = BattleEngine(questionSource: questionSource, config: configStore.config)
+        questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
+        engine.start()
+        battleEngine = engine
+        route = .battle
+    }
+
+    func startReviewBattle() {
+        let reviewIds = learningRecorder.recentWrongIds(limit: reviewWindowSize)
+        guard !reviewIds.isEmpty else {
+            showToast("先答错几题再来复习吧")
+            return
+        }
+        let allWords = packLibrary.allPacks().flatMap(\.words)
+        let knownIds = Set(allWords.map(\.id))
+        let focusedIds = reviewIds.filter { knownIds.contains($0) }
+        guard !focusedIds.isEmpty else {
+            showToast("先答错几题再来复习吧")
+            return
+        }
+        let enabledTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(configStore.config.enabledQuestionTypes)
+        guard BattleQuestionTypePolicy.anyWordSupportsQuestionTypes(
+            allWords.filter { focusedIds.contains($0.id) },
+            typeIds: enabledTypes
+        ) else {
+            showToast("当前词包没有支持所选题型的单词")
+            return
+        }
+
+        pronunciationService.prepare()
+        let repository = WordRepository(words: allWords)
+        let reviewPlan = BattleQuestionPlan(
+            wordIds: focusedIds,
+            monsterSlots: BattleQuestionTypePolicy.buildMonsterSlots(enabledTypeIds: enabledTypes)
+        )
+        let questionSource = PlanQuestionSource(
+            plan: reviewPlan,
+            repository: repository,
+            randomSeed: makeBattleRandomSeed(),
+            enabledQuestionTypes: enabledTypes,
+        )
+        var reviewConfig = configStore.config
+        reviewConfig.monstersTotal = 3
+        reviewConfig.startingSeconds = 120
+        let engine = BattleEngine(questionSource: questionSource, config: reviewConfig)
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
         battleEngine = engine

@@ -47,11 +47,10 @@ import {
 } from '../services/PackHomeIntegration';
 
 /**
- * Review-mode gating threshold. Mirrors spec §15 Track D: kids need at
- * least a handful of stored mistakes before a "review" button is
- * meaningful — showing it over an empty store would be frustrating.
+ * Review mode starts as soon as at least one recent wrong word exists.
+ * BattlePage turns that recent-wrong list into a focused temporary plan;
+ * an empty list shows the locked toast instead.
  */
-const REVIEW_MIN_WRONG_IDS: number = 3;
 const REVIEW_WINDOW_SIZE: number = 12;
 
 /**
@@ -71,7 +70,7 @@ struct HomePage {
    * Count of recent wrong wordIds available to review. Refreshed every
    * time the page becomes visible so that navigating back from a
    * finished battle lights up the review button as soon as the player
-   * has accrued 3+ wrong answers.
+   * has at least one recent wrong answer.
    */
   @State private recentWrongCount: number = 0;
   @State private todayCompleted: boolean = false;
@@ -95,8 +94,8 @@ struct HomePage {
   private homeIntegration: HomeIntegrationBundle = new HomeIntegrationBundle();
   @State private coinBalance: number = 0;
   /**
-   * v0.3.6: when the locked review button is tapped (fewer than 3
-   * recent wrong words), surface an inline toast instead of doing
+   * v0.3.6: when the locked review button is tapped (no recent wrong
+   * words), surface an inline toast instead of doing
    * nothing. `toastTimer` holds the active setTimeout handle so a
    * rapid second tap can reset the dismissal window cleanly, and
    * `aboutToDisappear` can cancel a pending callback before the
@@ -343,7 +342,7 @@ struct HomePage {
   }
 
   private reviewEnabled(): boolean {
-    return this.recentWrongCount >= REVIEW_MIN_WRONG_IDS;
+    return this.recentWrongCount > 0;
   }
 
   /**
