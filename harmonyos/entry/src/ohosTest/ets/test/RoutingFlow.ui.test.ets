@@ -151,6 +151,7 @@ const QUESTION_TYPE_IDS: string[] = [
   'fill-letter',
   'fill-letter-medium',
   'spell',
+  'sentence-cloze',
 ];
 
 /**

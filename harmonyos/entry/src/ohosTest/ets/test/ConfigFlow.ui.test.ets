@@ -352,10 +352,15 @@ export default function configFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ConfigQuestionType_fill-letter'));
       await driver.assertComponentExist(ON.id('ConfigQuestionType_fill-letter-medium'));
       await driver.assertComponentExist(ON.id('ConfigQuestionType_spell'));
+      await driver.assertComponentExist(ON.id('ConfigQuestionType_sentence-cloze'));
       const choiceChip: Component =
         await driver.findComponent(ON.id('ConfigQuestionType_choice'));
       const choiceText: string = await choiceChip.getText();
       expect(choiceText.indexOf('中文选词') >= 0).assertTrue();
+      const sentenceClozeChip: Component =
+        await driver.findComponent(ON.id('ConfigQuestionType_sentence-cloze'));
+      const sentenceClozeText: string = await sentenceClozeChip.getText();
+      expect(sentenceClozeText.indexOf('句子填词') >= 0).assertTrue();
       const sentenceChip: Component | null =
         await driver.findComponent(ON.id('ConfigQuestionType_sentence-fill'));
       expect(sentenceChip === null).assertTrue();
