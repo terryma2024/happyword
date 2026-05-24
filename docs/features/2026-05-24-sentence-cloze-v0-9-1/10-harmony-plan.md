@@ -9,11 +9,11 @@
 
 **Goal:** Implement V0.9.1 sentence cloze questions on HarmonyOS first.
 
-**Architecture:** Add `QuestionKind.SentenceCloze` plus `SentenceClozeGenerator` for example-backed cloze prompts. Extend the existing question-type policy and scheduler so `sentence-cloze` is default-enabled and part of the Challenge pool. Battle UI reuses option buttons with sentence-specific IDs, while built-in JSON packs receive `example.en` / `example.zh` for every word.
+**Architecture:** Add `QuestionKind.SentenceCloze` plus `SentenceClozeGenerator` for example-backed cloze prompts. Extend the existing question-type policy and scheduler so `sentence-cloze` is default-enabled and part of the Challenge pool. Battle UI reuses option buttons with sentence-specific IDs, while built-in JSON packs receive `example.en` / `example.zh` for every word. Sentence cloze suppresses automatic answer-word pronunciation and keeps only manual speaker-button replay.
 
 **Tech Stack:** HarmonyOS NEXT, ArkTS, ArkUI, Hypium local tests, ohosTest UI automation.
 
-**Execution status (2026-05-24):** Tasks 1-5 implemented on HarmonyOS. Task 6 is partially gated: unit tests, HAP build, CodeLinter, built-in example validation, and targeted `BattleFlow` ohosTest are green; full `scripts/run_ui_tests.sh` produced no OHOS report after ~18 minutes on the local runner and remains an open soft-gate item in [`20-replication-trigger.md`](20-replication-trigger.md).
+**Execution status (2026-05-24):** Tasks 1-5 implemented on HarmonyOS, including the follow-up pronunciation gate that disables auto-speak for sentence cloze while preserving manual replay. Task 6 is partially gated: unit tests, HAP build, CodeLinter, built-in example validation, and targeted `BattleFlow` ohosTest are green; full `scripts/run_ui_tests.sh` produced no OHOS report after ~18 minutes on the local runner and remains an open soft-gate item in [`20-replication-trigger.md`](20-replication-trigger.md).
 
 ---
 
@@ -89,7 +89,9 @@
 
 **Files:**
 - Modify: `harmonyos/entry/src/main/ets/pages/BattlePage.ets`
+- Modify: `harmonyos/entry/src/main/ets/services/PronunciationService.ets`
 - Modify: `harmonyos/entry/src/main/ets/services/BattleEngine.ets`
+- Modify: `harmonyos/entry/src/test/PronunciationService.test.ets`
 - Modify: `harmonyos/entry/src/ohosTest/ets/test/BattlePacing.ui.test.ets`
 
 - [ ] Add or update a UI test path that selects only `sentence-cloze`, enters Today Adventure, and asserts `BattleSentenceClozePrompt`, `BattleSentenceClozeZh`, `BattleOptionsRow_SentenceCloze`, and `BattleSentenceClozeOption_0..2`.
@@ -98,6 +100,7 @@
 - [ ] Preserve answered sentence fields during the BattlePage feedback window.
 - [ ] Render sentence cloze prompt/Chinese support with the stable IDs from `00-design.md`.
 - [ ] Use `BattleSentenceClozeOption_0..2` and `BattleOptionsRow_SentenceCloze` for sentence cloze, while keeping existing `BattleOptionA/B/C` for other 3-option questions.
+- [x] Suppress automatic pronunciation for `SentenceCloze`; keep manual `BattleSpeakerButton` replay unchanged.
 - [ ] Re-run the UI test path and expect green when the local device runner is available.
 
 ### Task 6: Version, Gate Docs, and Verification

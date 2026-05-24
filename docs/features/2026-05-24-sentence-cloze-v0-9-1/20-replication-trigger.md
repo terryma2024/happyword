@@ -35,9 +35,9 @@ This section is filled after HarmonyOS implementation and stabilization.
 | Layer | HarmonyOS files |
 | --- | --- |
 | Models | `harmonyos/entry/src/main/ets/models/Question.ets` |
-| Services | `SentenceClozeGenerator.ets`, `BattleQuestionTypePolicy.ets`, `BattleQuestionScheduler.ets`, `PlanQuestionSource.ets` |
+| Services | `SentenceClozeGenerator.ets`, `BattleQuestionTypePolicy.ets`, `BattleQuestionScheduler.ets`, `PlanQuestionSource.ets`, `PronunciationService.ets` |
 | Pages / components | `ConfigPage.ets`, `BattlePage.ets`, `ChoiceButton.ets` |
-| Tests | `SentenceClozeGenerator.test.ets`, `BattleQuestionTypePolicy.test.ets`, `BattleQuestionScheduler.test.ets`, `PlanQuestionSource.test.ets`, `ConfigFlow.ui.test.ets`, `RoutingFlow.ui.test.ets`, `BattleFlow.ui.test.ets` |
+| Tests | `SentenceClozeGenerator.test.ets`, `BattleQuestionTypePolicy.test.ets`, `BattleQuestionScheduler.test.ets`, `PlanQuestionSource.test.ets`, `PronunciationService.test.ets`, `ConfigFlow.ui.test.ets`, `RoutingFlow.ui.test.ets`, `BattleFlow.ui.test.ets` |
 | Assets / data | five `harmonyos/entry/src/main/resources/rawfile/data/builtin/*.json` packs; `scripts/validate-builtin-examples.mjs` |
 
 ### 2.2 Persistence keys (cross-platform; replicas must match semantics)
@@ -59,6 +59,7 @@ This section is filled after HarmonyOS implementation and stabilization.
 ### 2.4 Edge cases discovered during stabilization
 
 - `ChoiceButton.choiceId` must be a `@Prop` when changing option IDs by question kind; otherwise `@Reusable` component reuse can keep stale button IDs.
+- `sentence-cloze` must not auto-speak the answer word on question load or transition. Manual `BattleSpeakerButton` replay still speaks the answer when tapped.
 - Full ohosTest suite may hang without an OHOS report on the current local runner; use targeted suite evidence for the sentence-cloze path until the broader runner is repaired.
 
 ### 2.5 Tests requiring parity counterparts
@@ -69,12 +70,14 @@ This section is filled after HarmonyOS implementation and stabilization.
 | `BattleQuestionTypePolicy.test.ets` | Unit tests for default type policy and eligibility | Unit tests for default type policy and eligibility |
 | `BattleQuestionScheduler.test.ets` | Scheduler unit tests for Challenge pool selection and disabling | Scheduler unit tests for Challenge pool selection and disabling |
 | `PlanQuestionSource.test.ets` | Plan-source unit tests for sentence-only and fallback behavior | Plan-source unit tests for sentence-only and fallback behavior |
+| `PronunciationService.test.ets` | Unit test that sentence cloze suppresses auto-speak while other kinds retain it | Unit test that sentence cloze suppresses auto-speak while other kinds retain it |
 | `ConfigFlow.ui.test.ets` | Settings UI test for `sentence-cloze` chip | Settings UI test for `sentence-cloze` chip |
 | `BattleFlow.ui.test.ets` | Battle UI test for cloze prompt / Chinese example / options | Battle UI test for cloze prompt / Chinese example / options |
 
 ### 2.6 Pitfalls / "do not repeat my mistakes"
 
 - Built-in examples are content, not generator defaults. Replicas should preserve the fallback behavior for remote/family packs without examples rather than requiring every pack to be sentence-cloze-ready.
+- Do not route sentence cloze through the generic auto-speak path; it reveals the target word before the learner answers. Keep the speaker button manual-only.
 - Do not start iOS / Android replication until full Harmony soft gate and the signature block below are complete.
 
 ## 3. Open Questions for the Replicas

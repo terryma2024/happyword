@@ -163,6 +163,13 @@ Sentence cloze answers use the same battle semantics as `Choice`:
 - No per-letter local penalty.
 - `LearningRecorder` records the answer against the target `wordId` the same way existing question types do.
 
+Pronunciation semantics:
+
+- Sentence cloze never triggers automatic answer-word pronunciation, even when the global auto-speak setting is enabled.
+- The reason is product-critical: automatically speaking the target word would reveal the blank before the child answers.
+- Manual replay remains available. Tapping the existing `BattleSpeakerButton` speaks the target answer word just like other battle question types.
+- Existing auto-speak behavior for `Choice`, `FillLetter`, `FillLetterMedium`, and `Spell` is unchanged.
+
 ### 6.5 Scheduling
 
 `sentence-cloze` belongs to the Challenge pool:
@@ -234,6 +241,7 @@ No endpoint or OpenAPI change.
 - Parent disables `sentence-cloze`: it is absent from all scheduler pools.
 - Old remote packs: continue to decode and play; they simply produce fewer sentence cloze questions.
 - Old clients reading built-in/remote examples: already tolerate unknown or optional `example` fields.
+- Global auto-speak enabled: `sentence-cloze` still stays silent on question load and transition; only an explicit speaker-button tap pronounces the target answer word.
 
 ## 10. Telemetry / Logs
 
@@ -252,6 +260,7 @@ Optional debug logs may use these stable prefixes during development:
 - Setting row label: `句子填词`.
 - Setting row helper text: `在例句里选择正确单词`.
 - Candidate buttons keep the English option as their accessible label.
+- The speaker button remains accessible and manual-only for this question type.
 
 ## 12. Open Questions
 

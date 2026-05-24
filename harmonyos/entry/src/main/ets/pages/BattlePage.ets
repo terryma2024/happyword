@@ -741,7 +741,7 @@ struct BattlePage {
   }
 
   private maybeAutoSpeakCurrent(isRevealing: boolean): void {
-    if (!shouldAutoSpeak(this.autoSpeak, this.tts.isAvailable, isRevealing)) {
+    if (!shouldAutoSpeak(this.autoSpeak, this.tts.isAvailable, isRevealing, this.currentQuestionKind)) {
       return;
     }
     if (this.lastAnswerWord.length === 0) {

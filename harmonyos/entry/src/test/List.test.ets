@@ -60,6 +60,7 @@ import battleQuestionSchedulerTest from './BattleQuestionScheduler.test';
 import battleEngineTest from './BattleEngine.test';
 import battleRewardCalcTest from './BattleRewardCalc.test';
 import damageFloaterLabelTest from './DamageFloaterLabel.test';
+import pronunciationServiceTest from './PronunciationService.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -124,4 +125,5 @@ export default function testsuite() {
   battleEngineTest();
   battleRewardCalcTest();
   damageFloaterLabelTest();
+  pronunciationServiceTest();
 }

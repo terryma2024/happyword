@@ -1,5 +1,6 @@
 import { textToSpeech } from '@kit.CoreSpeechKit';
 import { BusinessError } from '@ohos.base';
+import { QuestionKind } from '../models/Question';
 
 /**
  * PronunciationService — thin wrapper around HarmonyOS CoreSpeechKit TTS
@@ -167,15 +168,27 @@ export class PronunciationService {
  * auto-play a word when:
  *   1. autoSpeak is enabled in GameConfig.
  *   2. The TTS service reports isAvailable.
- *   3. We are NOT currently inside the feedback window (`isRevealing`
+ *   3. The current question is not SentenceCloze. Sentence cloze uses
+ *      the English sentence itself as the prompt, so auto-pronouncing
+ *      the answer would spoil the blank. Manual speaker taps still
+ *      replay the word from BattlePage.
+ *   4. We are NOT currently inside the feedback window (`isRevealing`
  *      === true would mean crit/hurt audio is playing; overlapping
  *      TTS with that would muddle the soundscape).
  */
-export function shouldAutoSpeak(autoSpeakEnabled: boolean, ttsAvailable: boolean, isRevealing: boolean): boolean {
+export function shouldAutoSpeak(
+  autoSpeakEnabled: boolean,
+  ttsAvailable: boolean,
+  isRevealing: boolean,
+  questionKind: string = '',
+): boolean {
   if (!autoSpeakEnabled) {
     return false;
   }
   if (!ttsAvailable) {
+    return false;
+  }
+  if (questionKind === QuestionKind.SentenceCloze) {
     return false;
   }
   if (isRevealing) {

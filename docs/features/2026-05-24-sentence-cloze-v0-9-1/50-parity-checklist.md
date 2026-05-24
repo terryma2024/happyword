@@ -13,6 +13,7 @@
 | Challenge scheduler can select sentence cloze and can disable it. | [x] | [ ] | [ ] | `BattleQuestionScheduler.test.ets` |
 | Sentence cloze generator supports word and phrase matching rules from design §6.2. | [x] | [ ] | [ ] | `SentenceClozeGenerator.test.ets` |
 | Battle UI exposes `BattleSentenceClozePrompt`, `BattleSentenceClozeZh`, and option IDs. | [x] | [ ] | [ ] | `BattleFlow.ui.test.ets` targeted suite passed |
+| Sentence cloze suppresses automatic answer-word pronunciation while keeping manual speaker replay. | [x] | [ ] | [ ] | `PronunciationService.test.ets`; `BattleSpeakerButton` still calls manual speak |
 | Correct and wrong answers use normal Choice damage semantics. | [x] | [ ] | [ ] | `SentenceCloze` uses the existing 3-option `BattleEngine.submitAnswer` path |
 | All five built-in packs have examples for every word. | [x] | [ ] | [ ] | `scripts/validate-builtin-examples.mjs` passed |
 | Sparse remote packs without examples fall back without blocking battle. | [x] | [ ] | [ ] | `PlanQuestionSource.test.ets` fallback coverage |
