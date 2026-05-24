@@ -113,7 +113,7 @@ jobs:
 
       - name: Sync dependencies
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
-        run: uv sync --python 3.12 --dev
+        run: uv sync --python 3.12 --dev --default-index https://mirrors.cloud.tencent.com/pypi/simple
 
       - name: Reset shared staging E2E database
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
