@@ -23,15 +23,15 @@ does not reset shared staging data on every PR. Pushes to `main` run both Vercel
 `server-cd` and CloudBase `server-cloudbase-cd`.
 
 The shared CloudBase staging E2E job runs on the Beijing self-hosted runner. The
-runner must have system `jq` and `python3.12`; the workflow verifies
-those tools and uses `uv sync --python 3.12` against the Tencent Cloud PyPI
-mirror instead of `actions/setup-python`, because the runner OS is OpenCloudOS
-9.4 and cold-cache downloads from public PyPI are too slow. The upstream pytest
-job uploads `server/` as a short-lived artifact, and the Beijing E2E job
-downloads that artifact instead of fetching source directly from GitHub. The DB
-reset step uses `E2E_ADMIN_USER` / `E2E_ADMIN_PASS` to upsert the shared staging
-admin row before E2E runs, so the credentials do not depend on a CloudBase
-service restart.
+runner must have system `jq`, `python3.12`, and `/usr/local/bin/uv`; the workflow
+verifies those tools and uses `uv sync --python 3.12` against the Tencent Cloud
+PyPI mirror instead of `actions/setup-python` or `astral-sh/setup-uv` on the
+self-hosted runner, because the runner OS is OpenCloudOS 9.4 and external tool
+downloads are slow or flaky from Beijing. The upstream pytest job uploads
+`server/` as a short-lived artifact, and the Beijing E2E job downloads that
+artifact instead of fetching source directly from GitHub. The DB reset step uses
+`E2E_ADMIN_USER` / `E2E_ADMIN_PASS` to upsert the shared staging admin row before
+E2E runs, so the credentials do not depend on a CloudBase service restart.
 
 ## All secrets, in one table
 

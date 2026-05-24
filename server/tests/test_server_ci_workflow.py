@@ -36,8 +36,8 @@ def test_server_ci_uses_single_cloudbase_staging_e2e_environment() -> None:
     assert "happyword_pr_{pr}_e2e" not in workflow
     assert "  cloudbase_staging_e2e:" in workflow
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in workflow
-    assert "uv run --python 3.12 python scripts/e2e_reset_db.py" in workflow
-    assert "uv run --python 3.12 pytest -v -m e2e" in workflow
+    assert '"$UV_BIN" run --python 3.12 python scripts/e2e_reset_db.py' in workflow
+    assert '"$UV_BIN" run --python 3.12 pytest -v -m e2e' in workflow
 
 
 def test_cursor_autofix_action_is_removed() -> None:
@@ -85,6 +85,8 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "cancel-in-progress: false" in smoke_job
     assert "actions/upload-artifact@v6" in workflow
     assert "actions/download-artifact@v6" in smoke_job
+    assert "uses: astral-sh/setup-uv" not in smoke_job
+    assert "UV_BIN: /usr/local/bin/uv" in smoke_job
     assert "server-source-for-cloudbase-e2e" in workflow
     assert "/tarball/${GITHUB_SHA}" not in smoke_job
     assert "git fetch" not in smoke_job
@@ -95,7 +97,7 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
     assert "E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}" in reset_step
     assert "E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}" in reset_step
-    assert "uv run --python 3.12 pytest -v -m e2e" in smoke_step
+    assert '"$UV_BIN" run --python 3.12 pytest -v -m e2e' in smoke_step
 
 
 def test_legacy_vercel_e2e_skips_unusable_local_mongo_uri() -> None:

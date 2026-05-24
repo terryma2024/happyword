@@ -92,6 +92,7 @@ jobs:
       HAS_CLOUDBASE_STAGING_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL != '' }}
       HAS_E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI != '' }}
       HAS_E2E_STAGING_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME != '' }}
+      UV_BIN: /usr/local/bin/uv
     defaults:
       run:
         working-directory: server
@@ -121,14 +122,11 @@ jobs:
         run: |
           python3.12 --version
           jq --version
-
-      - name: Install uv
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
-        uses: astral-sh/setup-uv@v8.1.0
+          "$UV_BIN" --version
 
       - name: Sync dependencies
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
-        run: uv sync --python 3.12 --dev --default-index https://mirrors.cloud.tencent.com/pypi/simple
+        run: "$UV_BIN" sync --python 3.12 --dev --default-index https://mirrors.cloud.tencent.com/pypi/simple
 
       - name: Reset shared staging E2E database
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
@@ -137,7 +135,7 @@ jobs:
           E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
-        run: uv run --python 3.12 python scripts/e2e_reset_db.py
+        run: "$UV_BIN" run --python 3.12 python scripts/e2e_reset_db.py
 
       - name: Run CloudBase staging E2E
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
@@ -151,7 +149,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts
-          uv run --python 3.12 pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
+          "$UV_BIN" run --python 3.12 pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
 
       - name: Upload E2E pytest log
         if: ${{ always() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
