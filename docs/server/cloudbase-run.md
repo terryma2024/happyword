@@ -577,6 +577,10 @@ Beijing shared staging E2E target, configured 2026-05-23:
 - GitHub runner target: repository self-hosted runner
   `happyword-beijing-lighthouse` with labels
   `self-hosted`, `linux`, `x64`, `happyword-e2e-db`.
+- Runner toolchain: OpenCloudOS 9.4 with system `git`, `jq`, and `python3.12`.
+  The E2E workflow verifies these tools and lets `uv` create the Python 3.12
+  virtualenv locally instead of using `actions/setup-python`, which does not
+  provide a compatible hosted toolcache package for this OS image.
 - CI concurrency: `.github/workflows/server-ci.yml` uses one global
   `cloudbase-staging-e2e` concurrency group with `cancel-in-progress: false`.
   This serializes reset + E2E so two jobs cannot clear the shared staging DB at

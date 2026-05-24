@@ -36,8 +36,8 @@ def test_server_ci_uses_single_cloudbase_staging_e2e_environment() -> None:
     assert "happyword_pr_{pr}_e2e" not in workflow
     assert "  cloudbase_staging_e2e:" in workflow
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in workflow
-    assert "uv run python scripts/e2e_reset_db.py" in workflow
-    assert "uv run pytest -v -m e2e" in workflow
+    assert "uv run --python 3.12 python scripts/e2e_reset_db.py" in workflow
+    assert "uv run --python 3.12 pytest -v -m e2e" in workflow
 
 
 def test_cursor_autofix_action_is_removed() -> None:
@@ -88,7 +88,7 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
     assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
-    assert "uv run pytest -v -m e2e" in smoke_step
+    assert "uv run --python 3.12 pytest -v -m e2e" in smoke_step
 
 
 def test_legacy_vercel_e2e_skips_unusable_local_mongo_uri() -> None:

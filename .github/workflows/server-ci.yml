@@ -89,11 +89,12 @@ jobs:
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
         uses: actions/checkout@v5
 
-      - name: Set up Python
+      - name: Verify runner toolchain
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+        run: |
+          git --version
+          python3.12 --version
+          jq --version
 
       - name: Install uv
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
@@ -101,14 +102,14 @@ jobs:
 
       - name: Sync dependencies
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
-        run: uv sync --dev
+        run: uv sync --python 3.12 --dev
 
       - name: Reset shared staging E2E database
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
         env:
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
-        run: uv run python scripts/e2e_reset_db.py
+        run: uv run --python 3.12 python scripts/e2e_reset_db.py
 
       - name: Run CloudBase staging E2E
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
@@ -122,7 +123,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts
-          uv run pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
+          uv run --python 3.12 pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
 
       - name: Upload E2E pytest log
         if: ${{ always() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}

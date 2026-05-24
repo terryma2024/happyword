@@ -22,6 +22,11 @@ CloudBase staging service and the Beijing Lighthouse E2E database, opt-in so it
 does not reset shared staging data on every PR. Pushes to `main` run both Vercel
 `server-cd` and CloudBase `server-cloudbase-cd`.
 
+The shared CloudBase staging E2E job runs on the Beijing self-hosted runner. The
+runner must have system `git`, `jq`, and `python3.12`; the workflow verifies
+those tools and uses `uv sync --python 3.12` instead of `actions/setup-python`
+because the runner OS is OpenCloudOS 9.4.
+
 ## All secrets, in one table
 
 `Required` means the workflow's main job will not actually do work without it
