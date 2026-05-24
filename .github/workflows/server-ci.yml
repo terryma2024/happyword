@@ -126,7 +126,8 @@ jobs:
 
       - name: Sync dependencies
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
-        run: "$UV_BIN" sync --python 3.12 --dev --default-index https://mirrors.cloud.tencent.com/pypi/simple
+        run: |
+          "$UV_BIN" sync --python 3.12 --dev --default-index https://mirrors.cloud.tencent.com/pypi/simple
 
       - name: Reset shared staging E2E database
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
@@ -135,7 +136,8 @@ jobs:
           E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
-        run: "$UV_BIN" run --python 3.12 python scripts/e2e_reset_db.py
+        run: |
+          "$UV_BIN" run --python 3.12 python scripts/e2e_reset_db.py
 
       - name: Run CloudBase staging E2E
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
