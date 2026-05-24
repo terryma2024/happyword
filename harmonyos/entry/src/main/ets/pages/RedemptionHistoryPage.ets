@@ -10,6 +10,7 @@ import {
 } from '../services/RedemptionHistoryStore';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { requestPageOrientation } from '../utils/orientation';
 
 /**
  * V0.3.9: history of every successful wishlist redemption. Reached
@@ -27,7 +28,16 @@ struct RedemptionHistoryPage {
   @State private records: RedemptionRecord[] = [];
   private store: RedemptionHistoryStore = getRedemptionHistoryStore();
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'RedemptionHistoryPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.store.init(ctx)
@@ -41,6 +51,7 @@ struct RedemptionHistoryPage {
   }
 
   onPageShow(): void {
+    this.applyOrientationPolicy();
     this.records = this.store.list();
   }
 

@@ -158,6 +158,7 @@ import cool.happyword.wordmagic.ui.RedemptionHistoryScreen
 import cool.happyword.wordmagic.ui.ScanBindingScreen
 import cool.happyword.wordmagic.ui.TodayPlanScreen
 import cool.happyword.wordmagic.ui.WishlistScreen
+import cool.happyword.wordmagic.ui.topChromeSafeInsets
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -175,6 +176,20 @@ import cool.happyword.wordmagic.ui.components.DraftRow
 
 internal val HarmonyBattleHpRange = 1..10
 internal val HarmonyMonsterCountRange = 1..10
+internal const val ConfigLabelWidthDp = 120
+internal const val ConfigControlGapDp = 12
+internal const val ConfigControlColumnWidthDp = 220
+internal const val ConfigFormRowWidthDp = ConfigLabelWidthDp + ConfigControlGapDp + ConfigControlColumnWidthDp
+internal const val ConfigTimerOptionsPerRow = 3
+
+internal fun <T> configRows(items: List<T>, perRow: Int): List<List<T>> =
+    items.chunked(perRow)
+
+internal fun configQuestionTypeRows(typeIds: List<String>): List<List<String>> =
+    typeIds.map { listOf(it) }
+
+internal fun configTimerOptionRows(options: List<Int>): List<List<Int>> =
+    configRows(options, ConfigTimerOptionsPerRow)
 
 internal fun harmonyTimerChipBase(seconds: Int): String =
     if (seconds < 60) "${seconds}s" else "${seconds / 60}m"
@@ -202,8 +217,23 @@ internal fun ConfigCenteredFormRow(
             .padding(bottom = bottomPadding),
         contentAlignment = Alignment.Center,
     ) {
-        Row(verticalAlignment = verticalAlignment, content = content)
+        Row(
+            modifier = Modifier.width(ConfigFormRowWidthDp.dp),
+            horizontalArrangement = Arrangement.spacedBy(ConfigControlGapDp.dp),
+            verticalAlignment = verticalAlignment,
+            content = content,
+        )
     }
+}
+
+@Composable
+private fun ConfigLabel(text: String) {
+    Text(
+        text,
+        fontSize = 18.sp,
+        modifier = Modifier.width(ConfigLabelWidthDp.dp),
+        textAlign = TextAlign.End,
+    )
 }
 
 @Composable
@@ -214,14 +244,9 @@ internal fun HarmonyConfigStepperRow(
     range: IntRange,
     onValueChange: (Int) -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
+    ConfigCenteredFormRow(bottomPadding = 12.dp) {
+        ConfigLabel(label)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, fontSize = 18.sp, modifier = Modifier.width(120.dp))
             CenteredCircleTextButton(
                 text = "-",
                 onClick = { onValueChange((value - 1).coerceAtLeast(range.first)) },
@@ -316,8 +341,8 @@ internal fun ConfigScreen(
     }
 
     val ordered = BattleQuestionTypePolicy.defaultOrderedTypeIds
-    val row0 = ordered.take(2)
-    val row1 = ordered.drop(2)
+    val questionTypeRows = configQuestionTypeRows(ordered)
+    val timerOptionRows = configTimerOptionRows(GameConfig.timerPresets + listOf(0))
 
     Column(
         modifier = Modifier
@@ -328,6 +353,7 @@ internal fun ConfigScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .topChromeSafeInsets()
                 .padding(
                     horizontal = PageChromeInsets.bodyHorizontal,
                     vertical = PageChromeInsets.bodyTop,
@@ -385,48 +411,59 @@ internal fun ConfigScreen(
                 )
             }
             ConfigCenteredFormRow {
-                Text("倒计时", fontSize = 18.sp, modifier = Modifier.width(120.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    GameConfig.timerPresets.forEach { sec ->
-                        val selected = config.timerSeconds == sec
-                        Button(
-                            onClick = { onConfigChange(config.copy(timerSeconds = sec)) },
-                            modifier = Modifier
-                                .height(40.dp)
-                                .testTag("ConfigTimer${sec}s"),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (selected) Color(0xFFB45309) else Color(0xFFEAF2F8),
-                                contentColor = if (selected) Color.White else Color(0xFF1D4ED8),
-                            ),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            shape = RoundedCornerShape(50),
-                        ) {
-                            Text(harmonyTimerChipLabel(sec, config.timerSeconds), fontSize = 16.sp)
+                ConfigLabel("倒计时")
+                Column(
+                    modifier = Modifier.width(ConfigControlColumnWidthDp.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.Start,
+                ) {
+                    timerOptionRows.forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            row.forEach { sec ->
+                                if (sec > 0) {
+                                    val selected = config.timerSeconds == sec
+                                    Button(
+                                        onClick = { onConfigChange(config.copy(timerSeconds = sec)) },
+                                        modifier = Modifier
+                                            .height(40.dp)
+                                            .testTag("ConfigTimer${sec}s"),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (selected) Color(0xFFB45309) else Color(0xFFEAF2F8),
+                                            contentColor = if (selected) Color.White else Color(0xFF1D4ED8),
+                                        ),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                        shape = RoundedCornerShape(50),
+                                    ) {
+                                        Text(harmonyTimerChipLabel(sec, config.timerSeconds), fontSize = 16.sp)
+                                    }
+                                } else {
+                                    val customSelected = config.timerSeconds !in GameConfig.timerPresets
+                                    Button(
+                                        onClick = {
+                                            customTimerText = "${config.timerSeconds}"
+                                            customTimerError = ""
+                                            showCustomTimerDialog = true
+                                        },
+                                        modifier = Modifier
+                                            .height(40.dp)
+                                            .testTag("ConfigTimerCustom"),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (customSelected) Color(0xFFB45309) else Color(0xFFEAF2F8),
+                                            contentColor = if (customSelected) Color.White else Color(0xFF1D4ED8),
+                                        ),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                        shape = RoundedCornerShape(50),
+                                    ) {
+                                        Text(harmonyCustomTimerChipLabel(config.timerSeconds), fontSize = 16.sp)
+                                    }
+                                }
+                            }
                         }
-                    }
-                    val customSelected = config.timerSeconds !in GameConfig.timerPresets
-                    Button(
-                        onClick = {
-                            customTimerText = "${config.timerSeconds}"
-                            customTimerError = ""
-                            showCustomTimerDialog = true
-                        },
-                        modifier = Modifier
-                            .height(40.dp)
-                            .testTag("ConfigTimerCustom"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (customSelected) Color(0xFFB45309) else Color(0xFFEAF2F8),
-                            contentColor = if (customSelected) Color.White else Color(0xFF1D4ED8),
-                        ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                        shape = RoundedCornerShape(50),
-                    ) {
-                        Text(harmonyCustomTimerChipLabel(config.timerSeconds), fontSize = 16.sp)
                     }
                 }
             }
             ConfigCenteredFormRow {
-                Text("发音播放", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                ConfigLabel("发音播放")
                 Button(
                     onClick = { onConfigChange(config.copy(autoPronunciation = !config.autoPronunciation)) },
                     modifier = Modifier
@@ -447,48 +484,31 @@ internal fun ConfigScreen(
                 }
             }
             ConfigCenteredFormRow(bottomPadding = 4.dp, verticalAlignment = Alignment.Top) {
-                Text("题型选择", fontSize = 18.sp, modifier = Modifier.width(120.dp))
-                Column {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row0.forEach { typeId ->
-                            val selected = isTypeOn(typeId)
-                            Button(
-                                onClick = { toggleQuestionType(typeId) },
-                                modifier = Modifier
-                                    .height(40.dp)
-                                    .testTag("ConfigQuestionType_$typeId"),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (selected) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
-                                    contentColor = if (selected) Color(0xFF7C2D12) else Color(0xFF4B5563),
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                border = if (selected) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            ) {
-                                Text(chipLabel(typeId, selected), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(top = 8.dp),
-                    ) {
-                        row1.forEach { typeId ->
-                            val selected = isTypeOn(typeId)
-                            Button(
-                                onClick = { toggleQuestionType(typeId) },
-                                modifier = Modifier
-                                    .height(40.dp)
-                                    .testTag("ConfigQuestionType_$typeId"),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (selected) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
-                                    contentColor = if (selected) Color(0xFF7C2D12) else Color(0xFF4B5563),
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                border = if (selected) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            ) {
-                                Text(chipLabel(typeId, selected), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                ConfigLabel("题型选择")
+                Column(
+                    modifier = Modifier.width(ConfigControlColumnWidthDp.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.Start,
+                ) {
+                    questionTypeRows.forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { typeId ->
+                                val selected = isTypeOn(typeId)
+                                Button(
+                                    onClick = { toggleQuestionType(typeId) },
+                                    modifier = Modifier
+                                        .height(40.dp)
+                                        .testTag("ConfigQuestionType_$typeId"),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (selected) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
+                                        contentColor = if (selected) Color(0xFF7C2D12) else Color(0xFF4B5563),
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = if (selected) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                ) {
+                                    Text(chipLabel(typeId, selected), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -507,10 +527,10 @@ internal fun ConfigScreen(
                 )
             }
             ConfigCenteredFormRow {
-                Text("我的词包", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                ConfigLabel("我的词包")
                 Row(
                     modifier = Modifier
-                        .width(220.dp)
+                        .width(ConfigControlColumnWidthDp.dp)
                         .height(40.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFFEAF2F8))
@@ -531,11 +551,11 @@ internal fun ConfigScreen(
                 }
             }
             ConfigCenteredFormRow(bottomPadding = 4.dp) {
-                Text("投诉与举报", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                ConfigLabel("投诉与举报")
                 Button(
                     onClick = onReportChannel,
                     modifier = Modifier
-                        .width(220.dp)
+                        .width(ConfigControlColumnWidthDp.dp)
                         .height(40.dp)
                         .testTag("ConfigReportChannelButton"),
                     colors = ButtonDefaults.buttonColors(
@@ -559,12 +579,12 @@ internal fun ConfigScreen(
                 textAlign = TextAlign.Center,
             )
             ConfigCenteredFormRow {
-                Text("家长账号", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                ConfigLabel("家长账号")
                 if (cloudBound) {
                     Button(
                         onClick = onCloudBinding,
                         modifier = Modifier
-                            .width(220.dp)
+                            .width(ConfigControlColumnWidthDp.dp)
                             .height(40.dp)
                             .testTag("ConfigCloudBindingButton"),
                         colors = ButtonDefaults.buttonColors(
@@ -585,7 +605,7 @@ internal fun ConfigScreen(
                     Button(
                         onClick = onCloudBinding,
                         modifier = Modifier
-                            .width(220.dp)
+                            .width(ConfigControlColumnWidthDp.dp)
                             .height(40.dp)
                             .testTag("ConfigCloudBindingButton"),
                         colors = ButtonDefaults.buttonColors(
@@ -601,11 +621,11 @@ internal fun ConfigScreen(
             }
             if (cloudBound) {
                 ConfigCenteredFormRow {
-                    Text("家长密码", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                    ConfigLabel("家长密码")
                     Button(
                         onClick = onParentPinSetup,
                         modifier = Modifier
-                            .width(220.dp)
+                            .width(ConfigControlColumnWidthDp.dp)
                             .height(40.dp)
                             .testTag("ConfigParentPinButton"),
                         colors = ButtonDefaults.buttonColors(
@@ -625,12 +645,12 @@ internal fun ConfigScreen(
                     modifier = Modifier.testTag("ConfigCloudSyncRow"),
                     bottomPadding = 8.dp,
                 ) {
-                    Text("学习记录", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                    ConfigLabel("学习记录")
                     OutlinedButton(
                         onClick = onLearningSync,
                         enabled = !learningSyncBusy,
                         modifier = Modifier
-                            .width(220.dp)
+                            .width(ConfigControlColumnWidthDp.dp)
                             .height(40.dp)
                             .testTag("ConfigCloudSyncButton"),
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -668,11 +688,11 @@ internal fun ConfigScreen(
                 }
                 if (parentPinReady) {
                     ConfigCenteredFormRow {
-                        Text("管理后台", fontSize = 18.sp, modifier = Modifier.width(120.dp))
+                        ConfigLabel("管理后台")
                         Button(
                             onClick = onParentAdmin,
                             modifier = Modifier
-                                .width(220.dp)
+                                .width(ConfigControlColumnWidthDp.dp)
                                 .height(40.dp)
                                 .testTag("ConfigParentAdminButton"),
                             colors = ButtonDefaults.buttonColors(

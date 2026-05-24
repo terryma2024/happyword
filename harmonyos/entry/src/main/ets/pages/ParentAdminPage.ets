@@ -13,12 +13,7 @@ import {
 } from '../services/ParentApiClient';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
-import {
-  IOrientationAdapter,
-  RealOrientationAdapter,
-  lockPortrait,
-  restoreAutoLandscape,
-} from '../utils/orientation';
+import { requestPageOrientation } from '../utils/orientation';
 import {
   LessonImagePicker,
   RealLessonCameraAdapter,
@@ -37,9 +32,9 @@ import { PageTopChrome } from '../components/PageTopChrome';
 /**
  * ParentAdminPage — V0.5.8.
  *
- * Open parent admin console (no login UI). Stays in portrait orientation
- * for the duration of the page; restores AUTO_ROTATION_LANDSCAPE when
- * the user backs out to ConfigPage. The login flow + JWT plumbing was
+ * Open parent admin console (no login UI). Phone layouts stay portrait;
+ * pad layouts release to full auto-rotation via the shared page policy.
+ * The login flow + JWT plumbing was
  * removed in V0.5.8 C2 and will return in V0.6 as a per-family token.
  *
  * Page surfaces:
@@ -88,9 +83,6 @@ struct ParentAdminPage {
   private serverBaseUrl: string = effectiveServerBaseUrl();
   private cloudCreds: CloudCredentials = new CloudCredentials();
   private client: ParentApiClient = ParentApiClient.withRealHttp(this.serverBaseUrl);
-  private orientation: IOrientationAdapter = new RealOrientationAdapter(
-    this.getUIContext().getHostContext() as common.UIAbilityContext,
-  );
   private picker: LessonImagePicker = new LessonImagePicker(
     new RealPhotoPickerAdapter(this.getUIContext().getHostContext() as common.UIAbilityContext),
     new RealLessonCameraAdapter(this.getUIContext().getHostContext() as common.UIAbilityContext),
@@ -102,10 +94,16 @@ struct ParentAdminPage {
   // limit. See docstring on `RealImageCompressor` for the strategy.
   private compressor: IImageCompressor = new RealImageCompressor();
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'ParentAdminPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
-    lockPortrait(this.orientation).catch((err: BusinessError): void => {
-      console.error(`ParentAdminPage.lockPortrait failed: ${JSON.stringify(err)}`);
-    });
+    this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.cloudCreds.init(ctx).then((): Promise<void> => this.bootstrapParentAdminNetwork())
       .catch((err: BusinessError): void => {
@@ -120,10 +118,7 @@ struct ParentAdminPage {
   }
 
   onPageShow(): void {
-    // Re-lock on pop-back from LessonDraftReviewPage; idempotent.
-    lockPortrait(this.orientation).catch((err: BusinessError): void => {
-      console.error(`ParentAdminPage.lockPortrait(onPageShow) failed: ${JSON.stringify(err)}`);
-    });
+    this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.cloudCreds.init(ctx).then((): Promise<void> => this.resyncLessonFamilyAndDrafts())
       .catch((err: BusinessError): void => {
@@ -139,9 +134,6 @@ struct ParentAdminPage {
       clearTimeout(this.toastTimer);
       this.toastTimer = -1;
     }
-    restoreAutoLandscape(this.orientation).catch((err: BusinessError): void => {
-      console.error(`ParentAdminPage.restoreAutoLandscape failed: ${JSON.stringify(err)}`);
-    });
   }
 
   private async bootstrapParentAdminNetwork(): Promise<void> {

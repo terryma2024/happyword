@@ -5,6 +5,7 @@ import {
   NicknameValidation,
   buildChildAvatarEmojiChoices,
   CHILD_AVATAR_EMOJI_BACKUP_POOL,
+  CHILD_AVATAR_EMOJI_WRAP_ENABLED,
 } from '../main/ets/components/EditChildNicknameDialog';
 
 export default function editChildNicknameDialogTest(): void {
@@ -65,6 +66,10 @@ export default function editChildNicknameDialogTest(): void {
 
     it('backupPoolLargeEnoughForDistinctFill', 0, () => {
       expect(CHILD_AVATAR_EMOJI_BACKUP_POOL.length).assertLargerOrEqual(9);
+    });
+
+    it('usesWrappingAvatarChoiceLayout', 0, () => {
+      expect(CHILD_AVATAR_EMOJI_WRAP_ENABLED).assertTrue();
     });
   });
 }

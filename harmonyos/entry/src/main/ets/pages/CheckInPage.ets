@@ -4,6 +4,7 @@ import { CheckInSnapshot } from '../models/CheckInSnapshot';
 import { CheckInStore, getCheckInStore } from '../services/CheckInStore';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { requestPageOrientation } from '../utils/orientation';
 import {
   buildCheckInMonthWeeks,
   CheckInDayCell,
@@ -26,7 +27,16 @@ struct CheckInPage {
   @State private displayedMonthMs: number = monthAnchorMs(Date.now());
   @State private visibleWeeks: CheckInWeekRow[] = buildCheckInMonthWeeks(monthAnchorMs(Date.now()), []);
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'CheckInPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.store.init(ctx).then((): void => {
@@ -38,6 +48,7 @@ struct CheckInPage {
   }
 
   onPageShow(): void {
+    this.applyOrientationPolicy();
     this.refreshFromStore();
   }
 

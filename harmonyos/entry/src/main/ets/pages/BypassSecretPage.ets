@@ -1,5 +1,7 @@
 import { BusinessError } from '@ohos.base';
+import { common } from '@kit.AbilityKit';
 import { loadBypassSecret, saveBypassSecret } from '../services/BackendEnv';
+import { requestPageOrientation } from '../utils/orientation';
 
 @Entry
 @Component
@@ -7,7 +9,16 @@ struct BypassSecretPage {
   @State private secret: string = '';
   @State private errorMessage: string = '';
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'BypassSecretPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     loadBypassSecret().then((s: string): void => {
       if (s.length > 0) {
         this.secret = s;
@@ -15,6 +26,10 @@ struct BypassSecretPage {
     }).catch((err: BusinessError): void => {
       console.error(`BypassSecretPage.load failed: ${JSON.stringify(err)}`);
     });
+  }
+
+  onPageShow(): void {
+    this.applyOrientationPolicy();
   }
 
   build(): void {
@@ -87,4 +102,3 @@ struct BypassSecretPage {
       SafeAreaEdge.START, SafeAreaEdge.END]);
   }
 }
-

@@ -22,6 +22,7 @@ import {
 } from '../components/AddCustomWishDialog';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { requestPageOrientation } from '../utils/orientation';
 
 /** Total time the GiftBox modal stays visible: anim cycle ~1.68s + 1.5s hold. */
 const GIFTBOX_MODAL_TOTAL_MS: number = 3180;
@@ -60,7 +61,16 @@ struct WishlistPage {
   private pinDialog: CustomDialogController | null = null;
   private addDialog: CustomDialogController | null = null;
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'WishlistPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     Promise.all<void>([
@@ -79,6 +89,7 @@ struct WishlistPage {
   }
 
   onPageShow(): void {
+    this.applyOrientationPolicy();
     this.coins.beginToday(Date.now());
     this.refresh();
   }

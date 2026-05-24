@@ -15,6 +15,7 @@ import {
 } from '../services/TodayPlanService';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { requestPageOrientation } from '../utils/orientation';
 
 /**
  * V0.4.4 — read-only daily plan page. Shows the kid (and any parent
@@ -43,7 +44,16 @@ struct TodayPlanPage {
   @State private doneCount: number = 0;
   @State private loaded: boolean = false;
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'TodayPlanPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
       const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
@@ -60,6 +70,10 @@ struct TodayPlanPage {
       console.error(`TodayPlanPage: bootstrap failed: ${JSON.stringify(err)}`);
       this.loaded = true;
     });
+  }
+
+  onPageShow(): void {
+    this.applyOrientationPolicy();
   }
 
   private populateView(repo: WordRepository, recorder: LearningRecorder): void {

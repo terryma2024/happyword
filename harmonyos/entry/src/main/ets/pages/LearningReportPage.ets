@@ -14,6 +14,7 @@ import {
 } from '../services/PackHomeIntegration';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { requestPageOrientation } from '../utils/orientation';
 
 /**
  * V0.6.7.8 — local learning report. Pure read-only view of:
@@ -60,7 +61,16 @@ struct LearningReportPage {
    */
   @State private shortEdgeVp: number = 360;
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'LearningReportPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     try {
       const d: display.Display = display.getDefaultDisplaySync();
       const widthVp: number = this.getUIContext().px2vp(d.width);
@@ -94,6 +104,10 @@ struct LearningReportPage {
       console.error(`LearningReportPage: bootstrap or loadHomeIntegration failed: ${JSON.stringify(err)}`);
       this.loaded = true;
     });
+  }
+
+  onPageShow(): void {
+    this.applyOrientationPolicy();
   }
 
   private isPad(): boolean {

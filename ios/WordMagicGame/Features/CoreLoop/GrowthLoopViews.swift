@@ -1,5 +1,11 @@
 import SwiftUI
 
+enum PackManagerLayoutRules {
+    static let packTitleFontSize: CGFloat = 20
+    static let packTitleLineLimit = 2
+    static let packTitleMinimumScaleFactor: CGFloat = 0.88
+}
+
 struct PackManagerView: View {
     @ObservedObject var coordinator: AppCoordinator
 
@@ -65,7 +71,9 @@ struct PackManagerView: View {
             }
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .padding(.vertical, 14)
+        .padding(.top, AppTheme.portraitPageTopPadding)
+        .padding(.bottom, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
     }
 
@@ -92,11 +100,15 @@ struct PackManagerView: View {
                 .accessibilityIdentifier("PackSourceTag_\(pack.id)")
             VStack(alignment: .leading, spacing: 4) {
                 Text(pack.title)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: PackManagerLayoutRules.packTitleFontSize, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
+                    .lineLimit(PackManagerLayoutRules.packTitleLineLimit)
+                    .minimumScaleFactor(PackManagerLayoutRules.packTitleMinimumScaleFactor)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("PackLabel_\(pack.id)")
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
             if isActive {
                 Button("📌 \(isPinned ? "已固定" : "固定")") {
                     coordinator.togglePackPin(pack)
@@ -664,7 +676,8 @@ struct RedemptionHistoryView: View {
             }
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .padding(.vertical, 22)
+        .padding(.top, AppTheme.portraitPageTopPadding)
+        .padding(.bottom, 22)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
     }
@@ -749,7 +762,9 @@ struct TodayPlanView: View {
             }
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .padding(.vertical, 16)
+        .padding(.top, AppTheme.portraitPageTopPadding)
+        .padding(.bottom, AppTheme.portraitPageBottomPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
     }
 
@@ -858,7 +873,9 @@ struct CheckInCalendarView: View {
             }
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .padding(.vertical, 16)
+        .padding(.top, AppTheme.portraitPageTopPadding)
+        .padding(.bottom, AppTheme.portraitPageBottomPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
     }
 
@@ -992,7 +1009,9 @@ struct LearningReportView: View {
             }
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .padding(.vertical, 16)
+        .padding(.top, AppTheme.portraitPageTopPadding)
+        .padding(.bottom, AppTheme.portraitPageBottomPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
     }
 

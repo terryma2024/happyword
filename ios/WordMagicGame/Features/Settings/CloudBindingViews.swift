@@ -2,6 +2,23 @@ import PhotosUI
 import SwiftUI
 import VisionKit
 
+enum ChildProfileEditRules {
+    static let avatarWrapEnabled = true
+    private static let backupPool = ["🦄", "🐻", "🐰", "🦁", "🐼", "🦊", "🐶", "🐱", "🐨", "🐧"]
+
+    static func avatarChoices(initial: String) -> [String] {
+        let first = initial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "🦄" : initial
+        var out: [String] = []
+        for emoji in [first] + backupPool where !emoji.isEmpty && !out.contains(emoji) {
+            out.append(emoji)
+            if out.count == 10 {
+                break
+            }
+        }
+        return out
+    }
+}
+
 struct ScanBindingView: View {
     @ObservedObject var coordinator: AppCoordinator
     @State private var shortCode = ""
@@ -54,9 +71,10 @@ struct ScanBindingView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, AppTheme.pageHorizontalPadding)
-            .padding(.vertical, 20)
+            .padding(.top, AppTheme.portraitPageTopPadding)
+            .padding(.bottom, 20)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
         .overlay {
             if isDecodingGalleryQR {
@@ -335,6 +353,11 @@ struct BoundDeviceInfoView: View {
     @State private var pin = ""
     @State private var isUnbindDialogPresented = false
     @State private var isUnbinding = false
+    @State private var isEditDialogPresented = false
+    @State private var editNickname = ""
+    @State private var editAvatarEmoji = "🦄"
+    @State private var editError = ""
+    @State private var isSavingProfile = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -353,7 +376,7 @@ struct BoundDeviceInfoView: View {
 
                 Color.clear.frame(width: 54, height: 54)
             }
-            .padding(.top, 56)
+            .padding(.top, AppTheme.portraitPageTopPadding)
             .padding(.bottom, 12)
 
             ScrollView {
@@ -405,11 +428,14 @@ struct BoundDeviceInfoView: View {
             .scrollIndicators(.hidden)
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
         .overlay {
             if isUnbindDialogPresented {
                 unbindDialog
+            }
+            if isEditDialogPresented {
+                editChildProfileDialog
             }
         }
     }
@@ -443,7 +469,10 @@ struct BoundDeviceInfoView: View {
                 .minimumScaleFactor(0.65)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button("✏️ 编辑") {
-                coordinator.openChildProfile()
+                editNickname = credentials.nickname
+                editAvatarEmoji = credentials.avatarEmoji.isEmpty ? "🦄" : credentials.avatarEmoji
+                editError = ""
+                isEditDialogPresented = true
             }
             .font(.headline.weight(.heavy))
             .foregroundStyle(AppTheme.navy)
@@ -452,6 +481,133 @@ struct BoundDeviceInfoView: View {
             .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+    }
+
+    private var editChildProfileDialog: some View {
+        ZStack {
+            Color.black.opacity(0.24)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                Text("修改孩子的名字")
+                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
+                    .accessibilityIdentifier("EditChildNicknameDialogTitle")
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("名字")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    TextField("宝贝", text: $editNickname)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .disabled(isSavingProfile)
+                        .accessibilityIdentifier("学习者名字")
+                        .onChange(of: editNickname) { _, value in
+                            editNickname = String(value.prefix(32))
+                            editError = ""
+                        }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("头像")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 44, maximum: 44), spacing: 10, alignment: .leading)],
+                        alignment: .leading,
+                        spacing: 10
+                    ) {
+                        ForEach(ChildProfileEditRules.avatarChoices(initial: editAvatarEmoji), id: \.self) { emoji in
+                            Button {
+                                editAvatarEmoji = emoji
+                            } label: {
+                                Text(emoji)
+                                    .font(.system(size: 22))
+                                    .frame(width: 44, height: 44)
+                                    .background(
+                                        editAvatarEmoji == emoji
+                                            ? Color(red: 0.80, green: 0.91, blue: 1.0)
+                                            : Color(red: 0.95, green: 0.95, blue: 0.96),
+                                        in: RoundedRectangle(cornerRadius: 12)
+                                    )
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(
+                                                editAvatarEmoji == emoji
+                                                    ? Color(red: 0.27, green: 0.48, blue: 0.62)
+                                                    : Color(red: 0.88, green: 0.88, blue: 0.88),
+                                                lineWidth: editAvatarEmoji == emoji ? 2 : 1
+                                            )
+                                    }
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isSavingProfile)
+                            .accessibilityIdentifier("EditChildNicknameEmoji_\(emoji)")
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if !editError.isEmpty {
+                    Text(editError)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(AppTheme.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("EditChildNicknameError")
+                }
+
+                HStack(spacing: 16) {
+                    Button("取消") {
+                        isEditDialogPresented = false
+                    }
+                    .font(.headline.weight(.heavy))
+                    .foregroundStyle(AppTheme.navy)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Color(red: 0.95, green: 0.95, blue: 0.96), in: Capsule())
+                    .buttonStyle(.plain)
+                    .disabled(isSavingProfile)
+                    .accessibilityIdentifier("EditChildNicknameCancelButton")
+
+                    Button(isSavingProfile ? "保存中…" : "保存") {
+                        saveChildProfile()
+                    }
+                    .font(.headline.weight(.heavy))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(AppTheme.red, in: Capsule())
+                    .buttonStyle(.plain)
+                    .disabled(isSavingProfile)
+                    .accessibilityIdentifier("保存名字")
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 24)
+            .frame(maxWidth: 420)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 20))
+            .padding(.horizontal, 24)
+            .accessibilityIdentifier("EditChildNicknameDialog")
+        }
+    }
+
+    private func saveChildProfile() {
+        let trimmed = editNickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            editError = "请输入孩子的名字"
+            return
+        }
+        isSavingProfile = true
+        Task {
+            await coordinator.updateChildProfile(nickname: trimmed, avatarEmoji: editAvatarEmoji)
+            isSavingProfile = false
+            if coordinator.bindingMessage.hasPrefix("已保存") {
+                isEditDialogPresented = false
+            } else {
+                editError = coordinator.bindingMessage.isEmpty ? "保存失败" : coordinator.bindingMessage
+            }
+        }
     }
 
     private func accountManagementButton(_ credentials: CloudCredentials) -> some View {

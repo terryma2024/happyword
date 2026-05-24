@@ -77,6 +77,12 @@ final class LocalGrowthTests: XCTestCase {
         XCTAssertFalse(store.activePackIds.contains("music"))
     }
 
+    func testPackManagerTitleTypographyFavorsLongNames() {
+        XCTAssertLessThanOrEqual(PackManagerLayoutRules.packTitleFontSize, 20)
+        XCTAssertEqual(PackManagerLayoutRules.packTitleLineLimit, 2)
+        XCTAssertLessThanOrEqual(PackManagerLayoutRules.packTitleMinimumScaleFactor, 0.9)
+    }
+
     @MainActor
     func testCoinWishlistAndRedemptionHistoryLocalLoop() {
         let coins = CoinAccount(balance: 0)

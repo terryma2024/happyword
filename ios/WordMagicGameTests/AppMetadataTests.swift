@@ -49,8 +49,13 @@ final class AppMetadataTests: XCTestCase {
     }
 
     func testVersionMatchesHarmonyOSBaseline() {
-        XCTAssertEqual(AppMetadata.harmonyVersionName, "0.7.0")
-        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_007_000)
+        XCTAssertEqual(AppMetadata.harmonyVersionName, "0.9.2")
+        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_009_002)
+    }
+
+    func testPortraitTopChromeSpacingIsCompact() {
+        XCTAssertEqual(AppTheme.portraitPageTopPadding, 4)
+        XCTAssertEqual(AppTheme.portraitPageBottomPadding, 16)
     }
 
     func testAppForcesLightAppearance() throws {
@@ -60,6 +65,31 @@ final class AppMetadataTests: XCTestCase {
         let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
 
         XCTAssertEqual(plist?["UIUserInterfaceStyle"] as? String, "Light")
+    }
+
+    @MainActor
+    func testPhoneOrientationPolicyMatchesHarmonyV092Rules() {
+        XCTAssertEqual(OrientationController.mask(for: .home, idiom: .phone), .landscape)
+        XCTAssertEqual(OrientationController.mask(for: .battle, idiom: .phone), .landscape)
+        XCTAssertEqual(OrientationController.mask(for: .result, idiom: .phone), .landscape)
+        XCTAssertEqual(OrientationController.mask(for: .monsterCodex, idiom: .phone), .landscape)
+        XCTAssertEqual(OrientationController.mask(for: .devMenu, idiom: .phone), .landscape)
+        XCTAssertEqual(OrientationController.mask(for: .bypassSecret, idiom: .phone), .landscape)
+        XCTAssertEqual(OrientationController.mask(for: .wishlist, idiom: .phone), .landscape)
+
+        XCTAssertEqual(OrientationController.mask(for: .config, idiom: .phone), .portrait)
+        XCTAssertEqual(OrientationController.mask(for: .todayPlan, idiom: .phone), .portrait)
+        XCTAssertEqual(OrientationController.mask(for: .packManager, idiom: .phone), .portrait)
+        XCTAssertEqual(OrientationController.mask(for: .boundDeviceInfo, idiom: .phone), .portrait)
+        XCTAssertEqual(OrientationController.mask(for: .parentAdmin, idiom: .phone), .portrait)
+        XCTAssertEqual(OrientationController.mask(for: .lessonReview, idiom: .phone), .portrait)
+    }
+
+    @MainActor
+    func testPadOrientationPolicyReleasesAllPagesToDeviceRotation() {
+        XCTAssertEqual(OrientationController.mask(for: .battle, idiom: .pad), .all)
+        XCTAssertEqual(OrientationController.mask(for: .config, idiom: .pad), .all)
+        XCTAssertEqual(OrientationController.mask(for: .parentAdmin, idiom: .pad), .all)
     }
 
     func testAppIconAssetReferencesHarmonyLauncherImage() throws {

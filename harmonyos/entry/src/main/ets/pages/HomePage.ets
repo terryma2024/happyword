@@ -39,6 +39,7 @@ import {
   TERMS_OF_SERVICE_URL,
 } from '../services/CompliancePolicy';
 import { openUrlInSystemBrowser } from '../services/SystemBrowser';
+import { requestPageOrientation } from '../utils/orientation';
 import {
   HomeIntegrationBundle,
   fallbackPacks,
@@ -120,7 +121,16 @@ struct HomePage {
   @State private privacyConsentVisible: boolean = false;
   private privacyConsentSaving: boolean = false;
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'HomePage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.coins.init(ctx).then((): void => {
       this.coins.beginToday(Date.now());
@@ -208,6 +218,7 @@ struct HomePage {
   }
 
   onPageShow(): void {
+    this.applyOrientationPolicy();
     // ArkUI re-invokes onPageShow when navigating back from a pushed
     // page, but not aboutToAppear; refreshing here makes the button
     // light up the instant the battle ends.

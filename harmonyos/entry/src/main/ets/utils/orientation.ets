@@ -1,26 +1,95 @@
+import display from '@ohos.display';
 import { window } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
 
 /**
- * V0.5.8: per-window portrait orientation lock for the parent admin
- * flow. Battle and home stay landscape (the app default), but the
- * admin pages prefer portrait because they are vertical lists of
- * forms / words.
+ * Runtime page orientation policy.
  *
- * Lifecycle policy (see spec §6.2):
- *   - ParentAdminPage:        aboutToAppear + onPageShow → lockPortrait
- *                             aboutToDisappear           → restoreAutoLandscape
- *   - LessonDraftReviewPage:  aboutToAppear + onPageShow → lockPortrait
- *                             (no restore — outer page handles it)
+ * Phone:
+ *   - listed child/game/debug pages stay landscape.
+ *   - listed list/form/parent pages stay portrait.
+ * Pad:
+ *   - every page releases to full auto-rotation.
  *
  * Helpers swallow adapter errors so a buggy emulator or runtime
- * denial still leaves the page usable (just in landscape).
+ * denial still leaves the page usable.
  */
 
-export type OrientationName = 'PORTRAIT' | 'AUTO_ROTATION_LANDSCAPE';
+export type OrientationName = 'PORTRAIT' | 'AUTO_ROTATION_LANDSCAPE' | 'AUTO_ROTATION';
+
+export const PAD_SHORT_EDGE_BREAKPOINT_VP: number = 600;
+const PHONE_SHORT_EDGE_FALLBACK_VP: number = 360;
+
+const PHONE_PORTRAIT_PAGES: string[] = [
+  'ConfigPage',
+  'TodayPlanPage',
+  'CheckInPage',
+  'PackManagerPage',
+  'LearningReportPage',
+  'RedemptionHistoryPage',
+  'ParentPinSetupPage',
+  'ScanBindingPage',
+  'BoundDeviceInfoPage',
+  'ParentAdminPage',
+  'LessonDraftReviewPage',
+];
 
 export interface IOrientationAdapter {
   setPreferredOrientation(name: OrientationName): Promise<void>;
+}
+
+function pageNameIn(list: string[], pageName: string): boolean {
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] === pageName) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function desiredOrientationForPage(pageName: string, shortEdgeVp: number): OrientationName {
+  if (shortEdgeVp >= PAD_SHORT_EDGE_BREAKPOINT_VP) {
+    return 'AUTO_ROTATION';
+  }
+  if (pageNameIn(PHONE_PORTRAIT_PAGES, pageName)) {
+    return 'PORTRAIT';
+  }
+  return 'AUTO_ROTATION_LANDSCAPE';
+}
+
+export function readCurrentShortEdgeVp(pxToVp: (px: number) => number): number {
+  try {
+    const d: display.Display = display.getDefaultDisplaySync();
+    const widthVp: number = pxToVp(d.width);
+    const heightVp: number = pxToVp(d.height);
+    return Math.min(widthVp, heightVp);
+  } catch (_e) {
+    return PHONE_SHORT_EDGE_FALLBACK_VP;
+  }
+}
+
+export async function applyPageOrientation(
+  adapter: IOrientationAdapter,
+  pageName: string,
+  shortEdgeVp: number,
+): Promise<void> {
+  try {
+    await adapter.setPreferredOrientation(desiredOrientationForPage(pageName, shortEdgeVp));
+  } catch (_e) {
+    // Orientation is best-effort; pages remain usable if the runtime denies it.
+  }
+}
+
+export function requestPageOrientation(
+  ctx: common.UIAbilityContext,
+  pageName: string,
+  pxToVp: (px: number) => number,
+): void {
+  const adapter: IOrientationAdapter = new RealOrientationAdapter(ctx);
+  const shortEdgeVp: number = readCurrentShortEdgeVp(pxToVp);
+  applyPageOrientation(adapter, pageName, shortEdgeVp).catch((_e: Error): void => {
+    // applyPageOrientation already swallows runtime orientation failures.
+  });
 }
 
 export class RealOrientationAdapter implements IOrientationAdapter {
@@ -39,7 +108,9 @@ export class RealOrientationAdapter implements IOrientationAdapter {
       const win: window.Window = await window.getLastWindow(this.ctx);
       const target: window.Orientation = name === 'PORTRAIT'
         ? window.Orientation.PORTRAIT
-        : window.Orientation.AUTO_ROTATION_LANDSCAPE;
+        : name === 'AUTO_ROTATION'
+          ? window.Orientation.AUTO_ROTATION
+          : window.Orientation.AUTO_ROTATION_LANDSCAPE;
       try {
         await win.setPreferredOrientation(target);
       } catch (e) {

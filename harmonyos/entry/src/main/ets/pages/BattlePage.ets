@@ -61,6 +61,7 @@ import { DamageFloaterLabel } from '../components/DamageFloaterLabel';
 import { MagicProjectile } from '../components/MagicProjectile';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
+import { requestPageOrientation } from '../utils/orientation';
 
 /**
  * BattlePage is the core gameplay screen.
@@ -345,7 +346,16 @@ struct BattlePage {
     this.sentenceZh = zh;
   }
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'BattlePage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     // Construct the engine off the UI thread: loading `words_v1.json` is
     // async, so we render the loading placeholder until the promise
     // resolves. On success we snapshot the engine's state into our @State
@@ -529,6 +539,10 @@ struct BattlePage {
       console.error(`BattlePage: failed to load word repository: ${JSON.stringify(err)}`);
       this.prompt = 'Failed to load words';
     });
+  }
+
+  onPageShow(): void {
+    this.applyOrientationPolicy();
   }
 
   aboutToDisappear(): void {

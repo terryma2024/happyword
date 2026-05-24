@@ -122,8 +122,10 @@ struct ParentAdminView: View {
                 }
             }
             .padding(.horizontal, AppTheme.pageHorizontalPadding)
-            .padding(.vertical, 20)
+            .padding(.top, AppTheme.portraitPageTopPadding)
+            .padding(.bottom, 20)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
         .task { await load() }
         .onChange(of: galleryItem) { _, newValue in
@@ -351,8 +353,10 @@ struct LessonDraftReviewView: View {
                 }
             }
             .padding(.horizontal, AppTheme.pageHorizontalPadding)
-            .padding(.vertical, 20)
+            .padding(.top, AppTheme.portraitPageTopPadding)
+            .padding(.bottom, 20)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppTheme.page)
     }
 

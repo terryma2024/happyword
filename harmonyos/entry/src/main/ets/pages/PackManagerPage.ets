@@ -14,6 +14,7 @@ import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCre
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import { requestPageOrientation } from '../utils/orientation';
 
 /**
  * V0.6.7 — dedicated page for the three-layer pack picker. Extracted
@@ -48,7 +49,16 @@ struct PackManagerPage {
   private homeIntegration: HomeIntegrationBundle = new HomeIntegrationBundle();
   private cloudCreds: CloudCredentials = new CloudCredentials();
 
+  private applyOrientationPolicy(): void {
+    requestPageOrientation(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      'PackManagerPage',
+      (px: number): number => this.getUIContext().px2vp(px),
+    );
+  }
+
   aboutToAppear(): void {
+    this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.cloudCreds.init(ctx).catch((err: BusinessError): void => {
@@ -72,6 +82,7 @@ struct PackManagerPage {
   }
 
   onPageShow(): void {
+    this.applyOrientationPolicy();
     if (!this.loaded) {
       return;
     }
