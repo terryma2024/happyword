@@ -580,7 +580,10 @@ Beijing shared staging E2E target, configured 2026-05-23:
 - Runner toolchain: OpenCloudOS 9.4 with system `git`, `jq`, and `python3.12`.
   The E2E workflow verifies these tools and lets `uv` create the Python 3.12
   virtualenv locally instead of using `actions/setup-python`, which does not
-  provide a compatible hosted toolcache package for this OS image.
+  provide a compatible hosted toolcache package for this OS image. Checkout uses
+  the GitHub tarball API rather than `git fetch`, because Beijing-to-GitHub git
+  pack transfer was observed to hang on this runner while archive download
+  completed.
 - CI concurrency: `.github/workflows/server-ci.yml` uses one global
   `cloudbase-staging-e2e` concurrency group with `cancel-in-progress: false`.
   This serializes reset + E2E so two jobs cannot clear the shared staging DB at

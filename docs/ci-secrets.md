@@ -25,7 +25,9 @@ does not reset shared staging data on every PR. Pushes to `main` run both Vercel
 The shared CloudBase staging E2E job runs on the Beijing self-hosted runner. The
 runner must have system `git`, `jq`, and `python3.12`; the workflow verifies
 those tools and uses `uv sync --python 3.12` instead of `actions/setup-python`
-because the runner OS is OpenCloudOS 9.4.
+because the runner OS is OpenCloudOS 9.4. It downloads the source through the
+GitHub tarball API rather than `git fetch`, which is less reliable from the
+Beijing runner.
 
 ## All secrets, in one table
 
