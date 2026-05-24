@@ -23,7 +23,6 @@ export enum ChoiceState {
   Disabled = 'disabled',
 }
 
-@Reusable
 @Component
 export struct ChoiceButton {
   @Prop text: string = '';

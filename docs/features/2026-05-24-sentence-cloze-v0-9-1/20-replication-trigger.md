@@ -8,23 +8,23 @@
 
 Paste evidence (paths to logs, commit SHAs, screenshot folders) next to each item before checking it.
 
-- [ ] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
-  - Evidence:
+- [x] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
+  - Evidence: 2026-05-24 local run passed, `BUILD SUCCESSFUL in 2 s 362 ms`.
 - [ ] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
-  - Evidence:
-- [ ] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
-  - Evidence:
-- [ ] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
-  - Evidence:
-- [ ] **Version bumped** — `harmonyos/AppScope/app.json5`
+  - Evidence: Targeted `scripts/run_ui_tests.sh --suite BattleFlow --rebuild` passed on 2026-05-24 (`Tests run: 2, Failure: 0, Error: 0, Pass: 2`), covering `sentenceClozeQuestionRendersExamplePromptAndOptions`. Full `scripts/run_ui_tests.sh --rebuild` was attempted but produced no OHOS report after ~18 minutes and was interrupted; keep this full-suite gate unchecked.
+- [x] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
+  - Evidence: 2026-05-24 local run passed, `BUILD SUCCESSFUL in 2 s 718 ms`; no `ArkTS:WARN` lines observed. Hvigor emitted a toolchain `sun.misc.Unsafe` warning, not an ArkTS warning.
+- [x] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
+  - Evidence: 2026-05-24 local run: `No defects found in your code.`
+- [x] **Version bumped** — `harmonyos/AppScope/app.json5`
   - From: `versionName=0.8.8` `versionCode=1008008`
-  - To:
+  - To: `versionName=0.9.1` `versionCode=1009001`
 - [ ] **Feature merged to main**
-  - Commit:
+  - Commit: Pending final integration; local feature commits include generator, scheduler, settings, examples, Battle UI, and version/gate updates.
 - [ ] **Screenshots refreshed** — for every screen this feature visibly changed
-  - Files updated under `assets/screenshots/harmonyos/`:
-- [ ] **Server contracts up to date** — N/A unless implementation changes server schemas.
-  - Explanation:
+  - Files updated under `assets/screenshots/harmonyos/`: Not refreshed in this implementation pass.
+- [x] **Server contracts up to date** — N/A unless implementation changes server schemas.
+  - Explanation: No server/OpenAPI/shared contract changes; V0.9.1 reuses existing `example.en` / `example.zh` fields.
 
 ## 2. Delta Letter
 
@@ -34,11 +34,11 @@ This section is filled after HarmonyOS implementation and stabilization.
 
 | Layer | HarmonyOS files |
 | --- | --- |
-| Models | |
-| Services | |
-| Pages | |
-| Tests | |
-| Assets / data | |
+| Models | `harmonyos/entry/src/main/ets/models/Question.ets` |
+| Services | `SentenceClozeGenerator.ets`, `BattleQuestionTypePolicy.ets`, `BattleQuestionScheduler.ets`, `PlanQuestionSource.ets` |
+| Pages / components | `ConfigPage.ets`, `BattlePage.ets`, `ChoiceButton.ets` |
+| Tests | `SentenceClozeGenerator.test.ets`, `BattleQuestionTypePolicy.test.ets`, `BattleQuestionScheduler.test.ets`, `PlanQuestionSource.test.ets`, `ConfigFlow.ui.test.ets`, `RoutingFlow.ui.test.ets`, `BattleFlow.ui.test.ets` |
+| Assets / data | five `harmonyos/entry/src/main/resources/rawfile/data/builtin/*.json` packs; `scripts/validate-builtin-examples.mjs` |
 
 ### 2.2 Persistence keys (cross-platform; replicas must match semantics)
 
@@ -48,21 +48,34 @@ This section is filled after HarmonyOS implementation and stabilization.
 
 ### 2.3 Stable IDs introduced or changed
 
-See [`00-design.md`](00-design.md) §5.
+- `ConfigQuestionType_sentence-cloze`
+- `BattleSentenceClozePrompt`
+- `BattleSentenceClozeZh`
+- `BattleOptionsRow_SentenceCloze`
+- `BattleSentenceClozeOption_0`
+- `BattleSentenceClozeOption_1`
+- `BattleSentenceClozeOption_2`
 
 ### 2.4 Edge cases discovered during stabilization
 
-- [ ] Record during Stage 3 after HarmonyOS stabilization.
+- `ChoiceButton.choiceId` must be a `@Prop` when changing option IDs by question kind; otherwise `@Reusable` component reuse can keep stale button IDs.
+- Full ohosTest suite may hang without an OHOS report on the current local runner; use targeted suite evidence for the sentence-cloze path until the broader runner is repaired.
 
 ### 2.5 Tests requiring parity counterparts
 
 | HarmonyOS test | iOS counterpart (XCTest / XCUITest) | Android counterpart (JUnit / Compose UI / UIA) |
 | --- | --- | --- |
-| | | |
+| `SentenceClozeGenerator.test.ets` | Unit tests for matching / validation / fallback | Unit tests for matching / validation / fallback |
+| `BattleQuestionTypePolicy.test.ets` | Unit tests for default type policy and eligibility | Unit tests for default type policy and eligibility |
+| `BattleQuestionScheduler.test.ets` | Scheduler unit tests for Challenge pool selection and disabling | Scheduler unit tests for Challenge pool selection and disabling |
+| `PlanQuestionSource.test.ets` | Plan-source unit tests for sentence-only and fallback behavior | Plan-source unit tests for sentence-only and fallback behavior |
+| `ConfigFlow.ui.test.ets` | Settings UI test for `sentence-cloze` chip | Settings UI test for `sentence-cloze` chip |
+| `BattleFlow.ui.test.ets` | Battle UI test for cloze prompt / Chinese example / options | Battle UI test for cloze prompt / Chinese example / options |
 
 ### 2.6 Pitfalls / "do not repeat my mistakes"
 
-- [ ] Record during Stage 3 after HarmonyOS stabilization.
+- Built-in examples are content, not generator defaults. Replicas should preserve the fallback behavior for remote/family packs without examples rather than requiring every pack to be sentence-cloze-ready.
+- Do not start iOS / Android replication until full Harmony soft gate and the signature block below are complete.
 
 ## 3. Open Questions for the Replicas
 

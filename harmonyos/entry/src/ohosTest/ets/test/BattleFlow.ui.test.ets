@@ -60,6 +60,7 @@ export default function battleFlowUiTest() {
 
       await driver.assertComponentExist(ON.id('BattleSentenceClozePrompt'));
       await driver.assertComponentExist(ON.id('BattleSentenceClozeZh'));
+      await driver.assertComponentExist(ON.id('BattleOptionsRow_SentenceCloze'));
       await driver.assertComponentExist(ON.id('BattleSentenceClozeOption_0'));
       await driver.assertComponentExist(ON.id('BattleSentenceClozeOption_1'));
       await driver.assertComponentExist(ON.id('BattleSentenceClozeOption_2'));

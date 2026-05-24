@@ -13,6 +13,8 @@
 
 **Tech Stack:** HarmonyOS NEXT, ArkTS, ArkUI, Hypium local tests, ohosTest UI automation.
 
+**Execution status (2026-05-24):** Tasks 1-5 implemented on HarmonyOS. Task 6 is partially gated: unit tests, HAP build, CodeLinter, built-in example validation, and targeted `BattleFlow` ohosTest are green; full `scripts/run_ui_tests.sh` produced no OHOS report after ~18 minutes on the local runner and remains an open soft-gate item in [`20-replication-trigger.md`](20-replication-trigger.md).
+
 ---
 
 ### Task 1: Sentence Cloze Model and Generator
@@ -106,10 +108,11 @@
 - Modify: `docs/features/2026-05-24-sentence-cloze-v0-9-1/50-parity-checklist.md`
 - Optionally modify: `docs/WordMagicGame_roadmap.md`
 
-- [ ] Bump HarmonyOS `versionName` to `0.9.1` and `versionCode` to `1009001`.
-- [ ] Fill Stage 3 soft-gate evidence as commands complete.
-- [ ] Mark HarmonyOS rows in the parity checklist that are verified by tests.
-- [ ] Run `cd harmonyos && hvigorw -p module=entry@default test`.
-- [ ] Run `cd harmonyos && hvigorw assembleHap` and confirm 0 `ArkTS:WARN` lines.
-- [ ] Run `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`.
+- [x] Bump HarmonyOS `versionName` to `0.9.1` and `versionCode` to `1009001`.
+- [x] Fill Stage 3 soft-gate evidence as commands complete.
+- [x] Mark HarmonyOS rows in the parity checklist that are verified by tests.
+- [x] Run `cd harmonyos && hvigorw -p module=entry@default test`.
+- [x] Run `cd harmonyos && hvigorw assembleHap` and confirm 0 `ArkTS:WARN` lines.
+- [x] Run `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`.
 - [ ] Run `scripts/run_ui_tests.sh` if a HarmonyOS device runner is available.
+  - Targeted `scripts/run_ui_tests.sh --suite BattleFlow --rebuild` passed; full suite attempt hung without OHOS report and remains open.

@@ -340,6 +340,11 @@ struct BattlePage {
     return this.optionIds[index];
   }
 
+  private applySentenceClozeText(template: string, zh: string): void {
+    this.sentenceTemplate = template;
+    this.sentenceZh = zh;
+  }
+
   aboutToAppear(): void {
     // Construct the engine off the UI thread: loading `words_v1.json` is
     // async, so we render the loading placeholder until the promise
@@ -797,8 +802,7 @@ struct BattlePage {
       this.lastAnswerWord = q.answer;
       this.currentWordId = q.wordId;
       this.currentQuestionKind = q.kind;
-      this.sentenceTemplate = '';
-      this.sentenceZh = '';
+      this.applySentenceClozeText('', '');
       if (q.kind === QuestionKind.FillLetterMedium) {
         this.isMedium = true;
         this.currentStep = q.currentStep;
@@ -835,8 +839,7 @@ struct BattlePage {
         this.pendingMissingIndex = -1;
         this.letterTemplate = '';
         this.letterMissingIndex = -1;
-        this.sentenceTemplate = q.sentenceTemplate;
-        this.sentenceZh = q.sentenceZh;
+        this.applySentenceClozeText(q.sentenceTemplate, q.sentenceZh);
         this.options = [q.options[0], q.options[1], q.options[2]];
       } else {
         this.isMedium = false;
@@ -966,8 +969,7 @@ struct BattlePage {
     this.isMedium = answeredIsMedium;
     this.currentStep = answeredStep;
     this.totalSteps = answeredTotalSteps;
-    this.sentenceTemplate = answeredSentenceTemplate;
-    this.sentenceZh = answeredSentenceZh;
+    this.applySentenceClozeText(answeredSentenceTemplate, answeredSentenceZh);
 
     // Highlight the tapped button; keep the other two disabled so the
     // player can't race through feedback.
@@ -1065,8 +1067,7 @@ struct BattlePage {
         // with no text on the very first FillLetter shown after a
         // Choice question (e.g. monster-2 in today's adventure).
         this.currentQuestionKind = nextQuestion.kind;
-        this.sentenceTemplate = '';
-        this.sentenceZh = '';
+        this.applySentenceClozeText('', '');
         if (nextQuestion.kind === QuestionKind.FillLetterMedium) {
           this.isMedium = true;
           this.currentStep = nextQuestion.currentStep;
@@ -1103,8 +1104,7 @@ struct BattlePage {
           ];
           this.letterTemplate = '';
           this.letterMissingIndex = -1;
-          this.sentenceTemplate = nextQuestion.sentenceTemplate;
-          this.sentenceZh = nextQuestion.sentenceZh;
+          this.applySentenceClozeText(nextQuestion.sentenceTemplate, nextQuestion.sentenceZh);
         } else {
           this.isMedium = false;
           this.currentStep = 0;
@@ -1117,8 +1117,7 @@ struct BattlePage {
           ];
           this.letterTemplate = '';
           this.letterMissingIndex = -1;
-          this.sentenceTemplate = '';
-          this.sentenceZh = '';
+          this.applySentenceClozeText('', '');
         }
         // New question loaded — feedback window is closed so it's
         // safe to auto-speak the answer now.
@@ -1808,6 +1807,7 @@ struct BattlePage {
         });
       }
       .width('100%')
+      .id(this.currentQuestionKind === QuestionKind.SentenceCloze ? 'BattleOptionsRow_SentenceCloze' : 'BattleOptionsRow')
       .padding({ left: 20, right: 20, top: 16, bottom: 20 });
     } else {
       // Spell questions own their input via SpellingArea inside
