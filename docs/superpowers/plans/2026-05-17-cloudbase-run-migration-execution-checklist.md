@@ -6,7 +6,7 @@
 
 **Architecture:** Treat the migration as a long-running project with five gates: prepare, prove CloudBase staging, cut over production, retire Vercel-specific dependencies, then replace MongoDB Atlas. The first production cutover keeps MongoDB Atlas and Vercel Blob in place so runtime migration can be verified independently from storage, preview-system, and database migration.
 
-**Tech Stack:** Python 3.12, FastAPI, Uvicorn, uv, Docker, CloudBase Run, CloudBase HTTP Access Service, CloudBase Cloud Functions timer trigger, GitHub Actions, MongoDB Atlas compatibility during Wave A, Vercel Blob compatibility during Wave A, Tencent COS during Wave B, TencentDB for MongoDB and Tencent Cloud DTS during Wave C.
+**Tech Stack:** Python 3.12, FastAPI, Uvicorn, uv, Docker, CloudBase Run, CloudBase HTTP Access Service, CloudBase Cloud Functions timer trigger, GitHub Actions, MongoDB Atlas compatibility during Wave A, Vercel Blob compatibility during Wave A, Tencent COS during Wave B, Shanghai Lighthouse MongoDB with Beijing hidden backup secondary during Wave C, and TencentDB as the future managed HA upgrade path.
 
 ---
 
@@ -42,8 +42,8 @@
 - [ ] **M4: Production domain ready** - `happyword.com.cn` can be bound to CloudBase with SSL and required filing state confirmed.
 - [ ] **M5: Production cutover complete** - `happyword.com.cn` points to CloudBase and smoke validation passes; `happyword.cool` moves only after that.
 - [ ] **M6: CloudBase CI/CD active** - `main` deployment and smoke checks no longer depend on Vercel production deployment status.
-- [ ] **M7: Storage migration complete** - new uploads use Tencent COS, existing Vercel Blob URLs stay readable.
-- [ ] **M7A: MongoDB Atlas replacement complete** - CloudBase uses TencentDB for MongoDB after DTS sync, consistency checks, and rollback validation.
+- [x] **M7: Storage migration complete** - new uploads use Tencent COS, existing Vercel Blob URLs stay readable.
+- [ ] **M7A: MongoDB Atlas replacement complete** - CloudBase uses Shanghai Lighthouse MongoDB, with Beijing hidden backup secondary, after migration rehearsal, consistency checks, and rollback validation.
 - [ ] **M8: Preview/QA replacement complete** - Vercel Preview dependency is removed from the QA path.
 - [ ] **M9: Vercel retired** - Vercel deploy, cron, preview, prune, and Blob-specific secrets are removed or archived.
 
@@ -70,7 +70,8 @@
   - Production service name: happyword-server
   - Staging service name: happyword-server-staging
   - MongoDB provider during Wave A: MongoDB Atlas
-  - MongoDB provider after Wave C: TencentDB for MongoDB, planned
+  - MongoDB provider after Wave C: Shanghai Lighthouse MongoDB with Beijing
+    hidden backup secondary; TencentDB managed HA upgrade path
   - Asset storage provider during Wave A: Vercel Blob
   - Asset storage provider during Wave B: Tencent COS, planned
 
@@ -217,7 +218,7 @@
 
   EXPOSE 8080
 
-  CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers"]
+  CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "<container-bind-host>", "--port", "8080", "--proxy-headers"]
   ```
 
 - [x] **Step 2: Add `server/.dockerignore`**
@@ -270,9 +271,9 @@
   In another terminal:
 
   ```bash
-  curl -fsS http://127.0.0.1:8080/api/v1/public/health
-  curl -fsS -I http://127.0.0.1:8080/admin/login
-  curl -fsS -I http://127.0.0.1:8080/privacy
+  curl -fsS http://localhost:8080/api/v1/public/health
+  curl -fsS -I http://localhost:8080/admin/login
+  curl -fsS -I http://localhost:8080/privacy
   ```
 
   Expected: health returns JSON, admin/login and privacy return HTTP 200 or 3xx HTML responses.
@@ -446,6 +447,20 @@
   Status note, 2026-05-20: endpoint-level staging smoke passed, but the local
   `uv run pytest -v -m smoke` command against CloudBase staging has not been
   recorded yet. Keep this as the remaining optional M2 hardening check.
+
+  Progress note, 2026-05-23: online staging E2E is being consolidated to one
+  shared CloudBase staging environment backed by Beijing Lighthouse MongoDB
+  database `happyword_cloudbase_staging_e2e`. The GitHub job now runs on a
+  Beijing self-hosted runner with label `happyword-e2e-db`, resets only that
+  guarded `_e2e` database, and uses a global `cloudbase-staging-e2e`
+  concurrency group with `cancel-in-progress: false`. The runner is registered
+  and online.
+
+  Update, 2026-05-24: the MongoDB listener change was approved and applied,
+  CloudBase staging runtime now points at the Beijing E2E database, and
+  `happyword-server-staging-010` passed public health plus
+  `/api/v1/public/packs/latest.json` against that empty E2E database. Remaining
+  work: run and record the first `workflow_dispatch` E2E through GitHub Actions.
 
 - [x] **Step 7: Commit staging runbook updates**
 
@@ -639,7 +654,7 @@
   ```text
   First CloudBase production validation domain: happyword.com.cn
   DNS host for happyword.com.cn: DNSPod
-  Current happyword.cool production target: Vercel DNS, apex A 216.150.1.193 / 216.150.1.129
+  Current happyword.cool production target: Vercel DNS, apex A records managed by Vercel
   Planned CloudBase CNAME for happyword.com.cn: blocked until CloudBase custom-domain binding creates one
   Final happyword.cool CloudBase CNAME target: same CloudBase custom-domain target after happyword.com.cn is green
   DNS rollback target for happyword.cool: keep Vercel DNS/ns1.vercel-dns.com and ns2.vercel-dns.com until final cutover
@@ -716,7 +731,7 @@
   LOG_LEVEL
   PARENT_WEB_BASE_URL=https://happyword.com.cn
   OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn
-  SESSION_COOKIE_DOMAIN=.happyword.com.cn
+  SESSION_COOKIE_DOMAIN=
   ADMIN_SESSION_COOKIE_NAME=wm_admin_session
   PREVIEW_MANIFEST_BLOB_URL=use-current-public-blob-url
   BLOB_READ_WRITE_TOKEN=use-current-vercel-blob-token-during-wave-a
@@ -727,8 +742,9 @@
   Execution note, 2026-05-18: production env vars were configured from local
   secret source values without committing secret values. CloudBase production
   validation currently uses `PARENT_WEB_BASE_URL=https://happyword.com.cn`,
-  `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and
-  `SESSION_COOKIE_DOMAIN=.happyword.com.cn`. Read-only default-domain smoke
+  `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and an empty
+  `SESSION_COOKIE_DOMAIN` while validation is still on the CloudBase default
+  domain. Read-only default-domain smoke
   passed after redeploy:
 
   ```text
@@ -1057,7 +1073,7 @@
   replacement provider, with Vercel Blob as the default compatibility provider.
   The selection and required env vars are recorded in `docs/server/cloudbase-run.md`.
 
-- [ ] **Step 2: Provision COS buckets**
+- [x] **Step 2: Provision COS buckets**
 
   Create:
 
@@ -1072,6 +1088,15 @@
 
   Acceptance: a manually uploaded test object has a stable HTTPS URL and can be
   fetched from a browser without credentials.
+
+  Completion note, 2026-05-21: staging and production buckets were provisioned
+  in Shanghai (`ap-shanghai`) as
+  `happyword-assets-staging-1429584068` and
+  `happyword-assets-prod-1429584068`, both with public-read/private-write
+  access. Earlier Guangzhou buckets were deleted. The CAM user
+  `happyword-cos-uploader` now uses the Shanghai-scoped custom policy
+  `HappyWordCosAssetUploadDeleteShanghai`; the obsolete Guangzhou policy was
+  deleted.
 
 - [x] **Step 3: Add failing storage-provider tests**
 
@@ -1203,7 +1228,12 @@
   passed, and the full server suite passed with `539 passed, 64 skipped` and no
   warnings.
 
-- [ ] **Step 9: Deploy storage switch to staging**
+  Follow-up note, 2026-05-21: storage-provider coverage was tightened for COS
+  env completeness, deterministic high-level upload paths, signed COS PUT
+  request shape, unknown URL delete behavior when COS is not configured, and
+  COS upstream-delete failures.
+
+- [x] **Step 9: Deploy storage switch to staging**
 
   Set staging:
 
@@ -1224,11 +1254,49 @@
   - Fetch each returned URL with `curl -I`.
   - Confirm MongoDB stores the COS URL for new objects and old Vercel Blob URLs remain unchanged.
 
-- [ ] **Step 10: Deploy storage switch to production**
+  Preflight available before CloudBase staging switch:
+
+  ```bash
+  cd server
+  ASSET_STORAGE_PROVIDER=tencent_cos \
+  COS_SECRET_ID=... \
+  COS_SECRET_KEY=... \
+  COS_REGION=ap-shanghai \
+  COS_BUCKET=happyword-assets-staging-1429584068 \
+  COS_PUBLIC_BASE_URL=https://happyword-assets-staging-1429584068.cos.ap-shanghai.myqcloud.com \
+  uv run python -m scripts.cos_storage_smoke
+  ```
+
+  The script uploads illustration, audio, and lesson-image smoke objects,
+  verifies their public URLs, and deletes them unless `COS_SMOKE_KEEP_OBJECTS=1`.
+
+  Completion note, 2026-05-21: CloudBase staging service
+  `happyword-server-staging` now runs with `ASSET_STORAGE_PROVIDER=tencent_cos`,
+  Shanghai COS settings, bucket `happyword-assets-staging-1429584068`, and
+  public base URL
+  `https://happyword-assets-staging-1429584068.cos.ap-shanghai.myqcloud.com`.
+  The service was redeployed as CloudBase deploy record `009`, and a live
+  lesson-import upload returned a new COS URL under the staging bucket. A
+  public `curl -I` against that returned object responded `HTTP 200` from
+  `tencent-cos`. GitHub Actions run `26237301193` passed `server / pytest` and
+  `server / cloudbase staging smoke` after the redeploy.
+
+- [x] **Step 10: Deploy storage switch to production**
 
   Set production `ASSET_STORAGE_PROVIDER` after staging passes. Do not rewrite existing Vercel Blob URLs.
 
-- [ ] **Step 11: Decide whether to backfill old Vercel Blob objects**
+  Completion note, 2026-05-21: CloudBase production service
+  `happyword-server` now runs as `happyword-server-007` with
+  `ASSET_STORAGE_PROVIDER=tencent_cos`, `COS_REGION=ap-shanghai`, bucket
+  `happyword-assets-prod-1429584068`, and public base URL
+  `https://happyword-assets-prod-1429584068.cos.ap-shanghai.myqcloud.com`.
+  Read-only production smoke passed for health, latest pack JSON, and
+  `/admin/login` on the CloudBase default domain. A local
+  `scripts.cos_storage_smoke` run using the same production COS env uploaded,
+  publicly read, and deleted illustration, audio, and lesson-image smoke
+  objects without writing to production MongoDB.
+
+- [x] **Step 11: Decide whether to backfill old Vercel Blob objects**
 
   Default decision: do not backfill during M7.
 
@@ -1240,7 +1308,11 @@
   - Keeps a rollback map from new COS URL back to old Vercel Blob URL.
   - Runs on staging before production.
 
-- [ ] **Step 12: Commit storage migration**
+  Completion note, 2026-05-21: no backfill during M7. Existing Vercel Blob
+  URLs remain readable in place. A future backfill needs a separate reversible
+  migration plan and rollback map.
+
+- [x] **Step 12: Commit storage migration**
 
   Run:
 
@@ -1249,13 +1321,21 @@
   git commit -m "feat: support cloud storage provider for assets"
   ```
 
+  Completion note, 2026-05-21: M7 implementation, tests, COS bucket records,
+  staging validation, and production validation are all recorded on PR #121.
+
 ## M7A: MongoDB Atlas Replacement
 
-**Goal:** Move the CloudBase backend from MongoDB Atlas to a Tencent-side MongoDB-compatible database without changing app data-access code.
+**Goal:** Move the CloudBase backend from MongoDB Atlas to Tencent-side storage,
+using Shanghai Lighthouse MongoDB for the current low-cost URI-compatible path
+and Beijing Lighthouse as a hidden backup secondary.
 
-**Recommended target:** TencentDB for MongoDB.
+**Recommended target:** Shanghai Lighthouse MongoDB first; TencentDB for
+MongoDB remains the future managed HA upgrade path.
 
-**Non-goal:** Do not rewrite the server to CloudBase Database SDK in this milestone. The current app uses Motor + Beanie and should keep the MongoDB URI boundary.
+**Non-goal:** Do not rewrite all Beanie/Motor data access for built-in CloudBase
+document database. The FlexDB/API-adapter path was investigated and closed for
+M7A because it did not preserve the current `MONGODB_URI` boundary.
 
 **Files:**
 
@@ -1264,21 +1344,29 @@
 - Optional add: `server/scripts/db_inventory.py`
 - Optional add tests: `server/tests/test_db_inventory.py`
 
-- [ ] **Step 1: Confirm target database product**
+- [x] **Step 1: Confirm target database product**
 
   Choose:
 
   ```text
-  Primary target: TencentDB for MongoDB
-  Migration tool: Tencent Cloud DTS for MongoDB
-  Migration mode: full + incremental
-  Application change: environment variable switch only
+  Primary target: Shanghai Lighthouse MongoDB
+  Backup target: Beijing Lighthouse hidden non-voting secondary
+  Migration tool: mongodump/mongorestore plus Beanie index initialization
+  Migration mode: copy/import with a short write-freeze if needed
+  Application change: MONGODB_URI switch
   ```
 
   Record target version, region, topology, backup policy, and estimated monthly
   cost in `docs/server/cloudbase-run.md`.
 
-- [ ] **Step 2: Inventory current Atlas database**
+  Completion note, 2026-05-24: TencentDB was confirmed as technically clean but
+  too expensive for the current user volume. Built-in CloudBase document
+  database / FlexDB was probed, but it did not provide a validated
+  Motor/Beanie-compatible URI and the API-adapter path is too broad for M7A. The
+  active target is Shanghai Lighthouse MongoDB with Beijing hidden backup
+  secondary.
+
+- [x] **Step 2: Inventory current Atlas database**
 
   Record:
 
@@ -1297,111 +1385,229 @@
 
   Acceptance: inventory is recorded without committing connection strings or credentials.
 
-- [ ] **Step 3: Provision TencentDB for MongoDB staging target**
+  Completion note, 2026-05-23: live inventory ran against the current CloudBase
+  production Atlas URI via `server/scripts/db_inventory.py`. Recorded source:
+  `happyword` on MongoDB `8.0.23`, 25 collections, 275 documents, no TTL
+  indexes reported, and 15 collections with unique indexes. The first `collStats`
+  inventory attempt timed out, so the committed inventory intentionally records
+  counts and index metadata with stats skipped. Atlas backup/restore status still
+  needs manual Atlas console confirmation.
 
-  Create a staging-size TencentDB for MongoDB instance first.
+- [x] **Step 3: Run live FlexDB API probe as retired spike**
 
-  Requirements:
+  Validate the built-in CloudBase document database without committing secrets,
+  then decide whether it remains viable for M7A.
 
-  - MongoDB major version compatible with Atlas and Beanie queries.
-  - Network reachable from CloudBase Run staging.
-  - Dedicated application user with least required privileges.
-  - Backup enabled.
+  Probe operations:
 
-  Acceptance: CloudBase staging can connect with a test `MONGODB_URI` and
-  `GET /api/v1/public/health` returns `200`.
+  - List tables on `tnt-jw1cesl68`.
+  - Create a temporary probe table.
+  - Insert/query/update nested JSON through `RunCommands`.
+  - Create and inspect a unique index.
+  - Confirm duplicate insert is rejected.
+  - Delete the temporary probe table.
 
-- [ ] **Step 4: Create DTS migration task for staging rehearsal**
+  Acceptance: API semantics are sufficient for a deeper adapter spike, and the
+  temporary table is cleaned up.
 
-  Configure DTS:
+  Completion note, 2026-05-23: CloudBase API calls succeeded for
+  `ListTables`, `CreateTable`, `RunCommands` insert/query/update,
+  `UpdateTable` unique-index creation, `RunCommands` `listIndexes`, duplicate
+  key enforcement, and `DeleteTable`. Final `ListTables` returned total `0`, so
+  the probe table was removed. Update, 2026-05-24: this remains a historical
+  spike only; the active M7A path no longer uses built-in CloudBase document
+  database.
+
+- [x] **Step 4: Close FlexDB connection model decision**
+
+  Answer one question before code changes:
 
   ```text
-  Source: MongoDB Atlas
-  Source access type: public network unless private connectivity is ready
-  Source SSL mode: Mongo Atlas SSL when required by Atlas connection settings
-  Target: TencentDB for MongoDB staging instance
-  Migration type: full + incremental
-  Migration objects: application database only; exclude admin/local/config
+  Does built-in CloudBase FlexDB expose a validated MongoDB driver URI usable
+  from CloudBase Run Python/Motor?
   ```
-
-  Acceptance: DTS precheck passes. If Atlas allowlist blocks DTS, record the
-  required DTS egress IPs or networking path before proceeding.
-
-- [ ] **Step 5: Run staging full + incremental sync**
-
-  Let DTS complete full sync and enter incremental catch-up.
 
   Acceptance:
 
-  - Full sync completes.
-  - Incremental lag is visible and reaches a stable low value.
-  - DTS reports no failed collections.
+  - If yes, record URI format and required CloudBase/VPC/security settings.
+  - If no, record the outcome and close or explicitly defer the API-adapter
+    path.
+  - Do not put credentials or full URI values in docs or GitHub logs.
 
-- [ ] **Step 6: Run consistency checks**
+  Completion note, 2026-05-24: no validated Motor/Beanie-compatible URI is
+  available from the spike. The API path would require broad repository
+  extraction, so M7A will not use built-in CloudBase document database.
 
-  Check:
+- [x] **Step 5: Add runtime FlexDB API smoke as historical diagnostic**
 
-  - Collection counts match expected staging snapshot.
-  - Indexes exist on target.
-  - Sample documents deserialize through Beanie models.
-  - Admin login works.
-  - Public pack read works.
-  - One write path works in staging.
-  - Async lesson import + cron extraction works.
+  Add a Python smoke that does not depend on the local `tcb` CLI:
 
-  Record exact commands and redacted results in `docs/server/cloudbase-run.md`.
-
-- [ ] **Step 7: Switch CloudBase staging to TencentDB**
-
-  Set staging:
-
-  ```text
-  MONGODB_URI=staging-tencentdb-uri-from-secret-store
-  MONGO_DB_NAME=happyword_cloudbase_staging
+  ```bash
+  cd server
+  uv run python -m scripts.flexdb_api_smoke
   ```
 
-  Run:
+  It should use Tencent Cloud SDK/signing with env vars and perform the same
+  create/insert/query/update/index/delete probe against a caller-specified
+  temporary table.
+
+  Acceptance:
+
+  - Works from local terminal.
+  - Cleans up the temporary table even after expected duplicate-key failures.
+  - Redacts EnvId/Tag where appropriate and never logs API secrets.
+  - Kept as historical diagnostic coverage only after the FlexDB path is closed.
+
+  Completion note, 2026-05-23: added
+  `server/scripts/flexdb_api_smoke.py` with direct Tencent Cloud API 3.0
+  signing through `httpx`, plus offline tests covering the success path,
+  duplicate-key expectation, authorization header redaction, and cleanup after
+  a late probe failure. Local unit tests pass.
+
+  Live local smoke note, 2026-05-23: using `TCB_SECRET_ID` / `TCB_SECRET_KEY`
+  from `~/.env.tcb`, the script successfully created
+  `m7a_flexdb_probe_1779508470`, verified `word_1` duplicate-key enforcement,
+  deleted the temporary table, and ended with `final_table_count: 0`. Running it
+  from CloudBase staging is no longer required because the FlexDB path is closed
+  for M7A.
+
+- [x] **Step 6: Map Beanie/Motor usage to migration choices**
+
+  Build a concise compatibility map from current server code:
+
+  - direct model CRUD
+  - upserts
+  - sorted/limited queries
+  - regex/search filters
+  - unique indexes
+  - direct `get_motor_collection` usage
+  - transaction/aggregation-like needs
+
+  Acceptance: the runbook states whether URI switch is feasible or whether a
+  repository/API adapter is required, with the riskiest call sites named.
+
+  Completion note, 2026-05-23: static app scan recorded the Beanie/Motor
+  compatibility map in `docs/server/cloudbase-run.md`. Current usage is broad:
+  101 `find_one`, 87 `find`, 32 `insert`, 77 `save`, and 25 `delete` calls
+  across `server/app`, plus pagination/count/regex and one direct Motor
+  `update_one(..., upsert=True)` path in `word_stats_sync_service.py`.
+  Conclusion: the FlexDB/API-only path is not suitable for M7A without a broad
+  data-access rewrite. Keep these findings as future reference only; the active
+  migration path is the URI-compatible Lighthouse MongoDB target.
+
+- [x] **Step 7: Build one migration rehearsal**
+
+  Use the active Lighthouse path:
+
+  ```text
+  Import Atlas-shaped data into Shanghai Lighthouse MongoDB, recreate indexes
+  through Beanie initialization, keep Beijing as hidden backup secondary, then
+  point CloudBase staging or a production smoke window at the Lighthouse URI.
+  ```
+
+  Acceptance: collection counts and critical unique indexes match the recorded
+  Atlas inventory.
+
+  Progress note, 2026-05-23: because CloudBase FlexDB did not yet expose a
+  confirmed Motor/Beanie URI and TencentDB was too expensive for current scale,
+  the rehearsal used the low-cost URI-compatible Lighthouse fallback instead.
+  A new Shanghai Lighthouse instance `happyword-mongodb-shanghai` was
+  provisioned, MongoDB 8.0.23 was configured as a
+  single-node `rs0` replica set with auth and TLS, and data was migrated from
+  the Beijing Lighthouse copy of Atlas. Final inventory matched the recorded
+  source shape: 25 collections, 275 documents, 50 words, 2 word packs, and 92
+  indexes after Beanie model initialization.
+
+  E2E staging note, 2026-05-23: to keep online test data isolated from the
+  production migration path, CI E2E will use the Beijing Lighthouse MongoDB
+  instance and fixed database `happyword_cloudbase_staging_e2e`. Shanghai remains
+  the production migration rehearsal target.
+
+  Backup note, 2026-05-24: Shanghai now remains the writable rehearsal target,
+  while Beijing also runs a separate hidden, non-voting backup secondary on port
+  `27018`. The existing Beijing E2E MongoDB on port `27017` stays independent.
+  The production rehearsal replica set is healthy with Shanghai PRIMARY and
+  Beijing SECONDARY over restricted SSH tunnels.
+
+  Completion note, 2026-05-24: CloudBase production was used as the final
+  smoke window instead of pointing shared staging at production data. Production
+  now runs against Shanghai Lighthouse MongoDB through the selected allowlisted
+  TLS path.
+
+- [x] **Step 8: Run app smoke on Lighthouse MongoDB path**
+
+  Run the same product smoke set:
 
   ```bash
   cd server
   E2E_BASE_URL="$CLOUDBASE_STAGING_BASE_URL" uv run pytest -v -m smoke
   ```
 
-  Acceptance: staging smoke passes with TencentDB target.
+  Acceptance: health, public pack read, admin login, parent login, and preview
+  manifest pass against the Lighthouse-backed target. A full admin
+  write/import smoke remains an operator-window follow-up because it mutates
+  production data.
 
-- [ ] **Step 8: Provision production TencentDB for MongoDB target**
+  Completion note, 2026-05-24: `tools/cloudbase/smoke-default-domains.sh`
+  passed for both CloudBase default domains. Remote production smoke passed with
+  `2 passed, 656 deselected`; admin-auth E2E passed with `5 passed`.
 
-  Create production instance sized for current Atlas workload.
+- [x] **Step 9: Decide production cutover path**
 
-  Requirements:
+  Decide:
 
-  - Backup policy and restore test defined.
-  - Monitoring alarms configured.
-  - Connection URI stored only in CloudBase/Tencent secret store.
-  - Rollback Atlas URI preserved.
+  - Shanghai Lighthouse MongoDB now, with Beijing hidden backup secondary.
+  - TencentDB managed HA upgrade now.
+  - Delay database migration and keep Atlas during the rest of CloudBase cutover.
 
-- [ ] **Step 9: Run production DTS full + incremental sync**
+  Acceptance: decision is recorded with cost, risk, rollback, and next
+  implementation steps.
 
-  Configure production DTS from Atlas production to TencentDB production.
+  Progress note, 2026-05-23: current interim decision is Lighthouse single-node
+  MongoDB in Shanghai because it preserves the existing `MONGODB_URI` boundary
+  at much lower cost than TencentDB. Production cutover is intentionally blocked
+  until CloudBase-to-Lighthouse networking is private or tightly allowlisted,
+  production smoke passes, and the Beijing instance remains available as
+  rollback through the soak window.
 
-  Acceptance:
+  Update, 2026-05-24: the interim decision is now Shanghai Lighthouse MongoDB
+  with a Beijing hidden backup secondary. This reduces the single-instance data
+  loss risk, but it is still not equivalent to managed HA: the Beijing member is
+  hidden, priority `0`, votes `0`, and should not participate in production
+  reads. Keep TencentDB as the managed fallback once cost/risk justifies it.
 
-  - Precheck passes.
-  - Full sync completes.
-  - Incremental lag reaches zero or a documented acceptable cutover value.
+- [x] **Step 10: Production database cutover**
 
-- [ ] **Step 10: Production database cutover**
+  Cutover sequence depends on Step 9, but must include:
 
-  Cutover sequence:
-
-  1. Announce a short maintenance/write-freeze window.
+  1. Announce a short maintenance/write-freeze window if the path is not
+     incremental.
   2. Stop or pause write-heavy admin/import jobs.
-  3. Confirm DTS incremental lag is zero.
-  4. Change CloudBase production `MONGODB_URI` to TencentDB.
+  3. Run final export/import or wait for the selected migration path to catch up.
+  4. Switch CloudBase production database settings or deployment version.
   5. Restart/redeploy CloudBase production service.
-  6. Run health, public pack, admin login, parent login, one safe write, and cron smoke.
+  6. Run health, public pack, admin login, parent login, and preview-manifest
+     smoke immediately after cutover. If the cutover window does not include a
+     mutating operator check, schedule the safe write/import smoke separately.
 
   Rollback: restore the previous Atlas `MONGODB_URI` and restart CloudBase.
+
+  Completion note, 2026-05-24:
+
+  - Selected production network path: allowlisted public TLS listener from
+    CloudBase Run to Shanghai Lighthouse MongoDB, protected by Tencent
+    Lighthouse firewall and host `iptables`.
+  - CloudBase production `happyword-server` was redeployed with the Shanghai
+    Lighthouse app-user `MONGODB_URI`, `MONGO_DB_NAME=happyword`, and online
+    version `happyword-server-009` at 100% traffic.
+  - Production smoke and admin-auth E2E passed after redeploy.
+  - Previous Atlas env params were backed up as a secret local rollback
+    artifact; do not commit or paste them.
+  - Beijing hidden-secondary restore drill restored 25 collections and 275
+    documents into a scratch database with 0 failed documents, then cleaned up
+    scratch artifacts.
+  - Shanghai daily backup now uploads archives to the configured COS backup
+    prefix in addition to retaining local archives for 7 days.
 
 - [ ] **Step 11: Keep Atlas during rollback window**
 
@@ -1417,7 +1623,7 @@
 
   After rollback window:
 
-  - Stop DTS.
+  - Stop any migration sync/replay task.
   - Take/export final Atlas backup if needed.
   - Remove Atlas URI from CloudBase env vars and local secret inventory.
   - Update `docs/ci-secrets.md`.
@@ -1428,8 +1634,9 @@
   Run:
 
   ```bash
-  git add docs/server/cloudbase-run.md docs/ci-secrets.md
-  git commit -m "docs: add cloudbase database replacement plan"
+  git add docs/server/cloudbase-run.md docs/ci-secrets.md \
+    docs/superpowers/plans/2026-05-17-cloudbase-run-migration-execution-checklist.md
+  git commit -m "docs: add cloudbase flexdb migration spike"
   ```
 
 ## M8: Preview and QA Replacement
@@ -1636,6 +1843,11 @@
   The CloudBase staging smoke job runs after pytest only for `workflow_dispatch`
   or PRs carrying `cloudbase-smoke`.
 
+  Update, 2026-05-23: after CloudBase staging became the single online E2E
+  target, PR CI removed the legacy Vercel preview deploy/E2E and Cursor autofix
+  paths. Online E2E is now opt-in/manual or label-gated against shared CloudBase
+  staging, serialized by the `cloudbase-staging-e2e` concurrency group.
+
 - [x] **Step 10: Add PR preview cleanup plan**
 
   For M8B, define cleanup before enabling deploy:
@@ -1799,8 +2011,16 @@ Pause the migration and ask for a decision if any of these happens:
 - CloudBase Run cold start makes login or OAuth callbacks unreliable.
 - Request body or timeout limits break a real admin upload/import flow.
 - CloudBase storage provider cannot produce stable public URLs usable by current clients.
-- GitHub Actions cannot deploy to CloudBase without exposing overly broad Tencent Cloud credentials.
 - A production cutover smoke failure affects login, admin, public pack download, or OAuth.
+
+## Final Follow-Ups
+
+Run these only after CloudBase is the stable production owner and Vercel has
+been retired or reduced to an emergency-only archive path:
+
+- [ ] Replace the temporary `QcloudTCBFullAccess` CI credential with a custom
+      least-privilege CAM policy for CloudBase Run deploy, deploy-status reads,
+      HTTP access, and any CloudBase function operations still managed by CI.
 
 ## Final Acceptance
 

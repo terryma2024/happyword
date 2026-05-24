@@ -351,7 +351,7 @@ OAuth provider consoles:
 
   EXPOSE 8080
 
-  CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers"]
+  CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "<container-bind-host>", "--port", "8080", "--proxy-headers"]
   ```
 
 - [ ] **Step 2: Add Docker ignore**
@@ -393,7 +393,7 @@ OAuth provider consoles:
   Expected:
 
   ```bash
-  curl -fsS http://127.0.0.1:8080/api/v1/public/health
+  curl -fsS http://localhost:8080/api/v1/public/health
   ```
 
   returns JSON like `{"ok":true,"ts":...}`.

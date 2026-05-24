@@ -255,11 +255,11 @@ Expected: `310 passed, 53 skipped`, 0 warnings.
 ```bash
 # In one terminal:
 cd server
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+uv run uvicorn app.main:app --host localhost --port 8000 &
 sleep 3
 # In another terminal:
 grep "Mongo DB name resolved" /tmp/happyword-e2e-uvicorn.log || \
-  curl -s http://127.0.0.1:8000/api/v1/public/health  # health probe
+  curl -s http://localhost:8000/api/v1/public/health  # health probe
 kill %1
 ```
 Expected: log line `Mongo DB name resolved to happyword_e2e` (because `.env.local` sets a literal name).
@@ -306,7 +306,7 @@ git commit -m "docs(server): explain MONGO_DB_NAME template substitution in env 
 
 ```bash
 cd server
-export E2E_BASE_URL=http://127.0.0.1:8000 \
+export E2E_BASE_URL=http://localhost:8000 \
        E2E_MONGODB_URI=mongodb://localhost:27017 \
        E2E_MONGO_DB_NAME=happyword_e2e \
        E2E_ADMIN_USER=e2e-admin \
@@ -319,7 +319,7 @@ Expected: `52 passed, 305 deselected`.
 If the local mongo container or uvicorn is no longer running, restart per the README:
 ```bash
 docker run -d --name happyword-e2e-mongo -p 27017:27017 mongo:7
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+uv run uvicorn app.main:app --host localhost --port 8000 &
 ```
 
 ---
@@ -565,7 +565,7 @@ Expected: `52 tests collected, 305 deselected` (or 358 — whatever the unchange
 - [ ] **Step 4: Run the smoke subset against the still-running local server**
 
 ```bash
-export E2E_BASE_URL=http://127.0.0.1:8000 \
+export E2E_BASE_URL=http://localhost:8000 \
        E2E_MONGODB_URI=mongodb://localhost:27017 \
        E2E_MONGO_DB_NAME=happyword_e2e \
        E2E_ADMIN_USER=e2e-admin \

@@ -162,7 +162,7 @@ configuring it for the QA pipeline's needs, not provisioning from scratch.
 1. Confirm cluster `atlas-lime-garden` is reachable and on a tier ≥ M10 (M0/M2/M5 lack the `dbAdmin` privileges and concurrent connection budget the CI workflows assume).
 2. Add user `happyword_app` with `readWrite@*` (so it can hit any DB whose name we generate at runtime).
 3. Add user `happyword_ci` with `readWrite@*` AND `dbAdmin@admin` (the latter to allow `dropDatabase`). CI uses this for reset + cleanup; the app never sees it.
-4. Add network access entries: `0.0.0.0/0` per-user, scoped (standard Atlas-on-Vercel pattern; Vercel functions have no static egress IP). Future: switch to Atlas + AWS PrivateLink + Vercel Secure Compute (post-V0.6).
+4. Add network access entries: `<open-internet-cidr>` per-user, scoped (standard Atlas-on-Vercel pattern; Vercel functions have no static egress IP). Future: switch to Atlas + AWS PrivateLink + Vercel Secure Compute (post-V0.6).
 5. Capture both connection strings into 1Password (or your secret manager); push the relevant one into Vercel/GitHub.
 
 ### 5.4 `e2e_reset_db.py` enhancement (Phase 4)
@@ -244,7 +244,7 @@ Each phase ends with a verifiable checkpoint, so we can pause/abandon at any bou
 
 1. Confirm Atlas cluster `atlas-lime-garden` is reachable and on tier ≥ M10. Capture the SRV URI.
 2. On that cluster, create users `happyword_app` (`readWrite@`*) and `happyword_ci` (`readWrite@*` + `dbAdmin@admin`) if they don't already exist.
-3. Add `0.0.0.0/0` to the network allowlist (per-user, scoped) if not already there.
+3. Add `<open-internet-cidr>` to the network allowlist (per-user, scoped) if not already there.
 4. Create / link Vercel project for `server/`. Capture `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, mint a `VERCEL_TOKEN` for the GitHub bot.
 5. Create Slack incoming-webhook URL for `#happyword-ci`. Capture as `SLACK_WEBHOOK_URL`.
 6. Push GitHub Actions secrets per §4.3.

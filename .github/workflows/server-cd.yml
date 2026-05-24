@@ -74,8 +74,6 @@ jobs:
       - name: Run staging smoke
         env:
           E2E_BASE_URL: ${{ steps.wait_deploy.outputs.url }}
-          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
-          E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
         run: uv run pytest -v -m smoke
 
       - name: Slack alert on smoke failure

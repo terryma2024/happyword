@@ -107,7 +107,7 @@ uv run python mock_ui_server.py
 adb reverse tcp:8123 tcp:8123
 cd android
 ./gradlew connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.serverBaseUrl=http://127.0.0.1:8123
+  -Pandroid.testInstrumentationRunnerArguments.serverBaseUrl=http://localhost:8123
 ```
 
 Expected:

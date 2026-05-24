@@ -12,7 +12,6 @@ from tests.e2e._utils.vercel import vercel_bypass_headers
 
 
 @pytest.mark.e2e
-@pytest.mark.smoke
 def test_pair_create_returns_token_and_short_code(
     http: httpx.Client, parent: ParentSession
 ) -> None:

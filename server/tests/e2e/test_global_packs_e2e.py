@@ -22,6 +22,12 @@ if TYPE_CHECKING:
     import httpx
 
 
+def _without_merged_at(payload: dict[str, object]) -> dict[str, object]:
+    clone = dict(payload)
+    clone.pop("merged_at", None)
+    return clone
+
+
 @pytest.mark.e2e
 def test_global_pack_publish_then_appears_in_public_latest_json(
     http: httpx.Client, admin_token: str, run_id: str
@@ -76,17 +82,21 @@ def test_global_pack_publish_then_appears_in_public_latest_json(
 
 @pytest.mark.e2e
 def test_global_packs_latest_etag_returns_304(http: httpx.Client) -> None:
-    """If-None-Match contract: same ETag back -> 304 Not Modified."""
+    """If-None-Match contract: 304 or stable 200 through managed front doors."""
     r1 = http.get("/api/v1/public/global-packs/latest.json")
     if r1.status_code == 204:
         pytest.skip("no published global packs in preview DB yet")
     assert r1.status_code == 200, r1.text
     etag = r1.headers["etag"]
+    body = r1.json()
     r2 = http.get(
         "/api/v1/public/global-packs/latest.json",
         headers={"If-None-Match": etag},
     )
-    assert r2.status_code == 304
+    assert r2.status_code in {200, 304}
+    assert r2.headers.get("etag") == etag
+    if r2.status_code == 200:
+        assert _without_merged_at(r2.json()) == _without_merged_at(body)
 
 
 @pytest.mark.e2e

@@ -177,7 +177,7 @@ Allowed origins for `start` / handoff:
 | Source | Rule |
 | --- | --- |
 | Production | `https://happyword.cool` (and `www` if ever enabled) |
-| Local dev | `http://127.0.0.1:8000`, `http://localhost:8000` (ports configurable via env) |
+| Local dev | `http://localhost:8000`, `http://localhost:8000` (ports configurable via env) |
 | Vercel Preview | Hostnames listed in live `GET /api/v1/public/preview-urls.json` manifest **plus** suffix match `*.vercel.app` as safety net when manifest lags |
 
 Implementation: `oauth_return_origin_service.is_allowed(origin: str) -> bool` fetches manifest with short in-memory cache (60s). Reject unknown origins before redirecting to Google (fail closed).
@@ -214,7 +214,7 @@ Google Cloud Console **Authorized redirect URIs** (only):
 https://happyword.cool/v1/oauth/google/callback
 ```
 
-Local manual testing: use production hop with `return_origin=http://127.0.0.1:8000` **or** add `http://127.0.0.1:8000/.../callback` to a separate dev OAuth client (document in runbook; not required for CI).
+Local manual testing: use production hop with `return_origin=http://localhost:8000` **or** add `http://localhost:8000/.../callback` to a separate dev OAuth client (document in runbook; not required for CI).
 
 ---
 

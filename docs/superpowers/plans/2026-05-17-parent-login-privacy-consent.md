@@ -554,12 +554,12 @@ Expected: no findings.
 Start a dev server in one terminal:
 
 ```bash
-cd server && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+cd server && uv run uvicorn app.main:app --host localhost --port 8000 --reload
 ```
 
-(This requires `server/.env.local` with `MONGODB_URI`, `MONGO_DB_NAME`, `JWT_SECRET`, `ADMIN_BOOTSTRAP_USER`, `ADMIN_BOOTSTRAP_PASS` set per AGENTS.md "Running the server locally" — plus a running `mongod` on `127.0.0.1:27017`.)
+(This requires `server/.env.local` with `MONGODB_URI`, `MONGO_DB_NAME`, `JWT_SECRET`, `ADMIN_BOOTSTRAP_USER`, `ADMIN_BOOTSTRAP_PASS` set per AGENTS.md "Running the server locally" — plus a running `mongod` on `localhost:27017`.)
 
-Then in a browser, hit `http://127.0.0.1:8000/family/login` and verify:
+Then in a browser, hit `http://localhost:8000/family/login` and verify:
 
 | # | Action | Expected |
 | - | --- | --- |

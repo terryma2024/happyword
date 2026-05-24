@@ -57,7 +57,7 @@ google_oauth_client_secret: str = ""
 oauth_canonical_base_url: str = "https://happyword.cool"
 oauth_handoff_ttl_seconds: int = 60
 oauth_state_ttl_seconds: int = 600
-oauth_local_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
+oauth_local_origins: str = "http://localhost:8000,http://localhost:8000"
 ```
 
 Add helper:
@@ -74,7 +74,7 @@ GOOGLE_OAUTH_CLIENT_ID=
 GOOGLE_OAUTH_CLIENT_SECRET=
 OAUTH_CANONICAL_BASE_URL=https://happyword.cool
 OAUTH_HANDOFF_TTL_SECONDS=60
-OAUTH_LOCAL_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
+OAUTH_LOCAL_ORIGINS=http://localhost:8000,http://localhost:8000
 ```
 
 - [ ] **Step 3: Commit**
@@ -186,7 +186,7 @@ async def test_allows_local_origins(monkeypatch):
     get_settings.cache_clear()
     from app.services import oauth_return_origin_service as svc
 
-    assert await svc.is_allowed_origin("http://127.0.0.1:8000") is True
+    assert await svc.is_allowed_origin("http://localhost:8000") is True
 
 
 @pytest.mark.asyncio
@@ -568,7 +568,7 @@ Add prefix bullet: `/v1/oauth/{provider}/**` — pre-login OAuth (see `.cursor/r
 - Create Google Cloud OAuth client (Web application)
 - Authorized redirect URI: `https://happyword.cool/v1/oauth/google/callback` only
 - Vercel env: `GOOGLE_OAUTH_CLIENT_*`, `OAUTH_CANONICAL_BASE_URL`
-- Local dev: start from `http://127.0.0.1:8000/family/login` → production hop with `return_origin` OR separate dev client
+- Local dev: start from `http://localhost:8000/family/login` → production hop with `return_origin` OR separate dev client
 - Preview: button uses absolute production `start` URL; handoff returns to preview `finish`
 
 - [ ] **Step 3: Update design spec status line to "Implemented" only after full pytest green (optional in final commit)**
@@ -605,7 +605,7 @@ Fix any new issues in files you touched.
 
 1. Set `GOOGLE_OAUTH_*` in `server/.env.local`
 2. `uv run uvicorn app.main:app --port 8000`
-3. Open `http://127.0.0.1:8000/family/login` → Google → return via production hop if using canonical URL in env
+3. Open `http://localhost:8000/family/login` → Google → return via production hop if using canonical URL in env
 
 - [ ] **Step 4: Final commit if formatting fixes**
 

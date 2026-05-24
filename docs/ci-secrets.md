@@ -9,19 +9,29 @@ end-to-end. If you only want one section, jump straight to
 
 | Workflow | File | Trigger | Purpose |
 | --- | --- | --- | --- |
-| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself; manual dispatch | Transitional dual track: offline pytest + legacy Vercel Preview E2E/manifest on PRs; opt-in CloudBase staging smoke through `workflow_dispatch` or the `cloudbase-smoke` PR label |
-| `server-cd` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Push to `main` touching `server/**` | Wait for Vercel **production** deploy, run staging smoke (`pytest -m smoke`) |
-| `server-cloudbase-cd` | [`.github/workflows/server-cloudbase-cd.yml`](../.github/workflows/server-cloudbase-cd.yml) | Push to `main` touching `server/**`; manual dispatch | Deploy server to CloudBase Run, then health check and smoke test |
-| `cursor-autofix-e2e` | [`.github/workflows/cursor-autofix-e2e.yml`](../.github/workflows/cursor-autofix-e2e.yml) | `workflow_dispatch` | Manually trigger a Cursor Cloud Agent for an open PR |
+| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself; manual dispatch | Offline pytest plus opt-in shared CloudBase staging E2E through `workflow_dispatch` or the `cloudbase-smoke` PR label |
+| `server-cd` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Push to `main` touching `server/**` | Wait for Vercel **production** deploy, then run HTTP-only smoke (`pytest -m smoke`) |
+| `server-cloudbase-cd` | [`.github/workflows/server-cloudbase-cd.yml`](../.github/workflows/server-cloudbase-cd.yml) | Push to `main` touching `server/**`; manual dispatch | Deploy server to CloudBase Run, then health check and HTTP-only smoke |
 | `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR `closed` + dispatch | Legacy cleanup-on-close + manual repair for the Vercel Blob preview manifest |
 | `atlas-cleanup` | [`.github/workflows/atlas-cleanup.yml`](../.github/workflows/atlas-cleanup.yml) | Cron Mon 09:00 UTC + dispatch | Drop stale per-PR Mongo Atlas DBs older than 14 days |
 | `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Cron Mon 10:00 UTC + dispatch | Keep only the newest Vercel deployment per non-`main` branch (production alias preserved) |
 
-During the transition, both Vercel and CloudBase workflows stay alive. PRs keep
-the legacy Vercel Preview E2E and Blob manifest refresh, while CloudBase staging
-smoke is opt-in so it does not overwrite shared staging data on every PR.
-Pushes to `main` run both Vercel `server-cd` and CloudBase
-`server-cloudbase-cd`.
+During the transition, both Vercel and CloudBase deployment workflows stay
+alive. PR online E2E no longer deploys Vercel previews; it uses the shared
+CloudBase staging service and the Beijing Lighthouse E2E database, opt-in so it
+does not reset shared staging data on every PR. Pushes to `main` run both Vercel
+`server-cd` and CloudBase `server-cloudbase-cd`.
+
+The shared CloudBase staging E2E job runs on the Beijing self-hosted runner. The
+runner must have system `jq`, `python3.12`, and `/usr/local/bin/uv`; the workflow
+verifies those tools and uses `uv sync --python 3.12` against the Tencent Cloud
+PyPI mirror instead of `actions/setup-python` or `astral-sh/setup-uv` on the
+self-hosted runner, because the runner OS is OpenCloudOS 9.4 and external tool
+downloads are slow or flaky from Beijing. The upstream pytest job uploads
+`server/` as a short-lived artifact, and the Beijing E2E job downloads that
+artifact instead of fetching source directly from GitHub. The DB reset step uses
+`E2E_ADMIN_USER` / `E2E_ADMIN_PASS` to upsert the shared staging admin row before
+E2E runs, so the credentials do not depend on a CloudBase service restart.
 
 ## All secrets, in one table
 
@@ -32,27 +42,27 @@ Pushes to `main` run both Vercel `server-cd` and CloudBase
 | Secret | Required by | Optional? | Effect when missing |
 | --- | --- | --- | --- |
 | `GITHUB_TOKEN` | every workflow | **Auto-provided.** No setup. | n/a |
-| [`VERCEL_TOKEN`](#vercel_token) | `server-ci`, `preview-manifest`, `vercel-prune`, legacy Vercel workflows | optional during M8A | Legacy Vercel Preview E2E / cleanup / manifest repair jobs skip with a warning |
-| [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | `server-ci`, legacy Vercel workflows | optional during M8A | Legacy Vercel fallback operations cannot identify the project |
+| [`VERCEL_TOKEN`](#vercel_token) | `preview-manifest`, `vercel-prune`, legacy Vercel workflows | optional during M8A | Legacy Vercel cleanup / manifest repair jobs skip with a warning |
+| [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflows | optional during M8A | Legacy Vercel fallback operations cannot identify the project |
 | [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflows | optional during M8A | same as above |
 | [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `server-ci`, `preview-manifest` legacy path | **required** only for the legacy manifest rebuild path | The legacy refresh / repair job skips with a warning; CloudBase inline manifest does not need it |
-| [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | `server-ci` legacy Vercel E2E | optional during M8A | Needed while Vercel-protected previews remain in the transition window |
+| [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | legacy Vercel E2E only | optional during M8A | No longer used by `server-ci`; keep only while any protected Vercel preview automation remains |
 | _operator_ [**`VERCEL_CRON_SECRET`**](#vercel_cron_secret-lesson-import-extraction-cron) | workstation `~/.env` | optional | Mirrors Vercel **`CRON_SECRET`** for [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh); not a GitHub Actions secret |
-| [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `server-cd`, `server-cloudbase-cd`, `atlas-cleanup` | optional | Mongo-dependent tests may skip or fail depending on target; cron cleanup is a no-op |
-| [`E2E_ADMIN_USER`](#e2e_admin_user--e2e_admin_pass), [`E2E_ADMIN_PASS`](#e2e_admin_user--e2e_admin_pass) | `server-ci`, `server-cloudbase-cd` | optional | E2E/smoke tests that need an admin login skip |
-| [`E2E_CRON_SECRET`](#e2e_cron_secret) | `server-ci`, `server-cloudbase-cd` | optional | [`test_lesson_import_cron_e2e`](../server/tests/e2e/test_lesson_import_cron_e2e.py) skips if unset; must equal target **`CRON_SECRET`** |
-| [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-ci` CloudBase smoke, `server-cd`, `server-cloudbase-cd` | optional | `pytest -m smoke` runs without a DB target → likely fails for DB-backed smoke |
+| [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `atlas-cleanup` | optional | Shared staging E2E cannot reset or inject fixtures; cron cleanup is a no-op |
+| [`E2E_ADMIN_USER`](#e2e_admin_user--e2e_admin_pass), [`E2E_ADMIN_PASS`](#e2e_admin_user--e2e_admin_pass) | `server-ci` | optional | E2E tests that need an admin login skip |
+| [`E2E_CRON_SECRET`](#e2e_cron_secret) | `server-ci` | optional | [`test_lesson_import_cron_e2e`](../server/tests/e2e/test_lesson_import_cron_e2e.py) skips if unset; must equal target **`CRON_SECRET`** |
+| [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-ci` CloudBase staging E2E | optional | Shared staging E2E cannot reset or validate the target DB |
 | [`SLACK_WEBHOOK_URL`](#slack_webhook_url) | `server-ci`, `server-cd` | optional | Failure alert step prints a warning; CI itself unaffected |
-| [`CURSOR_API_KEY`](#cursor_api_key) | `server-ci`, `cursor-autofix-e2e` | optional | Automatic legacy Vercel E2E autofix or manual Cursor autofix cannot spawn a cloud agent |
 | [`TCB_SECRET_ID`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow cannot authenticate to Tencent Cloud. |
 | [`TCB_SECRET_KEY`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow cannot authenticate to Tencent Cloud. |
 | [`TCB_ENV_ID`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow does not know which environment to deploy to. |
-| [`CLOUDBASE_STAGING_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase smoke | optional during migration | Staging smoke checks cannot run against CloudBase. |
-| [`CLOUDBASE_PROD_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase smoke | optional during migration | Production smoke checks cannot run against CloudBase. |
+| [`CLOUDBASE_STAGING_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase staging E2E | optional during migration | Staging E2E cannot run against CloudBase. |
+| [`CLOUDBASE_PROD_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | Production health and HTTP-only smoke checks cannot run against CloudBase. |
 | `ASSET_STORAGE_PROVIDER` | CloudBase runtime env | optional until M7 | Defaults to Vercel Blob; set to `tencent_cos` after COS staging validation. |
 | `COS_SECRET_ID` / `COS_SECRET_KEY` | CloudBase runtime env | optional until M7 | New COS uploads cannot run without these when `ASSET_STORAGE_PROVIDER=tencent_cos`. |
 | `COS_REGION` / `COS_BUCKET` / `COS_PUBLIC_BASE_URL` | CloudBase runtime env | optional until M7 | COS URLs cannot be generated correctly without bucket and public base URL config. |
-| `TENCENTDB_MONGODB_URI` | Operator secret inventory | optional until M7A | Holds the future TencentDB for MongoDB URI before it replaces runtime `MONGODB_URI`. |
+| `LIGHTHOUSE_MONGODB_URI` | Tencent secret store / operator password manager | optional until M7A | Current low-cost MongoDB Atlas replacement URI for Shanghai Lighthouse; do not put it in GitHub logs. |
+| `TENCENTDB_MONGODB_URI` | Operator secret inventory | optional until managed DB upgrade | Future TencentDB URI if/when Lighthouse operational risk or traffic justifies managed HA. |
 | `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase runtime env | optional until M8 | Lets `/api/v1/public/preview-urls.json` serve CloudBase staging without Vercel Blob. |
 | `CLOUDBASE_PREVIEW_MODE` | CloudBase preview workflow | optional until M8B | Documents whether preview publishing is shared staging or on-demand CloudBase preview. |
 
@@ -86,19 +96,17 @@ secrets until the Vercel retirement phase.
 | `CLOUDBASE_CRON_TARGET_URL` | CloudBase cron function | Target FastAPI cron endpoint, e.g. staging `/api/v1/admin/cron/extract-pending`. |
 | `CLOUDBASE_CRON_SECRET` | CloudBase cron function | Same bearer secret as the target CloudBase Run service `CRON_SECRET`. |
 
-Create the Tencent Cloud API credential with the narrowest permissions that can
-deploy the target CloudBase Run service and read deployment status. Store the
-credential only as GitHub Actions secrets or in Tencent Cloud Secret Manager;
-do not commit the values to this repository.
+Store the Tencent Cloud API credential only as GitHub Actions secrets or in
+Tencent Cloud Secret Manager; do not commit the values to this repository.
 
 Operational note, 2026-05-21: GitHub Actions run `server-cloudbase-cd`
 `26199672079` succeeded after the CI API key was granted `QcloudTCBFullAccess`.
 The narrower `QcloudTCBRFullAccess` policy was not sufficient for
 `tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"` and failed
 with Tencent Cloud key verification errors both locally and in CI. Keep the
-working key restricted to GitHub Actions while migrating, then replace it with a
-custom least-privilege policy once the exact CloudBase Run deploy, HTTP access,
-function cron, and smoke-test actions are known.
+working key restricted to GitHub Actions while migrating. Treat least-privilege
+CAM policy replacement as the final security follow-up after CloudBase cutover,
+Vercel retirement, and the stable deployment/smoke path are complete.
 
 The current M3 implementation deploys `cloudbase/functions/cron-extract-pending`
 manually through the CloudBase CLI and stores function env vars in CloudBase,
@@ -126,16 +134,39 @@ Use these after M7 switches new uploads away from Vercel Blob:
 Keep `BLOB_READ_WRITE_TOKEN` until all write paths use COS and any remaining
 Vercel Blob URLs are intentionally retained or backfilled.
 
-#### TencentDB for MongoDB
+After the staging bucket exists, validate the runtime credentials before
+switching CloudBase staging:
 
-Use these during M7A. The final runtime variable remains `MONGODB_URI`; the
-temporary names below are only for operator inventory and staged cutover.
+```bash
+cd server
+ASSET_STORAGE_PROVIDER=tencent_cos \
+COS_SECRET_ID=... \
+COS_SECRET_KEY=... \
+COS_REGION=ap-shanghai \
+COS_BUCKET=happyword-assets-staging-1429584068 \
+COS_PUBLIC_BASE_URL=https://happyword-assets-staging-1429584068.cos.ap-shanghai.myqcloud.com \
+uv run python -m scripts.cos_storage_smoke
+```
+
+#### M7A MongoDB replacement
+
+Use these during M7A. The active path is Shanghai Lighthouse MongoDB with a
+Beijing hidden backup secondary because it preserves the existing MongoDB driver
+boundary at the current user volume. Built-in CloudBase document database /
+FlexDB was investigated and is no longer on the migration path. TencentDB for
+MongoDB remains the future managed HA upgrade path.
 
 | Name | Where to store | Purpose |
 | --- | --- | --- |
+| `LIGHTHOUSE_MONGODB_URI` | Tencent secret store / operator password manager | Shanghai Lighthouse app-user TLS URI for the active M7A path; do not put it in GitHub logs. |
 | `TENCENTDB_MONGODB_URI` | Operator password manager / Tencent secret store | Future TencentDB URI before it replaces runtime `MONGODB_URI`. |
 | `TENCENTDB_MONGO_DB_NAME` | Operator password manager / Tencent secret store | Target database name if different from current `MONGO_DB_NAME`. |
 | `ATLAS_MONGODB_URI_ROLLBACK` | Operator password manager only | Old Atlas URI retained for rollback; do not put this in GitHub logs. |
+
+Historical FlexDB spike variables (`FLEXDB_ENV_ID`, `FLEXDB_TAG`,
+`FLEXDB_MONGODB_URI`, `FLEXDB_API_SECRET_ID`, and `FLEXDB_API_SECRET_KEY`) are
+not required for the active migration unless the project explicitly reopens the
+CloudBase document database API-adapter path.
 
 Do not remove Atlas credentials until the database rollback window is complete.
 
@@ -149,10 +180,10 @@ These names replace the Vercel Preview publishing path during M8.
 | `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase env | Inline manifest payload used before a Mongo-backed manifest exists. |
 | `CLOUDBASE_PREVIEW_MODE` | GitHub Actions variable or CloudBase env | Suggested values: `shared_staging`, `on_demand_version`, `on_demand_service`. |
 
-M8A keeps the legacy Vercel Preview path alive during the transition, so keep
-`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
-`VERCEL_AUTOMATION_BYPASS_SECRET`, and `BLOB_READ_WRITE_TOKEN` configured until
-M8C/M9 retirement.
+M8A no longer uses the legacy Vercel Preview path for `server-ci` online E2E.
+Keep `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
+`VERCEL_AUTOMATION_BYPASS_SECRET`, and `BLOB_READ_WRITE_TOKEN` configured only
+for the remaining legacy cleanup / repair workflows until M8C/M9 retirement.
 
 ### `VERCEL_TOKEN`
 
@@ -291,25 +322,22 @@ Or just the URL fragment (happyword-<frag>-terrymas-projects.vercel.app):
 bash tools/vercel/trigger-cron.sh --url-fragment 9y7uijs1p --job extract-pending
 ```
 
-Further detail: Cursor skill **`vercel-trigger-cron`** and
-[`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh).
+Further detail: [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh).
 
 ### `E2E_CRON_SECRET`
 
 Repository secret used only by GitHub Actions: the E2E job exports it so
 [`server/tests/e2e/test_lesson_import_cron_e2e.py`](../server/tests/e2e/test_lesson_import_cron_e2e.py)
 can call **`POST /api/v1/admin/cron/extract-pending`** with
-**`Authorization: Bearer …`**. Use the **same value** as Vercel **Preview**
-environment variable **`CRON_SECRET`** (see [`VERCEL_CRON_SECRET` §](#vercel_cron_secret-lesson-import-extraction-cron)).
+**`Authorization: Bearer …`**. Use the **same value** as the target CloudBase
+staging environment variable **`CRON_SECRET`**.
 When this secret is not configured, the test is **skipped** (the suite stays green).
 
 ### `E2E_MONGODB_URI`
 
 Mongo connection string used by:
 
-- `server-ci` legacy Vercel E2E and optional CloudBase staging smoke;
-- `server-cd` staging smoke;
-- `server-cloudbase-cd` smoke;
+- `server-ci` shared CloudBase staging E2E;
 - `atlas-cleanup` weekly cron to drop stale per-PR DBs.
 
 **Must be a dedicated test cluster** — the reset script refuses to run
@@ -317,46 +345,50 @@ against any DB whose name doesn't end in `_e2e` / `_test` / `_ci`, and
 refuses any name that contains `prod`. Still, do not point this at your
 production cluster credentials.
 
-**Get it (Mongo Atlas):**
+This secret is currently the Beijing self-hosted runner's loopback URI for
+`happyword_cloudbase_staging_e2e`, not a public CloudBase runtime URI. Do not
+use it from GitHub-hosted runners: on `ubuntu-latest`, localhost points at
+the temporary GitHub runner, not the Beijing MongoDB. GitHub-hosted CD workflows
+therefore run only HTTP smoke checks; DB fixture injection stays on the
+self-hosted `server-ci` staging E2E runner.
+
+**Get it (Mongo Atlas, for legacy/fallback setups):**
 
 1. <https://cloud.mongodb.com> → create a Project + a dedicated **test**
    cluster (M0 free tier is enough).
 2. **Database Access** → create a user with `readWriteAnyDatabase` on this
    cluster (the per-PR DB names are dynamic, so a single-DB role won't fit).
-3. **Network Access** → either add `0.0.0.0/0` (open; OK for an isolated
-   test cluster) or use a VPC peering / IP allowlist that includes GitHub
-   Hosted Runner IPs. GitHub does not publish stable runner IP ranges, so
-   most teams just use `0.0.0.0/0` on the test cluster.
+3. **Network Access** → either use an open internet CIDR (acceptable only for an
+   isolated test cluster) or use a VPC peering / explicit allowlist that includes
+   GitHub Hosted Runner egress. GitHub does not publish stable runner egress
+   ranges, so keep this limited to disposable test clusters.
 4. **Connect → Drivers**, copy the `mongodb+srv://...` URI, fill in the
    user / password.
 5. Save as `E2E_MONGODB_URI`.
 
-M8A `server-ci` still computes per-PR DB names for legacy Vercel E2E
-(`happyword_pr_<N>_e2e`) and uses the static `E2E_STAGING_DB_NAME` for
-CloudBase smoke.
+M8A `server-ci` uses the static `E2E_STAGING_DB_NAME` for the shared CloudBase
+staging E2E database.
 
 ### `E2E_ADMIN_USER` & `E2E_ADMIN_PASS`
 
-Bootstrap admin credentials the E2E/smoke tests use to call admin-only endpoints
+Bootstrap admin credentials the E2E tests use to call admin-only endpoints
 (`/api/v1/admin/auth/login`). They must match the `ADMIN_BOOTSTRAP_USER` /
-`ADMIN_BOOTSTRAP_PASS` env vars on the Vercel Preview and CloudBase staging
-services, since the FastAPI startup hook seeds the admin row from those.
+`ADMIN_BOOTSTRAP_PASS` env vars on CloudBase staging, since the FastAPI startup
+hook seeds the admin row from those.
 
 **Pick any two strings** (treat as secrets), and:
 
 1. Save them as repo secrets `E2E_ADMIN_USER` / `E2E_ADMIN_PASS`.
 2. Save the **same** values as `ADMIN_BOOTSTRAP_USER` /
-   `ADMIN_BOOTSTRAP_PASS` on Vercel Preview and CloudBase staging.
+   `ADMIN_BOOTSTRAP_PASS` on CloudBase staging.
 
 ### `E2E_STAGING_DB_NAME`
 
-Static DB name that CloudBase staging smoke connects to — typically
-`happyword_staging`. The DB sits inside the same Atlas
-cluster pointed at by `E2E_MONGODB_URI`. The reset script's `_e2e/_test/_ci`
-suffix rule does not apply to smoke (smoke is read-mostly), but the name
-must still avoid `prod`.
+Static DB name that CloudBase staging E2E resets and validates. Current value:
+`happyword_cloudbase_staging_e2e`. The reset script requires `_e2e`, `_test`, or
+`_ci` and refuses any name containing `prod`.
 
-**Get it:** decide on a name (e.g. `happyword_staging`) and save it.
+**Get it:** use the fixed Beijing staging E2E database name and save it.
 
 ### `SLACK_WEBHOOK_URL`
 
@@ -376,40 +408,18 @@ by failure alert steps such as `server-cd` post-merge smoke failure.
 If your team already has a CI-alert Slack App, ask the admin to add a
 webhook for your channel under that app and reuse the URL.
 
-### `CURSOR_API_KEY`
-
-Lets `server-ci` spawn automatic legacy Vercel E2E fixes, and lets
-`cursor-autofix-e2e` spawn a manual
-[Cursor Cloud Agent](https://cursor.com/docs/background-agent/api/overview)
-that commits a fix to the PR branch.
-
-**Get it:**
-
-1. <https://cursor.com/dashboard/cloud-agents> → **API keys**.
-2. Create a key. **Service-account keys** are recommended for CI; user keys
-   work but follow the user's permissions.
-3. Save as `CURSOR_API_KEY`.
-
-**Also required:** the **Cursor GitHub App** must be installed on the
-repository (or the org) so the agent can push commits to the PR's head
-branch. Install at <https://github.com/apps/cursor-com>. Without it the
-agent's `git push` fails.
-
-If you protect the PR branch (Settings → Branches → Branch protection
-rules), the agent's push will be rejected. The current setup assumes only
-`main` is protected.
-
 ## Vercel-side environment variables
 
 Secrets above only let CI **talk to** Vercel. The deployed FastAPI server
 itself needs its own env vars on **Vercel → Project → Settings →
-Environment Variables**. Set these on **Preview** (used by E2E) and
-**Production** (used by the staging smoke):
+Environment Variables**. These Vercel settings are legacy during the CloudBase
+transition; current GitHub-hosted CD smoke is HTTP-only and does not use direct
+DB fixture injection.
 
 | Variable | Purpose | Notes |
 | --- | --- | --- |
-| `MONGODB_URI` | App's Mongo URI | **Must be the same Atlas cluster** as `E2E_MONGODB_URI`, or the per-PR reset and the API will work on different DBs and E2E will drift. |
-| `MONGO_DB_NAME` | App's DB name | For Preview: leave it templated/per-PR (see [`server/.env.local.example`](../server/.env.local.example)). For Production: `happyword_staging` (matches `E2E_STAGING_DB_NAME`). |
+| `MONGODB_URI` | App's Mongo URI | Legacy Vercel runtime value. It no longer needs to match the Beijing runner loopback `E2E_MONGODB_URI`. |
+| `MONGO_DB_NAME` | App's DB name | Legacy Vercel runtime value. Shared CloudBase staging E2E uses `E2E_STAGING_DB_NAME` only from the self-hosted runner. |
 | `JWT_SECRET` | JWT signing | Generate `openssl rand -base64 32`. Must be ≥32 bytes. |
 | `JWT_EXPIRE_HOURS` | Token TTL | e.g. `24`. |
 | `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` | Seed admin row at startup | **Must equal** `E2E_ADMIN_USER` / `E2E_ADMIN_PASS`. |
@@ -443,7 +453,8 @@ For someone forking this repo and wanting CI fully working:
 
    - [ ] Create a dedicated test cluster.
    - [ ] Create a user with `readWriteAnyDatabase` on it.
-   - [ ] Network Access → allow `0.0.0.0/0` (or explicit allowlist).
+   - [ ] Network Access → allow an open internet CIDR for the disposable test
+         cluster, or configure an explicit allowlist.
    - [ ] Copy the connection string.
 
 3. **Slack** *(optional but recommended)*
@@ -451,12 +462,7 @@ For someone forking this repo and wanting CI fully working:
    - [ ] Create / reuse a Slack App with Incoming Webhooks for your alert
          channel.
 
-4. **Cursor** *(optional)*
-
-   - [ ] Install the Cursor GitHub App on the repo.
-   - [ ] Mint a `CURSOR_API_KEY` from the Cursor dashboard.
-
-5. **GitHub repo secrets** (Settings → Secrets and variables → Actions):
+4. **GitHub repo secrets** (Settings → Secrets and variables → Actions):
 
    | Secret | Value source |
    | --- | --- |
@@ -470,27 +476,23 @@ For someone forking this repo and wanting CI fully working:
    | `TCB_ENV_ID` | CloudBase environment id |
    | `CLOUDBASE_STAGING_BASE_URL` | CloudBase staging HTTP access URL |
    | `CLOUDBASE_PROD_BASE_URL` | CloudBase production HTTP access URL during transition |
-   | `E2E_MONGODB_URI` | Atlas connect string |
+   | `E2E_MONGODB_URI` | Beijing self-hosted runner loopback URI for shared staging E2E |
    | `E2E_ADMIN_USER` | freely chosen, mirrors target `ADMIN_BOOTSTRAP_USER` |
    | `E2E_ADMIN_PASS` | freely chosen, mirrors target `ADMIN_BOOTSTRAP_PASS` |
-   | `E2E_STAGING_DB_NAME` | e.g. `happyword_staging` |
+   | `E2E_STAGING_DB_NAME` | `happyword_cloudbase_staging_e2e` |
    | `SLACK_WEBHOOK_URL` | Slack Incoming Webhook URL |
-   | `CURSOR_API_KEY` | Cursor Dashboard → Cloud agents → API keys |
 
-6. **Smoke test**
+5. **Smoke test**
 
    - [ ] Open a tiny PR that touches `server/`. `server-ci` should run
-         offline `pytest`, legacy Vercel Preview E2E, and legacy manifest
-         refresh.
+         offline `pytest` by default.
    - [ ] Add the `cloudbase-smoke` label, or manually dispatch `server-ci`.
-         Confirm `server / cloudbase staging smoke` runs against
+         Confirm `server / cloudbase staging e2e` runs against
          `CLOUDBASE_STAGING_BASE_URL`.
-   - [ ] If you want Cursor help, trigger `cursor-autofix-e2e` manually and
-         confirm it posts a link to the
-         [Cursor Cloud Agents dashboard](https://cursor.com/dashboard/cloud-agents).
    - [ ] Merge a `server/**` change to `main`. Watch both `server-cd` and
-         `server-cloudbase-cd`; Vercel should smoke after production deploy,
-         and CloudBase should deploy, health check, and smoke.
+         `server-cloudbase-cd`; Vercel should run HTTP-only smoke after
+         production deploy, and CloudBase should deploy, health check, and run
+         HTTP-only smoke.
          First green main run: `server-cloudbase-cd` `26199672079` on
          2026-05-21 after PR #118 merged.
    - [ ] Wait until Monday 09:00 UTC (or trigger `atlas-cleanup` manually)
@@ -503,20 +505,12 @@ For someone forking this repo and wanting CI fully working:
   this repo will skip — the workflow stays green and prints a warning.
   Push the branch into this repository and open the PR from there to
   exercise the full pipeline.
-- **Rotation.** Vercel tokens, Cursor keys, and Slack webhooks expire or
+- **Rotation.** Vercel tokens and Slack webhooks expire or
   get invalidated. The first symptom is silent skipping (the gate steps
-  print warnings). When a workflow stops doing E2E or autofix, check secret
-  presence and freshness first.
+  print warnings). When a workflow stops doing E2E, check secret presence
+  and freshness first.
 - **Scope.** All current secrets are **repository-level**. None are tied to
   a GitHub Environment, so a workflow re-run will not require approval.
-- **Cursor autofix loop.** The autofix script enforces `MAX_ROUNDS = 20`
-  per PR (counted across SHAs; raised from 10 after long-lived branches
-  hit the cap mid-debug). If you hit the cap on a long-running PR, either
-  delete some of the `<!-- cursor-autofix-triggered:* -->` marker comments
-  on the PR, raise `DEFAULT_MAX_ROUNDS` in
-  [`.github/scripts/trigger-cursor-fix-e2e.mjs`](../.github/scripts/trigger-cursor-fix-e2e.mjs),
-  or pass a one-off override via the `cursor-autofix-e2e` workflow's
-  `max_rounds` input.
 - **Per-PR DB hygiene.** `atlas-cleanup` drops `happyword_pr_<N>_e2e` DBs
   older than 14 days. If you keep a PR open longer, the next CI run on it
   re-creates the DB from scratch — no manual action needed.

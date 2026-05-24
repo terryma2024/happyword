@@ -1168,7 +1168,7 @@ Expected: all suites pass, including the new 12-case `LearningReportBuilder.buil
 - [ ] **Step 5: Run the LearningReportFlow UI test on the emulator**
 
 Run: `hdc list targets 2>&1`
-Expected: at least one `127.0.0.1:5555` (or device serial).
+Expected: at least one `localhost:5555` (or device serial).
 
 If empty, start the emulator from DevEco Studio first.
 

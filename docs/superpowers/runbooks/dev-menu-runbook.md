@@ -26,7 +26,7 @@ legacy Vercel Blob mirror.
 
 | Mode | Use |
 | --- | --- |
-| **Local** | Machine reachable from the device or emulator (e.g. `10.0.2.2` for Android-style emulator loopback). |
+| **Local** | Machine reachable from the device or emulator (e.g. `<android-emulator-host>` for Android-style emulator loopback). |
 | **Preview** | A manifest row. During M8A this is usually the shared `CloudBase Staging` row (`*.tcloudbase.com`); legacy Vercel preview rows (`*.vercel.app`) remain accepted until Vercel Preview is retired. |
 | **Staging** | Default shared hosted URL (`https://happyword.cool`) for normal API traffic. |
 | **Production** | Reserved; disabled until a production URL ships in a future release. |
