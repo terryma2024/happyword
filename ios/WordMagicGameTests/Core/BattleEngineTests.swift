@@ -2,6 +2,23 @@
 import XCTest
 
 final class BattleEngineTests: XCTestCase {
+    func testMapsMonsterLevelsToCoinValues() {
+        XCTAssertEqual(BattleRewardCalc.coinValue(for: .beginner), 1)
+        XCTAssertEqual(BattleRewardCalc.coinValue(for: .intermediate), 2)
+        XCTAssertEqual(BattleRewardCalc.coinValue(for: .advanced), 3)
+        XCTAssertEqual(BattleRewardCalc.coinValue(for: .super), 4)
+    }
+
+    func testUsesMonsterLevelScoreAsFinalAward() {
+        XCTAssertEqual(BattleRewardCalc.coinAward(monsterLevelScore: 9), 9)
+        XCTAssertEqual(BattleRewardCalc.coinAward(monsterLevelScore: 0), 0)
+    }
+
+    func testRetiredBonusMultiplierNeverAddsCoins() {
+        XCTAssertEqual(BattleRewardCalc.retiredBonusCoinDelta(stars: 3, bonusKillCount: 1, won: true), 0)
+        XCTAssertEqual(BattleRewardCalc.retiredBonusCoinDelta(stars: 2, bonusKillCount: 3, won: false), 0)
+    }
+
     func testDefaultsMatchHarmonyBattleRules() {
         let config = GameConfig.default
 
@@ -78,6 +95,8 @@ final class BattleEngineTests: XCTestCase {
         XCTAssertEqual(result.defeatedMonsters, 2)
         XCTAssertEqual(result.learnedWordCount, 2)
         XCTAssertEqual(result.correctRate, 1.0)
+        XCTAssertEqual(result.monsterLevelScore, 3)
+        XCTAssertEqual(result.coinsEarned, 3)
     }
 
     func testAdvancedAndSuperMonstersCanDealHeavyAttackDamage() throws {
@@ -105,7 +124,7 @@ final class BattleEngineTests: XCTestCase {
         XCTAssertEqual(engine.state.playerHp, 3)
     }
 
-    func testBonusMonsterKillsIncreaseWonCoinRewardByThirtyPercent() throws {
+    func testBonusMonsterKillsDoNotIncreaseWonCoinReward() throws {
         let engine = BattleEngine(
             questionSource: FixedQuestionSource(repeating: [
                 Question.choice(wordId: "apple", promptZh: "苹果", answer: "apple", options: ["apple", "pear", "banana"]),
@@ -125,7 +144,61 @@ final class BattleEngineTests: XCTestCase {
         XCTAssertEqual(result.status, .won)
         XCTAssertEqual(result.stars, 3)
         XCTAssertEqual(result.bonusKillCount, 1)
-        XCTAssertEqual(result.coinsEarned, 4)
+        XCTAssertEqual(result.monsterLevelScore, 16)
+        XCTAssertEqual(result.coinsEarned, 16)
+    }
+
+    func testRecordsMonsterLevelScoreAtKillTime() throws {
+        let engine = BattleEngine(
+            questionSource: FixedQuestionSource(repeating: [
+                Question.choice(wordId: "apple", promptZh: "苹果", answer: "apple", options: ["apple", "pear", "banana"]),
+                Question.choice(wordId: "pear", promptZh: "梨", answer: "pear", options: ["pear", "apple", "banana"]),
+                Question.choice(wordId: "banana", promptZh: "香蕉", answer: "banana", options: ["banana", "apple", "pear"]),
+                Question.choice(wordId: "door", promptZh: "门", answer: "door", options: ["door", "bed", "desk"]),
+            ]),
+            config: GameConfig(playerMaxHp: 5, monsterMaxHp: 1, monstersTotal: 4, startingSeconds: 300),
+            monsterCatalogIndex: { battleIndex in
+                switch battleIndex {
+                case 1: 1
+                case 2: 2
+                case 3: 8
+                default: 10
+                }
+            }
+        )
+
+        engine.start()
+        while engine.state.status == .playing {
+            let answer = try XCTUnwrap(engine.state.currentQuestion?.answer)
+            _ = try engine.submitAnswer(answer)
+        }
+
+        let result = try engine.buildSessionResult()
+        XCTAssertEqual(result.monsterLevelScore, 10)
+        XCTAssertEqual(result.coinsEarned, 10)
+    }
+
+    func testPartialLossKeepsOnlyDefeatedMonsterLevelScore() throws {
+        let engine = BattleEngine(
+            questionSource: FixedQuestionSource(repeating: [
+                Question.choice(wordId: "apple", promptZh: "苹果", answer: "apple", options: ["apple", "pear", "banana"]),
+                Question.choice(wordId: "pear", promptZh: "梨", answer: "pear", options: ["pear", "apple", "banana"]),
+            ]),
+            config: GameConfig(playerMaxHp: 1, monsterMaxHp: 1, monstersTotal: 2, startingSeconds: 300),
+            monsterCatalogIndex: { _ in 8 }
+        )
+
+        engine.start()
+        _ = try engine.submitAnswer("apple")
+        let current = try XCTUnwrap(engine.state.currentQuestion)
+        let wrongAnswer = try XCTUnwrap(current.options.first { $0 != current.answer })
+        _ = try engine.submitAnswer(wrongAnswer)
+
+        let result = try engine.buildSessionResult()
+        XCTAssertEqual(result.status, .lost)
+        XCTAssertEqual(result.stars, 1)
+        XCTAssertEqual(result.monsterLevelScore, 3)
+        XCTAssertEqual(result.coinsEarned, 3)
     }
 
     func testTimerLossEndsBattleOnce() throws {

@@ -4,6 +4,7 @@ import { SessionResult } from '../models/SessionResult';
 import { IQuestionSource } from './IQuestionSource';
 import { getMonsterByIndex, MonsterLevel } from '../data/MonsterCatalog';
 import { RandomFn } from '../utils/shuffle';
+import { coinValueForMonsterLevel } from './BattleRewardCalc';
 
 export type CatalogIndexProvider = () => number;
 
@@ -290,6 +291,8 @@ export class BattleEngine {
         if (this.state_.currentMonsterBonus) {
           this.state_.bonusKillCount += 1;
         }
+        const defeatedLevel: MonsterLevel = this.currentMonsterLevel();
+        this.state_.defeatedMonsterLevelScore += coinValueForMonsterLevel(defeatedLevel);
         this.state_.defeatedMonsters += 1;
         outcome.monsterDefeated = true;
 
@@ -417,6 +420,7 @@ export class BattleEngine {
       : 0;
     r.learnedWordCount = this.state_.learnedWordIds.length;
     r.stars = this.computeStars();
+    r.monsterLevelScore = this.state_.defeatedMonsterLevelScore;
     r.bonusKillCount = this.state_.bonusKillCount;
     return r;
   }

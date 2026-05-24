@@ -92,6 +92,7 @@ data class BattleState(
     val status: BattleStatus = BattleStatus.Playing,
     val currentMonsterBonus: Boolean = false,
     val bonusKillCount: Int = 0,
+    val defeatedMonsterLevelScore: Int = 0,
 )
 
 data class BattleAnswerOutcome(
@@ -117,6 +118,7 @@ data class SessionResult(
     val learnedWordCount: Int,
     val coinDelta: Int,
     val bonusKillCount: Int = 0,
+    val monsterLevelScore: Int = 0,
     val packId: String = "fruit-forest",
 ) {
     val accuracyPercent: Int

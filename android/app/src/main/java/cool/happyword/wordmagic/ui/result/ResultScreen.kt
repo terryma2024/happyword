@@ -51,7 +51,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -78,7 +77,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -189,20 +187,6 @@ internal fun ResultScreen(result: SessionResult, coins: Int, onHome: () -> Unit)
             StatCard("正确率", "${result.accuracyPercent}%")
             StatCard("学习单词", "${result.learnedWordCount}")
             StatCard("魔法币", "+${result.coinDelta} / $coins")
-        }
-        if (result.bonusKillCount > 0) {
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Bonus 怪物 ×${result.bonusKillCount} → +${(result.coinDelta - result.stars).coerceAtLeast(0)} ✨",
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.White)
-                    .padding(horizontal = 14.dp, vertical = 7.dp)
-                    .testTag("BattleResultBonusCoinRow"),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFD84545),
-            )
         }
         Spacer(Modifier.height(22.dp))
         Button(onClick = onHome, modifier = Modifier.width(240.dp).height(54.dp).testTag("ResultHomeButton")) {

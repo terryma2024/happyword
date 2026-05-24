@@ -1,15 +1,32 @@
-/**
- * Pure reward helpers for V0.8.3 bonus monsters (✨ ×1.3 ceil when any bonus kill).
- */
+import { MonsterLevel } from '../data/MonsterCatalog';
 
-export function computeFinalCoinAward(stars: number, bonusKillCount: number, won: boolean): number {
-  if (!won || bonusKillCount <= 0 || stars <= 0) {
-    return stars;
+/**
+ * Pure reward helpers for V0.8.6 monster-level coin scoring.
+ */
+export function coinValueForMonsterLevel(level: MonsterLevel): number {
+  if (level === MonsterLevel.Intermediate) {
+    return 2;
   }
-  return Math.ceil(stars * 1.3);
+  if (level === MonsterLevel.Advanced) {
+    return 3;
+  }
+  if (level === MonsterLevel.Super) {
+    return 4;
+  }
+  return 1;
 }
 
-export function computeBonusCoinDelta(stars: number, bonusKillCount: number, won: boolean): number {
-  const finalCoins: number = computeFinalCoinAward(stars, bonusKillCount, won);
-  return finalCoins - stars;
+export function computeMonsterLevelCoinAward(monsterLevelScore: number): number {
+  if (monsterLevelScore <= 0) {
+    return 0;
+  }
+  return Math.floor(monsterLevelScore);
+}
+
+export function computeRetiredBonusCoinDelta(
+  _monsterLevelScore: number,
+  _bonusKillCount: number,
+  _won: boolean,
+): number {
+  return 0;
 }
