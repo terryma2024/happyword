@@ -187,6 +187,7 @@ internal fun HomeScreen(
     onSelectPack: (WordPack) -> Unit,
     onBoundChild: () -> Unit,
     onStart: () -> Unit,
+    onReview: () -> Boolean,
     onPackManager: () -> Unit,
     onWishlist: () -> Unit,
     onMonsterCodex: () -> Unit,
@@ -332,7 +333,11 @@ internal fun HomeScreen(
                 fontSize = 16.sp,
                 horizontalPadding = 12.dp,
             )
-            IconCircle(R.drawable.icon_review, "复习", Modifier.testTag("HomeReviewButton"), backgroundColor = Color(0xFFFCEAEA), onClick = { reviewLockedToastVisible = true })
+            IconCircle(R.drawable.icon_review, "复习", Modifier.testTag("HomeReviewButton"), backgroundColor = Color(0xFFFCEAEA), onClick = {
+                if (!onReview()) {
+                    reviewLockedToastVisible = true
+                }
+            })
             IconCircle(R.drawable.icon_codex, "图鉴", Modifier.testTag("HomeCodexButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onMonsterCodex)
             EmojiCircle("📋", "今日计划", Modifier.testTag("HomePlanButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onTodayPlan)
             IconCircle(R.drawable.icon_wishlist, "愿望", Modifier.testTag("HomeWishlistButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onWishlist)

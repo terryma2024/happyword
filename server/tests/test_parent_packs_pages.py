@@ -181,6 +181,75 @@ async def test_batch_delete_form_removes_selected_words(parent_client: tuple[Asy
 
 
 @pytest.mark.asyncio
+async def test_pack_detail_renders_split_controls(parent_client: tuple[AsyncClient, str]) -> None:
+    ac, fid = parent_client
+    created = await ac.post(f"/api/v1/family/{fid}/family-packs", json={"name": "Split UI"})
+    pack_id = created.json()["pack_id"]
+    resp = await ac.get(f"/family/{fid}/packs/{pack_id}")
+
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.text, "html.parser")
+    form = soup.find(id="draft-split-form")
+    dialog = soup.find(id="draft-split-dialog")
+    submit = soup.find(id="draft-split-submit")
+    move_button = soup.find(id="draft-split-move-open")
+    copy_button = soup.find(id="draft-split-copy-open")
+    assert form is not None
+    assert form.get("action") == f"/family/{fid}/packs/{pack_id}/draft/split"
+    assert dialog is not None
+    assert dialog.find("input", attrs={"name": "new_name"}) is not None
+    assert dialog.find("input", attrs={"name": "new_description"}) is not None
+    mode = dialog.find("input", attrs={"name": "mode"})
+    assert mode is not None
+    assert mode.get("type") == "hidden"
+    assert soup.find("select", attrs={"name": "mode"}) is None
+    assert move_button is not None
+    assert move_button.get_text(strip=True) == "移动到新包"
+    assert copy_button is not None
+    assert copy_button.get_text(strip=True) == "复制到新包"
+    assert submit is not None
+    assert move_button.has_attr("disabled")
+    assert copy_button.has_attr("disabled")
+
+
+@pytest.mark.asyncio
+async def test_split_form_moves_selected_words_to_new_pack(
+    parent_client: tuple[AsyncClient, str]
+) -> None:
+    ac, fid = parent_client
+    created = await ac.post(
+        f"/api/v1/family/{fid}/family-packs", json={"name": "Split Form Source"}
+    )
+    pack_id = created.json()["pack_id"]
+    for word_id in ("global-a", "global-b", "global-c"):
+        await ac.put(
+            f"/api/v1/family/{fid}/family-packs/{pack_id}/draft/words/{word_id}",
+            json={"source": "global"},
+        )
+
+    resp = await ac.post(
+        f"/family/{fid}/packs/{pack_id}/draft/split",
+        content=urlencode(
+            [
+                ("word_ids", "global-a"),
+                ("word_ids", "global-c"),
+                ("new_name", "Split Form New"),
+                ("new_description", "from form"),
+                ("mode", "move"),
+            ]
+        ),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    assert resp.status_code in (303, 307)
+    assert resp.headers["location"].startswith(f"/family/{fid}/packs/pck-")
+    assert "split_ok=move" in resp.headers["location"]
+
+    source = await ac.get(f"/api/v1/family/{fid}/family-packs/{pack_id}")
+    assert [w["id"] for w in source.json()["draft"]["words"]] == ["global-b"]
+
+
+@pytest.mark.asyncio
 async def test_pack_title_form_updates_definition(parent_client: tuple[AsyncClient, str]) -> None:
     ac, fid = parent_client
     created = await ac.post(f"/api/v1/family/{fid}/family-packs", json={"name": "Old title"})

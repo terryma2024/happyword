@@ -23,6 +23,8 @@ from app.schemas.global_pack import (
     GlobalPackCreateIn,
     GlobalPackDeleteOut,
     GlobalPackDefinitionOut,
+    GlobalPackDraftSplitIn,
+    GlobalPackDraftSplitOut,
     GlobalPackDraftWordIn,
     GlobalPackImportImageOut,
     GlobalPackPatchIn,
@@ -291,6 +293,62 @@ async def remove_draft_word(
     except svc.PackNotFound as exc:
         raise _err("PACK_NOT_FOUND", str(exc), 404) from exc
     return {"word_count": len(draft.words)}
+
+
+@router.post(
+    "/{pack_id}/draft/split",
+    status_code=status.HTTP_201_CREATED,
+    response_model=GlobalPackDraftSplitOut,
+)
+async def split_global_pack_draft(
+    pack_id: str,
+    body: GlobalPackDraftSplitIn,
+    admin: User = Depends(current_admin_user),  # noqa: B008
+) -> GlobalPackDraftSplitOut:
+    try:
+        result = await svc.split_draft_to_new_pack(
+            pack_id=pack_id,
+            admin_id=admin.username,
+            word_ids=body.word_ids,
+            new_name=body.new_pack.name,
+            new_description=body.new_pack.description,
+            mode=body.mode,
+        )
+    except svc.PackNotFound as exc:
+        raise _err("PACK_NOT_FOUND", str(exc), 404) from exc
+    except svc.DraftWordNotFound as exc:
+        raise _err("DRAFT_WORD_NOT_FOUND", str(exc), 404) from exc
+    except svc.NameTaken as exc:
+        raise _err("NAME_TAKEN", str(exc), 409) from exc
+    except svc.WordLimitExceeded as exc:
+        raise _err("WORD_LIMIT_EXCEEDED", str(exc), 409) from exc
+    except svc.InvalidPayload as exc:
+        raise _err("INVALID_PAYLOAD", str(exc), 400) from exc
+
+    await record_admin_action(
+        admin_username=admin.username,
+        action="global_pack.draft_split",
+        target_collection="family_pack_definitions",
+        target_id=pack_id,
+        payload_summary={
+            "source_pack_id": pack_id,
+            "new_pack_id": result.new_definition.pack_id,
+            "mode": result.mode,
+            "selected_count": result.selected_word_count,
+            "via": "admin_api",
+        },
+    )
+
+    count = result.selected_word_count
+    return GlobalPackDraftSplitOut(
+        mode=result.mode,
+        source_pack_id=pack_id,
+        new_pack=_serialize_definition(result.new_definition),
+        source_draft=_serialize_draft(result.source_draft),
+        new_draft=_serialize_draft(result.new_draft),
+        moved_count=count if result.mode == "move" else 0,
+        copied_count=count if result.mode == "copy" else 0,
+    )
 
 
 @router.post(

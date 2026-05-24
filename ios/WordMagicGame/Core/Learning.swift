@@ -9,6 +9,10 @@ struct WordLearningStat: Equatable {
     var accuracy: Double {
         attempts == 0 ? 0 : Double(correct) / Double(attempts)
     }
+
+    var wrong: Int {
+        max(0, attempts - correct)
+    }
 }
 
 final class LearningRecorder {
@@ -26,6 +30,20 @@ final class LearningRecorder {
 
     func stat(for wordId: String) -> WordLearningStat? {
         statsByWordId[wordId]
+    }
+
+    func recentWrongIds(limit: Int) -> [String] {
+        guard limit > 0 else { return [] }
+        return statsByWordId.values
+            .filter { $0.wrong > 0 }
+            .sorted { lhs, rhs in
+                if lhs.lastSeenAt == rhs.lastSeenAt {
+                    return lhs.wordId < rhs.wordId
+                }
+                return lhs.lastSeenAt > rhs.lastSeenAt
+            }
+            .prefix(limit)
+            .map(\.wordId)
     }
 }
 

@@ -59,6 +59,9 @@ object BattleQuestionTypePolicy {
         }
     }
 
+    fun anyWordSupportsQuestionTypes(words: List<WordEntry>, typeIds: List<String>): Boolean =
+        words.any { word -> typeIds.any { typeId -> wordSupportsQuestionType(word, typeId) } }
+
     fun questionTypeFallbackChain(primaryType: String): List<String> =
         when (primaryType) {
             SPELL -> listOf(SPELL, FILL_LETTER_MEDIUM, FILL_LETTER, CHOICE)

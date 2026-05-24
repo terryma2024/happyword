@@ -33,7 +33,7 @@ import {
   cloneGameConfig
 } from '../models/GameConfig';
 import { formatDayKeyLocal } from '../models/CoinSnapshot';
-import { TodaySessionPlan, WordSource } from '../models/AdventureRegion';
+import { TodaySessionPlan, WordSlot, WordSource } from '../models/AdventureRegion';
 import { AdventureRegion } from '../models/AdventureRegion';
 import { getRegionById } from '../data/AdventureCatalog';
 import { Pack } from '../models/Pack';
@@ -52,7 +52,7 @@ import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question, QuestionKind } from '../models/Question';
 import { MonsterEntry, getMonsterByIndex } from '../data/MonsterCatalog';
-import { computeFinalCoinAward } from '../services/BattleRewardCalc';
+import { computeMonsterLevelCoinAward } from '../services/BattleRewardCalc';
 import { PLAYER_CHARACTER_ASSET, assetPathForEntry } from '../data/CharacterAssets';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
@@ -381,8 +381,7 @@ struct BattlePage {
       // plan.wordPlan; the active pack's words are layered in below
       // via `bundleEntries`.
       const universe: WordEntry[] = repo.all();
-      const finalEntries: WordEntry[] =
-        this.isReviewMode ? this.buildReviewPool(universe) : universe;
+      const finalEntries: WordEntry[] = universe;
 
       const finalRepo: WordRepository = new WordRepository();
       finalRepo.setEntries(finalEntries);
@@ -394,6 +393,27 @@ struct BattlePage {
       // back to the V0.2 QuestionGenerator path.
       let source: IQuestionSource = choiceGen;
       let planMonsters: number = -1;
+      if (this.isReviewMode) {
+        const reviewPlan: TodaySessionPlan = this.buildReviewPlan(universe);
+        if (reviewPlan.wordPlan.length > 0) {
+          const reviewWordIds: string[] = [];
+          for (let wi: number = 0; wi < reviewPlan.wordPlan.length; wi++) {
+            reviewWordIds.push(reviewPlan.wordPlan[wi].wordId);
+          }
+          const fillGen: FillLetterGenerator = new FillLetterGenerator();
+          const spellGen: SpellGenerator = new SpellGenerator();
+          const reviewScheduler: BattleQuestionScheduler =
+            new BattleQuestionScheduler(reviewWordIds, cfg.enabledQuestionTypes);
+          source = new PlanQuestionSource(
+            reviewPlan,
+            finalRepo,
+            choiceGen,
+            fillGen,
+            spellGen,
+            reviewScheduler,
+          );
+        }
+      }
       if (this.isTodayMode) {
         const plan: TodaySessionPlan | undefined =
           AppStorage.get<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY);
@@ -538,41 +558,33 @@ struct BattlePage {
   }
 
   /**
-   * Build the review-mode word pool by intersecting
-   * LearningRecorder.recentWrongIds with the active word universe.
-   * Falls back to the universe itself when fewer than
-   * MIN_POOL_SIZE matches are found — that can happen if the user
-   * changed category filters after the wrong answers were recorded.
-   *
-   * Exposed as a private method (not a free function) so it can
-   * remain untestable-at-the-function-level while still reading the
-   * single getLearningRecorder() singleton that other tests may
-   * swap out via __resetLearningRecorderForTest.
+   * Build a focused review plan by intersecting recent wrong ids with
+   * the available word universe. The plan can contain 1 or 2 words:
+   * PlanQuestionSource picks answers only from this list while the
+   * full repository still supplies choice distractors.
    */
-  private buildReviewPool(universe: WordEntry[]): WordEntry[] {
+  private buildReviewPlan(universe: WordEntry[]): TodaySessionPlan {
+    const plan: TodaySessionPlan = new TodaySessionPlan();
+    plan.regionId = 'review-recent-wrong';
+    plan.isFirstToday = false;
     const wrongIds: string[] = this.recorder.recentWrongIds(REVIEW_WINDOW_SIZE);
     if (wrongIds.length === 0) {
-      return universe;
+      return plan;
     }
     const lookup: Map<string, WordEntry> = new Map<string, WordEntry>();
     for (let i = 0; i < universe.length; i++) {
       lookup.set(universe[i].id, universe[i]);
     }
-    const pool: WordEntry[] = [];
     for (let i = 0; i < wrongIds.length; i++) {
       const hit: WordEntry | undefined = lookup.get(wrongIds[i]);
       if (hit !== undefined) {
-        pool.push(hit);
+        const slot: WordSlot = new WordSlot();
+        slot.wordId = hit.id;
+        slot.source = WordSource.Review;
+        plan.wordPlan.push(slot);
       }
     }
-    // Guard: QuestionGenerator requires at least 3 distinct entries to
-    // produce valid 3-option questions. If the review set collapses
-    // below that (user changed category filters etc.), degrade to
-    // the full universe so the battle can still start.
-    if (pool.length < 3) {
-      return universe;
-    }
-    return pool;
+    return plan;
   }
 
   /**
@@ -1351,15 +1363,9 @@ struct BattlePage {
    * SessionResult. Coin awards are clamped to the daily cap inside
    * CoinAccount.earn — `dailyCapHit` mirrors that state.
    *
-   * V0.5 follow-up — reward formula is now "1 star = 1 coin". We
-   * drop the previous monster-defeat / accuracy-80 / review-80
-   * stack in favour of the player-visible star count from
-   * BattleEngine.computeStars (0..3 per spec §4.4). The first-today
-   * win still routes through COIN_REASON_TODAY_FIRST so HomePage's
-   * 已完成 badge gate flips even when the daily cap clamps the
-   * award to zero. Subsequent same-day battles continue to award
-   * stars-as-coins under the generic 'stars' reason, preserving
-   * the txn ledger's diagnostic value.
+   * V0.8.6 — reward formula is now defeated monster level score:
+   * Σ count(level) × levelValue. Stars and Bonus kills remain visible
+   * combat/result signals, but no longer contribute coins.
    */
   private applyTodayAdventureRewards(result: SessionResult, plan: TodaySessionPlan): void {
     const now: number = Date.now();
@@ -1372,24 +1378,12 @@ struct BattlePage {
     result.reviewWordCount = countByWordSource(plan, WordSource.Review);
     result.newWordCount = countByWordSource(plan, WordSource.New);
 
-    const stars: number = result.stars;
-    result.coinsBaseFromStars = stars;
-    const awardAmount: number = computeFinalCoinAward(
-      stars,
-      result.bonusKillCount,
-      result.status === BattleStatus.Won,
-    );
+    const awardAmount: number = computeMonsterLevelCoinAward(result.monsterLevelScore);
+    result.coinsBaseFromStars = awardAmount;
     let earned: number = 0;
     if (plan.isFirstToday && result.status === BattleStatus.Won) {
-      // computeStars guarantees stars >= 2 on a win, so this is
-      // always the star-count even though earn() also flips the
-      // 已完成 flag for amount === 0.
       earned = this.coinAccount.earn(COIN_REASON_TODAY_FIRST, awardAmount, now);
     } else if (awardAmount > 0) {
-      // Replay-of-the-day or first-today loss with at least one
-      // monster down: still award stars-as-coins, but tag the txn
-      // with a generic reason so the badge gate above stays the
-      // sole owner of the 已完成 flag transition.
       earned = this.coinAccount.earn('stars', awardAmount, now);
     }
     result.coinsEarned = earned;

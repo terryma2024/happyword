@@ -7,14 +7,33 @@ private enum class MonsterQuestionRole {
     Boss,
 }
 
+internal object BattleRewardCalc {
+    fun coinValueFor(level: MonsterLevel): Int {
+        return when (level) {
+            MonsterLevel.Beginner -> 1
+            MonsterLevel.Intermediate -> 2
+            MonsterLevel.Advanced -> 3
+            MonsterLevel.Super -> 4
+        }
+    }
+
+    fun coinAward(monsterLevelScore: Int): Int = monsterLevelScore.coerceAtLeast(0)
+
+    @Suppress("UNUSED_PARAMETER")
+    fun retiredBonusCoinDelta(stars: Int, bonusKillCount: Int, won: Boolean): Int = 0
+}
+
 class BattleEngine(
     private val config: GameConfig = GameConfig(),
     private val words: List<WordEntry> = demoWords,
+    targetWordIds: List<String> = words.map { it.id },
     private val shuffleOptions: (List<String>) -> List<String> = { options -> options.shuffled() },
     private val randomDouble: () -> Double = { Math.random() },
+    private val monsterCatalogIndex: (Int) -> Int = { it },
 ) {
+    private val targetWordIds: List<String> = targetWordIds.filter { it.isNotBlank() }.distinct()
     private val scheduler: BattleQuestionScheduler = BattleQuestionScheduler(
-        rawPlanWordIds = words.map { it.id },
+        rawPlanWordIds = this.targetWordIds,
         enabledTypes = config.sanitizedQuestionTypes(),
         rng = randomDouble,
     )
@@ -47,7 +66,7 @@ class BattleEngine(
     }
 
     fun initialState(): BattleState {
-        val question = nextScheduledQuestion(words.firstOrNull()?.id, monsterIndex = 1)
+        val question = nextScheduledQuestion(null, monsterIndex = 1)
         return BattleState(
             playerHp = config.playerHp,
             monsterHp = config.monsterHp,
@@ -57,7 +76,7 @@ class BattleEngine(
             wrongCount = 0,
             defeatedMonsters = 0,
             question = question,
-            currentMonsterBonus = rollsBonusMonster(monsterIndex = 1),
+            currentMonsterBonus = rollsBonusMonster(monsterIndex = catalogIndexFor(1)),
         )
     }
 
@@ -100,7 +119,7 @@ class BattleEngine(
         }
 
         if (!correct) {
-            val attackDamage = monsterAttackDamage(state.monsterIndex)
+            val attackDamage = monsterAttackDamage(catalogIndexFor(state.monsterIndex))
             val nextPlayerHp = (state.playerHp - attackDamage).coerceAtLeast(0)
             val nextState = state.copy(
                 playerHp = nextPlayerHp,
@@ -140,6 +159,9 @@ class BattleEngine(
 
         val defeated = state.defeatedMonsters + 1
         val bonusKillCount = state.bonusKillCount + if (state.currentMonsterBonus) 1 else 0
+        val defeatedMonsterLevelScore = state.defeatedMonsterLevelScore + BattleRewardCalc.coinValueFor(
+            MonsterLevel.forCatalogIndex(catalogIndexFor(state.monsterIndex)),
+        )
         if (defeated >= config.monsterCount) {
             val nextState = state.copy(
                 monsterHp = 0,
@@ -147,6 +169,7 @@ class BattleEngine(
                 correctCount = state.correctCount + 1,
                 defeatedMonsters = defeated,
                 bonusKillCount = bonusKillCount,
+                defeatedMonsterLevelScore = defeatedMonsterLevelScore,
                 status = BattleStatus.Won,
             )
             return correctOutcome(state, answer, damage, comboTriggered, monsterDefeated = true, nextState = nextState)
@@ -160,8 +183,9 @@ class BattleEngine(
             correctCount = state.correctCount + 1,
             defeatedMonsters = defeated,
             bonusKillCount = bonusKillCount,
+            defeatedMonsterLevelScore = defeatedMonsterLevelScore,
             question = nextQuestionAfter(state.question.wordId, nextMonsterIndex),
-            currentMonsterBonus = rollsBonusMonster(nextMonsterIndex),
+            currentMonsterBonus = rollsBonusMonster(catalogIndexFor(nextMonsterIndex)),
         )
         return correctOutcome(state, answer, damage, comboTriggered, monsterDefeated = true, nextState = nextState)
     }
@@ -175,11 +199,7 @@ class BattleEngine(
             state.defeatedMonsters >= 1 -> 1
             else -> 0
         }
-        val coinDelta = if (state.status == BattleStatus.Won && state.bonusKillCount > 0) {
-            kotlin.math.ceil(stars.toDouble() * 1.3).toInt()
-        } else {
-            stars
-        }
+        val coinDelta = BattleRewardCalc.coinAward(state.defeatedMonsterLevelScore)
         return SessionResult(
             won = state.status == BattleStatus.Won,
             stars = stars,
@@ -189,6 +209,7 @@ class BattleEngine(
             learnedWordCount = state.correctCount,
             coinDelta = coinDelta,
             bonusKillCount = state.bonusKillCount,
+            monsterLevelScore = state.defeatedMonsterLevelScore,
         )
     }
 
@@ -227,6 +248,13 @@ class BattleEngine(
     }
 
     private fun pickWordForType(typeId: String, lastWordId: String?): WordEntry? {
+        val targetWords = targetWordIds.mapNotNull { id -> words.find { it.id == id } }
+        for (entry in targetWords) {
+            if (BattleQuestionTypePolicy.wordSupportsQuestionType(entry, typeId)) {
+                if (targetWords.size > 1 && entry.id == lastWordId) continue
+                return entry
+            }
+        }
         for (entry in words) {
             if (BattleQuestionTypePolicy.wordSupportsQuestionType(entry, typeId)) {
                 if (words.size > 1 && entry.id == lastWordId) continue
@@ -234,13 +262,14 @@ class BattleEngine(
             }
         }
         if (words.isEmpty()) return null
-        val currentIndex = words.indexOfFirst { it.id == lastWordId }
+        val fallbackWords = targetWords.ifEmpty { words }
+        val currentIndex = fallbackWords.indexOfFirst { it.id == lastWordId }
         val nextIndex = when {
-            words.size == 1 -> 0
+            fallbackWords.size == 1 -> 0
             currentIndex < 0 -> 0
-            else -> (currentIndex + 1) % words.size
+            else -> (currentIndex + 1) % fallbackWords.size
         }
-        return words[nextIndex]
+        return fallbackWords[nextIndex]
     }
 
     private fun questionForType(word: WordEntry, typeId: String, monsterIndex: Int): Question {
@@ -438,6 +467,8 @@ class BattleEngine(
         val offset = (randomDouble().coerceIn(0.0, 0.999999) * span).toInt().coerceIn(0, span - 1)
         return minInclusive + offset
     }
+
+    private fun catalogIndexFor(monsterIndex: Int): Int = monsterCatalogIndex(monsterIndex)
 
     private fun monsterAttackDamage(monsterIndex: Int): Int {
         return when (MonsterLevel.forCatalogIndex(monsterIndex)) {

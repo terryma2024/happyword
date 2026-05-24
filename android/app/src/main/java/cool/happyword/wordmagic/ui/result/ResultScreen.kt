@@ -190,20 +190,6 @@ internal fun ResultScreen(result: SessionResult, coins: Int, onHome: () -> Unit)
             StatCard("学习单词", "${result.learnedWordCount}")
             StatCard("魔法币", "+${result.coinDelta} / $coins")
         }
-        if (result.bonusKillCount > 0) {
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Bonus 怪物 ×${result.bonusKillCount} → +${(result.coinDelta - result.stars).coerceAtLeast(0)} ✨",
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.White)
-                    .padding(horizontal = 14.dp, vertical = 7.dp)
-                    .testTag("BattleResultBonusCoinRow"),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFD84545),
-            )
-        }
         if (result.checkInBonusCoins > 0) {
             Spacer(Modifier.height(10.dp))
             Text(

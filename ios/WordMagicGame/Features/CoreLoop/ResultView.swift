@@ -27,16 +27,6 @@ struct ResultView: View {
                     .accessibilityIdentifier("ResultCoinsTotal")
             }
 
-            if let result, result.bonusKillCount > 0 {
-                Text("Bonus 怪物 ×\(result.bonusKillCount) → +\(max(result.coinsEarned - result.stars, 0)) ✨")
-                    .font(.caption.weight(.heavy))
-                    .foregroundStyle(AppTheme.red)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Color.white, in: Capsule())
-                    .accessibilityIdentifier("BattleResultBonusCoinRow")
-            }
-
             if let result, result.checkInBonusCoins > 0 {
                 Text("连续打卡 \(result.checkInCurrentStreak) 天 → +\(result.checkInBonusCoins) ✨")
                     .font(.caption.weight(.heavy))

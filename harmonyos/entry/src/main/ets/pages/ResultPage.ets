@@ -41,6 +41,7 @@ struct ResultPage {
     merged.correctRate = incoming.correctRate !== undefined ? incoming.correctRate : merged.correctRate;
     merged.learnedWordCount = incoming.learnedWordCount !== undefined ? incoming.learnedWordCount : merged.learnedWordCount;
     merged.stars = incoming.stars !== undefined ? incoming.stars : merged.stars;
+    merged.monsterLevelScore = incoming.monsterLevelScore !== undefined ? incoming.monsterLevelScore : merged.monsterLevelScore;
     merged.newlyLearnedCount = incoming.newlyLearnedCount !== undefined ? incoming.newlyLearnedCount : merged.newlyLearnedCount;
     merged.totalLearnedCount = incoming.totalLearnedCount !== undefined ? incoming.totalLearnedCount : merged.totalLearnedCount;
     merged.isTodayAdventure = incoming.isTodayAdventure !== undefined ? incoming.isTodayAdventure : merged.isTodayAdventure;
@@ -61,15 +62,6 @@ struct ResultPage {
       : merged.checkInCurrentStreak;
     merged.checkInBonusCoins = incoming.checkInBonusCoins !== undefined ? incoming.checkInBonusCoins : merged.checkInBonusCoins;
     this.result = merged;
-  }
-
-  private bonusCoinDelta(): number {
-    return this.result.coinsEarned - this.result.coinsBaseFromStars;
-  }
-
-  private bonusCoinRowText(): string {
-    const delta: number = this.bonusCoinDelta();
-    return `Bonus 怪物 ×${this.result.bonusKillCount} → +${delta} ✨`;
   }
 
   private coinLineText(): string {
@@ -154,15 +146,6 @@ struct ResultPage {
             .fontWeight(FontWeight.Medium)
             .fontColor('#FFB400')
             .margin({ top: 12 });
-          if (this.result.bonusKillCount > 0 &&
-              this.result.status === BattleStatus.Won &&
-              this.bonusCoinDelta() > 0) {
-            Text(this.bonusCoinRowText())
-              .id('BattleResultBonusCoinRow')
-              .fontSize(14)
-              .fontColor('#9A6B00')
-              .margin({ top: 6 });
-          }
           if (this.result.checkInBonusCoins > 0) {
             Text(`连续打卡奖励 +${this.result.checkInBonusCoins} ✨`)
               .id('ResultCheckInBonusRow')

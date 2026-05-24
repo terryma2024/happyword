@@ -14,6 +14,26 @@ class BattleEngineTest {
     private val choiceOnlyTypes = listOf(BattleQuestionTypePolicy.CHOICE)
 
     @Test
+    fun mapsMonsterLevelsToCoinValues() {
+        assertEquals(1, BattleRewardCalc.coinValueFor(MonsterLevel.Beginner))
+        assertEquals(2, BattleRewardCalc.coinValueFor(MonsterLevel.Intermediate))
+        assertEquals(3, BattleRewardCalc.coinValueFor(MonsterLevel.Advanced))
+        assertEquals(4, BattleRewardCalc.coinValueFor(MonsterLevel.Super))
+    }
+
+    @Test
+    fun usesMonsterLevelScoreAsFinalAward() {
+        assertEquals(9, BattleRewardCalc.coinAward(9))
+        assertEquals(0, BattleRewardCalc.coinAward(0))
+    }
+
+    @Test
+    fun retiredBonusMultiplierNeverAddsCoins() {
+        assertEquals(0, BattleRewardCalc.retiredBonusCoinDelta(stars = 3, bonusKillCount = 1, won = true))
+        assertEquals(0, BattleRewardCalc.retiredBonusCoinDelta(stars = 2, bonusKillCount = 3, won = false))
+    }
+
+    @Test
     fun correctAnswerDamagesMonster() {
         val engine = BattleEngine(
             config = GameConfig(monsterHp = 3, monsterCount = 1, enabledQuestionTypes = choiceOnlyTypes),
@@ -63,7 +83,7 @@ class BattleEngineTest {
     }
 
     @Test
-    fun defeatingAllMonstersProducesWonResultWithCoinsEqualToStars() {
+    fun defeatingAllMonstersProducesWonResultWithCoinsEqualToMonsterLevelScore() {
         val engine = BattleEngine(
             config = GameConfig(monsterHp = 1, monsterCount = 1, enabledQuestionTypes = choiceOnlyTypes),
             words = words,
@@ -77,7 +97,8 @@ class BattleEngineTest {
         assertEquals(BattleStatus.Won, won.status)
         assertTrue(result.won)
         assertEquals(3, result.stars)
-        assertEquals(3, result.coinDelta)
+        assertEquals(1, result.monsterLevelScore)
+        assertEquals(1, result.coinDelta)
         assertEquals(1, result.defeatedMonsters)
     }
 
@@ -102,7 +123,7 @@ class BattleEngineTest {
     }
 
     @Test
-    fun bonusMonsterKillsIncreaseWonCoinRewardByThirtyPercent() {
+    fun bonusMonsterKillsDoNotIncreaseWonCoinReward() {
         val engine = BattleEngine(
             config = GameConfig(monsterHp = 1, monsterCount = 8, enabledQuestionTypes = listOf(BattleQuestionTypePolicy.CHOICE)),
             words = words,
@@ -118,14 +139,41 @@ class BattleEngineTest {
         assertTrue(result.won)
         assertEquals(3, result.stars)
         assertEquals(1, result.bonusKillCount)
-        assertEquals(4, result.coinDelta)
+        assertEquals(16, result.monsterLevelScore)
+        assertEquals(16, result.coinDelta)
     }
 
     @Test
-    fun losingAfterDefeatingOneMonsterStillAwardsOneStar() {
+    fun recordsMonsterLevelScoreAtKillTime() {
+        val engine = BattleEngine(
+            config = GameConfig(monsterHp = 1, monsterCount = 4, enabledQuestionTypes = choiceOnlyTypes),
+            words = words,
+            monsterCatalogIndex = { battleIndex ->
+                when (battleIndex) {
+                    1 -> 1
+                    2 -> 2
+                    3 -> 8
+                    else -> 10
+                }
+            },
+        )
+
+        var won = engine.initialState()
+        while (won.status == BattleStatus.Playing) {
+            won = engine.submitAnswer(won, won.question.correctAnswer)
+        }
+        val result = engine.resultFor(won)
+
+        assertEquals(10, result.monsterLevelScore)
+        assertEquals(10, result.coinDelta)
+    }
+
+    @Test
+    fun partialLossKeepsOnlyDefeatedMonsterLevelScore() {
         val engine = BattleEngine(
             config = GameConfig(playerHp = 1, monsterHp = 1, monsterCount = 2, enabledQuestionTypes = choiceOnlyTypes),
             words = words,
+            monsterCatalogIndex = { 8 },
         )
 
         val initial = engine.initialState()
@@ -137,7 +185,8 @@ class BattleEngineTest {
         assertEquals(BattleStatus.Lost, lost.status)
         assertEquals(1, lost.defeatedMonsters)
         assertEquals(1, result.stars)
-        assertEquals(1, result.coinDelta)
+        assertEquals(3, result.monsterLevelScore)
+        assertEquals(3, result.coinDelta)
     }
 
     @Test
@@ -212,5 +261,20 @@ class BattleEngineTest {
             .reversed()
 
         assertEquals(expectedOptions, state.question.options)
+    }
+
+    @Test
+    fun targetWordIdsFocusQuestionsWhileUsingFullWordPoolForOptions() {
+        val engine = BattleEngine(
+            config = GameConfig(enabledQuestionTypes = choiceOnlyTypes),
+            words = words,
+            targetWordIds = listOf("cat"),
+        )
+
+        val state = engine.initialState()
+
+        assertEquals("cat", state.question.wordId)
+        assertEquals(3, state.question.options.size)
+        assertTrue(state.question.options.contains("cat"))
     }
 }

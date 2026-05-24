@@ -259,6 +259,119 @@ async def test_custom_word_id_must_have_family_prefix(db: object) -> None:
     assert r.json()["detail"]["error"]["code"] == "INVALID_PAYLOAD"
 
 
+@pytest.mark.asyncio
+async def test_split_family_draft_copy_via_http(db: object) -> None:
+    ac, _ = await _make_parent_client(email="split-copy@example.com")
+    async with ac:
+        created = await ac.post(
+            "/api/v1/family/_/family-packs", json={"name": "Split Source"}
+        )
+        pack_id = created.json()["pack_id"]
+        for word_id in ("global-a", "global-b", "global-c"):
+            await ac.put(
+                f"/api/v1/family/_/family-packs/{pack_id}/draft/words/{word_id}",
+                json={"source": "global"},
+            )
+
+        resp = await ac.post(
+            f"/api/v1/family/_/family-packs/{pack_id}/draft/split",
+            json={
+                "mode": "copy",
+                "word_ids": ["global-c", "global-a"],
+                "new_pack": {"name": "Split Copy", "description": "copy"},
+            },
+        )
+
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["mode"] == "copy"
+    assert body["source_pack_id"] == pack_id
+    assert body["copied_count"] == 2
+    assert body["moved_count"] == 0
+    assert body["source_draft"]["word_count"] == 3
+    assert [w["id"] for w in body["new_draft"]["words"]] == [
+        "global-a",
+        "global-c",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_split_family_draft_move_via_http(db: object) -> None:
+    ac, _ = await _make_parent_client(email="split-move@example.com")
+    async with ac:
+        created = await ac.post(
+            "/api/v1/family/_/family-packs", json={"name": "Move Source"}
+        )
+        pack_id = created.json()["pack_id"]
+        for word_id in ("global-a", "global-b", "global-c"):
+            await ac.put(
+                f"/api/v1/family/_/family-packs/{pack_id}/draft/words/{word_id}",
+                json={"source": "global"},
+            )
+
+        resp = await ac.post(
+            f"/api/v1/family/_/family-packs/{pack_id}/draft/split",
+            json={
+                "mode": "move",
+                "word_ids": ["global-a", "global-c"],
+                "new_pack": {"name": "Split Move"},
+            },
+        )
+
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["moved_count"] == 2
+    assert body["copied_count"] == 0
+    assert [w["id"] for w in body["source_draft"]["words"]] == ["global-b"]
+
+
+@pytest.mark.asyncio
+async def test_split_family_draft_other_family_404(db: object) -> None:
+    ac_a, _ = await _make_parent_client(email="split-a@example.com")
+    ac_b, _ = await _make_parent_client(email="split-b@example.com")
+    async with ac_a, ac_b:
+        created = await ac_a.post(
+            "/api/v1/family/_/family-packs", json={"name": "Private Split"}
+        )
+        pack_id = created.json()["pack_id"]
+        resp = await ac_b.post(
+            f"/api/v1/family/_/family-packs/{pack_id}/draft/split",
+            json={
+                "mode": "copy",
+                "word_ids": ["global-a"],
+                "new_pack": {"name": "Bad Split"},
+            },
+        )
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["error"]["code"] == "PACK_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_split_family_draft_missing_word_404(db: object) -> None:
+    ac, _ = await _make_parent_client(email="split-missing@example.com")
+    async with ac:
+        created = await ac.post(
+            "/api/v1/family/_/family-packs", json={"name": "Missing Source"}
+        )
+        pack_id = created.json()["pack_id"]
+        await ac.put(
+            f"/api/v1/family/_/family-packs/{pack_id}/draft/words/global-a",
+            json={"source": "global"},
+        )
+        resp = await ac.post(
+            f"/api/v1/family/_/family-packs/{pack_id}/draft/split",
+            json={
+                "mode": "copy",
+                "word_ids": ["global-a", "global-x"],
+                "new_pack": {"name": "Missing Split"},
+            },
+        )
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["error"]["code"] == "DRAFT_WORD_NOT_FOUND"
+
+
 # ---------------------------------------------------------------------------
 # Child merged JSON
 # ---------------------------------------------------------------------------

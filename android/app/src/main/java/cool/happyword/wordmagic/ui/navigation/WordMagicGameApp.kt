@@ -299,6 +299,8 @@ fun WordMagicGameApp() {
     var battleState by remember { mutableStateOf<BattleState?>(null) }
     var battleRunId by remember { mutableIntStateOf(0) }
     var battleTimeLeft by remember { mutableIntStateOf(DEFAULT_BATTLE_TIMER_SECONDS) }
+    var battleConfig by remember { mutableStateOf(config) }
+    var battleIsReview by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<SessionResult?>(null) }
     var coinAccount by remember { mutableStateOf(repositories.loadCoinAccount()) }
     var checkIns by remember { mutableStateOf(repositories.loadCheckIns()) }
@@ -450,7 +452,8 @@ fun WordMagicGameApp() {
     }
 
     fun finishBattleSession(finishedState: BattleState) {
-        var sessionResult = engine.resultFor(finishedState).copy(packId = selectedPack.id)
+        val resultPackId = if (battleIsReview) "review-recent-wrong" else selectedPack.id
+        var sessionResult = engine.resultFor(finishedState).copy(packId = resultPackId)
         val credited = coinAccount.creditBattleReward(sessionResult.coinDelta, LocalDate.now().toString())
         var nextCoinAccount = credited.account
         if (sessionResult.won) {
@@ -482,7 +485,7 @@ fun WordMagicGameApp() {
             }
         }
         val sessionRecord = BattleSessionRecord(
-            packId = selectedPack.id,
+            packId = resultPackId,
             won = sessionResult.won,
             stars = sessionResult.stars,
             correctCount = sessionResult.correctCount,
@@ -493,7 +496,7 @@ fun WordMagicGameApp() {
         learningRecorder.recordSession(sessionRecord)
         repositories.saveLearningRecorder(learningRecorder)
         cloudCoordinator.syncStats(learningRecorder.statsSnapshot(), System.currentTimeMillis())
-        if (sessionRecord.perfect) {
+        if (sessionRecord.perfect && !battleIsReview) {
             val rotation = selection.recordPerfectRun(selectedPack.id, packLibrary)
             selection = rotation.selection
             repositories.saveSelection(selection)
@@ -503,6 +506,36 @@ fun WordMagicGameApp() {
         repositories.saveCoinAccount(coinAccount)
         result = sessionResult.copy(coinDelta = credited.delta)
         route = AppRoute.Result
+    }
+
+    fun startReviewBattle(): Boolean {
+        val reviewIds = learningRecorder.recentWrongIds(limit = 12)
+        if (reviewIds.isEmpty()) return false
+        val allWords = packLibrary.allPacks().flatMap { it.words }
+        val knownIds = allWords.map { it.id }.toSet()
+        val focusedIds = reviewIds.filter { it in knownIds }.distinct()
+        if (focusedIds.isEmpty()) return false
+        val focusedWords = allWords.filter { it.id in focusedIds }
+        if (!BattleQuestionTypePolicy.anyWordSupportsQuestionTypes(focusedWords, config.sanitizedQuestionTypes())) {
+            Toast.makeText(context, "当前词包没有支持所选题型的单词", Toast.LENGTH_SHORT).show()
+            return true
+        }
+        val sessionConfig = config.copy(
+            monsterCount = 3,
+            timerSeconds = 120,
+        )
+        battleIsReview = true
+        battleConfig = sessionConfig
+        battleRunId += 1
+        battleTimeLeft = sessionConfig.timerSeconds
+        engine = BattleEngine(
+            config = sessionConfig,
+            words = allWords,
+            targetWordIds = focusedIds,
+        )
+        battleState = engine.initialState()
+        route = AppRoute.Battle
+        return true
     }
 
     ApplyOrientation(route)
@@ -575,12 +608,15 @@ fun WordMagicGameApp() {
                     },
                     onStart = {
                         val sessionConfig = config.copy(timerSeconds = DEFAULT_BATTLE_TIMER_SECONDS)
+                        battleIsReview = false
+                        battleConfig = sessionConfig
                         battleRunId += 1
                         battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
                         engine = BattleEngine(config = sessionConfig, words = selectedPack.words)
                         battleState = engine.initialState()
                         route = AppRoute.Battle
                     },
+                    onReview = ::startReviewBattle,
                     onPackManager = { route = AppRoute.PackManager },
                     onWishlist = { route = AppRoute.Wishlist },
                     onMonsterCodex = { route = AppRoute.MonsterCodex },
@@ -591,7 +627,7 @@ fun WordMagicGameApp() {
                     runId = battleRunId,
                     state = battleState ?: engine.initialState().also { battleState = it },
                     pack = selectedPack,
-                    config = config,
+                    config = battleConfig,
                     timeLeft = battleTimeLeft,
                     onSpellWrongTap = {
                         val current = battleState ?: engine.initialState()
@@ -601,9 +637,13 @@ fun WordMagicGameApp() {
                     },
                     onAnswer = { answer ->
                         val outcome = engine.submitAnswerWithOutcome(battleState ?: engine.initialState(), answer)
-                        selectedPack.words.firstOrNull { it.word == outcome.correctAnswer }?.let { answeredWord ->
+                        val sourcePack = packLibrary.allPacks().firstOrNull { pack ->
+                            pack.words.any { it.id == outcome.question.wordId }
+                        }
+                        val answeredWord = sourcePack?.words?.firstOrNull { it.id == outcome.question.wordId }
+                        if (answeredWord != null) {
                             learningRecorder.recordAnswer(
-                                packId = selectedPack.id,
+                                packId = sourcePack?.id ?: selectedPack.id,
                                 wordId = answeredWord.id,
                                 correct = outcome.correct,
                                 answeredAtMs = System.currentTimeMillis(),

@@ -164,7 +164,7 @@ async def _amain(argv: list[str]) -> int:
     parser.add_argument(
         "--ignore-drop-errors",
         action="store_true",
-        help="Continue when a matching stale DB cannot be dropped.",
+        help="Continue when stale DB cleanup cannot list or drop matching DBs.",
     )
     args = parser.parse_args(argv)
 
@@ -191,6 +191,11 @@ async def _amain(argv: list[str]) -> int:
         except UnsafePattern as exc:
             print(f"Refusing: {exc}", file=sys.stderr)
             return 3
+        except PyMongoError as exc:
+            if not args.ignore_drop_errors:
+                raise
+            print(f"Ignoring stale DB cleanup error: {exc}", file=sys.stderr)
+            return 0
 
         print(f"Candidates ({len(candidates)}): {candidates}")
         print(f"Dropped     ({len(dropped)}): {dropped}")

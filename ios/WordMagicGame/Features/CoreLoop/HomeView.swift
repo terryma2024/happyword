@@ -79,7 +79,7 @@ struct HomeView: View {
             }
             badge("金币 \(coordinator.coinAccount.balance)", tint: AppTheme.cream, foreground: AppTheme.gold)
                 .accessibilityIdentifier("HomeCoinBalance")
-            toolbarButton("ToolbarReview", label: "计划", action: coordinator.openTodayPlan)
+            toolbarButton("ToolbarReview", label: "复习", action: coordinator.startReviewBattle)
             toolbarButton("ToolbarCodex", label: "图鉴", action: coordinator.openMonsterCodex)
             toolbarEmojiButton("📋", label: "今日学习计划", action: coordinator.openTodayPlan)
             toolbarButton("ToolbarWishlist", label: "许愿", action: coordinator.openWishlist)

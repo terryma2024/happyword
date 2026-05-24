@@ -37,6 +37,8 @@ export class SessionResult {
 
   /** 0..3 per the spec §4.4 star table. */
   stars: number = 0;
+  /** V0.8.6 — Σ defeated monster count(level) × level value. */
+  monsterLevelScore: number = 0;
 
   /**
    * V0.2 additions (spec §15 / learning record). Both come from
@@ -61,7 +63,7 @@ export class SessionResult {
   dailyCapHit: boolean = false;
   /** V0.8.3 — defeated monsters that had the spawn-time bonus flag. */
   bonusKillCount: number = 0;
-  /** Stars before the ×1.3 ceil bonus (today mode display only). */
+  /** V0.8.6 display baseline. Kept for router compatibility. */
   coinsBaseFromStars: number = 0;
   /** V0.8.8 — whether this battle created a new local check-in day. */
   checkInRecorded: boolean = false;

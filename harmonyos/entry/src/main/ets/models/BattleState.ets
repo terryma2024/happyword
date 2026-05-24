@@ -42,6 +42,8 @@ export class BattleState {
   totalAnswers: number = 0;
   correctAnswers: number = 0;
   defeatedMonsters: number = 0;
+  /** V0.8.6 — sum of defeated monster level coin values. */
+  defeatedMonsterLevelScore: number = 0;
   /**
    * Unique wordIds the player has been shown this session. Conceptually
    * a Set — kept as an array because ArkTS strict mode dislikes generic

@@ -13,6 +13,7 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `CHILD_NOT_FOUND` | 404 | Child profile / parent children | Child profile is missing or not owned by the caller. |
 | `CODE_EXPIRED` | 410 | Parent auth | Verification code expired. |
 | `CRON_SECRET_NOT_CONFIGURED` | 503 | Admin cron | Cron secret is not configured. |
+| `DRAFT_WORD_NOT_FOUND` | 404 | Family/global packs | Requested draft word id is not present in the source pack draft. |
 | `DRAFT_VALIDATION_FAILED` | 422 | Family packs | Draft rows failed validation before publish (details in payload `rows`). |
 | `DUPLICATE_ID` | 409 | Admin words | Word id already exists. |
 | `EMAIL_NOT_REGISTERED` | 404 | Parent auth | No parent account exists for this email (password login). |
