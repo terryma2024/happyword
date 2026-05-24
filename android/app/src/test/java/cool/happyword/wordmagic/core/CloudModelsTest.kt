@@ -159,6 +159,51 @@ class CloudModelsTest {
     }
 
     @Test
+    fun checkInSyncClientPostsCheckInsAndBonusTransactionsWithDeviceToken() = runBlocking {
+        var capturedMethod = ""
+        var capturedUrl = ""
+        var capturedBody = ""
+        val client = CheckInSyncClient(
+            baseUrlProvider = { "https://happyword.cool/" },
+            extraHeadersProvider = { mapOf("x-vercel-protection-bypass" to "secret") },
+            transport = BindingHttpTransport { method, url, headers, body ->
+                capturedMethod = method
+                capturedUrl = url
+                capturedBody = body
+                assertEquals("application/json", headers["Content-Type"])
+                assertEquals("application/json", headers["Accept"])
+                assertEquals("Bearer device.jwt.token", headers["Authorization"])
+                assertEquals("secret", headers["x-vercel-protection-bypass"])
+                BindingHttpResponse(
+                    200,
+                    """{"checked_day_keys":["2026-05-01","2026-05-07"],"weekly_bonus_day_keys":["2026-05-07"],"coin_txns":[],"server_now_ms":2600}""",
+                )
+            },
+        )
+
+        val result = client.sync(
+            deviceToken = "device.jwt.token",
+            snapshot = CheckInSnapshot(
+                checkedDayKeys = listOf("2026-05-01", "2026-05-07"),
+                weeklyBonusDayKeys = listOf("2026-05-07"),
+                lastSyncedAtMs = 1000L,
+            ),
+            familyId = "fam-sync-test",
+        )
+
+        assertEquals("POST", capturedMethod)
+        assertEquals("https://happyword.cool/api/v1/family/fam-sync-test/checkins/sync", capturedUrl)
+        assertEquals(
+            """{"checked_day_keys":["2026-05-01","2026-05-07"],"weekly_bonus_day_keys":["2026-05-07"],"coin_txns":[{"txn_id":"checkin-weekly-bonus:2026-05-07","delta":50,"reason":"checkin-weekly-bonus:2026-05-07","created_at_ms":0}],"synced_through_ms":1000}""",
+            capturedBody,
+        )
+        assertTrue(result.ok)
+        assertEquals(listOf("2026-05-01", "2026-05-07"), result.checkedDayKeys)
+        assertEquals(listOf("2026-05-07"), result.weeklyBonusDayKeys)
+        assertEquals(2600L, result.serverNowMs)
+    }
+
+    @Test
     fun wordStatsSyncClientOnlyUploadsDirtyStats() = runBlocking {
         var capturedBody = ""
         val client = WordStatsSyncClient(

@@ -101,6 +101,48 @@ final class LocalGrowthTests: XCTestCase {
         XCTAssertEqual(history.records.count, 1)
     }
 
+    @MainActor
+    func testCheckInStoreAwardsWeeklyBonusOnceAfterSevenDayStreak() {
+        let defaults = isolatedDefaults(name: "checkin-weekly-bonus")
+        defer { defaults.removePersistentDomain(forName: "WordMagicGameTests.checkin-weekly-bonus") }
+        let store = CheckInStore(defaults: defaults)
+        let coins = CoinAccount(balance: 0)
+        let start = date(year: 2026, month: 5, day: 1)
+
+        for offset in 0..<6 {
+            let result = store.recordWin(now: addingDays(offset, to: start), coins: coins)
+            XCTAssertTrue(result.changed)
+            XCTAssertEqual(result.bonusCoins, 0)
+        }
+
+        let seventh = store.recordWin(now: addingDays(6, to: start), coins: coins)
+        let replay = store.recordWin(now: addingDays(6, to: start), coins: coins)
+
+        XCTAssertTrue(seventh.changed)
+        XCTAssertEqual(seventh.bonusCoins, 50)
+        XCTAssertEqual(seventh.currentStreak, 7)
+        XCTAssertEqual(coins.balance, 50)
+        XCTAssertFalse(replay.changed)
+        XCTAssertEqual(replay.bonusCoins, 0)
+        XCTAssertEqual(coins.balance, 50)
+        XCTAssertEqual(store.snapshot.weeklyBonusDayKeys, ["2026-05-07"])
+    }
+
+    func testCheckInCalendarWeeksRebuildForVisibleMonth() {
+        let may = CheckInCalendar.buildMonthWeeks(
+            visibleMonth: date(year: 2026, month: 5, day: 24),
+            checkedDayKeys: ["2026-05-07"]
+        )
+        let june = CheckInCalendar.buildMonthWeeks(
+            visibleMonth: date(year: 2026, month: 6, day: 1),
+            checkedDayKeys: ["2026-05-07", "2026-06-01"]
+        )
+
+        XCTAssertTrue(may.flatMap(\.cells).contains { $0.dayKey == "2026-05-07" && $0.checked })
+        XCTAssertFalse(june.flatMap(\.cells).contains { $0.dayKey == "2026-05-07" && $0.inMonth })
+        XCTAssertTrue(june.flatMap(\.cells).contains { $0.dayKey == "2026-06-01" && $0.checked })
+    }
+
     func testLearningReportDedupeTotalsAndOrdersPackRows() {
         let shared = WordEntry(id: "shared", word: "apple", meaningZh: "苹果", category: "fruit", difficulty: 1)
         let inactiveSeenWord = DemoWords.words.first { $0.id == "home-door" }!
@@ -178,5 +220,26 @@ final class LocalGrowthTests: XCTestCase {
 
     private func fixedDate(timeIntervalSinceNow: TimeInterval = 0) -> Date {
         Date(timeIntervalSince1970: 1_800_000_000 + timeIntervalSinceNow)
+    }
+
+    private func date(year: Int, month: Int, day: Int) -> Date {
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = TimeZone(secondsFromGMT: 0)
+        components.year = year
+        components.month = month
+        components.day = day
+        return components.date!
+    }
+
+    private func addingDays(_ days: Int, to date: Date) -> Date {
+        Calendar(identifier: .gregorian).date(byAdding: .day, value: days, to: date)!
+    }
+
+    private func isolatedDefaults(name: String) -> UserDefaults {
+        let suiteName = "WordMagicGameTests.\(name)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
     }
 }

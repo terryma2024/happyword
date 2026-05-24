@@ -3,6 +3,7 @@ package cool.happyword.wordmagic.data
 import android.content.Context
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.CoinAccount
+import cool.happyword.wordmagic.core.CheckInSnapshot
 import cool.happyword.wordmagic.core.LearningRecorder
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.RedemptionHistoryStore
@@ -57,6 +58,34 @@ class AndroidLocalProgressRepositories(context: Context) {
         prefs.edit()
             .putInt("coinBalance", account.balance)
             .putString("coinEarnedByDay", account.earnedByDay.entries.joinToString("\n") { "${it.key}\t${it.value}" })
+            .apply()
+    }
+
+    fun loadCheckIns(): CheckInSnapshot {
+        val checked = prefs.getString("checkInCheckedDayKeys", "").orEmpty()
+            .lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+        val bonuses = prefs.getString("checkInWeeklyBonusDayKeys", "").orEmpty()
+            .lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+        return CheckInSnapshot(
+            checkedDayKeys = checked,
+            weeklyBonusDayKeys = bonuses,
+            lastSyncedAtMs = prefs.getString("checkInLastSyncedAtMs", "0").orEmpty().toLongOrNull() ?: 0L,
+            pendingSync = prefs.getBoolean("checkInPendingSync", false),
+        ).recomputed()
+    }
+
+    fun saveCheckIns(snapshot: CheckInSnapshot) {
+        prefs.edit()
+            .putString("checkInCheckedDayKeys", snapshot.checkedDayKeys.joinToString("\n"))
+            .putString("checkInWeeklyBonusDayKeys", snapshot.weeklyBonusDayKeys.joinToString("\n"))
+            .putString("checkInLastSyncedAtMs", snapshot.lastSyncedAtMs.coerceAtLeast(0L).toString())
+            .putBoolean("checkInPendingSync", snapshot.pendingSync)
             .apply()
     }
 

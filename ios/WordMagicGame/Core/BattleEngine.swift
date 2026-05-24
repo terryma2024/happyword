@@ -73,6 +73,10 @@ struct SessionResult: Equatable {
     var coinsEarned: Int = 0
     var coinsTotal: Int = 0
     var bonusKillCount: Int = 0
+    var checkInRecorded: Bool = false
+    var checkInCurrentStreak: Int = 0
+    var checkInBonusCoins: Int = 0
+    var checkInBonusDayKey: String = ""
 }
 
 final class BattleEngine: ObservableObject {

@@ -737,6 +737,26 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertNotNil(items[0]["seen_count"])
     }
 
+    func testCheckInSyncPayloadMatchesContractShape() throws {
+        let snapshot = CheckInSnapshot(
+            checkedDayKeys: ["2026-05-01", "2026-05-07"],
+            weeklyBonusDayKeys: ["2026-05-07"],
+            lastSyncedAtMs: 1_778_300_000_000,
+            pendingSync: true
+        )
+
+        let payload = CheckInSyncPayload.from(snapshot: snapshot)
+        let encoded = try JSONEncoder.snakeCase.encode(payload)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let txns = try XCTUnwrap(object["coin_txns"] as? [[String: Any]])
+
+        XCTAssertEqual(object["checked_day_keys"] as? [String], ["2026-05-01", "2026-05-07"])
+        XCTAssertEqual(object["weekly_bonus_day_keys"] as? [String], ["2026-05-07"])
+        XCTAssertEqual(object["synced_through_ms"] as? Int, 1_778_300_000_000)
+        XCTAssertEqual(txns.first?["txn_id"] as? String, "checkin-weekly-bonus:2026-05-07")
+        XCTAssertEqual(txns.first?["delta"] as? Int, 50)
+    }
+
     func testWordStatsSyncClientPostsBearerPayloadAndDecodesAcceptedClock() async throws {
         let transport = RecordingHTTPTransport { request in
             XCTAssertEqual(request.url?.path, "/api/v1/family/family-demo/word-stats/sync")

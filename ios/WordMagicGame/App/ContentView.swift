@@ -44,6 +44,8 @@ struct ContentView: View {
                 TodayPlanView(coordinator: coordinator)
             case .learningReport:
                 LearningReportView(coordinator: coordinator)
+            case .checkInCalendar:
+                CheckInCalendarView(coordinator: coordinator, store: coordinator.checkInStore)
             case .scanBinding:
                 ScanBindingView(coordinator: coordinator)
             case .boundDeviceInfo:

@@ -16,6 +16,42 @@ class GrowthStoresTest {
     }
 
     @Test
+    fun checkInStoreAwardsWeeklyBonusOnceAfterSevenDayStreak() {
+        var checkIns = CheckInSnapshot()
+        var account = CoinAccount(balance = 0)
+
+        for (day in 1..6) {
+            val result = checkIns.recordWin("2026-05-${day.toString().padStart(2, '0')}", account)
+            checkIns = result.snapshot
+            account = result.account
+            assertTrue(result.changed)
+            assertEquals(0, result.bonusCoins)
+        }
+
+        val seventh = checkIns.recordWin("2026-05-07", account)
+        val replay = seventh.snapshot.recordWin("2026-05-07", seventh.account)
+
+        assertTrue(seventh.changed)
+        assertEquals(50, seventh.bonusCoins)
+        assertEquals(7, seventh.snapshot.currentStreak)
+        assertEquals(50, seventh.account.balance)
+        assertFalse(replay.changed)
+        assertEquals(0, replay.bonusCoins)
+        assertEquals(50, replay.account.balance)
+        assertEquals(listOf("2026-05-07"), seventh.snapshot.weeklyBonusDayKeys)
+    }
+
+    @Test
+    fun checkInCalendarWeeksRebuildForVisibleMonth() {
+        val may = CheckInCalendar.buildMonthWeeks("2026-05-24", setOf("2026-05-07"))
+        val june = CheckInCalendar.buildMonthWeeks("2026-06-01", setOf("2026-05-07", "2026-06-01"))
+
+        assertTrue(may.flatMap { it.cells }.any { it.dayKey == "2026-05-07" && it.checked })
+        assertFalse(june.flatMap { it.cells }.any { it.dayKey == "2026-05-07" && it.inMonth })
+        assertTrue(june.flatMap { it.cells }.any { it.dayKey == "2026-06-01" && it.checked })
+    }
+
+    @Test
     fun redeemWishDebitsCoinsAndAddsNewestHistory() {
         val wish = WishItem("toy-1", "贴纸", 5, "star", custom = false)
         val state = WishlistState(defaultWishes = listOf(wish), customWishes = emptyList())

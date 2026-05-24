@@ -68,6 +68,9 @@ import androidx.compose.ui.unit.sp
 import com.caverock.androidsvg.SVG
 import cool.happyword.wordmagic.R
 import cool.happyword.wordmagic.core.CoinAccount
+import cool.happyword.wordmagic.core.CheckInCalendar
+import cool.happyword.wordmagic.core.CheckInSnapshot
+import cool.happyword.wordmagic.core.CheckInWeekRow
 import cool.happyword.wordmagic.core.LearningReport
 import cool.happyword.wordmagic.core.MonsterCatalog
 import cool.happyword.wordmagic.core.PackSelectionStore
@@ -84,6 +87,7 @@ import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
@@ -843,7 +847,7 @@ private fun CodexArrowButton(text: String, enabled: Boolean, tag: String, onClic
 }
 
 @Composable
-fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit) {
+fun TodayPlanScreen(plan: TodayPlanUi, onCheckIn: () -> Unit, onReport: () -> Unit, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     Column(
         Modifier
@@ -876,6 +880,19 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
                 color = Color(0xFF1D3557),
                 textAlign = TextAlign.Center,
             )
+            CenteredCircleTextButton(
+                text = "✓",
+                onClick = onCheckIn,
+                modifier = Modifier.testTag("TodayPlanCheckInButton"),
+                size = 40.dp,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF15803D),
+                ),
+            )
+            Spacer(Modifier.width(8.dp))
             CenteredCircleTextButton(
                 text = "📊",
                 onClick = onReport,
@@ -931,6 +948,170 @@ fun TodayPlanScreen(plan: TodayPlanUi, onReport: () -> Unit, onBack: () -> Unit)
         }
     }
 }
+
+@Composable
+fun CheckInCalendarScreen(snapshot: CheckInSnapshot, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    var visibleMonth by remember { mutableStateOf(LocalDate.now().withDayOfMonth(1)) }
+    val weeks = CheckInCalendar.buildMonthWeeks(visibleMonth.toString(), snapshot.checkedDayKeys.toSet())
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
+            .testTag("CheckInCalendarScreen"),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    start = PageChromeInsets.homeAlignedHorizontal,
+                    end = PageChromeInsets.homeAlignedHorizontal,
+                    top = PageChromeInsets.bodyTop,
+                    bottom = 12.dp,
+                ),
+        ) {
+            HarmonyPageTopBackButton(onClick = onBack, modifier = Modifier.testTag("CheckInBackButton"))
+            Text(
+                "打卡日历",
+                modifier = Modifier.weight(1f).testTag("CheckInPageTitle"),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1D3557),
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.size(40.dp))
+        }
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = PageChromeInsets.homeAlignedHorizontal)
+                .padding(bottom = PageChromeInsets.bodyBottom),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                CheckInSummaryPill("连续 ${snapshot.currentStreak} 天", "当前连击", Color(0xFFDCFCE7), "CheckInCurrentStreak")
+                CheckInSummaryPill("${snapshot.bestStreak} 天", "最佳连续", Color(0xFFFEF3C7), "CheckInBestStreak")
+                CheckInSummaryPill(checkInCloudState(snapshot), "同步状态", Color(0xFFEAF2F8), "CheckInCloudState")
+            }
+            Text(
+                snapshot.weeklyBonusDayKeys.lastOrNull()?.let { "最近一次连续奖励：$it +50" } ?: "连续 7 天后额外奖励 50 积分",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFFEF3C7))
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .testTag("CheckInWeeklyBonusBanner"),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF92400E),
+            )
+            CheckInMonthCard(
+                visibleMonth = visibleMonth,
+                weeks = weeks,
+                onPrevious = { visibleMonth = visibleMonth.minusMonths(1).withDayOfMonth(1) },
+                onNext = { visibleMonth = visibleMonth.plusMonths(1).withDayOfMonth(1) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowScope.CheckInSummaryPill(value: String, label: String, background: Color, tag: String) {
+    Column(
+        Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(12.dp))
+            .background(background)
+            .padding(vertical = 12.dp, horizontal = 8.dp)
+            .testTag(tag),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D3557), maxLines = 1)
+        Text(label, fontSize = 11.sp, color = Color(0xFF64748B))
+    }
+}
+
+@Composable
+private fun CheckInMonthCard(
+    visibleMonth: LocalDate,
+    weeks: List<CheckInWeekRow>,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White)
+            .padding(12.dp)
+            .testTag("CheckInCalendarGrid"),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            CenteredCircleTextButton(
+                text = "←",
+                onClick = onPrevious,
+                modifier = Modifier.testTag("CheckInPrevMonthButton"),
+                size = 36.dp,
+                fontSize = 17.sp,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDCFCE7), contentColor = Color(0xFF065F46)),
+            )
+            Text(
+                "${visibleMonth.year}年${visibleMonth.monthValue}月",
+                modifier = Modifier.weight(1f).testTag("CheckInMonthLabel"),
+                textAlign = TextAlign.Center,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1D3557),
+            )
+            CenteredCircleTextButton(
+                text = "→",
+                onClick = onNext,
+                modifier = Modifier.testTag("CheckInNextMonthButton"),
+                size = 36.dp,
+                fontSize = 17.sp,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDCFCE7), contentColor = Color(0xFF065F46)),
+            )
+        }
+        Row(Modifier.fillMaxWidth()) {
+            listOf("日", "一", "二", "三", "四", "五", "六").forEach {
+                Text(it, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 12.sp, color = Color(0xFF64748B))
+            }
+        }
+        weeks.forEach { week ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                week.cells.forEach { cell ->
+                    Text(
+                        if (cell.inMonth) {
+                            if (cell.checked) "${cell.label} ✓" else cell.label
+                        } else {
+                            ""
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (cell.checked) Color(0xFF22C55E) else if (cell.inMonth) Color(0xFFF8FAFC) else Color.White)
+                            .testTag(if (cell.inMonth) "CheckInDay_${cell.dayKey}" else "CheckInBlank"),
+                        textAlign = TextAlign.Center,
+                        fontSize = 13.sp,
+                        fontWeight = if (cell.checked) FontWeight.Bold else FontWeight.Normal,
+                        color = if (cell.checked) Color.White else Color(0xFF334155),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun checkInCloudState(snapshot: CheckInSnapshot): String =
+    when {
+        snapshot.pendingSync -> "等待同步"
+        snapshot.lastSyncedAtMs > 0L -> "云端已同步"
+        else -> "本地保存"
+    }
 
 @Composable
 private fun TodayPlanHeaderCard(plan: TodayPlanUi) {

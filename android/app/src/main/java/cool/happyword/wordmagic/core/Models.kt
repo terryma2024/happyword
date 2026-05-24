@@ -118,6 +118,10 @@ data class SessionResult(
     val coinDelta: Int,
     val bonusKillCount: Int = 0,
     val packId: String = "fruit-forest",
+    val checkInRecorded: Boolean = false,
+    val checkInCurrentStreak: Int = 0,
+    val checkInBonusCoins: Int = 0,
+    val checkInBonusDayKey: String = "",
 ) {
     val accuracyPercent: Int
         get() {

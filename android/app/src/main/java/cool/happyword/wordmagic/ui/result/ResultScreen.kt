@@ -204,6 +204,20 @@ internal fun ResultScreen(result: SessionResult, coins: Int, onHome: () -> Unit)
                 color = Color(0xFFD84545),
             )
         }
+        if (result.checkInBonusCoins > 0) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "连续打卡 ${result.checkInCurrentStreak} 天 → +${result.checkInBonusCoins} ✨",
+                modifier = Modifier
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color.White)
+                    .padding(horizontal = 14.dp, vertical = 7.dp)
+                    .testTag("ResultCheckInBonusRow"),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF15803D),
+            )
+        }
         Spacer(Modifier.height(22.dp))
         Button(onClick = onHome, modifier = Modifier.width(240.dp).height(54.dp).testTag("ResultHomeButton")) {
             Text("回到首页", fontSize = 18.sp)

@@ -1,5 +1,7 @@
 package cool.happyword.wordmagic.core
 
+import kotlin.math.max
+
 data class CoinCreditResult(val account: CoinAccount, val delta: Int)
 
 data class CoinAccount(
@@ -27,8 +29,136 @@ data class CoinAccount(
         return copy(balance = balance - cost)
     }
 
+    fun creditCheckInWeeklyBonus(dayKey: String, amount: Int = CheckInSnapshot.WEEKLY_BONUS_COINS): CoinAccount {
+        val delta = amount.coerceAtLeast(0)
+        if (dayKey.isBlank() || delta == 0) return this
+        return copy(balance = balance + delta)
+    }
+
     companion object {
         const val DAILY_BATTLE_REWARD_CAP = 20
+    }
+}
+
+data class CheckInSnapshot(
+    val version: Int = 1,
+    val checkedDayKeys: List<String> = emptyList(),
+    val weeklyBonusDayKeys: List<String> = emptyList(),
+    val currentStreak: Int = 0,
+    val bestStreak: Int = 0,
+    val lastSyncedAtMs: Long = 0L,
+    val pendingSync: Boolean = false,
+) {
+    fun recordWin(dayKey: String, account: CoinAccount): CheckInRecordResult {
+        val normalizedDayKey = dayKey.trim()
+        if (normalizedDayKey.isEmpty() || checkedDayKeys.contains(normalizedDayKey)) {
+            return CheckInRecordResult(false, this, account, normalizedDayKey, 0)
+        }
+        var next = copy(
+            checkedDayKeys = sortedUnique(checkedDayKeys + normalizedDayKey),
+            pendingSync = true,
+        ).recomputed(anchorDayKey = normalizedDayKey)
+        var nextAccount = account
+        var bonus = 0
+        if (
+            next.currentStreak > 0 &&
+            next.currentStreak % 7 == 0 &&
+            !next.weeklyBonusDayKeys.contains(normalizedDayKey)
+        ) {
+            next = next.copy(weeklyBonusDayKeys = sortedUnique(next.weeklyBonusDayKeys + normalizedDayKey))
+            bonus = WEEKLY_BONUS_COINS
+            nextAccount = nextAccount.creditCheckInWeeklyBonus(normalizedDayKey, bonus)
+        }
+        return CheckInRecordResult(true, next, nextAccount, normalizedDayKey, bonus)
+    }
+
+    fun mergeCloud(checkedDays: List<String>, weeklyBonusDays: List<String>, serverNowMs: Long): CheckInSnapshot =
+        copy(
+            checkedDayKeys = sortedUnique(checkedDayKeys + checkedDays),
+            weeklyBonusDayKeys = sortedUnique(weeklyBonusDayKeys + weeklyBonusDays),
+            lastSyncedAtMs = serverNowMs.coerceAtLeast(0L),
+            pendingSync = false,
+        ).recomputed()
+
+    fun recomputed(anchorDayKey: String = checkedDayKeys.lastOrNull().orEmpty()): CheckInSnapshot {
+        val sortedDays = sortedUnique(checkedDayKeys)
+        var best = 0
+        var currentRun = 0
+        var previous = ""
+        sortedDays.forEach { day ->
+            currentRun = if (previous.isEmpty() || isNextDay(previous, day)) currentRun + 1 else 1
+            best = max(best, currentRun)
+            previous = day
+        }
+        val current = countStreakEndingAt(sortedDays, anchorDayKey)
+        return copy(
+            checkedDayKeys = sortedDays,
+            weeklyBonusDayKeys = sortedUnique(weeklyBonusDayKeys),
+            currentStreak = current,
+            bestStreak = max(best, current),
+        )
+    }
+
+    companion object {
+        const val WEEKLY_BONUS_COINS = 50
+
+        private fun sortedUnique(days: List<String>): List<String> = days.map { it.trim() }.filter { it.isNotEmpty() }.distinct().sorted()
+
+        private fun countStreakEndingAt(sortedDays: List<String>, dayKey: String): Int {
+            if (dayKey.isBlank() || dayKey !in sortedDays) return 0
+            var count = 1
+            var cursor = dayKey
+            for (day in sortedDays.asReversed()) {
+                if (day >= cursor) continue
+                if (isNextDay(day, cursor)) {
+                    count += 1
+                    cursor = day
+                } else {
+                    return count
+                }
+            }
+            return count
+        }
+
+        private fun isNextDay(previous: String, next: String): Boolean =
+            runCatching { java.time.LocalDate.parse(next).toEpochDay() - java.time.LocalDate.parse(previous).toEpochDay() == 1L }
+                .getOrDefault(false)
+    }
+}
+
+data class CheckInRecordResult(
+    val changed: Boolean,
+    val snapshot: CheckInSnapshot,
+    val account: CoinAccount,
+    val dayKey: String,
+    val bonusCoins: Int,
+)
+
+data class CheckInDayCell(
+    val dayKey: String = "",
+    val label: String = "",
+    val checked: Boolean = false,
+    val inMonth: Boolean = false,
+)
+
+data class CheckInWeekRow(val cells: List<CheckInDayCell>)
+
+object CheckInCalendar {
+    fun buildMonthWeeks(visibleMonthDayKey: String, checkedDayKeys: Set<String>): List<CheckInWeekRow> {
+        val anchor = runCatching { java.time.LocalDate.parse(visibleMonthDayKey).withDayOfMonth(1) }
+            .getOrElse { java.time.LocalDate.now().withDayOfMonth(1) }
+        val lead = anchor.dayOfWeek.value % 7
+        val cells = mutableListOf<CheckInDayCell>()
+        repeat(lead) { cells += CheckInDayCell() }
+        for (day in 1..anchor.lengthOfMonth()) {
+            val date = anchor.withDayOfMonth(day)
+            val key = date.toString()
+            cells += CheckInDayCell(dayKey = key, label = day.toString(), checked = key in checkedDayKeys, inMonth = true)
+        }
+        while (cells.size % 7 != 0) {
+            cells += CheckInDayCell()
+        }
+        return cells.chunked(7).map { CheckInWeekRow(it) }
     }
 }
 

@@ -267,6 +267,21 @@ enum CloudClientFactory {
             )
     }
 
+    static func checkInSyncClient(
+        arguments: [String] = ProcessInfo.processInfo.arguments,
+        environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
+        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
+        transport: any HTTPTransporting = URLSessionHTTPTransport()
+    ) -> any CheckInSyncClienting {
+        shouldUseLocalMocks(arguments: arguments)
+            ? MockCheckInSyncClient()
+            : HTTPCheckInSyncClient(
+                baseURLProvider: BackendURLProvider(store: environmentStore),
+                headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: bypassSecretStore),
+                transport: transport
+            )
+    }
+
     static func unbindClient(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
@@ -1449,6 +1464,91 @@ struct MockWordStatsSyncClient: WordStatsSyncClienting, Sendable {
             accepted: payload.items.count,
             rejected: 0,
             serverPulls: [],
+            serverNowMs: Int((Date().timeIntervalSince1970 * 1000).rounded())
+        )
+    }
+}
+
+struct CloudCoinTransactionPayload: Codable, Equatable {
+    var txnId: String
+    var delta: Int
+    var reason: String
+    var createdAtMs: Int
+}
+
+struct CheckInSyncPayload: Codable, Equatable {
+    var checkedDayKeys: [String]
+    var weeklyBonusDayKeys: [String]
+    var coinTxns: [CloudCoinTransactionPayload]
+    var syncedThroughMs: Int
+
+    static func from(snapshot: CheckInSnapshot) -> CheckInSyncPayload {
+        CheckInSyncPayload(
+            checkedDayKeys: snapshot.checkedDayKeys,
+            weeklyBonusDayKeys: snapshot.weeklyBonusDayKeys,
+            coinTxns: snapshot.weeklyBonusDayKeys.map { dayKey in
+                CloudCoinTransactionPayload(
+                    txnId: "checkin-weekly-bonus:\(dayKey)",
+                    delta: 50,
+                    reason: "checkin-weekly-bonus:\(dayKey)",
+                    createdAtMs: 0
+                )
+            },
+            syncedThroughMs: snapshot.lastSyncedAtMs
+        )
+    }
+}
+
+struct CheckInSyncResponse: Codable, Equatable {
+    var checkedDayKeys: [String]
+    var weeklyBonusDayKeys: [String]
+    var coinTxns: [CloudCoinTransactionPayload]
+    var serverNowMs: Int
+}
+
+protocol CheckInSyncClienting: Sendable {
+    func sync(payload: CheckInSyncPayload, familyId: String, deviceToken: String) async throws -> CheckInSyncResponse
+}
+
+struct HTTPCheckInSyncClient: CheckInSyncClienting, Sendable {
+    private let baseURLProvider: any BackendURLProviding
+    private let headerProvider: any BackendHeaderProviding
+    private let transport: any HTTPTransporting
+
+    init(
+        baseURLProvider: any BackendURLProviding,
+        headerProvider: any BackendHeaderProviding = BackendHeaderProvider(),
+        transport: any HTTPTransporting = URLSessionHTTPTransport()
+    ) {
+        self.baseURLProvider = baseURLProvider
+        self.headerProvider = headerProvider
+        self.transport = transport
+    }
+
+    func sync(payload: CheckInSyncPayload, familyId: String, deviceToken: String) async throws -> CheckInSyncResponse {
+        guard !familyId.isEmpty else { throw CloudHTTPError.familyIdRequired }
+        let path = familyScopedAPIPath(suffix: "/checkins/sync", familyId: familyId)
+        var request = URLRequest(url: endpoint(path, baseURL: baseURLProvider.effectiveBaseURL()))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(deviceToken)", forHTTPHeaderField: "Authorization")
+        headerProvider.apply(to: &request)
+        request.httpBody = try JSONEncoder.snakeCase.encode(payload)
+
+        let (data, response) = try await transport.data(for: request)
+        guard response.statusCode == 200 else {
+            throw CloudHTTPError.unexpectedStatus(response.statusCode)
+        }
+        return try JSONDecoder.snakeCase.decode(CheckInSyncResponse.self, from: data)
+    }
+}
+
+struct MockCheckInSyncClient: CheckInSyncClienting, Sendable {
+    func sync(payload: CheckInSyncPayload, familyId: String, deviceToken: String) async throws -> CheckInSyncResponse {
+        CheckInSyncResponse(
+            checkedDayKeys: payload.checkedDayKeys,
+            weeklyBonusDayKeys: payload.weeklyBonusDayKeys,
+            coinTxns: payload.coinTxns,
             serverNowMs: Int((Date().timeIntervalSince1970 * 1000).rounded())
         )
     }

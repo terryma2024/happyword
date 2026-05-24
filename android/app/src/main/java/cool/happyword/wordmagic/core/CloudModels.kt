@@ -435,6 +435,64 @@ data class WordStatsSyncResult(
     val serverNowMs: Long = 0L,
 )
 
+data class CheckInSyncResult(
+    val checkedDayKeys: List<String>,
+    val weeklyBonusDayKeys: List<String>,
+    val serverNowMs: Long,
+    val ok: Boolean,
+)
+
+open class CheckInSyncClient(
+    private val baseUrlProvider: () -> String = { "" },
+    private val extraHeadersProvider: () -> Map<String, String> = { emptyMap() },
+    private val transport: BindingHttpTransport = UrlConnectionBindingHttpTransport(),
+) {
+    open fun buildPayload(snapshot: CheckInSnapshot): String {
+        val checked = snapshot.checkedDayKeys.joinToString(",") { "\"${jsonEscape(it)}\"" }
+        val bonuses = snapshot.weeklyBonusDayKeys.joinToString(",") { "\"${jsonEscape(it)}\"" }
+        val txns = snapshot.weeklyBonusDayKeys.joinToString(",") { day ->
+            """{"txn_id":"checkin-weekly-bonus:${jsonEscape(day)}","delta":${CheckInSnapshot.WEEKLY_BONUS_COINS},"reason":"checkin-weekly-bonus:${jsonEscape(day)}","created_at_ms":0}"""
+        }
+        return """{"checked_day_keys":[$checked],"weekly_bonus_day_keys":[$bonuses],"coin_txns":[$txns],"synced_through_ms":${snapshot.lastSyncedAtMs}}"""
+    }
+
+    open suspend fun sync(deviceToken: String, snapshot: CheckInSnapshot, familyId: String = "_"): CheckInSyncResult {
+        if (deviceToken.isBlank()) {
+            return CheckInSyncResult(snapshot.checkedDayKeys, snapshot.weeklyBonusDayKeys, 0L, ok = false)
+        }
+        val baseUrl = baseUrlProvider().trimEnd('/')
+        if (baseUrl.isBlank()) {
+            return CheckInSyncResult(snapshot.checkedDayKeys, snapshot.weeklyBonusDayKeys, 0L, ok = false)
+        }
+        val fid = familyId.trim().ifBlank { "_" }
+        val headers = linkedMapOf(
+            "Content-Type" to "application/json",
+            "Accept" to "application/json",
+            "Authorization" to "Bearer $deviceToken",
+        ).apply {
+            putAll(extraHeadersProvider().filterValues { it.isNotBlank() })
+        }
+        val response = try {
+            transport.postJson(
+                url = "$baseUrl/api/v1/family/$fid/checkins/sync",
+                headers = headers,
+                body = buildPayload(snapshot),
+            )
+        } catch (_: Exception) {
+            return CheckInSyncResult(snapshot.checkedDayKeys, snapshot.weeklyBonusDayKeys, 0L, ok = false)
+        }
+        if (response.status !in 200..299) {
+            return CheckInSyncResult(snapshot.checkedDayKeys, snapshot.weeklyBonusDayKeys, 0L, ok = false)
+        }
+        return CheckInSyncResult(
+            checkedDayKeys = response.body.stringArrayField("checked_day_keys"),
+            weeklyBonusDayKeys = response.body.stringArrayField("weekly_bonus_day_keys"),
+            serverNowMs = response.body.longField("server_now_ms") ?: 0L,
+            ok = true,
+        )
+    }
+}
+
 open class WordStatsSyncClient(
     private val baseUrlProvider: () -> String = { "" },
     private val extraHeadersProvider: () -> Map<String, String> = { emptyMap() },
@@ -524,6 +582,12 @@ private fun String.arrayBlock(name: String): String =
         ?.groupValues
         ?.get(1)
         .orEmpty()
+
+private fun String.stringArrayField(name: String): List<String> {
+    val block = arrayBlock(name)
+    if (block.isBlank()) return emptyList()
+    return Regex(""""([^"]*)"""").findAll(block).map { it.groupValues[1].unescapeJson() }.toList()
+}
 
 class CloudSyncCoordinator(
     private val globalClient: FixtureGlobalPackClient = FixtureGlobalPackClient(),

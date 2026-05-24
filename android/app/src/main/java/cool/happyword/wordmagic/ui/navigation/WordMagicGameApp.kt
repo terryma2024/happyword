@@ -123,6 +123,7 @@ import cool.happyword.wordmagic.core.ChildProfileException
 import cool.happyword.wordmagic.core.CloudSyncCoordinator
 import cool.happyword.wordmagic.core.CompliancePolicy
 import cool.happyword.wordmagic.core.CoinAccount
+import cool.happyword.wordmagic.core.CheckInSyncClient
 import cool.happyword.wordmagic.core.DevMenuRouteParams
 import cool.happyword.wordmagic.core.DevMenuViewModel
 import cool.happyword.wordmagic.core.VersionTripleTap
@@ -158,6 +159,7 @@ import cool.happyword.wordmagic.data.AndroidLocalProgressRepositories
 import cool.happyword.wordmagic.ui.BypassSecretScreen
 import cool.happyword.wordmagic.ui.BoundDeviceInfoScreen
 import cool.happyword.wordmagic.ui.DevMenuScreen
+import cool.happyword.wordmagic.ui.CheckInCalendarScreen
 import cool.happyword.wordmagic.ui.LearningReportScreen
 import cool.happyword.wordmagic.ui.MonsterCodexScreen
 import cool.happyword.wordmagic.ui.PageChromeInsets
@@ -271,6 +273,17 @@ fun WordMagicGameApp() {
             },
         )
     }
+    val checkInSyncClient = remember {
+        CheckInSyncClient(
+            baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
+            extraHeadersProvider = {
+                BackendHeaderProvider().headers(
+                    backendRouteState,
+                    debugRoutingRepository.bypassSecretStore.load(),
+                )
+            },
+        )
+    }
     var previewTargets by remember { mutableStateOf(devMenuViewModel.fallbackManifest()) }
     var previewManifestBusy by remember { mutableStateOf(false) }
     var backendApplying by remember { mutableStateOf(false) }
@@ -288,6 +301,7 @@ fun WordMagicGameApp() {
     var battleTimeLeft by remember { mutableIntStateOf(DEFAULT_BATTLE_TIMER_SECONDS) }
     var result by remember { mutableStateOf<SessionResult?>(null) }
     var coinAccount by remember { mutableStateOf(repositories.loadCoinAccount()) }
+    var checkIns by remember { mutableStateOf(repositories.loadCheckIns()) }
     var learningRecorder by remember { mutableStateOf(repositories.loadLearningRecorder()) }
     var wishlist by remember { mutableStateOf(repositories.loadWishlist()) }
     var redemptionHistory by remember { mutableStateOf(repositories.loadRedemptionHistory()) }
@@ -436,8 +450,37 @@ fun WordMagicGameApp() {
     }
 
     fun finishBattleSession(finishedState: BattleState) {
-        val sessionResult = engine.resultFor(finishedState).copy(packId = selectedPack.id)
+        var sessionResult = engine.resultFor(finishedState).copy(packId = selectedPack.id)
         val credited = coinAccount.creditBattleReward(sessionResult.coinDelta, LocalDate.now().toString())
+        var nextCoinAccount = credited.account
+        if (sessionResult.won) {
+            val checkIn = checkIns.recordWin(LocalDate.now().toString(), nextCoinAccount)
+            checkIns = checkIn.snapshot
+            repositories.saveCheckIns(checkIns)
+            nextCoinAccount = checkIn.account
+            sessionResult = sessionResult.copy(
+                checkInRecorded = checkIn.changed,
+                checkInCurrentStreak = checkIn.snapshot.currentStreak,
+                checkInBonusCoins = checkIn.bonusCoins,
+                checkInBonusDayKey = checkIn.dayKey,
+            )
+            val credentials = cloudCredentials
+            if (credentials != null) {
+                appScope.launch {
+                    val sync = checkInSyncClient.sync(
+                        deviceToken = credentials.deviceToken,
+                        snapshot = checkIns,
+                        familyId = credentials.familyLabel,
+                    )
+                    checkIns = if (sync.ok) {
+                        checkIns.mergeCloud(sync.checkedDayKeys, sync.weeklyBonusDayKeys, sync.serverNowMs)
+                    } else {
+                        checkIns.copy(pendingSync = true)
+                    }
+                    repositories.saveCheckIns(checkIns)
+                }
+            }
+        }
         val sessionRecord = BattleSessionRecord(
             packId = selectedPack.id,
             won = sessionResult.won,
@@ -456,7 +499,7 @@ fun WordMagicGameApp() {
             repositories.saveSelection(selection)
             selectedPackId = selection.activePackIds.firstOrNull() ?: selectedPack.id
         }
-        coinAccount = credited.account
+        coinAccount = nextCoinAccount
         repositories.saveCoinAccount(coinAccount)
         result = sessionResult.copy(coinDelta = credited.delta)
         route = AppRoute.Result
@@ -922,6 +965,7 @@ fun WordMagicGameApp() {
                         regionDisplayName = selectedPack.nameZh,
                         nowMs = System.currentTimeMillis(),
                     ),
+                    onCheckIn = { route = AppRoute.CheckInCalendar },
                     onReport = { route = AppRoute.LearningReport },
                     onBack = { route = AppRoute.Home },
                 )
@@ -932,6 +976,10 @@ fun WordMagicGameApp() {
                         learningRecorder.statsSnapshot(),
                         System.currentTimeMillis(),
                     ),
+                    onBack = { route = AppRoute.TodayPlan },
+                )
+                AppRoute.CheckInCalendar -> CheckInCalendarScreen(
+                    snapshot = checkIns,
                     onBack = { route = AppRoute.TodayPlan },
                 )
                 AppRoute.ScanBinding -> {

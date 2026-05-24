@@ -14,6 +14,7 @@ internal enum class AppRoute {
     MonsterCodex,
     TodayPlan,
     LearningReport,
+    CheckInCalendar,
     ScanBinding,
     BoundDeviceInfo,
     DevMenu,
