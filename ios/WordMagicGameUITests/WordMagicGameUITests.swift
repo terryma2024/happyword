@@ -8,7 +8,7 @@ final class WordMagicGameUITests: XCTestCase {
     @MainActor
     func testHomeBattleResultDeterministicFlow() {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer"]
+        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestQuestionTypesChoiceOnly", "-UITestQuickBattle"]
         app.launch()
 
         assertLandscape(app)
@@ -528,7 +528,7 @@ final class WordMagicGameUITests: XCTestCase {
     @MainActor
     func testBattleFeedbackProjectileAndSpellControlsMatchHarmony() {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestRouteBattle"]
+        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestQuestionTypesChoiceOnly", "-UITestRouteBattle"]
         app.launch()
 
         assertLandscape(app)
@@ -553,7 +553,7 @@ final class WordMagicGameUITests: XCTestCase {
     @MainActor
     func testBattleComboAndSpellLetterRejectionMatchHarmony() {
         let app = XCUIApplication()
-        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestRouteBattle"]
+        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestQuestionTypesChoiceOnly", "-UITestRouteBattle"]
         app.launch()
 
         assertLandscape(app)
@@ -564,14 +564,16 @@ final class WordMagicGameUITests: XCTestCase {
         waitForBattleFeedbackToClear(in: app)
 
         app.terminate()
-        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestBattleSpellOnly", "-UITestBattleBossFirst", "-UITestRouteBattle"]
+        app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestQuestionTypesSpellOnly", "-UITestBattleBossFirst", "-UITestRouteBattle"]
         app.launch()
         assertLandscape(app)
         XCTAssertTrue(app.staticTexts["_"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["HP 10 / 10"].firstMatch.waitForExistence(timeout: 5))
 
         tapFirstIncorrectBattleOption(in: app)
         XCTAssertEqual(waitForBattleFeedback(in: app), "Try again")
         XCTAssertTrue(app.staticTexts["_"].firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["HP 9 / 10"].firstMatch.waitForExistence(timeout: 5))
 
         tapCurrentCorrectBattleOption(in: app)
         XCTAssertTrue(app.staticTexts["Battle"].waitForExistence(timeout: 3))
@@ -740,6 +742,10 @@ final class WordMagicGameUITests: XCTestCase {
                 return
             }
             tapCurrentCorrectBattleOption(in: app, file: file, line: line)
+            if victory.waitForExistence(timeout: 1.5) {
+                return
+            }
+            waitForBattleFeedbackToClear(in: app)
         }
     }
 
