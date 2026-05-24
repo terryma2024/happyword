@@ -5,7 +5,7 @@
 > Bundle ID: `com.terryma.wordmagicgame`
 > Version: `0.8.4`
 > Build: `1008006`
-> Last updated: 2026-05-23
+> Last updated: 2026-05-24
 
 ## Source Of Truth
 
@@ -37,6 +37,9 @@
 - [x] Privacy policy URL exists in repo as public server page: `https://happyword.cool/privacy`.
 - [x] Support URL exists in repo as public server page: `https://happyword.cool/support`.
 - [x] In-app account deletion initiation path is verified from this repo: `学习档案` -> `账号与数据管理` opens `/family/<family_id>/account`.
+- [x] Apple App Review approved iOS version `0.8.4` / build `1008006`; App Store Connect status is `可分发`.
+- [x] App Store availability was re-enabled on 2026-05-24 for the available storefront set. App Store Connect now shows 148 countries/regions `正在处理为可用`.
+- [ ] EU / DSA trader-status countries remain unavailable until the account owner provides trader status in App Store Connect.
 
 ## P0 Blockers To Clear Before Upload
 
@@ -52,11 +55,12 @@
   - Category: choose Education or Games only after product positioning is confirmed.
   - Kids Category: decide explicitly. If selected, review ads, analytics, external links, and parental-gate requirements carefully.
 
-- [ ] Confirm production backend is ready for Apple review.
+- [x] Confirm production backend is ready for Apple review.
   - Production API must be HTTPS.
   - Review account must work without developer-only switches.
   - Parent binding, QR scan, photo import, word extraction, sync, and child practice flows must be reviewable.
   - Any Vercel preview/local/staging routing must be unreachable in Release.
+  - Apple approved iOS version `0.8.4` / build `1008006` by 2026-05-24, confirming the reviewer path was sufficient for App Review.
 
 - [x] Confirm account deletion.
   - The bound learning-device screen provides an in-app initiation path: `游戏配置` -> `学习档案` -> `账号与数据管理`.
@@ -114,10 +118,10 @@
 - Explain account deletion: in iOS open `游戏配置` -> `学习档案` -> `账号与数据管理`; parent deletes from the Web account page with a grace period and cancel option.
 - State that data is not used for third-party tracking or targeted advertising unless that changes before submission.
 
-- [ ] Confirm permission usage is accurate.
+- [x] Confirm permission usage is accurate.
   - Camera: textbook photo upload and parent QR binding.
   - Photo library read: choose textbook photos.
-  - Photo library add: only keep if the app really saves images to the library; otherwise remove it before submission.
+  - Photo library add: not used by the iOS client; `NSPhotoLibraryAddUsageDescription` was removed before submission.
 
 ## P1 Build And Verification Checklist
 
@@ -342,13 +346,14 @@ Notes:
   - Device: `iPad Pro 13-inch (M5) (iOS 26.4)`.
   - Size: `2064x2752`.
   - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-learning-profile.png`, `05-pack-manager.png`.
-- App Store Connect submission state as of 2026-05-17:
-  - Version metadata fields filled for `iOS App 版本 0.7.0`: promotional text, description, keywords, support URL, version, copyright, reviewer notes, App Review contact, and manual release.
-  - Build `1007004` selected for submission.
+- App Store Connect submission state as of 2026-05-24:
+  - Version metadata fields filled for `iOS App 版本 0.8.4`: promotional text, description, keywords, support URL, version, copyright, reviewer notes, App Review contact, and post-review release settings.
+  - Build `1008006` selected for submission.
   - App Privacy labels published.
   - App Info completed: subtitle, content rights, primary category `Education`, and age rating `4+`.
-  - Pricing completed: free app, public distribution, Mac and Vision Pro compatibility distribution disabled for this release.
-  - Version `0.7.0 (1007004)` submitted to Apple review; App Store Connect status is `正在等待审核`.
+  - Pricing completed: free app and public distribution.
+  - Version `0.8.4 (1008006)` passed Apple review; App Store Connect status is `可分发`.
+  - Availability was re-enabled on 2026-05-24 after approval. App Store Connect shows 148 countries/regions `正在处理为可用`; remaining EU / DSA trader-status regions require account-owner trader-status completion.
 - Screenshots cover:
   1. Learning home screen.
   2. Battle/practice screen.
@@ -365,6 +370,7 @@ Notes:
 - [ ] Confirm whether the product is positioned as an education app or game. If treated as a game in mainland China distribution, legal review may be needed for game-specific requirements.
 - [ ] Confirm no paid content, subscriptions, or external purchase paths are present. If any exist, App Store IAP review is required.
 - [ ] Confirm production observability is available without collecting unnecessary child data.
+- [ ] Complete App Store Connect trader status if the app should be available in EU / DSA-covered storefronts.
 - [ ] Prepare rollback plan:
   - [ ] Keep previous build available.
   - [ ] Server feature flags or compatible APIs remain backwards-compatible.
@@ -382,3 +388,6 @@ Notes:
 8. [x] Complete real-device TestFlight smoke test.
 9. [x] Prepare screenshots and App Store metadata.
 10. [x] Submit for Apple review.
+11. [x] Apple App Review approved `0.8.4 (1008006)`.
+12. [x] Re-enable App Store availability after approval; 148 countries/regions are processing to available.
+13. [ ] Decide whether to complete EU / DSA trader-status information for the remaining unavailable countries/regions.
