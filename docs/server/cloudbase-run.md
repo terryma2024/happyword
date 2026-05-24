@@ -594,6 +594,10 @@ Beijing shared staging E2E target, configured 2026-05-23:
   `E2E_CRON_SECRET`.
 - `E2E_MONGODB_URI` should use the Beijing runner's local loopback MongoDB URI,
   not the public URI, because the job runs on the same machine as the database.
+- The reset step also uses `E2E_ADMIN_USER` / `E2E_ADMIN_PASS` to upsert the
+  admin row in the shared E2E database. This keeps CI credentials aligned even
+  when the CloudBase staging service is already running and does not re-run
+  bootstrap during a test reset.
 - CloudBase staging runtime `MONGODB_URI` and `MONGO_DB_NAME` now point to this
   same E2E database. Runtime access uses the allowlisted public TLS URI because
   CloudBase Run and the Beijing Lighthouse instance are not on the same private

@@ -135,6 +135,8 @@ jobs:
         env:
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
+          E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
         run: uv run --python 3.12 python scripts/e2e_reset_db.py
 
       - name: Run CloudBase staging E2E

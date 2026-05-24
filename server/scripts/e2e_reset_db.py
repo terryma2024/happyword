@@ -7,12 +7,12 @@ like a dedicated E2E database (name must end in ``_e2e`` / ``_test`` /
 
 What is NOT truncated and why:
 
-- ``users`` — holds the bootstrap admin row created by FastAPI startup
-  from ``ADMIN_BOOTSTRAP_USER`` / ``ADMIN_BOOTSTRAP_PASS``. Wiping it
-  would leave the deployed server with no admin and break the next
-  ``E2E_ADMIN_USER`` login. Parent rows accumulate here too, but every
-  test namespaces its parent email by ``run_id`` so they cannot
-  collide; periodic manual cleanup is fine.
+- ``users`` — holds the bootstrap admin row plus parent rows. Parent rows
+  accumulate here, but every test namespaces its parent email by ``run_id`` so
+  they cannot collide; periodic manual cleanup is fine. When
+  ``E2E_ADMIN_USER`` / ``E2E_ADMIN_PASS`` are present, reset upserts that admin
+  row so the already-running deployment does not need a restart to refresh
+  bootstrap credentials.
 - ``categories`` — holds the 5 idempotent ``seed_manual_categories``
   rows seeded at startup. Re-seeding only happens at startup, so wiping
   these would break ACAT-1 against an already-running deployment.
@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import bcrypt
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # Mirror Beanie ``Settings.name`` values from ``app/models/*``. Keep in sync
@@ -82,6 +83,7 @@ class ResetSummary:
     truncated_collections: int
     seeded_words_inserted: int
     seeded_words_skipped: int
+    admin_upserted: bool
 
 
 def assert_safe_db_name(name: str) -> None:
@@ -160,17 +162,50 @@ async def seed_words_from_rawfile(
     return len(to_insert), len(docs) - len(to_insert)
 
 
-async def reset(uri: str, name: str) -> ResetSummary:
+async def upsert_admin_user(db: object, *, username: str, password: str) -> bool:
+    now = datetime.now(tz=UTC)
+    password_hash = bcrypt.hashpw(
+        password.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
+    result = await db["users"].update_one(  # type: ignore[index, attr-defined]
+        {"username": username},
+        {
+            "$set": {
+                "password_hash": password_hash,
+                "role": "admin",
+            },
+            "$setOnInsert": {
+                "created_at": now,
+            },
+        },
+        upsert=True,
+    )
+    return result.matched_count > 0 or result.upserted_id is not None
+
+
+async def reset(
+    uri: str,
+    name: str,
+    *,
+    admin_user: str = "",
+    admin_pass: str = "",
+) -> ResetSummary:
     client: AsyncIOMotorClient[dict[str, object]] = AsyncIOMotorClient(uri)
     try:
         db = client[name]
         for coll in COLLECTIONS:
             await db[coll].delete_many({})
         inserted, skipped = await seed_words_from_rawfile(db)
+        admin_upserted = False
+        if admin_user and admin_pass:
+            admin_upserted = await upsert_admin_user(
+                db, username=admin_user, password=admin_pass
+            )
         return ResetSummary(
             truncated_collections=len(COLLECTIONS),
             seeded_words_inserted=inserted,
             seeded_words_skipped=skipped,
+            admin_upserted=admin_upserted,
         )
     finally:
         client.close()
@@ -192,11 +227,17 @@ async def _amain() -> int:
         print(f"Refusing to reset: {exc}", file=sys.stderr)
         return 3
 
-    summary = await reset(uri, name)
+    summary = await reset(
+        uri,
+        name,
+        admin_user=os.environ.get("E2E_ADMIN_USER", "").strip(),
+        admin_pass=os.environ.get("E2E_ADMIN_PASS", "").strip(),
+    )
     print(
         f"Reset {summary.truncated_collections} collections in db {name!r}. "
         f"Seeded words from rawfile: inserted={summary.seeded_words_inserted} "
-        f"skipped={summary.seeded_words_skipped}."
+        f"skipped={summary.seeded_words_skipped}. "
+        f"Admin upserted: {summary.admin_upserted}."
     )
     return 0
 

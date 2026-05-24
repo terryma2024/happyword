@@ -93,6 +93,8 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
     assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
+    assert "E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}" in reset_step
+    assert "E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}" in reset_step
     assert "uv run --python 3.12 pytest -v -m e2e" in smoke_step
 
 
