@@ -83,8 +83,8 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "concurrency:" in smoke_job
     assert "group: cloudbase-staging-e2e" in smoke_job
     assert "cancel-in-progress: false" in smoke_job
-    assert "actions/upload-artifact@v6" in workflow
-    assert "actions/download-artifact@v6" in smoke_job
+    assert "actions/upload-artifact@v7.0.1" in workflow
+    assert "actions/download-artifact@v8.0.1" in smoke_job
     assert "uses: astral-sh/setup-uv" not in smoke_job
     assert "UV_BIN: /usr/local/bin/uv" in smoke_job
     assert "server-source-for-cloudbase-e2e" in workflow
