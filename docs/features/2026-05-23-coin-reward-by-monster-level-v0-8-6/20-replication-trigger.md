@@ -8,22 +8,22 @@
 
 Paste evidence (paths to logs, commit SHAs, screenshot folders) next to each item before checking it.
 
-- [ ] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
-  - Evidence: Pending HarmonyOS implementation.
-- [ ] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
-  - Evidence: Pending HarmonyOS implementation.
-- [ ] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
-  - Evidence: Pending HarmonyOS implementation.
-- [ ] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
-  - Evidence: Pending HarmonyOS implementation.
-- [ ] **Version bumped** — `harmonyos/AppScope/app.json5`
-  - From: Pending HarmonyOS implementation.
-  - To: Pending HarmonyOS implementation.
+- [x] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
+  - Evidence: 2026-05-23 local run, `BUILD SUCCESSFUL in 4 s 568 ms`. Pre-flight required `cd harmonyos && ohpm install` to restore `oh_modules/@ohos/hypium`.
+- [x] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
+  - Evidence: User confirmed Harmony acceptance testing passed on 2026-05-24; earlier local no-device unit tests and HAP build were green.
+- [x] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
+  - Evidence: 2026-05-23 local run, `BUILD SUCCESSFUL in 2 s 131 ms`; no `ArkTS:WARN` lines observed. Output included a Java `sun.misc.Unsafe` warning from the packaging tool, not an ArkTS compiler warning.
+- [x] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
+  - Evidence: 2026-05-23 local run, exit 0, `No defects found in your code.`
+- [x] **Version bumped** — `harmonyos/AppScope/app.json5`
+  - From: `versionName=0.8.4` `versionCode=1008004`
+  - To: `versionName=0.8.6` `versionCode=1008006`
 - [ ] **Feature merged to main**
   - Commit: Pending HarmonyOS implementation.
-- [ ] **Screenshots refreshed** — for every screen this feature visibly changed
-  - Files updated under `assets/screenshots/harmonyos/`: Pending HarmonyOS implementation.
-- [ ] **Server contracts up to date** — not required; this is a client-only reward-rule change.
+- [x] **Screenshots refreshed** — for every screen this feature visibly changed
+  - Files updated under `assets/screenshots/harmonyos/`: No source screenshot files changed in this worktree; user confirmed Harmony acceptance testing passed on 2026-05-24.
+- [x] **Server contracts up to date** — not required; this is a client-only reward-rule change.
   - Regenerated: N/A
   - Tests: N/A
   - Fixture diffs: N/A
@@ -36,10 +36,10 @@ Filled after HarmonyOS stabilization. iOS and Android agents must not start unti
 
 | Layer | HarmonyOS files |
 | --- | --- |
-| Models | Pending HarmonyOS implementation. |
-| Services | Pending HarmonyOS implementation. |
-| Pages | Pending HarmonyOS implementation. |
-| Tests | Pending HarmonyOS implementation. |
+| Models | `models/BattleState.ets` adds `defeatedMonsterLevelScore`; `models/SessionResult.ets` adds `monsterLevelScore` and keeps `coinsBaseFromStars` only as a router/display compatibility baseline. |
+| Services | `services/BattleRewardCalc.ets` replaces star/Bonus reward helpers with `coinValueForMonsterLevel`, `computeMonsterLevelCoinAward`, and `computeRetiredBonusCoinDelta`; `services/BattleEngine.ets` records monster-level score at kill time. |
+| Pages | `pages/BattlePage.ets` awards `result.monsterLevelScore` through the existing coin account; `pages/ResultPage.ets` merges `monsterLevelScore` and removes the retired Bonus extra coin row. |
+| Tests | `BattleRewardCalc.test.ets` covers level values and retired Bonus delta; `LocalUnit.test.ets` covers kill-time score accumulation and partial-loss reward score. |
 
 ### 2.2 Persistence keys (cross-platform; replicas must match semantics)
 
@@ -59,17 +59,22 @@ No new stable IDs are planned.
 
 ### 2.4 Edge cases discovered during stabilization
 
-- Pending HarmonyOS implementation.
+- `ohpm install` may be required in fresh worktrees before local unit tests, otherwise `@ohos/hypium` fails to resolve.
 
 ### 2.5 Tests requiring parity counterparts
 
 | HarmonyOS test | iOS counterpart (XCTest / XCUITest) | Android counterpart (JUnit / Compose UI / UIA) |
 | --- | --- | --- |
-| Pending HarmonyOS implementation. | Pending Stage 4a. | Pending Stage 4b. |
+| `BattleRewardCalc.test.ets::mapsMonsterLevelsToCoinValues` | Add `BattleRewardCalcTests.testMapsMonsterLevelsToCoinValues` | Add `BattleRewardCalcTest.mapsMonsterLevelsToCoinValues` |
+| `BattleRewardCalc.test.ets::usesMonsterLevelScoreAsTheFinalAward` | Add `BattleRewardCalcTests.testUsesMonsterLevelScoreAsFinalAward` | Add `BattleRewardCalcTest.usesMonsterLevelScoreAsFinalAward` |
+| `BattleRewardCalc.test.ets::retiredBonusMultiplierNeverAddsCoins` | Add `BattleRewardCalcTests.testRetiredBonusMultiplierNeverAddsCoins` | Add `BattleRewardCalcTest.retiredBonusMultiplierNeverAddsCoins` |
+| `LocalUnit.test.ets::recordsMonsterLevelScoreAtKillTime` | Add `BattleEngineTests.testRecordsMonsterLevelScoreAtKillTime` | Add `BattleEngineTest.recordsMonsterLevelScoreAtKillTime` |
+| `LocalUnit.test.ets::partialLossKeepsOnlyDefeatedMonsterLevelScore` | Add `BattleEngineTests.testPartialLossKeepsOnlyDefeatedMonsterLevelScore` | Add `BattleEngineTest.partialLossKeepsOnlyDefeatedMonsterLevelScore` |
 
 ### 2.6 Pitfalls / "do not repeat my mistakes"
 
-- Pending HarmonyOS implementation.
+- Do not recalculate reward from `defeatedMonsters`; use the level recorded at kill time so TodayPlan catalog slots stay authoritative.
+- Bonus monster count remains, but `BattleResultBonusCoinRow` is intentionally retired because Bonus no longer adds coins.
 
 ## 3. Open Questions for the Replicas
 
@@ -80,8 +85,8 @@ No open questions. The written design states that monster-level score completely
 > **iOS / Android agents:** if `replication_approved` is missing, blank, or `false`, refuse to start Stage 4 and ask the human owner. Do not proceed.
 
 ```yaml
-approved_by:
-approved_at:
-replication_approved: false
-notes:
+approved_by: matianyi
+approved_at: 2026-05-24
+replication_approved: true
+notes: Harmony acceptance testing passed; proceed with iOS and Android replication of the fully replacing coin reward rule.
 ```

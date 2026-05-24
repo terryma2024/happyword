@@ -48,7 +48,7 @@ import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question, QuestionKind } from '../models/Question';
 import { MonsterEntry, getMonsterByIndex } from '../data/MonsterCatalog';
-import { computeFinalCoinAward } from '../services/BattleRewardCalc';
+import { computeMonsterLevelCoinAward } from '../services/BattleRewardCalc';
 import { PLAYER_CHARACTER_ASSET, assetPathForEntry } from '../data/CharacterAssets';
 import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
 import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
@@ -1355,15 +1355,9 @@ struct BattlePage {
    * SessionResult. Coin awards are clamped to the daily cap inside
    * CoinAccount.earn — `dailyCapHit` mirrors that state.
    *
-   * V0.5 follow-up — reward formula is now "1 star = 1 coin". We
-   * drop the previous monster-defeat / accuracy-80 / review-80
-   * stack in favour of the player-visible star count from
-   * BattleEngine.computeStars (0..3 per spec §4.4). The first-today
-   * win still routes through COIN_REASON_TODAY_FIRST so HomePage's
-   * 已完成 badge gate flips even when the daily cap clamps the
-   * award to zero. Subsequent same-day battles continue to award
-   * stars-as-coins under the generic 'stars' reason, preserving
-   * the txn ledger's diagnostic value.
+   * V0.8.6 — reward formula is now defeated monster level score:
+   * Σ count(level) × levelValue. Stars and Bonus kills remain visible
+   * combat/result signals, but no longer contribute coins.
    */
   private applyTodayAdventureRewards(result: SessionResult, plan: TodaySessionPlan): void {
     const now: number = Date.now();
@@ -1376,24 +1370,12 @@ struct BattlePage {
     result.reviewWordCount = countByWordSource(plan, WordSource.Review);
     result.newWordCount = countByWordSource(plan, WordSource.New);
 
-    const stars: number = result.stars;
-    result.coinsBaseFromStars = stars;
-    const awardAmount: number = computeFinalCoinAward(
-      stars,
-      result.bonusKillCount,
-      result.status === BattleStatus.Won,
-    );
+    const awardAmount: number = computeMonsterLevelCoinAward(result.monsterLevelScore);
+    result.coinsBaseFromStars = awardAmount;
     let earned: number = 0;
     if (plan.isFirstToday && result.status === BattleStatus.Won) {
-      // computeStars guarantees stars >= 2 on a win, so this is
-      // always the star-count even though earn() also flips the
-      // 已完成 flag for amount === 0.
       earned = this.coinAccount.earn(COIN_REASON_TODAY_FIRST, awardAmount, now);
     } else if (awardAmount > 0) {
-      // Replay-of-the-day or first-today loss with at least one
-      // monster down: still award stars-as-coins, but tag the txn
-      // with a generic reason so the badge gate above stays the
-      // sole owner of the 已完成 flag transition.
       earned = this.coinAccount.earn('stars', awardAmount, now);
     }
     result.coinsEarned = earned;

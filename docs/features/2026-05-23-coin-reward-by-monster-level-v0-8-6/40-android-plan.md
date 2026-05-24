@@ -20,9 +20,29 @@
 
 ### Pre-flight: verify the trigger is signed
 
-- [ ] Open [`20-replication-trigger.md`](20-replication-trigger.md) and confirm `replication_approved: true` with a non-empty `approved_by` and `approved_at`.
-- [ ] If missing, stop and ask the human owner. Do not proceed past this point.
+- [x] Open [`20-replication-trigger.md`](20-replication-trigger.md) and confirm `replication_approved: true` with a non-empty `approved_by` and `approved_at`.
+  - Evidence: `approved_by: matianyi`, `approved_at: 2026-05-24`.
+- [x] If missing, stop and ask the human owner. Do not proceed past this point.
 
-### Task 1: Pending Signed Trigger
+### Task 1: Lock New Reward Semantics In JUnit
 
-- [ ] Replace this section with the Android TDD replication plan after HarmonyOS stabilization and human approval.
+- [x] Add reward value tests for Beginner / Intermediate / Advanced / Super = 1 / 2 / 3 / 4.
+- [x] Replace old Bonus `×1.3` expectation with “Bonus kill count remains, extra coin delta is 0.”
+- [x] Add kill-time score accumulation coverage: catalog slots 1, 2, 8, 10 produce 1 + 2 + 3 + 4 = 10.
+- [x] Add partial-loss coverage: one Advanced kill on a later loss awards 3 coins.
+
+### Task 2: Implement Android Core Logic
+
+- [x] Add `BattleRewardCalc` helpers in `android/app/src/main/java/cool/happyword/wordmagic/core/BattleEngine.kt`.
+- [x] Add `BattleState.defeatedMonsterLevelScore` and `SessionResult.monsterLevelScore`.
+- [x] Record monster level score at the moment a monster dies, using the catalog index selected for that battle monster.
+- [x] Replace final `coinDelta` with `BattleRewardCalc.coinAward(monsterLevelScore)`.
+- [x] Remove the retired Bonus extra-coin row from `ResultScreen`.
+
+### Task 3: Version And Verification
+
+- [x] Set Android `versionName=0.8.6` and `versionCode=1008006`.
+- [x] Run focused battle reward tests.
+  - Evidence: `GRADLE_USER_HOME=/Users/matianyi/.gradle JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest --tests cool.happyword.wordmagic.core.BattleEngineTest` ended with `BUILD SUCCESSFUL` on 2026-05-24.
+- [x] Run debug APK build.
+  - Evidence: `GRADLE_USER_HOME=/Users/matianyi/.gradle JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew assembleDebug` ended with `BUILD SUCCESSFUL` on 2026-05-24.

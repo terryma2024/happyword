@@ -1272,6 +1272,43 @@ export default function localUnitTest() {
       expect(result.learnedWordCount).assertEqual(2);
     });
 
+    it('recordsMonsterLevelScoreAtKillTime', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 4;
+      let catalogIndex: number = 1;
+      cfg.catalogIndexProvider = (): number => catalogIndex;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      catalogIndex = 1;
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      catalogIndex = 2;
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      catalogIndex = 8;
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      catalogIndex = 10;
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.monsterLevelScore).assertEqual(10);
+    });
+
+    it('partialLossKeepsOnlyDefeatedMonsterLevelScore', 0, () => {
+      const cfg: BattleConfig = new BattleConfig();
+      cfg.monsterMaxHp = 1;
+      cfg.monstersTotal = 5;
+      cfg.playerMaxHp = 1;
+      cfg.catalogIndexProvider = (): number => 8;
+      const engine: BattleEngine = engineWithFruit(1, cfg);
+
+      engine.submitAnswer(engine.getState().currentQuestion!.answer);
+      engine.submitAnswer(pickWrongOption(engine.getState().currentQuestion!));
+
+      const result: SessionResult = engine.buildSessionResult();
+      expect(result.status).assertEqual(BattleStatus.Lost);
+      expect(result.monsterLevelScore).assertEqual(3);
+    });
+
     it('correctRateIsZeroWhenNoAnswersSubmittedAndTimeRanOut', 0, () => {
       const cfg: BattleConfig = new BattleConfig();
       cfg.startingSeconds = 1;

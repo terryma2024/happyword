@@ -8,9 +8,9 @@
 
 | Flow | Harmony | iOS | Android | Notes |
 | --- | --- | --- | --- | --- |
-| Battle settlement awards coins from defeated monster levels | [ ] | [ ] | [ ] | Example: 2 level-1 + 2 level-2 + 1 level-3 = 9 coins before daily cap. |
-| Loss after partial progress awards only killed monster score | [ ] | [ ] | [ ] | 0 kills earns 0. |
-| Bonus monster kill does not add extra coins | [ ] | [ ] | [ ] | Bonus count/visuals remain. |
+| Battle settlement awards coins from defeated monster levels | [x] | [x] | [x] | Pure tests cover 1 + 2 + 3 + 4 = 10; product example remains 2 level-1 + 2 level-2 + 1 level-3 = 9 coins before daily cap. |
+| Loss after partial progress awards only killed monster score | [x] | [x] | [x] | Pure tests cover one Advanced kill -> 3 coins on loss. |
+| Bonus monster kill does not add extra coins | [x] | [x] | [x] | Retired Bonus delta = 0; Bonus count remains for telemetry / battle state, but extra-coin result rows are removed. |
 
 ## 2. Stable IDs
 
@@ -18,15 +18,17 @@ No new stable IDs.
 
 | ID | Harmony | iOS | Android | Notes |
 | --- | --- | --- | --- | --- |
-| Existing result/home coin labels | [ ] | [ ] | [ ] | Assert displayed earned coins and wallet balance with existing platform IDs/selectors. |
+| Existing result/home coin labels | [x] | [x] | [x] | Harmony and iOS keep existing result/home coin labels; Android keeps the existing result coin stat. |
 
 ## 3. Pure-rule tests
 
 | HarmonyOS test | iOS counterpart | Android counterpart |
 | --- | --- | --- |
-| Pending HarmonyOS implementation: monster-level score accumulates 1 + 2 + 3 + 4 by defeated monster level | [ ] | [ ] |
-| Pending HarmonyOS implementation: result coins ignore stars and Bonus multiplier | [ ] | [ ] |
-| Pending HarmonyOS implementation: partial-loss reward uses defeated monster score | [ ] | [ ] |
+| `BattleRewardCalc.test.ets::mapsMonsterLevelsToCoinValues` | [x] | [x] |
+| `BattleRewardCalc.test.ets::usesMonsterLevelScoreAsTheFinalAward` | [x] | [x] |
+| `BattleRewardCalc.test.ets::retiredBonusMultiplierNeverAddsCoins` | [x] | [x] |
+| `LocalUnit.test.ets::recordsMonsterLevelScoreAtKillTime` | [x] | [x] |
+| `LocalUnit.test.ets::partialLossKeepsOnlyDefeatedMonsterLevelScore` | [x] | [x] |
 
 ## 4. Contract usage
 
@@ -38,27 +40,29 @@ No shared contract or fixture changes.
 
 ## 5. Screenshots
 
+Owner explicitly skipped screenshot artifact refresh on 2026-05-24 after simulator acceptance.
+
 | Screen | `assets/screenshots/harmonyos/...` | `assets/screenshots/ios/...` | `assets/screenshots/android/...` |
 | --- | --- | --- | --- |
-| Result screen coin reward | [ ] | [ ] | [ ] |
-| Home screen coin balance | [ ] | [ ] | [ ] |
+| Result screen coin reward | N/A | N/A | N/A |
+| Home screen coin balance | N/A | N/A | N/A |
 
 ## 6. Versions
 
 | Platform | Field | Value |
 | --- | --- | --- |
-| HarmonyOS | `harmonyos/AppScope/app.json5` `versionName` / `versionCode` | Pending HarmonyOS implementation |
-| iOS | `CFBundleShortVersionString` / `CFBundleVersion` | Pending Stage 4a |
-| Android | `android/app/build.gradle.kts` `versionName` / `versionCode` | Pending Stage 4b |
+| HarmonyOS | `harmonyos/AppScope/app.json5` `versionName` / `versionCode` | `0.8.6` / `1008006` |
+| iOS | `CFBundleShortVersionString` / `CFBundleVersion` | `0.8.6` / `1008006` |
+| Android | `android/app/build.gradle.kts` `versionName` / `versionCode` | `0.8.6` / `1008006` |
 
 ## 7. Sign-off
 
-- [ ] Owner verified all rows above are green.
-- [ ] Owner ran a smoke pass on at least one device per platform.
-- [ ] Feature linked from [`docs/features/README.md`](../../features/README.md) is marked `Done`.
+- [x] Owner verified the implemented rows above are green.
+- [x] Owner ran simulator acceptance after the iOS and Android builds were installed and launched on 2026-05-24.
+- [x] Feature linked from [`docs/features/README.md`](../../features/README.md) is marked `Done`.
 
 ```yaml
-done_by:
-done_at:
-notes:
+done_by: matianyi
+done_at: 2026-05-24
+notes: Simulator acceptance completed after installing the iOS and Android builds. Owner explicitly skipped screenshot artifact refresh.
 ```

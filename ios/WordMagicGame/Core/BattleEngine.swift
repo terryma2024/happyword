@@ -33,6 +33,7 @@ struct BattleState: Equatable {
     var learnedWordIds: [String] = []
     var currentMonsterBonus: Bool = false
     var bonusKillCount: Int = 0
+    var defeatedMonsterLevelScore: Int = 0
 
     init(config: GameConfig) {
         playerMaxHp = config.playerMaxHp
@@ -73,6 +74,30 @@ struct SessionResult: Equatable {
     var coinsEarned: Int = 0
     var coinsTotal: Int = 0
     var bonusKillCount: Int = 0
+    var monsterLevelScore: Int = 0
+}
+
+enum BattleRewardCalc {
+    static func coinValue(for level: MonsterLevel) -> Int {
+        switch level {
+        case .beginner:
+            return 1
+        case .intermediate:
+            return 2
+        case .advanced:
+            return 3
+        case .super:
+            return 4
+        }
+    }
+
+    static func coinAward(monsterLevelScore: Int) -> Int {
+        max(0, monsterLevelScore)
+    }
+
+    static func retiredBonusCoinDelta(stars _: Int, bonusKillCount _: Int, won _: Bool) -> Int {
+        0
+    }
 }
 
 final class BattleEngine: ObservableObject {
@@ -81,18 +106,25 @@ final class BattleEngine: ObservableObject {
 
     private let questionSource: QuestionSource
     private let randomDouble: () -> Double
+    private let monsterCatalogIndex: (Int) -> Int
     @Published private(set) var state: BattleState
 
-    init(questionSource: QuestionSource, config: GameConfig = .default, randomDouble: @escaping () -> Double = { Double.random(in: 0..<1) }) {
+    init(
+        questionSource: QuestionSource,
+        config: GameConfig = .default,
+        randomDouble: @escaping () -> Double = { Double.random(in: 0..<1) },
+        monsterCatalogIndex: @escaping (Int) -> Int = { $0 }
+    ) {
         self.questionSource = questionSource
         self.randomDouble = randomDouble
+        self.monsterCatalogIndex = monsterCatalogIndex
         state = BattleState(config: config)
     }
 
     func start() {
         guard state.status == .ready else { return }
         state.status = .playing
-        state.currentMonsterBonus = rollsBonusMonster(for: state.monsterIndex)
+        state.currentMonsterBonus = rollsBonusMonster(for: catalogIndex(for: state.monsterIndex))
         if let question = try? questionSource.nextQuestion() {
             state.currentQuestion = question
             rememberWord(question.wordId)
@@ -124,7 +156,7 @@ final class BattleEngine: ObservableObject {
         }
 
         let correct = isCorrect(option: option, question: question)
-        var outcome = AnswerOutcome(correct: correct, damage: correct ? 1 : monsterAttackDamage(for: state.monsterIndex))
+        var outcome = AnswerOutcome(correct: correct, damage: correct ? 1 : monsterAttackDamage(for: catalogIndex(for: state.monsterIndex)))
 
         if question.kind == .fillLetterMedium && correct && question.currentStep < 1 {
             revealMediumStepLetter(&question, chosen: option)
@@ -147,6 +179,9 @@ final class BattleEngine: ObservableObject {
             state.monsterHp -= outcome.damage
             if state.monsterHp <= 0 {
                 state.monsterHp = 0
+                state.defeatedMonsterLevelScore += BattleRewardCalc.coinValue(
+                    for: MonsterCodex.level(forCatalogIndex1Based: catalogIndex(for: state.monsterIndex))
+                )
                 state.defeatedMonsters += 1
                 if state.currentMonsterBonus {
                     state.bonusKillCount += 1
@@ -160,7 +195,7 @@ final class BattleEngine: ObservableObject {
                 }
                 state.monsterIndex += 1
                 state.monsterHp = state.monsterMaxHp
-                state.currentMonsterBonus = rollsBonusMonster(for: state.monsterIndex)
+                state.currentMonsterBonus = rollsBonusMonster(for: catalogIndex(for: state.monsterIndex))
                 outcome.newMonsterSpawned = true
             }
         } else {
@@ -213,8 +248,9 @@ final class BattleEngine: ObservableObject {
             correctRate: rate,
             learnedWordCount: state.learnedWordIds.count,
             stars: stars,
-            coinsEarned: coinReward(stars: stars),
-            bonusKillCount: state.bonusKillCount
+            coinsEarned: BattleRewardCalc.coinAward(monsterLevelScore: state.defeatedMonsterLevelScore),
+            bonusKillCount: state.bonusKillCount,
+            monsterLevelScore: state.defeatedMonsterLevelScore
         )
     }
 
@@ -276,6 +312,10 @@ final class BattleEngine: ObservableObject {
         return 0
     }
 
+    private func catalogIndex(for battleMonsterIndex: Int) -> Int {
+        monsterCatalogIndex(battleMonsterIndex)
+    }
+
     private func monsterAttackDamage(for catalogIndex1Based: Int) -> Int {
         let level = MonsterCodex.level(forCatalogIndex1Based: catalogIndex1Based)
         guard level == .advanced || level == .super else { return 1 }
@@ -286,10 +326,5 @@ final class BattleEngine: ObservableObject {
         let level = MonsterCodex.level(forCatalogIndex1Based: catalogIndex1Based)
         guard level == .advanced || level == .super else { return false }
         return randomDouble() < 0.3
-    }
-
-    private func coinReward(stars: Int) -> Int {
-        guard state.status == .won, state.bonusKillCount > 0 else { return stars }
-        return Int(ceil(Double(stars) * 1.3))
     }
 }
