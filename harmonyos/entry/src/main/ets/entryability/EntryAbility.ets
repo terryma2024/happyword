@@ -1,4 +1,4 @@
-import { AbilityConstant, common, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, common, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { BusinessError } from '@ohos.base';
@@ -16,6 +16,7 @@ import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { initBackendEnvPrefs } from '../services/BackendEnv';
 import { initPreviewManifestService } from '../services/PreviewManifestService';
 import { StringPreferencesLike } from '../services/WrongAnswerStore';
+import { APP_COLOR_MODE } from '../utils/theme';
 
 const DOMAIN = 0x0000;
 const WISHLIST_PREFS_NAME: string = 'wordmagic_cloud_wishlist';
@@ -57,7 +58,7 @@ export default class EntryAbility extends UIAbility {
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     try {
-      this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+      this.context.getApplicationContext().setColorMode(APP_COLOR_MODE);
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }

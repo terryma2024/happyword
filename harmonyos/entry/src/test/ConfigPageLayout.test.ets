@@ -3,6 +3,7 @@ import {
   CONFIG_LABEL_WIDTH_VP,
   CONFIG_CONTROL_GAP_VP,
   CONFIG_FORM_ROW_WIDTH_VP,
+  CONFIG_LABEL_TEXT_COLOR,
   CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
   CONFIG_TIMER_OPTIONS_PER_ROW,
   questionTypeColumnRows,
@@ -15,6 +16,10 @@ export default function configPageLayoutTest(): void {
       expect(CONFIG_LABEL_WIDTH_VP).assertEqual(120);
       expect(CONFIG_CONTROL_GAP_VP).assertEqual(12);
       expect(CONFIG_FORM_ROW_WIDTH_VP).assertEqual(352);
+    });
+
+    it('usesExplicitDarkLabelTextForLightPages', 0, () => {
+      expect(CONFIG_LABEL_TEXT_COLOR).assertEqual('#333333');
     });
 
     it('stacksQuestionTypesVertically', 0, () => {

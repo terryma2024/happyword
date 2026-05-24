@@ -33,6 +33,7 @@ import {
   CONFIG_CONTROL_GAP_VP,
   CONFIG_CONTROL_COLUMN_WIDTH_VP,
   CONFIG_FORM_ROW_WIDTH_VP,
+  CONFIG_LABEL_TEXT_COLOR,
   CONFIG_LABEL_WIDTH_VP,
   CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
   questionTypeColumnRows,
@@ -192,6 +193,7 @@ struct ConfigPage {
   private configLabel(text: string) {
     Text(text)
       .fontSize(18)
+      .fontColor(CONFIG_LABEL_TEXT_COLOR)
       .width(CONFIG_LABEL_WIDTH_VP)
       .textAlign(TextAlign.End);
   }

@@ -3,6 +3,7 @@ export const CONFIG_CONTROL_GAP_VP: number = 12;
 export const CONFIG_CONTROL_COLUMN_WIDTH_VP: number = 220;
 export const CONFIG_FORM_ROW_WIDTH_VP: number =
   CONFIG_LABEL_WIDTH_VP + CONFIG_CONTROL_GAP_VP + CONFIG_CONTROL_COLUMN_WIDTH_VP;
+export const CONFIG_LABEL_TEXT_COLOR: string = '#333333';
 export const CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED: boolean = true;
 export const CONFIG_TIMER_OPTIONS_PER_ROW: number = 3;
 
