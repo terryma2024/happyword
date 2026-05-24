@@ -13,14 +13,6 @@ def _workflow(name: str) -> str:
     return (repo_root / ".github" / "workflows" / name).read_text(encoding="utf-8")
 
 
-def _step_with_id(workflow: str, step_id: str) -> str:
-    id_marker = f"        id: {step_id}"
-    id_index = workflow.index(id_marker)
-    start = workflow.rfind("\n      - name:", 0, id_index)
-    end = workflow.find("\n      - name:", id_index)
-    return workflow[start : end if end != -1 else len(workflow)]
-
-
 def _step_named(workflow: str, name: str) -> str:
     start = workflow.index(f"      - name: {name}")
     end = workflow.find("\n      - name:", start + 1)
@@ -98,25 +90,6 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}" in reset_step
     assert "E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}" in reset_step
     assert '"$UV_BIN" run --python 3.12 pytest -v -m e2e' in smoke_step
-
-
-def test_legacy_vercel_e2e_skips_unusable_local_mongo_uri() -> None:
-    workflow = _server_ci_workflow()
-
-    validate_step = _step_with_id(workflow, "e2e_mongo")
-    assert "Validate E2E MongoDB URI" in validate_step
-    assert "set_ready(False)" in validate_step
-    assert "127.0.0.1" in validate_step
-    assert "localhost" in validate_step
-    assert "::1" in validate_step
-
-    for step_name in [
-        "Prune stale E2E PR databases",
-        "Reset E2E database (truncate test collections)",
-        "Run E2E pytest subset",
-    ]:
-        step = _step_named(workflow, step_name)
-        assert "steps.e2e_mongo.outputs.ready == 'true'" in step
 
 
 def test_main_cd_deploys_to_both_vercel_and_cloudbase_during_transition() -> None:
