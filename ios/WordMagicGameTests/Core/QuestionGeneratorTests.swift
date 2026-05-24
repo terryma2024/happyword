@@ -237,6 +237,31 @@ final class QuestionGeneratorTests: XCTestCase {
         XCTAssertEqual(question.sentenceZh, "我吃苹果。")
     }
 
+    func testPlanQuestionSourceRotatesSingleEnabledTypeAcrossPackWords() throws {
+        let pack = try XCTUnwrap(Pack.builtin.first { $0.id == "fruit-forest" })
+        let expectedIds = pack.words.prefix(5).map(\.id)
+        let source = PlanQuestionSource(
+            plan: BattleQuestionPlan(
+                wordIds: pack.words.map(\.id),
+                monsterSlots: [MonsterPlanSlot(kind: .boss, catalogIndex: 4)]
+            ),
+            repository: WordRepository(words: pack.words),
+            randomSeed: 3,
+            enabledQuestionTypes: [QuestionKind.sentenceCloze.rawValue]
+        )
+        var lastWordId: String?
+        var actualIds: [String] = []
+
+        for _ in expectedIds {
+            let question = try source.nextQuestion(lastWordId: lastWordId)
+            XCTAssertEqual(question.kind, .sentenceCloze)
+            actualIds.append(question.wordId)
+            lastWordId = question.wordId
+        }
+
+        XCTAssertEqual(actualIds, Array(expectedIds))
+    }
+
     func testPlanQuestionSourceFallsBackToChoiceWhenSentenceClozeUnsupported() throws {
         let repo = WordRepository(words: Self.planWords)
         let source = PlanQuestionSource(

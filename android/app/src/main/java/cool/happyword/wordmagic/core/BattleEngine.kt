@@ -37,6 +37,7 @@ class BattleEngine(
         enabledTypes = config.sanitizedQuestionTypes(),
         rng = randomDouble,
     )
+    private var typeWordCursor = 0
 
     /** V0.8.4 — Spell wrong letter tap: −1 HP without advancing the question. */
     fun applySpellLetterPenalty(state: BattleState): Pair<Int, BattleState> {
@@ -250,18 +251,8 @@ class BattleEngine(
 
     private fun pickWordForType(typeId: String, lastWordId: String?): WordEntry? {
         val targetWords = targetWordIds.mapNotNull { id -> words.find { it.id == id } }
-        for (entry in targetWords) {
-            if (BattleQuestionTypePolicy.wordSupportsQuestionType(entry, typeId)) {
-                if (targetWords.size > 1 && entry.id == lastWordId) continue
-                return entry
-            }
-        }
-        for (entry in words) {
-            if (BattleQuestionTypePolicy.wordSupportsQuestionType(entry, typeId)) {
-                if (words.size > 1 && entry.id == lastWordId) continue
-                return entry
-            }
-        }
+        pickSupportedWordFrom(targetWords, typeId, lastWordId)?.let { return it }
+        pickSupportedWordFrom(words, typeId, lastWordId)?.let { return it }
         if (words.isEmpty()) return null
         val fallbackWords = targetWords.ifEmpty { words }
         val currentIndex = fallbackWords.indexOfFirst { it.id == lastWordId }
@@ -271,6 +262,22 @@ class BattleEngine(
             else -> (currentIndex + 1) % fallbackWords.size
         }
         return fallbackWords[nextIndex]
+    }
+
+    private fun pickSupportedWordFrom(candidates: List<WordEntry>, typeId: String, lastWordId: String?): WordEntry? {
+        if (candidates.isEmpty()) return null
+        var skippedLast: WordEntry? = null
+        repeat(candidates.size) {
+            val entry = candidates[typeWordCursor % candidates.size]
+            typeWordCursor = (typeWordCursor + 1) % candidates.size
+            if (!BattleQuestionTypePolicy.wordSupportsQuestionType(entry, typeId)) return@repeat
+            if (candidates.size > 1 && entry.id == lastWordId) {
+                if (skippedLast == null) skippedLast = entry
+                return@repeat
+            }
+            return entry
+        }
+        return skippedLast
     }
 
     private fun questionForType(word: WordEntry, typeId: String, monsterIndex: Int): Question {

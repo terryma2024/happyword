@@ -47,10 +47,10 @@ class LearningRecorderTest {
         recorder.recordAnswer("fruit-forest", "fruit-apple", correct = false, answeredAtMs = 100L)
         recorder.recordAnswer("fruit-forest", "fruit-banana", correct = false, answeredAtMs = 300L)
         recorder.recordAnswer("fruit-forest", "fruit-pear", correct = true, answeredAtMs = 400L)
-        recorder.recordAnswer("school-castle", "school-book", correct = false, answeredAtMs = 200L)
+        recorder.recordAnswer("school-castle", "place-school", correct = false, answeredAtMs = 200L)
 
         assertEquals(
-            listOf("fruit-banana", "school-book"),
+            listOf("fruit-banana", "place-school"),
             recorder.recentWrongIds(limit = 2),
         )
     }

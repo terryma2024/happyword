@@ -521,11 +521,24 @@ final class PlanQuestionSource: QuestionSource {
         guard !all.isEmpty else {
             return WordEntry(id: "", word: "", meaningZh: "", category: "", difficulty: 1)
         }
-        for wordId in plan.wordIds {
-            if let word = repository.word(id: wordId),
-               BattleQuestionTypePolicy.wordSupportsQuestionType(word, typeId: typeId) {
-                if plan.wordIds.count > 1, wordId == lastWordId { continue }
+        if !plan.wordIds.isEmpty {
+            var skippedLast: WordEntry?
+            var attempts = 0
+            while attempts < plan.wordIds.count {
+                let wordId = plan.wordIds[cursor % plan.wordIds.count]
+                cursor = (cursor + 1) % plan.wordIds.count
+                attempts += 1
+                guard let word = repository.word(id: wordId),
+                      BattleQuestionTypePolicy.wordSupportsQuestionType(word, typeId: typeId)
+                else { continue }
+                if plan.wordIds.count > 1, wordId == lastWordId {
+                    skippedLast = skippedLast ?? word
+                    continue
+                }
                 return word
+            }
+            if let skippedLast {
+                return skippedLast
             }
         }
         return pickWord(lastWordId: lastWordId)

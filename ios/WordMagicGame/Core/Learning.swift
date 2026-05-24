@@ -73,13 +73,6 @@ struct TodayPlanService {
             }
         }
 
-        if learning.isEmpty {
-            learning = Array(newWords.prefix(2))
-        }
-        if newWords.isEmpty {
-            newWords = Array(pack.words.prefix(2))
-        }
-
         return TodayPlan(packId: pack.id, review: review, learning: learning, newWords: newWords)
     }
 }

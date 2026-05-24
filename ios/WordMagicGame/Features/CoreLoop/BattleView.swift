@@ -32,6 +32,9 @@ struct BattleView: View {
     private let maxFloatersPerSide = 4
     private let floaterStackOffset: CGFloat = 6
     private let battleImpactDelayNs: UInt64 = 340_000_000
+    private let battleHorizontalPadding: CGFloat = 6
+    private let battleColumnSpacing: CGFloat = 18
+    private let battleFighterCardWidth: CGFloat = 168
 
     private var state: BattleState {
         engine.state
@@ -55,7 +58,7 @@ struct BattleView: View {
                 VStack(spacing: 10) {
                     topStatus
 
-                    HStack(spacing: 18) {
+                    HStack(spacing: battleColumnSpacing) {
                         fighterCard(
                             imageName: playerImageName,
                             title: "Magician",
@@ -75,6 +78,7 @@ struct BattleView: View {
 
                         questionPanel
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .layoutPriority(1)
 
                         fighterCard(
                             imageName: currentMonsterArt.imageName,
@@ -108,7 +112,7 @@ struct BattleView: View {
 
                     answerRow
                 }
-                .padding(.horizontal, AppTheme.pageHorizontalPadding)
+                .padding(.horizontal, battleHorizontalPadding)
                 .padding(.top, 14)
                 .padding(.bottom, 10)
                 .frame(width: proxy.size.width, height: proxy.size.height)
@@ -187,6 +191,7 @@ struct BattleView: View {
                 .foregroundStyle(feedbackColor)
                 .accessibilityIdentifier("BattleFeedback")
         }
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -227,15 +232,22 @@ struct BattleView: View {
                         .font(.system(size: 28, weight: .heavy, design: .rounded))
                         .foregroundStyle(AppTheme.navy)
                         .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                        .allowsTightening(true)
                         .minimumScaleFactor(0.65)
+                        .frame(maxWidth: .infinity)
                         .accessibilityIdentifier("BattleSentenceClozePrompt")
                     Text(question.sentenceZh)
                         .font(.system(size: 20, weight: .semibold, design: .rounded))
                         .foregroundStyle(Color(red: 0.38, green: 0.43, blue: 0.50))
                         .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                        .allowsTightening(true)
                         .minimumScaleFactor(0.75)
+                        .frame(maxWidth: .infinity)
                         .accessibilityIdentifier("BattleSentenceClozeZh")
                 }
+                .frame(maxWidth: .infinity)
             }
         } else {
             Text("")
@@ -507,7 +519,7 @@ struct BattleView: View {
                 .tint(Color(red: 0.15, green: 0.80, blue: 0.42))
                 .scaleEffect(x: 1, y: 1.8, anchor: .center)
         }
-        .frame(width: 190)
+        .frame(width: battleFighterCardWidth)
         .padding(14)
         .background(tint, in: RoundedRectangle(cornerRadius: 22))
         .overlay {

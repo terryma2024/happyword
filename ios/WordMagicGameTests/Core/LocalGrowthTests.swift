@@ -163,12 +163,15 @@ final class LocalGrowthTests: XCTestCase {
     func testTodayPlanBucketsSelectedPackWithoutMutatingBattle() {
         let recorder = LearningRecorder()
         recorder.record(wordId: "fruit-apple", correct: true, at: fixedDate(timeIntervalSinceNow: -86_400 * 3))
-        let plan = TodayPlanService().build(pack: Pack.builtin[0], recorder: recorder, now: fixedDate())
+        let pack = Pack.builtin[0]
+        let plan = TodayPlanService().build(pack: pack, recorder: recorder, now: fixedDate())
 
         XCTAssertEqual(plan.packId, "fruit-forest")
         XCTAssertTrue(plan.review.contains { $0.id == "fruit-apple" })
-        XCTAssertFalse(plan.learning.isEmpty)
         XCTAssertFalse(plan.newWords.isEmpty)
+        let bucketedIds = (plan.review + plan.learning + plan.newWords).map(\.id)
+        XCTAssertEqual(bucketedIds.count, pack.words.count)
+        XCTAssertEqual(Set(bucketedIds).count, pack.words.count)
     }
 
     func testHomeScenePaletteUsesSelectedPackSceneColors() {

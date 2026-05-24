@@ -2,6 +2,7 @@ package cool.happyword.wordmagic
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -148,6 +149,7 @@ class SmokeTest {
             composeRule.onAllNodesWithTag("BattleSentenceClozePrompt").fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithTag("BattleSentenceClozePrompt").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleSentenceClozePrompt").assertHeightIsAtLeast(88.dp)
         composeRule.onNodeWithTag("BattleSentenceClozeZh").assertIsDisplayed()
         composeRule.onNodeWithTag("BattleOptionsRow_SentenceCloze").assertIsDisplayed()
         composeRule.onNodeWithTag("BattleSentenceClozeOption_0").assertIsDisplayed()

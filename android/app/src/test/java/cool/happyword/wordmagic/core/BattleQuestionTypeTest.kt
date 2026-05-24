@@ -53,6 +53,33 @@ class BattleQuestionTypeTest {
     }
 
     @Test
+    fun sentenceClozeOnlyRotatesAcrossTargetPackWords() {
+        val pack = BuiltinPacks.all.first { it.id == "fruit-forest" }
+        val engine = BattleEngine(
+            config = GameConfig(
+                monsterHp = 99,
+                monsterCount = 1,
+                enabledQuestionTypes = listOf(BattleQuestionTypePolicy.SENTENCE_CLOZE),
+            ),
+            words = pack.words,
+            targetWordIds = pack.words.map { it.id },
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+        val expectedIds = pack.words.take(5).map { it.id }
+        val actualIds = mutableListOf<String>()
+        var state = engine.initialState()
+
+        repeat(expectedIds.size) {
+            assertEquals(QuestionKind.SentenceCloze, state.question.kind)
+            actualIds.add(state.question.wordId)
+            state = engine.submitAnswer(state, state.question.correctAnswer)
+        }
+
+        assertEquals(expectedIds, actualIds)
+    }
+
+    @Test
     fun sentenceClozeSupportsPhrasesFirstMatchAndUniqueDistractors() {
         val wand = WordEntry(
             "magic-wand",

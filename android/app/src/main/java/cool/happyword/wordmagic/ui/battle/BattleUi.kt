@@ -261,7 +261,7 @@ internal fun BattleScreen(
                             }
                         }
 
-                        @Suppress("DEPRECATION")
+                        @Suppress("OVERRIDE_DEPRECATION")
                         override fun onError(utteranceId: String?) {
                             Log.w("WordMagicTTS", "TTS synthesis error utteranceId=$utteranceId")
                         }
@@ -518,11 +518,12 @@ internal fun BattleQuestionPrompt(question: Question) {
                     question.sentenceTemplate,
                     modifier = Modifier.testTag("BattleSentenceClozePrompt"),
                     fontSize = 34.sp,
+                    lineHeight = 44.sp,
                     fontWeight = FontWeight.Black,
                     color = Color(0xFF1C3655),
                     textAlign = TextAlign.Center,
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     question.sentenceZh,
                     modifier = Modifier.testTag("BattleSentenceClozeZh"),
