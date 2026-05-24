@@ -731,7 +731,9 @@ Implementation status, 2026-05-20:
   job only through `workflow_dispatch` or when a PR has the `cloudbase-smoke`
   label.
 - `.github/workflows/server-cloudbase-cd.yml` deploys `main` to CloudBase Run
-  in parallel with the existing Vercel `server-cd.yml` workflow. Keep both
+  in parallel with the existing Vercel `server-cd.yml` workflow. Its
+  GitHub-hosted post-deploy smoke is HTTP-only; Mongo fixture injection remains
+  on the Beijing self-hosted staging E2E runner. Keep both deployment workflows
   active until CloudBase has passed the stability window and rollback no longer
   depends on Vercel.
 - PR-specific CloudBase preview deployment is still disabled until quota,
@@ -744,6 +746,10 @@ Post-merge CD status, 2026-05-21:
   after the merge. The workflow ran offline pytest, deployed `server/` to
   CloudBase Run, checked `/api/v1/public/health`, and ran the smoke subset
   against `CLOUDBASE_PROD_BASE_URL`.
+- Follow-up on 2026-05-24: the smoke subset was narrowed to HTTP-only tests
+  because `E2E_MONGODB_URI` is now a Beijing self-hosted runner loopback URI.
+  Tests that need direct Mongo access still run under `server-ci` CloudBase
+  staging E2E on the self-hosted runner.
 - The legacy Vercel `server-cd` workflow also stays active and green on `main`.
   During the transition, every `main` server deploy should keep deploying both
   Vercel production and CloudBase production until CloudBase has passed the

@@ -132,7 +132,26 @@ def test_main_cd_deploys_to_both_vercel_and_cloudbase_during_transition() -> Non
     assert "CLOUDBASE_PROD_BASE_URL" in cloudbase_cd
 
 
-def test_cloudbase_cd_waits_for_a_real_new_deploy_before_smoke() -> None:
+def test_cd_smoke_jobs_are_http_only_on_github_hosted_runners() -> None:
+    vercel_cd = _workflow("server-cd.yml")
+    cloudbase_cd = _workflow("server-cloudbase-cd.yml")
+
+    vercel_smoke_step = _step_named(vercel_cd, "Run staging smoke")
+    cloudbase_smoke_step = _step_named(cloudbase_cd, "Smoke test")
+
+    assert "runs-on: ubuntu-latest" in vercel_cd
+    assert "runs-on: ubuntu-latest" in cloudbase_cd
+    assert "E2E_BASE_URL:" in vercel_smoke_step
+    assert "E2E_BASE_URL:" in cloudbase_smoke_step
+    assert "E2E_MONGODB_URI" not in vercel_smoke_step
+    assert "E2E_MONGODB_URI" not in cloudbase_smoke_step
+    assert "E2E_MONGO_DB_NAME" not in vercel_smoke_step
+    assert "E2E_MONGO_DB_NAME" not in cloudbase_smoke_step
+    assert "uv run pytest -v -m smoke" in vercel_smoke_step
+    assert "uv run pytest -v -m smoke" in cloudbase_smoke_step
+
+
+def test_cloudbase_cd_waits_for_a_real_new_deploy_before_health_and_smoke() -> None:
     cloudbase_cd = _workflow("server-cloudbase-cd.yml")
 
     capture_step = _step_named(cloudbase_cd, "Capture CloudBase deploy marker")
