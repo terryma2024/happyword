@@ -1,10 +1,10 @@
-# Admin Family Pack Delete Implementation Plan
+# Family Pack Delete Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a hard-delete action for family word packs in the admin family-pack management page, matching global pack deletion semantics.
+**Goal:** Add a hard-delete action for family word packs in both the admin family-pack management page and the owning parent's family-pack list, matching global pack deletion semantics.
 
-**Architecture:** The core delete operation belongs in `family_pack_service` so it can delete definition, draft, versions, and pointer records with one family-scoped contract. `admin_console_service` wraps it with reason validation, global-sentinel protection, and audit logging. `admin_pages.py` and `family_packs_list.html` expose the HTML action.
+**Architecture:** The core delete operation belongs in `family_pack_service` so it can delete definition, draft, versions, and pointer records with one family-scoped contract. `admin_console_service` wraps it with reason validation, global-sentinel protection, and audit logging. `admin_pages.py` and `family_packs_list.html` expose the admin HTML action; `parent_packs_pages.py` and `pack_row.html` expose the parent-owned action.
 
 **Tech Stack:** Python, FastAPI, Beanie ODM, Jinja2, pytest, httpx ASGI tests.
 
@@ -112,7 +112,43 @@ cd server && uv run pytest tests/test_family_pack_service.py tests/test_admin_pa
 
 Expected: both files pass with no warnings.
 
-### Task 4: Full Server Verification
+### Task 4: Parent Pack List Delete
+
+**Files:**
+- Modify: `server/app/routers/parent_packs_pages.py`
+- Modify: `server/app/templates/parent/packs/list.html`
+- Modify: `server/app/templates/partials/pack_row.html`
+- Test: `server/tests/test_parent_packs_pages.py`
+
+- [ ] **Step 1: Write failing parent list tests**
+
+Add tests that verify `/family/{family_id}/packs/` renders a delete form for a pack and that posting `/family/{family_id}/packs/{pack_id}/delete` removes definition, draft, pointer, and published versions.
+
+- [ ] **Step 2: Verify RED**
+
+Run:
+
+```sh
+cd server && uv run pytest tests/test_parent_packs_pages.py::test_parent_packs_list_renders_delete_form tests/test_parent_packs_pages.py::test_parent_pack_delete_form_removes_pack_records -q
+```
+
+Expected: fails because the form and parent delete route do not exist.
+
+- [ ] **Step 3: Implement parent route and form**
+
+Add `POST /family/{family_id}/packs/{pack_id}/delete` in `parent_packs_pages.py`, using the session user's `family_id` and `family_pack_service.delete_definition`. Replace the row-wide anchor in `partials/pack_row.html` with a detail link plus independent delete form. Add a small deleted flash message to the list page.
+
+- [ ] **Step 4: Verify GREEN**
+
+Run:
+
+```sh
+cd server && uv run pytest tests/test_parent_packs_pages.py::test_parent_packs_list_renders_delete_form tests/test_parent_packs_pages.py::test_parent_pack_delete_form_removes_pack_records -q
+```
+
+Expected: both tests pass with no warnings.
+
+### Task 5: Full Server Verification
 
 **Files:**
 - No additional code files.

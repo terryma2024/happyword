@@ -12,6 +12,10 @@
     </a>
   </header>
 
+  {% if flash_ok == "deleted" %}
+    <p class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-md px-3 py-2">已删除词库。</p>
+  {% endif %}
+
   <section id="packs-list" class="bg-white border border-slate-200 rounded-lg shadow-sm divide-y divide-slate-100">
     {% if summaries %}
       {% for summary in summaries %}
