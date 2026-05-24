@@ -3,6 +3,7 @@ import monsterCatalogTest from './MonsterCatalog.test';
 import questionTest from './Question.test';
 import fillLetterGeneratorTest from './FillLetterGenerator.test';
 import spellGeneratorTest from './SpellGenerator.test';
+import sentenceClozeGeneratorTest from './SentenceClozeGenerator.test';
 import memorySchedulerTest from './MemoryScheduler.test';
 import adventureCatalogTest from './AdventureCatalog.test';
 import todayAdventureBuilderTest from './TodayAdventureBuilder.test';
@@ -66,6 +67,7 @@ export default function testsuite() {
   questionTest();
   fillLetterGeneratorTest();
   spellGeneratorTest();
+  sentenceClozeGeneratorTest();
   memorySchedulerTest();
   adventureCatalogTest();
   todayAdventureBuilderTest();
