@@ -6,6 +6,9 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -116,10 +119,88 @@ class LocalGrowthFlowTest {
         composeRule.onNodeWithTag("LearningReportAccuracy").assertIsDisplayed()
     }
 
+    @Test
+    fun reviewToolbarUsesRecentWrongWordAndShowsToastWhenEmpty() {
+        composeRule.onNodeWithTag("HomeReviewButton").performClick()
+        composeRule.onNodeWithTag("HomeReviewLockedToast").assertIsDisplayed()
+        composeRule.onNodeWithTag("HomeScreen").assertIsDisplayed()
+
+        configureChoiceOnly()
+        composeRule.onNodeWithTag("HomeStartButton").performClick()
+        composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
+        val seededWrongPrompt = currentFruitPrompt()
+        answerVisibleWrongTextForPrompt(seededWrongPrompt)
+
+        composeRule.waitUntil(timeoutMillis = 3_000) {
+            runCatching {
+                composeRule.onNodeWithTag("BattleEscapeButton").assertIsEnabled()
+            }.isSuccess
+        }
+        composeRule.onNodeWithTag("BattleEscapeButton").performClick()
+        composeRule.onNodeWithTag("ResultScreen").assertIsDisplayed()
+        composeRule.onNodeWithTag("ResultHomeButton").performClick()
+        composeRule.onNodeWithTag("HomeScreen").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("HomeReviewButton").performClick()
+        composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
+        composeRule.onNodeWithText("Monster 1 / 3").assertExists()
+        composeRule.onNodeWithText(seededWrongPrompt).assertIsDisplayed()
+    }
+
+    private fun configureChoiceOnly() {
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigBackButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            composeRule.onAllNodesWithTag("HomeScreen").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun currentFruitPrompt(): String {
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            fruitPromptToAnswer.keys.any { prompt ->
+                composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty()
+            }
+        }
+        return fruitPromptToAnswer.keys.first { prompt ->
+            composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun answerVisibleWrongTextForPrompt(prompt: String) {
+        val correct = fruitPromptToAnswer.getValue(prompt)
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            fruitPromptToAnswer.values.any { option ->
+                option != correct && enabledClickableTextExists(option)
+            }
+        }
+        val wrong = fruitPromptToAnswer.values.first { option ->
+            option != correct && enabledClickableTextExists(option)
+        }
+        composeRule.onNode(hasText(wrong) and hasClickAction() and isEnabled()).performClick()
+    }
+
+    private fun enabledClickableTextExists(text: String): Boolean =
+        composeRule.onAllNodes(hasText(text) and hasClickAction() and isEnabled())
+            .fetchSemanticsNodes()
+            .isNotEmpty()
+
     private fun clearLocalProgress() {
         targetContext.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE)
             .edit()
             .clear()
             .commit()
+    }
+
+    private companion object {
+        val fruitPromptToAnswer = linkedMapOf(
+            "苹果" to "apple",
+            "香蕉" to "banana",
+            "梨" to "pear",
+            "橙子" to "orange",
+            "葡萄" to "grape",
+        )
     }
 }

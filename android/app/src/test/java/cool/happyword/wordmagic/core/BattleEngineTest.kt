@@ -213,4 +213,19 @@ class BattleEngineTest {
 
         assertEquals(expectedOptions, state.question.options)
     }
+
+    @Test
+    fun targetWordIdsFocusQuestionsWhileUsingFullWordPoolForOptions() {
+        val engine = BattleEngine(
+            config = GameConfig(enabledQuestionTypes = choiceOnlyTypes),
+            words = words,
+            targetWordIds = listOf("cat"),
+        )
+
+        val state = engine.initialState()
+
+        assertEquals("cat", state.question.wordId)
+        assertEquals(3, state.question.options.size)
+        assertTrue(state.question.options.contains("cat"))
+    }
 }

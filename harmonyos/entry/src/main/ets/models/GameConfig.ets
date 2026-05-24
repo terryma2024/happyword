@@ -108,11 +108,11 @@ export const MONSTER_COUNT_MIN: number = 1;
 export const MONSTER_COUNT_MAX: number = 10;
 
 /**
- * Mirrors QuestionGenerator.MIN_REPO_SIZE. Used by review-mode pool
- * narrowing (BattlePage.buildReviewPool) and other validation paths
- * that need to reason about "this pool is too small to play". Kept
- * in sync with engine internals by the unit test
- * defaultsMatchEngineDefaults.
+ * Mirrors QuestionGenerator.MIN_REPO_SIZE. Used by validation paths
+ * that need to reason about "this pool is too small to play". Review
+ * mode can target 1-2 wrong words because BattlePage now feeds those
+ * ids through PlanQuestionSource while keeping the full repo available
+ * for distractors.
  */
 export const MIN_POOL_SIZE: number = 3;
 

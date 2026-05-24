@@ -79,23 +79,25 @@ async function clearLearningRecordsAndRefreshHome(driver: Driver): Promise<void>
   }
 }
 
-async function seedThreeWrongAnswersViaBattle(driver: Driver): Promise<void> {
+async function seedOneWrongAnswerViaBattle(driver: Driver): Promise<string> {
   try {
     await selectOnlyQuestionTypeShared(driver, 'choice');
     await clickByIdShared(driver, 'HomeStartButton');
     await waitForBattlePage(driver);
     await driver.assertComponentExist(ON.id('BattlePrompt'));
-    for (let i = 0; i < 3; i++) {
-      await tapWrongAnswerShared(driver);
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('BattlePrompt'));
-    }
+    const prompt: Component | null =
+      await driver.findComponent(ON.id('BattlePrompt'));
+    const promptText: string = prompt !== null ? await prompt.getText() : '';
+    await tapWrongAnswerShared(driver);
+    await driver.delayMs(800);
+    await driver.assertComponentExist(ON.id('BattlePrompt'));
     await clickByIdShared(driver, 'BattleEscapeButton');
     await driver.delayMs(800);
     await driver.assertComponentExist(ON.id('ResultTitle'));
     await clickByIdShared(driver, 'ResultHomeButton');
     await driver.delayMs(800);
     await driver.assertComponentExist(ON.id('HomeStartButton'));
+    return promptText;
   } catch (err) {
     throw err as Error;
   }
@@ -123,7 +125,7 @@ async function finishBattleAndReturnHome(driver: Driver): Promise<void> {
  *    `wordmagic_learning` snapshot:
  *      1. clear learning records → review is locked → tapping shows
  *         HomeReviewLockedToast and stays on HomePage;
- *      2. make three wrong answers in a real battle → review unlocks
+ *      2. make one wrong answer in a real battle → review unlocks
  *         → tapping launches the review BattlePage.
  *
  * Keep those two checks in this order. Splitting or reordering them makes
@@ -158,11 +160,13 @@ export default function homeToolbarLockedUiTest(): void {
           await driver.findComponent(ON.id('HomeReviewLockedToast'));
         expect(toast === null).assertTrue();
 
-        await seedThreeWrongAnswersViaBattle(driver);
+        const seededWrongPrompt: string = await seedOneWrongAnswerViaBattle(driver);
+        expect(seededWrongPrompt.length > 0).assertTrue();
 
         await clickByIdShared(driver, 'HomeReviewButton');
         await waitForBattlePage(driver);
         await driver.assertComponentExist(ON.text('Monster 1 / 3'));
+        await driver.assertComponentExist(ON.text(seededWrongPrompt));
         await finishBattleAndReturnHome(driver);
       } finally {
         await clearLearningRecordsAndRefreshHome(driver);

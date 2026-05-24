@@ -18,7 +18,7 @@ import {
  *
  *  - On fresh launch (no prior wrong answers in this session) the
  *    HomeReviewButton must render disabled and show the nudge copy.
- *  - After seeding 3 wrong answers in a regular battle, returning to
+ *  - After seeding 1 wrong answer in a regular battle, returning to
  *    HomePage must enable the review button.
  *  - Tapping it must launch a review session whose header shows
  *    `Monster 1 / 3` (per the 3-monster override).
@@ -32,7 +32,7 @@ import {
  */
 export default function reviewModeUiTest(): void {
   describe('ReviewModeUiTest', () => {
-    it('reviewButtonUnlocksAfterThreeWrongAnswers', 0, async (done: Function) => {
+    it('reviewButtonUnlocksAfterOneWrongAnswer', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
       await returnToHome(driver);
 
@@ -45,23 +45,18 @@ export default function reviewModeUiTest(): void {
       // (covered by HomeToolbarLocked.ui.test).
       await driver.assertComponentExist(ON.id('HomeReviewButton'));
 
-      // --- Seed 3 wrong answers in today's first basic slot ---
+      // --- Seed 1 wrong answer in today's first basic slot ---
       // Today-mode's first slot in fruit-forest is a Match question
       // with 3-HP monster; tapWrongAnswerShared resolves the prompt
       // to its English answer via WORD_MAP and clicks any other
       // option, which works because fruit-forest's word pool is a
       // subset of WORD_MAP. Default cfg.playerHp = 10 is still
       // honoured by today-mode (BattlePage reads it before merging
-      // the plan), so 3 misses keep us on BattlePage.
+      // the plan), so one miss keeps us on BattlePage.
       await startTodayBattleChoiceOnly(driver);
-      for (let i = 0; i < 3; i++) {
-        await tapWrongAnswerShared(driver);
-        // Each wrong tap deals 1 damage; playerHp starts at 10 in the
-        // default config, so 3 misses keep us on BattlePage. 800ms
-        // covers the feedback window.
-        await driver.delayMs(800);
-        await driver.assertComponentExist(ON.id('BattlePrompt'));
-      }
+      await tapWrongAnswerShared(driver);
+      await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('BattlePrompt'));
 
       // Exit via [debug] so we land on ResultPage deterministically.
       await clickByIdShared(driver, 'BattleEscapeButton');
