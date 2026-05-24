@@ -75,6 +75,10 @@ struct SessionResult: Equatable {
     var coinsTotal: Int = 0
     var bonusKillCount: Int = 0
     var monsterLevelScore: Int = 0
+    var checkInRecorded: Bool = false
+    var checkInCurrentStreak: Int = 0
+    var checkInBonusCoins: Int = 0
+    var checkInBonusDayKey: String = ""
 }
 
 enum BattleRewardCalc {

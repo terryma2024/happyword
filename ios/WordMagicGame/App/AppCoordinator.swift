@@ -16,6 +16,7 @@ enum AppRoute: Equatable {
     case redemptionHistory
     case todayPlan
     case learningReport
+    case checkInCalendar
     case scanBinding
     case boundDeviceInfo
     case childProfile
@@ -48,6 +49,7 @@ final class AppCoordinator: ObservableObject {
 
     let configStore: GameConfigStore
     let coinAccount = CoinAccount()
+    let checkInStore: CheckInStore
     let parentClient: any ParentApiClient
     let parentAdminUsesLocalMock: Bool
     let wishlistStore = WishlistStore()
@@ -61,6 +63,7 @@ final class AppCoordinator: ObservableObject {
     let packLayerStore: FileBackedPackLayerStore
     let wordStatsSyncClient: any WordStatsSyncClienting
     let wordStatsSyncStateStore: WordStatsSyncStateStore
+    let checkInSyncClient: any CheckInSyncClienting
     let unbindClient: any DeviceUnbindClienting
     let childProfileClient: any ChildProfileClienting
     let developerMenuViewModel: DeveloperMenuViewModel
@@ -96,6 +99,8 @@ final class AppCoordinator: ObservableObject {
         packLayerStore: FileBackedPackLayerStore = FileBackedPackLayerStore(),
         wordStatsSyncClient: any WordStatsSyncClienting = CloudClientFactory.wordStatsSyncClient(),
         wordStatsSyncStateStore: WordStatsSyncStateStore = WordStatsSyncStateStore(),
+        checkInStore: CheckInStore = CheckInStore(),
+        checkInSyncClient: any CheckInSyncClienting = CloudClientFactory.checkInSyncClient(),
         unbindClient: any DeviceUnbindClienting = CloudClientFactory.unbindClient(),
         childProfileClient: any ChildProfileClienting = CloudClientFactory.childProfileClient(),
         parentClient: (any ParentApiClient)? = nil,
@@ -111,6 +116,8 @@ final class AppCoordinator: ObservableObject {
         self.packLayerStore = packLayerStore
         self.wordStatsSyncClient = wordStatsSyncClient
         self.wordStatsSyncStateStore = wordStatsSyncStateStore
+        self.checkInStore = checkInStore
+        self.checkInSyncClient = checkInSyncClient
         self.unbindClient = unbindClient
         self.childProfileClient = childProfileClient
         self.parentClient = parentClient ?? CloudClientFactory.parentApiClient(cloudCredentialsStore: cloudCredentialsStore)
@@ -356,6 +363,15 @@ final class AppCoordinator: ObservableObject {
         guard let engine = battleEngine,
               var result = try? engine.buildSessionResult() else { return }
         result.coinsTotal = coinAccount.earn(result.coinsEarned)
+        if result.status == .won {
+            let checkIn = checkInStore.recordWin(coins: coinAccount)
+            result.checkInRecorded = checkIn.changed
+            result.checkInCurrentStreak = checkIn.currentStreak
+            result.checkInBonusCoins = checkIn.bonusCoins
+            result.checkInBonusDayKey = checkIn.bonusDayKey
+            result.coinsTotal = coinAccount.balance
+            syncCheckInsBestEffort()
+        }
         lastResult = result
         route = .result
         Task { await syncWordStatsIfPossible(showStatus: false) }
@@ -439,6 +455,10 @@ final class AppCoordinator: ObservableObject {
             recorder: learningRecorder
         )
         route = .learningReport
+    }
+
+    func openCheckInCalendar() {
+        route = .checkInCalendar
     }
 
     func openBinding() {
@@ -671,6 +691,28 @@ final class AppCoordinator: ObservableObject {
                 packManagerMessage = "学习数据同步失败"
                 showToast("学习记录同步失败")
             }
+        }
+    }
+
+    func syncCheckInsBestEffort() {
+        Task { await syncCheckInsIfPossible() }
+    }
+
+    func syncCheckInsIfPossible() async {
+        guard let credentials = cloudCredentialsStore.credentials else { return }
+        do {
+            let response = try await checkInSyncClient.sync(
+                payload: CheckInSyncPayload.from(snapshot: checkInStore.snapshot),
+                familyId: credentials.familyId,
+                deviceToken: credentials.deviceToken
+            )
+            checkInStore.applyCloudMerge(
+                checkedDayKeys: response.checkedDayKeys,
+                weeklyBonusDayKeys: response.weeklyBonusDayKeys,
+                serverNowMs: response.serverNowMs
+            )
+        } catch {
+            checkInStore.markPendingSync()
         }
     }
 

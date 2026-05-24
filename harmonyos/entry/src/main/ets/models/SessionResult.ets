@@ -65,4 +65,10 @@ export class SessionResult {
   bonusKillCount: number = 0;
   /** V0.8.6 display baseline. Kept for router compatibility. */
   coinsBaseFromStars: number = 0;
+  /** V0.8.8 — whether this battle created a new local check-in day. */
+  checkInRecorded: boolean = false;
+  /** V0.8.8 — current contiguous daily check-in streak after this result. */
+  checkInCurrentStreak: number = 0;
+  /** V0.8.8 — weekly check-in bonus coins granted by this result. */
+  checkInBonusCoins: number = 0;
 }

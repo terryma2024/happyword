@@ -56,6 +56,11 @@ struct ResultPage {
     merged.coinsBaseFromStars = incoming.coinsBaseFromStars !== undefined
       ? incoming.coinsBaseFromStars
       : merged.coinsBaseFromStars;
+    merged.checkInRecorded = incoming.checkInRecorded !== undefined ? incoming.checkInRecorded : merged.checkInRecorded;
+    merged.checkInCurrentStreak = incoming.checkInCurrentStreak !== undefined
+      ? incoming.checkInCurrentStreak
+      : merged.checkInCurrentStreak;
+    merged.checkInBonusCoins = incoming.checkInBonusCoins !== undefined ? incoming.checkInBonusCoins : merged.checkInBonusCoins;
     this.result = merged;
   }
 
@@ -141,6 +146,13 @@ struct ResultPage {
             .fontWeight(FontWeight.Medium)
             .fontColor('#FFB400')
             .margin({ top: 12 });
+          if (this.result.checkInBonusCoins > 0) {
+            Text(`连续打卡奖励 +${this.result.checkInBonusCoins} ✨`)
+              .id('ResultCheckInBonusRow')
+              .fontSize(14)
+              .fontColor('#0F766E')
+              .margin({ top: 6 });
+          }
           Text(`累计余额 ${this.result.coinsTotal} ✨`)
             .id('ResultCoinsTotal')
             .fontSize(13)

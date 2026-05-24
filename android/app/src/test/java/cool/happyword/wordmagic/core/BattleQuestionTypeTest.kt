@@ -128,6 +128,7 @@ class BattleQuestionTypeTest {
                 enabledQuestionTypes = listOf(BattleQuestionTypePolicy.FILL_LETTER),
             ),
             words = phraseWords,
+            targetWordIds = listOf("phrase-a-puppy"),
             shuffleOptions = { it },
             randomDouble = { 0.0 },
         )
@@ -157,6 +158,7 @@ class BattleQuestionTypeTest {
                 enabledQuestionTypes = listOf(BattleQuestionTypePolicy.SPELL),
             ),
             words = phraseWords,
+            targetWordIds = listOf("phrase-the-apple"),
             shuffleOptions = { it },
             randomDouble = { 0.0 },
         )

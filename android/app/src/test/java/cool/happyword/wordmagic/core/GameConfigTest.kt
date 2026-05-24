@@ -8,7 +8,7 @@ class GameConfigTest {
     fun defaultsMatchHarmonyOSBattleDefaults() {
         val config = GameConfig()
 
-        assertEquals(5, config.playerHp)
+        assertEquals(10, config.playerHp)
         assertEquals(3, config.monsterHp)
         assertEquals(5, config.monsterCount)
         assertEquals(300, config.timerSeconds)

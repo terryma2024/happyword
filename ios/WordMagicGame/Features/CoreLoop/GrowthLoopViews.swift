@@ -678,6 +678,21 @@ struct TodayPlanView: View {
                     .foregroundStyle(AppTheme.navy)
                 Spacer()
                 Button {
+                    coordinator.openCheckInCalendar()
+                } label: {
+                    Image("ToolbarCheckIn")
+                        .renderingMode(.original)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 35, height: 35)
+                        .frame(width: 54, height: 54)
+                        .background(Color(red: 0.93, green: 0.99, blue: 0.96), in: Circle())
+                }
+                .accessibilityLabel("打卡日历")
+                .accessibilityIdentifier("TodayPlanCheckInButton")
+                .buttonStyle(.plain)
+
+                Button {
                     coordinator.openLearningReport()
                 } label: {
                     Text("📊")
@@ -686,6 +701,7 @@ struct TodayPlanView: View {
                         .background(Color.white, in: Circle())
                 }
                 .accessibilityLabel("学习报告")
+                .accessibilityIdentifier("TodayPlanReportButton")
                 .buttonStyle(.plain)
             }
 
@@ -777,6 +793,151 @@ struct TodayPlanView: View {
                 }
             }
         }
+    }
+}
+
+struct CheckInCalendarView: View {
+    @ObservedObject var coordinator: AppCoordinator
+    @ObservedObject var store: CheckInStore
+    @State private var visibleMonth = CheckInCalendar.monthAnchor(Date())
+
+    private var snapshot: CheckInSnapshot { store.snapshot }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                MonsterCodexStyleBackButton(
+                    action: { coordinator.route = .todayPlan },
+                    accessibilityIdentifier: "CheckInBackButton"
+                )
+                Spacer()
+                Text("打卡日历")
+                    .font(.system(size: 29, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
+                    .accessibilityIdentifier("CheckInPageTitle")
+                Spacer()
+                Color.clear.frame(width: 54, height: 54)
+            }
+
+            ScrollView {
+                VStack(spacing: 14) {
+                    HStack(spacing: 10) {
+                        summaryCard(value: "连续 \(snapshot.currentStreak) 天", label: "当前连击", color: AppTheme.mint)
+                            .accessibilityIdentifier("CheckInCurrentStreak")
+                        summaryCard(value: "\(snapshot.bestStreak) 天", label: "最佳连续", color: AppTheme.gold.opacity(0.55))
+                            .accessibilityIdentifier("CheckInBestStreak")
+                        summaryCard(value: cloudStateText, label: "同步状态", color: AppTheme.paleBlue)
+                            .accessibilityIdentifier("CheckInCloudState")
+                    }
+
+                    Text(latestBonusText)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.55, green: 0.29, blue: 0.04))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color(red: 1.0, green: 0.95, blue: 0.78), in: RoundedRectangle(cornerRadius: 12))
+                        .accessibilityIdentifier("CheckInWeeklyBonusBanner")
+
+                    calendarCard
+                }
+                .padding(.bottom, 12)
+            }
+        }
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 16)
+        .background(AppTheme.page)
+    }
+
+    private var calendarCard: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Button {
+                    visibleMonth = CheckInCalendar.shiftMonth(visibleMonth, delta: -1)
+                } label: {
+                    Text("←").font(.system(size: 18, weight: .heavy, design: .rounded))
+                }
+                .frame(width: 42, height: 42)
+                .background(AppTheme.mint.opacity(0.35), in: Circle())
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("CheckInPrevMonthButton")
+
+                Text(CheckInCalendar.monthLabel(visibleMonth))
+                    .font(.system(size: 20, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("CheckInMonthLabel")
+
+                Button {
+                    visibleMonth = CheckInCalendar.shiftMonth(visibleMonth, delta: 1)
+                } label: {
+                    Text("→").font(.system(size: 18, weight: .heavy, design: .rounded))
+                }
+                .frame(width: 42, height: 42)
+                .background(AppTheme.mint.opacity(0.35), in: Circle())
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("CheckInNextMonthButton")
+            }
+
+            HStack {
+                ForEach(["日", "一", "二", "三", "四", "五", "六"], id: \.self) { label in
+                    Text(label)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
+            VStack(spacing: 6) {
+                ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
+                    HStack(spacing: 6) {
+                        ForEach(Array(week.cells.enumerated()), id: \.offset) { _, cell in
+                            Text(cell.inMonth ? (cell.checked ? "\(cell.label) ✓" : cell.label) : "")
+                                .font(.system(size: 13, weight: cell.checked ? .heavy : .regular, design: .rounded))
+                                .foregroundStyle(cell.checked ? .white : Color(red: 0.20, green: 0.25, blue: 0.33))
+                                .frame(maxWidth: .infinity, minHeight: 38)
+                                .background(cell.checked ? Color(red: 0.13, green: 0.70, blue: 0.37) : (cell.inMonth ? Color(red: 0.97, green: 0.98, blue: 0.99) : Color.white), in: RoundedRectangle(cornerRadius: 10))
+                                .accessibilityIdentifier(cell.inMonth ? "CheckInDay_\(cell.dayKey)" : "CheckInBlank")
+                        }
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.white, in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityIdentifier("CheckInCalendarGrid")
+    }
+
+    private var weeks: [CheckInWeekRow] {
+        CheckInCalendar.buildMonthWeeks(visibleMonth: visibleMonth, checkedDayKeys: snapshot.checkedDayKeys)
+    }
+
+    private var latestBonusText: String {
+        if let latest = snapshot.weeklyBonusDayKeys.last {
+            return "最近一次连续奖励：\(latest) +50"
+        }
+        return "连续 7 天后额外奖励 50 积分"
+    }
+
+    private var cloudStateText: String {
+        if snapshot.pendingSync { return "等待同步" }
+        if snapshot.lastSyncedAtMs > 0 { return "云端已同步" }
+        return "本地保存"
+    }
+
+    private func summaryCard(value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 17, weight: .heavy, design: .rounded))
+                .foregroundStyle(AppTheme.navy)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Text(label)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 68)
+        .background(color, in: RoundedRectangle(cornerRadius: 12))
     }
 }
 

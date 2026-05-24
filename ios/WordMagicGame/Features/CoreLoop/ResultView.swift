@@ -27,6 +27,16 @@ struct ResultView: View {
                     .accessibilityIdentifier("ResultCoinsTotal")
             }
 
+            if let result, result.checkInBonusCoins > 0 {
+                Text("连续打卡 \(result.checkInCurrentStreak) 天 → +\(result.checkInBonusCoins) ✨")
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(Color(red: 0.08, green: 0.52, blue: 0.30))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.white, in: Capsule())
+                    .accessibilityIdentifier("ResultCheckInBonusRow")
+            }
+
             Button("返回主页") {
                 coordinator.battleEngine = nil
                 coordinator.route = .home

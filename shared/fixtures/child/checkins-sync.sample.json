@@ -1,0 +1,51 @@
+{
+  "request": {
+    "checked_day_keys": [
+      "2026-05-01",
+      "2026-05-02",
+      "2026-05-03",
+      "2026-05-04",
+      "2026-05-05",
+      "2026-05-06",
+      "2026-05-07"
+    ],
+    "weekly_bonus_day_keys": [
+      "2026-05-07"
+    ],
+    "coin_txns": [
+      {
+        "txn_id": "checkin-weekly-bonus:2026-05-07",
+        "ts": 1778112000000,
+        "delta": 50,
+        "reason": "checkin-weekly-bonus:2026-05-07",
+        "balance_after": 70
+      }
+    ],
+    "synced_through_ms": 0
+  },
+  "response": {
+    "checked_day_keys": [
+      "2026-05-01",
+      "2026-05-02",
+      "2026-05-03",
+      "2026-05-04",
+      "2026-05-05",
+      "2026-05-06",
+      "2026-05-07"
+    ],
+    "weekly_bonus_day_keys": [
+      "2026-05-07"
+    ],
+    "coin_txns": [
+      {
+        "txn_id": "checkin-weekly-bonus:2026-05-07",
+        "ts": 1778112000000,
+        "delta": 50,
+        "reason": "checkin-weekly-bonus:2026-05-07",
+        "balance_after": 70,
+        "updated_at": "2026-05-07T12:00:00Z"
+      }
+    ],
+    "server_now_ms": 1778112000000
+  }
+}

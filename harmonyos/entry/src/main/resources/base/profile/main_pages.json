@@ -12,6 +12,7 @@
     "pages/LearningReportPage",
     "pages/ParentAdminPage",
     "pages/LessonDraftReviewPage",
+    "pages/CheckInPage",
     "pages/BypassSecretPage",
     "pages/ScanBindingPage",
     "pages/BoundDeviceInfoPage",

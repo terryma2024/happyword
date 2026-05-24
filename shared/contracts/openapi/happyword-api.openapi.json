@@ -808,6 +808,116 @@
         "title": "CategoryUpdateIn",
         "type": "object"
       },
+      "CheckInListOut": {
+        "properties": {
+          "checked_day_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checked Day Keys",
+            "type": "array"
+          },
+          "coin_txns": {
+            "items": {
+              "$ref": "#/components/schemas/CloudCoinTxnOut"
+            },
+            "title": "Coin Txns",
+            "type": "array"
+          },
+          "server_now_ms": {
+            "title": "Server Now Ms",
+            "type": "integer"
+          },
+          "weekly_bonus_day_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Weekly Bonus Day Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "checked_day_keys",
+          "weekly_bonus_day_keys",
+          "coin_txns",
+          "server_now_ms"
+        ],
+        "title": "CheckInListOut",
+        "type": "object"
+      },
+      "CheckInSyncIn": {
+        "additionalProperties": false,
+        "properties": {
+          "checked_day_keys": {
+            "items": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "title": "Checked Day Keys",
+            "type": "array"
+          },
+          "coin_txns": {
+            "items": {
+              "$ref": "#/components/schemas/CloudCoinTxnIn"
+            },
+            "title": "Coin Txns",
+            "type": "array"
+          },
+          "synced_through_ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Synced Through Ms",
+            "type": "integer"
+          },
+          "weekly_bonus_day_keys": {
+            "items": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "title": "Weekly Bonus Day Keys",
+            "type": "array"
+          }
+        },
+        "title": "CheckInSyncIn",
+        "type": "object"
+      },
+      "CheckInSyncOut": {
+        "properties": {
+          "checked_day_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checked Day Keys",
+            "type": "array"
+          },
+          "coin_txns": {
+            "items": {
+              "$ref": "#/components/schemas/CloudCoinTxnOut"
+            },
+            "title": "Coin Txns",
+            "type": "array"
+          },
+          "server_now_ms": {
+            "title": "Server Now Ms",
+            "type": "integer"
+          },
+          "weekly_bonus_day_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Weekly Bonus Day Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "checked_day_keys",
+          "weekly_bonus_day_keys",
+          "coin_txns",
+          "server_now_ms"
+        ],
+        "title": "CheckInSyncOut",
+        "type": "object"
+      },
       "ChildCustomWishlistItemIn": {
         "additionalProperties": false,
         "properties": {
@@ -1147,6 +1257,84 @@
           "items"
         ],
         "title": "ChildWishlistSyncOut",
+        "type": "object"
+      },
+      "CloudCoinTxnIn": {
+        "additionalProperties": false,
+        "properties": {
+          "balance_after": {
+            "title": "Balance After",
+            "type": "integer"
+          },
+          "delta": {
+            "title": "Delta",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "ts": {
+            "minimum": 0.0,
+            "title": "Ts",
+            "type": "integer"
+          },
+          "txn_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Txn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "txn_id",
+          "ts",
+          "delta",
+          "reason",
+          "balance_after"
+        ],
+        "title": "CloudCoinTxnIn",
+        "type": "object"
+      },
+      "CloudCoinTxnOut": {
+        "properties": {
+          "balance_after": {
+            "title": "Balance After",
+            "type": "integer"
+          },
+          "delta": {
+            "title": "Delta",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "ts": {
+            "title": "Ts",
+            "type": "integer"
+          },
+          "txn_id": {
+            "title": "Txn Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "txn_id",
+          "ts",
+          "delta",
+          "reason",
+          "balance_after",
+          "updated_at"
+        ],
+        "title": "CloudCoinTxnOut",
         "type": "object"
       },
       "CloudWishlistCreateIn": {
@@ -7779,6 +7967,114 @@
         "summary": "Post Verify Code",
         "tags": [
           "parent-auth"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/checkins": {
+      "get": {
+        "operationId": "list_checkins_api_v1_family__family_id__checkins_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Checkins",
+        "tags": [
+          "child-checkins"
+        ]
+      }
+    },
+    "/api/v1/family/{family_id}/checkins/sync": {
+      "post": {
+        "operationId": "sync_checkins_api_v1_family__family_id__checkins_sync_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInSyncIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInSyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sync Checkins",
+        "tags": [
+          "child-checkins"
         ]
       }
     },
