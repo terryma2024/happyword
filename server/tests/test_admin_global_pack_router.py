@@ -218,6 +218,134 @@ async def test_admin_draft_publish_rollback_versions(
 
 
 @pytest.mark.asyncio
+async def test_admin_split_global_draft_copy(
+    client: AsyncClient, admin: User
+) -> None:
+    headers = _bearer(admin.username)
+    await client.post(
+        "/api/v1/admin/global-packs",
+        json={"name": "Global Split Source", "pack_id": "gpk-split-src"},
+        headers=headers,
+    )
+    for word_id, word in (
+        ("fruit-apple", "apple"),
+        ("fruit-banana", "banana"),
+        ("fruit-pear", "pear"),
+    ):
+        await client.put(
+            f"/api/v1/admin/global-packs/gpk-split-src/draft/words/{word_id}",
+            json={
+                "id": word_id,
+                "word": word,
+                "meaningZh": f"{word} zh",
+                "category": "fruit",
+                "difficulty": 1,
+            },
+            headers=headers,
+        )
+
+    resp = await client.post(
+        "/api/v1/admin/global-packs/gpk-split-src/draft/split",
+        json={
+            "mode": "copy",
+            "word_ids": ["fruit-pear", "fruit-apple"],
+            "new_pack": {"name": "Global Split Copy", "description": "copy"},
+        },
+        headers=headers,
+    )
+
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["new_pack"]["pack_id"].startswith("gpk-")
+    assert body["new_pack"]["created_by_admin_id"] == admin.username
+    assert body["source_draft"]["word_count"] == 3
+    assert [w["id"] for w in body["new_draft"]["words"]] == [
+        "fruit-apple",
+        "fruit-pear",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_admin_split_global_draft_move_removes_source_words(
+    client: AsyncClient, admin: User
+) -> None:
+    headers = _bearer(admin.username)
+    await client.post(
+        "/api/v1/admin/global-packs",
+        json={"name": "Global Split Move Source", "pack_id": "gpk-split-move"},
+        headers=headers,
+    )
+    for word_id in ("fruit-apple", "fruit-banana", "fruit-pear"):
+        await client.put(
+            f"/api/v1/admin/global-packs/gpk-split-move/draft/words/{word_id}",
+            json={
+                "id": word_id,
+                "word": word_id,
+                "meaningZh": word_id,
+                "category": "fruit",
+                "difficulty": 1,
+            },
+            headers=headers,
+        )
+
+    resp = await client.post(
+        "/api/v1/admin/global-packs/gpk-split-move/draft/split",
+        json={
+            "mode": "move",
+            "word_ids": ["fruit-apple", "fruit-pear"],
+            "new_pack": {"name": "Global Split Move"},
+        },
+        headers=headers,
+    )
+
+    assert resp.status_code == 201, resp.text
+    assert [w["id"] for w in resp.json()["source_draft"]["words"]] == [
+        "fruit-banana"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_admin_split_global_draft_duplicate_name_409(
+    client: AsyncClient, admin: User
+) -> None:
+    headers = _bearer(admin.username)
+    await client.post(
+        "/api/v1/admin/global-packs",
+        json={"name": "Global Split Source Dup", "pack_id": "gpk-split-dup-src"},
+        headers=headers,
+    )
+    await client.post(
+        "/api/v1/admin/global-packs",
+        json={"name": "Global Split Taken", "pack_id": "gpk-split-dup-taken"},
+        headers=headers,
+    )
+    await client.put(
+        "/api/v1/admin/global-packs/gpk-split-dup-src/draft/words/fruit-apple",
+        json={
+            "id": "fruit-apple",
+            "word": "apple",
+            "meaningZh": "apple zh",
+            "category": "fruit",
+            "difficulty": 1,
+        },
+        headers=headers,
+    )
+
+    resp = await client.post(
+        "/api/v1/admin/global-packs/gpk-split-dup-src/draft/split",
+        json={
+            "mode": "copy",
+            "word_ids": ["fruit-apple"],
+            "new_pack": {"name": "Global Split Taken"},
+        },
+        headers=headers,
+    )
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["error"]["code"] == "NAME_TAKEN"
+
+
+@pytest.mark.asyncio
 async def test_admin_word_id_path_mismatch_returns_400(
     client: AsyncClient, admin: User
 ) -> None:

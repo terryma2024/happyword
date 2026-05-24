@@ -196,6 +196,31 @@ class FamilyPackImportImageOut(BaseModel):
     errors: list[FamilyPackDraftWordBatchError]
 
 
+class FamilyPackSplitNewPackIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: Annotated[str, Field(min_length=1, max_length=32)]
+    description: Annotated[str | None, Field(default=None, max_length=200)]
+
+
+class FamilyPackDraftSplitIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal["copy", "move"]
+    word_ids: Annotated[list[str], Field(min_length=1, max_length=100)]
+    new_pack: FamilyPackSplitNewPackIn
+
+
+class FamilyPackDraftSplitOut(BaseModel):
+    mode: Literal["copy", "move"]
+    source_pack_id: str
+    new_pack: FamilyPackDefinitionOut
+    source_draft: FamilyPackDraftOut
+    new_draft: FamilyPackDraftOut
+    moved_count: int
+    copied_count: int
+
+
 class ChildPacksMergedOut(BaseModel):
     """Tenant-scoped merge of global platform pack + published family packs."""
 

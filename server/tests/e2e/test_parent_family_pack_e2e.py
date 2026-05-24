@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from tests.e2e._utils.auth import ParentSession
+from tests.e2e._utils.auth import DeviceSession, ParentSession, device_headers
 
 
 def _custom_prefix(family_id: str) -> str:
@@ -179,3 +179,65 @@ def test_pack_publish_then_rollback_lifecycle(
     assert versions.status_code == 200, versions.text
     items = versions.json()["items"]
     assert [v["version"] for v in items] == [2, 1]
+
+
+@pytest.mark.e2e
+def test_pack_split_move_publish_then_child_latest_groups_words(
+    http: httpx.Client,
+    parent: ParentSession,
+    device: DeviceSession,
+    run_id: str,
+) -> None:
+    """Split selected draft words, publish both packs, then verify child latest grouping."""
+    create = http.post(
+        "/api/v1/family/_/family-packs",
+        json={"name": f"E2E {run_id} split-source"},
+    )
+    assert create.status_code == 201, create.text
+    source_pack_id = create.json()["pack_id"]
+    prefix = _custom_prefix(parent.family_id)
+    ids = {
+        "apple": f"{prefix}{run_id[:6]}-split-apple",
+        "banana": f"{prefix}{run_id[:6]}-split-banana",
+        "carrot": f"{prefix}{run_id[:6]}-split-carrot",
+    }
+    for word, word_id in ids.items():
+        upsert = http.put(
+            f"/api/v1/family/_/family-packs/{source_pack_id}/draft/words/{word_id}",
+            json=_custom_word_payload(word=word, meaning=f"{word} zh"),
+        )
+        assert upsert.status_code == 200, upsert.text
+
+    split = http.post(
+        f"/api/v1/family/_/family-packs/{source_pack_id}/draft/split",
+        json={
+            "mode": "move",
+            "word_ids": [ids["apple"], ids["banana"]],
+            "new_pack": {"name": f"E2E {run_id} split-new"},
+        },
+    )
+    assert split.status_code == 201, split.text
+    new_pack_id = split.json()["new_pack"]["pack_id"]
+
+    source_publish = http.post(
+        f"/api/v1/family/_/family-packs/{source_pack_id}/publish",
+        json={"notes": "source after split"},
+    )
+    assert source_publish.status_code == 201, source_publish.text
+    new_publish = http.post(
+        f"/api/v1/family/_/family-packs/{new_pack_id}/publish",
+        json={"notes": "new after split"},
+    )
+    assert new_publish.status_code == 201, new_publish.text
+
+    latest = http.get(
+        "/api/v1/family/_/family-packs/latest.json",
+        headers=device_headers(device),
+    )
+    assert latest.status_code == 200, latest.text
+    packs = {pack["pack_id"]: pack for pack in latest.json()["packs"]}
+    assert [w["id"] for w in packs[source_pack_id]["words"]] == [ids["carrot"]]
+    assert [w["id"] for w in packs[new_pack_id]["words"]] == [
+        ids["apple"],
+        ids["banana"],
+    ]

@@ -282,6 +282,200 @@ async def test_remove_draft_word_idempotent(db: object) -> None:
     assert len(again.words) == 0
 
 
+@pytest.mark.asyncio
+async def test_split_draft_copy_creates_new_pack_without_changing_source(db: object) -> None:
+    family_id, parent = await _new_family()
+    source = await svc.create_definition(
+        family_id=family_id, name="Source", description=None, parent_user_id=parent
+    )
+    for word_id in ("global-a", "global-b", "global-c"):
+        await svc.upsert_draft_word(
+            definition=source,
+            word_id=word_id,
+            payload=_global_payload(),
+            parent_user_id=parent,
+        )
+
+    result = await svc.split_draft_to_new_pack(
+        source_definition=source,
+        word_ids=["global-c", "global-a"],
+        new_name="Split Copy",
+        new_description="copied words",
+        mode="copy",
+        parent_user_id=parent,
+    )
+
+    assert result.mode == "copy"
+    assert result.selected_word_count == 2
+    assert result.new_definition.family_id == family_id
+    assert result.new_definition.name == "Split Copy"
+    assert [w["id"] for w in result.new_draft.words] == ["global-a", "global-c"]
+    assert [w["id"] for w in result.source_draft.words] == [
+        "global-a",
+        "global-b",
+        "global-c",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_split_draft_move_removes_selected_words_from_source(db: object) -> None:
+    family_id, parent = await _new_family()
+    source = await svc.create_definition(
+        family_id=family_id, name="Source Move", description=None, parent_user_id=parent
+    )
+    for word_id in ("global-a", "global-b", "global-c"):
+        await svc.upsert_draft_word(
+            definition=source,
+            word_id=word_id,
+            payload=_global_payload(),
+            parent_user_id=parent,
+        )
+
+    result = await svc.split_draft_to_new_pack(
+        source_definition=source,
+        word_ids=["global-a", "global-c"],
+        new_name="Split Move",
+        new_description=None,
+        mode="move",
+        parent_user_id=parent,
+    )
+
+    assert [w["id"] for w in result.new_draft.words] == ["global-a", "global-c"]
+    assert [w["id"] for w in result.source_draft.words] == ["global-b"]
+
+
+@pytest.mark.asyncio
+async def test_split_draft_deduplicates_requested_ids(db: object) -> None:
+    family_id, parent = await _new_family()
+    source = await svc.create_definition(
+        family_id=family_id, name="Dedup", description=None, parent_user_id=parent
+    )
+    for word_id in ("global-a", "global-b"):
+        await svc.upsert_draft_word(
+            definition=source,
+            word_id=word_id,
+            payload=_global_payload(),
+            parent_user_id=parent,
+        )
+
+    result = await svc.split_draft_to_new_pack(
+        source_definition=source,
+        word_ids=["global-b", "global-b", "global-a"],
+        new_name="Dedup Split",
+        new_description=None,
+        mode="copy",
+        parent_user_id=parent,
+    )
+
+    assert [w["id"] for w in result.new_draft.words] == ["global-a", "global-b"]
+
+
+@pytest.mark.asyncio
+async def test_split_draft_rejects_empty_selection(db: object) -> None:
+    family_id, parent = await _new_family()
+    source = await svc.create_definition(
+        family_id=family_id, name="Empty Split", description=None, parent_user_id=parent
+    )
+
+    with pytest.raises(svc.InvalidPayload):
+        await svc.split_draft_to_new_pack(
+            source_definition=source,
+            word_ids=[],
+            new_name="No Words",
+            new_description=None,
+            mode="copy",
+            parent_user_id=parent,
+        )
+
+
+@pytest.mark.asyncio
+async def test_split_draft_missing_word_raises_draft_word_not_found(db: object) -> None:
+    family_id, parent = await _new_family()
+    source = await svc.create_definition(
+        family_id=family_id, name="Missing", description=None, parent_user_id=parent
+    )
+    await svc.upsert_draft_word(
+        definition=source,
+        word_id="global-a",
+        payload=_global_payload(),
+        parent_user_id=parent,
+    )
+
+    with pytest.raises(svc.DraftWordNotFound) as exc:
+        await svc.split_draft_to_new_pack(
+            source_definition=source,
+            word_ids=["global-a", "global-missing"],
+            new_name="Missing Split",
+            new_description=None,
+            mode="copy",
+            parent_user_id=parent,
+        )
+
+    assert exc.value.missing_word_ids == ["global-missing"]
+
+
+@pytest.mark.asyncio
+async def test_split_draft_duplicate_new_name_raises_name_taken(db: object) -> None:
+    family_id, parent = await _new_family()
+    source = await svc.create_definition(
+        family_id=family_id, name="Source Name", description=None, parent_user_id=parent
+    )
+    await svc.create_definition(
+        family_id=family_id, name="Taken", description=None, parent_user_id=parent
+    )
+    await svc.upsert_draft_word(
+        definition=source,
+        word_id="global-a",
+        payload=_global_payload(),
+        parent_user_id=parent,
+    )
+
+    with pytest.raises(svc.NameTaken):
+        await svc.split_draft_to_new_pack(
+            source_definition=source,
+            word_ids=["global-a"],
+            new_name="Taken",
+            new_description=None,
+            mode="copy",
+            parent_user_id=parent,
+        )
+
+
+@pytest.mark.asyncio
+async def test_split_draft_supports_global_sentinel_scope(db: object) -> None:
+    definition = await svc.create_definition(
+        family_id=svc.GLOBAL_PACK_FAMILY_ID,
+        name="Global Source",
+        description=None,
+        parent_user_id="admin",
+        pack_id="gpk-split-service",
+    )
+    await svc.upsert_draft_word(
+        definition=definition,
+        word_id="fruit-apple",
+        payload={
+            "source": "global",
+            "word": "apple",
+            "meaning_zh": "apple zh",
+            "category": "fruit",
+            "difficulty": 1,
+        },
+        parent_user_id="admin",
+    )
+
+    result = await svc.split_draft_to_new_pack(
+        source_definition=definition,
+        word_ids=["fruit-apple"],
+        new_name="Global Split",
+        new_description=None,
+        mode="copy",
+        parent_user_id="admin",
+    )
+
+    assert result.new_definition.family_id == svc.GLOBAL_PACK_FAMILY_ID
+    assert result.new_draft.words[0]["id"] == "fruit-apple"
+
+
 # ---------------------------------------------------------------------------
 # Publish / rollback / versions (contracts 14–20)
 # ---------------------------------------------------------------------------

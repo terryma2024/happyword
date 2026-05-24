@@ -1744,6 +1744,82 @@
         "title": "FamilyPackDraftOut",
         "type": "object"
       },
+      "FamilyPackDraftSplitIn": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "copy",
+              "move"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "new_pack": {
+            "$ref": "#/components/schemas/FamilyPackSplitNewPackIn"
+          },
+          "word_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Word Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mode",
+          "word_ids",
+          "new_pack"
+        ],
+        "title": "FamilyPackDraftSplitIn",
+        "type": "object"
+      },
+      "FamilyPackDraftSplitOut": {
+        "properties": {
+          "copied_count": {
+            "title": "Copied Count",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "copy",
+              "move"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "moved_count": {
+            "title": "Moved Count",
+            "type": "integer"
+          },
+          "new_draft": {
+            "$ref": "#/components/schemas/FamilyPackDraftOut"
+          },
+          "new_pack": {
+            "$ref": "#/components/schemas/FamilyPackDefinitionOut"
+          },
+          "source_draft": {
+            "$ref": "#/components/schemas/FamilyPackDraftOut"
+          },
+          "source_pack_id": {
+            "title": "Source Pack Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "source_pack_id",
+          "new_pack",
+          "source_draft",
+          "new_draft",
+          "moved_count",
+          "copied_count"
+        ],
+        "title": "FamilyPackDraftSplitOut",
+        "type": "object"
+      },
       "FamilyPackDraftWordBatchError": {
         "properties": {
           "code": {
@@ -2352,6 +2428,34 @@
         "title": "FamilyPackRollbackOut",
         "type": "object"
       },
+      "FamilyPackSplitNewPackIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "FamilyPackSplitNewPackIn",
+        "type": "object"
+      },
       "FamilyPackVersionListItem": {
         "properties": {
           "notes": {
@@ -2543,6 +2647,79 @@
           "deleted_pointer_count"
         ],
         "title": "GlobalPackDeleteOut",
+        "type": "object"
+      },
+      "GlobalPackDraftSplitIn": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "copy",
+              "move"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "new_pack": {
+            "$ref": "#/components/schemas/GlobalPackSplitNewPackIn"
+          },
+          "word_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Word Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mode",
+          "word_ids",
+          "new_pack"
+        ],
+        "title": "GlobalPackDraftSplitIn",
+        "type": "object"
+      },
+      "GlobalPackDraftSplitOut": {
+        "properties": {
+          "copied_count": {
+            "title": "Copied Count",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "copy",
+              "move"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "moved_count": {
+            "title": "Moved Count",
+            "type": "integer"
+          },
+          "new_draft": {
+            "$ref": "#/components/schemas/FamilyPackDraftOut"
+          },
+          "new_pack": {
+            "$ref": "#/components/schemas/GlobalPackDefinitionOut"
+          },
+          "source_draft": {
+            "$ref": "#/components/schemas/FamilyPackDraftOut"
+          },
+          "source_pack_id": {
+            "title": "Source Pack Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "source_pack_id",
+          "new_pack",
+          "source_draft",
+          "new_draft",
+          "moved_count",
+          "copied_count"
+        ],
+        "title": "GlobalPackDraftSplitOut",
         "type": "object"
       },
       "GlobalPackDraftWordIn": {
@@ -2767,6 +2944,30 @@
           }
         },
         "title": "GlobalPackPublishIn",
+        "type": "object"
+      },
+      "GlobalPackSplitNewPackIn": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GlobalPackSplitNewPackIn",
         "type": "object"
       },
       "GlobalPackVersionOut": {
@@ -5681,6 +5882,63 @@
           }
         ],
         "summary": "Patch Global Pack",
+        "tags": [
+          "admin-global-pack"
+        ]
+      }
+    },
+    "/api/v1/admin/global-packs/{pack_id}/draft/split": {
+      "post": {
+        "operationId": "split_global_pack_draft_api_v1_admin_global_packs__pack_id__draft_split_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlobalPackDraftSplitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalPackDraftSplitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Split Global Pack Draft",
         "tags": [
           "admin-global-pack"
         ]
@@ -10560,6 +10818,92 @@
         ]
       }
     },
+    "/api/v1/family/{family_scope}/family-packs/{pack_id}/draft/split": {
+      "post": {
+        "operationId": "split_draft_to_new_pack_api_v1_family__family_scope__family_packs__pack_id__draft_split_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_scope",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "wm_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Wm Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyPackDraftSplitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamilyPackDraftSplitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Split Draft To New Pack",
+        "tags": [
+          "parent-family-pack"
+        ]
+      }
+    },
     "/api/v1/family/{family_scope}/family-packs/{pack_id}/draft/words/{word_id}": {
       "delete": {
         "operationId": "delete_draft_word_api_v1_family__family_scope__family_packs__pack_id__draft_words__word_id__delete",
@@ -13433,6 +13777,59 @@
           }
         },
         "summary": "Draft Edit Submit",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/family/{family_id}/packs/{pack_id}/draft/split": {
+      "post": {
+        "operationId": "draft_split_words_family__family_id__packs__pack_id__draft_split_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Draft Split Words",
         "tags": [
           "parent-packs-html"
         ]

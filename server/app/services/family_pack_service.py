@@ -13,7 +13,7 @@ import secrets
 from dataclasses import dataclass
 from dataclasses import field as dataclasses_field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -98,6 +98,15 @@ class InvalidPayload(FamilyPackError):
     code = "INVALID_PAYLOAD"
 
 
+class DraftWordNotFound(FamilyPackError):
+    code = "DRAFT_WORD_NOT_FOUND"
+
+    def __init__(self, missing_word_ids: list[str]) -> None:
+        self.missing_word_ids = missing_word_ids
+        joined = ", ".join(missing_word_ids)
+        super().__init__(f"draft word(s) not found: {joined}")
+
+
 class DraftValidationFailed(FamilyPackError):
     code = "DRAFT_VALIDATION_FAILED"
 
@@ -116,6 +125,16 @@ class CustomIdContract:
     def prefix(self) -> str:
         # family_id is "fam-<8hex>"; spec uses the 8-hex slice as the second segment.
         return f"fam-{self.family_id.removeprefix('fam-')[:8]}-"
+
+
+@dataclass(frozen=True)
+class DraftSplitResult:
+    source_definition: FamilyPackDefinition
+    new_definition: FamilyPackDefinition
+    source_draft: FamilyPackDraft
+    new_draft: FamilyPackDraft
+    selected_word_count: int
+    mode: Literal["copy", "move"]
 
 
 def _utcnow() -> datetime:
@@ -480,6 +499,105 @@ async def remove_draft_word(
     definition.updated_at = draft.updated_at
     await definition.save()
     return draft
+
+
+def _unique_nonblank_word_ids(word_ids: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in word_ids:
+        word_id = str(raw).strip()
+        if not word_id or word_id in seen:
+            continue
+        seen.add(word_id)
+        out.append(word_id)
+    return out
+
+
+async def split_draft_to_new_pack(
+    *,
+    source_definition: FamilyPackDefinition,
+    word_ids: list[str],
+    new_name: str,
+    new_description: str | None,
+    mode: Literal["copy", "move"],
+    parent_user_id: str,
+    new_pack_id: str | None = None,
+) -> DraftSplitResult:
+    if mode not in ("copy", "move"):
+        raise InvalidPayload("mode must be 'copy' or 'move'")
+
+    selected_ids = _unique_nonblank_word_ids(word_ids)
+    if not selected_ids:
+        raise InvalidPayload("word_ids must not be empty")
+
+    source_draft = await get_or_create_draft(
+        definition=source_definition,
+        parent_user_id=parent_user_id,
+    )
+    source_ids = {
+        str(w.get("id"))
+        for w in source_draft.words
+        if isinstance(w.get("id"), str)
+    }
+    missing = [word_id for word_id in selected_ids if word_id not in source_ids]
+    if missing:
+        raise DraftWordNotFound(missing)
+
+    selected_id_set = set(selected_ids)
+    selected_words = [
+        dict(word)
+        for word in source_draft.words
+        if isinstance(word.get("id"), str) and word["id"] in selected_id_set
+    ]
+
+    settings = get_settings()
+    if len(selected_words) > settings.family_pack_max_words:
+        raise WordLimitExceeded(
+            f"split selection exceeds {settings.family_pack_max_words}-word cap"
+        )
+
+    new_definition = await create_definition(
+        family_id=source_definition.family_id,
+        name=new_name,
+        description=new_description,
+        parent_user_id=parent_user_id,
+        pack_id=new_pack_id,
+    )
+    now = _utcnow()
+    new_draft = FamilyPackDraft(
+        pack_definition_id=new_definition.pack_id,
+        family_id=new_definition.family_id,
+        words=selected_words,
+        updated_at=now,
+        updated_by_parent_id=parent_user_id,
+    )
+    await new_draft.insert()
+    new_definition.updated_at = now
+    await new_definition.save()
+
+    if mode == "move":
+        source_draft.words = [
+            word
+            for word in source_draft.words
+            if not (
+                isinstance(word.get("id"), str)
+                and word["id"] in selected_id_set
+            )
+        ]
+        source_draft.updated_at = now
+        source_draft.updated_by_parent_id = parent_user_id
+        await source_draft.save()
+        source_definition.updated_at = now
+        await source_definition.save()
+
+    return DraftSplitResult(
+        source_definition=source_definition,
+        new_definition=new_definition,
+        source_draft=source_draft,
+        new_draft=new_draft,
+        selected_word_count=len(selected_words),
+        mode=mode,
+    )
 
 
 # ---------------------------------------------------------------------------

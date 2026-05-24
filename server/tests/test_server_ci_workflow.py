@@ -65,6 +65,25 @@ def test_cloudbase_staging_smoke_uses_shared_staging_url() -> None:
     assert "uv run pytest -v -m smoke" in smoke_step
 
 
+def test_legacy_vercel_e2e_skips_unusable_local_mongo_uri() -> None:
+    workflow = _server_ci_workflow()
+
+    validate_step = _step_with_id(workflow, "e2e_mongo")
+    assert "Validate E2E MongoDB URI" in validate_step
+    assert "set_ready(False)" in validate_step
+    assert "127.0.0.1" in validate_step
+    assert "localhost" in validate_step
+    assert "::1" in validate_step
+
+    for step_name in [
+        "Prune stale E2E PR databases",
+        "Reset E2E database (truncate test collections)",
+        "Run E2E pytest subset",
+    ]:
+        step = _step_named(workflow, step_name)
+        assert "steps.e2e_mongo.outputs.ready == 'true'" in step
+
+
 def test_main_cd_deploys_to_both_vercel_and_cloudbase_during_transition() -> None:
     vercel_cd = _workflow("server-cd.yml")
     cloudbase_cd = _workflow("server-cloudbase-cd.yml")

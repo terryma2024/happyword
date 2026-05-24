@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, Query, Request, UploadFile
@@ -125,6 +125,8 @@ def _flash_map_global(request: Request) -> tuple[str | None, str | None]:
         "gpk_deleted": "已删除全局词包。",
         "draft_saved": "已保存草稿词条。",
         "draft_deleted": "已删除草稿词条。",
+        "gpk_split_copy": "已复制所选草稿词条到新的全局词包。",
+        "gpk_split_move": "已移动所选草稿词条到新的全局词包。",
     }
     err = request.query_params.get("flash_err")
     if ok == "image_imported" and imported is not None:
@@ -1290,6 +1292,70 @@ async def admin_global_pack_draft_delete_post(
         )
     return RedirectResponse(
         url=_global_pack_detail_url(pid, flash_ok="draft_deleted"),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/draft/split", response_model=None)
+async def admin_global_pack_draft_split_post(
+    request: Request,
+    pack_id: str,
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    form = await request.form()
+    seen: set[str] = set()
+    word_ids: list[str] = []
+    for raw in form.getlist("word_ids"):
+        word_id = str(raw).strip()
+        if word_id and word_id not in seen:
+            seen.add(word_id)
+            word_ids.append(word_id)
+    mode = str(form.get("mode", "copy")).strip()
+    new_name = str(form.get("new_name", "")).strip()
+    desc_raw = str(form.get("new_description", "")).strip()
+    new_description = desc_raw or None
+
+    try:
+        result = await gps.split_draft_to_new_pack(
+            pack_id=pid,
+            admin_id=gate.username,
+            word_ids=word_ids,
+            new_name=new_name,
+            new_description=new_description,
+            mode=cast("Literal['copy', 'move']", mode),
+        )
+    except gps.PackNotFound:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包。')}",
+            status_code=303,
+        )
+    except gps.GlobalPackError as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(exc)),
+            status_code=303,
+        )
+
+    await record_admin_action(
+        admin_username=gate.username,
+        action="global_pack.draft_split",
+        target_collection="family_pack_definitions",
+        target_id=pid,
+        payload_summary={
+            "source_pack_id": pid,
+            "new_pack_id": result.new_definition.pack_id,
+            "mode": result.mode,
+            "selected_count": result.selected_word_count,
+            "via": "admin_html_detail",
+        },
+    )
+    return RedirectResponse(
+        url=_global_pack_detail_url(
+            result.new_definition.pack_id,
+            flash_ok=f"gpk_split_{result.mode}",
+        ),
         status_code=303,
     )
 
