@@ -49,8 +49,8 @@
 
 | Screen | `assets/screenshots/harmonyos/...` | `assets/screenshots/ios/...` | `assets/screenshots/android/...` |
 | --- | --- | --- | --- |
-| Home streak entry | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual emulator visual acceptance 2026-05-24. |
-| Check-in calendar | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual emulator visual acceptance 2026-05-24. |
+| Today Plan check-in entry | [x] `daily-checkin-today-plan.png` | [x] `daily-checkin-today-plan.png` | [x] `daily-checkin-today-plan.png` |
+| Check-in calendar | [x] `daily-checkin-calendar.png` | [x] `daily-checkin-calendar.png` | [x] `daily-checkin-calendar.png` |
 | Result weekly bonus row | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual simulator visual acceptance 2026-05-24. | [x] Manual emulator visual acceptance 2026-05-24. |
 
 ## 6. Versions
