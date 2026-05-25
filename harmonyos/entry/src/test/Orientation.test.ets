@@ -66,6 +66,8 @@ export default function orientationTest(): void {
         .assertEqual('PORTRAIT');
       expect(desiredOrientationForPage('LessonDraftReviewPage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
         .assertEqual('PORTRAIT');
+      expect(desiredOrientationForPage('InAppBrowserPage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
+        .assertEqual('PORTRAIT');
     });
 
     it('pad pages release to full auto-rotation', 0, () => {

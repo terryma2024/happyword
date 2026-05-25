@@ -32,6 +32,7 @@ const PHONE_PORTRAIT_PAGES: string[] = [
   'BoundDeviceInfoPage',
   'ParentAdminPage',
   'LessonDraftReviewPage',
+  'InAppBrowserPage',
 ];
 
 export interface IOrientationAdapter {

@@ -38,7 +38,7 @@ import {
   PRIVACY_POLICY_URL,
   TERMS_OF_SERVICE_URL,
 } from '../services/CompliancePolicy';
-import { openUrlInSystemBrowser } from '../services/SystemBrowser';
+import { openUrlInAppBrowser } from '../services/SystemBrowser';
 import { requestPageOrientation } from '../utils/orientation';
 import {
   HomeIntegrationBundle,
@@ -192,9 +192,7 @@ struct HomePage {
   }
 
   private openComplianceUrl(url: string): void {
-    const ctx: common.UIAbilityContext =
-      this.getUIContext().getHostContext() as common.UIAbilityContext;
-    openUrlInSystemBrowser(ctx, url).catch((err: Error): void => {
+    openUrlInAppBrowser(this.getUIContext(), url).catch((err: Error): void => {
       console.error(`HomePage.openComplianceUrl failed: ${err.message}`);
     });
   }
