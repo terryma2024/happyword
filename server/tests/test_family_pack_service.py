@@ -752,6 +752,56 @@ async def test_etag_changes_when_archive(db: object) -> None:
 
 
 @pytest.mark.asyncio
+async def test_etag_changes_when_published_pack_name_changes(db: object) -> None:
+    family_id, parent = await _new_family()
+    d = await svc.create_definition(
+        family_id=family_id, name="Before", description=None, parent_user_id=parent
+    )
+    await svc.upsert_draft_word(
+        definition=d,
+        word_id="apple",
+        payload=_global_payload(),
+        parent_user_id=parent,
+    )
+    await svc.publish(definition=d, parent_user_id=parent, notes=None)
+    _, etag_before = await svc.collect_merged(family_id=family_id)
+    await svc.patch_definition(
+        pack_id=d.pack_id,
+        family_id=family_id,
+        name="After",
+        description=None,
+    )
+    slices, etag_after = await svc.collect_merged(family_id=family_id)
+    assert slices[0].name == "After"
+    assert etag_before != etag_after
+
+
+@pytest.mark.asyncio
+async def test_child_vocabulary_etag_changes_when_pack_name_changes(db: object) -> None:
+    family_id, parent = await _new_family()
+    d = await svc.create_definition(
+        family_id=family_id, name="Before", description=None, parent_user_id=parent
+    )
+    await svc.upsert_draft_word(
+        definition=d,
+        word_id=_custom_word(family_id, "apple"),
+        payload=_custom_payload(),
+        parent_user_id=parent,
+    )
+    await svc.publish(definition=d, parent_user_id=parent, notes=None)
+    before = await svc.collect_child_vocabulary(family_id=family_id)
+    await svc.patch_definition(
+        pack_id=d.pack_id,
+        family_id=family_id,
+        name="After",
+        description=None,
+    )
+    after = await svc.collect_child_vocabulary(family_id=family_id)
+    assert after.slices[0].name == "After"
+    assert before.etag != after.etag
+
+
+@pytest.mark.asyncio
 async def test_etag_deterministic_across_calls(db: object) -> None:
     family_id, parent = await _new_family()
     d = await svc.create_definition(
