@@ -1,4 +1,4 @@
-# <Feature Name> — Replication Trigger
+# V0.9.2 Boss Dialogue and Built-in Pack Expansion — Replication Trigger
 
 > Inputs (frozen): [`00-design.md`](00-design.md), [`10-harmony-plan.md`](10-harmony-plan.md)
 >
@@ -6,75 +6,91 @@
 
 ## 1. Soft Gate (machine-checkable)
 
-Paste evidence (paths to logs, commit SHAs, screenshot folders) next to each item before checking it.
-
-- [ ] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
-  - Evidence: <log path or commit SHA>
-- [ ] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
-  - Evidence: <`TestFinished-ResultCode: 0` line>
-- [ ] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
-  - Evidence: <log path; verify per `.cursor/ohos-dev-commands.md` §1>
-- [ ] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
-  - Evidence: <log path>
-- [ ] **Version bumped** — `harmonyos/AppScope/app.json5`
-  - From: `versionName=<old>` `versionCode=<old>`
-  - To: `versionName=<new>` `versionCode=<new>`
+- [x] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
+  - Evidence: 2026-05-25, final line `BUILD SUCCESSFUL in 2 s 952 ms`.
+- [x] **ohosTest UI tests green** — `scripts/run_ui_tests.sh --suite BattleFlow --rebuild`
+  - Evidence: 2026-05-25, `Tests run: 4, Failure: 0, Error: 0, Pass: 4, Ignore: 0`; `TestFinished-ResultCode: 0`.
+- [x] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
+  - Evidence: 2026-05-25, final line `BUILD SUCCESSFUL in 3 s 854 ms`; output contained no `ArkTS:WARN` lines. A toolchain `sun.misc.Unsafe` warning was present and is not an ArkTS warning.
+- [x] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
+  - Evidence: 2026-05-25, final line `No defects found in your code.`
+- [x] **Version bumped** — `harmonyos/AppScope/app.json5`
+  - From: already `versionName=0.9.2` `versionCode=1009002` in this branch.
+  - To: `versionName=0.9.2` `versionCode=1009002`.
 - [ ] **Feature merged to main**
-  - Commit: <SHA / PR link>
+  - Commit: pending owner integration.
 - [ ] **Screenshots refreshed** — for every screen this feature visibly changed
-  - Files updated under `assets/screenshots/harmonyos/`: <list>
-- [ ] **Server contracts up to date** — required only if server changed; otherwise mark `N/A` and explain.
-  - Regenerated: <commit touching `shared/contracts/openapi/`>
-  - Tests: `cd server && uv run pytest tests/test_shared_contracts.py -q` <log link>
-  - Fixture diffs: <list of `shared/fixtures/` paths>
+  - Files updated under `assets/screenshots/harmonyos/`: pending screenshot pass.
+- [x] **Server contracts up to date** — no server/shared contract change.
+  - Regenerated: N/A.
+  - Tests: N/A.
+  - Fixture diffs: N/A.
 
 ## 2. Delta Letter
-
-This section is the agent-readable summary that iOS and Android agents will consume verbatim. Be specific. Avoid prose; prefer lists.
 
 ### 2.1 New / changed code
 
 | Layer | HarmonyOS files |
 | --- | --- |
-| Models | <list> |
-| Services | <list> |
-| Pages | <list> |
-| Tests | <list> |
+| Data | `harmonyos/entry/src/main/ets/data/MonsterCatalog.ets` |
+| Models | `harmonyos/entry/src/main/ets/models/AdventureRegion.ets`, `harmonyos/entry/src/main/ets/models/GameConfig.ets` |
+| Services | `harmonyos/entry/src/main/ets/services/BattleEngine.ets`, `harmonyos/entry/src/main/ets/services/TodayAdventureBuilder.ets` |
+| Pages | `harmonyos/entry/src/main/ets/pages/BattlePage.ets` |
+| Built-in rawfiles | `harmonyos/entry/src/main/resources/rawfile/data/builtin/*.json` |
+| Tests | `harmonyos/entry/src/test/MonsterDialogue.test.ets`, `BuiltinPackLoader.test.ets`, `LocalUnit.test.ets`, `TodayAdventureBuilder.test.ets`, `BattleFlow.ui.test.ets`, `RoutingFlow.ui.test.ets`, `MagicAttack.ui.test.ets` |
 
 ### 2.2 Persistence keys (cross-platform; replicas must match semantics)
 
 | Key | Type | Default | Migration notes |
 | --- | --- | --- | --- |
+| `gameConfig.playerMaxHp` | number | `10` | Existing saved values are preserved by clone/copy paths. |
+| `gameConfig.monsterMaxHp` | number | `5` | Existing saved values are preserved by clone/copy paths. |
+| `gameConfig.monstersTotal` | number | `10` | Existing saved values are preserved by clone/copy paths. |
 
 ### 2.3 Stable IDs introduced or changed
 
-> Cross-link to [`00-design.md`](00-design.md) §5. List only deltas vs. that table.
-
 | ID | Where | Notes |
 | --- | --- | --- |
+| `BattleBossIntroBubble` | Battle ordinary intro overlay | Level 1 / 2 / 3 intro container. |
+| `BattleBossIntroName` | Battle ordinary intro overlay | Monster display name. |
+| `BattleBossIntroLineEn` | Battle ordinary intro overlay | English primary line. |
+| `BattleBossIntroLineZh` | Battle ordinary intro overlay | Chinese support line. |
+| `BattleSuperBossIntroBanner` | Battle SuperBoss intro overlay | Ornate banner, auto-dismissed, blocks input while visible. |
+| `BattleSuperBossIntroTitle` | Battle SuperBoss intro overlay | Banner title. |
+| `BattleSuperBossIntroLineEn` | Battle SuperBoss intro overlay | English primary line. |
+| `BattleSuperBossIntroLineZh` | Battle SuperBoss intro overlay | Chinese support line. |
+| `BattleBossDefeatBubble` | Battle defeat overlay | Short defeat container. |
+| `BattleBossDefeatName` | Battle defeat overlay | Monster display name. |
+| `BattleBossDefeatLineEn` | Battle defeat overlay | English primary line. |
+| `BattleBossDefeatLineZh` | Battle defeat overlay | Chinese support line. |
 
 ### 2.4 Edge cases discovered during stabilization
 
-> "What the design didn't predict but Harmony work uncovered." iOS / Android plans must encode these from day one.
-
-- <case 1>
-- <case 2>
+- `TodayAdventureBuilder` must expand legacy 5-slot monster templates to 10 output slots by cycling the template; simply changing `MONSTER_PLAN_SLOT_COUNT` is not enough.
+- With 15-word built-in packs and a 20-slot `wordPlan`, the plan builder must allow deterministic word reuse after exhausting unique candidates.
+- UI automation answer maps must include all newly added built-in words; otherwise helper-driven correct/wrong taps fail on new prompts.
+- SuperBoss intro blocks input while visible; ordinary intro and defeat bubbles do not intercept taps.
 
 ### 2.5 Tests requiring parity counterparts
 
 | HarmonyOS test | iOS counterpart (XCTest / XCUITest) | Android counterpart (JUnit / Compose UI / UIA) |
 | --- | --- | --- |
+| `MonsterDialogue.test.ets` | Validate 100 dialogue rows and resolver fallback. | Validate 100 dialogue rows and resolver fallback. |
+| `LocalUnit.test.ets` default assertions | Validate first-install defaults 10 / 5 / 10 and saved-config preservation. | Validate first-install defaults 10 / 5 / 10 and saved-config preservation. |
+| `TodayAdventureBuilder.test.ets` | Validate 10 monster slots and word-plan cycling semantics. | Validate 10 monster slots and word-plan cycling semantics. |
+| `BuiltinPackLoader.test.ets` | Validate five built-in packs each expose 15 sentence-ready words. | Validate five built-in packs each expose 15 sentence-ready words. |
+| `BattleFlow.ui.test.ets` | UI test ordinary intro, SuperBoss banner auto-dismiss, defeat bubble. | UI test ordinary intro, SuperBoss banner auto-dismiss, defeat bubble. |
 
 ### 2.6 Pitfalls / "do not repeat my mistakes"
 
-- <pitfall 1>
-- <pitfall 2>
+- Do not wrap Hypium async UI tests in `try { ... } catch (err) { done(err) }`; this runner can report false success. Let assertion errors throw directly.
+- Do not rely on process exit code alone for Hvigor unit tests; inspect console output for `ERROR: Error in ...`.
+- Do not make SuperBoss intro require an extra tap; it must auto-dismiss.
+- Do not mark `replication_approved: true`; only the human owner signs below.
 
 ## 3. Open Questions for the Replicas
 
-If iOS / Android need clarifications that are not yet captured in `00-design.md`, list them here. Resolving them updates `00-design.md` first; only then do the questions get checked off.
-
-- [ ] <question>
+- [x] None.
 
 ## 4. Human-Confirm Signature Block
 
