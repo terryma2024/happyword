@@ -25,8 +25,8 @@ import {
  */
 export class GameConfig {
   playerMaxHp: number = 10;
-  monsterMaxHp: number = 3;
-  monstersTotal: number = 5;
+  monsterMaxHp: number = 5;
+  monstersTotal: number = 10;
   startingSeconds: number = 300;
   /**
    * V0.2: auto-play English pronunciation on each new question. Default

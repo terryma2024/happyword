@@ -44,6 +44,23 @@ function makeRegion(): AdventureRegion {
   return r;
 }
 
+function makeRegionWithExactSlotCount(count: number): AdventureRegion {
+  const r: AdventureRegion = new AdventureRegion();
+  r.id = 'legacy-five-slot-region';
+  r.themeWordCategories = ['fruit'];
+  const plan: MonsterPlan = new MonsterPlan();
+  const slots: MonsterSlot[] = [];
+  for (let i: number = 0; i < count; i++) {
+    const s: MonsterSlot = new MonsterSlot();
+    s.kind = i === count - 1 ? MonsterKind.Boss : MonsterKind.Normal;
+    s.catalogIndex = monsterIndexForKind(s.kind);
+    slots.push(s);
+  }
+  plan.slots = slots;
+  r.monsterPlan = plan;
+  return r;
+}
+
 function makeRegionWithBoss(id: string, candidates: number[]): AdventureRegion {
   const r: AdventureRegion = new AdventureRegion();
   r.id = id;
@@ -113,6 +130,23 @@ export default function todayAdventureBuilderTest() {
       expect(plan.wordPlan.length).assertEqual(MONSTER_PLAN_SLOT_COUNT * WORD_PLAN_MULTIPLIER);
       expect(plan.bossWordIds.length).assertEqual(2);
       expect(plan.isFirstToday).assertTrue();
+    });
+
+    it('buildsTenMonsterSlotsForV092TodayAdventure', 0, () => {
+      const plan: TodaySessionPlan = new TodayAdventureBuilder(mulberry32(11))
+        .build(makeRegion(), makeRepo(), new LearningRecorder(), NOW, true);
+      expect(MONSTER_PLAN_SLOT_COUNT).assertEqual(10);
+      expect(plan.monsterSlots.length).assertEqual(10);
+      expect(plan.wordPlan.length).assertEqual(20);
+    });
+
+    it('expandsLegacyFiveSlotRegionTemplatesToTenSlots', 0, () => {
+      const region: AdventureRegion = makeRegionWithExactSlotCount(5);
+      const plan: TodaySessionPlan = new TodayAdventureBuilder(mulberry32(11))
+        .build(region, makeRepo(), new LearningRecorder(), NOW, true);
+      expect(plan.monsterSlots.length).assertEqual(10);
+      expect(plan.monsterSlots[0].kind).assertEqual(plan.monsterSlots[5].kind);
+      expect(plan.monsterSlots[4].kind).assertEqual(plan.monsterSlots[9].kind);
     });
 
     it('isDeterministicForFixedRng', 0, () => {
@@ -223,7 +257,7 @@ export default function todayAdventureBuilderTest() {
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
       const p1: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
       const p2: TodaySessionPlan = b.build(region, repo, rec, NOW + 60_000, false);
-      const bossSlot: number = 3;
+      const bossSlot: number = MONSTER_PLAN_SLOT_COUNT - 1;
       expect(p1.monsterSlots[bossSlot].catalogIndex).assertEqual(p2.monsterSlots[bossSlot].catalogIndex);
     });
 
@@ -233,7 +267,7 @@ export default function todayAdventureBuilderTest() {
       const rec: LearningRecorder = new LearningRecorder();
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
       const p: TodaySessionPlan = b.build(region, repo, rec, NOW, false);
-      const bossSlot: number = 3;
+      const bossSlot: number = MONSTER_PLAN_SLOT_COUNT - 1;
       expect(p.monsterSlots[bossSlot].catalogIndex).assertEqual(monsterIndexForKind(MonsterKind.Boss));
       expect(p.monsterSlots[bossSlot].kind).assertEqual(MonsterKind.Boss);
     });
@@ -249,7 +283,7 @@ export default function todayAdventureBuilderTest() {
           expect(region.bossCandidates.indexOf(p.monsterSlots[i].catalogIndex) >= 0).assertTrue();
         } else {
           expect(p.monsterSlots[i].catalogIndex).assertEqual(
-            monsterIndexForKind(p.monsterSlots[i].kind),
+            region.monsterPlan.slots[i].catalogIndex,
           );
         }
       }
@@ -264,7 +298,7 @@ export default function todayAdventureBuilderTest() {
       let now: number = NOW;
       for (let d: number = 0; d < 14; d++) {
         const p: TodaySessionPlan = b.build(region, repo, rec, now, false);
-        const bossSlot: number = 3;
+        const bossSlot: number = MONSTER_PLAN_SLOT_COUNT - 1;
         const idx: number = p.monsterSlots[bossSlot].catalogIndex;
         expect(idx === 4 || idx === 5 || idx === 6).assertTrue();
         allHit.add(idx);
@@ -283,7 +317,7 @@ export default function todayAdventureBuilderTest() {
       const b: TodayAdventureBuilder = new TodayAdventureBuilder(mulberry32(7));
       const pForest: TodaySessionPlan = b.build(forest, repo, rec, NOW, false);
       const pCastle: TodaySessionPlan = b.build(castle, repo, rec, NOW, false);
-      const bossSlot: number = 3;
+      const bossSlot: number = MONSTER_PLAN_SLOT_COUNT - 1;
       // Disjoint candidate ranges guarantee non-equal indices when
       // both override paths fire.
       expect(pForest.monsterSlots[bossSlot].catalogIndex).assertLarger(3);
