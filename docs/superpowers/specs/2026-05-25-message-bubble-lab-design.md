@@ -91,13 +91,13 @@ Unit tests should cover preset coordinate generation:
 - Presets use absolute `vp` values and do not return normalized coordinates.
 - Manual point config passes through unchanged.
 
-UI tests should cover the Lab smoke path:
+The repo's HarmonyOS UI automation rules exclude DevMenu and the version-label triple-tap path, so the Lab smoke path is verified manually on the simulator:
 
 - The debug entry opens Message Bubble Lab.
 - Preset controls update the preview and output panel.
 - Numeric edits update the output panel.
 
-Rendering quality still requires manual simulator screenshots during tuning, especially to verify seamless body-tail stitching.
+Automated coverage should focus on pure Lab state and geometry. Rendering quality requires manual simulator screenshots during tuning, especially to verify seamless body-tail stitching.
 
 ## Implementation Notes
 
