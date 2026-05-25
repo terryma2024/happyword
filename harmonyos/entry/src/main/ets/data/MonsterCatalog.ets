@@ -372,6 +372,19 @@ export function levelBadgeZhForMonsterLevel(level: MonsterLevel): string {
   return 'Super';
 }
 
+export function battleLevelLabelForMonsterLevel(level: MonsterLevel): string {
+  if (level === MonsterLevel.Beginner) {
+    return 'L1 初级';
+  }
+  if (level === MonsterLevel.Intermediate) {
+    return 'L2 中级';
+  }
+  if (level === MonsterLevel.Advanced) {
+    return 'L3 高级';
+  }
+  return 'L4 Super';
+}
+
 export function getMonsterByIndex(index1Based: number): MonsterEntry {
   if (index1Based <= 0) {
     return MONSTER_CATALOG[0];

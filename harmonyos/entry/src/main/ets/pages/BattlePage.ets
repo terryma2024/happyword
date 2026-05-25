@@ -56,6 +56,7 @@ import { Question, QuestionKind } from '../models/Question';
 import {
   MonsterDialogue,
   MonsterEntry,
+  battleLevelLabelForMonsterLevel,
   getMonsterByIndex,
 } from '../data/MonsterCatalog';
 import { computeMonsterLevelCoinAward } from '../services/BattleRewardCalc';
@@ -2109,6 +2110,7 @@ struct BattlePage {
                   hp: this.monsterHp,
                   maxHp: this.monsterMaxHp,
                   sublabel: `Monster ${this.monsterIndex} / ${this.monsterTotal}`,
+                  levelBadge: battleLevelLabelForMonsterLevel(this.currentMonster.level),
                   hurtPulse: this.monsterHurtPulse,
                   zoomPulse: this.monsterZoomPulse,
                   assetPath: assetPathForEntry(this.currentMonster),

@@ -48,4 +48,11 @@ Dialogue presentation follows catalog identity per battle:
 - The first appearance of a catalog monster in a battle may show intro and defeat lines.
 - If the same catalog monster appears again in the same battle, suppress both intro and defeat lines.
 
+Battle monster cards show the current monster's level badge beside its name:
+
+- Beginner: `L1 初级`
+- Intermediate: `L2 中级`
+- Advanced: `L3 高级`
+- Super: `L4 Super`
+
 Replication note: iOS and Android must implement the same state machine; do not reuse the older intro/challenge random scheduler.

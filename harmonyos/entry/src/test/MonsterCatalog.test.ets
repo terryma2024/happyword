@@ -3,6 +3,7 @@ import {
   MonsterEntry,
   MonsterKind,
   MonsterLevel,
+  battleLevelLabelForMonsterLevel,
   getMonsterByIndex,
   MONSTER_CATALOG,
   monsterIndexForKind,
@@ -203,6 +204,13 @@ export default function monsterCatalogTest() {
     it('bossesAreNotForcedToAdvanced', 0, () => {
       expect(getMonsterByIndex(4).kind).assertEqual(MonsterKind.Boss);
       expect(getMonsterByIndex(4).level).assertEqual(MonsterLevel.Intermediate);
+    });
+
+    it('battleLevelLabelsExposeReadableStageLabels', 0, () => {
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Beginner)).assertEqual('L1 初级');
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Intermediate)).assertEqual('L2 中级');
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Advanced)).assertEqual('L3 高级');
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Super)).assertEqual('L4 Super');
     });
   });
 
