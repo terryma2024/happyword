@@ -9,6 +9,7 @@ returns 404 PACK_NOT_FOUND on miss to avoid leaking pack existence).
 from __future__ import annotations
 
 import hashlib
+import json
 import secrets
 from dataclasses import dataclass
 from dataclasses import field as dataclasses_field
@@ -859,8 +860,9 @@ async def collect_merged(
 ) -> tuple[list[MergedSlice], str]:
     """Return active-and-published packs + the deterministic ETag.
 
-    ETag is `"sha256({pack_id}:{version}|...)"` over sorted (pack_id, version)
-    pairs so the client can revalidate cheaply with HEAD/If-None-Match.
+    ETag fingerprints the published pack ids/versions plus display metadata
+    carried by latest JSON responses, so clients re-fetch when a pack is
+    renamed without publishing a new word version.
     """
     definitions = await FamilyPackDefinition.find(
         FamilyPackDefinition.family_id == family_id,
@@ -882,7 +884,6 @@ async def collect_merged(
         return [], _etag_from_pairs([])
 
     slices: list[MergedSlice] = []
-    pairs: list[tuple[str, int]] = []
     for pack_id, pointer in pointer_by_pack.items():
         pack = await FamilyWordPack.find_one(
             FamilyWordPack.pack_definition_id == pack_id,
@@ -903,14 +904,39 @@ async def collect_merged(
                 published_at=pack.published_at,
             )
         )
-        pairs.append((pack_id, pack.version))
     slices.sort(key=lambda s: s.pack_id)
-    return slices, _etag_from_pairs(pairs)
+    return slices, _etag_from_slices(slices)
 
 
 def _etag_from_pairs(pairs: Iterable[tuple[str, int]]) -> str:
     sorted_pairs = sorted(pairs, key=lambda p: (p[0], p[1]))
     fingerprint = "|".join(f"{pid}:{ver}" for pid, ver in sorted_pairs)
+    digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
+    return f'"{digest}"'
+
+
+def _etag_from_slices(slices: Iterable[MergedSlice]) -> str:
+    fingerprint_rows: list[dict[str, Any]] = []
+    for s in sorted(slices, key=lambda row: (row.pack_id, row.version)):
+        fingerprint_rows.append(
+            {
+                "pack_id": s.pack_id,
+                "version": s.version,
+                "schema_version": s.schema_version,
+                "name": s.name,
+                "description": s.description or "",
+                "scene": s.scene,
+                "published_at": s.published_at.isoformat()
+                if s.published_at is not None
+                else "",
+            }
+        )
+    fingerprint = json.dumps(
+        fingerprint_rows,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
     return f'"{digest}"'
 
@@ -936,9 +962,8 @@ def _merge_words(
     return [merged[k] for k in sorted(merged)]
 
 
-def _child_etag(*, global_version: int, family_pairs: list[tuple[str, int]]) -> str:
-    family_part = "|".join(f"{pid}:{ver}" for pid, ver in sorted(family_pairs))
-    raw = f"global:{global_version}|family:{family_part}"
+def _child_etag(*, global_version: int, family_fingerprint: str) -> str:
+    raw = f"global:{global_version}|family:{family_fingerprint}"
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     return f'"{digest}"'
 
@@ -957,11 +982,10 @@ class ChildMergedVocabulary:
 async def collect_child_vocabulary(*, family_id: str) -> ChildMergedVocabulary:
     """Merge published global pack JSON with this family's published packs."""
     global_version, global_payload = await pack_service.get_current_pack_payload()
-    family_slices, _fam_only_etag = await collect_merged(family_id=family_id)
+    family_slices, fam_only_etag = await collect_merged(family_id=family_id)
     family_versions = {s.pack_id: s.version for s in family_slices}
     global_words = list(global_payload.get("words", []))
     words = _merge_words(global_words=global_words, family_slices=family_slices)
-    family_pairs = [(s.pack_id, s.version) for s in family_slices]
     gv = int(global_payload.get("version", global_version))
     schema_version = max(
         [int(global_payload.get("schema_version", GLOBAL_PACK_SCHEMA_VERSION))]
@@ -974,7 +998,7 @@ async def collect_child_vocabulary(*, family_id: str) -> ChildMergedVocabulary:
         family_versions=family_versions,
         words=words,
         slices=family_slices,
-        etag=_child_etag(global_version=gv, family_pairs=family_pairs),
+        etag=_child_etag(global_version=gv, family_fingerprint=fam_only_etag),
     )
 
 
