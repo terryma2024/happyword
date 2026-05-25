@@ -82,16 +82,31 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "actions/upload-artifact" not in smoke_job
     assert "uses: astral-sh/setup-uv" not in smoke_job
     assert "UV_BIN: /usr/local/bin/uv" in smoke_job
+    assert "NODE_VERSION: 24.11.1" in smoke_job
+    assert "NPM_CONFIG_PREFIX: /tmp/happyword-npm-global" in smoke_job
     assert "server-source-for-cloudbase-e2e" in workflow
     assert "/tarball/${GITHUB_SHA}" not in smoke_job
     assert "git fetch" not in smoke_job
 
     download_step = _step_named(workflow, "Download server source")
+    bootstrap_node_step = _step_named(workflow, "Bootstrap Node.js")
+    verify_step = _step_named(workflow, "Verify runner toolchain")
     reset_step = _step_named(workflow, "Reset shared staging E2E database")
     smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
     assert "GITHUB_TOKEN" in download_step
     assert "archive_download_url" in download_step
+    assert "--connect-timeout 20" in download_step
     assert "python3.12 -m zipfile -e" in download_step
+    assert workflow.index("Bootstrap Node.js") < workflow.index(
+        "Verify runner toolchain"
+    )
+    assert 'mkdir -p "$NPM_CONFIG_PREFIX/bin"' in bootstrap_node_step
+    assert 'externals/node*/bin' in bootstrap_node_step
+    assert 'https://nodejs.org/dist/v${NODE_VERSION}/${node_archive}' in bootstrap_node_step
+    assert "node --version" in bootstrap_node_step
+    assert "npm --version" in bootstrap_node_step
+    assert "node --version" in verify_step
+    assert "npm --version" in verify_step
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
     assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
     assert "E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}" in reset_step

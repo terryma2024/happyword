@@ -81,6 +81,8 @@ jobs:
       HAS_TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY != '' }}
       HAS_TCB_ENV_ID: ${{ secrets.TCB_ENV_ID != '' }}
       UV_BIN: /usr/local/bin/uv
+      NODE_VERSION: 24.11.1
+      NPM_CONFIG_PREFIX: /tmp/happyword-npm-global
     defaults:
       run:
         working-directory: server
@@ -114,6 +116,9 @@ jobs:
           rm -rf server
           mkdir -p server
           curl -fsS \
+            --retry 5 \
+            --connect-timeout 20 \
+            --max-time 120 \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -129,12 +134,53 @@ jobs:
             exit 1
           fi
           curl -fL \
+            --retry 5 \
+            --connect-timeout 20 \
+            --max-time 300 \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "${archive_url}" \
             -o /tmp/server-source-for-cloudbase-e2e.zip
           python3.12 -m zipfile -e /tmp/server-source-for-cloudbase-e2e.zip server
+
+      - name: Bootstrap Node.js
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$NPM_CONFIG_PREFIX/bin"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+
+          if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+            runner_root="$(cd "$RUNNER_TEMP/../.." && pwd)"
+            for node_bin_dir in "$runner_root"/externals/node*/bin; do
+              if [ -x "$node_bin_dir/node" ]; then
+                echo "$node_bin_dir" >> "$GITHUB_PATH"
+                export PATH="$node_bin_dir:$PATH"
+                break
+              fi
+            done
+          fi
+
+          if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+            node_archive="node-v${NODE_VERSION}-linux-x64.tar.xz"
+            node_dir="/tmp/node-v${NODE_VERSION}-linux-x64"
+            if [ ! -x "$node_dir/bin/node" ] || [ ! -x "$node_dir/bin/npm" ]; then
+              curl -fsSL \
+                --retry 5 \
+                --connect-timeout 20 \
+                --max-time 300 \
+                "https://nodejs.org/dist/v${NODE_VERSION}/${node_archive}" \
+                -o "/tmp/${node_archive}"
+              tar -xJf "/tmp/${node_archive}" -C /tmp
+            fi
+            echo "$node_dir/bin" >> "$GITHUB_PATH"
+            export PATH="$node_dir/bin:$PATH"
+          fi
+
+          node --version
+          npm --version
 
       - name: Verify runner toolchain
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
