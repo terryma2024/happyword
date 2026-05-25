@@ -66,8 +66,9 @@ CloudBase staging row until service quota, route discovery, data isolation, and
 cleanup are implemented for on-demand PR previews.
 
 CloudBase staging smoke runs automatically for PRs that touch `server/**` or
-`.github/workflows/server-ci.yml`, and can also be run manually through
-`server-ci` after `CLOUDBASE_STAGING_BASE_URL` points at a healthy staging
-service.
+`.github/workflows/server-ci.yml`. The `server-ci` job deploys the PR's packaged
+`server/` artifact to the shared `happyword-server-staging` CloudBase Run
+service, waits for that revision to receive traffic, then resets the shared E2E
+database and runs the HTTP E2E suite against `CLOUDBASE_STAGING_BASE_URL`.
 
 **Server contract:** `GET /api/v1/public/preview-urls.json` is intentionally **unauthenticated** at the application layer (public router — no JWT, cookies, or API keys). Vercel Deployment Protection on *preview* deployments does not apply to this URL because the client always calls **production** `happyword.cool` for the manifest.

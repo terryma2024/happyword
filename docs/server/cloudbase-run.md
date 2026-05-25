@@ -1039,13 +1039,20 @@ CloudBase CD status as of 2026-05-21:
 - `CLOUDBASE_STAGING_BASE_URL` remains the shared staging CloudBase URL used by
   M8A smoke and the DevMenu manifest. It is not `happyword.com.cn`.
 
-Server CI E2E status as of 2026-05-23:
+Server CI E2E status as of 2026-05-25:
 
 - PR online E2E now targets one shared CloudBase staging environment instead of
   deploying Vercel previews or creating per-PR online databases.
-- The shared E2E job is opt-in through `workflow_dispatch` or a PR carrying the
-  `cloudbase-smoke` label, and it runs on the Beijing self-hosted runner so the
-  reset script can reach the local Beijing E2E MongoDB over loopback.
+- The shared E2E job runs automatically for PRs that touch `server/**` or
+  `.github/workflows/server-ci.yml`, and it runs on the Beijing self-hosted
+  runner so the reset script can reach the local Beijing E2E MongoDB over
+  loopback.
+- Before resetting the database, the job deploys the PR's packaged `server/`
+  artifact to the shared `happyword-server-staging` CloudBase Run service,
+  waits for the new deploy to receive 100% traffic, and health-checks
+  `CLOUDBASE_STAGING_BASE_URL`. This keeps the HTTP E2E target aligned with the
+  PR code under test, while the global `cloudbase-staging-e2e` concurrency lock
+  prevents two PRs from overwriting staging at the same time.
 - The job resets only `happyword_cloudbase_staging_e2e`; the reset script's
   suffix guard still requires `_e2e`, `_test`, or `_ci`.
 

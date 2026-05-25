@@ -93,6 +93,44 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert '"$UV_BIN" run --python 3.12 pytest -v -m e2e' in smoke_step
 
 
+def test_cloudbase_staging_e2e_deploys_pr_artifact_before_reset_and_tests() -> None:
+    workflow = _server_ci_workflow()
+
+    login_step = _step_named(workflow, "Login to CloudBase for staging deploy")
+    capture_step = _step_named(workflow, "Capture CloudBase staging deploy marker")
+    deploy_step = _step_named(workflow, "Deploy CloudBase staging Run")
+    wait_step = _step_named(workflow, "Wait for CloudBase staging deployment")
+    health_step = _step_named(workflow, "Health check CloudBase staging")
+    reset_step = _step_named(workflow, "Reset shared staging E2E database")
+    smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
+
+    assert workflow.index("Deploy CloudBase staging Run") < workflow.index(
+        "Reset shared staging E2E database"
+    )
+    assert workflow.index("Health check CloudBase staging") < workflow.index(
+        "Run CloudBase staging E2E"
+    )
+
+    assert "HAS_TCB_SECRET_ID" in workflow
+    assert "HAS_TCB_SECRET_KEY" in workflow
+    assert "HAS_TCB_ENV_ID" in workflow
+    assert 'TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID }}' in login_step
+    assert 'TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY }}' in login_step
+    assert 'TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}' in capture_step
+    assert "happyword-server-staging" in capture_step
+    assert "happyword-server-staging" in deploy_step
+    assert 'printf \'\\n\' | tcb cloudrun deploy' in deploy_step
+    assert "--source . --force" in deploy_step
+    assert "CLOUDBASE_PREVIOUS_STAGING_DEPLOY_ID" in wait_step
+    assert "previousDeployId" in wait_step
+    assert 'latest.Status === "normal"' in wait_step
+    assert 'String(latest.FlowRatio) === "100"' in wait_step
+    assert "latest.HasTraffic === true" in wait_step
+    assert 'curl -fsS "$CLOUDBASE_STAGING_BASE_URL/api/v1/public/health"' in health_step
+    assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
+    assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
+
+
 def test_main_cd_deploys_to_both_vercel_and_cloudbase_during_transition() -> None:
     vercel_cd = _workflow("server-cd.yml")
     cloudbase_cd = _workflow("server-cloudbase-cd.yml")
