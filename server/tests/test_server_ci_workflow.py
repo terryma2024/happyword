@@ -50,18 +50,19 @@ def test_server_ci_no_longer_deploys_legacy_vercel_preview_for_e2e() -> None:
     assert "update_manifest" not in workflow
 
 
-def test_cloudbase_staging_e2e_is_gated_by_manual_or_label() -> None:
+def test_cloudbase_staging_e2e_runs_for_server_prs_without_label_gate() -> None:
     workflow = _server_ci_workflow()
 
     assert "workflow_dispatch:" in workflow
-    assert "cloudbase-smoke" in workflow
-    assert "github.event.action == 'labeled'" in workflow
+    assert "cloudbase-smoke" not in workflow
+    assert "github.event.action == 'labeled'" not in workflow
 
     smoke_job_start = workflow.index("  cloudbase_staging_e2e:")
     smoke_job = workflow[smoke_job_start:]
 
     assert "github.event_name == 'workflow_dispatch'" in smoke_job
-    assert "contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')" in smoke_job
+    assert "github.event_name == 'pull_request'" in smoke_job
+    assert "contains(github.event.pull_request.labels.*.name" not in smoke_job
     assert "CLOUDBASE_STAGING_BASE_URL" in smoke_job
 
 
@@ -76,20 +77,79 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "group: cloudbase-staging-e2e" in smoke_job
     assert "cancel-in-progress: false" in smoke_job
     assert "actions/upload-artifact@v7.0.1" in workflow
-    assert "actions/download-artifact@v8.0.1" in smoke_job
+    assert "uses: actions/" not in smoke_job
+    assert "actions/download-artifact" not in smoke_job
+    assert "actions/upload-artifact" not in smoke_job
     assert "uses: astral-sh/setup-uv" not in smoke_job
     assert "UV_BIN: /usr/local/bin/uv" in smoke_job
+    assert "NODE_VERSION: 24.11.1" in smoke_job
+    assert "NPM_CONFIG_PREFIX: /tmp/happyword-npm-global" in smoke_job
     assert "server-source-for-cloudbase-e2e" in workflow
     assert "/tarball/${GITHUB_SHA}" not in smoke_job
     assert "git fetch" not in smoke_job
 
+    download_step = _step_named(workflow, "Download server source")
+    bootstrap_node_step = _step_named(workflow, "Bootstrap Node.js")
+    verify_step = _step_named(workflow, "Verify runner toolchain")
     reset_step = _step_named(workflow, "Reset shared staging E2E database")
     smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
+    assert "GITHUB_TOKEN" in download_step
+    assert "archive_download_url" in download_step
+    assert "--connect-timeout 20" in download_step
+    assert "python3.12 -m zipfile -e" in download_step
+    assert workflow.index("Bootstrap Node.js") < workflow.index(
+        "Verify runner toolchain"
+    )
+    assert 'mkdir -p "$NPM_CONFIG_PREFIX/bin"' in bootstrap_node_step
+    assert 'externals/node*/bin' in bootstrap_node_step
+    assert 'https://nodejs.org/dist/v${NODE_VERSION}/${node_archive}' in bootstrap_node_step
+    assert "node --version" in bootstrap_node_step
+    assert "npm --version" in bootstrap_node_step
+    assert "node --version" in verify_step
+    assert "npm --version" in verify_step
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
     assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
     assert "E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}" in reset_step
     assert "E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}" in reset_step
     assert '"$UV_BIN" run --python 3.12 pytest -v -m e2e' in smoke_step
+
+
+def test_cloudbase_staging_e2e_deploys_pr_artifact_before_reset_and_tests() -> None:
+    workflow = _server_ci_workflow()
+
+    login_step = _step_named(workflow, "Login to CloudBase for staging deploy")
+    capture_step = _step_named(workflow, "Capture CloudBase staging deploy marker")
+    deploy_step = _step_named(workflow, "Deploy CloudBase staging Run")
+    wait_step = _step_named(workflow, "Wait for CloudBase staging deployment")
+    health_step = _step_named(workflow, "Health check CloudBase staging")
+    reset_step = _step_named(workflow, "Reset shared staging E2E database")
+    smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
+
+    assert workflow.index("Deploy CloudBase staging Run") < workflow.index(
+        "Reset shared staging E2E database"
+    )
+    assert workflow.index("Health check CloudBase staging") < workflow.index(
+        "Run CloudBase staging E2E"
+    )
+
+    assert "HAS_TCB_SECRET_ID" in workflow
+    assert "HAS_TCB_SECRET_KEY" in workflow
+    assert "HAS_TCB_ENV_ID" in workflow
+    assert 'TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID }}' in login_step
+    assert 'TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY }}' in login_step
+    assert 'TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}' in capture_step
+    assert "happyword-server-staging" in capture_step
+    assert "happyword-server-staging" in deploy_step
+    assert 'printf \'\\n\' | tcb cloudrun deploy' in deploy_step
+    assert "--source . --force" in deploy_step
+    assert "CLOUDBASE_PREVIOUS_STAGING_DEPLOY_ID" in wait_step
+    assert "previousDeployId" in wait_step
+    assert 'latest.Status === "normal"' in wait_step
+    assert 'String(latest.FlowRatio) === "100"' in wait_step
+    assert "latest.HasTraffic === true" in wait_step
+    assert 'curl -fsS "$CLOUDBASE_STAGING_BASE_URL/api/v1/public/health"' in health_step
+    assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
+    assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
 
 
 def test_main_cd_deploys_to_both_vercel_and_cloudbase_during_transition() -> None:

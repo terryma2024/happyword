@@ -7,7 +7,6 @@ on:
       - opened
       - synchronize
       - reopened
-      - labeled
     paths:
       - "server/**"
       - ".github/workflows/server-ci.yml"
@@ -49,14 +48,7 @@ jobs:
         if: >-
           ${{
             github.event_name == 'workflow_dispatch' ||
-            (
-              github.event_name == 'pull_request' &&
-              (
-                github.event.action == 'labeled' ||
-                contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')
-              ) &&
-              contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')
-            )
+            github.event_name == 'pull_request'
           }}
         uses: actions/upload-artifact@v7.0.1
         with:
@@ -76,14 +68,7 @@ jobs:
     if: >-
       ${{
         github.event_name == 'workflow_dispatch' ||
-        (
-          github.event_name == 'pull_request' &&
-          (
-            github.event.action == 'labeled' ||
-            contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')
-          ) &&
-          contains(github.event.pull_request.labels.*.name, 'cloudbase-smoke')
-        )
+        github.event_name == 'pull_request'
       }}
     concurrency:
       group: cloudbase-staging-e2e
@@ -92,7 +77,12 @@ jobs:
       HAS_CLOUDBASE_STAGING_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL != '' }}
       HAS_E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI != '' }}
       HAS_E2E_STAGING_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME != '' }}
+      HAS_TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID != '' }}
+      HAS_TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY != '' }}
+      HAS_TCB_ENV_ID: ${{ secrets.TCB_ENV_ID != '' }}
       UV_BIN: /usr/local/bin/uv
+      NODE_VERSION: 24.11.1
+      NPM_CONFIG_PREFIX: /tmp/happyword-npm-global
     defaults:
       run:
         working-directory: server
@@ -104,33 +94,230 @@ jobs:
           echo "HAS_CLOUDBASE_STAGING_BASE_URL=${HAS_CLOUDBASE_STAGING_BASE_URL}"
           echo "HAS_E2E_MONGODB_URI=${HAS_E2E_MONGODB_URI}"
           echo "HAS_E2E_STAGING_DB_NAME=${HAS_E2E_STAGING_DB_NAME}"
+          echo "HAS_TCB_SECRET_ID=${HAS_TCB_SECRET_ID}"
+          echo "HAS_TCB_SECRET_KEY=${HAS_TCB_SECRET_KEY}"
+          echo "HAS_TCB_ENV_ID=${HAS_TCB_ENV_ID}"
           if [ "${HAS_CLOUDBASE_STAGING_BASE_URL}" != "true" ] || \
              [ "${HAS_E2E_MONGODB_URI}" != "true" ] || \
-             [ "${HAS_E2E_STAGING_DB_NAME}" != "true" ]; then
-            echo "::warning::cloudbase staging E2E skipped: configure CLOUDBASE_STAGING_BASE_URL, E2E_MONGODB_URI, and E2E_STAGING_DB_NAME."
+             [ "${HAS_E2E_STAGING_DB_NAME}" != "true" ] || \
+             [ "${HAS_TCB_SECRET_ID}" != "true" ] || \
+             [ "${HAS_TCB_SECRET_KEY}" != "true" ] || \
+             [ "${HAS_TCB_ENV_ID}" != "true" ]; then
+            echo "::warning::cloudbase staging E2E skipped: configure CLOUDBASE_STAGING_BASE_URL, E2E_MONGODB_URI, E2E_STAGING_DB_NAME, TCB_SECRET_ID, TCB_SECRET_KEY, and TCB_ENV_ID."
           fi
 
       - name: Download server source
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
-        uses: actions/download-artifact@v8.0.1
-        with:
-          name: server-source-for-cloudbase-e2e
-          path: server
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        working-directory: .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf server
+          mkdir -p server
+          curl -fsS \
+            --retry 5 \
+            --connect-timeout 20 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
+            > /tmp/server-ci-artifacts.json
+          archive_url="$(
+            jq -r '.artifacts[] | select(.name == "server-source-for-cloudbase-e2e") | .archive_download_url' \
+              /tmp/server-ci-artifacts.json \
+              | head -n 1
+          )"
+          if [ -z "${archive_url}" ] || [ "${archive_url}" = "null" ]; then
+            echo "::error::server-source-for-cloudbase-e2e artifact was not found for run ${GITHUB_RUN_ID}."
+            exit 1
+          fi
+          curl -fL \
+            --retry 5 \
+            --connect-timeout 20 \
+            --max-time 300 \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${archive_url}" \
+            -o /tmp/server-source-for-cloudbase-e2e.zip
+          python3.12 -m zipfile -e /tmp/server-source-for-cloudbase-e2e.zip server
+
+      - name: Bootstrap Node.js
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$NPM_CONFIG_PREFIX/bin"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+
+          if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+            runner_root="$(cd "$RUNNER_TEMP/../.." && pwd)"
+            for node_bin_dir in "$runner_root"/externals/node*/bin; do
+              if [ -x "$node_bin_dir/node" ]; then
+                echo "$node_bin_dir" >> "$GITHUB_PATH"
+                export PATH="$node_bin_dir:$PATH"
+                break
+              fi
+            done
+          fi
+
+          if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+            node_archive="node-v${NODE_VERSION}-linux-x64.tar.xz"
+            node_dir="/tmp/node-v${NODE_VERSION}-linux-x64"
+            if [ ! -x "$node_dir/bin/node" ] || [ ! -x "$node_dir/bin/npm" ]; then
+              curl -fsSL \
+                --retry 5 \
+                --connect-timeout 20 \
+                --max-time 300 \
+                "https://nodejs.org/dist/v${NODE_VERSION}/${node_archive}" \
+                -o "/tmp/${node_archive}"
+              tar -xJf "/tmp/${node_archive}" -C /tmp
+            fi
+            echo "$node_dir/bin" >> "$GITHUB_PATH"
+            export PATH="$node_dir/bin:$PATH"
+          fi
+
+          node --version
+          npm --version
 
       - name: Verify runner toolchain
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         run: |
           python3.12 --version
           jq --version
+          node --version
+          npm --version
           "$UV_BIN" --version
 
+      - name: Install CloudBase CLI
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        run: npm install -g @cloudbase/cli
+
+      - name: Login to CloudBase for staging deploy
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        env:
+          TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID }}
+          TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY }}
+        run: tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"
+
+      - name: Capture CloudBase staging deploy marker
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        env:
+          TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
+        run: |
+          set -euo pipefail
+          tcb api tcbr DescribeCloudRunDeployRecord \
+            --api-version 2022-02-17 \
+            -e "$TCB_ENV_ID" \
+            --body "{\"EnvId\":\"$TCB_ENV_ID\",\"ServerName\":\"happyword-server-staging\"}" \
+            --json > /tmp/cloudbase-staging-deploy-record-before.json
+          node <<'NODE' >> "$GITHUB_ENV"
+          const fs = require("node:fs");
+
+          const raw = fs.readFileSync("/tmp/cloudbase-staging-deploy-record-before.json", "utf8");
+          const jsonStart = raw.indexOf("{");
+          const payload = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw);
+          const records = payload.data?.DeployRecords ?? [];
+          const latest = records[records.length - 1];
+          console.log(`CLOUDBASE_PREVIOUS_STAGING_DEPLOY_ID=${latest?.DeployId ?? ""}`);
+          NODE
+
+      - name: Deploy CloudBase staging Run
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        env:
+          TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
+        run: |
+          set -euo pipefail
+          printf '\n' | tcb cloudrun deploy -e "$TCB_ENV_ID" -s happyword-server-staging --port 8080 --source . --force
+
+      - name: Wait for CloudBase staging deployment
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        env:
+          TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { execFileSync } = require("node:child_process");
+
+          const envId = process.env.TCB_ENV_ID;
+          const previousDeployId = process.env.CLOUDBASE_PREVIOUS_STAGING_DEPLOY_ID ?? "";
+          const serverName = "happyword-server-staging";
+          const deadline = Date.now() + 10 * 60 * 1000;
+
+          function sleep(ms) {
+            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+          }
+
+          function latestDeployRecord() {
+            const raw = execFileSync(
+              "tcb",
+              [
+                "api",
+                "tcbr",
+                "DescribeCloudRunDeployRecord",
+                "--api-version",
+                "2022-02-17",
+                "-e",
+                envId,
+                "--body",
+                JSON.stringify({ EnvId: envId, ServerName: serverName }),
+                "--json",
+              ],
+              { encoding: "utf8" },
+            );
+            const jsonStart = raw.indexOf("{");
+            const payload = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw);
+            const records = payload.data?.DeployRecords ?? [];
+            return records[records.length - 1];
+          }
+
+          while (Date.now() < deadline) {
+            const latest = latestDeployRecord();
+            if (!latest) {
+              throw new Error("CloudBase staging deploy record list is empty");
+            }
+            console.log(
+              [
+                `deploy=${latest.DeployId}`,
+                `status=${latest.Status}`,
+                `build=${latest.BuildId}`,
+                `traffic=${latest.FlowRatio}`,
+                `hasTraffic=${latest.HasTraffic}`,
+              ].join(" "),
+            );
+            if (latest.DeployId !== previousDeployId && latest.Status === "deploy_failed") {
+              throw new Error(`CloudBase staging deploy ${latest.DeployId} failed`);
+            }
+            if (
+              latest.DeployId !== previousDeployId &&
+              latest.Status === "normal" &&
+              Number(latest.BuildId) > 0 &&
+              String(latest.FlowRatio) === "100" &&
+              latest.HasTraffic === true
+            ) {
+              process.exit(0);
+            }
+            sleep(15000);
+          }
+
+          throw new Error("Timed out waiting for a new CloudBase staging deploy to receive 100% traffic");
+          NODE
+
+      - name: Health check CloudBase staging
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        env:
+          CLOUDBASE_STAGING_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}
+        run: curl -fsS "$CLOUDBASE_STAGING_BASE_URL/api/v1/public/health"
+
       - name: Sync dependencies
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         run: |
           "$UV_BIN" sync --python 3.12 --dev --default-index https://mirrors.cloud.tencent.com/pypi/simple
 
       - name: Reset shared staging E2E database
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
@@ -140,7 +327,7 @@ jobs:
           "$UV_BIN" run --python 3.12 python scripts/e2e_reset_db.py
 
       - name: Run CloudBase staging E2E
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}
           E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
@@ -153,17 +340,8 @@ jobs:
           mkdir -p artifacts
           "$UV_BIN" run --python 3.12 pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
 
-      - name: Upload E2E pytest log
-        if: ${{ always() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: cloudbase-staging-e2e-pytest-log
-          path: server/artifacts/e2e-pytest.log
-          if-no-files-found: ignore
-          retention-days: 7
-
       - name: Slack alert on E2E failure
-        if: ${{ failure() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        if: ${{ failure() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
