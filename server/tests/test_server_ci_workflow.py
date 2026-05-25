@@ -77,15 +77,21 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "group: cloudbase-staging-e2e" in smoke_job
     assert "cancel-in-progress: false" in smoke_job
     assert "actions/upload-artifact@v7.0.1" in workflow
-    assert "actions/download-artifact@v8.0.1" in smoke_job
+    assert "uses: actions/" not in smoke_job
+    assert "actions/download-artifact" not in smoke_job
+    assert "actions/upload-artifact" not in smoke_job
     assert "uses: astral-sh/setup-uv" not in smoke_job
     assert "UV_BIN: /usr/local/bin/uv" in smoke_job
     assert "server-source-for-cloudbase-e2e" in workflow
     assert "/tarball/${GITHUB_SHA}" not in smoke_job
     assert "git fetch" not in smoke_job
 
+    download_step = _step_named(workflow, "Download server source")
     reset_step = _step_named(workflow, "Reset shared staging E2E database")
     smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
+    assert "GITHUB_TOKEN" in download_step
+    assert "archive_download_url" in download_step
+    assert "python3.12 -m zipfile -e" in download_step
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
     assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
     assert "E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}" in reset_step
