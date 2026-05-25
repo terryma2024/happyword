@@ -855,13 +855,13 @@ struct BattlePage {
     if (this.bossIntroVisible) {
       Stack() {
         Text('')
-          .width(18)
-          .height(18)
+          .width(30)
+          .height(30)
           .backgroundColor('#FFFDF6')
           .borderWidth(1)
           .borderColor('#E7D7B6')
           .rotate({ angle: 45 })
-          .position({ x: 30, y: 86 });
+          .position({ x: 174, y: 82 });
         Column({ space: 3 }) {
           Text(this.bossDialogueName)
             .id('BattleBossIntroName')
@@ -940,13 +940,13 @@ struct BattlePage {
     if (this.bossDefeatVisible) {
       Stack() {
         Text('')
-          .width(18)
-          .height(18)
+          .width(30)
+          .height(30)
           .backgroundColor('#FFFDF6')
           .borderWidth(1)
           .borderColor('#D5E7B3')
           .rotate({ angle: 45 })
-          .position({ x: 30, y: 86 });
+          .position({ x: 174, y: 82 });
         Column({ space: 3 }) {
           Text(this.bossDialogueName)
             .id('BattleBossDefeatName')
