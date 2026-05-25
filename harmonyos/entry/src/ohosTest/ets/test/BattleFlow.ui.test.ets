@@ -119,20 +119,23 @@ export default function battleFlowUiTest() {
       done();
     });
 
-    it('superBossIntroUsesBannerAndAutoDismisses', 0, async (done: Function) => {
+    it('superBossIntroUsesOrdinaryBubbleAndAutoDismisses', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
       await selectOnlyQuestionTypeShared(driver, 'spell');
 
       await clickByIdShared(driver, 'HomeStartButton');
       await driver.delayMs(1500);
 
-      await driver.assertComponentExist(ON.id('BattleSuperBossIntroBanner'));
-      await driver.assertComponentExist(ON.id('BattleSuperBossIntroLineEn'));
-      await driver.assertComponentExist(ON.id('BattleSuperBossIntroLineZh'));
-      await driver.delayMs(1500);
-      const banner: Component | null =
+      await driver.assertComponentExist(ON.id('BattleBossIntroBubble'));
+      await driver.assertComponentExist(ON.id('BattleBossIntroLineEn'));
+      await driver.assertComponentExist(ON.id('BattleBossIntroLineZh'));
+      const bannerDuringIntro: Component | null =
         await driver.findComponent(ON.id('BattleSuperBossIntroBanner'));
-      expect(banner === null).assertTrue();
+      expect(bannerDuringIntro === null).assertTrue();
+      await driver.delayMs(1500);
+      const bubble: Component | null =
+        await driver.findComponent(ON.id('BattleBossIntroBubble'));
+      expect(bubble === null).assertTrue();
 
       await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);

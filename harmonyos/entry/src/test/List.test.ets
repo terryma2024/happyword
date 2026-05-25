@@ -60,6 +60,7 @@ import packSelectionServiceTest from './PackSelectionService.test';
 import battleQuestionTypePolicyTest from './BattleQuestionTypePolicy.test';
 import compliancePolicyTest from './CompliancePolicy.test';
 import systemBrowserTest from './SystemBrowser.test';
+import battleStageSchedulerTest from './BattleStageScheduler.test';
 import battleQuestionSchedulerTest from './BattleQuestionScheduler.test';
 import battleEngineTest from './BattleEngine.test';
 import battleRewardCalcTest from './BattleRewardCalc.test';
@@ -130,6 +131,7 @@ export default function testsuite() {
   battleQuestionTypePolicyTest();
   compliancePolicyTest();
   systemBrowserTest();
+  battleStageSchedulerTest();
   battleQuestionSchedulerTest();
   battleEngineTest();
   battleRewardCalcTest();

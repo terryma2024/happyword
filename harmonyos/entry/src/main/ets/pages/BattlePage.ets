@@ -11,6 +11,8 @@ import { SpellGenerator } from '../services/SpellGenerator';
 import { IQuestionSource } from '../services/IQuestionSource';
 import { PlanQuestionSource } from '../services/PlanQuestionSource';
 import { BattleQuestionScheduler } from '../services/BattleQuestionScheduler';
+import { BattleStageScheduler } from '../services/BattleStageScheduler';
+import { wordSupportsQuestionType } from '../services/BattleQuestionTypePolicy';
 import {
   BattleEngine,
   BattleConfig,
@@ -54,7 +56,6 @@ import { Question, QuestionKind } from '../models/Question';
 import {
   MonsterDialogue,
   MonsterEntry,
-  MonsterLevel,
   getMonsterByIndex,
 } from '../data/MonsterCatalog';
 import { computeMonsterLevelCoinAward } from '../services/BattleRewardCalc';
@@ -106,7 +107,6 @@ import { requestPageOrientation } from '../utils/orientation';
 // keeps them green.
 const FEEDBACK_MS: number = 650;
 const ORDINARY_BOSS_INTRO_MS: number = 2400;
-const SUPER_BOSS_INTRO_MS: number = 2400;
 const BOSS_DEFEAT_MS: number = 1200;
 const TICK_MS: number = 1000;
 /** V0.8.3 — max concurrent damage floaters per battle side. */
@@ -193,6 +193,7 @@ struct BattlePage {
    */
   private isTodayMode: boolean = false;
   private todayPlan: TodaySessionPlan | undefined = undefined;
+  private todayStageScheduler: BattleStageScheduler | undefined = undefined;
   /**
    * V0.6.5.1: the Pack handed off by HomePage when launching today's
    * adventure via a chip. When present, BattlePage builds its
@@ -223,6 +224,9 @@ struct BattlePage {
   private bossIntroTimer: number = -1;
   private bossDefeatTimer: number = -1;
   private lastIntroMonsterIndex: number = 0;
+  private currentMonsterCatalogIndex: number = 1;
+  private introShownCatalogIndices: number[] = [];
+  private defeatShownCatalogIndices: number[] = [];
   /**
    * Outstanding setTimeout handles for the delayed impact effects (hurt
    * pulses, shockwave, etc.) that fire after a magic projectile reaches
@@ -487,10 +491,17 @@ struct BattlePage {
           for (let wi: number = 0; wi < plan.wordPlan.length; wi++) {
             planWordIds.push(plan.wordPlan[wi].wordId);
           }
-          const questionScheduler: BattleQuestionScheduler =
-            new BattleQuestionScheduler(planWordIds, cfg.enabledQuestionTypes);
+          const stageScheduler: BattleStageScheduler = new BattleStageScheduler(
+            planWordIds,
+            cfg.enabledQuestionTypes,
+            (wordId: string, kind: string): boolean => {
+              const w: WordEntry | undefined = bundleRepo.findById(wordId);
+              return w !== undefined && wordSupportsQuestionType(w, kind);
+            },
+          );
+          this.todayStageScheduler = stageScheduler;
           const planSource: PlanQuestionSource = new PlanQuestionSource(
-            plan, bundleRepo, planChoiceGen, fillGen, spellGen, questionScheduler);
+            plan, bundleRepo, planChoiceGen, fillGen, spellGen, undefined, stageScheduler);
           source = planSource;
           planMonsters = plan.monsterSlots.length;
           // The provider is wired right after engine construction so the
@@ -523,6 +534,10 @@ struct BattlePage {
       bc.catalogIndexProvider = (): number => {
         const eng: BattleEngine | undefined = this.engine;
         const idx1: number = eng !== undefined ? eng.getState().monsterIndex : 1;
+        const stageScheduler: BattleStageScheduler | undefined = this.todayStageScheduler;
+        if (this.isTodayMode && stageScheduler !== undefined) {
+          return stageScheduler.catalogIndexForMonster(idx1);
+        }
         if (planForCatalog !== undefined && planForCatalog.monsterSlots.length > 0) {
           const slotIdx: number = idx1 <= 0 ? 0 : (idx1 - 1) % planForCatalog.monsterSlots.length;
           return planForCatalog.monsterSlots[slotIdx].catalogIndex;
@@ -758,13 +773,20 @@ struct BattlePage {
       return;
     }
     this.lastIntroMonsterIndex = this.monsterIndex;
+    const catalogIndex: number = this.currentMonsterCatalogIndex;
+    if (this.introShownCatalogIndices.indexOf(catalogIndex) >= 0) {
+      this.bossIntroVisible = false;
+      this.superBossIntroVisible = false;
+      return;
+    }
+    this.introShownCatalogIndices.push(catalogIndex);
     const entry: MonsterEntry = this.currentMonster;
     const d: MonsterDialogue = entry.dialogue;
     this.bossDialogueName = entry.name;
     this.bossDialogueIntroEn = d.introLine.en;
     this.bossDialogueIntroZh = d.introLine.zh;
-    this.bossIntroVisible = entry.level !== MonsterLevel.Super;
-    this.superBossIntroVisible = entry.level === MonsterLevel.Super;
+    this.bossIntroVisible = true;
+    this.superBossIntroVisible = false;
     if (this.bossIntroTimer >= 0) {
       clearTimeout(this.bossIntroTimer);
     }
@@ -772,10 +794,15 @@ struct BattlePage {
       this.bossIntroVisible = false;
       this.superBossIntroVisible = false;
       this.bossIntroTimer = -1;
-    }, entry.level === MonsterLevel.Super ? SUPER_BOSS_INTRO_MS : ORDINARY_BOSS_INTRO_MS);
+    }, ORDINARY_BOSS_INTRO_MS);
   }
 
-  private showDefeatForMonster(entry: MonsterEntry): void {
+  private showDefeatForMonster(entry: MonsterEntry, catalogIndex: number): void {
+    if (this.defeatShownCatalogIndices.indexOf(catalogIndex) >= 0) {
+      this.bossDefeatVisible = false;
+      return;
+    }
+    this.defeatShownCatalogIndices.push(catalogIndex);
     const d: MonsterDialogue = entry.dialogue;
     this.bossDialogueName = entry.name;
     this.bossDialogueDefeatEn = d.defeatLine.en;
@@ -979,7 +1006,8 @@ struct BattlePage {
     // time array lookup, so the cost is negligible and keeping the
     // assignment unconditional avoids a stale @State if the engine
     // ever resets monsterIndex back to 1 between battles.
-    this.currentMonster = this.resolveMonsterEntry(state);
+    this.currentMonsterCatalogIndex = this.resolveMonsterCatalogIndex(state);
+    this.currentMonster = getMonsterByIndex(this.currentMonsterCatalogIndex);
     this.currentMonsterBonus = state.currentMonsterBonus;
     this.comboCount = state.comboCount;
     this.remainingSeconds = state.remainingSeconds;
@@ -1042,15 +1070,19 @@ struct BattlePage {
     }
   }
 
-  private resolveMonsterEntry(state: BattleState): MonsterEntry {
+  private resolveMonsterCatalogIndex(state: BattleState): number {
+    const stageScheduler: BattleStageScheduler | undefined = this.todayStageScheduler;
+    if (this.isTodayMode && stageScheduler !== undefined) {
+      return stageScheduler.catalogIndexForMonster(state.monsterIndex);
+    }
     if (this.isTodayMode && this.todayPlan !== undefined) {
       const slots: number = this.todayPlan.monsterSlots.length;
       if (slots > 0) {
         const i: number = state.monsterIndex <= 0 ? 0 : (state.monsterIndex - 1) % slots;
-        return getMonsterByIndex(this.todayPlan.monsterSlots[i].catalogIndex);
+        return this.todayPlan.monsterSlots[i].catalogIndex;
       }
     }
-    return getMonsterByIndex(state.monsterIndex);
+    return state.monsterIndex <= 0 ? 1 : state.monsterIndex;
   }
 
   /**
@@ -1072,7 +1104,7 @@ struct BattlePage {
     if (engine === undefined) {
       return;
     }
-    if (this.feedbackTimer >= 0 || this.superBossIntroVisible) {
+    if (this.feedbackTimer >= 0) {
       return;
     }
     const tappedIndex: number = this.options.indexOf(text);
@@ -1101,6 +1133,7 @@ struct BattlePage {
     const correctWord: string = this.lastAnswerWord;
     const answeredWordId: string = this.currentWordId;
     const defeatedMonsterBeforeAnswer: MonsterEntry = this.currentMonster;
+    const defeatedMonsterCatalogBeforeAnswer: number = this.currentMonsterCatalogIndex;
 
     const outcome: AnswerOutcome = engine.submitAnswer(text);
 
@@ -1147,7 +1180,7 @@ struct BattlePage {
     // damage is visible before the reveal delay elapses.
     this.syncFromEngine();
     if (outcome.monsterDefeated) {
-      this.showDefeatForMonster(defeatedMonsterBeforeAnswer);
+      this.showDefeatForMonster(defeatedMonsterBeforeAnswer, defeatedMonsterCatalogBeforeAnswer);
     }
 
     // Keep the answered question on screen for the reveal window —
@@ -1328,7 +1361,7 @@ struct BattlePage {
     if (engine === undefined) {
       return;
     }
-    if (this.feedbackTimer >= 0 || this.superBossIntroVisible) {
+    if (this.feedbackTimer >= 0) {
       return;
     }
     const damage: number = engine.applySpellLetterPenalty();
@@ -1365,7 +1398,7 @@ struct BattlePage {
     if (engine === undefined) {
       return;
     }
-    if (this.feedbackTimer >= 0 || this.superBossIntroVisible) {
+    if (this.feedbackTimer >= 0) {
       return;
     }
     const answeredPrompt: string = this.prompt;
@@ -1374,6 +1407,7 @@ struct BattlePage {
     const answeredWordId: string = this.currentWordId;
     const answeredSpellQuestion: Question = this.currentSpellQuestion;
     const defeatedMonsterBeforeAnswer: MonsterEntry = this.currentMonster;
+    const defeatedMonsterCatalogBeforeAnswer: number = this.currentMonsterCatalogIndex;
 
     const outcome: AnswerOutcome = engine.submitAnswer(answer);
 
@@ -1390,7 +1424,7 @@ struct BattlePage {
 
     this.syncFromEngine();
     if (outcome.monsterDefeated) {
-      this.showDefeatForMonster(defeatedMonsterBeforeAnswer);
+      this.showDefeatForMonster(defeatedMonsterBeforeAnswer, defeatedMonsterCatalogBeforeAnswer);
     }
 
     // Hold the answered Spell on screen during the feedback window
