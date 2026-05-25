@@ -409,6 +409,31 @@ export default function planQuestionSourceTest() {
       expect(q4.kind).assertEqual(QuestionKind.FillLetter);
     });
 
+    it('stageSchedulerAdvancesQuestionTypeBeforeCurrentMonsterDies', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Normal, MonsterKind.Spelling],
+        ['fruit-apple', 'fruit-banana']
+      );
+      const src: PlanQuestionSource = buildStageSrc(
+        plan,
+        repo,
+        2,
+        3,
+        4,
+        [QuestionKind.Choice, QuestionKind.FillLetter],
+      );
+      src.setMonsterIndexProvider((): number => 1);
+
+      const q1: Question = src.nextQuestion();
+      const q2: Question = src.nextQuestion(q1.wordId);
+      const q3: Question = src.nextQuestion(q2.wordId);
+
+      expect(q1.kind).assertEqual(QuestionKind.Choice);
+      expect(q2.kind).assertEqual(QuestionKind.Choice);
+      expect(q3.kind).assertEqual(QuestionKind.FillLetter);
+    });
+
     it('skipsLastWordWhenPossible', 0, () => {
       const repo: WordRepository = makeRepo();
       const plan: TodaySessionPlan = planWith(

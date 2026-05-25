@@ -58,7 +58,7 @@ export default function battleStageSchedulerTest() {
         .assertEqual(MonsterLevel.Beginner);
     });
 
-    it('keepsCurrentMonsterOnCoveredStageUntilItDiesThenAdvances', 0, () => {
+    it('advancesQuestionStageImmediatelyWhileKeepingCurrentMonsterCatalog', 0, () => {
       const scheduler: BattleStageScheduler = new BattleStageScheduler(
         ['w1', 'w2'],
         [QuestionKind.Choice, QuestionKind.FillLetter],
@@ -73,10 +73,42 @@ export default function battleStageSchedulerTest() {
 
       expect(p1.kind).assertEqual(QuestionKind.Choice);
       expect(p2.kind).assertEqual(QuestionKind.Choice);
-      expect(p3.kind).assertEqual(QuestionKind.Choice);
+      expect(p3.kind).assertEqual(QuestionKind.FillLetter);
       expect(p4.kind).assertEqual(QuestionKind.FillLetter);
+      expect(monsterLevelForCatalogIndex(scheduler.catalogIndexForMonster(1)))
+        .assertEqual(MonsterLevel.Beginner);
       expect(monsterLevelForCatalogIndex(scheduler.catalogIndexForMonster(2)))
         .assertEqual(MonsterLevel.Intermediate);
+    });
+
+    it('newMonsterUsesCurrentStageAfterOldMonsterSpansMultipleStages', 0, () => {
+      const scheduler: BattleStageScheduler = new BattleStageScheduler(
+        ['w1', 'w2'],
+        [QuestionKind.Choice, QuestionKind.FillLetter, QuestionKind.FillLetterMedium],
+        allSupport(
+          ['w1', 'w2'],
+          [QuestionKind.Choice, QuestionKind.FillLetter, QuestionKind.FillLetterMedium],
+        ),
+        mulberry32(8),
+      );
+
+      const p1: BattleStagePick = pickAndMark(scheduler, 1);
+      const p2: BattleStagePick = pickAndMark(scheduler, 1, p1.wordId);
+      const p3: BattleStagePick = pickAndMark(scheduler, 1, p2.wordId);
+      const p4: BattleStagePick = pickAndMark(scheduler, 1, p3.wordId);
+      const p5: BattleStagePick = pickAndMark(scheduler, 1, p4.wordId);
+      const p6: BattleStagePick = pickAndMark(scheduler, 2, p5.wordId);
+
+      expect(p1.kind).assertEqual(QuestionKind.Choice);
+      expect(p2.kind).assertEqual(QuestionKind.Choice);
+      expect(p3.kind).assertEqual(QuestionKind.FillLetter);
+      expect(p4.kind).assertEqual(QuestionKind.FillLetter);
+      expect(p5.kind).assertEqual(QuestionKind.FillLetterMedium);
+      expect(p6.kind).assertEqual(QuestionKind.FillLetterMedium);
+      expect(monsterLevelForCatalogIndex(scheduler.catalogIndexForMonster(1)))
+        .assertEqual(MonsterLevel.Beginner);
+      expect(monsterLevelForCatalogIndex(scheduler.catalogIndexForMonster(2)))
+        .assertEqual(MonsterLevel.Advanced);
     });
 
     it('usesOnlyEnabledTypesInDifficultyOrder', 0, () => {

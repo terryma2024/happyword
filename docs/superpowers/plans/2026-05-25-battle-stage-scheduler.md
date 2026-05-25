@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement V0.9.2 battle sequencing so enabled question types run in strict difficulty stages, words complete each stage before advancing, and monsters are selected from the current stage's difficulty pool.
+**Goal:** Implement V0.9.2 battle sequencing so enabled question types run in strict difficulty stages, words complete each stage before advancing the question stage, and newly spawned monsters are selected from the currently active stage's difficulty pool.
 
-**Architecture:** Add a focused `BattleStageScheduler` service that owns stage state, per-stage word coverage, monster-to-stage assignment, and catalog index selection. `PlanQuestionSource` asks it for the next `(wordId, questionKind)` and `BattlePage` uses the same instance for current monster catalog lookup. Boss dialogue display becomes per-catalog-once per battle and Super uses the ordinary bubble presentation.
+**Architecture:** Add a focused `BattleStageScheduler` service that owns stage state, per-stage word coverage, monster-to-stage assignment, and catalog index selection. Question-stage progress advances as soon as the current stage's supported words are covered; existing monsters keep their original catalog assignment until defeated, and only newly spawned monsters bind to the then-active stage. `PlanQuestionSource` asks it for the next `(wordId, questionKind)` and `BattlePage` uses the same instance for current monster catalog lookup. Boss dialogue display becomes per-catalog-once per battle and Super uses the ordinary bubble presentation.
 
 **Tech Stack:** HarmonyOS ArkTS / ArkUI, Hypium unit tests, existing `WordRepository`, `QuestionKind`, `MonsterCatalog`, and `PlanQuestionSource`.
 
@@ -32,11 +32,12 @@ Question types are stage-ordered by difficulty:
 
 Within the user's enabled question-type set, battle stages run strictly from easy to hard. For a stage `QTn`, all words in the selected pack that support `QTn` must be served at least once before the scheduler may advance to `QTn+1`.
 
-Monster lifetime does not advance the question type by itself:
+Question-stage coverage and monster lifetime are decoupled:
 
 - If a monster dies before the current stage's word coverage is complete, spawn another monster from the same stage difficulty pool and continue with the next uncovered word.
-- If the current stage's words are all covered but the monster is still alive, keep cycling that stage's supported words until the monster dies.
-- After the monster dies and the stage coverage is complete, advance to the next enabled stage with supported words.
+- When the current stage's words are all covered, advance immediately to the next enabled stage with supported words, even if the current monster is still alive.
+- The current monster keeps its original catalog identity and difficulty level until defeated, even if it survives across one or more question-stage advances.
+- When that monster is defeated, spawn the next monster from the difficulty pool of the question stage that is active at that moment. For example, if `M1L1` survives through `QT1` and `QT2` and dies during `QT3`, the next monster is `M?L3`.
 - If all enabled stages are complete but `monstersTotal` is not yet reached, stay on the last enabled supported stage and keep spawning monsters from that stage's difficulty pool until `monstersTotal` ends the battle.
 
 Current platform difficulty mapping uses existing catalog levels:
@@ -79,12 +80,13 @@ Create tests covering:
 
 ```text
 1. low HP / many words: monster index 1 and 2 stay on choice until every word has choice coverage.
-2. high HP / few words: after every word has choice coverage, same monster continues choice until defeated; next monster advances to fill-letter.
+2. high HP / few words: after every word has choice coverage, the question stage advances to fill-letter while the same monster keeps its original L1 catalog assignment.
 3. partial enabled types: only fill-letter and spell are emitted, in that order.
 4. unsupported words: stage coverage skips words that cannot serve that type.
 5. empty stage: a question type with no supported words is skipped and gets no monster stage.
-6. final stage sustain: after all stages complete, new monsters stay on the last supported stage.
-7. catalog index for each stage comes from the expected MonsterLevel pool.
+6. old monster spans multiple stages: if an L1 monster survives through QT1 and QT2 and dies during QT3, the next monster uses the L3 catalog pool.
+7. final stage sustain: after all stages complete, new monsters stay on the last supported stage.
+8. catalog index for each stage comes from the expected MonsterLevel pool.
 ```
 
 Use public methods:
@@ -121,7 +123,7 @@ export class BattleStageScheduler {
 }
 ```
 
-Build stages from sanitized question types in difficulty order. Each stage stores only unique word ids that `canServe(wordId, kind)` returns true for. Skip empty stages. Detect monster changes in `pickNext` and advance only when the previous stage coverage is complete. If already at the final stage, stay there. Pick catalog indices from `monsterCatalogIndicesForLevel(stageLevel(kind))` using RNG.
+Build stages from sanitized question types in difficulty order. Each stage stores only unique word ids that `canServe(wordId, kind)` returns true for. Skip empty stages. Advance to the next stage immediately when `markServed` completes current-stage coverage. Detect monster changes in `pickNext` only to bind a newly seen monster index to the currently active stage; do not let monster death advance the question stage. If already at the final stage, stay there. Pick catalog indices from `monsterCatalogIndicesForLevel(stageLevel(kind))` using RNG.
 
 - [ ] **Step 4: Run tests green**
 

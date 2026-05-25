@@ -90,6 +90,7 @@ export class BattleStageScheduler {
     }
     if (stage.servedIds.indexOf(wordId) < 0 && stage.wordIds.indexOf(wordId) >= 0) {
       stage.servedIds.push(wordId);
+      this.advanceCoveredStages();
     }
   }
 
@@ -120,12 +121,7 @@ export class BattleStageScheduler {
 
   private syncMonsterIndex(monsterIndex: number): void {
     const safeIndex: number = monsterIndex <= 0 ? 1 : monsterIndex;
-    if (this.lastMonsterIndex === 0) {
-      this.lastMonsterIndex = safeIndex;
-    } else if (safeIndex !== this.lastMonsterIndex) {
-      if (this.isCurrentStageCovered() && this.activeStageIndex < this.stages.length - 1) {
-        this.activeStageIndex += 1;
-      }
+    if (this.lastMonsterIndex === 0 || safeIndex !== this.lastMonsterIndex) {
       this.lastMonsterIndex = safeIndex;
     }
     if (!this.monsterStageByIndex.has(safeIndex)) {
@@ -141,14 +137,6 @@ export class BattleStageScheduler {
       ? this.activeStageIndex
       : this.stages.length - 1;
     return this.stages[idx];
-  }
-
-  private isCurrentStageCovered(): boolean {
-    const stage: BattleStage | undefined = this.currentStage();
-    if (stage === undefined) {
-      return true;
-    }
-    return stage.servedIds.length >= stage.wordIds.length;
   }
 
   private pickWordFromStage(stage: BattleStage, lastWordId?: string): string {
@@ -174,6 +162,16 @@ export class BattleStageScheduler {
 
   private isStageCovered(stage: BattleStage): boolean {
     return stage.servedIds.length >= stage.wordIds.length;
+  }
+
+  private advanceCoveredStages(): void {
+    while (this.activeStageIndex < this.stages.length - 1) {
+      const stage: BattleStage | undefined = this.currentStage();
+      if (stage === undefined || !this.isStageCovered(stage)) {
+        return;
+      }
+      this.activeStageIndex += 1;
+    }
   }
 
   private unservedWordIds(stage: BattleStage): string[] {
