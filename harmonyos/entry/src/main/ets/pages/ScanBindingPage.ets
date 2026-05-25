@@ -23,7 +23,7 @@ import { DeviceIdProvider } from '../services/DeviceIdProvider';
 import { BindingApiClient } from '../services/BindingApiClient';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { effectiveServerBaseUrl, parentFamilyLoginPageUrl } from '../services/RemoteWordPackConfig';
-import { openUrlInSystemBrowser } from '../services/SystemBrowser';
+import { openUrlInAppBrowser } from '../services/SystemBrowser';
 import { ensureCloudSyncInstalled } from '../services/CloudSyncInstaller';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../services/CompliancePolicy';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
@@ -251,10 +251,8 @@ struct ScanBindingPage {
   }
 
   private onParentLoginLinkTap(): void {
-    const ctx: common.UIAbilityContext =
-      this.getUIContext().getHostContext() as common.UIAbilityContext;
     const url: string = parentFamilyLoginPageUrl();
-    openUrlInSystemBrowser(ctx, url).catch((err: Error): void => {
+    openUrlInAppBrowser(this.getUIContext(), url).catch((err: Error): void => {
       console.error(`ScanBindingPage.onParentLoginLinkTap: ${err.message}`);
       try {
         this.getUIContext().getPromptAction().showToast({
@@ -268,9 +266,7 @@ struct ScanBindingPage {
   }
 
   private openComplianceUrl(url: string): void {
-    const ctx: common.UIAbilityContext =
-      this.getUIContext().getHostContext() as common.UIAbilityContext;
-    openUrlInSystemBrowser(ctx, url).catch((err: Error): void => {
+    openUrlInAppBrowser(this.getUIContext(), url).catch((err: Error): void => {
       console.error(`ScanBindingPage.openComplianceUrl failed: ${err.message}`);
     });
   }

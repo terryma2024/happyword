@@ -40,7 +40,7 @@ import {
   timerOptionRows,
 } from '../components/ConfigPageLayout';
 import { REPORT_CHANNEL_URL } from '../services/CompliancePolicy';
-import { openUrlInSystemBrowser } from '../services/SystemBrowser';
+import { openUrlInAppBrowser } from '../services/SystemBrowser';
 import { requestPageOrientation } from '../utils/orientation';
 /**
  * ConfigPage exposes battle knobs (HP / monster count / timer /
@@ -247,9 +247,7 @@ struct ConfigPage {
   }
 
   private openReportChannel(): void {
-    const ctx: common.UIAbilityContext =
-      this.getUIContext().getHostContext() as common.UIAbilityContext;
-    openUrlInSystemBrowser(ctx, REPORT_CHANNEL_URL).catch((err: Error): void => {
+    openUrlInAppBrowser(this.getUIContext(), REPORT_CHANNEL_URL).catch((err: Error): void => {
       console.error(`ConfigPage.openReportChannel failed: ${err.message}`);
       try {
         this.getUIContext().getPromptAction().showToast({
