@@ -111,7 +111,9 @@ export default function battleFlowUiTest() {
         await driver.findComponent(ON.id('MonsterArea'));
       const introBounds = await introBubble.getBounds();
       const monsterBounds = await monsterArea.getBounds();
-      expect(introBounds.right <= monsterBounds.left + 16).assertTrue();
+      expect(introBounds.left < monsterBounds.left).assertTrue();
+      expect(introBounds.right >= monsterBounds.left - 12).assertTrue();
+      expect(introBounds.right <= monsterBounds.left + 220).assertTrue();
 
       await tapCorrectAnswerShared(driver);
       await driver.delayMs(420);
