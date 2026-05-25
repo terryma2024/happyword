@@ -8,6 +8,13 @@ enum PackManagerLayoutRules {
 
 struct PackManagerView: View {
     @ObservedObject var coordinator: AppCoordinator
+    @ObservedObject private var packSelectionStore: PackSelectionStore
+    @State private var refreshToken = 0
+
+    init(coordinator: AppCoordinator) {
+        self.coordinator = coordinator
+        _packSelectionStore = ObservedObject(wrappedValue: coordinator.packSelectionStore)
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -37,7 +44,7 @@ struct PackManagerView: View {
             }
 
             HStack {
-                Text("已激活 \(coordinator.packSelectionStore.activePackIds.count) / \(PackSelectionStore.maxActivePacks)")
+                Text("已激活 \(packSelectionStore.activePackIds.count) / \(PackSelectionStore.maxActivePacks)")
                     .font(.system(size: 19, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
                     .accessibilityIdentifier("PackManagerActiveCount")
@@ -67,6 +74,7 @@ struct PackManagerView: View {
                         packRow(pack)
                     }
                 }
+                .id(refreshToken)
                 .padding(.vertical, 4)
             }
         }
@@ -88,8 +96,8 @@ struct PackManagerView: View {
     }
 
     private func packRow(_ pack: Pack) -> some View {
-        let isActive = coordinator.packSelectionStore.activePackIds.contains(pack.id)
-        let isPinned = coordinator.packSelectionStore.pinnedPackIds.contains(pack.id)
+        let isActive = packSelectionStore.activePackIds.contains(pack.id)
+        let isPinned = packSelectionStore.pinnedPackIds.contains(pack.id)
         return HStack(spacing: 14) {
             Text(pack.source.labelZh)
                 .font(.system(size: 12, weight: .heavy, design: .rounded))
@@ -110,21 +118,28 @@ struct PackManagerView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)
             if isActive {
-                Button("📌 \(isPinned ? "已固定" : "固定")") {
+                Button {
                     coordinator.togglePackPin(pack)
+                    refreshToken += 1
+                } label: {
+                    Text("📌 \(isPinned ? "已固定" : "固定")")
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        .foregroundStyle(AppTheme.navy.opacity(0.76))
+                        .padding(.horizontal, 12)
+                        .frame(height: 34)
+                        .background(isPinned ? AppTheme.gold.opacity(0.52) : Color(red: 0.94, green: 0.95, blue: 0.96), in: Capsule())
                 }
-                .font(.system(size: 15, weight: .heavy, design: .rounded))
-                .foregroundStyle(AppTheme.navy.opacity(0.76))
-                .padding(.horizontal, 12)
-                .frame(height: 34)
-                .background(isPinned ? AppTheme.gold.opacity(0.52) : Color(red: 0.94, green: 0.95, blue: 0.96), in: Capsule())
                 .buttonStyle(.plain)
+                .contentShape(Capsule())
                 .accessibilityLabel("\(isPinned ? "已固定" : "固定") \(pack.title)")
                 .accessibilityIdentifier("PackPin_\(pack.id)")
             }
             Toggle("", isOn: Binding(
-                get: { coordinator.packSelectionStore.activePackIds.contains(pack.id) },
-                set: { _ in coordinator.togglePackActive(pack) }
+                get: { packSelectionStore.activePackIds.contains(pack.id) },
+                set: { _ in
+                    coordinator.togglePackActive(pack)
+                    refreshToken += 1
+                }
             ))
             .labelsHidden()
             .tint(AppTheme.gold)

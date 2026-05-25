@@ -68,6 +68,7 @@ const VALID_SHORT_CODE: string = '345678';
 const MOCK_BASE_URL: string = 'http://127.0.0.1:8123';
 const MOCK_DEVICE_TOKEN: string = 'ui-mock-device-jwt';
 const PREFS_CLOUD: string = 'wordmagic_cloud';
+const CONFIG_SCROLL_X: number = 630;
 
 async function mockHttp(
   method: http.RequestMethod,
@@ -182,7 +183,7 @@ async function openConfigPage(driver: Driver): Promise<void> {
       if (c !== null) {
         return;
       }
-      await driver.swipe(1400, 300, 1400, 1100, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 300, CONFIG_SCROLL_X, 1100, 600);
       await driver.delayMs(400);
     }
     await driver.assertComponentExist(ON.id('ConfigTitle'));
@@ -209,7 +210,7 @@ async function scrollConfigToParentAccountRow(driver: Driver): Promise<void> {
       if (bind !== null || bound !== null) {
         return;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
   } catch (err) {
@@ -301,7 +302,7 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
       if (c !== null) {
         break;
       }
-      await driver.swipe(1400, 300, 1400, 1100, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 300, CONFIG_SCROLL_X, 1100, 600);
       await driver.delayMs(400);
     }
     await exitConfigPage(driver);
@@ -367,7 +368,7 @@ async function waitForCloudSyncButton(driver: Driver, maxMs: number): Promise<bo
       }
       nudge += 1;
       if (nudge % 4 === 0) {
-        await driver.swipe(1400, 1100, 1400, 300, 600);
+        await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       }
       await driver.delayMs(stepMs);
       waited += stepMs;

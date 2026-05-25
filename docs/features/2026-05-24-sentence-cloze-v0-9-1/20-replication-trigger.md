@@ -9,20 +9,20 @@
 Paste evidence (paths to logs, commit SHAs, screenshot folders) next to each item before checking it.
 
 - [x] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
-  - Evidence: 2026-05-24 local run passed, `BUILD SUCCESSFUL in 2 s 362 ms`.
-- [ ] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
-  - Evidence: Targeted `scripts/run_ui_tests.sh --suite BattleFlow --rebuild` passed on 2026-05-24 (`Tests run: 2, Failure: 0, Error: 0, Pass: 2`), covering `sentenceClozeQuestionRendersExamplePromptAndOptions`. Full `scripts/run_ui_tests.sh --rebuild` was attempted but produced no OHOS report after ~18 minutes and was interrupted; keep this full-suite gate unchecked.
+  - Evidence: 2026-05-25 local run passed, `hvigorw -p module=entry@default test`, `BUILD SUCCESSFUL in 6 s 678 ms`.
+- [x] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
+  - Evidence: 2026-05-25 local run passed, `scripts/run_ui_tests.sh --rebuild`, `OHOS_REPORT_RESULT: Tests run: 79, Failure: 0, Error: 0, Pass: 79, Ignore: 0`, `OHOS_REPORT_CODE: 0`. Includes `BattleFlow.sentenceClozeQuestionRendersExamplePromptAndOptions` pass in the full suite.
 - [x] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
-  - Evidence: 2026-05-24 local run passed, `BUILD SUCCESSFUL in 2 s 718 ms`; no `ArkTS:WARN` lines observed. Hvigor emitted a toolchain `sun.misc.Unsafe` warning, not an ArkTS warning.
+  - Evidence: 2026-05-25 local run passed, `hvigorw assembleHap --no-daemon`, `BUILD SUCCESSFUL in 5 s 493 ms`; no `ArkTS:WARN` lines observed.
 - [x] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
-  - Evidence: 2026-05-24 local run: `No defects found in your code.`
+  - Evidence: 2026-05-25 local run: `No defects found in your code.`
 - [x] **Version bumped** — `harmonyos/AppScope/app.json5`
   - From: `versionName=0.8.8` `versionCode=1008008`
   - To: `versionName=0.9.1` `versionCode=1009001`
 - [ ] **Feature merged to main**
   - Commit: Pending final integration; local feature commits include generator, scheduler, settings, examples, Battle UI, and version/gate updates.
 - [ ] **Screenshots refreshed** — for every screen this feature visibly changed
-  - Files updated under `assets/screenshots/harmonyos/`: Not refreshed in this implementation pass.
+  - Evidence: 2026-05-25 `HARMONY_INSTALL_HAP=1 HDC_TARGET=127.0.0.1:5555 scripts/capture_harmony_screenshots.py` exited 0 and refreshed several files under `assets/screenshots/harmonyos/`, but this gate remains unchecked because the script reported failed/skipped capture steps: `battle+result` timed out waiting for `BattleFinishButton`, `parent pin setup surface` and `parent admin` could not uncover their target components, and `scan-binding.png` was skipped because the device was already bound.
 - [x] **Server contracts up to date** — N/A unless implementation changes server schemas.
   - Explanation: No server/OpenAPI/shared contract changes; V0.9.1 reuses existing `example.en` / `example.zh` fields.
 
@@ -60,7 +60,7 @@ This section is filled after HarmonyOS implementation and stabilization.
 
 - `ChoiceButton.choiceId` must be a `@Prop` when changing option IDs by question kind; otherwise `@Reusable` component reuse can keep stale button IDs.
 - `sentence-cloze` must not auto-speak the answer word on question load or transition. Manual `BattleSpeakerButton` replay still speaks the answer when tapped.
-- Full ohosTest suite may hang without an OHOS report on the current local runner; use targeted suite evidence for the sentence-cloze path until the broader runner is repaired.
+- Earlier full ohosTest attempts could hang without an OHOS report on the local runner; after the 2026-05-25 UI-test stabilization pass, the full suite produced `OHOS_REPORT_CODE: 0` with 79/79 passing.
 
 ### 2.5 Tests requiring parity counterparts
 

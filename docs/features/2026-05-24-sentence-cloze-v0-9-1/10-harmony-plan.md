@@ -13,7 +13,7 @@
 
 **Tech Stack:** HarmonyOS NEXT, ArkTS, ArkUI, Hypium local tests, ohosTest UI automation.
 
-**Execution status (2026-05-24):** Tasks 1-5 implemented on HarmonyOS, including the follow-up pronunciation gate that disables auto-speak for sentence cloze while preserving manual replay. Task 6 is partially gated: unit tests, HAP build, CodeLinter, built-in example validation, and targeted `BattleFlow` ohosTest are green; full `scripts/run_ui_tests.sh` produced no OHOS report after ~18 minutes on the local runner and remains an open soft-gate item in [`20-replication-trigger.md`](20-replication-trigger.md).
+**Execution status (2026-05-25):** Tasks 1-5 implemented on HarmonyOS, including the follow-up pronunciation gate that disables auto-speak for sentence cloze while preserving manual replay. Task 6 is gated for build and automation: unit tests, HAP build with 0 `ArkTS:WARN`, CodeLinter, built-in example validation, and full `scripts/run_ui_tests.sh --rebuild` all pass. Screenshot refresh remains partial because the capture script still reported failed/skipped states; see [`20-replication-trigger.md`](20-replication-trigger.md).
 
 ---
 

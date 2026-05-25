@@ -163,12 +163,14 @@ final class AppCoordinator: ObservableObject {
             packManagerToastId = "PackManagerCapRefuseToast"
             packManagerMessage = "请先取消固定一个词包"
         }
+        objectWillChange.send()
     }
 
     func togglePackPin(_ pack: Pack) {
         guard packSelectionStore.togglePin(pack.id) else { return }
         packManagerToastId = ""
         packManagerMessage = packSelectionStore.pinnedPackIds.contains(pack.id) ? "已固定 \(pack.title)" : "已取消固定 \(pack.title)"
+        objectWillChange.send()
     }
 
     func syncPacks() {
@@ -916,7 +918,7 @@ final class AppCoordinator: ObservableObject {
     private func saveUITestQuickBattleConfig() {
         var config = configStore.config
         config.monsterMaxHp = 1
-        config.monstersTotal = 1
+        config.monstersTotal = 2
         configStore.save(config)
     }
 }

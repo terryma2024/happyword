@@ -70,7 +70,6 @@ struct HomeView: View {
                         tint: AppTheme.paleBlue,
                         foreground: Color(red: 0.02, green: 0.42, blue: 0.66)
                     )
-                    .accessibilityIdentifier("HomeChildProfileButton")
                 }
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .ignore)

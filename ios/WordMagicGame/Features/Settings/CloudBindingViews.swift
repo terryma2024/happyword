@@ -502,6 +502,7 @@ struct BoundDeviceInfoView: View {
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                         .disabled(isSavingProfile)
+                        .accessibilityLabel("学习者名字")
                         .accessibilityIdentifier("学习者名字")
                         .onChange(of: editNickname) { _, value in
                             editNickname = String(value.prefix(32))
@@ -588,7 +589,6 @@ struct BoundDeviceInfoView: View {
             .frame(maxWidth: 420)
             .background(Color.white, in: RoundedRectangle(cornerRadius: 20))
             .padding(.horizontal, 24)
-            .accessibilityIdentifier("EditChildNicknameDialog")
         }
     }
 

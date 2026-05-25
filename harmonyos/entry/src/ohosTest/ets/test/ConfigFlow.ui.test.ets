@@ -20,6 +20,7 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
 // `pages/ConfigPage.timerRow` for every TIMER_CHOICES entry.
 const DEFAULT_TIMER_CHIP_ID: string = 'ConfigTimer300s';
 const STEPPER_MAX_VALUE: number = 10;
+const CONFIG_SCROLL_X: number = 630;
 
 class StepperProbe {
   valueBeforeIncrement: number = 0;
@@ -80,7 +81,7 @@ async function scrollToConfigReportChannelButton(driver: Driver): Promise<void> 
       if (report !== null) {
         return;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
   } catch (err) {
@@ -158,7 +159,7 @@ async function scrollToParentPinButton(driver: Driver): Promise<void> {
           return;
         }
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
   } catch (err) {
@@ -236,7 +237,7 @@ async function tapConfigSaveButton(driver: Driver): Promise<void> {
         await comp.click();
         return;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
     throw new Error('ConfigBackButton remained unreachable after 4 swipes');
@@ -410,7 +411,7 @@ export default function configFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ParentPinSetupKeypad'));
       // The cancel button sits below the keypad on a narrow landscape
       // viewport; swipe up so findComponent can resolve it.
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(300);
       // Cancel returns without persisting. ConfigPage owns a Scroll
       // wrapper whose scroll position is preserved across navigations,
@@ -629,7 +630,7 @@ export default function configFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ParentPinSetupStepLabel'));
 
       // Cancel sits below the keypad on a narrow viewport; swipe up.
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(300);
       await clickParentPinSetupCancelShared(driver);
       await driver.delayMs(1200);

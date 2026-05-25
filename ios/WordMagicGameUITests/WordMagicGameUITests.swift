@@ -127,8 +127,9 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["内置"].exists)
         XCTAssertTrue(app.staticTexts["Fruit Forest"].exists)
 
-        app.buttons["固定 Fruit Forest"].tap()
-        XCTAssertTrue(app.buttons["已固定 Fruit Forest"].waitForExistence(timeout: 2))
+        app.buttons["PackPin_fruit-forest"].tap()
+        XCTAssertTrue(app.staticTexts["PackManagerStatus"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.staticTexts["PackManagerStatus"].label, "已固定 Fruit Forest")
         app.switches["PackToggle_fruit-forest"].tap()
         XCTAssertTrue(app.staticTexts["已激活 4 / 10"].waitForExistence(timeout: 2))
 
@@ -256,11 +257,15 @@ final class WordMagicGameUITests: XCTestCase {
         app.buttons["✏️ 编辑"].tap()
 
         XCTAssertTrue(app.staticTexts["学习档案"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.textFields["学习者名字"].exists)
+        XCTAssertTrue(app.textFields["学习者名字"].waitForExistence(timeout: 5))
         app.textFields["学习者名字"].tap()
         app.textFields["学习者名字"].clearAndTypeText("小星星")
         app.buttons["保存名字"].tap()
 
+        XCTAssertTrue(app.buttons["返回"].waitForExistence(timeout: 5))
+        app.buttons["返回"].tap()
+        XCTAssertTrue(app.staticTexts["ConfigTitle"].waitForExistence(timeout: 5))
+        app.buttons["返回"].tap()
         XCTAssertTrue(profileButton.waitForExistence(timeout: 5))
         XCTAssertTrue(profileButton.label.contains("小星星"))
     }
@@ -308,7 +313,7 @@ final class WordMagicGameUITests: XCTestCase {
 
         app.buttons["✏️ 编辑"].tap()
         XCTAssertTrue(app.staticTexts["学习档案"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.textFields["学习者名字"].exists)
+        XCTAssertTrue(app.textFields["学习者名字"].waitForExistence(timeout: 5))
     }
 
     @MainActor
