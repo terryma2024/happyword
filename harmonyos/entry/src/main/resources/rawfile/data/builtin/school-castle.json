@@ -158,6 +158,81 @@
         "en": "I read a book at home.",
         "zh": "我在家读书。"
       }
+    },
+    {
+      "id": "place-restaurant",
+      "word": "restaurant",
+      "meaningZh": "餐厅",
+      "category": "place",
+      "difficulty": 1,
+      "distractors": [
+        "cinema",
+        "airport"
+      ],
+      "example": {
+        "en": "The restaurant serves warm soup.",
+        "zh": "餐厅供应热汤。"
+      }
+    },
+    {
+      "id": "place-cinema",
+      "word": "cinema",
+      "meaningZh": "电影院",
+      "category": "place",
+      "difficulty": 1,
+      "distractors": [
+        "restaurant",
+        "bookstore"
+      ],
+      "example": {
+        "en": "The cinema has a big screen.",
+        "zh": "电影院有大屏幕。"
+      }
+    },
+    {
+      "id": "place-airport",
+      "word": "airport",
+      "meaningZh": "机场",
+      "category": "place",
+      "difficulty": 1,
+      "distractors": [
+        "playground",
+        "cinema"
+      ],
+      "example": {
+        "en": "The airport is full of planes.",
+        "zh": "机场里有许多飞机。"
+      }
+    },
+    {
+      "id": "place-playground",
+      "word": "playground",
+      "meaningZh": "操场",
+      "category": "place",
+      "difficulty": 1,
+      "distractors": [
+        "airport",
+        "bookstore"
+      ],
+      "example": {
+        "en": "The playground is near our class.",
+        "zh": "操场在我们班旁边。"
+      }
+    },
+    {
+      "id": "place-bookstore",
+      "word": "bookstore",
+      "meaningZh": "书店",
+      "category": "place",
+      "difficulty": 1,
+      "distractors": [
+        "restaurant",
+        "playground"
+      ],
+      "example": {
+        "en": "The bookstore sells picture books.",
+        "zh": "书店卖图画书。"
+      }
     }
   ]
 }
