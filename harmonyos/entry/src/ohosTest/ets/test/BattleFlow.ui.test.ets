@@ -105,6 +105,14 @@ export default function battleFlowUiTest() {
       await driver.assertComponentExist(ON.id('BattleBossIntroBubble'));
       await driver.assertComponentExist(ON.id('BattleBossIntroLineEn'));
       await driver.assertComponentExist(ON.id('BattleBossIntroLineZh'));
+      const introBubble: Component =
+        await driver.findComponent(ON.id('BattleBossIntroBubble'));
+      const monsterArea: Component =
+        await driver.findComponent(ON.id('MonsterArea'));
+      const introBounds = await introBubble.getBounds();
+      const monsterBounds = await monsterArea.getBounds();
+      expect(introBounds.right <= monsterBounds.left + 16).assertTrue();
+
       await tapCorrectAnswerShared(driver);
       await driver.delayMs(420);
       await driver.assertComponentExist(ON.id('BattleBossDefeatBubble'));

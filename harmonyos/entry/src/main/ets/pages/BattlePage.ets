@@ -853,33 +853,46 @@ struct BattlePage {
   @Builder
   bossIntroBubble() {
     if (this.bossIntroVisible) {
-      Column({ space: 3 }) {
-        Text(this.bossDialogueName)
-          .id('BattleBossIntroName')
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#6B4A23');
-        Text(this.bossDialogueIntroEn)
-          .id('BattleBossIntroLineEn')
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#1D3557')
-          .maxLines(2);
-        Text(this.bossDialogueIntroZh)
-          .id('BattleBossIntroLineZh')
-          .fontSize(11)
-          .fontColor('#6E5F54')
-          .maxLines(2);
+      Stack() {
+        Text('')
+          .width(18)
+          .height(18)
+          .backgroundColor('#FFFDF6')
+          .borderWidth(1)
+          .borderColor('#E7D7B6')
+          .rotate({ angle: 45 })
+          .position({ x: 186, y: 77 });
+        Column({ space: 3 }) {
+          Text(this.bossDialogueName)
+            .id('BattleBossIntroName')
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#6B4A23');
+          Text(this.bossDialogueIntroEn)
+            .id('BattleBossIntroLineEn')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#1D3557')
+            .maxLines(2);
+          Text(this.bossDialogueIntroZh)
+            .id('BattleBossIntroLineZh')
+            .fontSize(11)
+            .fontColor('#6E5F54')
+            .maxLines(2);
+        }
+        .width(224)
+        .height(96)
+        .padding(10)
+        .borderRadius(18)
+        .backgroundColor('#FFFDF6')
+        .borderWidth(1)
+        .borderColor('#E7D7B6')
+        .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 });
       }
       .id('BattleBossIntroBubble')
-      .width(210)
-      .padding(10)
-      .borderRadius(16)
-      .backgroundColor('#FFFDF6')
-      .borderWidth(1)
-      .borderColor('#E9D9B8')
-      .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 })
-      .position({ x: '58%', y: '25%' })
+      .width(224)
+      .height(112)
+      .position({ x: '46%', y: '16%' })
       .hitTestBehavior(HitTestMode.None);
     }
   }
@@ -925,33 +938,46 @@ struct BattlePage {
   @Builder
   bossDefeatBubble() {
     if (this.bossDefeatVisible) {
-      Column({ space: 3 }) {
-        Text(this.bossDialogueName)
-          .id('BattleBossDefeatName')
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#4F6B2B');
-        Text(this.bossDialogueDefeatEn)
-          .id('BattleBossDefeatLineEn')
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#1D3557')
-          .maxLines(2);
-        Text(this.bossDialogueDefeatZh)
-          .id('BattleBossDefeatLineZh')
-          .fontSize(11)
-          .fontColor('#6E5F54')
-          .maxLines(2);
+      Stack() {
+        Text('')
+          .width(18)
+          .height(18)
+          .backgroundColor('#FFFDF6')
+          .borderWidth(1)
+          .borderColor('#D5E7B3')
+          .rotate({ angle: 45 })
+          .position({ x: 186, y: 77 });
+        Column({ space: 3 }) {
+          Text(this.bossDialogueName)
+            .id('BattleBossDefeatName')
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#4F6B2B');
+          Text(this.bossDialogueDefeatEn)
+            .id('BattleBossDefeatLineEn')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#1D3557')
+            .maxLines(2);
+          Text(this.bossDialogueDefeatZh)
+            .id('BattleBossDefeatLineZh')
+            .fontSize(11)
+            .fontColor('#6E5F54')
+            .maxLines(2);
+        }
+        .width(224)
+        .height(96)
+        .padding(10)
+        .borderRadius(18)
+        .backgroundColor('#FFFDF6')
+        .borderWidth(1)
+        .borderColor('#D5E7B3')
+        .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 });
       }
       .id('BattleBossDefeatBubble')
-      .width(220)
-      .padding(10)
-      .borderRadius(16)
-      .backgroundColor('#FFFDF6')
-      .borderWidth(1)
-      .borderColor('#D5E7B3')
-      .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 })
-      .position({ x: '56%', y: '29%' })
+      .width(224)
+      .height(112)
+      .position({ x: '47%', y: '20%' })
       .hitTestBehavior(HitTestMode.None);
     }
   }
