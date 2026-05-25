@@ -28,6 +28,7 @@ import { enForZh, findPlayerFullHpLabel } from './UiTestBattleHelpers.ets';
  */
 
 const delegator: abilityDelegatorRegistry.AbilityDelegator = abilityDelegatorRegistry.getAbilityDelegator();
+const CONFIG_SCROLL_X: number = 630;
 
 /**
  * Exported launcher for sibling UI test files (e.g. CritSpectacle) so
@@ -91,7 +92,7 @@ export async function tapConfigCancelShared(driver: Driver): Promise<void> {
         await comp.click();
         return;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
     await driver.pressBack();
@@ -118,7 +119,7 @@ export async function scrollToParentPinButton(driver: Driver): Promise<void> {
           return;
         }
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
   } catch (err) {
@@ -135,7 +136,7 @@ export async function clickParentPinSetupCancelShared(driver: Driver): Promise<v
         await cancel.click();
         return;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(350);
     }
     await driver.assertComponentExist(ON.id('ParentPinSetupCancel'));
@@ -181,7 +182,7 @@ export async function scrollToQuestionTypeChipsShared(driver: Driver): Promise<v
       if (choice !== null) {
         return;
       }
-      await driver.swipe(1400, 300, 1400, 1100, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 300, CONFIG_SCROLL_X, 1100, 600);
       await driver.delayMs(300);
     }
     for (let attempt: number = 0; attempt < 5; attempt++) {
@@ -190,7 +191,7 @@ export async function scrollToQuestionTypeChipsShared(driver: Driver): Promise<v
       if (choice !== null) {
         return;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(300);
     }
   } catch (err) {
@@ -206,7 +207,7 @@ async function tapConfigSaveShared(driver: Driver): Promise<void> {
         await comp.click();
         return;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
     throw new Error('ConfigBackButton remained off-screen after 5 swipes');

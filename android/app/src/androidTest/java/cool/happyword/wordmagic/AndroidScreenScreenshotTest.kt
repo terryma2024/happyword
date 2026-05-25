@@ -2,11 +2,14 @@ package cool.happyword.wordmagic
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
@@ -78,7 +81,24 @@ class AndroidScreenScreenshotTest {
     @Test
     fun captureConfigScreenOnly() {
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigQuestionType_sentence-cloze") }
+        composeRule.onNodeWithTag("ConfigQuestionType_sentence-cloze").performScrollTo()
         capture("config-landscape.png")
+    }
+
+    @Test
+    fun captureSentenceClozeBattleScreen() {
+        composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_choice").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_fill-letter-medium").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigQuestionType_spell").performScrollTo().performClick()
+        composeRule.onNodeWithTag("ConfigBackButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
+
+        composeRule.onNodeWithTag("HomeStartButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("BattleSentenceClozePrompt") }
+        capture("sentence-cloze-battle.png")
     }
 
     @Test
@@ -101,9 +121,9 @@ class AndroidScreenScreenshotTest {
         composeRule.onAllNodesWithText("审核")[0].performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("LessonDraftReviewScreen") }
         capture("lesson-review-portrait.png")
-        composeRule.onNodeWithText("返回").performClick()
+        composeRule.onNodeWithTag("LessonDraftReviewBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ParentAdminScreen") }
-        composeRule.onNodeWithText("返回").performClick()
+        composeRule.onNodeWithTag("ParentAdminBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigScreen") }
 
         composeRule.onNodeWithTag("ConfigBackButton").performClick()
@@ -137,7 +157,7 @@ class AndroidScreenScreenshotTest {
 
     private fun capture(fileName: String) {
         composeRule.waitForIdle()
-        val bitmap = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
         val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
         val dir = File(targetContext.filesDir, "screenshots").also { it.mkdirs() }
         FileOutputStream(File(dir, fileName)).use { out ->

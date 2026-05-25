@@ -24,7 +24,7 @@ For every feature, agents work inside `docs/features/<feature-id>/`, where `<fea
 
 | Feature ID | Slug | Owner | Status | Replication approved | Folder |
 | --- | --- | --- | --- | --- | --- |
-| `2026-05-24-sentence-cloze-v0-9-1` | sentence-cloze-v0-9-1 | (V0.9.1 — 句子填词题型) | Harmony implemented / soft gate partial | no | [`2026-05-24-sentence-cloze-v0-9-1/`](2026-05-24-sentence-cloze-v0-9-1/) |
+| `2026-05-24-sentence-cloze-v0-9-1` | sentence-cloze-v0-9-1 | (V0.9.1 — 句子填词题型) | Three-platform full UI automation green / screenshots partial | yes | [`2026-05-24-sentence-cloze-v0-9-1/`](2026-05-24-sentence-cloze-v0-9-1/) |
 | `2026-05-23-daily-checkin-v0-8-8` | daily-checkin-v0-8-8 | (V0.8.8 — 每日打卡与连续奖励) | Done | yes | [`2026-05-23-daily-checkin-v0-8-8/`](2026-05-23-daily-checkin-v0-8-8/) |
 | `2026-05-23-coin-reward-by-monster-level-v0-8-6` | coin-reward-by-monster-level-v0-8-6 | (V0.8.6 — 怪物等级积分金币) | Done | yes | [`2026-05-23-coin-reward-by-monster-level-v0-8-6/`](2026-05-23-coin-reward-by-monster-level-v0-8-6/) |
 | `2026-05-18-battle-balance-v0-8-4` | battle-balance-v0-8-4 | (V0.8.4 — 战斗平衡与题型节奏) | Stage 5 cleanup | yes | [`2026-05-18-battle-balance-v0-8-4/`](2026-05-18-battle-balance-v0-8-4/) |

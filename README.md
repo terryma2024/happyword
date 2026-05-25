@@ -2,7 +2,7 @@
 
 魔法背单词是一个面向儿童的英语单词学习冒险产品。游戏把单词练习包装成“小魔法师对战怪物”的轻量冒险：孩子在横屏战斗中识别单词、补全拼写、积累魔法币，并通过每日计划和学习报告持续复习。
 
-仓库现在按 monorepo 组织：`harmonyos/`、`ios/`、`android/` 三个原生客户端与 `server/` 后端并列推进，`shared/` 只保存跨端契约、schema 和测试 fixtures。当前可运行的完整客户端仍是 HarmonyOS NEXT；iOS / Android 已保留根目录模块位，后续按原生 SwiftUI / Jetpack Compose 方向补齐。
+仓库现在按 monorepo 组织：`harmonyos/`、`ios/`、`android/` 三个原生客户端与 `server/` 后端并列推进，`shared/` 只保存跨端契约、schema 和测试 fixtures。HarmonyOS NEXT 是参考实现；iOS / Android 已按原生 SwiftUI / Jetpack Compose 方向复制主要产品闭环，并通过三端 feature SOP 持续对齐。
 
 **路线图（里程碑与后续方向）：** [`docs/WordMagicGame_roadmap.md`](docs/WordMagicGame_roadmap.md)
 
@@ -10,47 +10,57 @@
 
 Clients ship separate binaries; screenshots are grouped **by platform** under [`assets/screenshots/`](assets/screenshots/).
 
-### HarmonyOS NEXT (current reference UI)
+### HarmonyOS NEXT (reference UI)
 
-Captured from a landscape phone/tablet viewport (`2720×1260` PNG from `uitest screenCap`). Long pages use numbered strips (`config-part*.png`, `learning-report-part*.png`, `parent-admin-part*.png`). Regenerate on a connected device or emulator with:
+Captured from the current HarmonyOS device/emulator state. Gameplay and most child-facing surfaces are landscape; configuration and longer management surfaces are portrait after the recent orientation pass. Some long-page archives still keep numbered strips under `assets/screenshots/harmonyos/`, but this README shows one representative image per surface. Regenerate on a connected device or emulator with:
 
 `python3 scripts/capture_harmony_screenshots.py` (see script docstring; requires `hdc`).
 
-| Home | Battle | Result |
+| Landscape: battle | Landscape: result | Landscape: question types |
 | --- | --- | --- |
-| ![Home](assets/screenshots/harmonyos/home.png) | ![Battle](assets/screenshots/harmonyos/battle.png) | ![Result](assets/screenshots/harmonyos/result.png) |
+| ![HarmonyOS battle](assets/screenshots/harmonyos/battle.png) | ![HarmonyOS result](assets/screenshots/harmonyos/result.png) | ![HarmonyOS question types](assets/screenshots/harmonyos/config-question-types.png) |
 
-| Monster codex (1 / 2) | Monster codex (2 / 2) | Today plan |
+| Landscape: daily check-in | Landscape: monster codex | Landscape: wishlist |
 | --- | --- | --- |
-| ![Codex 1](assets/screenshots/harmonyos/monster-codex-part1.png) | ![Codex 2](assets/screenshots/harmonyos/monster-codex-part2.png) | ![Today plan](assets/screenshots/harmonyos/today-plan.png) |
+| ![HarmonyOS daily check-in](assets/screenshots/harmonyos/daily-checkin-calendar.png) | ![HarmonyOS monster codex](assets/screenshots/harmonyos/monster-codex-part1.png) | ![HarmonyOS wishlist](assets/screenshots/harmonyos/wishlist.png) |
 
-| Learning report (strip 1 / 2) | Learning report (strip 2 / 2) | Wishlist |
+| Portrait: config | Portrait: today plan | Portrait: pack manager |
 | --- | --- | --- |
-| ![LR 1](assets/screenshots/harmonyos/learning-report-part1.png) | ![LR 2](assets/screenshots/harmonyos/learning-report-part2.png) | ![Wishlist](assets/screenshots/harmonyos/wishlist.png) |
+| ![HarmonyOS config](assets/screenshots/harmonyos/config-part1.png) | ![HarmonyOS today plan](assets/screenshots/harmonyos/today-plan.png) | ![HarmonyOS pack manager](assets/screenshots/harmonyos/pack-manager.png) |
 
-| Redemption history | Pack manager | Parent PIN setup |
+| Portrait: learning report | Portrait: redemption history | Portrait: parent admin |
 | --- | --- | --- |
-| ![History](assets/screenshots/harmonyos/redemption-history.png) | ![Packs](assets/screenshots/harmonyos/pack-manager.png) | ![PIN](assets/screenshots/harmonyos/parent-pin-setup.png) |
+| ![HarmonyOS learning report](assets/screenshots/harmonyos/learning-report-part1.png) | ![HarmonyOS redemption history](assets/screenshots/harmonyos/redemption-history.png) | ![HarmonyOS parent admin](assets/screenshots/harmonyos/parent-admin-part1.png) |
 
-| Config (scroll 1–4) | Parent admin (portrait scroll 1–4) | Bound child profile |
-| --- | --- | --- |
-| ![C1](assets/screenshots/harmonyos/config-part1.png) | ![A1](assets/screenshots/harmonyos/parent-admin-part1.png) | ![Child](assets/screenshots/harmonyos/bound-device-info.png) |
-| ![C2](assets/screenshots/harmonyos/config-part2.png) | ![A2](assets/screenshots/harmonyos/parent-admin-part2.png) | |
-| ![C3](assets/screenshots/harmonyos/config-part3.png) | ![A3](assets/screenshots/harmonyos/parent-admin-part3.png) | |
-| ![C4](assets/screenshots/harmonyos/config-part4.png) | ![A4](assets/screenshots/harmonyos/parent-admin-part4.png) | |
+**Capture notes:**
 
-**Not automated in the capture script (environment-dependent):**
-
+- V0.9.1 full UI automation is green on HarmonyOS, but the screenshot script remains environment-sensitive. The latest run refreshed several HarmonyOS PNGs and still reported failed/skipped steps for battle/result, parent PIN/admin, and scan-binding states.
 - **`pages/ScanBindingPage`** — the bind button is hidden when the device already has a parent binding; capture `scan-binding.png` manually from an **unbound** install or after clearing binding.
 - **`pages/LessonDraftReviewPage`** — needs at least one server-backed lesson draft in **pending**; capture manually from Parent admin when a row exists.
 
-### iOS (planned)
+### iOS
 
-Place future App Store / parity screenshots under [`assets/screenshots/ios/`](assets/screenshots/ios/).
+Native SwiftUI client screenshots live under [`assets/screenshots/ios/`](assets/screenshots/ios/). Child-facing and settings routes below are landscape; Parent Admin is portrait. V0.9.1 sentence cloze and the missing Home / Config / Parent Admin screenshots were captured from the iPhone simulator after the full XCUITest suite passed.
 
-### Android (planned)
+| Landscape: home | Landscape: config | Landscape: sentence cloze battle |
+| --- | --- | --- |
+| ![iOS home](assets/screenshots/ios/home.png) | ![iOS config](assets/screenshots/ios/config.png) | ![iOS sentence cloze](assets/screenshots/ios/sentence-cloze-battle.png) |
 
-Place future Play Store / parity screenshots under [`assets/screenshots/android/`](assets/screenshots/android/).
+| Landscape: daily check-in | Landscape: today plan | Portrait: parent admin |
+| --- | --- | --- |
+| ![iOS daily calendar](assets/screenshots/ios/daily-checkin-calendar.png) | ![iOS today plan](assets/screenshots/ios/daily-checkin-today-plan.png) | ![iOS parent admin](assets/screenshots/ios/parent-admin.png) |
+
+### Android
+
+Native Jetpack Compose client screenshots live under [`assets/screenshots/android/`](assets/screenshots/android/). Gameplay and most child-facing routes are landscape; Config and parent/admin flows are portrait. V0.9.1 config and sentence cloze screenshots were refreshed after the full connected UI suite passed.
+
+| Landscape: home | Landscape: battle | Landscape: sentence cloze battle |
+| --- | --- | --- |
+| ![Android home](assets/screenshots/android/home.png) | ![Android battle](assets/screenshots/android/battle.png) | ![Android sentence cloze](assets/screenshots/android/sentence-cloze-battle.png) |
+
+| Landscape: result | Portrait: config | Portrait: parent admin |
+| --- | --- | --- |
+| ![Android result](assets/screenshots/android/result.png) | ![Android config](assets/screenshots/android/config-landscape.png) | ![Android parent admin](assets/screenshots/android/parent-admin.png) |
 
 ## Highlights
 
@@ -65,8 +75,8 @@ Place future Play Store / parity screenshots under [`assets/screenshots/android/
 ## Tech Stack
 
 - HarmonyOS NEXT client: `harmonyos/`, ArkTS / ArkUI, DevEco Studio managed project
-- iOS client: `ios/`, native Swift / SwiftUI planned
-- Android client: `android/`, native Kotlin / Jetpack Compose planned
+- iOS client: `ios/`, native Swift / SwiftUI
+- Android client: `android/`, native Kotlin / Jetpack Compose
 - Server: `server/`, Python / FastAPI / MongoDB / Vercel
 - Shared contracts: `shared/`, schemas and golden fixtures only; no shared client runtime
 - Assets: local rawfile assets plus durable design-source assets under `assets/`
@@ -75,8 +85,8 @@ Place future Play Store / parity screenshots under [`assets/screenshots/android/
 
 ```text
 harmonyos/   HarmonyOS NEXT client; open this directory in DevEco Studio
-ios/         Native iOS client placeholder; Swift / SwiftUI later
-android/     Native Android client placeholder; Kotlin / Jetpack Compose later
+ios/         Native iOS client; Swift / SwiftUI
+android/     Native Android client; Kotlin / Jetpack Compose
 server/      FastAPI content backend, parent web, device APIs, Vercel config
 shared/      Contracts, schemas, and golden fixtures only
 assets/      Design-source assets; per-platform screenshots under assets/screenshots/{harmonyos,ios,android}/
@@ -89,7 +99,7 @@ Documentation: [overall spec](docs/WordMagicGame_overall_spec.md) · [roadmap](d
 
 ## Local Development
 
-Each top-level module owns its own toolchain. HarmonyOS is the production client today; iOS and Android are native-client placeholders until their implementation starts. Server development and tests are independent of the client SDKs.
+Each top-level module owns its own toolchain. HarmonyOS is the reference client; iOS and Android are native clients that replicate the shared product contract. Server development and tests are independent of the client SDKs.
 
 ### HarmonyOS client
 
@@ -151,11 +161,11 @@ Debug builds can switch API base URL at runtime (local machine, a Vercel preview
 
 ### iOS client
 
-The iOS module is reserved at [`ios/`](ios/) for the native Swift / SwiftUI client. It should mirror product contracts through `shared/` fixtures when implementation starts, but must keep runtime code native to iOS.
+The iOS module lives at [`ios/`](ios/) and uses native Swift / SwiftUI. It mirrors product contracts through `shared/` fixtures while keeping runtime code native to iOS.
 
 ### Android client
 
-The Android module is reserved at [`android/`](android/) for the native Kotlin / Jetpack Compose client. It should use the same shared contracts and server APIs without introducing a cross-platform client runtime.
+The Android module lives at [`android/`](android/) and uses native Kotlin / Jetpack Compose. It uses the same shared contracts and server APIs without introducing a cross-platform client runtime.
 
 ## Server
 

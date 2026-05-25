@@ -3,11 +3,15 @@ import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { common, Want } from '@kit.AbilityKit';
 import http from '@ohos.net.http';
 import preferences from '@ohos.data.preferences';
-import { clickByIdShared } from './RoutingFlow.ui.test';
+import {
+  clickByIdShared,
+  clickParentPinSetupCancelShared,
+} from './RoutingFlow.ui.test';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
   abilityDelegatorRegistry.getAbilityDelegator();
+const CONFIG_SCROLL_X: number = 630;
 
 const MOCK_BASE_URL: string = 'http://127.0.0.1:8123';
 
@@ -109,7 +113,7 @@ async function scrollToPackManagerEntry(driver: Driver): Promise<void> {
       if (btn !== null) {
         return;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(300);
     }
     throw new Error('scrollToPackManagerEntry: ConfigPackManagerEntry not found');
@@ -175,9 +179,9 @@ async function scrollPackRowIntoView(driver: Driver, packId: string): Promise<vo
       // bottom-ward swipes on the already-bottomed list can leave the
       // uitest driver stuck inside Driver.swipe and poison later tests.
       if (builtinTarget) {
-        await driver.swipe(1400, 400, 1400, 1100, 450);
+        await driver.swipe(CONFIG_SCROLL_X, 400, CONFIG_SCROLL_X, 1100, 450);
       } else {
-        await driver.swipe(1400, 1100, 1400, 400, 450);
+        await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 400, 450);
       }
       await driver.delayMs(400);
     }
@@ -191,9 +195,9 @@ async function scrollPackRowIntoView(driver: Driver, packId: string): Promise<vo
         return;
       }
       if (builtinTarget) {
-        await driver.swipe(1400, 1100, 1400, 400, 450);
+        await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 400, 450);
       } else {
-        await driver.swipe(1400, 400, 1400, 1100, 450);
+        await driver.swipe(CONFIG_SCROLL_X, 400, CONFIG_SCROLL_X, 1100, 450);
       }
       await driver.delayMs(400);
     }
@@ -418,7 +422,7 @@ async function bindViaShortCode(driver: Driver): Promise<void> {
       if (bind !== null || bound !== null) {
         break;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
 
@@ -438,7 +442,7 @@ async function bindViaShortCode(driver: Driver): Promise<void> {
       if (bindEntry !== null) {
         break;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
     if (bindEntry === null) {
@@ -472,13 +476,36 @@ async function bindViaShortCode(driver: Driver): Promise<void> {
       throw new Error('bindViaShortCode: ScanBindingManualSubmit not found');
     }
     await submit.click();
+    let keypad: Component | null = null;
+    for (let i: number = 0; i < 20; i++) {
+      keypad = await driver.findComponent(ON.id('ParentPinSetupKey_1'));
+      if (keypad !== null) {
+        break;
+      }
+      const successEarly: Component | null =
+        await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
+      if (successEarly !== null) {
+        keypad = null;
+        break;
+      }
+      await driver.delayMs(400);
+    }
+    if (keypad !== null) {
+      await clickParentPinSetupCancelShared(driver);
+      await driver.delayMs(800);
+    }
+    let foundSuccess: boolean = false;
     for (let i: number = 0; i < 16; i++) {
       const c: Component | null =
         await driver.findComponent(ON.id('ScanBindingSuccessLabel'));
       if (c !== null) {
+        foundSuccess = true;
         break;
       }
       await driver.delayMs(500);
+    }
+    if (!foundSuccess) {
+      throw new Error('bindViaShortCode: ScanBindingSuccessLabel not found');
     }
     const successBack: Component | null =
       await driver.findComponent(ON.id('ScanBindingSuccessBack'));

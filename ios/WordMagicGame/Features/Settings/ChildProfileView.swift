@@ -30,6 +30,7 @@ struct ChildProfileView: View {
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .frame(maxWidth: 360)
                         .focused($isNicknameFocused)
+                        .accessibilityLabel("学习者名字")
                         .accessibilityIdentifier("学习者名字")
                     HStack(spacing: 14) {
                         Button("保存名字") {

@@ -5,6 +5,10 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
 import { LESSON_IMAGE_PICKER_OVERRIDE_URI_KEY } from '../../../main/ets/services/LessonImagePicker';
 import { clickByIdShared, tapConfigCancelShared } from './RoutingFlow.ui.test';
+import {
+  bindMockParentViaShortCodeFromHome,
+  resetMockAndPrefsToUnboundShared,
+} from './UiTestBindingHelpers';
 
 /**
  * V0.5.8 acceptance: parent admin backend + parent-PIN gate.
@@ -31,6 +35,8 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
 
 /** PIN value committed by configFlowUiTest's twoStep test. */
 const KNOWN_PIN: string = '123456';
+const VALID_SHORT_CODE: string = '345678';
+const CONFIG_SCROLL_X: number = 630;
 
 async function launchApp(): Promise<Driver> {
   // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
@@ -83,7 +89,7 @@ async function openConfigAndScrollToAdmin(driver: Driver): Promise<void> {
       if (btn !== null) {
         return;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(400);
     }
   } catch (err) {
@@ -130,7 +136,7 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
       if (btn !== null) {
         break;
       }
-      await driver.swipe(1400, 1100, 1400, 300, 600);
+      await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
       await driver.delayMs(300);
     }
     await clickByIdShared(driver, 'ConfigParentPinButton');
@@ -151,6 +157,20 @@ async function ensureParentPin(driver: Driver, pin: string): Promise<void> {
   } catch (err) {
     throw err as Error;
   }
+}
+
+async function ensureParentAdminPreconditions(driver: Driver): Promise<void> {
+  try {
+    // ConfigPage renders parent PIN/admin rows only for bound devices.
+    await bindMockParentViaShortCodeFromHome(driver, VALID_SHORT_CODE);
+    await ensureParentPin(driver, KNOWN_PIN);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
+async function cleanupParentAdminPreconditions(): Promise<void> {
+  await resetMockAndPrefsToUnboundShared();
 }
 
 /**
@@ -401,6 +421,7 @@ export default function parentAdminFlowUiTest(): void {
     it('configHasAdminEntryButton', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await ensureParentAdminPreconditions(driver);
       await openConfigAndScrollToAdmin(driver);
 
       await driver.assertComponentExist(ON.id('ConfigParentAdminButton'));
@@ -411,6 +432,7 @@ export default function parentAdminFlowUiTest(): void {
       await tapConfigCancelShared(driver);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await cleanupParentAdminPreconditions();
       done();
     });
 
@@ -428,9 +450,7 @@ export default function parentAdminFlowUiTest(): void {
     it('adminButtonOpensPinDialogAndWrongPinStays', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
-      // Idempotent PIN seed — the configFlow twoStep test already
-      // committed 123456, but re-seeding makes this case independent.
-      await ensureParentPin(driver, KNOWN_PIN);
+      await ensureParentAdminPreconditions(driver);
 
       await openConfigAndScrollToAdmin(driver);
       await clickByIdShared(driver, 'ConfigParentAdminButton');
@@ -465,6 +485,7 @@ export default function parentAdminFlowUiTest(): void {
       await tapConfigCancelShared(driver);
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      await cleanupParentAdminPreconditions();
       done();
     });
 
@@ -480,7 +501,7 @@ export default function parentAdminFlowUiTest(): void {
     it('correctPinNavigatesToParentAdmin', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
-      await ensureParentPin(driver, KNOWN_PIN);
+      await ensureParentAdminPreconditions(driver);
       await navigateToParentAdminPage(driver);
 
       await driver.assertComponentExist(ON.id('ParentAdminServerLabel'));
@@ -512,6 +533,7 @@ export default function parentAdminFlowUiTest(): void {
       expect(passwordInput === null).assertTrue();
 
       await exitParentAdminPage(driver);
+      await cleanupParentAdminPreconditions();
       done();
     });
 
@@ -537,7 +559,7 @@ export default function parentAdminFlowUiTest(): void {
     it('parentAdminInteractionsStayStable', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
-      await ensureParentPin(driver, KNOWN_PIN);
+      await ensureParentAdminPreconditions(driver);
       await navigateToParentAdminPage(driver);
 
       // Tap Refresh first while the title row is still on-screen.
@@ -583,6 +605,7 @@ export default function parentAdminFlowUiTest(): void {
       expect(notesText.indexOf('lesson v1') >= 0).assertTrue();
 
       await exitParentAdminPage(driver);
+      await cleanupParentAdminPreconditions();
       done();
     });
 
@@ -612,7 +635,7 @@ export default function parentAdminFlowUiTest(): void {
     it('refreshShowsMockedStats', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
-      await ensureParentPin(driver, KNOWN_PIN);
+      await ensureParentAdminPreconditions(driver);
       await navigateToParentAdminPage(driver);
 
       // aboutToAppear's refresh races with mount; tap Refresh so we
@@ -650,6 +673,7 @@ export default function parentAdminFlowUiTest(): void {
       expect(categoryCountText.indexOf('1') >= 0).assertTrue();
 
       await exitParentAdminPage(driver);
+      await cleanupParentAdminPreconditions();
       done();
     });
 
@@ -671,7 +695,7 @@ export default function parentAdminFlowUiTest(): void {
     it('pendingListShowsMockedDraft', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
-      await ensureParentPin(driver, KNOWN_PIN);
+      await ensureParentAdminPreconditions(driver);
       await navigateToParentAdminPage(driver);
 
       // aboutToAppear fires refreshPendingDrafts; small delay lets
@@ -690,6 +714,7 @@ export default function parentAdminFlowUiTest(): void {
       );
 
       await exitParentAdminPage(driver);
+      await cleanupParentAdminPreconditions();
       done();
     });
 
@@ -712,7 +737,7 @@ export default function parentAdminFlowUiTest(): void {
     it('tapPublishShowsSuccessSummary', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
-      await ensureParentPin(driver, KNOWN_PIN);
+      await ensureParentAdminPreconditions(driver);
       await navigateToParentAdminPage(driver);
 
       // The publish controls live at the bottom of the Scroll; bring
@@ -749,6 +774,7 @@ export default function parentAdminFlowUiTest(): void {
       expect(notesText.indexOf('mock e2e') < 0).assertTrue();
 
       await exitParentAdminPage(driver);
+      await cleanupParentAdminPreconditions();
       done();
     });
 
@@ -771,7 +797,7 @@ export default function parentAdminFlowUiTest(): void {
     it('tapReviewLinkOpensReviewPageWithMockedDraft', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
-      await ensureParentPin(driver, KNOWN_PIN);
+      await ensureParentAdminPreconditions(driver);
       await navigateToParentAdminPage(driver);
 
       // Wait for the pending list to populate so the link button is
@@ -848,6 +874,7 @@ export default function parentAdminFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ParentAdminTitle'));
 
       await exitParentAdminPage(driver);
+      await cleanupParentAdminPreconditions();
       done();
     });
 
@@ -907,7 +934,7 @@ export default function parentAdminFlowUiTest(): void {
 
       const driver: Driver = await launchApp();
       await returnToHome(driver);
-      await ensureParentPin(driver, KNOWN_PIN);
+      await ensureParentAdminPreconditions(driver);
       await navigateToParentAdminPage(driver);
 
       // The gallery button lives in `lessonImportCard`, the SECOND
@@ -950,6 +977,7 @@ export default function parentAdminFlowUiTest(): void {
       expect(successText.indexOf('AI 识别中') >= 0).assertTrue();
 
       await exitParentAdminPage(driver);
+      await cleanupParentAdminPreconditions();
       done();
     });
   });

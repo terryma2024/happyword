@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
+import cool.happyword.wordmagic.core.BuiltinPacks
 import java.io.File
 import org.junit.After
 import org.junit.Assert.assertTrue
@@ -133,7 +134,7 @@ class FamilyLearningFlowTest {
         composeRule.onAllNodesWithText("审核")[0].performClick()
         composeRule.onNodeWithTag("LessonDraftReviewScreen").assertIsDisplayed()
         composeRule.onNodeWithText("apple 苹果").assertIsDisplayed()
-        composeRule.onNodeWithText("返回").performClick()
+        composeRule.onNodeWithTag("LessonDraftReviewBackButton").performClick()
         composeRule.onNodeWithTag("ParentAdminScreen").assertIsDisplayed()
         composeRule.onNodeWithText("🖼 从相册选择").performScrollTo().performClick()
         composeRule.onNodeWithTag("LessonDraftReviewScreen").assertIsDisplayed()
@@ -226,7 +227,8 @@ class FamilyLearningFlowTest {
         composeRule.onNodeWithTag("LearningReportMastered").assertTextContains("0")
         composeRule.onNodeWithTag("LearningReportFamiliar").assertTextContains("0")
         composeRule.onNodeWithTag("LearningReportLearning").assertTextContains("0")
-        composeRule.onNodeWithTag("LearningReportNewCount").assertTextContains("25")
+        val builtInWordCount = BuiltinPacks.all.sumOf { it.words.size }
+        composeRule.onNodeWithTag("LearningReportNewCount").assertTextContains("$builtInWordCount")
         composeRule.onNodeWithTag("LearningReportReviewCount").assertTextContains("0 / 0")
         composeRule.onNodeWithTag("LearningReportReviewPct").assertTextContains("0% 完成")
     }
@@ -289,7 +291,7 @@ class FamilyLearningFlowTest {
         composeRule.onNodeWithTag("ParentPinScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("ParentPinInput").performTextInput("123456")
         composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("ParentAdminScreen") }
-        composeRule.onNodeWithText("返回").performClick()
+        composeRule.onNodeWithTag("ParentAdminBackButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("ConfigScreen") }
     }
 
