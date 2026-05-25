@@ -3,7 +3,7 @@
 > Source of truth: [`00-design.md`](00-design.md)
 > Replication gate: [`20-replication-trigger.md`](20-replication-trigger.md)
 
-**Status:** HarmonyOS implemented; iOS / Android replication started after [`20-replication-trigger.md`](20-replication-trigger.md) was signed with `replication_approved: true` on 2026-05-24.
+**Status:** Three-platform implementation and focused verification complete after [`20-replication-trigger.md`](20-replication-trigger.md) was signed with `replication_approved: true` on 2026-05-24; Stage 5 remains open for screenshot refresh and Harmony full UI suite rerun.
 
 | Parity item | HarmonyOS | iOS | Android | Notes |
 | --- | --- | --- | --- | --- |

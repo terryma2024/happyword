@@ -1,6 +1,8 @@
 # V0.8.3 — Battle Polish — Parity Checklist
 
-This checklist was added during the 2026-05-21 roadmap hygiene pass to separate "Harmony has the polish layer" from "all three clients have the same V0.8.3 contract." It was refreshed on 2026-05-23 after iOS / Android parity code was added on top of latest `main`; Android targeted tests pass, while iOS test execution is still blocked by host tooling (Xcode not active).
+This checklist was added during the 2026-05-21 roadmap hygiene pass to separate "Harmony has the polish layer" from "all three clients have the same V0.8.3 contract." It was refreshed on 2026-05-24 after parity closeout; every row is now green or explicitly N/A.
+
+**Status:** Done.
 
 | Item | Harmony | iOS | Android |
 | --- | --- | --- | --- |

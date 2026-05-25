@@ -1,9 +1,9 @@
 # V0.8.8 — Daily Check-in Rewards — Cross-Platform Design
 
 > Feature ID: `2026-05-23-daily-checkin-v0-8-8`
-> Status: `ready-for-harmony`
+> Status: `done`
 > Owner: Terry Ma
-> Last updated: 2026-05-23
+> Last updated: 2026-05-24
 
 This document is the platform-neutral source of truth for V0.8.8 daily check-ins. HarmonyOS implements first; iOS and Android replicate only after the Harmony soft gate and human signature in [`20-replication-trigger.md`](20-replication-trigger.md).
 

@@ -1,9 +1,9 @@
 # V0.8.6 — 怪物等级积分金币 — Cross-Platform Design
 
 > Feature ID: `2026-05-23-coin-reward-by-monster-level-v0-8-6`
-> Status: `draft`
+> Status: `done`
 > Owner: Terry Ma (orchestrating); HarmonyOS implementer = first
-> Last updated: 2026-05-23
+> Last updated: 2026-05-24
 
 Platform-neutral source of truth for V0.8.6. HarmonyOS, iOS, and Android plans cite this document; they do not redesign.
 

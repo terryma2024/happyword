@@ -1,7 +1,7 @@
 # V0.9.1 — Sentence Cloze — Cross-Platform Design
 
 > Feature ID: `2026-05-24-sentence-cloze-v0-9-1`
-> Status: `draft`
+> Status: `stage-5-screenshots-pending`
 > Owner: Terry Ma
 > Last updated: 2026-05-24
 

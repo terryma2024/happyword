@@ -1,9 +1,9 @@
 # V0.8.3 — 战斗与词包体验小优化 — Cross-Platform Design
 
 > Feature ID: `2026-05-18-battle-polish-v0-8-3`
-> Status: `three-platform-code-complete; ios-verification-pending`
+> Status: `done`
 > Owner: Terry Ma (orchestrating); HarmonyOS implementer = first
-> Last updated: 2026-05-23
+> Last updated: 2026-05-24
 
 This document is the platform-neutral source of truth for V0.8.3. HarmonyOS, iOS, and Android plans cite it; they do not redesign. Long-form spec notes — if needed — go under [`docs/superpowers/specs/`](../../superpowers/specs/) and back-link here.
 
