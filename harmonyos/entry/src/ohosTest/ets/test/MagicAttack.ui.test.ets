@@ -35,7 +35,7 @@ import {
  *     and the engine's `submitAnswer` still applied damage to the
  *     player despite the new `scheduleImpact` setTimeout split.
  *   - tapping a correct answer must drop the monster's HP from
- *     "HP 3 / 3" to "HP 2 / 3" within the same window — same proof for
+ *     "HP 5 / 5" to "HP 4 / 5" within the same window — same proof for
  *     the forward-projectile path and `monsterHurtPulse`.
  *
  * The tests reset GameConfig to defaults at the top so a previous
@@ -87,20 +87,20 @@ export default function magicAttackUiTest() {
 
     /**
      * Correct answer: mage's forward projectile must land and apply
-     * exactly 1 damage to the monster, taking HP 3 -> 2.
+     * exactly 1 damage to the monster, taking HP 5 -> 4.
      */
     it('correctAnswerDecreasesMonsterHpAfterProjectileImpact', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
       await returnToHome(driver);
       await startTodayBattleChoiceOnly(driver);
       // Pre-tap baseline: monster at full HP. Both cards render an HP
-      // label so we use the monster's "HP 3 / 3" string to disambiguate
+      // label so we use the monster's "HP 5 / 5" string to disambiguate
       // from the player's "HP 10 / 10".
-      await driver.assertComponentExist(ON.text('HP 3 / 3'));
+      await driver.assertComponentExist(ON.text('HP 5 / 5'));
 
       await tapCorrectAnswerShared(driver);
       await driver.delayMs(900);
-      await driver.assertComponentExist(ON.text('HP 2 / 3'));
+      await driver.assertComponentExist(ON.text('HP 4 / 5'));
 
       await clickByIdShared(driver, 'BattleEscapeButton');
       await driver.delayMs(800);

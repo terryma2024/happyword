@@ -420,7 +420,7 @@ export default function routingFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('AdventureCard'));
       // v0.3.6 (post-launch tweak) dropped the Chinese subtitle
       // "小魔法师单词冒险" — keep just the English title above the
-      // adventure card. The "点击开始，打败 5 个单词史莱姆吧！"
+      // adventure card. The old "点击开始，打败 5 个单词史莱姆吧！"
       // hint and the right-column "开始游戏" button were already
       // removed in v0.3.6; the adventure card now carries the
       // primary CTA copy ("开始今日冒险" / "再战一局") as the
@@ -445,13 +445,13 @@ export default function routingFlowUiTest(): void {
       // typically finishes within ~200ms.
       //
       // Content: player card renders full HP (10/10) and monster card shows
-      // its own HP (3/3). These are engine-driven defaults
+      // its own HP (5/5). These are engine-driven defaults
       // (DEFAULT_PLAYER_HP / DEFAULT_MONSTER_HP), asserted so a regression
       // that zeros out HP on boot is caught immediately.
       // V0.8.4 default max is 10; persisted GameConfig may still be 5.
       const playerFullHp: string = await findPlayerFullHpLabel(driver);
       expect(playerFullHp !== '').assertTrue();
-      await driver.assertComponentExist(ON.text('HP 3 / 3'));
+      await driver.assertComponentExist(ON.text('HP 5 / 5'));
       await driver.assertComponentExist(ON.text('Combo: 0'));
       // Header labels: combo counter + timer. T8 wires a live 1Hz
       // countdown so the timer text changes during the test's delays;
@@ -459,7 +459,7 @@ export default function routingFlowUiTest(): void {
       // exact text — tick correctness is covered in LocalUnit.test.ets.
       await driver.assertComponentExist(ON.id('BattleComboLabel'));
       await driver.assertComponentExist(ON.id('BattleTimerLabel'));
-      await driver.assertComponentExist(ON.text('Monster 1 / 5'));
+      await driver.assertComponentExist(ON.text('Monster 1 / 10'));
       // All three option buttons render. After T6 the texts are real
       // English words from words_v1.json (chosen by the engine's default
       // RNG, so we don't pin them here) — asserting ID existence is
@@ -476,7 +476,7 @@ export default function routingFlowUiTest(): void {
       // Behavioural coverage: tapping an option must NOT immediately route
       // away from BattlePage. The engine handles win/lose transitions but
       // a single tap on a cold game cannot end the session (default config
-      // is 5 monsters × 3 HP, player 10 HP), so we should stay on the
+      // is 10 monsters × 5 HP, player 10 HP), so we should stay on the
       // battle page after each tap. The 800ms delay covers the 650ms
       // reveal window plus a small margin.
       await clickById(driver, 'BattleOptionA');
