@@ -854,14 +854,6 @@ struct BattlePage {
   bossIntroBubble() {
     if (this.bossIntroVisible) {
       Stack() {
-        Text('')
-          .width(30)
-          .height(30)
-          .backgroundColor('#FFFDF6')
-          .borderWidth(1)
-          .borderColor('#E7D7B6')
-          .rotate({ angle: 45 })
-          .position({ x: 194, y: 82 });
         Column({ space: 3 }) {
           Text(this.bossDialogueName)
             .id('BattleBossIntroName')
@@ -887,11 +879,20 @@ struct BattlePage {
         .backgroundColor('#FFFDF6')
         .borderWidth(1)
         .borderColor('#E7D7B6')
-        .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 });
+        .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 })
+        .position({ x: 0, y: 0 });
+        Path()
+          .width(64)
+          .height(64)
+          .commands('M10 0 L34 0 L64 64 Z')
+          .fill('#FFFDF6')
+          .stroke('#E7D7B6')
+          .strokeWidth(1)
+          .position({ x: 164, y: 88 });
       }
       .id('BattleBossIntroBubble')
-      .width(224)
-      .height(112)
+      .width(232)
+      .height(160)
       .position({ x: '55%', y: '11%' })
       .hitTestBehavior(HitTestMode.None);
     }
@@ -939,14 +940,6 @@ struct BattlePage {
   bossDefeatBubble() {
     if (this.bossDefeatVisible) {
       Stack() {
-        Text('')
-          .width(30)
-          .height(30)
-          .backgroundColor('#FFFDF6')
-          .borderWidth(1)
-          .borderColor('#D5E7B3')
-          .rotate({ angle: 45 })
-          .position({ x: 194, y: 82 });
         Column({ space: 3 }) {
           Text(this.bossDialogueName)
             .id('BattleBossDefeatName')
@@ -972,11 +965,20 @@ struct BattlePage {
         .backgroundColor('#FFFDF6')
         .borderWidth(1)
         .borderColor('#D5E7B3')
-        .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 });
+        .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 })
+        .position({ x: 0, y: 0 });
+        Path()
+          .width(64)
+          .height(64)
+          .commands('M10 0 L34 0 L64 64 Z')
+          .fill('#FFFDF6')
+          .stroke('#D5E7B3')
+          .strokeWidth(1)
+          .position({ x: 164, y: 88 });
       }
       .id('BattleBossDefeatBubble')
-      .width(224)
-      .height(112)
+      .width(232)
+      .height(160)
       .position({ x: '55%', y: '14%' })
       .hitTestBehavior(HitTestMode.None);
     }
