@@ -45,6 +45,7 @@ import {
   fallbackPacks,
   loadHomeIntegration,
   resolveActivePacks,
+  resolveTodayAdventurePack,
 } from '../services/PackHomeIntegration';
 
 /**
@@ -404,7 +405,6 @@ struct HomePage {
   private enterTodayAdventure(): void {
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     const router = this.getUIContext().getRouter();
-    const pack: Pack = this.todayPack;
     const recorder = getLearningRecorder();
     const storedCfgForTypes: GameConfig | undefined =
       AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
@@ -414,6 +414,19 @@ struct HomePage {
         : new GameConfig().enabledQuestionTypes
     );
     recorder.init(ctx).then(async (): Promise<void> => {
+      let pack: Pack = this.todayPack;
+      if (pack.words.length === 0) {
+        const refreshed: HomeIntegrationBundle = await loadHomeIntegration(ctx);
+        this.homeIntegration = refreshed;
+        this.applyActivePacks();
+        const persistedId: string | undefined = AppStorage.get<string>(TODAY_REGION_ID_KEY);
+        pack = resolveTodayAdventurePack(refreshed, this.todayPack, persistedId);
+        if (pack.words.length > 0) {
+          this.todayPack = pack;
+          this.todayRegion = regionFromPack(pack);
+          this.packLibraryVersion = this.packLibraryVersion + 1;
+        }
+      }
       const builder: TodayAdventureBuilder = new TodayAdventureBuilder();
       const isFirstToday: boolean = !this.coins.todayAdventureCompleted();
       let plan: TodaySessionPlan;

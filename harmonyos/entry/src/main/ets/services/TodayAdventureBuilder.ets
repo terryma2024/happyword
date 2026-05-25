@@ -12,7 +12,12 @@ import {
   MONSTER_PLAN_SLOT_COUNT,
   WORD_PLAN_MULTIPLIER,
 } from '../models/AdventureRegion';
-import { MonsterKind, monsterIndexForKind } from '../data/MonsterCatalog';
+import {
+  MonsterKind,
+  MonsterLevel,
+  monsterCatalogIndicesForLevel,
+  monsterIndexForKind,
+} from '../data/MonsterCatalog';
 import { Pack } from '../models/Pack';
 import {
   DEFAULT_ENABLED_QUESTION_TYPES,
@@ -104,7 +109,7 @@ export class TodayAdventureBuilder {
 
     const plan: TodaySessionPlan = new TodaySessionPlan();
     plan.regionId = region.id;
-    plan.monsterSlots = this.buildMonsterSlotsForQuestionTypes(region, selectedQuestionTypes);
+    plan.monsterSlots = this.buildMonsterSlotsForQuestionTypes(region, nowMs, selectedQuestionTypes);
     plan.wordPlan = wordPlan;
     plan.bossWordIds = bossWordIds;
     plan.isFirstToday = isFirstToday;
@@ -121,6 +126,7 @@ export class TodayAdventureBuilder {
 
   private buildMonsterSlotsForQuestionTypes(
     region: AdventureRegion,
+    nowMs: number,
     selectedQuestionTypes?: string[],
   ): MonsterSlot[] {
     const safeTypes: string[] = selectedQuestionTypes === undefined
@@ -137,13 +143,41 @@ export class TodayAdventureBuilder {
           ? template.catalogIndex
           : monsterIndexForKind(template.kind);
       } else {
-        const kind: MonsterKind = questionTypeToMonsterKind(safeTypes[i % safeTypes.length]);
+        const typeId: string = safeTypes[i % safeTypes.length];
+        const kind: MonsterKind = questionTypeToMonsterKind(typeId);
         slot.kind = kind;
-        slot.catalogIndex = monsterIndexForKind(kind);
+        slot.catalogIndex = this.catalogIndexForQuestionType(region, nowMs, typeId, i);
       }
       slots.push(slot);
     }
     return slots;
+  }
+
+  private catalogIndexForQuestionType(
+    region: AdventureRegion,
+    nowMs: number,
+    typeId: string,
+    slotIndex: number,
+  ): number {
+    const level: MonsterLevel = this.monsterLevelForQuestionType(typeId);
+    const pool: number[] = monsterCatalogIndicesForLevel(level);
+    const dayKey: string = localDayKey(nowMs);
+    const offset: number = this.hashSeed(`${region.id}:${dayKey}:${level}`) % pool.length;
+    return pool[(offset + slotIndex) % pool.length];
+  }
+
+  private monsterLevelForQuestionType(typeId: string): MonsterLevel {
+    const kind: MonsterKind = questionTypeToMonsterKind(typeId);
+    if (kind === MonsterKind.Spelling) {
+      return MonsterLevel.Intermediate;
+    }
+    if (kind === MonsterKind.Elite) {
+      return MonsterLevel.Advanced;
+    }
+    if (kind === MonsterKind.Boss) {
+      return MonsterLevel.Super;
+    }
+    return MonsterLevel.Beginner;
   }
 
   private applyBossRotation(

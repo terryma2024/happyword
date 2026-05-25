@@ -346,6 +346,19 @@ export function monsterCatalogIndexForLevel(level: MonsterLevel): number {
   return 10;
 }
 
+export function monsterCatalogIndicesForLevel(level: MonsterLevel): number[] {
+  const out: number[] = [];
+  for (let i: number = 1; i <= MONSTER_CATALOG.length; i++) {
+    if (monsterLevelForCatalogIndex(i) === level) {
+      out.push(i);
+    }
+  }
+  if (out.length === 0) {
+    out.push(monsterCatalogIndexForLevel(level));
+  }
+  return out;
+}
+
 export function levelBadgeZhForMonsterLevel(level: MonsterLevel): string {
   if (level === MonsterLevel.Beginner) {
     return '初';

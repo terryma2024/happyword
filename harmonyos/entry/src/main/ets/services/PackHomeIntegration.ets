@@ -72,6 +72,32 @@ export function resolveActivePacks(bundle: HomeIntegrationBundle): Pack[] {
 }
 
 /**
+ * Resolve the concrete Pack to launch from HomePage. This protects the
+ * replay path where the first frame can still hold a synthetic fallback
+ * Pack with no words while the real PackLibrary is warming.
+ */
+export function resolveTodayAdventurePack(
+  bundle: HomeIntegrationBundle,
+  current: Pack,
+  persistedId?: string,
+): Pack {
+  if (persistedId !== undefined && persistedId.length > 0) {
+    const persisted: Pack | undefined = bundle.library.byId(persistedId);
+    if (persisted !== undefined && persisted.words.length > 0) {
+      return persisted;
+    }
+  }
+  if (current.words.length > 0) {
+    return current;
+  }
+  const byCurrentId: Pack | undefined = bundle.library.byId(current.id);
+  if (byCurrentId !== undefined && byCurrentId.words.length > 0) {
+    return byCurrentId;
+  }
+  return current;
+}
+
+/**
  * Synthesize a Pack from one of the bundled AdventureRegion entries.
  * Used as the first-paint fallback in HomePage before
  * `loadHomeIntegration` resolves — AppStorage is empty on a cold

@@ -14,7 +14,12 @@ import {
   MONSTER_PLAN_SLOT_COUNT,
   WORD_PLAN_MULTIPLIER,
 } from '../main/ets/models/AdventureRegion';
-import { MonsterKind, monsterIndexForKind } from '../main/ets/data/MonsterCatalog';
+import {
+  MonsterKind,
+  MonsterLevel,
+  monsterIndexForKind,
+  monsterLevelForCatalogIndex,
+} from '../main/ets/data/MonsterCatalog';
 import { QuestionKind } from '../main/ets/models/Question';
 
 function makeWord(id: string, word: string, category: string): WordEntry {
@@ -231,6 +236,21 @@ export default function todayAdventureBuilderTest() {
       for (let i: number = 0; i < plan.monsterSlots.length; i++) {
         expect(plan.monsterSlots[i].kind).assertEqual(MonsterKind.Elite);
       }
+    });
+
+    it('rotatesCatalogMonstersForSelectedAdvancedQuestionTypes', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const region: AdventureRegion = makeRegion();
+      const rec: LearningRecorder = new LearningRecorder();
+      const plan: TodaySessionPlan = new TodayAdventureBuilder(mulberry32(5))
+        .build(region, repo, rec, NOW, false, [QuestionKind.FillLetterMedium]);
+      const seen: Set<number> = new Set<number>();
+      for (let i: number = 0; i < plan.monsterSlots.length; i++) {
+        expect(plan.monsterSlots[i].kind).assertEqual(MonsterKind.Elite);
+        expect(monsterLevelForCatalogIndex(plan.monsterSlots[i].catalogIndex)).assertEqual(MonsterLevel.Advanced);
+        seen.add(plan.monsterSlots[i].catalogIndex);
+      }
+      expect(seen.size > 1).assertTrue();
     });
 
     it('cyclesSelectedQuestionTypesInDifficultyOrder', 0, () => {

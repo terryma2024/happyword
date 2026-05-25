@@ -55,6 +55,7 @@ import packTest from './Pack.test';
 import builtinPackLoaderTest from './BuiltinPackLoader.test';
 import globalPackServiceTest from './GlobalPackService.test';
 import packLibraryTest from './PackLibrary.test';
+import packHomeIntegrationTest from './PackHomeIntegration.test';
 import packSelectionServiceTest from './PackSelectionService.test';
 import battleQuestionTypePolicyTest from './BattleQuestionTypePolicy.test';
 import compliancePolicyTest from './CompliancePolicy.test';
@@ -124,6 +125,7 @@ export default function testsuite() {
   builtinPackLoaderTest();
   globalPackServiceTest();
   packLibraryTest();
+  packHomeIntegrationTest();
   packSelectionServiceTest();
   battleQuestionTypePolicyTest();
   compliancePolicyTest();
