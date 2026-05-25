@@ -50,9 +50,9 @@ Dialogue presentation follows catalog identity per battle:
 
 Battle monster cards show the current monster's level badge beside its name:
 
-- Beginner: `L1 初级`
-- Intermediate: `L2 中级`
-- Advanced: `L3 高级`
-- Super: `L4 Super`
+- Beginner: `L1`
+- Intermediate: `L2`
+- Advanced: `L3`
+- Super: `L4`
 
 Replication note: iOS and Android must implement the same state machine; do not reuse the older intro/challenge random scheduler.

@@ -206,11 +206,11 @@ export default function monsterCatalogTest() {
       expect(getMonsterByIndex(4).level).assertEqual(MonsterLevel.Intermediate);
     });
 
-    it('battleLevelLabelsExposeReadableStageLabels', 0, () => {
-      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Beginner)).assertEqual('L1 初级');
-      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Intermediate)).assertEqual('L2 中级');
-      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Advanced)).assertEqual('L3 高级');
-      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Super)).assertEqual('L4 Super');
+    it('battleLevelLabelsExposeCompactStageLabels', 0, () => {
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Beginner)).assertEqual('L1');
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Intermediate)).assertEqual('L2');
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Advanced)).assertEqual('L3');
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Super)).assertEqual('L4');
     });
   });
 
