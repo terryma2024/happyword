@@ -1,1 +1,172 @@
-@.github/workflows/server-ci.yml
+name: server-ci
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - "server/**"
+      - ".github/workflows/server-ci.yml"
+
+concurrency:
+  group: server-ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  # Until every composite action ships Node 24, opt in per GitHub deprecation notice.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  server_pytest:
+    name: server / pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Sync dependencies
+        run: uv sync --dev
+
+      - name: Run pytest
+        run: uv run pytest -v
+
+      - name: Package server source for CloudBase E2E
+        if: >-
+          ${{
+            github.event_name == 'workflow_dispatch' ||
+            github.event_name == 'pull_request'
+          }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: server-source-for-cloudbase-e2e
+          path: |
+            server
+            !server/.venv
+            !server/.pytest_cache
+            !server/artifacts
+          if-no-files-found: error
+          retention-days: 1
+
+  cloudbase_staging_e2e:
+    name: server / cloudbase staging e2e
+    runs-on: [self-hosted, linux, x64, happyword-e2e-db]
+    needs: server_pytest
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'pull_request'
+      }}
+    concurrency:
+      group: cloudbase-staging-e2e
+      cancel-in-progress: false
+    env:
+      HAS_CLOUDBASE_STAGING_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL != '' }}
+      HAS_E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI != '' }}
+      HAS_E2E_STAGING_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME != '' }}
+      UV_BIN: /usr/local/bin/uv
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: CloudBase staging E2E gate
+        working-directory: .
+        run: |
+          set -euo pipefail
+          echo "HAS_CLOUDBASE_STAGING_BASE_URL=${HAS_CLOUDBASE_STAGING_BASE_URL}"
+          echo "HAS_E2E_MONGODB_URI=${HAS_E2E_MONGODB_URI}"
+          echo "HAS_E2E_STAGING_DB_NAME=${HAS_E2E_STAGING_DB_NAME}"
+          if [ "${HAS_CLOUDBASE_STAGING_BASE_URL}" != "true" ] || \
+             [ "${HAS_E2E_MONGODB_URI}" != "true" ] || \
+             [ "${HAS_E2E_STAGING_DB_NAME}" != "true" ]; then
+            echo "::warning::cloudbase staging E2E skipped: configure CLOUDBASE_STAGING_BASE_URL, E2E_MONGODB_URI, and E2E_STAGING_DB_NAME."
+          fi
+
+      - name: Download server source
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: server-source-for-cloudbase-e2e
+          path: server
+
+      - name: Verify runner toolchain
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        run: |
+          python3.12 --version
+          jq --version
+          "$UV_BIN" --version
+
+      - name: Sync dependencies
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        run: |
+          "$UV_BIN" sync --python 3.12 --dev --default-index https://mirrors.cloud.tencent.com/pypi/simple
+
+      - name: Reset shared staging E2E database
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        env:
+          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
+          E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+        run: |
+          "$UV_BIN" run --python 3.12 python scripts/e2e_reset_db.py
+
+      - name: Run CloudBase staging E2E
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        env:
+          E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}
+          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
+          E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          E2E_CRON_SECRET: ${{ secrets.E2E_CRON_SECRET }}
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          "$UV_BIN" run --python 3.12 pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
+
+      - name: Upload E2E pytest log
+        if: ${{ always() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: cloudbase-staging-e2e-pytest-log
+          path: server/artifacts/e2e-pytest.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Slack alert on E2E failure
+        if: ${{ failure() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL not configured; skipping alert."
+            exit 0
+          fi
+          PAYLOAD=$(jq -n \
+            --arg pr "${{ github.event.pull_request.number || 'manual' }}" \
+            --arg url "${{ github.event.pull_request.html_url || github.server_url }}" \
+            --arg sha "${{ github.event.pull_request.head.sha || github.sha }}" \
+            '{
+              text: ("server-ci CloudBase staging E2E FAILED on " + $pr),
+              blocks: [
+                { type: "section", text: { type: "mrkdwn",
+                  text: ("*server-ci CloudBase staging E2E failed*\nRun: " + $pr + "\n" + $url + "\nSHA: `" + $sha + "`")
+                }}
+              ]
+            }')
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            --data "$PAYLOAD" "$SLACK_WEBHOOK_URL"
