@@ -6,8 +6,24 @@ import {
   resetBattleConfigForUiTestShared,
   selectAllQuestionTypesShared,
   selectOnlyQuestionTypeShared,
+  tapCorrectAnswerShared,
   tapWrongAnswerShared,
 } from './RoutingFlow.ui.test';
+import {
+  cloneGameConfig,
+  GameConfig,
+  GAME_CONFIG_STORAGE_KEY,
+} from '../../../main/ets/models/GameConfig';
+
+function setFastChoiceBattleConfig(): void {
+  resetBattleConfigForUiTestShared(['choice']);
+  const stored: GameConfig | undefined = AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+  const cfg: GameConfig = cloneGameConfig(stored !== undefined ? stored : new GameConfig());
+  cfg.monsterMaxHp = 1;
+  cfg.monstersTotal = 2;
+  cfg.enabledQuestionTypes = ['choice'];
+  AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
+}
 
 /**
  * V0.8.3 — BattlePage damage floater smoke (§6.5).
@@ -76,6 +92,53 @@ export default function battleFlowUiTest() {
       await driver.delayMs(800);
       await selectAllQuestionTypesShared(driver);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
+      done();
+    });
+
+    it('bossDialogueIntroAndDefeatOverlaysRender', 0, async (done: Function) => {
+      const driver: Driver = await launchAppShared();
+      setFastChoiceBattleConfig();
+
+      await clickByIdShared(driver, 'HomeStartButton');
+      await driver.delayMs(1500);
+
+      await driver.assertComponentExist(ON.id('BattleBossIntroBubble'));
+      await driver.assertComponentExist(ON.id('BattleBossIntroLineEn'));
+      await driver.assertComponentExist(ON.id('BattleBossIntroLineZh'));
+      await tapCorrectAnswerShared(driver);
+      await driver.delayMs(420);
+      await driver.assertComponentExist(ON.id('BattleBossDefeatBubble'));
+      await driver.assertComponentExist(ON.id('BattleBossDefeatLineEn'));
+      await driver.assertComponentExist(ON.id('BattleBossDefeatLineZh'));
+
+      await clickByIdShared(driver, 'BattleEscapeButton');
+      await driver.delayMs(800);
+      await clickByIdShared(driver, 'ResultHomeButton');
+      await driver.delayMs(800);
+      await selectAllQuestionTypesShared(driver);
+      done();
+    });
+
+    it('superBossIntroUsesBannerAndAutoDismisses', 0, async (done: Function) => {
+      const driver: Driver = await launchAppShared();
+      await selectOnlyQuestionTypeShared(driver, 'spell');
+
+      await clickByIdShared(driver, 'HomeStartButton');
+      await driver.delayMs(1500);
+
+      await driver.assertComponentExist(ON.id('BattleSuperBossIntroBanner'));
+      await driver.assertComponentExist(ON.id('BattleSuperBossIntroLineEn'));
+      await driver.assertComponentExist(ON.id('BattleSuperBossIntroLineZh'));
+      await driver.delayMs(1500);
+      const banner: Component | null =
+        await driver.findComponent(ON.id('BattleSuperBossIntroBanner'));
+      expect(banner === null).assertTrue();
+
+      await clickByIdShared(driver, 'BattleEscapeButton');
+      await driver.delayMs(800);
+      await clickByIdShared(driver, 'ResultHomeButton');
+      await driver.delayMs(800);
+      await selectAllQuestionTypesShared(driver);
       done();
     });
   });
