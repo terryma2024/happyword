@@ -35,41 +35,105 @@
           <td class="px-4 py-2 font-mono text-xs">{{ d.family_id }}</td>
           <td class="px-4 py-2">{{ d.name }}</td>
           <td class="px-4 py-2">{{ d.state.value }}</td>
-          <td class="px-4 py-2 space-y-2">
+          <td class="px-4 py-2" data-pack-actions="{{ d.pack_id }}">
+            <div class="flex flex-wrap gap-2" data-action-buttons="true">
+              {% if d.state.value == 'archived' %}
+              <button type="button" onclick="document.getElementById('unarchive-{{ d.pack_id }}').showModal()"
+                      class="text-xs bg-emerald-600 text-white px-2 py-1 rounded">恢复活跃</button>
+              {% endif %}
+              <button type="button" onclick="document.getElementById('rollback-{{ d.pack_id }}').showModal()"
+                      class="text-xs bg-amber-700 text-white px-2 py-1 rounded">回滚版本</button>
+              <button type="button" onclick="document.getElementById('copy-global-{{ d.pack_id }}').showModal()"
+                      class="text-xs bg-sky-700 text-white px-2 py-1 rounded">复制为全局</button>
+              <button type="button" onclick="document.getElementById('copy-family-{{ d.pack_id }}').showModal()"
+                      class="text-xs bg-indigo-700 text-white px-2 py-1 rounded">复制到家庭</button>
+              <button type="button" onclick="document.getElementById('delete-{{ d.pack_id }}').showModal()"
+                      class="text-xs bg-red-700 text-white px-2 py-1 rounded">删除</button>
+            </div>
+
             {% if d.state.value == 'archived' %}
-            <form method="post" action="/admin/family-packs/{{ d.pack_id }}/unarchive" class="space-y-1" onsubmit="return confirm('确认将该词包恢复为活跃？');">
-              <textarea name="reason" placeholder="操作说明（≥4 字）" rows="2" required class="w-full text-xs rounded border border-slate-300 px-2 py-1"></textarea>
-              <button type="submit" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded">恢复活跃</button>
-            </form>
+            <dialog id="unarchive-{{ d.pack_id }}" class="rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40 w-full max-w-md">
+              <div class="p-4 space-y-4">
+                <h2 class="text-base font-semibold text-slate-900">恢复活跃</h2>
+                <p class="text-xs text-slate-500 font-mono">{{ d.pack_id }}</p>
+                <form method="post" action="/admin/family-packs/{{ d.pack_id }}/unarchive" class="space-y-3" onsubmit="return confirm('确认将该词包恢复为活跃？');">
+                  <textarea name="reason" placeholder="操作说明（≥4 字）" rows="3" required class="w-full text-sm rounded border border-slate-300 px-3 py-2"></textarea>
+                  <div class="flex justify-end gap-2">
+                    <button type="button" onclick="this.closest('dialog').close()" class="text-sm border border-slate-200 px-3 py-1.5 rounded">取消</button>
+                    <button type="submit" class="text-sm bg-emerald-600 text-white px-3 py-1.5 rounded">恢复活跃</button>
+                  </div>
+                </form>
+              </div>
+            </dialog>
             {% endif %}
-            <form method="post" action="/admin/family-packs/{{ d.pack_id }}/rollback" class="space-y-1" onsubmit="return confirm('确认回滚该家庭词包指针？');">
-              <textarea name="reason" placeholder="操作说明（≥4 字）" rows="2" required class="w-full text-xs rounded border border-slate-300 px-2 py-1"></textarea>
-              <button type="submit" class="text-xs bg-amber-700 text-white px-2 py-1 rounded">回滚版本</button>
-            </form>
-            <form method="post" action="/admin/family-packs/{{ d.pack_id }}/copy-to-global" class="space-y-1"
-                  onsubmit="return confirm('确认复制为新的全局词包草稿？发布历史和指针不会复制。');">
-              <textarea name="reason" placeholder="复制原因（≥4 字）" rows="2" required class="w-full text-xs rounded border border-slate-300 px-2 py-1"></textarea>
-              <label class="flex items-center gap-1 text-xs text-slate-600">
-                <input type="checkbox" name="delete_source" class="rounded border-slate-300" />
-                同时删除原 family 词包
-              </label>
-              <button type="submit" class="text-xs bg-sky-700 text-white px-2 py-1 rounded">复制为全局</button>
-            </form>
-            <form method="post" action="/admin/family-packs/{{ d.pack_id }}/copy-to-family" class="space-y-1"
-                  onsubmit="return confirm('确认复制给另一个 family？发布历史和指针不会复制。');">
-              <input name="target_family_id" placeholder="目标 family_id" required class="w-full text-xs rounded border border-slate-300 px-2 py-1" />
-              <textarea name="reason" placeholder="复制原因（≥4 字）" rows="2" required class="w-full text-xs rounded border border-slate-300 px-2 py-1"></textarea>
-              <label class="flex items-center gap-1 text-xs text-slate-600">
-                <input type="checkbox" name="delete_source" class="rounded border-slate-300" />
-                同时删除原 family 词包
-              </label>
-              <button type="submit" class="text-xs bg-indigo-700 text-white px-2 py-1 rounded">复制到家庭</button>
-            </form>
-            <form method="post" action="/admin/family-packs/{{ d.pack_id }}/delete" class="space-y-1"
-                  onsubmit="return confirm('确认永久删除家庭词包 {{ d.name }}（{{ d.pack_id }}）？此操作会删除草稿、发布版本和指针，无法撤销。');">
-              <textarea name="reason" placeholder="删除原因（≥4 字）" rows="2" required class="w-full text-xs rounded border border-red-200 px-2 py-1"></textarea>
-              <button type="submit" class="text-xs bg-red-700 text-white px-2 py-1 rounded">删除</button>
-            </form>
+
+            <dialog id="rollback-{{ d.pack_id }}" class="rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40 w-full max-w-md">
+              <div class="p-4 space-y-4">
+                <h2 class="text-base font-semibold text-slate-900">回滚版本</h2>
+                <p class="text-xs text-slate-500 font-mono">{{ d.pack_id }}</p>
+                <form method="post" action="/admin/family-packs/{{ d.pack_id }}/rollback" class="space-y-3" onsubmit="return confirm('确认回滚该家庭词包指针？');">
+                  <textarea name="reason" placeholder="操作说明（≥4 字）" rows="3" required class="w-full text-sm rounded border border-slate-300 px-3 py-2"></textarea>
+                  <div class="flex justify-end gap-2">
+                    <button type="button" onclick="this.closest('dialog').close()" class="text-sm border border-slate-200 px-3 py-1.5 rounded">取消</button>
+                    <button type="submit" class="text-sm bg-amber-700 text-white px-3 py-1.5 rounded">回滚版本</button>
+                  </div>
+                </form>
+              </div>
+            </dialog>
+
+            <dialog id="copy-global-{{ d.pack_id }}" class="rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40 w-full max-w-md">
+              <div class="p-4 space-y-4">
+                <h2 class="text-base font-semibold text-slate-900">复制为全局</h2>
+                <p class="text-xs text-slate-500 font-mono">{{ d.pack_id }}</p>
+                <form method="post" action="/admin/family-packs/{{ d.pack_id }}/copy-to-global" class="space-y-3"
+                      onsubmit="return confirm('确认复制为新的全局词包草稿？发布历史和指针不会复制。');">
+                  <textarea name="reason" placeholder="复制原因（≥4 字）" rows="3" required class="w-full text-sm rounded border border-slate-300 px-3 py-2"></textarea>
+                  <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" name="delete_source" class="rounded border-slate-300" />
+                    同时删除原 family 词包
+                  </label>
+                  <div class="flex justify-end gap-2">
+                    <button type="button" onclick="this.closest('dialog').close()" class="text-sm border border-slate-200 px-3 py-1.5 rounded">取消</button>
+                    <button type="submit" class="text-sm bg-sky-700 text-white px-3 py-1.5 rounded">复制为全局</button>
+                  </div>
+                </form>
+              </div>
+            </dialog>
+
+            <dialog id="copy-family-{{ d.pack_id }}" class="rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40 w-full max-w-md">
+              <div class="p-4 space-y-4">
+                <h2 class="text-base font-semibold text-slate-900">复制到家庭</h2>
+                <p class="text-xs text-slate-500 font-mono">{{ d.pack_id }}</p>
+                <form method="post" action="/admin/family-packs/{{ d.pack_id }}/copy-to-family" class="space-y-3"
+                      onsubmit="return confirm('确认复制给另一个 family？发布历史和指针不会复制。');">
+                  <input name="target_family_id" placeholder="目标 family_id" required class="w-full text-sm rounded border border-slate-300 px-3 py-2" />
+                  <textarea name="reason" placeholder="复制原因（≥4 字）" rows="3" required class="w-full text-sm rounded border border-slate-300 px-3 py-2"></textarea>
+                  <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" name="delete_source" class="rounded border-slate-300" />
+                    同时删除原 family 词包
+                  </label>
+                  <div class="flex justify-end gap-2">
+                    <button type="button" onclick="this.closest('dialog').close()" class="text-sm border border-slate-200 px-3 py-1.5 rounded">取消</button>
+                    <button type="submit" class="text-sm bg-indigo-700 text-white px-3 py-1.5 rounded">复制到家庭</button>
+                  </div>
+                </form>
+              </div>
+            </dialog>
+
+            <dialog id="delete-{{ d.pack_id }}" class="rounded-lg border border-red-100 p-0 shadow-xl backdrop:bg-slate-900/40 w-full max-w-md">
+              <div class="p-4 space-y-4">
+                <h2 class="text-base font-semibold text-red-700">删除家庭词包</h2>
+                <p class="text-xs text-slate-500 font-mono">{{ d.pack_id }}</p>
+                <form method="post" action="/admin/family-packs/{{ d.pack_id }}/delete" class="space-y-3"
+                      onsubmit="return confirm('确认永久删除家庭词包 {{ d.name }}（{{ d.pack_id }}）？此操作会删除草稿、发布版本和指针，无法撤销。');">
+                  <textarea name="reason" placeholder="删除原因（≥4 字）" rows="3" required class="w-full text-sm rounded border border-red-200 px-3 py-2"></textarea>
+                  <div class="flex justify-end gap-2">
+                    <button type="button" onclick="this.closest('dialog').close()" class="text-sm border border-slate-200 px-3 py-1.5 rounded">取消</button>
+                    <button type="submit" class="text-sm bg-red-700 text-white px-3 py-1.5 rounded">删除</button>
+                  </div>
+                </form>
+              </div>
+            </dialog>
           </td>
         </tr>
         {% else %}

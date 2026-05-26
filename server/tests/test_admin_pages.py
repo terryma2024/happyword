@@ -196,7 +196,7 @@ async def test_admin_family_packs_page_renders_delete_form(
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("admin_console_admin")
-async def test_admin_family_packs_page_renders_copy_forms(
+async def test_admin_family_packs_page_renders_copy_action_dialogs(
     client: AsyncClient,
 ) -> None:
     from app.services import family_pack_service
@@ -221,11 +221,28 @@ async def test_admin_family_packs_page_renders_copy_forms(
 
     assert page.status_code == 200
     soup = BeautifulSoup(page.text, "html.parser")
-    global_form = soup.find(
+    action_cell = soup.find("td", attrs={"data-pack-actions": "pck-html-copy-render"})
+    assert action_cell is not None
+    visible_action_bar = action_cell.find("div", attrs={"data-action-buttons": "true"})
+    assert visible_action_bar is not None
+    assert visible_action_bar.find("textarea") is None
+    assert visible_action_bar.find("input") is None
+    assert visible_action_bar.find("button", string="复制为全局") is not None
+    assert visible_action_bar.find("button", string="复制到家庭") is not None
+
+    global_dialog = action_cell.find(
+        "dialog", attrs={"id": "copy-global-pck-html-copy-render"}
+    )
+    family_dialog = action_cell.find(
+        "dialog", attrs={"id": "copy-family-pck-html-copy-render"}
+    )
+    assert global_dialog is not None
+    assert family_dialog is not None
+    global_form = global_dialog.find(
         "form",
         attrs={"action": "/admin/family-packs/pck-html-copy-render/copy-to-global"},
     )
-    family_form = soup.find(
+    family_form = family_dialog.find(
         "form",
         attrs={"action": "/admin/family-packs/pck-html-copy-render/copy-to-family"},
     )
