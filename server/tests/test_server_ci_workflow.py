@@ -54,13 +54,19 @@ def test_cursor_autofix_action_is_removed() -> None:
 
 def test_legacy_vercel_e2e_skips_unusable_local_mongo_uri() -> None:
     workflow = _server_ci_workflow()
+    e2e_job_start = workflow.index("  server_e2e:")
+    e2e_job_end = workflow.index("  update_manifest:", e2e_job_start)
+    e2e_job = workflow[e2e_job_start:e2e_job_end]
 
     validate_step = _step_with_id(workflow, "e2e_mongo")
     assert "Validate E2E MongoDB URI" in validate_step
+    assert "VERCEL_E2E_MONGODB_URI" in validate_step
     assert "set_ready(False)" in validate_step
     assert "127.0.0.1" in validate_step
     assert "localhost" in validate_step
     assert "::1" in validate_step
+    assert "secrets.VERCEL_E2E_MONGODB_URI" in e2e_job
+    assert "secrets.E2E_MONGODB_URI" not in e2e_job
 
     for step_name in [
         "Prune stale E2E PR databases",
@@ -105,6 +111,9 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "UV_BIN: /usr/local/bin/uv" in smoke_job
     assert "NODE_VERSION: 24.11.1" in smoke_job
     assert "NPM_CONFIG_PREFIX: /tmp/happyword-npm-global" in smoke_job
+    assert "HAS_TCB_E2E_MONGODB_URI" in smoke_job
+    assert "secrets.TCB_E2E_MONGODB_URI" in smoke_job
+    assert "secrets.E2E_MONGODB_URI" not in smoke_job
     assert "server-source-for-cloudbase-e2e" in workflow
     assert "/tarball/${GITHUB_SHA}" not in smoke_job
     assert "git fetch" not in smoke_job

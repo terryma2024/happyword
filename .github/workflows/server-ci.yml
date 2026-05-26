@@ -209,7 +209,7 @@ jobs:
         id: e2e_mongo
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' }}
         env:
-          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGODB_URI: ${{ secrets.VERCEL_E2E_MONGODB_URI }}
         run: |
           python3 - <<'PY'
           import os
@@ -257,7 +257,7 @@ jobs:
       - name: Prune stale E2E PR databases
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.e2e_mongo.outputs.ready == 'true' }}
         env:
-          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGODB_URI: ${{ secrets.VERCEL_E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
         run: |
           if [ -z "$E2E_MONGODB_URI" ] || [ -z "$E2E_MONGO_DB_NAME" ]; then
@@ -275,7 +275,7 @@ jobs:
       - name: Reset E2E database (truncate test collections)
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.e2e_mongo.outputs.ready == 'true' }}
         env:
-          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGODB_URI: ${{ secrets.VERCEL_E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
         run: |
           if [ -z "$E2E_MONGODB_URI" ] || [ -z "$E2E_MONGO_DB_NAME" ]; then
@@ -288,7 +288,7 @@ jobs:
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' && steps.e2e_mongo.outputs.ready == 'true' }}
         env:
           E2E_BASE_URL: ${{ steps.vercel_deploy.outputs.preview-url || steps.detect_preview.outputs.preview_url }}
-          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGODB_URI: ${{ secrets.VERCEL_E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ steps.db_name.outputs.db_name }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
@@ -381,7 +381,7 @@ jobs:
       cancel-in-progress: false
     env:
       HAS_CLOUDBASE_STAGING_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL != '' }}
-      HAS_E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI != '' }}
+      HAS_TCB_E2E_MONGODB_URI: ${{ secrets.TCB_E2E_MONGODB_URI != '' }}
       HAS_E2E_STAGING_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME != '' }}
       HAS_TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID != '' }}
       HAS_TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY != '' }}
@@ -398,22 +398,22 @@ jobs:
         run: |
           set -euo pipefail
           echo "HAS_CLOUDBASE_STAGING_BASE_URL=${HAS_CLOUDBASE_STAGING_BASE_URL}"
-          echo "HAS_E2E_MONGODB_URI=${HAS_E2E_MONGODB_URI}"
+          echo "HAS_TCB_E2E_MONGODB_URI=${HAS_TCB_E2E_MONGODB_URI}"
           echo "HAS_E2E_STAGING_DB_NAME=${HAS_E2E_STAGING_DB_NAME}"
           echo "HAS_TCB_SECRET_ID=${HAS_TCB_SECRET_ID}"
           echo "HAS_TCB_SECRET_KEY=${HAS_TCB_SECRET_KEY}"
           echo "HAS_TCB_ENV_ID=${HAS_TCB_ENV_ID}"
           if [ "${HAS_CLOUDBASE_STAGING_BASE_URL}" != "true" ] || \
-             [ "${HAS_E2E_MONGODB_URI}" != "true" ] || \
+             [ "${HAS_TCB_E2E_MONGODB_URI}" != "true" ] || \
              [ "${HAS_E2E_STAGING_DB_NAME}" != "true" ] || \
              [ "${HAS_TCB_SECRET_ID}" != "true" ] || \
              [ "${HAS_TCB_SECRET_KEY}" != "true" ] || \
              [ "${HAS_TCB_ENV_ID}" != "true" ]; then
-            echo "::warning::cloudbase staging E2E skipped: configure CLOUDBASE_STAGING_BASE_URL, E2E_MONGODB_URI, E2E_STAGING_DB_NAME, TCB_SECRET_ID, TCB_SECRET_KEY, and TCB_ENV_ID."
+            echo "::warning::cloudbase staging E2E skipped: configure CLOUDBASE_STAGING_BASE_URL, TCB_E2E_MONGODB_URI, E2E_STAGING_DB_NAME, TCB_SECRET_ID, TCB_SECRET_KEY, and TCB_ENV_ID."
           fi
 
       - name: Download server source
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         working-directory: .
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -451,7 +451,7 @@ jobs:
           python3.12 -m zipfile -e /tmp/server-source-for-cloudbase-e2e.zip server
 
       - name: Bootstrap Node.js
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         run: |
           set -euo pipefail
           mkdir -p "$NPM_CONFIG_PREFIX/bin"
@@ -489,7 +489,7 @@ jobs:
           npm --version
 
       - name: Verify runner toolchain
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         run: |
           python3.12 --version
           jq --version
@@ -498,18 +498,18 @@ jobs:
           "$UV_BIN" --version
 
       - name: Install CloudBase CLI
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         run: npm install -g @cloudbase/cli
 
       - name: Login to CloudBase for staging deploy
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID }}
           TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY }}
         run: tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"
 
       - name: Capture CloudBase staging deploy marker
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
         run: |
@@ -531,7 +531,7 @@ jobs:
           NODE
 
       - name: Deploy CloudBase staging Run
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
         run: |
@@ -539,7 +539,7 @@ jobs:
           printf '\n' | tcb cloudrun deploy -e "$TCB_ENV_ID" -s happyword-server-staging --port 8080 --source . --force
 
       - name: Wait for CloudBase staging deployment
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
         run: |
@@ -612,20 +612,20 @@ jobs:
           NODE
 
       - name: Health check CloudBase staging
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           CLOUDBASE_STAGING_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}
         run: curl -fsS "$CLOUDBASE_STAGING_BASE_URL/api/v1/public/health"
 
       - name: Sync dependencies
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         run: |
           "$UV_BIN" sync --python 3.12 --dev --default-index https://mirrors.cloud.tencent.com/pypi/simple
 
       - name: Reset shared staging E2E database
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
-          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGODB_URI: ${{ secrets.TCB_E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
@@ -633,10 +633,10 @@ jobs:
           "$UV_BIN" run --python 3.12 python scripts/e2e_reset_db.py
 
       - name: Run CloudBase staging E2E
-        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}
-          E2E_MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+          E2E_MONGODB_URI: ${{ secrets.TCB_E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
           E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
@@ -647,7 +647,7 @@ jobs:
           "$UV_BIN" run --python 3.12 pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
 
       - name: Slack alert on E2E failure
-        if: ${{ failure() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        if: ${{ failure() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
