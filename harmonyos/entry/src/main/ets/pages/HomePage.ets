@@ -15,9 +15,17 @@ import { getLearningRecorder } from '../services/LearningRecorder';
 import { WordRepository } from '../services/WordRepository';
 import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
 import { TodayAdventureBuilder, localDayKey, regionFromPack } from '../services/TodayAdventureBuilder';
+import {
+  DailyLearningState,
+  DailyLearningStateService,
+  HomeDailyStatus,
+  decideHomeDailyStatus,
+  getDailyLearningStateService,
+} from '../services/DailyLearningStateService';
 import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
 import { AdventureRegion, TodaySessionPlan, MonsterSlot } from '../models/AdventureRegion';
 import { Pack } from '../models/Pack';
+import { WordEntry } from '../models/WordEntry';
 import { describeMonsterKind } from '../services/TodayAdventureBuilder';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import {
@@ -49,13 +57,6 @@ import {
 } from '../services/PackHomeIntegration';
 
 /**
- * Review mode starts as soon as at least one recent wrong word exists.
- * BattlePage turns that recent-wrong list into a focused temporary plan;
- * an empty list shows the locked toast instead.
- */
-const REVIEW_WINDOW_SIZE: number = 12;
-
-/**
  * Route params bag for `pages/DevMenuPage`. ArkTS strict mode rejects
  * inline object literals (arkts-no-untyped-obj-literals), so we use
  * a small class with default-initialised public fields and pass an
@@ -68,14 +69,9 @@ class DevMenuRouteParams {
 @Entry
 @Component
 struct HomePage {
-  /**
-   * Count of recent wrong wordIds available to review. Refreshed every
-   * time the page becomes visible so that navigating back from a
-   * finished battle lights up the review button as soon as the player
-   * has at least one recent wrong answer.
-   */
-  @State private recentWrongCount: number = 0;
   @State private todayCompleted: boolean = false;
+  @State private dailyStatusLabel: string = '请选择一个场景加战斗';
+  @State private dailyReviewRemainingCount: number = 0;
   /**
    * V0.6.5.1: the chip row's currently-selected Pack. `todayRegion` is
    * derived from this on every render so the legacy region-shaped UI
@@ -109,6 +105,7 @@ struct HomePage {
   private battleBlockedToastTimer: number = -1;
   private coins: CoinAccount = getCoinAccount();
   private todayPrefs: TodayPreferences = getTodayPreferences();
+  private dailyStateService: DailyLearningStateService = getDailyLearningStateService();
   // V0.6.2: top-right child badge ("<avatarEmoji> <nickname>") when the device
   // is bound to a parent account. Emoji matches CloudCredentials (same as
   // BoundDeviceInfoPage). Refreshed on aboutToAppear/onPageShow.
@@ -168,10 +165,10 @@ struct HomePage {
     loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
       this.homeIntegration = bundle;
       this.applyActivePacks();
+      this.refreshDailyLearningState(ctx);
     }).catch((err: BusinessError): void => {
       console.error(`HomePage: loadHomeIntegration failed: ${JSON.stringify(err)}`);
     });
-    this.refreshWrongCount();
     if (isDebugBuild(BuildProfile.BUILD_MODE_NAME)) {
       readVersionInfo().then((v: VersionInfo): void => {
         this.versionLabel = formatVersionLabel(v);
@@ -223,7 +220,6 @@ struct HomePage {
     // light up the instant the battle ends.
     this.coins.beginToday(Date.now());
     this.refreshBalance();
-    this.refreshWrongCount();
     this.refreshTodayState();
     this.refreshBoundChild().catch((err: BusinessError): void => {
       console.error(`HomePage: refreshBoundChild failed: ${JSON.stringify(err)}`);
@@ -247,6 +243,7 @@ struct HomePage {
     loadHomeIntegration(ctxShow).then((bundle: HomeIntegrationBundle): void => {
       this.homeIntegration = bundle;
       this.applyActivePacks();
+      this.refreshDailyLearningState(ctxShow);
     }).catch((err: BusinessError): void => {
       console.error(`HomePage: loadHomeIntegration on show failed: ${JSON.stringify(err)}`);
     });
@@ -268,9 +265,47 @@ struct HomePage {
     this.coinBalance = snap.totalCoins - snap.spentCoins;
   }
 
-  private refreshWrongCount(): void {
-    this.recentWrongCount =
-      getLearningRecorder().recentWrongIds(REVIEW_WINDOW_SIZE).length;
+  private refreshDailyLearningState(ctx: common.UIAbilityContext): void {
+    const recorder = getLearningRecorder();
+    recorder.init(ctx).then(async (): Promise<void> => {
+      await this.dailyStateService.init(ctx);
+      const words: WordEntry[] = this.activePackWords();
+      const selectedIds: string[] = [];
+      for (let i = 0; i < this.todayPack.words.length; i++) {
+        selectedIds.push(this.todayPack.words[i].id);
+      }
+      const state: DailyLearningState = await this.dailyStateService.ensureForDay(
+        words,
+        recorder.allStats(),
+        Date.now(),
+        selectedIds,
+      );
+      this.applyDailyStatus(state);
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage.refreshDailyLearningState failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private activePackWords(): WordEntry[] {
+    const out: WordEntry[] = [];
+    const seen: string[] = [];
+    for (let i = 0; i < this.chipPacks.length; i++) {
+      const words: WordEntry[] = this.chipPacks[i].words;
+      for (let j = 0; j < words.length; j++) {
+        if (words[j].id.length > 0 && seen.indexOf(words[j].id) < 0) {
+          seen.push(words[j].id);
+          out.push(words[j]);
+        }
+      }
+    }
+    return out;
+  }
+
+  private applyDailyStatus(state: DailyLearningState): void {
+    const status: HomeDailyStatus = decideHomeDailyStatus(state);
+    this.dailyStatusLabel = status.label;
+    this.dailyReviewRemainingCount = status.remainingReviewCount;
+    this.todayCompleted = status.todayAdventureCompleted;
   }
 
   /**
@@ -352,7 +387,7 @@ struct HomePage {
   }
 
   private reviewEnabled(): boolean {
-    return this.recentWrongCount > 0;
+    return this.dailyReviewRemainingCount > 0;
   }
 
   /**
@@ -509,7 +544,7 @@ struct HomePage {
       // and lands centred under the toolbar.
       Column() {
         if (this.reviewLockedToastVisible) {
-          Text('先答错几题再来复习吧')
+          Text('今天没有待复习单词')
             .id('HomeReviewLockedToast')
             .fontSize(14)
             .fontColor('#FFFFFF')
@@ -788,7 +823,7 @@ struct HomePage {
           .fontWeight(FontWeight.Bold)
           .fontColor('#3F2F1A');
         Blank();
-        Text(this.todayCompleted ? '已完成' : '今日')
+        Text(this.dailyStatusLabel)
           .id('AdventureCardBadge')
           .fontSize(14)
           .fontColor(this.todayCompleted ? '#7B7B7B' : '#FFFFFF')
