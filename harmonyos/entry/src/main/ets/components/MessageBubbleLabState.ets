@@ -16,6 +16,7 @@ export interface MessageBubbleLabState {
   strokeColor: string;
   shadowEnabled: boolean;
   shadowRadius: number;
+  shadowOffsetX: number;
   shadowOffsetY: number;
   selectedPreset: MessageBubbleTailPreset;
   tail: MessageBubbleTail;
@@ -25,12 +26,12 @@ export type MessageBubbleTailPointKey = 'baseStart' | 'baseEnd' | 'tip';
 export type MessageBubbleAxisKey = 'x' | 'y';
 export type MessageBubbleBoxValueKey =
   'widthVp' | 'heightVp' | 'paddingX' | 'paddingY' | 'radiusVp' | 'borderWidthVp';
-export type MessageBubbleVisualValueKey = 'shadowRadius' | 'shadowOffsetY';
+export type MessageBubbleVisualValueKey = 'shadowRadius' | 'shadowOffsetX' | 'shadowOffsetY';
 export type MessageBubbleColorKey = 'fillColor' | 'strokeColor';
 export type MessageBubbleStepperValueKey =
   'baseStartX' | 'baseStartY' | 'baseEndX' | 'baseEndY' | 'tipX' | 'tipY' |
   'widthVp' | 'heightVp' | 'paddingX' | 'paddingY' | 'radiusVp' | 'borderWidthVp' |
-  'shadowRadius' | 'shadowOffsetY';
+  'shadowRadius' | 'shadowOffsetX' | 'shadowOffsetY';
 
 export interface MessageBubbleLabTipAction {
   id: string;
@@ -102,6 +103,7 @@ function copyWithTail(
     strokeColor: state.strokeColor,
     shadowEnabled: state.shadowEnabled,
     shadowRadius: state.shadowRadius,
+    shadowOffsetX: state.shadowOffsetX,
     shadowOffsetY: state.shadowOffsetY,
     selectedPreset,
     tail,
@@ -120,6 +122,7 @@ export function createMessageBubbleLabState(): MessageBubbleLabState {
     strokeColor: '#8B5CF6',
     shadowEnabled: true,
     shadowRadius: 12,
+    shadowOffsetX: 0,
     shadowOffsetY: 4,
     selectedPreset: MessageBubbleTailPreset.BottomRight,
     tail: {
@@ -176,6 +179,8 @@ export function labStateAdjustVisualValue(
   const next: MessageBubbleLabState = copyWithTail(state, state.selectedPreset, state.tail);
   if (key === 'shadowRadius') {
     next.shadowRadius = clampMin(next.shadowRadius + delta, 0);
+  } else if (key === 'shadowOffsetX') {
+    next.shadowOffsetX = clampMin(next.shadowOffsetX + delta, -80);
   } else {
     next.shadowOffsetY = clampMin(next.shadowOffsetY + delta, -80);
   }
@@ -273,6 +278,9 @@ export function labStateStepperValue(state: MessageBubbleLabState, key: MessageB
   if (key === 'shadowRadius') {
     return `${state.shadowRadius}`;
   }
+  if (key === 'shadowOffsetX') {
+    return `${state.shadowOffsetX}`;
+  }
   return `${state.shadowOffsetY}`;
 }
 
@@ -283,5 +291,10 @@ tail: {
   baseStart: { x: ${state.tail.baseStart.x}, y: ${state.tail.baseStart.y} },
   baseEnd: { x: ${state.tail.baseEnd.x}, y: ${state.tail.baseEnd.y} },
   tip: { x: ${state.tail.tip.x}, y: ${state.tail.tip.y} }
+}
+shadow: {
+  radius: ${state.shadowRadius},
+  offsetX: ${state.shadowOffsetX},
+  offsetY: ${state.shadowOffsetY}
 }`;
 }

@@ -78,6 +78,16 @@ export default function messageBubbleLabStateTest() {
       expect(labStateStepperValue(changed, 'widthVp')).assertEqual(`${state.widthVp}`);
     });
 
+    it('adjustsShadowXAsAVisibleStepperValue', 0, () => {
+      const state: MessageBubbleLabState = createMessageBubbleLabState();
+      const shifted: MessageBubbleLabState = labStateAdjustVisualValue(state, 'shadowOffsetX', -3);
+
+      expect(state.shadowOffsetX).assertEqual(0);
+      expect(shifted.shadowOffsetX).assertEqual(-3);
+      expect(labStateStepperValue(shifted, 'shadowOffsetX')).assertEqual('-3');
+      expect(labStateOutput(shifted).indexOf('offsetX: -3') >= 0).assertTrue();
+    });
+
     it('adjustsBubbleBoxValuesWithLowerBounds', 0, () => {
       const state: MessageBubbleLabState = createMessageBubbleLabState();
       const wider: MessageBubbleLabState = labStateAdjustBoxValue(state, 'widthVp', 10);

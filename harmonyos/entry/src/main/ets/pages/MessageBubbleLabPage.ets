@@ -259,6 +259,10 @@ struct MessageBubbleLabPage {
         'MessageBubbleLabShadowRadiusMinus', 'MessageBubbleLabShadowRadiusPlus',
         (): void => this.adjustVisualValue('shadowRadius', -2),
         (): void => this.adjustVisualValue('shadowRadius', 2));
+      this.valueStepper('Shadow x', 'shadowOffsetX', 'vp',
+        'MessageBubbleLabShadowXMinus', 'MessageBubbleLabShadowXPlus',
+        (): void => this.adjustVisualValue('shadowOffsetX', -1),
+        (): void => this.adjustVisualValue('shadowOffsetX', 1));
       this.valueStepper('Shadow y', 'shadowOffsetY', 'vp',
         'MessageBubbleLabShadowYMinus', 'MessageBubbleLabShadowYPlus',
         (): void => this.adjustVisualValue('shadowOffsetY', -1),
@@ -318,7 +322,7 @@ struct MessageBubbleLabPage {
         bubbleShadow: {
           radius: this.state.shadowEnabled ? this.state.shadowRadius : 0,
           color: '#33000000',
-          offsetX: 0,
+          offsetX: this.state.shadowEnabled ? this.state.shadowOffsetX : 0,
           offsetY: this.state.shadowEnabled ? this.state.shadowOffsetY : 0,
         },
       }) {
