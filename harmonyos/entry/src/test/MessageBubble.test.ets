@@ -4,6 +4,7 @@ import {
   messageBubbleHasShadow,
   messageBubbleFrame,
   messageBubblePathCommands,
+  messageBubbleShadowLayers,
   messageBubbleShadowPadding,
   scaleMessageBubbleTail,
 } from '../main/ets/components/MessageBubble';
@@ -109,6 +110,22 @@ export default function messageBubbleTest() {
 
       expect(padding.x).assertEqual(15);
       expect(padding.y).assertEqual(16);
+    });
+
+    it('buildsLayeredPathShadowFromRadiusAndOffset', 0, () => {
+      const layers = messageBubbleShadowLayers({
+        radius: 12,
+        color: '#33000000',
+        offsetX: 0,
+        offsetY: 4,
+      });
+
+      expect(layers.length).assertEqual(3);
+      expect(layers[0].offsetY).assertEqual(10);
+      expect(layers[0].opacity).assertEqual(0.25);
+      expect(layers[1].offsetY).assertEqual(7);
+      expect(layers[2].offsetY).assertEqual(4);
+      expect(layers[2].opacity).assertEqual(1);
     });
   });
 }

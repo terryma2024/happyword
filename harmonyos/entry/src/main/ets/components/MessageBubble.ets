@@ -37,6 +37,12 @@ export interface MessageBubbleShadowPadding {
   y: number;
 }
 
+export interface MessageBubbleShadowLayer {
+  offsetX: number;
+  offsetY: number;
+  opacity: number;
+}
+
 function min3(a: number, b: number, c: number): number {
   return Math.min(a, Math.min(b, c));
 }
@@ -96,6 +102,31 @@ export function messageBubbleShadowPadding(shadow: MessageBubbleShadow): Message
     x: Math.abs(shadow.offsetX) + shadow.radius,
     y: Math.abs(shadow.offsetY) + shadow.radius,
   };
+}
+
+function shadowDirection(value: number): number {
+  if (value < 0) {
+    return -1;
+  }
+  if (value > 0) {
+    return 1;
+  }
+  return 0;
+}
+
+export function messageBubbleShadowLayers(shadow: MessageBubbleShadow): MessageBubbleShadowLayer[] {
+  if (!messageBubbleHasShadow(shadow)) {
+    return [];
+  }
+  const dx: number = shadowDirection(shadow.offsetX);
+  const dy: number = shadowDirection(shadow.offsetY);
+  const midSpread: number = shadow.radius * 0.25;
+  const farSpread: number = shadow.radius * 0.5;
+  return [
+    { offsetX: shadow.offsetX + dx * farSpread, offsetY: shadow.offsetY + dy * farSpread, opacity: 0.25 },
+    { offsetX: shadow.offsetX + dx * midSpread, offsetY: shadow.offsetY + dy * midSpread, opacity: 0.5 },
+    { offsetX: shadow.offsetX, offsetY: shadow.offsetY, opacity: 1 },
+  ];
 }
 
 function detectTailSide(width: number, height: number, tail: MessageBubbleTail): MessageBubbleTailSide {
@@ -225,7 +256,7 @@ export struct MessageBubble {
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
-      if (messageBubbleHasShadow(this.bubbleShadow)) {
+      ForEach(messageBubbleShadowLayers(this.bubbleShadow), (layer: MessageBubbleShadowLayer) => {
         Path()
           .width(this.frame().width)
           .height(this.frame().height)
@@ -233,11 +264,12 @@ export struct MessageBubble {
           .fill(this.bubbleShadow.color)
           .stroke('#00000000')
           .strokeWidth(0)
+          .opacity(layer.opacity)
           .position({
-            x: this.shadowPadding().x + this.bubbleShadow.offsetX,
-            y: this.shadowPadding().y + this.bubbleShadow.offsetY,
+            x: this.shadowPadding().x + layer.offsetX,
+            y: this.shadowPadding().y + layer.offsetY,
           });
-      }
+      }, (layer: MessageBubbleShadowLayer) => `${layer.offsetX}:${layer.offsetY}:${layer.opacity}`);
       Path()
         .width(this.frame().width)
         .height(this.frame().height)

@@ -317,7 +317,7 @@ struct MessageBubbleLabPage {
         tail: this.state.tail,
         bubbleShadow: {
           radius: this.state.shadowEnabled ? this.state.shadowRadius : 0,
-          color: '#22000000',
+          color: '#33000000',
           offsetX: 0,
           offsetY: this.state.shadowEnabled ? this.state.shadowOffsetY : 0,
         },
