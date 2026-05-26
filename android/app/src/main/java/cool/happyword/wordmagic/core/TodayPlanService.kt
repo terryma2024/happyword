@@ -19,6 +19,7 @@ data class TodayPlanWordRow(
 data class TodayPlanUi(
     val regionDisplayName: String,
     val dayKey: String,
+    val progressText: String,
     val review: List<TodayPlanWordRow>,
     val learning: List<TodayPlanWordRow>,
     val newWords: List<TodayPlanWordRow>,
@@ -54,30 +55,47 @@ class TodayPlanService {
         stats: List<WordLearningStat>,
         regionDisplayName: String,
         nowMs: Long,
+        dailyState: DailyLearningState? = null,
     ): TodayPlanUi {
         val plan = build(library, activeIds, stats)
         val startOfDayMs = startOfDayMillis(nowMs)
         val statsByWordId = stats
             .groupBy { it.wordId }
             .mapValues { (_, list) -> list.maxBy { it.lastSeenAtMs } }
-        fun row(word: WordEntry): TodayPlanWordRow {
+        val reviewedDailyIds = dailyState?.reviewSnapshot?.reviewedWordIds?.toSet().orEmpty()
+        fun row(word: WordEntry, forceDailyReview: Boolean = false): TodayPlanWordRow {
             val st = statsByWordId[word.id]
-            val done = st != null &&
+            val done = if (forceDailyReview) {
+                word.id in reviewedDailyIds
+            } else {
+                st != null &&
                 st.lastSeenAtMs >= startOfDayMs &&
                 st.correctCount > st.wrongCount
+            }
             return TodayPlanWordRow(entry = word, doneHighlight = done, stat = st)
+        }
+        val wordsById = library.allPacks().flatMap { it.words }.associateBy { it.id }
+        val reviewRows = dailyState?.reviewSnapshot?.wordIds
+            ?.mapNotNull { wordsById[it] }
+            ?.map { row(it, forceDailyReview = true) }
+            ?: plan.review.map(::row)
+        val progress = if (dailyState != null) {
+            DailyLearningStateService().homeStatus(dailyState).label
+        } else {
+            "今天的计划：${plan.review.size + plan.learning.size + plan.newWords.size} 个单词"
         }
         return TodayPlanUi(
             regionDisplayName = regionDisplayName,
             dayKey = localDayKey(nowMs),
-            review = plan.review.map(::row),
+            progressText = progress,
+            review = reviewRows,
             learning = plan.learning.map(::row),
             newWords = plan.newWords.map(::row),
         )
     }
 
     companion object {
-        private val dayKeyFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        private val dayKeyFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")
 
         fun localDayKey(nowMs: Long): String =
             Instant.ofEpochMilli(nowMs).atZone(ZoneId.systemDefault()).toLocalDate().format(dayKeyFormatter)

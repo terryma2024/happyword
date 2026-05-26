@@ -127,6 +127,8 @@ import cool.happyword.wordmagic.core.CheckInSyncClient
 import cool.happyword.wordmagic.core.DevMenuRouteParams
 import cool.happyword.wordmagic.core.DevMenuViewModel
 import cool.happyword.wordmagic.core.VersionTripleTap
+import cool.happyword.wordmagic.core.DailyLearningState
+import cool.happyword.wordmagic.core.DailyLearningStateService
 import cool.happyword.wordmagic.core.DeviceBindingClient
 import cool.happyword.wordmagic.core.FixtureDeviceBindingClient
 import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
@@ -306,6 +308,7 @@ fun WordMagicGameApp() {
     var coinAccount by remember { mutableStateOf(repositories.loadCoinAccount()) }
     var checkIns by remember { mutableStateOf(repositories.loadCheckIns()) }
     var learningRecorder by remember { mutableStateOf(repositories.loadLearningRecorder()) }
+    var dailyLearningState by remember { mutableStateOf(repositories.loadDailyLearningState()) }
     var wishlist by remember { mutableStateOf(repositories.loadWishlist()) }
     var redemptionHistory by remember { mutableStateOf(repositories.loadRedemptionHistory()) }
     var localProgressMessage by remember { mutableStateOf("") }
@@ -326,6 +329,8 @@ fun WordMagicGameApp() {
     var pendingRemoveCustomWishId by remember { mutableStateOf<String?>(null) }
     var parentPin by remember { mutableStateOf("") }
     var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
+    var battleDailyDayKey by remember { mutableStateOf("") }
+    val dailyLearningService = remember { DailyLearningStateService() }
 
     fun applyBindingSuccess(credentials: CloudCredentials) {
         cloudRepositories.saveCredentials(credentials)
@@ -452,6 +457,25 @@ fun WordMagicGameApp() {
         }
     }
 
+    fun saveDailyLearningState(next: DailyLearningState) {
+        dailyLearningState = next
+        repositories.saveDailyLearningState(next)
+    }
+
+    fun ensureDailyStateForNow(nowMs: Long = System.currentTimeMillis()): DailyLearningState {
+        val next = dailyLearningService.ensureDailyReviewSnapshot(
+            current = dailyLearningState,
+            nowMs = nowMs,
+            activeWords = activePacks.flatMap { it.words },
+            selectedPackWordIds = selectedPack.words.map { it.id }.toSet(),
+            stats = learningRecorder.statsSnapshot(),
+        )
+        if (next != dailyLearningState) {
+            saveDailyLearningState(next)
+        }
+        return next
+    }
+
     fun finishBattleSession(finishedState: BattleState) {
         val resultPackId = if (battleIsReview) "review-recent-wrong" else selectedPack.id
         var sessionResult = engine.resultFor(finishedState).copy(packId = resultPackId)
@@ -485,6 +509,9 @@ fun WordMagicGameApp() {
                 }
             }
         }
+        if (sessionResult.won && !battleIsReview) {
+            saveDailyLearningState(dailyLearningService.markPackBattleWon(dailyLearningState))
+        }
         val sessionRecord = BattleSessionRecord(
             packId = resultPackId,
             won = sessionResult.won,
@@ -510,9 +537,12 @@ fun WordMagicGameApp() {
     }
 
     fun startReviewBattle(): Boolean {
-        val reviewIds = learningRecorder.recentWrongIds(limit = 12)
+        val todayState = ensureDailyStateForNow()
+        val reviewIds = todayState.remainingReviewWordIds
         if (reviewIds.isEmpty()) return false
-        val allWords = packLibrary.allPacks().flatMap { it.words }
+        val allWords = (activePacks + packLibrary.allPacks())
+            .flatMap { it.words }
+            .distinctBy { it.id }
         val knownIds = allWords.map { it.id }.toSet()
         val focusedIds = reviewIds.filter { it in knownIds }.distinct()
         if (focusedIds.isEmpty()) return false
@@ -522,10 +552,15 @@ fun WordMagicGameApp() {
             return true
         }
         val sessionConfig = config.copy(
-            monsterCount = 3,
-            timerSeconds = 120,
+            monsterCount = DailyLearningStateService.reviewMonsterCount(
+                requiredWordCount = focusedIds.size,
+                monsterHp = config.monsterHp,
+                configuredMonstersTotal = config.monsterCount,
+            ),
+            timerSeconds = 600,
         )
         battleIsReview = true
+        battleDailyDayKey = todayState.dayKey
         battleConfig = sessionConfig
         battleRunId += 1
         battleTimeLeft = sessionConfig.timerSeconds
@@ -551,6 +586,9 @@ fun WordMagicGameApp() {
         } finally {
             previewManifestBusy = false
         }
+    }
+    LaunchedEffect(selectedPackId, selection.activePackIds, learningRecorder.statsSnapshot()) {
+        ensureDailyStateForNow()
     }
     LaunchedEffect(route, battleRunId) {
         if (route == AppRoute.Battle) {
@@ -597,6 +635,7 @@ fun WordMagicGameApp() {
                     cloudCredentials = cloudCredentials,
                     showDeveloperTools = showDeveloperTools,
                     homeVersionLabel = homeVersionLabel,
+                    dailyStatus = dailyLearningService.homeStatus(dailyLearningState),
                     onDeveloperVersionTripleTap = {
                         if (showDeveloperTools) {
                             devMenuRoutePreset = DevMenuRouteParams.PRESET_ENV_PREVIEW
@@ -608,8 +647,10 @@ fun WordMagicGameApp() {
                         route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo
                     },
                     onStart = {
+                        ensureDailyStateForNow()
                         val sessionConfig = config.copy(timerSeconds = DEFAULT_BATTLE_TIMER_SECONDS)
                         battleIsReview = false
+                        battleDailyDayKey = dailyLearningState.dayKey
                         battleConfig = sessionConfig
                         battleRunId += 1
                         battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
@@ -650,6 +691,9 @@ fun WordMagicGameApp() {
                                 answeredAtMs = System.currentTimeMillis(),
                             )
                             repositories.saveLearningRecorder(learningRecorder)
+                            if (battleIsReview && battleDailyDayKey == dailyLearningState.dayKey) {
+                                saveDailyLearningState(dailyLearningService.markReviewedWords(dailyLearningState, listOf(answeredWord.id)))
+                            }
                         }
                         val next = outcome.nextState
                         battleState = next
@@ -1006,6 +1050,7 @@ fun WordMagicGameApp() {
                         stats = learningRecorder.statsSnapshot(),
                         regionDisplayName = selectedPack.nameZh,
                         nowMs = System.currentTimeMillis(),
+                        dailyState = ensureDailyStateForNow(),
                     ),
                     onCheckIn = { route = AppRoute.CheckInCalendar },
                     onReport = { route = AppRoute.LearningReport },

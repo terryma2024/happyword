@@ -25,6 +25,26 @@ function setFastChoiceBattleConfig(): void {
   AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
 }
 
+async function cleanupBattleFlow(driver: Driver): Promise<void> {
+  try {
+    const escape: Component | null =
+      await driver.findComponent(ON.id('BattleEscapeButton'));
+    if (escape !== null) {
+      await escape.click();
+      await driver.delayMs(800);
+    }
+    const resultHome: Component | null =
+      await driver.findComponent(ON.id('ResultHomeButton'));
+    if (resultHome !== null) {
+      await resultHome.click();
+      await driver.delayMs(800);
+    }
+    await selectAllQuestionTypesShared(driver);
+  } catch (err) {
+    console.error(`BattleFlow cleanup failed: ${JSON.stringify(err as Error)}`);
+  }
+}
+
 /**
  * V0.8.3 — BattlePage damage floater smoke (§6.5).
  * Wrong-answer path applies player damage when the backward projectile lands.
@@ -95,63 +115,65 @@ export default function battleFlowUiTest() {
       done();
     });
 
-    it('bossDialogueIntroAndDefeatOverlaysRender', 0, async (done: Function) => {
+    it('bossDialogueIntroRendersAndDefeatBubbleStaysDisabled', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
-      setFastChoiceBattleConfig();
+      try {
+        setFastChoiceBattleConfig();
 
-      await clickByIdShared(driver, 'HomeStartButton');
-      await driver.delayMs(1500);
+        await clickByIdShared(driver, 'HomeStartButton');
+        await driver.delayMs(1500);
 
-      await driver.assertComponentExist(ON.id('BattleBossIntroBubble'));
-      await driver.assertComponentExist(ON.id('BattleBossIntroLineEn'));
-      await driver.assertComponentExist(ON.id('BattleBossIntroLineZh'));
-      const introBubble: Component =
-        await driver.findComponent(ON.id('BattleBossIntroBubble'));
-      const monsterArea: Component =
-        await driver.findComponent(ON.id('MonsterArea'));
-      const introBounds = await introBubble.getBounds();
-      const monsterBounds = await monsterArea.getBounds();
-      expect(introBounds.left < monsterBounds.left).assertTrue();
-      expect(introBounds.right >= monsterBounds.left - 12).assertTrue();
-      expect(introBounds.right <= monsterBounds.left + 220).assertTrue();
+        await driver.assertComponentExist(ON.id('BattleBossIntroBubble'));
+        await driver.assertComponentExist(ON.id('BattleBossIntroLineEn'));
+        await driver.assertComponentExist(ON.id('BattleBossIntroLineZh'));
+        const introBubble: Component =
+          await driver.findComponent(ON.id('BattleBossIntroBubble'));
+        const monsterArea: Component =
+          await driver.findComponent(ON.id('MonsterArea'));
+        const introBounds = await introBubble.getBounds();
+        const monsterBounds = await monsterArea.getBounds();
+        expect(introBounds.left < monsterBounds.right).assertTrue();
+        expect(introBounds.right > monsterBounds.left).assertTrue();
+        expect(introBounds.left <= monsterBounds.left + 180).assertTrue();
 
-      await tapCorrectAnswerShared(driver);
-      await driver.delayMs(420);
-      await driver.assertComponentExist(ON.id('BattleBossDefeatBubble'));
-      await driver.assertComponentExist(ON.id('BattleBossDefeatLineEn'));
-      await driver.assertComponentExist(ON.id('BattleBossDefeatLineZh'));
-
-      await clickByIdShared(driver, 'BattleEscapeButton');
-      await driver.delayMs(800);
-      await clickByIdShared(driver, 'ResultHomeButton');
-      await driver.delayMs(800);
-      await selectAllQuestionTypesShared(driver);
+        await tapCorrectAnswerShared(driver);
+        await driver.delayMs(420);
+        const defeatBubble: Component | null =
+          await driver.findComponent(ON.id('BattleBossDefeatBubble'));
+        const defeatLineEn: Component | null =
+          await driver.findComponent(ON.id('BattleBossDefeatLineEn'));
+        const defeatLineZh: Component | null =
+          await driver.findComponent(ON.id('BattleBossDefeatLineZh'));
+        expect(defeatBubble === null).assertTrue();
+        expect(defeatLineEn === null).assertTrue();
+        expect(defeatLineZh === null).assertTrue();
+      } finally {
+        await cleanupBattleFlow(driver);
+      }
       done();
     });
 
     it('superBossIntroUsesOrdinaryBubbleAndAutoDismisses', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
-      await selectOnlyQuestionTypeShared(driver, 'spell');
+      try {
+        await selectOnlyQuestionTypeShared(driver, 'spell');
 
-      await clickByIdShared(driver, 'HomeStartButton');
-      await driver.delayMs(1500);
+        await clickByIdShared(driver, 'HomeStartButton');
+        await driver.delayMs(1500);
 
-      await driver.assertComponentExist(ON.id('BattleBossIntroBubble'));
-      await driver.assertComponentExist(ON.id('BattleBossIntroLineEn'));
-      await driver.assertComponentExist(ON.id('BattleBossIntroLineZh'));
-      const bannerDuringIntro: Component | null =
-        await driver.findComponent(ON.id('BattleSuperBossIntroBanner'));
-      expect(bannerDuringIntro === null).assertTrue();
-      await driver.delayMs(1500);
-      const bubble: Component | null =
-        await driver.findComponent(ON.id('BattleBossIntroBubble'));
-      expect(bubble === null).assertTrue();
-
-      await clickByIdShared(driver, 'BattleEscapeButton');
-      await driver.delayMs(800);
-      await clickByIdShared(driver, 'ResultHomeButton');
-      await driver.delayMs(800);
-      await selectAllQuestionTypesShared(driver);
+        await driver.assertComponentExist(ON.id('BattleBossIntroBubble'));
+        await driver.assertComponentExist(ON.id('BattleBossIntroLineEn'));
+        await driver.assertComponentExist(ON.id('BattleBossIntroLineZh'));
+        const bannerDuringIntro: Component | null =
+          await driver.findComponent(ON.id('BattleSuperBossIntroBanner'));
+        expect(bannerDuringIntro === null).assertTrue();
+        await driver.delayMs(1500);
+        const bubble: Component | null =
+          await driver.findComponent(ON.id('BattleBossIntroBubble'));
+        expect(bubble === null).assertTrue();
+      } finally {
+        await cleanupBattleFlow(driver);
+      }
       done();
     });
   });

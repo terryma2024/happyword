@@ -71,7 +71,7 @@ class SmokeTest {
     fun lockedReviewToolbarButtonShowsHarmonyToast() {
         composeRule.onNodeWithTag("HomeReviewButton").performClick()
 
-        composeRule.onNodeWithTag("HomeReviewLockedToast").assertIsDisplayed()
+        composeRule.onNodeWithTag("HomeReviewEmptyToast").assertIsDisplayed()
     }
 
     @Test

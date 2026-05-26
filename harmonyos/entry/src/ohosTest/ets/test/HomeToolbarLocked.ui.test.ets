@@ -9,6 +9,7 @@ import {
 } from './RoutingFlow.ui.test';
 import { waitForBattlePage } from './UiTestBattleHelpers.ets';
 import { getLearningRecorder } from '../../../main/ets/services/LearningRecorder';
+import { getDailyLearningStateService } from '../../../main/ets/services/DailyLearningStateService';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -63,6 +64,9 @@ async function clearLearningRecordsAndRefreshHome(driver: Driver): Promise<void>
     const recorder = getLearningRecorder();
     await recorder.init(ctx);
     await recorder.clear();
+    const daily = getDailyLearningStateService();
+    await daily.init(ctx);
+    await daily.clearForTest();
 
     // HomePage caches `recentWrongCount` in @State and refreshes it from
     // LearningRecorder in `onPageShow`. Bounce through a lightweight page so
@@ -103,19 +107,6 @@ async function seedOneWrongAnswerViaBattle(driver: Driver): Promise<string> {
   }
 }
 
-async function finishBattleAndReturnHome(driver: Driver): Promise<void> {
-  try {
-    await clickByIdShared(driver, 'BattleEscapeButton');
-    await driver.delayMs(800);
-    await driver.assertComponentExist(ON.id('ResultTitle'));
-    await clickByIdShared(driver, 'ResultHomeButton');
-    await driver.delayMs(800);
-    await driver.assertComponentExist(ON.id('HomeStartButton'));
-  } catch (err) {
-    throw err as Error;
-  }
-}
-
 /**
  * v0.3.6 toolbar acceptance:
  *  - HomeReviewButton (📚 emoji in v0.3.6–v0.3.9, review.svg from
@@ -124,9 +115,10 @@ async function finishBattleAndReturnHome(driver: Driver): Promise<void> {
  *  - The review button has two stateful modes backed by the persisted
  *    `wordmagic_learning` snapshot:
  *      1. clear learning records → review is locked → tapping shows
- *         HomeReviewLockedToast and stays on HomePage;
- *      2. make one wrong answer in a real battle → review unlocks
- *         → tapping launches the review BattlePage.
+ *         HomeReviewEmptyToast and stays on HomePage.
+ *      2. make one wrong answer in a same-day real battle → review
+ *         stays locked because v0.9.3 excludes same-day wrong words
+ *         from today's stable review snapshot.
  *
  * Keep those two checks in this order. Splitting or reordering them makes
  * the suite depend on whatever learning records the device had from a
@@ -153,21 +145,20 @@ export default function homeToolbarLockedUiTest(): void {
       try {
         await clickByIdShared(driver, 'HomeReviewButton');
         await driver.delayMs(300);
-        await driver.assertComponentExist(ON.id('HomeReviewLockedToast'));
+        await driver.assertComponentExist(ON.id('HomeReviewEmptyToast'));
         await driver.assertComponentExist(ON.id('HomeStartButton'));
         await driver.delayMs(1800);
         const toast: Component | null =
-          await driver.findComponent(ON.id('HomeReviewLockedToast'));
+          await driver.findComponent(ON.id('HomeReviewEmptyToast'));
         expect(toast === null).assertTrue();
 
         const seededWrongPrompt: string = await seedOneWrongAnswerViaBattle(driver);
         expect(seededWrongPrompt.length > 0).assertTrue();
 
         await clickByIdShared(driver, 'HomeReviewButton');
-        await waitForBattlePage(driver);
-        await driver.assertComponentExist(ON.text('Monster 1 / 3'));
-        await driver.assertComponentExist(ON.text(seededWrongPrompt));
-        await finishBattleAndReturnHome(driver);
+        await driver.delayMs(300);
+        await driver.assertComponentExist(ON.id('HomeReviewEmptyToast'));
+        await driver.assertComponentExist(ON.id('HomeStartButton'));
       } finally {
         await clearLearningRecordsAndRefreshHome(driver);
         await selectAllQuestionTypesShared(driver);

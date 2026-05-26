@@ -72,6 +72,7 @@ struct HomePage {
   @State private todayCompleted: boolean = false;
   @State private dailyStatusLabel: string = '请选择一个场景加战斗';
   @State private dailyReviewRemainingCount: number = 0;
+  @State private dailyReviewCountBadgeVisible: boolean = false;
   /**
    * V0.6.5.1: the chip row's currently-selected Pack. `todayRegion` is
    * derived from this on every render so the legacy region-shaped UI
@@ -305,6 +306,7 @@ struct HomePage {
     const status: HomeDailyStatus = decideHomeDailyStatus(state);
     this.dailyStatusLabel = status.label;
     this.dailyReviewRemainingCount = status.remainingReviewCount;
+    this.dailyReviewCountBadgeVisible = status.dailyCheckInCompleted && status.remainingReviewCount > 0;
     this.todayCompleted = status.todayAdventureCompleted;
   }
 
@@ -394,7 +396,7 @@ struct HomePage {
    * Surface a transient inline toast at the top of HomePage when the
    * locked 📚 button is tapped. Self-dismisses after 1.5s; a rapid
    * follow-up tap resets the timer so the toast doesn't disappear
-   * mid-message. The HomeReviewLockedToast id is the contract used
+   * mid-message. The HomeReviewEmptyToast id is the contract used
    * by HomeToolbarLocked.ui.test.
    */
   private showReviewLockedToast(): void {
@@ -545,7 +547,7 @@ struct HomePage {
       Column() {
         if (this.reviewLockedToastVisible) {
           Text('今天没有待复习单词')
-            .id('HomeReviewLockedToast')
+            .id('HomeReviewEmptyToast')
             .fontSize(14)
             .fontColor('#FFFFFF')
             .backgroundColor('#E63A3A3A')
@@ -614,12 +616,26 @@ struct HomePage {
         // stable across remounts; the original SVGs are kept on
         // disk as the design source.
         Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Image($rawfile('icons/review.png'))
-            .width(32)
-            .height(32)
-            .objectFit(ImageFit.Contain)
-            .syncLoad(true)
-            .opacity(this.reviewEnabled() ? 1.0 : 0.4);
+          Stack() {
+            Image($rawfile('icons/review.png'))
+              .width(32)
+              .height(32)
+              .objectFit(ImageFit.Contain)
+              .syncLoad(true)
+              .opacity(this.reviewEnabled() ? 1.0 : 0.4);
+            if (this.dailyReviewCountBadgeVisible) {
+              Text(`${this.dailyReviewRemainingCount}`)
+                .id('HomeReviewCountBadge')
+                .fontSize(11)
+                .fontColor('#FFFFFF')
+                .backgroundColor('#E63946')
+                .borderRadius(9)
+                .padding({ left: 5, right: 5, top: 2, bottom: 2 })
+                .align(Alignment.TopEnd);
+            }
+          }
+          .width(40)
+          .height(40);
         }
           .id('HomeReviewButton')
           .width(56)
@@ -824,7 +840,7 @@ struct HomePage {
           .fontColor('#3F2F1A');
         Blank();
         Text(this.dailyStatusLabel)
-          .id('AdventureCardBadge')
+          .id('AdventureCardDailyStatusLabel')
           .fontSize(14)
           .fontColor(this.todayCompleted ? '#7B7B7B' : '#FFFFFF')
           .backgroundColor(this.todayCompleted ? '#E5E5E5' : '#E63946')

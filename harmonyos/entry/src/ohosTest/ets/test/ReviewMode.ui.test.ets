@@ -9,19 +9,16 @@ import {
 import {
   returnToHome,
   startTodayBattleChoiceOnly,
-  waitForBattlePage,
 } from './UiTestBattleHelpers.ets';
 
 /**
- * ReviewMode UI test (spec §15 V0.2 Track D). Exercises the
- * HomeReviewButton gating + BattlePage review-mode branch end-to-end:
+ * ReviewMode UI test. Exercises the v0.9.3 same-day exclusion:
  *
- *  - On fresh launch (no prior wrong answers in this session) the
- *    HomeReviewButton must render disabled and show the nudge copy.
- *  - After seeding 1 wrong answer in a regular battle, returning to
- *    HomePage must enable the review button.
- *  - Tapping it must launch a review session whose header shows
- *    `Monster 1 / 3` (per the 3-monster override).
+ *  - HomeReviewButton remains visible on the toolbar.
+ *  - After seeding 1 wrong answer in a same-day regular battle, returning
+ *    to HomePage must NOT enable review because today's stable review
+ *    snapshot was computed from data before local midnight.
+ *  - Tapping review shows the empty-review toast and stays on HomePage.
  *
  * The test stays on a single app instance so LearningRecorder's
  * in-memory snapshot carries the seeded wrong answers across the
@@ -32,7 +29,7 @@ import {
  */
 export default function reviewModeUiTest(): void {
   describe('ReviewModeUiTest', () => {
-    it('reviewButtonUnlocksAfterOneWrongAnswer', 0, async (done: Function) => {
+    it('sameDayWrongAnswerDoesNotUnlockReviewButton', 0, async (done: Function) => {
       const driver: Driver = await launchAppShared();
       await returnToHome(driver);
 
@@ -66,22 +63,11 @@ export default function reviewModeUiTest(): void {
       await driver.delayMs(800);
       await driver.assertComponentExist(ON.id('HomeStartButton'));
 
-      // --- Review button must now be enabled (review.svg in top toolbar) ---
+      // --- Same-day wrong answer is excluded from today's stable review list. ---
       await driver.assertComponentExist(ON.id('HomeReviewButton'));
       await clickByIdShared(driver, 'HomeReviewButton');
-      await waitForBattlePage(driver);
-      // The 3-monster override lives in REVIEW_MODE_MONSTERS_TOTAL.
-      // Asserting on the header text "Monster 1 / 3" catches both
-      // the mode flag and the override in one shot.
-      await driver.assertComponentExist(ON.id('BattleTitle'));
-      await driver.assertComponentExist(ON.text('Monster 1 / 3'));
-
-      // Clean up so the suite can continue — debug finish + home.
-      await clickByIdShared(driver, 'BattleEscapeButton');
-      await driver.delayMs(800);
-      await driver.assertComponentExist(ON.id('ResultTitle'));
-      await clickByIdShared(driver, 'ResultHomeButton');
-      await driver.delayMs(800);
+      await driver.delayMs(300);
+      await driver.assertComponentExist(ON.id('HomeReviewEmptyToast'));
       await driver.assertComponentExist(ON.id('HomeStartButton'));
       await selectAllQuestionTypesShared(driver);
 

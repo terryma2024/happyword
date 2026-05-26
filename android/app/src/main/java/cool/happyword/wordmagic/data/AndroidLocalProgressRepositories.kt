@@ -12,7 +12,11 @@ import cool.happyword.wordmagic.core.WishItem
 import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.CustomWishRules
 import cool.happyword.wordmagic.core.GameConfig
+import cool.happyword.wordmagic.core.DailyLearningState
+import cool.happyword.wordmagic.core.DailyReviewSnapshot
 import cool.happyword.wordmagic.core.WordLearningStat
+import cool.happyword.wordmagic.core.WordAnswerOutcome
+import cool.happyword.wordmagic.core.WordMemoryState
 
 class AndroidLocalProgressRepositories(context: Context) {
     private val prefs = context.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE)
@@ -195,7 +199,10 @@ class AndroidLocalProgressRepositories(context: Context) {
             .lineSequence()
             .mapNotNull { line ->
                 val parts = line.split('\t')
-                if (parts.size == 6) {
+                if (parts.size >= 6) {
+                    val consecutiveCorrect = parts.getOrNull(9)?.toIntOrNull().orZero()
+                    val consecutiveWrong = parts.getOrNull(10)?.toIntOrNull().orZero()
+                    val lastOutcome = parseOutcome(parts.getOrNull(12), consecutiveCorrect, consecutiveWrong)
                     WordLearningStat(
                         packId = parts[0],
                         wordId = parts[1],
@@ -203,6 +210,12 @@ class AndroidLocalProgressRepositories(context: Context) {
                         correctCount = parts[3].toIntOrNull().orZero(),
                         wrongCount = parts[4].toIntOrNull().orZero(),
                         lastSeenAtMs = parts[5].toLongOrNull() ?: 0L,
+                        nextReviewMs = parts.getOrNull(6)?.toLongOrNull() ?: 0L,
+                        memoryState = parseMemoryState(parts.getOrNull(7)),
+                        consecutiveCorrect = consecutiveCorrect,
+                        consecutiveWrong = consecutiveWrong,
+                        mastery = parts.getOrNull(11)?.toIntOrNull().orZero(),
+                        lastOutcome = lastOutcome,
                     )
                 } else {
                     null
@@ -217,11 +230,72 @@ class AndroidLocalProgressRepositories(context: Context) {
             .putString(
                 "learningStats",
                 recorder.statsSnapshot().joinToString("\n") {
-                    "${it.packId}\t${it.wordId}\t${it.seenCount}\t${it.correctCount}\t${it.wrongCount}\t${it.lastSeenAtMs}"
+                    "${it.packId}\t${it.wordId}\t${it.seenCount}\t${it.correctCount}\t${it.wrongCount}\t${it.lastSeenAtMs}\t${it.nextReviewMs}\t${it.memoryState.name}\t1\t${it.consecutiveCorrect}\t${it.consecutiveWrong}\t${it.mastery}\t${it.lastOutcome.name}"
                 },
             )
             .apply()
     }
 
+    fun loadDailyLearningState(): DailyLearningState {
+        val raw = prefs.getString(DAILY_LEARNING_STATE_KEY, "").orEmpty()
+        val parts = raw.split('\t')
+        if (parts.size < 7) {
+            return DailyLearningState.empty("")
+        }
+        val wordIds = splitCsv(parts[5])
+        val reviewed = splitCsv(parts[6]).filter { it in wordIds.toSet() }
+        return DailyLearningState(
+            dayKey = parts[0],
+            packBattleWon = parts[1].toBooleanStrictOrNull() ?: false,
+            reviewAllDone = parts[2].toBooleanStrictOrNull() ?: wordIds.all { it in reviewed.toSet() },
+            reviewSnapshot = DailyReviewSnapshot(
+                dayKey = parts[0],
+                generatedAtMs = parts[3].toLongOrNull() ?: 0L,
+                sourceCutoffMs = parts[4].toLongOrNull() ?: 0L,
+                wordIds = wordIds,
+                reviewedWordIds = reviewed,
+            ),
+        )
+    }
+
+    fun saveDailyLearningState(state: DailyLearningState) {
+        prefs.edit()
+            .putString(
+                DAILY_LEARNING_STATE_KEY,
+                listOf(
+                    state.dayKey,
+                    state.packBattleWon.toString(),
+                    state.reviewAllDone.toString(),
+                    state.reviewSnapshot.generatedAtMs.toString(),
+                    state.reviewSnapshot.sourceCutoffMs.toString(),
+                    state.reviewSnapshot.wordIds.joinToString(","),
+                    state.reviewSnapshot.reviewedWordIds.joinToString(","),
+                ).joinToString("\t"),
+            )
+            .apply()
+    }
+
     private fun Int?.orZero(): Int = this ?: 0
+
+    private fun splitCsv(raw: String): List<String> =
+        raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+    private fun parseOutcome(raw: String?, consecutiveCorrect: Int, consecutiveWrong: Int): WordAnswerOutcome =
+        when (raw) {
+            WordAnswerOutcome.Correct.name -> WordAnswerOutcome.Correct
+            WordAnswerOutcome.Wrong.name -> WordAnswerOutcome.Wrong
+            WordAnswerOutcome.Unknown.name -> WordAnswerOutcome.Unknown
+            else -> when {
+                consecutiveWrong > 0 -> WordAnswerOutcome.Wrong
+                consecutiveCorrect > 0 -> WordAnswerOutcome.Correct
+                else -> WordAnswerOutcome.Unknown
+            }
+        }
+
+    private fun parseMemoryState(raw: String?): WordMemoryState =
+        WordMemoryState.values().firstOrNull { it.name == raw } ?: WordMemoryState.New
+
+    companion object {
+        private const val DAILY_LEARNING_STATE_KEY = "daily_learning_state/snapshot_v1"
+    }
 }

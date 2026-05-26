@@ -8,7 +8,6 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -16,12 +15,25 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.io.FileOutputStream
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
 class AndroidScreenScreenshotTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
+
+    @Before
+    fun resetLocalState() {
+        val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
+        targetContext.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE).edit().clear().commit()
+        targetContext.getSharedPreferences("wordmagic-cloud", Context.MODE_PRIVATE).edit().clear().commit()
+        targetContext.getSharedPreferences("wordmagic-debug-routing", Context.MODE_PRIVATE).edit().clear().commit()
+        composeRule.runOnUiThread {
+            composeRule.activity.recreate()
+        }
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
+    }
 
     @Test
     fun captureLearningReportScreen() {
@@ -150,7 +162,7 @@ class AndroidScreenScreenshotTest {
 
         composeRule.onNodeWithTag("HomeStartButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("BattleScreen") }
-        answerCurrentFruitChoice()
+        composeRule.onNodeWithTag("BattleEscapeButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ResultScreen") }
         capture("result.png")
     }
@@ -167,16 +179,6 @@ class AndroidScreenScreenshotTest {
 
     private fun hasNode(tag: String): Boolean {
         return composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
-    }
-
-    private fun answerCurrentFruitChoice() {
-        composeRule.waitUntil(timeoutMillis = 2_000) {
-            fruitPromptToAnswer.keys.any { prompt -> composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty() }
-        }
-        val answer = fruitPromptToAnswer.entries.first { (prompt, _) ->
-            composeRule.onAllNodesWithText(prompt).fetchSemanticsNodes().isNotEmpty()
-        }.value
-        composeRule.onNodeWithText(answer).performClick()
     }
 
     private fun seedCloudBindingPrefs() {
@@ -197,13 +199,4 @@ class AndroidScreenScreenshotTest {
         }
     }
 
-    private companion object {
-        val fruitPromptToAnswer = linkedMapOf(
-            "苹果" to "apple",
-            "香蕉" to "banana",
-            "梨" to "pear",
-            "橙子" to "orange",
-            "葡萄" to "grape",
-        )
-    }
 }

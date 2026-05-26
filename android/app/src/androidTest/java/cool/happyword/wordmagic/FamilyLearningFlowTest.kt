@@ -251,7 +251,7 @@ class FamilyLearningFlowTest {
         tapCorrectCurrentFruitChoice()
         waitForBattleFeedbackToClear()
         tapCorrectCurrentFruitChoice()
-        composeRule.onNodeWithText("HP 1 / 5").assertIsDisplayed()
+        composeRule.onNodeWithText("HP 3 / 7").assertIsDisplayed()
         composeRule.onNodeWithText("Combo 0").assertIsDisplayed()
     }
 

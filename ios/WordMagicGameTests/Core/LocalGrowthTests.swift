@@ -180,6 +180,100 @@ final class LocalGrowthTests: XCTestCase {
         XCTAssertEqual(Set(bucketedIds).count, pack.words.count)
     }
 
+    func testDailyLearningDayKeyUsesCompactLocalYYYYMMDD() {
+        XCTAssertEqual(DailyLearningDayKey.compact(date(year: 2026, month: 5, day: 26, hour: 12), calendar: gregorianUTC()), "20260526")
+    }
+
+    func testReviewSnapshotUsesPreDayStatsAndReasonPriority() {
+        let start = date(year: 2026, month: 5, day: 26)
+        let noon = date(year: 2026, month: 5, day: 26, hour: 12)
+        let words = ["due", "recent-wrong", "weak", "same-day-wrong", "fresh"].map(testWord)
+        let stats = [
+            testStat("due", lastAnswered: addingDays(-5, to: start), memoryState: .familiar, nextReview: addingDays(-1, to: start), correct: 5, wrong: 0, seen: 5, mastery: 0.8, lastOutcome: .correct),
+            testStat("recent-wrong", lastAnswered: addingDays(-2, to: start), memoryState: .review, nextReview: addingDays(1, to: start), correct: 1, wrong: 1, seen: 2, mastery: 0.4, lastOutcome: .wrong),
+            testStat("weak", lastAnswered: addingDays(-3, to: start), memoryState: .learning, nextReview: addingDays(1, to: start), correct: 2, wrong: 3, seen: 5, mastery: 0.3, lastOutcome: .correct),
+            testStat("same-day-wrong", lastAnswered: start.addingTimeInterval(60), memoryState: .review, nextReview: start.addingTimeInterval(120), correct: 0, wrong: 1, seen: 1, mastery: 0, lastOutcome: .wrong),
+        ]
+
+        let snapshot = ReviewQueueBuilder().buildSnapshot(
+            words: words,
+            stats: stats,
+            now: noon,
+            selectedWordIds: ["due"],
+            calendar: gregorianUTC()
+        )
+
+        XCTAssertEqual(snapshot.dayKey, "20260526")
+        XCTAssertEqual(snapshot.wordIds, ["due", "recent-wrong", "weak"])
+        XCTAssertFalse(snapshot.wordIds.contains("same-day-wrong"))
+        XCTAssertEqual(snapshot.items.map(\.primaryReason), [.dueReview, .recentWrong, .weakWord])
+    }
+
+    func testReviewSnapshotCapsAtFiftyWords() {
+        let start = date(year: 2026, month: 5, day: 26)
+        let words = (0..<80).map { testWord(String(format: "w-%02d", $0)) }
+        let stats = words.map {
+            testStat($0.id, lastAnswered: addingDays(-1, to: start), memoryState: .review, nextReview: start.addingTimeInterval(-1), correct: 0, wrong: 1, seen: 1, mastery: 0, lastOutcome: .wrong)
+        }
+
+        let snapshot = ReviewQueueBuilder().buildSnapshot(words: words, stats: stats, now: start.addingTimeInterval(3600), selectedWordIds: [], calendar: gregorianUTC())
+
+        XCTAssertEqual(snapshot.wordIds.count, 50)
+    }
+
+    func testHomeDailyStatusUsesABMatrix() {
+        var state = DailyLearningState(dayKey: "20260526")
+        state.reviewSnapshot.wordIds = ["a", "b"]
+
+        var status = HomeDailyStatus.decide(from: state)
+        XCTAssertEqual(status.label, "请选择一个场景加战斗")
+        XCTAssertEqual(status.remainingReviewCount, 2)
+        XCTAssertFalse(status.todayAdventureCompleted)
+        XCTAssertFalse(status.dailyCheckInCompleted)
+
+        state.reviewSnapshot.reviewedWordIds = ["a", "b"]
+        status = HomeDailyStatus.decide(from: state)
+        XCTAssertEqual(status.label, "请选择一个场景加战斗")
+        XCTAssertTrue(status.dailyCheckInCompleted)
+        XCTAssertFalse(status.todayAdventureCompleted)
+
+        state.packBattleWon = true
+        state.reviewSnapshot.reviewedWordIds = ["a"]
+        status = HomeDailyStatus.decide(from: state)
+        XCTAssertEqual(status.label, "请点击复习加战斗(1)")
+        XCTAssertTrue(status.dailyCheckInCompleted)
+        XCTAssertFalse(status.todayAdventureCompleted)
+
+        state.reviewSnapshot.reviewedWordIds = ["a", "b"]
+        status = HomeDailyStatus.decide(from: state)
+        XCTAssertEqual(status.label, "已完成")
+        XCTAssertTrue(status.todayAdventureCompleted)
+    }
+
+    @MainActor
+    func testDailyLearningStateServiceMarksWinsAndReviewedWords() {
+        var state = DailyLearningState(dayKey: "20260526")
+        state.reviewSnapshot.wordIds = ["a", "b"]
+        let service = DailyLearningStateService(defaults: isolatedDefaults(name: "daily-state-service"))
+
+        service.markPackBattleWon(in: &state)
+        service.markReviewedWords(["a", "a", "missing"], in: &state)
+
+        XCTAssertTrue(state.packBattleWon)
+        XCTAssertEqual(state.reviewSnapshot.reviewedWordIds, ["a"])
+        XCTAssertFalse(state.reviewAllDone)
+
+        service.markReviewedWords(["b"], in: &state)
+        XCTAssertTrue(state.reviewAllDone)
+    }
+
+    func testReviewMonsterCountUsesWordCountHpAndConfiguredCap() {
+        XCTAssertEqual(ReviewBattleTuning.reviewMonsterCount(requiredWordCount: 20, monsterHp: 5, configuredTotal: 10, defaultMonsterHp: 5), 3)
+        XCTAssertEqual(ReviewBattleTuning.reviewMonsterCount(requiredWordCount: 1, monsterHp: 5, configuredTotal: 10, defaultMonsterHp: 5), 1)
+        XCTAssertEqual(ReviewBattleTuning.reviewMonsterCount(requiredWordCount: 50, monsterHp: 1, configuredTotal: 10, defaultMonsterHp: 5), 10)
+        XCTAssertEqual(ReviewBattleTuning.reviewMonsterCount(requiredWordCount: 20, monsterHp: 0, configuredTotal: 10, defaultMonsterHp: 5), 3)
+    }
+
     func testHomeScenePaletteUsesSelectedPackSceneColors() {
         let palette = HomeScenePalette(scene: SceneMetadata(bgPrimary: "#123456", bgAccent: "#ABCDEF"))
 
@@ -228,18 +322,55 @@ final class LocalGrowthTests: XCTestCase {
         Date(timeIntervalSince1970: 1_800_000_000 + timeIntervalSinceNow)
     }
 
-    private func date(year: Int, month: Int, day: Int) -> Date {
+    private func date(year: Int, month: Int, day: Int, hour: Int = 0) -> Date {
         var components = DateComponents()
         components.calendar = Calendar(identifier: .gregorian)
         components.timeZone = TimeZone(secondsFromGMT: 0)
         components.year = year
         components.month = month
         components.day = day
+        components.hour = hour
         return components.date!
     }
 
     private func addingDays(_ days: Int, to date: Date) -> Date {
         Calendar(identifier: .gregorian).date(byAdding: .day, value: days, to: date)!
+    }
+
+    private func testWord(_ id: String) -> WordEntry {
+        WordEntry(id: id, word: id, meaningZh: id, category: "test", difficulty: 1)
+    }
+
+    private func testStat(
+        _ id: String,
+        lastAnswered: Date,
+        memoryState: WordMemoryState,
+        nextReview: Date,
+        correct: Int,
+        wrong: Int,
+        seen: Int,
+        mastery: Double,
+        lastOutcome: WordLearningOutcome
+    ) -> WordLearningStat {
+        WordLearningStat(
+            wordId: id,
+            seenCount: seen,
+            correctCount: correct,
+            wrongCount: wrong,
+            lastAnsweredAt: lastAnswered,
+            nextReviewAt: nextReview,
+            memoryState: memoryState,
+            lastOutcome: lastOutcome,
+            consecutiveCorrect: lastOutcome == .correct ? 1 : 0,
+            consecutiveWrong: lastOutcome == .wrong ? 1 : 0,
+            mastery: mastery
+        )
+    }
+
+    private func gregorianUTC() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
     }
 
     private func isolatedDefaults(name: String) -> UserDefaults {

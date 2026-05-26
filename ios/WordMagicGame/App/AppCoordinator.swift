@@ -30,6 +30,11 @@ enum DevMenuRouteParams {
     static let presetPreview = "preview"
 }
 
+private enum ActiveBattleKind {
+    case normal
+    case review
+}
+
 @MainActor
 final class AppCoordinator: ObservableObject {
     @Published var route: AppRoute = .home
@@ -48,10 +53,13 @@ final class AppCoordinator: ObservableObject {
     @Published var pendingPostBindPinSetup: Bool = false
     @Published var packLibrary = PackLibrary()
     @Published var toastMessage: String?
+    @Published var toastAccessibilityIdentifier: String = "AppToast"
+    @Published var dailyLearningState: DailyLearningState
 
     let configStore: GameConfigStore
     let coinAccount = CoinAccount()
     let checkInStore: CheckInStore
+    let dailyLearningStateService: DailyLearningStateService
     let parentClient: any ParentApiClient
     let parentAdminUsesLocalMock: Bool
     let wishlistStore = WishlistStore()
@@ -78,6 +86,8 @@ final class AppCoordinator: ObservableObject {
     /// Consumed once when `DevMenuView` appears. Matches Harmony `presetEnv` route param.
     private var devMenuRoutePreset: String?
     private let reviewWindowSize = 12
+    private var activeBattleKind: ActiveBattleKind = .normal
+    private var activeBattleStartDate = Date()
 
     var packs: [Pack] {
         packLibrary.allPacks()
@@ -102,6 +112,7 @@ final class AppCoordinator: ObservableObject {
         wordStatsSyncClient: any WordStatsSyncClienting = CloudClientFactory.wordStatsSyncClient(),
         wordStatsSyncStateStore: WordStatsSyncStateStore = WordStatsSyncStateStore(),
         checkInStore: CheckInStore = CheckInStore(),
+        dailyLearningStateService: DailyLearningStateService = DailyLearningStateService(),
         checkInSyncClient: any CheckInSyncClienting = CloudClientFactory.checkInSyncClient(),
         unbindClient: any DeviceUnbindClienting = CloudClientFactory.unbindClient(),
         childProfileClient: any ChildProfileClienting = CloudClientFactory.childProfileClient(),
@@ -119,6 +130,7 @@ final class AppCoordinator: ObservableObject {
         self.wordStatsSyncClient = wordStatsSyncClient
         self.wordStatsSyncStateStore = wordStatsSyncStateStore
         self.checkInStore = checkInStore
+        self.dailyLearningStateService = dailyLearningStateService
         self.checkInSyncClient = checkInSyncClient
         self.unbindClient = unbindClient
         self.childProfileClient = childProfileClient
@@ -132,6 +144,7 @@ final class AppCoordinator: ObservableObject {
         self.battleRandomSeed = battleRandomSeed
         packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id))
         selectedPack = Pack.builtin[0]
+        dailyLearningState = dailyLearningStateService.state
         pronunciationService.prepare()
         loadCachedPackLayers()
         applyLaunchSeeds()
@@ -200,14 +213,16 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    func showToast(_ message: String, duration: TimeInterval = 2.0) {
+    func showToast(_ message: String, duration: TimeInterval = 2.0, accessibilityIdentifier: String = "AppToast") {
         toastToken = UUID()
         let token = toastToken
         toastMessage = message
+        toastAccessibilityIdentifier = accessibilityIdentifier
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
             if toastToken == token {
                 toastMessage = nil
+                toastAccessibilityIdentifier = "AppToast"
             }
         }
     }
@@ -237,6 +252,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func startBattle() {
+        let state = refreshDailyLearningState()
         pronunciationService.prepare()
         let repository = WordRepository(words: selectedPack.words)
         let enabledTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(configStore.config.enabledQuestionTypes)
@@ -258,14 +274,18 @@ final class AppCoordinator: ObservableObject {
         )
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
+        activeBattleKind = .normal
+        activeBattleStartDate = Date()
+        dailyLearningState = state
         battleEngine = engine
         route = .battle
     }
 
     func startReviewBattle() {
-        let reviewIds = learningRecorder.recentWrongIds(limit: reviewWindowSize)
+        let state = refreshDailyLearningState()
+        let reviewIds = state.reviewSnapshot.remainingWordIds
         guard !reviewIds.isEmpty else {
-            showToast("先答错几题再来复习吧")
+            showToast("今天没有需要复习的单词", accessibilityIdentifier: "HomeReviewEmptyToast")
             return
         }
         let allWords = packLibrary.allPacks().flatMap(\.words)
@@ -297,8 +317,13 @@ final class AppCoordinator: ObservableObject {
             enabledQuestionTypes: enabledTypes,
         )
         var reviewConfig = configStore.config
-        reviewConfig.monstersTotal = 3
-        reviewConfig.startingSeconds = 120
+        reviewConfig.monstersTotal = ReviewBattleTuning.reviewMonsterCount(
+            requiredWordCount: focusedIds.count,
+            monsterHp: reviewConfig.monsterMaxHp,
+            configuredTotal: reviewConfig.monstersTotal,
+            defaultMonsterHp: GameConfig.default.monsterMaxHp
+        )
+        reviewConfig.startingSeconds = ReviewBattleTuning.reviewBattleSeconds
         let engine = BattleEngine(
             questionSource: questionSource,
             config: reviewConfig,
@@ -306,6 +331,8 @@ final class AppCoordinator: ObservableObject {
         )
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
+        activeBattleKind = .review
+        activeBattleStartDate = Date()
         battleEngine = engine
         route = .battle
     }
@@ -336,6 +363,7 @@ final class AppCoordinator: ObservableObject {
             let outcome = try engine.submitAnswer(option)
             if let answeredWordId, !outcome.advancedStep {
                 learningRecorder.record(wordId: answeredWordId, correct: outcome.correct)
+                markReviewWordIfNeeded(answeredWordId)
             }
             if outcome.battleEnded {
                 finishBattle()
@@ -354,6 +382,7 @@ final class AppCoordinator: ObservableObject {
             let outcome = try engine.submitAnswer(option)
             if let answeredWordId, !outcome.advancedStep {
                 learningRecorder.record(wordId: answeredWordId, correct: outcome.correct)
+                markReviewWordIfNeeded(answeredWordId)
             }
             objectWillChange.send()
             return outcome
@@ -384,7 +413,11 @@ final class AppCoordinator: ObservableObject {
               var result = try? engine.buildSessionResult() else { return }
         result.coinsTotal = coinAccount.earn(result.coinsEarned)
         if result.status == .won {
-            let checkIn = checkInStore.recordWin(coins: coinAccount)
+            if activeBattleKind == .normal {
+                dailyLearningStateService.markPackBattleWon(now: activeBattleStartDate)
+                dailyLearningState = dailyLearningStateService.state
+            }
+            let checkIn = checkInStore.recordWin(now: activeBattleStartDate, coins: coinAccount)
             result.checkInRecorded = checkIn.changed
             result.checkInCurrentStreak = checkIn.currentStreak
             result.checkInBonusCoins = checkIn.bonusCoins
@@ -395,6 +428,31 @@ final class AppCoordinator: ObservableObject {
         lastResult = result
         route = .result
         Task { await syncWordStatsIfPossible(showStatus: false) }
+    }
+
+    @discardableResult
+    func refreshDailyLearningState(now: Date = Date()) -> DailyLearningState {
+        let state = dailyLearningStateService.ensureForDay(
+            words: activePacks.flatMap(\.words),
+            stats: learningRecorder.allStats(),
+            now: now,
+            selectedWordIds: selectedPack.words.map(\.id)
+        )
+        dailyLearningState = state
+        return state
+    }
+
+    var homeDailyStatus: HomeDailyStatus {
+        HomeDailyStatus.decide(from: dailyLearningState)
+    }
+
+    private func markReviewWordIfNeeded(_ wordId: String) {
+        guard activeBattleKind == .review else { return }
+        dailyLearningStateService.markReviewedWords([wordId], now: activeBattleStartDate)
+        dailyLearningState = dailyLearningStateService.state
+        if HomeDailyStatus.decide(from: dailyLearningState).dailyCheckInCompleted {
+            _ = checkInStore.recordWin(now: activeBattleStartDate, coins: coinAccount)
+        }
     }
 
     private func makeBattleRandomSeed() -> UInt64 {
@@ -469,6 +527,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func openTodayPlan() {
+        refreshDailyLearningState()
         route = .todayPlan
     }
 

@@ -55,10 +55,14 @@ struct HomeView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .background(AppTheme.page)
+        .onAppear {
+            coordinator.refreshDailyLearningState()
+        }
     }
 
     private var topBar: some View {
         let childProfileLabel = "学习档案 \(coordinator.currentChildNickname())"
+        let status = coordinator.homeDailyStatus
         return HStack(spacing: 12) {
             Spacer(minLength: 0)
             if coordinator.showsChildProfileShortcut {
@@ -78,7 +82,18 @@ struct HomeView: View {
             }
             badge("金币 \(coordinator.coinAccount.balance)", tint: AppTheme.cream, foreground: AppTheme.gold)
                 .accessibilityIdentifier("HomeCoinBalance")
-            toolbarButton("ToolbarReview", label: "复习", action: coordinator.startReviewBattle)
+            ZStack(alignment: .topTrailing) {
+                toolbarButton("ToolbarReview", label: "复习", accessibilityIdentifier: "HomeReviewButton", action: coordinator.startReviewBattle)
+                if status.remainingReviewCount > 0 && coordinator.dailyLearningState.packBattleWon {
+                    Text("\(status.remainingReviewCount)")
+                        .font(.caption2.weight(.heavy))
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .background(AppTheme.red, in: Circle())
+                        .offset(x: 3, y: -3)
+                        .accessibilityIdentifier("HomeReviewCountBadge")
+                }
+            }
             toolbarButton("ToolbarCodex", label: "图鉴", action: coordinator.openMonsterCodex)
             toolbarEmojiButton("📋", label: "今日学习计划", action: coordinator.openTodayPlan)
             toolbarButton("ToolbarWishlist", label: "许愿", action: coordinator.openWishlist)
@@ -98,7 +113,8 @@ struct HomeView: View {
     }
 
     private var adventureCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let status = coordinator.homeDailyStatus
+        return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(coordinator.selectedPack.title)
                     .font(.system(size: 24, weight: .heavy, design: .rounded))
@@ -107,12 +123,13 @@ struct HomeView: View {
                     .minimumScaleFactor(0.65)
                     .accessibilityIdentifier("AdventureCardTitle")
                 Spacer()
-                Text("已完成")
+                Text(status.label)
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 7)
                     .background(Color.gray.opacity(0.15), in: Capsule())
+                    .accessibilityIdentifier("AdventureCardDailyStatusLabel")
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -188,7 +205,7 @@ struct HomeView: View {
             .background(tint, in: Capsule())
     }
 
-    private func toolbarButton(_ imageName: String, label: String, action: (() -> Void)? = nil) -> some View {
+    private func toolbarButton(_ imageName: String, label: String, accessibilityIdentifier: String? = nil, action: (() -> Void)? = nil) -> some View {
         Button {
             action?()
         } label: {
@@ -200,6 +217,7 @@ struct HomeView: View {
                 .background(Color(red: 0.99, green: 0.90, blue: 0.90), in: Circle())
         }
         .accessibilityLabel(label)
+        .accessibilityIdentifier(accessibilityIdentifier ?? label)
         .disabled(action == nil)
     }
 

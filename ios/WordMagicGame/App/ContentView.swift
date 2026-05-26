@@ -83,7 +83,7 @@ struct ContentView: View {
                         .padding(.horizontal, AppTheme.pageHorizontalPadding)
                         .padding(.vertical, 10)
                         .background(Color.black.opacity(0.90), in: Capsule())
-                        .accessibilityIdentifier("AppToast")
+                        .accessibilityIdentifier(coordinator.toastAccessibilityIdentifier)
                         .padding(.bottom, 28)
                 }
                 .transition(.opacity)

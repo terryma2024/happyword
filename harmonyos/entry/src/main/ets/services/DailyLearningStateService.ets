@@ -304,6 +304,11 @@ export class DailyLearningStateService {
     await this.prefs.flush();
   }
 
+  async clearForTest(): Promise<void> {
+    this.state = new DailyLearningState();
+    await this.flushNow();
+  }
+
   private resetIfNeeded(dayKey: string): void {
     if (this.state.dayKey === dayKey) {
       return;

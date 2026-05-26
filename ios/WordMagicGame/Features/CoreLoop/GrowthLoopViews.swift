@@ -705,6 +705,18 @@ struct TodayPlanView: View {
         TodayPlanService().build(pack: coordinator.selectedPack, recorder: coordinator.learningRecorder)
     }
 
+    private var dailyStatus: HomeDailyStatus {
+        coordinator.homeDailyStatus
+    }
+
+    private var requiredReviewWords: [WordEntry] {
+        var wordsById: [String: WordEntry] = [:]
+        for word in coordinator.packLibrary.allPacks().flatMap(\.words) where wordsById[word.id] == nil {
+            wordsById[word.id] = word
+        }
+        return coordinator.dailyLearningState.reviewSnapshot.wordIds.compactMap { wordsById[$0] }
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             HStack {
@@ -756,9 +768,10 @@ struct TodayPlanView: View {
                         .font(.system(size: 20, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
-                Text("今天的计划：0 / \(totalCount) 已完成")
+                Text(todayProgressText)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(Color(red: 0.34, green: 0.28, blue: 0.20))
+                    .accessibilityIdentifier("TodayPlanProgressText")
             }
             .padding(.horizontal, AppTheme.pageHorizontalPadding)
             .frame(height: 116)
@@ -769,6 +782,7 @@ struct TodayPlanView: View {
 
             ScrollView {
                 VStack(spacing: 12) {
+                    requiredReviewSection
                     bucketSection("新词", words: plan.newWords, sourceLabel: "新词", memoryLabel: "新词", color: AppTheme.mint)
                     bucketSection("复习", words: plan.review, sourceLabel: "复习", memoryLabel: "待复习", color: AppTheme.gold)
                     bucketSection("学习中", words: plan.learning, sourceLabel: "学习中", memoryLabel: "熟悉中", color: AppTheme.blue)
@@ -787,10 +801,65 @@ struct TodayPlanView: View {
         plan.review.count + plan.learning.count + plan.newWords.count
     }
 
+    private var todayProgressText: String {
+        if dailyStatus.todayAdventureCompleted {
+            return "今日冒险已完成"
+        }
+        if coordinator.dailyLearningState.packBattleWon {
+            return "已完成场景战斗，请复习 \(dailyStatus.remainingReviewCount) 个单词"
+        }
+        if dailyStatus.dailyCheckInCompleted {
+            return "复习已完成，请选择一个场景加战斗"
+        }
+        return "今天的计划：0 / \(totalCount) 已完成"
+    }
+
     private var todayKey: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: Date())
+    }
+
+    private var requiredReviewSection: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text("今日必复习")
+                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
+                Spacer()
+                Text("\(dailyStatus.remainingReviewCount)")
+                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(requiredReviewWords.prefix(6)) { word in
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(word.word)
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .foregroundStyle(AppTheme.navy)
+                        Text(word.meaningZh)
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color(red: 0.34, green: 0.28, blue: 0.20))
+                    }
+                    Spacer()
+                    let done = coordinator.dailyLearningState.reviewSnapshot.reviewedWordIds.contains(word.id)
+                    Text(done ? "已复习" : "待复习")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(done ? .white : Color(red: 0.25, green: 0.18, blue: 0.10))
+                        .padding(.horizontal, 12)
+                        .frame(height: 30)
+                        .background(done ? AppTheme.mint : AppTheme.cream, in: Capsule())
+                        .accessibilityIdentifier(done ? "TodayPlanReviewDone-\(word.id)" : "TodayPlanReviewPending-\(word.id)")
+                }
+                .padding(.horizontal, AppTheme.pageHorizontalPadding)
+                .frame(height: 78)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 16))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.16), lineWidth: 1)
+                }
+            }
+        }
+        .accessibilityIdentifier("TodayPlanReviewRequiredSection")
     }
 
     private func bucketSection(_ title: String, words: [WordEntry], sourceLabel: String, memoryLabel: String, color: Color) -> some View {
