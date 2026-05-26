@@ -67,6 +67,7 @@ import battleRewardCalcTest from './BattleRewardCalc.test';
 import damageFloaterLabelTest from './DamageFloaterLabel.test';
 import pronunciationServiceTest from './PronunciationService.test';
 import themePolicyTest from './ThemePolicy.test';
+import messageBubbleGeometryTest from './MessageBubbleGeometry.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -138,4 +139,5 @@ export default function testsuite() {
   damageFloaterLabelTest();
   pronunciationServiceTest();
   themePolicyTest();
+  messageBubbleGeometryTest();
 }
