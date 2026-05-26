@@ -127,73 +127,76 @@ struct MessageBubbleLabPage {
   }
 
   build() {
-    Column({ space: 16 }) {
-      Row() {
-        Button('Back')
-          .id('MessageBubbleLabBackButton')
-          .height(36)
-          .fontSize(14)
-          .backgroundColor('#FFFFFF')
-          .fontColor('#1D3557')
-          .borderWidth(1)
-          .borderColor('#B8D7F6')
-          .onClick((): void => this.goBack());
-        Text('Message Bubble Lab')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1D3557')
-          .layoutWeight(1)
-          .textAlign(TextAlign.Center);
-        Blank().width(72);
-      }
-      .width('100%');
-
-      Row({ space: 18 }) {
-        this.preview();
-        Column({ space: 12 }) {
-          Text('Presets')
-            .fontSize(16)
+    Scroll() {
+      Column({ space: 16 }) {
+        Row() {
+          Button('Back')
+            .id('MessageBubbleLabBackButton')
+            .height(36)
+            .fontSize(14)
+            .backgroundColor('#FFFFFF')
+            .fontColor('#1D3557')
+            .borderWidth(1)
+            .borderColor('#B8D7F6')
+            .onClick((): void => this.goBack());
+          Text('Message Bubble Lab')
+            .fontSize(24)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#1D3557');
-          this.presetGrid();
-          Row({ space: 8 }) {
-            Button('Tip X -')
-              .id('MessageBubbleLabTipXMinus')
-              .height(30)
-              .fontSize(10)
-              .onClick((): void => this.adjustTip(-4, 0));
-            Button('Tip X +')
-              .id('MessageBubbleLabTipXPlus')
-              .height(30)
-              .fontSize(10)
-              .onClick((): void => this.adjustTip(4, 0));
-            Button('Tip Y +')
-              .id('MessageBubbleLabTipYPlus')
-              .height(30)
-              .fontSize(10)
-              .onClick((): void => this.adjustTip(0, 4));
-          }
-          .width('100%');
-          Text(labStateOutput(this.state))
-            .id('MessageBubbleLabOutput')
-            .fontSize(10)
-            .fontColor('#3B2A65')
-            .fontFamily('monospace')
-            .padding(8)
-            .backgroundColor('#F4F0FF')
-            .borderRadius(10)
-            .maxLines(5)
-            .width('100%');
+            .fontColor('#1D3557')
+            .layoutWeight(1)
+            .textAlign(TextAlign.Center);
+          Blank().width(72);
         }
-        .layoutWeight(1);
+        .width('100%');
+
+        Row({ space: 18 }) {
+          this.preview();
+          Column({ space: 12 }) {
+            Text('Presets')
+              .fontSize(16)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1D3557');
+            this.presetGrid();
+            Row({ space: 8 }) {
+              Button('Tip X -')
+                .id('MessageBubbleLabTipXMinus')
+                .height(30)
+                .fontSize(10)
+                .onClick((): void => this.adjustTip(-4, 0));
+              Button('Tip X +')
+                .id('MessageBubbleLabTipXPlus')
+                .height(30)
+                .fontSize(10)
+                .onClick((): void => this.adjustTip(4, 0));
+              Button('Tip Y +')
+                .id('MessageBubbleLabTipYPlus')
+                .height(30)
+                .fontSize(10)
+                .onClick((): void => this.adjustTip(0, 4));
+            }
+            .width('100%');
+            Text(labStateOutput(this.state))
+              .id('MessageBubbleLabOutput')
+              .fontSize(10)
+              .fontColor('#3B2A65')
+              .fontFamily('monospace')
+              .padding(8)
+              .backgroundColor('#F4F0FF')
+              .borderRadius(10)
+              .maxLines(5)
+              .width('100%');
+          }
+          .layoutWeight(1);
+        }
+        .width('100%');
       }
       .width('100%')
-      .layoutWeight(1);
+      .padding({ top: 24, left: 24, right: 24, bottom: 48 });
     }
     .id('MessageBubbleLabPage')
     .width('100%')
     .height('100%')
-    .padding(24)
+    .scrollable(ScrollDirection.Vertical)
     .backgroundColor('#FFFFFF');
   }
 }
