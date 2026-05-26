@@ -1,0 +1,1905 @@
+{
+  "schemaVersion": 1,
+  "monsters": [
+    {
+      "index": 1,
+      "name": "Slime",
+      "fill": "#7BD389",
+      "stroke": "#3F8C50",
+      "kind": "normal",
+      "assetPath": "",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "Bounce into my wiggly quiz!",
+          "zh": "跳进我的软软小题吧！"
+        },
+        "defeatLine": {
+          "en": "Your magic made me wobble away.",
+          "zh": "你的魔法让我晃走啦。"
+        }
+      }
+    },
+    {
+      "index": 2,
+      "name": "Zombie",
+      "fill": "#9DAA7A",
+      "stroke": "#4F5E33",
+      "kind": "spelling",
+      "assetPath": "",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Shuffle fast and spell faster!",
+          "zh": "我慢慢走，你快快拼！"
+        },
+        "defeatLine": {
+          "en": "Oof, your word woke me up.",
+          "zh": "哎呀，单词把我叫醒了。"
+        }
+      }
+    },
+    {
+      "index": 3,
+      "name": "Dragon",
+      "fill": "#E63946",
+      "stroke": "#7C1A23",
+      "kind": "elite",
+      "assetPath": "",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My fiery riddle is ready!",
+          "zh": "我的火焰谜题来啦！"
+        },
+        "defeatLine": {
+          "en": "Your word cooled my flames.",
+          "zh": "你的单词让火焰降温了。"
+        }
+      }
+    },
+    {
+      "index": 4,
+      "name": "Pumpkin King",
+      "fill": "#F2812B",
+      "stroke": "#B5530F",
+      "kind": "boss",
+      "assetPath": "character/pumpkin-king.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Try my tricky harvest spell!",
+          "zh": "试试我的南瓜咒语！"
+        },
+        "defeatLine": {
+          "en": "My crown rolled into the vines.",
+          "zh": "我的王冠滚进藤蔓啦。"
+        }
+      }
+    },
+    {
+      "index": 5,
+      "name": "Imp King",
+      "fill": "#5C9C3B",
+      "stroke": "#355E20",
+      "kind": "boss",
+      "assetPath": "character/imp-king.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "I hid a tiny word trap!",
+          "zh": "我藏了个小单词陷阱！"
+        },
+        "defeatLine": {
+          "en": "You spotted my sneaky trick.",
+          "zh": "你看穿我的小把戏了。"
+        }
+      }
+    },
+    {
+      "index": 6,
+      "name": "Phoenix",
+      "fill": "#F4A261",
+      "stroke": "#9A4A1F",
+      "kind": "boss",
+      "assetPath": "character/phoenix.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Can you catch a flaming word?",
+          "zh": "你能抓住火焰单词吗？"
+        },
+        "defeatLine": {
+          "en": "I rise again after your win.",
+          "zh": "你赢了，我会再飞起。"
+        }
+      }
+    },
+    {
+      "index": 7,
+      "name": "Witch",
+      "fill": "#2B3470",
+      "stroke": "#13183A",
+      "kind": "boss",
+      "assetPath": "character/witch.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My spellbook picked this word.",
+          "zh": "我的魔法书选了这词。"
+        },
+        "defeatLine": {
+          "en": "Your answer broke my spell.",
+          "zh": "你的答案破咒啦。"
+        }
+      }
+    },
+    {
+      "index": 8,
+      "name": "Snow Queen",
+      "fill": "#9DC8E2",
+      "stroke": "#3F6B7F",
+      "kind": "boss",
+      "assetPath": "character/snow-queen.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "My frost keeps words frozen.",
+          "zh": "我的霜冻住了单词。"
+        },
+        "defeatLine": {
+          "en": "Your words warmed the castle.",
+          "zh": "你的单词暖了城堡。"
+        }
+      }
+    },
+    {
+      "index": 9,
+      "name": "Unicorn",
+      "fill": "#F2B5C3",
+      "stroke": "#9C4F6E",
+      "kind": "boss",
+      "assetPath": "character/unicorn.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Follow my shiny word trail.",
+          "zh": "跟上我的闪亮词路。"
+        },
+        "defeatLine": {
+          "en": "Your magic sparkled brighter.",
+          "zh": "你的魔法更闪亮。"
+        }
+      }
+    },
+    {
+      "index": 10,
+      "name": "Kraken",
+      "fill": "#1A6E7A",
+      "stroke": "#0F3B45",
+      "kind": "boss",
+      "assetPath": "character/kraken.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "The deep hides my final word.",
+          "zh": "深海藏着终极单词。"
+        },
+        "defeatLine": {
+          "en": "The tide bows to your words.",
+          "zh": "潮水向你的单词低头。"
+        }
+      }
+    },
+    {
+      "index": 11,
+      "name": "Jellyfish",
+      "fill": "#9A3C3C",
+      "stroke": "#5D1D1D",
+      "kind": "boss",
+      "assetPath": "character/jellyfish.svg",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "Float through my glowing clue.",
+          "zh": "漂过我的发光线索吧。"
+        },
+        "defeatLine": {
+          "en": "Your answer lit the reef.",
+          "zh": "你的答案点亮礁石。"
+        }
+      }
+    },
+    {
+      "index": 12,
+      "name": "Goblin Scout",
+      "fill": "#9A4F3C",
+      "stroke": "#5D2A1D",
+      "kind": "boss",
+      "assetPath": "character/goblin-scout.svg",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "I peeked at the next word!",
+          "zh": "我偷看了下个单词！"
+        },
+        "defeatLine": {
+          "en": "You found me before I blinked.",
+          "zh": "你眨眼前就找到我了。"
+        }
+      }
+    },
+    {
+      "index": 13,
+      "name": "Mushroom Sprite",
+      "fill": "#9A623C",
+      "stroke": "#5D371D",
+      "kind": "boss",
+      "assetPath": "character/mushroom-sprite.svg",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "My cap hides a tiny clue.",
+          "zh": "我的菇帽藏着线索。"
+        },
+        "defeatLine": {
+          "en": "Your word popped my puzzle.",
+          "zh": "你的单词弹开谜题。"
+        }
+      }
+    },
+    {
+      "index": 14,
+      "name": "Moss Troll",
+      "fill": "#9A753C",
+      "stroke": "#5D441D",
+      "kind": "boss",
+      "assetPath": "character/moss-troll.svg",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "Step softly through my moss.",
+          "zh": "轻轻走过我的苔藓。"
+        },
+        "defeatLine": {
+          "en": "Even moss heard your answer.",
+          "zh": "苔藓都听见答案了。"
+        }
+      }
+    },
+    {
+      "index": 15,
+      "name": "Pebble Golem",
+      "fill": "#9A873C",
+      "stroke": "#5D501D",
+      "kind": "boss",
+      "assetPath": "character/pebble-golem.svg",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "My stone clue will not move.",
+          "zh": "我的石头线索不动。"
+        },
+        "defeatLine": {
+          "en": "Your word rolled me aside.",
+          "zh": "你的单词把我推开。"
+        }
+      }
+    },
+    {
+      "index": 16,
+      "name": "Lantern Wisp",
+      "fill": "#9A9A3C",
+      "stroke": "#5D5D1D",
+      "kind": "boss",
+      "assetPath": "character/lantern-wisp.svg",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "Read by my lantern glow.",
+          "zh": "借我的灯光读吧。"
+        },
+        "defeatLine": {
+          "en": "Your answer shines brighter.",
+          "zh": "你的答案更亮。"
+        }
+      }
+    },
+    {
+      "index": 17,
+      "name": "Crystal Bat",
+      "fill": "#879A3C",
+      "stroke": "#505D1D",
+      "kind": "boss",
+      "assetPath": "character/crystal-bat.svg",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "Echo my crystal word!",
+          "zh": "回响我的水晶单词！"
+        },
+        "defeatLine": {
+          "en": "Your sound cracked my echo.",
+          "zh": "你的声音震开回声。"
+        }
+      }
+    },
+    {
+      "index": 18,
+      "name": "Cloud Griffin",
+      "fill": "#759A3C",
+      "stroke": "#445D1D",
+      "kind": "boss",
+      "assetPath": "character/cloud-griffin.svg",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "Fly up to my cloudy clue.",
+          "zh": "飞向我的云端线索。"
+        },
+        "defeatLine": {
+          "en": "Your word cleared the sky.",
+          "zh": "你的单词扫开云。"
+        }
+      }
+    },
+    {
+      "index": 19,
+      "name": "River Nymph",
+      "fill": "#629A3C",
+      "stroke": "#375D1D",
+      "kind": "boss",
+      "assetPath": "character/river-nymph.svg",
+      "level": "beginner",
+      "dialogue": {
+        "introLine": {
+          "en": "My clue slips like water.",
+          "zh": "我的线索像水滑走。"
+        },
+        "defeatLine": {
+          "en": "Your answer caught the stream.",
+          "zh": "你的答案抓住水流。"
+        }
+      }
+    },
+    {
+      "index": 20,
+      "name": "Forest Satyr",
+      "fill": "#4F9A3C",
+      "stroke": "#2A5D1D",
+      "kind": "boss",
+      "assetPath": "character/forest-satyr.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Dance through my leafy quiz.",
+          "zh": "跳过我的叶子小题。"
+        },
+        "defeatLine": {
+          "en": "Your rhythm beat my riddle.",
+          "zh": "你的节奏赢了谜题。"
+        }
+      }
+    },
+    {
+      "index": 21,
+      "name": "Berry Imp",
+      "fill": "#3C9A3C",
+      "stroke": "#1D5D1D",
+      "kind": "boss",
+      "assetPath": "character/berry-imp.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Catch my berry word if you can!",
+          "zh": "有本事抓莓果词！"
+        },
+        "defeatLine": {
+          "en": "You picked the right berry.",
+          "zh": "你摘到正确莓果了。"
+        }
+      }
+    },
+    {
+      "index": 22,
+      "name": "Cave Molekin",
+      "fill": "#3C9A4F",
+      "stroke": "#1D5D2A",
+      "kind": "boss",
+      "assetPath": "character/cave-molekin.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Dig for my buried word.",
+          "zh": "挖出我的地下单词。"
+        },
+        "defeatLine": {
+          "en": "Your answer tunneled through.",
+          "zh": "你的答案打通地道。"
+        }
+      }
+    },
+    {
+      "index": 23,
+      "name": "Clockwork Beetle",
+      "fill": "#3C9A62",
+      "stroke": "#1D5D37",
+      "kind": "boss",
+      "assetPath": "character/clockwork-beetle.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Tick-tock, choose the word!",
+          "zh": "滴答滴答，选单词！"
+        },
+        "defeatLine": {
+          "en": "Your word stopped my gears.",
+          "zh": "你的单词停住齿轮。"
+        }
+      }
+    },
+    {
+      "index": 24,
+      "name": "Book Mimic",
+      "fill": "#3C9A75",
+      "stroke": "#1D5D44",
+      "kind": "boss",
+      "assetPath": "character/book-mimic.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Guess which page bites back!",
+          "zh": "猜哪页会咬人！"
+        },
+        "defeatLine": {
+          "en": "You read me perfectly.",
+          "zh": "你把我读懂了。"
+        }
+      }
+    },
+    {
+      "index": 25,
+      "name": "Treasure Mimic",
+      "fill": "#3C9A87",
+      "stroke": "#1D5D50",
+      "kind": "boss",
+      "assetPath": "character/treasure-mimic.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My chest snaps at wrong words.",
+          "zh": "我的宝箱会咬错词。"
+        },
+        "defeatLine": {
+          "en": "Your word opened the lock.",
+          "zh": "你的单词开了锁。"
+        }
+      }
+    },
+    {
+      "index": 26,
+      "name": "Rune Tortoise",
+      "fill": "#3C9A9A",
+      "stroke": "#1D5D5D",
+      "kind": "boss",
+      "assetPath": "character/rune-tortoise.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Slow clues still win races.",
+          "zh": "慢线索也会赢比赛。"
+        },
+        "defeatLine": {
+          "en": "Your word raced ahead.",
+          "zh": "你的单词跑在前面。"
+        }
+      }
+    },
+    {
+      "index": 27,
+      "name": "Mirror Sprite",
+      "fill": "#3C879A",
+      "stroke": "#1D505D",
+      "kind": "boss",
+      "assetPath": "character/mirror-sprite.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "I copied your next clue.",
+          "zh": "我复制了下个线索。"
+        },
+        "defeatLine": {
+          "en": "Your answer showed the truth.",
+          "zh": "你的答案照出真相。"
+        }
+      }
+    },
+    {
+      "index": 28,
+      "name": "Candle Ghost",
+      "fill": "#3C759A",
+      "stroke": "#1D445D",
+      "kind": "boss",
+      "assetPath": "character/candle-ghost.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My candle flickers a clue.",
+          "zh": "我的烛光闪着线索。"
+        },
+        "defeatLine": {
+          "en": "Your word blew my trick away.",
+          "zh": "你的单词吹走把戏。"
+        }
+      }
+    },
+    {
+      "index": 29,
+      "name": "Paper Gargoyle",
+      "fill": "#3C629A",
+      "stroke": "#1D375D",
+      "kind": "boss",
+      "assetPath": "character/paper-gargoyle.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Fold my riddle if you dare.",
+          "zh": "敢折我的纸谜吗？"
+        },
+        "defeatLine": {
+          "en": "Your answer smoothed the page.",
+          "zh": "你的答案抚平纸页。"
+        }
+      }
+    },
+    {
+      "index": 30,
+      "name": "Marble Golem",
+      "fill": "#3C4F9A",
+      "stroke": "#1D2A5D",
+      "kind": "boss",
+      "assetPath": "character/marble-golem.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My marble word is heavy.",
+          "zh": "我的石纹单词很重。"
+        },
+        "defeatLine": {
+          "en": "Your word lifted the stone.",
+          "zh": "你的单词举起石头。"
+        }
+      }
+    },
+    {
+      "index": 31,
+      "name": "Harpy Bard",
+      "fill": "#9A3C87",
+      "stroke": "#5D1D50",
+      "kind": "boss",
+      "assetPath": "character/harpy-bard.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Sing back my tricky word.",
+          "zh": "唱回我的调皮词。"
+        },
+        "defeatLine": {
+          "en": "Your answer found the tune.",
+          "zh": "你的答案找准调子。"
+        }
+      }
+    },
+    {
+      "index": 32,
+      "name": "Feather Drake",
+      "fill": "#9A3C75",
+      "stroke": "#5D1D44",
+      "kind": "boss",
+      "assetPath": "character/feather-drake.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My clue rides a feather.",
+          "zh": "我的线索乘羽毛飞。"
+        },
+        "defeatLine": {
+          "en": "Your word landed first.",
+          "zh": "你的单词先落地。"
+        }
+      }
+    },
+    {
+      "index": 33,
+      "name": "Tiny Wyvern",
+      "fill": "#9A3C62",
+      "stroke": "#5D1D37",
+      "kind": "boss",
+      "assetPath": "character/tiny-wyvern.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Small wings, sharp riddle!",
+          "zh": "小翅膀，大谜题！"
+        },
+        "defeatLine": {
+          "en": "Your word clipped my trick.",
+          "zh": "你的单词剪掉把戏。"
+        }
+      }
+    },
+    {
+      "index": 34,
+      "name": "Basilisk Buddy",
+      "fill": "#9A3C4F",
+      "stroke": "#5D1D2A",
+      "kind": "boss",
+      "assetPath": "character/basilisk-buddy.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Blink and miss my clue!",
+          "zh": "一眨眼线索就没啦！"
+        },
+        "defeatLine": {
+          "en": "You looked and answered well.",
+          "zh": "你看准并答对了。"
+        }
+      }
+    },
+    {
+      "index": 35,
+      "name": "Chimera Cub",
+      "fill": "#A33333",
+      "stroke": "#621818",
+      "kind": "boss",
+      "assetPath": "character/chimera-cub.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Three clues, one right word!",
+          "zh": "三个线索，一个对词！"
+        },
+        "defeatLine": {
+          "en": "Your word tamed my mix-up.",
+          "zh": "你的单词理顺混搭。"
+        }
+      }
+    },
+    {
+      "index": 36,
+      "name": "Manticore Kit",
+      "fill": "#A34A33",
+      "stroke": "#622718",
+      "kind": "boss",
+      "assetPath": "character/manticore-kit.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My tail points to trouble.",
+          "zh": "我的尾巴指向麻烦。"
+        },
+        "defeatLine": {
+          "en": "Your answer softened my sting.",
+          "zh": "你的答案收起尖刺。"
+        }
+      }
+    },
+    {
+      "index": 37,
+      "name": "Hippogriff",
+      "fill": "#A36033",
+      "stroke": "#623618",
+      "kind": "boss",
+      "assetPath": "character/hippogriff.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Bow, then answer my clue.",
+          "zh": "先鞠躬，再答题吧。"
+        },
+        "defeatLine": {
+          "en": "Your word earned my bow.",
+          "zh": "你的单词赢得敬礼。"
+        }
+      }
+    },
+    {
+      "index": 38,
+      "name": "Pegasus",
+      "fill": "#A37633",
+      "stroke": "#624518",
+      "kind": "boss",
+      "assetPath": "character/pegasus.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Race my sky-bright word.",
+          "zh": "追上我的天空词。"
+        },
+        "defeatLine": {
+          "en": "Your word flew farther.",
+          "zh": "你的单词飞得更远。"
+        }
+      }
+    },
+    {
+      "index": 39,
+      "name": "Moon Moth",
+      "fill": "#A38D33",
+      "stroke": "#625318",
+      "kind": "boss",
+      "assetPath": "character/moon-moth.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My moon clue flutters by.",
+          "zh": "月光线索轻轻飞。"
+        },
+        "defeatLine": {
+          "en": "Your answer caught the wings.",
+          "zh": "你的答案接住翅膀。"
+        }
+      }
+    },
+    {
+      "index": 40,
+      "name": "Star Hare",
+      "fill": "#A3A333",
+      "stroke": "#626218",
+      "kind": "boss",
+      "assetPath": "character/star-hare.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Hop after my star clue.",
+          "zh": "跳着追星星线索吧。"
+        },
+        "defeatLine": {
+          "en": "Your word hopped ahead.",
+          "zh": "你的单词跳到前面。"
+        }
+      }
+    },
+    {
+      "index": 41,
+      "name": "Fire Elemental",
+      "fill": "#8DA333",
+      "stroke": "#536218",
+      "kind": "boss",
+      "assetPath": "character/fire-elemental.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My ember word is hot!",
+          "zh": "我的火星词很烫！"
+        },
+        "defeatLine": {
+          "en": "Your answer cooled the sparks.",
+          "zh": "你的答案冷却火星。"
+        }
+      }
+    },
+    {
+      "index": 42,
+      "name": "Water Elemental",
+      "fill": "#76A333",
+      "stroke": "#456218",
+      "kind": "boss",
+      "assetPath": "character/water-elemental.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My clue flows around you.",
+          "zh": "我的线索绕着你流。"
+        },
+        "defeatLine": {
+          "en": "Your word held the wave.",
+          "zh": "你的单词稳住浪花。"
+        }
+      }
+    },
+    {
+      "index": 43,
+      "name": "Leaf Elemental",
+      "fill": "#60A333",
+      "stroke": "#366218",
+      "kind": "boss",
+      "assetPath": "character/leaf-elemental.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Leaves whisper the answer.",
+          "zh": "叶子悄悄说答案。"
+        },
+        "defeatLine": {
+          "en": "Your word rustled louder.",
+          "zh": "你的单词响得更亮。"
+        }
+      }
+    },
+    {
+      "index": 44,
+      "name": "Earth Elemental",
+      "fill": "#4AA333",
+      "stroke": "#276218",
+      "kind": "boss",
+      "assetPath": "character/earth-elemental.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My clue grows from stone.",
+          "zh": "我的线索从石里长。"
+        },
+        "defeatLine": {
+          "en": "Your answer shook the ground.",
+          "zh": "你的答案震动大地。"
+        }
+      }
+    },
+    {
+      "index": 45,
+      "name": "Air Elemental",
+      "fill": "#33A333",
+      "stroke": "#186218",
+      "kind": "boss",
+      "assetPath": "character/air-elemental.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Catch my invisible word.",
+          "zh": "抓住我的隐形词。"
+        },
+        "defeatLine": {
+          "en": "Your word caught the breeze.",
+          "zh": "你的单词抓住微风。"
+        }
+      }
+    },
+    {
+      "index": 46,
+      "name": "Ice Sprite",
+      "fill": "#33A34A",
+      "stroke": "#186227",
+      "kind": "boss",
+      "assetPath": "character/ice-sprite.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My clue skates on ice.",
+          "zh": "我的线索在冰上滑。"
+        },
+        "defeatLine": {
+          "en": "Your answer melted the trail.",
+          "zh": "你的答案融开冰路。"
+        }
+      }
+    },
+    {
+      "index": 47,
+      "name": "Thunder Pup",
+      "fill": "#33A360",
+      "stroke": "#186236",
+      "kind": "boss",
+      "assetPath": "character/thunder-pup.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Bark out the stormy word!",
+          "zh": "叫出雷声单词！"
+        },
+        "defeatLine": {
+          "en": "Your word calmed my thunder.",
+          "zh": "你的单词安抚雷声。"
+        }
+      }
+    },
+    {
+      "index": 48,
+      "name": "Rainbow Serpent",
+      "fill": "#33A376",
+      "stroke": "#186245",
+      "kind": "boss",
+      "assetPath": "character/rainbow-serpent.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Slide across seven clues.",
+          "zh": "滑过七彩线索吧。"
+        },
+        "defeatLine": {
+          "en": "Your word found every color.",
+          "zh": "你的单词找齐颜色。"
+        }
+      }
+    },
+    {
+      "index": 49,
+      "name": "Sun Lion",
+      "fill": "#33A38D",
+      "stroke": "#186253",
+      "kind": "boss",
+      "assetPath": "character/sun-lion.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My sunny clue roars!",
+          "zh": "我的阳光线索吼！"
+        },
+        "defeatLine": {
+          "en": "Your answer brightened noon.",
+          "zh": "你的答案照亮正午。"
+        }
+      }
+    },
+    {
+      "index": 50,
+      "name": "Moon Owl",
+      "fill": "#33A3A3",
+      "stroke": "#186262",
+      "kind": "boss",
+      "assetPath": "character/moon-owl.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Hoot once for the right word.",
+          "zh": "为正确单词叫一声。"
+        },
+        "defeatLine": {
+          "en": "Your word woke the moon.",
+          "zh": "你的单词唤醒月亮。"
+        }
+      }
+    },
+    {
+      "index": 51,
+      "name": "Coral Crab",
+      "fill": "#338DA3",
+      "stroke": "#185362",
+      "kind": "boss",
+      "assetPath": "character/coral-crab.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Pinch the right sea word.",
+          "zh": "夹住正确海洋词。"
+        },
+        "defeatLine": {
+          "en": "Your answer opened my claws.",
+          "zh": "你的答案松开蟹钳。"
+        }
+      }
+    },
+    {
+      "index": 52,
+      "name": "Seahorse Knight",
+      "fill": "#3376A3",
+      "stroke": "#184562",
+      "kind": "boss",
+      "assetPath": "character/seahorse-knight.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Charge through my sea clue.",
+          "zh": "冲过我的海中线索。"
+        },
+        "defeatLine": {
+          "en": "Your word won the joust.",
+          "zh": "你的单词赢得比试。"
+        }
+      }
+    },
+    {
+      "index": 53,
+      "name": "Bubble Turtle",
+      "fill": "#3360A3",
+      "stroke": "#183662",
+      "kind": "boss",
+      "assetPath": "character/bubble-turtle.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Pop my bubble clue!",
+          "zh": "戳破我的泡泡线索！"
+        },
+        "defeatLine": {
+          "en": "Your answer floated up.",
+          "zh": "你的答案浮上来了。"
+        }
+      }
+    },
+    {
+      "index": 54,
+      "name": "Pearl Mermaid",
+      "fill": "#334AA3",
+      "stroke": "#182762",
+      "kind": "boss",
+      "assetPath": "character/pearl-mermaid.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My pearl hides a word.",
+          "zh": "我的珍珠藏着词。"
+        },
+        "defeatLine": {
+          "en": "Your word made it shine.",
+          "zh": "你的单词让它发亮。"
+        }
+      }
+    },
+    {
+      "index": 55,
+      "name": "Reef Sprite",
+      "fill": "#A3338D",
+      "stroke": "#621853",
+      "kind": "boss",
+      "assetPath": "character/reef-sprite.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Skip across my reef clue.",
+          "zh": "跳过我的礁石线索。"
+        },
+        "defeatLine": {
+          "en": "Your word splashed true.",
+          "zh": "你的单词溅出真相。"
+        }
+      }
+    },
+    {
+      "index": 56,
+      "name": "Tide Otter",
+      "fill": "#A33376",
+      "stroke": "#621845",
+      "kind": "boss",
+      "assetPath": "character/tide-otter.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "I spin words in the tide.",
+          "zh": "我在潮里转单词。"
+        },
+        "defeatLine": {
+          "en": "Your answer rode the current.",
+          "zh": "你的答案顺流而来。"
+        }
+      }
+    },
+    {
+      "index": 57,
+      "name": "Shell Snail",
+      "fill": "#A33360",
+      "stroke": "#621836",
+      "kind": "boss",
+      "assetPath": "character/shell-snail.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Slow shell, sneaky clue!",
+          "zh": "慢壳里有小线索！"
+        },
+        "defeatLine": {
+          "en": "Your word passed my shell.",
+          "zh": "你的单词越过壳啦。"
+        }
+      }
+    },
+    {
+      "index": 58,
+      "name": "Starfish Wizard",
+      "fill": "#A3334A",
+      "stroke": "#621827",
+      "kind": "boss",
+      "assetPath": "character/starfish-wizard.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Five points guard my clue.",
+          "zh": "五个角守着线索。"
+        },
+        "defeatLine": {
+          "en": "Your answer sparked my wand.",
+          "zh": "你的答案点亮魔杖。"
+        }
+      }
+    },
+    {
+      "index": 59,
+      "name": "Dolphin Drake",
+      "fill": "#AB2B2B",
+      "stroke": "#671414",
+      "kind": "boss",
+      "assetPath": "character/dolphin-drake.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Leap over my wave word.",
+          "zh": "跳过我的海浪词。"
+        },
+        "defeatLine": {
+          "en": "Your word made the wave cheer.",
+          "zh": "你的单词让浪花欢呼。"
+        }
+      }
+    },
+    {
+      "index": 60,
+      "name": "Frost Yeti",
+      "fill": "#AB452B",
+      "stroke": "#672414",
+      "kind": "boss",
+      "assetPath": "character/frost-yeti.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Stomp through my frosty clue.",
+          "zh": "踩过我的冰霜线索。"
+        },
+        "defeatLine": {
+          "en": "Your answer warmed my paws.",
+          "zh": "你的答案暖了脚掌。"
+        }
+      }
+    },
+    {
+      "index": 61,
+      "name": "Snow Goblin",
+      "fill": "#AB5E2B",
+      "stroke": "#673514",
+      "kind": "boss",
+      "assetPath": "character/snow-goblin.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "I packed snow around a word.",
+          "zh": "我把词包进雪球。"
+        },
+        "defeatLine": {
+          "en": "Your word cracked the snowball.",
+          "zh": "你的单词敲开雪球。"
+        }
+      }
+    },
+    {
+      "index": 62,
+      "name": "Icicle Imp",
+      "fill": "#AB782B",
+      "stroke": "#674614",
+      "kind": "boss",
+      "assetPath": "character/icicle-imp.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My pointy clue drips fast.",
+          "zh": "我的冰锥线索滴答。"
+        },
+        "defeatLine": {
+          "en": "Your answer snapped the ice.",
+          "zh": "你的答案折断冰锥。"
+        }
+      }
+    },
+    {
+      "index": 63,
+      "name": "Aurora Fox",
+      "fill": "#AB922B",
+      "stroke": "#675614",
+      "kind": "boss",
+      "assetPath": "character/aurora-fox.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Chase my dancing light clue.",
+          "zh": "追我的极光线索吧。"
+        },
+        "defeatLine": {
+          "en": "Your word caught the glow.",
+          "zh": "你的单词抓住光。"
+        }
+      }
+    },
+    {
+      "index": 64,
+      "name": "Polar Golem",
+      "fill": "#ABAB2B",
+      "stroke": "#676714",
+      "kind": "boss",
+      "assetPath": "character/polar-golem.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My frozen word stands tall.",
+          "zh": "我的冻词站得高。"
+        },
+        "defeatLine": {
+          "en": "Your answer moved the mountain.",
+          "zh": "你的答案移开冰山。"
+        }
+      }
+    },
+    {
+      "index": 65,
+      "name": "Cloud Giant",
+      "fill": "#92AB2B",
+      "stroke": "#566714",
+      "kind": "boss",
+      "assetPath": "character/cloud-giant.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Climb up to my sky word.",
+          "zh": "爬上我的天空词。"
+        },
+        "defeatLine": {
+          "en": "Your word reached my cloud.",
+          "zh": "你的单词抵达云端。"
+        }
+      }
+    },
+    {
+      "index": 66,
+      "name": "Sky Whale",
+      "fill": "#78AB2B",
+      "stroke": "#466714",
+      "kind": "boss",
+      "assetPath": "character/sky-whale.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My clue sings in the sky.",
+          "zh": "我的线索在天上唱。"
+        },
+        "defeatLine": {
+          "en": "Your answer echoed higher.",
+          "zh": "你的答案回声更高。"
+        }
+      }
+    },
+    {
+      "index": 67,
+      "name": "Wind Djinn",
+      "fill": "#5EAB2B",
+      "stroke": "#356714",
+      "kind": "boss",
+      "assetPath": "character/wind-djinn.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Whirl through my windy word.",
+          "zh": "穿过我的旋风词。"
+        },
+        "defeatLine": {
+          "en": "Your word stilled the gust.",
+          "zh": "你的单词停住风。"
+        }
+      }
+    },
+    {
+      "index": 68,
+      "name": "Storm Sprite",
+      "fill": "#45AB2B",
+      "stroke": "#246714",
+      "kind": "boss",
+      "assetPath": "character/storm-sprite.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My riddle rides the thunder.",
+          "zh": "我的谜题乘雷声来。"
+        },
+        "defeatLine": {
+          "en": "Your answer cleared the storm.",
+          "zh": "你的答案扫清风暴。"
+        }
+      }
+    },
+    {
+      "index": 69,
+      "name": "Comet Dragon",
+      "fill": "#2BAB2B",
+      "stroke": "#146714",
+      "kind": "boss",
+      "assetPath": "character/comet-dragon.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "My comet clue burns bright.",
+          "zh": "我的彗星线索发亮。"
+        },
+        "defeatLine": {
+          "en": "Your word outran the comet.",
+          "zh": "你的单词追过彗星。"
+        }
+      }
+    },
+    {
+      "index": 70,
+      "name": "Sand Gnome",
+      "fill": "#2BAB45",
+      "stroke": "#146724",
+      "kind": "boss",
+      "assetPath": "character/sand-gnome.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Dig my clue from the dune.",
+          "zh": "从沙丘挖出线索。"
+        },
+        "defeatLine": {
+          "en": "Your answer found the oasis.",
+          "zh": "你的答案找到绿洲。"
+        }
+      }
+    },
+    {
+      "index": 71,
+      "name": "Cactus Imp",
+      "fill": "#2BAB5E",
+      "stroke": "#146735",
+      "kind": "boss",
+      "assetPath": "character/cactus-imp.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Careful, my clue has prickles.",
+          "zh": "小心，线索有刺。"
+        },
+        "defeatLine": {
+          "en": "Your word dodged every thorn.",
+          "zh": "你的单词躲过尖刺。"
+        }
+      }
+    },
+    {
+      "index": 72,
+      "name": "Sphinx Cub",
+      "fill": "#2BAB78",
+      "stroke": "#146746",
+      "kind": "boss",
+      "assetPath": "character/sphinx-cub.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "Answer my tiny riddle.",
+          "zh": "回答我的小谜语。"
+        },
+        "defeatLine": {
+          "en": "Your word solved my smile.",
+          "zh": "你的单词解开笑容。"
+        }
+      }
+    },
+    {
+      "index": 73,
+      "name": "Scarab Knight",
+      "fill": "#2BAB92",
+      "stroke": "#146756",
+      "kind": "boss",
+      "assetPath": "character/scarab-knight.svg",
+      "level": "intermediate",
+      "dialogue": {
+        "introLine": {
+          "en": "March past my shiny clue.",
+          "zh": "走过我的亮甲线索。"
+        },
+        "defeatLine": {
+          "en": "Your answer polished my shield.",
+          "zh": "你的答案擦亮盾牌。"
+        }
+      }
+    },
+    {
+      "index": 74,
+      "name": "Mirage Cat",
+      "fill": "#2BABAB",
+      "stroke": "#146767",
+      "kind": "boss",
+      "assetPath": "character/mirage-cat.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Is my word here or there?",
+          "zh": "我的词在这还是那？"
+        },
+        "defeatLine": {
+          "en": "Your answer caught the shimmer.",
+          "zh": "你的答案抓住幻光。"
+        }
+      }
+    },
+    {
+      "index": 75,
+      "name": "Sun Salamander",
+      "fill": "#2B92AB",
+      "stroke": "#145667",
+      "kind": "boss",
+      "assetPath": "character/sun-salamander.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "My warm clue darts away.",
+          "zh": "我的暖线索飞快跑。"
+        },
+        "defeatLine": {
+          "en": "Your word basked in victory.",
+          "zh": "你的单词晒着胜利。"
+        }
+      }
+    },
+    {
+      "index": 76,
+      "name": "Dust Whirl",
+      "fill": "#2B78AB",
+      "stroke": "#144667",
+      "kind": "boss",
+      "assetPath": "character/dust-whirl.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Spin through my dusty word.",
+          "zh": "旋过我的尘土词。"
+        },
+        "defeatLine": {
+          "en": "Your answer settled the dust.",
+          "zh": "你的答案落定尘土。"
+        }
+      }
+    },
+    {
+      "index": 77,
+      "name": "Oasis Frog",
+      "fill": "#2B5EAB",
+      "stroke": "#143567",
+      "kind": "boss",
+      "assetPath": "character/oasis-frog.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Hop to my cool clue.",
+          "zh": "跳向我的清凉线索。"
+        },
+        "defeatLine": {
+          "en": "Your word splashed just right.",
+          "zh": "你的单词溅得刚好。"
+        }
+      }
+    },
+    {
+      "index": 78,
+      "name": "Pyramid Sprite",
+      "fill": "#2B45AB",
+      "stroke": "#142467",
+      "kind": "boss",
+      "assetPath": "character/pyramid-sprite.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Climb my pyramid of clues.",
+          "zh": "爬上我的线索金字塔。"
+        },
+        "defeatLine": {
+          "en": "Your answer reached the top.",
+          "zh": "你的答案到顶啦。"
+        }
+      }
+    },
+    {
+      "index": 79,
+      "name": "Ember Fox",
+      "fill": "#AB2B92",
+      "stroke": "#671456",
+      "kind": "boss",
+      "assetPath": "character/ember-fox.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "My ember clue flicks fast.",
+          "zh": "我的余烬线索很快。"
+        },
+        "defeatLine": {
+          "en": "Your word followed the spark.",
+          "zh": "你的单词跟上火星。"
+        }
+      }
+    },
+    {
+      "index": 80,
+      "name": "Lava Toad",
+      "fill": "#AB2B78",
+      "stroke": "#671446",
+      "kind": "boss",
+      "assetPath": "character/lava-toad.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Leap over my lava word!",
+          "zh": "跳过我的岩浆词！"
+        },
+        "defeatLine": {
+          "en": "Your answer cooled the stones.",
+          "zh": "你的答案冷却石头。"
+        }
+      }
+    },
+    {
+      "index": 81,
+      "name": "Ash Golem",
+      "fill": "#AB2B5E",
+      "stroke": "#671435",
+      "kind": "boss",
+      "assetPath": "character/ash-golem.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "My ash clue hides in gray.",
+          "zh": "我的灰烬线索藏着。"
+        },
+        "defeatLine": {
+          "en": "Your word brushed it clean.",
+          "zh": "你的单词扫干净了。"
+        }
+      }
+    },
+    {
+      "index": 82,
+      "name": "Cinder Bat",
+      "fill": "#AB2B45",
+      "stroke": "#671424",
+      "kind": "boss",
+      "assetPath": "character/cinder-bat.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Swoop through my smoky clue.",
+          "zh": "掠过我的烟雾线索。"
+        },
+        "defeatLine": {
+          "en": "Your answer cleared my wings.",
+          "zh": "你的答案清亮翅膀。"
+        }
+      }
+    },
+    {
+      "index": 83,
+      "name": "Spark Sprite",
+      "fill": "#B42222",
+      "stroke": "#6C0F0F",
+      "kind": "boss",
+      "assetPath": "character/spark-sprite.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Snap up my tiny spark word.",
+          "zh": "抓住我的小火花词。"
+        },
+        "defeatLine": {
+          "en": "Your word flashed brighter.",
+          "zh": "你的单词闪得更亮。"
+        }
+      }
+    },
+    {
+      "index": 84,
+      "name": "Flame Pony",
+      "fill": "#B43F22",
+      "stroke": "#6C210F",
+      "kind": "boss",
+      "assetPath": "character/flame-pony.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Gallop through my flame clue.",
+          "zh": "奔过我的火焰线索。"
+        },
+        "defeatLine": {
+          "en": "Your answer won the race.",
+          "zh": "你的答案赢了赛跑。"
+        }
+      }
+    },
+    {
+      "index": 85,
+      "name": "Molten Snail",
+      "fill": "#B45D22",
+      "stroke": "#6C340F",
+      "kind": "boss",
+      "assetPath": "character/molten-snail.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "My slow lava clue glows.",
+          "zh": "我的慢岩浆线索发光。"
+        },
+        "defeatLine": {
+          "en": "Your word cooled my trail.",
+          "zh": "你的单词冷却小路。"
+        }
+      }
+    },
+    {
+      "index": 86,
+      "name": "Briar Wolf",
+      "fill": "#B47A22",
+      "stroke": "#6C470F",
+      "kind": "boss",
+      "assetPath": "character/briar-wolf.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "My thorny clue growls.",
+          "zh": "我的荆棘线索低吼。"
+        },
+        "defeatLine": {
+          "en": "Your answer tamed the thorns.",
+          "zh": "你的答案驯服荆棘。"
+        }
+      }
+    },
+    {
+      "index": 87,
+      "name": "Acorn Knight",
+      "fill": "#B49722",
+      "stroke": "#6C590F",
+      "kind": "boss",
+      "assetPath": "character/acorn-knight.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Duel my little acorn clue.",
+          "zh": "和橡果线索决斗吧。"
+        },
+        "defeatLine": {
+          "en": "Your word won the acorn duel.",
+          "zh": "你的单词赢了决斗。"
+        }
+      }
+    },
+    {
+      "index": 88,
+      "name": "Honey Bear",
+      "fill": "#B4B422",
+      "stroke": "#6C6C0F",
+      "kind": "boss",
+      "assetPath": "character/honey-bear.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "My sweet clue sticks tight.",
+          "zh": "我的甜线索粘住啦。"
+        },
+        "defeatLine": {
+          "en": "Your answer unstuck the honey.",
+          "zh": "你的答案化开蜂蜜。"
+        }
+      }
+    },
+    {
+      "index": 89,
+      "name": "Thorn Dryad",
+      "fill": "#97B422",
+      "stroke": "#596C0F",
+      "kind": "boss",
+      "assetPath": "character/thorn-dryad.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "My vine clue curls close.",
+          "zh": "我的藤蔓线索卷来。"
+        },
+        "defeatLine": {
+          "en": "Your word untangled the vines.",
+          "zh": "你的单词解开藤蔓。"
+        }
+      }
+    },
+    {
+      "index": 90,
+      "name": "Willow Treant",
+      "fill": "#7AB422",
+      "stroke": "#476C0F",
+      "kind": "boss",
+      "assetPath": "character/willow-treant.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "Listen to my whispering leaves.",
+          "zh": "听我柳叶的悄悄话。"
+        },
+        "defeatLine": {
+          "en": "Your answer swayed the branches.",
+          "zh": "你的答案摇动树枝。"
+        }
+      }
+    },
+    {
+      "index": 91,
+      "name": "Pollen Pixie",
+      "fill": "#5DB422",
+      "stroke": "#346C0F",
+      "kind": "boss",
+      "assetPath": "character/pollen-pixie.svg",
+      "level": "advanced",
+      "dialogue": {
+        "introLine": {
+          "en": "My pollen clue tickles.",
+          "zh": "我的花粉线索痒痒的。"
+        },
+        "defeatLine": {
+          "en": "Your word made me sneeze.",
+          "zh": "你的单词让我打喷嚏。"
+        }
+      }
+    },
+    {
+      "index": 92,
+      "name": "Clover Kobold",
+      "fill": "#3FB422",
+      "stroke": "#216C0F",
+      "kind": "boss",
+      "assetPath": "character/clover-kobold.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "Find my lucky word!",
+          "zh": "找到我的幸运词！"
+        },
+        "defeatLine": {
+          "en": "Your answer found the clover.",
+          "zh": "你的答案找到苜蓿。"
+        }
+      }
+    },
+    {
+      "index": 93,
+      "name": "Fern Lizard",
+      "fill": "#22B422",
+      "stroke": "#0F6C0F",
+      "kind": "boss",
+      "assetPath": "character/fern-lizard.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "My green clue darts away.",
+          "zh": "我的绿色线索飞跑。"
+        },
+        "defeatLine": {
+          "en": "Your word caught my tail.",
+          "zh": "你的单词追到尾巴。"
+        }
+      }
+    },
+    {
+      "index": 94,
+      "name": "Toadstool Ogre",
+      "fill": "#22B43F",
+      "stroke": "#0F6C21",
+      "kind": "boss",
+      "assetPath": "character/toadstool-ogre.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "My mushroom gate is closed.",
+          "zh": "我的蘑菇门关着。"
+        },
+        "defeatLine": {
+          "en": "Your word opened the cap.",
+          "zh": "你的单词打开菇帽。"
+        }
+      }
+    },
+    {
+      "index": 95,
+      "name": "Toy Soldier",
+      "fill": "#22B45D",
+      "stroke": "#0F6C34",
+      "kind": "boss",
+      "assetPath": "character/toy-soldier.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "March to my toy-box clue.",
+          "zh": "向玩具盒线索前进。"
+        },
+        "defeatLine": {
+          "en": "Your word won the parade.",
+          "zh": "你的单词赢了游行。"
+        }
+      }
+    },
+    {
+      "index": 96,
+      "name": "Porcelain Doll",
+      "fill": "#22B47A",
+      "stroke": "#0F6C47",
+      "kind": "boss",
+      "assetPath": "character/porcelain-doll.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "My tiny clue sits still.",
+          "zh": "我的小线索静静坐着。"
+        },
+        "defeatLine": {
+          "en": "Your answer made me smile.",
+          "zh": "你的答案让我微笑。"
+        }
+      }
+    },
+    {
+      "index": 97,
+      "name": "Button Golem",
+      "fill": "#22B497",
+      "stroke": "#0F6C59",
+      "kind": "boss",
+      "assetPath": "character/button-golem.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "Press the right word button!",
+          "zh": "按下正确单词按钮！"
+        },
+        "defeatLine": {
+          "en": "Your word clicked into place.",
+          "zh": "你的单词咔哒归位。"
+        }
+      }
+    },
+    {
+      "index": 98,
+      "name": "Sock Dragon",
+      "fill": "#22B4B4",
+      "stroke": "#0F6C6C",
+      "kind": "boss",
+      "assetPath": "character/sock-dragon.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "My laundry clue curls up.",
+          "zh": "我的袜子线索卷起来。"
+        },
+        "defeatLine": {
+          "en": "Your answer paired the socks.",
+          "zh": "你的答案配好袜子。"
+        }
+      }
+    },
+    {
+      "index": 99,
+      "name": "Kite Serpent",
+      "fill": "#2297B4",
+      "stroke": "#0F596C",
+      "kind": "boss",
+      "assetPath": "character/kite-serpent.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "Tug my windy kite word.",
+          "zh": "拉住我的风筝词。"
+        },
+        "defeatLine": {
+          "en": "Your word held the string.",
+          "zh": "你的单词牵住线。"
+        }
+      }
+    },
+    {
+      "index": 100,
+      "name": "Music Box Fairy",
+      "fill": "#227AB4",
+      "stroke": "#0F476C",
+      "kind": "boss",
+      "assetPath": "character/music-box-fairy.svg",
+      "level": "super",
+      "dialogue": {
+        "introLine": {
+          "en": "Turn my music-box clue.",
+          "zh": "转动我的音乐盒线索。"
+        },
+        "defeatLine": {
+          "en": "Your answer played the tune.",
+          "zh": "你的答案奏出旋律。"
+        }
+      }
+    }
+  ]
+}
