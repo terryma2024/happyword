@@ -3,6 +3,7 @@ package cool.happyword.wordmagic.ui.battle
 import android.app.Activity
 import android.content.pm.ApplicationInfo
 import android.content.pm.ActivityInfo
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.media.MediaPlayer
@@ -125,6 +126,7 @@ import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.LearningRecorder
 import cool.happyword.wordmagic.core.LearningReportBuilder
 import cool.happyword.wordmagic.core.MonsterCatalog
+import cool.happyword.wordmagic.core.MonsterEntry
 import cool.happyword.wordmagic.core.PackLibrary
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.ParentPinStore
@@ -174,9 +176,11 @@ import cool.happyword.wordmagic.ui.navigation.PROJECTILE_IMPACT_MS
 import cool.happyword.wordmagic.ui.navigation.DEFAULT_BATTLE_TIMER_SECONDS
 import cool.happyword.wordmagic.ui.components.Badge
 import cool.happyword.wordmagic.ui.components.CharacterPanel
+import cool.happyword.wordmagic.ui.components.MessageBubble
 import cool.happyword.wordmagic.ui.circleGlyphTextStyle
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 internal fun BattleScreen(
     runId: Int,
     state: BattleState,
@@ -191,6 +195,8 @@ internal fun BattleScreen(
     val context = LocalContext.current
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
     var activeOutcome by remember(runId) { mutableStateOf<BattleAnswerOutcome?>(null) }
+    var introBubbleCatalogIndex by remember(runId) { mutableStateOf<Int?>(null) }
+    var introShownCatalogIndices by remember(runId) { mutableStateOf(emptySet<Int>()) }
     var playerFloaters by remember(runId) { mutableStateOf(emptyList<FloaterPending>()) }
     var monsterFloaters by remember(runId) { mutableStateOf(emptyList<FloaterPending>()) }
     var nextFloaterKey by remember(runId) { mutableIntStateOf(0) }
@@ -330,6 +336,19 @@ internal fun BattleScreen(
             onBattleFinished(finishedState)
         }
     }
+    LaunchedEffect(runId, state.monsterCatalogIndex, activeOutcome == null) {
+        if (activeOutcome != null || state.status != BattleStatus.Playing) return@LaunchedEffect
+        if (state.monsterCatalogIndex in introShownCatalogIndices) {
+            introBubbleCatalogIndex = null
+            return@LaunchedEffect
+        }
+        introShownCatalogIndices = introShownCatalogIndices + state.monsterCatalogIndex
+        introBubbleCatalogIndex = state.monsterCatalogIndex
+        delay(1_200)
+        if (introBubbleCatalogIndex == state.monsterCatalogIndex) {
+            introBubbleCatalogIndex = null
+        }
+    }
     LaunchedEffect(runId, state.question.correctAnswer, state.question.kind, config.autoPronunciation, ttsReady, activeOutcome) {
         if (
             config.autoPronunciation &&
@@ -345,6 +364,10 @@ internal fun BattleScreen(
 
     val displayQuestion = if (activeOutcome?.advancedStep == true) state.question else activeOutcome?.question ?: state.question
     val feedbackLocked = activeOutcome != null
+    val monsterCatalog = remember { MonsterCatalog.default() }
+    val currentMonster = remember(state.monsterCatalogIndex) {
+        monsterCatalog.entries[Math.floorMod(state.monsterCatalogIndex - 1, monsterCatalog.entries.size)]
+    }
 
     Box(
         modifier = Modifier
@@ -448,16 +471,39 @@ internal fun BattleScreen(
                     }
                     Box(modifier = Modifier.weight(0.86f)) {
                         CharacterPanel(
-                            title = "Word Monster",
+                            title = currentMonster.nameEn,
                             hp = state.monsterHp,
                             maxHp = config.monsterHp,
-                            image = monsterResourceForPack(pack.id),
+                            image = monsterResourceForEntry(currentMonster, context.packageName, context.resources),
                             modifier = Modifier.fillMaxSize(),
                             panelColor = Color(0xFFF7D2D2),
                             borderColor = Color(0xFFEAA0A0),
                             isHurt = activeOutcome?.correct == true && activeOutcome?.comboTriggered != true,
                             isZoomHit = activeOutcome?.comboTriggered == true,
                         )
+                        Text(
+                            currentMonster.battleLevelLabel,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(10.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF5B6D8B))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .zIndex(2f)
+                                .testTag("BattleMonsterLevelLabel"),
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                        if (introBubbleCatalogIndex == state.monsterCatalogIndex && activeOutcome == null) {
+                            BossIntroBubble(
+                                monster = currentMonster,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .offset(y = (-16).dp)
+                                    .zIndex(4f),
+                            )
+                        }
                         DamageFloaterStack(
                             floaters = monsterFloaters,
                             side = BattleFloaterSide.Monster,
@@ -497,6 +543,50 @@ internal fun BattleScreen(
             )
         }
         CritBurstOverlay(outcome = activeOutcome, modifier = Modifier.fillMaxSize().zIndex(4f))
+    }
+}
+
+@Composable
+private fun BossIntroBubble(monster: MonsterEntry, modifier: Modifier = Modifier) {
+    MessageBubble(
+        modifier = modifier.testTag("BattleBossIntroBubble"),
+        width = 224.dp,
+        height = 96.dp,
+        radius = 18.dp,
+        borderWidth = 1.dp,
+        fillColor = Color(0xFFFFFDF6),
+        strokeColor = Color(0xFFE7D7B6),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text(
+                monster.nameEn,
+                modifier = Modifier.testTag("BattleBossIntroName"),
+                color = Color(0xFF69451B),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                monster.dialogue.introLine.en,
+                modifier = Modifier.testTag("BattleBossIntroLineEn"),
+                color = Color(0xFF233D63),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                monster.dialogue.introLine.zh,
+                modifier = Modifier.testTag("BattleBossIntroLineZh"),
+                color = Color(0xFF7A653D),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -892,4 +982,10 @@ internal fun monsterResourceForPack(packId: String): Int {
         "home-cottage" -> R.raw.character_dragon
         else -> R.raw.character_slime
     }
+}
+
+@RawRes
+internal fun monsterResourceForEntry(monster: MonsterEntry, packageName: String, resources: Resources): Int {
+    val resolved = resources.getIdentifier(monster.rawResourceName, "raw", packageName)
+    return if (resolved != 0) resolved else monsterResourceForPack("")
 }

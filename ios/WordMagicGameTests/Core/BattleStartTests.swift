@@ -29,6 +29,27 @@ final class BattleStartTests: XCTestCase {
         XCTAssertTrue(sawAnswerAwayFromFirstOption)
     }
 
+    func testRepeatedBattleKeepsQuestionPoolScopedToSelectedPack() throws {
+        let selectedPack = try XCTUnwrap(Pack.builtin.first { $0.id == "ocean-realm" })
+        let selectedWordIds = Set(selectedPack.words.map(\.id))
+        let coordinator = AppCoordinator(
+            configStore: GameConfigStore(defaults: UserDefaults(suiteName: "BattleRetryScope-\(UUID().uuidString)")!),
+            pronunciationService: SilentPronunciationService(),
+            battleRandomSeed: 1
+        )
+        coordinator.selectPack(selectedPack)
+
+        coordinator.startBattle()
+        let firstQuestion = try XCTUnwrap(coordinator.battleEngine?.state.currentQuestion)
+        coordinator.battleEngine = nil
+        coordinator.route = .home
+        coordinator.startBattle()
+        let retryQuestion = try XCTUnwrap(coordinator.battleEngine?.state.currentQuestion)
+
+        XCTAssertTrue(selectedWordIds.contains(firstQuestion.wordId))
+        XCTAssertTrue(selectedWordIds.contains(retryQuestion.wordId))
+    }
+
     func testAnimatedBattleAnswerRecordsLearningStatForCloudSync() throws {
         let coordinator = AppCoordinator(
             configStore: GameConfigStore(defaults: UserDefaults(suiteName: "BattleAnimatedLearning-\(UUID().uuidString)")!),

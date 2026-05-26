@@ -105,16 +105,14 @@ class BattleEngineTest {
     @Test
     fun advancedAndSuperMonstersCanDealHeavyAttackDamage() {
         val engine = BattleEngine(
-            config = GameConfig(playerHp = 5, monsterHp = 1, monsterCount = 10, enabledQuestionTypes = listOf(BattleQuestionTypePolicy.CHOICE)),
+            config = GameConfig(playerHp = 5, monsterHp = 5, monsterCount = 1, enabledQuestionTypes = listOf(BattleQuestionTypePolicy.FILL_LETTER_MEDIUM)),
             words = words,
             randomDouble = { 0.25 },
         )
 
-        var state = engine.initialState()
-        repeat(7) {
-            state = engine.submitAnswer(state, state.question.correctAnswer)
-        }
-        val wrongAnswer = state.question.options.first { it != state.question.correctAnswer }
+        val state = engine.initialState()
+        assertEquals(MonsterLevel.Advanced, MonsterLevel.forCatalogIndex(state.monsterCatalogIndex))
+        val wrongAnswer = state.question.options.first { it != state.question.letterAnswers[state.question.currentStep] }
         val outcome = engine.submitAnswerWithOutcome(state, wrongAnswer)
 
         assertEquals(false, outcome.correct)
@@ -125,8 +123,9 @@ class BattleEngineTest {
     @Test
     fun bonusMonsterKillsDoNotIncreaseWonCoinReward() {
         val engine = BattleEngine(
-            config = GameConfig(monsterHp = 1, monsterCount = 8, enabledQuestionTypes = listOf(BattleQuestionTypePolicy.CHOICE)),
+            config = GameConfig(monsterHp = 1, monsterCount = 3, enabledQuestionTypes = listOf(BattleQuestionTypePolicy.CHOICE)),
             words = words,
+            monsterCatalogIndex = { 10 },
             randomDouble = { 0.10 },
         )
 
@@ -138,9 +137,9 @@ class BattleEngineTest {
 
         assertTrue(result.won)
         assertEquals(3, result.stars)
-        assertEquals(1, result.bonusKillCount)
-        assertEquals(16, result.monsterLevelScore)
-        assertEquals(16, result.coinDelta)
+        assertEquals(3, result.bonusKillCount)
+        assertEquals(12, result.monsterLevelScore)
+        assertEquals(12, result.coinDelta)
     }
 
     @Test
@@ -276,5 +275,29 @@ class BattleEngineTest {
         assertEquals("cat", state.question.wordId)
         assertEquals(3, state.question.options.size)
         assertTrue(state.question.options.contains("cat"))
+    }
+
+    @Test
+    fun retryBattleStaysScopedToSelectedPackWordsEvenWhenLibraryHasMorePacks() {
+        val selectedPack = BuiltinPacks.all.first { it.id == "fruit-forest" }
+        val allWords = BuiltinPacks.all.flatMap { it.words }
+        val engine = BattleEngine(
+            config = GameConfig(monsterHp = 99, monsterCount = 1, enabledQuestionTypes = choiceOnlyTypes),
+            words = allWords,
+            targetWordIds = selectedPack.words.map { it.id },
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+        val selectedIds = selectedPack.words.map { it.id }.toSet()
+        val seen = mutableSetOf<String>()
+        var state = engine.initialState()
+
+        repeat(selectedPack.words.size * 2) {
+            assertTrue("mixed foreign word ${state.question.wordId}", state.question.wordId in selectedIds)
+            seen += state.question.wordId
+            state = engine.submitAnswer(state, state.question.correctAnswer)
+        }
+
+        assertEquals(selectedIds, seen)
     }
 }

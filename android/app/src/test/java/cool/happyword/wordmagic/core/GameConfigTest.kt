@@ -9,8 +9,8 @@ class GameConfigTest {
         val config = GameConfig()
 
         assertEquals(10, config.playerHp)
-        assertEquals(3, config.monsterHp)
-        assertEquals(5, config.monsterCount)
+        assertEquals(5, config.monsterHp)
+        assertEquals(10, config.monsterCount)
         assertEquals(300, config.timerSeconds)
         assertEquals(true, config.autoPronunciation)
         assertEquals(

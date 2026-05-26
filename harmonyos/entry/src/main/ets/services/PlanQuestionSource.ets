@@ -17,6 +17,10 @@ import {
   WordKindSupportFn,
 } from './BattleQuestionScheduler';
 import {
+  BattleStagePick,
+  BattleStageScheduler,
+} from './BattleStageScheduler';
+import {
   TodaySessionPlan,
   WordSlot,
 } from '../models/AdventureRegion';
@@ -46,6 +50,7 @@ export class PlanQuestionSource implements IQuestionSource {
   private readonly spellGen: SpellGenerator;
   private readonly sentenceGen: SentenceClozeGenerator;
   private readonly scheduler: BattleQuestionScheduler | undefined;
+  private readonly stageScheduler: BattleStageScheduler | undefined;
   private monsterIndexProvider: MonsterIndexProvider;
   private cursor: number = 0;
 
@@ -56,6 +61,7 @@ export class PlanQuestionSource implements IQuestionSource {
     fillGen: FillLetterGenerator,
     spellGen: SpellGenerator,
     scheduler?: BattleQuestionScheduler,
+    stageScheduler?: BattleStageScheduler,
   ) {
     this.plan = plan;
     this.repo = repo;
@@ -64,6 +70,7 @@ export class PlanQuestionSource implements IQuestionSource {
     this.spellGen = spellGen;
     this.sentenceGen = new SentenceClozeGenerator();
     this.scheduler = scheduler;
+    this.stageScheduler = stageScheduler;
     this.monsterIndexProvider = (): number => 1;
   }
 
@@ -79,7 +86,14 @@ export class PlanQuestionSource implements IQuestionSource {
 
     let primaryType: string;
     let preferredWordId: string = '';
-    if (this.scheduler !== undefined) {
+    if (this.stageScheduler !== undefined) {
+      const pick: BattleStagePick = this.stageScheduler.pickNext(
+        this.monsterIndexProvider(),
+        lastWordId,
+      );
+      primaryType = pick.kind;
+      preferredWordId = pick.wordId;
+    } else if (this.scheduler !== undefined) {
       const pick: BattleQuestionPick = this.scheduler.pickNext(lastWordId, canServe);
       primaryType = pick.kind;
       preferredWordId = pick.preferredWordId;
@@ -87,7 +101,9 @@ export class PlanQuestionSource implements IQuestionSource {
       primaryType = 'choice';
     }
 
-    const phasePool: string[] = this.scheduler !== undefined
+    const phasePool: string[] = this.stageScheduler !== undefined
+      ? [primaryType]
+      : this.scheduler !== undefined
       ? this.scheduler.activePhasePool()
       : [];
 
@@ -105,13 +121,17 @@ export class PlanQuestionSource implements IQuestionSource {
 
     const exact: Question | undefined = this.generateExactQuestion(resolvedType, word, lastWordId);
     if (exact !== undefined) {
-      if (this.scheduler !== undefined) {
+      if (this.stageScheduler !== undefined) {
+        this.stageScheduler.markServed(word.id, exact.kind);
+      } else if (this.scheduler !== undefined) {
         this.scheduler.markServed(word.id, exact.kind, canServe);
       }
       return exact;
     }
     const fallback: Question = this.choiceGen.nextQuestionForWord(word, lastWordId);
-    if (this.scheduler !== undefined) {
+    if (this.stageScheduler !== undefined) {
+      this.stageScheduler.markServed(word.id, fallback.kind);
+    } else if (this.scheduler !== undefined) {
       this.scheduler.markServed(word.id, fallback.kind, canServe);
     }
     return fallback;

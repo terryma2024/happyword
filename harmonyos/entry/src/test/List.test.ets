@@ -1,5 +1,6 @@
 import localUnitTest from './LocalUnit.test';
 import monsterCatalogTest from './MonsterCatalog.test';
+import monsterDialogueTest from './MonsterDialogue.test';
 import questionTest from './Question.test';
 import fillLetterGeneratorTest from './FillLetterGenerator.test';
 import spellGeneratorTest from './SpellGenerator.test';
@@ -54,20 +55,27 @@ import packTest from './Pack.test';
 import builtinPackLoaderTest from './BuiltinPackLoader.test';
 import globalPackServiceTest from './GlobalPackService.test';
 import packLibraryTest from './PackLibrary.test';
+import packHomeIntegrationTest from './PackHomeIntegration.test';
 import packSelectionServiceTest from './PackSelectionService.test';
 import battleQuestionTypePolicyTest from './BattleQuestionTypePolicy.test';
 import compliancePolicyTest from './CompliancePolicy.test';
 import systemBrowserTest from './SystemBrowser.test';
+import battleStageSchedulerTest from './BattleStageScheduler.test';
 import battleQuestionSchedulerTest from './BattleQuestionScheduler.test';
 import battleEngineTest from './BattleEngine.test';
 import battleRewardCalcTest from './BattleRewardCalc.test';
 import damageFloaterLabelTest from './DamageFloaterLabel.test';
 import pronunciationServiceTest from './PronunciationService.test';
 import themePolicyTest from './ThemePolicy.test';
+import messageBubbleGeometryTest from './MessageBubbleGeometry.test';
+import messageBubbleTest from './MessageBubble.test';
+import messageBubbleLabStateTest from './MessageBubbleLabState.test';
+import bossDialogueSequencerTest from './BossDialogueSequencer.test';
 
 export default function testsuite() {
   localUnitTest();
   monsterCatalogTest();
+  monsterDialogueTest();
   questionTest();
   fillLetterGeneratorTest();
   spellGeneratorTest();
@@ -122,14 +130,20 @@ export default function testsuite() {
   builtinPackLoaderTest();
   globalPackServiceTest();
   packLibraryTest();
+  packHomeIntegrationTest();
   packSelectionServiceTest();
   battleQuestionTypePolicyTest();
   compliancePolicyTest();
   systemBrowserTest();
+  battleStageSchedulerTest();
   battleQuestionSchedulerTest();
   battleEngineTest();
   battleRewardCalcTest();
   damageFloaterLabelTest();
   pronunciationServiceTest();
   themePolicyTest();
+  messageBubbleGeometryTest();
+  messageBubbleTest();
+  messageBubbleLabStateTest();
+  bossDialogueSequencerTest();
 }

@@ -12,7 +12,12 @@ import {
   MONSTER_PLAN_SLOT_COUNT,
   WORD_PLAN_MULTIPLIER,
 } from '../models/AdventureRegion';
-import { MonsterKind, monsterIndexForKind } from '../data/MonsterCatalog';
+import {
+  MonsterKind,
+  MonsterLevel,
+  monsterCatalogIndicesForLevel,
+  monsterIndexForKind,
+} from '../data/MonsterCatalog';
 import { Pack } from '../models/Pack';
 import {
   DEFAULT_ENABLED_QUESTION_TYPES,
@@ -51,7 +56,7 @@ export function localDayKey(nowMs: number): string {
  * once by BattlePage.
  *
  * Word ratio target: 50% review / 30% learning / 20% new.
- * `MONSTER_PLAN_SLOT_COUNT` (5) drives how many monsters fight,
+ * `MONSTER_PLAN_SLOT_COUNT` drives how many monsters fight,
  * each consuming up to `WORD_PLAN_MULTIPLIER` words per slot —
  * giving the wordPlan length headroom before PlanQuestionSource
  * starts cycling.
@@ -104,12 +109,12 @@ export class TodayAdventureBuilder {
 
     const plan: TodaySessionPlan = new TodaySessionPlan();
     plan.regionId = region.id;
-    plan.monsterSlots = this.buildMonsterSlotsForQuestionTypes(region, selectedQuestionTypes);
+    plan.monsterSlots = this.buildMonsterSlotsForQuestionTypes(region, nowMs, selectedQuestionTypes);
     plan.wordPlan = wordPlan;
     plan.bossWordIds = bossWordIds;
     plan.isFirstToday = isFirstToday;
 
-    // V0.3.8: per-region boss rotation. Override slot 5 catalogIndex
+    // V0.3.8: per-region boss rotation. Override each Boss slot catalogIndex
     // with a deterministic pick from region.bossCandidates so each
     // local day can surface a different boss SVG without breaking
     // the existing today-plan determinism contract (same inputs ->
@@ -121,23 +126,58 @@ export class TodayAdventureBuilder {
 
   private buildMonsterSlotsForQuestionTypes(
     region: AdventureRegion,
+    nowMs: number,
     selectedQuestionTypes?: string[],
   ): MonsterSlot[] {
     const safeTypes: string[] = selectedQuestionTypes === undefined
       ? DEFAULT_ENABLED_QUESTION_TYPES.slice()
       : sanitizeEnabledQuestionTypes(selectedQuestionTypes);
-    const targetCount: number = region.monsterPlan.slots.length > 0
-      ? region.monsterPlan.slots.length
-      : MONSTER_PLAN_SLOT_COUNT;
+    const templateSlots: MonsterSlot[] = region.monsterPlan.slots;
     const slots: MonsterSlot[] = [];
-    for (let i: number = 0; i < targetCount; i++) {
-      const kind: MonsterKind = questionTypeToMonsterKind(safeTypes[i % safeTypes.length]);
+    for (let i: number = 0; i < MONSTER_PLAN_SLOT_COUNT; i++) {
       const slot: MonsterSlot = new MonsterSlot();
-      slot.kind = kind;
-      slot.catalogIndex = monsterIndexForKind(kind);
+      if (templateSlots.length > 0 && selectedQuestionTypes === undefined) {
+        const template: MonsterSlot = templateSlots[i % templateSlots.length];
+        slot.kind = template.kind;
+        slot.catalogIndex = template.catalogIndex > 0
+          ? template.catalogIndex
+          : monsterIndexForKind(template.kind);
+      } else {
+        const typeId: string = safeTypes[i % safeTypes.length];
+        const kind: MonsterKind = questionTypeToMonsterKind(typeId);
+        slot.kind = kind;
+        slot.catalogIndex = this.catalogIndexForQuestionType(region, nowMs, typeId, i);
+      }
       slots.push(slot);
     }
     return slots;
+  }
+
+  private catalogIndexForQuestionType(
+    region: AdventureRegion,
+    nowMs: number,
+    typeId: string,
+    slotIndex: number,
+  ): number {
+    const level: MonsterLevel = this.monsterLevelForQuestionType(typeId);
+    const pool: number[] = monsterCatalogIndicesForLevel(level);
+    const dayKey: string = localDayKey(nowMs);
+    const offset: number = this.hashSeed(`${region.id}:${dayKey}:${level}`) % pool.length;
+    return pool[(offset + slotIndex) % pool.length];
+  }
+
+  private monsterLevelForQuestionType(typeId: string): MonsterLevel {
+    const kind: MonsterKind = questionTypeToMonsterKind(typeId);
+    if (kind === MonsterKind.Spelling) {
+      return MonsterLevel.Intermediate;
+    }
+    if (kind === MonsterKind.Elite) {
+      return MonsterLevel.Advanced;
+    }
+    if (kind === MonsterKind.Boss) {
+      return MonsterLevel.Super;
+    }
+    return MonsterLevel.Beginner;
   }
 
   private applyBossRotation(
@@ -276,7 +316,7 @@ export class TodayAdventureBuilder {
     }
     if (out.length < target) {
       const allIds: string[] = candidates.map((w: WordEntry): string => w.id);
-      this.drawInto(out, allIds, target - out.length, WordSource.New, taken);
+      this.drawRepeatingInto(out, allIds, target - out.length, WordSource.New);
     }
     return out;
   }
@@ -304,6 +344,24 @@ export class TodayAdventureBuilder {
       sink.push(slot);
       taken.add(id);
       added += 1;
+    }
+  }
+
+  private drawRepeatingInto(
+    sink: WordSlot[],
+    pool: string[],
+    quota: number,
+    source: WordSource,
+  ): void {
+    if (quota <= 0 || pool.length === 0) {
+      return;
+    }
+    const shuffled: string[] = this.shuffle(pool);
+    for (let i: number = 0; i < quota; i++) {
+      const slot: WordSlot = new WordSlot();
+      slot.wordId = shuffled[i % shuffled.length];
+      slot.source = source;
+      sink.push(slot);
     }
   }
 

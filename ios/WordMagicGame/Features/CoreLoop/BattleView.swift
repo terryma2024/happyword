@@ -28,6 +28,9 @@ struct BattleView: View {
     @State private var playerFloaters: [FloaterPending] = []
     @State private var monsterFloaters: [FloaterPending] = []
     @State private var nextFloaterKey = 0
+    @State private var bossIntro: BossIntroOverlayState?
+    @State private var shownBossIntroCatalogIndices: Set<Int> = []
+    @State private var lastBossIntroMonsterIndex = 0
 
     private let maxFloatersPerSide = 4
     private let floaterStackOffset: CGFloat = 6
@@ -72,7 +75,8 @@ struct BattleView: View {
                             glowOpacity: playerGlowOpacity,
                             hurtOpacity: playerHurtOpacity,
                             floaters: playerFloaters,
-                            floaterSide: .player
+                            floaterSide: .player,
+                            levelBadge: nil
                         )
                         .accessibilityIdentifier("PlayerArea")
 
@@ -93,7 +97,8 @@ struct BattleView: View {
                             glowOpacity: 0,
                             hurtOpacity: monsterHurtOpacity,
                             floaters: monsterFloaters,
-                            floaterSide: .monster
+                            floaterSide: .monster,
+                            levelBadge: currentMonsterLevel.battleLabel
                         )
                         .accessibilityIdentifier("MonsterArea")
                         .overlay(alignment: .topTrailing) {
@@ -123,16 +128,33 @@ struct BattleView: View {
                 CritSpectacleOverlay(state: critOverlay)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
+                bossIntroBubble(proxy: proxy)
+                Text(currentMonsterLevel.battleLabel)
+                    .font(.caption2)
+                    .frame(width: 1, height: 1)
+                    .opacity(0.01)
+                    .position(x: proxy.size.width - 8, y: 8)
+                    .allowsHitTesting(false)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("BattleMonsterLevelLabel")
+                    .accessibilityLabel(currentMonsterLevel.battleLabel)
             }
         }
         .background(AppTheme.page)
         .onAppear {
             resetSpellProgress(for: state.currentQuestion)
+            presentBossIntroIfNeeded()
             coordinator.autoSpeakCurrentBattleAnswer(isRevealing: false)
         }
         .onChange(of: state.currentQuestion?.wordId) { _, _ in
             let question = state.currentQuestion
             resetSpellProgress(for: question)
+        }
+        .onChange(of: state.monsterIndex) { _, _ in
+            presentBossIntroIfNeeded()
+        }
+        .onChange(of: state.currentMonsterCatalogIndex) { _, _ in
+            presentBossIntroIfNeeded()
         }
         .onDisappear {
             coordinator.disposeBattlePronunciation()
@@ -476,7 +498,8 @@ struct BattleView: View {
         glowOpacity: Double,
         hurtOpacity: Double,
         floaters: [FloaterPending],
-        floaterSide: BattleFloaterSide
+        floaterSide: BattleFloaterSide,
+        levelBadge: String?
     ) -> some View {
         VStack(spacing: 8) {
             ZStack(alignment: .top) {
@@ -504,9 +527,21 @@ struct BattleView: View {
                     .allowsHitTesting(false)
             }
             .frame(maxWidth: .infinity)
-            Text(title)
-                .font(.title2.weight(.heavy))
-                .foregroundStyle(AppTheme.navy)
+            HStack(spacing: 7) {
+                Text(title)
+                    .font(.title2.weight(.heavy))
+                    .foregroundStyle(AppTheme.navy)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                if let levelBadge {
+                    Text(levelBadge)
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(AppTheme.navy, in: Capsule())
+                }
+            }
             Text(subtitle)
                 .font(.headline)
                 .foregroundStyle(.secondary)
@@ -909,24 +944,109 @@ struct BattleView: View {
         }
     }
 
+    @ViewBuilder
+    private func bossIntroBubble(proxy: GeometryProxy) -> some View {
+        if let bossIntro {
+            MessageBubble(
+                width: 224,
+                height: 96,
+                radius: 18,
+                borderWidth: 1,
+                fill: Color(red: 1.0, green: 0.99, blue: 0.96),
+                stroke: Color(red: 0.91, green: 0.84, blue: 0.71),
+                contentPadding: .bossStyle,
+                tail: MessageBubbleTail.preset(.bottomRight, box: .bossStyle),
+                bubbleShadow: .bossStyle,
+            ) {
+                VStack(spacing: 3) {
+                    Text(bossIntro.name)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.42, green: 0.29, blue: 0.14))
+                        .accessibilityIdentifier("BattleBossIntroName")
+                    Text(bossIntro.dialogue.introLine.en)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color(red: 0.11, green: 0.21, blue: 0.34))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                        .accessibilityIdentifier("BattleBossIntroLineEn")
+                    Text(bossIntro.dialogue.introLine.zh)
+                        .font(.system(size: 11, weight: .regular, design: .rounded))
+                        .foregroundStyle(Color(red: 0.43, green: 0.37, blue: 0.33))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                        .accessibilityIdentifier("BattleBossIntroLineZh")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(width: 248, height: 144)
+            .position(x: proxy.size.width * 0.72, y: proxy.size.height * 0.20)
+            .allowsHitTesting(false)
+            .accessibilityIdentifier("BattleBossIntroBubble")
+            .accessibilityLabel("\(bossIntro.name) \(bossIntro.dialogue.introLine.en) \(bossIntro.dialogue.introLine.zh)")
+        }
+    }
+
+    private func presentBossIntroIfNeeded() {
+        guard state.status == .playing else { return }
+        let catalogIndex = currentMonsterCatalogIndex
+        guard state.monsterIndex != lastBossIntroMonsterIndex,
+              !shownBossIntroCatalogIndices.contains(catalogIndex)
+        else {
+            if bossIntro?.monsterIndex != state.monsterIndex {
+                bossIntro = nil
+            }
+            return
+        }
+
+        let entry = MonsterCodex.entry(catalogIndex1Based: catalogIndex)
+        bossIntro = BossIntroOverlayState(
+            monsterIndex: state.monsterIndex,
+            catalogIndex: catalogIndex,
+            name: entry.nameEn,
+            dialogue: MonsterDialogueCatalog.resolve(catalogIndex1Based: catalogIndex, monsterName: entry.nameEn)
+        )
+        shownBossIntroCatalogIndices.insert(catalogIndex)
+        lastBossIntroMonsterIndex = state.monsterIndex
+
+        guard !ProcessInfo.processInfo.arguments.contains("-UITestKeepBossIntroVisible") else { return }
+        let monsterIndex = state.monsterIndex
+        Task {
+            try? await Task.sleep(nanoseconds: 1_050_000_000)
+            if Task.isCancelled { return }
+            await MainActor.run {
+                if bossIntro?.monsterIndex == monsterIndex {
+                    bossIntro = nil
+                }
+            }
+        }
+    }
+
     private var currentMonsterArt: MonsterArt {
         let entry = MonsterCodex.entry(catalogIndex1Based: currentMonsterCatalogIndex)
         return MonsterArt(name: entry.nameEn, imageName: entry.assetName)
     }
 
-    private var currentMonsterCatalogIndex: Int {
-        let battleIndex = max(state.monsterIndex, 1)
-        let slots = coordinator.selectedPack.scene.monsterPlan
-        guard !slots.isEmpty else { return battleIndex }
+    private var currentMonsterLevel: MonsterLevel {
+        MonsterCodex.entry(catalogIndex1Based: currentMonsterCatalogIndex).level
+    }
 
-        let slot = slots[(battleIndex - 1) % slots.count]
-        return slot.catalogIndex > 0 ? slot.catalogIndex : battleIndex
+    private var currentMonsterCatalogIndex: Int {
+        state.currentMonsterCatalogIndex
     }
 }
 
 private struct MonsterArt {
     let name: String
     let imageName: String
+}
+
+private struct BossIntroOverlayState: Equatable {
+    var monsterIndex: Int
+    var catalogIndex: Int
+    var name: String
+    var dialogue: MonsterDialogue
 }
 
 private enum OptionFeedback {

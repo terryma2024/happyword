@@ -29,7 +29,7 @@ class BattleEngine(
     targetWordIds: List<String> = words.map { it.id },
     private val shuffleOptions: (List<String>) -> List<String> = { options -> options.shuffled() },
     private val randomDouble: () -> Double = { Math.random() },
-    private val monsterCatalogIndex: (Int) -> Int = { it },
+    private val monsterCatalogIndex: ((Int) -> Int)? = null,
 ) {
     private val targetWordIds: List<String> = targetWordIds.filter { it.isNotBlank() }.distinct()
     private val scheduler: BattleQuestionScheduler = BattleQuestionScheduler(
@@ -67,6 +67,7 @@ class BattleEngine(
     }
 
     fun initialState(): BattleState {
+        val catalogIndex = catalogIndexFor(1)
         val question = nextScheduledQuestion(null, monsterIndex = 1)
         return BattleState(
             playerHp = config.playerHp,
@@ -77,7 +78,8 @@ class BattleEngine(
             wrongCount = 0,
             defeatedMonsters = 0,
             question = question,
-            currentMonsterBonus = rollsBonusMonster(monsterIndex = catalogIndexFor(1)),
+            currentMonsterBonus = rollsBonusMonster(monsterIndex = catalogIndex),
+            monsterCatalogIndex = catalogIndex,
         )
     }
 
@@ -120,7 +122,7 @@ class BattleEngine(
         }
 
         if (!correct) {
-            val attackDamage = monsterAttackDamage(catalogIndexFor(state.monsterIndex))
+            val attackDamage = monsterAttackDamage(state.monsterCatalogIndex)
             val nextPlayerHp = (state.playerHp - attackDamage).coerceAtLeast(0)
             val nextState = state.copy(
                 playerHp = nextPlayerHp,
@@ -161,7 +163,7 @@ class BattleEngine(
         val defeated = state.defeatedMonsters + 1
         val bonusKillCount = state.bonusKillCount + if (state.currentMonsterBonus) 1 else 0
         val defeatedMonsterLevelScore = state.defeatedMonsterLevelScore + BattleRewardCalc.coinValueFor(
-            MonsterLevel.forCatalogIndex(catalogIndexFor(state.monsterIndex)),
+            MonsterLevel.forCatalogIndex(state.monsterCatalogIndex),
         )
         if (defeated >= config.monsterCount) {
             val nextState = state.copy(
@@ -177,6 +179,7 @@ class BattleEngine(
         }
 
         val nextMonsterIndex = state.monsterIndex + 1
+        val nextMonsterCatalogIndex = catalogIndexFor(nextMonsterIndex)
         val nextState = state.copy(
             monsterHp = config.monsterHp,
             monsterIndex = nextMonsterIndex,
@@ -186,7 +189,8 @@ class BattleEngine(
             bonusKillCount = bonusKillCount,
             defeatedMonsterLevelScore = defeatedMonsterLevelScore,
             question = nextQuestionAfter(state.question.wordId, nextMonsterIndex),
-            currentMonsterBonus = rollsBonusMonster(catalogIndexFor(nextMonsterIndex)),
+            currentMonsterBonus = rollsBonusMonster(nextMonsterCatalogIndex),
+            monsterCatalogIndex = nextMonsterCatalogIndex,
         )
         return correctOutcome(state, answer, damage, comboTriggered, monsterDefeated = true, nextState = nextState)
     }
@@ -252,7 +256,6 @@ class BattleEngine(
     private fun pickWordForType(typeId: String, lastWordId: String?): WordEntry? {
         val targetWords = targetWordIds.mapNotNull { id -> words.find { it.id == id } }
         pickSupportedWordFrom(targetWords, typeId, lastWordId)?.let { return it }
-        pickSupportedWordFrom(words, typeId, lastWordId)?.let { return it }
         if (words.isEmpty()) return null
         val fallbackWords = targetWords.ifEmpty { words }
         val currentIndex = fallbackWords.indexOfFirst { it.id == lastWordId }
@@ -513,7 +516,14 @@ class BattleEngine(
         return minInclusive + offset
     }
 
-    private fun catalogIndexFor(monsterIndex: Int): Int = monsterCatalogIndex(monsterIndex)
+    private fun catalogIndexFor(monsterIndex: Int): Int {
+        monsterCatalogIndex?.invoke(monsterIndex)?.let { return it }
+        val canServe: WordKindSupportFn = { wordId, kind ->
+            words.find { it.id == wordId }?.let { BattleQuestionTypePolicy.wordSupportsQuestionType(it, kind) }
+                ?: false
+        }
+        return scheduler.catalogIndexForMonster(monsterIndex, canServe)
+    }
 
     private fun monsterAttackDamage(monsterIndex: Int): Int {
         return when (MonsterLevel.forCatalogIndex(monsterIndex)) {

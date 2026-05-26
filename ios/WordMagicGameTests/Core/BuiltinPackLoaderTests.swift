@@ -14,14 +14,14 @@ final class BuiltinPackLoaderTests: XCTestCase {
         XCTAssertEqual(packs.map(\.id), ["fruit-forest", "school-castle", "home-cottage", "animal-safari", "ocean-realm"])
         XCTAssertEqual(packs.map(\.title), ["Fruit Forest", "School Castle", "Home Cottage", "Animal Safari", "Ocean Realm"])
         XCTAssertEqual(packs.map(\.labelZh), ["水果森林", "校园城堡", "温馨小屋", "动物大冒险", "深海王国"])
-        XCTAssertEqual(packs.map(\.words.count), [10, 10, 10, 10, 10])
+        XCTAssertEqual(packs.map(\.words.count), [15, 15, 15, 15, 15])
 
         let fruit = try XCTUnwrap(packs.first)
         XCTAssertEqual(fruit.words.first?.id, "fruit-apple")
         XCTAssertEqual(fruit.words.first?.word, "apple")
         XCTAssertEqual(fruit.words.first?.meaningZh, "苹果")
-        XCTAssertEqual(fruit.words.last?.id, "fruit-cherry")
-        XCTAssertEqual(fruit.words.last?.word, "cherry")
+        XCTAssertEqual(fruit.words.last?.id, "fruit-blueberry")
+        XCTAssertEqual(fruit.words.last?.word, "blueberry")
         XCTAssertEqual(fruit.scene.bgPrimary, "#FFF6E0")
         XCTAssertEqual(fruit.scene.bgAccent, "#FFD49A")
         XCTAssertEqual(fruit.scene.bossName, "Orchard Sentinel")
@@ -34,12 +34,35 @@ final class BuiltinPackLoaderTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(packs.first { $0.id == "school-castle" }).words.contains { $0.id == "place-supermarket" })
         XCTAssertEqual(try XCTUnwrap(packs.first { $0.id == "home-cottage" }).words.first?.word, "TV")
         XCTAssertEqual(try XCTUnwrap(packs.first { $0.id == "animal-safari" }).words.first?.word, "cat")
-        XCTAssertEqual(try XCTUnwrap(packs.first { $0.id == "ocean-realm" }).words.last?.word, "jellyfish")
+        XCTAssertEqual(try XCTUnwrap(packs.first { $0.id == "ocean-realm" }).words.last?.word, "seaweed")
     }
 
     func testIOSBuiltinPacksMatchHarmonyRawfileOrderAndWordCounts() {
         XCTAssertEqual(Pack.builtin.map(\.id), ["fruit-forest", "school-castle", "home-cottage", "animal-safari", "ocean-realm"])
-        XCTAssertEqual(Pack.builtin.map(\.words.count), [10, 10, 10, 10, 10])
+        XCTAssertEqual(Pack.builtin.map(\.words.count), [15, 15, 15, 15, 15])
+    }
+
+    func testIOSBuiltinPacksIncludeV092AddedSentenceReadyWords() throws {
+        let expectedIdsByPack = [
+            "fruit-forest": ["fruit-strawberry", "fruit-pineapple", "fruit-watermelon", "fruit-kiwi", "fruit-blueberry"],
+            "school-castle": ["place-restaurant", "place-cinema", "place-airport", "place-playground", "place-bookstore"],
+            "home-cottage": ["home-kitchen", "home-bathroom", "home-clock", "home-phone", "home-fridge"],
+            "animal-safari": ["animal-bird", "animal-elephant", "animal-monkey", "animal-rabbit", "animal-panda"],
+            "ocean-realm": ["ocean-shell", "ocean-coral", "ocean-beach", "ocean-wave", "ocean-seaweed"],
+        ]
+
+        for (packId, ids) in expectedIdsByPack {
+            let pack = try XCTUnwrap(Pack.builtin.first { $0.id == packId })
+            let wordIds = Set(pack.words.map(\.id))
+            XCTAssertTrue(ids.allSatisfy { wordIds.contains($0) }, "\(packId) missing V0.9.2 words")
+            for id in ids {
+                let word = try XCTUnwrap(pack.words.first { $0.id == id })
+                XCTAssertTrue(
+                    BattleQuestionTypePolicy.wordSupportsQuestionType(word, typeId: QuestionKind.sentenceCloze.rawValue),
+                    "\(packId) \(id) cannot generate sentence cloze"
+                )
+            }
+        }
     }
 
     func testIOSBuiltinPacksHaveSentenceClozeExamplesForEveryWord() {

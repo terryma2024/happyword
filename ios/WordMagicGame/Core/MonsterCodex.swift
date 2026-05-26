@@ -18,6 +18,19 @@ enum MonsterLevel: String, CaseIterable, Equatable {
             "Super"
         }
     }
+
+    var battleLabel: String {
+        switch self {
+        case .beginner:
+            "L1"
+        case .intermediate:
+            "L2"
+        case .advanced:
+            "L3"
+        case .super:
+            "L4"
+        }
+    }
 }
 
 struct MonsterCodexEntry: Identifiable, Equatable {
@@ -761,5 +774,12 @@ enum MonsterCodex {
             return .beginner
         }
         return level(forCatalogIndex1Based: index + 1)
+    }
+
+    static func catalogIndices(for level: MonsterLevel) -> [Int] {
+        let indices = entries.indices.compactMap { index -> Int? in
+            Self.level(forCatalogIndex1Based: index + 1) == level ? index + 1 : nil
+        }
+        return indices.isEmpty ? [1] : indices
     }
 }

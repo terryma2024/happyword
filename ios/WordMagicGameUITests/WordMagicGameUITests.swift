@@ -35,7 +35,7 @@ final class WordMagicGameUITests: XCTestCase {
 
         assertLandscape(app)
         XCTAssertTrue(app.staticTexts["Small Magician Word Adventure"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["今天的冒险包含 5 关卡，含拼写、复习与首领关"].exists)
+        XCTAssertTrue(app.staticTexts["今天的冒险包含 10 关卡，含拼写、复习与首领关"].exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "小明测试")).firstMatch.exists)
     }
 
@@ -56,8 +56,8 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Choose the right spell"].exists)
         XCTAssertTrue(app.staticTexts["Magician"].exists)
         XCTAssertTrue(app.staticTexts["Player"].exists)
-        XCTAssertTrue(app.staticTexts["Slime"].exists)
-        XCTAssertTrue(app.staticTexts["Monster 1 / 5"].exists)
+        XCTAssertTrue(app.staticTexts["Monster 1 / 10"].exists)
+        XCTAssertTrue(app.staticTexts["L1"].exists)
         let countdown = app.staticTexts
             .containing(NSPredicate(format: "label BEGINSWITH %@", "Countdown "))
             .firstMatch
@@ -366,6 +366,7 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Developer Options"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Backend environment (debug builds only)"].exists)
         XCTAssertTrue(app.buttons["DevMenuBypassSecretButton"].exists)
+        XCTAssertTrue(app.buttons["DevMenuMessageBubbleLabButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuRefreshManifestButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuLocalCard"].exists)
         XCTAssertTrue(app.buttons["DevMenuStagingCard"].exists)
@@ -383,6 +384,28 @@ final class WordMagicGameUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.cool")).firstMatch.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testMessageBubbleLabShowsBossPresetAndUpdatesControls() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestRouteMessageBubbleLab"]
+        app.launch()
+
+        assertPortrait(app)
+        XCTAssertTrue(app.staticTexts["Message Bubble Lab"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "baseStart: { x: 172, y: 96 }")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "tip: { x: 212, y: 112 }")).firstMatch.exists)
+
+        app.buttons["MessageBubbleLabPreset_TopLeft"].tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "preset: TopLeft")).firstMatch.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "tip: { x: 12, y: -16 }")).firstMatch.exists)
+
+        app.swipeUp()
+        let widthPlus = app.buttons["MessageBubbleLabWidthPlus"]
+        XCTAssertTrue(widthPlus.waitForExistence(timeout: 5))
+        widthPlus.tap()
+        XCTAssertTrue(app.staticTexts["234"].waitForExistence(timeout: 2))
     }
 
     @MainActor
@@ -532,6 +555,30 @@ final class WordMagicGameUITests: XCTestCase {
     }
 
     @MainActor
+    func testBattleBossIntroBubbleUsesCatalogDialogueAndLevelLabel() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-UITestResetState",
+            "-UITestExposeCorrectAnswer",
+            "-UITestKeepBossIntroVisible",
+            "-UITestBattleSeed=42",
+            "-UITestRouteBattle",
+        ]
+        app.launch()
+
+        assertLandscape(app)
+        let introBubble = app.descendants(matching: .any)["BattleBossIntroBubble"].firstMatch
+        XCTAssertTrue(introBubble.waitForExistence(timeout: 5))
+        XCTAssertTrue(introBubble.label.contains("Pollen Pixie"))
+        XCTAssertTrue(introBubble.label.contains("My pollen clue tickles."))
+        XCTAssertTrue(introBubble.label.contains("我的花粉线索痒痒的。"))
+        XCTAssertTrue(app.descendants(matching: .any)["BattleMonsterLevelLabel"].exists)
+        XCTAssertTrue(app.buttons["BattleCorrectOption"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["BattleBossDefeatBubble"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["BattleSuperBossIntroBanner"].exists)
+    }
+
+    @MainActor
     func testBattleFeedbackProjectileAndSpellControlsMatchHarmony() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer", "-UITestQuestionTypesChoiceOnly", "-UITestRouteBattle"]
@@ -542,7 +589,7 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Pronounce"].exists)
         XCTAssertTrue(app.staticTexts["Choose the right spell"].exists)
         XCTAssertTrue(app.staticTexts["HP 10 / 10"].firstMatch.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["HP 3 / 3"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["HP 5 / 5"].firstMatch.waitForExistence(timeout: 5))
 
         tapFirstIncorrectFruitOption(in: app)
         XCTAssertTrue(waitForBattleFeedback(in: app)?.hasPrefix("Correct answer:") == true)

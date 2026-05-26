@@ -156,6 +156,81 @@
         "en": "The horse runs fast.",
         "zh": "马跑得很快。"
       }
+    },
+    {
+      "id": "animal-bird",
+      "word": "bird",
+      "meaningZh": "鸟",
+      "category": "animal",
+      "difficulty": 1,
+      "distractors": [
+        "rabbit",
+        "monkey"
+      ],
+      "example": {
+        "en": "The bird sings in the tree.",
+        "zh": "鸟在树上唱歌。"
+      }
+    },
+    {
+      "id": "animal-elephant",
+      "word": "elephant",
+      "meaningZh": "大象",
+      "category": "animal",
+      "difficulty": 1,
+      "distractors": [
+        "panda",
+        "bird"
+      ],
+      "example": {
+        "en": "The elephant has a long nose.",
+        "zh": "大象有长鼻子。"
+      }
+    },
+    {
+      "id": "animal-monkey",
+      "word": "monkey",
+      "meaningZh": "猴子",
+      "category": "animal",
+      "difficulty": 1,
+      "distractors": [
+        "elephant",
+        "rabbit"
+      ],
+      "example": {
+        "en": "The monkey climbs a tree.",
+        "zh": "猴子爬上树。"
+      }
+    },
+    {
+      "id": "animal-rabbit",
+      "word": "rabbit",
+      "meaningZh": "兔子",
+      "category": "animal",
+      "difficulty": 1,
+      "distractors": [
+        "bird",
+        "panda"
+      ],
+      "example": {
+        "en": "The rabbit eats a carrot.",
+        "zh": "兔子吃胡萝卜。"
+      }
+    },
+    {
+      "id": "animal-panda",
+      "word": "panda",
+      "meaningZh": "熊猫",
+      "category": "animal",
+      "difficulty": 1,
+      "distractors": [
+        "monkey",
+        "elephant"
+      ],
+      "example": {
+        "en": "The panda likes green bamboo.",
+        "zh": "熊猫喜欢绿色竹子。"
+      }
     }
   ]
 }

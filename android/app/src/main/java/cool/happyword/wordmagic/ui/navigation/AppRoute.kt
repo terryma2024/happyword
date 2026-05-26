@@ -19,4 +19,5 @@ internal enum class AppRoute {
     BoundDeviceInfo,
     DevMenu,
     BypassSecret,
+    MessageBubbleLab,
 }

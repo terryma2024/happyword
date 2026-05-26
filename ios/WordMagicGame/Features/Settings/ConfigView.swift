@@ -655,6 +655,14 @@ struct DevMenuView: View {
                 coordinator.openBypassSecret()
             }
             headerButton(
+                "Bubble Lab",
+                minWidth: DeveloperMenuLayoutSpec.bubbleLabButtonMinWidth,
+                accessibilityIdentifier: "DevMenuMessageBubbleLabButton",
+                isDisabled: viewModel.isApplying
+            ) {
+                coordinator.openMessageBubbleLab()
+            }
+            headerButton(
                 viewModel.statusMessage == "Refreshing..." ? "Refreshing..." : "Refresh Manifest",
                 minWidth: DeveloperMenuLayoutSpec.refreshButtonMinWidth,
                 accessibilityIdentifier: "DevMenuRefreshManifestButton",
@@ -734,6 +742,7 @@ enum DeveloperMenuLayoutSpec {
     static let headerButtonLineLimit = 1
     static let backButtonMinWidth: CGFloat = 72
     static let bypassButtonMinWidth: CGFloat = 142
+    static let bubbleLabButtonMinWidth: CGFloat = 108
     static let refreshButtonMinWidth: CGFloat = 156
     static let cardTitleFontSize: CGFloat = 14
     static let cardFooterFontSize: CGFloat = 13

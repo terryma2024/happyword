@@ -60,8 +60,8 @@ export function rollMonsterBonus(level: MonsterLevel, rng: RandomFn): boolean {
  */
 
 export const DEFAULT_PLAYER_HP: number = 10;
-export const DEFAULT_MONSTER_HP: number = 3;
-export const DEFAULT_MONSTERS_TOTAL: number = 5;
+export const DEFAULT_MONSTER_HP: number = 5;
+export const DEFAULT_MONSTERS_TOTAL: number = 10;
 export const DEFAULT_STARTING_SECONDS: number = 300;
 
 /** Consecutive corrects required to trigger the magic-burst bonus. */

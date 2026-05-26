@@ -161,6 +161,7 @@ import cool.happyword.wordmagic.ui.BoundDeviceInfoScreen
 import cool.happyword.wordmagic.ui.DevMenuScreen
 import cool.happyword.wordmagic.ui.CheckInCalendarScreen
 import cool.happyword.wordmagic.ui.LearningReportScreen
+import cool.happyword.wordmagic.ui.MessageBubbleLabScreen
 import cool.happyword.wordmagic.ui.MonsterCodexScreen
 import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.PackManagerScreen
@@ -294,7 +295,7 @@ fun WordMagicGameApp() {
     var selectedPackId by remember { mutableStateOf("fruit-forest") }
     val activePacks = packLibrary.activePacks(selection.activePackIds).ifEmpty { BuiltinPacks.defaultActiveOrder.mapNotNull(packLibrary::findPack) }
     val selectedPack = packLibrary.findPack(selectedPackId) ?: activePacks.first()
-    var config by remember { mutableStateOf(GameConfig()) }
+    var config by remember { mutableStateOf(repositories.loadGameConfig()) }
     var engine by remember { mutableStateOf(BattleEngine(config = config)) }
     var battleState by remember { mutableStateOf<BattleState?>(null) }
     var battleRunId by remember { mutableIntStateOf(0) }
@@ -679,6 +680,7 @@ fun WordMagicGameApp() {
                     learningSyncToast = learningSyncToast,
                     onConfigChange = { next ->
                         config = next
+                        repositories.saveGameConfig(next)
                         engine = BattleEngine(config = config)
                     },
                     onBack = { route = AppRoute.Home },
@@ -1127,11 +1129,15 @@ fun WordMagicGameApp() {
                     },
                     onProbe = { probeStatus = devMenuViewModel.probe(backendRouteState) },
                     onBypassSecret = { route = AppRoute.BypassSecret },
+                    onMessageBubbleLab = { route = AppRoute.MessageBubbleLab },
                     onClear = {
                         backendRouteState = BackendRouteState()
                         debugRoutingRepository.clearRouteState()
                     },
                     onBack = { route = AppRoute.Home },
+                )
+                AppRoute.MessageBubbleLab -> MessageBubbleLabScreen(
+                    onBack = { route = AppRoute.DevMenu },
                 )
                 AppRoute.BypassSecret -> BypassSecretScreen(
                     initialSecret = debugRoutingRepository.bypassSecretStore.load(),

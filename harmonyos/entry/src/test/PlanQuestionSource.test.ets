@@ -9,6 +9,8 @@ import { SpellGenerator } from '../main/ets/services/SpellGenerator';
 import { PlanQuestionSource } from '../main/ets/services/PlanQuestionSource';
 import { BattleQuestionScheduler } from '../main/ets/services/BattleQuestionScheduler';
 import { DEFAULT_ENABLED_QUESTION_TYPES } from '../main/ets/services/BattleQuestionTypePolicy';
+import { BattleStageScheduler } from '../main/ets/services/BattleStageScheduler';
+import { wordSupportsQuestionType } from '../main/ets/services/BattleQuestionTypePolicy';
 import {
   MonsterPlan,
   MonsterSlot,
@@ -100,6 +102,35 @@ function buildSrc(
     new FillLetterGenerator(mulberry32(seedFill)),
     new SpellGenerator(mulberry32(seedSpell)),
     scheduler,
+  );
+}
+
+function buildStageSrc(
+  plan: TodaySessionPlan,
+  repo: WordRepository,
+  seedQ: number,
+  seedFill: number,
+  seedSpell: number,
+  enabledTypes: string[],
+): PlanQuestionSource {
+  const ids: string[] = planWordIds(plan);
+  const stageScheduler: BattleStageScheduler = new BattleStageScheduler(
+    ids,
+    enabledTypes,
+    (wordId: string, kind: string): boolean => {
+      const w: WordEntry | undefined = repo.findById(wordId);
+      return w !== undefined && wordSupportsQuestionType(w, kind);
+    },
+    mulberry32(seedQ),
+  );
+  return new PlanQuestionSource(
+    plan,
+    repo,
+    new QuestionGenerator(repo, mulberry32(seedQ)),
+    new FillLetterGenerator(mulberry32(seedFill)),
+    new SpellGenerator(mulberry32(seedSpell)),
+    undefined,
+    stageScheduler,
   );
 }
 
@@ -346,6 +377,61 @@ export default function planQuestionSourceTest() {
         }
       }
       expect(sawChallenge).assertTrue();
+    });
+
+    it('stageSchedulerKeepsChoiceAfterMonsterDiesBeforeChoiceCoverage', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Normal, MonsterKind.Normal, MonsterKind.Spelling],
+        ['fruit-apple', 'fruit-banana', 'fruit-orange']
+      );
+      const src: PlanQuestionSource = buildStageSrc(
+        plan,
+        repo,
+        1,
+        2,
+        3,
+        [QuestionKind.Choice, QuestionKind.FillLetter],
+      );
+      let monsterIndex: number = 1;
+      src.setMonsterIndexProvider((): number => monsterIndex);
+
+      const q1: Question = src.nextQuestion();
+      const q2: Question = src.nextQuestion(q1.wordId);
+      monsterIndex = 2;
+      const q3: Question = src.nextQuestion(q2.wordId);
+      monsterIndex = 3;
+      const q4: Question = src.nextQuestion(q3.wordId);
+
+      expect(q1.kind).assertEqual(QuestionKind.Choice);
+      expect(q2.kind).assertEqual(QuestionKind.Choice);
+      expect(q3.kind).assertEqual(QuestionKind.Choice);
+      expect(q4.kind).assertEqual(QuestionKind.FillLetter);
+    });
+
+    it('stageSchedulerAdvancesQuestionTypeBeforeCurrentMonsterDies', 0, () => {
+      const repo: WordRepository = makeRepo();
+      const plan: TodaySessionPlan = planWith(
+        [MonsterKind.Normal, MonsterKind.Spelling],
+        ['fruit-apple', 'fruit-banana']
+      );
+      const src: PlanQuestionSource = buildStageSrc(
+        plan,
+        repo,
+        2,
+        3,
+        4,
+        [QuestionKind.Choice, QuestionKind.FillLetter],
+      );
+      src.setMonsterIndexProvider((): number => 1);
+
+      const q1: Question = src.nextQuestion();
+      const q2: Question = src.nextQuestion(q1.wordId);
+      const q3: Question = src.nextQuestion(q2.wordId);
+
+      expect(q1.kind).assertEqual(QuestionKind.Choice);
+      expect(q2.kind).assertEqual(QuestionKind.Choice);
+      expect(q3.kind).assertEqual(QuestionKind.FillLetter);
     });
 
     it('skipsLastWordWhenPossible', 0, () => {

@@ -788,6 +788,9 @@ export default function localUnitTest() {
       const engine: BattleEngine = engineWithFruit(1);
       const state: BattleState = engine.getState();
       expect(state.status).assertEqual(BattleStatus.Playing);
+      expect(DEFAULT_PLAYER_HP).assertEqual(10);
+      expect(DEFAULT_MONSTER_HP).assertEqual(5);
+      expect(DEFAULT_MONSTERS_TOTAL).assertEqual(10);
       expect(state.playerHp).assertEqual(DEFAULT_PLAYER_HP);
       expect(state.playerMaxHp).assertEqual(DEFAULT_PLAYER_HP);
       expect(state.monsterHp).assertEqual(DEFAULT_MONSTER_HP);
@@ -1476,6 +1479,9 @@ export default function localUnitTest() {
   describe('GameConfig.defaults', () => {
     it('defaultsMatchEngineDefaults', 0, () => {
       const c: GameConfig = new GameConfig();
+      expect(c.playerMaxHp).assertEqual(10);
+      expect(c.monsterMaxHp).assertEqual(5);
+      expect(c.monstersTotal).assertEqual(10);
       expect(c.playerMaxHp).assertEqual(DEFAULT_PLAYER_HP);
       expect(c.monsterMaxHp).assertEqual(DEFAULT_MONSTER_HP);
       expect(c.monstersTotal).assertEqual(DEFAULT_MONSTERS_TOTAL);
@@ -1508,6 +1514,17 @@ export default function localUnitTest() {
   });
 
   describe('GameConfig.cloneGameConfig', () => {
+    it('clonePreservesSavedBattleKnobs', 0, () => {
+      const src: GameConfig = new GameConfig();
+      src.playerMaxHp = 7;
+      src.monsterMaxHp = 2;
+      src.monstersTotal = 4;
+      const out: GameConfig = cloneGameConfig(src);
+      expect(out.playerMaxHp).assertEqual(7);
+      expect(out.monsterMaxHp).assertEqual(2);
+      expect(out.monstersTotal).assertEqual(4);
+    });
+
     it('cloneIsDeepEnoughToIsolateDraft', 0, () => {
       const original: GameConfig = new GameConfig();
       const beforePlayer: number = original.playerMaxHp;

@@ -175,9 +175,7 @@ struct HomeView: View {
     }
 
     private var adventureSummary: String {
-        let levelCount = coordinator.selectedPack.scene.monsterPlan.isEmpty
-            ? coordinator.configStore.config.monstersTotal
-            : coordinator.selectedPack.scene.monsterPlan.count
+        let levelCount = coordinator.configStore.config.monstersTotal
         return "今天的冒险包含 \(levelCount) 关卡，含拼写、复习与首领关"
     }
 

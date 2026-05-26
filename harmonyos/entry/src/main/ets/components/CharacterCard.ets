@@ -46,6 +46,7 @@ export struct CharacterCard {
   // the first monster is defeated) actually invalidate this component. A
   // plain property would be captured at construction and stay stale.
   @Prop sublabel: string = '';
+  @Prop levelBadge: string = '';
 
   @Prop assetPath: string = '';
 
@@ -379,11 +380,29 @@ export struct CharacterCard {
       .translate({ x: this.avatarTranslateX, y: 0 })
       .rotate({ angle: this.castRotate });
 
-      Column({ space: 2 }) {
-        Text(this.name)
-          .fontSize(16)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1D3557');
+      Column({ space: 3 }) {
+        Row({ space: 6 }) {
+          Text(this.name)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1D3557')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis });
+
+          if (this.levelBadge.length > 0) {
+            Text(this.levelBadge)
+              .id(`CharacterLevelBadge_${this.name}`)
+              .fontSize(10)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#FFFFFF')
+              .backgroundColor('#457B9D')
+              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+              .borderRadius(8)
+              .constraintSize({ minHeight: 17 });
+          }
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.Center);
 
         if (this.sublabel.length > 0) {
           Text(this.sublabel)

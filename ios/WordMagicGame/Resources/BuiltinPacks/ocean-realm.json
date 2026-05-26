@@ -153,6 +153,81 @@
         "en": "The jellyfish floats in the water.",
         "zh": "水母漂在水中。"
       }
+    },
+    {
+      "id": "ocean-shell",
+      "word": "shell",
+      "meaningZh": "贝壳",
+      "category": "ocean",
+      "difficulty": 1,
+      "distractors": [
+        "coral",
+        "wave"
+      ],
+      "example": {
+        "en": "The shell is on the beach.",
+        "zh": "贝壳在沙滩上。"
+      }
+    },
+    {
+      "id": "ocean-coral",
+      "word": "coral",
+      "meaningZh": "珊瑚",
+      "category": "ocean",
+      "difficulty": 1,
+      "distractors": [
+        "shell",
+        "seaweed"
+      ],
+      "example": {
+        "en": "The coral is bright and pink.",
+        "zh": "珊瑚又亮又粉。"
+      }
+    },
+    {
+      "id": "ocean-beach",
+      "word": "beach",
+      "meaningZh": "沙滩",
+      "category": "ocean",
+      "difficulty": 1,
+      "distractors": [
+        "wave",
+        "coral"
+      ],
+      "example": {
+        "en": "We walk on the beach.",
+        "zh": "我们走在沙滩上。"
+      }
+    },
+    {
+      "id": "ocean-wave",
+      "word": "wave",
+      "meaningZh": "海浪",
+      "category": "ocean",
+      "difficulty": 1,
+      "distractors": [
+        "beach",
+        "shell"
+      ],
+      "example": {
+        "en": "A wave splashes my feet.",
+        "zh": "海浪溅到我的脚。"
+      }
+    },
+    {
+      "id": "ocean-seaweed",
+      "word": "seaweed",
+      "meaningZh": "海草",
+      "category": "ocean",
+      "difficulty": 1,
+      "distractors": [
+        "coral",
+        "beach"
+      ],
+      "example": {
+        "en": "The seaweed moves in the water.",
+        "zh": "海草在水里摆动。"
+      }
     }
   ]
 }

@@ -64,6 +64,12 @@ struct ContentView: View {
                 } else {
                     ConfigView(coordinator: coordinator)
                 }
+            case .messageBubbleLab:
+                if DeveloperToolsPolicy.isDeveloperToolsVisible() {
+                    MessageBubbleLabView(coordinator: coordinator)
+                } else {
+                    ConfigView(coordinator: coordinator)
+                }
             }
 
             if let toastMessage = coordinator.toastMessage {

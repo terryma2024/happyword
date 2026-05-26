@@ -20,18 +20,38 @@ export type QuestionSurfaceKind =
   | 'unknown';
 
 const WORD_ZH: string[] = [
-  '苹果', '香蕉', '橙子', '葡萄', '梨', '桃子', '柠檬', '芒果', '瓜', '樱桃',
-  '学校', '医院', '公园', '超市', '图书馆', '动物园', '银行', '博物馆', '车站', '家',
-  '电视', '椅子', '床', '桌子', '沙发', '台灯', '门', '窗户', '书', '杯子',
-  '猫', '狗', '狮子', '老虎', '熊', '青蛙', '鸭子', '老鼠', '绵羊', '马',
-  '鱼', '鲸鱼', '鲨鱼', '螃蟹', '海豚', '章鱼', '海豹', '海龟', '海星', '水母',
+  '苹果', '香蕉', '橙子', '葡萄', '梨',
+  '桃子', '柠檬', '芒果', '瓜', '樱桃',
+  '草莓', '菠萝', '西瓜', '猕猴桃', '蓝莓',
+  '学校', '医院', '公园', '超市', '图书馆',
+  '动物园', '银行', '博物馆', '车站', '家',
+  '餐厅', '电影院', '机场', '操场', '书店',
+  '电视', '椅子', '床', '桌子', '沙发',
+  '台灯', '门', '窗户', '书', '杯子',
+  '厨房', '浴室', '时钟', '电话', '冰箱',
+  '猫', '狗', '狮子', '老虎', '熊',
+  '青蛙', '鸭子', '老鼠', '绵羊', '马',
+  '鸟', '大象', '猴子', '兔子', '熊猫',
+  '鱼', '鲸鱼', '鲨鱼', '螃蟹', '海豚',
+  '章鱼', '海豹', '海龟', '海星', '水母',
+  '贝壳', '珊瑚', '沙滩', '海浪', '海草',
 ];
 const WORD_EN: string[] = [
-  'apple', 'banana', 'orange', 'grape', 'pear', 'peach', 'lemon', 'mango', 'melon', 'cherry',
-  'school', 'hospital', 'park', 'supermarket', 'library', 'zoo', 'bank', 'museum', 'station', 'home',
-  'TV', 'chair', 'bed', 'table', 'sofa', 'lamp', 'door', 'window', 'book', 'cup',
-  'cat', 'dog', 'lion', 'tiger', 'bear', 'frog', 'duck', 'mouse', 'sheep', 'horse',
-  'fish', 'whale', 'shark', 'crab', 'dolphin', 'octopus', 'seal', 'turtle', 'starfish', 'jellyfish',
+  'apple', 'banana', 'orange', 'grape', 'pear',
+  'peach', 'lemon', 'mango', 'melon', 'cherry',
+  'strawberry', 'pineapple', 'watermelon', 'kiwi', 'blueberry',
+  'school', 'hospital', 'park', 'supermarket', 'library',
+  'zoo', 'bank', 'museum', 'station', 'home',
+  'restaurant', 'cinema', 'airport', 'playground', 'bookstore',
+  'TV', 'chair', 'bed', 'table', 'sofa',
+  'lamp', 'door', 'window', 'book', 'cup',
+  'kitchen', 'bathroom', 'clock', 'phone', 'fridge',
+  'cat', 'dog', 'lion', 'tiger', 'bear',
+  'frog', 'duck', 'mouse', 'sheep', 'horse',
+  'bird', 'elephant', 'monkey', 'rabbit', 'panda',
+  'fish', 'whale', 'shark', 'crab', 'dolphin',
+  'octopus', 'seal', 'turtle', 'starfish', 'jellyfish',
+  'shell', 'coral', 'beach', 'wave', 'seaweed',
 ];
 
 export async function assertPlayerHp(

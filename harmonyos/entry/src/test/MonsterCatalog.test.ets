@@ -3,10 +3,13 @@ import {
   MonsterEntry,
   MonsterKind,
   MonsterLevel,
+  battleLevelLabelForMonsterLevel,
   getMonsterByIndex,
   MONSTER_CATALOG,
+  MONSTER_CATALOG_SOURCE_FILE,
   monsterIndexForKind,
   monsterLevelForCatalogIndex,
+  parseMonsterCatalogJson,
 } from '../main/ets/data/MonsterCatalog';
 
 const MONSTER_COUNT_CAP: number = 100;
@@ -61,6 +64,16 @@ export default function monsterCatalogTest() {
   describe('MonsterCatalog', () => {
     it('hasExactlyMonsterCountCapEntries', 0, () => {
       expect(MONSTER_CATALOG.length).assertEqual(MONSTER_COUNT_CAP);
+    });
+
+    it('initializesCatalogFromJsonSourceFile', 0, () => {
+      expect(MONSTER_CATALOG_SOURCE_FILE.endsWith('monster_catalog.json')).assertTrue();
+      const parsed: MonsterEntry[] = parseMonsterCatalogJson(
+        '{"monsters":[{"name":"Json Slime","fill":"#111111","stroke":"#222222","kind":"normal","assetPath":"","level":"beginner","dialogue":{"introLine":{"en":"Hello json.","zh":"你好。"},"defeatLine":{"en":"Bye json.","zh":"再见。"}}}]}',
+      );
+      expect(parsed.length).assertEqual(1);
+      expect(parsed[0].name).assertEqual('Json Slime');
+      expect(parsed[0].dialogue.introLine.zh).assertEqual('你好。');
     });
 
     it('keepsOriginalFirstTenNames', 0, () => {
@@ -203,6 +216,13 @@ export default function monsterCatalogTest() {
     it('bossesAreNotForcedToAdvanced', 0, () => {
       expect(getMonsterByIndex(4).kind).assertEqual(MonsterKind.Boss);
       expect(getMonsterByIndex(4).level).assertEqual(MonsterLevel.Intermediate);
+    });
+
+    it('battleLevelLabelsExposeCompactStageLabels', 0, () => {
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Beginner)).assertEqual('L1');
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Intermediate)).assertEqual('L2');
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Advanced)).assertEqual('L3');
+      expect(battleLevelLabelForMonsterLevel(MonsterLevel.Super)).assertEqual('L4');
     });
   });
 

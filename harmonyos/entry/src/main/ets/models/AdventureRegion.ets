@@ -26,12 +26,12 @@ export class AdventureRegion {
   bossName: string = '';
   monsterPlan: MonsterPlan = new MonsterPlan();
   /**
-   * V0.3.8: catalogIndex candidates for the slot-5 boss; empty array
-   * keeps the legacy fallback (slot 5 sticks with whatever the
+   * V0.3.8: catalogIndex candidates for Boss slots; empty array
+   * keeps the legacy fallback (Boss slots stick with whatever the
    * monsterPlan template specified, typically `monsterIndexForKind(Boss)`
    * = 13 = Dragon). When non-empty, TodayAdventureBuilder hashes the
    * region id + local day key to deterministically pick one candidate
-   * and override the slot-5 catalogIndex.
+   * and override each Boss slot's catalogIndex.
    */
   bossCandidates: number[] = [];
 }
@@ -60,5 +60,5 @@ export class TodaySessionPlan {
   isFirstToday: boolean = false;
 }
 
-export const MONSTER_PLAN_SLOT_COUNT: number = 5;
+export const MONSTER_PLAN_SLOT_COUNT: number = 10;
 export const WORD_PLAN_MULTIPLIER: number = 2;
