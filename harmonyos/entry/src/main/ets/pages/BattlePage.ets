@@ -115,7 +115,6 @@ import { requestPageOrientation } from '../utils/orientation';
 // keeps them green.
 const FEEDBACK_MS: number = 650;
 const ORDINARY_BOSS_INTRO_MS: number = 2400;
-const BOSS_DEFEAT_MS: number = 1200;
 const TICK_MS: number = 1000;
 const BOSS_MESSAGE_BUBBLE_TAIL: MessageBubbleTail = {
   baseStart: { x: 172, y: 96 },
@@ -828,25 +827,16 @@ struct BattlePage {
   }
 
   private showDefeatForMonster(entry: MonsterEntry, catalogIndex: number): void {
-    if (this.defeatShownCatalogIndices.indexOf(catalogIndex) >= 0) {
-      this.bossDefeatVisible = false;
-      this.releaseIntroAfterDefeat();
-      return;
-    }
-    this.defeatShownCatalogIndices.push(catalogIndex);
-    const d: MonsterDialogue = entry.dialogue;
     this.bossDialogueName = entry.name;
-    this.bossDialogueDefeatEn = d.defeatLine.en;
-    this.bossDialogueDefeatZh = d.defeatLine.zh;
-    this.bossDefeatVisible = true;
+    if (this.defeatShownCatalogIndices.indexOf(catalogIndex) < 0) {
+      this.defeatShownCatalogIndices.push(catalogIndex);
+    }
+    this.bossDefeatVisible = false;
     if (this.bossDefeatTimer >= 0) {
       clearTimeout(this.bossDefeatTimer);
-    }
-    this.bossDefeatTimer = setTimeout((): void => {
-      this.bossDefeatVisible = false;
       this.bossDefeatTimer = -1;
-      this.releaseIntroAfterDefeat();
-    }, BOSS_DEFEAT_MS);
+    }
+    this.releaseIntroAfterDefeat();
   }
 
   private releaseIntroAfterDefeat(): void {

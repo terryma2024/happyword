@@ -16,17 +16,17 @@ export default function bossDialogueSequencerTest(): void {
       expect(decision.catalogIndex).assertEqual(17);
     });
 
-    it('defersNewIntroUntilDefeatBubbleClears', 0, () => {
+    it('keepsIntroImmediateWhenDefeatBubbleIsDisabled', 0, () => {
       const s: BossDialogueSequencer = new BossDialogueSequencer();
       s.beginDefeatTransition();
 
-      const deferred: BossDialogueIntroDecision = s.requestIntro(3, 18, 2, []);
-      expect(deferred.kind).assertEqual(BossDialogueIntroDecisionKind.Defer);
+      const decision: BossDialogueIntroDecision = s.requestIntro(3, 18, 2, []);
+      expect(decision.kind).assertEqual(BossDialogueIntroDecisionKind.Show);
+      expect(decision.monsterIndex).assertEqual(3);
+      expect(decision.catalogIndex).assertEqual(18);
 
       const released: BossDialogueIntroDecision = s.releaseAfterDefeat();
-      expect(released.kind).assertEqual(BossDialogueIntroDecisionKind.Show);
-      expect(released.monsterIndex).assertEqual(3);
-      expect(released.catalogIndex).assertEqual(18);
+      expect(released.kind).assertEqual(BossDialogueIntroDecisionKind.Skip);
     });
 
     it('skipsDuplicateMonsterOrCatalogIntro', 0, () => {
