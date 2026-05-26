@@ -132,6 +132,16 @@ class SmokeTest {
         composeRule.onNodeWithTag("BattleBossIntroLineEn").assertIsDisplayed()
         composeRule.onNodeWithTag("BattleBossIntroLineZh").assertIsDisplayed()
         composeRule.onNodeWithTag("BattleMonsterLevelLabel").assertTextContains("L4")
+        val bubbleBounds = composeRule.onNodeWithTag("BattleBossIntroBubble").fetchSemanticsNode().boundsInRoot
+        val monsterNameBounds = composeRule.onNodeWithTag("BattleMonsterName").fetchSemanticsNode().boundsInRoot
+        val levelBounds = composeRule.onNodeWithTag("BattleMonsterLevelLabel").fetchSemanticsNode().boundsInRoot
+        assertTrue("Level tag should sit to the right of the monster name", levelBounds.left > monsterNameBounds.right)
+        assertTrue(
+            "Level tag should align with the monster name baseline",
+            abs(((levelBounds.top + levelBounds.bottom) / 2f) - ((monsterNameBounds.top + monsterNameBounds.bottom) / 2f)) < 14f,
+        )
+        assertTrue("Intro bubble should be left of the monster title area", bubbleBounds.left < monsterNameBounds.left)
+        assertTrue("Intro bubble should sit above the monster title area", bubbleBounds.top < monsterNameBounds.top)
         assertTrue(composeRule.onAllNodesWithTag("BattleSuperBossIntroBanner").fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithTag("BattleBossDefeatBubble").fetchSemanticsNodes().isEmpty())
     }

@@ -29,6 +29,11 @@ final class BattleEngineTests: XCTestCase {
         XCTAssertTrue(config.autoSpeak)
     }
 
+    func testBossIntroBubblePositionSitsCloserToMonster() {
+        XCTAssertEqual(BattleBossIntroLayoutSpec.positionXRatio, 0.65, accuracy: 0.001)
+        XCTAssertLessThan(BattleBossIntroLayoutSpec.positionXRatio, 0.72)
+    }
+
     func testCorrectWrongAndComboBurstTransitions() throws {
         let source = FixedQuestionSource(repeating: [
             Question.choice(wordId: "apple", promptZh: "苹果", answer: "apple", options: ["apple", "pear", "banana"]),

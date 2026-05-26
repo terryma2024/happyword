@@ -1,5 +1,10 @@
 import SwiftUI
 
+enum BattleBossIntroLayoutSpec {
+    static let positionXRatio: CGFloat = 0.65
+    static let positionYRatio: CGFloat = 0.20
+}
+
 struct BattleView: View {
     @ObservedObject var coordinator: AppCoordinator
     @ObservedObject var engine: BattleEngine
@@ -981,7 +986,10 @@ struct BattleView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(width: 248, height: 144)
-            .position(x: proxy.size.width * 0.72, y: proxy.size.height * 0.20)
+            .position(
+                x: proxy.size.width * BattleBossIntroLayoutSpec.positionXRatio,
+                y: proxy.size.height * BattleBossIntroLayoutSpec.positionYRatio
+            )
             .allowsHitTesting(false)
             .accessibilityIdentifier("BattleBossIntroBubble")
             .accessibilityLabel("\(bossIntro.name) \(bossIntro.dialogue.introLine.en) \(bossIntro.dialogue.introLine.zh)")

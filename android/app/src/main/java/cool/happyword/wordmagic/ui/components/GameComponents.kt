@@ -183,6 +183,8 @@ internal fun CharacterPanel(
     modifier: Modifier = Modifier,
     panelColor: Color,
     borderColor: Color,
+    titleModifier: Modifier = Modifier,
+    titleAccessory: (@Composable () -> Unit)? = null,
     isCasting: Boolean = false,
     isCritCasting: Boolean = false,
     isHurt: Boolean = false,
@@ -229,8 +231,6 @@ internal fun CharacterPanel(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, fontWeight = FontWeight.Bold, color = Color(0xFF1C3655), fontSize = 22.sp)
-            Spacer(Modifier.height(10.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (isCritCasting) {
                     Box(
@@ -259,6 +259,26 @@ internal fun CharacterPanel(
                         .clip(RoundedCornerShape(14.dp))
                         .background(if (isZoomHit) Color(0xFFFFD24A).copy(alpha = flashAlpha) else Color.Red.copy(alpha = flashAlpha)),
                 )
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    title,
+                    modifier = titleModifier.weight(1f, fill = false),
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1C3655),
+                    fontSize = 22.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (titleAccessory != null) {
+                    Spacer(Modifier.width(8.dp))
+                    titleAccessory()
+                }
             }
             Spacer(Modifier.height(8.dp))
             Text("HP $hp / $maxHp", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C3655))

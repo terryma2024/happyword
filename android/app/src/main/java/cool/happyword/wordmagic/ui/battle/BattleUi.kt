@@ -179,6 +179,17 @@ import cool.happyword.wordmagic.ui.components.CharacterPanel
 import cool.happyword.wordmagic.ui.components.MessageBubble
 import cool.happyword.wordmagic.ui.circleGlyphTextStyle
 
+object BattleBossIntroLayoutSpec {
+    const val bubbleXRatio: Float = 0.56f
+    const val bubbleYRatio: Float = 0.10f
+    const val bubbleWidthDp: Float = 224f
+    const val bubbleHeightDp: Float = 96f
+    const val bubbleZIndex: Float = 4f
+    const val levelTagZIndex: Float = 1f
+    const val levelTagStartGapDp: Float = 8f
+    const val levelTagCornerRadiusDp: Float = 14f
+}
+
 @Composable
 @Suppress("UNUSED_PARAMETER")
 internal fun BattleScreen(
@@ -369,7 +380,7 @@ internal fun BattleScreen(
         monsterCatalog.entries[Math.floorMod(state.monsterCatalogIndex - 1, monsterCatalog.entries.size)]
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF9FAFC))
@@ -478,32 +489,13 @@ internal fun BattleScreen(
                             modifier = Modifier.fillMaxSize(),
                             panelColor = Color(0xFFF7D2D2),
                             borderColor = Color(0xFFEAA0A0),
+                            titleModifier = Modifier.testTag("BattleMonsterName"),
+                            titleAccessory = {
+                                BattleMonsterLevelTag(currentMonster.battleLevelLabel)
+                            },
                             isHurt = activeOutcome?.correct == true && activeOutcome?.comboTriggered != true,
                             isZoomHit = activeOutcome?.comboTriggered == true,
                         )
-                        Text(
-                            currentMonster.battleLevelLabel,
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(10.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF5B6D8B))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                                .zIndex(2f)
-                                .testTag("BattleMonsterLevelLabel"),
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Black,
-                        )
-                        if (introBubbleCatalogIndex == state.monsterCatalogIndex && activeOutcome == null) {
-                            BossIntroBubble(
-                                monster = currentMonster,
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .offset(y = (-16).dp)
-                                    .zIndex(4f),
-                            )
-                        }
                         DamageFloaterStack(
                             floaters = monsterFloaters,
                             side = BattleFloaterSide.Monster,
@@ -542,16 +534,44 @@ internal fun BattleScreen(
                 },
             )
         }
+        if (introBubbleCatalogIndex == state.monsterCatalogIndex && activeOutcome == null) {
+            BossIntroBubble(
+                monster = currentMonster,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(
+                        x = maxWidth * BattleBossIntroLayoutSpec.bubbleXRatio,
+                        y = maxHeight * BattleBossIntroLayoutSpec.bubbleYRatio,
+                    )
+                    .zIndex(BattleBossIntroLayoutSpec.bubbleZIndex),
+            )
+        }
         CritBurstOverlay(outcome = activeOutcome, modifier = Modifier.fillMaxSize().zIndex(4f))
     }
+}
+
+@Composable
+private fun BattleMonsterLevelTag(label: String) {
+    Text(
+        label,
+        modifier = Modifier
+            .clip(RoundedCornerShape(BattleBossIntroLayoutSpec.levelTagCornerRadiusDp.dp))
+            .background(Color(0xFF008EB1))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .zIndex(BattleBossIntroLayoutSpec.levelTagZIndex)
+            .testTag("BattleMonsterLevelLabel"),
+        color = Color.White,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Black,
+    )
 }
 
 @Composable
 private fun BossIntroBubble(monster: MonsterEntry, modifier: Modifier = Modifier) {
     MessageBubble(
         modifier = modifier.testTag("BattleBossIntroBubble"),
-        width = 224.dp,
-        height = 96.dp,
+        width = BattleBossIntroLayoutSpec.bubbleWidthDp.dp,
+        height = BattleBossIntroLayoutSpec.bubbleHeightDp.dp,
         radius = 18.dp,
         borderWidth = 1.dp,
         fillColor = Color(0xFFFFFDF6),
