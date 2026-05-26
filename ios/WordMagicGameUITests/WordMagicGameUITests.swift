@@ -24,7 +24,7 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["胜利"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["★★★"].exists)
         app.buttons["返回主页"].tap()
-        XCTAssertTrue(app.staticTexts["金币 3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["金币 2"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -682,8 +682,8 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any)["LearningReportMastered"].label, "掌握 0")
         XCTAssertEqual(app.descendants(matching: .any)["LearningReportFamiliar"].label, "熟悉 0")
         XCTAssertEqual(app.descendants(matching: .any)["LearningReportLearning"].label, "学习中 0")
-        XCTAssertEqual(app.descendants(matching: .any)["LearningReportNewCount"].label, "新词 10")
-        XCTAssertTrue(app.staticTexts["0 / 10"].exists)
+        XCTAssertEqual(app.descendants(matching: .any)["LearningReportNewCount"].label, "新词 15")
+        XCTAssertTrue(app.staticTexts["0 / 15"].exists)
         XCTAssertTrue(app.staticTexts["0% 完成"].exists)
     }
 
