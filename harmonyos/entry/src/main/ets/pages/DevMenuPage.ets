@@ -358,13 +358,12 @@ struct DevMenuPage {
   }
 
   /**
-   * Build the flat card list in display order: Local, Staging,
-   * then one card per manifest preview. Recomputed every build()
-   * pass — cheap enough (<10 cards typically) and keeps the
+   * Build the fixed backend environment cards. Recomputed every build()
+   * pass — cheap enough and keeps the
    * highlight ring reactive to `currentEnv` / `currentPreviewUrl`
    * without manual invalidation.
    */
-  private cardList(): CardProps[] {
+  private environmentCardList(): CardProps[] {
     const out: CardProps[] = [];
 
     const local: CardProps = new CardProps();
@@ -385,6 +384,11 @@ struct DevMenuPage {
     staging.highlighted = this.currentEnv === BackendEnv.STAGING;
     out.push(staging);
 
+    return out;
+  }
+
+  private previewCardList(): CardProps[] {
+    const out: CardProps[] = [];
     if (this.manifest !== null) {
       // Hoist @State reads out of the loop body — codelinter
       // flags repeated `this.<state>` accesses inside a for/of as
@@ -417,8 +421,7 @@ struct DevMenuPage {
    * Builder recognises the empty marker and renders an empty
    * Column placeholder instead of a full card.
    */
-  private cardPairs(): CardProps[][] {
-    const flat: CardProps[] = this.cardList();
+  private cardPairs(flat: CardProps[]): CardProps[][] {
     const pairs: CardProps[][] = [];
     for (let i = 0; i < flat.length; i += 2) {
       const pair: CardProps[] = [flat[i]];
@@ -543,23 +546,11 @@ struct DevMenuPage {
           .fontColor('#666666')
           .margin({ bottom: 12 });
 
-        Button('Message Bubble Lab')
-          .id('DevMenuMessageBubbleLabButton')
-          .height(44)
-          .fontSize(16)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1D3557')
-          .backgroundColor('#F4F0FF')
-          .borderRadius(12)
-          .margin({ bottom: 16 })
-          .onClick((): void => this.openMessageBubbleLab());
-
-        // 2-column card grid. Each row is two cards side-by-side
-        // with `layoutWeight(1)` so they share the available width
-        // evenly. The `space: 12` on the outer Column gives breathing
-        // room between rows; per-card padding(12) handles inset.
+        // Fixed backend environment cards, then the lab shortcut, then
+        // preview deployment cards. This keeps the tool entry directly
+        // under the backend service options even when the manifest is long.
         Column({ space: 12 }) {
-          ForEach(this.cardPairs(), (pair: CardProps[]) => {
+          ForEach(this.cardPairs(this.environmentCardList()), (pair: CardProps[]) => {
             Row({ space: 12 }) {
               this.card(pair[0]);
               this.card(pair[1]);
@@ -575,6 +566,34 @@ struct DevMenuPage {
             const a: CardProps = pair[0];
             const b: CardProps = pair[1];
             return `pair-${idx}-${a.id}-${a.highlighted ? '1' : '0'}-${b.id}-${b.highlighted ? '1' : '0'}`;
+          });
+        }
+        .width('100%')
+        .margin({ bottom: 12 });
+
+        Button('Message Bubble Lab')
+          .id('DevMenuMessageBubbleLabButton')
+          .height(44)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1D3557')
+          .backgroundColor('#F4F0FF')
+          .borderRadius(12)
+          .margin({ bottom: 16 })
+          .onClick((): void => this.openMessageBubbleLab());
+
+        Column({ space: 12 }) {
+          ForEach(this.cardPairs(this.previewCardList()), (pair: CardProps[]) => {
+            Row({ space: 12 }) {
+              this.card(pair[0]);
+              this.card(pair[1]);
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Top);
+          }, (pair: CardProps[], idx: number) => {
+            const a: CardProps = pair[0];
+            const b: CardProps = pair[1];
+            return `preview-pair-${idx}-${a.id}-${a.highlighted ? '1' : '0'}-${b.id}-${b.highlighted ? '1' : '0'}`;
           });
         }
         .width('100%')
