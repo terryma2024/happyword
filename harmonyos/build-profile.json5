@@ -2,7 +2,20 @@
   "app": {
     "signingConfigs": [
       {
-        "name": "default",
+        "name": "debug",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/matianyi/.ohos/config/default_harmonyos_HWxk720wgDg7RA8ohhHWSjb208mQYy64HP7t7ksiMfU=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B2518756999CBCE8217589A4ACDC0465B33AA186A3FCF79677A1C6AE1CE9C6665AAACB233FA2ACC",
+          "profile": "/Users/matianyi/.ohos/config/default_harmonyos_HWxk720wgDg7RA8ohhHWSjb208mQYy64HP7t7ksiMfU=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/matianyi/.ohos/config/default_harmonyos_HWxk720wgDg7RA8ohhHWSjb208mQYy64HP7t7ksiMfU=.p12",
+          "storePassword": "0000001B85500FA42396D163E7F19B7E8CAE13A76CFB8230541EE82848D903E655F692885081F98F1AA26D"
+        }
+      },
+      {
+        "name": "release",
         "type": "HarmonyOS",
         "material": {
           "certpath": "/Users/matianyi/.ohos/config/wordmagicgame_release_20260516.cer",
@@ -18,7 +31,7 @@
     "products": [
       {
         "name": "default",
-        "signingConfig": "default",
+        "signingConfig": "debug",
         "targetSdkVersion": "6.0.2(22)",
         "compatibleSdkVersion": "6.0.2(22)",
         "runtimeOS": "HarmonyOS",
