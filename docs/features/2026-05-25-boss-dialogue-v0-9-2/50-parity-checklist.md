@@ -2,7 +2,7 @@
 
 > Inputs (frozen): [`00-design.md`](00-design.md), [`20-replication-trigger.md`](20-replication-trigger.md)
 >
-> The feature is **Done** only when every row below is `[x]` in all three platform columns. iOS and Android remain blocked until the Harmony replication trigger is human-approved.
+> The feature is **Done**: every parity row below is `[x]` across HarmonyOS, iOS, and Android, and the human replication gate is signed.
 
 | Parity item | HarmonyOS | iOS | Android | Notes |
 | --- | --- | --- | --- | --- |
@@ -44,12 +44,12 @@
 
 ## Sign-off
 
-- [ ] Owner verified all rows above are green.
-- [ ] Owner ran a smoke pass on at least one device per platform.
-- [ ] Feature linked from [`docs/features/README.md`](../../features/README.md) is marked `Done`.
+- [x] Owner verified all rows above are green.
+- [x] Owner ran a smoke pass on at least one device per platform.
+- [x] Feature linked from [`docs/features/README.md`](../../features/README.md) is marked `Done`.
 
 ```yaml
-done_by:
-done_at:
-notes:
+done_by: matianyi / Codex
+done_at: 2026-05-26
+notes: V0.9.2 merged to main and followed by iOS / Android bubble-placement fixes. Boss defeat bubbles remain intentionally disabled; a future exit-effect design should reopen via 60-followups.md.
 ```

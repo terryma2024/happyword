@@ -1,69 +1,31 @@
-# <Feature Name> — Android Replication Plan
+# V0.9.2 Boss Dialogue and Built-in Pack Expansion — Android Replication Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Inputs: [`00-design.md`](00-design.md), [`20-replication-trigger.md`](20-replication-trigger.md), [`50-parity-checklist.md`](50-parity-checklist.md)
 >
-> **Inputs (frozen):**
-> - Design: [`00-design.md`](00-design.md)
-> - Replication trigger (must carry `replication_approved: true`): [`20-replication-trigger.md`](20-replication-trigger.md)
->
-> **Do not redesign.** If you find an ambiguity, file it in `20-replication-trigger.md` §3 and update `00-design.md` first. Then come back here.
->
-> **Run loop:** Commands come from [`.cursor/android-dev-commands.md`](../../../.cursor/android-dev-commands.md). Use `./gradlew` from `android/`.
+> Status: **Done**. This plan records the completed Android parity work rather than future implementation tasks.
 
-**Goal:** Replicate `<Feature Name>` semantics from HarmonyOS onto Android native (Kotlin / Jetpack Compose) preserving stable IDs, persistence keys, and behavior listed in the design + delta letter.
+## Scope
 
-**Architecture:** Compose screens render state; pure Kotlin services own behavior. New / changed types match the boundaries listed in [`docs/android-replica/03-domain-logic.md`](../../android-replica/03-domain-logic.md). `shared/` stays contracts/fixtures only.
+- [x] Verified `replication_approved: true` before starting Android replication.
+- [x] Added the 100-entry bilingual monster dialogue catalog and resolver fallback coverage.
+- [x] Expanded the five built-in packs to 15 sentence-cloze-ready words each.
+- [x] Implemented first-install battle defaults: `monstersTotal = 10`, monster HP `5`, player HP `10`.
+- [x] Ported the battle-stage scheduler semantics: enabled question types progress easy to hard; current monster can survive stage advancement; the next monster uses the active stage level when spawned.
+- [x] Kept retry / re-battle scoped to the selected pack.
+- [x] Added the reusable `MessageBubble` component and message-bubble lab.
+- [x] Replaced boss intro presentation with the shared non-blocking `BattleBossIntro*` bubble for all monster levels, including Super.
+- [x] Kept defeat bubbles disabled for V0.9.2.
+- [x] Added compact `L1` / `L2` / `L3` / `L4` monster level labels.
+- [x] Tuned Android battle placement so the boss intro bubble and level label match the HarmonyOS reference more closely.
 
-**Tech Stack:** Kotlin, Jetpack Compose, JUnit (JVM unit tests), Compose UI tests, UI Automator + adb scripting where Compose tests cannot reach.
+## Verification
 
----
+- [x] `./gradlew testDebugUnitTest assembleDebug` passed.
+- [x] `connectedDebugAndroidTest` smoke suite passed: `9/9`.
+- [x] Added `BattleBossIntroLayoutSpecTest` to lock the Android bubble / level-label layout constants.
+- [x] Version metadata is `0.9.2 / 1009002`.
+- [x] Android parity rows in [`50-parity-checklist.md`](50-parity-checklist.md) are all green.
 
-### Pre-flight: verify the trigger is signed
+## Follow-up
 
-- [ ] Open [`20-replication-trigger.md`](20-replication-trigger.md) and confirm `replication_approved: true` with a non-empty `approved_by` and `approved_at`.
-- [ ] If missing, stop and ask the human owner. Do not proceed past this point.
-
-### Task 1: Domain types and pure logic
-
-**Files:**
-- Create / modify: `android/app/src/main/java/cool/happyword/wordmagic/core/...`
-- Create / modify: `android/app/src/main/java/cool/happyword/wordmagic/data/...`
-- Test: `android/app/src/test/java/cool/happyword/wordmagic/...`
-
-- [ ] Translate the design's domain rules (§6) into pure Kotlin types and services.
-- [ ] Mirror persistence keys exactly per `00-design.md` §7 and trigger §2.2.
-- [ ] Write JUnit cases that mirror the HarmonyOS unit tests listed in trigger §2.5.
-- [ ] Run: `cd android && ./gradlew testDebugUnitTest` (see [`.cursor/android-dev-commands.md`](../../../.cursor/android-dev-commands.md) §3).
-
-### Task 2: Compose screens with stable test tags
-
-**Files:**
-- Create / modify: `android/app/src/main/java/cool/happyword/wordmagic/ui/...`
-
-- [ ] Implement Compose screens; every UI element listed in `00-design.md` §5 carries `Modifier.testTag("<ID>")` verbatim.
-- [ ] Use `contentDescription` only when the same string also doubles as accessibility text.
-- [ ] Match orientation rules from HarmonyOS: child-flow landscape, parent-flow portrait.
-
-### Task 3: Compose UI tests + UI Automator parity
-
-**Files:**
-- Create / modify: `android/app/src/androidTest/java/cool/happyword/wordmagic/...`
-
-- [ ] For each row in trigger §2.5 with an Android counterpart, write the matching Compose UI test (preferred) or UI Automator case (when crossing process boundaries, e.g. permission dialogs).
-- [ ] Run on a connected emulator listed by `adb devices`.
-
-### Task 4: Versioning and screenshots
-
-**Files:**
-- Modify: `android/app/build.gradle.kts` (`versionName`, `versionCode`).
-
-- [ ] Set `versionName` to the HarmonyOS `versionName` recorded in trigger §1.
-- [ ] Pick a `versionCode` that monotonically increases. Document the chosen mapping rule the first time you do this; reuse it afterwards.
-- [ ] Capture device / emulator screenshots for every screen this feature changed and place them under `assets/screenshots/android/`.
-
-### Task 5: Verification
-
-- [ ] All `testDebugUnitTest` JVM tests green.
-- [ ] All affected Compose UI / UI Automator tests green.
-- [ ] `cd android && ./gradlew assembleDebug` succeeds with no new warnings in files you changed.
-- [ ] Update [`50-parity-checklist.md`](50-parity-checklist.md) Android columns; commit when each row is true.
+Boss defeat / exit presentation is intentionally outside V0.9.2. Reopen it as a separate future design so exit copy can be shown without overlapping the next boss intro. Tracking notes live in [`60-followups.md`](60-followups.md).

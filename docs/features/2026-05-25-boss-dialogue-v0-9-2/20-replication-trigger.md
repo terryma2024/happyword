@@ -17,10 +17,11 @@
 - [x] **Version bumped** — `harmonyos/AppScope/app.json5`
   - From: already `versionName=0.9.2` `versionCode=1009002` in this branch.
   - To: `versionName=0.9.2` `versionCode=1009002`.
-- [ ] **Feature merged to main**
-  - Commit: pending owner integration.
-- [ ] **Screenshots refreshed** — for every screen this feature visibly changed
-  - Files updated under `assets/screenshots/harmonyos/`: pending screenshot pass.
+- [x] **Feature merged to main**
+  - Commit: `342c640` merged PR #140; follow-up placement fix `b18ba64`; signing-config follow-up `d443b10`.
+- [x] **Visual smoke completed** — for every battle screen this feature visibly changed
+  - Evidence: HarmonyOS HAP rebuilt and installed to `3QDBB24806202044` on 2026-05-26; iOS and Android simulator placement fixes were reviewed during the V0.9.2 parity loop.
+  - Static screenshot assets were not refreshed for this feature; visual verification used simulator/device screenshots during implementation.
 - [x] **Server contracts up to date** — no server/shared contract change.
   - Regenerated: N/A.
   - Tests: N/A.

@@ -1,5 +1,11 @@
 # V0.9.2 Follow-ups
 
+## 2026-05-26 Closeout status
+
+- V0.9.2 is complete across HarmonyOS, iOS, and Android and merged to `main`.
+- The HarmonyOS bugfix delta and battle-stage scheduling rule below have been replicated to iOS and Android.
+- Open design follow-up: Boss defeat / exit presentation remains intentionally disabled in V0.9.2 and should be redesigned as a separate future feature so it does not overlap the next monster intro bubble.
+
 ## 2026-05-25 HarmonyOS bugfix delta
 
 - Re-battle launch now re-resolves a real `Pack` from `PackLibrary` when HomePage is still holding a synthetic first-frame fallback pack. This keeps the next battle's `TodaySessionPlan` scoped to the selected pack instead of falling back to the all-pack repository.
@@ -8,7 +14,7 @@
   - `PackHomeIntegration.resolveTodayAdventurePack` recovers the persisted selected pack when current HomePage state is synthetic.
   - `TodayAdventureBuilder` selected advanced question type plans produce multiple advanced catalog indices.
 
-Replication note: iOS and Android should copy these semantics when V0.9.2 replication is approved; they should not implement pack retry from the global/all-pack word pool.
+Replication status: copied to iOS and Android in V0.9.2. Future changes must keep selected-pack retries scoped to the chosen pack and must not fall back to the global/all-pack word pool.
 
 ## 2026-05-25 Battle stage scheduling rule
 
@@ -56,4 +62,4 @@ Battle monster cards show the current monster's level badge beside its name:
 - Advanced: `L3`
 - Super: `L4`
 
-Replication note: iOS and Android must implement the same state machine; do not reuse the older intro/challenge random scheduler.
+Replication status: implemented on iOS and Android. Future battle-scene changes must preserve this state machine and must not restore the older intro/challenge random scheduler.
