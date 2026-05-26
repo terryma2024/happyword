@@ -8,10 +8,12 @@ import {
 } from '../components/MessageBubbleGeometry';
 import {
   MessageBubbleLabState,
+  MessageBubbleLabTipAction,
   createMessageBubbleLabState,
   labStateAdjustTip,
   labStateApplyPreset,
   labStateOutput,
+  messageBubbleLabTipActions,
 } from '../components/MessageBubbleLabState';
 import { requestPageOrientation } from '../utils/orientation';
 
@@ -158,21 +160,14 @@ struct MessageBubbleLabPage {
               .fontColor('#1D3557');
             this.presetGrid();
             Row({ space: 8 }) {
-              Button('Tip X -')
-                .id('MessageBubbleLabTipXMinus')
-                .height(30)
-                .fontSize(10)
-                .onClick((): void => this.adjustTip(-4, 0));
-              Button('Tip X +')
-                .id('MessageBubbleLabTipXPlus')
-                .height(30)
-                .fontSize(10)
-                .onClick((): void => this.adjustTip(4, 0));
-              Button('Tip Y +')
-                .id('MessageBubbleLabTipYPlus')
-                .height(30)
-                .fontSize(10)
-                .onClick((): void => this.adjustTip(0, 4));
+              ForEach(messageBubbleLabTipActions(), (action: MessageBubbleLabTipAction) => {
+                Button(action.label)
+                  .id(action.id)
+                  .height(30)
+                  .fontSize(10)
+                  .layoutWeight(1)
+                  .onClick((): void => this.adjustTip(action.dx, action.dy));
+              }, (action: MessageBubbleLabTipAction) => action.id);
             }
             .width('100%');
             Text(labStateOutput(this.state))

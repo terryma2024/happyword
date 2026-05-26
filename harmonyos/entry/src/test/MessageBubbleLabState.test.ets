@@ -2,9 +2,11 @@ import { describe, it, expect } from '@ohos/hypium';
 import {
   MessageBubbleLabState,
   createMessageBubbleLabState,
+  messageBubbleLabTipActions,
   labStateApplyPreset,
   labStateAdjustTip,
   labStateOutput,
+  MessageBubbleLabTipAction,
 } from '../main/ets/components/MessageBubbleLabState';
 import { MessageBubbleTailPreset } from '../main/ets/components/MessageBubbleGeometry';
 
@@ -38,6 +40,17 @@ export default function messageBubbleLabStateTest() {
       expect(changed.tail.baseEnd.x).assertEqual(state.tail.baseEnd.x);
       expect(changed.tail.tip.x).assertEqual(state.tail.tip.x + 4);
       expect(changed.tail.tip.y).assertEqual(state.tail.tip.y - 8);
+    });
+
+    it('includesNegativeYTipActionForTheLabControls', 0, () => {
+      const actions: MessageBubbleLabTipAction[] = messageBubbleLabTipActions();
+      const tipYMinus: MessageBubbleLabTipAction | undefined =
+        actions.find((action: MessageBubbleLabTipAction): boolean => action.id === 'MessageBubbleLabTipYMinus');
+
+      expect(actions.length).assertEqual(4);
+      expect(tipYMinus?.label).assertEqual('Tip Y -');
+      expect(tipYMinus?.dx).assertEqual(0);
+      expect(tipYMinus?.dy).assertEqual(-4);
     });
   });
 }

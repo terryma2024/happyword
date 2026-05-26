@@ -18,6 +18,22 @@ export interface MessageBubbleLabState {
   tail: MessageBubbleTail;
 }
 
+export interface MessageBubbleLabTipAction {
+  id: string;
+  label: string;
+  dx: number;
+  dy: number;
+}
+
+export function messageBubbleLabTipActions(): MessageBubbleLabTipAction[] {
+  return [
+    { id: 'MessageBubbleLabTipXMinus', label: 'Tip X -', dx: -4, dy: 0 },
+    { id: 'MessageBubbleLabTipXPlus', label: 'Tip X +', dx: 4, dy: 0 },
+    { id: 'MessageBubbleLabTipYMinus', label: 'Tip Y -', dx: 0, dy: -4 },
+    { id: 'MessageBubbleLabTipYPlus', label: 'Tip Y +', dx: 0, dy: 4 },
+  ];
+}
+
 export function messageBubbleLabBox(state: MessageBubbleLabState): MessageBubbleBox {
   return {
     width: state.widthVp,
