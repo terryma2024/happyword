@@ -432,6 +432,13 @@ struct DevMenuPage {
     return pairs;
   }
 
+  private openMessageBubbleLab(): void {
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/MessageBubbleLabPage' })
+      .catch((err: BusinessError): void => {
+        console.error(`DevMenuPage.openMessageBubbleLab failed: ${JSON.stringify(err)}`);
+      });
+  }
+
   /**
    * Single card builder used for every entry in the grid. Empty
    * placeholders (`props.id === ''`) render a transparent
@@ -535,6 +542,17 @@ struct DevMenuPage {
           .fontSize(14)
           .fontColor('#666666')
           .margin({ bottom: 12 });
+
+        Button('Message Bubble Lab')
+          .id('DevMenuMessageBubbleLabButton')
+          .height(44)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1D3557')
+          .backgroundColor('#F4F0FF')
+          .borderRadius(12)
+          .margin({ bottom: 16 })
+          .onClick((): void => this.openMessageBubbleLab());
 
         // 2-column card grid. Each row is two cards side-by-side
         // with `layoutWeight(1)` so they share the available width

@@ -17,6 +17,7 @@
     "pages/ScanBindingPage",
     "pages/BoundDeviceInfoPage",
     "pages/DevMenuPage",
+    "pages/MessageBubbleLabPage",
     "pages/PackManagerPage",
     "pages/InAppBrowserPage"
   ]

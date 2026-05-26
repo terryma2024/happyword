@@ -69,6 +69,7 @@ import pronunciationServiceTest from './PronunciationService.test';
 import themePolicyTest from './ThemePolicy.test';
 import messageBubbleGeometryTest from './MessageBubbleGeometry.test';
 import messageBubbleTest from './MessageBubble.test';
+import messageBubbleLabStateTest from './MessageBubbleLabState.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -142,4 +143,5 @@ export default function testsuite() {
   themePolicyTest();
   messageBubbleGeometryTest();
   messageBubbleTest();
+  messageBubbleLabStateTest();
 }
