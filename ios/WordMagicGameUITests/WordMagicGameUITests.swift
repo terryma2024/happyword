@@ -366,6 +366,7 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Developer Options"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Backend environment (debug builds only)"].exists)
         XCTAssertTrue(app.buttons["DevMenuBypassSecretButton"].exists)
+        XCTAssertTrue(app.buttons["DevMenuMessageBubbleLabButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuRefreshManifestButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuLocalCard"].exists)
         XCTAssertTrue(app.buttons["DevMenuStagingCard"].exists)
@@ -383,6 +384,28 @@ final class WordMagicGameUITests: XCTestCase {
         app.buttons["保存"].tap()
 
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.cool")).firstMatch.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testMessageBubbleLabShowsBossPresetAndUpdatesControls() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestRouteMessageBubbleLab"]
+        app.launch()
+
+        assertPortrait(app)
+        XCTAssertTrue(app.staticTexts["Message Bubble Lab"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "baseStart: { x: 172, y: 96 }")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "tip: { x: 212, y: 112 }")).firstMatch.exists)
+
+        app.buttons["MessageBubbleLabPreset_TopLeft"].tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "preset: TopLeft")).firstMatch.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "tip: { x: 12, y: -16 }")).firstMatch.exists)
+
+        app.swipeUp()
+        let widthPlus = app.buttons["MessageBubbleLabWidthPlus"]
+        XCTAssertTrue(widthPlus.waitForExistence(timeout: 5))
+        widthPlus.tap()
+        XCTAssertTrue(app.staticTexts["234"].waitForExistence(timeout: 2))
     }
 
     @MainActor

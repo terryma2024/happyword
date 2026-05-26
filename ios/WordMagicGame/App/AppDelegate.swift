@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             "-UITestRouteChildProfile",
             "-UITestRouteParentAdmin",
             "-UITestRouteLessonReview",
+            "-UITestRouteMessageBubbleLab",
         ]
         if portraitRouteArguments.contains(where: arguments.contains) {
             return .portrait
@@ -55,7 +56,8 @@ enum OrientationController {
              .boundDeviceInfo,
              .childProfile,
              .parentAdmin,
-             .lessonReview:
+             .lessonReview,
+             .messageBubbleLab:
             return .portrait
         default:
             return .landscape

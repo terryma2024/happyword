@@ -52,6 +52,7 @@ fun DevMenuScreen(
     onSelectPreview: (PreviewTarget) -> Unit,
     onProbe: () -> Unit,
     onBypassSecret: () -> Unit,
+    onMessageBubbleLab: () -> Unit,
     onClear: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -82,6 +83,8 @@ fun DevMenuScreen(
                 color = Color(0xFF303030),
             )
             Spacer(Modifier.weight(1f))
+            HarmonyDevMenuButton("Message Bubble Lab", Modifier.testTag("DevMenuMessageBubbleLabButton"), enabled = !applying, onClick = onMessageBubbleLab)
+            Spacer(Modifier.width(10.dp))
             HarmonyDevMenuButton("Bypass Secret", Modifier.testTag("DevMenuBypassSecretButton"), enabled = !applying, onClick = onBypassSecret)
             Spacer(Modifier.width(10.dp))
             HarmonyDevMenuButton(

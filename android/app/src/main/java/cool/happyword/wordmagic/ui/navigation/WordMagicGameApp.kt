@@ -161,6 +161,7 @@ import cool.happyword.wordmagic.ui.BoundDeviceInfoScreen
 import cool.happyword.wordmagic.ui.DevMenuScreen
 import cool.happyword.wordmagic.ui.CheckInCalendarScreen
 import cool.happyword.wordmagic.ui.LearningReportScreen
+import cool.happyword.wordmagic.ui.MessageBubbleLabScreen
 import cool.happyword.wordmagic.ui.MonsterCodexScreen
 import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.PackManagerScreen
@@ -1127,11 +1128,15 @@ fun WordMagicGameApp() {
                     },
                     onProbe = { probeStatus = devMenuViewModel.probe(backendRouteState) },
                     onBypassSecret = { route = AppRoute.BypassSecret },
+                    onMessageBubbleLab = { route = AppRoute.MessageBubbleLab },
                     onClear = {
                         backendRouteState = BackendRouteState()
                         debugRoutingRepository.clearRouteState()
                     },
                     onBack = { route = AppRoute.Home },
+                )
+                AppRoute.MessageBubbleLab -> MessageBubbleLabScreen(
+                    onBack = { route = AppRoute.DevMenu },
                 )
                 AppRoute.BypassSecret -> BypassSecretScreen(
                     initialSecret = debugRoutingRepository.bypassSecretStore.load(),

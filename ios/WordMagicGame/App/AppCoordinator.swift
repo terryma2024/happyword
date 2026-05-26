@@ -22,6 +22,7 @@ enum AppRoute: Equatable {
     case childProfile
     case devMenu
     case bypassSecret
+    case messageBubbleLab
 }
 
 /// HarmonyOS `DevMenuRouteParams.presetEnv` parity (e.g. home version triple-tap → DevMenu).
@@ -510,6 +511,11 @@ final class AppCoordinator: ObservableObject {
         route = .bypassSecret
     }
 
+    func openMessageBubbleLab() {
+        guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
+        route = .messageBubbleLab
+    }
+
     func cancelBypassSecret() {
         pendingDeveloperMenuCard = nil
         route = .devMenu
@@ -822,6 +828,8 @@ final class AppCoordinator: ObservableObject {
             route = .devMenu
         } else if arguments.contains("-UITestRouteBypassSecret"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
             route = .bypassSecret
+        } else if arguments.contains("-UITestRouteMessageBubbleLab"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
+            route = .messageBubbleLab
         }
     }
 

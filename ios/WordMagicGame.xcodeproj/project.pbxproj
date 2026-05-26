@@ -58,6 +58,9 @@
 		C8ED1F2015EB743E6EED5556 /* GameConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */; };
 		D3A10531A50A7354A3613885 /* AppThemeParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAA3B5A205F686C79D19C337 /* AppThemeParityTests.swift */; };
 		D6BAC04EAF14394DB70A9820 /* DamageFloaterLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4397EF73C254584D191DEFC5 /* DamageFloaterLabelTests.swift */; };
+		D7F6A90C8F43DFF9B3951001 /* MessageBubbleGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7F6A90B8F43DFF9B3951001 /* MessageBubbleGeometryTests.swift */; };
+		D7F6A9128F43DFF9B3951001 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7F6A9118F43DFF9B3951001 /* MessageBubble.swift */; };
+		D7F6A9148F43DFF9B3951001 /* MessageBubbleLabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7F6A9138F43DFF9B3951001 /* MessageBubbleLabView.swift */; };
 		DB7C81381850767CB9885D42 /* school-castle.json in Resources */ = {isa = PBXBuildFile; fileRef = 322D0A3007C7DA1E3A44E318 /* school-castle.json */; };
 		DC8CE988A3697BC51B07E777 /* MonsterCodexView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1915D885E57624FF4078BDE /* MonsterCodexView.swift */; };
 		DF359379C8C7DA1A70E22B08 /* HTTPParentApiClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F1547BA538DD85443F0406 /* HTTPParentApiClientTests.swift */; };
@@ -150,6 +153,9 @@
 		CD002304AC10A20B5A041CF4 /* WordEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordEntry.swift; sourceTree = "<group>"; };
 		D2A9EC8E570DA5CD48D36B4B /* MonsterCodexStyleBackButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexStyleBackButton.swift; sourceTree = "<group>"; };
 		D3D73555B610C471DEB23E99 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		D7F6A90B8F43DFF9B3951001 /* MessageBubbleGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleGeometryTests.swift; sourceTree = "<group>"; };
+		D7F6A9118F43DFF9B3951001 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
+		D7F6A9138F43DFF9B3951001 /* MessageBubbleLabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleLabView.swift; sourceTree = "<group>"; };
 		DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionGeneratorTests.swift; sourceTree = "<group>"; };
 		E1915D885E57624FF4078BDE /* MonsterCodexView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexView.swift; sourceTree = "<group>"; };
 		E7E6813F9140BBAF06E03823 /* HTTPParentApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPParentApiClient.swift; sourceTree = "<group>"; };
@@ -231,6 +237,7 @@
 				A75E239F17ECE5B0C5B1CF48 /* CloudBindingViews.swift */,
 				B8B82B38DA43BA9443CC2B54 /* ConfigView.swift */,
 				AAAEB370D2B26B2384DF6720 /* DeviceBindingQRSupport.swift */,
+				D7F6A9138F43DFF9B3951001 /* MessageBubbleLabView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -271,6 +278,7 @@
 				4397EF73C254584D191DEFC5 /* DamageFloaterLabelTests.swift */,
 				546A3D7EC1D58BE06B395150 /* GameConfigTests.swift */,
 				357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */,
+				D7F6A90B8F43DFF9B3951001 /* MessageBubbleGeometryTests.swift */,
 				FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */,
 				94513DF82FF4E789AD631AC0 /* PronunciationServiceTests.swift */,
 				DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */,
@@ -328,6 +336,7 @@
 		CBCA46B9BD2D6686A2F07369 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				D7F6A9118F43DFF9B3951001 /* MessageBubble.swift */,
 				D2A9EC8E570DA5CD48D36B4B /* MonsterCodexStyleBackButton.swift */,
 			);
 			path = Shared;
@@ -510,6 +519,7 @@
 				DF359379C8C7DA1A70E22B08 /* HTTPParentApiClientTests.swift in Sources */,
 				15E36B6A030E94382C3B1267 /* LessonDraftReviewStoreTests.swift in Sources */,
 				3612D5539B436F29F3A5F62D /* LocalGrowthTests.swift in Sources */,
+				D7F6A90C8F43DFF9B3951001 /* MessageBubbleGeometryTests.swift in Sources */,
 				B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */,
 				71F3BCC31AACAF5730934FAF /* ParentApiClientDTOTests.swift in Sources */,
 				02807A455A26A592F5A50824 /* ParentLessonAPITests.swift in Sources */,
@@ -546,6 +556,8 @@
 				1802ABC00E8F5382A14E8E1C /* LessonDraftReviewStore.swift in Sources */,
 				EAE53652EC92AA7E09BFC13C /* LocalStores.swift in Sources */,
 				85D1855D2EF21E06F39BEEFD /* MonsterCodex.swift in Sources */,
+				D7F6A9128F43DFF9B3951001 /* MessageBubble.swift in Sources */,
+				D7F6A9148F43DFF9B3951001 /* MessageBubbleLabView.swift in Sources */,
 				35CA6F2A8474520D7933A336 /* MonsterCodexStyleBackButton.swift in Sources */,
 				DC8CE988A3697BC51B07E777 /* MonsterCodexView.swift in Sources */,
 				0F85857104D068CD0348FD23 /* PackLibrary.swift in Sources */,
