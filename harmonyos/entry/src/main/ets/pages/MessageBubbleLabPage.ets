@@ -170,16 +170,20 @@ struct MessageBubbleLabPage {
               }, (action: MessageBubbleLabTipAction) => action.id);
             }
             .width('100%');
-            Text(labStateOutput(this.state))
-              .id('MessageBubbleLabOutput')
-              .fontSize(10)
-              .fontColor('#3B2A65')
-              .fontFamily('monospace')
-              .padding(8)
-              .backgroundColor('#F4F0FF')
-              .borderRadius(10)
-              .maxLines(5)
-              .width('100%');
+            Scroll() {
+              Text(labStateOutput(this.state))
+                .fontSize(10)
+                .fontColor('#3B2A65')
+                .fontFamily('monospace')
+                .width('100%');
+            }
+            .id('MessageBubbleLabOutput')
+            .height(96)
+            .padding(8)
+            .backgroundColor('#F4F0FF')
+            .borderRadius(10)
+            .scrollable(ScrollDirection.Vertical)
+            .width('100%');
           }
           .layoutWeight(1);
         }
