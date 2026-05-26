@@ -5,6 +5,69 @@ enum BattleBossIntroLayoutSpec {
     static let positionYRatio: CGFloat = 0.20
 }
 
+struct LetterTemplateSlot: Equatable {
+    var glyph: String
+    var originalIndex: Int
+    var isMissing: Bool
+    var isPending: Bool
+}
+
+struct LetterTemplateMetrics: Equatable {
+    var width: CGFloat
+    var height: CGFloat
+    var gap: CGFloat
+    var filledFontSize: CGFloat
+    var placeholderFontSize: CGFloat
+}
+
+enum LetterTemplateLayout {
+    static func slots(from template: String, missingIndex: Int, pendingIndex: Int = -1) -> [LetterTemplateSlot] {
+        let chars = Array(template)
+        var output: [LetterTemplateSlot] = []
+        var index = 0
+
+        while index < chars.count {
+            let char = chars[index]
+            if char != " " {
+                output.append(LetterTemplateSlot(
+                    glyph: String(char),
+                    originalIndex: index,
+                    isMissing: index == missingIndex,
+                    isPending: index == pendingIndex
+                ))
+                index += 1
+                continue
+            }
+
+            var run = 0
+            while index + run < chars.count, chars[index + run] == " " {
+                run += 1
+            }
+            output.append(LetterTemplateSlot(
+                glyph: " ",
+                originalIndex: index,
+                isMissing: index == missingIndex,
+                isPending: index == pendingIndex
+            ))
+            index += run
+        }
+
+        return output
+    }
+
+    static func metrics(forGlyphCount count: Int) -> LetterTemplateMetrics {
+        if count <= 6 {
+            return LetterTemplateMetrics(width: 16, height: 44, gap: 3, filledFontSize: 30, placeholderFontSize: 26)
+        } else if count <= 9 {
+            return LetterTemplateMetrics(width: 16, height: 40, gap: 2, filledFontSize: 25, placeholderFontSize: 22)
+        } else if count <= 12 {
+            return LetterTemplateMetrics(width: 16, height: 36, gap: 2, filledFontSize: 22, placeholderFontSize: 20)
+        } else {
+            return LetterTemplateMetrics(width: 16, height: 32, gap: 2, filledFontSize: 19, placeholderFontSize: 17)
+        }
+    }
+}
+
 struct BattleView: View {
     @ObservedObject var coordinator: AppCoordinator
     @ObservedObject var engine: BattleEngine
@@ -232,9 +295,19 @@ struct BattleView: View {
                     .minimumScaleFactor(0.5)
                     .accessibilityIdentifier("BattlePrompt")
             case .fillLetter:
-                spellingTemplate(prompt: question.promptZh, template: question.letterTemplate)
+                spellingTemplate(
+                    prompt: question.promptZh,
+                    template: question.letterTemplate,
+                    missingIndex: question.missingIndex,
+                    pendingIndex: -1
+                )
             case .fillLetterMedium:
-                spellingTemplate(prompt: question.promptZh, template: question.letterTemplateBase)
+                spellingTemplate(
+                    prompt: question.promptZh,
+                    template: question.letterTemplateBase,
+                    missingIndex: letterMissingIndex(for: question),
+                    pendingIndex: letterPendingIndex(for: question)
+                )
             case .spell:
                 VStack(spacing: 8) {
                     Text(question.promptZh)
@@ -282,18 +355,72 @@ struct BattleView: View {
         }
     }
 
-    private func spellingTemplate(prompt: String, template: String) -> some View {
+    private func spellingTemplate(prompt: String, template: String, missingIndex: Int, pendingIndex: Int) -> some View {
         VStack(spacing: 8) {
             Text(prompt)
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .foregroundStyle(AppTheme.navy)
                 .accessibilityIdentifier("BattlePrompt")
-            Text(template)
-                .font(.system(size: 31, weight: .heavy, design: .rounded).monospaced())
-                .foregroundStyle(AppTheme.navy)
-                .minimumScaleFactor(0.55)
-                .accessibilityIdentifier("BattleLetterTemplate")
+            letterTemplateRow(template: template, missingIndex: missingIndex, pendingIndex: pendingIndex)
         }
+    }
+
+    private func letterTemplateRow(template: String, missingIndex: Int, pendingIndex: Int) -> some View {
+        let slots = LetterTemplateLayout.slots(from: template, missingIndex: missingIndex, pendingIndex: pendingIndex)
+        let metrics = LetterTemplateLayout.metrics(forGlyphCount: slots.count)
+        return HStack(spacing: metrics.gap) {
+            ForEach(Array(slots.enumerated()), id: \.offset) { _, slot in
+                letterTemplateSlot(slot, metrics: metrics)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("BattleLetterTemplate")
+    }
+
+    @ViewBuilder
+    private func letterTemplateSlot(_ slot: LetterTemplateSlot, metrics: LetterTemplateMetrics) -> some View {
+        ZStack {
+            if slot.glyph == " " {
+                Color.clear
+            } else if slot.isMissing {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(red: 0.99, green: 0.92, blue: 0.92))
+                Text("_")
+                    .font(.system(size: metrics.placeholderFontSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.90, green: 0.22, blue: 0.27))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityIdentifier("BattleLetterSlotText_\(slot.originalIndex)")
+            } else if slot.isPending {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(red: 0.95, green: 0.95, blue: 0.96))
+                Text(slot.glyph == "_" ? "_" : slot.glyph)
+                    .font(.system(size: metrics.placeholderFontSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.64, green: 0.64, blue: 0.64))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityIdentifier("BattleLetterSlotText_\(slot.originalIndex)")
+            } else {
+                Text(slot.glyph)
+                    .font(.system(size: metrics.filledFontSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.11, green: 0.21, blue: 0.34))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityIdentifier("BattleLetterSlotText_\(slot.originalIndex)")
+            }
+        }
+        .frame(width: metrics.width, height: metrics.height)
+    }
+
+    private func letterMissingIndex(for question: Question) -> Int {
+        guard question.missingIndices.indices.contains(question.currentStep) else { return -1 }
+        return question.missingIndices[question.currentStep]
+    }
+
+    private func letterPendingIndex(for question: Question) -> Int {
+        let pendingStep = question.currentStep == 0 ? 1 : 0
+        guard question.missingIndices.indices.contains(pendingStep) else { return -1 }
+        return question.missingIndices[pendingStep]
     }
 
     private var answerRow: some View {

@@ -86,6 +86,33 @@ final class QuestionGeneratorTests: XCTestCase {
         }
     }
 
+    func testLetterTemplateLayoutBuildsHarmonyStyleSlots() {
+        let slots = LetterTemplateLayout.slots(
+            from: "m_gic wand",
+            missingIndex: 1,
+            pendingIndex: 7
+        )
+
+        XCTAssertEqual(slots.map(\.glyph), ["m", "_", "g", "i", "c", " ", "w", "a", "n", "d"])
+        XCTAssertEqual(slots.map(\.originalIndex), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        XCTAssertEqual(slots.filter(\.isMissing).map(\.originalIndex), [1])
+        XCTAssertEqual(slots.filter(\.isPending).map(\.originalIndex), [7])
+    }
+
+    func testLetterTemplateLayoutUsesCompactIOSMetricBuckets() {
+        XCTAssertEqual(LetterTemplateLayout.metrics(forGlyphCount: 6).width, 16)
+        XCTAssertEqual(LetterTemplateLayout.metrics(forGlyphCount: 6).height, 44)
+        XCTAssertEqual(LetterTemplateLayout.metrics(forGlyphCount: 6).gap, 3)
+        XCTAssertEqual(LetterTemplateLayout.metrics(forGlyphCount: 6).filledFontSize, 30)
+        XCTAssertEqual(LetterTemplateLayout.metrics(forGlyphCount: 9).width, 16)
+        XCTAssertEqual(LetterTemplateLayout.metrics(forGlyphCount: 12).width, 16)
+        XCTAssertEqual(LetterTemplateLayout.metrics(forGlyphCount: 13).width, 16)
+        XCTAssertLessThanOrEqual(
+            LetterTemplateLayout.metrics(forGlyphCount: 13).width,
+            LetterTemplateLayout.metrics(forGlyphCount: 6).width
+        )
+    }
+
     func testSpellGeneratorMatchesHarmonyBoundsAndShape() throws {
         let generator = SpellGenerator(random: SeededRandom(seed: 1))
         let question = try XCTUnwrap(generator.generate(Self.word(id: "fruit-apple", word: "apple", meaningZh: "苹果")))
