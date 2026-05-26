@@ -112,6 +112,8 @@ def _flash_map_family(request: Request) -> tuple[str | None, str | None]:
         "unarchived": "已恢复词包为活跃状态。",
         "rolled_back": "已回滚家庭词包指针。",
         "deleted": "已删除家庭词包。",
+        "copied_global": "已复制家庭词包为新的全局词包草稿。",
+        "copied_family": "已复制家庭词包给目标家庭。",
     }
     err = request.query_params.get("flash_err")
     return (msgs.get(ok) if ok else None, err)
@@ -1475,6 +1477,65 @@ async def admin_family_delete_post(
     except LookupError:
         return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
     return RedirectResponse(url="/admin/family-packs?flash_ok=deleted", status_code=303)
+
+
+@router.post("/family-packs/{pack_id}/copy-to-global", response_model=None)
+async def admin_family_copy_to_global_post(
+    request: Request,
+    pack_id: str,
+    reason: str = Form(...),
+    delete_source: str | None = Form(None),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        await acs.admin_family_pack_copy(
+            admin_username=gate.username,
+            source_pack_id=pack_id,
+            target_kind="global",
+            target_family_id=None,
+            delete_source=delete_source is not None,
+            reason=reason,
+        )
+    except LookupError:
+        return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/family-packs?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    return RedirectResponse(url="/admin/family-packs?flash_ok=copied_global", status_code=303)
+
+
+@router.post("/family-packs/{pack_id}/copy-to-family", response_model=None)
+async def admin_family_copy_to_family_post(
+    request: Request,
+    pack_id: str,
+    target_family_id: str = Form(...),
+    reason: str = Form(...),
+    delete_source: str | None = Form(None),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    try:
+        await acs.admin_family_pack_copy(
+            admin_username=gate.username,
+            source_pack_id=pack_id,
+            target_kind="family",
+            target_family_id=target_family_id,
+            delete_source=delete_source is not None,
+            reason=reason,
+        )
+    except LookupError:
+        return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/admin/family-packs?flash_err={quote(str(e))}",
+            status_code=303,
+        )
+    return RedirectResponse(url="/admin/family-packs?flash_ok=copied_family", status_code=303)
 
 
 # --- audit logs ---------------------------------------------------------------
