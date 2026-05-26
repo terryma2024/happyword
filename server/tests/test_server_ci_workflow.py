@@ -13,19 +13,30 @@ def _workflow(name: str) -> str:
     return (repo_root / ".github" / "workflows" / name).read_text(encoding="utf-8")
 
 
+def _step_with_id(workflow: str, step_id: str) -> str:
+    id_marker = f"        id: {step_id}"
+    id_index = workflow.index(id_marker)
+    start = workflow.rfind("\n      - name:", 0, id_index)
+    end = workflow.find("\n      - name:", id_index)
+    return workflow[start : end if end != -1 else len(workflow)]
+
+
 def _step_named(workflow: str, name: str) -> str:
     start = workflow.index(f"      - name: {name}")
     end = workflow.find("\n      - name:", start + 1)
     return workflow[start : end if end != -1 else len(workflow)]
 
 
-def test_server_ci_uses_single_cloudbase_staging_e2e_environment() -> None:
-    """PR E2E uses the shared CloudBase staging environment, not per-PR deploys."""
+def test_server_ci_runs_cloudbase_and_legacy_vercel_e2e_during_transition() -> None:
+    """During migration, PR CI runs both CloudBase staging and Vercel Preview E2E."""
     workflow = _server_ci_workflow()
 
-    assert "  server_e2e:" not in workflow
-    assert "Deploy Vercel preview (E2E-controlled)" not in workflow
-    assert "happyword_pr_{pr}_e2e" not in workflow
+    assert "  server_e2e:" in workflow
+    assert "Deploy Vercel preview (E2E-controlled)" in workflow
+    assert "VERCEL_TOKEN" in workflow
+    assert "VERCEL_CLI_VERSION" in workflow
+    assert "  update_manifest:" in workflow
+    assert "node server/scripts/update_preview_manifest.mjs" in workflow
     assert "  cloudbase_staging_e2e:" in workflow
     assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in workflow
     assert '"$UV_BIN" run --python 3.12 python scripts/e2e_reset_db.py' in workflow
@@ -41,13 +52,23 @@ def test_cursor_autofix_action_is_removed() -> None:
     assert "trigger-cursor-fix-e2e.mjs" not in workflow
 
 
-def test_server_ci_no_longer_deploys_legacy_vercel_preview_for_e2e() -> None:
+def test_legacy_vercel_e2e_skips_unusable_local_mongo_uri() -> None:
     workflow = _server_ci_workflow()
 
-    assert "VERCEL_TOKEN" not in workflow
-    assert "VERCEL_CLI_VERSION" not in workflow
-    assert "vercel_deploy" not in workflow
-    assert "update_manifest" not in workflow
+    validate_step = _step_with_id(workflow, "e2e_mongo")
+    assert "Validate E2E MongoDB URI" in validate_step
+    assert "set_ready(False)" in validate_step
+    assert "127.0.0.1" in validate_step
+    assert "localhost" in validate_step
+    assert "::1" in validate_step
+
+    for step_name in [
+        "Prune stale E2E PR databases",
+        "Reset E2E database (truncate test collections)",
+        "Run E2E pytest subset",
+    ]:
+        step = _step_named(workflow, step_name)
+        assert "steps.e2e_mongo.outputs.ready == 'true'" in step
 
 
 def test_cloudbase_staging_e2e_runs_for_server_prs_without_label_gate() -> None:
