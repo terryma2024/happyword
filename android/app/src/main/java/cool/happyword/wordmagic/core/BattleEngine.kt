@@ -591,7 +591,7 @@ private fun phraseTokens(raw: String): List<PhraseToken> {
 }
 
 private fun templateFromTokens(tokens: List<PhraseToken>, missingPositions: Set<Int>): String {
-    return tokens.joinToString(" ") { token ->
+    return tokens.joinToString("") { token ->
         if (token.isLetter && token.originalIndex in missingPositions) "_" else token.glyph
     }
 }

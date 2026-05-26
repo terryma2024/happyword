@@ -14,6 +14,16 @@ function makeWord(id: string, word: string): WordEntry {
   return e;
 }
 
+function countSpaces(value: string): number {
+  let total = 0;
+  for (let i = 0; i < value.length; i++) {
+    if (value.charAt(i) === ' ') {
+      total++;
+    }
+  }
+  return total;
+}
+
 export default function fillLetterGeneratorTest() {
   describe('FillLetterGenerator', () => {
     it('producesWellFormedFillLetterQuestion', 0, () => {
@@ -74,7 +84,7 @@ export default function fillLetterGeneratorTest() {
     it('letterTemplateUsesUnderscoreAtMissingIndex', 0, () => {
       const gen: FillLetterGenerator = new FillLetterGenerator(mulberry32(5));
       const q: Question = gen.generate(makeWord('fruit-pear', 'pear')) as Question;
-      const tokens: string[] = q.letterTemplate.split(' ');
+      const tokens: string[] = q.letterTemplate.split('');
       expect(tokens.length).assertEqual('pear'.length);
       expect(tokens[q.missingIndex]).assertEqual('_');
     });
@@ -135,11 +145,14 @@ export default function fillLetterGeneratorTest() {
 
     it('phraseTemplatesPreserveWordSpaces', 0, () => {
       const gen: FillLetterGenerator = new FillLetterGenerator(mulberry32(10));
+      const singleWord: Question = gen.generate(makeWord('fruit-apple', 'apple')) as Question;
+      expect(countSpaces(singleWord.letterTemplate)).assertEqual(0);
+
       const q: Question = gen.generate(makeWord('phrase-magic-wand', 'magic wand')) as Question;
-      expect(q.letterTemplate.indexOf('   ') >= 0).assertTrue();
+      expect(countSpaces(q.letterTemplate)).assertEqual(1);
 
       const medium: Question = gen.generateMedium(makeWord('phrase-magic-wand', 'magic wand')) as Question;
-      expect(medium.letterTemplateBase.indexOf('   ') >= 0).assertTrue();
+      expect(countSpaces(medium.letterTemplateBase)).assertEqual(1);
     });
 
     it('doesNotHideArticleLettersInPhrases', 0, () => {

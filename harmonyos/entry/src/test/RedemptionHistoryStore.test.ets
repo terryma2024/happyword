@@ -7,6 +7,7 @@ import {
 import {
   RedemptionRecord,
   REDEMPTION_HISTORY_CAP,
+  REDEMPTION_PREFS_KEY,
 } from '../main/ets/models/RedemptionRecord';
 import { StringPreferencesLike } from '../main/ets/services/WrongAnswerStore';
 
@@ -21,6 +22,31 @@ class MapPrefs implements StringPreferencesLike {
   }
   flush(): Promise<void> {
     return Promise.resolve();
+  }
+}
+
+class DurableMapPrefs implements StringPreferencesLike {
+  private committed: Map<string, string> = new Map<string, string>();
+  private pending: Map<string, string> = new Map<string, string>();
+  flushCount: number = 0;
+
+  getString(key: string): Promise<string> {
+    return Promise.resolve(this.committed.has(key) ? (this.committed.get(key) as string) : '');
+  }
+  putString(key: string, value: string): Promise<void> {
+    this.pending.set(key, value);
+    return Promise.resolve();
+  }
+  flush(): Promise<void> {
+    this.pending.forEach((value: string, key: string): void => {
+      this.committed.set(key, value);
+    });
+    this.pending.clear();
+    this.flushCount = this.flushCount + 1;
+    return Promise.resolve();
+  }
+  committedString(key: string): string {
+    return this.committed.has(key) ? (this.committed.get(key) as string) : '';
   }
 }
 
@@ -100,6 +126,26 @@ export default function redemptionHistoryStoreTest() {
       b.injectPreferencesForTest(prefs);
       await b.rehydrateForTest();
 
+      const out: RedemptionRecord[] = b.list();
+      expect(out.length).assertEqual(1);
+      expect(out[0].id).assertEqual('r-persisted');
+    });
+
+    it('flushNowCommitsAddedRecordForColdStart', 0, async () => {
+      __resetRedemptionHistoryStoreForTest();
+      const prefs: DurableMapPrefs = new DurableMapPrefs();
+
+      const a: RedemptionHistoryStore = new RedemptionHistoryStore();
+      a.injectPreferencesForTest(prefs);
+      a.add(makeRecord('persisted', 2000));
+      await a.flushNow();
+
+      const b: RedemptionHistoryStore = new RedemptionHistoryStore();
+      b.injectPreferencesForTest(prefs);
+      await b.rehydrateForTest();
+
+      expect(prefs.flushCount).assertEqual(1);
+      expect(prefs.committedString(REDEMPTION_PREFS_KEY).length > 0).assertTrue();
       const out: RedemptionRecord[] = b.list();
       expect(out.length).assertEqual(1);
       expect(out[0].id).assertEqual('r-persisted');

@@ -5,6 +5,7 @@ final class GameConfigStore: ObservableObject {
     @Published private(set) var config: GameConfig
     private let defaults: UserDefaults
     private let key = "iosReplicaGameConfig"
+    var backingDefaults: UserDefaults { defaults }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -29,13 +30,13 @@ final class GameConfigStore: ObservableObject {
 
 @MainActor
 final class CoinAccount: ObservableObject {
-    enum TransactionReason: String {
+    enum TransactionReason: String, Codable {
         case todayReward
         case redemption
         case checkInWeeklyBonus
     }
 
-    struct Transaction: Equatable, Identifiable {
+    struct Transaction: Equatable, Identifiable, Codable {
         var id: String
         var delta: Int
         var reason: TransactionReason
@@ -43,17 +44,43 @@ final class CoinAccount: ObservableObject {
     }
 
     static let dailyCap = 20
+    private static let key = "wordmagic_coin_account/snapshot_v1"
+
+    private struct Snapshot: Codable, Equatable {
+        var version: Int = 1
+        var balance: Int
+        var transactions: [Transaction]
+        var earnedByDay: [String: Int]
+    }
 
     @Published private(set) var balance: Int
-    @Published private(set) var transactions: [Transaction] = []
-    private var earnedByDay: [String: Int] = [:]
+    @Published private(set) var transactions: [Transaction]
+    private var earnedByDay: [String: Int]
+    private let defaults: UserDefaults?
 
-    init(balance: Int = 0) {
-        self.balance = balance
+    init(balance: Int = 0, defaults: UserDefaults? = nil) {
+        self.defaults = defaults
+        if ProcessInfo.processInfo.arguments.contains("-UITestResetState") {
+            defaults?.removeObject(forKey: Self.key)
+        }
+        if let data = defaults?.data(forKey: Self.key),
+           let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) {
+            self.balance = max(0, snapshot.balance)
+            transactions = snapshot.transactions.sorted { $0.createdAt > $1.createdAt }
+            earnedByDay = snapshot.earnedByDay
+        } else {
+            self.balance = balance
+            transactions = []
+            earnedByDay = [:]
+        }
     }
 
     func earn(_ amount: Int) -> Int {
-        balance += max(amount, 0)
+        let actual = max(amount, 0)
+        balance += actual
+        if actual > 0 {
+            save()
+        }
         return balance
     }
 
@@ -70,6 +97,7 @@ final class CoinAccount: ObservableObject {
         earnedByDay[day, default: 0] += actual
         balance += actual
         transactions.insert(Transaction(id: UUID().uuidString, delta: actual, reason: reason, createdAt: now), at: 0)
+        save()
         return actual
     }
 
@@ -82,6 +110,7 @@ final class CoinAccount: ObservableObject {
             Transaction(id: "checkin-weekly-bonus:\(dayKey)", delta: actual, reason: .checkInWeeklyBonus, createdAt: now),
             at: 0
         )
+        save()
         return actual
     }
 
@@ -90,7 +119,16 @@ final class CoinAccount: ObservableObject {
         guard amount > 0, balance >= amount else { return false }
         balance -= amount
         transactions.insert(Transaction(id: UUID().uuidString, delta: -amount, reason: .redemption, createdAt: now), at: 0)
+        save()
         return true
+    }
+
+    private func save() {
+        guard let defaults else { return }
+        let snapshot = Snapshot(balance: balance, transactions: transactions, earnedByDay: earnedByDay)
+        if let data = try? JSONEncoder().encode(snapshot) {
+            defaults.set(data, forKey: Self.key)
+        }
     }
 
     private static func dayKey(_ date: Date) -> String {
@@ -313,7 +351,7 @@ final class CheckInStore: ObservableObject {
     }
 }
 
-struct MagicWish: Equatable, Identifiable {
+struct MagicWish: Equatable, Identifiable, Codable {
     var id: String
     var displayName: String
     var costCoins: Int
@@ -321,7 +359,7 @@ struct MagicWish: Equatable, Identifiable {
     var isCustom: Bool
 }
 
-struct RedemptionRecord: Equatable, Identifiable {
+struct RedemptionRecord: Equatable, Identifiable, Codable {
     var id: String
     var wishId: String
     var displayName: String
@@ -332,11 +370,26 @@ struct RedemptionRecord: Equatable, Identifiable {
 
 final class RedemptionHistoryStore: ObservableObject {
     static let cap = 50
+    private static let key = "wordmagic_redemption_history/snapshot_v1"
+
+    private struct Snapshot: Codable, Equatable {
+        var version: Int = 1
+        var records: [RedemptionRecord]
+    }
 
     @Published private(set) var records: [RedemptionRecord]
+    private let defaults: UserDefaults?
 
-    init(records: [RedemptionRecord] = []) {
-        self.records = Array(records.sorted { $0.createdAt > $1.createdAt }.prefix(Self.cap))
+    init(records: [RedemptionRecord] = [], defaults: UserDefaults? = nil) {
+        self.defaults = defaults
+        if ProcessInfo.processInfo.arguments.contains("-UITestResetState") {
+            defaults?.removeObject(forKey: Self.key)
+        }
+        let restored = defaults
+            .flatMap { $0.data(forKey: Self.key) }
+            .flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
+        let source = records.isEmpty ? restored?.records ?? records : records
+        self.records = Array(source.sorted { $0.createdAt > $1.createdAt }.prefix(Self.cap))
     }
 
     func add(_ record: RedemptionRecord) {
@@ -344,14 +397,40 @@ final class RedemptionHistoryStore: ObservableObject {
         if records.count > Self.cap {
             records = Array(records.prefix(Self.cap))
         }
+        save()
+    }
+
+    private func save() {
+        guard let defaults else { return }
+        let snapshot = Snapshot(records: records)
+        if let data = try? JSONEncoder().encode(snapshot) {
+            defaults.set(data, forKey: Self.key)
+        }
     }
 }
 
 final class WishlistStore: ObservableObject {
-    @Published private(set) var wishes: [MagicWish]
+    private static let key = "wordmagic_wishlist/snapshot_v1"
 
-    init(wishes: [MagicWish] = WishlistStore.defaultWishes) {
-        self.wishes = wishes
+    private struct Snapshot: Codable, Equatable {
+        var version: Int = 1
+        var customWishes: [MagicWish]
+    }
+
+    @Published private(set) var wishes: [MagicWish]
+    private let defaults: UserDefaults?
+
+    init(wishes: [MagicWish] = WishlistStore.defaultWishes, defaults: UserDefaults? = nil) {
+        self.defaults = defaults
+        if ProcessInfo.processInfo.arguments.contains("-UITestResetState") {
+            defaults?.removeObject(forKey: Self.key)
+        }
+        let restored = defaults
+            .flatMap { $0.data(forKey: Self.key) }
+            .flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
+        let baseWishes = wishes.filter { !$0.isCustom }
+        let customWishes = restored?.customWishes ?? wishes.filter(\.isCustom)
+        self.wishes = baseWishes + Self.uniqueCustomWishes(customWishes)
     }
 
     @discardableResult
@@ -361,6 +440,7 @@ final class WishlistStore: ObservableObject {
         guard !trimmedName.isEmpty, costCoins > 0, !emoji.isEmpty else { return "" }
         let id = "custom-\(Int(now.timeIntervalSince1970 * 1000))-\(wishes.count)"
         wishes.append(MagicWish(id: id, displayName: trimmedName, costCoins: costCoins, iconEmoji: emoji, isCustom: true))
+        save()
         return id
     }
 
@@ -368,6 +448,7 @@ final class WishlistStore: ObservableObject {
     func deleteCustomWish(_ id: String) -> Bool {
         guard let index = wishes.firstIndex(where: { $0.id == id && $0.isCustom }) else { return false }
         wishes.remove(at: index)
+        save()
         return true
     }
 
@@ -389,6 +470,23 @@ final class WishlistStore: ObservableObject {
         )
         history.add(record)
         return record
+    }
+
+    private func save() {
+        guard let defaults else { return }
+        let snapshot = Snapshot(customWishes: wishes.filter(\.isCustom))
+        if let data = try? JSONEncoder().encode(snapshot) {
+            defaults.set(data, forKey: Self.key)
+        }
+    }
+
+    private static func uniqueCustomWishes(_ wishes: [MagicWish]) -> [MagicWish] {
+        var seen: Set<String> = []
+        return wishes.filter { wish in
+            guard wish.isCustom, !wish.id.isEmpty, !seen.contains(wish.id) else { return false }
+            seen.insert(wish.id)
+            return true
+        }
     }
 
     static let defaultWishes: [MagicWish] = [

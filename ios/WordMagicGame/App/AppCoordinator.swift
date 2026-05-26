@@ -50,13 +50,13 @@ final class AppCoordinator: ObservableObject {
     @Published var toastMessage: String?
 
     let configStore: GameConfigStore
-    let coinAccount = CoinAccount()
+    let coinAccount: CoinAccount
     let checkInStore: CheckInStore
     let parentClient: any ParentApiClient
     let parentAdminUsesLocalMock: Bool
-    let wishlistStore = WishlistStore()
-    let redemptionHistoryStore = RedemptionHistoryStore()
-    let learningRecorder = LearningRecorder()
+    let wishlistStore: WishlistStore
+    let redemptionHistoryStore: RedemptionHistoryStore
+    let learningRecorder: LearningRecorder
     let pronunciationService: PronunciationSpeaking
     let cloudCredentialsStore: CloudCredentialsStore
     let deviceIdProvider: DeviceIdProvider
@@ -102,6 +102,10 @@ final class AppCoordinator: ObservableObject {
         wordStatsSyncClient: any WordStatsSyncClienting = CloudClientFactory.wordStatsSyncClient(),
         wordStatsSyncStateStore: WordStatsSyncStateStore = WordStatsSyncStateStore(),
         checkInStore: CheckInStore = CheckInStore(),
+        coinAccount: CoinAccount? = nil,
+        wishlistStore: WishlistStore? = nil,
+        redemptionHistoryStore: RedemptionHistoryStore? = nil,
+        learningRecorder: LearningRecorder? = nil,
         checkInSyncClient: any CheckInSyncClienting = CloudClientFactory.checkInSyncClient(),
         unbindClient: any DeviceUnbindClienting = CloudClientFactory.unbindClient(),
         childProfileClient: any ChildProfileClienting = CloudClientFactory.childProfileClient(),
@@ -119,6 +123,10 @@ final class AppCoordinator: ObservableObject {
         self.wordStatsSyncClient = wordStatsSyncClient
         self.wordStatsSyncStateStore = wordStatsSyncStateStore
         self.checkInStore = checkInStore
+        self.coinAccount = coinAccount ?? CoinAccount(defaults: configStore.backingDefaults)
+        self.wishlistStore = wishlistStore ?? WishlistStore(defaults: configStore.backingDefaults)
+        self.redemptionHistoryStore = redemptionHistoryStore ?? RedemptionHistoryStore(defaults: configStore.backingDefaults)
+        self.learningRecorder = learningRecorder ?? LearningRecorder(defaults: configStore.backingDefaults)
         self.checkInSyncClient = checkInSyncClient
         self.unbindClient = unbindClient
         self.childProfileClient = childProfileClient
@@ -130,16 +138,18 @@ final class AppCoordinator: ObservableObject {
         )
         self.developerMenuViewModel = developerMenuViewModel
         self.battleRandomSeed = battleRandomSeed
-        packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id))
+        packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id), defaults: configStore.backingDefaults)
         selectedPack = Pack.builtin[0]
         pronunciationService.prepare()
         loadCachedPackLayers()
+        reconcilePackSelectionWithLibrary()
         applyLaunchSeeds()
         applyLaunchRouteOverride()
     }
 
     func selectPack(_ pack: Pack) {
         selectedPack = pack
+        packSelectionStore.setSelectedPackId(pack.id)
     }
 
     func togglePackActive(_ pack: Pack) {
@@ -149,14 +159,14 @@ final class AppCoordinator: ObservableObject {
             packManagerToastId = ""
             if !packSelectionStore.activePackIds.contains(selectedPack.id),
                let first = activePacks.first {
-                selectedPack = first
+                selectPack(first)
             }
             packManagerMessage = "已激活 \(packSelectionStore.activePackIds.count) / \(PackSelectionStore.maxActivePacks)"
         case .activatedAutoClosed:
             packManagerToastId = "PackManagerAutoRotateToast"
             if !packSelectionStore.activePackIds.contains(selectedPack.id),
                let first = activePacks.first {
-                selectedPack = first
+                selectPack(first)
             }
             let closedTitle = packLibrary.pack(id: change.autoClosedId)?.title ?? change.autoClosedId
             packManagerMessage = "已关闭 \(closedTitle) 以激活 \(pack.title)"
@@ -227,6 +237,7 @@ final class AppCoordinator: ObservableObject {
             try packLayerStore.save(globalPackCache, layer: .global)
             try packLayerStore.save(familyPackCache, layer: .family)
             rebuildPackLibraryFromCaches()
+            reconcilePackSelectionWithLibrary()
             packManagerMessage = "已同步官方/家庭词包"
         } catch PackSyncError.bindingGone {
             cloudCredentialsStore.clear()
@@ -859,12 +870,26 @@ final class AppCoordinator: ObservableObject {
         )
     }
 
+    private func reconcilePackSelectionWithLibrary() {
+        let allPacks = packLibrary.allPacks()
+        let availableIds = Set(allPacks.map(\.id))
+        packSelectionStore.prune(availableIds: availableIds)
+        if let restored = packLibrary.pack(id: packSelectionStore.selectedPackId) {
+            selectedPack = restored
+        } else if let firstActive = activePacks.first {
+            selectPack(firstActive)
+        } else if let first = allPacks.first {
+            selectPack(first)
+        }
+    }
+
     private func clearLocalBindingForEnvironmentSwitch() {
         cloudCredentialsStore.clear()
         globalPackCache = nil
         familyPackCache = nil
         try? packLayerStore.clear()
         rebuildPackLibraryFromCaches()
+        reconcilePackSelectionWithLibrary()
         packManagerMessage = ""
         packManagerToastId = ""
         bindingMessage = "请重新绑定家长账号"
@@ -917,7 +942,7 @@ final class AppCoordinator: ObservableObject {
             cloudCredentialsStore.save(.demoBinding)
         }
         if arguments.contains("-UITestResetState") {
-            packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id))
+            packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id), defaults: configStore.backingDefaults)
             selectedPack = Pack.builtin[0]
         }
         if arguments.contains("-UITestBattleBossFirst") {

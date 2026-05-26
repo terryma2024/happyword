@@ -2,10 +2,12 @@ import { describe, it, expect } from '@ohos/hypium';
 import { CoinAccount } from '../main/ets/services/CoinAccount';
 import {
   CoinSnapshot,
+  COIN_PREFS_KEY,
   DAILY_CAP,
   MAX_TXN_HISTORY,
   formatDayKeyLocal,
 } from '../main/ets/models/CoinSnapshot';
+import { parseCoinSnapshot } from '../main/ets/services/CoinAccount';
 import { StringPreferencesLike } from '../main/ets/services/WrongAnswerStore';
 
 class MapPrefs implements StringPreferencesLike {
@@ -19,6 +21,31 @@ class MapPrefs implements StringPreferencesLike {
   }
   flush(): Promise<void> {
     return Promise.resolve();
+  }
+}
+
+class DurableMapPrefs implements StringPreferencesLike {
+  private committed: Map<string, string> = new Map<string, string>();
+  private pending: Map<string, string> = new Map<string, string>();
+  flushCount: number = 0;
+
+  getString(key: string): Promise<string> {
+    return Promise.resolve(this.committed.has(key) ? (this.committed.get(key) as string) : '');
+  }
+  putString(key: string, value: string): Promise<void> {
+    this.pending.set(key, value);
+    return Promise.resolve();
+  }
+  flush(): Promise<void> {
+    this.pending.forEach((value: string, key: string): void => {
+      this.committed.set(key, value);
+    });
+    this.pending.clear();
+    this.flushCount = this.flushCount + 1;
+    return Promise.resolve();
+  }
+  committedString(key: string): string {
+    return this.committed.has(key) ? (this.committed.get(key) as string) : '';
   }
 }
 
@@ -82,6 +109,22 @@ export default function coinAccountTest() {
       const ok: boolean = acct.redeem('wish-something', 5);
       expect(ok).assertFalse();
       expect(acct.snapshot().spentCoins).assertEqual(0);
+    });
+
+    it('flushNowCommitsRedeemSnapshotForColdStart', 0, async () => {
+      const prefs: DurableMapPrefs = new DurableMapPrefs();
+      const acct: CoinAccount = new CoinAccount();
+      acct.injectPreferencesForTest(prefs);
+      acct.beginToday(NOW);
+      acct.earn('today-first', 20, NOW);
+      acct.redeem('wish-ipad-20min', 10);
+      await acct.flushNow();
+
+      const persisted: CoinSnapshot = parseCoinSnapshot(prefs.committedString(COIN_PREFS_KEY));
+      expect(prefs.flushCount).assertEqual(1);
+      expect(persisted.totalCoins).assertEqual(20);
+      expect(persisted.spentCoins).assertEqual(10);
+      expect(persisted.txns.length).assertEqual(2);
     });
 
     it('truncatesTxnHistoryToCap', 0, () => {

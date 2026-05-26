@@ -93,10 +93,12 @@ export class TodayPreferences {
       return;
     }
     const safe: string = isKnownRegionId(id) ? id : DEFAULT_REGION_ID;
-    this.prefs.putString(REGION_ID_KEY, safe)
-      .catch((err: BusinessError): void => {
-        console.error(`TodayPreferences.saveRegionId failed: ${JSON.stringify(err)}`);
-      });
+    try {
+      await this.prefs.putString(REGION_ID_KEY, safe);
+      await this.prefs.flush();
+    } catch (err) {
+      console.error(`TodayPreferences.saveRegionId failed: ${JSON.stringify(err as BusinessError)}`);
+    }
   }
 
   async flushNow(): Promise<void> {
@@ -119,4 +121,3 @@ export function getTodayPreferences(): TodayPreferences {
 export function __resetTodayPreferencesForTest(): void {
   globalTodayPrefs = undefined;
 }
-

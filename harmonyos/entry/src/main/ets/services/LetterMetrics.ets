@@ -8,7 +8,7 @@
  *
  * `letterMetricsForLength` selects width / height / gap / font sizes
  * from length-banded buckets so short words still render at the
- * original 36×48 / 32 px size and longer words progressively tighten
+ * original 18×48 / 32 px size and longer words progressively tighten
  * until 13+-letter outliers fit a typical narrow viewport.
  *
  * Pulled out of BattlePage.ets so unit tests under entry/src/test
@@ -16,7 +16,7 @@
  * its @Entry / ArkUI dependencies) into the test compilation unit.
  */
 export class LetterMetrics {
-  width: number = 36;
+  width: number = 18;
   height: number = 48;
   gap: number = 4;
   fontFilled: number = 32;
@@ -24,15 +24,13 @@ export class LetterMetrics {
 }
 
 export function letterMetricsForLength(n: number): LetterMetrics {
-  // Gap values halved from the original 8 / 6 / 4 / 3 vp set for a
-  // tighter FillLetter prompt row (per-band: 4 / 3 / 2 / 2 vp). Cell
-  // width / height / font sizes unchanged — only the inter-cell space
-  // is tightened, so the prompt still wraps the same length budget
-  // and "supermarket" continues to fit under the 380 dp viewport
-  // ceiling (now with 20 dp of extra slack).
+  // Gap values are tightened from the original 8 / 6 / 4 / 3 vp set
+  // (per-band: 4 / 3 / 2 / 2 vp). Short-word cells can be narrowed
+  // independently for visual tuning while longer-word buckets continue
+  // to fit under the 380 dp viewport ceiling.
   const m: LetterMetrics = new LetterMetrics();
   if (n <= 6) {
-    m.width = 36; m.height = 48; m.gap = 4;
+    m.width = 18; m.height = 48; m.gap = 4;
     m.fontFilled = 32; m.fontPlaceholder = 28;
   } else if (n <= 9) {
     m.width = 30; m.height = 42; m.gap = 3;

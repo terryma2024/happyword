@@ -1,6 +1,6 @@
 import Foundation
 
-struct WordLearningStat: Equatable {
+struct WordLearningStat: Equatable, Codable {
     var wordId: String
     var attempts: Int
     var correct: Int
@@ -16,7 +16,29 @@ struct WordLearningStat: Equatable {
 }
 
 final class LearningRecorder {
+    private static let key = "wordmagic_learning_recorder/snapshot_v1"
+
+    private struct Snapshot: Codable, Equatable {
+        var version: Int = 1
+        var statsByWordId: [String: WordLearningStat]
+    }
+
     private(set) var statsByWordId: [String: WordLearningStat] = [:]
+    private let defaults: UserDefaults?
+
+    init(defaults: UserDefaults? = nil, statsByWordId: [String: WordLearningStat] = [:]) {
+        self.defaults = defaults
+        if ProcessInfo.processInfo.arguments.contains("-UITestResetState") {
+            defaults?.removeObject(forKey: Self.key)
+        }
+        if statsByWordId.isEmpty,
+           let data = defaults?.data(forKey: Self.key),
+           let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) {
+            self.statsByWordId = snapshot.statsByWordId
+        } else {
+            self.statsByWordId = statsByWordId
+        }
+    }
 
     func record(wordId: String, correct: Bool, at date: Date = Date()) {
         var stat = statsByWordId[wordId] ?? WordLearningStat(wordId: wordId, attempts: 0, correct: 0, lastSeenAt: date)
@@ -26,6 +48,7 @@ final class LearningRecorder {
         }
         stat.lastSeenAt = date
         statsByWordId[wordId] = stat
+        save()
     }
 
     func stat(for wordId: String) -> WordLearningStat? {
@@ -44,6 +67,14 @@ final class LearningRecorder {
             }
             .prefix(limit)
             .map(\.wordId)
+    }
+
+    private func save() {
+        guard let defaults else { return }
+        let snapshot = Snapshot(statsByWordId: statsByWordId)
+        if let data = try? JSONEncoder().encode(snapshot) {
+            defaults.set(data, forKey: Self.key)
+        }
     }
 }
 
