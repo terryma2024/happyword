@@ -358,8 +358,26 @@ enum class MonsterLevel(val labelZh: String) {
                 else -> Super
             }
         }
+
+        fun battleLabelFor(level: MonsterLevel): String =
+            when (level) {
+                Beginner -> "L1"
+                Intermediate -> "L2"
+                Advanced -> "L3"
+                Super -> "L4"
+            }
     }
 }
+
+data class MonsterDialogueLine(
+    val en: String,
+    val zh: String,
+)
+
+data class MonsterDialogue(
+    val introLine: MonsterDialogueLine,
+    val defeatLine: MonsterDialogueLine,
+)
 
 data class MonsterEntry(
     val id: String,
@@ -368,9 +386,13 @@ data class MonsterEntry(
     val descriptionZh: String,
     val rawResourceName: String,
     val level: MonsterLevel = MonsterLevel.Beginner,
+    val dialogue: MonsterDialogue = MonsterDialogueCatalog.dialogueForIndex(1, nameEn),
 ) {
     val levelLabelZh: String
         get() = level.labelZh
+
+    val battleLevelLabel: String
+        get() = MonsterLevel.battleLabelFor(level)
 }
 
 data class MonsterCatalog(
@@ -486,7 +508,12 @@ data class MonsterCatalog(
                 MonsterEntry("sock-dragon", "Sock Dragon", "袜子小龙", "袜子小龙喜欢把丢失的袜子卷成小窝，打喷嚏会喷出棉絮云。它能帮大家找到另一只袜子。", "character_sock_dragon"),
                 MonsterEntry("kite-serpent", "Kite Serpent", "风筝长蛇", "风筝长蛇身体像彩色风筝串，尾巴系着长长飘带。它飞得很高，却总把线交给最小的朋友握着。", "character_kite_serpent"),
                 MonsterEntry("music-box-fairy", "Music Box Fairy", "八音盒仙子", "八音盒仙子站在小小发条台上，转一圈就洒出几颗音符星。她的音乐很轻，适合睡前复习单词。", "character_music_box_fairy"),
-            ).mapIndexed { index, entry -> entry.copy(level = MonsterLevel.forCatalogIndex(index + 1)) },
+            ).mapIndexed { index, entry ->
+                entry.copy(
+                    level = MonsterLevel.forCatalogIndex(index + 1),
+                    dialogue = MonsterDialogueCatalog.dialogueForIndex(index + 1, entry.nameEn),
+                )
+            },
         )
     }
 }

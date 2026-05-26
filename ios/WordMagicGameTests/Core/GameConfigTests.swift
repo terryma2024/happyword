@@ -20,6 +20,29 @@ final class GameConfigTests: XCTestCase {
         XCTAssertEqual(GameConfig.clampMonsterCount(11), 10)
     }
 
+    func testFirstInstallDefaultsMatchV092BattleRules() {
+        let config = GameConfig.default
+
+        XCTAssertEqual(config.monstersTotal, 10)
+        XCTAssertEqual(config.monsterMaxHp, 5)
+        XCTAssertEqual(config.playerMaxHp, 10)
+    }
+
+    @MainActor
+    func testSavedBattleConfigValuesArePreserved() {
+        let defaults = UserDefaults(suiteName: "GameConfigTests-\(UUID().uuidString)")!
+        let saved = GameConfig(playerMaxHp: 7, monsterMaxHp: 2, monstersTotal: 4, startingSeconds: 180)
+        let data = try! JSONEncoder().encode(saved)
+        defaults.set(data, forKey: "iosReplicaGameConfig")
+
+        let store = GameConfigStore(defaults: defaults)
+
+        XCTAssertEqual(store.config.playerMaxHp, 7)
+        XCTAssertEqual(store.config.monsterMaxHp, 2)
+        XCTAssertEqual(store.config.monstersTotal, 4)
+        XCTAssertEqual(store.config.startingSeconds, 180)
+    }
+
     // MARK: - Custom timer dialog (parity with Harmony `validateCustomTimerSeconds`)
 
     func testValidateCustomTimerRejectsEmptyAndWhitespace() {

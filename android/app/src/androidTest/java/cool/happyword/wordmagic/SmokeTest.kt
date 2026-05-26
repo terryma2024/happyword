@@ -3,6 +3,7 @@ package cool.happyword.wordmagic
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import org.junit.Before
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -27,6 +29,21 @@ import org.junit.Test
 class SmokeTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
+
+    @Before
+    fun resetLocalState() {
+        composeRule.activity
+            .getSharedPreferences("wordmagic-local-progress", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+        composeRule.runOnUiThread {
+            composeRule.activity.recreate()
+        }
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            composeRule.onAllNodesWithTag("HomeScreen").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
 
     @Test
     fun homeScreenRendersAndCanOpenBattle() {
@@ -90,7 +107,8 @@ class SmokeTest {
         }
         composeRule.onNodeWithText("Question").assertIsDisplayed()
         composeRule.onNodeWithText("Small Magician").assertIsDisplayed()
-        composeRule.onNodeWithText("Word Monster").assertIsDisplayed()
+        composeRule.onNodeWithText("Monster 1 / 10").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleMonsterLevelLabel").assertIsDisplayed()
         composeRule.onNodeWithText("Escape").assertIsDisplayed()
         composeRule.onNodeWithTag("BattleSpeakerButton").assertIsDisplayed()
 
@@ -98,6 +116,24 @@ class SmokeTest {
             composeRule.onAllNodesWithText("Time 4:59").fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithText("Time 4:59").assertIsDisplayed()
+    }
+
+    @Test
+    fun bossIntroBubbleUsesStableTagsAndLevelLabelWithoutSuperBossBanner() {
+        configureSpellOnly()
+        composeRule.onNodeWithTag("HomeStartButton").performClick()
+        composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
+
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            composeRule.onAllNodesWithTag("BattleBossIntroBubble").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("BattleBossIntroBubble").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleBossIntroName").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleBossIntroLineEn").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleBossIntroLineZh").assertIsDisplayed()
+        composeRule.onNodeWithTag("BattleMonsterLevelLabel").assertTextContains("L4")
+        assertTrue(composeRule.onAllNodesWithTag("BattleSuperBossIntroBanner").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithTag("BattleBossDefeatBubble").fetchSemanticsNodes().isEmpty())
     }
 
     @Test

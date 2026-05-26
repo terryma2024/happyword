@@ -43,6 +43,7 @@
 		707FB23DB88D874E8312DD0E /* PackSelectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C695865CC24B715BCC601E85 /* PackSelectionStore.swift */; };
 		71F3BCC31AACAF5730934FAF /* ParentApiClientDTOTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD9FC5BBE0DF16B580028ED5 /* ParentApiClientDTOTests.swift */; };
 		85D1855D2EF21E06F39BEEFD /* MonsterCodex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07C00999FA9E98A1DB8AA43 /* MonsterCodex.swift */; };
+		85D1855E2EF21E06F39BEEFD /* MonsterDialogueCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07C009A9FA9E98A1DB8AA43 /* MonsterDialogueCatalog.swift */; };
 		8921E19FF5AD3AA7BE0DE7CE /* DamageFloaterLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DD367904EE83901B35B4DBF /* DamageFloaterLabel.swift */; };
 		94E337DE08EB43CCE456B2EE /* BattleAnimationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270E555771AAF420876EE21A /* BattleAnimationEvent.swift */; };
 		9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F904781ED9F4E18758477D /* ContentView.swift */; };
@@ -53,6 +54,7 @@
 		B60048E8C6C4645BDD9762F9 /* PronunciationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FAE4997C3E18E4C154192C3 /* PronunciationService.swift */; };
 		B78D4D8347BED158B20C4848 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */; };
 		B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */; };
+		B96EE54C096D36EE228F71CA /* MonsterDialogueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4F6C10250B5DDB85CA37E3 /* MonsterDialogueTests.swift */; };
 		BFB2D10A293E35EAD0F46005 /* ParentApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */; };
 		C4EBC57B653E00711C0B4378 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 278A1A6949FE6B8D92879377 /* InfoPlist.strings */; };
 		C8ED1F2015EB743E6EED5556 /* GameConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */; };
@@ -145,6 +147,7 @@
 		A77053ADBABC5E1EEED849EA /* LessonDraftReviewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDraftReviewStore.swift; sourceTree = "<group>"; };
 		AAAEB370D2B26B2384DF6720 /* DeviceBindingQRSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceBindingQRSupport.swift; sourceTree = "<group>"; };
 		B07C00999FA9E98A1DB8AA43 /* MonsterCodex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodex.swift; sourceTree = "<group>"; };
+		B07C009A9FA9E98A1DB8AA43 /* MonsterDialogueCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterDialogueCatalog.swift; sourceTree = "<group>"; };
 		B8B82B38DA43BA9443CC2B54 /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
 		B9404434663A9314B7DFB316 /* animal-safari.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "animal-safari.json"; sourceTree = "<group>"; };
 		BAA403A88DE9B94849CC1EAD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -165,6 +168,7 @@
 		FAA3B5A205F686C79D19C337 /* AppThemeParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppThemeParityTests.swift; sourceTree = "<group>"; };
 		FD9FC5BBE0DF16B580028ED5 /* ParentApiClientDTOTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentApiClientDTOTests.swift; sourceTree = "<group>"; };
 		FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexTests.swift; sourceTree = "<group>"; };
+		FF4F6C10250B5DDB85CA37E3 /* MonsterDialogueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterDialogueTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -189,6 +193,7 @@
 				4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */,
 				9608B2C630968DC71F5D8092 /* Learning.swift */,
 				B07C00999FA9E98A1DB8AA43 /* MonsterCodex.swift */,
+				B07C009A9FA9E98A1DB8AA43 /* MonsterDialogueCatalog.swift */,
 				5FAA4BEA60462EF5E008000A /* PackLibrary.swift */,
 				C695865CC24B715BCC601E85 /* PackSelectionStore.swift */,
 				5E540CFB2BCCC470ED117B65 /* Question.swift */,
@@ -280,6 +285,7 @@
 				357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */,
 				D7F6A90B8F43DFF9B3951001 /* MessageBubbleGeometryTests.swift */,
 				FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */,
+				FF4F6C10250B5DDB85CA37E3 /* MonsterDialogueTests.swift */,
 				94513DF82FF4E789AD631AC0 /* PronunciationServiceTests.swift */,
 				DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */,
 			);
@@ -521,6 +527,7 @@
 				3612D5539B436F29F3A5F62D /* LocalGrowthTests.swift in Sources */,
 				D7F6A90C8F43DFF9B3951001 /* MessageBubbleGeometryTests.swift in Sources */,
 				B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */,
+				B96EE54C096D36EE228F71CA /* MonsterDialogueTests.swift in Sources */,
 				71F3BCC31AACAF5730934FAF /* ParentApiClientDTOTests.swift in Sources */,
 				02807A455A26A592F5A50824 /* ParentLessonAPITests.swift in Sources */,
 				EC258499EC8DFFA676D2BE14 /* PronunciationServiceTests.swift in Sources */,
@@ -556,6 +563,7 @@
 				1802ABC00E8F5382A14E8E1C /* LessonDraftReviewStore.swift in Sources */,
 				EAE53652EC92AA7E09BFC13C /* LocalStores.swift in Sources */,
 				85D1855D2EF21E06F39BEEFD /* MonsterCodex.swift in Sources */,
+				85D1855E2EF21E06F39BEEFD /* MonsterDialogueCatalog.swift in Sources */,
 				D7F6A9128F43DFF9B3951001 /* MessageBubble.swift in Sources */,
 				D7F6A9148F43DFF9B3951001 /* MessageBubbleLabView.swift in Sources */,
 				35CA6F2A8474520D7933A336 /* MonsterCodexStyleBackButton.swift in Sources */,
@@ -677,7 +685,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1009001;
+				CURRENT_PROJECT_VERSION = 1009002;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 99UX498DB4;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -691,7 +699,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.9.1;
+				MARKETING_VERSION = 0.9.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -772,7 +780,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1009001;
+				CURRENT_PROJECT_VERSION = 1009002;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 99UX498DB4;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -792,7 +800,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.9.1;
+				MARKETING_VERSION = 0.9.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

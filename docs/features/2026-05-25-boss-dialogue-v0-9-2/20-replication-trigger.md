@@ -51,25 +51,19 @@
 
 | ID | Where | Notes |
 | --- | --- | --- |
-| `BattleBossIntroBubble` | Battle ordinary intro overlay | Level 1 / 2 / 3 intro container. |
-| `BattleBossIntroName` | Battle ordinary intro overlay | Monster display name. |
-| `BattleBossIntroLineEn` | Battle ordinary intro overlay | English primary line. |
-| `BattleBossIntroLineZh` | Battle ordinary intro overlay | Chinese support line. |
-| `BattleSuperBossIntroBanner` | Battle SuperBoss intro overlay | Ornate banner, auto-dismissed, blocks input while visible. |
-| `BattleSuperBossIntroTitle` | Battle SuperBoss intro overlay | Banner title. |
-| `BattleSuperBossIntroLineEn` | Battle SuperBoss intro overlay | English primary line. |
-| `BattleSuperBossIntroLineZh` | Battle SuperBoss intro overlay | Chinese support line. |
-| `BattleBossDefeatBubble` | Battle defeat overlay | Short defeat container. |
-| `BattleBossDefeatName` | Battle defeat overlay | Monster display name. |
-| `BattleBossDefeatLineEn` | Battle defeat overlay | English primary line. |
-| `BattleBossDefeatLineZh` | Battle defeat overlay | Chinese support line. |
+| `BattleBossIntroBubble` | Battle intro overlay | All monster levels, including Super, use the same non-blocking `MessageBubble` container. |
+| `BattleBossIntroName` | Battle intro overlay | Monster display name. |
+| `BattleBossIntroLineEn` | Battle intro overlay | English primary line. |
+| `BattleBossIntroLineZh` | Battle intro overlay | Chinese support line. |
+| `BattleMonsterLevelLabel` | Battle monster card | Compact `L1` / `L2` / `L3` / `L4` badge. |
 
 ### 2.4 Edge cases discovered during stabilization
 
 - `TodayAdventureBuilder` must expand legacy 5-slot monster templates to 10 output slots by cycling the template; simply changing `MONSTER_PLAN_SLOT_COUNT` is not enough.
 - With 15-word built-in packs and a 20-slot `wordPlan`, the plan builder must allow deterministic word reuse after exhausting unique candidates.
 - UI automation answer maps must include all newly added built-in words; otherwise helper-driven correct/wrong taps fail on new prompts.
-- SuperBoss intro blocks input while visible; ordinary intro and defeat bubbles do not intercept taps.
+- SuperBoss intro uses the same non-blocking message bubble as ordinary monsters.
+- Defeat bubbles are disabled for V0.9.2 to avoid overlap between monster exit and the next monster intro.
 
 ### 2.5 Tests requiring parity counterparts
 
@@ -79,13 +73,14 @@
 | `LocalUnit.test.ets` default assertions | Validate first-install defaults 10 / 5 / 10 and saved-config preservation. | Validate first-install defaults 10 / 5 / 10 and saved-config preservation. |
 | `TodayAdventureBuilder.test.ets` | Validate 10 monster slots and word-plan cycling semantics. | Validate 10 monster slots and word-plan cycling semantics. |
 | `BuiltinPackLoader.test.ets` | Validate five built-in packs each expose 15 sentence-ready words. | Validate five built-in packs each expose 15 sentence-ready words. |
-| `BattleFlow.ui.test.ets` | UI test ordinary intro, SuperBoss banner auto-dismiss, defeat bubble. | UI test ordinary intro, SuperBoss banner auto-dismiss, defeat bubble. |
+| `BattleFlow.ui.test.ets` | UI test intro bubble and monster level label. | UI test intro bubble and monster level label. |
 
 ### 2.6 Pitfalls / "do not repeat my mistakes"
 
 - Do not wrap Hypium async UI tests in `try { ... } catch (err) { done(err) }`; this runner can report false success. Let assertion errors throw directly.
 - Do not rely on process exit code alone for Hvigor unit tests; inspect console output for `ERROR: Error in ...`.
-- Do not make SuperBoss intro require an extra tap; it must auto-dismiss.
+- Do not reintroduce a separate SuperBoss banner in V0.9.2; Super uses the shared intro bubble.
+- Do not render defeat bubbles in V0.9.2; exit presentation needs a separate future design.
 - Do not mark `replication_approved: true`; only the human owner signs below.
 
 ## 3. Open Questions for the Replicas
@@ -97,8 +92,8 @@
 > **iOS / Android agents:** if `replication_approved` is missing, blank, or `false`, refuse to start Stage 4 and ask the human owner. Do not proceed.
 
 ```yaml
-approved_by:
-approved_at:
-replication_approved: false
-notes:
+approved_by: matianyi
+approved_at: 2026-05-26
+replication_approved: true
+notes: Owner requested starting iOS and Android V0.9.2 feature alignment.
 ```

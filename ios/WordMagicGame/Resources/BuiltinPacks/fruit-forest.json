@@ -161,6 +161,81 @@
         "en": "The cherry is on the cake.",
         "zh": "樱桃在蛋糕上。"
       }
+    },
+    {
+      "id": "fruit-strawberry",
+      "word": "strawberry",
+      "meaningZh": "草莓",
+      "category": "fruit",
+      "difficulty": 1,
+      "distractors": [
+        "pineapple",
+        "watermelon"
+      ],
+      "example": {
+        "en": "The strawberry is red.",
+        "zh": "草莓是红色的。"
+      }
+    },
+    {
+      "id": "fruit-pineapple",
+      "word": "pineapple",
+      "meaningZh": "菠萝",
+      "category": "fruit",
+      "difficulty": 1,
+      "distractors": [
+        "strawberry",
+        "kiwi"
+      ],
+      "example": {
+        "en": "The pineapple has green leaves.",
+        "zh": "菠萝有绿色叶子。"
+      }
+    },
+    {
+      "id": "fruit-watermelon",
+      "word": "watermelon",
+      "meaningZh": "西瓜",
+      "category": "fruit",
+      "difficulty": 1,
+      "distractors": [
+        "blueberry",
+        "pineapple"
+      ],
+      "example": {
+        "en": "We cut a watermelon today.",
+        "zh": "我们今天切西瓜。"
+      }
+    },
+    {
+      "id": "fruit-kiwi",
+      "word": "kiwi",
+      "meaningZh": "猕猴桃",
+      "category": "fruit",
+      "difficulty": 1,
+      "distractors": [
+        "strawberry",
+        "blueberry"
+      ],
+      "example": {
+        "en": "I put a kiwi in my bowl.",
+        "zh": "我把猕猴桃放进碗里。"
+      }
+    },
+    {
+      "id": "fruit-blueberry",
+      "word": "blueberry",
+      "meaningZh": "蓝莓",
+      "category": "fruit",
+      "difficulty": 1,
+      "distractors": [
+        "watermelon",
+        "kiwi"
+      ],
+      "example": {
+        "en": "A blueberry is small and blue.",
+        "zh": "蓝莓又小又蓝。"
+      }
     }
   ]
 }

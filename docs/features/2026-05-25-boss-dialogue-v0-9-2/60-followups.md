@@ -45,8 +45,9 @@ This mapping is strict: a lower stage must not spawn a higher-level monster, and
 Dialogue presentation follows catalog identity per battle:
 
 - Super monsters use the same non-blocking bubble presentation as ordinary monsters.
-- The first appearance of a catalog monster in a battle may show intro and defeat lines.
-- If the same catalog monster appears again in the same battle, suppress both intro and defeat lines.
+- The first appearance of a catalog monster in a battle may show the intro line.
+- Defeat bubbles are disabled for V0.9.2. Keep the defeat copy in the catalog for a later exit-effect design, but do not render `BattleBossDefeat*` UI during battle.
+- If the same catalog monster appears again in the same battle, suppress the intro line.
 
 Battle monster cards show the current monster's level badge beside its name:
 

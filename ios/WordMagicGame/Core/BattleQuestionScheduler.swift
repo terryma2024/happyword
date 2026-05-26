@@ -2,9 +2,7 @@ import Foundation
 
 enum BattleScheduleMode: String, Equatable {
     case singleType = "single_type"
-    case introOnly = "intro_only"
-    case challengeOnly = "challenge_only"
-    case twoPhase = "two_phase"
+    case stageOrdered = "stage_ordered"
 }
 
 struct BattleQuestionPick: Equatable {
@@ -14,259 +12,175 @@ struct BattleQuestionPick: Equatable {
 
 typealias WordKindSupportFn = (_ wordId: String, _ kind: String) -> Bool
 
-enum BattleQuestionSchedulerSupport {
-    private static let introKinds = [QuestionKind.choice.rawValue, QuestionKind.fillLetter.rawValue]
-    private static let challengeKinds = [
-        QuestionKind.fillLetterMedium.rawValue,
-        QuestionKind.spell.rawValue,
-        QuestionKind.sentenceCloze.rawValue,
-    ]
-
-    static func intersectKinds(_ pool: [String], enabled: [String]) -> [String] {
-        pool.filter { enabled.contains($0) }
-    }
-
-    static func deriveScheduleMode(
-        enabledTypes: [String],
-        introPool: [String],
-        challengePool: [String],
-    ) -> BattleScheduleMode {
-        let safe = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(enabledTypes)
-        if safe.count == 1 {
-            return .singleType
-        }
-        if introPool.isEmpty {
-            return .challengeOnly
-        }
-        if challengePool.isEmpty {
-            return .introOnly
-        }
-        return .twoPhase
-    }
-
-    fileprivate static var introKindsList: [String] { introKinds }
-    fileprivate static var challengeKindsList: [String] { challengeKinds }
+private struct BattleStage {
+    var kind: String
+    var wordIds: [String]
+    var servedIds: [String] = []
+    var cursor = 0
 }
 
 final class BattleQuestionScheduler {
-    private let mode: BattleScheduleMode
-    private let effectiveIntroPool: [String]
-    private let effectiveChallengePool: [String]
-    private let singleType: String
+    private var stages: [BattleStage] = []
     private let rng: () -> Double
-    private let planWordIds: [String]
-    private let shuffledWordIds: [String]
-    private var wordCursor = 0
-    private var servedChoice: [String] = []
-    private var servedFillLetter: [String] = []
-    private var introPassComplete = false
-    private var lastIntroKind = ""
+    private var activeStageIndex = 0
+    private var lastMonsterIndex = 0
+    private var monsterStageByIndex: [Int: Int] = [:]
+    private var monsterCatalogByIndex: [Int: Int] = [:]
 
-    init(planWordIds: [String], enabledTypes: [String], rng: @escaping () -> Double = { Double.random(in: 0 ..< 1) }) {
+    init(
+        planWordIds: [String],
+        enabledTypes: [String],
+        canServe: WordKindSupportFn? = nil,
+        rng: @escaping () -> Double = { Double.random(in: 0 ..< 1) },
+    ) {
         self.rng = rng
-        let safe = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(enabledTypes)
-        effectiveIntroPool = BattleQuestionSchedulerSupport.intersectKinds(
-            BattleQuestionSchedulerSupport.introKindsList,
-            enabled: safe,
-        )
-        effectiveChallengePool = BattleQuestionSchedulerSupport.intersectKinds(
-            BattleQuestionSchedulerSupport.challengeKindsList,
-            enabled: safe,
-        )
-        mode = BattleQuestionSchedulerSupport.deriveScheduleMode(
-            enabledTypes: safe,
-            introPool: effectiveIntroPool,
-            challengePool: effectiveChallengePool,
-        )
-        singleType = safe.count == 1 ? safe[0] : ""
-        var uniqueIds: [String] = []
-        for id in planWordIds where !id.isEmpty && !uniqueIds.contains(id) {
-            uniqueIds.append(id)
+        let uniqueWordIds = Self.uniqueNonEmpty(planWordIds)
+        let safeTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(enabledTypes)
+        let support: WordKindSupportFn = canServe ?? { _, _ in true }
+
+        for kind in safeTypes {
+            let wordIds = uniqueWordIds.filter { support($0, kind) }
+            if !wordIds.isEmpty {
+                stages.append(BattleStage(kind: kind, wordIds: wordIds))
+            }
         }
-        self.planWordIds = uniqueIds
-        shuffledWordIds = shuffled(uniqueIds, random: rng)
     }
 
-    func scheduleMode() -> BattleScheduleMode { mode }
+    func scheduleMode() -> BattleScheduleMode {
+        stages.count == 1 ? .singleType : .stageOrdered
+    }
 
-    func effectiveIntroKinds() -> [String] { effectiveIntroPool }
-
-    func effectiveChallengeKinds() -> [String] { effectiveChallengePool }
-
-    func isIntroPassActive() -> Bool {
-        switch mode {
-        case .challengeOnly, .singleType:
-            return false
-        case .twoPhase:
-            return !introPassComplete
-        case .introOnly:
-            return !introPassComplete
-        }
+    func activeKindForTest() -> String {
+        currentStage()?.kind ?? ""
     }
 
     func activePhasePool() -> [String] {
-        switch mode {
-        case .singleType:
-            return [singleType]
-        case .challengeOnly:
-            return effectiveChallengePool
-        case .introOnly, .twoPhase:
-            if isIntroPassActive() || mode == .introOnly {
-                return effectiveIntroPool
-            }
-            return effectiveChallengePool
+        guard let stage = currentStage() else {
+            return [QuestionKind.choice.rawValue]
         }
+        return [stage.kind]
     }
 
-    func markServed(wordId: String, kind: String, canServe: WordKindSupportFn) {
-        if kind == QuestionKind.choice.rawValue, !servedChoice.contains(wordId) {
-            servedChoice.append(wordId)
+    func pickNext(
+        monsterIndex: Int,
+        lastWordId: String?,
+        canServe _: WordKindSupportFn? = nil,
+    ) -> BattleQuestionPick {
+        syncMonsterIndex(monsterIndex)
+        guard let stage = currentStage() else {
+            return BattleQuestionPick(kind: QuestionKind.choice.rawValue, preferredWordId: "")
         }
-        if kind == QuestionKind.fillLetter.rawValue, !servedFillLetter.contains(wordId) {
-            servedFillLetter.append(wordId)
-        }
-        if (mode == .twoPhase || mode == .introOnly), !introPassComplete {
-            if checkIntroPassComplete(canServe: canServe) {
-                introPassComplete = true
-            }
-        }
+        return BattleQuestionPick(kind: stage.kind, preferredWordId: pickWord(from: stage, lastWordId: lastWordId))
     }
 
     func pickNext(lastWordId: String?, canServe: WordKindSupportFn) -> BattleQuestionPick {
-        var out = BattleQuestionPick()
-        switch mode {
-        case .singleType:
-            out.kind = singleType
-            return out
-        case .challengeOnly:
-            out.kind = rollChallengeKind()
-            return out
-        case .twoPhase where introPassComplete:
-            out.kind = rollChallengeKind()
-            return out
-        case .introOnly where introPassComplete:
-            return pickIntroSustain(lastWordId: lastWordId, canServe: canServe)
+        pickNext(monsterIndex: max(lastMonsterIndex, 1), lastWordId: lastWordId)
+    }
+
+    func markServed(wordId: String, kind: String, canServe _: WordKindSupportFn? = nil) {
+        guard !wordId.isEmpty,
+              let stageIndex = currentStageIndex(),
+              stages[stageIndex].kind == kind,
+              stages[stageIndex].wordIds.contains(wordId)
+        else { return }
+
+        if !stages[stageIndex].servedIds.contains(wordId) {
+            stages[stageIndex].servedIds.append(wordId)
+            advanceCoveredStages()
+        }
+    }
+
+    func catalogIndexForMonster(monsterIndex: Int) -> Int {
+        let safeIndex = max(monsterIndex, 1)
+        syncMonsterIndex(safeIndex)
+        if let existing = monsterCatalogByIndex[safeIndex], existing > 0 {
+            return existing
+        }
+
+        let stageIndex = monsterStageByIndex[safeIndex] ?? activeStageIndex
+        let kind = stages.indices.contains(stageIndex) ? stages[stageIndex].kind : QuestionKind.choice.rawValue
+        let level = Self.monsterLevel(forQuestionType: kind)
+        let pool = MonsterCodex.catalogIndices(for: level)
+        let rawIndex = Int((rng() * Double(pool.count)).rounded(.down))
+        let index = min(max(rawIndex, 0), pool.count - 1)
+        let catalogIndex = pool[index]
+        monsterCatalogByIndex[safeIndex] = catalogIndex
+        return catalogIndex
+    }
+
+    private func syncMonsterIndex(_ monsterIndex: Int) {
+        let safeIndex = max(monsterIndex, 1)
+        if lastMonsterIndex == 0 || safeIndex != lastMonsterIndex {
+            lastMonsterIndex = safeIndex
+        }
+        if monsterStageByIndex[safeIndex] == nil {
+            monsterStageByIndex[safeIndex] = activeStageIndex
+        }
+    }
+
+    private func currentStageIndex() -> Int? {
+        guard !stages.isEmpty else { return nil }
+        return min(activeStageIndex, stages.count - 1)
+    }
+
+    private func currentStage() -> BattleStage? {
+        guard let index = currentStageIndex() else { return nil }
+        return stages[index]
+    }
+
+    private func pickWord(from stage: BattleStage, lastWordId: String?) -> String {
+        guard let stageIndex = currentStageIndex() else { return "" }
+        let wordIds = stage.wordIds
+        guard !wordIds.isEmpty else { return "" }
+
+        let covered = isCovered(stage)
+        var deferredRepeat: String?
+        for _ in 0 ..< wordIds.count {
+            let index = stages[stageIndex].cursor % wordIds.count
+            let wordId = wordIds[index]
+            stages[stageIndex].cursor = (stages[stageIndex].cursor + 1) % wordIds.count
+
+            if !covered, stage.servedIds.contains(wordId) {
+                continue
+            }
+            if let lastWordId, wordIds.count > 1, wordId == lastWordId {
+                deferredRepeat = deferredRepeat ?? wordId
+                continue
+            }
+            return wordId
+        }
+        return deferredRepeat ?? wordIds[0]
+    }
+
+    private func isCovered(_ stage: BattleStage) -> Bool {
+        stage.servedIds.count >= stage.wordIds.count
+    }
+
+    private func advanceCoveredStages() {
+        while activeStageIndex < stages.count - 1 {
+            guard let stage = currentStage(), isCovered(stage) else { return }
+            activeStageIndex += 1
+        }
+    }
+
+    private static func monsterLevel(forQuestionType kind: String) -> MonsterLevel {
+        switch kind {
+        case QuestionKind.fillLetter.rawValue:
+            return .intermediate
+        case QuestionKind.fillLetterMedium.rawValue:
+            return .advanced
+        case QuestionKind.spell.rawValue, QuestionKind.sentenceCloze.rawValue:
+            return .super
         default:
-            return pickIntroPass(lastWordId: lastWordId, canServe: canServe)
+            return .beginner
         }
     }
 
-    private func rollChallengeKind() -> String {
-        if effectiveChallengePool.count == 1 {
-            return effectiveChallengePool[0]
+    private static func uniqueNonEmpty(_ input: [String]) -> [String] {
+        var out: [String] = []
+        for id in input where !id.isEmpty && !out.contains(id) {
+            out.append(id)
         }
-        if effectiveChallengePool.count >= 2 {
-            let raw = Int((rng() * Double(effectiveChallengePool.count)).rounded(.down))
-            let index = min(max(raw, 0), effectiveChallengePool.count - 1)
-            return effectiveChallengePool[index]
-        }
-        return QuestionKind.choice.rawValue
+        return out
     }
-
-    private func pickIntroPass(lastWordId: String?, canServe: WordKindSupportFn) -> BattleQuestionPick {
-        var pick = scanIntroWords(lastWordId: lastWordId, canServe: canServe, requireUnserved: true)
-        if !pick.kind.isEmpty {
-            lastIntroKind = pick.kind
-        } else {
-            introPassComplete = true
-            pick.kind = rollChallengeKind()
-        }
-        return pick
-    }
-
-    private func pickIntroSustain(lastWordId: String?, canServe: WordKindSupportFn) -> BattleQuestionPick {
-        var pick = scanIntroWords(lastWordId: lastWordId, canServe: canServe, requireUnserved: false)
-        if !pick.kind.isEmpty {
-            lastIntroKind = pick.kind
-            return pick
-        }
-        pick.kind = effectiveIntroPool.first ?? QuestionKind.choice.rawValue
-        return pick
-    }
-
-    private func scanIntroWords(
-        lastWordId: String?,
-        canServe: WordKindSupportFn,
-        requireUnserved: Bool,
-    ) -> BattleQuestionPick {
-        let order = shuffledWordIds.isEmpty ? planWordIds : shuffledWordIds
-        let attempts = order.isEmpty ? 1 : order.count
-        for attempt in 0 ..< attempts {
-            let wordId = order.isEmpty ? "" : order[(wordCursor + attempt) % order.count]
-            if wordId.isEmpty { continue }
-            if let lastWordId, wordId == lastWordId, order.count > 1 { continue }
-            let kinds = availableIntroKindsForWord(wordId: wordId, canServe: canServe, requireUnserved: requireUnserved)
-            if kinds.isEmpty { continue }
-            var pick = BattleQuestionPick()
-            pick.preferredWordId = wordId
-            pick.kind = pickAlternatingIntroKind(kinds)
-            wordCursor = order.isEmpty ? 0 : (wordCursor + attempt + 1) % order.count
-            return pick
-        }
-        return BattleQuestionPick()
-    }
-
-    private func availableIntroKindsForWord(
-        wordId: String,
-        canServe: WordKindSupportFn,
-        requireUnserved: Bool,
-    ) -> [String] {
-        var kinds: [String] = []
-        for kind in effectiveIntroPool {
-            guard canServe(wordId, kind) else { continue }
-            if requireUnserved, isServed(wordId: wordId, kind: kind) { continue }
-            if !requireUnserved, isServed(wordId: wordId, kind: kind) { continue }
-            kinds.append(kind)
-        }
-        if !requireUnserved, kinds.isEmpty {
-            for kind in effectiveIntroPool where canServe(wordId, kind) {
-                kinds.append(kind)
-            }
-        }
-        return kinds
-    }
-
-    private func pickAlternatingIntroKind(_ kinds: [String]) -> String {
-        if kinds.count == 1 { return kinds[0] }
-        if lastIntroKind == QuestionKind.choice.rawValue,
-           kinds.contains(QuestionKind.fillLetter.rawValue) {
-            return QuestionKind.fillLetter.rawValue
-        }
-        if lastIntroKind == QuestionKind.fillLetter.rawValue,
-           kinds.contains(QuestionKind.choice.rawValue) {
-            return QuestionKind.choice.rawValue
-        }
-        return kinds[0]
-    }
-
-    private func isServed(wordId: String, kind: String) -> Bool {
-        if kind == QuestionKind.choice.rawValue {
-            return servedChoice.contains(wordId)
-        }
-        if kind == QuestionKind.fillLetter.rawValue {
-            return servedFillLetter.contains(wordId)
-        }
-        return false
-    }
-
-    private func checkIntroPassComplete(canServe: WordKindSupportFn) -> Bool {
-        if planWordIds.isEmpty { return true }
-        for wordId in planWordIds {
-            for kind in effectiveIntroPool where canServe(wordId, kind) && !isServed(wordId: wordId, kind: kind) {
-                return false
-            }
-        }
-        return true
-    }
-}
-
-private func shuffled<T>(_ input: [T], random: () -> Double) -> [T] {
-    guard input.count > 1 else { return input }
-    var result = input
-    for index in stride(from: result.count - 1, through: 1, by: -1) {
-        let candidate = Int((random() * Double(index + 1)).rounded(.down))
-        let swapIndex = min(max(candidate, 0), index)
-        result.swapAt(index, swapIndex)
-    }
-    return result
 }

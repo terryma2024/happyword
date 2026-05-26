@@ -1,5 +1,7 @@
 # V0.9.2 Boss Dialogue and Built-in Pack Expansion HarmonyOS Implementation Plan
 
+> Historical implementation plan. The original SuperBoss banner and defeat-bubble ideas were superseded during tuning. Current cross-platform behavior is defined in [`00-design.md`](00-design.md), [`60-followups.md`](60-followups.md), and [`50-parity-checklist.md`](50-parity-checklist.md): all levels use the same non-blocking `MessageBubble` intro, and defeat bubbles are disabled for V0.9.2.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Implement V0.9.2 on HarmonyOS first: 100-entry bilingual monster dialogue, Boss intro/defeat overlays, 15-word built-in packs, and first-install battle defaults of 10 monsters / 5 monster HP / 10 player HP.

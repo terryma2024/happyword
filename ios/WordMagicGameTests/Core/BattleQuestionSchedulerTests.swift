@@ -2,67 +2,84 @@ import XCTest
 @testable import WordMagicGame
 
 final class BattleQuestionSchedulerTests: XCTestCase {
-    func testSingleTypeAlwaysReturnsThatKind() {
-        let scheduler = BattleQuestionScheduler(
-            planWordIds: ["w-a", "w-b"],
-            enabledTypes: [QuestionKind.spell.rawValue],
-            rng: { 0 },
-        )
-        XCTAssertEqual(scheduler.scheduleMode(), .singleType)
-        for _ in 0 ..< 6 {
-            let pick = scheduler.pickNext(lastWordId: nil) { _, _ in true }
-            XCTAssertEqual(pick.kind, QuestionKind.spell.rawValue)
-        }
-    }
-
-    func testIntroOnlyNeverReturnsChallengeKind() {
+    func testStagesAdvanceStrictlyEasyToHardAfterWordCoverage() {
         let scheduler = BattleQuestionScheduler(
             planWordIds: ["w-a", "w-b", "w-c"],
-            enabledTypes: [QuestionKind.choice.rawValue, QuestionKind.fillLetter.rawValue],
-            rng: { 0.25 },
+            enabledTypes: [
+                QuestionKind.choice.rawValue,
+                QuestionKind.fillLetter.rawValue,
+                QuestionKind.fillLetterMedium.rawValue,
+            ],
+            rng: { 0 },
         )
-        XCTAssertEqual(scheduler.scheduleMode(), .introOnly)
         let canServe: WordKindSupportFn = { _, _ in true }
-        for index in 0 ..< 12 {
-            let kind = scheduler.pickNext(lastWordId: nil, canServe: canServe).kind
-            XCTAssertFalse(kind == QuestionKind.fillLetterMedium.rawValue || kind == QuestionKind.spell.rawValue)
-            scheduler.markServed(wordId: "w-\(index % 3)", kind: kind, canServe: canServe)
-        }
-    }
 
-    func testChallengeRollsAcrossAllEnabledChallengeTypes() {
-        var seen = Set<String>()
-        for seed in 0 ..< 80 {
-            let scheduler = BattleQuestionScheduler(
-                planWordIds: ["w-a"],
-                enabledTypes: [
-                    QuestionKind.fillLetterMedium.rawValue,
-                    QuestionKind.spell.rawValue,
-                    QuestionKind.sentenceCloze.rawValue,
-                ],
-                rng: { Double(seed % 17) / 17.0 },
-            )
-            seen.insert(scheduler.pickNext(lastWordId: nil) { _, _ in true }.kind)
+        for expectedWord in ["w-a", "w-b", "w-c"] {
+            let pick = scheduler.pickNext(monsterIndex: 1, lastWordId: nil, canServe: canServe)
+            XCTAssertEqual(pick.kind, QuestionKind.choice.rawValue)
+            XCTAssertEqual(pick.preferredWordId, expectedWord)
+            scheduler.markServed(wordId: pick.preferredWordId, kind: pick.kind, canServe: canServe)
         }
 
-        XCTAssertTrue(seen.contains(QuestionKind.fillLetterMedium.rawValue))
-        XCTAssertTrue(seen.contains(QuestionKind.spell.rawValue))
-        XCTAssertTrue(seen.contains(QuestionKind.sentenceCloze.rawValue))
+        for expectedWord in ["w-a", "w-b", "w-c"] {
+            let pick = scheduler.pickNext(monsterIndex: 1, lastWordId: nil, canServe: canServe)
+            XCTAssertEqual(pick.kind, QuestionKind.fillLetter.rawValue)
+            XCTAssertEqual(pick.preferredWordId, expectedWord)
+            scheduler.markServed(wordId: pick.preferredWordId, kind: pick.kind, canServe: canServe)
+        }
+
+        XCTAssertEqual(
+            scheduler.pickNext(monsterIndex: 1, lastWordId: nil, canServe: canServe).kind,
+            QuestionKind.fillLetterMedium.rawValue
+        )
     }
 
-    func testChallengeRollNeverReturnsSentenceClozeWhenDisabled() {
+    func testSchedulerSkipsUnsupportedStages() {
+        let scheduler = BattleQuestionScheduler(
+            planWordIds: ["w-a", "w-b"],
+            enabledTypes: [QuestionKind.choice.rawValue, QuestionKind.spell.rawValue],
+            canServe: { _, kind in kind == QuestionKind.spell.rawValue },
+            rng: { 0 },
+        )
+
+        let pick = scheduler.pickNext(monsterIndex: 1, lastWordId: nil)
+
+        XCTAssertEqual(pick.kind, QuestionKind.spell.rawValue)
+    }
+
+    func testCurrentMonsterKeepsCatalogWhileStageAdvancesBeforeDeath() {
         let scheduler = BattleQuestionScheduler(
             planWordIds: ["w-a"],
-            enabledTypes: [QuestionKind.fillLetterMedium.rawValue, QuestionKind.spell.rawValue],
-            rng: { 0.99 },
+            enabledTypes: [QuestionKind.choice.rawValue, QuestionKind.fillLetterMedium.rawValue],
+            rng: { 0 },
         )
+        let canServe: WordKindSupportFn = { _, _ in true }
+        let firstCatalog = scheduler.catalogIndexForMonster(monsterIndex: 1)
 
-        for _ in 0 ..< 10 {
-            XCTAssertNotEqual(
-                scheduler.pickNext(lastWordId: nil) { _, _ in true }.kind,
-                QuestionKind.sentenceCloze.rawValue
-            )
-        }
+        let firstPick = scheduler.pickNext(monsterIndex: 1, lastWordId: nil, canServe: canServe)
+        scheduler.markServed(wordId: firstPick.preferredWordId, kind: firstPick.kind, canServe: canServe)
+        let secondPick = scheduler.pickNext(monsterIndex: 1, lastWordId: nil, canServe: canServe)
+
+        XCTAssertEqual(firstPick.kind, QuestionKind.choice.rawValue)
+        XCTAssertEqual(secondPick.kind, QuestionKind.fillLetterMedium.rawValue)
+        XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: firstCatalog).level, .beginner)
+        XCTAssertEqual(scheduler.catalogIndexForMonster(monsterIndex: 1), firstCatalog)
+    }
+
+    func testNewMonsterUsesActiveStageLevelPool() {
+        let scheduler = BattleQuestionScheduler(
+            planWordIds: ["w-a"],
+            enabledTypes: [QuestionKind.choice.rawValue, QuestionKind.fillLetterMedium.rawValue],
+            rng: { 0 },
+        )
+        let canServe: WordKindSupportFn = { _, _ in true }
+        let pick = scheduler.pickNext(monsterIndex: 1, lastWordId: nil, canServe: canServe)
+        scheduler.markServed(wordId: pick.preferredWordId, kind: pick.kind, canServe: canServe)
+
+        let nextCatalog = scheduler.catalogIndexForMonster(monsterIndex: 2)
+
+        XCTAssertEqual(scheduler.activeKindForTest(), QuestionKind.fillLetterMedium.rawValue)
+        XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: nextCatalog).level, .advanced)
     }
 
     func testSpellWrongTapPenaltyEndsBattleAtOneHp() {

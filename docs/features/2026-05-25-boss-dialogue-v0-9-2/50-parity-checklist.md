@@ -6,37 +6,41 @@
 
 | Parity item | HarmonyOS | iOS | Android | Notes |
 | --- | --- | --- | --- | --- |
-| 100-entry bilingual Boss dialogue catalog exists. | [x] | [ ] | [ ] | Harmony `MonsterCatalog.ets`; source copy `boss-dialogue-catalog.md` |
-| Ordinary Level 1 / 2 / 3 intro uses `BattleBossIntro*` bubble. | [x] | [ ] | [ ] | `BattleFlow.bossDialogueIntroAndDefeatOverlaysRender` |
-| SuperBoss intro uses `BattleSuperBossIntro*` ornate auto banner. | [x] | [ ] | [ ] | `BattleFlow.superBossIntroUsesBannerAndAutoDismisses` |
-| Defeat line uses `BattleBossDefeat*` bubble for every monster. | [x] | [ ] | [ ] | `BattleFlow.bossDialogueIntroAndDefeatOverlaysRender` |
-| Built-in packs contain 15 sentence-cloze-ready words each. | [x] | [ ] | [ ] | `BuiltinPackLoader.test.ets`; rawfile count check |
-| First-install defaults are 10 monsters / 5 monster HP / 10 player HP. | [x] | [ ] | [ ] | `LocalUnit.test.ets`; `TodayAdventureBuilder.test.ets` |
+| 100-entry bilingual Boss dialogue catalog exists. | [x] | [x] | [x] | Harmony `monster_catalog.json`; iOS / Android copied catalog rows and tests. |
+| Level 1 / 2 / 3 intro uses non-blocking `BattleBossIntro*` `MessageBubble`. | [x] | [x] | [x] | Ordinary intro only; no input-blocking banner. |
+| SuperBoss intro uses the same non-blocking `BattleBossIntro*` bubble. | [x] | [x] | [x] | Updated follow-up decision; ornate `BattleSuperBossIntro*` banner retired for V0.9.2. |
+| Defeat line bubble is disabled for this version. | [x] | [x] | [x] | Retain dialogue data for future design; do not show `BattleBossDefeat*` UI in battle. |
+| Built-in packs contain 15 sentence-cloze-ready words each. | [x] | [x] | [x] | Raw pack fixtures expanded and tested. |
+| First-install defaults are 10 monsters / 5 monster HP / 10 player HP. | [x] | [x] | [x] | Saved configs remain preserved. |
+| Battle stages progress strictly by enabled question difficulty. | [x] | [x] | [x] | Current monster can survive stage advancement; next monster uses active stage level. |
+| Retry / re-battle stays scoped to the selected pack. | [x] | [x] | [x] | No fallback to global/all-pack pool for selected-pack battles. |
+| Monster card shows compact `L1` / `L2` / `L3` / `L4` badge. | [x] | [x] | [x] | Badge follows catalog monster level. |
 
 ## Stable IDs
 
 | Stable ID | HarmonyOS | iOS | Android |
 | --- | --- | --- | --- |
-| `BattleBossIntroBubble` | [x] | [ ] | [ ] |
-| `BattleBossIntroName` | [x] | [ ] | [ ] |
-| `BattleBossIntroLineEn` | [x] | [ ] | [ ] |
-| `BattleBossIntroLineZh` | [x] | [ ] | [ ] |
-| `BattleSuperBossIntroBanner` | [x] | [ ] | [ ] |
-| `BattleSuperBossIntroTitle` | [x] | [ ] | [ ] |
-| `BattleSuperBossIntroLineEn` | [x] | [ ] | [ ] |
-| `BattleSuperBossIntroLineZh` | [x] | [ ] | [ ] |
-| `BattleBossDefeatBubble` | [x] | [ ] | [ ] |
-| `BattleBossDefeatName` | [x] | [ ] | [ ] |
-| `BattleBossDefeatLineEn` | [x] | [ ] | [ ] |
-| `BattleBossDefeatLineZh` | [x] | [ ] | [ ] |
+| `BattleBossIntroBubble` | [x] | [x] | [x] |
+| `BattleBossIntroName` | [x] | [x] | [x] |
+| `BattleBossIntroLineEn` | [x] | [x] | [x] |
+| `BattleBossIntroLineZh` | [x] | [x] | [x] |
+| `BattleMonsterLevelLabel` | [x] | [x] | [x] |
+| `BattleSuperBossIntroBanner` | retired | retired | retired |
+| `BattleSuperBossIntroTitle` | retired | retired | retired |
+| `BattleSuperBossIntroLineEn` | retired | retired | retired |
+| `BattleSuperBossIntroLineZh` | retired | retired | retired |
+| `BattleBossDefeatBubble` | disabled | disabled | disabled |
+| `BattleBossDefeatName` | disabled | disabled | disabled |
+| `BattleBossDefeatLineEn` | disabled | disabled | disabled |
+| `BattleBossDefeatLineZh` | disabled | disabled | disabled |
 
 ## Versions
 
 | Platform | Field | Value |
 | --- | --- | --- |
 | HarmonyOS | `harmonyos/AppScope/app.json5` `versionName` / `versionCode` | `0.9.2` / `1009002` |
-| iOS | `CFBundleShortVersionString` / `CFBundleVersion` | pending replication |
-| Android | `versionName` / `versionCode` | pending replication |
+| iOS | `CFBundleShortVersionString` / `CFBundleVersion` | `0.9.2` / `1009002` |
+| Android | `versionName` / `versionCode` | `0.9.2` / `1009002` |
 
 ## Sign-off
 

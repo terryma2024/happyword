@@ -11,6 +11,7 @@ import cool.happyword.wordmagic.core.RedemptionRecord
 import cool.happyword.wordmagic.core.WishItem
 import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.CustomWishRules
+import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.WordLearningStat
 
 class AndroidLocalProgressRepositories(context: Context) {
@@ -40,6 +41,32 @@ class AndroidLocalProgressRepositories(context: Context) {
             .putString("activePackIds", selection.activePackIds.joinToString(","))
             .putStringSet("pinnedPackIds", selection.pinnedPackIds)
             .putString("perfectScoresByPack", selection.perfectScoresByPack.entries.joinToString("\n") { "${it.key}\t${it.value}" })
+            .apply()
+    }
+
+    fun loadGameConfig(): GameConfig {
+        val defaults = GameConfig()
+        return GameConfig(
+            playerHp = prefs.getInt("gameConfig.playerMaxHp", defaults.playerHp),
+            monsterHp = prefs.getInt("gameConfig.monsterMaxHp", defaults.monsterHp),
+            monsterCount = prefs.getInt("gameConfig.monstersTotal", defaults.monsterCount),
+            timerSeconds = prefs.getInt("gameConfig.timerSeconds", defaults.timerSeconds),
+            autoPronunciation = prefs.getBoolean("gameConfig.autoPronunciation", defaults.autoPronunciation),
+            enabledQuestionTypes = prefs.getString("gameConfig.enabledQuestionTypes", null)
+                ?.split(",")
+                ?.filter { it.isNotBlank() }
+                ?: defaults.enabledQuestionTypes,
+        )
+    }
+
+    fun saveGameConfig(config: GameConfig) {
+        prefs.edit()
+            .putInt("gameConfig.playerMaxHp", config.playerHp)
+            .putInt("gameConfig.monsterMaxHp", config.monsterHp)
+            .putInt("gameConfig.monstersTotal", config.monsterCount)
+            .putInt("gameConfig.timerSeconds", config.timerSeconds)
+            .putBoolean("gameConfig.autoPronunciation", config.autoPronunciation)
+            .putString("gameConfig.enabledQuestionTypes", config.enabledQuestionTypes.joinToString(","))
             .apply()
     }
 

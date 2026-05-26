@@ -16,7 +16,7 @@ class PackModelsTest {
         assertEquals(PackSource.Builtin, packs.first().source)
         assertEquals("Fruit Forest", packs.first().nameEn)
         assertEquals("水果森林", packs.first().nameZh)
-        assertEquals(listOf(10, 10, 10, 10, 10), packs.map { it.words.size })
+        assertEquals(listOf(15, 15, 15, 15, 15), packs.map { it.words.size })
         assertTrue(packs.first().words.any { it.word == "apple" && it.meaning == "苹果" })
         assertTrue(packs.all { it.scene.monsterPlan.isNotEmpty() })
     }

@@ -156,6 +156,81 @@
         "en": "The cup has water.",
         "zh": "杯子里有水。"
       }
+    },
+    {
+      "id": "home-kitchen",
+      "word": "kitchen",
+      "meaningZh": "厨房",
+      "category": "home",
+      "difficulty": 1,
+      "distractors": [
+        "bathroom",
+        "fridge"
+      ],
+      "example": {
+        "en": "The kitchen smells like bread.",
+        "zh": "厨房闻起来像面包。"
+      }
+    },
+    {
+      "id": "home-bathroom",
+      "word": "bathroom",
+      "meaningZh": "浴室",
+      "category": "home",
+      "difficulty": 1,
+      "distractors": [
+        "kitchen",
+        "clock"
+      ],
+      "example": {
+        "en": "The bathroom has a blue towel.",
+        "zh": "浴室里有蓝毛巾。"
+      }
+    },
+    {
+      "id": "home-clock",
+      "word": "clock",
+      "meaningZh": "时钟",
+      "category": "home",
+      "difficulty": 1,
+      "distractors": [
+        "phone",
+        "fridge"
+      ],
+      "example": {
+        "en": "The clock rings at seven.",
+        "zh": "时钟七点响。"
+      }
+    },
+    {
+      "id": "home-phone",
+      "word": "phone",
+      "meaningZh": "电话",
+      "category": "home",
+      "difficulty": 1,
+      "distractors": [
+        "clock",
+        "bathroom"
+      ],
+      "example": {
+        "en": "The phone is on the table.",
+        "zh": "电话在桌子上。"
+      }
+    },
+    {
+      "id": "home-fridge",
+      "word": "fridge",
+      "meaningZh": "冰箱",
+      "category": "home",
+      "difficulty": 1,
+      "distractors": [
+        "kitchen",
+        "phone"
+      ],
+      "example": {
+        "en": "The fridge keeps milk cold.",
+        "zh": "冰箱让牛奶保持冰凉。"
+      }
     }
   ]
 }

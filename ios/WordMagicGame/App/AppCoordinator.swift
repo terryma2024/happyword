@@ -251,7 +251,11 @@ final class AppCoordinator: ObservableObject {
             randomSeed: makeBattleRandomSeed(),
             enabledQuestionTypes: enabledTypes,
         )
-        let engine = BattleEngine(questionSource: questionSource, config: configStore.config)
+        let engine = BattleEngine(
+            questionSource: questionSource,
+            config: configStore.config,
+            monsterCatalogIndex: { questionSource.catalogIndexForMonster($0) }
+        )
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
         battleEngine = engine
@@ -295,7 +299,11 @@ final class AppCoordinator: ObservableObject {
         var reviewConfig = configStore.config
         reviewConfig.monstersTotal = 3
         reviewConfig.startingSeconds = 120
-        let engine = BattleEngine(questionSource: questionSource, config: reviewConfig)
+        let engine = BattleEngine(
+            questionSource: questionSource,
+            config: reviewConfig,
+            monsterCatalogIndex: { questionSource.catalogIndexForMonster($0) }
+        )
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
         battleEngine = engine
@@ -392,6 +400,10 @@ final class AppCoordinator: ObservableObject {
     private func makeBattleRandomSeed() -> UInt64 {
         if let battleRandomSeed {
             return battleRandomSeed
+        }
+        if let seedArgument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-UITestBattleSeed=") }),
+           let seed = UInt64(seedArgument.replacingOccurrences(of: "-UITestBattleSeed=", with: "")) {
+            return seed
         }
         return UInt64(Date().timeIntervalSince1970 * 1000)
     }

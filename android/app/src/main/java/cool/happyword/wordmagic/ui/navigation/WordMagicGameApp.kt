@@ -295,7 +295,7 @@ fun WordMagicGameApp() {
     var selectedPackId by remember { mutableStateOf("fruit-forest") }
     val activePacks = packLibrary.activePacks(selection.activePackIds).ifEmpty { BuiltinPacks.defaultActiveOrder.mapNotNull(packLibrary::findPack) }
     val selectedPack = packLibrary.findPack(selectedPackId) ?: activePacks.first()
-    var config by remember { mutableStateOf(GameConfig()) }
+    var config by remember { mutableStateOf(repositories.loadGameConfig()) }
     var engine by remember { mutableStateOf(BattleEngine(config = config)) }
     var battleState by remember { mutableStateOf<BattleState?>(null) }
     var battleRunId by remember { mutableIntStateOf(0) }
@@ -680,6 +680,7 @@ fun WordMagicGameApp() {
                     learningSyncToast = learningSyncToast,
                     onConfigChange = { next ->
                         config = next
+                        repositories.saveGameConfig(next)
                         engine = BattleEngine(config = config)
                     },
                     onBack = { route = AppRoute.Home },

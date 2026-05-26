@@ -46,4 +46,17 @@ class PackLibraryTest {
         )
         assertTrue(library.allPacks().size >= 5)
     }
+
+    @Test
+    fun builtinPacksExposeFifteenSentenceReadyWordsEach() {
+        val expectedIds = setOf("fruit-forest", "school-castle", "home-cottage", "animal-safari", "ocean-realm")
+        assertEquals(expectedIds, BuiltinPacks.all.map { it.id }.toSet())
+
+        BuiltinPacks.all.forEach { pack ->
+            assertEquals("word count for ${pack.id}", 15, pack.words.size)
+            pack.words.forEach { word ->
+                assertTrue("${pack.id}/${word.id} supports sentence cloze", wordSupportsSentenceCloze(word))
+            }
+        }
+    }
 }

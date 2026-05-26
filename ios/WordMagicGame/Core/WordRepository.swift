@@ -449,9 +449,14 @@ final class PlanQuestionSource: QuestionSource {
             self.scheduler = scheduler
         } else if let enabledQuestionTypes {
             var rng = SeededRandom(seed: randomSeed &+ 3)
+            let canServe: WordKindSupportFn = { [repository] wordId, kind in
+                guard let word = repository.word(id: wordId) else { return false }
+                return BattleQuestionTypePolicy.wordSupportsQuestionType(word, typeId: kind)
+            }
             self.scheduler = BattleQuestionScheduler(
                 planWordIds: plan.wordIds,
                 enabledTypes: enabledQuestionTypes,
+                canServe: canServe,
                 rng: { rng.nextDouble() },
             )
         } else {
@@ -461,6 +466,15 @@ final class PlanQuestionSource: QuestionSource {
 
     func setMonsterIndexProvider(_ provider: @escaping () -> Int) {
         monsterIndexProvider = provider
+    }
+
+    func catalogIndexForMonster(_ monsterIndex: Int) -> Int {
+        if let scheduler {
+            return scheduler.catalogIndexForMonster(monsterIndex: monsterIndex)
+        }
+        guard !plan.monsterSlots.isEmpty else { return monsterIndex }
+        let slot = plan.monsterSlots[(max(monsterIndex, 1) - 1) % plan.monsterSlots.count]
+        return slot.catalogIndex > 0 ? slot.catalogIndex : monsterIndex
     }
 
     func nextQuestion(lastWordId: String? = nil) throws -> Question {
@@ -494,20 +508,14 @@ final class PlanQuestionSource: QuestionSource {
             guard let word = repository.word(id: wordId) else { return false }
             return BattleQuestionTypePolicy.wordSupportsQuestionType(word, typeId: kind)
         }
-        let pick = scheduler.pickNext(lastWordId: lastWordId, canServe: canServe)
+        let pick = scheduler.pickNext(monsterIndex: monsterIndexProvider(), lastWordId: lastWordId, canServe: canServe)
         let word: WordEntry
         if !pick.preferredWordId.isEmpty, let preferred = repository.word(id: pick.preferredWordId) {
             word = preferred
         } else {
             word = pickWordForQuestionType(pick.kind, lastWordId: lastWordId)
         }
-        let phasePool = scheduler.activePhasePool()
-        let resolvedType = BattleQuestionTypePolicy.resolveQuestionTypeWithinPool(
-            word,
-            primaryType: pick.kind,
-            pool: phasePool,
-        )
-        if let exact = try generateExactQuestion(resolvedType, word: word, lastWordId: lastWordId) {
+        if let exact = try generateExactQuestion(pick.kind, word: word, lastWordId: lastWordId) {
             scheduler.markServed(wordId: word.id, kind: exact.kind.rawValue, canServe: canServe)
             return exact
         }

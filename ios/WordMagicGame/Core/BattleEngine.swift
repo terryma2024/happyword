@@ -22,6 +22,7 @@ struct BattleState: Equatable {
     var monsterMaxHp: Int
     var monsterHp: Int
     var monsterIndex: Int
+    var currentMonsterCatalogIndex: Int
     var monstersTotal: Int
     var remainingSeconds: Int
     var status: BattleStatus = .ready
@@ -41,6 +42,7 @@ struct BattleState: Equatable {
         monsterMaxHp = config.monsterMaxHp
         monsterHp = config.monsterMaxHp
         monsterIndex = 1
+        currentMonsterCatalogIndex = 1
         monstersTotal = config.monstersTotal
         remainingSeconds = config.startingSeconds
     }
@@ -128,7 +130,8 @@ final class BattleEngine: ObservableObject {
     func start() {
         guard state.status == .ready else { return }
         state.status = .playing
-        state.currentMonsterBonus = rollsBonusMonster(for: catalogIndex(for: state.monsterIndex))
+        state.currentMonsterCatalogIndex = catalogIndex(for: state.monsterIndex)
+        state.currentMonsterBonus = rollsBonusMonster(for: state.currentMonsterCatalogIndex)
         if let question = try? questionSource.nextQuestion() {
             state.currentQuestion = question
             rememberWord(question.wordId)
@@ -160,7 +163,7 @@ final class BattleEngine: ObservableObject {
         }
 
         let correct = isCorrect(option: option, question: question)
-        var outcome = AnswerOutcome(correct: correct, damage: correct ? 1 : monsterAttackDamage(for: catalogIndex(for: state.monsterIndex)))
+        var outcome = AnswerOutcome(correct: correct, damage: correct ? 1 : monsterAttackDamage(for: state.currentMonsterCatalogIndex))
 
         if question.kind == .fillLetterMedium && correct && question.currentStep < 1 {
             revealMediumStepLetter(&question, chosen: option)
@@ -184,7 +187,7 @@ final class BattleEngine: ObservableObject {
             if state.monsterHp <= 0 {
                 state.monsterHp = 0
                 state.defeatedMonsterLevelScore += BattleRewardCalc.coinValue(
-                    for: MonsterCodex.level(forCatalogIndex1Based: catalogIndex(for: state.monsterIndex))
+                    for: MonsterCodex.level(forCatalogIndex1Based: state.currentMonsterCatalogIndex)
                 )
                 state.defeatedMonsters += 1
                 if state.currentMonsterBonus {
@@ -198,8 +201,9 @@ final class BattleEngine: ObservableObject {
                     return outcome
                 }
                 state.monsterIndex += 1
+                state.currentMonsterCatalogIndex = catalogIndex(for: state.monsterIndex)
                 state.monsterHp = state.monsterMaxHp
-                state.currentMonsterBonus = rollsBonusMonster(for: catalogIndex(for: state.monsterIndex))
+                state.currentMonsterBonus = rollsBonusMonster(for: state.currentMonsterCatalogIndex)
                 outcome.newMonsterSpawned = true
             }
         } else {

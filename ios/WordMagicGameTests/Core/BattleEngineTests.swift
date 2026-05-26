@@ -23,8 +23,8 @@ final class BattleEngineTests: XCTestCase {
         let config = GameConfig.default
 
         XCTAssertEqual(config.playerMaxHp, 10)
-        XCTAssertEqual(config.monsterMaxHp, 3)
-        XCTAssertEqual(config.monstersTotal, 5)
+        XCTAssertEqual(config.monsterMaxHp, 5)
+        XCTAssertEqual(config.monstersTotal, 10)
         XCTAssertEqual(config.startingSeconds, 300)
         XCTAssertTrue(config.autoSpeak)
     }

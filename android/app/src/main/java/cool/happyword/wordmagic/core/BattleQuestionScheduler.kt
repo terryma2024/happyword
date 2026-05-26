@@ -14,16 +14,6 @@ data class BattleQuestionPick(
 
 typealias WordKindSupportFn = (wordId: String, kind: String) -> Boolean
 
-private val INTRO_KINDS = listOf(
-    BattleQuestionTypePolicy.CHOICE,
-    BattleQuestionTypePolicy.FILL_LETTER,
-)
-private val CHALLENGE_KINDS = listOf(
-    BattleQuestionTypePolicy.FILL_LETTER_MEDIUM,
-    BattleQuestionTypePolicy.SPELL,
-    BattleQuestionTypePolicy.SENTENCE_CLOZE,
-)
-
 fun intersectKinds(pool: List<String>, enabled: List<String>): List<String> =
     pool.filter { enabled.contains(it) }
 
@@ -39,199 +29,130 @@ fun deriveScheduleMode(
     return BattleScheduleMode.TwoPhase
 }
 
+private data class BattleQuestionStage(
+    val kind: String,
+    val wordIds: List<String>,
+    var cursor: Int = 0,
+    val servedIds: MutableSet<String> = linkedSetOf(),
+)
+
 class BattleQuestionScheduler(
     rawPlanWordIds: List<String>,
     enabledTypes: List<String>,
     private val rng: () -> Double = { Math.random() },
 ) {
-    private val mode: BattleScheduleMode
-    private val effectiveIntroPool: List<String>
-    private val effectiveChallengePool: List<String>
-    private val singleType: String
-    private val planWordIds: List<String>
-    private val shuffledWordIds: List<String>
-    private var wordCursor = 0
-    private val servedChoice = mutableListOf<String>()
-    private val servedFillLetter = mutableListOf<String>()
-    private var introPassComplete = false
-    private var lastIntroKind = ""
+    private val safeTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(enabledTypes)
+    private val planWordIds = rawPlanWordIds.filter { it.isNotEmpty() }.distinct()
+    private var activeStageIndex = 0
+    private val monsterCatalogByBattleIndex = mutableMapOf<Int, Int>()
+    private val monsterStageByBattleIndex = mutableMapOf<Int, Int>()
+    private var stagesCacheKey = ""
+    private var stagesCache: List<BattleQuestionStage> = emptyList()
 
-    init {
-        val safe = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(enabledTypes)
-        effectiveIntroPool = intersectKinds(INTRO_KINDS, safe)
-        effectiveChallengePool = intersectKinds(CHALLENGE_KINDS, safe)
-        mode = deriveScheduleMode(safe, effectiveIntroPool, effectiveChallengePool)
-        singleType = if (safe.size == 1) safe[0] else ""
-        planWordIds = rawPlanWordIds.filter { it.isNotEmpty() }.distinct()
-        shuffledWordIds = shuffleIds(planWordIds)
+    fun scheduleMode(): BattleScheduleMode {
+        val introPool = intersectKinds(
+            listOf(BattleQuestionTypePolicy.CHOICE, BattleQuestionTypePolicy.FILL_LETTER),
+            safeTypes,
+        )
+        val challengePool = intersectKinds(
+            listOf(
+                BattleQuestionTypePolicy.FILL_LETTER_MEDIUM,
+                BattleQuestionTypePolicy.SPELL,
+                BattleQuestionTypePolicy.SENTENCE_CLOZE,
+            ),
+            safeTypes,
+        )
+        return deriveScheduleMode(safeTypes, introPool, challengePool)
     }
-
-    fun scheduleMode(): BattleScheduleMode = mode
 
     fun isIntroPassActive(): Boolean =
-        when (mode) {
-            BattleScheduleMode.ChallengeOnly, BattleScheduleMode.SingleType -> false
-            BattleScheduleMode.TwoPhase -> !introPassComplete
-            BattleScheduleMode.IntroOnly -> !introPassComplete
-        }
+        currentStageKind().let { it == BattleQuestionTypePolicy.CHOICE || it == BattleQuestionTypePolicy.FILL_LETTER }
 
     fun activePhasePool(): List<String> =
-        when (mode) {
-            BattleScheduleMode.SingleType -> listOf(singleType)
-            BattleScheduleMode.ChallengeOnly -> effectiveChallengePool
-            BattleScheduleMode.IntroOnly, BattleScheduleMode.TwoPhase ->
-                if (isIntroPassActive() || mode == BattleScheduleMode.IntroOnly) {
-                    effectiveIntroPool
-                } else {
-                    effectiveChallengePool
-                }
-        }
+        currentStageKind().let { kind -> if (kind.isEmpty()) emptyList() else listOf(kind) }
+
+    fun pickNext(lastWordId: String?, canServe: WordKindSupportFn): BattleQuestionPick {
+        val stage = currentStage(canServe) ?: return BattleQuestionPick(kind = safeTypes.firstOrNull().orEmpty())
+        return BattleQuestionPick(
+            kind = stage.kind,
+            preferredWordId = pickWordFromStage(stage, lastWordId),
+        )
+    }
 
     fun markServed(wordId: String, kind: String, canServe: WordKindSupportFn) {
-        if (kind == BattleQuestionTypePolicy.CHOICE && !servedChoice.contains(wordId)) {
-            servedChoice.add(wordId)
-        }
-        if (kind == BattleQuestionTypePolicy.FILL_LETTER && !servedFillLetter.contains(wordId)) {
-            servedFillLetter.add(wordId)
-        }
-        if ((mode == BattleScheduleMode.TwoPhase || mode == BattleScheduleMode.IntroOnly) && !introPassComplete) {
-            if (checkIntroPassComplete(canServe)) {
-                introPassComplete = true
-            }
+        val stage = currentStage(canServe) ?: return
+        if (stage.kind != kind || wordId.isEmpty() || !stage.wordIds.contains(wordId)) return
+        stage.servedIds += wordId
+        while (activeStageIndex < stages(canServe).lastIndex && currentStage(canServe)?.isCovered() == true) {
+            activeStageIndex += 1
         }
     }
 
-    fun pickNext(lastWordId: String?, canServe: WordKindSupportFn): BattleQuestionPick =
-        when (mode) {
-            BattleScheduleMode.SingleType -> BattleQuestionPick(kind = singleType)
-            BattleScheduleMode.ChallengeOnly -> BattleQuestionPick(kind = rollChallengeKind())
-            BattleScheduleMode.TwoPhase ->
-                if (introPassComplete) {
-                    BattleQuestionPick(kind = rollChallengeKind())
-                } else {
-                    pickIntroPass(lastWordId, canServe)
-                }
-            BattleScheduleMode.IntroOnly ->
-                if (introPassComplete) {
-                    pickIntroSustain(lastWordId, canServe)
-                } else {
-                    pickIntroPass(lastWordId, canServe)
-                }
+    fun catalogIndexForMonster(monsterIndex: Int, canServe: WordKindSupportFn): Int {
+        val safeMonsterIndex = monsterIndex.coerceAtLeast(1)
+        monsterCatalogByBattleIndex[safeMonsterIndex]?.let { return it }
+        val stageIndex = monsterStageByBattleIndex.getOrPut(safeMonsterIndex) {
+            activeStageIndex.coerceAtMost(stages(canServe).lastIndex.coerceAtLeast(0))
         }
-
-    private fun rollChallengeKind(): String {
-        if (effectiveChallengePool.size == 1) return effectiveChallengePool[0]
-        if (effectiveChallengePool.size >= 2) {
-            val index = (rng().coerceIn(0.0, 0.999999) * effectiveChallengePool.size)
-                .toInt()
-                .coerceIn(0, effectiveChallengePool.lastIndex)
-            return effectiveChallengePool[index]
-        }
-        return BattleQuestionTypePolicy.CHOICE
+        val stage = stages(canServe).getOrNull(stageIndex) ?: currentStage(canServe)
+        val level = monsterLevelForStageQuestionType(stage?.kind.orEmpty())
+        val pool = monsterCatalogIndicesForLevel(level)
+        val index = (rng().coerceIn(0.0, 0.999999) * pool.size)
+            .toInt()
+            .coerceIn(0, pool.lastIndex)
+        val catalogIndex = pool[index]
+        monsterCatalogByBattleIndex[safeMonsterIndex] = catalogIndex
+        return catalogIndex
     }
 
-    private fun pickIntroPass(lastWordId: String?, canServe: WordKindSupportFn): BattleQuestionPick {
-        val pick = scanIntroWords(lastWordId, canServe, requireUnserved = true)
-        if (pick.kind.isNotEmpty()) {
-            lastIntroKind = pick.kind
-            return pick
+    private fun currentStage(canServe: WordKindSupportFn): BattleQuestionStage? =
+        stages(canServe).getOrNull(activeStageIndex.coerceAtMost(stages(canServe).lastIndex.coerceAtLeast(0)))
+
+    private fun currentStageKind(): String = stagesCache.getOrNull(activeStageIndex)?.kind.orEmpty()
+
+    private fun stages(canServe: WordKindSupportFn): List<BattleQuestionStage> {
+        val key = safeTypes.joinToString("|") + "::" + planWordIds.joinToString("|")
+        if (stagesCacheKey == key && stagesCache.isNotEmpty()) return stagesCache
+        stagesCacheKey = key
+        stagesCache = safeTypes.mapNotNull { kind ->
+            val supported = planWordIds.filter { wordId -> canServe(wordId, kind) }
+            if (supported.isEmpty()) null else BattleQuestionStage(kind = kind, wordIds = supported)
         }
-        introPassComplete = true
-        return BattleQuestionPick(kind = rollChallengeKind())
+        activeStageIndex = activeStageIndex.coerceAtMost(stagesCache.lastIndex.coerceAtLeast(0))
+        return stagesCache
     }
 
-    private fun pickIntroSustain(lastWordId: String?, canServe: WordKindSupportFn): BattleQuestionPick {
-        val pick = scanIntroWords(lastWordId, canServe, requireUnserved = false)
-        if (pick.kind.isNotEmpty()) {
-            lastIntroKind = pick.kind
-            return pick
+    private fun pickWordFromStage(stage: BattleQuestionStage, lastWordId: String?): String {
+        if (!stage.isCovered()) {
+            val unserved = stage.wordIds.filterNot { it in stage.servedIds }
+            return unserved.firstOrNull { it != lastWordId } ?: unserved.firstOrNull().orEmpty()
         }
-        return BattleQuestionPick(kind = effectiveIntroPool.firstOrNull() ?: BattleQuestionTypePolicy.CHOICE)
+        val source = stage.wordIds
+        if (source.isEmpty()) return stage.wordIds.firstOrNull().orEmpty()
+        repeat(source.size) {
+            val wordId = source[stage.cursor % source.size]
+            stage.cursor = (stage.cursor + 1) % source.size
+            if (source.size > 1 && wordId == lastWordId) return@repeat
+            return wordId
+        }
+        return source.first()
+    }
+}
+
+private fun BattleQuestionStage.isCovered(): Boolean = servedIds.size >= wordIds.size
+
+fun monsterLevelForStageQuestionType(kind: String): MonsterLevel =
+    when (kind) {
+        BattleQuestionTypePolicy.FILL_LETTER -> MonsterLevel.Intermediate
+        BattleQuestionTypePolicy.FILL_LETTER_MEDIUM -> MonsterLevel.Advanced
+        BattleQuestionTypePolicy.SPELL,
+        BattleQuestionTypePolicy.SENTENCE_CLOZE,
+        -> MonsterLevel.Super
+        else -> MonsterLevel.Beginner
     }
 
-    private fun scanIntroWords(
-        lastWordId: String?,
-        canServe: WordKindSupportFn,
-        requireUnserved: Boolean,
-    ): BattleQuestionPick {
-        val order = if (shuffledWordIds.isNotEmpty()) shuffledWordIds else planWordIds
-        val attempts = if (order.isEmpty()) 1 else order.size
-        for (attempt in 0 until attempts) {
-            val wordId = if (order.isEmpty()) "" else order[(wordCursor + attempt) % order.size]
-            if (wordId.isEmpty()) continue
-            if (lastWordId != null && wordId == lastWordId && order.size > 1) continue
-            val kinds = availableIntroKindsForWord(wordId, canServe, requireUnserved)
-            if (kinds.isEmpty()) continue
-            wordCursor = if (order.isEmpty()) 0 else (wordCursor + attempt + 1) % order.size
-            return BattleQuestionPick(
-                kind = pickAlternatingIntroKind(kinds),
-                preferredWordId = wordId,
-            )
-        }
-        return BattleQuestionPick()
-    }
-
-    private fun availableIntroKindsForWord(
-        wordId: String,
-        canServe: WordKindSupportFn,
-        requireUnserved: Boolean,
-    ): List<String> {
-        val kinds = mutableListOf<String>()
-        for (kind in effectiveIntroPool) {
-            if (!canServe(wordId, kind)) continue
-            if (requireUnserved && isServed(wordId, kind)) continue
-            if (!requireUnserved && isServed(wordId, kind)) continue
-            kinds.add(kind)
-        }
-        if (!requireUnserved && kinds.isEmpty()) {
-            for (kind in effectiveIntroPool) {
-                if (canServe(wordId, kind)) kinds.add(kind)
-            }
-        }
-        return kinds
-    }
-
-    private fun pickAlternatingIntroKind(kinds: List<String>): String {
-        if (kinds.size == 1) return kinds[0]
-        if (lastIntroKind == BattleQuestionTypePolicy.CHOICE &&
-            kinds.contains(BattleQuestionTypePolicy.FILL_LETTER)
-        ) {
-            return BattleQuestionTypePolicy.FILL_LETTER
-        }
-        if (lastIntroKind == BattleQuestionTypePolicy.FILL_LETTER &&
-            kinds.contains(BattleQuestionTypePolicy.CHOICE)
-        ) {
-            return BattleQuestionTypePolicy.CHOICE
-        }
-        return kinds[0]
-    }
-
-    private fun isServed(wordId: String, kind: String): Boolean =
-        when (kind) {
-            BattleQuestionTypePolicy.CHOICE -> servedChoice.contains(wordId)
-            BattleQuestionTypePolicy.FILL_LETTER -> servedFillLetter.contains(wordId)
-            else -> false
-        }
-
-    private fun checkIntroPassComplete(canServe: WordKindSupportFn): Boolean {
-        if (planWordIds.isEmpty()) return true
-        for (wordId in planWordIds) {
-            for (kind in effectiveIntroPool) {
-                if (canServe(wordId, kind) && !isServed(wordId, kind)) return false
-            }
-        }
-        return true
-    }
-
-    private fun shuffleIds(ids: List<String>): List<String> {
-        if (ids.size <= 1) return ids
-        val out = ids.toMutableList()
-        for (index in out.lastIndex downTo 1) {
-            val swapIndex = (rng().coerceIn(0.0, 0.999999) * (index + 1)).toInt().coerceIn(0, index)
-            val tmp = out[index]
-            out[index] = out[swapIndex]
-            out[swapIndex] = tmp
-        }
-        return out
-    }
+fun monsterCatalogIndicesForLevel(level: MonsterLevel): List<Int> {
+    val catalogSize = MonsterCatalog.default().entries.size
+    val indices = (1..catalogSize).filter { MonsterLevel.forCatalogIndex(it) == level }
+    return indices.ifEmpty { listOf(1) }
 }

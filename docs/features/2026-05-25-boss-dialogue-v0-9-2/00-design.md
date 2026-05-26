@@ -1,22 +1,21 @@
 # V0.9.2 — Boss Dialogue and Built-in Pack Expansion — Cross-Platform Design
 
 > Feature ID: `2026-05-25-boss-dialogue-v0-9-2`
-> Status: `draft`
+> Status: `replicating`
 > Owner: Terry Ma
-> Last updated: 2026-05-25
+> Last updated: 2026-05-26
 
 This document is the platform-neutral source of truth for V0.9.2 Boss personality dialogue, built-in pack expansion, and initial battle defaults. HarmonyOS implements first; iOS and Android replicate only after the Harmony soft gate and human signature in [`20-replication-trigger.md`](20-replication-trigger.md).
 
 ## 1. Motivation
 
-V0.9.1 added sentence cloze questions, moving the learning loop from word recognition toward context understanding. The battle loop still treats most monsters as visual targets rather than characters. V0.9.2 gives every current monster a short personality beat at entry and defeat, while also increasing built-in pack word counts so longer initial battles can show more monster variety without repeating the same small word pool too quickly.
+V0.9.1 added sentence cloze questions, moving the learning loop from word recognition toward context understanding. The battle loop still treats most monsters as visual targets rather than characters. V0.9.2 gives every current monster a short personality beat at entry, while also increasing built-in pack word counts so longer initial battles can show more monster variety without repeating the same small word pool too quickly.
 
 ## 2. Goals
 
 - Add short bilingual Boss dialogue for all 100 current `MonsterCatalog` entries.
-- Show lightweight intro bubbles for Level 1 / 2 / 3 monsters.
-- Show a more ornate, short, auto-dismissing intro banner for SuperBoss monsters.
-- Show a short defeat bubble for every defeated monster.
+- Show lightweight non-blocking intro bubbles for all monster levels, including SuperBoss.
+- Suppress repeated intro bubbles when the same catalog monster appears again in the same battle.
 - Use English as the primary line and Chinese as smaller supporting text.
 - Keep the tone playful and challenging, with slightly more fairy-tale drama for SuperBoss entries.
 - Expand each of the five built-in packs from 10 words to 15 words.
@@ -30,19 +29,21 @@ V0.9.1 added sentence cloze questions, moving the learning loop from word recogn
 - No LLM generation flow; content production and review remain a V0.9.6 concern.
 - No region story card, chapter intro, or chapter completion celebration; those remain V0.9.3.
 - No battle BGM, audio mixing, or voice acting; those remain V0.10.
-- No click-to-start interaction for SuperBoss intro banners.
-- No result-page redesign for defeat dialogue.
+- No click-to-start interaction for intro bubbles.
+- No defeat bubble or result-page redesign for defeat dialogue in V0.9.2; defeat copy stays in the catalog for a later exit-effect design.
 
 ## 4. User Flows
 
-### 4.1 Ordinary Monster Intro
+### 4.1 Monster Intro
 
 ```mermaid
 flowchart TD
-  start["Battle spawns Level 1 / 2 / 3 monster"] --> lookup["Resolve monster dialogue"]
-  lookup --> bubble["Show intro bubble near monster"]
+  start["Battle spawns a catalog monster"] --> seen{"Same catalog monster already introduced in this battle?"}
+  seen -->|yes| question["Question remains playable"]
+  seen -->|no| lookup["Resolve monster dialogue"]
+  lookup --> bubble["Show MessageBubble near monster"]
   bubble --> question["Question remains playable"]
-  question --> fade["Bubble auto fades after about 1.0s"]
+  question --> fade["Bubble auto fades"]
 ```
 
 ### 4.2 SuperBoss Intro
@@ -50,19 +51,16 @@ flowchart TD
 ```mermaid
 flowchart TD
   start["Battle spawns SuperBoss"] --> lookup["Resolve SuperBoss dialogue"]
-  lookup --> banner["Show ornate intro banner"]
-  banner --> block["Briefly block answer input / question reveal"]
-  block --> dismiss["Auto dismiss after about 1.2s"]
-  dismiss --> question["Normal question UI becomes playable"]
+  lookup --> bubble["Show same non-blocking MessageBubble"]
+  bubble --> question["Question remains playable"]
 ```
 
 ### 4.3 Defeat Dialogue
 
 ```mermaid
 flowchart TD
-  defeat["Monster HP reaches 0"] --> lookup["Resolve defeat dialogue"]
-  lookup --> bubble["Show short defeat bubble"]
-  bubble --> next{"More monsters?"}
+  defeat["Monster HP reaches 0"] --> clear["Clear any visible intro bubble"]
+  clear --> next{"More monsters?"}
   next -->|yes| spawn["Transition to next monster"]
   next -->|no| result["Existing result page"]
 ```
@@ -73,18 +71,11 @@ Every ID listed here must be implemented verbatim on all three platforms. Agents
 
 | ID | Where it lives | Purpose |
 | --- | --- | --- |
-| `BattleBossIntroBubble` | Ordinary monster intro overlay | Asserts Level 1 / 2 / 3 intro is lightweight bubble UI. |
-| `BattleBossIntroName` | Ordinary monster intro overlay | Shows the monster display name. |
-| `BattleBossIntroLineEn` | Ordinary monster intro overlay | Shows the English intro line. |
-| `BattleBossIntroLineZh` | Ordinary monster intro overlay | Shows the Chinese support line. |
-| `BattleSuperBossIntroBanner` | SuperBoss intro overlay | Asserts SuperBoss uses the ornate banner path. |
-| `BattleSuperBossIntroTitle` | SuperBoss intro overlay | Shows SuperBoss title / monster display name. |
-| `BattleSuperBossIntroLineEn` | SuperBoss intro overlay | Shows the English SuperBoss intro line. |
-| `BattleSuperBossIntroLineZh` | SuperBoss intro overlay | Shows the Chinese support line. |
-| `BattleBossDefeatBubble` | Defeat overlay | Asserts every defeated monster can show a defeat line. |
-| `BattleBossDefeatName` | Defeat overlay | Shows the defeated monster display name. |
-| `BattleBossDefeatLineEn` | Defeat overlay | Shows the English defeat line. |
-| `BattleBossDefeatLineZh` | Defeat overlay | Shows the Chinese support line. |
+| `BattleBossIntroBubble` | Monster intro overlay | Asserts intro is the shared lightweight `MessageBubble` UI. |
+| `BattleBossIntroName` | Monster intro overlay | Shows the monster display name. |
+| `BattleBossIntroLineEn` | Monster intro overlay | Shows the English intro line. |
+| `BattleBossIntroLineZh` | Monster intro overlay | Shows the Chinese support line. |
+| `BattleMonsterLevelLabel` | Monster card | Shows compact `L1` / `L2` / `L3` / `L4` level badge. |
 
 Platform mapping reminder:
 
@@ -123,32 +114,24 @@ The fallback is defensive only. Tests must assert every current catalog index ha
 
 ```text
 function introPresentation(level):
-  if level == Super:
-    return ornate_auto_banner
-  return small_nonblocking_bubble
+  return small_nonblocking_message_bubble
 ```
 
-Ordinary Level 1 / 2 / 3 intro bubbles:
+Intro bubbles:
 
 - Appear near the monster.
 - Do not pause the battle.
 - Do not require a tap.
-- Fade after about 1.0 second.
+- Fade automatically.
 - Must not block answer options, HP, or the main prompt.
-
-SuperBoss intro banners:
-
-- Use a more ornate visual treatment: gold edge, star accents, and a SuperBoss label.
-- Briefly block answer input or question reveal for about 1.2 seconds.
-- Auto dismiss without requiring a tap.
-- Must keep the battle page readable on phone and tablet viewports.
+- Use the shared `MessageBubble` component and battle boss style on all platforms.
+- Use the same behavior for SuperBoss as for Level 1 / 2 / 3 monsters.
+- Do not show another intro when the same catalog monster appears again in the same battle.
 
 Defeat bubbles:
 
-- Appear for every defeated monster, regardless of level.
-- Use the same short bubble style as ordinary intro, with defeat copy.
-- May overlap the existing damage / defeat animation window.
-- Auto fade before the next monster or result page.
+- Disabled for V0.9.2 to avoid overlap between monster exit and the next monster intro.
+- Keep `defeatLine` data in the catalog for a later exit-effect design.
 - Do not move `defeatLine` into ResultPage.
 
 ### 6.3 Copy Rules
@@ -240,7 +223,7 @@ The cross-platform content contract is local to this feature folder:
 - Missing dialogue for a monster: use safe fallback generated from monster name and log a local warning; tests should prevent this in shipped data.
 - Missing only one language: use fallback for the missing line; tests should prevent this in shipped data.
 - Long line: allow wrapping to two lines, shrink within existing platform conventions, and avoid covering answer controls.
-- SuperBoss transition interrupted by battle end: cancel the intro banner and show normal result / defeat flow.
+- Monster transition interrupted by battle end: cancel the intro bubble and show the normal result flow.
 - User changes saved config: preserve their chosen `monstersTotal`, `monsterMaxHp`, and `playerMaxHp`.
 - Sparse remote or family packs: built-in pack expansion does not impose a 15-word minimum on remote/family packs.
 
@@ -257,8 +240,8 @@ If a platform logs missing dialogue, use this stable prefix:
 ## 11. Accessibility / Localization
 
 - Screen readers should expose the same text as visible UI: monster name, English line, then Chinese line.
-- Ordinary intro and defeat bubbles are informational overlays and should not steal focus from answer controls.
-- SuperBoss intro banner may be announced as a temporary status message, but it must not require a separate dismiss action.
+- Intro bubbles are informational overlays and should not steal focus from answer controls.
+- SuperBoss intro uses the same temporary informational bubble as other levels and must not require a separate dismiss action.
 - Chinese support text is always visible in V0.9.2, not hidden behind a setting.
 - Keep visible English and Chinese copy identical across HarmonyOS, iOS, and Android.
 

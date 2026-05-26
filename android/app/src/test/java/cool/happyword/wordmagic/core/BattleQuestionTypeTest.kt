@@ -197,8 +197,8 @@ class BattleQuestionTypeTest {
         val lowRandom = engineWithRandomSequence(0.0, 0.0, 0.0, 0.0)
         val highRandom = engineWithRandomSequence(0.0, 0.5, 0.5, 0.5)
 
-        val lowQuestion = lowRandom.submitAnswer(lowRandom.initialState(), "apple").question
-        val highQuestion = highRandom.submitAnswer(highRandom.initialState(), "apple").question
+        val lowQuestion = lowRandom.initialState().question
+        val highQuestion = highRandom.initialState().question
 
         assertEquals(QuestionKind.FillLetter, lowQuestion.kind)
         assertEquals(QuestionKind.FillLetter, highQuestion.kind)
@@ -339,7 +339,7 @@ class BattleQuestionTypeTest {
     private fun engineWithRandomSequence(vararg values: Double): BattleEngine {
         var index = 0
         return BattleEngine(
-            config = GameConfig(monsterHp = 1, monsterCount = 5),
+            config = GameConfig(monsterHp = 1, monsterCount = 5, enabledQuestionTypes = listOf(BattleQuestionTypePolicy.FILL_LETTER)),
             words = words,
             shuffleOptions = { it },
             randomDouble = {

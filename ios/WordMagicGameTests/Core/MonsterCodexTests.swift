@@ -52,4 +52,11 @@ final class MonsterCodexTests: XCTestCase {
         XCTAssertEqual(counts[.super], 10)
         XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: 10).levelBadgeZh, "Super")
     }
+
+    func testBattleLevelLabelsUseLNotation() {
+        XCTAssertEqual(MonsterLevel.beginner.battleLabel, "L1")
+        XCTAssertEqual(MonsterLevel.intermediate.battleLabel, "L2")
+        XCTAssertEqual(MonsterLevel.advanced.battleLabel, "L3")
+        XCTAssertEqual(MonsterLevel.super.battleLabel, "L4")
+    }
 }

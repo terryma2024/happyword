@@ -30,6 +30,11 @@ class TodayPlanServiceTest {
                 "fruit-mango",
                 "fruit-melon",
                 "fruit-cherry",
+                "fruit-strawberry",
+                "fruit-pineapple",
+                "fruit-watermelon",
+                "fruit-kiwi",
+                "fruit-blueberry",
             ),
             plan.newWords.map { it.id },
         )

@@ -14,8 +14,8 @@ struct GameConfig: Codable, Equatable {
     static let `default` = GameConfig()
 
     var playerMaxHp: Int = 10
-    var monsterMaxHp: Int = 3
-    var monstersTotal: Int = 5
+    var monsterMaxHp: Int = 5
+    var monstersTotal: Int = 10
     var startingSeconds: Int = 300
     var autoSpeak: Bool = true
     var mode: GameMode = .normal
@@ -35,8 +35,8 @@ struct GameConfig: Codable, Equatable {
 
     init(
         playerMaxHp: Int = 10,
-        monsterMaxHp: Int = 3,
-        monstersTotal: Int = 5,
+        monsterMaxHp: Int = 5,
+        monstersTotal: Int = 10,
         startingSeconds: Int = 300,
         autoSpeak: Bool = true,
         mode: GameMode = .normal,

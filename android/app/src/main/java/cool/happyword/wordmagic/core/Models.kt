@@ -15,8 +15,8 @@ data class WordEntry(
 
 data class GameConfig(
     val playerHp: Int = 10,
-    val monsterHp: Int = 3,
-    val monsterCount: Int = 5,
+    val monsterHp: Int = 5,
+    val monsterCount: Int = 10,
     val timerSeconds: Int = 300,
     val autoPronunciation: Boolean = true,
     val enabledQuestionTypes: List<String> = BattleQuestionTypePolicy.defaultOrderedTypeIds,
@@ -103,6 +103,7 @@ data class BattleState(
     val currentMonsterBonus: Boolean = false,
     val bonusKillCount: Int = 0,
     val defeatedMonsterLevelScore: Int = 0,
+    val monsterCatalogIndex: Int = 1,
 )
 
 data class BattleAnswerOutcome(
