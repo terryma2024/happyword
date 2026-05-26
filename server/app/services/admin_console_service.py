@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from beanie.operators import Or, RegEx
 
@@ -22,6 +23,16 @@ from app.services import pack_service
 from app.services.admin_audit_service import record_admin_action
 
 REASON_MIN_LEN = 4
+
+
+@dataclass(frozen=True)
+class AdminFamilyPackCopySummary:
+    source_pack_id: str
+    source_family_id: str
+    target_pack_id: str
+    target_family_id: str
+    copied_word_count: int
+    deleted_source: bool
 
 
 def validate_reason_text(reason: str | None) -> str:
@@ -480,6 +491,117 @@ async def admin_delete_global_pack_definition(
         action="global_pack.definition_delete",
         target_collection="family_pack_definitions",
         target_id=pack_id,
+        payload_summary={"reason": r, **summary.__dict__},
+    )
+    return summary
+
+
+async def _next_copy_name(*, base_name: str, target_family_id: str) -> str:
+    root = base_name.strip() or "Copied pack"
+    candidates = [root, f"{root} (copy)"]
+    for n in range(2, 101):
+        candidates.append(f"{root} (copy {n})")
+    for candidate in candidates:
+        existing = await FamilyPackDefinition.find(
+            FamilyPackDefinition.family_id == target_family_id,
+            FamilyPackDefinition.name == candidate,
+        ).first_or_none()
+        if existing is None:
+            return candidate
+    raise ValueError("目标范围内同名词包过多，请先重命名后再复制。")
+
+
+async def admin_family_pack_copy(
+    *,
+    admin_username: str,
+    source_pack_id: str,
+    target_kind: Literal["global", "family"],
+    target_family_id: str | None,
+    delete_source: bool,
+    reason: str,
+) -> AdminFamilyPackCopySummary:
+    r = validate_reason_text(reason)
+    source = await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == source_pack_id
+    )
+    if source is None:
+        raise LookupError("pack_not_found")
+    if source.family_id == fps.GLOBAL_PACK_FAMILY_ID:
+        raise ValueError("请通过「全局词库」页面管理官方全局词包。")
+
+    if target_kind == "global":
+        resolved_target_family_id = fps.GLOBAL_PACK_FAMILY_ID
+    elif target_kind == "family":
+        fid = (target_family_id or "").strip()
+        if not fid:
+            raise ValueError("目标 family_id 不能为空。")
+        if fid == source.family_id:
+            raise ValueError("请选择另外一个 family 作为复制目标。")
+        target_family = await Family.find_one(Family.family_id == fid)
+        if target_family is None:
+            raise ValueError("未找到目标 family。")
+        resolved_target_family_id = fid
+    else:
+        raise ValueError("未知复制目标。")
+
+    target_name = await _next_copy_name(
+        base_name=source.name,
+        target_family_id=resolved_target_family_id,
+    )
+    source_draft = await FamilyPackDraft.find_one(
+        FamilyPackDraft.pack_definition_id == source.pack_id,
+        FamilyPackDraft.family_id == source.family_id,
+    )
+    copied_words = [dict(word) for word in source_draft.words] if source_draft else []
+
+    if target_kind == "global":
+        target = await gpk_svc.create_definition(
+            name=target_name,
+            admin_id=admin_username,
+            description=source.description,
+            scene=dict(source.scene),
+        )
+    else:
+        target = await fps.create_definition(
+            family_id=resolved_target_family_id,
+            name=target_name,
+            description=source.description,
+            scene=dict(source.scene),
+            parent_user_id=f"admin:{admin_username}",
+        )
+
+    now = datetime.now(tz=UTC)
+    target_draft = FamilyPackDraft(
+        pack_definition_id=target.pack_id,
+        family_id=target.family_id,
+        words=copied_words,
+        updated_at=now,
+        updated_by_parent_id=f"admin:{admin_username}",
+    )
+    await target_draft.insert()
+    target.updated_at = now
+    await target.save()
+
+    if delete_source:
+        await fps.delete_definition(pack_id=source.pack_id, family_id=source.family_id)
+
+    summary = AdminFamilyPackCopySummary(
+        source_pack_id=source.pack_id,
+        source_family_id=source.family_id,
+        target_pack_id=target.pack_id,
+        target_family_id=target.family_id,
+        copied_word_count=len(copied_words),
+        deleted_source=delete_source,
+    )
+    await record_admin_action(
+        admin_username=admin_username,
+        action=(
+            "family_pack.copy_to_global"
+            if target_kind == "global"
+            else "family_pack.copy_to_family"
+        ),
+        target_collection="family_pack_definitions",
+        target_id=source.pack_id,
         payload_summary={"reason": r, **summary.__dict__},
     )
     return summary

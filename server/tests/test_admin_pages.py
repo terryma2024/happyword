@@ -196,6 +196,67 @@ async def test_admin_family_packs_page_renders_delete_form(
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_family_packs_page_renders_copy_action_dialogs(
+    client: AsyncClient,
+) -> None:
+    from app.services import family_pack_service
+    from app.services.family_service import create_family_for_parent
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    family, user = await create_family_for_parent(email="family-copy-html@example.com")
+    await family_pack_service.create_definition(
+        family_id=family.family_id,
+        name="Family Copy From HTML",
+        description=None,
+        parent_user_id=user.username,
+        pack_id="pck-html-copy-render",
+    )
+
+    page = await client.get("/admin/family-packs")
+
+    assert page.status_code == 200
+    soup = BeautifulSoup(page.text, "html.parser")
+    action_cell = soup.find("td", attrs={"data-pack-actions": "pck-html-copy-render"})
+    assert action_cell is not None
+    visible_action_bar = action_cell.find("div", attrs={"data-action-buttons": "true"})
+    assert visible_action_bar is not None
+    assert visible_action_bar.find("textarea") is None
+    assert visible_action_bar.find("input") is None
+    assert visible_action_bar.find("button", string="复制为全局") is not None
+    assert visible_action_bar.find("button", string="复制到家庭") is not None
+
+    global_dialog = action_cell.find(
+        "dialog", attrs={"id": "copy-global-pck-html-copy-render"}
+    )
+    family_dialog = action_cell.find(
+        "dialog", attrs={"id": "copy-family-pck-html-copy-render"}
+    )
+    assert global_dialog is not None
+    assert family_dialog is not None
+    global_form = global_dialog.find(
+        "form",
+        attrs={"action": "/admin/family-packs/pck-html-copy-render/copy-to-global"},
+    )
+    family_form = family_dialog.find(
+        "form",
+        attrs={"action": "/admin/family-packs/pck-html-copy-render/copy-to-family"},
+    )
+    assert global_form is not None
+    assert global_form.find("textarea", attrs={"name": "reason"}) is not None
+    assert global_form.find("input", attrs={"name": "delete_source"}) is not None
+    assert family_form is not None
+    assert family_form.find("input", attrs={"name": "target_family_id"}) is not None
+    assert family_form.find("textarea", attrs={"name": "reason"}) is not None
+    assert family_form.find("input", attrs={"name": "delete_source"}) is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
 async def test_admin_family_pack_html_delete_removes_pack_and_audits(
     client: AsyncClient,
 ) -> None:
@@ -299,6 +360,387 @@ async def test_admin_family_pack_delete_rejects_global_sentinel(
     assert await FamilyPackDefinition.find_one(
         FamilyPackDefinition.pack_id == "gpk-family-delete-guard"
     ) is not None
+
+
+@pytest.mark.asyncio
+async def test_admin_family_pack_copy_to_global_copies_definition_and_draft(
+    db: object,
+) -> None:
+    from app.models.family_pack_draft import FamilyPackDraft
+    from app.models.family_pack_pointer import FamilyPackPointer
+    from app.models.family_word_pack import FamilyWordPack
+    from app.services import admin_console_service as acs
+    from app.services import family_pack_service
+    from app.services.family_pack_service import GLOBAL_PACK_FAMILY_ID
+    from app.services.family_service import create_family_for_parent
+
+    family, user = await create_family_for_parent(email="copy-global-src@example.com")
+    definition = await family_pack_service.create_definition(
+        family_id=family.family_id,
+        name="Copy Source",
+        description="source description",
+        parent_user_id=user.username,
+        scene={"bossName": "Dragon"},
+        pack_id="pck-copy-global-src",
+    )
+    await family_pack_service.upsert_draft_word(
+        definition=definition,
+        word_id="apple",
+        payload={"source": "global"},
+        parent_user_id=user.username,
+    )
+    await family_pack_service.publish(
+        definition=definition, parent_user_id=user.username, notes="source v1"
+    )
+
+    summary = await acs.admin_family_pack_copy(
+        admin_username="console-admin",
+        source_pack_id="pck-copy-global-src",
+        target_kind="global",
+        target_family_id=None,
+        delete_source=False,
+        reason="复制到全局词包",
+    )
+
+    assert summary.source_pack_id == "pck-copy-global-src"
+    assert summary.source_family_id == family.family_id
+    assert summary.target_family_id == GLOBAL_PACK_FAMILY_ID
+    assert summary.target_pack_id.startswith("gpk-")
+    assert summary.copied_word_count == 1
+    assert summary.deleted_source is False
+
+    target_definition = await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == summary.target_pack_id
+    )
+    assert target_definition is not None
+    assert target_definition.family_id == GLOBAL_PACK_FAMILY_ID
+    assert target_definition.name == "Copy Source"
+    assert target_definition.description == "source description"
+    assert target_definition.scene == {"bossName": "Dragon"}
+
+    target_draft = await FamilyPackDraft.find_one(
+        FamilyPackDraft.pack_definition_id == summary.target_pack_id
+    )
+    assert target_draft is not None
+    assert target_draft.family_id == GLOBAL_PACK_FAMILY_ID
+    assert target_draft.words == [{"id": "apple"}]
+
+    assert (
+        await FamilyWordPack.find(
+            FamilyWordPack.pack_definition_id == summary.target_pack_id
+        ).count()
+        == 0
+    )
+    assert await FamilyPackPointer.find_one(
+        FamilyPackPointer.pack_definition_id == summary.target_pack_id
+    ) is None
+
+    audit = await AuditLog.find_one(AuditLog.action == "family_pack.copy_to_global")
+    assert audit is not None
+    assert audit.target_id == "pck-copy-global-src"
+    assert audit.payload_summary["target_pack_id"] == summary.target_pack_id
+    assert audit.payload_summary["copied_word_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_admin_family_pack_copy_to_family_creates_target_draft_and_unique_name(
+    db: object,
+) -> None:
+    from app.models.family_pack_draft import FamilyPackDraft
+    from app.models.family_pack_pointer import FamilyPackPointer
+    from app.models.family_word_pack import FamilyWordPack
+    from app.services import admin_console_service as acs
+    from app.services import family_pack_service
+    from app.services.family_service import create_family_for_parent
+
+    source_family, source_user = await create_family_for_parent(
+        email="copy-family-src@example.com"
+    )
+    target_family, target_user = await create_family_for_parent(
+        email="copy-family-target@example.com"
+    )
+    source = await family_pack_service.create_definition(
+        family_id=source_family.family_id,
+        name="Shared Unit",
+        description="unit desc",
+        parent_user_id=source_user.username,
+        pack_id="pck-copy-family-src",
+    )
+    await family_pack_service.create_definition(
+        family_id=target_family.family_id,
+        name="Shared Unit",
+        description=None,
+        parent_user_id=target_user.username,
+        pack_id="pck-copy-family-existing",
+    )
+    await family_pack_service.upsert_draft_word(
+        definition=source,
+        word_id=f"fam-{source_family.family_id.removeprefix('fam-')[:8]}-cat",
+        payload={
+            "source": "custom",
+            "word": "cat",
+            "meaning_zh": "猫",
+            "category": "animals",
+            "difficulty": 1,
+        },
+        parent_user_id=source_user.username,
+    )
+    await family_pack_service.publish(
+        definition=source, parent_user_id=source_user.username, notes="source v1"
+    )
+
+    summary = await acs.admin_family_pack_copy(
+        admin_username="console-admin",
+        source_pack_id="pck-copy-family-src",
+        target_kind="family",
+        target_family_id=target_family.family_id,
+        delete_source=False,
+        reason="复制给另一个家庭",
+    )
+
+    target_definition = await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == summary.target_pack_id
+    )
+    assert target_definition is not None
+    assert target_definition.family_id == target_family.family_id
+    assert target_definition.name == "Shared Unit (copy)"
+    target_draft = await FamilyPackDraft.find_one(
+        FamilyPackDraft.pack_definition_id == summary.target_pack_id
+    )
+    assert target_draft is not None
+    assert target_draft.words[0]["word"] == "cat"
+    assert (
+        await FamilyWordPack.find(
+            FamilyWordPack.pack_definition_id == summary.target_pack_id
+        ).count()
+        == 0
+    )
+    assert await FamilyPackPointer.find_one(
+        FamilyPackPointer.pack_definition_id == summary.target_pack_id
+    ) is None
+
+
+@pytest.mark.asyncio
+async def test_admin_family_pack_copy_delete_source_removes_original_records(
+    db: object,
+) -> None:
+    from app.models.family_pack_draft import FamilyPackDraft
+    from app.models.family_pack_pointer import FamilyPackPointer
+    from app.models.family_word_pack import FamilyWordPack
+    from app.services import admin_console_service as acs
+    from app.services import family_pack_service
+    from app.services.family_service import create_family_for_parent
+
+    source_family, source_user = await create_family_for_parent(
+        email="copy-delete-src@example.com"
+    )
+    target_family, _ = await create_family_for_parent(
+        email="copy-delete-target@example.com"
+    )
+    source = await family_pack_service.create_definition(
+        family_id=source_family.family_id,
+        name="Delete After Copy",
+        description=None,
+        parent_user_id=source_user.username,
+        pack_id="pck-copy-delete-src",
+    )
+    await family_pack_service.upsert_draft_word(
+        definition=source,
+        word_id="banana",
+        payload={"source": "global"},
+        parent_user_id=source_user.username,
+    )
+    await family_pack_service.publish(
+        definition=source, parent_user_id=source_user.username, notes="v1"
+    )
+
+    summary = await acs.admin_family_pack_copy(
+        admin_username="console-admin",
+        source_pack_id="pck-copy-delete-src",
+        target_kind="family",
+        target_family_id=target_family.family_id,
+        delete_source=True,
+        reason="复制后删除来源",
+    )
+
+    assert summary.deleted_source is True
+    assert await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == "pck-copy-delete-src"
+    ) is None
+    assert await FamilyPackDraft.find_one(
+        FamilyPackDraft.pack_definition_id == "pck-copy-delete-src"
+    ) is None
+    assert await FamilyPackPointer.find_one(
+        FamilyPackPointer.pack_definition_id == "pck-copy-delete-src"
+    ) is None
+    assert (
+        await FamilyWordPack.find(
+            FamilyWordPack.pack_definition_id == "pck-copy-delete-src"
+        ).count()
+        == 0
+    )
+    assert await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == summary.target_pack_id
+    ) is not None
+
+
+@pytest.mark.asyncio
+async def test_admin_family_pack_copy_rejects_global_source_and_bad_target_family(
+    db: object,
+) -> None:
+    from app.services import admin_console_service as acs
+    from app.services import family_pack_service, global_pack_service
+    from app.services.family_service import create_family_for_parent
+
+    await global_pack_service.create_definition(
+        name="Global Source",
+        admin_id="console-admin",
+        pack_id="gpk-copy-guard",
+    )
+    with pytest.raises(ValueError, match="全局词库"):
+        await acs.admin_family_pack_copy(
+            admin_username="console-admin",
+            source_pack_id="gpk-copy-guard",
+            target_kind="global",
+            target_family_id=None,
+            delete_source=False,
+            reason="错误入口保护",
+        )
+
+    source_family, source_user = await create_family_for_parent(
+        email="copy-guard-src@example.com"
+    )
+    await family_pack_service.create_definition(
+        family_id=source_family.family_id,
+        name="Guard Source",
+        description=None,
+        parent_user_id=source_user.username,
+        pack_id="pck-copy-guard-src",
+    )
+    with pytest.raises(ValueError, match="未找到目标 family"):
+        await acs.admin_family_pack_copy(
+            admin_username="console-admin",
+            source_pack_id="pck-copy-guard-src",
+            target_kind="family",
+            target_family_id="fam-missing",
+            delete_source=False,
+            reason="目标不存在",
+        )
+    with pytest.raises(ValueError, match="另外一个 family"):
+        await acs.admin_family_pack_copy(
+            admin_username="console-admin",
+            source_pack_id="pck-copy-guard-src",
+            target_kind="family",
+            target_family_id=source_family.family_id,
+            delete_source=False,
+            reason="不能复制给自己",
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_family_pack_copy_to_global_html_copies_and_audits(
+    client: AsyncClient,
+) -> None:
+    from app.models.family_pack_draft import FamilyPackDraft
+    from app.services import family_pack_service
+    from app.services.family_pack_service import GLOBAL_PACK_FAMILY_ID
+    from app.services.family_service import create_family_for_parent
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    family, user = await create_family_for_parent(email="html-copy-global@example.com")
+    definition = await family_pack_service.create_definition(
+        family_id=family.family_id,
+        name="HTML Copy Global",
+        description=None,
+        parent_user_id=user.username,
+        pack_id="pck-html-copy-global",
+    )
+    await family_pack_service.upsert_draft_word(
+        definition=definition,
+        word_id="apple",
+        payload={"source": "global"},
+        parent_user_id=user.username,
+    )
+
+    res = await client.post(
+        "/admin/family-packs/pck-html-copy-global/copy-to-global",
+        data={"reason": "复制为全局词包"},
+        follow_redirects=False,
+    )
+
+    assert res.status_code == 303
+    assert res.headers["location"] == "/admin/family-packs?flash_ok=copied_global"
+    copied = await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.family_id == GLOBAL_PACK_FAMILY_ID,
+        FamilyPackDefinition.name == "HTML Copy Global",
+    )
+    assert copied is not None
+    copied_draft = await FamilyPackDraft.find_one(
+        FamilyPackDraft.pack_definition_id == copied.pack_id
+    )
+    assert copied_draft is not None
+    assert copied_draft.words == [{"id": "apple"}]
+    audit = await AuditLog.find_one(AuditLog.action == "family_pack.copy_to_global")
+    assert audit is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_family_pack_copy_to_family_html_can_delete_source(
+    client: AsyncClient,
+) -> None:
+    from app.services import family_pack_service
+    from app.services.family_service import create_family_for_parent
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    source_family, source_user = await create_family_for_parent(
+        email="html-copy-family-src@example.com"
+    )
+    target_family, _ = await create_family_for_parent(
+        email="html-copy-family-target@example.com"
+    )
+    await family_pack_service.create_definition(
+        family_id=source_family.family_id,
+        name="HTML Copy Family",
+        description=None,
+        parent_user_id=source_user.username,
+        pack_id="pck-html-copy-family",
+    )
+
+    res = await client.post(
+        "/admin/family-packs/pck-html-copy-family/copy-to-family",
+        data={
+            "target_family_id": target_family.family_id,
+            "reason": "复制给另一个家庭",
+            "delete_source": "on",
+        },
+        follow_redirects=False,
+    )
+
+    assert res.status_code == 303
+    assert res.headers["location"] == "/admin/family-packs?flash_ok=copied_family"
+    assert await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.pack_id == "pck-html-copy-family"
+    ) is None
+    copied = await FamilyPackDefinition.find_one(
+        FamilyPackDefinition.family_id == target_family.family_id,
+        FamilyPackDefinition.name == "HTML Copy Family",
+    )
+    assert copied is not None
+    audit = await AuditLog.find_one(AuditLog.action == "family_pack.copy_to_family")
+    assert audit is not None
+    assert audit.payload_summary["deleted_source"] is True
 
 
 @pytest.mark.asyncio
