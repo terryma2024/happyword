@@ -326,22 +326,21 @@ struct MessageBubbleLabPage {
           offsetY: this.state.shadowEnabled ? this.state.shadowOffsetY : 0,
         },
       }) {
-        Column({ space: 6 }) {
+        Column({ space: 3 }) {
           Text('Fern Lizard')
-            .fontSize(16)
+            .fontSize(12)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#4B2E83');
+            .fontColor('#6B4A23');
           Text('My green clue darts away.')
-            .fontSize(18)
+            .fontSize(14)
             .fontWeight(FontWeight.Medium)
             .fontColor('#1D3557')
             .maxLines(2);
           Text('我的绿色线索飞跑。')
-            .fontSize(13)
+            .fontSize(11)
             .fontColor('#6E5F54');
         }
         .alignItems(HorizontalAlign.Center)
-        .justifyContent(FlexAlign.Center)
         .width('100%')
         .height('100%');
       }

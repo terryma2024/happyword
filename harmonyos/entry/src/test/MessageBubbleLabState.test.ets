@@ -23,6 +23,12 @@ export default function messageBubbleLabStateTest() {
       const output: string = labStateOutput(state);
 
       expect(state.selectedPreset).assertEqual(MessageBubbleTailPreset.BottomRight);
+      expect(state.widthVp).assertEqual(224);
+      expect(state.heightVp).assertEqual(96);
+      expect(state.borderWidthVp).assertEqual(1);
+      expect(state.paddingX).assertEqual(10);
+      expect(state.fillColor).assertEqual('#FFFDF6');
+      expect(state.strokeColor).assertEqual('#E7D7B6');
       expect(output.indexOf('preset: BottomRight') >= 0).assertTrue();
       expect(output.indexOf('unit: vp') >= 0).assertTrue();
       expect(output.indexOf('baseStart') >= 0).assertTrue();

@@ -112,14 +112,14 @@ function copyWithTail(
 
 export function createMessageBubbleLabState(): MessageBubbleLabState {
   const base: MessageBubbleLabState = {
-    widthVp: 270,
-    heightVp: 148,
+    widthVp: 224,
+    heightVp: 96,
     radiusVp: 18,
-    borderWidthVp: 4,
-    paddingX: 28,
-    paddingY: 24,
-    fillColor: '#EEE6FF',
-    strokeColor: '#8B5CF6',
+    borderWidthVp: 1,
+    paddingX: 10,
+    paddingY: 10,
+    fillColor: '#FFFDF6',
+    strokeColor: '#E7D7B6',
     shadowEnabled: true,
     shadowRadius: 12,
     shadowOffsetX: 0,
