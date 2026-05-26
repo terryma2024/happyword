@@ -3,9 +3,14 @@ import {
   MessageBubbleLabState,
   createMessageBubbleLabState,
   messageBubbleLabTipActions,
+  labStateAdjustBoxValue,
+  labStateAdjustTailCoordinate,
+  labStateAdjustVisualValue,
   labStateApplyPreset,
   labStateAdjustTip,
+  labStateCycleColor,
   labStateOutput,
+  labStateToggleShadow,
   MessageBubbleLabTipAction,
 } from '../main/ets/components/MessageBubbleLabState';
 import { MessageBubbleTailPreset } from '../main/ets/components/MessageBubbleGeometry';
@@ -51,6 +56,38 @@ export default function messageBubbleLabStateTest() {
       expect(tipYMinus?.label).assertEqual('Tip Y -');
       expect(tipYMinus?.dx).assertEqual(0);
       expect(tipYMinus?.dy).assertEqual(-4);
+    });
+
+    it('adjustsAnyTailCoordinateByPointAndAxis', 0, () => {
+      const state: MessageBubbleLabState = createMessageBubbleLabState();
+      const changed: MessageBubbleLabState = labStateAdjustTailCoordinate(state, 'baseStart', 'x', 6);
+
+      expect(changed.tail.baseStart.x).assertEqual(state.tail.baseStart.x + 6);
+      expect(changed.tail.baseStart.y).assertEqual(state.tail.baseStart.y);
+      expect(changed.tail.baseEnd.x).assertEqual(state.tail.baseEnd.x);
+      expect(changed.tail.tip.x).assertEqual(state.tail.tip.x);
+    });
+
+    it('adjustsBubbleBoxValuesWithLowerBounds', 0, () => {
+      const state: MessageBubbleLabState = createMessageBubbleLabState();
+      const wider: MessageBubbleLabState = labStateAdjustBoxValue(state, 'widthVp', 10);
+      const tinyRadius: MessageBubbleLabState = labStateAdjustBoxValue(state, 'radiusVp', -999);
+      const tinyPadding: MessageBubbleLabState = labStateAdjustBoxValue(state, 'paddingX', -999);
+
+      expect(wider.widthVp).assertEqual(state.widthVp + 10);
+      expect(tinyRadius.radiusVp).assertEqual(0);
+      expect(tinyPadding.paddingX).assertEqual(0);
+    });
+
+    it('adjustsVisualValuesAndCyclesPalette', 0, () => {
+      const state: MessageBubbleLabState = createMessageBubbleLabState();
+      const shadowMoved: MessageBubbleLabState = labStateAdjustVisualValue(state, 'shadowOffsetY', 2);
+      const noShadow: MessageBubbleLabState = labStateToggleShadow(state);
+      const nextFill: MessageBubbleLabState = labStateCycleColor(state, 'fillColor');
+
+      expect(shadowMoved.shadowOffsetY).assertEqual(state.shadowOffsetY + 2);
+      expect(noShadow.shadowEnabled).assertFalse();
+      expect(nextFill.fillColor === state.fillColor).assertFalse();
     });
   });
 }
