@@ -29,6 +29,12 @@ export default function messageBubbleLabStateTest() {
       expect(state.paddingX).assertEqual(10);
       expect(state.fillColor).assertEqual('#FFFDF6');
       expect(state.strokeColor).assertEqual('#E7D7B6');
+      expect(state.tail.baseStart.x).assertEqual(172);
+      expect(state.tail.baseStart.y).assertEqual(96);
+      expect(state.tail.baseEnd.x).assertEqual(196);
+      expect(state.tail.baseEnd.y).assertEqual(96);
+      expect(state.tail.tip.x).assertEqual(212);
+      expect(state.tail.tip.y).assertEqual(112);
       expect(output.indexOf('preset: BottomRight') >= 0).assertTrue();
       expect(output.indexOf('unit: vp') >= 0).assertTrue();
       expect(output.indexOf('baseStart') >= 0).assertTrue();

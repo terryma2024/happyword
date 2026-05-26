@@ -16,6 +16,7 @@ export interface MessageBubbleBox {
   tailBase: number;
   tailLength: number;
   inset: number;
+  tipInset?: number;
 }
 
 export enum MessageBubbleTailPreset {
@@ -69,25 +70,27 @@ function verticalBaseStart(preset: MessageBubbleTailPreset, box: MessageBubbleBo
 }
 
 function horizontalTipX(preset: MessageBubbleTailPreset, box: MessageBubbleBox, baseStart: number): number {
+  const tipInset: number = box.tipInset ?? 0;
   if (preset === MessageBubbleTailPreset.TopLeft ||
     preset === MessageBubbleTailPreset.BottomLeft) {
-    return 0;
+    return tipInset;
   }
   if (preset === MessageBubbleTailPreset.TopRight ||
     preset === MessageBubbleTailPreset.BottomRight) {
-    return box.width;
+    return box.width - tipInset;
   }
   return baseStart + box.tailBase / 2;
 }
 
 function verticalTipY(preset: MessageBubbleTailPreset, box: MessageBubbleBox, baseStart: number): number {
+  const tipInset: number = box.tipInset ?? 0;
   if (preset === MessageBubbleTailPreset.LeftTop ||
     preset === MessageBubbleTailPreset.RightTop) {
-    return 0;
+    return tipInset;
   }
   if (preset === MessageBubbleTailPreset.LeftBottom ||
     preset === MessageBubbleTailPreset.RightBottom) {
-    return box.height;
+    return box.height - tipInset;
   }
   return baseStart + box.tailBase / 2;
 }

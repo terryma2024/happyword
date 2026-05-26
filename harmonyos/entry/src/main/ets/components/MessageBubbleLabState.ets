@@ -81,9 +81,10 @@ export function messageBubbleLabBox(state: MessageBubbleLabState): MessageBubble
     width: state.widthVp,
     height: state.heightVp,
     borderWidth: state.borderWidthVp,
-    tailBase: 56,
-    tailLength: 56,
-    inset: 38,
+    tailBase: 24,
+    tailLength: 16,
+    inset: 28,
+    tipInset: 12,
   };
 }
 
