@@ -70,6 +70,7 @@ import themePolicyTest from './ThemePolicy.test';
 import messageBubbleGeometryTest from './MessageBubbleGeometry.test';
 import messageBubbleTest from './MessageBubble.test';
 import messageBubbleLabStateTest from './MessageBubbleLabState.test';
+import bossDialogueSequencerTest from './BossDialogueSequencer.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -144,4 +145,5 @@ export default function testsuite() {
   messageBubbleGeometryTest();
   messageBubbleTest();
   messageBubbleLabStateTest();
+  bossDialogueSequencerTest();
 }

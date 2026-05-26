@@ -66,8 +66,15 @@ import { PronunciationService, shouldAutoSpeak } from '../services/Pronunciation
 import { CritOverlay } from '../components/CritOverlay';
 import { DamageFloaterLabel } from '../components/DamageFloaterLabel';
 import { MagicProjectile } from '../components/MagicProjectile';
+import { MessageBubble } from '../components/MessageBubble';
+import { MessageBubbleTail } from '../components/MessageBubbleGeometry';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
+import {
+  BossDialogueIntroDecision,
+  BossDialogueIntroDecisionKind,
+  BossDialogueSequencer,
+} from '../services/BossDialogueSequencer';
 import { requestPageOrientation } from '../utils/orientation';
 
 /**
@@ -110,6 +117,11 @@ const FEEDBACK_MS: number = 650;
 const ORDINARY_BOSS_INTRO_MS: number = 2400;
 const BOSS_DEFEAT_MS: number = 1200;
 const TICK_MS: number = 1000;
+const BOSS_MESSAGE_BUBBLE_TAIL: MessageBubbleTail = {
+  baseStart: { x: 172, y: 96 },
+  baseEnd: { x: 196, y: 96 },
+  tip: { x: 212, y: 112 },
+};
 /** V0.8.3 — max concurrent damage floaters per battle side. */
 const MAX_FLOATERS_PER_SIDE: number = 4;
 /** V0.8.3 — vertical offset between stacked floaters on the same side. */
@@ -224,6 +236,7 @@ struct BattlePage {
   private tickTimer: number = -1;
   private bossIntroTimer: number = -1;
   private bossDefeatTimer: number = -1;
+  private bossDialogueSequencer: BossDialogueSequencer = new BossDialogueSequencer();
   private lastIntroMonsterIndex: number = 0;
   private currentMonsterCatalogIndex: number = 1;
   private introShownCatalogIndices: number[] = [];
@@ -770,18 +783,34 @@ struct BattlePage {
   }
 
   private showIntroForCurrentMonster(): void {
-    if (this.monsterIndex === this.lastIntroMonsterIndex) {
-      return;
-    }
-    this.lastIntroMonsterIndex = this.monsterIndex;
     const catalogIndex: number = this.currentMonsterCatalogIndex;
-    if (this.introShownCatalogIndices.indexOf(catalogIndex) >= 0) {
+    const decision: BossDialogueIntroDecision = this.bossDialogueSequencer.requestIntro(
+      this.monsterIndex,
+      catalogIndex,
+      this.lastIntroMonsterIndex,
+      this.introShownCatalogIndices,
+    );
+    if (decision.kind === BossDialogueIntroDecisionKind.Skip) {
       this.bossIntroVisible = false;
       this.superBossIntroVisible = false;
       return;
     }
+    if (decision.kind === BossDialogueIntroDecisionKind.Defer) {
+      this.bossIntroVisible = false;
+      this.superBossIntroVisible = false;
+      return;
+    }
+    this.showIntroForCatalog(decision.monsterIndex, decision.catalogIndex);
+  }
+
+  private showIntroForCatalog(monsterIndex: number, catalogIndex: number): void {
+    if (monsterIndex === this.lastIntroMonsterIndex ||
+      this.introShownCatalogIndices.indexOf(catalogIndex) >= 0) {
+      return;
+    }
+    this.lastIntroMonsterIndex = monsterIndex;
     this.introShownCatalogIndices.push(catalogIndex);
-    const entry: MonsterEntry = this.currentMonster;
+    const entry: MonsterEntry = getMonsterByIndex(catalogIndex);
     const d: MonsterDialogue = entry.dialogue;
     this.bossDialogueName = entry.name;
     this.bossDialogueIntroEn = d.introLine.en;
@@ -801,6 +830,7 @@ struct BattlePage {
   private showDefeatForMonster(entry: MonsterEntry, catalogIndex: number): void {
     if (this.defeatShownCatalogIndices.indexOf(catalogIndex) >= 0) {
       this.bossDefeatVisible = false;
+      this.releaseIntroAfterDefeat();
       return;
     }
     this.defeatShownCatalogIndices.push(catalogIndex);
@@ -815,7 +845,15 @@ struct BattlePage {
     this.bossDefeatTimer = setTimeout((): void => {
       this.bossDefeatVisible = false;
       this.bossDefeatTimer = -1;
+      this.releaseIntroAfterDefeat();
     }, BOSS_DEFEAT_MS);
+  }
+
+  private releaseIntroAfterDefeat(): void {
+    const decision: BossDialogueIntroDecision = this.bossDialogueSequencer.releaseAfterDefeat();
+    if (decision.kind === BossDialogueIntroDecisionKind.Show) {
+      this.showIntroForCatalog(decision.monsterIndex, decision.catalogIndex);
+    }
   }
 
   @Builder
@@ -854,45 +892,43 @@ struct BattlePage {
   bossIntroBubble() {
     if (this.bossIntroVisible) {
       Stack() {
-        Column({ space: 3 }) {
-          Text(this.bossDialogueName)
-            .id('BattleBossIntroName')
-            .fontSize(12)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#6B4A23');
-          Text(this.bossDialogueIntroEn)
-            .id('BattleBossIntroLineEn')
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#1D3557')
-            .maxLines(2);
-          Text(this.bossDialogueIntroZh)
-            .id('BattleBossIntroLineZh')
-            .fontSize(11)
-            .fontColor('#6E5F54')
-            .maxLines(2);
+        MessageBubble({
+          widthVp: 224,
+          heightVp: 96,
+          radiusVp: 18,
+          borderWidthVp: 1,
+          fillColor: '#FFFDF6',
+          strokeColor: '#E7D7B6',
+          contentPadding: { left: 10, right: 10, top: 10, bottom: 10 },
+          tail: BOSS_MESSAGE_BUBBLE_TAIL,
+          bubbleShadow: { radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 },
+        }) {
+          Column({ space: 3 }) {
+            Text(this.bossDialogueName)
+              .id('BattleBossIntroName')
+              .fontSize(12)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#6B4A23');
+            Text(this.bossDialogueIntroEn)
+              .id('BattleBossIntroLineEn')
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1D3557')
+              .maxLines(2);
+            Text(this.bossDialogueIntroZh)
+              .id('BattleBossIntroLineZh')
+              .fontSize(11)
+              .fontColor('#6E5F54')
+              .maxLines(2);
+          }
+          .alignItems(HorizontalAlign.Center)
+          .width('100%')
+          .height('100%');
         }
-        .width(224)
-        .height(96)
-        .padding(10)
-        .borderRadius(18)
-        .backgroundColor('#FFFDF6')
-        .borderWidth(1)
-        .borderColor('#E7D7B6')
-        .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 })
-        .position({ x: 0, y: 0 });
-        Path()
-          .width(64)
-          .height(64)
-          .commands('M10 0 L34 0 L64 64 Z')
-          .fill('#FFFDF6')
-          .stroke('#E7D7B6')
-          .strokeWidth(1)
-          .position({ x: 164, y: 88 });
       }
       .id('BattleBossIntroBubble')
-      .width(232)
-      .height(160)
+      .width(248)
+      .height(144)
       .position({ x: '55%', y: '11%' })
       .hitTestBehavior(HitTestMode.None);
     }
@@ -940,45 +976,43 @@ struct BattlePage {
   bossDefeatBubble() {
     if (this.bossDefeatVisible) {
       Stack() {
-        Column({ space: 3 }) {
-          Text(this.bossDialogueName)
-            .id('BattleBossDefeatName')
-            .fontSize(12)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#4F6B2B');
-          Text(this.bossDialogueDefeatEn)
-            .id('BattleBossDefeatLineEn')
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#1D3557')
-            .maxLines(2);
-          Text(this.bossDialogueDefeatZh)
-            .id('BattleBossDefeatLineZh')
-            .fontSize(11)
-            .fontColor('#6E5F54')
-            .maxLines(2);
+        MessageBubble({
+          widthVp: 224,
+          heightVp: 96,
+          radiusVp: 18,
+          borderWidthVp: 1,
+          fillColor: '#FFFDF6',
+          strokeColor: '#D5E7B3',
+          contentPadding: { left: 10, right: 10, top: 10, bottom: 10 },
+          tail: BOSS_MESSAGE_BUBBLE_TAIL,
+          bubbleShadow: { radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 },
+        }) {
+          Column({ space: 3 }) {
+            Text(this.bossDialogueName)
+              .id('BattleBossDefeatName')
+              .fontSize(12)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#4F6B2B');
+            Text(this.bossDialogueDefeatEn)
+              .id('BattleBossDefeatLineEn')
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1D3557')
+              .maxLines(2);
+            Text(this.bossDialogueDefeatZh)
+              .id('BattleBossDefeatLineZh')
+              .fontSize(11)
+              .fontColor('#6E5F54')
+              .maxLines(2);
+          }
+          .alignItems(HorizontalAlign.Center)
+          .width('100%')
+          .height('100%');
         }
-        .width(224)
-        .height(96)
-        .padding(10)
-        .borderRadius(18)
-        .backgroundColor('#FFFDF6')
-        .borderWidth(1)
-        .borderColor('#D5E7B3')
-        .shadow({ radius: 12, color: '#22000000', offsetX: 0, offsetY: 4 })
-        .position({ x: 0, y: 0 });
-        Path()
-          .width(64)
-          .height(64)
-          .commands('M10 0 L34 0 L64 64 Z')
-          .fill('#FFFDF6')
-          .stroke('#D5E7B3')
-          .strokeWidth(1)
-          .position({ x: 164, y: 88 });
       }
       .id('BattleBossDefeatBubble')
-      .width(232)
-      .height(160)
+      .width(248)
+      .height(144)
       .position({ x: '55%', y: '14%' })
       .hitTestBehavior(HitTestMode.None);
     }
@@ -1207,6 +1241,9 @@ struct BattlePage {
 
     // Update stat displays (HP, combo, monster index) immediately so the
     // damage is visible before the reveal delay elapses.
+    if (outcome.monsterDefeated) {
+      this.bossDialogueSequencer.beginDefeatTransition();
+    }
     this.syncFromEngine();
     if (outcome.monsterDefeated) {
       this.showDefeatForMonster(defeatedMonsterBeforeAnswer, defeatedMonsterCatalogBeforeAnswer);
@@ -1451,6 +1488,9 @@ struct BattlePage {
       this.sessionAnswers.set(answeredWordId, acc);
     }
 
+    if (outcome.monsterDefeated) {
+      this.bossDialogueSequencer.beginDefeatTransition();
+    }
     this.syncFromEngine();
     if (outcome.monsterDefeated) {
       this.showDefeatForMonster(defeatedMonsterBeforeAnswer, defeatedMonsterCatalogBeforeAnswer);
