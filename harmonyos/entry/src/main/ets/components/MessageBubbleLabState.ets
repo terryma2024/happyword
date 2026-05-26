@@ -27,6 +27,10 @@ export type MessageBubbleBoxValueKey =
   'widthVp' | 'heightVp' | 'paddingX' | 'paddingY' | 'radiusVp' | 'borderWidthVp';
 export type MessageBubbleVisualValueKey = 'shadowRadius' | 'shadowOffsetY';
 export type MessageBubbleColorKey = 'fillColor' | 'strokeColor';
+export type MessageBubbleStepperValueKey =
+  'baseStartX' | 'baseStartY' | 'baseEndX' | 'baseEndY' | 'tipX' | 'tipY' |
+  'widthVp' | 'heightVp' | 'paddingX' | 'paddingY' | 'radiusVp' | 'borderWidthVp' |
+  'shadowRadius' | 'shadowOffsetY';
 
 export interface MessageBubbleLabTipAction {
   id: string;
@@ -227,6 +231,49 @@ export function labStateAdjustTip(
       },
     },
   );
+}
+
+export function labStateStepperValue(state: MessageBubbleLabState, key: MessageBubbleStepperValueKey): string {
+  if (key === 'baseStartX') {
+    return `${state.tail.baseStart.x}`;
+  }
+  if (key === 'baseStartY') {
+    return `${state.tail.baseStart.y}`;
+  }
+  if (key === 'baseEndX') {
+    return `${state.tail.baseEnd.x}`;
+  }
+  if (key === 'baseEndY') {
+    return `${state.tail.baseEnd.y}`;
+  }
+  if (key === 'tipX') {
+    return `${state.tail.tip.x}`;
+  }
+  if (key === 'tipY') {
+    return `${state.tail.tip.y}`;
+  }
+  if (key === 'widthVp') {
+    return `${state.widthVp}`;
+  }
+  if (key === 'heightVp') {
+    return `${state.heightVp}`;
+  }
+  if (key === 'paddingX') {
+    return `${state.paddingX}`;
+  }
+  if (key === 'paddingY') {
+    return `${state.paddingY}`;
+  }
+  if (key === 'radiusVp') {
+    return `${state.radiusVp}`;
+  }
+  if (key === 'borderWidthVp') {
+    return `${state.borderWidthVp}`;
+  }
+  if (key === 'shadowRadius') {
+    return `${state.shadowRadius}`;
+  }
+  return `${state.shadowOffsetY}`;
 }
 
 export function labStateOutput(state: MessageBubbleLabState): string {

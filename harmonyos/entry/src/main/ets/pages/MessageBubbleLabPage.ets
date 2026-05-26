@@ -12,6 +12,7 @@ import {
   MessageBubbleColorKey,
   MessageBubbleLabState,
   MessageBubbleLabTipAction,
+  MessageBubbleStepperValueKey,
   MessageBubbleTailPointKey,
   MessageBubbleVisualValueKey,
   createMessageBubbleLabState,
@@ -22,6 +23,7 @@ import {
   labStateApplyPreset,
   labStateCycleColor,
   labStateOutput,
+  labStateStepperValue,
   labStateToggleShadow,
   messageBubbleLabTipActions,
 } from '../components/MessageBubbleLabState';
@@ -121,7 +123,7 @@ struct MessageBubbleLabPage {
   @Builder
   private valueStepper(
     label: string,
-    value: string,
+    valueKey: MessageBubbleStepperValueKey,
     unit: string,
     minusId: string,
     plusId: string,
@@ -140,7 +142,7 @@ struct MessageBubbleLabPage {
         .fontSize(14)
         .fontColor('#FFFFFF')
         .onClick(onMinus);
-      Text(value)
+      Text(labStateStepperValue(this.state, valueKey))
         .fontSize(11)
         .fontWeight(FontWeight.Bold)
         .fontColor('#4A3A8A')
@@ -168,27 +170,27 @@ struct MessageBubbleLabPage {
   @Builder
   private coordinateControls() {
     Column({ space: 6 }) {
-      this.valueStepper('Base start x', `${this.state.tail.baseStart.x}`, 'vp',
+      this.valueStepper('Base start x', 'baseStartX', 'vp',
         'MessageBubbleLabBaseStartXMinus', 'MessageBubbleLabBaseStartXPlus',
         (): void => this.adjustTailCoordinate('baseStart', 'x', -2),
         (): void => this.adjustTailCoordinate('baseStart', 'x', 2));
-      this.valueStepper('Base start y', `${this.state.tail.baseStart.y}`, 'vp',
+      this.valueStepper('Base start y', 'baseStartY', 'vp',
         'MessageBubbleLabBaseStartYMinus', 'MessageBubbleLabBaseStartYPlus',
         (): void => this.adjustTailCoordinate('baseStart', 'y', -2),
         (): void => this.adjustTailCoordinate('baseStart', 'y', 2));
-      this.valueStepper('Base end x', `${this.state.tail.baseEnd.x}`, 'vp',
+      this.valueStepper('Base end x', 'baseEndX', 'vp',
         'MessageBubbleLabBaseEndXMinus', 'MessageBubbleLabBaseEndXPlus',
         (): void => this.adjustTailCoordinate('baseEnd', 'x', -2),
         (): void => this.adjustTailCoordinate('baseEnd', 'x', 2));
-      this.valueStepper('Base end y', `${this.state.tail.baseEnd.y}`, 'vp',
+      this.valueStepper('Base end y', 'baseEndY', 'vp',
         'MessageBubbleLabBaseEndYMinus', 'MessageBubbleLabBaseEndYPlus',
         (): void => this.adjustTailCoordinate('baseEnd', 'y', -2),
         (): void => this.adjustTailCoordinate('baseEnd', 'y', 2));
-      this.valueStepper('Tip x', `${this.state.tail.tip.x}`, 'vp',
+      this.valueStepper('Tip x', 'tipX', 'vp',
         'MessageBubbleLabTipXDirectMinus', 'MessageBubbleLabTipXDirectPlus',
         (): void => this.adjustTailCoordinate('tip', 'x', -2),
         (): void => this.adjustTailCoordinate('tip', 'x', 2));
-      this.valueStepper('Tip y', `${this.state.tail.tip.y}`, 'vp',
+      this.valueStepper('Tip y', 'tipY', 'vp',
         'MessageBubbleLabTipYDirectMinus', 'MessageBubbleLabTipYDirectPlus',
         (): void => this.adjustTailCoordinate('tip', 'y', -2),
         (): void => this.adjustTailCoordinate('tip', 'y', 2));
@@ -199,27 +201,27 @@ struct MessageBubbleLabPage {
   @Builder
   private boxControls() {
     Column({ space: 6 }) {
-      this.valueStepper('Width', `${this.state.widthVp}`, 'vp',
+      this.valueStepper('Width', 'widthVp', 'vp',
         'MessageBubbleLabWidthMinus', 'MessageBubbleLabWidthPlus',
         (): void => this.adjustBoxValue('widthVp', -10),
         (): void => this.adjustBoxValue('widthVp', 10));
-      this.valueStepper('Height', `${this.state.heightVp}`, 'vp',
+      this.valueStepper('Height', 'heightVp', 'vp',
         'MessageBubbleLabHeightMinus', 'MessageBubbleLabHeightPlus',
         (): void => this.adjustBoxValue('heightVp', -10),
         (): void => this.adjustBoxValue('heightVp', 10));
-      this.valueStepper('Padding X', `${this.state.paddingX}`, 'vp',
+      this.valueStepper('Padding X', 'paddingX', 'vp',
         'MessageBubbleLabPaddingXMinus', 'MessageBubbleLabPaddingXPlus',
         (): void => this.adjustBoxValue('paddingX', -2),
         (): void => this.adjustBoxValue('paddingX', 2));
-      this.valueStepper('Padding Y', `${this.state.paddingY}`, 'vp',
+      this.valueStepper('Padding Y', 'paddingY', 'vp',
         'MessageBubbleLabPaddingYMinus', 'MessageBubbleLabPaddingYPlus',
         (): void => this.adjustBoxValue('paddingY', -2),
         (): void => this.adjustBoxValue('paddingY', 2));
-      this.valueStepper('Corner radius', `${this.state.radiusVp}`, 'vp',
+      this.valueStepper('Corner radius', 'radiusVp', 'vp',
         'MessageBubbleLabRadiusMinus', 'MessageBubbleLabRadiusPlus',
         (): void => this.adjustBoxValue('radiusVp', -2),
         (): void => this.adjustBoxValue('radiusVp', 2));
-      this.valueStepper('Border width', `${this.state.borderWidthVp}`, 'vp',
+      this.valueStepper('Border width', 'borderWidthVp', 'vp',
         'MessageBubbleLabBorderMinus', 'MessageBubbleLabBorderPlus',
         (): void => this.adjustBoxValue('borderWidthVp', -1),
         (): void => this.adjustBoxValue('borderWidthVp', 1));
@@ -253,11 +255,11 @@ struct MessageBubbleLabPage {
           .onClick((): void => this.cycleColor('strokeColor'));
       }
       .width('100%');
-      this.valueStepper('Shadow r', `${this.state.shadowRadius}`, 'vp',
+      this.valueStepper('Shadow r', 'shadowRadius', 'vp',
         'MessageBubbleLabShadowRadiusMinus', 'MessageBubbleLabShadowRadiusPlus',
         (): void => this.adjustVisualValue('shadowRadius', -2),
         (): void => this.adjustVisualValue('shadowRadius', 2));
-      this.valueStepper('Shadow y', `${this.state.shadowOffsetY}`, 'vp',
+      this.valueStepper('Shadow y', 'shadowOffsetY', 'vp',
         'MessageBubbleLabShadowYMinus', 'MessageBubbleLabShadowYPlus',
         (): void => this.adjustVisualValue('shadowOffsetY', -1),
         (): void => this.adjustVisualValue('shadowOffsetY', 1));

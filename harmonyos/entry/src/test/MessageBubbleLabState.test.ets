@@ -10,6 +10,7 @@ import {
   labStateAdjustTip,
   labStateCycleColor,
   labStateOutput,
+  labStateStepperValue,
   labStateToggleShadow,
   MessageBubbleLabTipAction,
 } from '../main/ets/components/MessageBubbleLabState';
@@ -66,6 +67,15 @@ export default function messageBubbleLabStateTest() {
       expect(changed.tail.baseStart.y).assertEqual(state.tail.baseStart.y);
       expect(changed.tail.baseEnd.x).assertEqual(state.tail.baseEnd.x);
       expect(changed.tail.tip.x).assertEqual(state.tail.tip.x);
+    });
+
+    it('readsUpdatedStepperValuesFromCurrentState', 0, () => {
+      const state: MessageBubbleLabState = createMessageBubbleLabState();
+      const changed: MessageBubbleLabState = labStateAdjustTailCoordinate(state, 'tip', 'x', 6);
+
+      expect(labStateStepperValue(state, 'tipX')).assertEqual(`${state.tail.tip.x}`);
+      expect(labStateStepperValue(changed, 'tipX')).assertEqual(`${state.tail.tip.x + 6}`);
+      expect(labStateStepperValue(changed, 'widthVp')).assertEqual(`${state.widthVp}`);
     });
 
     it('adjustsBubbleBoxValuesWithLowerBounds', 0, () => {
