@@ -71,8 +71,8 @@ struct MessageBubbleLabPage {
         GridItem() {
           Button(`${preset}`)
             .id(`MessageBubbleLabPreset${preset}`)
-            .fontSize(11)
-            .height(34)
+            .fontSize(10)
+            .height(28)
             .backgroundColor(this.state.selectedPreset === preset ? '#8B5CF6' : '#F5F0FF')
             .fontColor(this.state.selectedPreset === preset ? '#FFFFFF' : '#5B36D6')
             .onClick((): void => this.applyPreset(preset));
@@ -81,7 +81,8 @@ struct MessageBubbleLabPage {
     }
     .columnsTemplate('1fr 1fr 1fr')
     .columnsGap(8)
-    .rowsGap(8);
+    .rowsGap(6)
+    .height(132);
   }
 
   @Builder
@@ -158,23 +159,30 @@ struct MessageBubbleLabPage {
           Row({ space: 8 }) {
             Button('Tip X -')
               .id('MessageBubbleLabTipXMinus')
+              .height(30)
+              .fontSize(10)
               .onClick((): void => this.adjustTip(-4, 0));
             Button('Tip X +')
               .id('MessageBubbleLabTipXPlus')
+              .height(30)
+              .fontSize(10)
               .onClick((): void => this.adjustTip(4, 0));
             Button('Tip Y +')
               .id('MessageBubbleLabTipYPlus')
+              .height(30)
+              .fontSize(10)
               .onClick((): void => this.adjustTip(0, 4));
           }
           .width('100%');
           Text(labStateOutput(this.state))
             .id('MessageBubbleLabOutput')
-            .fontSize(12)
+            .fontSize(10)
             .fontColor('#3B2A65')
             .fontFamily('monospace')
-            .padding(12)
+            .padding(8)
             .backgroundColor('#F4F0FF')
             .borderRadius(10)
+            .maxLines(5)
             .width('100%');
         }
         .layoutWeight(1);

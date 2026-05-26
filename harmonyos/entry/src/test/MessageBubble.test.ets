@@ -3,6 +3,7 @@ import {
   MessageBubbleFrame,
   messageBubbleFrame,
   messageBubblePathCommands,
+  scaleMessageBubbleTail,
 } from '../main/ets/components/MessageBubble';
 import {
   MessageBubbleTail,
@@ -72,6 +73,21 @@ export default function messageBubbleTest() {
       expect(commands.indexOf('240 60') < 0).assertTrue();
       expect(commands.indexOf('Q 240 120 222 120') >= 0).assertTrue();
       expect(commands.endsWith('Z')).assertTrue();
+    });
+
+    it('scalesTailCoordinatesForArkuiPathPixelCommands', 0, () => {
+      const tail: MessageBubbleTail = {
+        baseStart: { x: 176, y: 120 },
+        baseEnd: { x: 212, y: 120 },
+        tip: { x: 240, y: 164 },
+      };
+
+      const scaled: MessageBubbleTail | undefined = scaleMessageBubbleTail(tail, 3);
+
+      expect(scaled?.baseStart.x).assertEqual(528);
+      expect(scaled?.baseStart.y).assertEqual(360);
+      expect(scaled?.baseEnd.x).assertEqual(636);
+      expect(scaled?.tip.y).assertEqual(492);
     });
   });
 }

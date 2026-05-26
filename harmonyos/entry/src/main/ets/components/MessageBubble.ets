@@ -68,6 +68,17 @@ function shifted(point: MessageBubblePoint, frame: MessageBubbleFrame): MessageB
   };
 }
 
+export function scaleMessageBubbleTail(tail: MessageBubbleTail | undefined, scale: number): MessageBubbleTail | undefined {
+  if (tail === undefined) {
+    return undefined;
+  }
+  return {
+    baseStart: { x: tail.baseStart.x * scale, y: tail.baseStart.y * scale },
+    baseEnd: { x: tail.baseEnd.x * scale, y: tail.baseEnd.y * scale },
+    tip: { x: tail.tip.x * scale, y: tail.tip.y * scale },
+  };
+}
+
 function detectTailSide(width: number, height: number, tail: MessageBubbleTail): MessageBubbleTailSide {
   if (tail.baseStart.y === 0 && tail.baseEnd.y === 0) {
     return MessageBubbleTailSide.Top;
@@ -161,15 +172,15 @@ export function messageBubblePathCommands(
 
 @Component
 export struct MessageBubble {
-  widthVp: number = 240;
-  heightVp: number = 120;
-  radiusVp: number = 18;
-  borderWidthVp: number = 2;
-  fillColor: ResourceColor = '#FFFDF6';
-  strokeColor: ResourceColor = '#E7D7B6';
-  contentPadding: MessageBubblePadding = { left: 16, right: 16, top: 12, bottom: 12 };
-  tail?: MessageBubbleTail;
-  bubbleShadow: MessageBubbleShadow = { radius: 0, color: '#00000000', offsetX: 0, offsetY: 0 };
+  @Prop widthVp: number = 240;
+  @Prop heightVp: number = 120;
+  @Prop radiusVp: number = 18;
+  @Prop borderWidthVp: number = 2;
+  @Prop fillColor: ResourceColor = '#FFFDF6';
+  @Prop strokeColor: ResourceColor = '#E7D7B6';
+  @Prop contentPadding: MessageBubblePadding = { left: 16, right: 16, top: 12, bottom: 12 };
+  @Prop tail: MessageBubbleTail | undefined = undefined;
+  @Prop bubbleShadow: MessageBubbleShadow = { radius: 0, color: '#00000000', offsetX: 0, offsetY: 0 };
   @BuilderParam content: () => void = this.defaultContent;
 
   @Builder
@@ -179,21 +190,27 @@ export struct MessageBubble {
     return messageBubbleFrame(this.widthVp, this.heightVp, this.tail);
   }
 
+  private pathCommands(): string {
+    const scale: number = this.getUIContext().vp2px(1);
+    return messageBubblePathCommands(
+      this.widthVp * scale,
+      this.heightVp * scale,
+      this.radiusVp * scale,
+      scaleMessageBubbleTail(this.tail, scale),
+    );
+  }
+
   build() {
-    Stack() {
+    Stack({ alignContent: Alignment.TopStart }) {
       Path()
         .width(this.frame().width)
         .height(this.frame().height)
-        .commands(messageBubblePathCommands(
-          this.widthVp,
-          this.heightVp,
-          this.radiusVp,
-          this.tail,
-        ))
+        .commands(this.pathCommands())
         .fill(this.fillColor)
         .stroke(this.strokeColor)
         .strokeWidth(this.borderWidthVp)
-        .shadow(this.bubbleShadow);
+        .shadow(this.bubbleShadow)
+        .position({ x: 0, y: 0 });
       Column() {
         this.content();
       }
