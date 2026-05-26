@@ -32,6 +32,11 @@ export interface MessageBubbleFrame {
   offsetY: number;
 }
 
+export interface MessageBubbleShadowPadding {
+  x: number;
+  y: number;
+}
+
 function min3(a: number, b: number, c: number): number {
   return Math.min(a, Math.min(b, c));
 }
@@ -76,6 +81,20 @@ export function scaleMessageBubbleTail(tail: MessageBubbleTail | undefined, scal
     baseStart: { x: tail.baseStart.x * scale, y: tail.baseStart.y * scale },
     baseEnd: { x: tail.baseEnd.x * scale, y: tail.baseEnd.y * scale },
     tip: { x: tail.tip.x * scale, y: tail.tip.y * scale },
+  };
+}
+
+export function messageBubbleHasShadow(shadow: MessageBubbleShadow): boolean {
+  return shadow.radius > 0;
+}
+
+export function messageBubbleShadowPadding(shadow: MessageBubbleShadow): MessageBubbleShadowPadding {
+  if (!messageBubbleHasShadow(shadow)) {
+    return { x: 0, y: 0 };
+  }
+  return {
+    x: Math.abs(shadow.offsetX) + shadow.radius,
+    y: Math.abs(shadow.offsetY) + shadow.radius,
   };
 }
 
@@ -190,6 +209,10 @@ export struct MessageBubble {
     return messageBubbleFrame(this.widthVp, this.heightVp, this.tail);
   }
 
+  private shadowPadding(): MessageBubbleShadowPadding {
+    return messageBubbleShadowPadding(this.bubbleShadow);
+  }
+
   private pathCommands(): string {
     const scale: number = this.getUIContext().vp2px(1);
     return messageBubblePathCommands(
@@ -202,6 +225,19 @@ export struct MessageBubble {
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
+      if (messageBubbleHasShadow(this.bubbleShadow)) {
+        Path()
+          .width(this.frame().width)
+          .height(this.frame().height)
+          .commands(this.pathCommands())
+          .fill(this.bubbleShadow.color)
+          .stroke('#00000000')
+          .strokeWidth(0)
+          .position({
+            x: this.shadowPadding().x + this.bubbleShadow.offsetX,
+            y: this.shadowPadding().y + this.bubbleShadow.offsetY,
+          });
+      }
       Path()
         .width(this.frame().width)
         .height(this.frame().height)
@@ -209,14 +245,16 @@ export struct MessageBubble {
         .fill(this.fillColor)
         .stroke(this.strokeColor)
         .strokeWidth(this.borderWidthVp)
-        .shadow(this.bubbleShadow)
-        .position({ x: 0, y: 0 });
+        .position({ x: this.shadowPadding().x, y: this.shadowPadding().y });
       Column() {
         this.content();
       }
       .width(this.widthVp)
       .height(this.heightVp)
-      .position({ x: this.frame().offsetX, y: this.frame().offsetY })
+      .position({
+        x: this.shadowPadding().x + this.frame().offsetX,
+        y: this.shadowPadding().y + this.frame().offsetY,
+      })
       .padding({
         left: this.contentPadding.left,
         right: this.contentPadding.right,
@@ -224,8 +262,8 @@ export struct MessageBubble {
         bottom: this.contentPadding.bottom,
       });
     }
-    .width(this.frame().width)
-    .height(this.frame().height)
+    .width(this.frame().width + this.shadowPadding().x * 2)
+    .height(this.frame().height + this.shadowPadding().y * 2)
     .hitTestBehavior(HitTestMode.None);
   }
 }

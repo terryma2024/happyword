@@ -41,7 +41,8 @@ const LAB_PRESETS: MessageBubbleTailPreset[] = [
   MessageBubbleTailPreset.RightMiddle,
   MessageBubbleTailPreset.RightBottom,
 ];
-const LAB_CONTROLS_WIDTH: number = 760;
+const LAB_PANEL_WIDTH: number = 380;
+const LAB_PANEL_HEIGHT: number = 300;
 
 @Entry
 @Component
@@ -131,10 +132,10 @@ struct MessageBubbleLabPage {
       Text(label)
         .fontSize(11)
         .fontColor('#4A4268')
-        .width(92);
+        .width(84);
       Button('-')
         .id(minusId)
-        .width(42)
+        .width(36)
         .height(26)
         .fontSize(14)
         .fontColor('#FFFFFF')
@@ -145,12 +146,12 @@ struct MessageBubbleLabPage {
         .fontColor('#4A3A8A')
         .textAlign(TextAlign.Center)
         .height(26)
-        .width(160)
+        .width(128)
         .borderRadius(8)
         .border({ width: 1, color: '#D8C6FF' });
       Button('+')
         .id(plusId)
-        .width(42)
+        .width(36)
         .height(26)
         .fontSize(14)
         .fontColor('#FFFFFF')
@@ -233,14 +234,14 @@ struct MessageBubbleLabPage {
         Text('Fill / Stroke')
           .fontSize(11)
           .fontColor('#4A4268')
-          .width(92);
+          .width(84);
         Button(this.state.fillColor)
           .id('MessageBubbleLabFillColor')
           .height(28)
           .fontSize(10)
           .fontColor('#5B36D6')
           .backgroundColor('#F5F0FF')
-          .width(120)
+          .width(112)
           .onClick((): void => this.cycleColor('fillColor'));
         Button(this.state.strokeColor)
           .id('MessageBubbleLabStrokeColor')
@@ -248,7 +249,7 @@ struct MessageBubbleLabPage {
           .fontSize(10)
           .fontColor('#5B36D6')
           .backgroundColor('#F5F0FF')
-          .width(120)
+          .width(112)
           .onClick((): void => this.cycleColor('strokeColor'));
       }
       .width('100%');
@@ -264,7 +265,7 @@ struct MessageBubbleLabPage {
         Text('Shadow')
           .fontSize(11)
           .fontColor('#4A4268')
-          .width(92);
+          .width(84);
         Button(this.state.shadowEnabled ? 'on' : 'off')
           .id('MessageBubbleLabShadowToggle')
           .height(28)
@@ -340,10 +341,94 @@ struct MessageBubbleLabPage {
       }
     }
     .id('MessageBubbleLabPreview')
-    .width(420)
-    .height(300)
+    .width(LAB_PANEL_WIDTH)
+    .height(LAB_PANEL_HEIGHT)
     .borderRadius(16)
     .backgroundColor('#FAF8FF');
+  }
+
+  @Builder
+  private demoPanel() {
+    Column({ space: 10 }) {
+      this.sectionTitle('Demo');
+      this.preview();
+    }
+    .width(LAB_PANEL_WIDTH);
+  }
+
+  @Builder
+  private liveOutputPanel() {
+    Column({ space: 10 }) {
+      this.sectionTitle('Live Output');
+      Scroll() {
+        Text(labStateOutput(this.state))
+          .fontSize(10)
+          .fontColor('#3B2A65')
+          .fontFamily('monospace')
+          .width('100%');
+      }
+      .id('MessageBubbleLabOutput')
+      .height(LAB_PANEL_HEIGHT)
+      .padding(10)
+      .backgroundColor('#F4F0FF')
+      .borderRadius(12)
+      .scrollable(ScrollDirection.Vertical)
+      .width('100%');
+    }
+    .width(LAB_PANEL_WIDTH);
+  }
+
+  @Builder
+  private presetsPanel() {
+    Column({ space: 10 }) {
+      this.sectionTitle('Presets');
+      this.presetGrid();
+      Row({ space: 8 }) {
+        ForEach(messageBubbleLabTipActions(), (action: MessageBubbleLabTipAction) => {
+          Button(action.label)
+            .id(action.id)
+            .height(30)
+            .fontSize(10)
+            .width(88)
+            .onClick((): void => this.adjustTip(action.dx, action.dy));
+        }, (action: MessageBubbleLabTipAction) => action.id);
+      }
+      .width('100%');
+    }
+    .width(LAB_PANEL_WIDTH);
+  }
+
+  @Builder
+  private tailGeometryPanel() {
+    Column({ space: 10 }) {
+      this.sectionTitle('Tail Geometry');
+      Row({ space: 8 }) {
+        this.pill('free triangle');
+        this.pill('preset -> points');
+        this.pill('vp');
+      }
+      .width('100%');
+      this.coordinateControls();
+    }
+    .width(LAB_PANEL_WIDTH);
+  }
+
+  @Builder
+  private bubbleBoxPanel() {
+    Column({ space: 10 }) {
+      this.sectionTitle('Bubble Box');
+      this.boxControls();
+    }
+    .width(LAB_PANEL_WIDTH);
+  }
+
+  @Builder
+  private visualStylePanel() {
+    Column({ space: 10 }) {
+      this.sectionTitle('Visual Style');
+      this.visualControls();
+    }
+    .width(LAB_PANEL_WIDTH);
   }
 
   build() {
@@ -369,53 +454,18 @@ struct MessageBubbleLabPage {
         }
         .width('100%');
 
-        Row({ space: 18 }) {
-          this.preview();
-          Column({ space: 12 }) {
-            Text('Presets')
-              .fontSize(16)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#1D3557');
-            this.presetGrid();
-            this.sectionTitle('Tail Geometry');
-            Row({ space: 8 }) {
-              this.pill('free triangle');
-              this.pill('preset -> points');
-              this.pill('vp');
-            }
-            .width('100%');
-            Row({ space: 8 }) {
-              ForEach(messageBubbleLabTipActions(), (action: MessageBubbleLabTipAction) => {
-                Button(action.label)
-                  .id(action.id)
-                  .height(30)
-                  .fontSize(10)
-                  .width(88)
-                  .onClick((): void => this.adjustTip(action.dx, action.dy));
-              }, (action: MessageBubbleLabTipAction) => action.id);
-            }
-            .width('100%');
-            this.coordinateControls();
-            this.sectionTitle('Bubble Box');
-            this.boxControls();
-            this.sectionTitle('Visual Style');
-            this.visualControls();
-            Scroll() {
-              Text(labStateOutput(this.state))
-                .fontSize(10)
-                .fontColor('#3B2A65')
-                .fontFamily('monospace')
-                .width('100%');
-            }
-            .id('MessageBubbleLabOutput')
-            .height(96)
-            .padding(8)
-            .backgroundColor('#F4F0FF')
-            .borderRadius(10)
-            .scrollable(ScrollDirection.Vertical)
-            .width('100%');
-          }
-          .width(LAB_CONTROLS_WIDTH);
+        Row({ space: 16 }) {
+          this.demoPanel();
+          this.liveOutputPanel();
+          this.presetsPanel();
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Top);
+
+        Row({ space: 16 }) {
+          this.tailGeometryPanel();
+          this.bubbleBoxPanel();
+          this.visualStylePanel();
         }
         .width('100%')
         .alignItems(VerticalAlign.Top);

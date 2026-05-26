@@ -1,8 +1,10 @@
 import { describe, it, expect } from '@ohos/hypium';
 import {
   MessageBubbleFrame,
+  messageBubbleHasShadow,
   messageBubbleFrame,
   messageBubblePathCommands,
+  messageBubbleShadowPadding,
   scaleMessageBubbleTail,
 } from '../main/ets/components/MessageBubble';
 import {
@@ -88,6 +90,25 @@ export default function messageBubbleTest() {
       expect(scaled?.baseStart.y).assertEqual(360);
       expect(scaled?.baseEnd.x).assertEqual(636);
       expect(scaled?.tip.y).assertEqual(492);
+    });
+
+    it('expandsFramePaddingForPathBasedShadowOffsets', 0, () => {
+      expect(messageBubbleHasShadow({
+        radius: 0,
+        color: '#22000000',
+        offsetX: 0,
+        offsetY: 4,
+      })).assertFalse();
+
+      const padding = messageBubbleShadowPadding({
+        radius: 12,
+        color: '#22000000',
+        offsetX: -3,
+        offsetY: 4,
+      });
+
+      expect(padding.x).assertEqual(15);
+      expect(padding.y).assertEqual(16);
     });
   });
 }
