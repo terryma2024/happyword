@@ -5,14 +5,21 @@ These talk to the deployed server only — no in-process FastAPI imports.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import httpx
 
 from tests.e2e._utils.db import MongoDB, inject_otp_code
 from tests.e2e._utils.vercel import vercel_bypass_headers
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 KNOWN_OTP_CODE = "123456"
+_REQUEST_CODE_ATTEMPTS = 3
+_REQUEST_CODE_RETRY_DELAY_SECONDS = 1.0
 
 
 @dataclass
@@ -53,6 +60,31 @@ def admin_login(http: httpx.Client, *, username: str, password: str) -> str:
     return token
 
 
+def _request_parent_login_code(
+    http: httpx.Client,
+    *,
+    email: str,
+    sleep: Callable[[float], None] = time.sleep,
+) -> httpx.Response:
+    last_error: httpx.HTTPError | None = None
+    for attempt in range(1, _REQUEST_CODE_ATTEMPTS + 1):
+        try:
+            response = http.post(
+                "/api/v1/family/_/auth/request-code",
+                json={"email": email},
+            )
+        except httpx.HTTPError as exc:
+            last_error = exc
+        else:
+            if response.status_code < 500 or attempt == _REQUEST_CODE_ATTEMPTS:
+                return response
+
+        if attempt < _REQUEST_CODE_ATTEMPTS:
+            sleep(_REQUEST_CODE_RETRY_DELAY_SECONDS)
+
+    raise AssertionError(f"request-code failed after retries: {last_error!r}")
+
+
 async def parent_login(
     *,
     http: httpx.Client,
@@ -68,7 +100,7 @@ async def parent_login(
     The session cookie is attached to the shared ``http`` client so any
     subsequent call in the same test is automatically authenticated.
     """
-    r = http.post("/api/v1/family/_/auth/request-code", json={"email": email})
+    r = _request_parent_login_code(http, email=email)
     if r.status_code != 202:
         raise AssertionError(
             f"request-code failed ({r.status_code}): {r.text}"
