@@ -28,6 +28,10 @@ def _without_merged_at(payload: dict[str, object]) -> dict[str, object]:
     return clone
 
 
+def _latest_global_packs_url(cache_key: str) -> str:
+    return f"/api/v1/public/global-packs/latest.json?e2e_cache_bust={cache_key}"
+
+
 @pytest.mark.e2e
 def test_global_pack_publish_then_appears_in_public_latest_json(
     http: httpx.Client, admin_token: str, run_id: str
@@ -70,7 +74,7 @@ def test_global_pack_publish_then_appears_in_public_latest_json(
     assert pub.status_code == 201, pub.text
     assert pub.json()["version"] >= 1
 
-    latest = http.get("/api/v1/public/global-packs/latest.json")
+    latest = http.get(_latest_global_packs_url(f"{run_id}-publish"))
     assert latest.status_code == 200, latest.text
     assert "etag" in {k.lower() for k in latest.headers}
     body = latest.json()
@@ -189,7 +193,7 @@ def test_global_pack_split_copy_publish_then_public_latest_contains_both(
     )
     assert new_publish.status_code == 201, new_publish.text
 
-    latest = http.get("/api/v1/public/global-packs/latest.json")
+    latest = http.get(_latest_global_packs_url(f"{run_id}-split-copy"))
     assert latest.status_code == 200, latest.text
     packs = {pack["pack_id"]: pack for pack in latest.json()["packs"]}
     assert source_pack_id in packs
