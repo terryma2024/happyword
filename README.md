@@ -163,156 +163,22 @@ Debug builds can switch API base URL at runtime (local machine, a Vercel preview
 
 The iOS module lives at [`ios/`](ios/) and uses native Swift / SwiftUI. It mirrors product contracts through `shared/` fixtures while keeping runtime code native to iOS.
 
-Regenerate the Xcode project after changing `ios/project.yml` or target membership:
-
-```bash
-/opt/homebrew/bin/xcodegen generate --spec ios/project.yml --project ios
-```
-
-Build the simulator app:
-
-```bash
-cd ios && xcodebuild build -scheme WordMagicGame -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /private/tmp/wordmagic-dd
-```
-
-Run XCTest unit tests:
-
-```bash
-cd ios && xcodebuild test -scheme WordMagicGame -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:WordMagicGameTests -derivedDataPath /private/tmp/wordmagic-dd
-```
-
-Run XCUITest UI tests:
-
-```bash
-cd ios && xcodebuild test -scheme WordMagicGame -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:WordMagicGameUITests -derivedDataPath /private/tmp/wordmagic-dd
-```
-
-Run the full iOS test suite:
-
-```bash
-cd ios && xcodebuild test -scheme WordMagicGame -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /private/tmp/wordmagic-dd
-```
-
-Boot, install, and launch the latest simulator build:
-
-```bash
-xcrun simctl boot 'iPhone 17 Pro'
-xcrun simctl install booted /private/tmp/wordmagic-dd/Build/Products/Debug-iphonesimulator/WordMagicGame.app
-xcrun simctl launch booted com.terryma.wordmagicgame -UITestResetState
-```
-
-The detailed iOS build, test, simulator, screenshot, and log workflow lives in [`.cursor/ios-dev-commands.md`](.cursor/ios-dev-commands.md).
-
 ### Android client
 
 The Android module lives at [`android/`](android/) and uses native Kotlin / Jetpack Compose. It uses the same shared contracts and server APIs without introducing a cross-platform client runtime.
 
-Check the Gradle / Android SDK environment:
-
-```bash
-cd android && ./gradlew -version
-cd android && ./gradlew :app:tasks --all
-```
-
-Run JVM unit tests:
-
-```bash
-cd android && ./gradlew testDebugUnitTest
-```
-
-Build debug APK:
-
-```bash
-cd android && ./gradlew assembleDebug
-```
-
-Connect an emulator or device:
-
-```bash
-$ANDROID_HOME/platform-tools/adb devices
-```
-
-Install and launch the debug app:
-
-```bash
-cd android && ./gradlew installDebug
-$ANDROID_HOME/platform-tools/adb shell am start -n cool.happyword.wordmagic/.MainActivity
-```
-
-Run connected Compose UI tests:
-
-```bash
-cd android && ./gradlew connectedDebugAndroidTest
-```
-
-When more than one Android device is online, set `ANDROID_SERIAL=<serial>` before Gradle install / UI-test commands, and use `adb -s <serial>` only for `adb` commands.
-
-The detailed Android build, test, emulator, install, screenshot, and log workflow lives in [`.cursor/android-dev-commands.md`](.cursor/android-dev-commands.md).
-
 ## Server
 
-The Python/FastAPI content backend lives under [`server/`](server/). It now covers the content CMS, parent-facing web shell, child-device APIs, and deployment support surfaces:
-
-- **Admin console / CMS**: global words, categories, global pack drafts, publish / rollback, asset upload, LLM-assisted drafts, audit logs, parent/device/family-pack operations, system config, stats, and cron/admin maintenance routes.
-- **Parent web + account flows**: OTP and password login, Google / Apple / WeChat / Alipay OAuth handoff, settings, support / privacy pages, feedback, parent inbox, redemption review, account deletion, device management, and family pack editing.
-- **Child-device APIs**: device pairing and token auth, public/global pack sync, family pack sync, child profile, check-in calendar, word-stat sync, cloud wishlist, magic coin transactions, and redemption requests.
-- **Lesson / AI import**: lesson image upload, LLM extraction drafts, parent/admin review flows, and family-pack import helpers.
-- **Deployment / QA tooling**: Vercel serverless entrypoint, preview manifest support, staging smoke tests, offline pytest, preview E2E, and Mongo-backed local development.
-
-Install dependencies:
-
-```bash
-cd server && uv sync
-```
-
-Run the local API after creating `server/.env.local` from `server/.env.local.example` and starting a local MongoDB:
-
-```bash
-cd server && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-Run the offline test suite:
-
-```bash
-cd server && uv run pytest
-```
-
-Run quality checks:
-
-```bash
-cd server && uv run ruff check .
-cd server && uv run ruff format --check .
-cd server && uv run mypy app
-```
-
-Run deployed-server E2E tests after configuring `E2E_BASE_URL`, `E2E_MONGODB_URI`, `E2E_MONGO_DB_NAME`, and matching admin credentials:
-
-```bash
-cd server && uv run pytest -v -m e2e
-```
-
-Run staging smoke tests:
-
-```bash
-cd server && uv run pytest -v -m smoke
-```
-
-For the full local dev setup, MongoDB notes, offline / E2E / smoke workflows, and Vercel deployment details, see [`server/README.md`](server/README.md). Design references start from [V0.5 backend design](docs/superpowers/specs/2026-04-30-v0.5-content-backend-design.md) and the current QA pipeline in [server QA pipeline design](docs/superpowers/specs/2026-05-06-server-qa-pipeline-design.md).
+The Python/FastAPI content backend (词库管理、家长账户、设备配对、家庭包等) lives under [`server/`](server/). For local dev, offline + E2E tests, and Vercel 部署说明，见 [`server/README.md`](server/README.md)。设计规范见 [V0.5 后端设计](docs/superpowers/specs/2026-04-30-v0.5-content-backend-design.md)。
 
 ## CI / GitHub Actions
 
-Server automation is in a Vercel-to-CloudBase transition period. Both deployment paths are still represented in GitHub Actions:
-
-- **`server-ci`** (`.github/workflows/server-ci.yml`): runs on PRs touching `server/**` and on manual dispatch. It runs offline `uv run pytest -v` on GitHub-hosted Ubuntu, uploads the server source as a short-lived artifact, then runs CloudBase staging E2E on the Beijing self-hosted runner when CloudBase / E2E secrets are configured.
-- **`server-cd`** (`.github/workflows/server-cd.yml`): runs after pushes to `main` touching `server/**`; waits for the Vercel production deployment URL and runs the HTTP-only smoke subset (`pytest -m smoke`).
-- **`server-cloudbase-cd`** (`.github/workflows/server-cloudbase-cd.yml`): runs after pushes to `main` and on manual dispatch; deploys `server/` to CloudBase Run, waits for 100% traffic, checks `/api/v1/public/health`, and runs smoke tests against `CLOUDBASE_PROD_BASE_URL`.
-- **`preview-manifest`** (`.github/workflows/preview-manifest.yml`): legacy Vercel Blob preview-manifest cleanup / manual repair for closed PRs while Vercel Preview remains available.
-- **`atlas-cleanup`** (`.github/workflows/atlas-cleanup.yml`): weekly and manual cleanup for stale per-PR Mongo Atlas E2E databases older than 14 days.
-- **`vercel-prune`** (`.github/workflows/vercel-prune.yml`): weekly and manual pruning of old non-main Vercel deployments; production aliases are preserved.
-
-The CloudBase staging E2E runner expects `python3.12`, `jq`, Node/npm, CloudBase CLI access, and `/usr/local/bin/uv`; it uses the Tencent Cloud PyPI mirror and shared staging database reset flow instead of deploying a per-PR Vercel preview. Missing optional secrets generally make gated jobs print warnings and skip their external path rather than failing first-time setup.
-
-All required and optional secrets are documented — including Vercel legacy secrets, CloudBase Run credentials, CloudBase staging/prod URLs, E2E Mongo settings, cron secret, Slack alert webhook, COS / Mongo migration placeholders, and what breaks when each is missing — in [`docs/ci-secrets.md`](docs/ci-secrets.md). Read that page first when forking the repo or bringing up CI from scratch.
+The `server-ci` / `server-cd` / `cursor-autofix-e2e` / `preview-manifest` /
+`atlas-cleanup` workflows expect a small set of GitHub Actions secrets
+(Vercel, Mongo Atlas, Slack, Cursor). All of them are documented — with
+**how to obtain each value and what breaks when one is missing** — in
+[`docs/ci-secrets.md`](docs/ci-secrets.md). Read that page first when
+forking the repo or bringing up CI from scratch.
 
 ## Roadmap
 
