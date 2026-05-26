@@ -70,11 +70,14 @@ final class QuestionGeneratorTests: XCTestCase {
 
     func testFillLetterGeneratorPreservesPhraseSpacesAndSkipsArticles() throws {
         let generator = FillLetterGenerator(random: SeededRandom(seed: 10))
+        let singleWord = try XCTUnwrap(generator.generate(Self.word(id: "fruit-apple", word: "apple", meaningZh: "苹果")))
+        XCTAssertEqual(singleWord.letterTemplate.filter { $0 == " " }.count, 0)
+
         let beginner = try XCTUnwrap(generator.generate(Self.word(id: "phrase-magic-wand", word: "magic wand", meaningZh: "魔法棒")))
-        XCTAssertTrue(beginner.letterTemplate.contains("   "))
+        XCTAssertEqual(beginner.letterTemplate.filter { $0 == " " }.count, 1)
 
         let medium = try XCTUnwrap(generator.generateMedium(Self.word(id: "phrase-magic-wand", word: "magic wand", meaningZh: "魔法棒")))
-        XCTAssertTrue(medium.letterTemplateBase.contains("   "))
+        XCTAssertEqual(medium.letterTemplateBase.filter { $0 == " " }.count, 1)
 
         let articleGenerator = FillLetterGenerator(random: SeededRandom(seed: 1))
         for index in 0 ..< 20 {

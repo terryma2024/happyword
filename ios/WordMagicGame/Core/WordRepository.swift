@@ -403,7 +403,7 @@ private func template(from tokens: [PhraseToken], missingPositions: Set<Int>) ->
     tokens.map { token in
         token.isLetter && missingPositions.contains(token.originalIndex) ? "_" : token.glyph
     }
-    .joined(separator: " ")
+    .joined()
 }
 
 struct BattleQuestionPlan: Equatable {
