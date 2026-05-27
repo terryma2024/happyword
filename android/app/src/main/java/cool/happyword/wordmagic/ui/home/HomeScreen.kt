@@ -243,9 +243,30 @@ internal fun HomeScreen(
             ) {
                 Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(selectedPack.nameEn, modifier = Modifier.testTag("AdventureCardTitle"), fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
-                        Spacer(Modifier.weight(1f))
-                        SmallPill("今日")
+                        Text(
+                            selectedPack.nameEn,
+                            modifier = Modifier.weight(1f).testTag("AdventureCardTitle"),
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF3B2418),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        val dailyStatusCompleted = dailyStatus.label == "已完成"
+                        Text(
+                            text = dailyStatus.label,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(99.dp))
+                                .background(if (dailyStatusCompleted) Color(0xFFE5E5E5) else Color(0xFFE63946))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .testTag("AdventureCardDailyStatusBadge")
+                                .semantics { contentDescription = dailyStatus.label },
+                            color = if (dailyStatusCompleted) Color(0xFF7B7B7B) else Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
