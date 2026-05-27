@@ -40,7 +40,12 @@ import { AdventureRegion } from '../models/AdventureRegion';
 import { getRegionById } from '../data/AdventureCatalog';
 import { Pack } from '../models/Pack';
 import { PackSelectionService, PerfectAdventureResult } from '../services/PackSelectionService';
-import { LibraryCandidateProvider } from '../services/PackHomeIntegration';
+import {
+  HomeIntegrationBundle,
+  LibraryCandidateProvider,
+  loadHomeIntegration,
+  resolveActivePacks,
+} from '../services/PackHomeIntegration';
 import { PackLibrary } from '../services/PackLibrary';
 import { CoinAccount, getCoinAccount, COIN_REASON_TODAY_FIRST } from '../services/CoinAccount';
 import { CoinSnapshot, DAILY_CAP } from '../models/CoinSnapshot';
@@ -69,6 +74,13 @@ import { MagicProjectile } from '../components/MagicProjectile';
 import { MessageBubble } from '../components/MessageBubble';
 import { MessageBubbleTail } from '../components/MessageBubbleGeometry';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
+import {
+  DailyLearningState,
+  DailyLearningStateService,
+  DailyReviewSnapshot,
+  getDailyLearningStateService,
+  reviewMonsterCount,
+} from '../services/DailyLearningStateService';
 import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
 import {
   BossDialogueIntroDecision,
@@ -128,12 +140,10 @@ const FLOATER_STACK_OFFSET_VP: number = 6;
 /**
  * Review-mode battle overrides. Kept as top-level constants so unit
  * tests can import the same values and assert the review pool
- * behaviour without poking at private fields. Matches spec §15 Track
- * D: 3 monsters, 120 seconds.
+ * behaviour without poking at private fields. Review battles use a
+ * 10-minute countdown; monster count is computed from remaining words.
  */
-export const REVIEW_MODE_MONSTERS_TOTAL: number = 3;
-export const REVIEW_MODE_STARTING_SECONDS: number = 120;
-export const REVIEW_WINDOW_SIZE: number = 12;
+export const REVIEW_MODE_STARTING_SECONDS: number = 600;
 
 /** Per-word answer tally used to compute review-only accuracy. */
 class AnswerCount {
@@ -177,6 +187,35 @@ function countByWordSource(plan: TodaySessionPlan, src: WordSource): number {
   return n;
 }
 
+function activeWordsFromBundle(bundle: HomeIntegrationBundle): WordEntry[] {
+  const packs: Pack[] = resolveActivePacks(bundle);
+  const out: WordEntry[] = [];
+  for (let i = 0; i < packs.length; i++) {
+    for (let j = 0; j < packs[i].words.length; j++) {
+      out.push(packs[i].words[j]);
+    }
+  }
+  return out;
+}
+
+function mergeWordEntries(primary: WordEntry[], secondary: WordEntry[]): WordEntry[] {
+  const out: WordEntry[] = [];
+  const seen: string[] = [];
+  for (let i = 0; i < primary.length; i++) {
+    if (primary[i].id.length > 0 && seen.indexOf(primary[i].id) < 0) {
+      seen.push(primary[i].id);
+      out.push(primary[i]);
+    }
+  }
+  for (let i = 0; i < secondary.length; i++) {
+    if (secondary[i].id.length > 0 && seen.indexOf(secondary[i].id) < 0) {
+      seen.push(secondary[i].id);
+      out.push(secondary[i]);
+    }
+  }
+  return out;
+}
+
 @Entry
 @Component
 struct BattlePage {
@@ -190,10 +229,11 @@ struct BattlePage {
   private audio: AudioService = new AudioService();
   private tts: PronunciationService = new PronunciationService();
   private recorder: LearningRecorder = getLearningRecorder();
+  private dailyStateService: DailyLearningStateService = getDailyLearningStateService();
   private autoSpeak: boolean = true;
   /**
    * True when this battle was launched from HomePage's review button.
-   * Drives the 3-monster / 120-s overrides and the mode reset after
+   * Drives the 10-minute review rules and the mode reset after
    * the battle ends.
    */
   private isReviewMode: boolean = false;
@@ -428,6 +468,7 @@ struct BattlePage {
       const storedCfg: GameConfig | undefined =
         AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
       const cfg: GameConfig = cloneGameConfig(storedCfg !== undefined ? storedCfg : new GameConfig());
+      await this.dailyStateService.init(ctx);
       this.autoSpeak = cfg.autoSpeak;
       this.isReviewMode = cfg.mode === GAME_MODE_REVIEW;
       this.isTodayMode = cfg.mode === GAME_MODE_TODAY;
@@ -440,7 +481,15 @@ struct BattlePage {
       // PlanQuestionSource can resolve any wordId that ended up in
       // plan.wordPlan; the active pack's words are layered in below
       // via `bundleEntries`.
-      const universe: WordEntry[] = repo.all();
+      let universe: WordEntry[] = repo.all();
+      if (this.isReviewMode) {
+        try {
+          const bundle: HomeIntegrationBundle = await loadHomeIntegration(ctx);
+          universe = mergeWordEntries(universe, activeWordsFromBundle(bundle));
+        } catch (err) {
+          console.error(`BattlePage: load review universe failed: ${JSON.stringify(err as BusinessError)}`);
+        }
+      }
       const finalEntries: WordEntry[] = universe;
 
       const finalRepo: WordRepository = new WordRepository();
@@ -453,9 +502,11 @@ struct BattlePage {
       // back to the V0.2 QuestionGenerator path.
       let source: IQuestionSource = choiceGen;
       let planMonsters: number = -1;
+      let reviewPlanWordCount: number = 0;
       if (this.isReviewMode) {
         const reviewPlan: TodaySessionPlan = this.buildReviewPlan(universe);
         if (reviewPlan.wordPlan.length > 0) {
+          reviewPlanWordCount = reviewPlan.wordPlan.length;
           const reviewWordIds: string[] = [];
           for (let wi: number = 0; wi < reviewPlan.wordPlan.length; wi++) {
             reviewWordIds.push(reviewPlan.wordPlan[wi].wordId);
@@ -529,11 +580,15 @@ struct BattlePage {
       const bc: BattleConfig = new BattleConfig();
       bc.playerMaxHp = cfg.playerMaxHp;
       bc.monsterMaxHp = cfg.monsterMaxHp;
-      // Review mode overrides (spec §15 Track D): a short, focused
-      // challenge — 3 monsters / 120 s — so the learner sees every
-      // word they just missed without a full 5-monster session.
+      // Review mode: 10 minutes, with monster count scaled to the
+      // remaining daily review words and the configured monster HP.
       if (this.isReviewMode) {
-        bc.monstersTotal = REVIEW_MODE_MONSTERS_TOTAL;
+        bc.monstersTotal = reviewMonsterCount(
+          reviewPlanWordCount,
+          cfg.monsterMaxHp,
+          cfg.monstersTotal,
+          new GameConfig().monsterMaxHp,
+        );
         bc.startingSeconds = REVIEW_MODE_STARTING_SECONDS;
       } else if (this.isTodayMode && planMonsters > 0) {
         bc.monstersTotal = cfg.monstersTotal;
@@ -634,25 +689,30 @@ struct BattlePage {
   }
 
   /**
-   * Build a focused review plan by intersecting recent wrong ids with
-   * the available word universe. The plan can contain 1 or 2 words:
-   * PlanQuestionSource picks answers only from this list while the
-   * full repository still supplies choice distractors.
+   * Build a focused review plan from today's stable review snapshot.
+   * Already-reviewed ids are skipped so returning to review mode only
+   * shows the remaining daily work.
    */
   private buildReviewPlan(universe: WordEntry[]): TodaySessionPlan {
     const plan: TodaySessionPlan = new TodaySessionPlan();
-    plan.regionId = 'review-recent-wrong';
+    plan.regionId = 'review-daily';
     plan.isFirstToday = false;
-    const wrongIds: string[] = this.recorder.recentWrongIds(REVIEW_WINDOW_SIZE);
-    if (wrongIds.length === 0) {
+    const daily: DailyLearningState = this.dailyStateService.snapshot();
+    const review: DailyReviewSnapshot = daily.reviewSnapshot;
+    if (review.wordIds.length === 0) {
       return plan;
     }
+    const reviewed: string[] = review.reviewedWordIds;
     const lookup: Map<string, WordEntry> = new Map<string, WordEntry>();
     for (let i = 0; i < universe.length; i++) {
       lookup.set(universe[i].id, universe[i]);
     }
-    for (let i = 0; i < wrongIds.length; i++) {
-      const hit: WordEntry | undefined = lookup.get(wrongIds[i]);
+    for (let i = 0; i < review.wordIds.length; i++) {
+      const wordId: string = review.wordIds[i];
+      if (reviewed.indexOf(wordId) >= 0) {
+        continue;
+      }
+      const hit: WordEntry | undefined = lookup.get(wordId);
       if (hit !== undefined) {
         const slot: WordSlot = new WordSlot();
         slot.wordId = hit.id;
@@ -661,6 +721,16 @@ struct BattlePage {
       }
     }
     return plan;
+  }
+
+  private markDailyReviewWordIfNeeded(wordId: string): void {
+    if (!this.isReviewMode || wordId.length === 0) {
+      return;
+    }
+    this.dailyStateService.markReviewedWords(Date.now(), [wordId])
+      .catch((err: BusinessError): void => {
+        console.error(`BattlePage: markReviewedWords failed: ${JSON.stringify(err)}`);
+      });
   }
 
   /**
@@ -1220,6 +1290,7 @@ struct BattlePage {
     // answered. Falls through silently if the recorder wasn't ready.
     if (answeredWordId.length > 0) {
       this.recorder.recordAnswer(answeredWordId, outcome.correct);
+      this.markDailyReviewWordIfNeeded(answeredWordId);
       const prev: AnswerCount | undefined = this.sessionAnswers.get(answeredWordId);
       const acc: AnswerCount = prev !== undefined ? prev : new AnswerCount();
       acc.total += 1;
@@ -1469,6 +1540,7 @@ struct BattlePage {
 
     if (answeredWordId.length > 0) {
       this.recorder.recordAnswer(answeredWordId, outcome.correct);
+      this.markDailyReviewWordIfNeeded(answeredWordId);
       const prev: AnswerCount | undefined = this.sessionAnswers.get(answeredWordId);
       const acc: AnswerCount = prev !== undefined ? prev : new AnswerCount();
       acc.total += 1;
@@ -1743,6 +1815,11 @@ struct BattlePage {
     // happens via flushNow on the coin account; the day-key flag is
     // session-only AppStorage state read by HomePage.
     AppStorage.setOrCreate<string>(TODAY_LAST_COMPLETED_DAY_KEY, formatDayKeyLocal(now));
+    if (result.status === BattleStatus.Won) {
+      this.dailyStateService.markPackBattleWon(now).catch((err: BusinessError): void => {
+        console.error(`BattlePage: markPackBattleWon failed: ${JSON.stringify(err)}`);
+      });
+    }
 
     this.coinAccount.flushNow().catch((err: BusinessError): void => {
       console.error(`BattlePage: CoinAccount.flushNow failed: ${JSON.stringify(err)}`);

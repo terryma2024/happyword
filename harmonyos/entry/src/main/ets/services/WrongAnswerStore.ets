@@ -20,6 +20,11 @@ export class WordStat {
   lastCorrectMs: number = 0;
   nextReviewMs: number = 0;
   memoryState: string = 'new';
+  /**
+   * Last answer outcome for stable daily-review planning. Older
+   * snapshots infer this from streak counters during parse.
+   */
+  lastOutcome: string = 'unknown';
   // V0.4.3 refined-memory fields. `consecutiveCorrect` resets on a
   // wrong answer and counts the current correct streak; ditto for
   // `consecutiveWrong`. `mastery` is a confidence score in [0, 1]
@@ -194,6 +199,7 @@ interface WordStatJson {
   lastCorrectMs?: number;
   nextReviewMs?: number;
   memoryState?: string;
+  lastOutcome?: string;
   consecutiveCorrect?: number;
   consecutiveWrong?: number;
   mastery?: number;
@@ -266,6 +272,15 @@ export function parseSnapshot(raw: string): LearningSnapshot {
       } else {
         stat.mastery = 0;
       }
+      if (typeof item.lastOutcome === 'string' && isKnownOutcome(item.lastOutcome)) {
+        stat.lastOutcome = item.lastOutcome;
+      } else if (stat.consecutiveWrong > 0) {
+        stat.lastOutcome = 'wrong';
+      } else if (stat.consecutiveCorrect > 0) {
+        stat.lastOutcome = 'correct';
+      } else {
+        stat.lastOutcome = 'unknown';
+      }
       if (stat.wordId.length > 0) {
         snapshot.stats.push(stat);
       }
@@ -292,6 +307,10 @@ export function clampMastery(value: number): number {
     return 1;
   }
   return value;
+}
+
+function isKnownOutcome(value: string): boolean {
+  return value === 'correct' || value === 'wrong' || value === 'unknown';
 }
 
 /**

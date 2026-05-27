@@ -199,7 +199,7 @@ final class WordMagicGameUITests: XCTestCase {
     }
 
     @MainActor
-    func testReviewToolbarUsesRecentWrongWordAndShowsToastWhenEmpty() throws {
+    func testReviewToolbarShowsEmptyToastAndExcludesSameDayWrongWord() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestResetState", "-UITestExposeCorrectAnswer"]
         app.launch()
@@ -207,12 +207,11 @@ final class WordMagicGameUITests: XCTestCase {
         assertLandscape(app)
         XCTAssertTrue(app.buttons["复习"].waitForExistence(timeout: 5))
         app.buttons["复习"].tap()
-        XCTAssertTrue(app.staticTexts["先答错几题再来复习吧"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["今天没有需要复习的单词"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["开始冒险"].exists)
 
         app.buttons["开始冒险"].tap()
         XCTAssertTrue(app.buttons["BattleCorrectOption"].waitForExistence(timeout: 5))
-        let seededWrongPrompt = try XCTUnwrap(currentFruitPrompt(in: app, timeout: 5))
         tapFirstIncorrectFruitOption(in: app)
         XCTAssertTrue(waitForBattleFeedback(in: app)?.hasPrefix("Correct answer:") == true)
         waitForBattleFeedbackToClear(in: app)
@@ -223,9 +222,8 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.buttons["开始冒险"].waitForExistence(timeout: 5))
 
         app.buttons["复习"].tap()
-        XCTAssertTrue(app.staticTexts["Battle"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Monster 1 / 3"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts[seededWrongPrompt].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["今天没有需要复习的单词"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["开始冒险"].exists)
     }
 
     @MainActor

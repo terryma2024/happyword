@@ -71,6 +71,7 @@ import messageBubbleGeometryTest from './MessageBubbleGeometry.test';
 import messageBubbleTest from './MessageBubble.test';
 import messageBubbleLabStateTest from './MessageBubbleLabState.test';
 import bossDialogueSequencerTest from './BossDialogueSequencer.test';
+import dailyLearningStateServiceTest from './DailyLearningStateService.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -146,4 +147,5 @@ export default function testsuite() {
   messageBubbleTest();
   messageBubbleLabStateTest();
   bossDialogueSequencerTest();
+  dailyLearningStateServiceTest();
 }

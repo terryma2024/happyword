@@ -118,6 +118,7 @@ import cool.happyword.wordmagic.core.CoinAccount
 import cool.happyword.wordmagic.core.DevMenuRouteParams
 import cool.happyword.wordmagic.core.DevMenuViewModel
 import cool.happyword.wordmagic.core.VersionTripleTap
+import cool.happyword.wordmagic.core.DailyHomeStatus
 import cool.happyword.wordmagic.core.DeviceBindingClient
 import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
 import cool.happyword.wordmagic.core.CustomWishRules
@@ -183,6 +184,7 @@ internal fun HomeScreen(
     cloudCredentials: cool.happyword.wordmagic.core.CloudCredentials?,
     showDeveloperTools: Boolean,
     homeVersionLabel: String,
+    dailyStatus: DailyHomeStatus,
     onDeveloperVersionTripleTap: () -> Unit,
     onSelectPack: (WordPack) -> Unit,
     onBoundChild: () -> Unit,
@@ -241,9 +243,30 @@ internal fun HomeScreen(
             ) {
                 Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(selectedPack.nameEn, modifier = Modifier.testTag("AdventureCardTitle"), fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color(0xFF3B2418))
-                        Spacer(Modifier.weight(1f))
-                        SmallPill("今日")
+                        Text(
+                            selectedPack.nameEn,
+                            modifier = Modifier.weight(1f).testTag("AdventureCardTitle"),
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF3B2418),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        val dailyStatusCompleted = dailyStatus.label == "已完成"
+                        Text(
+                            text = dailyStatus.label,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(99.dp))
+                                .background(if (dailyStatusCompleted) Color(0xFFE5E5E5) else Color(0xFFE63946))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .testTag("AdventureCardDailyStatusBadge")
+                                .semantics { contentDescription = dailyStatus.label },
+                            color = if (dailyStatusCompleted) Color(0xFF7B7B7B) else Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
@@ -271,7 +294,16 @@ internal fun HomeScreen(
                         SmallPill("精英")
                         SmallPill("首领")
                     }
-                    Text("今天的冒险包含 5 关卡，含拼写、复习与首领关", fontSize = 18.sp, color = Color(0xFF6A5843), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    Text(
+                        dailyStatus.label,
+                        fontSize = 18.sp,
+                        color = Color(0xFF6A5843),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("AdventureCardDailyStatusLabel")
+                            .semantics { contentDescription = dailyStatus.label },
+                        textAlign = TextAlign.Center,
+                    )
                     Button(
                         onClick = onStart,
                         modifier = Modifier.fillMaxWidth().height(46.dp).testTag("HomeStartButton"),
@@ -333,6 +365,16 @@ internal fun HomeScreen(
                 fontSize = 16.sp,
                 horizontalPadding = 12.dp,
             )
+            if (dailyStatus.showReviewCountBadge) {
+                HomeBadge(
+                    text = dailyStatus.remainingReviewCount.toString(),
+                    modifier = Modifier.testTag("HomeReviewCountBadge"),
+                    textColor = Color.White,
+                    backgroundColor = Color(0xFFE63946),
+                    fontSize = 14.sp,
+                    horizontalPadding = 8.dp,
+                )
+            }
             IconCircle(R.drawable.icon_review, "复习", Modifier.testTag("HomeReviewButton"), backgroundColor = Color(0xFFFCEAEA), onClick = {
                 if (!onReview()) {
                     reviewLockedToastVisible = true
@@ -346,14 +388,14 @@ internal fun HomeScreen(
 
         if (reviewLockedToastVisible) {
             Text(
-                "先答错几题再来复习吧",
+                "今天没有需要复习的单词",
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 96.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(Color(0xE63A3A3A))
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .testTag("HomeReviewLockedToast"),
+                    .testTag("HomeReviewEmptyToast"),
                 fontSize = 14.sp,
                 color = Color.White,
             )

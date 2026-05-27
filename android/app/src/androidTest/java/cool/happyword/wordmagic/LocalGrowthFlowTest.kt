@@ -120,9 +120,9 @@ class LocalGrowthFlowTest {
     }
 
     @Test
-    fun reviewToolbarUsesRecentWrongWordAndShowsToastWhenEmpty() {
+    fun reviewToolbarExcludesSameDayWrongWordAndShowsToastWhenEmpty() {
         composeRule.onNodeWithTag("HomeReviewButton").performClick()
-        composeRule.onNodeWithTag("HomeReviewLockedToast").assertIsDisplayed()
+        composeRule.onNodeWithTag("HomeReviewEmptyToast").assertIsDisplayed()
         composeRule.onNodeWithTag("HomeScreen").assertIsDisplayed()
 
         configureChoiceOnly()
@@ -142,9 +142,9 @@ class LocalGrowthFlowTest {
         composeRule.onNodeWithTag("HomeScreen").assertIsDisplayed()
 
         composeRule.onNodeWithTag("HomeReviewButton").performClick()
-        composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
-        composeRule.onNodeWithText("Monster 1 / 3").assertExists()
-        composeRule.onNodeWithText(seededWrongPrompt).assertIsDisplayed()
+        composeRule.onNodeWithTag("HomeReviewEmptyToast").assertIsDisplayed()
+        composeRule.onNodeWithTag("HomeScreen").assertIsDisplayed()
+        assert(composeRule.onAllNodesWithText(seededWrongPrompt).fetchSemanticsNodes().isEmpty())
     }
 
     private fun configureChoiceOnly() {

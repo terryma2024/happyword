@@ -70,6 +70,7 @@ final class BattleStartTests: XCTestCase {
         let coordinator = AppCoordinator(
             configStore: GameConfigStore(defaults: UserDefaults(suiteName: "ReviewBattleEmpty-\(UUID().uuidString)")!),
             pronunciationService: SilentPronunciationService(),
+            dailyLearningStateService: DailyLearningStateService(defaults: isolatedDefaults(name: "review-empty")),
             battleRandomSeed: 1
         )
 
@@ -77,16 +78,17 @@ final class BattleStartTests: XCTestCase {
 
         XCTAssertEqual(coordinator.route, .home)
         XCTAssertNil(coordinator.battleEngine)
-        XCTAssertEqual(coordinator.toastMessage, "先答错几题再来复习吧")
+        XCTAssertEqual(coordinator.toastMessage, "今天没有需要复习的单词")
     }
 
-    func testReviewBattleUsesSingleRecentWrongWordAsFocusedPlan() throws {
+    func testReviewBattleUsesStablePreDayWrongWordAsFocusedPlan() throws {
         let coordinator = AppCoordinator(
             configStore: GameConfigStore(defaults: UserDefaults(suiteName: "ReviewBattleFocused-\(UUID().uuidString)")!),
             pronunciationService: SilentPronunciationService(),
+            dailyLearningStateService: DailyLearningStateService(defaults: isolatedDefaults(name: "review-focused")),
             battleRandomSeed: 1
         )
-        coordinator.learningRecorder.record(wordId: "fruit-apple", correct: false)
+        coordinator.learningRecorder.record(wordId: "fruit-apple", correct: false, at: Date(timeIntervalSinceNow: -86_400 * 2))
 
         coordinator.startReviewBattle()
 
@@ -94,6 +96,7 @@ final class BattleStartTests: XCTestCase {
         let question = try XCTUnwrap(coordinator.battleEngine?.state.currentQuestion)
         XCTAssertEqual(question.wordId, "fruit-apple")
         XCTAssertTrue(question.options.contains(question.answer))
+        XCTAssertEqual(coordinator.battleEngine?.state.remainingSeconds, ReviewBattleTuning.reviewBattleSeconds)
     }
 
     private final class SilentPronunciationService: PronunciationSpeaking {
@@ -102,5 +105,12 @@ final class BattleStartTests: XCTestCase {
         func prepare() {}
         func speak(_ word: String) {}
         func dispose() {}
+    }
+
+    private func isolatedDefaults(name: String) -> UserDefaults {
+        let suiteName = "BattleStartTests.\(name).\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
     }
 }

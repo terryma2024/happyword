@@ -24,6 +24,7 @@ For every feature, agents work inside `docs/features/<feature-id>/`, where `<fea
 
 | Feature ID | Slug | Owner | Status | Replication approved | Folder |
 | --- | --- | --- | --- | --- | --- |
+| `2026-05-26-learning-plan-review-v0-9-3` | learning-plan-review-v0-9-3 | (V0.9.3 — 学习计划与复习逻辑重构) | Done | yes | [`2026-05-26-learning-plan-review-v0-9-3/`](2026-05-26-learning-plan-review-v0-9-3/) |
 | `2026-05-25-boss-dialogue-v0-9-2` | boss-dialogue-v0-9-2 | (V0.9.2 — Boss 个性与登场对话) | Done | yes | [`2026-05-25-boss-dialogue-v0-9-2/`](2026-05-25-boss-dialogue-v0-9-2/) |
 | `2026-05-24-sentence-cloze-v0-9-1` | sentence-cloze-v0-9-1 | (V0.9.1 — 句子填词题型) | Done | yes | [`2026-05-24-sentence-cloze-v0-9-1/`](2026-05-24-sentence-cloze-v0-9-1/) |
 | `2026-05-23-daily-checkin-v0-8-8` | daily-checkin-v0-8-8 | (V0.8.8 — 每日打卡与连续奖励) | Done | yes | [`2026-05-23-daily-checkin-v0-8-8/`](2026-05-23-daily-checkin-v0-8-8/) |

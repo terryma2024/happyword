@@ -125,6 +125,7 @@ export class LearningRecorder {
     stat.seenCount += 1;
     if (correct) {
       stat.correctCount += 1;
+      stat.lastOutcome = 'correct';
       // V0.4.3 streaks + mastery: bump consecutiveCorrect, reset
       // wrong streak, raise mastery by the asymmetric delta.
       stat.consecutiveCorrect += 1;
@@ -135,6 +136,7 @@ export class LearningRecorder {
       }
     } else {
       stat.wrongCount += 1;
+      stat.lastOutcome = 'wrong';
       stat.consecutiveWrong += 1;
       stat.consecutiveCorrect = 0;
       stat.mastery = clampMastery(stat.mastery - MASTERY_DELTA_WRONG);

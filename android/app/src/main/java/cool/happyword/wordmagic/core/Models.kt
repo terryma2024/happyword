@@ -106,6 +106,23 @@ data class BattleState(
     val monsterCatalogIndex: Int = 1,
 )
 
+data class ActiveBattleSnapshot(
+    val packId: String,
+    val isReview: Boolean,
+    val dailyDayKey: String,
+    val targetWordIds: List<String>,
+    val config: GameConfig,
+    val state: BattleState,
+    val timeLeft: Int,
+    val runId: Int,
+    val servedQuestions: List<BattleServedQuestion> = emptyList(),
+)
+
+data class BattleServedQuestion(
+    val wordId: String,
+    val typeId: String,
+)
+
 data class BattleAnswerOutcome(
     val selectedAnswer: String,
     val correctAnswer: String,

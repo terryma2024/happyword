@@ -931,7 +931,7 @@ fun TodayPlanScreen(plan: TodayPlanUi, onCheckIn: () -> Unit, onReport: () -> Un
             if (plan.review.isNotEmpty()) {
                 TodayPlanBucketSection(
                     title = "复习",
-                    sectionTag = "TodayPlanReviewSection",
+                    sectionTag = "TodayPlanReviewRequiredSection",
                     sourceLabel = "复习",
                     sourceColor = Color(0xFFE63946),
                     rows = plan.review,
@@ -1154,7 +1154,7 @@ private fun TodayPlanHeaderCard(plan: TodayPlanUi) {
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            "今天的计划：${plan.doneCount()} / ${plan.total()} 已完成",
+            plan.progressText,
             modifier = Modifier.testTag("TodayPlanProgressText"),
             fontSize = 16.sp,
             color = Color(0xFF5A4A35),
@@ -1233,7 +1233,7 @@ private fun TodayPlanWordRowCard(row: TodayPlanWordRow, sourceLabel: String, sou
                             .clip(RoundedCornerShape(10.dp))
                             .background(Color(0xFFDCF7F2))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
-                            .testTag("TodayPlanRowDone-${row.entry.id}"),
+                            .testTag("TodayPlanReviewDone-${row.entry.id}"),
                         fontSize = 14.sp,
                         color = Color(0xFF2A9D8F),
                     )

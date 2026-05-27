@@ -29,6 +29,103 @@ final class GameConfigStore: ObservableObject {
 }
 
 @MainActor
+final class DailyLearningStateService: ObservableObject {
+    private static let key = "daily_learning_state/snapshot_v1"
+
+    @Published private(set) var state: DailyLearningState
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        if ProcessInfo.processInfo.arguments.contains("-UITestResetState") {
+            defaults.removeObject(forKey: Self.key)
+        }
+        if let data = defaults.data(forKey: Self.key),
+           let decoded = try? JSONDecoder().decode(DailyLearningState.self, from: data) {
+            state = Self.normalized(decoded)
+        } else {
+            state = DailyLearningState()
+        }
+    }
+
+    @discardableResult
+    func ensureForDay(
+        words: [WordEntry],
+        stats: [WordLearningStat],
+        now: Date = Date(),
+        selectedWordIds: [String],
+        calendar: Calendar = .current
+    ) -> DailyLearningState {
+        let dayKey = DailyLearningDayKey.compact(now, calendar: calendar)
+        if state.dayKey != dayKey {
+            var next = DailyLearningState(dayKey: dayKey)
+            next.reviewSnapshot = ReviewQueueBuilder().buildSnapshot(
+                words: words,
+                stats: stats,
+                now: now,
+                selectedWordIds: selectedWordIds,
+                calendar: calendar
+            )
+            next.reviewAllDone = next.reviewSnapshot.wordIds.isEmpty
+            state = next
+            save()
+        }
+        return state
+    }
+
+    func markPackBattleWon(now: Date = Date(), calendar: Calendar = .current) {
+        resetIfNeeded(now: now, calendar: calendar)
+        markPackBattleWon(in: &state)
+        save()
+    }
+
+    func markReviewedWords(_ wordIds: [String], now: Date = Date(), calendar: Calendar = .current) {
+        resetIfNeeded(now: now, calendar: calendar)
+        markReviewedWords(wordIds, in: &state)
+        save()
+    }
+
+    func markPackBattleWon(in state: inout DailyLearningState) {
+        state.packBattleWon = true
+    }
+
+    func markReviewedWords(_ wordIds: [String], in state: inout DailyLearningState) {
+        let expected = Set(state.reviewSnapshot.wordIds)
+        var reviewed = Set(state.reviewSnapshot.reviewedWordIds)
+        for id in wordIds where expected.contains(id) && !reviewed.contains(id) {
+            reviewed.insert(id)
+            state.reviewSnapshot.reviewedWordIds.append(id)
+        }
+        state.reviewAllDone = state.reviewSnapshot.remainingWordIds.isEmpty
+    }
+
+    private func resetIfNeeded(now: Date, calendar: Calendar) {
+        let dayKey = DailyLearningDayKey.compact(now, calendar: calendar)
+        guard state.dayKey != dayKey else { return }
+        state = DailyLearningState(dayKey: dayKey)
+        state.reviewAllDone = true
+    }
+
+    private func save() {
+        if let data = try? JSONEncoder().encode(state) {
+            defaults.set(data, forKey: Self.key)
+        }
+    }
+
+    private static func normalized(_ input: DailyLearningState) -> DailyLearningState {
+        var out = input
+        let known = Set(out.reviewSnapshot.wordIds)
+        var uniqueReviewed: [String] = []
+        for id in out.reviewSnapshot.reviewedWordIds where known.contains(id) && !uniqueReviewed.contains(id) {
+            uniqueReviewed.append(id)
+        }
+        out.reviewSnapshot.reviewedWordIds = uniqueReviewed
+        out.reviewAllDone = out.reviewAllDone || out.reviewSnapshot.remainingWordIds.isEmpty
+        return out
+    }
+}
+
+@MainActor
 final class CoinAccount: ObservableObject {
     enum TransactionReason: String, Codable {
         case todayReward
