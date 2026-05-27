@@ -102,6 +102,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.caverock.androidsvg.SVG
 import cool.happyword.wordmagic.app.BuildGate
 import cool.happyword.wordmagic.app.BuildInfo
@@ -358,6 +361,7 @@ private fun decodeServedQuestion(raw: String): BattleServedQuestion? {
 @Composable
 fun WordMagicGameApp() {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val repositories = remember { AndroidLocalProgressRepositories(context.applicationContext) }
     val restoredBattleSnapshot = remember { repositories.loadActiveBattleSnapshot() }
     var route by rememberSaveable(stateSaver = AppRouteSaver) {
@@ -508,6 +512,18 @@ fun WordMagicGameApp() {
     var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
     var battleDailyDayKey by rememberSaveable { mutableStateOf(restoredBattleSnapshot?.dailyDayKey ?: "") }
     val dailyLearningService = remember { DailyLearningStateService() }
+
+    fun clearTransientBattleUiState() {
+        battleState = null
+        battleTargetWordIds = emptyList()
+        battleServedQuestionKeys = emptyList()
+        battleIsReview = false
+        battleDailyDayKey = ""
+        battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
+        battleConfig = config
+        result = null
+        engine = BattleEngine(config = config, words = selectedPack.words)
+    }
 
     fun applyBindingSuccess(credentials: CloudCredentials) {
         cloudRepositories.saveCredentials(credentials)
@@ -818,16 +834,22 @@ fun WordMagicGameApp() {
         ensureDailyStateForNow()
     }
     LaunchedEffect(Unit) {
-        if (restoredBattleSnapshot == null && route == AppRoute.Battle) {
-            battleState = null
-            battleTargetWordIds = emptyList()
-            battleServedQuestionKeys = emptyList()
-            battleIsReview = false
-            battleDailyDayKey = ""
-            battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
-            battleConfig = config
-            engine = BattleEngine(config = config, words = selectedPack.words)
+        if (restoredBattleSnapshot == null && (route == AppRoute.Battle || route == AppRoute.Result)) {
+            clearTransientBattleUiState()
             route = AppRoute.Home
+        }
+    }
+    DisposableEffect(lifecycleOwner, route) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && route == AppRoute.Result) {
+                repositories.clearActiveBattleSnapshot()
+                clearTransientBattleUiState()
+                route = AppRoute.Home
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
     LaunchedEffect(route, battleState, battleTimeLeft, battleConfig, battleIsReview, battleDailyDayKey, battleTargetWordIds, battleServedQuestionKeys, selectedPack.id, battleRunId) {

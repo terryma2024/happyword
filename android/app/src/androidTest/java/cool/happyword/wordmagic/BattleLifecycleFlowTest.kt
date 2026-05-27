@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import cool.happyword.wordmagic.core.BuiltinPacks
@@ -78,6 +79,23 @@ class BattleLifecycleFlowTest {
 
         composeRule.waitUntil(timeoutMillis = 3_000) { hasText(third.meaning) }
         assertTrue(composeRule.onAllNodesWithText(first.meaning).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun finishedBattleReturnsHomeAfterAppBackgroundAndResume() {
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("HomeScreen") }
+        composeRule.onNodeWithTag("HomeStartButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("BattleScreen") }
+        composeRule.onNodeWithTag("BattleEscapeButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("ResultScreen") }
+
+        scenario?.moveToState(Lifecycle.State.CREATED)
+        scenario?.moveToState(Lifecycle.State.RESUMED)
+
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasTag("HomeScreen") }
+        composeRule.onNodeWithTag("HomeScreen").assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithTag("ResultScreen").fetchSemanticsNodes().isEmpty())
     }
 
     private fun hasTag(tag: String): Boolean =
