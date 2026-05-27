@@ -115,6 +115,12 @@ data class ActiveBattleSnapshot(
     val state: BattleState,
     val timeLeft: Int,
     val runId: Int,
+    val servedQuestions: List<BattleServedQuestion> = emptyList(),
+)
+
+data class BattleServedQuestion(
+    val wordId: String,
+    val typeId: String,
 )
 
 data class BattleAnswerOutcome(

@@ -176,6 +176,7 @@ import cool.happyword.wordmagic.ui.decodeQrPayloadFromUri
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import cool.happyword.wordmagic.core.ActiveBattleSnapshot
+import cool.happyword.wordmagic.core.BattleServedQuestion
 import cool.happyword.wordmagic.ui.TodayPlanScreen
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
@@ -340,6 +341,20 @@ private fun questionKindFromName(name: String?): QuestionKind =
 private fun battleStatusFromName(name: String?): BattleStatus =
     BattleStatus.entries.firstOrNull { it.name == name } ?: BattleStatus.Playing
 
+private fun servedQuestionKey(question: Question): String? {
+    if (question.wordId.isBlank()) return null
+    return "${BattleQuestionTypePolicy.kindToTypeId(question.kind)}\t${question.wordId}"
+}
+
+private fun encodeServedQuestion(served: BattleServedQuestion): String =
+    "${served.typeId}\t${served.wordId}"
+
+private fun decodeServedQuestion(raw: String): BattleServedQuestion? {
+    val parts = raw.split('\t')
+    if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) return null
+    return BattleServedQuestion(wordId = parts[1], typeId = parts[0])
+}
+
 @Composable
 fun WordMagicGameApp() {
     val context = LocalContext.current
@@ -446,6 +461,9 @@ fun WordMagicGameApp() {
     var battleTargetWordIds by rememberSaveable(stateSaver = StringListSaver) {
         mutableStateOf(restoredBattleSnapshot?.targetWordIds ?: emptyList<String>())
     }
+    var battleServedQuestionKeys by rememberSaveable(stateSaver = StringListSaver) {
+        mutableStateOf(restoredBattleSnapshot?.servedQuestions?.map(::encodeServedQuestion) ?: emptyList<String>())
+    }
     val initialBattleWords = if (restoredBattleSnapshot?.isReview == true) {
         (activePacks + packLibrary.allPacks())
             .flatMap { it.words }
@@ -459,6 +477,7 @@ fun WordMagicGameApp() {
                 config = restoredBattleSnapshot?.config ?: config,
                 words = initialBattleWords,
                 targetWordIds = restoredBattleSnapshot?.targetWordIds ?: initialBattleWords.map { it.id },
+                servedQuestions = restoredBattleSnapshot?.servedQuestions ?: emptyList(),
             ),
         )
     }
@@ -646,7 +665,15 @@ fun WordMagicGameApp() {
             config = battleConfig,
             words = words,
             targetWordIds = targetIds,
+            servedQuestions = battleServedQuestionKeys.mapNotNull(::decodeServedQuestion),
         )
+    }
+
+    fun rememberServedQuestion(question: Question) {
+        val key = servedQuestionKey(question) ?: return
+        if (!battleServedQuestionKeys.contains(key)) {
+            battleServedQuestionKeys = battleServedQuestionKeys + key
+        }
     }
 
     fun saveActiveBattleSnapshotIfNeeded() {
@@ -664,6 +691,9 @@ fun WordMagicGameApp() {
                 state = state,
                 timeLeft = battleTimeLeft,
                 runId = battleRunId,
+                servedQuestions = battleServedQuestionKeys.mapNotNull(::decodeServedQuestion).ifEmpty {
+                    servedQuestionKey(state.question)?.let(::decodeServedQuestion)?.let(::listOf).orEmpty()
+                },
             ),
         )
     }
@@ -756,6 +786,7 @@ fun WordMagicGameApp() {
         battleDailyDayKey = todayState.dayKey
         battleConfig = sessionConfig
         battleTargetWordIds = focusedIds
+        battleServedQuestionKeys = emptyList()
         battleRunId += 1
         battleTimeLeft = sessionConfig.timerSeconds
         engine = BattleEngine(
@@ -763,7 +794,9 @@ fun WordMagicGameApp() {
             words = allWords,
             targetWordIds = focusedIds,
         )
-        battleState = engine.initialState()
+        val initial = engine.initialState()
+        battleState = initial
+        rememberServedQuestion(initial.question)
         route = AppRoute.Battle
         return true
     }
@@ -788,6 +821,7 @@ fun WordMagicGameApp() {
         if (restoredBattleSnapshot == null && route == AppRoute.Battle) {
             battleState = null
             battleTargetWordIds = emptyList()
+            battleServedQuestionKeys = emptyList()
             battleIsReview = false
             battleDailyDayKey = ""
             battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
@@ -796,10 +830,10 @@ fun WordMagicGameApp() {
             route = AppRoute.Home
         }
     }
-    LaunchedEffect(route, battleState, battleTimeLeft, battleConfig, battleIsReview, battleDailyDayKey, battleTargetWordIds, selectedPack.id, battleRunId) {
+    LaunchedEffect(route, battleState, battleTimeLeft, battleConfig, battleIsReview, battleDailyDayKey, battleTargetWordIds, battleServedQuestionKeys, selectedPack.id, battleRunId) {
         saveActiveBattleSnapshotIfNeeded()
     }
-    LaunchedEffect(route, battleIsReview, battleConfig, selectedPack.id, battleTargetWordIds) {
+    LaunchedEffect(route, battleIsReview, battleConfig, selectedPack.id, battleTargetWordIds, battleServedQuestionKeys) {
         if (route == AppRoute.Battle && battleState != null) {
             rebuildBattleEngineForCurrentSession()
         }
@@ -868,10 +902,13 @@ fun WordMagicGameApp() {
                         battleDailyDayKey = dailyLearningState.dayKey
                         battleConfig = sessionConfig
                         battleTargetWordIds = selectedPack.words.map { it.id }
+                        battleServedQuestionKeys = emptyList()
                         battleRunId += 1
                         battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
                         engine = BattleEngine(config = sessionConfig, words = selectedPack.words)
-                        battleState = engine.initialState()
+                        val initial = engine.initialState()
+                        battleState = initial
+                        rememberServedQuestion(initial.question)
                         route = AppRoute.Battle
                     },
                     onReview = ::startReviewBattle,
@@ -883,7 +920,10 @@ fun WordMagicGameApp() {
                 )
                 AppRoute.Battle -> BattleScreen(
                     runId = battleRunId,
-                    state = battleState ?: engine.initialState().also { battleState = it },
+                    state = battleState ?: engine.initialState().also {
+                        battleState = it
+                        rememberServedQuestion(it.question)
+                    },
                     pack = selectedPack,
                     config = battleConfig,
                     timeLeft = battleTimeLeft,
@@ -913,6 +953,9 @@ fun WordMagicGameApp() {
                         }
                         val next = outcome.nextState
                         battleState = next
+                        if (next.status == BattleStatus.Playing) {
+                            rememberServedQuestion(next.question)
+                        }
                         outcome
                     },
                     onBattleFinished = ::finishBattleSession,

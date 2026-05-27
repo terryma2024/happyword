@@ -4,6 +4,7 @@ import android.content.Context
 import cool.happyword.wordmagic.core.ActiveBattleSnapshot
 import cool.happyword.wordmagic.core.BattleState
 import cool.happyword.wordmagic.core.BattleStatus
+import cool.happyword.wordmagic.core.BattleServedQuestion
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.CoinAccount
 import cool.happyword.wordmagic.core.CheckInSnapshot
@@ -297,6 +298,7 @@ class AndroidLocalProgressRepositories(context: Context) {
                 state = state,
                 timeLeft = json.optInt("timeLeft", GameConfig().timerSeconds).coerceAtLeast(1),
                 runId = json.optInt("runId", 0),
+                servedQuestions = json.optJSONArray("servedQuestions").toServedQuestions(),
             ).takeIf { it.state.status == BattleStatus.Playing }
         }.getOrNull()
     }
@@ -314,6 +316,7 @@ class AndroidLocalProgressRepositories(context: Context) {
                     .put("state", battleStateToJson(snapshot.state))
                     .put("timeLeft", snapshot.timeLeft)
                     .put("runId", snapshot.runId)
+                    .put("servedQuestions", servedQuestionsToJson(snapshot.servedQuestions))
                     .toString(),
             )
             .apply()
@@ -444,6 +447,17 @@ class AndroidLocalProgressRepositories(context: Context) {
             values.forEach { inner -> outer.put(stringJsonArray(inner)) }
         }
 
+    private fun servedQuestionsToJson(values: List<BattleServedQuestion>): JSONArray =
+        JSONArray().also { array ->
+            values.forEach { served ->
+                array.put(
+                    JSONObject()
+                        .put("wordId", served.wordId)
+                        .put("typeId", served.typeId),
+                )
+            }
+        }
+
     private fun JSONArray?.toStringList(): List<String> {
         if (this == null) return emptyList()
         return (0 until length()).mapNotNull { index -> optString(index).takeIf { it.isNotEmpty() } }
@@ -462,6 +476,16 @@ class AndroidLocalProgressRepositories(context: Context) {
     private fun JSONArray?.toNestedStringList(): List<List<String>> {
         if (this == null) return emptyList()
         return (0 until length()).map { index -> optJSONArray(index).toStringList() }
+    }
+
+    private fun JSONArray?.toServedQuestions(): List<BattleServedQuestion> {
+        if (this == null) return emptyList()
+        return (0 until length()).mapNotNull { index ->
+            val row = optJSONObject(index) ?: return@mapNotNull null
+            val wordId = row.optString("wordId")
+            val typeId = row.optString("typeId")
+            if (wordId.isBlank() || typeId.isBlank()) null else BattleServedQuestion(wordId, typeId)
+        }
     }
 
     private fun parseOutcome(raw: String?, consecutiveCorrect: Int, consecutiveWrong: Int): WordAnswerOutcome =

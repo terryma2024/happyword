@@ -88,6 +88,19 @@ class BattleQuestionScheduler(
         }
     }
 
+    fun restoreServedQuestions(servedQuestions: List<BattleServedQuestion>, canServe: WordKindSupportFn) {
+        val stages = stages(canServe)
+        for (served in servedQuestions) {
+            if (served.wordId.isEmpty() || served.typeId.isEmpty()) continue
+            val stage = stages.firstOrNull { it.kind == served.typeId && it.wordIds.contains(served.wordId) }
+                ?: continue
+            stage.servedIds += served.wordId
+        }
+        while (activeStageIndex < stages.lastIndex && currentStage(canServe)?.isCovered() == true) {
+            activeStageIndex += 1
+        }
+    }
+
     fun catalogIndexForMonster(monsterIndex: Int, canServe: WordKindSupportFn): Int {
         val safeMonsterIndex = monsterIndex.coerceAtLeast(1)
         monsterCatalogByBattleIndex[safeMonsterIndex]?.let { return it }

@@ -30,6 +30,7 @@ class BattleEngine(
     private val shuffleOptions: (List<String>) -> List<String> = { options -> options.shuffled() },
     private val randomDouble: () -> Double = { Math.random() },
     private val monsterCatalogIndex: ((Int) -> Int)? = null,
+    servedQuestions: List<BattleServedQuestion> = emptyList(),
 ) {
     private val targetWordIds: List<String> = targetWordIds.filter { it.isNotBlank() }.distinct()
     private val scheduler: BattleQuestionScheduler = BattleQuestionScheduler(
@@ -38,6 +39,12 @@ class BattleEngine(
         rng = randomDouble,
     )
     private var typeWordCursor = 0
+
+    init {
+        if (servedQuestions.isNotEmpty()) {
+            scheduler.restoreServedQuestions(servedQuestions, canServeQuestionType())
+        }
+    }
 
     /** V0.8.4 — Spell wrong letter tap: −1 HP without advancing the question. */
     fun applySpellLetterPenalty(state: BattleState): Pair<Int, BattleState> {
@@ -237,10 +244,7 @@ class BattleEngine(
         if (words.isEmpty()) {
             return stateFallbackQuestion(lastWordId ?: "")
         }
-        val canServe: WordKindSupportFn = { wordId, kind ->
-            words.find { it.id == wordId }?.let { BattleQuestionTypePolicy.wordSupportsQuestionType(it, kind) }
-                ?: false
-        }
+        val canServe = canServeQuestionType()
         val pick = scheduler.pickNext(lastWordId, canServe)
         val word = when {
             pick.preferredWordId.isNotEmpty() -> words.find { it.id == pick.preferredWordId }
@@ -252,6 +256,12 @@ class BattleEngine(
         scheduler.markServed(word.id, BattleQuestionTypePolicy.kindToTypeId(question.kind), canServe)
         return question
     }
+
+    private fun canServeQuestionType(): WordKindSupportFn =
+        { wordId, kind ->
+            words.find { it.id == wordId }?.let { BattleQuestionTypePolicy.wordSupportsQuestionType(it, kind) }
+                ?: false
+        }
 
     private fun pickWordForType(typeId: String, lastWordId: String?): WordEntry? {
         val targetWords = targetWordIds.mapNotNull { id -> words.find { it.id == id } }

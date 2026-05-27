@@ -145,6 +145,43 @@ class BattleQuestionSchedulerTest {
     }
 
     @Test
+    fun restoredBattleContinuesQuestionOrderAfterCurrentQuestion() {
+        val words = BuiltinPacks.all.first { it.id == "fruit-forest" }.words.take(5)
+        val config = GameConfig(
+            monsterHp = 99,
+            monsterCount = 1,
+            enabledQuestionTypes = listOf(BattleQuestionTypePolicy.CHOICE),
+        )
+        val targetIds = words.map { it.id }
+        val originalEngine = BattleEngine(
+            config = config,
+            words = words,
+            targetWordIds = targetIds,
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
+        val first = originalEngine.initialState()
+        val second = originalEngine.submitAnswer(first, first.question.correctAnswer)
+        assertEquals(words[0].id, first.question.wordId)
+        assertEquals(words[1].id, second.question.wordId)
+
+        val restoredEngine = BattleEngine(
+            config = config,
+            words = words,
+            targetWordIds = targetIds,
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+            servedQuestions = listOf(
+                BattleServedQuestion(first.question.wordId, BattleQuestionTypePolicy.kindToTypeId(first.question.kind)),
+                BattleServedQuestion(second.question.wordId, BattleQuestionTypePolicy.kindToTypeId(second.question.kind)),
+            ),
+        )
+        val afterRestoredAnswer = restoredEngine.submitAnswer(second, second.question.correctAnswer)
+
+        assertEquals(words[2].id, afterRestoredAnswer.question.wordId)
+    }
+
+    @Test
     fun spellWrongTapPenaltyAtOneHpEndsBattle() {
         val engine = BattleEngine(config = GameConfig(playerHp = 1))
         val initial = engine.initialState()
