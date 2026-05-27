@@ -43,6 +43,33 @@ final class GameConfigTests: XCTestCase {
         XCTAssertEqual(store.config.startingSeconds, 180)
     }
 
+    @MainActor
+    func testSavedConfigPageValuesArePreservedAfterRelaunch() {
+        let defaults = UserDefaults(suiteName: "GameConfigPagePersistence-\(UUID().uuidString)")!
+        let firstLaunch = GameConfigStore(defaults: defaults)
+        firstLaunch.save(GameConfig(
+            playerMaxHp: 6,
+            monsterMaxHp: 4,
+            monstersTotal: 3,
+            startingSeconds: 42,
+            autoSpeak: false,
+            mode: .review,
+            parentPin: "123456",
+            enabledQuestionTypes: [QuestionKind.spell.rawValue, QuestionKind.choice.rawValue]
+        ))
+
+        let relaunched = GameConfigStore(defaults: defaults)
+
+        XCTAssertEqual(relaunched.config.playerMaxHp, 6)
+        XCTAssertEqual(relaunched.config.monsterMaxHp, 4)
+        XCTAssertEqual(relaunched.config.monstersTotal, 3)
+        XCTAssertEqual(relaunched.config.startingSeconds, 42)
+        XCTAssertFalse(relaunched.config.autoSpeak)
+        XCTAssertEqual(relaunched.config.mode, .review)
+        XCTAssertEqual(relaunched.config.parentPin, "123456")
+        XCTAssertEqual(relaunched.config.enabledQuestionTypes, [QuestionKind.choice.rawValue, QuestionKind.spell.rawValue])
+    }
+
     // MARK: - Custom timer dialog (parity with Harmony `validateCustomTimerSeconds`)
 
     func testValidateCustomTimerRejectsEmptyAndWhitespace() {

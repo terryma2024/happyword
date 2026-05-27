@@ -147,7 +147,7 @@ struct WishlistPage {
    * tracks @State reads inside an unparameterised builder body —
    * a parameter object's property reads (e.g. `w.state`) do NOT
    * register as deps, so a parameterised @Builder cell would stay
-   * frozen on its initial state. See the v0.3.6 letter-spacing
+   * frozen on its initial state. See the v0.3.6 text-layout
    * lesson + v0.3.8 申请兑换 bug for prior incidents.
    */
   @Builder
@@ -341,7 +341,11 @@ struct WishlistPage {
       return;
     }
     this.pendingWishId = wishId;
-    this.redeemNow(wishId);
+    this.redeemNow(wishId).catch((err: BusinessError): void => {
+      console.error(`WishlistPage.redeemNow failed: ${JSON.stringify(err)}`);
+      this.refresh();
+      this.pendingWishId = '';
+    });
   }
 
   private onTapAddCustom(): void {
@@ -505,7 +509,7 @@ struct WishlistPage {
     });
   }
 
-  private redeemNow(wishId: string): void {
+  private async redeemNow(wishId: string): Promise<void> {
     if (wishId.length === 0) {
       return;
     }
@@ -530,10 +534,17 @@ struct WishlistPage {
       return;
     }
     this.history.add(this.makeRecord(wish, Date.now()));
+    await this.flushRedemptionState();
     this.refresh();
     this.showGiftBoxModal();
     this.scheduleAcknowledge(wish.id);
     this.pendingWishId = '';
+  }
+
+  private async flushRedemptionState(): Promise<void> {
+    await this.coins.flushNow();
+    await this.store.flushNow();
+    await this.history.flushNow();
   }
 
   private makeRecord(wish: MagicWish, nowMs: number): RedemptionRecord {
@@ -566,6 +577,9 @@ struct WishlistPage {
   private scheduleAcknowledge(wishId: string): void {
     setTimeout((): void => {
       this.store.acknowledge(wishId);
+      this.store.flushNow().catch((err: BusinessError): void => {
+        console.error(`WishlistPage.acknowledge flush failed: ${JSON.stringify(err)}`);
+      });
       this.refresh();
     }, GIFTBOX_MODAL_TOTAL_MS + ACK_DELAY_MS);
   }

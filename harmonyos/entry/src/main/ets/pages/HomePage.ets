@@ -924,7 +924,9 @@ struct HomePage {
               AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, p.id);
               this.todayPack = p;
               this.todayRegion = regionFromPack(p);
-              this.todayPrefs.saveRegionId(p.id);
+              this.todayPrefs.saveRegionId(p.id).catch((err: BusinessError): void => {
+                console.error(`HomePage: TodayPreferences.saveRegionId failed: ${JSON.stringify(err)}`);
+              });
             });
         }, (p: Pack): string => p.id);
       }

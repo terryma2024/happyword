@@ -77,6 +77,24 @@ final class LocalGrowthTests: XCTestCase {
         XCTAssertFalse(store.activePackIds.contains("music"))
     }
 
+    @MainActor
+    func testCoordinatorRestoresPackSelectionAfterRelaunch() {
+        let defaults = isolatedDefaults(name: "pack-selection-relaunch")
+        defer { defaults.removePersistentDomain(forName: "WordMagicGameTests.pack-selection-relaunch") }
+        let selectedPack = Pack.builtin[1]
+        let disabledPack = Pack.builtin[0]
+
+        let firstLaunch = AppCoordinator(configStore: GameConfigStore(defaults: defaults))
+        firstLaunch.selectPack(selectedPack)
+        firstLaunch.togglePackActive(disabledPack)
+
+        let relaunched = AppCoordinator(configStore: GameConfigStore(defaults: defaults))
+
+        XCTAssertEqual(relaunched.selectedPack.id, selectedPack.id)
+        XCTAssertFalse(relaunched.packSelectionStore.activePackIds.contains(disabledPack.id))
+        XCTAssertTrue(relaunched.packSelectionStore.activePackIds.contains(selectedPack.id))
+    }
+
     func testPackManagerTitleTypographyFavorsLongNames() {
         XCTAssertLessThanOrEqual(PackManagerLayoutRules.packTitleFontSize, 20)
         XCTAssertEqual(PackManagerLayoutRules.packTitleLineLimit, 2)
@@ -102,6 +120,59 @@ final class LocalGrowthTests: XCTestCase {
         XCTAssertEqual(coins.balance, 14)
         XCTAssertEqual(history.records.first?.wishId, customId)
         XCTAssertEqual(history.records.count, 1)
+    }
+
+    @MainActor
+    func testLocalGrowthStoresRestoreAfterRelaunch() {
+        let defaults = isolatedDefaults(name: "local-growth-relaunch")
+        defer { defaults.removePersistentDomain(forName: "WordMagicGameTests.local-growth-relaunch") }
+        let firstCoins = CoinAccount(balance: 0, defaults: defaults)
+        let firstWishlist = WishlistStore(defaults: defaults)
+        let firstHistory = RedemptionHistoryStore(defaults: defaults)
+        let firstLearning = LearningRecorder(defaults: defaults)
+        let customId = firstWishlist.addCustomWish(name: "贴纸", costCoins: 6, iconEmoji: "⭐", now: fixedDate())
+
+        _ = firstCoins.earn(amount: 8, reason: .todayReward, now: fixedDate())
+        _ = firstWishlist.redeem(wishId: customId, coins: firstCoins, history: firstHistory, now: fixedDate())
+        firstLearning.record(wordId: "fruit-apple", correct: false, at: fixedDate())
+        firstLearning.record(wordId: "fruit-apple", correct: true, at: fixedDate(timeIntervalSinceNow: 10))
+
+        let relaunchedCoins = CoinAccount(defaults: defaults)
+        let relaunchedWishlist = WishlistStore(defaults: defaults)
+        let relaunchedHistory = RedemptionHistoryStore(defaults: defaults)
+        let relaunchedLearning = LearningRecorder(defaults: defaults)
+
+        XCTAssertEqual(relaunchedCoins.balance, 2)
+        XCTAssertEqual(relaunchedCoins.transactions.map(\.reason), [.redemption, .todayReward])
+        XCTAssertTrue(relaunchedWishlist.wishes.contains { $0.id == customId && $0.displayName == "贴纸" })
+        XCTAssertEqual(relaunchedHistory.records.first?.wishId, customId)
+        XCTAssertEqual(relaunchedLearning.stat(for: "fruit-apple")?.attempts, 2)
+        XCTAssertEqual(relaunchedLearning.stat(for: "fruit-apple")?.correct, 1)
+        XCTAssertEqual(relaunchedLearning.recentWrongIds(limit: 1), ["fruit-apple"])
+    }
+
+    @MainActor
+    func testCoordinatorRestoresLocalGrowthStateAfterRelaunch() {
+        let defaults = isolatedDefaults(name: "coordinator-local-growth-relaunch")
+        defer { defaults.removePersistentDomain(forName: "WordMagicGameTests.coordinator-local-growth-relaunch") }
+        let firstLaunch = AppCoordinator(configStore: GameConfigStore(defaults: defaults))
+        let customId = firstLaunch.wishlistStore.addCustomWish(name: "贴纸", costCoins: 6, iconEmoji: "⭐", now: fixedDate())
+
+        _ = firstLaunch.coinAccount.earn(amount: 8, reason: .todayReward, now: fixedDate())
+        _ = firstLaunch.wishlistStore.redeem(
+            wishId: customId,
+            coins: firstLaunch.coinAccount,
+            history: firstLaunch.redemptionHistoryStore,
+            now: fixedDate()
+        )
+        firstLaunch.learningRecorder.record(wordId: "fruit-apple", correct: false, at: fixedDate())
+
+        let relaunched = AppCoordinator(configStore: GameConfigStore(defaults: defaults))
+
+        XCTAssertEqual(relaunched.coinAccount.balance, 2)
+        XCTAssertTrue(relaunched.wishlistStore.wishes.contains { $0.id == customId && $0.displayName == "贴纸" })
+        XCTAssertEqual(relaunched.redemptionHistoryStore.records.first?.wishId, customId)
+        XCTAssertEqual(relaunched.learningRecorder.recentWrongIds(limit: 1), ["fruit-apple"])
     }
 
     @MainActor

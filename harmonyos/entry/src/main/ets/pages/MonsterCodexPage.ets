@@ -29,7 +29,7 @@ import { requestPageOrientation } from '../utils/orientation';
  *     so the layout reads the same on both form factors regardless
  *     of how much vertical room the device offers.
  *
- * ArkUI reactivity note (lesson from v0.3.6 letter-spacing fix):
+ * ArkUI reactivity note (lesson from v0.3.6 text-layout fix):
  * every @Builder below is parameter-less and reads `this.currentIndex`
  * directly (or via the helper methods `current()` / `hasPrev()` /
  * `hasNext()`). Do NOT pass parameters into the @Builder bodies —

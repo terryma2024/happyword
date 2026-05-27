@@ -252,13 +252,22 @@ class BattleQuestionTypeTest {
             shuffleOptions = { it },
             randomDouble = { 0.0 },
         )
+        val singleWordEngine = BattleEngine(
+            config = GameConfig(enabledQuestionTypes = listOf(BattleQuestionTypePolicy.FILL_LETTER)),
+            words = phraseWords,
+            targetWordIds = listOf("fruit-apple"),
+            shuffleOptions = { it },
+            randomDouble = { 0.0 },
+        )
 
         val phraseState = engine.initialState()
+        val singleWordState = singleWordEngine.initialState()
 
+        assertEquals(0, singleWordState.question.letterTemplate.count { it == ' ' })
         val phrase = phraseState.question
         assertEquals(QuestionKind.FillLetter, phrase.kind)
         assertEquals("an puppy", phrase.correctAnswer)
-        assertTrue(phrase.letterTemplate.contains("   "))
+        assertEquals(1, phrase.letterTemplate.count { it == ' ' })
         assertFalse(phrase.letterAnswer == "a" || phrase.letterAnswer == "n")
     }
 

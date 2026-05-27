@@ -1922,15 +1922,15 @@ export default function localUnitTest() {
   // instead of clipping its tail like the bug screenshot showed.
   describe('LetterMetrics', () => {
     it('shortWordsKeepOriginalSize', 0, () => {
-      // gap halved from the original 8 vp set; cell width / font sizes
-      // unchanged so short words still render at the original 36×48 / 32
-      // px proportions, just with tighter inter-cell spacing.
+      // gap halved from the original 8 vp set; short-word cells use
+      // the current narrow preview width while retaining their height
+      // and filled font size.
       const m1: LetterMetrics = letterMetricsForLength(1);
       const m6: LetterMetrics = letterMetricsForLength(6);
-      expect(m1.width).assertEqual(36);
+      expect(m1.width).assertEqual(18);
       expect(m1.gap).assertEqual(4);
       expect(m1.fontFilled).assertEqual(32);
-      expect(m6.width).assertEqual(36);
+      expect(m6.width).assertEqual(18);
       expect(m6.gap).assertEqual(4);
       expect(m6.fontFilled).assertEqual(32);
     });
@@ -1971,12 +1971,12 @@ export default function localUnitTest() {
       expect(m20.width).assertEqual(20);
     });
 
-    it('metricsAreMonotonicAcrossBuckets', 0, () => {
-      // Each band must produce smaller-or-equal width, gap and font
-      // than the previous band; otherwise long words could end up
-      // wider than short ones, which would surprise authors writing
-      // word lists.
-      const lens: number[] = [1, 6, 7, 9, 10, 12, 13, 20];
+    it('metricsTightenFromMediumBucketUp', 0, () => {
+      // Short-word cells are intentionally narrow for the current
+      // visual experiment. From medium prompts onward, each band must
+      // still produce smaller-or-equal width, gap and font than the
+      // previous band so long words do not exceed the length budget.
+      const lens: number[] = [7, 9, 10, 12, 13, 20];
       let prev: LetterMetrics | null = null;
       for (let i = 0; i < lens.length; i++) {
         const m: LetterMetrics = letterMetricsForLength(lens[i]);

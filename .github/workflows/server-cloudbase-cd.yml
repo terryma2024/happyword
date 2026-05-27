@@ -106,10 +106,12 @@ jobs:
 
       - name: Deploy CloudBase Run
         if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        timeout-minutes: 20
         env:
           TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
         run: |
           set -euo pipefail
+          rm -rf .venv .pytest_cache .ruff_cache .mypy_cache
           printf '\n' | tcb cloudrun deploy -e "$TCB_ENV_ID" -s happyword-server --port 8080 --source . --force
 
       - name: Wait for CloudBase deployment

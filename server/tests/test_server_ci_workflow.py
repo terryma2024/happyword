@@ -238,3 +238,15 @@ def test_cloudbase_cd_waits_for_a_real_new_deploy_before_health_and_smoke() -> N
     assert 'String(latest.FlowRatio) === "100"' in wait_step
     assert "latest.HasTraffic === true" in wait_step
     assert "curl -fsS" in health_step
+
+
+def test_cloudbase_cd_prunes_local_test_artifacts_before_source_deploy() -> None:
+    cloudbase_cd = _workflow("server-cloudbase-cd.yml")
+
+    deploy_step = _step_named(cloudbase_cd, "Deploy CloudBase Run")
+
+    assert "timeout-minutes: 20" in deploy_step
+    assert "rm -rf .venv .pytest_cache .ruff_cache .mypy_cache" in deploy_step
+    assert deploy_step.index("rm -rf .venv") < deploy_step.index(
+        "tcb cloudrun deploy"
+    )

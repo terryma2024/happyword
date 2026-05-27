@@ -1,14 +1,16 @@
 package cool.happyword.wordmagic.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import cool.happyword.wordmagic.core.ActiveBattleSnapshot
+import cool.happyword.wordmagic.core.BattleServedQuestion
 import cool.happyword.wordmagic.core.BattleState
 import cool.happyword.wordmagic.core.BattleStatus
-import cool.happyword.wordmagic.core.BattleServedQuestion
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.CoinAccount
 import cool.happyword.wordmagic.core.CheckInSnapshot
 import cool.happyword.wordmagic.core.LearningRecorder
+import cool.happyword.wordmagic.core.PackLibrary
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.RedemptionHistoryStore
 import cool.happyword.wordmagic.core.RedemptionRecord
@@ -26,8 +28,16 @@ import cool.happyword.wordmagic.core.WordMemoryState
 import org.json.JSONArray
 import org.json.JSONObject
 
-class AndroidLocalProgressRepositories(context: Context) {
-    private val prefs = context.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE)
+class AndroidLocalProgressRepositories {
+    private val prefs: SharedPreferences
+
+    constructor(context: Context) {
+        prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    internal constructor(prefs: SharedPreferences) {
+        this.prefs = prefs
+    }
 
     fun loadSelection(): PackSelectionStore {
         val ids = prefs.getString("activePackIds", null)
@@ -54,6 +64,26 @@ class AndroidLocalProgressRepositories(context: Context) {
             .putStringSet("pinnedPackIds", selection.pinnedPackIds)
             .putString("perfectScoresByPack", selection.perfectScoresByPack.entries.joinToString("\n") { "${it.key}\t${it.value}" })
             .apply()
+    }
+
+    fun loadSelectedPackId(): String? =
+        prefs.getString(KEY_SELECTED_PACK_ID, null)?.trim()?.takeIf { it.isNotEmpty() }
+
+    fun saveSelectedPackId(packId: String) {
+        prefs.edit().putString(KEY_SELECTED_PACK_ID, packId).apply()
+    }
+
+    fun resolveSelectedPackId(selection: PackSelectionStore, library: PackLibrary): String {
+        val activeIds = library.existingIdsInOrder(selection.activePackIds)
+        val fallback = activeIds.firstOrNull()
+            ?: BuiltinPacks.defaultActiveOrder.firstNotNullOfOrNull(library::findPack)?.id
+            ?: BuiltinPacks.defaultActiveOrder.first()
+        val persisted = loadSelectedPackId()
+        val resolved = if (persisted != null && persisted in activeIds) persisted else fallback
+        if (persisted != resolved) {
+            saveSelectedPackId(resolved)
+        }
+        return resolved
     }
 
     fun loadGameConfig(): GameConfig {
@@ -506,5 +536,7 @@ class AndroidLocalProgressRepositories(context: Context) {
     companion object {
         private const val DAILY_LEARNING_STATE_KEY = "daily_learning_state/snapshot_v1"
         private const val ACTIVE_BATTLE_SNAPSHOT_KEY = "active_battle/snapshot_v1"
+        const val PREFS_NAME = "wordmagic-local-progress"
+        const val KEY_SELECTED_PACK_ID = "selectedPackId"
     }
 }

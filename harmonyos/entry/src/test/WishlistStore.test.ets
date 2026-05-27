@@ -23,6 +23,28 @@ class MapPrefs implements StringPreferencesLike {
   }
 }
 
+class DurableMapPrefs implements StringPreferencesLike {
+  private committed: Map<string, string> = new Map<string, string>();
+  private pending: Map<string, string> = new Map<string, string>();
+  flushCount: number = 0;
+
+  getString(key: string): Promise<string> {
+    return Promise.resolve(this.committed.has(key) ? (this.committed.get(key) as string) : '');
+  }
+  putString(key: string, value: string): Promise<void> {
+    this.pending.set(key, value);
+    return Promise.resolve();
+  }
+  flush(): Promise<void> {
+    this.pending.forEach((value: string, key: string): void => {
+      this.committed.set(key, value);
+    });
+    this.pending.clear();
+    this.flushCount = this.flushCount + 1;
+    return Promise.resolve();
+  }
+}
+
 const NOW: number = 1700_000_000_000;
 
 function makeAccountWithCoins(amount: number): CoinAccount {
@@ -126,6 +148,23 @@ export default function wishlistStoreTest() {
       expect(ok).assertTrue();
 
       const after: MagicWish = findWish(store.list(), target.id);
+      expect(after.state).assertEqual(WishState.Confirmed);
+      expect(after.confirmedAt).assertEqual(5000);
+    });
+
+    it('flushNowCommitsConfirmedStateForColdStart', 0, async () => {
+      const prefs: DurableMapPrefs = new DurableMapPrefs();
+      const store: WishlistStore = new WishlistStore();
+      store.injectPreferencesForTest(prefs);
+      const target: MagicWish = store.list()[0];
+      store.markConfirmed(target.id, 5000);
+      await store.flushNow();
+
+      const reborn: WishlistStore = new WishlistStore();
+      reborn.injectPreferencesForTest(prefs);
+      await reborn.rehydrateForTest();
+      const after: MagicWish = findWish(reborn.list(), target.id);
+      expect(prefs.flushCount).assertEqual(1);
       expect(after.state).assertEqual(WishState.Confirmed);
       expect(after.confirmedAt).assertEqual(5000);
     });

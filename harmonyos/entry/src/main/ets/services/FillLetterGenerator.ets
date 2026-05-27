@@ -99,7 +99,7 @@ function templateFromTokens(tokens: PhraseToken[], missingPositions: Set<number>
       parts.push(token.glyph);
     }
   }
-  return parts.join(' ');
+  return parts.join('');
 }
 
 /**

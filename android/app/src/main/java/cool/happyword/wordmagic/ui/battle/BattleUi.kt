@@ -646,16 +646,100 @@ internal fun BattleQuestionPrompt(question: Question) {
             QuestionKind.FillLetter, QuestionKind.FillLetterMedium -> {
                 Text(question.prompt, color = Color(0xFF6A5843), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
+                LetterTemplateRow(
+                    template = if (question.kind == QuestionKind.FillLetter) question.letterTemplate else question.letterTemplateBase,
+                    missingIndex = letterMissingIndex(question),
+                    pendingIndex = letterPendingIndex(question),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LetterTemplateRow(template: String, missingIndex: Int, pendingIndex: Int) {
+    val slots = LetterTemplateLayout.slots(template, missingIndex, pendingIndex)
+    val metrics = LetterTemplateLayout.metricsForGlyphCount(slots.size)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(metrics.gap.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("BattleLetterTemplate"),
+    ) {
+        slots.forEach { slot ->
+            LetterTemplateSlotView(slot = slot, metrics = metrics)
+        }
+    }
+}
+
+@Composable
+private fun LetterTemplateSlotView(slot: LetterTemplateSlot, metrics: LetterTemplateMetrics) {
+    Box(
+        modifier = Modifier
+            .width(metrics.width.dp)
+            .height(metrics.height.dp)
+            .testTag("BattleLetterSlot_${slot.originalIndex}"),
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            slot.glyph == " " -> Unit
+            slot.isMissing -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFFCEAEA), RoundedCornerShape(6.dp)),
+                )
                 Text(
-                    if (question.kind == QuestionKind.FillLetter) question.letterTemplate else question.letterTemplateBase,
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color(0xFF1C3655),
+                    "_",
+                    modifier = Modifier.testTag("BattleLetterSlotText_${slot.originalIndex}"),
+                    fontSize = metrics.placeholderFontSize.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE63946),
+                    textAlign = TextAlign.Center,
+                )
+            }
+            slot.isPending -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFF1F3F5), RoundedCornerShape(6.dp)),
+                )
+                Text(
+                    if (slot.glyph == "_") "_" else slot.glyph,
+                    modifier = Modifier.testTag("BattleLetterSlotText_${slot.originalIndex}"),
+                    fontSize = metrics.placeholderFontSize.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFA3A3A3),
+                    textAlign = TextAlign.Center,
+                )
+            }
+            else -> {
+                Text(
+                    slot.glyph,
+                    modifier = Modifier.testTag("BattleLetterSlotText_${slot.originalIndex}"),
+                    fontSize = metrics.filledFontSize.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1D3557),
                     textAlign = TextAlign.Center,
                 )
             }
         }
     }
+}
+
+private fun letterMissingIndex(question: Question): Int {
+    return when (question.kind) {
+        QuestionKind.FillLetter -> question.missingIndex
+        QuestionKind.FillLetterMedium -> question.missingIndices.getOrElse(question.currentStep) { -1 }
+        else -> -1
+    }
+}
+
+private fun letterPendingIndex(question: Question): Int {
+    if (question.kind != QuestionKind.FillLetterMedium) return -1
+    val pendingStep = if (question.currentStep == 0) 1 else 0
+    return question.missingIndices.getOrElse(pendingStep) { -1 }
 }
 
 @Composable

@@ -164,6 +164,7 @@ import cool.happyword.wordmagic.core.WordStatsSyncStatus
 import cool.happyword.wordmagic.data.AndroidCloudRepositories
 import cool.happyword.wordmagic.data.AndroidDebugRoutingRepository
 import cool.happyword.wordmagic.data.AndroidLocalProgressRepositories
+import cool.happyword.wordmagic.data.AndroidParentPinRepository
 import cool.happyword.wordmagic.ui.BypassSecretScreen
 import cool.happyword.wordmagic.ui.BoundDeviceInfoScreen
 import cool.happyword.wordmagic.ui.DevMenuScreen
@@ -367,6 +368,7 @@ fun WordMagicGameApp() {
     var route by rememberSaveable(stateSaver = AppRouteSaver) {
         mutableStateOf(if (restoredBattleSnapshot != null) AppRoute.Battle else AppRoute.Home)
     }
+    val parentPinRepository = remember { AndroidParentPinRepository(context.applicationContext) }
     val cloudRepositories = remember { AndroidCloudRepositories(context.applicationContext) }
     val debugRoutingRepository = remember { AndroidDebugRoutingRepository(context.applicationContext) }
     val devMenuViewModel = remember { DevMenuViewModel() }
@@ -452,10 +454,16 @@ fun WordMagicGameApp() {
     val packLibrary = remember(globalPacks, familyPacks) { PackLibrary.merge(BuiltinPacks.all, globalPacks, familyPacks) }
     var selection by remember { mutableStateOf(repositories.loadSelection().prune(packLibrary)) }
     var selectedPackId by rememberSaveable {
-        mutableStateOf(restoredBattleSnapshot?.packId?.takeIf { !restoredBattleSnapshot.isReview } ?: "fruit-forest")
+        mutableStateOf(
+            restoredBattleSnapshot?.packId?.takeIf { !restoredBattleSnapshot.isReview }
+                ?: repositories.loadSelectedPackId()?.takeIf { packId ->
+                    packId in selection.activePackIds && packLibrary.findPack(packId) != null
+                }
+                ?: "fruit-forest",
+        )
     }
     val activePacks = packLibrary.activePacks(selection.activePackIds).ifEmpty { BuiltinPacks.defaultActiveOrder.mapNotNull(packLibrary::findPack) }
-    val selectedPack = packLibrary.findPack(selectedPackId) ?: activePacks.first()
+    val selectedPack = activePacks.firstOrNull { it.id == selectedPackId } ?: activePacks.first()
     var config by remember { mutableStateOf(repositories.loadGameConfig()) }
     var battleState by rememberSaveable(stateSaver = BattleStateSaver) { mutableStateOf(restoredBattleSnapshot?.state) }
     var battleRunId by rememberSaveable { mutableStateOf(restoredBattleSnapshot?.runId ?: 0) }
@@ -508,7 +516,7 @@ fun WordMagicGameApp() {
     var removeCustomWishPinVisible by remember { mutableStateOf(false) }
     var removeCustomWishPinInput by remember { mutableStateOf("") }
     var pendingRemoveCustomWishId by remember { mutableStateOf<String?>(null) }
-    var parentPin by remember { mutableStateOf("") }
+    var parentPinReady by remember { mutableStateOf(parentPinRepository.hasPin()) }
     var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
     var battleDailyDayKey by rememberSaveable { mutableStateOf(restoredBattleSnapshot?.dailyDayKey ?: "") }
     val dailyLearningService = remember { DailyLearningStateService() }
@@ -537,7 +545,7 @@ fun WordMagicGameApp() {
         cloudRepositories.saveSyncStatus(cloudSyncStatus)
         scanBindingSuccessNickname = credentials.childNickname.ifBlank { "宝贝" }
         scanBindingFailureReason = ""
-        if (parentPin.length == 6) {
+        if (parentPinReady) {
             route = AppRoute.BoundDeviceInfo
         } else {
             pendingPostBindPinSetup = true
@@ -768,6 +776,7 @@ fun WordMagicGameApp() {
             selection = rotation.selection
             repositories.saveSelection(selection)
             selectedPackId = selection.activePackIds.firstOrNull() ?: selectedPack.id
+            repositories.saveSelectedPackId(selectedPackId)
         }
         coinAccount = nextCoinAccount
         repositories.saveCoinAccount(coinAccount)
@@ -860,6 +869,15 @@ fun WordMagicGameApp() {
             rebuildBattleEngineForCurrentSession()
         }
     }
+    LaunchedEffect(selection, packLibrary, selectedPackId) {
+        val activeIds = packLibrary.existingIdsInOrder(selection.activePackIds)
+        if (selectedPackId !in activeIds) {
+            val resolved = repositories.resolveSelectedPackId(selection, packLibrary)
+            selectedPackId = resolved
+        } else if (repositories.loadSelectedPackId() != selectedPackId) {
+            repositories.saveSelectedPackId(selectedPackId)
+        }
+    }
     LaunchedEffect(route, battleRunId) {
         if (route == AppRoute.Battle) {
             var remaining = battleTimeLeft
@@ -913,7 +931,10 @@ fun WordMagicGameApp() {
                             route = AppRoute.DevMenu
                         }
                     },
-                    onSelectPack = { selectedPackId = it.id },
+                    onSelectPack = {
+                        selectedPackId = it.id
+                        repositories.saveSelectedPackId(it.id)
+                    },
                     onBoundChild = {
                         route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo
                     },
@@ -997,7 +1018,7 @@ fun WordMagicGameApp() {
                     config = config,
                     activePackCount = selection.activePackIds.size,
                     maxActivePacks = PackSelectionStore.MAX_ACTIVE,
-                    parentPinReady = parentPin.length == 6,
+                    parentPinReady = parentPinReady,
                     cloudBound = cloudCredentials != null,
                     cloudChildNickname = cloudCredentials?.childNickname.orEmpty().ifBlank { "宝贝" },
                     learningSyncBusy = learningSyncBusy,
@@ -1054,7 +1075,7 @@ fun WordMagicGameApp() {
                     },
                 )
                 AppRoute.ParentPin -> ParentPinScreen(
-                    hasPin = parentPin.length == 6,
+                    hasPin = parentPinReady,
                     onBack = {
                         when {
                             pendingRedemptionWishId != null -> {
@@ -1073,13 +1094,12 @@ fun WordMagicGameApp() {
                         }
                     },
                     onSubmit = { value ->
-                        val pinAccepted = if (parentPin.isEmpty()) {
-                            parentPin = value
-                            true
-                        } else if (value == parentPin) {
-                            true
+                        val pinAccepted = if (!parentPinReady) {
+                            parentPinRepository.setPin(value).also { saved ->
+                                parentPinReady = saved || parentPinRepository.hasPin()
+                            }
                         } else {
-                            false
+                            parentPinRepository.verifyPin(value)
                         }
                         if (pinAccepted && pendingRedemptionWishId != null) {
                             val redeemedWishId = pendingRedemptionWishId.orEmpty()
@@ -1147,6 +1167,7 @@ fun WordMagicGameApp() {
                         selection = mutation.selection
                         if (selectedPackId !in selection.activePackIds && selection.activePackIds.isNotEmpty()) {
                             selectedPackId = selection.activePackIds.first()
+                            repositories.saveSelectedPackId(selectedPackId)
                         }
                         localProgressMessage = mutation.message
                         repositories.saveSelection(selection)
@@ -1178,14 +1199,14 @@ fun WordMagicGameApp() {
                             giftBoxVisible = wishlistGiftBoxVisible,
                             giftBoxTrigger = wishlistGiftBoxTrigger,
                             recentlyRedeemedWishId = recentlyRedeemedWishId,
-                            showAddCustomEntry = parentPin.length == 6,
+                            showAddCustomEntry = parentPinReady,
                             onRedeem = { wish ->
                                 pendingRedemptionWishId = wish.id
                                 route = AppRoute.ParentPin
                             },
                             onHistory = { route = AppRoute.RedemptionHistory },
                             onAddCustom = {
-                                if (parentPin.length != 6) {
+                                if (!parentPinReady) {
                                     Toast.makeText(
                                         context,
                                         "请先在设置页面配置家长密码（6 位数字），再使用此功能。",
@@ -1200,7 +1221,7 @@ fun WordMagicGameApp() {
                                 }
                             },
                             onRequestRemoveCustom = { wish ->
-                                if (parentPin.length != 6) {
+                                if (!parentPinReady) {
                                     Toast.makeText(
                                         context,
                                         "请先在设置页面配置家长密码（6 位数字），再使用此功能。",
@@ -1230,7 +1251,7 @@ fun WordMagicGameApp() {
                                 if (!ParentPinStore.isValidPin(addCustomWishPinInput)) {
                                     return@AddCustomWishPinDialog
                                 }
-                                if (addCustomWishPinInput != parentPin) {
+                                if (!parentPinRepository.verifyPin(addCustomWishPinInput)) {
                                     Toast.makeText(context, "密码不正确", Toast.LENGTH_SHORT).show()
                                     return@AddCustomWishPinDialog
                                 }
@@ -1256,7 +1277,7 @@ fun WordMagicGameApp() {
                                 if (!ParentPinStore.isValidPin(removeCustomWishPinInput)) {
                                     return@RemoveCustomWishPinDialog
                                 }
-                                if (removeCustomWishPinInput != parentPin) {
+                                if (!parentPinRepository.verifyPin(removeCustomWishPinInput)) {
                                     Toast.makeText(context, "密码不正确", Toast.LENGTH_SHORT).show()
                                     return@RemoveCustomWishPinDialog
                                 }
