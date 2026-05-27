@@ -119,6 +119,22 @@ class SmokeTest {
     }
 
     @Test
+    fun battleRouteSurvivesActivityRecreate() {
+        composeRule.onNodeWithTag("HomeStartButton").performClick()
+        composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
+
+        composeRule.runOnUiThread {
+            composeRule.activity.recreate()
+        }
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            composeRule.onAllNodesWithTag("BattleScreen").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithTag("HomeScreen").fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
     fun bossIntroBubbleUsesStableTagsAndLevelLabelWithoutSuperBossBanner() {
         configureSpellOnly()
         composeRule.onNodeWithTag("HomeStartButton").performClick()

@@ -78,6 +78,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -146,6 +148,7 @@ import cool.happyword.wordmagic.core.RedemptionHistoryStore
 import cool.happyword.wordmagic.core.SessionResult
 import cool.happyword.wordmagic.core.TodayPlanService
 import cool.happyword.wordmagic.core.WishlistState
+import cool.happyword.wordmagic.core.WordEntry
 import cool.happyword.wordmagic.core.WordPack
 import cool.happyword.wordmagic.core.tryAddCustomWish
 import cool.happyword.wordmagic.core.removeCustomWish
@@ -205,10 +208,141 @@ import cool.happyword.wordmagic.ui.parent.ParentPinScreen
 import cool.happyword.wordmagic.ui.parent.ParentAdminScreen
 import cool.happyword.wordmagic.ui.parent.LessonDraftReviewScreen
 
+private val AppRouteSaver = Saver<AppRoute, String>(
+    save = { it.name },
+    restore = { name -> AppRoute.entries.firstOrNull { it.name == name } ?: AppRoute.Home },
+)
+
+private val GameConfigSaver = Saver<GameConfig, Bundle>(
+    save = { config ->
+        Bundle().apply {
+            putInt("playerHp", config.playerHp)
+            putInt("monsterHp", config.monsterHp)
+            putInt("monsterCount", config.monsterCount)
+            putInt("timerSeconds", config.timerSeconds)
+            putBoolean("autoPronunciation", config.autoPronunciation)
+            putStringArrayList("enabledQuestionTypes", ArrayList(config.enabledQuestionTypes))
+        }
+    },
+    restore = { bundle ->
+        GameConfig(
+            playerHp = bundle.getInt("playerHp", GameConfig().playerHp),
+            monsterHp = bundle.getInt("monsterHp", GameConfig().monsterHp),
+            monsterCount = bundle.getInt("monsterCount", GameConfig().monsterCount),
+            timerSeconds = bundle.getInt("timerSeconds", GameConfig().timerSeconds),
+            autoPronunciation = bundle.getBoolean("autoPronunciation", GameConfig().autoPronunciation),
+            enabledQuestionTypes = bundle.getStringArrayList("enabledQuestionTypes") ?: GameConfig().enabledQuestionTypes,
+        )
+    },
+)
+
+private val StringListSaver = Saver<List<String>, ArrayList<String>>(
+    save = { ArrayList(it) },
+    restore = { it.toList() },
+)
+
+private val BattleStateSaver = Saver<BattleState?, Bundle>(
+    save = { state ->
+        Bundle().apply {
+            putBoolean("present", state != null)
+            if (state != null) {
+                putInt("playerHp", state.playerHp)
+                putInt("monsterHp", state.monsterHp)
+                putInt("monsterIndex", state.monsterIndex)
+                putInt("combo", state.combo)
+                putInt("correctCount", state.correctCount)
+                putInt("wrongCount", state.wrongCount)
+                putInt("defeatedMonsters", state.defeatedMonsters)
+                putBundle("question", state.question.toSaveBundle())
+                putString("status", state.status.name)
+                putBoolean("currentMonsterBonus", state.currentMonsterBonus)
+                putInt("bonusKillCount", state.bonusKillCount)
+                putInt("defeatedMonsterLevelScore", state.defeatedMonsterLevelScore)
+                putInt("monsterCatalogIndex", state.monsterCatalogIndex)
+            }
+        }
+    },
+    restore = { bundle ->
+        if (!bundle.getBoolean("present", false)) {
+            null
+        } else {
+            BattleState(
+                playerHp = bundle.getInt("playerHp"),
+                monsterHp = bundle.getInt("monsterHp"),
+                monsterIndex = bundle.getInt("monsterIndex"),
+                combo = bundle.getInt("combo"),
+                correctCount = bundle.getInt("correctCount"),
+                wrongCount = bundle.getInt("wrongCount"),
+                defeatedMonsters = bundle.getInt("defeatedMonsters"),
+                question = bundle.getBundle("question")?.toQuestion() ?: Question("", "", emptyList()),
+                status = battleStatusFromName(bundle.getString("status")),
+                currentMonsterBonus = bundle.getBoolean("currentMonsterBonus"),
+                bonusKillCount = bundle.getInt("bonusKillCount"),
+                defeatedMonsterLevelScore = bundle.getInt("defeatedMonsterLevelScore"),
+                monsterCatalogIndex = bundle.getInt("monsterCatalogIndex", 1),
+            )
+        }
+    },
+)
+
+private fun Question.toSaveBundle(): Bundle =
+    Bundle().apply {
+        putString("prompt", prompt)
+        putString("correctAnswer", correctAnswer)
+        putStringArrayList("options", ArrayList(options))
+        putString("wordId", wordId)
+        putString("kind", kind.name)
+        putString("letterTemplate", letterTemplate)
+        putInt("missingIndex", missingIndex)
+        putStringArrayList("letterOptions", ArrayList(letterOptions))
+        putString("letterAnswer", letterAnswer)
+        putString("letterTemplateBase", letterTemplateBase)
+        putIntegerArrayList("missingIndices", ArrayList(missingIndices))
+        putStringArrayList("letterOptionsSteps", ArrayList(letterOptionsSteps.map { it.joinToString("\u001F") }))
+        putStringArrayList("letterAnswers", ArrayList(letterAnswers))
+        putInt("currentStep", currentStep)
+        putStringArrayList("spellLetters", ArrayList(spellLetters))
+        putBooleanArray("spellRevealedMask", spellRevealedMask.toBooleanArray())
+        putStringArrayList("spellPool", ArrayList(spellPool))
+        putString("sentenceTemplate", sentenceTemplate)
+        putString("sentenceZh", sentenceZh)
+    }
+
+private fun Bundle.toQuestion(): Question =
+    Question(
+        prompt = getString("prompt").orEmpty(),
+        correctAnswer = getString("correctAnswer").orEmpty(),
+        options = getStringArrayList("options") ?: emptyList(),
+        wordId = getString("wordId").orEmpty(),
+        kind = questionKindFromName(getString("kind")),
+        letterTemplate = getString("letterTemplate").orEmpty(),
+        missingIndex = getInt("missingIndex", -1),
+        letterOptions = getStringArrayList("letterOptions") ?: emptyList(),
+        letterAnswer = getString("letterAnswer").orEmpty(),
+        letterTemplateBase = getString("letterTemplateBase").orEmpty(),
+        missingIndices = getIntegerArrayList("missingIndices") ?: emptyList(),
+        letterOptionsSteps = getStringArrayList("letterOptionsSteps")?.map { encoded ->
+            if (encoded.isEmpty()) emptyList() else encoded.split("\u001F")
+        } ?: emptyList(),
+        letterAnswers = getStringArrayList("letterAnswers") ?: emptyList(),
+        currentStep = getInt("currentStep"),
+        spellLetters = getStringArrayList("spellLetters") ?: emptyList(),
+        spellRevealedMask = getBooleanArray("spellRevealedMask")?.toList() ?: emptyList(),
+        spellPool = getStringArrayList("spellPool") ?: emptyList(),
+        sentenceTemplate = getString("sentenceTemplate").orEmpty(),
+        sentenceZh = getString("sentenceZh").orEmpty(),
+    )
+
+private fun questionKindFromName(name: String?): QuestionKind =
+    QuestionKind.entries.firstOrNull { it.name == name } ?: QuestionKind.Choice
+
+private fun battleStatusFromName(name: String?): BattleStatus =
+    BattleStatus.entries.firstOrNull { it.name == name } ?: BattleStatus.Playing
+
 @Composable
 fun WordMagicGameApp() {
     val context = LocalContext.current
-    var route by remember { mutableStateOf(AppRoute.Home) }
+    var route by rememberSaveable(stateSaver = AppRouteSaver) { mutableStateOf(AppRoute.Home) }
     val repositories = remember { AndroidLocalProgressRepositories(context.applicationContext) }
     val cloudRepositories = remember { AndroidCloudRepositories(context.applicationContext) }
     val debugRoutingRepository = remember { AndroidDebugRoutingRepository(context.applicationContext) }
@@ -294,16 +428,17 @@ fun WordMagicGameApp() {
     var probeStatus by remember { mutableStateOf("尚未探测") }
     val packLibrary = remember(globalPacks, familyPacks) { PackLibrary.merge(BuiltinPacks.all, globalPacks, familyPacks) }
     var selection by remember { mutableStateOf(repositories.loadSelection().prune(packLibrary)) }
-    var selectedPackId by remember { mutableStateOf("fruit-forest") }
+    var selectedPackId by rememberSaveable { mutableStateOf("fruit-forest") }
     val activePacks = packLibrary.activePacks(selection.activePackIds).ifEmpty { BuiltinPacks.defaultActiveOrder.mapNotNull(packLibrary::findPack) }
     val selectedPack = packLibrary.findPack(selectedPackId) ?: activePacks.first()
     var config by remember { mutableStateOf(repositories.loadGameConfig()) }
-    var engine by remember { mutableStateOf(BattleEngine(config = config)) }
-    var battleState by remember { mutableStateOf<BattleState?>(null) }
-    var battleRunId by remember { mutableIntStateOf(0) }
-    var battleTimeLeft by remember { mutableIntStateOf(DEFAULT_BATTLE_TIMER_SECONDS) }
-    var battleConfig by remember { mutableStateOf(config) }
-    var battleIsReview by remember { mutableStateOf(false) }
+    var battleState by rememberSaveable(stateSaver = BattleStateSaver) { mutableStateOf<BattleState?>(null) }
+    var battleRunId by rememberSaveable { mutableStateOf(0) }
+    var battleTimeLeft by rememberSaveable { mutableStateOf(DEFAULT_BATTLE_TIMER_SECONDS) }
+    var battleConfig by rememberSaveable(stateSaver = GameConfigSaver) { mutableStateOf(config) }
+    var battleIsReview by rememberSaveable { mutableStateOf(false) }
+    var battleTargetWordIds by rememberSaveable(stateSaver = StringListSaver) { mutableStateOf(emptyList<String>()) }
+    var engine by remember { mutableStateOf(BattleEngine(config = config, words = selectedPack.words)) }
     var result by remember { mutableStateOf<SessionResult?>(null) }
     var coinAccount by remember { mutableStateOf(repositories.loadCoinAccount()) }
     var checkIns by remember { mutableStateOf(repositories.loadCheckIns()) }
@@ -329,7 +464,7 @@ fun WordMagicGameApp() {
     var pendingRemoveCustomWishId by remember { mutableStateOf<String?>(null) }
     var parentPin by remember { mutableStateOf("") }
     var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
-    var battleDailyDayKey by remember { mutableStateOf("") }
+    var battleDailyDayKey by rememberSaveable { mutableStateOf("") }
     val dailyLearningService = remember { DailyLearningStateService() }
 
     fun applyBindingSuccess(credentials: CloudCredentials) {
@@ -476,6 +611,21 @@ fun WordMagicGameApp() {
         return next
     }
 
+    fun allBattleWords(): List<WordEntry> =
+        (activePacks + packLibrary.allPacks())
+            .flatMap { it.words }
+            .distinctBy { it.id }
+
+    fun rebuildBattleEngineForCurrentSession() {
+        val words = if (battleIsReview) allBattleWords() else selectedPack.words
+        val targetIds = battleTargetWordIds.ifEmpty { words.map { it.id } }
+        engine = BattleEngine(
+            config = battleConfig,
+            words = words,
+            targetWordIds = targetIds,
+        )
+    }
+
     fun finishBattleSession(finishedState: BattleState) {
         val resultPackId = if (battleIsReview) "review-recent-wrong" else selectedPack.id
         var sessionResult = engine.resultFor(finishedState).copy(packId = resultPackId)
@@ -562,6 +712,7 @@ fun WordMagicGameApp() {
         battleIsReview = true
         battleDailyDayKey = todayState.dayKey
         battleConfig = sessionConfig
+        battleTargetWordIds = focusedIds
         battleRunId += 1
         battleTimeLeft = sessionConfig.timerSeconds
         engine = BattleEngine(
@@ -589,6 +740,11 @@ fun WordMagicGameApp() {
     }
     LaunchedEffect(selectedPackId, selection.activePackIds, learningRecorder.statsSnapshot()) {
         ensureDailyStateForNow()
+    }
+    LaunchedEffect(route, battleIsReview, battleConfig, selectedPack.id, battleTargetWordIds) {
+        if (route == AppRoute.Battle && battleState != null) {
+            rebuildBattleEngineForCurrentSession()
+        }
     }
     LaunchedEffect(route, battleRunId) {
         if (route == AppRoute.Battle) {
@@ -652,6 +808,7 @@ fun WordMagicGameApp() {
                         battleIsReview = false
                         battleDailyDayKey = dailyLearningState.dayKey
                         battleConfig = sessionConfig
+                        battleTargetWordIds = selectedPack.words.map { it.id }
                         battleRunId += 1
                         battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
                         engine = BattleEngine(config = sessionConfig, words = selectedPack.words)
@@ -725,7 +882,8 @@ fun WordMagicGameApp() {
                     onConfigChange = { next ->
                         config = next
                         repositories.saveGameConfig(next)
-                        engine = BattleEngine(config = config)
+                        battleConfig = next
+                        engine = BattleEngine(config = config, words = selectedPack.words)
                     },
                     onBack = { route = AppRoute.Home },
                     onParentAdmin = { route = AppRoute.ParentPin },
