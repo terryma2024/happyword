@@ -1,5 +1,6 @@
 package cool.happyword.wordmagic
 
+import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
 import kotlin.math.abs
 import org.junit.Before
 import org.junit.Assert.assertFalse
@@ -130,6 +132,27 @@ class SmokeTest {
             composeRule.onAllNodesWithTag("BattleScreen").fetchSemanticsNodes().isNotEmpty()
         }
 
+        composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithTag("HomeScreen").fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun battleRouteSurvivesLauncherReturn() {
+        composeRule.onNodeWithTag("HomeStartButton").performClick()
+        composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
+
+        composeRule.runOnUiThread {
+            composeRule.activity.moveTaskToBack(true)
+        }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?: error("Missing launcher intent")
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            composeRule.onAllNodesWithTag("BattleScreen").fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithTag("BattleScreen").assertIsDisplayed()
         assertTrue(composeRule.onAllNodesWithTag("HomeScreen").fetchSemanticsNodes().isEmpty())
     }

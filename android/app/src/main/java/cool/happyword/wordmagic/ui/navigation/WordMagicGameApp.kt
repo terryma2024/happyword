@@ -175,6 +175,7 @@ import cool.happyword.wordmagic.ui.ScanBindingScreen
 import cool.happyword.wordmagic.ui.decodeQrPayloadFromUri
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import cool.happyword.wordmagic.core.ActiveBattleSnapshot
 import cool.happyword.wordmagic.ui.TodayPlanScreen
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
@@ -342,8 +343,11 @@ private fun battleStatusFromName(name: String?): BattleStatus =
 @Composable
 fun WordMagicGameApp() {
     val context = LocalContext.current
-    var route by rememberSaveable(stateSaver = AppRouteSaver) { mutableStateOf(AppRoute.Home) }
     val repositories = remember { AndroidLocalProgressRepositories(context.applicationContext) }
+    val restoredBattleSnapshot = remember { repositories.loadActiveBattleSnapshot() }
+    var route by rememberSaveable(stateSaver = AppRouteSaver) {
+        mutableStateOf(if (restoredBattleSnapshot != null) AppRoute.Battle else AppRoute.Home)
+    }
     val cloudRepositories = remember { AndroidCloudRepositories(context.applicationContext) }
     val debugRoutingRepository = remember { AndroidDebugRoutingRepository(context.applicationContext) }
     val devMenuViewModel = remember { DevMenuViewModel() }
@@ -428,17 +432,36 @@ fun WordMagicGameApp() {
     var probeStatus by remember { mutableStateOf("尚未探测") }
     val packLibrary = remember(globalPacks, familyPacks) { PackLibrary.merge(BuiltinPacks.all, globalPacks, familyPacks) }
     var selection by remember { mutableStateOf(repositories.loadSelection().prune(packLibrary)) }
-    var selectedPackId by rememberSaveable { mutableStateOf("fruit-forest") }
+    var selectedPackId by rememberSaveable {
+        mutableStateOf(restoredBattleSnapshot?.packId?.takeIf { !restoredBattleSnapshot.isReview } ?: "fruit-forest")
+    }
     val activePacks = packLibrary.activePacks(selection.activePackIds).ifEmpty { BuiltinPacks.defaultActiveOrder.mapNotNull(packLibrary::findPack) }
     val selectedPack = packLibrary.findPack(selectedPackId) ?: activePacks.first()
     var config by remember { mutableStateOf(repositories.loadGameConfig()) }
-    var battleState by rememberSaveable(stateSaver = BattleStateSaver) { mutableStateOf<BattleState?>(null) }
-    var battleRunId by rememberSaveable { mutableStateOf(0) }
-    var battleTimeLeft by rememberSaveable { mutableStateOf(DEFAULT_BATTLE_TIMER_SECONDS) }
-    var battleConfig by rememberSaveable(stateSaver = GameConfigSaver) { mutableStateOf(config) }
-    var battleIsReview by rememberSaveable { mutableStateOf(false) }
-    var battleTargetWordIds by rememberSaveable(stateSaver = StringListSaver) { mutableStateOf(emptyList<String>()) }
-    var engine by remember { mutableStateOf(BattleEngine(config = config, words = selectedPack.words)) }
+    var battleState by rememberSaveable(stateSaver = BattleStateSaver) { mutableStateOf(restoredBattleSnapshot?.state) }
+    var battleRunId by rememberSaveable { mutableStateOf(restoredBattleSnapshot?.runId ?: 0) }
+    var battleTimeLeft by rememberSaveable { mutableStateOf(restoredBattleSnapshot?.timeLeft ?: DEFAULT_BATTLE_TIMER_SECONDS) }
+    var battleConfig by rememberSaveable(stateSaver = GameConfigSaver) { mutableStateOf(restoredBattleSnapshot?.config ?: config) }
+    var battleIsReview by rememberSaveable { mutableStateOf(restoredBattleSnapshot?.isReview ?: false) }
+    var battleTargetWordIds by rememberSaveable(stateSaver = StringListSaver) {
+        mutableStateOf(restoredBattleSnapshot?.targetWordIds ?: emptyList<String>())
+    }
+    val initialBattleWords = if (restoredBattleSnapshot?.isReview == true) {
+        (activePacks + packLibrary.allPacks())
+            .flatMap { it.words }
+            .distinctBy { it.id }
+    } else {
+        selectedPack.words
+    }
+    var engine by remember {
+        mutableStateOf(
+            BattleEngine(
+                config = restoredBattleSnapshot?.config ?: config,
+                words = initialBattleWords,
+                targetWordIds = restoredBattleSnapshot?.targetWordIds ?: initialBattleWords.map { it.id },
+            ),
+        )
+    }
     var result by remember { mutableStateOf<SessionResult?>(null) }
     var coinAccount by remember { mutableStateOf(repositories.loadCoinAccount()) }
     var checkIns by remember { mutableStateOf(repositories.loadCheckIns()) }
@@ -464,7 +487,7 @@ fun WordMagicGameApp() {
     var pendingRemoveCustomWishId by remember { mutableStateOf<String?>(null) }
     var parentPin by remember { mutableStateOf("") }
     var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
-    var battleDailyDayKey by rememberSaveable { mutableStateOf("") }
+    var battleDailyDayKey by rememberSaveable { mutableStateOf(restoredBattleSnapshot?.dailyDayKey ?: "") }
     val dailyLearningService = remember { DailyLearningStateService() }
 
     fun applyBindingSuccess(credentials: CloudCredentials) {
@@ -626,7 +649,27 @@ fun WordMagicGameApp() {
         )
     }
 
+    fun saveActiveBattleSnapshotIfNeeded() {
+        val state = battleState ?: return
+        if (route != AppRoute.Battle || state.status != BattleStatus.Playing) return
+        repositories.saveActiveBattleSnapshot(
+            ActiveBattleSnapshot(
+                packId = if (battleIsReview) "review-recent-wrong" else selectedPack.id,
+                isReview = battleIsReview,
+                dailyDayKey = battleDailyDayKey,
+                targetWordIds = battleTargetWordIds.ifEmpty {
+                    if (battleIsReview) state.question.wordId.takeIf { it.isNotBlank() }?.let(::listOf).orEmpty() else selectedPack.words.map { it.id }
+                },
+                config = battleConfig,
+                state = state,
+                timeLeft = battleTimeLeft,
+                runId = battleRunId,
+            ),
+        )
+    }
+
     fun finishBattleSession(finishedState: BattleState) {
+        repositories.clearActiveBattleSnapshot()
         val resultPackId = if (battleIsReview) "review-recent-wrong" else selectedPack.id
         var sessionResult = engine.resultFor(finishedState).copy(packId = resultPackId)
         val credited = coinAccount.creditBattleReward(sessionResult.coinDelta, LocalDate.now().toString())
@@ -741,6 +784,21 @@ fun WordMagicGameApp() {
     LaunchedEffect(selectedPackId, selection.activePackIds, learningRecorder.statsSnapshot()) {
         ensureDailyStateForNow()
     }
+    LaunchedEffect(Unit) {
+        if (restoredBattleSnapshot == null && route == AppRoute.Battle) {
+            battleState = null
+            battleTargetWordIds = emptyList()
+            battleIsReview = false
+            battleDailyDayKey = ""
+            battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
+            battleConfig = config
+            engine = BattleEngine(config = config, words = selectedPack.words)
+            route = AppRoute.Home
+        }
+    }
+    LaunchedEffect(route, battleState, battleTimeLeft, battleConfig, battleIsReview, battleDailyDayKey, battleTargetWordIds, selectedPack.id, battleRunId) {
+        saveActiveBattleSnapshotIfNeeded()
+    }
     LaunchedEffect(route, battleIsReview, battleConfig, selectedPack.id, battleTargetWordIds) {
         if (route == AppRoute.Battle && battleState != null) {
             rebuildBattleEngineForCurrentSession()
@@ -759,6 +817,7 @@ fun WordMagicGameApp() {
             if (remaining <= 0 && (battleState?.status ?: BattleStatus.Playing) == BattleStatus.Playing) {
                 val timedOut = (battleState ?: engine.initialState()).copy(playerHp = 0, status = BattleStatus.Lost)
                 battleState = timedOut
+                repositories.clearActiveBattleSnapshot()
                 result = engine.resultFor(timedOut)
                 route = AppRoute.Result
             }

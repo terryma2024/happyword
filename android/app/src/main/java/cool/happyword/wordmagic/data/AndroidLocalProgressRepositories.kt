@@ -1,6 +1,9 @@
 package cool.happyword.wordmagic.data
 
 import android.content.Context
+import cool.happyword.wordmagic.core.ActiveBattleSnapshot
+import cool.happyword.wordmagic.core.BattleState
+import cool.happyword.wordmagic.core.BattleStatus
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.CoinAccount
 import cool.happyword.wordmagic.core.CheckInSnapshot
@@ -14,9 +17,13 @@ import cool.happyword.wordmagic.core.CustomWishRules
 import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.DailyLearningState
 import cool.happyword.wordmagic.core.DailyReviewSnapshot
+import cool.happyword.wordmagic.core.Question
+import cool.happyword.wordmagic.core.QuestionKind
 import cool.happyword.wordmagic.core.WordLearningStat
 import cool.happyword.wordmagic.core.WordAnswerOutcome
 import cool.happyword.wordmagic.core.WordMemoryState
+import org.json.JSONArray
+import org.json.JSONObject
 
 class AndroidLocalProgressRepositories(context: Context) {
     private val prefs = context.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE)
@@ -275,10 +282,187 @@ class AndroidLocalProgressRepositories(context: Context) {
             .apply()
     }
 
+    fun loadActiveBattleSnapshot(): ActiveBattleSnapshot? {
+        val raw = prefs.getString(ACTIVE_BATTLE_SNAPSHOT_KEY, "").orEmpty()
+        if (raw.isBlank()) return null
+        return runCatching {
+            val json = JSONObject(raw)
+            val state = battleStateFromJson(json.getJSONObject("state"))
+            ActiveBattleSnapshot(
+                packId = json.optString("packId"),
+                isReview = json.optBoolean("isReview", false),
+                dailyDayKey = json.optString("dailyDayKey"),
+                targetWordIds = json.optJSONArray("targetWordIds").toStringList(),
+                config = gameConfigFromJson(json.optJSONObject("config")),
+                state = state,
+                timeLeft = json.optInt("timeLeft", GameConfig().timerSeconds).coerceAtLeast(1),
+                runId = json.optInt("runId", 0),
+            ).takeIf { it.state.status == BattleStatus.Playing }
+        }.getOrNull()
+    }
+
+    fun saveActiveBattleSnapshot(snapshot: ActiveBattleSnapshot) {
+        prefs.edit()
+            .putString(
+                ACTIVE_BATTLE_SNAPSHOT_KEY,
+                JSONObject()
+                    .put("packId", snapshot.packId)
+                    .put("isReview", snapshot.isReview)
+                    .put("dailyDayKey", snapshot.dailyDayKey)
+                    .put("targetWordIds", stringJsonArray(snapshot.targetWordIds))
+                    .put("config", gameConfigToJson(snapshot.config))
+                    .put("state", battleStateToJson(snapshot.state))
+                    .put("timeLeft", snapshot.timeLeft)
+                    .put("runId", snapshot.runId)
+                    .toString(),
+            )
+            .apply()
+    }
+
+    fun clearActiveBattleSnapshot() {
+        prefs.edit().remove(ACTIVE_BATTLE_SNAPSHOT_KEY).apply()
+    }
+
     private fun Int?.orZero(): Int = this ?: 0
 
     private fun splitCsv(raw: String): List<String> =
         raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+    private fun gameConfigToJson(config: GameConfig): JSONObject =
+        JSONObject()
+            .put("playerHp", config.playerHp)
+            .put("monsterHp", config.monsterHp)
+            .put("monsterCount", config.monsterCount)
+            .put("timerSeconds", config.timerSeconds)
+            .put("autoPronunciation", config.autoPronunciation)
+            .put("enabledQuestionTypes", stringJsonArray(config.enabledQuestionTypes))
+
+    private fun gameConfigFromJson(json: JSONObject?): GameConfig {
+        val defaults = GameConfig()
+        if (json == null) return defaults
+        return GameConfig(
+            playerHp = json.optInt("playerHp", defaults.playerHp),
+            monsterHp = json.optInt("monsterHp", defaults.monsterHp),
+            monsterCount = json.optInt("monsterCount", defaults.monsterCount),
+            timerSeconds = json.optInt("timerSeconds", defaults.timerSeconds),
+            autoPronunciation = json.optBoolean("autoPronunciation", defaults.autoPronunciation),
+            enabledQuestionTypes = json.optJSONArray("enabledQuestionTypes").toStringList().ifEmpty { defaults.enabledQuestionTypes },
+        )
+    }
+
+    private fun battleStateToJson(state: BattleState): JSONObject =
+        JSONObject()
+            .put("playerHp", state.playerHp)
+            .put("monsterHp", state.monsterHp)
+            .put("monsterIndex", state.monsterIndex)
+            .put("combo", state.combo)
+            .put("correctCount", state.correctCount)
+            .put("wrongCount", state.wrongCount)
+            .put("defeatedMonsters", state.defeatedMonsters)
+            .put("question", questionToJson(state.question))
+            .put("status", state.status.name)
+            .put("currentMonsterBonus", state.currentMonsterBonus)
+            .put("bonusKillCount", state.bonusKillCount)
+            .put("defeatedMonsterLevelScore", state.defeatedMonsterLevelScore)
+            .put("monsterCatalogIndex", state.monsterCatalogIndex)
+
+    private fun battleStateFromJson(json: JSONObject): BattleState =
+        BattleState(
+            playerHp = json.optInt("playerHp"),
+            monsterHp = json.optInt("monsterHp"),
+            monsterIndex = json.optInt("monsterIndex", 1),
+            combo = json.optInt("combo"),
+            correctCount = json.optInt("correctCount"),
+            wrongCount = json.optInt("wrongCount"),
+            defeatedMonsters = json.optInt("defeatedMonsters"),
+            question = questionFromJson(json.optJSONObject("question")),
+            status = BattleStatus.values().firstOrNull { it.name == json.optString("status") } ?: BattleStatus.Playing,
+            currentMonsterBonus = json.optBoolean("currentMonsterBonus"),
+            bonusKillCount = json.optInt("bonusKillCount"),
+            defeatedMonsterLevelScore = json.optInt("defeatedMonsterLevelScore"),
+            monsterCatalogIndex = json.optInt("monsterCatalogIndex", 1),
+        )
+
+    private fun questionToJson(question: Question): JSONObject =
+        JSONObject()
+            .put("prompt", question.prompt)
+            .put("correctAnswer", question.correctAnswer)
+            .put("options", stringJsonArray(question.options))
+            .put("wordId", question.wordId)
+            .put("kind", question.kind.name)
+            .put("letterTemplate", question.letterTemplate)
+            .put("missingIndex", question.missingIndex)
+            .put("letterOptions", stringJsonArray(question.letterOptions))
+            .put("letterAnswer", question.letterAnswer)
+            .put("letterTemplateBase", question.letterTemplateBase)
+            .put("missingIndices", intJsonArray(question.missingIndices))
+            .put("letterOptionsSteps", nestedStringJsonArray(question.letterOptionsSteps))
+            .put("letterAnswers", stringJsonArray(question.letterAnswers))
+            .put("currentStep", question.currentStep)
+            .put("spellLetters", stringJsonArray(question.spellLetters))
+            .put("spellRevealedMask", booleanJsonArray(question.spellRevealedMask))
+            .put("spellPool", stringJsonArray(question.spellPool))
+            .put("sentenceTemplate", question.sentenceTemplate)
+            .put("sentenceZh", question.sentenceZh)
+
+    private fun questionFromJson(json: JSONObject?): Question {
+        if (json == null) return Question("", "", emptyList())
+        return Question(
+            prompt = json.optString("prompt"),
+            correctAnswer = json.optString("correctAnswer"),
+            options = json.optJSONArray("options").toStringList(),
+            wordId = json.optString("wordId"),
+            kind = QuestionKind.values().firstOrNull { it.name == json.optString("kind") } ?: QuestionKind.Choice,
+            letterTemplate = json.optString("letterTemplate"),
+            missingIndex = json.optInt("missingIndex", -1),
+            letterOptions = json.optJSONArray("letterOptions").toStringList(),
+            letterAnswer = json.optString("letterAnswer"),
+            letterTemplateBase = json.optString("letterTemplateBase"),
+            missingIndices = json.optJSONArray("missingIndices").toIntList(),
+            letterOptionsSteps = json.optJSONArray("letterOptionsSteps").toNestedStringList(),
+            letterAnswers = json.optJSONArray("letterAnswers").toStringList(),
+            currentStep = json.optInt("currentStep"),
+            spellLetters = json.optJSONArray("spellLetters").toStringList(),
+            spellRevealedMask = json.optJSONArray("spellRevealedMask").toBooleanList(),
+            spellPool = json.optJSONArray("spellPool").toStringList(),
+            sentenceTemplate = json.optString("sentenceTemplate"),
+            sentenceZh = json.optString("sentenceZh"),
+        )
+    }
+
+    private fun stringJsonArray(values: List<String>): JSONArray =
+        JSONArray().also { array -> values.forEach { array.put(it) } }
+
+    private fun intJsonArray(values: List<Int>): JSONArray =
+        JSONArray().also { array -> values.forEach { array.put(it) } }
+
+    private fun booleanJsonArray(values: List<Boolean>): JSONArray =
+        JSONArray().also { array -> values.forEach { array.put(it) } }
+
+    private fun nestedStringJsonArray(values: List<List<String>>): JSONArray =
+        JSONArray().also { outer ->
+            values.forEach { inner -> outer.put(stringJsonArray(inner)) }
+        }
+
+    private fun JSONArray?.toStringList(): List<String> {
+        if (this == null) return emptyList()
+        return (0 until length()).mapNotNull { index -> optString(index).takeIf { it.isNotEmpty() } }
+    }
+
+    private fun JSONArray?.toIntList(): List<Int> {
+        if (this == null) return emptyList()
+        return (0 until length()).map { index -> optInt(index) }
+    }
+
+    private fun JSONArray?.toBooleanList(): List<Boolean> {
+        if (this == null) return emptyList()
+        return (0 until length()).map { index -> optBoolean(index) }
+    }
+
+    private fun JSONArray?.toNestedStringList(): List<List<String>> {
+        if (this == null) return emptyList()
+        return (0 until length()).map { index -> optJSONArray(index).toStringList() }
+    }
 
     private fun parseOutcome(raw: String?, consecutiveCorrect: Int, consecutiveWrong: Int): WordAnswerOutcome =
         when (raw) {
@@ -297,5 +481,6 @@ class AndroidLocalProgressRepositories(context: Context) {
 
     companion object {
         private const val DAILY_LEARNING_STATE_KEY = "daily_learning_state/snapshot_v1"
+        private const val ACTIVE_BATTLE_SNAPSHOT_KEY = "active_battle/snapshot_v1"
     }
 }

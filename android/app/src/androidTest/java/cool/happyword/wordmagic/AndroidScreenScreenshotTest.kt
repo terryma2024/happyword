@@ -55,8 +55,10 @@ class AndroidScreenScreenshotTest {
         composeRule.onNodeWithTag("ConfigPackManagerButton").performScrollTo().performClick()
         capture("pack-manager.png")
         composeRule.onNodeWithTag("PackManagerBack").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
 
         composeRule.onNodeWithTag("HomeWishlistButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("WishlistScreen") && hasNode("WishlistHistoryButton") }
         capture("wishlist.png")
         composeRule.onNodeWithTag("WishlistHistoryButton").performClick()
         capture("redemption-history.png")
