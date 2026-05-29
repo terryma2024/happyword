@@ -328,6 +328,8 @@ interface RawScene {
   monsterPlan?: RawSlot[];
   storyEn?: string;
   storyZh?: string;
+  spellbookCoverUrl?: string;
+  spellbook_cover_url?: string;
 }
 
 interface RawExample {
@@ -375,6 +377,8 @@ function parseScene(raw: RawScene | undefined): SceneMetadata {
   if (typeof raw.bgPrimary === 'string') scene.bgPrimary = raw.bgPrimary;
   if (typeof raw.bgAccent === 'string') scene.bgAccent = raw.bgAccent;
   if (typeof raw.bossName === 'string') scene.bossName = raw.bossName;
+  const coverUrl: string | undefined = pickStrNullable(raw.spellbookCoverUrl, raw.spellbook_cover_url);
+  if (coverUrl !== undefined) scene.spellbookCoverUrl = coverUrl;
   if (Array.isArray(raw.bossCandidates)) {
     const cleaned: number[] = [];
     for (let i = 0; i < raw.bossCandidates.length; i++) {

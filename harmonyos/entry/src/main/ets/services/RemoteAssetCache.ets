@@ -22,12 +22,15 @@ import { vercelBypassHeader } from './BackendHeaders';
 export enum AssetKind {
   Illustration = 'illustration',
   Audio = 'audio',
+  Cover = 'cover',
 }
 
 export const ASSET_DIR_ILLUSTRATIONS: string = 'illustrations';
 export const ASSET_DIR_AUDIO: string = 'audio';
+export const ASSET_DIR_COVERS: string = 'covers';
 export const ILLUSTRATION_LRU_CAP: number = 50;
 export const AUDIO_LRU_CAP: number = 100;
+export const COVER_LRU_CAP: number = 50;
 const FETCH_TIMEOUT_MS: number = 6000;
 // HarmonyOS file APIs raise this code when mkdir hits an existing directory.
 const FS_ERR_FILE_EXISTS: number = 13900015;
@@ -67,6 +70,7 @@ export class RemoteAssetCache {
     this.root = RemoteAssetCache.trimTrailingSlash(root);
     this.indexes.set(AssetKind.Illustration, new Map<string, IndexEntry>());
     this.indexes.set(AssetKind.Audio, new Map<string, IndexEntry>());
+    this.indexes.set(AssetKind.Cover, new Map<string, IndexEntry>());
   }
 
   static forContext(ctx: common.UIAbilityContext): RemoteAssetCache {
@@ -128,6 +132,7 @@ export class RemoteAssetCache {
     await this.fsAdapter.ensureDir(this.root);
     await this.fsAdapter.ensureDir(`${this.root}/${ASSET_DIR_ILLUSTRATIONS}`);
     await this.fsAdapter.ensureDir(`${this.root}/${ASSET_DIR_AUDIO}`);
+    await this.fsAdapter.ensureDir(`${this.root}/${ASSET_DIR_COVERS}`);
     // We deliberately do NOT rebuild url -> fileName mappings from the
     // listing because we don't store URLs on disk. A cold-start process
     // simply re-fetches assets the first time they're requested again —
@@ -135,14 +140,22 @@ export class RemoteAssetCache {
   }
 
   private pathFor(kind: AssetKind, fileName: string): string {
-    const bucket: string = kind === AssetKind.Illustration
-      ? ASSET_DIR_ILLUSTRATIONS
-      : ASSET_DIR_AUDIO;
+    let bucket: string = ASSET_DIR_AUDIO;
+    if (kind === AssetKind.Illustration) {
+      bucket = ASSET_DIR_ILLUSTRATIONS;
+    } else if (kind === AssetKind.Cover) {
+      bucket = ASSET_DIR_COVERS;
+    }
     return `${this.root}/${bucket}/${fileName}`;
   }
 
   private async evictIfNeeded(kind: AssetKind): Promise<void> {
-    const cap: number = kind === AssetKind.Illustration ? ILLUSTRATION_LRU_CAP : AUDIO_LRU_CAP;
+    let cap: number = AUDIO_LRU_CAP;
+    if (kind === AssetKind.Illustration) {
+      cap = ILLUSTRATION_LRU_CAP;
+    } else if (kind === AssetKind.Cover) {
+      cap = COVER_LRU_CAP;
+    }
     const index: Map<string, IndexEntry> | undefined = this.indexes.get(kind);
     if (index === undefined || index.size <= cap) {
       return;

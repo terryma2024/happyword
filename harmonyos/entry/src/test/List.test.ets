@@ -73,6 +73,9 @@ import messageBubbleLabStateTest from './MessageBubbleLabState.test';
 import bossDialogueSequencerTest from './BossDialogueSequencer.test';
 import dailyLearningStateServiceTest from './DailyLearningStateService.test';
 import homeDailyStatusBadgeStyleTest from './HomeDailyStatusBadgeStyle.test';
+import spellbookServiceTest from './SpellbookService.test';
+import spellbookRewardStoreTest from './SpellbookRewardStore.test';
+import spellbookCoverResolverTest from './SpellbookCoverResolver.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -150,4 +153,7 @@ export default function testsuite() {
   bossDialogueSequencerTest();
   dailyLearningStateServiceTest();
   homeDailyStatusBadgeStyleTest();
+  spellbookServiceTest();
+  spellbookRewardStoreTest();
+  spellbookCoverResolverTest();
 }

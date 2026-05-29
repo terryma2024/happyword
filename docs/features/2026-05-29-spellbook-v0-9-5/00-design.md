@@ -70,8 +70,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  create["Create family/global pack"] --> autoGenerate["Auto-generate one cover draft"]
-  autoGenerate --> provider{"Image provider succeeds?"}
+  appImport["App parent admin starts pack import"] --> importJob["Async import job"]
+  importJob --> appGenerate["Generate cover inside same async job"]
+  webCreate["Web admin creates pack record"] --> webSaved["Record saved immediately"]
+  webSaved --> webPage["Open pack edit/detail page"]
+  webPage --> manualGenerate["Click generate cover"]
+  appGenerate --> provider{"Image provider succeeds?"}
+  manualGenerate --> provider
   provider -->|yes| normalize["Normalize to 128x128"]
   normalize --> upload["Upload to Blob"]
   upload --> pending["Store pending cover draft"]
@@ -79,10 +84,12 @@ flowchart TD
   pending --> preview["Parent/admin previews cover"]
   failed --> retry["Regenerate button"]
   preview --> confirm["Confirm cover"]
-  retry --> autoGenerate
+  retry --> manualGenerate
   confirm --> scene["Write scene.spellbookCoverUrl"]
   scene --> publish["Publish pack JSON"]
 ```
+
+Cover generation must not block synchronous pack creation. It can run as part of an existing asynchronous import workflow, or it can be triggered manually after a pack record already exists.
 
 ## 5. Stable Test IDs (parity contract)
 
@@ -189,6 +196,12 @@ The provider prompt asks for a child-safe square magic book cover for a vocabula
 
 Generated output is normalized to a 128x128 image, uploaded to Blob/object storage, and stored as a pending draft until confirmed.
 
+Generation timing depends on the management surface:
+
+- **In-app parent management:** pack import is already an asynchronous workflow. The import job may enqueue/run one spellbook cover generation attempt after the pack metadata is available. The parent UI shows import progress/status and must remain usable while the image provider runs.
+- **Web admin management:** creating a global/family pack record must return quickly without waiting for image generation. After the record exists, the pack edit/detail page exposes a generate/regenerate cover action. The page shows `generating`, `pending_review`, or `failed` status and allows retry.
+- **Publish behavior:** pack publish remains allowed without a generated or confirmed cover. Child clients use the default cover until `scene.spellbookCoverUrl` is confirmed and present in published pack JSON.
+
 ## 7. Persistence and Migration
 
 ### 7.1 Client Persistence
@@ -220,12 +233,13 @@ The server also stores draft/operational cover state for backend UI. Exact stora
 | `updatedAt` | `datetime` | Latest state transition. |
 | `confirmedAt` | `datetime?` | Human confirmation time. |
 | `confirmedBy` | `string?` | Parent/admin username. |
+| `source` | `parent_import_job | web_admin_manual | manual_regenerate` | Where the latest generation request came from. |
 
 ## 8. Cross-Platform Contracts
 
 - New / changed endpoints:
-  - Parent HTML: generate/regenerate/confirm spellbook cover for one family pack.
-  - Admin HTML: generate/regenerate/confirm spellbook cover for one global or family pack.
+  - Parent HTML/import workflow: optionally trigger spellbook cover generation inside the existing asynchronous family-pack import task, then expose preview/regenerate/confirm actions for one family pack.
+  - Admin HTML: create global/family pack records without waiting for image generation; pack edit/detail pages expose manual generate/regenerate/confirm actions.
   - Admin HTML: choose and test the global image-generation provider.
 - Schema additions:
   - `Pack.scene.spellbookCoverUrl?: string`
@@ -269,6 +283,7 @@ Model names and endpoint defaults are deployment configuration, not product sema
 - **Remote cover exists but not cached offline:** show default cover offline; populate cache on next successful online load.
 - **Provider not configured:** cover generation button shows a clear backend error; pack publish remains allowed.
 - **Provider call fails:** store failed status and allow regenerate; publish remains allowed.
+- **Provider call is slow:** app parent import progress may remain in an image-generation step, but the UI must not be frozen; web admin record creation must already have completed before generation starts.
 - **Generated image is unsafe or unsuitable:** human confirmation is required before publishing to child clients.
 - **Blob upload fails after provider success:** store failed status; do not write `scene.spellbookCoverUrl`.
 
@@ -289,7 +304,7 @@ Server audit actions are required:
 | --- | --- | --- |
 | `system_config.update_image_provider` | Admin changes provider | `provider_id` |
 | `system_config.test_image_provider` | Admin test generation completes or fails | `provider_id`, `ok` |
-| `pack.spellbook_cover_generate` | Cover generation/regeneration requested | `pack_id`, `provider_id`, `status` |
+| `pack.spellbook_cover_generate` | Cover generation/regeneration requested | `pack_id`, `provider_id`, `status`, `source` |
 | `pack.spellbook_cover_confirm` | Human confirms cover | `pack_id`, `url` |
 
 ## 11. Accessibility / Localization

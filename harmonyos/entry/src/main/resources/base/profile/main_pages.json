@@ -6,6 +6,7 @@
     "pages/ConfigPage",
     "pages/WishlistPage",
     "pages/MonsterCodexPage",
+    "pages/SpellbookPage",
     "pages/ParentPinSetupPage",
     "pages/RedemptionHistoryPage",
     "pages/TodayPlanPage",

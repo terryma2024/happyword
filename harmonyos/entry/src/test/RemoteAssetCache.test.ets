@@ -6,8 +6,10 @@ import {
   AssetKind,
   ASSET_DIR_ILLUSTRATIONS,
   ASSET_DIR_AUDIO,
+  ASSET_DIR_COVERS,
   ILLUSTRATION_LRU_CAP,
   AUDIO_LRU_CAP,
+  COVER_LRU_CAP,
 } from '../main/ets/services/RemoteAssetCache';
 
 class FakeFs implements AssetFsAdapter {
@@ -134,6 +136,20 @@ export default function remoteAssetCacheTest(): void {
       }
     });
 
+    it('downloadsCoverIntoSeparateBucket', 0, async () => {
+      const fs: FakeFs = new FakeFs();
+      const f: FakeFetcher = new FakeFetcher();
+      const url: string = 'https://blob/covers/fruit-forest.png';
+      f.responses.set(url, makeBytes('cover-png'));
+      const c: RemoteAssetCache = new RemoteAssetCache(fs, f, ROOT);
+      const path: string | undefined = await c.resolve(url, AssetKind.Cover);
+      expect(path !== undefined).assertTrue();
+      if (path !== undefined) {
+        expect(path.indexOf(`${ROOT}/${ASSET_DIR_COVERS}/`) === 0).assertTrue();
+        expect(path.endsWith('.png')).assertTrue();
+      }
+    });
+
     it('returnsUndefinedOnDownloadFailure', 0, async () => {
       const fs: FakeFs = new FakeFs();
       const f: FakeFetcher = new FakeFetcher();
@@ -186,6 +202,7 @@ export default function remoteAssetCacheTest(): void {
       // Sanity guard against regressions that would treat them as one bucket.
       expect(ILLUSTRATION_LRU_CAP).assertEqual(50);
       expect(AUDIO_LRU_CAP).assertEqual(100);
+      expect(COVER_LRU_CAP).assertEqual(50);
     });
 
     it('refetchesWhenDiskFileDisappeared', 0, async () => {

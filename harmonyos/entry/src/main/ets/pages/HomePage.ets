@@ -67,6 +67,11 @@ import {
   resolveHomeChipSelection,
   resolveTodayAdventurePack,
 } from '../services/PackHomeIntegration';
+import {
+  SpellbookCoverSource,
+  SpellbookCoverSourceKind,
+  spellbookCoverSourceForPack,
+} from '../services/SpellbookCoverResolver';
 
 /**
  * Route params bag for `pages/DevMenuPage`. ArkTS strict mode rejects
@@ -661,6 +666,23 @@ struct HomePage {
             });
           });
 
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Image($rawfile('icons/spellbook.png'))
+            .width(34)
+            .height(34)
+            .objectFit(ImageFit.Contain)
+            .syncLoad(true);
+        }
+          .id('HomeSpellbookButton')
+          .width(56)
+          .height(56)
+          .backgroundColor('#FCEAEA')
+          .onClick((): void => {
+            this.getUIContext().getRouter().pushUrl({ url: 'pages/SpellbookPage' }).catch((err: BusinessError): void => {
+              console.error(`HomePage: pushUrl SpellbookPage failed: ${JSON.stringify(err)}`);
+            });
+          });
+
         // V0.4.4: today-plan visibility entry. Uses the 📋 emoji
         // glyph rather than a Recraft SVG to keep the V0.4 series
         // additive against the V0.3.10 icon set; promote to a
@@ -827,6 +849,7 @@ struct HomePage {
   private adventureCard() {
     Column({ space: 10 }) {
       Row() {
+        this.homePackSpellbookCover();
         // Read packLibraryVersion so ArkUI re-runs the builder after chip / pack loads.
         Text(this.packLibraryVersion >= 0 ? this.regionLabel(this.todayRegion) : this.todayRegion.displayName)
           .id('AdventureCardTitle')
@@ -896,6 +919,33 @@ struct HomePage {
   private packChipLabel(p: Pack): string {
     if (p.name.length > 0) return p.name;
     return p.id;
+  }
+
+  @Builder
+  private homePackSpellbookCover() {
+    Stack() {
+      if (spellbookCoverSourceForPack(this.todayPack).kind === SpellbookCoverSourceKind.RemoteUrl) {
+        Image(spellbookCoverSourceForPack(this.todayPack).value)
+          .width(36)
+          .height(36)
+          .objectFit(ImageFit.Contain);
+      } else {
+        Image($rawfile(this.homePackRawSpellbookCover()))
+          .width(36)
+          .height(36)
+          .objectFit(ImageFit.Contain)
+          .syncLoad(true);
+      }
+    }
+    .id('HomePackSpellbookCover')
+    .width(36)
+    .height(36)
+    .margin({ right: 8 });
+  }
+
+  private homePackRawSpellbookCover(): string {
+    const source: SpellbookCoverSource = spellbookCoverSourceForPack(this.todayPack);
+    return source.kind === SpellbookCoverSourceKind.Rawfile ? source.value : 'spellbook_covers/default.png';
   }
 
   @Builder

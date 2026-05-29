@@ -41,6 +41,7 @@ interface RawScene {
   monsterPlan?: RawSlot[];
   storyEn?: string;
   storyZh?: string;
+  spellbookCoverUrl?: string;
 }
 
 interface RawExample {
@@ -101,6 +102,9 @@ export class BuiltinPackLoader {
     if (typeof raw.bgPrimary === 'string') scene.bgPrimary = raw.bgPrimary;
     if (typeof raw.bgAccent === 'string') scene.bgAccent = raw.bgAccent;
     if (typeof raw.bossName === 'string') scene.bossName = raw.bossName;
+    if (typeof raw.spellbookCoverUrl === 'string' && raw.spellbookCoverUrl.length > 0) {
+      scene.spellbookCoverUrl = raw.spellbookCoverUrl;
+    }
     if (Array.isArray(raw.bossCandidates)) {
       const cleaned: number[] = [];
       for (let i = 0; i < raw.bossCandidates.length; i++) {
