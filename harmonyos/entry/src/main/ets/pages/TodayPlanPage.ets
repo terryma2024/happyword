@@ -1,10 +1,8 @@
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
-import { WordRepository } from '../services/WordRepository';
-import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
-import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
-import { AdventureRegion, WordSource } from '../models/AdventureRegion';
+import { WordSource } from '../models/AdventureRegion';
+import { Pack } from '../models/Pack';
 import { TODAY_REGION_ID_KEY } from '../models/GameConfig';
 import {
   TodayPlanService,
@@ -13,6 +11,12 @@ import {
   describeMemoryState,
   describeWordSource,
 } from '../services/TodayPlanService';
+import {
+  HomeIntegrationBundle,
+  fallbackPacks,
+  loadHomeIntegration,
+  resolveActivePacks,
+} from '../services/PackHomeIntegration';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 import { requestPageOrientation } from '../utils/orientation';
@@ -55,19 +59,19 @@ struct TodayPlanPage {
   aboutToAppear(): void {
     this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
-      const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
+    loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
+      const pack: Pack = this.resolvePack(bundle);
       const recorder: LearningRecorder = getLearningRecorder();
       recorder.init(ctx).then((): void => {
-        this.populateView(repo, recorder);
+        this.populateView(pack, recorder);
       }).catch((err: BusinessError): void => {
         console.error(`TodayPlanPage: recorder.init failed: ${JSON.stringify(err)}`);
         // Fall back to a recorder-less view so an init failure
         // doesn't strand the page on a permanent loading screen.
-        this.populateView(repo, recorder);
+        this.populateView(pack, recorder);
       });
     }).catch((err: BusinessError): void => {
-      console.error(`TodayPlanPage: bootstrap failed: ${JSON.stringify(err)}`);
+      console.error(`TodayPlanPage: loadHomeIntegration failed: ${JSON.stringify(err)}`);
       this.loaded = true;
     });
   }
@@ -76,10 +80,9 @@ struct TodayPlanPage {
     this.applyOrientationPolicy();
   }
 
-  private populateView(repo: WordRepository, recorder: LearningRecorder): void {
-    const region: AdventureRegion = this.resolveRegion();
+  private populateView(pack: Pack, recorder: LearningRecorder): void {
     const view: TodayPlanView =
-      new TodayPlanService().build(region, repo, recorder, Date.now());
+      new TodayPlanService().buildFromPack(pack, recorder, Date.now());
     this.regionDisplayName = view.regionDisplayName;
     this.dayKey = view.dayKey;
     this.reviewRows = view.review;
@@ -90,10 +93,18 @@ struct TodayPlanPage {
     this.loaded = true;
   }
 
-  private resolveRegion(): AdventureRegion {
+  private resolvePack(bundle: HomeIntegrationBundle): Pack {
+    const activePacks: Pack[] = resolveActivePacks(bundle);
+    const candidates: Pack[] = activePacks.length > 0 ? activePacks : fallbackPacks();
     const stored: string | undefined = AppStorage.get<string>(TODAY_REGION_ID_KEY);
-    const id: string = stored !== undefined ? stored : DEFAULT_REGION_ID;
-    return getRegionById(id);
+    if (stored !== undefined) {
+      for (let i = 0; i < candidates.length; i++) {
+        if (candidates[i].id === stored) {
+          return candidates[i];
+        }
+      }
+    }
+    return candidates[0];
   }
 
   build() {

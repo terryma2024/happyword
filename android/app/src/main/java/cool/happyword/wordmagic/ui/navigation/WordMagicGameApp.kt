@@ -1350,6 +1350,7 @@ fun WordMagicGameApp() {
                     plan = TodayPlanService().buildUi(
                         library = packLibrary,
                         activeIds = selection.activePackIds,
+                        selectedPackId = selectedPack.id,
                         stats = learningRecorder.statsSnapshot(),
                         regionDisplayName = selectedPack.nameZh,
                         nowMs = System.currentTimeMillis(),
