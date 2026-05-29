@@ -33,6 +33,9 @@ import {
   HOME_DAILY_STATUS_BADGE_HORIZONTAL_PADDING_VP,
   HOME_DAILY_STATUS_BADGE_VERTICAL_PADDING_VP,
   HOME_DAILY_STATUS_BADGE_RADIUS_VP,
+  HOME_ADVENTURE_CARD_STORY_MAX_LINES,
+  HOME_ADVENTURE_CARD_STORY_LINE_HEIGHT_VP,
+  HOME_ADVENTURE_CARD_STORY_RESERVED_HEIGHT_VP,
 } from '../components/HomeDailyStatusBadgeStyle';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import {
@@ -889,7 +892,12 @@ struct HomePage {
       Text(this.packLibraryVersion >= 0 ? this.regionStory(this.todayRegion) : '今天的冒险包含 5 关卡，含拼写、复习与首领关')
         .id('AdventureCardStory')
         .fontSize(14)
-        .fontColor('#5A4A35');
+        .fontColor('#5A4A35')
+        .height(HOME_ADVENTURE_CARD_STORY_RESERVED_HEIGHT_VP)
+        .lineHeight(HOME_ADVENTURE_CARD_STORY_LINE_HEIGHT_VP)
+        .maxLines(HOME_ADVENTURE_CARD_STORY_MAX_LINES)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .textAlign(TextAlign.Center);
 
       Button(this.todayCompleted ? '再战一局' : '开始今日冒险')
         .id('HomeStartButton')

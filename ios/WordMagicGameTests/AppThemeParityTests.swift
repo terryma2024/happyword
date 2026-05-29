@@ -63,6 +63,10 @@ final class AppThemeParityTests: XCTestCase {
         let homeView = try String(contentsOf: root.appending(path: "ios/WordMagicGame/Features/CoreLoop/HomeView.swift"))
 
         XCTAssertTrue(homeView.contains("Text(HomePackStoryLine.text(for: coordinator.selectedPack))"))
+        XCTAssertEqual(HomeAdventureCardStoryStyle.lineLimit, 2)
+        XCTAssertEqual(HomeAdventureCardStoryStyle.reservedHeight, 44)
+        XCTAssertTrue(homeView.contains(".lineLimit(HomeAdventureCardStoryStyle.lineLimit)"))
+        XCTAssertTrue(homeView.contains(".frame(maxWidth: .infinity, minHeight: HomeAdventureCardStoryStyle.reservedHeight, alignment: .center)"))
         XCTAssertFalse(homeView.contains("tag(\"常规\")"))
         XCTAssertFalse(homeView.contains("tag(\"拼写\")"))
         XCTAssertFalse(homeView.contains("tag(\"复习\")"))

@@ -157,8 +157,9 @@ struct HomeView: View {
             Text(HomePackStoryLine.text(for: coordinator.selectedPack))
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color(red: 0.35, green: 0.29, blue: 0.22))
-                .frame(maxWidth: .infinity, alignment: .center)
-                .lineLimit(1)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: HomeAdventureCardStoryStyle.reservedHeight, alignment: .center)
+                .lineLimit(HomeAdventureCardStoryStyle.lineLimit)
                 .minimumScaleFactor(0.72)
 
             Button {
@@ -218,6 +219,11 @@ struct HomeView: View {
         .accessibilityLabel(label)
         .accessibilityIdentifier("HomeTodayPlanButton")
     }
+}
+
+enum HomeAdventureCardStoryStyle {
+    static let lineLimit = 2
+    static let reservedHeight: CGFloat = 44
 }
 
 enum HomePackStoryLine {
