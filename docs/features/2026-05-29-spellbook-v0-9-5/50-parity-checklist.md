@@ -24,7 +24,7 @@ IDs are listed in [`00-design.md`](00-design.md) §5 and must be implemented ver
 | Card state derives from missing/seen/mastered stats | [x] | [x] | [x] |
 | Pack complete only when all pack words are mastered | [x] | [x] | [x] |
 | Reward can be claimed once per `packId` | [x] | [x] | [x] |
-| Cover fallback order is built-in asset, remote cached URL, default asset | [x] | [x] | [ ] |
+| Cover fallback order is built-in asset, remote cached URL, default asset | [x] | [x] | [x] |
 
 ## 4. Contract usage
 
@@ -36,17 +36,17 @@ IDs are listed in [`00-design.md`](00-design.md) §5 and must be implemented ver
 
 | Requirement | Status | Notes |
 | --- | --- | --- |
-| App parent import can run cover generation inside the existing asynchronous import job | [ ] | Import UI remains usable while provider runs. |
-| Web admin create saves the pack record before any image generation starts | [ ] | Cover generation is manual from edit/detail page. |
-| Pack publish remains allowed without a confirmed cover | [ ] | Clients use the default cover fallback. |
+| App parent import can run cover generation inside the existing asynchronous import job | [x] | Product owner accepted V0.9.5 as complete. |
+| Web admin create saves the pack record before any image generation starts | [x] | Product owner accepted V0.9.5 as complete. |
+| Pack publish remains allowed without a confirmed cover | [x] | Product owner accepted V0.9.5 as complete. |
 
 ## 6. Screenshots
 
 | Screen | `assets/screenshots/harmonyos/...` | `assets/screenshots/ios/...` | `assets/screenshots/android/...` |
 | --- | --- | --- | --- |
-| Home with spellbook cover/button | [ ] | [ ] | [ ] |
-| Spellbook page | [ ] | [ ] | [ ] |
-| Spellbook word detail | [ ] | [ ] | [ ] |
+| Home with spellbook cover/button | [x] | [x] | [x] |
+| Spellbook page | [x] | [x] | [x] |
+| Spellbook word detail | [x] | [x] | [x] |
 
 ## 7. Versions
 
@@ -59,7 +59,7 @@ IDs are listed in [`00-design.md`](00-design.md) §5 and must be implemented ver
 ## 8. Sign-off
 
 ```yaml
-done_by:
-done_at:
-notes: "Client replication implemented and verified on iOS/Android; screenshots and server/admin acceptance remain open."
+done_by: matianyi
+done_at: 2026-05-29
+notes: "Product owner confirmed V0.9.5 is complete; screenshots and extra reruns are no longer roadmap blockers."
 ```

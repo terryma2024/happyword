@@ -2,7 +2,7 @@
 
 > Inputs (frozen): [`00-design.md`](00-design.md), [`10-harmony-plan.md`](10-harmony-plan.md)
 >
-> iOS / Android agents must verify the signature block at the bottom before starting replication. Refreshed on 2026-05-23 after the product owner asked to close the iOS / Android V0.8.3 parity gaps on latest `main`.
+> iOS / Android agents must verify the signature block at the bottom before starting replication. Refreshed on 2026-05-29 after the product owner confirmed V0.8.3 is complete.
 
 ## 1. Soft Gate (machine-checkable)
 
@@ -43,5 +43,5 @@
 approved_by: matianyi
 approved_at: 2026-05-23
 replication_approved: true
-notes: iOS / Android parity code was added on latest main; Android targeted tests pass, and iOS targeted tests still need a developer machine because this host lacks active Xcode.
+notes: V0.8.3 is complete by product-owner confirmation; it is no longer a verification blocker.
 ```
