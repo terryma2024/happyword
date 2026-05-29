@@ -13828,6 +13828,59 @@
         ]
       }
     },
+    "/family/{family_id}/packs/{pack_id}/cover/generate": {
+      "post": {
+        "operationId": "generate_pack_cover_page_family__family_id__packs__pack_id__cover_generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Pack Cover Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
     "/family/{family_id}/packs/{pack_id}/delete": {
       "post": {
         "operationId": "delete_pack_page_family__family_id__packs__pack_id__delete_post",

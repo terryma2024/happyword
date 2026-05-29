@@ -184,6 +184,37 @@ async def test_pack_detail_renders_title_edit_form(parent_client: tuple[AsyncCli
 
 
 @pytest.mark.asyncio
+async def test_pack_detail_renders_cover_generate_controls(
+    parent_client: tuple[AsyncClient, str],
+) -> None:
+    ac, fid = parent_client
+    created = await ac.post(
+        f"/api/v1/family/{fid}/family-packs",
+        json={
+            "name": "Cover UI",
+            "scene": {
+                "spellbookCoverUrl": "https://assets.example.test/covers/family-cover.png"
+            },
+        },
+    )
+    pack_id = created.json()["pack_id"]
+
+    resp = await ac.get(f"/family/{fid}/packs/{pack_id}")
+
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.text, "html.parser")
+    form = soup.find(id="pack-cover-generate-form")
+    button = soup.find(id="pack-cover-generate-submit")
+    image = soup.find("img", attrs={"alt": "魔法书封面"})
+    assert form is not None
+    assert form.get("action") == f"/family/{fid}/packs/{pack_id}/cover/generate"
+    assert button is not None
+    assert button.get_text(strip=True) == "生成封面图"
+    assert image is not None
+    assert image.get("src") == "https://assets.example.test/covers/family-cover.png"
+
+
+@pytest.mark.asyncio
 async def test_pack_detail_renders_batch_delete_controls(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
@@ -421,6 +452,56 @@ async def test_pack_story_generate_form_updates_scene_stories(
     scene = api_detail.json()["definition"]["scene"]
     assert scene["storyEn"] == "Fruit sparks dance beside a brave apple."
     assert scene["storyZh"] == "水果火花陪着勇敢的苹果跳舞。"
+
+
+@pytest.mark.asyncio
+async def test_pack_cover_generate_form_updates_scene(
+    parent_client: tuple[AsyncClient, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.models.family_pack_definition import FamilyPackDefinition
+    from app.services import spellbook_cover_service
+
+    async def fake_generate_and_attach_spellbook_cover(
+        *,
+        definition: FamilyPackDefinition,
+        words: list[dict[str, object]],
+    ) -> tuple[str, str, FamilyPackDefinition]:
+        assert definition.pack_id == pack_id
+        assert words[0]["word"] == "apple"
+        definition.scene = {
+            **definition.scene,
+            "spellbookCoverUrl": "https://assets.example.test/covers/family-cover.png",
+        }
+        await definition.save()
+        return "fake-image-model", definition.scene["spellbookCoverUrl"], definition
+
+    monkeypatch.setattr(
+        spellbook_cover_service,
+        "generate_and_attach_spellbook_cover",
+        fake_generate_and_attach_spellbook_cover,
+    )
+    ac, fid = parent_client
+    created = await ac.post(f"/api/v1/family/{fid}/family-packs", json={"name": "Cover"})
+    pack_id = created.json()["pack_id"]
+    prefix = f"fam-{fid.removeprefix('fam-')[:8]}-"
+    await ac.put(
+        f"/api/v1/family/{fid}/family-packs/{pack_id}/draft/words/{prefix}apple",
+        json={
+            "source": "custom",
+            "word": "apple",
+            "meaning_zh": "苹果",
+            "category": "fruit",
+            "difficulty": 1,
+        },
+    )
+
+    resp = await ac.post(f"/family/{fid}/packs/{pack_id}/cover/generate")
+
+    assert resp.status_code in (303, 307)
+    assert resp.headers["location"] == f"/family/{fid}/packs/{pack_id}?cover_ok=1"
+    api_detail = await ac.get(f"/api/v1/family/{fid}/family-packs/{pack_id}")
+    scene = api_detail.json()["definition"]["scene"]
+    assert scene["spellbookCoverUrl"] == "https://assets.example.test/covers/family-cover.png"
 
 
 @pytest.mark.asyncio

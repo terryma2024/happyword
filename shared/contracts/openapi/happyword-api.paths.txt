@@ -116,6 +116,7 @@
 /family/{family_id}/packs/
 /family/{family_id}/packs/new
 /family/{family_id}/packs/{pack_id}
+/family/{family_id}/packs/{pack_id}/cover/generate
 /family/{family_id}/packs/{pack_id}/delete
 /family/{family_id}/packs/{pack_id}/draft/add-custom
 /family/{family_id}/packs/{pack_id}/draft/batch-delete

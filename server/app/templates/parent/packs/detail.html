@@ -59,6 +59,22 @@
     </div>
   {% endif %}
 
+  {% if cover_ok %}
+    <div class="rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 px-4 py-3 text-sm">
+      封面图已生成。
+    </div>
+  {% endif %}
+
+  {% if cover_error %}
+    <div class="rounded-md border border-rose-200 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
+      {% if cover_error == "llm_config" %}
+        当前实例未配置可用的封面生成模型，请稍后联系管理员。
+      {% else %}
+        封面生成失败：{{ cover_error }}
+      {% endif %}
+    </div>
+  {% endif %}
+
   {% if import_hint == "no_words" %}
     <div class="rounded-md border border-amber-200 bg-amber-50 text-amber-950 px-4 py-3 text-sm">
       未从图片中识别到词条。可换一张更清晰的照片，或稍后重试。
@@ -152,6 +168,36 @@
       {% endif %}
     </div>
   {% endif %}
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-4">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">封面图</h2>
+        <p class="text-sm text-slate-600 mt-2">生成后会用于孩子端词包魔法书封面。</p>
+      </div>
+      {% if (definition.scene or {}).get('spellbookCoverUrl') %}
+      <img src="{{ (definition.scene or {}).get('spellbookCoverUrl') }}" alt="魔法书封面" class="h-16 w-16 rounded-md border border-slate-200 object-contain bg-slate-50" />
+      {% endif %}
+    </div>
+    {% if (definition.scene or {}).get('spellbookCoverUrl') %}
+    <p class="break-all text-xs text-slate-500">{{ (definition.scene or {}).get('spellbookCoverUrl') }}</p>
+    {% else %}
+    <p class="text-sm text-slate-500">尚未生成封面图。</p>
+    {% endif %}
+    {% if not cover_generation_ready %}
+    <p class="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+      当前实例未配置可用的封面生成模型，请稍后联系管理员。
+    </p>
+    {% endif %}
+    <form id="pack-cover-generate-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/cover/generate">
+      <button id="pack-cover-generate-submit"
+              type="submit"
+              class="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              {% if not cover_generation_ready %}disabled{% endif %}>
+        生成封面图
+      </button>
+    </form>
+  </section>
 
   <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
     <h2 class="text-lg font-semibold text-slate-900">发布状态</h2>
