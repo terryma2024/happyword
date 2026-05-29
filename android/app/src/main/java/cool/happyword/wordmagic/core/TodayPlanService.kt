@@ -30,9 +30,18 @@ data class TodayPlanUi(
 }
 
 class TodayPlanService {
-    fun build(library: PackLibrary, activeIds: List<String>, stats: List<WordLearningStat>): TodayPlan {
+    fun build(
+        library: PackLibrary,
+        activeIds: List<String>,
+        stats: List<WordLearningStat>,
+        selectedPackId: String? = null,
+    ): TodayPlan {
         val statsByWord = stats.associateBy { it.wordId }
-        val activeWords = library.activePacks(activeIds).flatMap { it.words }
+        val planPackIds = selectedPackId
+            ?.takeIf { it in library.existingIdsInOrder(activeIds) }
+            ?.let(::listOf)
+            ?: activeIds
+        val activeWords = library.activePacks(planPackIds).flatMap { it.words }
         val review = activeWords.filter { word ->
             val stat = statsByWord[word.id]
             stat != null && stat.wrongCount > 0
@@ -52,12 +61,13 @@ class TodayPlanService {
     fun buildUi(
         library: PackLibrary,
         activeIds: List<String>,
+        selectedPackId: String? = null,
         stats: List<WordLearningStat>,
         regionDisplayName: String,
         nowMs: Long,
         dailyState: DailyLearningState? = null,
     ): TodayPlanUi {
-        val plan = build(library, activeIds, stats)
+        val plan = build(library, activeIds, stats, selectedPackId)
         val startOfDayMs = startOfDayMillis(nowMs)
         val statsByWordId = stats
             .groupBy { it.wordId }
@@ -74,11 +84,14 @@ class TodayPlanService {
             }
             return TodayPlanWordRow(entry = word, doneHighlight = done, stat = st)
         }
+        val planWordIds = (plan.review + plan.learning + plan.newWords).map { it.id }.toSet()
         val wordsById = library.allPacks().flatMap { it.words }.associateBy { it.id }
         val reviewRows = dailyState?.reviewSnapshot?.wordIds
+            ?.filter { it in planWordIds }
             ?.mapNotNull { wordsById[it] }
             ?.map { row(it, forceDailyReview = true) }
             ?: plan.review.map(::row)
+        val reviewRowIds = reviewRows.map { it.entry.id }.toSet()
         val progress = if (dailyState != null) {
             DailyLearningStateService().homeStatus(dailyState).label
         } else {
@@ -89,8 +102,8 @@ class TodayPlanService {
             dayKey = localDayKey(nowMs),
             progressText = progress,
             review = reviewRows,
-            learning = plan.learning.map(::row),
-            newWords = plan.newWords.map(::row),
+            learning = plan.learning.filterNot { it.id in reviewRowIds }.map(::row),
+            newWords = plan.newWords.filterNot { it.id in reviewRowIds }.map(::row),
         )
     }
 

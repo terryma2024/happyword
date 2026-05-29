@@ -9,6 +9,7 @@ import {
   WordSlot,
   WordSource,
 } from '../models/AdventureRegion';
+import { Pack } from '../models/Pack';
 import { TodayAdventureBuilder, RandomFn, localDayKey } from './TodayAdventureBuilder';
 import { mulberry32 } from '../utils/shuffle';
 
@@ -104,6 +105,23 @@ export function localStartOfDay(nowMs: number): number {
  * today.
  */
 export class TodayPlanService {
+  buildFromPack(
+    pack: Pack,
+    recorder: LearningRecorder,
+    nowMs: number
+  ): TodayPlanView {
+    const dayKey: string = localDayKey(nowMs);
+    const seed: number = todayPlanSeed(pack.id, dayKey);
+    const rng: RandomFn = mulberry32(seed);
+    const scheduler: MemoryScheduler = new MemoryScheduler();
+    const builder: TodayAdventureBuilder = new TodayAdventureBuilder(rng, scheduler);
+    const plan: TodaySessionPlan = builder.buildFromPack(pack, recorder, nowMs, false);
+    const repo: WordRepository = new WordRepository();
+    repo.setEntries(pack.words);
+    const displayName: string = pack.name.length > 0 ? pack.name : pack.id;
+    return this.viewFromPlan(pack.id, displayName, plan, repo, recorder, scheduler, nowMs, dayKey);
+  }
+
   build(
     region: AdventureRegion,
     repo: WordRepository,
@@ -116,7 +134,19 @@ export class TodayPlanService {
     const scheduler: MemoryScheduler = new MemoryScheduler();
     const builder: TodayAdventureBuilder = new TodayAdventureBuilder(rng, scheduler);
     const plan: TodaySessionPlan = builder.build(region, repo, recorder, nowMs, false);
+    return this.viewFromPlan(region.id, region.displayName, plan, repo, recorder, scheduler, nowMs, dayKey);
+  }
 
+  private viewFromPlan(
+    regionId: string,
+    regionDisplayName: string,
+    plan: TodaySessionPlan,
+    repo: WordRepository,
+    recorder: LearningRecorder,
+    scheduler: MemoryScheduler,
+    nowMs: number,
+    dayKey: string,
+  ): TodayPlanView {
     const stats: WordStat[] = recorder.statsForTest();
     const statByWordId: Map<string, WordStat> = new Map<string, WordStat>();
     for (let i = 0; i < stats.length; i++) {
@@ -125,8 +155,8 @@ export class TodayPlanService {
 
     const startOfDay: number = localStartOfDay(nowMs);
     const view: TodayPlanView = new TodayPlanView();
-    view.regionId = region.id;
-    view.regionDisplayName = region.displayName;
+    view.regionId = regionId;
+    view.regionDisplayName = regionDisplayName;
     view.dayKey = dayKey;
 
     for (let i = 0; i < plan.wordPlan.length; i++) {

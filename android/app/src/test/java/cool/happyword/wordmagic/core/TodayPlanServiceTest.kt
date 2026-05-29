@@ -59,4 +59,44 @@ class TodayPlanServiceTest {
         assertEquals(TodayPlanService.localDayKey(noon), ui.dayKey)
         assertTrue(ui.learning.any { it.entry.id == "fruit-apple" && it.doneHighlight })
     }
+
+    @Test
+    fun buildUiUsesSelectedFamilyPackWhenActiveListAlsoContainsBuiltin() {
+        val familyPack = BuiltinPacks.all.first().copy(
+            id = "family-snacks",
+            nameEn = "Family Snacks",
+            nameZh = "家庭零食",
+            source = PackSource.Family,
+            version = 1,
+            words = listOf(
+                WordEntry("family-cookie", "cookie", "饼干"),
+                WordEntry("family-bread", "bread", "面包"),
+            ),
+        )
+        val library = PackLibrary.merge(BuiltinPacks.all, emptyList(), listOf(familyPack))
+
+        val ui = TodayPlanService().buildUi(
+            library = library,
+            activeIds = listOf("fruit-forest", "family-snacks"),
+            selectedPackId = "family-snacks",
+            stats = emptyList(),
+            regionDisplayName = "家庭零食",
+            nowMs = 100L,
+            dailyState = DailyLearningState(
+                dayKey = "19700101",
+                packBattleWon = false,
+                reviewAllDone = false,
+                reviewSnapshot = DailyReviewSnapshot(
+                    dayKey = "19700101",
+                    generatedAtMs = 100L,
+                    sourceCutoffMs = 100L,
+                    wordIds = listOf("fruit-apple", "family-bread"),
+                ),
+            ),
+        )
+
+        assertEquals("家庭零食", ui.regionDisplayName)
+        assertEquals(listOf("family-bread"), ui.review.map { it.entry.id })
+        assertEquals(listOf("family-cookie"), ui.newWords.map { it.entry.id })
+    }
 }

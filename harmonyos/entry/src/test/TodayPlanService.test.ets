@@ -22,6 +22,7 @@ import {
   describeMemoryState,
   describeWordSource,
 } from '../main/ets/services/TodayPlanService';
+import { Pack } from '../main/ets/models/Pack';
 
 class FakePreferences implements StringPreferencesLike {
   private readonly map: Map<string, string> = new Map<string, string>();
@@ -81,6 +82,24 @@ function makeRepo(): WordRepository {
   }
   repo.setEntries(words);
   return repo;
+}
+
+function makeFamilyPack(): Pack {
+  const p: Pack = new Pack();
+  p.id = 'family-snacks';
+  p.name = 'Family Snacks';
+  p.labelZh = '家庭零食';
+  p.source = 'family';
+  const words: WordEntry[] = [];
+  const names: string[] = [
+    'cookie', 'bread', 'cheese', 'noodle', 'soup', 'rice',
+    'milk', 'egg', 'cake', 'juice', 'toast', 'yogurt',
+  ];
+  for (let i = 0; i < names.length; i++) {
+    words.push(makeWord(`family-snacks-${names[i]}`, names[i], `零食${i + 1}`));
+  }
+  p.words = words;
+  return p;
 }
 
 function makeRecorderWith(stats: WordStat[]): LearningRecorder {
@@ -320,6 +339,20 @@ export default function todayPlanServiceTest() {
       expect(allRows.length > 0).assertTrue();
       for (let i = 0; i < allRows.length; i++) {
         expect(allRows[i].memoryState).assertEqual(MemoryState.New);
+      }
+    });
+
+    it('buildFromPackUsesSelectedFamilyPackInsteadOfDefaultRegion', 0, () => {
+      const pack: Pack = makeFamilyPack();
+      const rec: LearningRecorder = makeRecorderWith([]);
+      const view: TodayPlanView =
+        new TodayPlanService().buildFromPack(pack, rec, NOW);
+      const ids: string[] = collectIds(view);
+      expect(view.regionId).assertEqual('family-snacks');
+      expect(view.regionDisplayName).assertEqual('Family Snacks');
+      expect(ids.length).assertEqual(MONSTER_PLAN_SLOT_COUNT * WORD_PLAN_MULTIPLIER);
+      for (let i = 0; i < ids.length; i++) {
+        expect(ids[i].startsWith('family-snacks-')).assertTrue();
       }
     });
   });
