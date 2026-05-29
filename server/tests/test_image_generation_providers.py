@@ -64,6 +64,41 @@ async def test_openai_gpt_image_request_omits_legacy_response_format(
     payload = await providers._generate_openai_image(
         provider=providers.IMAGE_PROVIDER_SPECS["openai"],
         api_key="test-key",
+        model="gpt-image-1",
+        prompt="spellbook",
+        timeout_seconds=12.0,
+    )
+
+    assert payload == b"fake-png-bytes"
+    assert captured["model"] == "gpt-image-1"
+    assert captured["output_format"] == "png"
+    assert captured["background"] == "transparent"
+
+
+@pytest.mark.asyncio
+async def test_openai_image_request_omits_transparent_background_for_gpt_image_2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services import image_generation_providers as providers
+
+    captured: dict[str, object] = {}
+
+    class FakeImages:
+        async def generate(self, **kwargs: object) -> SimpleNamespace:
+            assert "background" not in kwargs
+            captured.update(kwargs)
+            encoded = base64.b64encode(b"fake-png-bytes").decode("ascii")
+            return SimpleNamespace(data=[SimpleNamespace(b64_json=encoded)])
+
+    class FakeAsyncOpenAI:
+        def __init__(self, *, api_key: str) -> None:
+            self.images = FakeImages()
+
+    monkeypatch.setattr(providers, "AsyncOpenAI", FakeAsyncOpenAI)
+
+    payload = await providers._generate_openai_image(
+        provider=providers.IMAGE_PROVIDER_SPECS["openai"],
+        api_key="test-key",
         model="gpt-image-2",
         prompt="spellbook",
         timeout_seconds=12.0,
@@ -71,5 +106,3 @@ async def test_openai_gpt_image_request_omits_legacy_response_format(
 
     assert payload == b"fake-png-bytes"
     assert captured["model"] == "gpt-image-2"
-    assert captured["output_format"] == "png"
-    assert captured["background"] == "transparent"

@@ -64,6 +64,8 @@ IMAGE_PROVIDER_SPECS: dict[str, ImageProviderSpec] = {
     ),
 }
 
+_OPENAI_TRANSPARENT_BACKGROUND_MODELS = frozenset({"gpt-image-1"})
+
 
 def _home_env_value(name: str) -> str:
     path = Path.home() / ".env"
@@ -189,16 +191,18 @@ async def _generate_openai_image(
     timeout_seconds: float,
 ) -> bytes:
     client = AsyncOpenAI(api_key=api_key)
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "prompt": prompt,
+        "size": "1024x1024",
+        "n": 1,
+        "output_format": "png",
+        "timeout": timeout_seconds,
+    }
+    if model in _OPENAI_TRANSPARENT_BACKGROUND_MODELS:
+        kwargs["background"] = "transparent"
     try:
-        response = await client.images.generate(
-            model=model,
-            prompt=prompt,
-            size="1024x1024",
-            n=1,
-            background="transparent",
-            output_format="png",
-            timeout=timeout_seconds,
-        )
+        response = await client.images.generate(**kwargs)
     except openai.OpenAIError as exc:
         raise LlmCallError(f"{provider.display_name} image call failed: {exc}") from exc
     return _image_bytes_from_openai_response(response)
