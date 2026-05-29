@@ -28,6 +28,17 @@ class HomeAdventureCardStoryTest {
     }
 
     @Test
+    fun reviewCountBadgeUsesIosToolbarOverlayStyle() {
+        assertEquals(0xFFE63946.toInt(), HomeReviewCountBadgeStyle.backgroundArgb)
+        assertEquals(20, HomeReviewCountBadgeStyle.minSizeDp)
+        assertEquals(10, HomeReviewCountBadgeStyle.cornerRadiusDp)
+        assertEquals(12, HomeReviewCountBadgeStyle.fontSizeSp)
+        assertEquals(6, HomeReviewCountBadgeStyle.horizontalPaddingDp)
+        assertEquals(8, HomeReviewCountBadgeStyle.topEndOffsetXDp)
+        assertEquals(2, HomeReviewCountBadgeStyle.topEndOffsetYDp)
+    }
+
+    @Test
     fun storyLinePrefersEnglishSceneStory() {
         val pack = pack(
             storyEn = "A moonlit path opens for the newest word quest.",

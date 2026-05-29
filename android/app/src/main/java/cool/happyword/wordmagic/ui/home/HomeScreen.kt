@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -182,6 +183,16 @@ internal object HomeDailyStatusBadgeStyle {
     const val horizontalPaddingDp: Int = 22
     const val verticalPaddingDp: Int = 8
     const val cornerRadiusDp: Int = 22
+}
+
+internal object HomeReviewCountBadgeStyle {
+    const val backgroundArgb: Int = 0xFFE63946.toInt()
+    const val minSizeDp: Int = 20
+    const val cornerRadiusDp: Int = 10
+    const val fontSizeSp: Int = 12
+    const val horizontalPaddingDp: Int = 6
+    const val topEndOffsetXDp: Int = 8
+    const val topEndOffsetYDp: Int = 2
 }
 
 internal object HomeAdventureCardLayoutStyle {
@@ -409,21 +420,36 @@ internal fun HomeScreen(
                 fontSize = 16.sp,
                 horizontalPadding = 12.dp,
             )
-            if (dailyStatus.showReviewCountBadge) {
-                HomeBadge(
-                    text = dailyStatus.remainingReviewCount.toString(),
-                    modifier = Modifier.testTag("HomeReviewCountBadge"),
-                    textColor = Color.White,
-                    backgroundColor = Color(0xFFE63946),
-                    fontSize = 14.sp,
-                    horizontalPadding = 8.dp,
-                )
-            }
-            IconCircle(R.drawable.icon_review, "复习", Modifier.testTag("HomeReviewButton"), backgroundColor = Color(0xFFFCEAEA), onClick = {
-                if (!onReview()) {
-                    reviewLockedToastVisible = true
+            Box(
+                modifier = Modifier.size(58.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                IconCircle(R.drawable.icon_review, "复习", Modifier.testTag("HomeReviewButton"), backgroundColor = Color(0xFFFCEAEA), onClick = {
+                    if (!onReview()) {
+                        reviewLockedToastVisible = true
+                    }
+                })
+                if (dailyStatus.showReviewCountBadge) {
+                    Text(
+                        text = dailyStatus.remainingReviewCount.toString(),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(
+                                x = HomeReviewCountBadgeStyle.topEndOffsetXDp.dp,
+                                y = (-HomeReviewCountBadgeStyle.topEndOffsetYDp).dp,
+                            )
+                            .clip(RoundedCornerShape(HomeReviewCountBadgeStyle.cornerRadiusDp.dp))
+                            .background(Color(HomeReviewCountBadgeStyle.backgroundArgb))
+                            .padding(horizontal = HomeReviewCountBadgeStyle.horizontalPaddingDp.dp)
+                            .sizeIn(minWidth = HomeReviewCountBadgeStyle.minSizeDp.dp, minHeight = HomeReviewCountBadgeStyle.minSizeDp.dp)
+                            .testTag("HomeReviewCountBadge"),
+                        color = Color.White,
+                        fontSize = HomeReviewCountBadgeStyle.fontSizeSp.sp,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center,
+                    )
                 }
-            })
+            }
             IconCircle(R.drawable.icon_codex, "图鉴", Modifier.testTag("HomeCodexButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onMonsterCodex)
             EmojiCircle("📋", "今日计划", Modifier.testTag("HomePlanButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onTodayPlan)
             IconCircle(R.drawable.icon_wishlist, "愿望", Modifier.testTag("HomeWishlistButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onWishlist)

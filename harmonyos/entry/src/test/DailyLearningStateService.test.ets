@@ -118,23 +118,27 @@ export default function dailyLearningStateServiceTest() {
       let status: HomeDailyStatus = decideHomeDailyStatus(state);
       expect(status.label).assertEqual('请选择一个场景加战斗');
       expect(status.remainingReviewCount).assertEqual(2);
+      expect(status.showReviewCountBadge).assertTrue();
       expect(status.todayAdventureCompleted).assertFalse();
       expect(status.dailyCheckInCompleted).assertFalse();
 
       state.reviewSnapshot.reviewedWordIds = ['a', 'b'];
       status = decideHomeDailyStatus(state);
       expect(status.label).assertEqual('请选择一个场景加战斗');
+      expect(status.showReviewCountBadge).assertFalse();
       expect(status.dailyCheckInCompleted).assertTrue();
 
       state.packBattleWon = true;
       state.reviewSnapshot.reviewedWordIds = ['a'];
       status = decideHomeDailyStatus(state);
       expect(status.label).assertEqual('请点击复习加战斗(1)');
+      expect(status.showReviewCountBadge).assertTrue();
       expect(status.todayAdventureCompleted).assertFalse();
 
       state.reviewSnapshot.reviewedWordIds = ['a', 'b'];
       status = decideHomeDailyStatus(state);
       expect(status.label).assertEqual('已完成');
+      expect(status.showReviewCountBadge).assertFalse();
       expect(status.todayAdventureCompleted).assertTrue();
     });
   });
