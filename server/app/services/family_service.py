@@ -34,7 +34,7 @@ async def create_family_for_parent(*, email: str) -> tuple[Family, User]:
         family = await _insert_family(
             email=email, owner_user_id=existing_user.username
         )
-        if existing_user.family_id is None:
+        if existing_user.family_id != family.family_id:
             existing_user.family_id = family.family_id
             await existing_user.save()
         return family, existing_user

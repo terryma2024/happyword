@@ -2740,6 +2740,33 @@
         "title": "FamilyPackVersionListOut",
         "type": "object"
       },
+      "GlobalPackCoverGenerateOut": {
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/GlobalPackDefinitionOut"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "pack_id": {
+            "title": "Pack Id",
+            "type": "string"
+          },
+          "spellbook_cover_url": {
+            "title": "Spellbook Cover Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack_id",
+          "spellbook_cover_url",
+          "model",
+          "definition"
+        ],
+        "title": "GlobalPackCoverGenerateOut",
+        "type": "object"
+      },
       "GlobalPackCreateIn": {
         "properties": {
           "description": {
@@ -6114,6 +6141,53 @@
           }
         ],
         "summary": "Patch Global Pack",
+        "tags": [
+          "admin-global-pack"
+        ]
+      }
+    },
+    "/api/v1/admin/global-packs/{pack_id}/cover/generate": {
+      "post": {
+        "operationId": "generate_global_pack_spellbook_cover_api_v1_admin_global_packs__pack_id__cover_generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalPackCoverGenerateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Generate Global Pack Spellbook Cover",
         "tags": [
           "admin-global-pack"
         ]
@@ -13749,6 +13823,59 @@
           }
         },
         "summary": "Detail Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/family/{family_id}/packs/{pack_id}/cover/generate": {
+      "post": {
+        "operationId": "generate_pack_cover_page_family__family_id__packs__pack_id__cover_generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Pack Cover Page",
         "tags": [
           "parent-packs-html"
         ]

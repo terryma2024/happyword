@@ -84,5 +84,72 @@
       </div>
     </form>
   </section>
+
+  <section class="bg-white border border-slate-200 rounded-lg shadow-sm">
+    <div class="px-4 py-3 border-b border-slate-200">
+      <h2 class="text-lg font-semibold text-slate-900">魔法书封面生成模型</h2>
+      <p class="text-sm text-slate-500 mt-1">用于全局词包详情页手动生成魔法书封面；生成后的 PNG 会上传到当前 Blob/COS 资源存储。</p>
+    </div>
+    <form method="post" action="/admin/system-config/image-provider" class="p-4 space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {% for option in image_provider_options %}
+        <label class="block border rounded-lg p-4 cursor-pointer hover:border-violet-300 {% if option.provider.id == current_image_provider.provider.id %}border-violet-500 bg-violet-50{% else %}border-slate-200 bg-white{% endif %}">
+          <div class="flex items-start gap-3">
+            <input type="radio"
+                   name="image_provider"
+                   value="{{ option.provider.id }}"
+                   class="mt-1"
+                   {% if option.provider.id == current_image_provider.provider.id %}checked{% endif %} />
+            <div class="space-y-1">
+              <p class="text-sm font-semibold text-slate-900">
+                {{ option.provider.display_name }}
+                <span class="font-mono text-xs text-slate-500">({{ option.provider.id }})</span>
+              </p>
+              <p class="text-sm text-slate-700">模型：<span class="font-mono">{{ option.model }}</span></p>
+              <p class="text-xs {% if option.api_key_configured %}text-emerald-700{% else %}text-rose-700{% endif %}">
+                {% if option.api_key_configured %}
+                  密钥已配置
+                {% else %}
+                  缺少 {{ option.provider.api_key_env }}
+                {% endif %}
+              </p>
+              {% if option.provider.comparison_notes %}
+              <p class="text-xs text-slate-500">{{ option.provider.comparison_notes }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="rounded-md bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-700">
+        当前生效：
+        <span class="font-semibold">{{ current_image_provider.provider.display_name }}</span>
+        <span class="font-mono">{{ current_image_provider.model }}</span>
+        {% if current_image_provider.source == "system_config" %}
+          <span class="text-slate-500">（后台配置）</span>
+        {% else %}
+          <span class="text-slate-500">（环境变量默认值）</span>
+        {% endif %}
+      </div>
+
+      <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        保存前只检查 Provider 配置是否可用，不会实际消耗生图额度。
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button type="submit"
+                formaction="/admin/system-config/image-provider/test"
+                class="rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-sm px-4 py-2">
+          检查配置
+        </button>
+        <button type="submit"
+                formaction="/admin/system-config/image-provider"
+                class="rounded-md bg-violet-600 hover:bg-violet-700 text-white text-sm px-4 py-2">
+          检查并保存
+        </button>
+      </div>
+    </form>
+  </section>
 </section>
 {% endblock %}

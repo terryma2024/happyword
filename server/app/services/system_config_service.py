@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from app.models.system_config import SystemConfig
 
 LLM_PROVIDER_CONFIG_KEY = "llm_provider"
+IMAGE_PROVIDER_CONFIG_KEY = "image_provider"
 
 
 async def get_config_value(key: str) -> str | None:
@@ -51,6 +52,22 @@ async def set_llm_provider_override(
 ) -> SystemConfig:
     return await set_config_value(
         key=LLM_PROVIDER_CONFIG_KEY,
+        value=provider_id,
+        updated_by=updated_by,
+    )
+
+
+async def get_image_provider_override() -> str | None:
+    return await get_config_value(IMAGE_PROVIDER_CONFIG_KEY)
+
+
+async def set_image_provider_override(
+    *,
+    provider_id: str,
+    updated_by: str | None,
+) -> SystemConfig:
+    return await set_config_value(
+        key=IMAGE_PROVIDER_CONFIG_KEY,
         value=provider_id,
         updated_by=updated_by,
     )

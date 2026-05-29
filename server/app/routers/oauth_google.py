@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -32,6 +33,7 @@ from app.services.oauth_return_origin_service import (
 from app.services.oauth_state_service import OAuthStateError, issue_state, verify_state
 
 router = APIRouter(prefix="/v1/oauth/google", tags=["oauth-google"])
+logger = logging.getLogger(__name__)
 
 
 def _login_redirect(oauth_error: str) -> RedirectResponse:
@@ -148,7 +150,12 @@ async def google_callback(
         return _login_redirect("role_mismatch")
     except ParentLoginSuspended:
         return _login_redirect("suspended")
-    except ValueError:
+    except ValueError as exc:
+        logger.warning(
+            "Google OAuth provider_error during callback: %s",
+            exc,
+            exc_info=True,
+        )
         return _login_redirect("provider_error")
 
     if uses_direct_session_on_callback(allowed_origin, settings):

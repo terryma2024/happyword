@@ -8,7 +8,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.family_pack import FamilyPackDraftOut, FamilyPackDraftWordBatchError
+from app.schemas.family_pack import (  # noqa: TC001 — pydantic v2 resolves model fields at runtime
+    FamilyPackDraftOut,
+    FamilyPackDraftWordBatchError,
+)
 
 
 class GlobalPackCreateIn(BaseModel):
@@ -80,6 +83,13 @@ class GlobalPackImportImageOut(BaseModel):
     model: str
     draft: FamilyPackDraftOut
     errors: list[FamilyPackDraftWordBatchError]
+
+
+class GlobalPackCoverGenerateOut(BaseModel):
+    pack_id: str
+    spellbook_cover_url: str
+    model: str
+    definition: GlobalPackDefinitionOut
 
 
 class GlobalPackSplitNewPackIn(BaseModel):

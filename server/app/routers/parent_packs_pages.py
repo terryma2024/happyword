@@ -13,9 +13,10 @@ from fastapi.templating import Jinja2Templates
 from app.config import get_settings
 from app.models.user import User, UserRole
 from app.routers.parent_family_pack import _serialize_definition, _serialize_draft
-from app.services import family_pack_import_service, pack_story_service
+from app.services import family_pack_import_service, pack_story_service, spellbook_cover_service
 from app.services import family_pack_service as svc
 from app.services.auth_service import JwtError, decode_typed_token
+from app.services.image_generation_providers import is_effective_image_provider_configured
 from app.services.llm_service import LlmCallError, LlmConfigError
 
 if TYPE_CHECKING:
@@ -71,6 +72,10 @@ def _story_scene_update(
         else:
             scene.pop(key, None)
     return scene
+
+
+async def _cover_generation_configured() -> bool:
+    return await is_effective_image_provider_configured()
 
 
 def _draft_row_kind(row: dict[str, Any], *, prefix: str) -> str:
@@ -143,9 +148,12 @@ async def _render_pack_detail(
     add_word_error: str = "",
     split_ok: str = "",
     split_error: str = "",
+    cover_ok: bool = False,
+    cover_error: str = "",
 ) -> HTMLResponse:
     pointer, pack = await svc.current_pack(definition=definition)
     draft = await svc.get_or_create_draft(definition=definition, parent_user_id=user.username)
+    cover_ready = await _cover_generation_configured()
     return templates.TemplateResponse(
         request,
         "parent/packs/detail.html",
@@ -164,6 +172,9 @@ async def _render_pack_detail(
             "add_word_error": add_word_error,
             "split_ok": split_ok,
             "split_error": split_error,
+            "cover_ok": cover_ok,
+            "cover_error": cover_error,
+            "cover_generation_ready": cover_ready,
             "import_ok": False,
             "import_hint": "",
         },
@@ -317,6 +328,46 @@ async def generate_pack_story_page(
     )
     return RedirectResponse(
         url=f"/family/{user.family_id or '_'}/packs/{pack_id}?title_ok=1",
+        status_code=303,
+    )
+
+
+@router.post("/{family_id}/packs/{pack_id}/cover/generate", response_model=None)
+async def generate_pack_cover_page(
+    request: Request,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
+) -> RedirectResponse | HTMLResponse:
+    _ = family_id
+    gate = await _require_parent_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    user = gate
+    definition = await _load_definition_or_redirect(pack_id, user)
+    if definition is None:
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
+    draft = await svc.get_or_create_draft(definition=definition, parent_user_id=user.username)
+    try:
+        await spellbook_cover_service.generate_and_attach_spellbook_cover(
+            definition=definition,
+            words=list(draft.words),
+        )
+    except LlmConfigError:
+        return await _render_pack_detail(
+            request,
+            user=user,
+            definition=definition,
+            cover_error="llm_config",
+        )
+    except LlmCallError as exc:
+        return await _render_pack_detail(
+            request,
+            user=user,
+            definition=definition,
+            cover_error=str(exc),
+        )
+    return RedirectResponse(
+        url=f"/family/{user.family_id or '_'}/packs/{pack_id}?cover_ok=1",
         status_code=303,
     )
 
@@ -1010,6 +1061,8 @@ async def detail_page(
     import_hint = request.query_params.get("import_hint", "")
     title_ok = request.query_params.get("title_ok") == "1"
     split_ok = request.query_params.get("split_ok", "")
+    cover_ok = request.query_params.get("cover_ok") == "1"
+    cover_ready = await _cover_generation_configured()
     return templates.TemplateResponse(
         request,
         "parent/packs/detail.html",
@@ -1028,6 +1081,9 @@ async def detail_page(
             "add_word_error": "",
             "split_ok": split_ok,
             "split_error": "",
+            "cover_ok": cover_ok,
+            "cover_error": "",
+            "cover_generation_ready": cover_ready,
             "import_ok": import_ok,
             "import_hint": import_hint,
         },

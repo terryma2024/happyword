@@ -264,3 +264,13 @@ async def upload_lesson_image(image_bytes: bytes, mime: str) -> str:
     ext = mime.removeprefix("image/")
     path = f"lessons/{digest}.{ext}"
     return await upload_object(path, image_bytes, mime)
+
+
+async def upload_spellbook_cover(pack_id: str, image_bytes: bytes, mime: str) -> str:
+    digest = short_hash(image_bytes)
+    ext = "png" if mime == "image/png" else mime.removeprefix("image/")
+    safe_pack_id = "".join(
+        ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in pack_id
+    )
+    path = f"spellbook-covers/{safe_pack_id}-{digest}.{ext}"
+    return await upload_object(path, image_bytes, mime)

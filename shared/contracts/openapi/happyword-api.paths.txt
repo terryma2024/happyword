@@ -9,6 +9,7 @@
 /api/v1/admin/drafts/{draft_id}/reject
 /api/v1/admin/global-packs
 /api/v1/admin/global-packs/{pack_id}
+/api/v1/admin/global-packs/{pack_id}/cover/generate
 /api/v1/admin/global-packs/{pack_id}/draft/split
 /api/v1/admin/global-packs/{pack_id}/draft/words/{word_id}
 /api/v1/admin/global-packs/{pack_id}/import-image
@@ -115,6 +116,7 @@
 /family/{family_id}/packs/
 /family/{family_id}/packs/new
 /family/{family_id}/packs/{pack_id}
+/family/{family_id}/packs/{pack_id}/cover/generate
 /family/{family_id}/packs/{pack_id}/delete
 /family/{family_id}/packs/{pack_id}/draft/add-custom
 /family/{family_id}/packs/{pack_id}/draft/batch-delete
