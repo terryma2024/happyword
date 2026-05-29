@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+from types import SimpleNamespace
+
 import pytest
 
 
@@ -34,3 +37,39 @@ async def test_effective_image_provider_uses_system_config_override(db: object) 
 
     assert status.provider.id == "qwen"
     assert status.source == "system_config"
+
+
+@pytest.mark.asyncio
+async def test_openai_gpt_image_request_omits_legacy_response_format(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services import image_generation_providers as providers
+
+    captured: dict[str, object] = {}
+
+    class FakeImages:
+        async def generate(self, **kwargs: object) -> SimpleNamespace:
+            assert "response_format" not in kwargs
+            captured.update(kwargs)
+            encoded = base64.b64encode(b"fake-png-bytes").decode("ascii")
+            return SimpleNamespace(data=[SimpleNamespace(b64_json=encoded)])
+
+    class FakeAsyncOpenAI:
+        def __init__(self, *, api_key: str) -> None:
+            assert api_key == "test-key"
+            self.images = FakeImages()
+
+    monkeypatch.setattr(providers, "AsyncOpenAI", FakeAsyncOpenAI)
+
+    payload = await providers._generate_openai_image(
+        provider=providers.IMAGE_PROVIDER_SPECS["openai"],
+        api_key="test-key",
+        model="gpt-image-2",
+        prompt="spellbook",
+        timeout_seconds=12.0,
+    )
+
+    assert payload == b"fake-png-bytes"
+    assert captured["model"] == "gpt-image-2"
+    assert captured["output_format"] == "png"
+    assert captured["background"] == "transparent"

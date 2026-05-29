@@ -197,7 +197,6 @@ async def _generate_openai_image(
             n=1,
             background="transparent",
             output_format="png",
-            response_format="b64_json",
             timeout=timeout_seconds,
         )
     except openai.OpenAIError as exc:
