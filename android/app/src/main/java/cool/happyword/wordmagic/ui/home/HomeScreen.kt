@@ -184,6 +184,14 @@ internal object HomeDailyStatusBadgeStyle {
     const val cornerRadiusDp: Int = 22
 }
 
+internal object HomeAdventureCardLayoutStyle {
+    const val pageBottomPaddingDp: Int = 28
+    const val cardBottomPaddingDp: Int = 24
+    const val storyTopPaddingDp: Int = 16
+    const val storyMaxLines: Int = 2
+    const val buttonTopGapMinDp: Int = 14
+}
+
 internal fun adventureCardStoryLine(pack: WordPack): String {
     val story = pack.scene.storyEn.trim()
     if (story.isNotEmpty()) return story
@@ -240,7 +248,7 @@ internal fun HomeScreen(
                 .fillMaxWidth()
                 .fillMaxHeight()
                 .padding(horizontal = 44.dp)
-                .padding(top = 72.dp, bottom = 10.dp),
+                .padding(top = 72.dp, bottom = HomeAdventureCardLayoutStyle.pageBottomPaddingDp.dp),
         ) {
             Text(
                 "Small Magician Word Adventure",
@@ -264,7 +272,17 @@ internal fun HomeScreen(
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
-                Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            start = 16.dp,
+                            top = 16.dp,
+                            end = 16.dp,
+                            bottom = HomeAdventureCardLayoutStyle.cardBottomPaddingDp.dp,
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             selectedPack.nameEn,
@@ -318,9 +336,17 @@ internal fun HomeScreen(
                         color = Color(0xFF6A5843),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(top = HomeAdventureCardLayoutStyle.storyTopPaddingDp.dp)
                             .testTag("AdventureCardStoryLine")
                             .semantics { contentDescription = adventureCardStoryLine(selectedPack) },
                         textAlign = TextAlign.Center,
+                        maxLines = HomeAdventureCardLayoutStyle.storyMaxLines,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(
+                        Modifier
+                            .height(HomeAdventureCardLayoutStyle.buttonTopGapMinDp.dp)
+                            .weight(1f),
                     )
                     Button(
                         onClick = onStart,

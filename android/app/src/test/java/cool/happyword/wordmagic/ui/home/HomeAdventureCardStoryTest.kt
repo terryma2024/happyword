@@ -9,6 +9,15 @@ import org.junit.Test
 
 class HomeAdventureCardStoryTest {
     @Test
+    fun adventureCardLayoutKeepsBottomBreathingRoomAndMoreStorySpace() {
+        assertEquals(28, HomeAdventureCardLayoutStyle.pageBottomPaddingDp)
+        assertEquals(24, HomeAdventureCardLayoutStyle.cardBottomPaddingDp)
+        assertEquals(16, HomeAdventureCardLayoutStyle.storyTopPaddingDp)
+        assertEquals(2, HomeAdventureCardLayoutStyle.storyMaxLines)
+        assertEquals(14, HomeAdventureCardLayoutStyle.buttonTopGapMinDp)
+    }
+
+    @Test
     fun dailyStatusBadgeUsesHarmonyReferenceNeutralPillStyle() {
         assertEquals(0xFFF0E6D6.toInt(), HomeDailyStatusBadgeStyle.backgroundArgb)
         assertEquals(0xFF8C877F.toInt(), HomeDailyStatusBadgeStyle.textArgb)
