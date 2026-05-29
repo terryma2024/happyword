@@ -24,7 +24,7 @@ IDs are listed in [`00-design.md`](00-design.md) §5 and must be implemented ver
 | Card state derives from missing/seen/mastered stats | [x] | [x] | [x] |
 | Pack complete only when all pack words are mastered | [x] | [x] | [x] |
 | Reward can be claimed once per `packId` | [x] | [x] | [x] |
-| Cover fallback order is built-in asset, remote cached URL, default asset | [ ] | [x] | [ ] |
+| Cover fallback order is built-in asset, remote cached URL, default asset | [x] | [x] | [ ] |
 
 ## 4. Contract usage
 
