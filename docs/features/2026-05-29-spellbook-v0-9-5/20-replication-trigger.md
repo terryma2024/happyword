@@ -8,8 +8,8 @@
 
 - [x] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
   - Evidence: Local Stage 3 run completed with `BUILD SUCCESSFUL`.
-- [ ] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
-  - Evidence: Not rerun for this trigger; excluded from the merge gate by human approval.
+- [x] **ohosTest UI tests green / owner-accepted** — `scripts/run_ui_tests.sh`
+  - Evidence: Not rerun for this trigger; product owner confirmed V0.9.5 complete on 2026-05-29 and removed this from the roadmap gate.
 - [x] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
   - Evidence: Local Stage 3 HAP build completed with `BUILD SUCCESSFUL`; no `ArkTS:WARN` lines observed.
 - [x] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
@@ -19,8 +19,8 @@
   - To: `versionName=0.9.5` `versionCode=1009005`
 - [x] **Feature merged to main**
   - Commit: `4c40843` (`Merge pull request #147 from terryma2024/codex/spellbook-v0-9-5`)
-- [ ] **Screenshots refreshed**
-  - Files updated under `assets/screenshots/harmonyos/`:
+- [x] **Screenshots refreshed / owner-accepted**
+  - Evidence: Product owner confirmed V0.9.5 complete on 2026-05-29; screenshots are no longer a roadmap blocker.
 - [x] **Server contracts up to date**
   - Regenerated: N/A for the Harmony client merge; server-side cover generation remains tracked separately.
   - Tests: N/A for the Harmony client merge.

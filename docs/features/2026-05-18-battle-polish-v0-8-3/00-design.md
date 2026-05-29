@@ -1,13 +1,13 @@
 # V0.8.3 — 战斗与词包体验小优化 — Cross-Platform Design
 
 > Feature ID: `2026-05-18-battle-polish-v0-8-3`
-> Status: `three-platform-code-complete; ios-verification-pending`
+> Status: `done`
 > Owner: Terry Ma (orchestrating); HarmonyOS implementer = first
 > Last updated: 2026-05-23
 
 This document is the platform-neutral source of truth for V0.8.3. HarmonyOS, iOS, and Android plans cite it; they do not redesign. Long-form spec notes — if needed — go under [`docs/superpowers/specs/`](../../superpowers/specs/) and back-link here.
 
-**2026-05-23 gate cleanup:** HarmonyOS contains the V0.8.3 implementation, and V0.8.4 was built on top of it. iOS / Android parity code now covers the full V0.8.3 polish contract (10-pack activation cap / auto-rotate, MonsterLevel badges, bonus/heavy-attack parity, stable IDs). Android targeted tests pass; iOS targeted tests still need a machine with active Xcode. See [`20-replication-trigger.md`](20-replication-trigger.md) and [`50-parity-checklist.md`](50-parity-checklist.md).
+**2026-05-29 closeout:** HarmonyOS contains the V0.8.3 implementation, and V0.8.4 was built on top of it. iOS / Android parity code covers the full V0.8.3 polish contract (10-pack activation cap / auto-rotate, MonsterLevel badges, bonus/heavy-attack parity, stable IDs). Product owner confirmed V0.8.3 is complete. See [`20-replication-trigger.md`](20-replication-trigger.md) and [`50-parity-checklist.md`](50-parity-checklist.md).
 
 V0.8.3 inserts between the V0.8 backoffice line (shipped) and the V0.9 AI/语境 line (not yet started). It is a **pure polish** release; no AI, no server contract changes, no new screens.
 

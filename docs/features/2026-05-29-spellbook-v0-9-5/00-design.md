@@ -1,7 +1,7 @@
 # V0.9.5 Spellbook Codex — Cross-Platform Design
 
 > Feature ID: `2026-05-29-spellbook-v0-9-5`
-> Status: `draft`
+> Status: `done`
 > Owner: V0.9.5 — 魔法书图鉴
 > Last updated: 2026-05-29
 
@@ -32,7 +32,7 @@ V0.9.5 turns mastered vocabulary into a collectible spellbook. The release delib
 - No server-side reward redemption record or cloud sync for spellbook rewards.
 - No parent PIN for claiming the 50 coin reward; this is a learning achievement, not a wishlist redemption.
 - No PackManager cover art redesign in V0.9.5.
-- No chapter intro, area map, recommended adventure card, or chapter-completion celebration; those remain V0.9.6.
+- No chapter intro, area map, recommended adventure card, or chapter-completion celebration; these are out of scope and no longer planned.
 - No base64 image embedding in pack JSON.
 - No real provider network calls in automated tests; provider calls are stubbed.
 
