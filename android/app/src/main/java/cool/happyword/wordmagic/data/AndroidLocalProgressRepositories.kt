@@ -14,6 +14,7 @@ import cool.happyword.wordmagic.core.PackLibrary
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.RedemptionHistoryStore
 import cool.happyword.wordmagic.core.RedemptionRecord
+import cool.happyword.wordmagic.core.SpellbookRewardSnapshot
 import cool.happyword.wordmagic.core.WishItem
 import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.CustomWishRules
@@ -155,6 +156,23 @@ class AndroidLocalProgressRepositories {
             .putString("checkInWeeklyBonusDayKeys", snapshot.weeklyBonusDayKeys.joinToString("\n"))
             .putString("checkInLastSyncedAtMs", snapshot.lastSyncedAtMs.coerceAtLeast(0L).toString())
             .putBoolean("checkInPendingSync", snapshot.pendingSync)
+            .apply()
+    }
+
+    fun loadSpellbookRewards(): SpellbookRewardSnapshot {
+        val claimed = prefs.getString(SPELLBOOK_REWARDS_KEY, "").orEmpty()
+            .lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .sorted()
+            .toList()
+        return SpellbookRewardSnapshot(claimedPackIds = claimed)
+    }
+
+    fun saveSpellbookRewards(snapshot: SpellbookRewardSnapshot) {
+        prefs.edit()
+            .putString(SPELLBOOK_REWARDS_KEY, snapshot.claimedPackIds.joinToString("\n"))
             .apply()
     }
 
@@ -536,6 +554,7 @@ class AndroidLocalProgressRepositories {
     companion object {
         private const val DAILY_LEARNING_STATE_KEY = "daily_learning_state/snapshot_v1"
         private const val ACTIVE_BATTLE_SNAPSHOT_KEY = "active_battle/snapshot_v1"
+        private const val SPELLBOOK_REWARDS_KEY = "wordmagic_spellbook_rewards/snapshot_v1"
         const val PREFS_NAME = "wordmagic-local-progress"
         const val KEY_SELECTED_PACK_ID = "selectedPackId"
     }

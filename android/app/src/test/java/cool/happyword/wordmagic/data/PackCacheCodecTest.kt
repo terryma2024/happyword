@@ -25,6 +25,7 @@ class PackCacheCodecTest {
                 bossCandidates = listOf("slime"),
                 storyZh = "星星排成小路，带孩子读出太空单词。",
                 storyEn = "Stars make a path for every space word.",
+                spellbookCoverUrl = "https://cdn.example/family-space.png",
             ),
             words = listOf(
                 WordEntry("space-moon", "moon", "月亮", difficulty = 2),
@@ -37,6 +38,7 @@ class PackCacheCodecTest {
         assertEquals(1, decoded.size)
         assertEquals("Stars make a path for every space word.", decoded.single().scene.storyEn)
         assertEquals("星星排成小路，带孩子读出太空单词。", decoded.single().scene.storyZh)
+        assertEquals("https://cdn.example/family-space.png", decoded.single().scene.spellbookCoverUrl)
         assertEquals(listOf(2, 4), decoded.single().words.map { it.difficulty })
     }
 

@@ -14,6 +14,7 @@ data class SceneMetadata(
     val bossCandidates: List<String>,
     val storyZh: String,
     val storyEn: String = "",
+    val spellbookCoverUrl: String = "",
 )
 
 data class WordPack(

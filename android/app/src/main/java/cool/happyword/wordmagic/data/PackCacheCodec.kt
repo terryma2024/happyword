@@ -20,6 +20,7 @@ internal object PackCacheCodec {
                 (pack.publishedAtMs ?: 0L).toString(),
                 pack.scene.storyZh,
                 pack.scene.storyEn,
+                pack.scene.spellbookCoverUrl,
                 words,
             ).joinToString("\t")
         }
@@ -28,9 +29,14 @@ internal object PackCacheCodec {
     fun decode(raw: String, fallbackSource: PackSource): List<WordPack> {
         return raw.lineSequence().mapNotNull { line ->
             val parts = line.split('\t')
-            if (parts.size != 8 && parts.size != 9) return@mapNotNull null
+            if (parts.size !in 8..10) return@mapNotNull null
             val legacyRow = parts.size == 8
-            val wordsPart = if (legacyRow) parts[7] else parts[8]
+            val hasCoverUrl = parts.size == 10
+            val wordsPart = when {
+                legacyRow -> parts[7]
+                hasCoverUrl -> parts[9]
+                else -> parts[8]
+            }
             val words = wordsPart.split(';').mapNotNull(::decodeWord)
             if (words.isEmpty()) return@mapNotNull null
             WordPack(
@@ -48,6 +54,7 @@ internal object PackCacheCodec {
                     bossCandidates = listOf("dragon"),
                     storyZh = parts[6],
                     storyEn = if (legacyRow) "" else parts[7],
+                    spellbookCoverUrl = if (hasCoverUrl) parts[8] else "",
                 ),
                 words = words,
             )

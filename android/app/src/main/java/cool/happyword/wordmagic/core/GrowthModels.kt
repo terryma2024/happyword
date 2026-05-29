@@ -35,8 +35,50 @@ data class CoinAccount(
         return copy(balance = balance + delta)
     }
 
+    fun creditSpellbookReward(amount: Int = SpellbookService.REWARD_COINS): CoinAccount {
+        val delta = amount.coerceAtLeast(0)
+        return if (delta == 0) this else copy(balance = balance + delta)
+    }
+
     companion object {
         const val DAILY_BATTLE_REWARD_CAP = 20
+    }
+}
+
+data class SpellbookClaimResult(
+    val claimed: Boolean,
+    val snapshot: SpellbookRewardSnapshot,
+    val account: CoinAccount,
+)
+
+data class SpellbookRewardSnapshot(
+    val version: Int = 1,
+    val claimedPackIds: List<String> = emptyList(),
+) {
+    fun isClaimed(packId: String): Boolean = normalized(packId) in normalizedIds
+
+    fun canClaim(packId: String, isComplete: Boolean): Boolean {
+        val id = normalized(packId)
+        return isComplete && id.isNotEmpty() && id !in normalizedIds
+    }
+
+    fun claim(packId: String, account: CoinAccount): SpellbookClaimResult {
+        val id = normalized(packId)
+        if (!canClaim(id, isComplete = true)) {
+            return SpellbookClaimResult(false, this, account)
+        }
+        return SpellbookClaimResult(
+            claimed = true,
+            snapshot = copy(claimedPackIds = (normalizedIds + id).sorted()),
+            account = account.creditSpellbookReward(),
+        )
+    }
+
+    private val normalizedIds: Set<String>
+        get() = claimedPackIds.map(::normalized).filter { it.isNotEmpty() }.toSet()
+
+    companion object {
+        fun normalized(raw: String): String = raw.trim()
     }
 }
 

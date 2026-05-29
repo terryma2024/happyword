@@ -95,6 +95,7 @@ struct HomeView: View {
                 }
             }
             toolbarButton("ToolbarCodex", label: "图鉴", action: coordinator.openMonsterCodex)
+            toolbarButton("SpellbookIcon", label: "魔法书", accessibilityIdentifier: "HomeSpellbookButton", action: coordinator.openSpellbook)
             toolbarEmojiButton("📋", label: "今日学习计划", action: coordinator.openTodayPlan)
             toolbarButton("ToolbarWishlist", label: "许愿", action: coordinator.openWishlist)
             Button {
@@ -116,6 +117,9 @@ struct HomeView: View {
         let status = coordinator.homeDailyStatus
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
+                SpellbookCoverImage(pack: coordinator.selectedPack)
+                    .frame(width: 44, height: 44)
+                    .accessibilityIdentifier("HomePackSpellbookCover")
                 Text(coordinator.selectedPack.title)
                     .font(.system(size: 24, weight: .heavy, design: .rounded))
                     .foregroundStyle(Color(red: 0.24, green: 0.18, blue: 0.10))

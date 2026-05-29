@@ -131,6 +131,7 @@ final class CoinAccount: ObservableObject {
         case todayReward
         case redemption
         case checkInWeeklyBonus
+        case spellbookPackComplete
     }
 
     struct Transaction: Equatable, Identifiable, Codable {
@@ -205,6 +206,20 @@ final class CoinAccount: ObservableObject {
         balance += actual
         transactions.insert(
             Transaction(id: "checkin-weekly-bonus:\(dayKey)", delta: actual, reason: .checkInWeeklyBonus, createdAt: now),
+            at: 0
+        )
+        save()
+        return actual
+    }
+
+    @discardableResult
+    func creditSpellbookPackReward(packId: String, amount: Int = SpellbookService.rewardCoins, now: Date = Date()) -> Int {
+        let actual = max(amount, 0)
+        let normalizedPackId = packId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard actual > 0, !normalizedPackId.isEmpty else { return 0 }
+        balance += actual
+        transactions.insert(
+            Transaction(id: "spellbook-pack-complete:\(normalizedPackId)", delta: actual, reason: .spellbookPackComplete, createdAt: now),
             at: 0
         )
         save()

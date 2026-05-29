@@ -8,10 +8,10 @@ The feature is Done only when every applicable row below is green on HarmonyOS, 
 
 | Flow | Harmony | iOS | Android | Notes |
 | --- | --- | --- | --- | --- |
-| Open Spellbook from Home | [x] | [ ] | [ ] | `HomeSpellbookButton` to `SpellbookPage`. |
-| View pack covers and word-card states | [x] | [ ] | [ ] | Locked / seen / mastered cards. |
-| Open seen/mastered word detail | [x] | [ ] | [ ] | Grey cards are viewable; locked cards show guidance. |
-| Claim completed pack reward once | [x] | [ ] | [ ] | +50 coins, idempotent by `packId`. |
+| Open Spellbook from Home | [x] | [x] | [x] | `HomeSpellbookButton` to `SpellbookPage`. |
+| View pack covers and word-card states | [x] | [x] | [x] | Locked / seen / mastered cards. |
+| Open seen/mastered word detail | [x] | [x] | [x] | Grey cards are viewable; locked cards show guidance. |
+| Claim completed pack reward once | [x] | [x] | [x] | +50 coins, idempotent by `packId`. |
 
 ## 2. Stable IDs
 
@@ -21,16 +21,16 @@ IDs are listed in [`00-design.md`](00-design.md) §5 and must be implemented ver
 
 | Rule | Harmony | iOS | Android |
 | --- | --- | --- | --- |
-| Card state derives from missing/seen/mastered stats | [x] | [ ] | [ ] |
-| Pack complete only when all pack words are mastered | [x] | [ ] | [ ] |
-| Reward can be claimed once per `packId` | [x] | [ ] | [ ] |
-| Cover fallback order is built-in asset, remote cached URL, default asset | [ ] | [ ] | [ ] |
+| Card state derives from missing/seen/mastered stats | [x] | [x] | [x] |
+| Pack complete only when all pack words are mastered | [x] | [x] | [x] |
+| Reward can be claimed once per `packId` | [x] | [x] | [x] |
+| Cover fallback order is built-in asset, remote cached URL, default asset | [ ] | [x] | [ ] |
 
 ## 4. Contract usage
 
 | Contract / fixture | Harmony | iOS | Android |
 | --- | --- | --- | --- |
-| `scene.spellbookCoverUrl` in pack scene metadata | [x] | [ ] | [ ] |
+| `scene.spellbookCoverUrl` in pack scene metadata | [x] | [x] | [x] |
 
 ## 5. Server / Admin Acceptance
 
@@ -61,5 +61,5 @@ IDs are listed in [`00-design.md`](00-design.md) §5 and must be implemented ver
 ```yaml
 done_by:
 done_at:
-notes:
+notes: "Client replication implemented and verified on iOS/Android; screenshots and server/admin acceptance remain open."
 ```

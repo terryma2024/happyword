@@ -58,6 +58,7 @@ struct SceneMetadata: Codable, Equatable {
     var monsterPlan: [MonsterPlanSlot]
     var storyEn: String?
     var storyZh: String?
+    var spellbookCoverUrl: String?
 
     static let empty = SceneMetadata()
 
@@ -68,7 +69,8 @@ struct SceneMetadata: Codable, Equatable {
         bossCandidates: [Int] = [],
         monsterPlan: [MonsterPlanSlot] = [],
         storyEn: String? = nil,
-        storyZh: String? = nil
+        storyZh: String? = nil,
+        spellbookCoverUrl: String? = nil
     ) {
         self.bgPrimary = bgPrimary
         self.bgAccent = bgAccent
@@ -77,6 +79,7 @@ struct SceneMetadata: Codable, Equatable {
         self.monsterPlan = monsterPlan
         self.storyEn = storyEn
         self.storyZh = storyZh
+        self.spellbookCoverUrl = spellbookCoverUrl
     }
 
     var isEmpty: Bool {
@@ -87,6 +90,7 @@ struct SceneMetadata: Codable, Equatable {
             && monsterPlan.isEmpty
             && storyEn == nil
             && storyZh == nil
+            && spellbookCoverUrl == nil
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -97,6 +101,8 @@ struct SceneMetadata: Codable, Equatable {
         case monsterPlan
         case storyEn
         case storyZh
+        case spellbookCoverUrl
+        case spellbookCoverUrlSnake = "spellbook_cover_url"
     }
 
     init(from decoder: Decoder) throws {
@@ -108,6 +114,20 @@ struct SceneMetadata: Codable, Equatable {
         monsterPlan = try container.decodeIfPresent([MonsterPlanSlot].self, forKey: .monsterPlan) ?? []
         storyEn = try container.decodeIfPresent(String.self, forKey: .storyEn)
         storyZh = try container.decodeIfPresent(String.self, forKey: .storyZh)
+        spellbookCoverUrl = try container.decodeIfPresent(String.self, forKey: .spellbookCoverUrl)
+            ?? container.decodeIfPresent(String.self, forKey: .spellbookCoverUrlSnake)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(bgPrimary, forKey: .bgPrimary)
+        try container.encode(bgAccent, forKey: .bgAccent)
+        try container.encode(bossName, forKey: .bossName)
+        try container.encode(bossCandidates, forKey: .bossCandidates)
+        try container.encode(monsterPlan, forKey: .monsterPlan)
+        try container.encodeIfPresent(storyEn, forKey: .storyEn)
+        try container.encodeIfPresent(storyZh, forKey: .storyZh)
+        try container.encodeIfPresent(spellbookCoverUrl, forKey: .spellbookCoverUrl)
     }
 }
 
