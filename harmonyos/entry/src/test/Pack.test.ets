@@ -11,6 +11,7 @@ export default function PackTest() {
       const expectedSource: PackSource = 'builtin';
       expect(p.source).assertEqual(expectedSource);
       expect(p.scene.bgPrimary).assertEqual('#FFFFFF');
+      expect(p.scene.spellbookCoverUrl === undefined).assertTrue();
       expect(p.scene.monsterPlan.slots.length).assertEqual(0);
       expect(p.words.length).assertEqual(0);
     });

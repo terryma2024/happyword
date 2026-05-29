@@ -26,6 +26,7 @@ export class SceneMetadata {
   bossCandidates: number[] = [];
   storyEn?: string;
   storyZh?: string;
+  spellbookCoverUrl?: string;
 }
 
 /**

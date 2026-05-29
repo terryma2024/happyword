@@ -111,6 +111,7 @@ const SAMPLE_BODY: string =
   '"published_at":"2026-05-01T07:30:00Z",' +
   '"scene":{"bgPrimary":"#FFF6E0","bgAccent":"#FFD49A",' +
   '"bossName":"Orchard Sentinel","bossCandidates":[4,5,6],' +
+  '"spellbook_cover_url":"https://blob.example/covers/fruit-global.png",' +
   '"storyEn":"A global fruit path opens under warm lanterns.",' +
   '"storyZh":"全局水果小路在暖灯下打开。",' +
   '"monsterPlan":[{"kind":"normal","catalogIndex":0},' +
@@ -155,6 +156,7 @@ export default function GlobalPackServiceTest() {
       expect(p.labelZh).assertEqual('水果森林（global）');
       expect(p.version).assertEqual(3);
       expect(p.scene.bossName).assertEqual('Orchard Sentinel');
+      expect(p.scene.spellbookCoverUrl).assertEqual('https://blob.example/covers/fruit-global.png');
       expect(p.scene.storyEn).assertEqual('A global fruit path opens under warm lanterns.');
       expect(p.scene.storyZh).assertEqual('全局水果小路在暖灯下打开。');
       expect(p.scene.bossCandidates.length).assertEqual(3);
