@@ -26,6 +26,14 @@ import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/Adv
 import { AdventureRegion, TodaySessionPlan } from '../models/AdventureRegion';
 import { Pack } from '../models/Pack';
 import { WordEntry } from '../models/WordEntry';
+import {
+  HOME_DAILY_STATUS_BADGE_BACKGROUND,
+  HOME_DAILY_STATUS_BADGE_TEXT_COLOR,
+  HOME_DAILY_STATUS_BADGE_FONT_SIZE_VP,
+  HOME_DAILY_STATUS_BADGE_HORIZONTAL_PADDING_VP,
+  HOME_DAILY_STATUS_BADGE_VERTICAL_PADDING_VP,
+  HOME_DAILY_STATUS_BADGE_RADIUS_VP,
+} from '../components/HomeDailyStatusBadgeStyle';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import {
   anyWordSupportsQuestionTypes,
@@ -862,11 +870,17 @@ struct HomePage {
         Blank();
         Text(this.dailyStatusLabel)
           .id('AdventureCardDailyStatusLabel')
-          .fontSize(14)
-          .fontColor(this.todayCompleted ? '#7B7B7B' : '#FFFFFF')
-          .backgroundColor(this.todayCompleted ? '#E5E5E5' : '#E63946')
-          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-          .borderRadius(12);
+          .fontSize(HOME_DAILY_STATUS_BADGE_FONT_SIZE_VP)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(HOME_DAILY_STATUS_BADGE_TEXT_COLOR)
+          .backgroundColor(HOME_DAILY_STATUS_BADGE_BACKGROUND)
+          .padding({
+            left: HOME_DAILY_STATUS_BADGE_HORIZONTAL_PADDING_VP,
+            right: HOME_DAILY_STATUS_BADGE_HORIZONTAL_PADDING_VP,
+            top: HOME_DAILY_STATUS_BADGE_VERTICAL_PADDING_VP,
+            bottom: HOME_DAILY_STATUS_BADGE_VERTICAL_PADDING_VP,
+          })
+          .borderRadius(HOME_DAILY_STATUS_BADGE_RADIUS_VP);
       }
       .width('100%');
 

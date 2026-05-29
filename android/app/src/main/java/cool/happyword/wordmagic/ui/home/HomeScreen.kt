@@ -175,6 +175,15 @@ import cool.happyword.wordmagic.ui.components.EmojiCircle
 import cool.happyword.wordmagic.ui.components.colorFromSceneHex
 import cool.happyword.wordmagic.R
 
+internal object HomeDailyStatusBadgeStyle {
+    const val backgroundArgb: Int = 0xFFF0E6D6.toInt()
+    const val textArgb: Int = 0xFF8C877F.toInt()
+    const val fontSizeSp: Int = 16
+    const val horizontalPaddingDp: Int = 22
+    const val verticalPaddingDp: Int = 8
+    const val cornerRadiusDp: Int = 22
+}
+
 internal fun adventureCardStoryLine(pack: WordPack): String {
     val story = pack.scene.storyEn.trim()
     if (story.isNotEmpty()) return story
@@ -266,17 +275,19 @@ internal fun HomeScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        val dailyStatusCompleted = dailyStatus.label == "已完成"
                         Text(
                             text = dailyStatus.label,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(99.dp))
-                                .background(if (dailyStatusCompleted) Color(0xFFE5E5E5) else Color(0xFFE63946))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .clip(RoundedCornerShape(HomeDailyStatusBadgeStyle.cornerRadiusDp.dp))
+                                .background(Color(HomeDailyStatusBadgeStyle.backgroundArgb))
+                                .padding(
+                                    horizontal = HomeDailyStatusBadgeStyle.horizontalPaddingDp.dp,
+                                    vertical = HomeDailyStatusBadgeStyle.verticalPaddingDp.dp,
+                                )
                                 .testTag("AdventureCardDailyStatusBadge")
                                 .semantics { contentDescription = dailyStatus.label },
-                            color = if (dailyStatusCompleted) Color(0xFF7B7B7B) else Color.White,
-                            fontSize = 14.sp,
+                            color = Color(HomeDailyStatusBadgeStyle.textArgb),
+                            fontSize = HomeDailyStatusBadgeStyle.fontSizeSp.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

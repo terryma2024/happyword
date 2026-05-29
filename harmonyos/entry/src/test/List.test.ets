@@ -72,6 +72,7 @@ import messageBubbleTest from './MessageBubble.test';
 import messageBubbleLabStateTest from './MessageBubbleLabState.test';
 import bossDialogueSequencerTest from './BossDialogueSequencer.test';
 import dailyLearningStateServiceTest from './DailyLearningStateService.test';
+import homeDailyStatusBadgeStyleTest from './HomeDailyStatusBadgeStyle.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -148,4 +149,5 @@ export default function testsuite() {
   messageBubbleLabStateTest();
   bossDialogueSequencerTest();
   dailyLearningStateServiceTest();
+  homeDailyStatusBadgeStyleTest();
 }

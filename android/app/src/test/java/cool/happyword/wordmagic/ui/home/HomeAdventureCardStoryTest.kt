@@ -9,6 +9,16 @@ import org.junit.Test
 
 class HomeAdventureCardStoryTest {
     @Test
+    fun dailyStatusBadgeUsesHarmonyReferenceNeutralPillStyle() {
+        assertEquals(0xFFF0E6D6.toInt(), HomeDailyStatusBadgeStyle.backgroundArgb)
+        assertEquals(0xFF8C877F.toInt(), HomeDailyStatusBadgeStyle.textArgb)
+        assertEquals(16, HomeDailyStatusBadgeStyle.fontSizeSp)
+        assertEquals(22, HomeDailyStatusBadgeStyle.horizontalPaddingDp)
+        assertEquals(8, HomeDailyStatusBadgeStyle.verticalPaddingDp)
+        assertEquals(22, HomeDailyStatusBadgeStyle.cornerRadiusDp)
+    }
+
+    @Test
     fun storyLinePrefersEnglishSceneStory() {
         val pack = pack(
             storyEn = "A moonlit path opens for the newest word quest.",
