@@ -14,6 +14,14 @@ class AppMetadataTest {
     }
 
     @Test
+    fun gradleVersionMatchesV094Release() {
+        val buildFile = File("build.gradle.kts").readText()
+
+        assertTrue(buildFile.contains("""versionCode = 1_009_004"""))
+        assertTrue(buildFile.contains("""versionName = "0.9.4""""))
+    }
+
+    @Test
     fun releaseManifestDoesNotAllowCleartextTraffic() {
         val manifest = File("src/main/AndroidManifest.xml").readText()
 
