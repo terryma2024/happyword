@@ -885,6 +885,12 @@ async def test_admin_global_pack_detail_renders_split_form(
     assert story_button is not None
     assert story_button.get_text(strip=True) == "🔄"
     assert story_button.get("form") == "global-pack-story-generate-form"
+    cover_form = soup.find(id="global-pack-cover-generate-form")
+    assert cover_form is not None
+    assert cover_form.get("action") == "/admin/global-packs/packs/gpk-html-split-ui/cover/generate"
+    cover_button = soup.find(id="global-pack-cover-generate-submit")
+    assert cover_button is not None
+    assert cover_button.get_text(strip=True) == "生成封面"
     assert "A global story waits for editing." in page.text
     assert "一个全局小故事等着编辑。" in page.text
 
@@ -981,6 +987,59 @@ async def test_admin_global_pack_story_generate_form_updates_scene(
     refreshed = await global_pack_service.get_definition(pack_id="gpk-html-story-generate")
     assert refreshed.scene["storyEn"] == "Moon words shimmer across a silver classroom."
     assert refreshed.scene["storyZh"] == "月亮单词照亮银色教室。"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_global_pack_cover_generate_form_updates_scene(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import global_pack_service, spellbook_cover_service
+
+    async def fake_generate_and_attach_spellbook_cover(
+        *,
+        definition: FamilyPackDefinition,
+        words: list[dict[str, object]],
+    ) -> tuple[str, str, FamilyPackDefinition]:
+        assert definition.pack_id == "gpk-html-cover-generate"
+        assert words == []
+        definition.scene = {
+            **definition.scene,
+            "spellbookCoverUrl": "https://assets.example.test/covers/html-cover.png",
+        }
+        await definition.save()
+        return "fake-image-model", definition.scene["spellbookCoverUrl"], definition
+
+    monkeypatch.setattr(
+        spellbook_cover_service,
+        "generate_and_attach_spellbook_cover",
+        fake_generate_and_attach_spellbook_cover,
+    )
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    await global_pack_service.create_definition(
+        name="HTML Cover Generate",
+        admin_id="console-admin",
+        pack_id="gpk-html-cover-generate",
+        scene={"storyZh": "封面生成测试。"},
+    )
+
+    resp = await client.post(
+        "/admin/global-packs/packs/gpk-html-cover-generate/cover/generate",
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 303
+    assert resp.headers["location"].endswith("flash_ok=cover_generated")
+    refreshed = await global_pack_service.get_definition(pack_id="gpk-html-cover-generate")
+    assert (
+        refreshed.scene["spellbookCoverUrl"]
+        == "https://assets.example.test/covers/html-cover.png"
+    )
 
 
 @pytest.mark.asyncio
@@ -1095,6 +1154,49 @@ async def test_admin_system_config_can_change_llm_provider(
     assert refreshed.status_code == 200
     assert "已更新课程解析模型。" in refreshed.text
     assert "kimi-k2.6" in refreshed.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_system_config_can_change_image_provider(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-test-dashscope")
+    from app.config import get_settings  # noqa: PLC0415
+    from app.models.system_config import SystemConfig  # noqa: PLC0415
+    from app.routers import admin_pages  # noqa: PLC0415
+
+    get_settings.cache_clear()
+
+    async def _fake_connectivity(**kwargs: object) -> object:
+        return {"provider_id": kwargs["provider_id"], "model": "qwen-image"}
+
+    monkeypatch.setattr(admin_pages, "test_image_provider_connectivity", _fake_connectivity)
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+
+    page = await client.get("/admin/system-config")
+    assert page.status_code == 200
+    assert "魔法书封面生成模型" in page.text
+    assert "Qwen Image" in page.text
+
+    saved = await client.post(
+        "/admin/system-config/image-provider",
+        data={"image_provider": "qwen"},
+        follow_redirects=False,
+    )
+
+    assert saved.status_code == 303
+    assert saved.headers["location"] == "/admin/system-config?flash_ok=image_provider_updated"
+    row = await SystemConfig.find_one(SystemConfig.key == "image_provider")
+    assert row is not None
+    assert row.value == "qwen"
+    assert row.updated_by == "console-admin"
 
 
 @pytest.mark.asyncio

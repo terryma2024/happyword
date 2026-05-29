@@ -17,12 +17,12 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.config import get_settings
 from app.deps import current_admin_user
-from app.models.family_pack_draft import FamilyPackDraft
 from app.schemas.family_pack import FamilyPackDraftOut, FamilyPackDraftWordBatchError
 from app.schemas.global_pack import (
+    GlobalPackCoverGenerateOut,
     GlobalPackCreateIn,
-    GlobalPackDeleteOut,
     GlobalPackDefinitionOut,
+    GlobalPackDeleteOut,
     GlobalPackDraftSplitIn,
     GlobalPackDraftSplitOut,
     GlobalPackDraftWordIn,
@@ -33,11 +33,13 @@ from app.schemas.global_pack import (
     GlobalPackVersionOut,
 )
 from app.services import global_pack_service as svc
+from app.services import spellbook_cover_service
 from app.services.admin_audit_service import record_admin_action
 from app.services.llm_service import LlmCallError, LlmConfigError
 
 if TYPE_CHECKING:
     from app.models.family_pack_definition import FamilyPackDefinition
+    from app.models.family_pack_draft import FamilyPackDraft
     from app.models.user import User
 
 router = APIRouter(
@@ -109,6 +111,47 @@ async def create_global_pack(
     except svc.InvalidPayload as exc:
         raise _err("INVALID_PAYLOAD", str(exc), 400) from exc
     return _serialize_definition(d)
+
+
+@router.post(
+    "/{pack_id}/cover/generate",
+    response_model=GlobalPackCoverGenerateOut,
+)
+async def generate_global_pack_spellbook_cover(
+    pack_id: str,
+    admin: User = Depends(current_admin_user),  # noqa: B008
+) -> GlobalPackCoverGenerateOut:
+    try:
+        definition = await svc.get_definition(pack_id=pack_id)
+        _pointer, current_pack = await svc.current_pack(pack_id=pack_id)
+        words = list(current_pack.words) if current_pack is not None else []
+        model, url, updated = await spellbook_cover_service.generate_and_attach_spellbook_cover(
+            definition=definition,
+            words=words,
+        )
+    except svc.PackNotFound as exc:
+        raise _err("PACK_NOT_FOUND", str(exc), status.HTTP_404_NOT_FOUND) from exc
+    except LlmConfigError as exc:
+        raise _err(
+            "IMAGE_PROVIDER_NOT_CONFIGURED",
+            str(exc),
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ) from exc
+    except LlmCallError as exc:
+        raise _err("IMAGE_GENERATION_FAILED", str(exc), status.HTTP_502_BAD_GATEWAY) from exc
+    await record_admin_action(
+        admin_username=admin.username,
+        action="global_pack.spellbook_cover_generate",
+        target_collection="family_pack_definitions",
+        target_id=pack_id,
+        payload_summary={"model": model, "spellbook_cover_url": url},
+    )
+    return GlobalPackCoverGenerateOut(
+        pack_id=pack_id,
+        spellbook_cover_url=url,
+        model=model,
+        definition=_serialize_definition(updated),
+    )
 
 
 @router.get(

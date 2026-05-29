@@ -110,6 +110,58 @@ async def test_admin_create_then_get_and_list_global_pack(
 
 
 @pytest.mark.asyncio
+async def test_admin_generate_spellbook_cover_updates_pack_scene(
+    client: AsyncClient, admin: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import spellbook_cover_service
+
+    headers = _bearer(admin.username)
+    create = await client.post(
+        "/api/v1/admin/global-packs",
+        json={
+            "name": "Cover Pack",
+            "pack_id": "gpk-cover-pack",
+            "scene": {"storyZh": "封面测试。"},
+        },
+        headers=headers,
+    )
+    assert create.status_code == 201
+
+    async def fake_generate_and_attach_spellbook_cover(
+        *,
+        definition: FamilyPackDefinition,
+        words: list[dict[str, object]],
+    ) -> tuple[str, str, FamilyPackDefinition]:
+        assert definition.pack_id == "gpk-cover-pack"
+        assert words == []
+        definition.scene = {
+            **definition.scene,
+            "spellbookCoverUrl": "https://assets.example.test/covers/gpk-cover-pack.png",
+        }
+        await definition.save()
+        return "fake-image-model", definition.scene["spellbookCoverUrl"], definition
+
+    monkeypatch.setattr(
+        spellbook_cover_service,
+        "generate_and_attach_spellbook_cover",
+        fake_generate_and_attach_spellbook_cover,
+    )
+
+    r = await client.post(
+        "/api/v1/admin/global-packs/gpk-cover-pack/cover/generate",
+        headers=headers,
+    )
+
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["pack_id"] == "gpk-cover-pack"
+    assert body["model"] == "fake-image-model"
+    assert body["spellbook_cover_url"] == "https://assets.example.test/covers/gpk-cover-pack.png"
+    assert body["definition"]["scene"]["storyZh"] == "封面测试。"
+    assert body["definition"]["scene"]["spellbookCoverUrl"] == body["spellbook_cover_url"]
+
+
+@pytest.mark.asyncio
 async def test_admin_create_duplicate_name_409(
     client: AsyncClient, admin: User
 ) -> None:

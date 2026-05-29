@@ -19,7 +19,7 @@ from app.models.feedback import UserFeedback
 from app.models.user import User, UserRole
 from app.services import admin_console_service as acs
 from app.services import family_pack_service as fps
-from app.services import feedback_service, pack_story_service
+from app.services import feedback_service, pack_story_service, spellbook_cover_service
 from app.services import global_pack_service as gps
 from app.services.admin_audit_service import record_admin_action
 from app.services.admin_console_overview_service import (
@@ -32,6 +32,13 @@ from app.services.auth_service import (
     decode_typed_token,
     verify_password,
 )
+from app.services.image_generation_providers import (
+    IMAGE_PROVIDER_SPECS,
+    effective_image_provider_status,
+    image_provider_options,
+    is_effective_image_provider_configured,
+    test_image_provider_connectivity,
+)
 from app.services.llm_providers import (
     LESSON_PROVIDER_SPECS,
     effective_lesson_provider_status,
@@ -40,7 +47,10 @@ from app.services.llm_providers import (
     test_lesson_provider_connectivity,
 )
 from app.services.llm_service import LlmCallError, LlmConfigError
-from app.services.system_config_service import set_llm_provider_override
+from app.services.system_config_service import (
+    set_image_provider_override,
+    set_llm_provider_override,
+)
 
 router = APIRouter(
     prefix="/admin",
@@ -118,6 +128,7 @@ def _flash_map_family(request: Request) -> tuple[str | None, str | None]:
         "copied_family": "已复制家庭词包给目标家庭。",
         "story_saved": "已保存词包 story。",
         "story_generated": "已生成新的词包 story。",
+        "cover_generated": "已生成魔法书封面。",
     }
     err = request.query_params.get("flash_err")
     return (msgs.get(ok) if ok else None, err)
@@ -209,6 +220,10 @@ async def _vision_import_configured() -> bool:
     return await is_effective_lesson_provider_configured()
 
 
+async def _cover_generation_configured() -> bool:
+    return await is_effective_image_provider_configured()
+
+
 def _flash_err_for_vision_import(exc: BaseException) -> str:
     if isinstance(exc, LlmConfigError):
         return "LLM Provider 未配置或不可用。请到系统配置页面检查当前模型和密钥。"
@@ -223,16 +238,24 @@ def _flash_map_system_config(request: Request) -> tuple[str | None, str | None]:
     ok_msgs = {
         "llm_provider_updated": "已更新课程解析模型。",
         "llm_provider_connected": "连通性测试通过。",
+        "image_provider_updated": "已更新魔法书封面生成模型。",
+        "image_provider_connected": "封面生成模型配置检查通过。",
     }
     err_msgs = {
         "invalid_llm_provider": "请选择一个支持的课程解析模型。",
         "llm_provider_connectivity_failed": "连通性测试失败，模型未生效。",
+        "invalid_image_provider": "请选择一个支持的封面生成模型。",
+        "image_provider_connectivity_failed": "封面生成模型配置检查失败，模型未生效。",
     }
     ok_msg = ok_msgs.get(ok) if ok else None
     if ok == "llm_provider_connected" and tested in LESSON_PROVIDER_SPECS:
         ok_msg = f"{LESSON_PROVIDER_SPECS[tested].display_name} 连通性测试通过。"
+    if ok == "image_provider_connected" and tested in IMAGE_PROVIDER_SPECS:
+        ok_msg = f"{IMAGE_PROVIDER_SPECS[tested].display_name} 配置检查通过。"
     err_msg = err_msgs.get(err, err) if err else None
     if err == "llm_provider_connectivity_failed" and detail:
+        err_msg = f"{err_msg}（{detail}）"
+    if err == "image_provider_connectivity_failed" and detail:
         err_msg = f"{err_msg}（{detail}）"
     return (ok_msg, err_msg)
 
@@ -380,6 +403,8 @@ async def admin_system_config_page(request: Request) -> HTMLResponse | RedirectR
             "flash_err": flash_err,
             "provider_options": lesson_provider_options(),
             "current_provider": await effective_lesson_provider_status(),
+            "image_provider_options": image_provider_options(),
+            "current_image_provider": await effective_image_provider_status(),
         },
     )
 
@@ -450,6 +475,77 @@ async def admin_system_config_llm_provider_test_post(
         url=(
             "/admin/system-config?flash_ok=llm_provider_connected"
             f"&tested_llm_provider={quote(provider_id)}"
+        ),
+        status_code=303,
+    )
+
+
+@router.post("/system-config/image-provider", response_model=None)
+async def admin_system_config_image_provider_post(
+    request: Request,
+    image_provider: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    provider_id = image_provider.strip()
+    if provider_id not in IMAGE_PROVIDER_SPECS:
+        return RedirectResponse(
+            url="/admin/system-config?flash_err=invalid_image_provider",
+            status_code=303,
+        )
+    try:
+        await test_image_provider_connectivity(provider_id=provider_id)
+    except (LlmConfigError, LlmCallError) as exc:
+        return RedirectResponse(
+            url=(
+                "/admin/system-config?flash_err=image_provider_connectivity_failed"
+                f"&detail={quote(str(exc))}"
+            ),
+            status_code=303,
+        )
+    await set_image_provider_override(provider_id=provider_id, updated_by=gate.username)
+    await record_admin_action(
+        admin_username=gate.username,
+        action="system_config.update_image_provider",
+        target_collection="system_config",
+        target_id="image_provider",
+        payload_summary={"image_provider": provider_id},
+    )
+    return RedirectResponse(
+        url="/admin/system-config?flash_ok=image_provider_updated",
+        status_code=303,
+    )
+
+
+@router.post("/system-config/image-provider/test", response_model=None)
+async def admin_system_config_image_provider_test_post(
+    request: Request,
+    image_provider: str = Form(...),
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    provider_id = image_provider.strip()
+    if provider_id not in IMAGE_PROVIDER_SPECS:
+        return RedirectResponse(
+            url="/admin/system-config?flash_err=invalid_image_provider",
+            status_code=303,
+        )
+    try:
+        await test_image_provider_connectivity(provider_id=provider_id)
+    except (LlmConfigError, LlmCallError) as exc:
+        return RedirectResponse(
+            url=(
+                "/admin/system-config?flash_err=image_provider_connectivity_failed"
+                f"&detail={quote(str(exc))}"
+            ),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=(
+            "/admin/system-config?flash_ok=image_provider_connected"
+            f"&tested_image_provider={quote(provider_id)}"
         ),
         status_code=303,
     )
@@ -964,6 +1060,7 @@ async def admin_global_pack_detail_page(
         )
     flash_ok, flash_err = _flash_map_global(request)
     vision_ready = await _vision_import_configured()
+    cover_ready = await _cover_generation_configured()
     draft_words = sorted(
         detail["draft_words"], key=lambda w: str(w.get("id", ""))
     )
@@ -982,6 +1079,7 @@ async def admin_global_pack_detail_page(
             "flash_ok": flash_ok,
             "flash_err": flash_err,
             "vision_import_ready": vision_ready,
+            "cover_generation_ready": cover_ready,
         },
     )
 
@@ -1151,6 +1249,47 @@ async def admin_global_pack_story_generate_post(
     )
     return RedirectResponse(
         url=_global_pack_detail_url(pid, flash_ok="story_generated"),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/cover/generate", response_model=None)
+async def admin_global_pack_cover_generate_post(
+    request: Request,
+    pack_id: str,
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    try:
+        detail = await acs.load_global_pack_definition_console(pack_id=pid)
+        definition = detail["definition"]
+        _model, cover_url, _updated = (
+            await spellbook_cover_service.generate_and_attach_spellbook_cover(
+                definition=definition,
+                words=list(detail["draft_words"]),
+            )
+        )
+    except LookupError:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包。')}",
+            status_code=303,
+        )
+    except (gps.PackNotFound, LlmConfigError, LlmCallError) as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(exc)),
+            status_code=303,
+        )
+    await record_admin_action(
+        admin_username=gate.username,
+        action="global_pack.spellbook_cover_generate",
+        target_collection="family_pack_definitions",
+        target_id=pid,
+        payload_summary={"via": "admin_html", "spellbook_cover_url": cover_url},
+    )
+    return RedirectResponse(
+        url=_global_pack_detail_url(pid, flash_ok="cover_generated"),
         status_code=303,
     )
 

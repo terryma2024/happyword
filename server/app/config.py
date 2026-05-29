@@ -78,11 +78,21 @@ class Settings(BaseSettings):
     admin_bootstrap_user: str
     admin_bootstrap_pass: str
     llm_provider: Literal["openai", "qwen", "doubao", "kimi"] = "openai"
+    image_provider: Literal["openai", "qwen"] = "openai"
     openai_api_key: str = ""
     openai_model_text: str = "gpt-4o-mini"
     openai_model_vision: str = "gpt-4o"
+    openai_model_image: str = Field(
+        default="gpt-image-2",
+        validation_alias=AliasChoices("OPENAI_MODEL_IMAGE", "OPENAI_IMAGE_MODEL"),
+    )
     dashscope_api_key: str = ""
     qwen_model_vision: str = "qwen3.6-plus"
+    qwen_model_image: str = Field(
+        default="qwen-image",
+        validation_alias=AliasChoices("QWEN_MODEL_IMAGE", "QWEN_IMAGE_MODEL"),
+    )
+    qwen_image_base_url: str = "https://dashscope.aliyuncs.com"
     ark_api_key: str = ""
     doubao_model_vision: str = "doubao-seed-2-0-pro-260215"
     moonshot_api_key: str = Field(
