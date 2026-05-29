@@ -176,7 +176,7 @@ import cool.happyword.wordmagic.ui.components.colorFromSceneHex
 import cool.happyword.wordmagic.R
 
 internal object HomeDailyStatusBadgeStyle {
-    const val backgroundArgb: Int = 0xFFF0E6D6.toInt()
+    const val backgroundArgb: Int = 0xFFF2DFC9.toInt()
     const val textArgb: Int = 0xFF8C877F.toInt()
     const val fontSizeSp: Int = 16
     const val horizontalPaddingDp: Int = 22
