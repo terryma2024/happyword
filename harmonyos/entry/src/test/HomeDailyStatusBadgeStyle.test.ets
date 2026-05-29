@@ -9,6 +9,13 @@ import {
   HOME_ADVENTURE_CARD_STORY_MAX_LINES,
   HOME_ADVENTURE_CARD_STORY_LINE_HEIGHT_VP,
   HOME_ADVENTURE_CARD_STORY_RESERVED_HEIGHT_VP,
+  HOME_REVIEW_COUNT_BADGE_BACKGROUND,
+  HOME_REVIEW_COUNT_BADGE_FONT_SIZE_VP,
+  HOME_REVIEW_COUNT_BADGE_HORIZONTAL_PADDING_VP,
+  HOME_REVIEW_COUNT_BADGE_MIN_SIZE_VP,
+  HOME_REVIEW_COUNT_BADGE_POSITION_X_VP,
+  HOME_REVIEW_COUNT_BADGE_POSITION_Y_VP,
+  HOME_REVIEW_COUNT_BADGE_RADIUS_VP,
 } from '../main/ets/components/HomeDailyStatusBadgeStyle';
 
 export default function homeDailyStatusBadgeStyleTest(): void {
@@ -26,6 +33,16 @@ export default function homeDailyStatusBadgeStyleTest(): void {
       expect(HOME_ADVENTURE_CARD_STORY_MAX_LINES).assertEqual(2);
       expect(HOME_ADVENTURE_CARD_STORY_LINE_HEIGHT_VP).assertEqual(22);
       expect(HOME_ADVENTURE_CARD_STORY_RESERVED_HEIGHT_VP).assertEqual(44);
+    });
+
+    it('usesIosToolbarOverlayStyleForReviewCountBadge', 0, () => {
+      expect(HOME_REVIEW_COUNT_BADGE_BACKGROUND).assertEqual('#E63946');
+      expect(HOME_REVIEW_COUNT_BADGE_MIN_SIZE_VP).assertEqual(20);
+      expect(HOME_REVIEW_COUNT_BADGE_RADIUS_VP).assertEqual(10);
+      expect(HOME_REVIEW_COUNT_BADGE_FONT_SIZE_VP).assertEqual(12);
+      expect(HOME_REVIEW_COUNT_BADGE_HORIZONTAL_PADDING_VP).assertEqual(6);
+      expect(HOME_REVIEW_COUNT_BADGE_POSITION_X_VP).assertEqual(34);
+      expect(HOME_REVIEW_COUNT_BADGE_POSITION_Y_VP).assertEqual(0);
     });
   });
 }

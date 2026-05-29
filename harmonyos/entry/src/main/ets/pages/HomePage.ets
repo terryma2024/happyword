@@ -36,6 +36,13 @@ import {
   HOME_ADVENTURE_CARD_STORY_MAX_LINES,
   HOME_ADVENTURE_CARD_STORY_LINE_HEIGHT_VP,
   HOME_ADVENTURE_CARD_STORY_RESERVED_HEIGHT_VP,
+  HOME_REVIEW_COUNT_BADGE_BACKGROUND,
+  HOME_REVIEW_COUNT_BADGE_FONT_SIZE_VP,
+  HOME_REVIEW_COUNT_BADGE_HORIZONTAL_PADDING_VP,
+  HOME_REVIEW_COUNT_BADGE_MIN_SIZE_VP,
+  HOME_REVIEW_COUNT_BADGE_POSITION_X_VP,
+  HOME_REVIEW_COUNT_BADGE_POSITION_Y_VP,
+  HOME_REVIEW_COUNT_BADGE_RADIUS_VP,
 } from '../components/HomeDailyStatusBadgeStyle';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import {
@@ -323,7 +330,7 @@ struct HomePage {
     const status: HomeDailyStatus = decideHomeDailyStatus(state);
     this.dailyStatusLabel = status.label;
     this.dailyReviewRemainingCount = status.remainingReviewCount;
-    this.dailyReviewCountBadgeVisible = status.dailyCheckInCompleted && status.remainingReviewCount > 0;
+    this.dailyReviewCountBadgeVisible = status.showReviewCountBadge;
     this.todayCompleted = status.todayAdventureCompleted;
   }
 
@@ -615,39 +622,41 @@ struct HomePage {
         // emoji". Pre-rasterized 96×96 PNGs decode reliably and stay
         // stable across remounts; the original SVGs are kept on
         // disk as the design source.
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          Stack() {
+        Stack({ alignContent: Alignment.TopStart }) {
+          Button({ type: ButtonType.Circle, stateEffect: true }) {
             Image($rawfile('icons/review.png'))
               .width(32)
               .height(32)
               .objectFit(ImageFit.Contain)
               .syncLoad(true)
               .opacity(this.reviewEnabled() ? 1.0 : 0.4);
-            if (this.dailyReviewCountBadgeVisible) {
-              Text(`${this.dailyReviewRemainingCount}`)
-                .id('HomeReviewCountBadge')
-                .fontSize(11)
-                .fontColor('#FFFFFF')
-                .backgroundColor('#E63946')
-                .borderRadius(9)
-                .padding({ left: 5, right: 5, top: 2, bottom: 2 })
-                .align(Alignment.TopEnd);
-            }
           }
-          .width(40)
-          .height(40);
+            .id('HomeReviewButton')
+            .width(56)
+            .height(56)
+            .backgroundColor(this.reviewEnabled() ? '#FCEAEA' : '#EEEEEE')
+            .onClick((): void => {
+              if (this.reviewEnabled()) {
+                this.enterReviewMode();
+              } else {
+                this.showReviewLockedToast();
+              }
+            });
+          if (this.dailyReviewCountBadgeVisible) {
+            Text(`${this.dailyReviewRemainingCount}`)
+              .id('HomeReviewCountBadge')
+              .fontSize(HOME_REVIEW_COUNT_BADGE_FONT_SIZE_VP)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#FFFFFF')
+              .backgroundColor(HOME_REVIEW_COUNT_BADGE_BACKGROUND)
+              .borderRadius(HOME_REVIEW_COUNT_BADGE_RADIUS_VP)
+              .padding({ left: HOME_REVIEW_COUNT_BADGE_HORIZONTAL_PADDING_VP, right: HOME_REVIEW_COUNT_BADGE_HORIZONTAL_PADDING_VP })
+              .constraintSize({ minWidth: HOME_REVIEW_COUNT_BADGE_MIN_SIZE_VP, minHeight: HOME_REVIEW_COUNT_BADGE_MIN_SIZE_VP })
+              .position({ x: HOME_REVIEW_COUNT_BADGE_POSITION_X_VP, y: HOME_REVIEW_COUNT_BADGE_POSITION_Y_VP });
+          }
         }
-          .id('HomeReviewButton')
-          .width(56)
-          .height(56)
-          .backgroundColor(this.reviewEnabled() ? '#FCEAEA' : '#EEEEEE')
-          .onClick((): void => {
-            if (this.reviewEnabled()) {
-              this.enterReviewMode();
-            } else {
-              this.showReviewLockedToast();
-            }
-          });
+        .width(58)
+        .height(58);
 
         Button({ type: ButtonType.Circle, stateEffect: true }) {
           Image($rawfile('icons/codex.png'))

@@ -44,6 +44,7 @@ export class DailyLearningState {
 export class HomeDailyStatus {
   label: string = '';
   remainingReviewCount: number = 0;
+  showReviewCountBadge: boolean = false;
   todayAdventureCompleted: boolean = false;
   dailyCheckInCompleted: boolean = false;
 }
@@ -122,6 +123,7 @@ export function decideHomeDailyStatus(state: DailyLearningState): HomeDailyStatu
   const packDone: boolean = state.packBattleWon;
   const reviewDone: boolean = remaining === 0;
   out.remainingReviewCount = remaining;
+  out.showReviewCountBadge = remaining > 0;
   out.todayAdventureCompleted = packDone && reviewDone;
   out.dailyCheckInCompleted = packDone || reviewDone;
   if (out.todayAdventureCompleted) {
