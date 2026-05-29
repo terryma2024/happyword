@@ -19,13 +19,13 @@
 
 ## Current Repo State
 
-- [x] `MARKETING_VERSION` is `0.8.4` in `ios/project.yml`.
-- [x] `CURRENT_PROJECT_VERSION` is `1008006` in `ios/project.yml`.
+- [x] `MARKETING_VERSION` is `0.9.4` in `ios/project.yml`.
+- [x] `CURRENT_PROJECT_VERSION` is `1009004` in `ios/project.yml`.
 - [x] Bundle ID is `com.terryma.wordmagicgame`.
 - [x] App display name is `魔法背单词`.
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
-- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.7.0-b1007004.xcarchive`.
-- [x] App Store Connect upload succeeded for replacement build `0.7.0 (1007004)`; build is added to TestFlight internal group `Internal Smoke`.
+- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.9.4-b1009004.xcarchive`.
+- [x] App Store Connect upload succeeded for build `0.9.4 (1009004)`; build is selected on the `0.9.4` App Store version.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
@@ -38,6 +38,7 @@
 - [x] Support URL exists in repo as public server page: `https://happyword.cool/support`.
 - [x] In-app account deletion initiation path is verified from this repo: `学习档案` -> `账号与数据管理` opens `/family/<family_id>/account`.
 - [x] Apple App Review approved iOS version `0.8.4` / build `1008006`; App Store Connect status is `可分发`.
+- [x] iOS version `0.9.4` / build `1009004` was submitted for App Review on 2026-05-29; App Store Connect status is `正在等待审核`.
 - [x] App Store availability was re-enabled on 2026-05-24 for the available storefront set. App Store Connect now shows 148 countries/regions `正在处理为可用`.
 - [ ] EU / DSA trader-status countries remain unavailable until the account owner provides trader status in App Store Connect.
 
@@ -224,11 +225,13 @@ xcodebuild archive \
 - [x] Export compliance status accepted for replacement TestFlight build `1007004`; App Store Connect allowed internal TestFlight testing.
 - [x] App screenshots:
   - [x] iPhone 6.9-inch or current required size.
-  - [x] iPhone 6.5-inch accepted by App Store Connect via the `2778x1284` active iPhone set.
+  - [x] Active iPhone set replaced on 2026-05-29 with `1290x2796` portrait collage screenshots at `assets/screenshots/appstore/ios/v0.8.4-review-fix/iphone/`.
+  - [x] Previous `2778x1284` landscape iPhone set archived at `assets/screenshots/appstore/ios/v0.8.4-review-fix/archived/iphone-landscape-2026-05-29/`.
   - [x] iPad screenshots if iPad is supported.
   - [x] Screens show actual app UI, not debug/dev screens.
-  - [x] iPhone screenshots regenerated on `WordMagic AppStore iPhone 13 Pro Max` because App Store Connect rejected the prior `2622x1206` iPhone 17 Pro size. Current iPhone active screenshots are `2778x1284`, which matches the App Store Connect accepted size list.
-  - [x] Active iPhone/iPad screenshots uploaded in App Store Connect.
+  - [x] iPhone screenshots regenerated on `WordMagic AppStore iPhone 13 Pro Max` because App Store Connect rejected the prior `2622x1206` iPhone 17 Pro size. The later search-result fix promoted the `1290x2796` portrait collage set to active.
+  - [x] Active iPhone portrait screenshots replaced the old landscape iPhone screenshots in App Store Connect on 2026-05-29. ASC accepted the derived `1284x2778` 6.5-inch set at `assets/screenshots/appstore/ios/v0.8.4-review-fix/iphone-asc-6-5/`.
+  - [x] Existing iPad screenshots remain available for App Store Connect.
 - [ ] App preview video: optional; skip unless polished.
 - [x] Review notes draft prepared below.
   - [x] Reviewer-owned email OTP path finalized: reviewer should use their own reachable email address to receive the one-time code.
@@ -338,15 +341,25 @@ Notes:
 ### Screenshot Plan
 
 - Captured from an equivalent Release simulator build for `0.7.0 (1007004)`.
+- Search-result iPhone portrait set: `assets/screenshots/appstore/ios/v0.8.4-search-portrait/iphone/`.
+  - Size: `1290x2796`.
+  - Format: PNG, 8-bit RGB, no alpha.
+  - Files: `01-parent-import-child-adventure.png`, `02-battle-practice.png`, `03-learning-result.png`, `04-parent-admin-import.png`, `05-pack-manager.png`.
+  - Composition: the first three files are portrait poster collages made from multiple landscape app screenshots.
+  - Promoted to the active iPhone upload directory on 2026-05-29.
 - iPhone screenshot set: `assets/screenshots/appstore/ios/v0.8.4-review-fix/iphone/`.
-  - Device: `WordMagic AppStore iPhone 13 Pro Max Review Fix (iOS 26.4)`.
+  - Size: `1290x2796`.
+  - Format: PNG, 8-bit RGB, no alpha.
+  - Composition: portrait poster collages; the first three files are the App Store search-result thumbnails.
+  - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-learning-profile.png`, `05-pack-manager.png`.
+- Archived iPhone landscape set: `assets/screenshots/appstore/ios/v0.8.4-review-fix/archived/iphone-landscape-2026-05-29/`.
   - Size: `2778x1284`.
   - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-learning-profile.png`, `05-pack-manager.png`.
 - iPad screenshot set: `assets/screenshots/appstore/ios/v0.8.4-review-fix/ipad/`.
   - Device: `iPad Pro 13-inch (M5) (iOS 26.4)`.
   - Size: `2064x2752`.
   - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-learning-profile.png`, `05-pack-manager.png`.
-- App Store Connect submission state as of 2026-05-24:
+- App Store Connect submission state as of 2026-05-29:
   - Version metadata fields filled for `iOS App 版本 0.8.4`: promotional text, description, keywords, support URL, version, copyright, reviewer notes, App Review contact, and post-review release settings.
   - Build `1008006` selected for submission.
   - App Privacy labels published.
@@ -354,6 +367,7 @@ Notes:
   - Pricing completed: free app and public distribution.
   - Version `0.8.4 (1008006)` passed Apple review; App Store Connect status is `可分发`.
   - Availability was re-enabled on 2026-05-24 after approval. App Store Connect shows 148 countries/regions `正在处理为可用`; remaining EU / DSA trader-status regions require account-owner trader-status completion.
+  - Version `0.9.4 (1009004)` was uploaded, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for review. App Store Connect status is `正在等待审核`.
 - Screenshots cover:
   1. Learning home screen.
   2. Battle/practice screen.

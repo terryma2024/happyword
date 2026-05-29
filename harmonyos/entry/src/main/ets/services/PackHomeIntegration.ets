@@ -97,6 +97,14 @@ export function resolveTodayAdventurePack(
   return current;
 }
 
+export function resolveHomeChipSelection(bundle: HomeIntegrationBundle, candidate: Pack): Pack {
+  const resolved: Pack | undefined = bundle.library.byId(candidate.id);
+  if (resolved !== undefined) {
+    return resolved;
+  }
+  return candidate;
+}
+
 /**
  * Synthesize a Pack from one of the bundled AdventureRegion entries.
  * Used as the first-paint fallback in HomePage before
@@ -139,6 +147,37 @@ export function fallbackPacks(): Pack[] {
     out.push(fallbackPackFromRegion(ADVENTURE_REGIONS[i]));
   }
   return out;
+}
+
+export function homePackStoryLine(pack: Pack): string {
+  const story: string | undefined = pack.scene.storyZh;
+  if (story !== undefined && story.trim().length > 0) {
+    return story.trim();
+  }
+
+  let low: number = 0;
+  let medium: number = 0;
+  let high: number = 0;
+  for (let i = 0; i < pack.words.length; i++) {
+    const d: number = pack.words[i].difficulty;
+    if (d <= 1) {
+      low += 1;
+    } else if (d === 2) {
+      medium += 1;
+    } else {
+      high += 1;
+    }
+  }
+
+  const parts: string[] = [];
+  if (low > 0) parts.push(`${low} 个低难度`);
+  if (medium > 0) parts.push(`${medium} 个中难度`);
+  if (high > 0) parts.push(`${high} 个高难度`);
+
+  if (parts.length === 0) {
+    return `本词包 ${pack.words.length} 个单词`;
+  }
+  return `本词包 ${pack.words.length} 个单词，其中 ${parts.join('，')}`;
 }
 
 /**

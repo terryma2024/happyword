@@ -61,8 +61,10 @@ import { requestPageOrientation } from '../utils/orientation';
 import {
   HomeIntegrationBundle,
   fallbackPacks,
+  homePackStoryLine,
   loadHomeIntegration,
   resolveActivePacks,
+  resolveHomeChipSelection,
   resolveTodayAdventurePack,
 } from '../services/PackHomeIntegration';
 
@@ -328,45 +330,6 @@ struct HomePage {
    */
   private regionLabel(region: AdventureRegion): string {
     return region.displayName;
-  }
-
-  private packSummary(pack: Pack): string {
-    let low: number = 0;
-    let mid: number = 0;
-    let high: number = 0;
-    for (let i = 0; i < pack.words.length; i++) {
-      const difficulty: number = pack.words[i].difficulty;
-      if (difficulty <= 2) {
-        low++;
-      } else if (difficulty === 3) {
-        mid++;
-      } else {
-        high++;
-      }
-    }
-    const parts: string[] = [];
-    if (low > 0) parts.push(`${low} 个低难度`);
-    if (mid > 0) parts.push(`${mid} 个中难度`);
-    if (high > 0) parts.push(`${high} 个高难度`);
-    if (parts.length === 0) {
-      return `本词包 ${pack.words.length} 个单词`;
-    }
-    return `本词包 ${pack.words.length} 个单词，其中 ${parts.join('，')}`;
-  }
-
-  /** Prefer the English little story from the active pack; fall back to a compact summary. */
-  private regionStory(region: AdventureRegion): string {
-    for (let i = 0; i < this.chipPacks.length; i++) {
-      if (this.chipPacks[i].id === region.id) {
-        const pack: Pack = this.chipPacks[i];
-        const en: string | undefined = pack.scene.storyEn;
-        if (en !== undefined && en.length > 0) {
-          return en;
-        }
-        return this.packSummary(pack);
-      }
-    }
-    return '今天的冒险包含 5 关卡，含拼写、复习与首领关';
   }
 
   private refreshTodayState(): void {
@@ -889,7 +852,7 @@ struct HomePage {
 
       this.regionPicker();
 
-      Text(this.packLibraryVersion >= 0 ? this.regionStory(this.todayRegion) : '今天的冒险包含 5 关卡，含拼写、复习与首领关')
+      Text(homePackStoryLine(this.todayPack))
         .id('AdventureCardStory')
         .fontSize(14)
         .fontColor('#5A4A35')
@@ -897,6 +860,7 @@ struct HomePage {
         .lineHeight(HOME_ADVENTURE_CARD_STORY_LINE_HEIGHT_VP)
         .maxLines(HOME_ADVENTURE_CARD_STORY_MAX_LINES)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .width('100%')
         .textAlign(TextAlign.Center);
 
       Button(this.todayCompleted ? '再战一局' : '开始今日冒险')
@@ -952,10 +916,11 @@ struct HomePage {
             .borderRadius(16)
             .border({ width: 1, color: p.id === this.todayPack.id ? '#E63946' : '#DDDDDD' })
             .onClick((): void => {
-              AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, p.id);
-              this.todayPack = p;
-              this.todayRegion = regionFromPack(p);
-              this.todayPrefs.saveRegionId(p.id).catch((err: BusinessError): void => {
+              const selected: Pack = resolveHomeChipSelection(this.homeIntegration, p);
+              AppStorage.setOrCreate<string>(TODAY_REGION_ID_KEY, selected.id);
+              this.todayPack = selected;
+              this.todayRegion = regionFromPack(selected);
+              this.todayPrefs.saveRegionId(selected.id).catch((err: BusinessError): void => {
                 console.error(`HomePage: TodayPreferences.saveRegionId failed: ${JSON.stringify(err)}`);
               });
             });
