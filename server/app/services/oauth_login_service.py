@@ -54,8 +54,8 @@ async def resolve_existing_oauth_login(
         return None
     user = await User.find_one(User.username == existing_identity.user_id)
     if user is None:
-        msg = "OAuth identity references missing user"
-        raise ValueError(msg)
+        await existing_identity.delete()
+        return None
     if user.parent_login_suspended_at is not None:
         raise ParentLoginSuspended()
     family = await _family_for_user(user)
@@ -104,13 +104,20 @@ async def resolve_oauth_login(
 
 
 async def _family_for_user(user: User) -> Family:
-    if not user.family_id:
+    if not user.family_id and not user.email:
         msg = "Parent user missing family_id"
         raise ValueError(msg)
+    if not user.family_id and user.email:
+        family, _user = await create_family_for_parent(email=user.email)
+        return family
     family = await Family.find_one(Family.family_id == user.family_id)
     if family is None:
-        msg = "Family not found for parent user"
-        raise ValueError(msg)
+        if not user.email:
+            msg = "Family not found for parent user"
+            raise ValueError(msg)
+        family, _user = await create_family_for_parent(email=user.email)
+        user.family_id = family.family_id
+        return family
     return family
 
 

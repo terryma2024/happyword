@@ -15,6 +15,7 @@ from app.services.oauth_login_service import (
     OAuthRoleMismatch,
     resolve_google_login,
 )
+from app.services.family_service import create_family_for_parent
 
 
 def _claims(*, sub: str = "google-sub-1", email: str = "parent@example.com") -> GoogleUserClaims:
@@ -68,6 +69,62 @@ async def test_login_existing_identity_returns_same_user(db: object) -> None:
     )
     assert resolved_user.username == user.username
     assert await User.count() == 1
+
+
+@pytest.mark.asyncio
+async def test_login_relinks_orphaned_identity_by_email(db: object) -> None:
+    now = datetime.now(tz=UTC)
+    await OAuthIdentity(
+        provider=OAuthProvider.GOOGLE,
+        provider_subject="google-orphan",
+        user_id="parent-missing",
+        email="orphan@example.com",
+        email_verified=True,
+        linked_at=now,
+    ).insert()
+
+    resolved_user, family = await resolve_google_login(
+        _claims(sub="google-orphan", email="orphan@example.com")
+    )
+
+    assert resolved_user.email == "orphan@example.com"
+    assert family.family_id == resolved_user.family_id
+    identities = await OAuthIdentity.find(
+        OAuthIdentity.provider == OAuthProvider.GOOGLE,
+        OAuthIdentity.provider_subject == "google-orphan",
+    ).to_list()
+    assert len(identities) == 1
+    assert identities[0].user_id == resolved_user.username
+
+
+@pytest.mark.asyncio
+async def test_login_heals_existing_parent_with_missing_family(db: object) -> None:
+    now = datetime.now(tz=UTC)
+    user = User(
+        username="parent-stale-family",
+        password_hash=None,
+        role=UserRole.PARENT,
+        created_at=now,
+        family_id="fam-missing",
+        email="stale-family@example.com",
+    )
+    await user.insert()
+    await OAuthIdentity(
+        provider=OAuthProvider.GOOGLE,
+        provider_subject="google-stale-family",
+        user_id=user.username,
+        email="stale-family@example.com",
+        email_verified=True,
+        linked_at=now,
+    ).insert()
+
+    resolved_user, family = await resolve_google_login(
+        _claims(sub="google-stale-family", email="stale-family@example.com")
+    )
+
+    assert resolved_user.username == user.username
+    assert family.owner_user_id == user.username
+    assert resolved_user.family_id == family.family_id
 
 
 @pytest.mark.asyncio
@@ -137,3 +194,23 @@ async def test_login_rejects_suspended_parent(db: object) -> None:
 
     with pytest.raises(ParentLoginSuspended):
         await resolve_google_login(_claims(email="suspended@example.com"))
+
+
+@pytest.mark.asyncio
+async def test_create_family_for_parent_replaces_stale_family_id(db: object) -> None:
+    now = datetime.now(tz=UTC)
+    user = User(
+        username="parent-stale",
+        password_hash=None,
+        role=UserRole.PARENT,
+        created_at=now,
+        family_id="fam-stale",
+        email="repair@example.com",
+    )
+    await user.insert()
+
+    family, repaired = await create_family_for_parent(email="repair@example.com")
+
+    assert repaired.username == user.username
+    assert repaired.family_id == family.family_id
+    assert family.owner_user_id == user.username
