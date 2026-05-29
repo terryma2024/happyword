@@ -20,6 +20,15 @@ class PackLibraryTest {
             source = PackSource.Family,
             version = 3,
             publishedAtMs = 3_000L,
+            scene = SceneMetadata(
+                bgPrimary = "#FFFFFF",
+                bgAccent = "#FFFFFF",
+                bossName = "",
+                monsterPlan = emptyList(),
+                bossCandidates = emptyList(),
+                storyZh = "家庭自己的中文故事。",
+                storyEn = "Family words follow a tiny lantern trail.",
+            ),
             words = listOf(WordEntry("family-mango", "mango", "芒果")),
         )
 
@@ -32,7 +41,10 @@ class PackLibraryTest {
         val merged = library.requirePack("fruit-forest")
         assertEquals("Family Fruit", merged.nameEn)
         assertEquals(PackSource.Family, merged.source)
-        assertEquals(builtin.scene.storyZh, merged.scene.storyZh)
+        assertEquals(builtin.scene.bgPrimary, merged.scene.bgPrimary)
+        assertEquals(builtin.scene.bgAccent, merged.scene.bgAccent)
+        assertEquals("Family words follow a tiny lantern trail.", merged.scene.storyEn)
+        assertEquals("家庭自己的中文故事。", merged.scene.storyZh)
         assertEquals(listOf("mango"), merged.words.map { it.word })
     }
 

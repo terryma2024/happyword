@@ -38,6 +38,7 @@ struct LessonDraftReviewStore: Equatable {
             categoryId: categoryId,
             labelEn: source?.labelEn ?? categoryId,
             labelZh: categoryLabel,
+            storyEn: source?.storyEn,
             storyZh: source?.storyZh,
             words: rows.filter(\.keep).map {
                 LessonExtractedWord(word: $0.word, meaningZh: $0.meaningZh, difficulty: $0.difficulty)

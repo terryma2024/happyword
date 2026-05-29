@@ -9,7 +9,7 @@ from typing import Any
 from app.config import get_settings
 from app.models.family_pack_definition import FamilyPackDefinition  # noqa: TC001
 from app.models.lesson_import_draft import LessonImportDraft  # noqa: TC001
-from app.services import family_pack_service, lesson_service
+from app.services import family_pack_service, lesson_service, pack_story_service
 
 
 def _slug_word(word: str) -> str:
@@ -70,6 +70,41 @@ def extracted_words_to_rows(*, family_id: str, extracted: dict[str, Any]) -> lis
     return rows
 
 
+def _story_value(extracted: dict[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        value = extracted.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+async def apply_extracted_stories_to_definition(
+    *,
+    definition: FamilyPackDefinition,
+    extracted: dict[str, Any],
+) -> FamilyPackDefinition:
+    story_en = _story_value(extracted, "story_en", "storyEn")
+    story_zh = _story_value(extracted, "story_zh", "storyZh")
+    if story_en is None and story_zh is None:
+        return definition
+    scene = dict(definition.scene)
+    if story_en is not None:
+        scene["storyEn"] = story_en
+    if story_zh is not None:
+        scene["storyZh"] = story_zh
+    definition.scene = scene
+    definition.updated_at = datetime.now(tz=UTC)
+    await definition.save()
+    return definition
+
+
+def _has_extracted_story(extracted: dict[str, Any]) -> bool:
+    return (
+        _story_value(extracted, "story_en", "storyEn") is not None
+        and _story_value(extracted, "story_zh", "storyZh") is not None
+    )
+
+
 async def import_image_to_draft(
     *,
     definition: FamilyPackDefinition,
@@ -80,6 +115,14 @@ async def import_image_to_draft(
     source_image_url = await upload_family_pack_image(payload, mime)
     model_name, extracted = await extract_family_pack_image(payload, mime)
     rows = extracted_words_to_rows(family_id=definition.family_id, extracted=extracted)
+    if _has_extracted_story(extracted):
+        await apply_extracted_stories_to_definition(definition=definition, extracted=extracted)
+    else:
+        _story_model, story = await pack_story_service.generate_pack_story(
+            pack_name=definition.name,
+            words=rows,
+        )
+        await apply_extracted_stories_to_definition(definition=definition, extracted=story)
     draft, errors = await family_pack_service.batch_upsert_draft_words(
         definition=definition,
         rows=rows,

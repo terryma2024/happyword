@@ -33,6 +33,8 @@ async def test_import_image_writes_draft_only(
             {
                 "title": "Unit 1",
                 "category": {"id": "unit1", "labelZh": "第一单元"},
+                "story_en": "Fruit friends open a sunny word basket.",
+                "story_zh": "水果朋友打开一个阳光单词篮。",
                 "words": [
                     {
                         "word": "apple",
@@ -83,6 +85,111 @@ async def test_import_image_writes_draft_only(
     assert by_id[f"{prefix}apple"].get("exampleEn") == "I eat an apple."
     assert by_id[f"{prefix}apple"].get("exampleZh") == "我吃了一个苹果。"
     assert by_id[f"{prefix}banana"].get("exampleEn") == "This is a banana."
+
+
+@pytest.mark.asyncio
+async def test_import_image_updates_pack_scene_stories(
+    db: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import family_pack_import_service
+
+    async def fake_extract(payload: bytes, mime: str) -> tuple[str, dict[str, object]]:
+        return (
+            "fake-model",
+            {
+                "category_id": "school",
+                "story_en": "A bright castle opens its classroom gates.",
+                "story_zh": "明亮的城堡打开教室大门，邀请孩子们开始单词冒险。",
+                "words": [
+                    {
+                        "word": "book",
+                        "meaningZh": "书",
+                        "category": "school",
+                        "difficulty": 1,
+                    }
+                ],
+            },
+        )
+
+    monkeypatch.setattr(family_pack_import_service, "extract_family_pack_image", fake_extract)
+
+    async def fake_upload(payload: bytes, mime: str) -> str:
+        return "mock://family-pack-image.png"
+
+    monkeypatch.setattr(family_pack_import_service, "upload_family_pack_image", fake_upload)
+
+    ac, _family_id = await _make_parent_client(email="story-import@example.com")
+    async with ac:
+        created = await ac.post("/api/v1/family/_/family-packs", json={"name": "Story"})
+        pack_id = created.json()["pack_id"]
+        resp = await ac.post(
+            f"/api/v1/family/_/family-packs/{pack_id}/import-image",
+            files={"image": ("page.png", b"fake-png", "image/png")},
+        )
+        detail = await ac.get(f"/api/v1/family/_/family-packs/{pack_id}")
+
+    assert resp.status_code == 201, resp.text
+    scene = detail.json()["definition"]["scene"]
+    assert scene["storyEn"] == "A bright castle opens its classroom gates."
+    assert scene["storyZh"] == "明亮的城堡打开教室大门，邀请孩子们开始单词冒险。"
+
+
+@pytest.mark.asyncio
+async def test_import_image_generates_pack_scene_stories_when_missing(
+    db: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import family_pack_import_service, pack_story_service
+
+    async def fake_extract(payload: bytes, mime: str) -> tuple[str, dict[str, object]]:
+        return (
+            "fake-model",
+            {
+                "category_id": "school",
+                "words": [
+                    {
+                        "word": "desk",
+                        "meaningZh": "书桌",
+                        "category": "school",
+                        "difficulty": 1,
+                    }
+                ],
+            },
+        )
+
+    async def fake_upload(payload: bytes, mime: str) -> str:
+        return "mock://family-pack-image.png"
+
+    async def fake_generate_pack_story(
+        *, pack_name: str, words: list[dict[str, object]]
+    ) -> tuple[str, dict[str, str]]:
+        assert pack_name == "Needs Story"
+        assert words[0]["word"] == "desk"
+        return (
+            "fake-story-model",
+            {
+                "storyEn": "A tiny desk opens a secret school door.",
+                "storyZh": "小书桌打开一扇秘密的校园门。",
+            },
+        )
+
+    monkeypatch.setattr(family_pack_import_service, "extract_family_pack_image", fake_extract)
+    monkeypatch.setattr(family_pack_import_service, "upload_family_pack_image", fake_upload)
+    monkeypatch.setattr(pack_story_service, "generate_pack_story", fake_generate_pack_story)
+
+    ac, _family_id = await _make_parent_client(email="story-fallback@example.com")
+    async with ac:
+        created = await ac.post("/api/v1/family/_/family-packs", json={"name": "Needs Story"})
+        pack_id = created.json()["pack_id"]
+        resp = await ac.post(
+            f"/api/v1/family/_/family-packs/{pack_id}/import-image",
+            files={"image": ("page.png", b"fake-png", "image/png")},
+        )
+        detail = await ac.get(f"/api/v1/family/_/family-packs/{pack_id}")
+
+    assert resp.status_code == 201, resp.text
+    scene = detail.json()["definition"]["scene"]
+    assert scene["storyEn"] == "A tiny desk opens a secret school door."
+    assert scene["storyZh"] == "小书桌打开一扇秘密的校园门。"
 
 
 def test_extracted_words_to_rows_maps_example_fields(db: object) -> None:

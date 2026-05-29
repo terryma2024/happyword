@@ -7,6 +7,8 @@
     "bgPrimary": "#E8F0FE",
     "bgAccent": "#AECBFA",
     "bossName": "Clock Wizard",
+    "storyEn": "The school castle rings its bell and opens a word quest.",
+    "storyZh": "校园城堡敲响铃声，打开一场单词小冒险。",
     "bossCandidates": [
       7,
       8,

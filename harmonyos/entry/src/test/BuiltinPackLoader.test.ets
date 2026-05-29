@@ -11,6 +11,8 @@ const FRUIT_FOREST_JSON: string =
   '"labelZh":"水果森林",' +
   '"scene":{"bgPrimary":"#FFF6E0","bgAccent":"#FFD49A",' +
   '"bossName":"Orchard Sentinel","bossCandidates":[4,5,6],' +
+  '"storyEn":"Tiny lanterns glow as fruit friends guide each new word.",' +
+  '"storyZh":"果林里的小灯亮起，水果朋友带孩子认识新的单词。",' +
   '"monsterPlan":[{"kind":"normal","catalogIndex":0},' +
   '{"kind":"spelling","catalogIndex":1},' +
   '{"kind":"boss","catalogIndex":4}]},' +
@@ -75,6 +77,8 @@ export default function BuiltinPackLoaderTest() {
       expect(p.labelZh).assertEqual('水果森林');
       expect(p.words.length).assertEqual(3);
       expect(p.scene.bossName).assertEqual('Orchard Sentinel');
+      expect(p.scene.storyEn).assertEqual('Tiny lanterns glow as fruit friends guide each new word.');
+      expect(p.scene.storyZh).assertEqual('果林里的小灯亮起，水果朋友带孩子认识新的单词。');
       expect(p.scene.bossCandidates.length).assertEqual(3);
       expect(p.scene.monsterPlan.slots.length).assertEqual(3);
       expect(p.scene.monsterPlan.slots[2].kind).assertEqual(MonsterKind.Boss);

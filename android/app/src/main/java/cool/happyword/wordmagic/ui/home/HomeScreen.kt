@@ -172,9 +172,23 @@ import kotlinx.coroutines.withContext
 import cool.happyword.wordmagic.ui.components.HomeBadge
 import cool.happyword.wordmagic.ui.components.IconCircle
 import cool.happyword.wordmagic.ui.components.EmojiCircle
-import cool.happyword.wordmagic.ui.components.SmallPill
 import cool.happyword.wordmagic.ui.components.colorFromSceneHex
 import cool.happyword.wordmagic.R
+
+internal fun adventureCardStoryLine(pack: WordPack): String {
+    val story = pack.scene.storyEn.trim()
+    if (story.isNotEmpty()) return story
+    val low = pack.words.count { it.difficulty <= 2 }
+    val mid = pack.words.count { it.difficulty == 3 }
+    val high = pack.words.count { it.difficulty >= 4 }
+    val buckets = buildList {
+        if (low > 0) add("${low} 个低难度")
+        if (mid > 0) add("${mid} 个中难度")
+        if (high > 0) add("${high} 个高难度")
+    }
+    val prefix = "本词包 ${pack.words.size} 个单词"
+    return if (buckets.isEmpty()) prefix else "$prefix，其中 ${buckets.joinToString("，")}"
+}
 
 @Composable
 internal fun HomeScreen(
@@ -287,21 +301,14 @@ internal fun HomeScreen(
                             }
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SmallPill("常规")
-                        SmallPill("拼写")
-                        SmallPill("复习")
-                        SmallPill("精英")
-                        SmallPill("首领")
-                    }
                     Text(
-                        dailyStatus.label,
+                        adventureCardStoryLine(selectedPack),
                         fontSize = 18.sp,
                         color = Color(0xFF6A5843),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("AdventureCardDailyStatusLabel")
-                            .semantics { contentDescription = dailyStatus.label },
+                            .testTag("AdventureCardStoryLine")
+                            .semantics { contentDescription = adventureCardStoryLine(selectedPack) },
                         textAlign = TextAlign.Center,
                     )
                     Button(

@@ -39,6 +39,31 @@
   <p class="text-sm text-slate-600 bg-slate-50 border border-slate-100 rounded-md px-3 py-2">{{ definition.description }}</p>
   {% endif %}
 
+  <div class="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
+    <h2 class="font-semibold text-slate-900">词包 story</h2>
+    <form id="global-pack-story-generate-form" method="post" action="/admin/global-packs/packs/{{ pack_id }}/story/generate"></form>
+    <form id="global-pack-metadata-form" method="post" action="/admin/global-packs/packs/{{ pack_id }}/metadata" class="mt-4 grid gap-3">
+      <label class="block text-sm text-slate-700">名称
+        <input name="name" required maxlength="120" value="{{ definition.name }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      </label>
+      <label class="block text-sm text-slate-700">描述
+        <textarea name="description" rows="2" maxlength="200" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">{{ definition.description or '' }}</textarea>
+      </label>
+      <label class="block text-sm text-slate-700">Little story (English)
+        <span class="mt-1 flex gap-2">
+          <textarea name="storyEn" rows="2" maxlength="240" class="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm">{{ (definition.scene or {}).get('storyEn', '') }}</textarea>
+          <button id="global-pack-story-generate-submit" type="submit" form="global-pack-story-generate-form" class="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white text-lg hover:bg-slate-50" title="换一个 story">🔄</button>
+        </span>
+      </label>
+      <label class="block text-sm text-slate-700">小故事（中文）
+        <textarea name="storyZh" rows="2" maxlength="240" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">{{ (definition.scene or {}).get('storyZh', '') }}</textarea>
+      </label>
+      <div>
+        <button type="submit" class="rounded-md bg-slate-900 hover:bg-slate-800 text-white text-sm px-4 py-2">保存 story</button>
+      </div>
+    </form>
+  </div>
+
   <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
     <div class="px-4 py-3 border-b border-slate-100">
       <h2 class="font-semibold text-slate-900">草稿词条（CRUD）</h2>

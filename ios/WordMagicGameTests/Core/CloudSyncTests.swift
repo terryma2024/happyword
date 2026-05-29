@@ -612,6 +612,8 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(globalCache?.etag, "\"global-v1\"")
         XCTAssertEqual(globalCache?.packs.map(\.id), ["space-station"])
         XCTAssertEqual(globalCache?.packs.first?.source, .global)
+        XCTAssertEqual(globalCache?.packs.first?.scene.storyEn, "A rocket classroom opens its hatch for bright space words.")
+        XCTAssertEqual(globalCache?.packs.first?.scene.storyZh, "火箭教室打开舱门，带孩子认识闪亮的太空单词。")
 
         let preserved = try client.apply(status: 304, etag: nil, body: nil, source: .global, cached: globalCache)
         XCTAssertEqual(preserved, globalCache)
@@ -982,7 +984,9 @@ final class CloudSyncTests: XCTestCase {
             "scene": {
               "bgPrimary": "#102A43",
               "bgAccent": "#F0B429",
-              "bossName": "Star Wizard"
+              "bossName": "Star Wizard",
+              "storyEn": "A rocket classroom opens its hatch for bright space words.",
+              "storyZh": "火箭教室打开舱门，带孩子认识闪亮的太空单词。"
             },
             "version": 1,
             "schema_version": 1,

@@ -144,7 +144,16 @@ async def test_pack_detail_renders_draft_table(parent_client: tuple[AsyncClient,
 @pytest.mark.asyncio
 async def test_pack_detail_renders_title_edit_form(parent_client: tuple[AsyncClient, str]) -> None:
     ac, fid = parent_client
-    created = await ac.post(f"/api/v1/family/{fid}/family-packs", json={"name": "Old title"})
+    created = await ac.post(
+        f"/api/v1/family/{fid}/family-packs",
+        json={
+            "name": "Old title",
+            "scene": {
+                "storyEn": "A small story waits on the card.",
+                "storyZh": "卡片上等着一个小故事。",
+            },
+        },
+    )
     pack_id = created.json()["pack_id"]
 
     resp = await ac.get(f"/family/{fid}/packs/{pack_id}")
@@ -162,6 +171,14 @@ async def test_pack_detail_renders_title_edit_form(parent_client: tuple[AsyncCli
     assert title_input.get("data-original-value") == "Old title"
     assert submit is not None
     assert "hidden" in (submit.get("class") or [])
+    assert soup.find("textarea", attrs={"name": "storyEn"}) is not None
+    assert soup.find("textarea", attrs={"name": "storyZh"}) is not None
+    story_button = soup.find(id="pack-story-generate-submit")
+    assert story_button is not None
+    assert story_button.get_text(strip=True) == "🔄"
+    assert story_button.get("form") == "pack-story-generate-form"
+    assert "A small story waits on the card." in resp.text
+    assert "卡片上等着一个小故事。" in resp.text
     assert 'titleInput.addEventListener("input"' in resp.text
     assert "titleSubmit.classList.toggle" in resp.text
 
@@ -331,6 +348,79 @@ async def test_pack_title_form_updates_definition(parent_client: tuple[AsyncClie
     assert "Old title" not in detail.text
     api_detail = await ac.get(f"/api/v1/family/{fid}/family-packs/{pack_id}")
     assert api_detail.json()["definition"]["name"] == "New title"
+
+
+@pytest.mark.asyncio
+async def test_pack_metadata_form_updates_scene_stories(
+    parent_client: tuple[AsyncClient, str],
+) -> None:
+    ac, fid = parent_client
+    created = await ac.post(
+        f"/api/v1/family/{fid}/family-packs",
+        json={"name": "Story", "scene": {"bossName": "Keep Me"}},
+    )
+    pack_id = created.json()["pack_id"]
+
+    resp = await ac.post(
+        f"/family/{fid}/packs/{pack_id}/metadata",
+        data={
+            "name": "Story",
+            "storyEn": "A tiny lantern shows the way.",
+            "storyZh": "小灯笼照亮了前方的小路。",
+        },
+    )
+
+    assert resp.status_code in (303, 307)
+    api_detail = await ac.get(f"/api/v1/family/{fid}/family-packs/{pack_id}")
+    scene = api_detail.json()["definition"]["scene"]
+    assert scene["bossName"] == "Keep Me"
+    assert scene["storyEn"] == "A tiny lantern shows the way."
+    assert scene["storyZh"] == "小灯笼照亮了前方的小路。"
+
+
+@pytest.mark.asyncio
+async def test_pack_story_generate_form_updates_scene_stories(
+    parent_client: tuple[AsyncClient, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import pack_story_service
+
+    async def fake_generate_pack_story(
+        *, pack_name: str, words: list[dict[str, object]]
+    ) -> tuple[str, dict[str, str]]:
+        assert pack_name == "Generate Story"
+        assert words[0]["word"] == "apple"
+        return (
+            "fake-story-model",
+            {
+                "storyEn": "Fruit sparks dance beside a brave apple.",
+                "storyZh": "水果火花陪着勇敢的苹果跳舞。",
+            },
+        )
+
+    monkeypatch.setattr(pack_story_service, "generate_pack_story", fake_generate_pack_story)
+    ac, fid = parent_client
+    created = await ac.post(f"/api/v1/family/{fid}/family-packs", json={"name": "Generate Story"})
+    pack_id = created.json()["pack_id"]
+    prefix = f"fam-{fid.removeprefix('fam-')[:8]}-"
+    await ac.put(
+        f"/api/v1/family/{fid}/family-packs/{pack_id}/draft/words/{prefix}apple",
+        json={
+            "source": "custom",
+            "word": "apple",
+            "meaning_zh": "苹果",
+            "category": "fruit",
+            "difficulty": 1,
+        },
+    )
+
+    resp = await ac.post(f"/family/{fid}/packs/{pack_id}/story/generate")
+
+    assert resp.status_code in (303, 307)
+    assert resp.headers["location"] == f"/family/{fid}/packs/{pack_id}?title_ok=1"
+    api_detail = await ac.get(f"/api/v1/family/{fid}/family-packs/{pack_id}")
+    scene = api_detail.json()["definition"]["scene"]
+    assert scene["storyEn"] == "Fruit sparks dance beside a brave apple."
+    assert scene["storyZh"] == "水果火花陪着勇敢的苹果跳舞。"
 
 
 @pytest.mark.asyncio

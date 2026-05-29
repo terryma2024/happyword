@@ -49,6 +49,7 @@ export default function PackLibraryTest() {
       builtinScene.bgPrimary = '#FFF6E0';
       builtinScene.bgAccent = '#FFD49A';
       builtinScene.bossName = 'Orchard Sentinel';
+      builtinScene.storyEn = 'A builtin story waits under the trees.';
       const builtin: Pack = mkPack('fruit-forest', 'builtin', 1, builtinScene);
       const globalNoScene: Pack = mkPack('fruit-forest', 'global', 2);
       lib.setBuiltins([builtin]);
@@ -66,6 +67,25 @@ export default function PackLibraryTest() {
       expect(g.source).assertEqual('global');
       expect(g.scene.bgPrimary).assertEqual('#FFF6E0');
       expect(g.scene.bossName).assertEqual('Orchard Sentinel');
+      expect(g.scene.storyEn).assertEqual('A builtin story waits under the trees.');
+    });
+
+    it('pack story survives when builtin scene fills missing battle styling', 0, () => {
+      const lib: PackLibrary = new PackLibrary();
+      const builtinScene: SceneMetadata = new SceneMetadata();
+      builtinScene.bgPrimary = '#FFF6E0';
+      builtinScene.bgAccent = '#FFD49A';
+      builtinScene.bossName = 'Orchard Sentinel';
+      const builtin: Pack = mkPack('fruit-forest', 'builtin', 1, builtinScene);
+      const storyOnlyScene: SceneMetadata = new SceneMetadata();
+      storyOnlyScene.storyEn = 'A global little story leads the path.';
+      const globalWithStory: Pack = mkPack('fruit-forest', 'global', 2, storyOnlyScene);
+      lib.setBuiltins([builtin]);
+      lib.setGlobals([globalWithStory]);
+      const got: Pack = lib.allPacks()[0];
+      expect(got.scene.bgPrimary).assertEqual('#FFF6E0');
+      expect(got.scene.bossName).assertEqual('Orchard Sentinel');
+      expect(got.scene.storyEn).assertEqual('A global little story leads the path.');
     });
 
     it('family pack with no same-id builtin falls back to hashed default palette', 0, () => {

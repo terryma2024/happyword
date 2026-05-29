@@ -36,12 +36,25 @@ class PackLibrary private constructor(
             val merged = linkedMapOf<String, WordPack>()
             builtin.forEach { merged[it.id] = it }
             global.forEach { pack ->
-                merged[pack.id] = pack.copy(scene = builtinScenes[pack.id] ?: pack.scene)
+                merged[pack.id] = pack.copy(scene = mergeSceneWithFallback(pack.scene, builtinScenes[pack.id]))
             }
             family.forEach { pack ->
-                merged[pack.id] = pack.copy(scene = builtinScenes[pack.id] ?: pack.scene)
+                merged[pack.id] = pack.copy(scene = mergeSceneWithFallback(pack.scene, builtinScenes[pack.id]))
             }
             return PackLibrary(merged)
+        }
+
+        private fun mergeSceneWithFallback(own: SceneMetadata, fallback: SceneMetadata?): SceneMetadata {
+            if (fallback == null) return own
+            return SceneMetadata(
+                bgPrimary = own.bgPrimary.takeUnless { it == "#FFFFFF" } ?: fallback.bgPrimary,
+                bgAccent = own.bgAccent.takeUnless { it == "#FFFFFF" } ?: fallback.bgAccent,
+                bossName = own.bossName.takeIf { it.isNotBlank() } ?: fallback.bossName,
+                monsterPlan = own.monsterPlan.takeIf { it.isNotEmpty() } ?: fallback.monsterPlan,
+                bossCandidates = own.bossCandidates.takeIf { it.isNotEmpty() } ?: fallback.bossCandidates,
+                storyZh = own.storyZh.takeIf { it.isNotBlank() } ?: fallback.storyZh,
+                storyEn = own.storyEn.takeIf { it.isNotBlank() } ?: fallback.storyEn,
+            )
         }
     }
 }

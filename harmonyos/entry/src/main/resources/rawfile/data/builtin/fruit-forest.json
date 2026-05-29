@@ -7,6 +7,8 @@
     "bgPrimary": "#FFF6E0",
     "bgAccent": "#FFD49A",
     "bossName": "Orchard Sentinel",
+    "storyEn": "Tiny lanterns glow as fruit friends guide each new word.",
+    "storyZh": "果林里的小灯亮起，水果朋友带孩子认识新的单词。",
     "bossCandidates": [
       4,
       5,

@@ -23,10 +23,9 @@ import {
   getDailyLearningStateService,
 } from '../services/DailyLearningStateService';
 import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
-import { AdventureRegion, TodaySessionPlan, MonsterSlot } from '../models/AdventureRegion';
+import { AdventureRegion, TodaySessionPlan } from '../models/AdventureRegion';
 import { Pack } from '../models/Pack';
 import { WordEntry } from '../models/WordEntry';
-import { describeMonsterKind } from '../services/TodayAdventureBuilder';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import {
   anyWordSupportsQuestionTypes,
@@ -320,18 +319,40 @@ struct HomePage {
     return region.displayName;
   }
 
-  /**
-   * Prefer `Pack.scene.storyZh` from the active chip whose id matches
-   * `region.id` (global / family packs hydrated from server JSON).
-   */
+  private packSummary(pack: Pack): string {
+    let low: number = 0;
+    let mid: number = 0;
+    let high: number = 0;
+    for (let i = 0; i < pack.words.length; i++) {
+      const difficulty: number = pack.words[i].difficulty;
+      if (difficulty <= 2) {
+        low++;
+      } else if (difficulty === 3) {
+        mid++;
+      } else {
+        high++;
+      }
+    }
+    const parts: string[] = [];
+    if (low > 0) parts.push(`${low} 个低难度`);
+    if (mid > 0) parts.push(`${mid} 个中难度`);
+    if (high > 0) parts.push(`${high} 个高难度`);
+    if (parts.length === 0) {
+      return `本词包 ${pack.words.length} 个单词`;
+    }
+    return `本词包 ${pack.words.length} 个单词，其中 ${parts.join('，')}`;
+  }
+
+  /** Prefer the English little story from the active pack; fall back to a compact summary. */
   private regionStory(region: AdventureRegion): string {
     for (let i = 0; i < this.chipPacks.length; i++) {
       if (this.chipPacks[i].id === region.id) {
-        const zh: string | undefined = this.chipPacks[i].scene.storyZh;
-        if (zh !== undefined && zh.length > 0) {
-          return zh;
+        const pack: Pack = this.chipPacks[i];
+        const en: string | undefined = pack.scene.storyEn;
+        if (en !== undefined && en.length > 0) {
+          return en;
         }
-        break;
+        return this.packSummary(pack);
       }
     }
     return '今天的冒险包含 5 关卡，含拼写、复习与首领关';
@@ -850,18 +871,6 @@ struct HomePage {
       .width('100%');
 
       this.regionPicker();
-
-      Row({ space: 8 }) {
-        ForEach(this.todayRegion.monsterPlan.slots, (slot: MonsterSlot): void => {
-          Text(describeMonsterKind(slot.kind))
-            .fontSize(13)
-            .fontColor('#3F2F1A')
-            .backgroundColor('#FFE7B5')
-            .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-            .borderRadius(10);
-        }, (slot: MonsterSlot, index: number): string => `slot-${index}-${slot.kind}`);
-      }
-      .width('100%');
 
       Text(this.packLibraryVersion >= 0 ? this.regionStory(this.todayRegion) : '今天的冒险包含 5 关卡，含拼写、复习与首领关')
         .id('AdventureCardStory')

@@ -70,6 +70,8 @@ async def get_child_packs_latest(
             FamilyPackEntryInMerged(
                 pack_id=s.pack_id,
                 name=s.name,
+                description=s.description,
+                scene=s.scene,
                 version=s.version,
                 schema_version=s.schema_version,
                 words=s.words,
@@ -123,6 +125,8 @@ async def get_merged_family_packs(
             FamilyPackEntryInMerged(
                 pack_id=s.pack_id,
                 name=s.name,
+                description=s.description,
+                scene=s.scene,
                 version=s.version,
                 schema_version=s.schema_version,
                 words=s.words,

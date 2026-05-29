@@ -43,6 +43,8 @@
               {% endif %}
               <button type="button" onclick="document.getElementById('rollback-{{ d.pack_id }}').showModal()"
                       class="text-xs bg-amber-700 text-white px-2 py-1 rounded">回滚版本</button>
+              <button type="button" onclick="document.getElementById('story-{{ d.pack_id }}').showModal()"
+                      class="text-xs bg-slate-700 text-white px-2 py-1 rounded">编辑 story</button>
               <button type="button" onclick="document.getElementById('copy-global-{{ d.pack_id }}').showModal()"
                       class="text-xs bg-sky-700 text-white px-2 py-1 rounded">复制为全局</button>
               <button type="button" onclick="document.getElementById('copy-family-{{ d.pack_id }}').showModal()"
@@ -50,6 +52,35 @@
               <button type="button" onclick="document.getElementById('delete-{{ d.pack_id }}').showModal()"
                       class="text-xs bg-red-700 text-white px-2 py-1 rounded">删除</button>
             </div>
+
+            <form id="family-pack-story-generate-{{ d.pack_id }}" method="post" action="/admin/family-packs/{{ d.pack_id }}/story/generate"></form>
+            <dialog id="story-{{ d.pack_id }}" class="rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40 w-full max-w-lg">
+              <div class="p-4 space-y-4">
+                <h2 class="text-base font-semibold text-slate-900">编辑 story</h2>
+                <p class="text-xs text-slate-500 font-mono">{{ d.pack_id }}</p>
+                <form method="post" action="/admin/family-packs/{{ d.pack_id }}/metadata" class="space-y-3">
+                  <label class="block text-sm text-slate-700">名称
+                    <input name="name" required maxlength="120" value="{{ d.name }}" class="mt-1 w-full text-sm rounded border border-slate-300 px-3 py-2" />
+                  </label>
+                  <label class="block text-sm text-slate-700">描述
+                    <textarea name="description" maxlength="200" rows="2" class="mt-1 w-full text-sm rounded border border-slate-300 px-3 py-2">{{ d.description or '' }}</textarea>
+                  </label>
+                  <label class="block text-sm text-slate-700">Little story (English)
+                    <span class="mt-1 flex gap-2">
+                      <textarea name="storyEn" maxlength="240" rows="2" class="min-w-0 flex-1 text-sm rounded border border-slate-300 px-3 py-2">{{ (d.scene or {}).get('storyEn', '') }}</textarea>
+                      <button type="submit" form="family-pack-story-generate-{{ d.pack_id }}" class="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white text-lg hover:bg-slate-50" title="换一个 story">🔄</button>
+                    </span>
+                  </label>
+                  <label class="block text-sm text-slate-700">小故事（中文）
+                    <textarea name="storyZh" maxlength="240" rows="2" class="mt-1 w-full text-sm rounded border border-slate-300 px-3 py-2">{{ (d.scene or {}).get('storyZh', '') }}</textarea>
+                  </label>
+                  <div class="flex justify-end gap-2">
+                    <button type="button" onclick="this.closest('dialog').close()" class="text-sm border border-slate-200 px-3 py-1.5 rounded">取消</button>
+                    <button type="submit" class="text-sm bg-slate-900 text-white px-3 py-1.5 rounded">保存 story</button>
+                  </div>
+                </form>
+              </div>
+            </dialog>
 
             {% if d.state.value == 'archived' %}
             <dialog id="unarchive-{{ d.pack_id }}" class="rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40 w-full max-w-md">

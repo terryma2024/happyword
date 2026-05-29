@@ -5,9 +5,7 @@ import cool.happyword.wordmagic.core.CloudCredentials
 import cool.happyword.wordmagic.core.CloudCredentialsStore
 import cool.happyword.wordmagic.core.DeviceIdProvider
 import cool.happyword.wordmagic.core.PackSource
-import cool.happyword.wordmagic.core.SceneMetadata
 import cool.happyword.wordmagic.core.StringKeyValueStore
-import cool.happyword.wordmagic.core.WordEntry
 import cool.happyword.wordmagic.core.WordPack
 import java.io.File
 
@@ -30,16 +28,16 @@ class AndroidCloudRepositories(context: Context) {
         credentialsStore.clear()
     }
 
-    fun loadGlobalPacks(): List<WordPack> = decodePacks(prefs.getString("globalPacks", "").orEmpty(), PackSource.Global)
+    fun loadGlobalPacks(): List<WordPack> = PackCacheCodec.decode(prefs.getString("globalPacks", "").orEmpty(), PackSource.Global)
 
-    fun loadFamilyPacks(): List<WordPack> = decodePacks(prefs.getString("familyPacks", "").orEmpty(), PackSource.Family)
+    fun loadFamilyPacks(): List<WordPack> = PackCacheCodec.decode(prefs.getString("familyPacks", "").orEmpty(), PackSource.Family)
 
     fun saveGlobalPacks(packs: List<WordPack>) {
-        prefs.edit().putString("globalPacks", encodePacks(packs)).apply()
+        prefs.edit().putString("globalPacks", PackCacheCodec.encode(packs)).apply()
     }
 
     fun saveFamilyPacks(packs: List<WordPack>) {
-        prefs.edit().putString("familyPacks", encodePacks(packs)).apply()
+        prefs.edit().putString("familyPacks", PackCacheCodec.encode(packs)).apply()
     }
 
     fun loadSyncStatus(): String = prefs.getString("syncStatus", "尚未同步").orEmpty()
@@ -72,41 +70,6 @@ class AndroidCloudRepositories(context: Context) {
             .apply()
     }
 
-    private fun encodePacks(packs: List<WordPack>): String {
-        return packs.joinToString("\n") { pack ->
-            val words = pack.words.joinToString(";") { "${it.id},${it.word},${it.meaning}" }
-            listOf(pack.id, pack.nameEn, pack.nameZh, pack.source.name, pack.version.toString(), (pack.publishedAtMs ?: 0L).toString(), pack.scene.storyZh, words).joinToString("\t")
-        }
-    }
-
-    private fun decodePacks(raw: String, fallbackSource: PackSource): List<WordPack> {
-        return raw.lineSequence().mapNotNull { line ->
-            val parts = line.split('\t')
-            if (parts.size != 8) return@mapNotNull null
-            val words = parts[7].split(';').mapNotNull { token ->
-                val wordParts = token.split(',')
-                if (wordParts.size == 3) WordEntry(wordParts[0], wordParts[1], wordParts[2]) else null
-            }
-            if (words.isEmpty()) return@mapNotNull null
-            WordPack(
-                id = parts[0],
-                nameEn = parts[1],
-                nameZh = parts[2],
-                source = runCatching { PackSource.valueOf(parts[3]) }.getOrDefault(fallbackSource),
-                version = parts[4].toIntOrNull() ?: 1,
-                publishedAtMs = parts[5].toLongOrNull()?.takeIf { it > 0L },
-                scene = SceneMetadata(
-                    bgPrimary = "#FFF7E6",
-                    bgAccent = "#FFD2A6",
-                    bossName = "${parts[1]} Boss",
-                    monsterPlan = listOf("slime", "zombie", "dragon"),
-                    bossCandidates = listOf("dragon"),
-                    storyZh = parts[6],
-                ),
-                words = words,
-            )
-        }.toList()
-    }
 }
 
 private class SharedPrefsStringStore(

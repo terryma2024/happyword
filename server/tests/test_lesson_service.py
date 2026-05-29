@@ -64,6 +64,16 @@ def test_lesson_system_prompt_requests_example_en() -> None:
     )
 
 
+def test_lesson_system_prompt_requests_bilingual_pack_story() -> None:
+    """Pack imports should produce both canonical HomePage story keys."""
+    prompt = lesson_service._LESSON_SYSTEM_PROMPT
+
+    assert "story_en" in prompt
+    assert "story_zh" in prompt
+    assert "storyEn" in prompt
+    assert "storyZh" in prompt
+
+
 def test_lesson_system_prompt_includes_multi_word_phrases() -> None:
     """Textbook vocabulary lists often include fixed expressions, not just words."""
     prompt = lesson_service._LESSON_SYSTEM_PROMPT.lower()

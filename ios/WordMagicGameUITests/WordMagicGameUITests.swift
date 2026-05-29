@@ -35,7 +35,7 @@ final class WordMagicGameUITests: XCTestCase {
 
         assertLandscape(app)
         XCTAssertTrue(app.staticTexts["Small Magician Word Adventure"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["今天的冒险包含 10 关卡，含拼写、复习与首领关"].exists)
+        XCTAssertTrue(app.staticTexts["Tiny lanterns glow as fruit friends guide each new word."].exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "小明测试")).firstMatch.exists)
     }
 

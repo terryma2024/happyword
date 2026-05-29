@@ -559,6 +559,28 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "storyEn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storyen"
+          },
+          "storyZh": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storyzh"
           }
         },
         "required": [
@@ -1772,6 +1794,11 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "scene": {
+            "additionalProperties": true,
+            "title": "Scene",
+            "type": "object"
           }
         },
         "required": [
@@ -1825,6 +1852,11 @@
           "pack_id": {
             "title": "Pack Id",
             "type": "string"
+          },
+          "scene": {
+            "additionalProperties": true,
+            "title": "Scene",
+            "type": "object"
           },
           "state": {
             "enum": [
@@ -2480,6 +2512,18 @@
               }
             ],
             "title": "Name"
+          },
+          "scene": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene"
           }
         },
         "title": "FamilyPackPatchIn",
@@ -14473,6 +14517,59 @@
           }
         },
         "summary": "Rollback Pack Page",
+        "tags": [
+          "parent-packs-html"
+        ]
+      }
+    },
+    "/family/{family_id}/packs/{pack_id}/story/generate": {
+      "post": {
+        "operationId": "generate_pack_story_page_family__family_id__packs__pack_id__story_generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Pack Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Family Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Pack Story Page",
         "tags": [
           "parent-packs-html"
         ]
