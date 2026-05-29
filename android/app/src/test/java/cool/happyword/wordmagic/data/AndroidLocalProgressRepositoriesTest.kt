@@ -3,6 +3,7 @@ package cool.happyword.wordmagic.data
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.PackLibrary
 import cool.happyword.wordmagic.core.PackSelectionStore
+import cool.happyword.wordmagic.core.SpellbookRewardSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -43,5 +44,18 @@ class AndroidLocalProgressRepositoriesTest {
 
         assertEquals("fruit-forest", resolved)
         assertEquals("fruit-forest", repository.loadSelectedPackId())
+    }
+
+    @Test
+    fun spellbookRewardClaimsPersistAcrossRepositoryInstances() {
+        val prefs = FakeSharedPreferences()
+        val repository = AndroidLocalProgressRepositories(prefs)
+
+        repository.saveSpellbookRewards(SpellbookRewardSnapshot(claimedPackIds = listOf("school-castle", "fruit-forest")))
+
+        assertEquals(
+            listOf("fruit-forest", "school-castle"),
+            AndroidLocalProgressRepositories(prefs).loadSpellbookRewards().claimedPackIds,
+        )
     }
 }

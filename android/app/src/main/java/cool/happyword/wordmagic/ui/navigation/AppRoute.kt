@@ -12,6 +12,7 @@ internal enum class AppRoute {
     Wishlist,
     RedemptionHistory,
     MonsterCodex,
+    Spellbook,
     TodayPlan,
     LearningReport,
     CheckInCalendar,

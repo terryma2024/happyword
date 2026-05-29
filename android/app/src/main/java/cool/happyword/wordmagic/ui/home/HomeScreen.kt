@@ -157,6 +157,7 @@ import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.PackManagerScreen
 import cool.happyword.wordmagic.ui.RedemptionHistoryScreen
 import cool.happyword.wordmagic.ui.ScanBindingScreen
+import cool.happyword.wordmagic.ui.spellbookCoverDrawableId
 import cool.happyword.wordmagic.ui.TodayPlanScreen
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
@@ -235,6 +236,7 @@ internal fun HomeScreen(
     onPackManager: () -> Unit,
     onWishlist: () -> Unit,
     onMonsterCodex: () -> Unit,
+    onSpellbook: () -> Unit,
     onTodayPlan: () -> Unit,
     onConfig: () -> Unit,
 ) {
@@ -295,6 +297,18 @@ internal fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(spellbookCoverDrawableId(selectedPack.id)),
+                            contentDescription = selectedPack.nameZh,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color.White.copy(alpha = 0.62f))
+                                .padding(3.dp)
+                                .testTag("HomePackSpellbookCover"),
+                            contentScale = ContentScale.Fit,
+                        )
+                        Spacer(Modifier.width(10.dp))
                         Text(
                             selectedPack.nameEn,
                             modifier = Modifier.weight(1f).testTag("AdventureCardTitle"),
@@ -451,6 +465,7 @@ internal fun HomeScreen(
                 }
             }
             IconCircle(R.drawable.icon_codex, "图鉴", Modifier.testTag("HomeCodexButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onMonsterCodex)
+            IconCircle(R.drawable.icon_spellbook, "魔法书", Modifier.testTag("HomeSpellbookButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onSpellbook)
             EmojiCircle("📋", "今日计划", Modifier.testTag("HomePlanButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onTodayPlan)
             IconCircle(R.drawable.icon_wishlist, "愿望", Modifier.testTag("HomeWishlistButton"), backgroundColor = Color(0xFFFCEAEA), onClick = onWishlist)
             IconCircle(R.drawable.icon_gear, "设置", Modifier.testTag("HomeConfigButton"), backgroundColor = Color(0xFFEAF2F8), onClick = onConfig)

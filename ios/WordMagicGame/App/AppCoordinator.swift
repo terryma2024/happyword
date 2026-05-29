@@ -11,6 +11,7 @@ enum AppRoute: Equatable {
     case parentAdmin
     case lessonReview
     case monsterCodex
+    case spellbook
     case packManager
     case wishlist
     case redemptionHistory
@@ -64,6 +65,7 @@ final class AppCoordinator: ObservableObject {
     let parentAdminUsesLocalMock: Bool
     let wishlistStore: WishlistStore
     let redemptionHistoryStore: RedemptionHistoryStore
+    let spellbookRewardStore: SpellbookRewardStore
     let learningRecorder: LearningRecorder
     let pronunciationService: PronunciationSpeaking
     let cloudCredentialsStore: CloudCredentialsStore
@@ -116,6 +118,7 @@ final class AppCoordinator: ObservableObject {
         coinAccount: CoinAccount? = nil,
         wishlistStore: WishlistStore? = nil,
         redemptionHistoryStore: RedemptionHistoryStore? = nil,
+        spellbookRewardStore: SpellbookRewardStore? = nil,
         learningRecorder: LearningRecorder? = nil,
         checkInSyncClient: any CheckInSyncClienting = CloudClientFactory.checkInSyncClient(),
         unbindClient: any DeviceUnbindClienting = CloudClientFactory.unbindClient(),
@@ -138,6 +141,7 @@ final class AppCoordinator: ObservableObject {
         self.coinAccount = coinAccount ?? CoinAccount(defaults: configStore.backingDefaults)
         self.wishlistStore = wishlistStore ?? WishlistStore(defaults: configStore.backingDefaults)
         self.redemptionHistoryStore = redemptionHistoryStore ?? RedemptionHistoryStore(defaults: configStore.backingDefaults)
+        self.spellbookRewardStore = spellbookRewardStore ?? SpellbookRewardStore(defaults: configStore.backingDefaults)
         self.learningRecorder = learningRecorder ?? LearningRecorder(defaults: configStore.backingDefaults)
         self.checkInSyncClient = checkInSyncClient
         self.unbindClient = unbindClient
@@ -531,6 +535,10 @@ final class AppCoordinator: ObservableObject {
 
     func openMonsterCodex() {
         route = .monsterCodex
+    }
+
+    func openSpellbook() {
+        route = .spellbook
     }
 
     func openWishlist() {

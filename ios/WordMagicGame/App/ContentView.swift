@@ -34,6 +34,8 @@ struct ContentView: View {
                 LessonDraftReviewView(coordinator: coordinator)
             case .monsterCodex:
                 MonsterCodexView(coordinator: coordinator)
+            case .spellbook:
+                SpellbookView(coordinator: coordinator)
             case .packManager:
                 PackManagerView(coordinator: coordinator)
             case .wishlist:

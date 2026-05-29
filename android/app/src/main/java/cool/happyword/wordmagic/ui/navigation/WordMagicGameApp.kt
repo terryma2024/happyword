@@ -176,6 +176,7 @@ import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.PackManagerScreen
 import cool.happyword.wordmagic.ui.RedemptionHistoryScreen
 import cool.happyword.wordmagic.ui.ScanBindingScreen
+import cool.happyword.wordmagic.ui.SpellbookScreen
 import cool.happyword.wordmagic.ui.decodeQrPayloadFromUri
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -497,6 +498,7 @@ fun WordMagicGameApp() {
     var coinAccount by remember { mutableStateOf(repositories.loadCoinAccount()) }
     var checkIns by remember { mutableStateOf(repositories.loadCheckIns()) }
     var learningRecorder by remember { mutableStateOf(repositories.loadLearningRecorder()) }
+    var spellbookRewards by remember { mutableStateOf(repositories.loadSpellbookRewards()) }
     var dailyLearningState by remember { mutableStateOf(repositories.loadDailyLearningState()) }
     var wishlist by remember { mutableStateOf(repositories.loadWishlist()) }
     var redemptionHistory by remember { mutableStateOf(repositories.loadRedemptionHistory()) }
@@ -958,6 +960,7 @@ fun WordMagicGameApp() {
                     onPackManager = { route = AppRoute.PackManager },
                     onWishlist = { route = AppRoute.Wishlist },
                     onMonsterCodex = { route = AppRoute.MonsterCodex },
+                    onSpellbook = { route = AppRoute.Spellbook },
                     onTodayPlan = { route = AppRoute.TodayPlan },
                     onConfig = { route = AppRoute.Config },
                 )
@@ -1344,6 +1347,22 @@ fun WordMagicGameApp() {
                     catalog = monsterCatalog,
                     onPrevious = { monsterCatalog = monsterCatalog.previous() },
                     onNext = { monsterCatalog = monsterCatalog.next() },
+                    onBack = { route = AppRoute.Home },
+                )
+                AppRoute.Spellbook -> SpellbookScreen(
+                    packs = packLibrary.allPacks(),
+                    stats = learningRecorder.statsSnapshot(),
+                    rewards = spellbookRewards,
+                    coinAccount = coinAccount,
+                    onClaimReward = { pack ->
+                        val result = spellbookRewards.claim(pack.id, coinAccount)
+                        if (result.claimed) {
+                            spellbookRewards = result.snapshot
+                            coinAccount = result.account
+                            repositories.saveSpellbookRewards(spellbookRewards)
+                            repositories.saveCoinAccount(coinAccount)
+                        }
+                    },
                     onBack = { route = AppRoute.Home },
                 )
                 AppRoute.TodayPlan -> TodayPlanScreen(

@@ -253,13 +253,15 @@ struct SpellbookPage {
             .padding({ left: 10, right: 10, top: 6, bottom: 6 })
             .backgroundColor('#D1FAE5')
             .borderRadius(14);
-        } else if (this.progress(pack).complete) {
-          Button(`兑换 ${SPELLBOOK_REWARD_COINS}`)
+        } else {
+          Button(`+${SPELLBOOK_REWARD_COINS}`)
             .id(`SpellbookPackRewardButton_${pack.id}`)
             .height(34)
+            .width(78)
             .fontSize(13)
-            .backgroundColor('#E63946')
-            .fontColor('#FFFFFF')
+            .backgroundColor(this.progress(pack).complete ? '#E63946' : '#E5E7EB')
+            .fontColor(this.progress(pack).complete ? '#FFFFFF' : '#9CA3AF')
+            .enabled(this.progress(pack).complete)
             .onClick((): void => this.claimReward(pack));
         }
       }
