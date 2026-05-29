@@ -22,6 +22,7 @@ class FamilyPackCreateIn(BaseModel):
 
     name: Annotated[str, Field(min_length=1, max_length=32)]
     description: Annotated[str | None, Field(default=None, max_length=200)]
+    scene: dict[str, Any] = Field(default_factory=dict)
 
 
 class FamilyPackPatchIn(BaseModel):
@@ -29,6 +30,7 @@ class FamilyPackPatchIn(BaseModel):
 
     name: Annotated[str | None, Field(default=None, min_length=1, max_length=32)]
     description: Annotated[str | None, Field(default=None, max_length=200)]
+    scene: dict[str, Any] | None = None
 
 
 class FamilyPackPublishIn(BaseModel):
@@ -73,6 +75,7 @@ class FamilyPackDefinitionOut(BaseModel):
     family_id: str
     name: str
     description: str | None
+    scene: dict[str, Any] = Field(default_factory=dict)
     state: Literal["active", "archived"]
     created_at: datetime
     updated_at: datetime
@@ -146,6 +149,8 @@ class FamilyPackVersionListOut(BaseModel):
 class FamilyPackEntryInMerged(BaseModel):
     pack_id: str
     name: str
+    description: str | None = None
+    scene: dict[str, Any] = Field(default_factory=dict)
     version: int
     schema_version: int
     words: list[dict[str, Any]]

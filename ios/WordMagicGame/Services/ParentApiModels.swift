@@ -40,6 +40,7 @@ struct LessonApprovedCategory: Codable, Equatable {
     var id: String
     var labelEn: String
     var labelZh: String
+    var storyEn: String?
     var storyZh: String?
     var source: String?
     var sourceImageUrl: String?
@@ -95,6 +96,7 @@ struct LessonExtracted: Codable, Equatable {
     var categoryId: String
     var labelEn: String
     var labelZh: String
+    var storyEn: String?
     var storyZh: String?
     var words: [LessonExtractedWord]
 }
@@ -138,6 +140,7 @@ extension LessonDraft {
             categoryId: "magic-school",
             labelEn: "Magic School",
             labelZh: "魔法学校",
+            storyEn: "A tiny school door opens for today's magic words.",
             storyZh: "今天学习魔法学校里的新单词。",
             words: [
                 LessonExtractedWord(word: "wand", meaningZh: "魔杖", difficulty: 1),
@@ -177,6 +180,7 @@ struct LessonEditPayload: Equatable {
     var categoryId: String
     var labelEn: String
     var labelZh: String
+    var storyEn: String?
     var storyZh: String?
     var words: [LessonExtractedWord]
 }
@@ -236,6 +240,7 @@ struct MockParentApiClient: ParentApiClient {
                 id: "magic-school",
                 labelEn: "Magic School",
                 labelZh: "魔法学校",
+                storyEn: nil,
                 storyZh: nil,
                 source: "lesson-import",
                 sourceImageUrl: "https://example.test/lesson.png",

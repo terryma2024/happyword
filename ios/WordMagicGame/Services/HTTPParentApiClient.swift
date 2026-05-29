@@ -183,6 +183,7 @@ private struct LessonPatchExtracted: Encodable {
     var categoryId: String
     var labelEn: String
     var labelZh: String
+    var storyEn: String?
     var storyZh: String?
     var words: [LessonPatchWord]
 
@@ -190,6 +191,7 @@ private struct LessonPatchExtracted: Encodable {
         categoryId = payload.categoryId
         labelEn = payload.labelEn
         labelZh = payload.labelZh
+        storyEn = payload.storyEn
         storyZh = payload.storyZh
         words = payload.words.map { LessonPatchWord(word: $0.word, meaningZh: $0.meaningZh, difficulty: $0.difficulty) }
     }
@@ -198,6 +200,7 @@ private struct LessonPatchExtracted: Encodable {
         case categoryId = "category_id"
         case labelEn = "label_en"
         case labelZh = "label_zh"
+        case storyEn = "story_en"
         case storyZh = "story_zh"
         case words
     }

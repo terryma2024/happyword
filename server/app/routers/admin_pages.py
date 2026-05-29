@@ -14,10 +14,12 @@ from fastapi.templating import Jinja2Templates
 from app.config import get_settings
 from app.deps import clear_admin_session_cookie, set_admin_session_cookie
 from app.models.device_binding import DeviceBinding
+from app.models.family_pack_definition import FamilyPackDefinition
 from app.models.feedback import UserFeedback
 from app.models.user import User, UserRole
 from app.services import admin_console_service as acs
-from app.services import feedback_service
+from app.services import family_pack_service as fps
+from app.services import feedback_service, pack_story_service
 from app.services import global_pack_service as gps
 from app.services.admin_audit_service import record_admin_action
 from app.services.admin_console_overview_service import (
@@ -114,6 +116,8 @@ def _flash_map_family(request: Request) -> tuple[str | None, str | None]:
         "deleted": "已删除家庭词包。",
         "copied_global": "已复制家庭词包为新的全局词包草稿。",
         "copied_family": "已复制家庭词包给目标家庭。",
+        "story_saved": "已保存词包 story。",
+        "story_generated": "已生成新的词包 story。",
     }
     err = request.query_params.get("flash_err")
     return (msgs.get(ok) if ok else None, err)
@@ -133,6 +137,8 @@ def _flash_map_global(request: Request) -> tuple[str | None, str | None]:
         "draft_deleted": "已删除草稿词条。",
         "gpk_split_copy": "已复制所选草稿词条到新的全局词包。",
         "gpk_split_move": "已移动所选草稿词条到新的全局词包。",
+        "story_saved": "已保存词包 story。",
+        "story_generated": "已生成新的词包 story。",
     }
     err = request.query_params.get("flash_err")
     if ok == "image_imported" and imported is not None:
@@ -170,6 +176,33 @@ def _global_pack_detail_url(
     if flash_err:
         qs.append(f"flash_err={quote(flash_err)}")
     return f"{base}?{'&'.join(qs)}" if qs else base
+
+
+def _story_scene_update(
+    current: dict[str, Any],
+    *,
+    story_en: str | None,
+    story_zh: str | None,
+) -> dict[str, Any]:
+    scene = dict(current)
+    for key, value in (("storyEn", story_en), ("storyZh", story_zh)):
+        if value is None:
+            continue
+        clean = value.strip()
+        if clean:
+            scene[key] = clean
+        else:
+            scene.pop(key, None)
+    return scene
+
+
+async def _load_admin_family_pack_definition(pack_id: str) -> FamilyPackDefinition | None:
+    return await FamilyPackDefinition.find_one(
+        {
+            "pack_id": pack_id,
+            "family_id": {"$ne": fps.GLOBAL_PACK_FAMILY_ID},
+        }
+    )
 
 
 async def _vision_import_configured() -> bool:
@@ -1032,6 +1065,96 @@ async def admin_global_pack_detail_import_image_post(
     )
 
 
+@router.post("/global-packs/packs/{pack_id}/metadata", response_model=None)
+async def admin_global_pack_metadata_post(
+    request: Request,
+    pack_id: str,
+    name: str = Form(...),
+    description: str = Form(""),
+    storyEn: str | None = Form(None),  # noqa: N803 - HTML field keeps scene key
+    storyZh: str | None = Form(None),  # noqa: N803
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    try:
+        current = await gps.get_definition(pack_id=pid)
+        await gps.patch_definition(
+            pack_id=pid,
+            admin_id=gate.username,
+            name=name,
+            description=description,
+            scene=_story_scene_update(current.scene, story_en=storyEn, story_zh=storyZh),
+        )
+    except (gps.PackNotFound, gps.NameTaken, gps.InvalidPayload) as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(exc)),
+            status_code=303,
+        )
+    await record_admin_action(
+        admin_username=gate.username,
+        action="global_pack.metadata_update",
+        target_collection="family_pack_definitions",
+        target_id=pid,
+        payload_summary={"via": "admin_html"},
+    )
+    return RedirectResponse(
+        url=_global_pack_detail_url(pid, flash_ok="story_saved"),
+        status_code=303,
+    )
+
+
+@router.post("/global-packs/packs/{pack_id}/story/generate", response_model=None)
+async def admin_global_pack_story_generate_post(
+    request: Request,
+    pack_id: str,
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    pid = pack_id.strip()
+    try:
+        detail = await acs.load_global_pack_definition_console(pack_id=pid)
+        definition = detail["definition"]
+        _model, story = await pack_story_service.generate_pack_story(
+            pack_name=definition.name,
+            words=list(detail["draft_words"]),
+        )
+        await gps.patch_definition(
+            pack_id=pid,
+            admin_id=gate.username,
+            name=None,
+            description=None,
+            scene=_story_scene_update(
+                definition.scene,
+                story_en=story["storyEn"],
+                story_zh=story["storyZh"],
+            ),
+        )
+    except LookupError:
+        return RedirectResponse(
+            url=f"/admin/global-packs?flash_err={quote('未找到该全局词包。')}",
+            status_code=303,
+        )
+    except (gps.PackNotFound, LlmConfigError, LlmCallError) as exc:
+        return RedirectResponse(
+            url=_global_pack_detail_url(pid, flash_err=str(exc)),
+            status_code=303,
+        )
+    await record_admin_action(
+        admin_username=gate.username,
+        action="global_pack.story_generate",
+        target_collection="family_pack_definitions",
+        target_id=pid,
+        payload_summary={"via": "admin_html"},
+    )
+    return RedirectResponse(
+        url=_global_pack_detail_url(pid, flash_ok="story_generated"),
+        status_code=303,
+    )
+
+
 @router.post("/global-packs/packs/{pack_id}/publish-definition", response_model=None)
 async def admin_global_pack_publish_definition_post(
     request: Request,
@@ -1402,6 +1525,87 @@ async def admin_family_packs_list(
             "flash_err": flash_err,
         },
     )
+
+
+@router.post("/family-packs/{pack_id}/metadata", response_model=None)
+async def admin_family_pack_metadata_post(
+    request: Request,
+    pack_id: str,
+    name: str = Form(...),
+    description: str = Form(""),
+    storyEn: str | None = Form(None),  # noqa: N803
+    storyZh: str | None = Form(None),  # noqa: N803
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    definition = await _load_admin_family_pack_definition(pack_id)
+    if definition is None:
+        return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
+    try:
+        await fps.patch_definition(
+            pack_id=definition.pack_id,
+            family_id=definition.family_id,
+            name=name,
+            description=description,
+            scene=_story_scene_update(definition.scene, story_en=storyEn, story_zh=storyZh),
+        )
+    except (fps.NameTaken, fps.InvalidPayload) as exc:
+        return RedirectResponse(
+            url=f"/admin/family-packs?flash_err={quote(str(exc))}",
+            status_code=303,
+        )
+    await record_admin_action(
+        admin_username=gate.username,
+        action="family_pack.metadata_update",
+        target_collection="family_pack_definitions",
+        target_id=definition.pack_id,
+        payload_summary={"family_id": definition.family_id, "via": "admin_html"},
+    )
+    return RedirectResponse(url="/admin/family-packs?flash_ok=story_saved", status_code=303)
+
+
+@router.post("/family-packs/{pack_id}/story/generate", response_model=None)
+async def admin_family_pack_story_generate_post(
+    request: Request,
+    pack_id: str,
+) -> RedirectResponse:
+    gate = await _require_admin_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    definition = await _load_admin_family_pack_definition(pack_id)
+    if definition is None:
+        return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
+    draft = await fps.get_or_create_draft(definition=definition, parent_user_id=gate.username)
+    try:
+        _model, story = await pack_story_service.generate_pack_story(
+            pack_name=definition.name,
+            words=list(draft.words),
+        )
+        await fps.patch_definition(
+            pack_id=definition.pack_id,
+            family_id=definition.family_id,
+            name=None,
+            description=None,
+            scene=_story_scene_update(
+                definition.scene,
+                story_en=story["storyEn"],
+                story_zh=story["storyZh"],
+            ),
+        )
+    except (LlmConfigError, LlmCallError) as exc:
+        return RedirectResponse(
+            url=f"/admin/family-packs?flash_err={quote(str(exc))}",
+            status_code=303,
+        )
+    await record_admin_action(
+        admin_username=gate.username,
+        action="family_pack.story_generate",
+        target_collection="family_pack_definitions",
+        target_id=definition.pack_id,
+        payload_summary={"family_id": definition.family_id, "via": "admin_html"},
+    )
+    return RedirectResponse(url="/admin/family-packs?flash_ok=story_generated", status_code=303)
 
 
 @router.post("/family-packs/{pack_id}/unarchive", response_model=None)

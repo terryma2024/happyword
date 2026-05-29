@@ -7,6 +7,8 @@
     "bgPrimary": "#E8F4F8",
     "bgAccent": "#6EB7CC",
     "bossName": "Sea Sovereign",
+    "storyEn": "Blue waves sparkle as sea friends whisper new words.",
+    "storyZh": "蓝色海浪闪闪发光，海洋朋友悄悄送来新的单词。",
     "bossCandidates": [
       10,
       11,

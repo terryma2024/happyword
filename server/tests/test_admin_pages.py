@@ -257,6 +257,96 @@ async def test_admin_family_packs_page_renders_copy_action_dialogs(
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_family_packs_page_renders_story_editor(
+    client: AsyncClient,
+) -> None:
+    from app.services import family_pack_service
+    from app.services.family_service import create_family_for_parent
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    family, user = await create_family_for_parent(email="family-story-html@example.com")
+    await family_pack_service.create_definition(
+        family_id=family.family_id,
+        name="Family Story From HTML",
+        description="family desc",
+        parent_user_id=user.username,
+        pack_id="pck-html-story-render",
+        scene={
+            "storyEn": "A family story glows on the server page.",
+            "storyZh": "家庭小故事在服务端页面发光。",
+        },
+    )
+
+    page = await client.get("/admin/family-packs")
+
+    assert page.status_code == 200
+    soup = BeautifulSoup(page.text, "html.parser")
+    dialog = soup.find("dialog", attrs={"id": "story-pck-html-story-render"})
+    assert dialog is not None
+    assert dialog.find("textarea", attrs={"name": "storyEn"}) is not None
+    assert dialog.find("textarea", attrs={"name": "storyZh"}) is not None
+    generate_form = soup.find(
+        "form", attrs={"id": "family-pack-story-generate-pck-html-story-render"}
+    )
+    assert generate_form is not None
+    assert generate_form.get("action") == "/admin/family-packs/pck-html-story-render/story/generate"
+    assert "A family story glows on the server page." in page.text
+    assert "家庭小故事在服务端页面发光。" in page.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_family_pack_metadata_form_updates_story_fields(
+    client: AsyncClient,
+) -> None:
+    from app.services import family_pack_service
+    from app.services.family_service import create_family_for_parent
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    family, user = await create_family_for_parent(email="family-story-edit@example.com")
+    await family_pack_service.create_definition(
+        family_id=family.family_id,
+        name="Family Story Edit",
+        description=None,
+        parent_user_id=user.username,
+        pack_id="pck-html-story-edit",
+        scene={"bossName": "Keep Me"},
+    )
+
+    resp = await client.post(
+        "/admin/family-packs/pck-html-story-edit/metadata",
+        data={
+            "name": "Family Story Edit",
+            "description": "family desc",
+            "storyEn": "A family lantern lights every word.",
+            "storyZh": "家庭灯笼照亮每一个单词。",
+        },
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 303
+    refreshed = await family_pack_service.get_definition_for_family(
+        pack_id="pck-html-story-edit",
+        family_id=family.family_id,
+    )
+    assert refreshed.description == "family desc"
+    assert refreshed.scene["bossName"] == "Keep Me"
+    assert refreshed.scene["storyEn"] == "A family lantern lights every word."
+    assert refreshed.scene["storyZh"] == "家庭灯笼照亮每一个单词。"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
 async def test_admin_family_pack_html_delete_removes_pack_and_audits(
     client: AsyncClient,
 ) -> None:
@@ -760,6 +850,10 @@ async def test_admin_global_pack_detail_renders_split_form(
         name="Split UI",
         admin_id="console-admin",
         pack_id="gpk-html-split-ui",
+        scene={
+            "storyEn": "A global story waits for editing.",
+            "storyZh": "一个全局小故事等着编辑。",
+        },
     )
 
     page = await client.get("/admin/global-packs/packs/gpk-html-split-ui")
@@ -782,6 +876,111 @@ async def test_admin_global_pack_detail_renders_split_form(
     assert move_button.get_text(strip=True) == "移动到新包"
     assert copy_button is not None
     assert copy_button.get_text(strip=True) == "复制到新包"
+    metadata_form = soup.find(id="global-pack-metadata-form")
+    assert metadata_form is not None
+    assert metadata_form.get("action") == "/admin/global-packs/packs/gpk-html-split-ui/metadata"
+    assert soup.find("textarea", attrs={"name": "storyEn"}) is not None
+    assert soup.find("textarea", attrs={"name": "storyZh"}) is not None
+    story_button = soup.find(id="global-pack-story-generate-submit")
+    assert story_button is not None
+    assert story_button.get_text(strip=True) == "🔄"
+    assert story_button.get("form") == "global-pack-story-generate-form"
+    assert "A global story waits for editing." in page.text
+    assert "一个全局小故事等着编辑。" in page.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_global_pack_metadata_form_updates_story_fields(
+    client: AsyncClient,
+) -> None:
+    from app.services import global_pack_service
+
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    await global_pack_service.create_definition(
+        name="Metadata Story",
+        admin_id="console-admin",
+        pack_id="gpk-html-story-edit",
+        scene={"bossName": "Keep Me"},
+    )
+
+    resp = await client.post(
+        "/admin/global-packs/packs/gpk-html-story-edit/metadata",
+        data={
+            "name": "Metadata Story",
+            "description": "short desc",
+            "storyEn": "A bright key unlocks the global pack.",
+            "storyZh": "明亮钥匙打开了全局词包。",
+        },
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 303
+    refreshed = await global_pack_service.get_definition(pack_id="gpk-html-story-edit")
+    assert refreshed.description == "short desc"
+    assert refreshed.scene["bossName"] == "Keep Me"
+    assert refreshed.scene["storyEn"] == "A bright key unlocks the global pack."
+    assert refreshed.scene["storyZh"] == "明亮钥匙打开了全局词包。"
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_global_pack_story_generate_form_updates_scene(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import global_pack_service, pack_story_service
+
+    async def fake_generate_pack_story(
+        *, pack_name: str, words: list[dict[str, object]]
+    ) -> tuple[str, dict[str, str]]:
+        assert pack_name == "Global Generate"
+        assert words[0]["word"] == "moon"
+        return (
+            "fake-story-model",
+            {
+                "storyEn": "Moon words shimmer across a silver classroom.",
+                "storyZh": "月亮单词照亮银色教室。",
+            },
+        )
+
+    monkeypatch.setattr(pack_story_service, "generate_pack_story", fake_generate_pack_story)
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+    await global_pack_service.create_definition(
+        name="Global Generate",
+        admin_id="console-admin",
+        pack_id="gpk-html-story-generate",
+    )
+    await global_pack_service.upsert_draft_word(
+        pack_id="gpk-html-story-generate",
+        admin_id="console-admin",
+        entry={
+            "id": "moon",
+            "word": "moon",
+            "meaningZh": "月亮",
+            "category": "sky",
+            "difficulty": 1,
+        },
+    )
+
+    resp = await client.post(
+        "/admin/global-packs/packs/gpk-html-story-generate/story/generate",
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 303
+    refreshed = await global_pack_service.get_definition(pack_id="gpk-html-story-generate")
+    assert refreshed.scene["storyEn"] == "Moon words shimmer across a silver classroom."
+    assert refreshed.scene["storyZh"] == "月亮单词照亮银色教室。"
 
 
 @pytest.mark.asyncio

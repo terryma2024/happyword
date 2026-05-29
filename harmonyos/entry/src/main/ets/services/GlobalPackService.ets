@@ -326,6 +326,7 @@ interface RawScene {
   bossName?: string;
   bossCandidates?: number[];
   monsterPlan?: RawSlot[];
+  storyEn?: string;
   storyZh?: string;
 }
 
@@ -382,6 +383,7 @@ function parseScene(raw: RawScene | undefined): SceneMetadata {
     }
     scene.bossCandidates = cleaned;
   }
+  if (typeof raw.storyEn === 'string' && raw.storyEn.length > 0) scene.storyEn = raw.storyEn;
   if (typeof raw.storyZh === 'string' && raw.storyZh.length > 0) scene.storyZh = raw.storyZh;
   if (Array.isArray(raw.monsterPlan)) {
     const plan: MonsterPlan = new MonsterPlan();

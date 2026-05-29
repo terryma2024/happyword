@@ -11,6 +11,7 @@ data class WordEntry(
     val meaning: String,
     val distractors: List<String> = emptyList(),
     val example: ExampleSentence? = null,
+    val difficulty: Int = 1,
 )
 
 data class GameConfig(

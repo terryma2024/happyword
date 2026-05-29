@@ -521,6 +521,134 @@ async def _extract_lesson_payload_responses(
     return model, _json_object_from_text(text, provider=provider)
 
 
+async def _generate_json_text_openai_chat(
+    *,
+    provider: LessonProviderSpec,
+    model: str,
+    prompt: str,
+    timeout_seconds: float,
+) -> tuple[str, dict[str, Any]]:
+    from app.services import llm_service  # noqa: PLC0415
+
+    client = llm_service._get_openai_client()  # noqa: SLF001 - shared legacy cache
+    try:
+        completion = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Return only a JSON object."},
+                {"role": "user", "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.7,
+            timeout=timeout_seconds,
+        )
+    except openai.OpenAIError as exc:
+        raise LlmCallError(f"{provider.display_name} text call failed: {exc}") from exc
+    content = completion.choices[0].message.content
+    if not content:
+        raise LlmCallError(f"{provider.display_name} text call returned no JSON content")
+    return model, _json_object_from_text(content, provider=provider)
+
+
+async def _generate_json_text_openai_compatible_chat(
+    *,
+    provider: LessonProviderSpec,
+    api_key: str,
+    model: str,
+    prompt: str,
+    timeout_seconds: float,
+) -> tuple[str, dict[str, Any]]:
+    client = _build_openai_compatible_client(api_key=api_key, base_url=provider.base_url)
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "Return only a JSON object."},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.7,
+        "timeout": timeout_seconds,
+    }
+    if provider.supports_json_object_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    if provider.disable_thinking:
+        kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+    try:
+        completion = await client.chat.completions.create(**kwargs)
+    except openai.OpenAIError as exc:
+        raise LlmCallError(f"{provider.display_name} text call failed: {exc}") from exc
+    content = completion.choices[0].message.content
+    if not content:
+        raise LlmCallError(f"{provider.display_name} text call returned no JSON content")
+    return model, _json_object_from_text(content, provider=provider)
+
+
+async def _generate_json_text_responses(
+    *,
+    provider: LessonProviderSpec,
+    api_key: str,
+    model: str,
+    prompt: str,
+    timeout_seconds: float,
+) -> tuple[str, dict[str, Any]]:
+    client = _build_openai_compatible_client(api_key=api_key, base_url=provider.base_url)
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": f"Return only a JSON object.\n\n{prompt}",
+                    }
+                ],
+            }
+        ],
+        "timeout": timeout_seconds,
+    }
+    if provider.supports_thinking:
+        kwargs["extra_body"] = {"enable_thinking": True}
+    try:
+        response = await client.responses.create(**kwargs)
+    except openai.OpenAIError as exc:
+        raise LlmCallError(f"{provider.display_name} text call failed: {exc}") from exc
+    text = _message_text_from_responses_api(response)
+    return model, _json_object_from_text(text, provider=provider)
+
+
+async def generate_json_text_with_provider(
+    *,
+    prompt: str,
+    timeout_seconds: float,
+) -> tuple[str, dict[str, Any]]:
+    settings = get_settings()
+    provider, _source = await _selected_lesson_provider_async(settings)
+    api_key = _require_provider_api_key(settings, provider)
+    model = _provider_model(settings, provider)
+    if provider.kind == "openai_chat":
+        return await _generate_json_text_openai_chat(
+            provider=provider,
+            model=model,
+            prompt=prompt,
+            timeout_seconds=timeout_seconds,
+        )
+    if provider.kind == "openai_compatible_chat":
+        return await _generate_json_text_openai_compatible_chat(
+            provider=provider,
+            api_key=api_key,
+            model=model,
+            prompt=prompt,
+            timeout_seconds=timeout_seconds,
+        )
+    return await _generate_json_text_responses(
+        provider=provider,
+        api_key=api_key,
+        model=model,
+        prompt=prompt,
+        timeout_seconds=timeout_seconds,
+    )
+
+
 async def extract_lesson_payload_with_provider(
     image_bytes: bytes,
     mime: str,

@@ -154,25 +154,18 @@ struct HomeView: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                tag("常规")
-                tag("拼写")
-                tag("复习")
-                tag("精英")
-                tag("首领")
-            }
-
-            Text(adventureSummary)
+            Text(HomePackStoryLine.text(for: coordinator.selectedPack))
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color(red: 0.35, green: 0.29, blue: 0.22))
-                .frame(maxWidth: .infinity, alignment: .center)
-                .lineLimit(1)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: HomeAdventureCardStoryStyle.reservedHeight, alignment: .center)
+                .lineLimit(HomeAdventureCardStoryStyle.lineLimit)
                 .minimumScaleFactor(0.72)
 
             Button {
                 coordinator.startBattle()
             } label: {
-                Text("开始冒险")
+                Text("开始今日冒险")
                     .font(.system(size: 22, weight: .heavy, design: .rounded))
                 .frame(maxWidth: .infinity, minHeight: 50)
             }
@@ -189,11 +182,6 @@ struct HomeView: View {
                 .stroke(scenePalette.accent.opacity(0.72), lineWidth: 1.5)
         }
         .accessibilityIdentifier("AdventureCard")
-    }
-
-    private var adventureSummary: String {
-        let levelCount = coordinator.configStore.config.monstersTotal
-        return "今天的冒险包含 \(levelCount) 关卡，含拼写、复习与首领关"
     }
 
     private func badge(_ text: String, tint: Color, foreground: Color) -> some View {
@@ -231,13 +219,30 @@ struct HomeView: View {
         .accessibilityLabel(label)
         .accessibilityIdentifier("HomeTodayPlanButton")
     }
+}
 
-    private func tag(_ label: String) -> some View {
-        Text(label)
-            .font(.caption.weight(.bold))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(AppTheme.gold.opacity(0.25), in: Capsule())
+enum HomeAdventureCardStoryStyle {
+    static let lineLimit = 2
+    static let reservedHeight: CGFloat = 44
+}
+
+enum HomePackStoryLine {
+    static func text(for pack: Pack) -> String {
+        let storyEn = pack.scene.storyEn?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !storyEn.isEmpty {
+            return storyEn
+        }
+
+        let low = pack.words.filter { $0.difficulty <= 2 }.count
+        let middle = pack.words.filter { $0.difficulty == 3 }.count
+        let high = pack.words.filter { $0.difficulty >= 4 }.count
+        let buckets = [
+            low > 0 ? "\(low) 个低难度" : nil,
+            middle > 0 ? "\(middle) 个中难度" : nil,
+            high > 0 ? "\(high) 个高难度" : nil,
+        ].compactMap { $0 }
+        let base = "本词包 \(pack.words.count) 个单词"
+        return buckets.isEmpty ? base : "\(base)，其中 \(buckets.joined(separator: "，"))"
     }
 }
 

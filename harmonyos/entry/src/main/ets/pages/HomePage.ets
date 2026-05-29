@@ -23,10 +23,20 @@ import {
   getDailyLearningStateService,
 } from '../services/DailyLearningStateService';
 import { ADVENTURE_REGIONS, DEFAULT_REGION_ID, getRegionById } from '../data/AdventureCatalog';
-import { AdventureRegion, TodaySessionPlan, MonsterSlot } from '../models/AdventureRegion';
+import { AdventureRegion, TodaySessionPlan } from '../models/AdventureRegion';
 import { Pack } from '../models/Pack';
 import { WordEntry } from '../models/WordEntry';
-import { describeMonsterKind } from '../services/TodayAdventureBuilder';
+import {
+  HOME_DAILY_STATUS_BADGE_BACKGROUND,
+  HOME_DAILY_STATUS_BADGE_TEXT_COLOR,
+  HOME_DAILY_STATUS_BADGE_FONT_SIZE_VP,
+  HOME_DAILY_STATUS_BADGE_HORIZONTAL_PADDING_VP,
+  HOME_DAILY_STATUS_BADGE_VERTICAL_PADDING_VP,
+  HOME_DAILY_STATUS_BADGE_RADIUS_VP,
+  HOME_ADVENTURE_CARD_STORY_MAX_LINES,
+  HOME_ADVENTURE_CARD_STORY_LINE_HEIGHT_VP,
+  HOME_ADVENTURE_CARD_STORY_RESERVED_HEIGHT_VP,
+} from '../components/HomeDailyStatusBadgeStyle';
 import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
 import {
   anyWordSupportsQuestionTypes,
@@ -320,18 +330,40 @@ struct HomePage {
     return region.displayName;
   }
 
-  /**
-   * Prefer `Pack.scene.storyZh` from the active chip whose id matches
-   * `region.id` (global / family packs hydrated from server JSON).
-   */
+  private packSummary(pack: Pack): string {
+    let low: number = 0;
+    let mid: number = 0;
+    let high: number = 0;
+    for (let i = 0; i < pack.words.length; i++) {
+      const difficulty: number = pack.words[i].difficulty;
+      if (difficulty <= 2) {
+        low++;
+      } else if (difficulty === 3) {
+        mid++;
+      } else {
+        high++;
+      }
+    }
+    const parts: string[] = [];
+    if (low > 0) parts.push(`${low} 个低难度`);
+    if (mid > 0) parts.push(`${mid} 个中难度`);
+    if (high > 0) parts.push(`${high} 个高难度`);
+    if (parts.length === 0) {
+      return `本词包 ${pack.words.length} 个单词`;
+    }
+    return `本词包 ${pack.words.length} 个单词，其中 ${parts.join('，')}`;
+  }
+
+  /** Prefer the English little story from the active pack; fall back to a compact summary. */
   private regionStory(region: AdventureRegion): string {
     for (let i = 0; i < this.chipPacks.length; i++) {
       if (this.chipPacks[i].id === region.id) {
-        const zh: string | undefined = this.chipPacks[i].scene.storyZh;
-        if (zh !== undefined && zh.length > 0) {
-          return zh;
+        const pack: Pack = this.chipPacks[i];
+        const en: string | undefined = pack.scene.storyEn;
+        if (en !== undefined && en.length > 0) {
+          return en;
         }
-        break;
+        return this.packSummary(pack);
       }
     }
     return '今天的冒险包含 5 关卡，含拼写、复习与首领关';
@@ -841,32 +873,31 @@ struct HomePage {
         Blank();
         Text(this.dailyStatusLabel)
           .id('AdventureCardDailyStatusLabel')
-          .fontSize(14)
-          .fontColor(this.todayCompleted ? '#7B7B7B' : '#FFFFFF')
-          .backgroundColor(this.todayCompleted ? '#E5E5E5' : '#E63946')
-          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-          .borderRadius(12);
+          .fontSize(HOME_DAILY_STATUS_BADGE_FONT_SIZE_VP)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(HOME_DAILY_STATUS_BADGE_TEXT_COLOR)
+          .backgroundColor(HOME_DAILY_STATUS_BADGE_BACKGROUND)
+          .padding({
+            left: HOME_DAILY_STATUS_BADGE_HORIZONTAL_PADDING_VP,
+            right: HOME_DAILY_STATUS_BADGE_HORIZONTAL_PADDING_VP,
+            top: HOME_DAILY_STATUS_BADGE_VERTICAL_PADDING_VP,
+            bottom: HOME_DAILY_STATUS_BADGE_VERTICAL_PADDING_VP,
+          })
+          .borderRadius(HOME_DAILY_STATUS_BADGE_RADIUS_VP);
       }
       .width('100%');
 
       this.regionPicker();
 
-      Row({ space: 8 }) {
-        ForEach(this.todayRegion.monsterPlan.slots, (slot: MonsterSlot): void => {
-          Text(describeMonsterKind(slot.kind))
-            .fontSize(13)
-            .fontColor('#3F2F1A')
-            .backgroundColor('#FFE7B5')
-            .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-            .borderRadius(10);
-        }, (slot: MonsterSlot, index: number): string => `slot-${index}-${slot.kind}`);
-      }
-      .width('100%');
-
       Text(this.packLibraryVersion >= 0 ? this.regionStory(this.todayRegion) : '今天的冒险包含 5 关卡，含拼写、复习与首领关')
         .id('AdventureCardStory')
         .fontSize(14)
-        .fontColor('#5A4A35');
+        .fontColor('#5A4A35')
+        .height(HOME_ADVENTURE_CARD_STORY_RESERVED_HEIGHT_VP)
+        .lineHeight(HOME_ADVENTURE_CARD_STORY_LINE_HEIGHT_VP)
+        .maxLines(HOME_ADVENTURE_CARD_STORY_MAX_LINES)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .textAlign(TextAlign.Center);
 
       Button(this.todayCompleted ? '再战一局' : '开始今日冒险')
         .id('HomeStartButton')

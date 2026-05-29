@@ -49,8 +49,8 @@ final class AppMetadataTests: XCTestCase {
     }
 
     func testVersionMatchesHarmonyOSBaseline() {
-        XCTAssertEqual(AppMetadata.harmonyVersionName, "0.9.3")
-        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_009_003)
+        XCTAssertEqual(AppMetadata.harmonyVersionName, "0.9.4")
+        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_009_004)
     }
 
     func testPortraitTopChromeSpacingIsCompact() {

@@ -56,6 +56,7 @@ struct SceneMetadata: Codable, Equatable {
     var bossName: String
     var bossCandidates: [Int]
     var monsterPlan: [MonsterPlanSlot]
+    var storyEn: String?
     var storyZh: String?
 
     static let empty = SceneMetadata()
@@ -66,6 +67,7 @@ struct SceneMetadata: Codable, Equatable {
         bossName: String = "",
         bossCandidates: [Int] = [],
         monsterPlan: [MonsterPlanSlot] = [],
+        storyEn: String? = nil,
         storyZh: String? = nil
     ) {
         self.bgPrimary = bgPrimary
@@ -73,6 +75,7 @@ struct SceneMetadata: Codable, Equatable {
         self.bossName = bossName
         self.bossCandidates = bossCandidates
         self.monsterPlan = monsterPlan
+        self.storyEn = storyEn
         self.storyZh = storyZh
     }
 
@@ -82,6 +85,7 @@ struct SceneMetadata: Codable, Equatable {
             && bossName.isEmpty
             && bossCandidates.isEmpty
             && monsterPlan.isEmpty
+            && storyEn == nil
             && storyZh == nil
     }
 
@@ -91,6 +95,7 @@ struct SceneMetadata: Codable, Equatable {
         case bossName
         case bossCandidates
         case monsterPlan
+        case storyEn
         case storyZh
     }
 
@@ -101,6 +106,7 @@ struct SceneMetadata: Codable, Equatable {
         bossName = try container.decodeIfPresent(String.self, forKey: .bossName) ?? ""
         bossCandidates = try container.decodeIfPresent([Int].self, forKey: .bossCandidates) ?? []
         monsterPlan = try container.decodeIfPresent([MonsterPlanSlot].self, forKey: .monsterPlan) ?? []
+        storyEn = try container.decodeIfPresent(String.self, forKey: .storyEn)
         storyZh = try container.decodeIfPresent(String.self, forKey: .storyZh)
     }
 }

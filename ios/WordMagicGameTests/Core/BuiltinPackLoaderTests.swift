@@ -42,6 +42,28 @@ final class BuiltinPackLoaderTests: XCTestCase {
         XCTAssertEqual(Pack.builtin.map(\.words.count), [15, 15, 15, 15, 15])
     }
 
+    func testIOSBuiltinPacksCarryBilingualLittleStories() throws {
+        let expectedStoryEnByPack = [
+            "fruit-forest": "Tiny lanterns glow as fruit friends guide each new word.",
+            "school-castle": "The school castle rings its bell and opens a word quest.",
+            "home-cottage": "A cozy cottage hums softly while home words wake up.",
+            "animal-safari": "Friendly animals leave paw prints toward today's word trail.",
+            "ocean-realm": "Blue waves sparkle as sea friends whisper new words.",
+        ]
+        let expectedStoryZhByPack = [
+            "fruit-forest": "果林里的小灯亮起，水果朋友带孩子认识新的单词。",
+            "school-castle": "校园城堡敲响铃声，打开一场单词小冒险。",
+            "home-cottage": "温暖小屋轻轻哼唱，家里的单词一个个醒来。",
+            "animal-safari": "友好的动物留下脚印，带孩子走上今天的单词小路。",
+            "ocean-realm": "蓝色海浪闪闪发光，海洋朋友悄悄送来新的单词。",
+        ]
+
+        for pack in Pack.builtin {
+            XCTAssertEqual(pack.scene.storyEn, expectedStoryEnByPack[pack.id], pack.id)
+            XCTAssertEqual(pack.scene.storyZh, expectedStoryZhByPack[pack.id], pack.id)
+        }
+    }
+
     func testIOSBuiltinPacksIncludeV092AddedSentenceReadyWords() throws {
         let expectedIdsByPack = [
             "fruit-forest": ["fruit-strawberry", "fruit-pineapple", "fruit-watermelon", "fruit-kiwi", "fruit-blueberry"],

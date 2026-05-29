@@ -7,6 +7,8 @@
     "bgPrimary": "#FFF0EE",
     "bgAccent": "#F4A6A0",
     "bossName": "Tidy Granny",
+    "storyEn": "A cozy cottage hums softly while home words wake up.",
+    "storyZh": "温暖小屋轻轻哼唱，家里的单词一个个醒来。",
     "bossCandidates": [
       9,
       18,

@@ -172,9 +172,40 @@ import kotlinx.coroutines.withContext
 import cool.happyword.wordmagic.ui.components.HomeBadge
 import cool.happyword.wordmagic.ui.components.IconCircle
 import cool.happyword.wordmagic.ui.components.EmojiCircle
-import cool.happyword.wordmagic.ui.components.SmallPill
 import cool.happyword.wordmagic.ui.components.colorFromSceneHex
 import cool.happyword.wordmagic.R
+
+internal object HomeDailyStatusBadgeStyle {
+    const val backgroundArgb: Int = 0xFFF2DFC9.toInt()
+    const val textArgb: Int = 0xFF8C877F.toInt()
+    const val fontSizeSp: Int = 16
+    const val horizontalPaddingDp: Int = 22
+    const val verticalPaddingDp: Int = 8
+    const val cornerRadiusDp: Int = 22
+}
+
+internal object HomeAdventureCardLayoutStyle {
+    const val pageBottomPaddingDp: Int = 28
+    const val cardBottomPaddingDp: Int = 24
+    const val storyTopPaddingDp: Int = 16
+    const val storyMaxLines: Int = 2
+    const val buttonTopGapMinDp: Int = 14
+}
+
+internal fun adventureCardStoryLine(pack: WordPack): String {
+    val story = pack.scene.storyEn.trim()
+    if (story.isNotEmpty()) return story
+    val low = pack.words.count { it.difficulty <= 2 }
+    val mid = pack.words.count { it.difficulty == 3 }
+    val high = pack.words.count { it.difficulty >= 4 }
+    val buckets = buildList {
+        if (low > 0) add("${low} 个低难度")
+        if (mid > 0) add("${mid} 个中难度")
+        if (high > 0) add("${high} 个高难度")
+    }
+    val prefix = "本词包 ${pack.words.size} 个单词"
+    return if (buckets.isEmpty()) prefix else "$prefix，其中 ${buckets.joinToString("，")}"
+}
 
 @Composable
 internal fun HomeScreen(
@@ -217,7 +248,7 @@ internal fun HomeScreen(
                 .fillMaxWidth()
                 .fillMaxHeight()
                 .padding(horizontal = 44.dp)
-                .padding(top = 72.dp, bottom = 10.dp),
+                .padding(top = 72.dp, bottom = HomeAdventureCardLayoutStyle.pageBottomPaddingDp.dp),
         ) {
             Text(
                 "Small Magician Word Adventure",
@@ -241,7 +272,17 @@ internal fun HomeScreen(
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
-                Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            start = 16.dp,
+                            top = 16.dp,
+                            end = 16.dp,
+                            bottom = HomeAdventureCardLayoutStyle.cardBottomPaddingDp.dp,
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             selectedPack.nameEn,
@@ -252,17 +293,19 @@ internal fun HomeScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        val dailyStatusCompleted = dailyStatus.label == "已完成"
                         Text(
                             text = dailyStatus.label,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(99.dp))
-                                .background(if (dailyStatusCompleted) Color(0xFFE5E5E5) else Color(0xFFE63946))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .clip(RoundedCornerShape(HomeDailyStatusBadgeStyle.cornerRadiusDp.dp))
+                                .background(Color(HomeDailyStatusBadgeStyle.backgroundArgb))
+                                .padding(
+                                    horizontal = HomeDailyStatusBadgeStyle.horizontalPaddingDp.dp,
+                                    vertical = HomeDailyStatusBadgeStyle.verticalPaddingDp.dp,
+                                )
                                 .testTag("AdventureCardDailyStatusBadge")
                                 .semantics { contentDescription = dailyStatus.label },
-                            color = if (dailyStatusCompleted) Color(0xFF7B7B7B) else Color.White,
-                            fontSize = 14.sp,
+                            color = Color(HomeDailyStatusBadgeStyle.textArgb),
+                            fontSize = HomeDailyStatusBadgeStyle.fontSizeSp.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -287,22 +330,23 @@ internal fun HomeScreen(
                             }
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SmallPill("常规")
-                        SmallPill("拼写")
-                        SmallPill("复习")
-                        SmallPill("精英")
-                        SmallPill("首领")
-                    }
                     Text(
-                        dailyStatus.label,
+                        adventureCardStoryLine(selectedPack),
                         fontSize = 18.sp,
                         color = Color(0xFF6A5843),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("AdventureCardDailyStatusLabel")
-                            .semantics { contentDescription = dailyStatus.label },
+                            .padding(top = HomeAdventureCardLayoutStyle.storyTopPaddingDp.dp)
+                            .testTag("AdventureCardStoryLine")
+                            .semantics { contentDescription = adventureCardStoryLine(selectedPack) },
                         textAlign = TextAlign.Center,
+                        maxLines = HomeAdventureCardLayoutStyle.storyMaxLines,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(
+                        Modifier
+                            .height(HomeAdventureCardLayoutStyle.buttonTopGapMinDp.dp)
+                            .weight(1f),
                     )
                     Button(
                         onClick = onStart,

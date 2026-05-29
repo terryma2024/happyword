@@ -57,6 +57,8 @@ final class HTTPParentApiClientTests: XCTestCase {
             let edited = try XCTUnwrap(json?["edited_extracted"] as? [String: Any])
             XCTAssertEqual(edited["category_id"] as? String, "magic-school")
             XCTAssertEqual(edited["label_zh"] as? String, "魔法学校")
+            XCTAssertEqual(edited["story_en"] as? String, "A tiny school door opens for today's magic words.")
+            XCTAssertEqual(edited["story_zh"] as? String, "今天学习魔法学校里的新单词。")
             let words = try XCTUnwrap(edited["words"] as? [[String: Any]])
             XCTAssertEqual(words[0]["word"] as? String, "wand")
             XCTAssertEqual(words[0]["meaningZh"] as? String, "魔杖")
@@ -168,6 +170,7 @@ final class HTTPParentApiClientTests: XCTestCase {
             "category_id": "magic-school",
             "label_en": "Magic School",
             "label_zh": "魔法学校",
+            "story_en": "A tiny school door opens for today's magic words.",
             "story_zh": null,
             "words": [
               { "word": "wand", "meaningZh": "魔杖", "difficulty": 1 }
@@ -218,6 +221,7 @@ final class HTTPParentApiClientTests: XCTestCase {
         "id": "lesson-magic-school",
         "label_en": "Magic School",
         "label_zh": "魔法学校",
+        "story_en": null,
         "story_zh": null,
         "source": "lesson-import",
         "source_image_url": "https://blob/lesson.jpg",

@@ -92,6 +92,34 @@ async def test_create_pack_returns_201_with_pack_id(db: object) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_and_patch_pack_scene_stories_via_http(db: object) -> None:
+    ac, _ = await _make_parent_client(email="scene@example.com")
+    async with ac:
+        r = await ac.post(
+            "/api/v1/family/_/family-packs",
+            json={
+                "name": "Story Pack",
+                "scene": {
+                    "storyEn": "A tiny trail leads to new words.",
+                    "storyZh": "一条小路带孩子走向新的单词。",
+                },
+            },
+        )
+        assert r.status_code == 201, r.text
+        pack_id = r.json()["pack_id"]
+        assert r.json()["scene"]["storyEn"] == "A tiny trail leads to new words."
+
+        patched = await ac.patch(
+            f"/api/v1/family/_/family-packs/{pack_id}",
+            json={"scene": {"storyEn": "New story.", "storyZh": "新故事。"}},
+        )
+
+    assert patched.status_code == 200, patched.text
+    body = patched.json()
+    assert body["scene"] == {"storyEn": "New story.", "storyZh": "新故事。"}
+
+
+@pytest.mark.asyncio
 async def test_create_duplicate_active_name_409(db: object) -> None:
     ac, _ = await _make_parent_client()
     async with ac:

@@ -126,6 +126,7 @@
 /family/{family_id}/packs/{pack_id}/metadata
 /family/{family_id}/packs/{pack_id}/publish
 /family/{family_id}/packs/{pack_id}/rollback
+/family/{family_id}/packs/{pack_id}/story/generate
 /family/{family_id}/packs/{pack_id}/versions
 /family/{family_id}/redemptions
 /family/{family_id}/redemptions/{request_id}/approve

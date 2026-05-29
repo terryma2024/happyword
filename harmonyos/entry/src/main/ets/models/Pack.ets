@@ -24,6 +24,7 @@ export class SceneMetadata {
   bossName: string = '';
   monsterPlan: MonsterPlan = new MonsterPlan();
   bossCandidates: number[] = [];
+  storyEn?: string;
   storyZh?: string;
 }
 

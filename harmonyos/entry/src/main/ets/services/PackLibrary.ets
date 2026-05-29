@@ -43,7 +43,23 @@ function djb2Hash(s: string): number {
 }
 
 function isEmptyScene(s: SceneMetadata): boolean {
-  return s.bgPrimary === '#FFFFFF' && s.bgAccent === '#FFFFFF' && s.bossName === '';
+  const noStory: boolean = (s.storyEn === undefined || s.storyEn.length === 0)
+    && (s.storyZh === undefined || s.storyZh.length === 0);
+  return s.bgPrimary === '#FFFFFF' && s.bgAccent === '#FFFFFF' && s.bossName === '' && noStory;
+}
+
+function mergeSceneWithFallback(own: SceneMetadata, fallback: SceneMetadata): SceneMetadata {
+  const scene: SceneMetadata = new SceneMetadata();
+  scene.bgPrimary = own.bgPrimary === '#FFFFFF' ? fallback.bgPrimary : own.bgPrimary;
+  scene.bgAccent = own.bgAccent === '#FFFFFF' ? fallback.bgAccent : own.bgAccent;
+  scene.bossName = own.bossName.length > 0 ? own.bossName : fallback.bossName;
+  scene.monsterPlan = own.monsterPlan.slots.length > 0 ? own.monsterPlan : fallback.monsterPlan;
+  scene.bossCandidates = own.bossCandidates.length > 0
+    ? own.bossCandidates.slice()
+    : fallback.bossCandidates.slice();
+  scene.storyEn = own.storyEn !== undefined && own.storyEn.length > 0 ? own.storyEn : fallback.storyEn;
+  scene.storyZh = own.storyZh !== undefined && own.storyZh.length > 0 ? own.storyZh : fallback.storyZh;
+  return scene;
 }
 
 export class PackLibrary {
@@ -116,7 +132,6 @@ export class PackLibrary {
   }
 
   private static applySceneFallback(p: Pack, builtinById: Map<string, Pack>): Pack {
-    if (!isEmptyScene(p.scene)) return p;
     const sib: Pack | undefined = builtinById.get(p.id);
     if (sib !== undefined && !isEmptyScene(sib.scene)) {
       const merged: Pack = new Pack();
@@ -126,10 +141,11 @@ export class PackLibrary {
       merged.source = p.source;
       merged.version = p.version;
       merged.publishedAtMs = p.publishedAtMs;
-      merged.scene = sib.scene;
+      merged.scene = mergeSceneWithFallback(p.scene, sib.scene);
       merged.words = p.words.slice();
       return merged;
     }
+    if (!isEmptyScene(p.scene)) return p;
     const merged: Pack = new Pack();
     merged.id = p.id;
     merged.name = p.name;

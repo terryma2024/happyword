@@ -22,6 +22,32 @@ class PackModelsTest {
     }
 
     @Test
+    fun builtinPacksCarryHarmonyAlignedBilingualStories() {
+        val stories = BuiltinPacks.all.associate { it.id to (it.scene.storyEn to it.scene.storyZh) }
+
+        assertEquals(
+            "Tiny lanterns glow as fruit friends guide each new word." to "果林里的小灯亮起，水果朋友带孩子认识新的单词。",
+            stories["fruit-forest"],
+        )
+        assertEquals(
+            "The school castle rings its bell and opens a word quest." to "校园城堡敲响铃声，打开一场单词小冒险。",
+            stories["school-castle"],
+        )
+        assertEquals(
+            "A cozy cottage hums softly while home words wake up." to "温暖小屋轻轻哼唱，家里的单词一个个醒来。",
+            stories["home-cottage"],
+        )
+        assertEquals(
+            "Friendly animals leave paw prints toward today's word trail." to "友好的动物留下脚印，带孩子走上今天的单词小路。",
+            stories["animal-safari"],
+        )
+        assertEquals(
+            "Blue waves sparkle as sea friends whisper new words." to "蓝色海浪闪闪发光，海洋朋友悄悄送来新的单词。",
+            stories["ocean-realm"],
+        )
+    }
+
+    @Test
     fun builtinPackSceneColorsMatchHarmonyRegions() {
         val colors = BuiltinPacks.all.associate { it.id to (it.scene.bgPrimary to it.scene.bgAccent) }
 

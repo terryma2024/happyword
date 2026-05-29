@@ -475,6 +475,8 @@ async def test_admin_import_image_writes_global_draft(
         return (
             "fake-model",
             {
+                "story_en": "A globe spins toward a new school word.",
+                "story_zh": "地球仪转向一个新的校园单词。",
                 "words": [
                     {
                         "word": "globe",

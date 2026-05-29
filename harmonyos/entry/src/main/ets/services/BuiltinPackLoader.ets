@@ -39,6 +39,7 @@ interface RawScene {
   bossName?: string;
   bossCandidates?: number[];
   monsterPlan?: RawSlot[];
+  storyEn?: string;
   storyZh?: string;
 }
 
@@ -110,6 +111,9 @@ export class BuiltinPackLoader {
     }
     if (typeof raw.storyZh === 'string' && raw.storyZh.length > 0) {
       scene.storyZh = raw.storyZh;
+    }
+    if (typeof raw.storyEn === 'string' && raw.storyEn.length > 0) {
+      scene.storyEn = raw.storyEn;
     }
     if (Array.isArray(raw.monsterPlan)) {
       const plan: MonsterPlan = new MonsterPlan();

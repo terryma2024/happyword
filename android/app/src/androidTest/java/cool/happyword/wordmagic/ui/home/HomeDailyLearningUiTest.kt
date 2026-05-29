@@ -17,7 +17,7 @@ class HomeDailyLearningUiTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun homeShowsDailyStatusLabelAndReviewCountBadge() {
+    fun homeShowsPackStoryLineAndReviewCountBadge() {
         composeRule.setContent {
             HomeScreen(
                 activePacks = BuiltinPacks.all.take(1),
@@ -45,12 +45,17 @@ class HomeDailyLearningUiTest {
             )
         }
 
-        composeRule.onNodeWithTag("AdventureCardDailyStatusLabel")
+        composeRule.onNodeWithTag("AdventureCardStoryLine")
             .assertIsDisplayed()
-            .assertTextContains("请点击复习加战斗(2)")
+            .assertTextContains("Tiny lanterns glow as fruit friends guide each new word.")
         composeRule.onNodeWithTag("HomeReviewCountBadge")
             .assertIsDisplayed()
             .assertTextContains("2")
+        composeRule.onAllNodesWithText("常规").assertCountEquals(0)
+        composeRule.onAllNodesWithText("拼写").assertCountEquals(0)
+        composeRule.onAllNodesWithText("复习").assertCountEquals(0)
+        composeRule.onAllNodesWithText("精英").assertCountEquals(0)
+        composeRule.onAllNodesWithText("首领").assertCountEquals(0)
     }
 
     @Test

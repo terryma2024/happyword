@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from app.config import get_settings
 from app.models.user import User, UserRole
 from app.routers.parent_family_pack import _serialize_definition, _serialize_draft
-from app.services import family_pack_import_service
+from app.services import family_pack_import_service, pack_story_service
 from app.services import family_pack_service as svc
 from app.services.auth_service import JwtError, decode_typed_token
 from app.services.llm_service import LlmCallError, LlmConfigError
@@ -53,6 +53,24 @@ async def _load_definition_or_redirect(pack_id: str, user: User) -> FamilyPackDe
         )
     except svc.PackNotFound:
         return None
+
+
+def _story_scene_update(
+    current: dict[str, Any],
+    *,
+    story_en: str | None,
+    story_zh: str | None,
+) -> dict[str, Any]:
+    scene = dict(current)
+    for key, value in (("storyEn", story_en), ("storyZh", story_zh)):
+        if value is None:
+            continue
+        clean = value.strip()
+        if clean:
+            scene[key] = clean
+        else:
+            scene.pop(key, None)
+    return scene
 
 
 def _draft_row_kind(row: dict[str, Any], *, prefix: str) -> str:
@@ -217,6 +235,8 @@ async def create_pack_page(
 async def update_pack_metadata_page(
     request: Request,
     name: str = Form(...),
+    storyEn: str | None = Form(None),  # noqa: N803 - HTML field keeps client scene key
+    storyZh: str | None = Form(None),  # noqa: N803
     pack_id: str = Path(min_length=1, max_length=128),
     family_id: str = Path(min_length=1, max_length=128),
 ) -> RedirectResponse | HTMLResponse:
@@ -234,6 +254,7 @@ async def update_pack_metadata_page(
             family_id=user.family_id or "",
             name=name,
             description=None,
+            scene=_story_scene_update(definition.scene, story_en=storyEn, story_zh=storyZh),
         )
     except svc.NameTaken:
         return await _render_pack_detail(
@@ -251,6 +272,51 @@ async def update_pack_metadata_page(
         )
     return RedirectResponse(
         url=f"/family/{user.family_id or '_'}/packs/{updated.pack_id}?title_ok=1",
+        status_code=303,
+    )
+
+
+@router.post("/{family_id}/packs/{pack_id}/story/generate", response_model=None)
+async def generate_pack_story_page(
+    request: Request,
+    pack_id: str = Path(min_length=1, max_length=128),
+    family_id: str = Path(min_length=1, max_length=128),
+) -> RedirectResponse | HTMLResponse:
+    _ = family_id
+    gate = await _require_parent_html(request)
+    if isinstance(gate, RedirectResponse):
+        return gate
+    user = gate
+    definition = await _load_definition_or_redirect(pack_id, user)
+    if definition is None:
+        return RedirectResponse(url=f"/family/{user.family_id or '_'}/packs", status_code=303)
+    draft = await svc.get_or_create_draft(definition=definition, parent_user_id=user.username)
+    try:
+        _model, story = await pack_story_service.generate_pack_story(
+            pack_name=definition.name,
+            words=list(draft.words),
+        )
+    except (LlmConfigError, LlmCallError) as exc:
+        return await _render_pack_detail(
+            request,
+            user=user,
+            definition=definition,
+            title_error=str(exc),
+        )
+    updated_scene = _story_scene_update(
+        definition.scene,
+        story_en=story["storyEn"],
+        story_zh=story["storyZh"],
+    )
+    await svc.patch_definition(
+        pack_id=pack_id,
+        family_id=user.family_id or "",
+        name=None,
+        description=None,
+        scene=updated_scene,
+    )
+    return RedirectResponse(
+        url=f"/family/{user.family_id or '_'}/packs/{pack_id}?title_ok=1",
         status_code=303,
     )
 
