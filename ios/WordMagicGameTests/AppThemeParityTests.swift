@@ -72,6 +72,14 @@ final class AppThemeParityTests: XCTestCase {
         XCTAssertFalse(homeView.contains("Text(coordinator.selectedPack.story)"))
     }
 
+    func testAdventureCardStartButtonCopyMatchesHarmonyAndAndroid() throws {
+        let root = try repoRoot()
+        let homeView = try String(contentsOf: root.appending(path: "ios/WordMagicGame/Features/CoreLoop/HomeView.swift"))
+
+        XCTAssertTrue(homeView.contains("Text(\"开始今日冒险\")"))
+        XCTAssertFalse(homeView.contains("Text(\"开始冒险\")"))
+    }
+
     private func repoRoot() throws -> URL {
         var url = URL(fileURLWithPath: #filePath)
         for _ in 0..<3 {

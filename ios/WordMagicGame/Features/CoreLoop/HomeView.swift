@@ -164,7 +164,7 @@ struct HomeView: View {
             Button {
                 coordinator.startBattle()
             } label: {
-                Text("开始冒险")
+                Text("开始今日冒险")
                     .font(.system(size: 22, weight: .heavy, design: .rounded))
                 .frame(maxWidth: .infinity, minHeight: 50)
             }

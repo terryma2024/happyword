@@ -13,9 +13,9 @@ final class WordMagicGameUITests: XCTestCase {
 
         assertLandscape(app)
         XCTAssertTrue(app.staticTexts["Small Magician Word Adventure"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["开始冒险"].exists)
+        XCTAssertTrue(app.buttons["开始今日冒险"].exists)
 
-        app.buttons["开始冒险"].tap()
+        app.buttons["开始今日冒险"].tap()
         assertLandscape(app)
         XCTAssertTrue(app.buttons["BattleCorrectOption"].waitForExistence(timeout: 5))
 
@@ -108,7 +108,7 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Kite Serpent"].waitForExistence(timeout: 2))
 
         app.buttons["返回"].tap()
-        XCTAssertTrue(app.buttons["开始冒险"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["开始今日冒险"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -208,9 +208,9 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.buttons["复习"].waitForExistence(timeout: 5))
         app.buttons["复习"].tap()
         XCTAssertTrue(app.staticTexts["今天没有需要复习的单词"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["开始冒险"].exists)
+        XCTAssertTrue(app.buttons["开始今日冒险"].exists)
 
-        app.buttons["开始冒险"].tap()
+        app.buttons["开始今日冒险"].tap()
         XCTAssertTrue(app.buttons["BattleCorrectOption"].waitForExistence(timeout: 5))
         tapFirstIncorrectFruitOption(in: app)
         XCTAssertTrue(waitForBattleFeedback(in: app)?.hasPrefix("Correct answer:") == true)
@@ -219,11 +219,11 @@ final class WordMagicGameUITests: XCTestCase {
         app.buttons["Escape"].tap()
         XCTAssertTrue(app.staticTexts["继续练习"].waitForExistence(timeout: 5))
         app.buttons["返回主页"].tap()
-        XCTAssertTrue(app.buttons["开始冒险"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["开始今日冒险"].waitForExistence(timeout: 5))
 
         app.buttons["复习"].tap()
         XCTAssertTrue(app.staticTexts["今天没有需要复习的单词"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["开始冒险"].exists)
+        XCTAssertTrue(app.buttons["开始今日冒险"].exists)
     }
 
     @MainActor
@@ -233,7 +233,7 @@ final class WordMagicGameUITests: XCTestCase {
         app.launch()
 
         assertLandscape(app)
-        XCTAssertTrue(app.buttons["开始冒险"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["开始今日冒险"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["HomeChildProfileButton"].exists)
     }
 
