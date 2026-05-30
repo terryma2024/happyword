@@ -207,6 +207,11 @@ export default function audioLabControllerTest(): void {
       expect(rig.sfx.plays.length).assertEqual(0);
       expect(rig.controller.snapshot().pendingDelayedSfx).assertEqual('hit_crit');
 
+      // Combo creates a short music-restore timer while voice is active;
+      // that timer should not finish the voice or flush delayed SFX.
+      rig.timer.runLatest();
+      expect(rig.sfx.plays.length).assertEqual(0);
+
       rig.timer.runLatest();
       expect(rig.sfx.plays.length).assertEqual(1);
       expect(rig.sfx.plays[0]).assertEqual('hit_crit');
