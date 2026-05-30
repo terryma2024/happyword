@@ -19,6 +19,7 @@
     "pages/BoundDeviceInfoPage",
     "pages/DevMenuPage",
     "pages/MessageBubbleLabPage",
+    "pages/AudioLabPage",
     "pages/PackManagerPage",
     "pages/InAppBrowserPage"
   ]

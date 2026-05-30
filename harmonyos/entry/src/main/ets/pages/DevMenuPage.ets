@@ -442,6 +442,13 @@ struct DevMenuPage {
       });
   }
 
+  private openAudioLab(): void {
+    this.getUIContext().getRouter().pushUrl({ url: 'pages/AudioLabPage' })
+      .catch((err: BusinessError): void => {
+        console.error(`DevMenuPage.openAudioLab failed: ${JSON.stringify(err)}`);
+      });
+  }
+
   /**
    * Single card builder used for every entry in the grid. Empty
    * placeholders (`props.id === ''`) render a transparent
@@ -581,6 +588,17 @@ struct DevMenuPage {
           .borderRadius(12)
           .margin({ bottom: 16 })
           .onClick((): void => this.openMessageBubbleLab());
+
+        Button('Audio Lab')
+          .id('DevMenuAudioLabButton')
+          .height(44)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1D3557')
+          .backgroundColor('#EAF4F8')
+          .borderRadius(12)
+          .margin({ bottom: 16 })
+          .onClick((): void => this.openAudioLab());
 
         Column({ space: 12 }) {
           ForEach(this.cardPairs(this.previewCardList()), (pair: CardProps[]) => {
