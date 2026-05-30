@@ -156,6 +156,7 @@ export enum AudioLabEvent {
   StopMusic = 'stop_music',
   NormalAttack = 'normal_attack',
   ComboAttack = 'combo_attack',
+  WrongAnswer = 'wrong_answer',
   PlayerHurt = 'player_hurt',
   MonsterDefeat = 'monster_defeat',
   Victory = 'victory',
@@ -225,6 +226,7 @@ export class AudioLabController {
 
   playNormalAttack(): void;
   playComboAttack(): void;
+  playWrongAnswer(): void;
   playPlayerHurt(): void;
   playMonsterDefeat(): void;
   playVictory(): void;
