@@ -3,9 +3,9 @@
 > Scope: Apple App Store only. Android release work is intentionally excluded.
 > App: `WordMagicGame` / `魔法背单词`
 > Bundle ID: `com.terryma.wordmagicgame`
-> Version: `0.8.4`
-> Build: `1008006`
-> Last updated: 2026-05-24
+> Version: `0.9.5`
+> Build: `1009005`
+> Last updated: 2026-05-30
 
 ## Source Of Truth
 
@@ -19,13 +19,13 @@
 
 ## Current Repo State
 
-- [x] `MARKETING_VERSION` is `0.9.4` in `ios/project.yml`.
-- [x] `CURRENT_PROJECT_VERSION` is `1009004` in `ios/project.yml`.
+- [x] `MARKETING_VERSION` is `0.9.5` in `ios/project.yml`.
+- [x] `CURRENT_PROJECT_VERSION` is `1009005` in `ios/project.yml`.
 - [x] Bundle ID is `com.terryma.wordmagicgame`.
 - [x] App display name is `魔法背单词`.
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
-- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.9.4-b1009004.xcarchive`.
-- [x] App Store Connect upload succeeded for build `0.9.4 (1009004)`; build is selected on the `0.9.4` App Store version.
+- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v0.9.5-b1009005.xcarchive`.
+- [x] App Store Connect upload succeeded for build `0.9.5 (1009005)`; TestFlight processing completed.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
@@ -39,6 +39,7 @@
 - [x] In-app account deletion initiation path is verified from this repo: `学习档案` -> `账号与数据管理` opens `/family/<family_id>/account`.
 - [x] Apple App Review approved iOS version `0.8.4` / build `1008006`; App Store Connect status is `可分发`.
 - [x] iOS version `0.9.4` / build `1009004` was submitted for App Review on 2026-05-29; App Store Connect status is `正在等待审核`.
+- [x] iOS version `0.9.5` / build `1009005` was uploaded to App Store Connect/TestFlight, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for App Review on 2026-05-30. App Store Connect status is `正在等待审核`.
 - [x] App Store availability was re-enabled on 2026-05-24 for the available storefront set. App Store Connect now shows 148 countries/regions `正在处理为可用`.
 - [ ] EU / DSA trader-status countries remain unavailable until the account owner provides trader status in App Store Connect.
 
@@ -359,7 +360,7 @@ Notes:
   - Device: `iPad Pro 13-inch (M5) (iOS 26.4)`.
   - Size: `2064x2752`.
   - Files: `01-home.png`, `02-battle.png`, `03-result.png`, `04-learning-profile.png`, `05-pack-manager.png`.
-- App Store Connect submission state as of 2026-05-29:
+- App Store Connect submission state as of 2026-05-30:
   - Version metadata fields filled for `iOS App 版本 0.8.4`: promotional text, description, keywords, support URL, version, copyright, reviewer notes, App Review contact, and post-review release settings.
   - Build `1008006` selected for submission.
   - App Privacy labels published.
@@ -368,6 +369,7 @@ Notes:
   - Version `0.8.4 (1008006)` passed Apple review; App Store Connect status is `可分发`.
   - Availability was re-enabled on 2026-05-24 after approval. App Store Connect shows 148 countries/regions `正在处理为可用`; remaining EU / DSA trader-status regions require account-owner trader-status completion.
   - Version `0.9.4 (1009004)` was uploaded, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for review. App Store Connect status is `正在等待审核`.
+  - Version `0.9.5 (1009005)` was uploaded, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for review on 2026-05-30. App Store Connect status is `正在等待审核`; submission confirmation said review may take up to 48 hours.
 - Screenshots cover:
   1. Learning home screen.
   2. Battle/practice screen.
