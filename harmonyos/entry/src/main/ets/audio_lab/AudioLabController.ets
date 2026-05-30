@@ -14,6 +14,9 @@ import {
   SfxLabLane,
   VoiceLabLane,
 } from './AudioLabTypes';
+import { RealMusicLabLane } from './lanes/MusicLabLane';
+import { RealSfxLabLane } from './lanes/SfxLabLane';
+import { RealVoiceLabLane } from './lanes/VoiceLabLane';
 
 const KEY_HIT_NORMAL: string = 'hit_normal';
 const KEY_HIT_CRIT: string = 'hit_crit';
@@ -22,18 +25,6 @@ const KEY_PLAYER_HURT: string = 'player_hurt';
 const KEY_MONSTER_DEFEAT: string = 'monster_defeat';
 const KEY_VICTORY: string = 'victory';
 const KEY_DEFEAT: string = 'defeat';
-
-function missingMusicLane(): MusicLabLane {
-  throw new Error('AudioLabController missing MusicLabLane dependency');
-}
-
-function missingSfxLane(): SfxLabLane {
-  throw new Error('AudioLabController missing SfxLabLane dependency');
-}
-
-function missingVoiceLane(): VoiceLabLane {
-  throw new Error('AudioLabController missing VoiceLabLane dependency');
-}
 
 export class AudioLabController {
   private config: AudioLabConfig;
@@ -50,9 +41,9 @@ export class AudioLabController {
   constructor(config?: AudioLabConfig, observer?: AudioLabObserver, deps?: AudioLabControllerDeps) {
     this.config = config !== undefined ? config : new AudioLabConfig();
     this.observer = observer;
-    this.music = deps?.music !== undefined ? deps.music : missingMusicLane();
-    this.sfx = deps?.sfx !== undefined ? deps.sfx : missingSfxLane();
-    this.voice = deps?.voice !== undefined ? deps.voice : missingVoiceLane();
+    this.music = deps?.music !== undefined ? deps.music : new RealMusicLabLane();
+    this.sfx = deps?.sfx !== undefined ? deps.sfx : new RealSfxLabLane();
+    this.voice = deps?.voice !== undefined ? deps.voice : new RealVoiceLabLane();
     this.timer = deps?.timer !== undefined ? deps.timer : new RealAudioLabTimerDriver();
     this.snap.sfxDuringVoicePolicy = this.config.sfxDuringVoicePolicy;
   }
