@@ -92,6 +92,9 @@ export class AudioLabConfig {
   voiceLowerDurationMs: number = 1800;
   comboLowerDurationMs: number = 450;
 
+  sfxDuringVoicePolicy: SfxDuringVoicePolicy = SfxDuringVoicePolicy.LowerVolume;
+  sfxDuringVoiceVolume: number = 0.35;
+
   /**
    * Defaults to false. The first probe validates volume lowering without
    * actively fighting the system TTS focus behavior.
@@ -102,7 +105,48 @@ export class AudioLabConfig {
 
 Volume inputs are normalized from `0.0` to `1.0`. The page may render them as sliders, but the controller stores normalized values.
 
-### 6.2 Events
+### 6.2 SFX During Voice Policy
+
+The lab must explicitly test the overlap between short SFX and TTS. Every SFX call should pass through one controller policy gate instead of calling the SFX lane directly.
+
+```ts
+export enum SfxDuringVoicePolicy {
+  PlayFull = 'play_full',
+  LowerVolume = 'lower_volume',
+  SuppressNonCritical = 'suppress_non_critical',
+  DelayUntilVoiceEnds = 'delay_until_voice_ends',
+}
+```
+
+Policy behavior:
+
+| Policy | Behavior while `voiceActive=true` | Use |
+| --- | --- | --- |
+| `PlayFull` | Play the SFX at normal volume. | Baseline / A-B comparison. |
+| `LowerVolume` | Play the SFX immediately using `sfxDuringVoiceVolume`. | Recommended lab default; preserves feedback without covering pronunciation. |
+| `SuppressNonCritical` | Drop non-critical SFX; still allow critical cues. | Candidate production policy if pronunciation clarity needs stronger protection. |
+| `DelayUntilVoiceEnds` | Queue one latest non-critical SFX and play it when the voice timeout ends. | Experimental; useful to hear whether delayed feedback feels confusing. |
+
+Critical SFX:
+
+```text
+player_hurt
+monster_defeat
+victory
+defeat
+```
+
+Non-critical SFX:
+
+```text
+hit_normal
+hit_crit
+answer_wrong
+```
+
+The delayed policy must keep at most one pending non-critical SFX. Newer delayed SFX replace older pending SFX so rapid taps cannot build an audio queue.
+
+### 6.3 Events
 
 ```ts
 export enum AudioLabEvent {
@@ -120,11 +164,15 @@ export enum AudioLabEvent {
   LowerMusic = 'lower_music',
   RestoreMusic = 'restore_music',
   ResumeMusicOnce = 'resume_music_once',
+  SfxLoweredForVoice = 'sfx_lowered_for_voice',
+  SfxSuppressedForVoice = 'sfx_suppressed_for_voice',
+  SfxDelayedForVoice = 'sfx_delayed_for_voice',
+  SfxDelayedPlayed = 'sfx_delayed_played',
   Error = 'error',
 }
 ```
 
-### 6.3 Snapshot
+### 6.4 Snapshot
 
 ```ts
 export class AudioLabSnapshot {
@@ -138,12 +186,14 @@ export class AudioLabSnapshot {
 
   pendingTimers: number = 0;
   resumeAttempts: number = 0;
+  pendingDelayedSfx: string = '';
+  sfxDuringVoicePolicy: string = 'lower_volume';
 }
 ```
 
 The snapshot is for page display and manual debugging. It is not a persistence model and should not be stored in `AppStorage`.
 
-### 6.4 Observer
+### 6.5 Observer
 
 ```ts
 export interface AudioLabObserver {
@@ -186,6 +236,7 @@ export class AudioLabController {
   demoComboOverMusic(): void;
   demoWrongAnswerSequence(): void;
   demoVictorySequence(): void;
+  demoSfxDuringVoice(word: string): void;
 }
 ```
 
@@ -223,12 +274,39 @@ export class AudioLabController {
 7. On timeout, if token is still current:
    - mark voice inactive
    - restoreMusicVolume('voice-timeout')
+   - play any pending delayed SFX if the policy is DelayUntilVoiceEnds
    - if resumeMusicAfterVoice is true, resumeMusicOnce('voice-timeout')
 ```
 
 The first probe intentionally does not use a CoreSpeechKit completion listener. Timeout-based restoration is easier to validate and avoids the listener marshal cost that previously destabilized spell tap tests.
 
-### 7.4 Demo Flows
+### 7.4 SFX Policy Gate
+
+All public SFX methods should route through one private controller method:
+
+```ts
+private playSfx(key: string, critical: boolean): void
+```
+
+Behavior:
+
+```text
+1. If disposed or SFX disabled, no-op.
+2. If voiceActive is false, play at sfxVolume.
+3. If voiceActive is true:
+   - PlayFull: play at sfxVolume.
+   - LowerVolume: play at sfxDuringVoiceVolume.
+   - SuppressNonCritical:
+       - if critical, play at sfxDuringVoiceVolume.
+       - if non-critical, drop and emit SfxSuppressedForVoice.
+   - DelayUntilVoiceEnds:
+       - if critical, play at sfxDuringVoiceVolume.
+       - if non-critical, store as pendingDelayedSfx and emit SfxDelayedForVoice.
+```
+
+This policy gate is part of the lab's core value. It lets developers compare whether the final production mixer should lower, suppress, or delay SFX during pronunciation.
+
+### 7.5 Demo Flows
 
 Demo flows exist so a developer can experience realistic sequencing without entering battle:
 
@@ -236,6 +314,7 @@ Demo flows exist so a developer can experience realistic sequencing without ente
 - `demoComboOverMusic()`: start BGM, lower briefly, play combo SFX, restore.
 - `demoWrongAnswerSequence()`: play wrong-answer SFX, then delayed player-hurt SFX.
 - `demoVictorySequence()`: stop or lower BGM, then play victory fanfare.
+- `demoSfxDuringVoice(word)`: start BGM, speak word, trigger normal / combo / hurt SFX while `voiceActive=true` so the selected policy is audible.
 
 Demo methods are convenience wrappers only. They must use the same public controller methods as the page buttons.
 
@@ -318,15 +397,18 @@ Voice:
   word input / speak
 
 Demos:
-  speak over BGM / combo over BGM / wrong answer sequence / victory sequence
+  speak over BGM / combo over BGM / wrong answer sequence /
+  victory sequence / SFX during voice
 
 Settings:
   music enabled / sfx enabled / voice enabled / resume after voice
-  music volume / lowered music volume / sfx volume / voice lower timeout
+  music volume / lowered music volume / sfx volume /
+  SFX during voice policy / SFX during voice volume /
+  voice lower timeout
 
 Debug:
   musicState / voiceActive / pendingTimers / resumeAttempts /
-  lastEvent / lastError
+  pendingDelayedSfx / selected SFX policy / lastEvent / lastError
 ```
 
 The page can be utilitarian. It is a developer tool, so density and fast iteration matter more than decorative polish.
@@ -357,6 +439,10 @@ Use fake lanes to cover controller behavior without native audio:
 - `resumeMusicAfterVoice=true` calls `resumeOnce` at most once per speak timeout.
 - SFX disabled blocks SFX play calls.
 - Music disabled blocks BGM controls but does not block SFX / voice.
+- `LowerVolume` policy plays SFX at `sfxDuringVoiceVolume` while voice is active.
+- `SuppressNonCritical` drops non-critical SFX and still plays critical SFX.
+- `DelayUntilVoiceEnds` keeps only the latest pending non-critical SFX.
+- Voice timeout plays and clears pending delayed SFX.
 
 ### 11.2 Manual Lab Validation
 
@@ -365,6 +451,7 @@ On HarmonyOS device or simulator:
 - Start BGM and confirm loop playback.
 - Play every SFX over BGM.
 - Speak a word over BGM and confirm BGM volume lowers then restores.
+- While speaking, trigger normal / combo / hurt SFX under each SFX policy and compare clarity.
 - Toggle `resume after voice` and compare behavior.
 - Run demo flows and confirm no stuck lowered volume after exit/re-enter.
 - Navigate away from the lab and confirm BGM stops.
@@ -386,6 +473,7 @@ The HAP build log must have zero `ArkTS:WARN` lines. Since the lab does not touc
 - Debug-only page can start/stop BGM.
 - Page can play current battle SFX over BGM.
 - Page can speak a typed word while lowering BGM volume.
+- Page can compare SFX/TTS overlap policies: full, lowered, suppressed, delayed.
 - Page can manually test `resumeMusicOnce`.
 - `resumeMusicAfterVoice` defaults to false.
 - Leaving the page stops BGM and releases resources.
