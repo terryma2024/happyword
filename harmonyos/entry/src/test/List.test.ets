@@ -76,6 +76,7 @@ import homeDailyStatusBadgeStyleTest from './HomeDailyStatusBadgeStyle.test';
 import spellbookServiceTest from './SpellbookService.test';
 import spellbookRewardStoreTest from './SpellbookRewardStore.test';
 import spellbookCoverResolverTest from './SpellbookCoverResolver.test';
+import audioLabControllerTest from './AudioLabController.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -156,4 +157,5 @@ export default function testsuite() {
   spellbookServiceTest();
   spellbookRewardStoreTest();
   spellbookCoverResolverTest();
+  audioLabControllerTest();
 }
