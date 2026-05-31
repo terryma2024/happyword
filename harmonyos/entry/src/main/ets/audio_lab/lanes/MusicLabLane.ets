@@ -67,6 +67,7 @@ export class RealMusicLabLane implements MusicLabLane {
     if (this.muted || !this.ready || this.player === undefined) {
       return;
     }
+    this.currentState = 'playing';
     this.player.loop = true;
     this.player.setVolume(this.currentVolume);
     this.playPrepared(this.player);
@@ -74,6 +75,9 @@ export class RealMusicLabLane implements MusicLabLane {
 
   stop(): void {
     this.wantsLoop = false;
+    if (this.currentState === 'playing') {
+      this.currentState = 'paused';
+    }
     if (this.player === undefined) {
       return;
     }

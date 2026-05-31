@@ -4,6 +4,7 @@ import { AudioLabController } from '../audio_lab/AudioLabController';
 import {
   AudioLabConfig,
   AudioLabControllerDeps,
+  AudioLabObserver,
   AudioLabSnapshot,
   AudioLabVoiceBackend,
   SfxDuringVoicePolicy,
@@ -12,10 +13,10 @@ import { PcmVoiceLabLane } from '../audio_lab/lanes/PcmVoiceLabLane';
 import { RealVoiceLabLane } from '../audio_lab/lanes/VoiceLabLane';
 import { requestPageOrientation } from '../utils/orientation';
 
-const PANEL_WIDTH: number = 376;
-const WIDE_PANEL_WIDTH: number = PANEL_WIDTH * 2 + 10;
-const PAGE_PADDING: number = 28;
-const PANEL_GAP: number = 10;
+const PANEL_WIDTH: number = 360;
+const WIDE_PANEL_WIDTH: number = PANEL_WIDTH * 2 + 8;
+const PAGE_PADDING: number = 22;
+const PANEL_GAP: number = 8;
 const LAB_WORDS: string[] = ['apple', 'dragon', 'magic', 'school'];
 const POLICIES: string[] = [
   SfxDuringVoicePolicy.PlayFull,
@@ -42,6 +43,27 @@ function cloneAudioLabConfig(src: AudioLabConfig): AudioLabConfig {
   return out;
 }
 
+class PageAudioLabObserver implements AudioLabObserver {
+  private readonly version: number;
+  private readonly currentVersion: () => number;
+  private readonly applySnapshot: (snapshot: AudioLabSnapshot) => void;
+
+  constructor(version: number, currentVersion: () => number, applySnapshot: (snapshot: AudioLabSnapshot) => void) {
+    this.version = version;
+    this.currentVersion = currentVersion;
+    this.applySnapshot = applySnapshot;
+  }
+
+  onEvent(): void {
+  }
+
+  onSnapshot(snapshot: AudioLabSnapshot): void {
+    if (this.version === this.currentVersion()) {
+      this.applySnapshot(snapshot);
+    }
+  }
+}
+
 @Entry
 @Component
 struct AudioLabPage {
@@ -60,6 +82,7 @@ struct AudioLabPage {
   @State private sfxDuringVoiceVolume: number = 0.35;
   private config: AudioLabConfig = new AudioLabConfig();
   private controller: AudioLabController = new AudioLabController();
+  private controllerVersion: number = 0;
 
   aboutToAppear(): void {
     requestPageOrientation(
@@ -67,7 +90,8 @@ struct AudioLabPage {
       'AudioLabPage',
       (px: number): number => this.getUIContext().px2vp(px),
     );
-    this.controller = this.makeController(this.voiceBackend);
+    this.controllerVersion += 1;
+    this.controller = this.makeController(this.voiceBackend, this.controllerVersion);
     this.controller.updateConfig(this.config);
     this.controller.enter(this.getUIContext().getHostContext() as common.UIAbilityContext)
       .then((): void => {
@@ -176,9 +200,12 @@ struct AudioLabPage {
     });
   }
 
-  private toggleMusic(): void {
+  private setMusicEnabled(isOn: boolean): void {
+    if (isOn === this.config.musicEnabled) {
+      return;
+    }
     this.updateConfig((draft: AudioLabConfig): void => {
-      draft.musicEnabled = !draft.musicEnabled;
+      draft.musicEnabled = isOn;
     });
     if (!this.config.musicEnabled) {
       this.controller.stopMusic();
@@ -186,32 +213,64 @@ struct AudioLabPage {
     this.refreshSnapshot();
   }
 
-  private toggleSfx(): void {
+  private setSfxEnabled(isOn: boolean): void {
+    if (isOn === this.config.sfxEnabled) {
+      return;
+    }
     this.updateConfig((draft: AudioLabConfig): void => {
-      draft.sfxEnabled = !draft.sfxEnabled;
+      draft.sfxEnabled = isOn;
     });
+  }
+
+  private setVoiceEnabled(isOn: boolean): void {
+    if (isOn === this.config.voiceEnabled) {
+      return;
+    }
+    this.updateConfig((draft: AudioLabConfig): void => {
+      draft.voiceEnabled = isOn;
+    });
+  }
+
+  private setResumeMusicAfterVoice(isOn: boolean): void {
+    if (isOn === this.config.resumeMusicAfterVoice) {
+      return;
+    }
+    this.updateConfig((draft: AudioLabConfig): void => {
+      draft.resumeMusicAfterVoice = isOn;
+    });
+  }
+
+  private toggleMusic(): void {
+    this.setMusicEnabled(!this.musicEnabled);
+  }
+
+  private toggleSfx(): void {
+    this.setSfxEnabled(!this.sfxEnabled);
   }
 
   private toggleVoice(): void {
-    this.updateConfig((draft: AudioLabConfig): void => {
-      draft.voiceEnabled = !draft.voiceEnabled;
-    });
+    this.setVoiceEnabled(!this.voiceEnabled);
   }
 
-  private toggleResume(): void {
-    this.updateConfig((draft: AudioLabConfig): void => {
-      draft.resumeMusicAfterVoice = !draft.resumeMusicAfterVoice;
-    });
+  private toggleResumeMusicAfterVoice(): void {
+    this.setResumeMusicAfterVoice(!this.resumeMusicAfterVoice);
   }
 
-  private makeController(backend: AudioLabVoiceBackend): AudioLabController {
+  private makeController(backend: AudioLabVoiceBackend, version: number): AudioLabController {
     const deps: AudioLabControllerDeps = new AudioLabControllerDeps();
     if (backend === AudioLabVoiceBackend.PcmTts) {
       deps.voice = new PcmVoiceLabLane();
     } else {
       deps.voice = new RealVoiceLabLane();
     }
-    return new AudioLabController(this.config, undefined, deps);
+    const observer: AudioLabObserver = new PageAudioLabObserver(
+      version,
+      (): number => this.controllerVersion,
+      (snapshot: AudioLabSnapshot): void => {
+        this.snap = snapshot;
+      },
+    );
+    return new AudioLabController(this.config, observer, deps);
   }
 
   private switchVoiceBackend(backend: AudioLabVoiceBackend): void {
@@ -222,11 +281,12 @@ struct AudioLabPage {
     const label: string = this.backendLabel(backend);
     const previous: AudioLabController = this.controller;
     this.voiceBackend = backend;
+    this.controllerVersion += 1;
     this.statusText = `Voice backend: ${label}.`;
     previous.exit().catch((err: BusinessError): void => {
       console.error(`AudioLabPage backend switch exit failed: ${JSON.stringify(err)}`);
     });
-    this.controller = this.makeController(backend);
+    this.controller = this.makeController(backend, this.controllerVersion);
     this.controller.updateConfig(this.config);
     this.controller.enter(ctx)
       .then((): void => {
@@ -262,7 +322,7 @@ struct AudioLabPage {
   @Builder
   private sectionTitle(title: string) {
     Text(title)
-      .fontSize(16)
+      .fontSize(14)
       .fontWeight(FontWeight.Bold)
       .fontColor('#18324A')
       .width('100%');
@@ -272,8 +332,8 @@ struct AudioLabPage {
   private labButton(label: string, id: string, onClick: () => void) {
     Button(label)
       .id(id)
-      .height(32)
-      .fontSize(12)
+      .height(26)
+      .fontSize(11)
       .fontColor('#123047')
       .backgroundColor('#EAF4F8')
       .borderRadius(7)
@@ -285,8 +345,8 @@ struct AudioLabPage {
   private chip(label: string, selected: boolean, id: string, onClick: () => void) {
     Button(label)
       .id(id)
-      .height(28)
-      .fontSize(12)
+      .height(24)
+      .fontSize(11)
       .fontWeight(selected ? FontWeight.Bold : FontWeight.Regular)
       .fontColor(selected ? '#FFFFFF' : '#315166')
       .backgroundColor(selected ? '#276C7D' : '#EEF3F4')
@@ -297,84 +357,53 @@ struct AudioLabPage {
 
   @Builder
   private compactToggle(label: string, value: boolean, id: string, onClick: () => void) {
-    Row({ space: 6 }) {
-      Text(label)
-        .fontSize(12)
-        .fontColor('#334B5A')
-        .width(62)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis });
-      Text(this.boolLabel(value))
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(value ? '#276C7D' : '#697B84')
-        .textAlign(TextAlign.Center)
-        .width(24);
-      Row() {
-        if (value) {
-          Blank().width(18);
-          Text('')
-            .width(18)
-            .height(18)
-            .backgroundColor('#FFFFFF')
-            .borderRadius(9);
-        } else {
-          Text('')
-            .width(18)
-            .height(18)
-            .backgroundColor('#FFFFFF')
-            .borderRadius(9);
-          Blank().width(18);
-        }
-      }
-        .id(id)
-        .width(42)
-        .height(24)
-        .padding(3)
-        .backgroundColor(value ? '#007B86' : '#DDE5E8')
-        .borderRadius(12)
-        .onClick(onClick);
-    }
-    .height(28)
+    Button(`${label}  ${this.boolLabel(value)}`)
+    .id(id)
+    .height(26)
+    .fontSize(11)
+    .fontWeight(FontWeight.Bold)
+    .fontColor(value ? '#FFFFFF' : '#536B78')
+    .backgroundColor(value ? '#007B86' : '#EAF0F2')
+    .borderRadius(13)
     .layoutWeight(1)
-    .alignItems(VerticalAlign.Center)
-    .onClick(onClick);
+    .onTouch((event: TouchEvent): void => {
+      if (event.type === TouchType.Up) {
+        onClick();
+      }
+    });
   }
 
   @Builder
-  private compactStepper(label: string, value: string, minusId: string, plusId: string, onMinus: () => void, onPlus: () => void) {
-    Row({ space: 4 }) {
+  private stepperRow(label: string, value: string, minusId: string, plusId: string, onMinus: () => void, onPlus: () => void) {
+    Row({ space: 3 }) {
       Text(label)
-        .fontSize(12)
+        .fontSize(11)
         .fontColor('#334B5A')
-        .width(74)
+        .width(70)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis });
-      Text('-')
+      Button('-')
         .id(minusId)
-        .width(24)
+        .width(30)
         .height(24)
-        .fontSize(16)
+        .fontSize(14)
         .fontWeight(FontWeight.Bold)
         .fontColor('#123047')
-        .textAlign(TextAlign.Center)
         .backgroundColor('#EAF4F8')
         .borderRadius(12)
         .onClick(onMinus);
       Text(value)
-        .fontSize(12)
+        .fontSize(11)
         .fontWeight(FontWeight.Bold)
         .fontColor('#123047')
-        .textAlign(TextAlign.Center)
-        .width(40);
-      Text('+')
+        .width(36);
+      Button('+')
         .id(plusId)
-        .width(24)
+        .width(30)
         .height(24)
-        .fontSize(16)
+        .fontSize(14)
         .fontWeight(FontWeight.Bold)
         .fontColor('#123047')
-        .textAlign(TextAlign.Center)
         .backgroundColor('#EAF4F8')
         .borderRadius(12)
         .onClick(onPlus);
@@ -385,9 +414,9 @@ struct AudioLabPage {
 
   @Builder
   private transportPanel() {
-    Column({ space: 7 }) {
+    Column({ space: 5 }) {
       this.sectionTitle('Transport');
-      Row({ space: 8 }) {
+      Row({ space: 6 }) {
         this.labButton('Start BGM', 'AudioLabStartMusic', (): void => this.run(
           (): void => this.controller.startMusic(),
           'BGM loop requested.',
@@ -398,7 +427,7 @@ struct AudioLabPage {
         ));
       }
       .width('100%');
-      Row({ space: 8 }) {
+      Row({ space: 6 }) {
         this.labButton('Normal hit', 'AudioLabNormalHit', (): void => this.run(
           (): void => this.controller.playNormalAttack(),
           'Played normal attack SFX.',
@@ -409,7 +438,7 @@ struct AudioLabPage {
         ));
       }
       .width('100%');
-      Row({ space: 8 }) {
+      Row({ space: 6 }) {
         this.labButton('Wrong', 'AudioLabWrong', (): void => this.run(
           (): void => this.controller.playWrongAnswer(),
           'Played wrong-answer SFX.',
@@ -420,7 +449,7 @@ struct AudioLabPage {
         ));
       }
       .width('100%');
-      Row({ space: 8 }) {
+      Row({ space: 6 }) {
         this.labButton('Victory', 'AudioLabVictory', (): void => this.run(
           (): void => this.controller.playVictory(),
           'Played victory SFX.',
@@ -437,30 +466,47 @@ struct AudioLabPage {
 
   @Builder
   private voicePanel() {
-    Column({ space: 7 }) {
+    Column({ space: 5 }) {
       this.sectionTitle('Voice');
-      Row({ space: 8 }) {
-        this.chip(
-          this.backendLabel(AudioLabVoiceBackend.PcmTts),
-          this.voiceBackend === AudioLabVoiceBackend.PcmTts,
-          'AudioLabBackendPcm',
-          (): void => this.switchVoiceBackend(AudioLabVoiceBackend.PcmTts),
-        );
-        this.chip(
-          this.backendLabel(AudioLabVoiceBackend.SystemTts),
-          this.voiceBackend === AudioLabVoiceBackend.SystemTts,
-          'AudioLabBackendSystem',
-          (): void => this.switchVoiceBackend(AudioLabVoiceBackend.SystemTts),
-        );
+      Row({ space: 6 }) {
+        Button(this.backendLabel(AudioLabVoiceBackend.PcmTts))
+          .id('AudioLabBackendPcm')
+          .height(24)
+          .fontSize(11)
+          .fontWeight(this.voiceBackend === AudioLabVoiceBackend.PcmTts ? FontWeight.Bold : FontWeight.Regular)
+          .fontColor(this.voiceBackend === AudioLabVoiceBackend.PcmTts ? '#FFFFFF' : '#315166')
+          .backgroundColor(this.voiceBackend === AudioLabVoiceBackend.PcmTts ? '#276C7D' : '#EEF3F4')
+          .borderRadius(7)
+          .layoutWeight(1)
+          .onClick((): void => this.switchVoiceBackend(AudioLabVoiceBackend.PcmTts));
+        Button(this.backendLabel(AudioLabVoiceBackend.SystemTts))
+          .id('AudioLabBackendSystem')
+          .height(24)
+          .fontSize(11)
+          .fontWeight(this.voiceBackend === AudioLabVoiceBackend.SystemTts ? FontWeight.Bold : FontWeight.Regular)
+          .fontColor(this.voiceBackend === AudioLabVoiceBackend.SystemTts ? '#FFFFFF' : '#315166')
+          .backgroundColor(this.voiceBackend === AudioLabVoiceBackend.SystemTts ? '#276C7D' : '#EEF3F4')
+          .borderRadius(7)
+          .layoutWeight(1)
+          .onClick((): void => this.switchVoiceBackend(AudioLabVoiceBackend.SystemTts));
       }
       .width('100%');
-      Row({ space: 8 }) {
+      Row({ space: 6 }) {
         ForEach(LAB_WORDS, (word: string) => {
-          this.chip(word, this.selectedWord === word, `AudioLabWord_${word}`, (): void => this.selectWord(word));
+          Button(word)
+            .id(`AudioLabWord_${word}`)
+            .height(24)
+            .fontSize(11)
+            .fontWeight(this.selectedWord === word ? FontWeight.Bold : FontWeight.Regular)
+            .fontColor(this.selectedWord === word ? '#FFFFFF' : '#315166')
+            .backgroundColor(this.selectedWord === word ? '#276C7D' : '#EEF3F4')
+            .borderRadius(7)
+            .layoutWeight(1)
+            .onClick((): void => this.selectWord(word));
         }, (word: string): string => `${word}-${this.selectedWord === word ? 'selected' : 'idle'}`);
       }
       .width('100%');
-      Row({ space: 8 }) {
+      Row({ space: 6 }) {
         this.labButton('Speak', 'AudioLabSpeak', (): void => this.run(
           (): void => this.controller.speakWord(this.selectedWord),
           `Speaking ${this.selectedWord}.`,
@@ -471,7 +517,7 @@ struct AudioLabPage {
         ));
       }
       .width('100%');
-      Row({ space: 8 }) {
+      Row({ space: 6 }) {
         this.labButton('Combo over BGM', 'AudioLabComboOverMusic', (): void => this.run(
           (): void => this.controller.demoComboOverMusic(),
           'Combo attack over BGM.',
@@ -482,7 +528,7 @@ struct AudioLabPage {
         ));
       }
       .width('100%');
-      Row({ space: 8 }) {
+      Row({ space: 6 }) {
         this.labButton('Wrong sequence', 'AudioLabWrongSequence', (): void => this.run(
           (): void => this.controller.demoWrongAnswerSequence(),
           'Wrong answer plus player hurt sequence.',
@@ -499,32 +545,106 @@ struct AudioLabPage {
 
   @Builder
   private mixPanel() {
-    Column({ space: 6 }) {
+    Column({ space: 5 }) {
       this.sectionTitle('Mix');
-      Row({ space: 6 }) {
-        this.compactToggle('BGM', this.musicEnabled, 'AudioLabToggleMusic', (): void => this.toggleMusic());
-        this.compactToggle('SFX', this.sfxEnabled, 'AudioLabToggleSfx', (): void => this.toggleSfx());
-        this.compactToggle('Voice', this.voiceEnabled, 'AudioLabToggleVoice', (): void => this.toggleVoice());
-        this.compactToggle('Resume', this.resumeMusicAfterVoice, 'AudioLabToggleResume', (): void => this.toggleResume());
+      Row({ space: 5 }) {
+        Button(`BGM  ${this.boolLabel(this.musicEnabled)}`)
+          .id('AudioLabToggleMusic')
+          .height(26)
+          .fontSize(11)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.musicEnabled ? '#FFFFFF' : '#536B78')
+          .backgroundColor(this.musicEnabled ? '#007B86' : '#EAF0F2')
+          .borderRadius(13)
+          .layoutWeight(1)
+          .onClick((): void => this.toggleMusic());
+        Button(`SFX  ${this.boolLabel(this.sfxEnabled)}`)
+          .id('AudioLabToggleSfx')
+          .height(26)
+          .fontSize(11)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.sfxEnabled ? '#FFFFFF' : '#536B78')
+          .backgroundColor(this.sfxEnabled ? '#007B86' : '#EAF0F2')
+          .borderRadius(13)
+          .layoutWeight(1)
+          .onClick((): void => this.toggleSfx());
+        Button(`Voice  ${this.boolLabel(this.voiceEnabled)}`)
+          .id('AudioLabToggleVoice')
+          .height(26)
+          .fontSize(11)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.voiceEnabled ? '#FFFFFF' : '#536B78')
+          .backgroundColor(this.voiceEnabled ? '#007B86' : '#EAF0F2')
+          .borderRadius(13)
+          .layoutWeight(1)
+          .onClick((): void => this.toggleVoice());
+        Button(`Resume  ${this.boolLabel(this.resumeMusicAfterVoice)}`)
+          .id('AudioLabToggleResume')
+          .height(26)
+          .fontSize(11)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.resumeMusicAfterVoice ? '#FFFFFF' : '#536B78')
+          .backgroundColor(this.resumeMusicAfterVoice ? '#007B86' : '#EAF0F2')
+          .borderRadius(13)
+          .layoutWeight(1)
+          .onClick((): void => this.toggleResumeMusicAfterVoice());
       }
       .width('100%');
-      Row({ space: 6 }) {
-        this.compactStepper('Master', this.percent(this.masterVolume),
-          'AudioLabMasterMinus', 'AudioLabMasterPlus',
-          (): void => this.adjustMaster(-0.05),
-          (): void => this.adjustMaster(0.05));
-        this.compactStepper('BGM', this.percent(this.musicVolume),
-          'AudioLabMusicMinus', 'AudioLabMusicPlus',
-          (): void => this.adjustMusic(-0.05),
-          (): void => this.adjustMusic(0.05));
-        this.compactStepper('BGM duck', this.percent(this.musicLoweredVolume),
-          'AudioLabDuckMinus', 'AudioLabDuckPlus',
-          (): void => this.adjustDuck(-0.02),
-          (): void => this.adjustDuck(0.02));
-        this.compactStepper('SFX voice', this.percent(this.sfxDuringVoiceVolume),
-          'AudioLabSfxVoiceMinus', 'AudioLabSfxVoicePlus',
-          (): void => this.adjustSfxDuringVoice(-0.05),
-          (): void => this.adjustSfxDuringVoice(0.05));
+      Row({ space: 5 }) {
+        Row({ space: 3 }) {
+          Text('Master').fontSize(11).fontColor('#334B5A').width(70);
+          Button() { Text('-').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#123047'); }
+            .id('AudioLabMasterMinus').width(30).height(24)
+            .backgroundColor('#EAF4F8').borderRadius(12).onClick((): void => this.adjustMaster(-0.05));
+          Text(this.percent(this.masterVolume)).fontSize(11).fontWeight(FontWeight.Bold)
+            .fontColor('#123047').textAlign(TextAlign.Center).width(36);
+          Button() { Text('+').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#123047'); }
+            .id('AudioLabMasterPlus').width(30).height(24)
+            .backgroundColor('#EAF4F8').borderRadius(12).onClick((): void => this.adjustMaster(0.05));
+        }
+        .layoutWeight(1)
+        .alignItems(VerticalAlign.Center);
+        Row({ space: 3 }) {
+          Text('BGM').fontSize(11).fontColor('#334B5A').width(70);
+          Button() { Text('-').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#123047'); }
+            .id('AudioLabMusicMinus').width(30).height(24)
+            .backgroundColor('#EAF4F8').borderRadius(12).onClick((): void => this.adjustMusic(-0.05));
+          Text(this.percent(this.musicVolume)).fontSize(11).fontWeight(FontWeight.Bold)
+            .fontColor('#123047').textAlign(TextAlign.Center).width(36);
+          Button() { Text('+').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#123047'); }
+            .id('AudioLabMusicPlus').width(30).height(24)
+            .backgroundColor('#EAF4F8').borderRadius(12).onClick((): void => this.adjustMusic(0.05));
+        }
+        .layoutWeight(1)
+        .alignItems(VerticalAlign.Center);
+        Row({ space: 3 }) {
+          Text('BGM duck').fontSize(11).fontColor('#334B5A').width(70).maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis });
+          Button() { Text('-').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#123047'); }
+            .id('AudioLabDuckMinus').width(30).height(24)
+            .backgroundColor('#EAF4F8').borderRadius(12).onClick((): void => this.adjustDuck(-0.02));
+          Text(this.percent(this.musicLoweredVolume)).fontSize(11).fontWeight(FontWeight.Bold)
+            .fontColor('#123047').textAlign(TextAlign.Center).width(36);
+          Button() { Text('+').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#123047'); }
+            .id('AudioLabDuckPlus').width(30).height(24)
+            .backgroundColor('#EAF4F8').borderRadius(12).onClick((): void => this.adjustDuck(0.02));
+        }
+        .layoutWeight(1)
+        .alignItems(VerticalAlign.Center);
+        Row({ space: 3 }) {
+          Text('SFX voice').fontSize(11).fontColor('#334B5A').width(70).maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis });
+          Button() { Text('-').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#123047'); }
+            .id('AudioLabSfxVoiceMinus').width(30).height(24)
+            .backgroundColor('#EAF4F8').borderRadius(12).onClick((): void => this.adjustSfxDuringVoice(-0.05));
+          Text(this.percent(this.sfxDuringVoiceVolume)).fontSize(11).fontWeight(FontWeight.Bold)
+            .fontColor('#123047').textAlign(TextAlign.Center).width(36);
+          Button() { Text('+').fontSize(14).fontWeight(FontWeight.Bold).fontColor('#123047'); }
+            .id('AudioLabSfxVoicePlus').width(30).height(24)
+            .backgroundColor('#EAF4F8').borderRadius(12).onClick((): void => this.adjustSfxDuringVoice(0.05));
+        }
+        .layoutWeight(1)
+        .alignItems(VerticalAlign.Center);
       }
       .width('100%');
     }
@@ -537,12 +657,16 @@ struct AudioLabPage {
       this.sectionTitle('SFX During Voice');
       Row({ space: 8 }) {
         ForEach(POLICIES, (policy: string) => {
-          this.chip(
-            this.policyLabel(policy),
-            this.sfxDuringVoicePolicy === policy,
-            `AudioLabPolicy_${this.policyLabel(policy)}`,
-            (): void => this.setPolicy(policy),
-          );
+          Button(this.policyLabel(policy))
+            .id(`AudioLabPolicy_${this.policyLabel(policy)}`)
+            .height(24)
+            .fontSize(11)
+            .fontWeight(this.sfxDuringVoicePolicy === policy ? FontWeight.Bold : FontWeight.Regular)
+            .fontColor(this.sfxDuringVoicePolicy === policy ? '#FFFFFF' : '#315166')
+            .backgroundColor(this.sfxDuringVoicePolicy === policy ? '#276C7D' : '#EEF3F4')
+            .borderRadius(7)
+            .layoutWeight(1)
+            .onClick((): void => this.setPolicy(policy));
         }, (policy: string): string => `${policy}-${this.sfxDuringVoicePolicy === policy ? 'selected' : 'idle'}`);
       }
       .width('100%');
@@ -587,19 +711,19 @@ struct AudioLabPage {
 
   build(): void {
     Scroll() {
-      Column({ space: 14 }) {
+      Column({ space: 10 }) {
         Row() {
           Button('Back')
             .id('AudioLabBackButton')
-            .height(36)
-            .fontSize(14)
+            .height(32)
+            .fontSize(13)
             .backgroundColor('#FFFFFF')
             .fontColor('#1D3557')
             .borderWidth(1)
             .borderColor('#B8D7F6')
             .onClick((): void => this.goBack());
           Text('Audio Lab')
-            .fontSize(24)
+            .fontSize(22)
             .fontWeight(FontWeight.Bold)
             .fontColor('#1D3557')
             .layoutWeight(1)
@@ -608,17 +732,14 @@ struct AudioLabPage {
         }
         .width('100%');
 
+        this.mixPanel();
+
         Row({ space: PANEL_GAP }) {
           this.transportPanel();
           this.voicePanel();
         }
         .width('100%')
         .alignItems(VerticalAlign.Top);
-
-        Row() {
-          this.mixPanel();
-        }
-        .width('100%');
 
         Row({ space: PANEL_GAP }) {
           this.policyPanel();
@@ -628,7 +749,7 @@ struct AudioLabPage {
         .alignItems(VerticalAlign.Top);
       }
       .width('100%')
-      .padding({ top: 16, left: PAGE_PADDING, right: PAGE_PADDING, bottom: 32 });
+      .padding({ top: 12, left: PAGE_PADDING, right: PAGE_PADDING, bottom: 24 });
     }
     .id('AudioLabPage')
     .width('100%')
