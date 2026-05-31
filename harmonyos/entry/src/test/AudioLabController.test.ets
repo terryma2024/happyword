@@ -240,6 +240,18 @@ export default function audioLabControllerTest(): void {
       expect(rig.controller.snapshot().resumeAttempts).assertEqual(1);
     });
 
+    it('victorySequenceDoesNotStopCurrentBgm', 0, () => {
+      const rig: TestRig = new TestRig();
+
+      rig.controller.startMusic();
+      rig.controller.demoVictorySequence();
+
+      expect(rig.music.started).assertEqual(1);
+      expect(rig.music.stopped).assertEqual(0);
+      expect(rig.sfx.plays[0]).assertEqual('victory');
+      expect(rig.controller.snapshot().musicState).assertEqual('playing');
+    });
+
     it('exitClearsPendingTimersAndDisposesLanes', 0, async () => {
       const rig: TestRig = new TestRig();
 

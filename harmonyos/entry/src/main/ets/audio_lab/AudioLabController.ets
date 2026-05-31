@@ -221,7 +221,6 @@ export class AudioLabController {
   }
 
   demoVictorySequence(): void {
-    this.stopMusic();
     this.playVictory();
   }
 

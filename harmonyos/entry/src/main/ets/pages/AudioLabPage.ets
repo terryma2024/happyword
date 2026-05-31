@@ -535,7 +535,7 @@ struct AudioLabPage {
         ));
         this.labButton('Win sequence', 'AudioLabWinSequence', (): void => this.run(
           (): void => this.controller.demoVictorySequence(),
-          'Stopped BGM then played victory.',
+          'Played victory over current BGM.',
         ));
       }
       .width('100%');
