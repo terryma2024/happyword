@@ -8,7 +8,8 @@ import {
 } from '../audio_lab/AudioLabTypes';
 import { requestPageOrientation } from '../utils/orientation';
 
-const PANEL_WIDTH: number = 300;
+const PANEL_WIDTH: number = 420;
+const WIDE_PANEL_WIDTH: number = PANEL_WIDTH * 2 + 14;
 const PAGE_PADDING: number = 16;
 const PANEL_GAP: number = 14;
 const LAB_WORDS: string[] = ['apple', 'dragon', 'magic', 'school'];
@@ -250,6 +251,33 @@ struct AudioLabPage {
   }
 
   @Builder
+  private compactSwitch(label: string, value: boolean, id: string, onChange: (isOn: boolean) => void) {
+    Row({ space: 6 }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor('#334B5A')
+        .layoutWeight(1)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis });
+      Text(this.boolLabel(value))
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(value ? '#276C7D' : '#697B84')
+        .width(24);
+      Toggle({ type: ToggleType.Switch, isOn: value })
+        .id(id)
+        .selectedColor('#276C7D')
+        .switchPointColor('#FFFFFF')
+        .width(40)
+        .height(24)
+        .onChange(onChange);
+    }
+    .height(30)
+    .layoutWeight(1)
+    .alignItems(VerticalAlign.Center);
+  }
+
+  @Builder
   private stepper(label: string, value: string, minusId: string, plusId: string, onMinus: () => void, onPlus: () => void) {
     Row({ space: 6 }) {
       Text(label)
@@ -280,6 +308,42 @@ struct AudioLabPage {
         .onClick(onPlus);
     }
     .width('100%')
+    .alignItems(VerticalAlign.Center);
+  }
+
+  @Builder
+  private compactStepper(label: string, value: string, minusId: string, plusId: string, onMinus: () => void, onPlus: () => void) {
+    Row({ space: 4 }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor('#334B5A')
+        .width(86)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis });
+      Button('-')
+        .id(minusId)
+        .width(28)
+        .height(28)
+        .fontSize(13)
+        .backgroundColor('#EEF3F4')
+        .fontColor('#123047')
+        .onClick(onMinus);
+      Text(value)
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#123047')
+        .textAlign(TextAlign.Center)
+        .width(42);
+      Button('+')
+        .id(plusId)
+        .width(28)
+        .height(28)
+        .fontSize(13)
+        .backgroundColor('#EEF3F4')
+        .fontColor('#123047')
+        .onClick(onPlus);
+    }
+    .layoutWeight(1)
     .alignItems(VerticalAlign.Center);
   }
 
@@ -386,44 +450,50 @@ struct AudioLabPage {
   private mixPanel() {
     Column({ space: 6 }) {
       this.sectionTitle('Mix');
-      this.switchRow('BGM', this.config.musicEnabled, 'AudioLabToggleMusic', (isOn: boolean): void => {
-        if (isOn !== this.config.musicEnabled) {
-          this.toggleMusic();
-        }
-      });
-      this.switchRow('SFX', this.config.sfxEnabled, 'AudioLabToggleSfx', (isOn: boolean): void => {
-        if (isOn !== this.config.sfxEnabled) {
-          this.toggleSfx();
-        }
-      });
-      this.switchRow('Voice', this.config.voiceEnabled, 'AudioLabToggleVoice', (isOn: boolean): void => {
-        if (isOn !== this.config.voiceEnabled) {
-          this.toggleVoice();
-        }
-      });
-      this.stepper('Master', this.percent(this.config.masterVolume),
-        'AudioLabMasterMinus', 'AudioLabMasterPlus',
-        (): void => this.adjustMaster(-0.05),
-        (): void => this.adjustMaster(0.05));
-      this.stepper('BGM', this.percent(this.config.musicVolume),
-        'AudioLabMusicMinus', 'AudioLabMusicPlus',
-        (): void => this.adjustMusic(-0.05),
-        (): void => this.adjustMusic(0.05));
-      this.stepper('BGM duck', this.percent(this.config.musicLoweredVolume),
-        'AudioLabDuckMinus', 'AudioLabDuckPlus',
-        (): void => this.adjustDuck(-0.02),
-        (): void => this.adjustDuck(0.02));
-      this.stepper('SFX while voice', this.percent(this.config.sfxDuringVoiceVolume),
-        'AudioLabSfxVoiceMinus', 'AudioLabSfxVoicePlus',
-        (): void => this.adjustSfxDuringVoice(-0.05),
-        (): void => this.adjustSfxDuringVoice(0.05));
-      this.switchRow('Resume after voice', this.config.resumeMusicAfterVoice, 'AudioLabToggleResume', (isOn: boolean): void => {
-        if (isOn !== this.config.resumeMusicAfterVoice) {
-          this.toggleResume();
-        }
-      });
+      Row({ space: 8 }) {
+        this.compactSwitch('BGM', this.config.musicEnabled, 'AudioLabToggleMusic', (isOn: boolean): void => {
+          if (isOn !== this.config.musicEnabled) {
+            this.toggleMusic();
+          }
+        });
+        this.compactSwitch('SFX', this.config.sfxEnabled, 'AudioLabToggleSfx', (isOn: boolean): void => {
+          if (isOn !== this.config.sfxEnabled) {
+            this.toggleSfx();
+          }
+        });
+        this.compactSwitch('Voice', this.config.voiceEnabled, 'AudioLabToggleVoice', (isOn: boolean): void => {
+          if (isOn !== this.config.voiceEnabled) {
+            this.toggleVoice();
+          }
+        });
+        this.compactSwitch('Resume', this.config.resumeMusicAfterVoice, 'AudioLabToggleResume', (isOn: boolean): void => {
+          if (isOn !== this.config.resumeMusicAfterVoice) {
+            this.toggleResume();
+          }
+        });
+      }
+      .width('100%');
+      Row({ space: 8 }) {
+        this.compactStepper('Master', this.percent(this.config.masterVolume),
+          'AudioLabMasterMinus', 'AudioLabMasterPlus',
+          (): void => this.adjustMaster(-0.05),
+          (): void => this.adjustMaster(0.05));
+        this.compactStepper('BGM', this.percent(this.config.musicVolume),
+          'AudioLabMusicMinus', 'AudioLabMusicPlus',
+          (): void => this.adjustMusic(-0.05),
+          (): void => this.adjustMusic(0.05));
+        this.compactStepper('BGM duck', this.percent(this.config.musicLoweredVolume),
+          'AudioLabDuckMinus', 'AudioLabDuckPlus',
+          (): void => this.adjustDuck(-0.02),
+          (): void => this.adjustDuck(0.02));
+        this.compactStepper('SFX voice', this.percent(this.config.sfxDuringVoiceVolume),
+          'AudioLabSfxVoiceMinus', 'AudioLabSfxVoicePlus',
+          (): void => this.adjustSfxDuringVoice(-0.05),
+          (): void => this.adjustSfxDuringVoice(0.05));
+      }
+      .width('100%');
     }
-    .width(PANEL_WIDTH);
+    .width(WIDE_PANEL_WIDTH);
   }
 
   @Builder
@@ -506,10 +576,14 @@ struct AudioLabPage {
         Row({ space: PANEL_GAP }) {
           this.transportPanel();
           this.voicePanel();
-          this.mixPanel();
         }
         .width('100%')
         .alignItems(VerticalAlign.Top);
+
+        Row() {
+          this.mixPanel();
+        }
+        .width('100%');
 
         Row({ space: PANEL_GAP }) {
           this.policyPanel();
