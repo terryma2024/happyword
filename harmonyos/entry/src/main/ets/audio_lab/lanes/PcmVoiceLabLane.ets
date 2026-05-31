@@ -221,7 +221,7 @@ export class PcmVoiceLabLane implements VoiceLabLane {
     const nextRenderer: audio.AudioRenderer = await audio.createAudioRenderer(rendererOptions);
     try {
       nextRenderer.on('writeData', this.writeDataCallback);
-      nextRenderer.setInterruptModeSync(audio.InterruptMode.INDEPENDENT_MODE);
+      nextRenderer.setInterruptModeSync(audio.InterruptMode.SHARE_MODE);
     } catch (err) {
       console.warn(`PcmVoiceLabLane renderer setup warning: ${JSON.stringify(err as BusinessError)}`);
     }

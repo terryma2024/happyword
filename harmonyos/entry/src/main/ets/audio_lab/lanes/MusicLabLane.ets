@@ -1,4 +1,5 @@
 import media from '@ohos.multimedia.media';
+import audio from '@ohos.multimedia.audio';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import { MusicLabLane } from '../AudioLabTypes';
@@ -19,10 +20,19 @@ export class RealMusicLabLane implements MusicLabLane {
       const raw = await ctx.resourceManager.getRawFd(rawPath);
       const player: media.AVPlayer = await media.createAVPlayer();
       this.player = player;
+      player.audioInterruptMode = audio.InterruptMode.SHARE_MODE;
       player.on('error', (err: BusinessError): void => {
         this.currentState = 'error';
         this.muted = true;
         console.error(`RealMusicLabLane error: ${JSON.stringify(err)}`);
+      });
+      player.on('audioInterrupt', (info: audio.InterruptEvent): void => {
+        console.info(`RealMusicLabLane interrupt: ${JSON.stringify(info)}`);
+        if (info.eventType === audio.InterruptType.INTERRUPT_TYPE_END
+          && info.hintType === audio.InterruptHint.INTERRUPT_HINT_RESUME
+          && this.wantsLoop) {
+          this.startLoop();
+        }
       });
       player.on('stateChange', (state: string): void => {
         this.currentState = state;
