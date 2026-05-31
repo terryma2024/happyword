@@ -218,16 +218,26 @@ export default function audioLabControllerTest(): void {
       expect(rig.controller.snapshot().pendingDelayedSfx).assertEqual('');
     });
 
-    it('resumeAfterVoiceCallsResumeOnceOnlyWhenEnabled', 0, () => {
-      const cfg: AudioLabConfig = new AudioLabConfig();
-      cfg.resumeMusicAfterVoice = true;
-      const rig: TestRig = new TestRig(cfg);
+    it('resumeAfterVoiceCallsResumeOnceByDefault', 0, () => {
+      const rig: TestRig = new TestRig();
 
       rig.controller.speakWord('apple');
       rig.timer.runLatest();
 
       expect(rig.music.resumes).assertEqual(1);
       expect(rig.controller.snapshot().resumeAttempts).assertEqual(1);
+    });
+
+    it('resumeAfterVoiceCanBeDisabledForComparison', 0, () => {
+      const cfg: AudioLabConfig = new AudioLabConfig();
+      cfg.resumeMusicAfterVoice = false;
+      const rig: TestRig = new TestRig(cfg);
+
+      rig.controller.speakWord('apple');
+      rig.timer.runLatest();
+
+      expect(rig.music.resumes).assertEqual(0);
+      expect(rig.controller.snapshot().resumeAttempts).assertEqual(0);
     });
 
     it('exitClearsPendingTimersAndDisposesLanes', 0, async () => {

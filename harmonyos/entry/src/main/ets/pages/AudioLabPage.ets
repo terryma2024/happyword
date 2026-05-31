@@ -40,7 +40,7 @@ function cloneAudioLabConfig(src: AudioLabConfig): AudioLabConfig {
 struct AudioLabPage {
   @State private config: AudioLabConfig = new AudioLabConfig();
   @State private snap: AudioLabSnapshot = new AudioLabSnapshot();
-  @State private statusText: string = 'Initializing audio lab...';
+  @State private statusText: string = 'Initializing audio lab... Single-resume after voice is on by default.';
   @State private selectedWord: string = 'apple';
   private controller: AudioLabController = new AudioLabController();
 
@@ -53,7 +53,7 @@ struct AudioLabPage {
     this.controller.updateConfig(this.config);
     this.controller.enter(this.getUIContext().getHostContext() as common.UIAbilityContext)
       .then((): void => {
-        this.statusText = 'Ready. Use headphones or device speakers to compare overlap policies.';
+        this.statusText = 'Ready. BGM should duck during voice and resume once after the voice timeout.';
         this.refreshSnapshot();
       })
       .catch((err: BusinessError): void => {

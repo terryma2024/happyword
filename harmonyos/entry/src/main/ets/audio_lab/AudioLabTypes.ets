@@ -20,7 +20,7 @@ export class AudioLabConfig {
   comboLowerDurationMs: number = 450;
   sfxDuringVoicePolicy: SfxDuringVoicePolicy = SfxDuringVoicePolicy.LowerVolume;
   sfxDuringVoiceVolume: number = 0.35;
-  resumeMusicAfterVoice: boolean = false;
+  resumeMusicAfterVoice: boolean = true;
 }
 
 export enum AudioLabEvent {
