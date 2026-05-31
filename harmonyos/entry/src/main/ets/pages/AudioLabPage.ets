@@ -12,10 +12,10 @@ import { PcmVoiceLabLane } from '../audio_lab/lanes/PcmVoiceLabLane';
 import { RealVoiceLabLane } from '../audio_lab/lanes/VoiceLabLane';
 import { requestPageOrientation } from '../utils/orientation';
 
-const PANEL_WIDTH: number = 420;
-const WIDE_PANEL_WIDTH: number = PANEL_WIDTH * 2 + 14;
-const PAGE_PADDING: number = 16;
-const PANEL_GAP: number = 14;
+const PANEL_WIDTH: number = 376;
+const WIDE_PANEL_WIDTH: number = PANEL_WIDTH * 2 + 10;
+const PAGE_PADDING: number = 28;
+const PANEL_GAP: number = 10;
 const LAB_WORDS: string[] = ['apple', 'dragon', 'magic', 'school'];
 const POLICIES: string[] = [
   SfxDuringVoicePolicy.PlayFull,
@@ -45,11 +45,20 @@ function cloneAudioLabConfig(src: AudioLabConfig): AudioLabConfig {
 @Entry
 @Component
 struct AudioLabPage {
-  @State private config: AudioLabConfig = new AudioLabConfig();
   @State private snap: AudioLabSnapshot = new AudioLabSnapshot();
   @State private statusText: string = 'Initializing audio lab... PCM voice backend is selected by default.';
   @State private selectedWord: string = 'apple';
   @State private voiceBackend: AudioLabVoiceBackend = AudioLabVoiceBackend.PcmTts;
+  @State private musicEnabled: boolean = true;
+  @State private sfxEnabled: boolean = true;
+  @State private voiceEnabled: boolean = true;
+  @State private resumeMusicAfterVoice: boolean = false;
+  @State private masterVolume: number = 1.0;
+  @State private musicVolume: number = 0.32;
+  @State private musicLoweredVolume: number = 0.08;
+  @State private sfxDuringVoicePolicy: string = SfxDuringVoicePolicy.LowerVolume;
+  @State private sfxDuringVoiceVolume: number = 0.35;
+  private config: AudioLabConfig = new AudioLabConfig();
   private controller: AudioLabController = new AudioLabController();
 
   aboutToAppear(): void {
@@ -96,6 +105,18 @@ struct AudioLabPage {
     return value ? 'on' : 'off';
   }
 
+  private syncConfigState(next: AudioLabConfig): void {
+    this.musicEnabled = next.musicEnabled;
+    this.sfxEnabled = next.sfxEnabled;
+    this.voiceEnabled = next.voiceEnabled;
+    this.resumeMusicAfterVoice = next.resumeMusicAfterVoice;
+    this.masterVolume = next.masterVolume;
+    this.musicVolume = next.musicVolume;
+    this.musicLoweredVolume = next.musicLoweredVolume;
+    this.sfxDuringVoicePolicy = next.sfxDuringVoicePolicy;
+    this.sfxDuringVoiceVolume = next.sfxDuringVoiceVolume;
+  }
+
   private backendLabel(backend: AudioLabVoiceBackend): string {
     if (backend === AudioLabVoiceBackend.PcmTts) {
       return 'PCM mix';
@@ -120,6 +141,7 @@ struct AudioLabPage {
     const next: AudioLabConfig = cloneAudioLabConfig(this.config);
     mutator(next);
     this.config = next;
+    this.syncConfigState(next);
     this.controller.updateConfig(next);
     this.refreshSnapshot();
   }
@@ -198,21 +220,23 @@ struct AudioLabPage {
     }
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     const label: string = this.backendLabel(backend);
-    this.controller.exit()
-      .then((): Promise<void> => {
-        this.voiceBackend = backend;
-        this.controller = this.makeController(backend);
-        this.controller.updateConfig(this.config);
-        return this.controller.enter(ctx);
-      })
+    const previous: AudioLabController = this.controller;
+    this.voiceBackend = backend;
+    this.statusText = `Voice backend: ${label}.`;
+    previous.exit().catch((err: BusinessError): void => {
+      console.error(`AudioLabPage backend switch exit failed: ${JSON.stringify(err)}`);
+    });
+    this.controller = this.makeController(backend);
+    this.controller.updateConfig(this.config);
+    this.controller.enter(ctx)
       .then((): void => {
-        this.statusText = `Voice backend: ${label}.`;
         this.refreshSnapshot();
       })
       .catch((err: BusinessError): void => {
         this.statusText = `Backend switch failed: ${JSON.stringify(err)}`;
         this.refreshSnapshot();
       });
+    this.refreshSnapshot();
   }
 
   private setPolicy(policy: string): void {
@@ -248,11 +272,11 @@ struct AudioLabPage {
   private labButton(label: string, id: string, onClick: () => void) {
     Button(label)
       .id(id)
-      .height(36)
-      .fontSize(13)
+      .height(32)
+      .fontSize(12)
       .fontColor('#123047')
       .backgroundColor('#EAF4F8')
-      .borderRadius(8)
+      .borderRadius(7)
       .layoutWeight(1)
       .onClick(onClick);
   }
@@ -261,100 +285,60 @@ struct AudioLabPage {
   private chip(label: string, selected: boolean, id: string, onClick: () => void) {
     Button(label)
       .id(id)
-      .height(32)
+      .height(28)
       .fontSize(12)
       .fontWeight(selected ? FontWeight.Bold : FontWeight.Regular)
       .fontColor(selected ? '#FFFFFF' : '#315166')
       .backgroundColor(selected ? '#276C7D' : '#EEF3F4')
-      .borderRadius(8)
+      .borderRadius(7)
       .layoutWeight(1)
       .onClick(onClick);
   }
 
   @Builder
-  private switchRow(label: string, value: boolean, id: string, onChange: (isOn: boolean) => void) {
-    Row({ space: 8 }) {
-      Text(label)
-        .fontSize(12)
-        .fontColor('#334B5A')
-        .layoutWeight(1);
-      Text(this.boolLabel(value))
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(value ? '#276C7D' : '#697B84')
-        .width(26);
-      Toggle({ type: ToggleType.Switch, isOn: value })
-        .id(id)
-        .selectedColor('#276C7D')
-        .switchPointColor('#FFFFFF')
-        .width(44)
-        .height(26)
-        .onChange(onChange);
-    }
-    .height(30)
-    .width('100%')
-    .alignItems(VerticalAlign.Center);
-  }
-
-  @Builder
-  private compactSwitch(label: string, value: boolean, id: string, onChange: (isOn: boolean) => void) {
+  private compactToggle(label: string, value: boolean, id: string, onClick: () => void) {
     Row({ space: 6 }) {
       Text(label)
         .fontSize(12)
         .fontColor('#334B5A')
-        .layoutWeight(1)
+        .width(62)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis });
       Text(this.boolLabel(value))
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
         .fontColor(value ? '#276C7D' : '#697B84')
-        .width(24);
-      Toggle({ type: ToggleType.Switch, isOn: value })
-        .id(id)
-        .selectedColor('#276C7D')
-        .switchPointColor('#FFFFFF')
-        .width(40)
-        .height(24)
-        .onChange(onChange);
-    }
-    .height(30)
-    .layoutWeight(1)
-    .alignItems(VerticalAlign.Center);
-  }
-
-  @Builder
-  private stepper(label: string, value: string, minusId: string, plusId: string, onMinus: () => void, onPlus: () => void) {
-    Row({ space: 6 }) {
-      Text(label)
-        .fontSize(12)
-        .fontColor('#334B5A')
-        .width(102);
-      Button('-')
-        .id(minusId)
-        .width(32)
-        .height(28)
-        .fontSize(14)
-        .backgroundColor('#EEF3F4')
-        .fontColor('#123047')
-        .onClick(onMinus);
-      Text(value)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#123047')
         .textAlign(TextAlign.Center)
-        .width(54);
-      Button('+')
-        .id(plusId)
-        .width(32)
-        .height(28)
-        .fontSize(14)
-        .backgroundColor('#EEF3F4')
-        .fontColor('#123047')
-        .onClick(onPlus);
+        .width(24);
+      Row() {
+        if (value) {
+          Blank().width(18);
+          Text('')
+            .width(18)
+            .height(18)
+            .backgroundColor('#FFFFFF')
+            .borderRadius(9);
+        } else {
+          Text('')
+            .width(18)
+            .height(18)
+            .backgroundColor('#FFFFFF')
+            .borderRadius(9);
+          Blank().width(18);
+        }
+      }
+        .id(id)
+        .width(42)
+        .height(24)
+        .padding(3)
+        .backgroundColor(value ? '#007B86' : '#DDE5E8')
+        .borderRadius(12)
+        .onClick(onClick);
     }
-    .width('100%')
-    .alignItems(VerticalAlign.Center);
+    .height(28)
+    .layoutWeight(1)
+    .alignItems(VerticalAlign.Center)
+    .onClick(onClick);
   }
 
   @Builder
@@ -363,30 +347,36 @@ struct AudioLabPage {
       Text(label)
         .fontSize(12)
         .fontColor('#334B5A')
-        .width(86)
+        .width(74)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis });
-      Button('-')
+      Text('-')
         .id(minusId)
-        .width(28)
-        .height(28)
-        .fontSize(13)
-        .backgroundColor('#EEF3F4')
+        .width(24)
+        .height(24)
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
         .fontColor('#123047')
+        .textAlign(TextAlign.Center)
+        .backgroundColor('#EAF4F8')
+        .borderRadius(12)
         .onClick(onMinus);
       Text(value)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
         .fontColor('#123047')
         .textAlign(TextAlign.Center)
-        .width(42);
-      Button('+')
+        .width(40);
+      Text('+')
         .id(plusId)
-        .width(28)
-        .height(28)
-        .fontSize(13)
-        .backgroundColor('#EEF3F4')
+        .width(24)
+        .height(24)
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
         .fontColor('#123047')
+        .textAlign(TextAlign.Center)
+        .backgroundColor('#EAF4F8')
+        .borderRadius(12)
         .onClick(onPlus);
     }
     .layoutWeight(1)
@@ -395,7 +385,7 @@ struct AudioLabPage {
 
   @Builder
   private transportPanel() {
-    Column({ space: 8 }) {
+    Column({ space: 7 }) {
       this.sectionTitle('Transport');
       Row({ space: 8 }) {
         this.labButton('Start BGM', 'AudioLabStartMusic', (): void => this.run(
@@ -447,7 +437,7 @@ struct AudioLabPage {
 
   @Builder
   private voicePanel() {
-    Column({ space: 8 }) {
+    Column({ space: 7 }) {
       this.sectionTitle('Voice');
       Row({ space: 8 }) {
         this.chip(
@@ -511,43 +501,27 @@ struct AudioLabPage {
   private mixPanel() {
     Column({ space: 6 }) {
       this.sectionTitle('Mix');
-      Row({ space: 8 }) {
-        this.compactSwitch('BGM', this.config.musicEnabled, 'AudioLabToggleMusic', (isOn: boolean): void => {
-          if (isOn !== this.config.musicEnabled) {
-            this.toggleMusic();
-          }
-        });
-        this.compactSwitch('SFX', this.config.sfxEnabled, 'AudioLabToggleSfx', (isOn: boolean): void => {
-          if (isOn !== this.config.sfxEnabled) {
-            this.toggleSfx();
-          }
-        });
-        this.compactSwitch('Voice', this.config.voiceEnabled, 'AudioLabToggleVoice', (isOn: boolean): void => {
-          if (isOn !== this.config.voiceEnabled) {
-            this.toggleVoice();
-          }
-        });
-        this.compactSwitch('Resume', this.config.resumeMusicAfterVoice, 'AudioLabToggleResume', (isOn: boolean): void => {
-          if (isOn !== this.config.resumeMusicAfterVoice) {
-            this.toggleResume();
-          }
-        });
+      Row({ space: 6 }) {
+        this.compactToggle('BGM', this.musicEnabled, 'AudioLabToggleMusic', (): void => this.toggleMusic());
+        this.compactToggle('SFX', this.sfxEnabled, 'AudioLabToggleSfx', (): void => this.toggleSfx());
+        this.compactToggle('Voice', this.voiceEnabled, 'AudioLabToggleVoice', (): void => this.toggleVoice());
+        this.compactToggle('Resume', this.resumeMusicAfterVoice, 'AudioLabToggleResume', (): void => this.toggleResume());
       }
       .width('100%');
-      Row({ space: 8 }) {
-        this.compactStepper('Master', this.percent(this.config.masterVolume),
+      Row({ space: 6 }) {
+        this.compactStepper('Master', this.percent(this.masterVolume),
           'AudioLabMasterMinus', 'AudioLabMasterPlus',
           (): void => this.adjustMaster(-0.05),
           (): void => this.adjustMaster(0.05));
-        this.compactStepper('BGM', this.percent(this.config.musicVolume),
+        this.compactStepper('BGM', this.percent(this.musicVolume),
           'AudioLabMusicMinus', 'AudioLabMusicPlus',
           (): void => this.adjustMusic(-0.05),
           (): void => this.adjustMusic(0.05));
-        this.compactStepper('BGM duck', this.percent(this.config.musicLoweredVolume),
+        this.compactStepper('BGM duck', this.percent(this.musicLoweredVolume),
           'AudioLabDuckMinus', 'AudioLabDuckPlus',
           (): void => this.adjustDuck(-0.02),
           (): void => this.adjustDuck(0.02));
-        this.compactStepper('SFX voice', this.percent(this.config.sfxDuringVoiceVolume),
+        this.compactStepper('SFX voice', this.percent(this.sfxDuringVoiceVolume),
           'AudioLabSfxVoiceMinus', 'AudioLabSfxVoicePlus',
           (): void => this.adjustSfxDuringVoice(-0.05),
           (): void => this.adjustSfxDuringVoice(0.05));
@@ -565,11 +539,11 @@ struct AudioLabPage {
         ForEach(POLICIES, (policy: string) => {
           this.chip(
             this.policyLabel(policy),
-            this.config.sfxDuringVoicePolicy === policy,
+            this.sfxDuringVoicePolicy === policy,
             `AudioLabPolicy_${this.policyLabel(policy)}`,
             (): void => this.setPolicy(policy),
           );
-        }, (policy: string): string => `${policy}-${this.config.sfxDuringVoicePolicy === policy ? 'selected' : 'idle'}`);
+        }, (policy: string): string => `${policy}-${this.sfxDuringVoicePolicy === policy ? 'selected' : 'idle'}`);
       }
       .width('100%');
       Text('Try Speak over BGM, then SFX during voice. Critical hurt/victory/defeat cues still play under suppress and delay policies.')
