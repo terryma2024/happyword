@@ -1352,7 +1352,7 @@ V0.10 建议能力：
 - 预留 SFX lane 后续切换到 SoundPool / 低延迟音效池的实现边界。
 - 设置页可后续暴露 music / sfx / voice 开关；首版可以先使用常量配置。
 
-V0.10 不建议直接做 PCM 级真实混音。第一版采用“逻辑混音”：BGM、SFX、TTS 各自使用合适的系统播放能力，由 Mixer 统一处理音量、优先级、生命周期和降级。只有当 HarmonyOS 音频焦点仍然无法稳定共存时，才进入 AudioRenderer / PCM 混音路线。
+V0.10 的 Audio Lab 已验证“逻辑混音 + CoreSpeechKit 直接播放 TTS”仍可能让 BGM 停止，因此 HarmonyOS 首选路线调整为：BGM/SFX 继续保留独立 lane，TTS 先通过 CoreSpeechKit 合成 PCM，再由 app 自有 `AudioRenderer` 播放。`safeResumeAfterVoice()` 只作为 System TTS 对照/降级能力保留，不作为最终混音体验。
 
 ## 18. V0.11 Cocos2D 战斗美术化重构版
 

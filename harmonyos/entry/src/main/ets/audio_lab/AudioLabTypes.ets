@@ -7,6 +7,11 @@ export enum SfxDuringVoicePolicy {
   DelayUntilVoiceEnds = 'delay_until_voice_ends',
 }
 
+export enum AudioLabVoiceBackend {
+  PcmTts = 'pcm_tts',
+  SystemTts = 'system_tts',
+}
+
 export class AudioLabConfig {
   musicEnabled: boolean = true;
   sfxEnabled: boolean = true;
@@ -20,7 +25,7 @@ export class AudioLabConfig {
   comboLowerDurationMs: number = 450;
   sfxDuringVoicePolicy: SfxDuringVoicePolicy = SfxDuringVoicePolicy.LowerVolume;
   sfxDuringVoiceVolume: number = 0.35;
-  resumeMusicAfterVoice: boolean = true;
+  resumeMusicAfterVoice: boolean = false;
 }
 
 export enum AudioLabEvent {

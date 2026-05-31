@@ -1,7 +1,7 @@
 # V0.10 Audio Lab Technical Probe Design
 
 - **Date:** 2026-05-30
-- **Status:** Draft for user review
+- **Status:** Active technical probe
 - **Scope:** HarmonyOS technical probe only
 - **Related roadmap:** `docs/WordMagicGame_roadmap.md` V0.10 battle audio mixing
 - **Predecessor design:** `docs/superpowers/specs/2026-04-30-battle-audio-mixer-design.md`
@@ -20,11 +20,10 @@ This is a technical feasibility probe for V0.10, not the final `BattleAudioMixer
 - Do not replace the existing production `AudioService` / `PronunciationService` usage.
 - Do not expose new controls in release builds.
 - Do not implement three-platform replication yet.
-- Do not register CoreSpeechKit listeners in the first probe.
 - Do not listen to `audioInterrupt`.
 - Do not add periodic BGM rescue / polling.
 - Do not loosen `SpellQuestionFlow.ui.test.ets` polling as part of this probe.
-- Do not implement PCM-level real mixing.
+- Do not change production BattlePage audio until the lab proves the selected route.
 
 ## 3. Product And SOP Boundary
 
@@ -41,7 +40,7 @@ AudioLabPage
   -> AudioLabController
       -> MusicLabLane: BGM loop, volume changes, single manual resume
       -> SfxLabLane: short battle SFX playback
-      -> VoiceLabLane: TTS word pronunciation
+      -> VoiceLabLane: TTS word pronunciation, either system playback or PCM render
 ```
 
 The controller owns sequencing and timers. The page owns only UI controls and debug display. The lanes hide platform playback details behind small interfaces so the technical probe can later inform `BattleAudioMixer` without coupling it to the page.
@@ -56,6 +55,7 @@ harmonyos/entry/src/main/ets/audio_lab/
     MusicLabLane.ets
     SfxLabLane.ets
     VoiceLabLane.ets
+    PcmVoiceLabLane.ets
 
 harmonyos/entry/src/main/ets/pages/AudioLabPage.ets
 ```
@@ -280,7 +280,7 @@ export class AudioLabController {
    - if resumeMusicAfterVoice is true, resumeMusicOnce('voice-timeout')
 ```
 
-The first probe intentionally does not use a CoreSpeechKit completion listener. Timeout-based restoration is easier to validate and avoids the listener marshal cost that previously destabilized spell tap tests.
+The system TTS playback route is retained only as an A/B backend. Manual testing showed that `CoreSpeechKit` direct playback can still stop or interrupt BGM even when the controller only lowers volume. The selected lab route is therefore `PcmVoiceLabLane`: request TTS synthesis with `playType=0`, receive PCM chunks through `SpeakListener.onData`, and render them through an app-owned `AudioRenderer` stream. Timeout-based restoration remains in the controller so the lab can compare policy timing without depending on production battle flow.
 
 ### 7.4 SFX Policy Gate
 
@@ -381,7 +381,12 @@ export interface VoiceLabLane {
 }
 ```
 
-The first implementation may delegate to `PronunciationService`. It must not add listener registration or new production behavior.
+The lab provides two backend implementations:
+
+- `RealVoiceLabLane`: delegates to `PronunciationService` and uses CoreSpeechKit system playback. This is kept for comparison and regression evidence.
+- `PcmVoiceLabLane`: owns a CoreSpeechKit engine listener, buffers `onData` PCM chunks, and feeds an `AudioRenderer.writeData` callback. This is the candidate route for true BGM/SFX/voice overlap because pronunciation no longer asks CoreSpeechKit to own playback focus.
+
+`PcmVoiceLabLane` must remain isolated under `audio_lab/` until the route is validated by manual listening. It must not change `PronunciationService` or production auto-speak behavior.
 
 ## 9. Audio Lab Page
 
@@ -396,6 +401,7 @@ SFX:
   monster defeat / victory / defeat
 
 Voice:
+  backend switch: PCM mix / System TTS
   word input / speak
 
 Demos:
@@ -420,6 +426,7 @@ The page can be utilitarian. It is a developer tool, so density and fast iterati
 - Missing BGM: disable music lane, log error, keep SFX and voice usable.
 - Missing SFX: mute only that key.
 - TTS unavailable: voice controls no-op and show unavailable in the snapshot.
+- Unsupported TTS audio type: PCM voice lane logs and ignores the chunk; system backend remains available for comparison.
 - Player error: record `lastError`, degrade the affected lane only.
 - Disposed callback: no-op.
 - Observer error: catch and log, do not break controller state.
@@ -439,6 +446,7 @@ Use fake lanes to cover controller behavior without native audio:
 - Stale voice timeout cannot restore after a newer speak token.
 - `resumeMusicAfterVoice=false` never calls `resumeOnce`.
 - `resumeMusicAfterVoice=true` calls `resumeOnce` at most once per speak timeout.
+- PCM chunk queue fills renderer buffers across TTS chunk boundaries and clears stale utterance data.
 - SFX disabled blocks SFX play calls.
 - Music disabled blocks BGM controls but does not block SFX / voice.
 - `LowerVolume` policy plays SFX at `sfxDuringVoiceVolume` while voice is active.
@@ -453,6 +461,8 @@ On HarmonyOS device or simulator:
 - Start BGM and confirm loop playback.
 - Play every SFX over BGM.
 - Speak a word over BGM and confirm BGM volume lowers then restores.
+- In default `PCM mix` backend, confirm BGM keeps playing while voice is audible.
+- Switch to `System TTS` backend and compare whether direct TTS playback still interrupts BGM on the device.
 - While speaking, trigger normal / combo / hurt SFX under each SFX policy and compare clarity.
 - Toggle `resume after voice` and compare behavior.
 - Run demo flows and confirm no stuck lowered volume after exit/re-enter.
@@ -475,6 +485,7 @@ The HAP build log must have zero `ArkTS:WARN` lines. Since the lab does not touc
 - Debug-only page can start/stop BGM.
 - Page can play current battle SFX over BGM.
 - Page can speak a typed word while lowering BGM volume.
+- Page defaults to the `PCM mix` voice backend and can A/B against `System TTS`.
 - Page can compare SFX/TTS overlap policies: full, lowered, suppressed, delayed.
 - Page can manually test `resumeMusicOnce`.
 - `resumeMusicAfterVoice` defaults to false.

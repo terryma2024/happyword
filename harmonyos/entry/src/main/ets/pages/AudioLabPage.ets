@@ -3,9 +3,13 @@ import { common } from '@kit.AbilityKit';
 import { AudioLabController } from '../audio_lab/AudioLabController';
 import {
   AudioLabConfig,
+  AudioLabControllerDeps,
   AudioLabSnapshot,
+  AudioLabVoiceBackend,
   SfxDuringVoicePolicy,
 } from '../audio_lab/AudioLabTypes';
+import { PcmVoiceLabLane } from '../audio_lab/lanes/PcmVoiceLabLane';
+import { RealVoiceLabLane } from '../audio_lab/lanes/VoiceLabLane';
 import { requestPageOrientation } from '../utils/orientation';
 
 const PANEL_WIDTH: number = 420;
@@ -43,8 +47,9 @@ function cloneAudioLabConfig(src: AudioLabConfig): AudioLabConfig {
 struct AudioLabPage {
   @State private config: AudioLabConfig = new AudioLabConfig();
   @State private snap: AudioLabSnapshot = new AudioLabSnapshot();
-  @State private statusText: string = 'Initializing audio lab... Single-resume after voice is on by default.';
+  @State private statusText: string = 'Initializing audio lab... PCM voice backend is selected by default.';
   @State private selectedWord: string = 'apple';
+  @State private voiceBackend: AudioLabVoiceBackend = AudioLabVoiceBackend.PcmTts;
   private controller: AudioLabController = new AudioLabController();
 
   aboutToAppear(): void {
@@ -53,10 +58,11 @@ struct AudioLabPage {
       'AudioLabPage',
       (px: number): number => this.getUIContext().px2vp(px),
     );
+    this.controller = this.makeController(this.voiceBackend);
     this.controller.updateConfig(this.config);
     this.controller.enter(this.getUIContext().getHostContext() as common.UIAbilityContext)
       .then((): void => {
-        this.statusText = 'Ready. BGM should duck during voice and resume once after the voice timeout.';
+        this.statusText = 'Ready. PCM voice should mix over BGM without stopping it.';
         this.refreshSnapshot();
       })
       .catch((err: BusinessError): void => {
@@ -88,6 +94,13 @@ struct AudioLabPage {
 
   private boolLabel(value: boolean): string {
     return value ? 'on' : 'off';
+  }
+
+  private backendLabel(backend: AudioLabVoiceBackend): string {
+    if (backend === AudioLabVoiceBackend.PcmTts) {
+      return 'PCM mix';
+    }
+    return 'System TTS';
   }
 
   private policyLabel(policy: string): string {
@@ -167,6 +180,39 @@ struct AudioLabPage {
     this.updateConfig((draft: AudioLabConfig): void => {
       draft.resumeMusicAfterVoice = !draft.resumeMusicAfterVoice;
     });
+  }
+
+  private makeController(backend: AudioLabVoiceBackend): AudioLabController {
+    const deps: AudioLabControllerDeps = new AudioLabControllerDeps();
+    if (backend === AudioLabVoiceBackend.PcmTts) {
+      deps.voice = new PcmVoiceLabLane();
+    } else {
+      deps.voice = new RealVoiceLabLane();
+    }
+    return new AudioLabController(this.config, undefined, deps);
+  }
+
+  private switchVoiceBackend(backend: AudioLabVoiceBackend): void {
+    if (backend === this.voiceBackend) {
+      return;
+    }
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const label: string = this.backendLabel(backend);
+    this.controller.exit()
+      .then((): Promise<void> => {
+        this.voiceBackend = backend;
+        this.controller = this.makeController(backend);
+        this.controller.updateConfig(this.config);
+        return this.controller.enter(ctx);
+      })
+      .then((): void => {
+        this.statusText = `Voice backend: ${label}.`;
+        this.refreshSnapshot();
+      })
+      .catch((err: BusinessError): void => {
+        this.statusText = `Backend switch failed: ${JSON.stringify(err)}`;
+        this.refreshSnapshot();
+      });
   }
 
   private setPolicy(policy: string): void {
@@ -403,6 +449,21 @@ struct AudioLabPage {
   private voicePanel() {
     Column({ space: 8 }) {
       this.sectionTitle('Voice');
+      Row({ space: 8 }) {
+        this.chip(
+          this.backendLabel(AudioLabVoiceBackend.PcmTts),
+          this.voiceBackend === AudioLabVoiceBackend.PcmTts,
+          'AudioLabBackendPcm',
+          (): void => this.switchVoiceBackend(AudioLabVoiceBackend.PcmTts),
+        );
+        this.chip(
+          this.backendLabel(AudioLabVoiceBackend.SystemTts),
+          this.voiceBackend === AudioLabVoiceBackend.SystemTts,
+          'AudioLabBackendSystem',
+          (): void => this.switchVoiceBackend(AudioLabVoiceBackend.SystemTts),
+        );
+      }
+      .width('100%');
       Row({ space: 8 }) {
         ForEach(LAB_WORDS, (word: string) => {
           this.chip(word, this.selectedWord === word, `AudioLabWord_${word}`, (): void => this.selectWord(word));
