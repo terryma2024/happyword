@@ -8,7 +8,9 @@ import {
 } from '../audio_lab/AudioLabTypes';
 import { requestPageOrientation } from '../utils/orientation';
 
-const PANEL_WIDTH: number = 360;
+const PANEL_WIDTH: number = 300;
+const PAGE_PADDING: number = 16;
+const PANEL_GAP: number = 14;
 const LAB_WORDS: string[] = ['apple', 'dragon', 'magic', 'school'];
 const POLICIES: string[] = [
   SfxDuringVoicePolicy.PlayFull,
@@ -170,6 +172,14 @@ struct AudioLabPage {
     this.updateConfig((draft: AudioLabConfig): void => {
       draft.sfxDuringVoicePolicy = policy as SfxDuringVoicePolicy;
     });
+    this.statusText = `SFX during voice policy: ${this.policyLabel(policy)}.`;
+    this.refreshSnapshot();
+  }
+
+  private selectWord(word: string): void {
+    this.selectedWord = word;
+    this.statusText = `Selected word: ${word}.`;
+    this.refreshSnapshot();
   }
 
   private run(action: () => void, status: string): void {
@@ -191,11 +201,12 @@ struct AudioLabPage {
   private labButton(label: string, id: string, onClick: () => void) {
     Button(label)
       .id(id)
-      .height(40)
-      .fontSize(14)
+      .height(36)
+      .fontSize(13)
       .fontColor('#123047')
       .backgroundColor('#EAF4F8')
       .borderRadius(8)
+      .layoutWeight(1)
       .onClick(onClick);
   }
 
@@ -203,45 +214,66 @@ struct AudioLabPage {
   private chip(label: string, selected: boolean, id: string, onClick: () => void) {
     Button(label)
       .id(id)
-      .height(34)
-      .fontSize(13)
+      .height(32)
+      .fontSize(12)
       .fontWeight(selected ? FontWeight.Bold : FontWeight.Regular)
       .fontColor(selected ? '#FFFFFF' : '#315166')
       .backgroundColor(selected ? '#276C7D' : '#EEF3F4')
       .borderRadius(8)
+      .layoutWeight(1)
       .onClick(onClick);
   }
 
   @Builder
-  private toggleChip(label: string, value: boolean, id: string, onClick: () => void) {
-    this.chip(`${label}: ${this.boolLabel(value)}`, value, id, onClick);
+  private switchRow(label: string, value: boolean, id: string, onChange: (isOn: boolean) => void) {
+    Row({ space: 8 }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor('#334B5A')
+        .layoutWeight(1);
+      Text(this.boolLabel(value))
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(value ? '#276C7D' : '#697B84')
+        .width(26);
+      Toggle({ type: ToggleType.Switch, isOn: value })
+        .id(id)
+        .selectedColor('#276C7D')
+        .switchPointColor('#FFFFFF')
+        .width(44)
+        .height(26)
+        .onChange(onChange);
+    }
+    .height(30)
+    .width('100%')
+    .alignItems(VerticalAlign.Center);
   }
 
   @Builder
   private stepper(label: string, value: string, minusId: string, plusId: string, onMinus: () => void, onPlus: () => void) {
-    Row({ space: 8 }) {
+    Row({ space: 6 }) {
       Text(label)
-        .fontSize(13)
+        .fontSize(12)
         .fontColor('#334B5A')
-        .width(122);
+        .width(102);
       Button('-')
         .id(minusId)
-        .width(36)
-        .height(30)
+        .width(32)
+        .height(28)
         .fontSize(14)
         .backgroundColor('#EEF3F4')
         .fontColor('#123047')
         .onClick(onMinus);
       Text(value)
-        .fontSize(13)
+        .fontSize(12)
         .fontWeight(FontWeight.Bold)
         .fontColor('#123047')
         .textAlign(TextAlign.Center)
-        .width(70);
+        .width(54);
       Button('+')
         .id(plusId)
-        .width(36)
-        .height(30)
+        .width(32)
+        .height(28)
         .fontSize(14)
         .backgroundColor('#EEF3F4')
         .fontColor('#123047')
@@ -253,7 +285,7 @@ struct AudioLabPage {
 
   @Builder
   private transportPanel() {
-    Column({ space: 10 }) {
+    Column({ space: 8 }) {
       this.sectionTitle('Transport');
       Row({ space: 8 }) {
         this.labButton('Start BGM', 'AudioLabStartMusic', (): void => this.run(
@@ -305,14 +337,12 @@ struct AudioLabPage {
 
   @Builder
   private voicePanel() {
-    Column({ space: 10 }) {
+    Column({ space: 8 }) {
       this.sectionTitle('Voice');
       Row({ space: 8 }) {
         ForEach(LAB_WORDS, (word: string) => {
-          this.chip(word, this.selectedWord === word, `AudioLabWord_${word}`, (): void => {
-            this.selectedWord = word;
-          });
-        }, (word: string): string => word);
+          this.chip(word, this.selectedWord === word, `AudioLabWord_${word}`, (): void => this.selectWord(word));
+        }, (word: string): string => `${word}-${this.selectedWord === word ? 'selected' : 'idle'}`);
       }
       .width('100%');
       Row({ space: 8 }) {
@@ -354,14 +384,23 @@ struct AudioLabPage {
 
   @Builder
   private mixPanel() {
-    Column({ space: 10 }) {
+    Column({ space: 6 }) {
       this.sectionTitle('Mix');
-      Row({ space: 8 }) {
-        this.toggleChip('BGM', this.config.musicEnabled, 'AudioLabToggleMusic', (): void => this.toggleMusic());
-        this.toggleChip('SFX', this.config.sfxEnabled, 'AudioLabToggleSfx', (): void => this.toggleSfx());
-        this.toggleChip('Voice', this.config.voiceEnabled, 'AudioLabToggleVoice', (): void => this.toggleVoice());
-      }
-      .width('100%');
+      this.switchRow('BGM', this.config.musicEnabled, 'AudioLabToggleMusic', (isOn: boolean): void => {
+        if (isOn !== this.config.musicEnabled) {
+          this.toggleMusic();
+        }
+      });
+      this.switchRow('SFX', this.config.sfxEnabled, 'AudioLabToggleSfx', (isOn: boolean): void => {
+        if (isOn !== this.config.sfxEnabled) {
+          this.toggleSfx();
+        }
+      });
+      this.switchRow('Voice', this.config.voiceEnabled, 'AudioLabToggleVoice', (isOn: boolean): void => {
+        if (isOn !== this.config.voiceEnabled) {
+          this.toggleVoice();
+        }
+      });
       this.stepper('Master', this.percent(this.config.masterVolume),
         'AudioLabMasterMinus', 'AudioLabMasterPlus',
         (): void => this.adjustMaster(-0.05),
@@ -378,14 +417,18 @@ struct AudioLabPage {
         'AudioLabSfxVoiceMinus', 'AudioLabSfxVoicePlus',
         (): void => this.adjustSfxDuringVoice(-0.05),
         (): void => this.adjustSfxDuringVoice(0.05));
-      this.toggleChip('Resume after voice', this.config.resumeMusicAfterVoice, 'AudioLabToggleResume', (): void => this.toggleResume());
+      this.switchRow('Resume after voice', this.config.resumeMusicAfterVoice, 'AudioLabToggleResume', (isOn: boolean): void => {
+        if (isOn !== this.config.resumeMusicAfterVoice) {
+          this.toggleResume();
+        }
+      });
     }
     .width(PANEL_WIDTH);
   }
 
   @Builder
   private policyPanel() {
-    Column({ space: 10 }) {
+    Column({ space: 8 }) {
       this.sectionTitle('SFX During Voice');
       Row({ space: 8 }) {
         ForEach(POLICIES, (policy: string) => {
@@ -395,7 +438,7 @@ struct AudioLabPage {
             `AudioLabPolicy_${this.policyLabel(policy)}`,
             (): void => this.setPolicy(policy),
           );
-        }, (policy: string): string => policy);
+        }, (policy: string): string => `${policy}-${this.config.sfxDuringVoicePolicy === policy ? 'selected' : 'idle'}`);
       }
       .width('100%');
       Text('Try Speak over BGM, then SFX during voice. Critical hurt/victory/defeat cues still play under suppress and delay policies.')
@@ -439,7 +482,7 @@ struct AudioLabPage {
 
   build(): void {
     Scroll() {
-      Column({ space: 18 }) {
+      Column({ space: 14 }) {
         Row() {
           Button('Back')
             .id('AudioLabBackButton')
@@ -460,7 +503,7 @@ struct AudioLabPage {
         }
         .width('100%');
 
-        Row({ space: 18 }) {
+        Row({ space: PANEL_GAP }) {
           this.transportPanel();
           this.voicePanel();
           this.mixPanel();
@@ -468,7 +511,7 @@ struct AudioLabPage {
         .width('100%')
         .alignItems(VerticalAlign.Top);
 
-        Row({ space: 18 }) {
+        Row({ space: PANEL_GAP }) {
           this.policyPanel();
           this.statusPanel();
         }
@@ -476,7 +519,7 @@ struct AudioLabPage {
         .alignItems(VerticalAlign.Top);
       }
       .width('100%')
-      .padding({ top: 24, left: 24, right: 24, bottom: 48 });
+      .padding({ top: 16, left: PAGE_PADDING, right: PAGE_PADDING, bottom: 32 });
     }
     .id('AudioLabPage')
     .width('100%')
