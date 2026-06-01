@@ -6,6 +6,7 @@ import {
   CONFIG_LABEL_TEXT_COLOR,
   CONFIG_QUESTION_TYPE_CONTROL_KIND,
   CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
+  CONFIG_SWITCH_LABEL_WIDTH_VP,
   CONFIG_TIMER_OPTIONS_PER_ROW,
   questionTypeColumnRows,
   timerOptionRows,
@@ -37,6 +38,10 @@ export default function configPageLayoutTest(): void {
 
     it('usesSwitchControlsForQuestionTypes', 0, () => {
       expect(CONFIG_QUESTION_TYPE_CONTROL_KIND).assertEqual('switch');
+    });
+
+    it('usesOneSwitchLabelWidthForAudioAndQuestionRows', 0, () => {
+      expect(CONFIG_SWITCH_LABEL_WIDTH_VP).assertEqual(116);
     });
 
     it('groupsTimerOptionsThreePerRow', 0, () => {

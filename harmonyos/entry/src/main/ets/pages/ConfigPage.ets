@@ -36,6 +36,7 @@ import {
   CONFIG_LABEL_TEXT_COLOR,
   CONFIG_LABEL_WIDTH_VP,
   CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
+  CONFIG_SWITCH_LABEL_WIDTH_VP,
   questionTypeColumnRows,
   timerOptionRows,
 } from '../components/ConfigPageLayout';
@@ -724,7 +725,7 @@ struct ConfigPage {
       Text(label)
         .fontSize(14)
         .fontColor('#1f2937')
-        .width(96)
+        .width(CONFIG_SWITCH_LABEL_WIDTH_VP)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis });
       Toggle({ type: ToggleType.Switch, isOn: value })
@@ -772,7 +773,7 @@ struct ConfigPage {
                   .id(this.questionTypeLabelId(typeId))
                   .fontSize(14)
                   .fontColor('#1f2937')
-                  .width(116)
+                  .width(CONFIG_SWITCH_LABEL_WIDTH_VP)
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.Ellipsis });
                 Toggle({ type: ToggleType.Switch, isOn: this.isQuestionTypeEnabled(typeId) })
