@@ -1487,6 +1487,8 @@ export default function localUnitTest() {
       expect(c.monstersTotal).assertEqual(DEFAULT_MONSTERS_TOTAL);
       expect(c.startingSeconds).assertEqual(DEFAULT_STARTING_SECONDS);
       expect(c.autoSpeak).assertTrue();
+      expect(c.playBgm).assertFalse();
+      expect(c.actionSfx).assertTrue();
       expect(c.mode).assertEqual('normal');
       expect(c.parentPin).assertEqual('');
       expect(HP_MIN).assertEqual(1);
@@ -1536,9 +1538,26 @@ export default function localUnitTest() {
       clone.monstersTotal = 2;
       clone.startingSeconds = 3;
       clone.autoSpeak = !beforeAutoSpeak;
+      clone.playBgm = !original.playBgm;
+      clone.actionSfx = !original.actionSfx;
 
       expect(original.playerMaxHp).assertEqual(beforePlayer);
       expect(original.autoSpeak).assertEqual(beforeAutoSpeak);
+      expect(original.playBgm).assertFalse();
+      expect(original.actionSfx).assertTrue();
+    });
+
+    it('clonePreservesAudioPlaybackSwitches', 0, () => {
+      const src: GameConfig = new GameConfig();
+      src.autoSpeak = false;
+      src.playBgm = true;
+      src.actionSfx = false;
+
+      const dst: GameConfig = cloneGameConfig(src);
+
+      expect(dst.autoSpeak).assertFalse();
+      expect(dst.playBgm).assertTrue();
+      expect(dst.actionSfx).assertFalse();
     });
 
     it('parentPinDefaultsToEmptyString', 0, () => {

@@ -131,5 +131,18 @@ export default function battleQuestionTypePolicyTest() {
       expect(roundTrip.enabledQuestionTypes[0]).assertEqual(QuestionKind.FillLetter);
       expect(roundTrip.enabledQuestionTypes[1]).assertEqual(QuestionKind.Spell);
     });
+
+    it('persistsAudioPlaybackSwitches', 0, () => {
+      const cfg: GameConfig = new GameConfig();
+      cfg.autoSpeak = false;
+      cfg.playBgm = true;
+      cfg.actionSfx = false;
+
+      const roundTrip: GameConfig = gameConfigFromJson(gameConfigToJson(cfg));
+
+      expect(roundTrip.autoSpeak).assertFalse();
+      expect(roundTrip.playBgm).assertTrue();
+      expect(roundTrip.actionSfx).assertFalse();
+    });
   });
 }

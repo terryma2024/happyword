@@ -20,6 +20,8 @@ data class GameConfig(
     val monsterCount: Int = 10,
     val timerSeconds: Int = 300,
     val autoPronunciation: Boolean = true,
+    val playBgm: Boolean = false,
+    val actionSfx: Boolean = true,
     val enabledQuestionTypes: List<String> = BattleQuestionTypePolicy.defaultOrderedTypeIds,
 ) {
     fun sanitizedQuestionTypes(): List<String> =

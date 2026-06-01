@@ -63,6 +63,8 @@ export function gameConfigToJson(cfg: GameConfig): string {
     monstersTotal: cfg.monstersTotal,
     startingSeconds: cfg.startingSeconds,
     autoSpeak: cfg.autoSpeak,
+    playBgm: cfg.playBgm,
+    actionSfx: cfg.actionSfx,
     mode: cfg.mode,
     parentPin: cfg.parentPin,
     enabledQuestionTypes: sanitizeEnabledQuestionTypes(cfg.enabledQuestionTypes),
@@ -98,6 +100,14 @@ export function gameConfigFromJson(raw: string): GameConfig {
   const ap: Object | undefined = rec['autoSpeak'];
   if (typeof ap === 'boolean') {
     out.autoSpeak = ap;
+  }
+  const bgm: Object | undefined = rec['playBgm'];
+  if (typeof bgm === 'boolean') {
+    out.playBgm = bgm;
+  }
+  const sfx: Object | undefined = rec['actionSfx'];
+  if (typeof sfx === 'boolean') {
+    out.actionSfx = sfx;
   }
   const md: Object | undefined = rec['mode'];
   if (typeof md === 'string') {

@@ -1,6 +1,7 @@
 package cool.happyword.wordmagic.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,26 +42,16 @@ import cool.happyword.wordmagic.core.PreviewTarget
 
 @Composable
 fun DevMenuScreen(
-    state: BackendRouteState,
-    previews: List<PreviewTarget>,
-    routingSummary: String,
-    probeStatus: String,
-    manifestBusy: Boolean,
     applying: Boolean,
-    onSelectEnv: (BackendEnv) -> Unit,
-    onRefreshManifest: () -> Unit,
-    onSelectPreview: (PreviewTarget) -> Unit,
-    onProbe: () -> Unit,
-    onBypassSecret: () -> Unit,
+    onDomainSwitch: () -> Unit,
+    onAudioLab: () -> Unit,
     onMessageBubbleLab: () -> Unit,
-    onClear: () -> Unit,
     onBack: () -> Unit,
 ) {
     Column(
         Modifier
             .fillMaxSize()
             .background(Color.White)
-            .verticalScroll(rememberScrollState())
             .topChromeSafeInsets()
             .padding(
                 start = PageChromeInsets.bodyHorizontal,
@@ -82,9 +73,59 @@ fun DevMenuScreen(
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF303030),
             )
+        }
+        Spacer(Modifier.height(24.dp))
+        DevMenuLauncherButton("Domain Switch", Modifier.testTag("DevMenuDomainSwitchButton"), enabled = !applying, onClick = onDomainSwitch)
+        Spacer(Modifier.height(12.dp))
+        DevMenuLauncherButton("PcmAudioLab", Modifier.testTag("DevMenuAudioLabButton"), enabled = !applying, onClick = onAudioLab)
+        Spacer(Modifier.height(12.dp))
+        DevMenuLauncherButton("MessageBubbleLab", Modifier.testTag("DevMenuMessageBubbleLabButton"), enabled = !applying, onClick = onMessageBubbleLab)
+    }
+}
+
+@Composable
+fun DomainSwitchScreen(
+    state: BackendRouteState,
+    previews: List<PreviewTarget>,
+    routingSummary: String,
+    probeStatus: String,
+    manifestBusy: Boolean,
+    applying: Boolean,
+    onSelectEnv: (BackendEnv) -> Unit,
+    onRefreshManifest: () -> Unit,
+    onSelectPreview: (PreviewTarget) -> Unit,
+    onProbe: () -> Unit,
+    onBypassSecret: () -> Unit,
+    onClear: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .verticalScroll(rememberScrollState())
+            .topChromeSafeInsets()
+            .padding(
+                start = PageChromeInsets.bodyHorizontal,
+                top = PageChromeInsets.bodyTop,
+                end = PageChromeInsets.bodyHorizontal,
+                bottom = PageChromeInsets.bodyBottom,
+            )
+            .testTag("DomainSwitchScreen"),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            HarmonyPageTopBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("DomainSwitchBackButton"),
+            )
+            Text(
+                "Domain Switch",
+                modifier = Modifier.padding(start = 16.dp),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF303030),
+            )
             Spacer(Modifier.weight(1f))
-            HarmonyDevMenuButton("Message Bubble Lab", Modifier.testTag("DevMenuMessageBubbleLabButton"), enabled = !applying, onClick = onMessageBubbleLab)
-            Spacer(Modifier.width(10.dp))
             HarmonyDevMenuButton("Bypass Secret", Modifier.testTag("DevMenuBypassSecretButton"), enabled = !applying, onClick = onBypassSecret)
             Spacer(Modifier.width(10.dp))
             HarmonyDevMenuButton(
@@ -181,6 +222,25 @@ private fun devMenuCards(state: BackendRouteState, previews: List<PreviewTarget>
         )
     }
     return listOf(local, staging) + previewCards
+}
+
+@Composable
+private fun DevMenuLauncherButton(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(52.dp),
+        enabled = enabled,
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFFE0F2FE),
+            contentColor = Color(0xFF0369A1),
+        ),
+        border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+    ) {
+        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+    }
 }
 
 @Composable

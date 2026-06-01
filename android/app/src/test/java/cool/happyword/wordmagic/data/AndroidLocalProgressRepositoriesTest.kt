@@ -1,6 +1,8 @@
 package cool.happyword.wordmagic.data
 
 import cool.happyword.wordmagic.core.BuiltinPacks
+import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
+import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.PackLibrary
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.SpellbookRewardSnapshot
@@ -57,5 +59,26 @@ class AndroidLocalProgressRepositoriesTest {
             listOf("fruit-forest", "school-castle"),
             AndroidLocalProgressRepositories(prefs).loadSpellbookRewards().claimedPackIds,
         )
+    }
+
+    @Test
+    fun gameConfigPersistsPcmAudioSwitchesAndQuestionTypeSelection() {
+        val prefs = FakeSharedPreferences()
+        val repository = AndroidLocalProgressRepositories(prefs)
+
+        repository.saveGameConfig(
+            GameConfig(
+                autoPronunciation = false,
+                playBgm = true,
+                actionSfx = false,
+                enabledQuestionTypes = listOf(BattleQuestionTypePolicy.SPELL),
+            ),
+        )
+
+        val loaded = AndroidLocalProgressRepositories(prefs).loadGameConfig()
+        assertEquals(false, loaded.autoPronunciation)
+        assertEquals(true, loaded.playBgm)
+        assertEquals(false, loaded.actionSfx)
+        assertEquals(listOf(BattleQuestionTypePolicy.SPELL), loaded.enabledQuestionTypes)
     }
 }

@@ -371,7 +371,7 @@ HomePage ─┬─ HomeStartButton (todayPack) ─→ BattlePage(today, AppStora
 
 - **iOS**：`ios/project.yml` + XcodeGen；领域逻辑在 `ios/WordMagicGame/`（Swift）；XCTest / XCUITest；发布清单 [`ios/release-pre.md`](../ios/release-pre.md)。
 - **Android**：Gradle 工程 `android/`；Compose UI + JVM / instrumented tests；发布硬化 [`docs/android-replica/07-release-readiness-checklist.md`](android-replica/07-release-readiness-checklist.md)。
-- **Parity 边界**：bootstrap 不含 V0.9 句子填词、V0.10 战斗 BGM、V0.11 Cocos；学习报告仍为 **device-local**（未上云按 pack 聚合）。
+- **Parity 边界**：bootstrap 不含 V0.9 句子填词、V1.0.0 战斗 BGM、V1.1.0 Cocos；学习报告仍为 **device-local**（未上云按 pack 聚合）。
 
 ### 7.1 HarmonyOS 客户端架构原则
 
@@ -971,9 +971,9 @@ hdc rport tcp:8123 tcp:8123
 ### 进行中 / 下一批（路线图）
 
 - **三端 feature SOP**：`docs/features/<feature-id>/` — Harmony 先交付 → 复制触发签字 → iOS / Android。
-- **V0.10**：战斗 BGM 与 TTS 混音（V0.4.8 deferred）。
+- **V1.0.0**：战斗 BGM 与 TTS 混音（V0.4.8 deferred）。
 - **V0.9**：AI 语境与句子填词。
-- **V0.11**：Cocos 表现层评估。
+- **V1.1.0**：Cocos 表现层评估。
 
 ### 可选增强（非阻塞）
 

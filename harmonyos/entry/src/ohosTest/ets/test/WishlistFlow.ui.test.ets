@@ -122,12 +122,10 @@ export default function wishlistFlowUiTest(): void {
       await driver.assertComponentExist(ON.text('兑换记录'));
       await driver.assertComponentExist(ON.id('RedemptionHistoryBackButton'));
 
-      // Empty state: this UI test never redeems, so RedemptionHistoryStore
-      // should be empty on a fresh emulator install. The previous V0.3.8
-      // store key did not exist, so first run has no records.
-      const empty: Component | null =
-        await driver.findComponent(ON.id('RedemptionHistoryEmpty'));
-      expect(empty !== null).assertTrue();
+      // The reused emulator may already have redemption records from a
+      // previous full-suite run. This case only verifies that the header
+      // action routes to the history surface; the redeem case below covers
+      // the non-empty history state after a successful exchange.
 
       await clickByIdShared(driver, 'RedemptionHistoryBackButton');
       await driver.delayMs(600);

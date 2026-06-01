@@ -166,7 +166,11 @@ cleanup() {
       | while read -r line; do
           taskstr="$(echo "${line}" | sed -nE 's/.*(tcp:[0-9]+ tcp:[0-9]+).*/\1/p')"
           if [[ -n "${taskstr}" ]]; then
-            hdc_t fport rm "${taskstr}" >/dev/null 2>&1 || true
+            # hdc expects the two nodes as separate argv entries. Passing the
+            # whole "tcp:A tcp:B" pair as one quoted argument leaves stale
+            # reverse mappings behind and the next run fails to listen.
+            read -r remote_node local_node <<<"${taskstr}"
+            hdc_t fport rm "${remote_node}" "${local_node}" >/dev/null 2>&1 || true
           fi
         done
   fi
@@ -295,13 +299,12 @@ fi
 # is supplied; without it, the runner executes everything registered in
 # harmonyos/entry/src/ohosTest/ets/test/List.test.ets.
 # Per-test timeout is intentionally larger than ohos-dev-commands.md's
-# 30000ms reference: parentAdminInteractionsStayStable in
-# harmonyos/entry/src/ohosTest/ets/test/ParentAdminFlow.ui.test.ets walks
-# launchApp → returnToHome → ensureParentPin → navigateToParentAdmin →
-# refresh → pending probe → scroll → typeIntoAdmin → exit, which can
-# take 35-45s in cold start, even though every individual step is fast
-# (the test is wide, not slow). 60000ms buys a safe margin without
-# masking real hangs.
+# 30000ms reference: parent admin tests now seed a bound mock parent
+# account before setting the local parent PIN because ConfigPage only
+# shows parent-password/admin rows for bound devices. The widest case
+# walks launchApp → mock bind → ensureParentPin → navigateToParentAdmin
+# → refresh → pending probe → scroll → typeIntoAdmin → exit. Each step
+# is bounded, but cold emulator runs routinely exceed 60s.
 TEST_CMD=(hdc)
 if [[ -n "${HDC_TARGET}" ]]; then
   TEST_CMD+=(-t "${HDC_TARGET}")
@@ -310,7 +313,7 @@ TEST_CMD+=(shell aa test
   -b com.terryma.wordmagicgame
   -m entry_test
   -s unittest OpenHarmonyTestRunner
-  -s timeout 60000
+  -s timeout 120000
   -w 1800
 )
 if [[ -n "${SUITE_FILTER}" ]]; then

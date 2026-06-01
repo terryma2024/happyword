@@ -40,6 +40,7 @@ class HomeDailyLearningUiTest {
                 onPackManager = {},
                 onWishlist = {},
                 onMonsterCodex = {},
+                onSpellbook = {},
                 onTodayPlan = {},
                 onConfig = {},
             )
@@ -82,6 +83,7 @@ class HomeDailyLearningUiTest {
                 onPackManager = {},
                 onWishlist = {},
                 onMonsterCodex = {},
+                onSpellbook = {},
                 onTodayPlan = {},
                 onConfig = {},
             )
@@ -117,6 +119,7 @@ class HomeDailyLearningUiTest {
                 onPackManager = {},
                 onWishlist = {},
                 onMonsterCodex = {},
+                onSpellbook = {},
                 onTodayPlan = {},
                 onConfig = {},
             )

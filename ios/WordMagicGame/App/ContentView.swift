@@ -60,9 +60,21 @@ struct ContentView: View {
                 } else {
                     ConfigView(coordinator: coordinator)
                 }
+            case .domainSwitch:
+                if DeveloperToolsPolicy.isDeveloperToolsVisible() {
+                    DomainSwitchView(coordinator: coordinator)
+                } else {
+                    ConfigView(coordinator: coordinator)
+                }
             case .bypassSecret:
                 if DeveloperToolsPolicy.isDeveloperToolsVisible() {
                     BypassSecretView(coordinator: coordinator)
+                } else {
+                    ConfigView(coordinator: coordinator)
+                }
+            case .pcmAudioLab:
+                if DeveloperToolsPolicy.isDeveloperToolsVisible() {
+                    PcmAudioLabView(coordinator: coordinator)
                 } else {
                     ConfigView(coordinator: coordinator)
                 }

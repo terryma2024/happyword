@@ -62,6 +62,7 @@ import compliancePolicyTest from './CompliancePolicy.test';
 import systemBrowserTest from './SystemBrowser.test';
 import battleStageSchedulerTest from './BattleStageScheduler.test';
 import battleQuestionSchedulerTest from './BattleQuestionScheduler.test';
+import battleAudioMixerTest from './BattleAudioMixer.test';
 import battleEngineTest from './BattleEngine.test';
 import battleRewardCalcTest from './BattleRewardCalc.test';
 import damageFloaterLabelTest from './DamageFloaterLabel.test';
@@ -76,6 +77,10 @@ import homeDailyStatusBadgeStyleTest from './HomeDailyStatusBadgeStyle.test';
 import spellbookServiceTest from './SpellbookService.test';
 import spellbookRewardStoreTest from './SpellbookRewardStore.test';
 import spellbookCoverResolverTest from './SpellbookCoverResolver.test';
+import devMenuToolEntriesTest from './DevMenuToolEntries.test';
+import audioLabControllerTest from './AudioLabController.test';
+import audioLabPcmVoiceTest from './AudioLabPcmVoice.test';
+import switchStyleTest from './SwitchStyle.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -142,6 +147,7 @@ export default function testsuite() {
   systemBrowserTest();
   battleStageSchedulerTest();
   battleQuestionSchedulerTest();
+  battleAudioMixerTest();
   battleEngineTest();
   battleRewardCalcTest();
   damageFloaterLabelTest();
@@ -156,4 +162,8 @@ export default function testsuite() {
   spellbookServiceTest();
   spellbookRewardStoreTest();
   spellbookCoverResolverTest();
+  devMenuToolEntriesTest();
+  audioLabControllerTest();
+  audioLabPcmVoiceTest();
+  switchStyleTest();
 }

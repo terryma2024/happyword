@@ -19,6 +19,8 @@ internal enum class AppRoute {
     ScanBinding,
     BoundDeviceInfo,
     DevMenu,
+    DomainSwitch,
+    PcmAudioLab,
     BypassSecret,
     MessageBubbleLab,
 }

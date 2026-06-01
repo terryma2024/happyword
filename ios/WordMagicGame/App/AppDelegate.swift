@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             "-UITestRouteChildProfile",
             "-UITestRouteParentAdmin",
             "-UITestRouteLessonReview",
+            "-UITestRoutePcmAudioLab",
             "-UITestRouteMessageBubbleLab",
         ]
         if portraitRouteArguments.contains(where: arguments.contains) {
@@ -57,6 +58,7 @@ enum OrientationController {
              .childProfile,
              .parentAdmin,
              .lessonReview,
+             .pcmAudioLab,
              .messageBubbleLab:
             return .portrait
         default:

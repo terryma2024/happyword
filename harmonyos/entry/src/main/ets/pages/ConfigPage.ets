@@ -33,18 +33,30 @@ import {
   CONFIG_CONTROL_GAP_VP,
   CONFIG_CONTROL_COLUMN_WIDTH_VP,
   CONFIG_FORM_ROW_WIDTH_VP,
+  CONFIG_GROUP_BOTTOM_GAP_VP,
   CONFIG_LABEL_TEXT_COLOR,
   CONFIG_LABEL_WIDTH_VP,
+  CONFIG_PARENT_ACTION_BORDER_COLOR,
+  CONFIG_PARENT_ACTION_BG_COLOR,
+  CONFIG_PARENT_ACTION_TEXT_COLOR,
   CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
+  CONFIG_SWITCH_LABEL_WIDTH_VP,
+  CONFIG_SWITCH_OPTION_GAP_VP,
   questionTypeColumnRows,
   timerOptionRows,
 } from '../components/ConfigPageLayout';
+import {
+  APP_SWITCH_HEIGHT_VP,
+  APP_SWITCH_POINT_COLOR,
+  APP_SWITCH_SELECTED_COLOR,
+  APP_SWITCH_WIDTH_VP,
+} from '../components/SwitchStyle';
 import { REPORT_CHANNEL_URL } from '../services/CompliancePolicy';
 import { openUrlInAppBrowser } from '../services/SystemBrowser';
 import { requestPageOrientation } from '../utils/orientation';
 /**
  * ConfigPage exposes battle knobs (HP / monster count / timer /
- * autoSpeak / 题型选择) plus pack manager entry. Changes persist
+ * audio playback / 题型选择) plus pack manager entry. Changes persist
  * immediately to AppStorage + disk (no Save/Cancel). Parent rows
  * (密码 / 学习记录 / 管理后台) render only after the device is bound;
  * 管理后台 appears only when a 6-digit parent PIN exists.
@@ -207,8 +219,8 @@ struct ConfigPage {
           Button(`孩子档案：${this.bindingNickname}`)
             .id('ConfigBoundDeviceInfoButton')
             .width(220).height(40).fontSize(15)
-            .backgroundColor('#E0F2FE').fontColor('#0369A1')
-            .borderWidth(2).borderColor('#0EA5E9')
+            .backgroundColor(CONFIG_PARENT_ACTION_BG_COLOR).fontColor(CONFIG_PARENT_ACTION_TEXT_COLOR)
+            .borderWidth(2).borderColor(CONFIG_PARENT_ACTION_BORDER_COLOR)
             .onClick((): void => this.openBoundDeviceInfo());
         } else {
           Button('绑定家长账号')
@@ -269,9 +281,9 @@ struct ConfigPage {
           Button(this.cloudSyncBusy ? '同步中…' : '立即同步学习记录')
             .id('ConfigCloudSyncButton')
             .width(220).height(40).fontSize(15)
-            .backgroundColor(this.cloudSyncBusy ? '#E5E7EB' : '#E0F2FE')
-            .fontColor(this.cloudSyncBusy ? '#6B7280' : '#0369A1')
-            .borderWidth(2).borderColor(this.cloudSyncBusy ? '#9CA3AF' : '#0EA5E9')
+            .backgroundColor(this.cloudSyncBusy ? '#E5E7EB' : CONFIG_PARENT_ACTION_BG_COLOR)
+            .fontColor(this.cloudSyncBusy ? '#6B7280' : CONFIG_PARENT_ACTION_TEXT_COLOR)
+            .borderWidth(2).borderColor(this.cloudSyncBusy ? '#9CA3AF' : CONFIG_PARENT_ACTION_BORDER_COLOR)
             .enabled(!this.cloudSyncBusy)
             .onClick((): void => this.onCloudSyncTap());
         }
@@ -376,10 +388,10 @@ struct ConfigPage {
         .id('ConfigParentAdminButton')
         .width(220).height(40)
         .fontSize(15)
-        .backgroundColor('#FFF4D0')
-        .fontColor('#7C2D12')
+        .backgroundColor(CONFIG_PARENT_ACTION_BG_COLOR)
+        .fontColor(CONFIG_PARENT_ACTION_TEXT_COLOR)
         .borderWidth(2)
-        .borderColor('#FFB400')
+        .borderColor(CONFIG_PARENT_ACTION_BORDER_COLOR)
         .onClick((): void => this.openParentAdmin());
     }
     .margin({ bottom: 16 })
@@ -398,6 +410,8 @@ struct ConfigPage {
     merged.monstersTotal = this.draft.monstersTotal;
     merged.startingSeconds = this.draft.startingSeconds;
     merged.autoSpeak = this.draft.autoSpeak;
+    merged.playBgm = this.draft.playBgm;
+    merged.actionSfx = this.draft.actionSfx;
     merged.enabledQuestionTypes = sanitizeEnabledQuestionTypes(this.draft.enabledQuestionTypes);
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
     persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, merged);
@@ -460,14 +474,30 @@ struct ConfigPage {
     this.persistBattleSettings();
   }
 
-  private toggleAutoSpeak(): void {
-    this.draft.autoSpeak = !this.draft.autoSpeak;
+  private setAutoSpeak(enabled: boolean): void {
+    this.draft.autoSpeak = enabled;
+    this.forceRerender();
+    this.persistBattleSettings();
+  }
+
+  private setPlayBgm(enabled: boolean): void {
+    this.draft.playBgm = enabled;
+    this.forceRerender();
+    this.persistBattleSettings();
+  }
+
+  private setActionSfx(enabled: boolean): void {
+    this.draft.actionSfx = enabled;
     this.forceRerender();
     this.persistBattleSettings();
   }
 
   private questionTypeChipId(typeId: string): string {
     return `ConfigQuestionType_${typeId}`;
+  }
+
+  private questionTypeLabelId(typeId: string): string {
+    return `ConfigQuestionTypeLabel_${typeId}`;
   }
 
   private questionTypeLabel(typeId: string): string {
@@ -487,12 +517,6 @@ struct ConfigPage {
       return '句子填词';
     }
     return '题型';
-  }
-
-  private questionTypeChipLabel(typeId: string): string {
-    const selected: boolean = this.isQuestionTypeEnabled(typeId);
-    const prefix: string = selected ? '✓ ' : '';
-    return `${prefix}${this.questionTypeLabel(typeId)}`;
   }
 
   private isQuestionTypeEnabled(typeId: string): boolean {
@@ -707,20 +731,43 @@ struct ConfigPage {
   }
 
   @Builder
-  private autoSpeakRow() {
+  private audioSwitch(label: string, value: boolean, id: string, onChange: (enabled: boolean) => void) {
+    Row({ space: 8 }) {
+      Text(label)
+        .fontSize(14)
+        .fontColor('#1f2937')
+        .width(CONFIG_SWITCH_LABEL_WIDTH_VP)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis });
+      Toggle({ type: ToggleType.Switch, isOn: value })
+        .id(id)
+        .width(APP_SWITCH_WIDTH_VP)
+        .height(APP_SWITCH_HEIGHT_VP)
+        .selectedColor(APP_SWITCH_SELECTED_COLOR)
+        .switchPointColor(APP_SWITCH_POINT_COLOR)
+        .onChange((enabled: boolean): void => {
+          onChange(enabled);
+        });
+    }
+    .alignItems(VerticalAlign.Center);
+  }
+
+  @Builder
+  private audioPlaybackRow() {
     Row({ space: CONFIG_CONTROL_GAP_VP }) {
       this.configLabel('发音播放');
-      Button(this.draft.autoSpeak ? '✓ 自动朗读' : '自动朗读')
-        .id('ConfigAutoSpeakToggle')
-        .width(140).height(40)
-        .fontSize(16)
-        .backgroundColor(this.draft.autoSpeak ? '#FFF4D0' : '#F0F0F0')
-        .fontColor(this.draft.autoSpeak ? '#7C2D12' : '#4B5563')
-        .borderWidth(this.draft.autoSpeak ? 2 : 0)
-        .borderColor('#FFB400')
-        .onClick((): void => this.toggleAutoSpeak());
+      Column({ space: CONFIG_SWITCH_OPTION_GAP_VP }) {
+        this.audioSwitch('自动发音', this.draft.autoSpeak, 'ConfigAutoSpeakSwitch',
+          (enabled: boolean): void => this.setAutoSpeak(enabled));
+        this.audioSwitch('播放BGM', this.draft.playBgm, 'ConfigPlayBgmSwitch',
+          (enabled: boolean): void => this.setPlayBgm(enabled));
+        this.audioSwitch('动作特效音', this.draft.actionSfx, 'ConfigActionSfxSwitch',
+          (enabled: boolean): void => this.setActionSfx(enabled));
+      }
+      .width(CONFIG_CONTROL_COLUMN_WIDTH_VP)
+      .alignItems(HorizontalAlign.Start);
     }
-    .margin({ bottom: 12 })
+    .margin({ bottom: CONFIG_GROUP_BOTTOM_GAP_VP })
     .width(CONFIG_FORM_ROW_WIDTH_VP)
     .alignItems(VerticalAlign.Center);
   }
@@ -730,23 +777,30 @@ struct ConfigPage {
     Column() {
       Row({ space: CONFIG_CONTROL_GAP_VP }) {
         this.configLabel('题型选择');
-        Column({ space: 8 }) {
+        Column({ space: CONFIG_SWITCH_OPTION_GAP_VP }) {
           ForEach(questionTypeColumnRows(DEFAULT_ENABLED_QUESTION_TYPES), (row: string[]) => {
-            Row() {
+            Row({ space: 8 }) {
               ForEach(row, (typeId: string) => {
-                Button(this.questionTypeChipLabel(typeId))
-                  .id(this.questionTypeChipId(typeId))
-                  .height(40)
-                  .padding({ left: 12, right: 12 })
+                Text(this.questionTypeLabel(typeId))
+                  .id(this.questionTypeLabelId(typeId))
                   .fontSize(14)
-                  .backgroundColor(this.isQuestionTypeEnabled(typeId) ? '#FFF4D0' : '#F0F0F0')
-                  .fontColor(this.isQuestionTypeEnabled(typeId) ? '#7C2D12' : '#4B5563')
-                  .borderWidth(this.isQuestionTypeEnabled(typeId) ? 2 : 0)
-                  .borderColor('#FFB400')
-                  .onClick((): void => this.toggleQuestionType(typeId));
+                  .fontColor('#1f2937')
+                  .width(CONFIG_SWITCH_LABEL_WIDTH_VP)
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis });
+                Toggle({ type: ToggleType.Switch, isOn: this.isQuestionTypeEnabled(typeId) })
+                  .id(this.questionTypeChipId(typeId))
+                  .width(APP_SWITCH_WIDTH_VP)
+                  .height(APP_SWITCH_HEIGHT_VP)
+                  .selectedColor(APP_SWITCH_SELECTED_COLOR)
+                  .switchPointColor(APP_SWITCH_POINT_COLOR)
+                  .onChange((_enabled: boolean): void => {
+                    this.toggleQuestionType(typeId);
+                  });
               }, (typeId: string): string => typeId);
             }
             .width('100%')
+            .alignItems(VerticalAlign.Center)
             .justifyContent(CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED ? FlexAlign.Start : FlexAlign.Center);
           }, (row: string[]): string => row[0]);
         }
@@ -763,7 +817,7 @@ struct ConfigPage {
     }
     .width('100%')
     .alignItems(HorizontalAlign.Center)
-    .margin({ bottom: 12 });
+    .margin({ bottom: CONFIG_GROUP_BOTTOM_GAP_VP });
   }
 
   @Builder
@@ -774,10 +828,10 @@ struct ConfigPage {
         .id('ConfigParentPinButton')
         .width(220).height(40)
         .fontSize(15)
-        .backgroundColor(this.draft.parentPin.length === 6 ? '#FFF4D0' : '#EAF2F8')
-        .fontColor(this.draft.parentPin.length === 6 ? '#7C2D12' : '#1D4ED8')
-        .borderWidth(this.draft.parentPin.length === 6 ? 2 : 0)
-        .borderColor('#FFB400')
+        .backgroundColor(CONFIG_PARENT_ACTION_BG_COLOR)
+        .fontColor(CONFIG_PARENT_ACTION_TEXT_COLOR)
+        .borderWidth(2)
+        .borderColor(CONFIG_PARENT_ACTION_BORDER_COLOR)
         .onClick((): void => this.openParentPinSetup());
     }
     .margin({ bottom: 12 })
@@ -959,7 +1013,7 @@ struct ConfigPage {
           .alignItems(VerticalAlign.Center);
 
           this.timerRow();
-          this.autoSpeakRow();
+          this.audioPlaybackRow();
           this.questionTypeRow();
           this.packPickerSection();
           this.reportChannelRow();

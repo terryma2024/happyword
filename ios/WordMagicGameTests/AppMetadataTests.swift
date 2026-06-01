@@ -49,8 +49,8 @@ final class AppMetadataTests: XCTestCase {
     }
 
     func testVersionMatchesHarmonyOSBaseline() {
-        XCTAssertEqual(AppMetadata.harmonyVersionName, "0.9.5")
-        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_009_005)
+        XCTAssertEqual(AppMetadata.harmonyVersionName, "1.0.0")
+        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_010_000)
     }
 
     func testPortraitTopChromeSpacingIsCompact() {
@@ -74,6 +74,7 @@ final class AppMetadataTests: XCTestCase {
         XCTAssertEqual(OrientationController.mask(for: .result, idiom: .phone), .landscape)
         XCTAssertEqual(OrientationController.mask(for: .monsterCodex, idiom: .phone), .landscape)
         XCTAssertEqual(OrientationController.mask(for: .devMenu, idiom: .phone), .landscape)
+        XCTAssertEqual(OrientationController.mask(for: .domainSwitch, idiom: .phone), .landscape)
         XCTAssertEqual(OrientationController.mask(for: .bypassSecret, idiom: .phone), .landscape)
         XCTAssertEqual(OrientationController.mask(for: .wishlist, idiom: .phone), .landscape)
 
@@ -83,6 +84,7 @@ final class AppMetadataTests: XCTestCase {
         XCTAssertEqual(OrientationController.mask(for: .boundDeviceInfo, idiom: .phone), .portrait)
         XCTAssertEqual(OrientationController.mask(for: .parentAdmin, idiom: .phone), .portrait)
         XCTAssertEqual(OrientationController.mask(for: .lessonReview, idiom: .phone), .portrait)
+        XCTAssertEqual(OrientationController.mask(for: .pcmAudioLab, idiom: .phone), .portrait)
     }
 
     @MainActor

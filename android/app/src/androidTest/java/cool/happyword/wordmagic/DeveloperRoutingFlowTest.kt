@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -23,13 +24,32 @@ class DeveloperRoutingFlowTest {
     }
 
     @Test
-    fun devMenuAppliesCardsAndPromptsPreviewSecret() {
+    fun devMenuLaunchesPeerToolsAndDomainSwitchOwnsBackendRouting() {
         openDevMenuViaVersionTripleTap()
         composeRule.onNodeWithTag("DevMenuScreen").assertIsDisplayed()
 
         composeRule.onNodeWithText("Developer Options").assertIsDisplayed()
-        composeRule.onNodeWithText("Backend environment (debug builds only)").assertIsDisplayed()
         composeRule.onNodeWithTag("DevMenuBackButton").assertIsDisplayed()
+        composeRule.onNodeWithTag("DevMenuDomainSwitchButton").assertIsDisplayed()
+        composeRule.onNodeWithTag("DevMenuAudioLabButton").assertIsDisplayed()
+        composeRule.onNodeWithTag("DevMenuMessageBubbleLabButton").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("DevMenuAudioLabButton").performClick()
+        composeRule.onNodeWithTag("PcmAudioLabTitle").assertIsDisplayed()
+        composeRule.onNodeWithText("Mix").assertIsDisplayed()
+        composeRule.onNodeWithText("Transport").assertIsDisplayed()
+        composeRule.onNodeWithText("PCM Voice").assertIsDisplayed()
+        composeRule.onNodeWithText("SFX During Voice").assertIsDisplayed()
+        composeRule.onNodeWithText("Status").assertIsDisplayed()
+        composeRule.onNodeWithText("Speak over BGM").assertIsDisplayed()
+        composeRule.onNodeWithText("BGM duck").assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithText("System TTS").fetchSemanticsNodes().isEmpty())
+        composeRule.onNodeWithTag("PcmAudioLabBackButton").performClick()
+
+        composeRule.onNodeWithTag("DevMenuDomainSwitchButton").performClick()
+        composeRule.onNodeWithTag("DomainSwitchScreen").assertIsDisplayed()
+        composeRule.onNodeWithText("Backend environment (debug builds only)").assertIsDisplayed()
+        composeRule.onNodeWithTag("DomainSwitchBackButton").assertIsDisplayed()
         composeRule.onNodeWithTag("DevMenuBypassSecretButton").assertIsDisplayed()
         composeRule.onNodeWithTag("DevMenuRefreshManifestButton").assertIsDisplayed()
         composeRule.onNodeWithTag("DevMenuLocalCard").assertHeightIsEqualTo(96.dp)
@@ -41,7 +61,7 @@ class DeveloperRoutingFlowTest {
 
         composeRule.onNodeWithTag("DevMenuBypassSecretButton").performClick()
         composeRule.onNodeWithTag("BypassSecretPageClearButton").performClick()
-        composeRule.onNodeWithTag("DevMenuScreen").assertIsDisplayed()
+        composeRule.onNodeWithTag("DomainSwitchScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("DevMenuLocalCard").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             composeRule.onAllNodesWithTag("HomeScreen").fetchSemanticsNodes().isNotEmpty()
@@ -49,6 +69,7 @@ class DeveloperRoutingFlowTest {
 
         openDevMenuViaVersionTripleTap()
         composeRule.onNodeWithTag("DevMenuScreen").assertIsDisplayed()
+        composeRule.onNodeWithTag("DevMenuDomainSwitchButton").performClick()
         composeRule.onNodeWithTag("DevMenuRefreshManifestButton").assertIsDisplayed()
     }
 }

@@ -66,8 +66,9 @@ import {
 } from '../data/MonsterCatalog';
 import { computeMonsterLevelCoinAward } from '../services/BattleRewardCalc';
 import { PLAYER_CHARACTER_ASSET, assetPathForEntry } from '../data/CharacterAssets';
-import { AudioService, ALL_SOUND_KEYS, SoundKeys } from '../services/AudioService';
-import { PronunciationService, shouldAutoSpeak } from '../services/PronunciationService';
+import { SoundKeys } from '../services/AudioService';
+import { BattleAudioMixer } from '../services/BattleAudioMixer';
+import { shouldAutoSpeak } from '../services/PronunciationService';
 import { CritOverlay } from '../components/CritOverlay';
 import { DamageFloaterLabel } from '../components/DamageFloaterLabel';
 import { MagicProjectile } from '../components/MagicProjectile';
@@ -226,8 +227,7 @@ struct BattlePage {
   // survive across frames. They are populated asynchronously during
   // `aboutToAppear` so the first render shows the "Loading…" placeholder.
   private engine?: BattleEngine;
-  private audio: AudioService = new AudioService();
-  private tts: PronunciationService = new PronunciationService();
+  private audio: BattleAudioMixer = new BattleAudioMixer();
   private recorder: LearningRecorder = getLearningRecorder();
   private dailyStateService: DailyLearningStateService = getDailyLearningStateService();
   private autoSpeak: boolean = true;
@@ -437,16 +437,6 @@ struct BattlePage {
     // resolves. On success we snapshot the engine's state into our @State
     // fields, which triggers the first real render of the battle UI.
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    // Preload SFX in parallel with word-list loading. AudioService never
-    // throws — asset failures are silently muted — so we don't chain.
-    this.audio.preload(ctx, ALL_SOUND_KEYS).catch((err: BusinessError): void => {
-      console.error(`BattlePage: AudioService.preload failed: ${JSON.stringify(err)}`);
-    });
-    // Kick the TTS engine off in parallel — init resolves ~100-500 ms
-    // later on a healthy device, and speak() safely no-ops until then.
-    this.tts.init().catch((err: BusinessError): void => {
-      console.error(`BattlePage: PronunciationService.init failed: ${JSON.stringify(err)}`);
-    });
     // Hydrate the learning recorder (idempotent — EntryAbility kicks
     // it off at app boot, this is a belt-and-braces guarantee in case
     // the user launches directly into BattlePage via a future deep
@@ -468,6 +458,9 @@ struct BattlePage {
       const storedCfg: GameConfig | undefined =
         AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
       const cfg: GameConfig = cloneGameConfig(storedCfg !== undefined ? storedCfg : new GameConfig());
+      this.audio.enter(ctx, cfg).catch((err: BusinessError): void => {
+        console.error(`BattlePage: BattleAudioMixer.enter failed: ${JSON.stringify(err)}`);
+      });
       await this.dailyStateService.init(ctx);
       this.autoSpeak = cfg.autoSpeak;
       this.isReviewMode = cfg.mode === GAME_MODE_REVIEW;
@@ -670,12 +663,11 @@ struct BattlePage {
       clearTimeout(this.impactTimers[i]);
     }
     this.impactTimers = [];
-    // Best-effort audio teardown. AudioService.dispose() swallows
-    // per-player errors so we never need to await it.
-    this.audio.dispose().catch((err: BusinessError): void => {
-      console.error(`BattlePage: AudioService.dispose failed: ${JSON.stringify(err)}`);
+    // Best-effort audio teardown. BattleAudioMixer releases BGM, SFX,
+    // and the PCM voice renderer without blocking navigation.
+    this.audio.exit().catch((err: BusinessError): void => {
+      console.error(`BattlePage: BattleAudioMixer.exit failed: ${JSON.stringify(err)}`);
     });
-    this.tts.dispose();
     // V0.6.4: fire-and-forget cloud sync once a battle ends so the
     // learning deltas land on the server before the parent reloads
     // their dashboard. The CloudSyncService is intentionally tolerant
@@ -1079,13 +1071,13 @@ struct BattlePage {
   }
 
   private maybeAutoSpeakCurrent(isRevealing: boolean): void {
-    if (!shouldAutoSpeak(this.autoSpeak, this.tts.isAvailable, isRevealing, this.currentQuestionKind)) {
+    if (!shouldAutoSpeak(this.autoSpeak, this.audio.isVoiceAvailable(), isRevealing, this.currentQuestionKind)) {
       return;
     }
     if (this.lastAnswerWord.length === 0) {
       return;
     }
-    this.tts.speak(this.lastAnswerWord);
+    this.audio.speakWord(this.lastAnswerWord);
   }
 
   /**
@@ -1687,9 +1679,9 @@ struct BattlePage {
       clearInterval(this.tickTimer);
       this.tickTimer = -1;
     }
-    // Play the terminal fanfare just before we navigate. AudioService
-    // drops the cue silently if preload failed, and ResultPage doesn't
-    // own an AudioService so this is the last chance to emit it.
+    // Play the terminal fanfare just before we navigate. BattleAudioMixer
+    // drops the cue silently if preload failed or action SFX are muted, and
+    // ResultPage doesn't own a mixer so this is the last chance to emit it.
     if (outcome.endStatus === BattleStatus.Won) {
       this.audio.play(SoundKeys.VICTORY);
     } else {
@@ -2110,7 +2102,7 @@ struct BattlePage {
         // Speaker button — tap re-plays the English pronunciation
         // regardless of the autoSpeak config. Rendered even when
         // TTS init failed so the UI layout is stable; the tap path
-        // then silently no-ops via PronunciationService.isAvailable.
+        // then silently no-ops via BattleAudioMixer voice availability.
         Button('🔊')
           .id('BattleSpeakerButton')
           .type(ButtonType.Circle)
@@ -2122,7 +2114,7 @@ struct BattlePage {
           .margin({ top: 12 })
           .onClick((): void => {
             if (this.lastAnswerWord.length > 0) {
-              this.tts.speak(this.lastAnswerWord);
+              this.audio.speakWord(this.lastAnswerWord);
             }
           });
         Text(this.feedbackText)
