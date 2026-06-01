@@ -12,13 +12,13 @@
         <button id="pack-title-submit" type="submit" class="hidden rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">保存标题</button>
       </form>
       <p class="text-sm text-slate-500 mt-1">{{ definition.description or "无描述" }}</p>
-      <form id="pack-story-generate-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/story/generate"></form>
+      <form id="pack-story-generate-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/story/generate" data-disable-on-submit="true"></form>
       <form id="pack-story-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/metadata" class="mt-3 grid gap-2 max-w-3xl">
         <input type="hidden" name="name" value="{{ definition.name }}" />
         <label class="text-sm text-slate-700">Little story (English)
           <span class="mt-1 flex gap-2">
             <textarea name="storyEn" rows="2" maxlength="240" class="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm">{{ (definition.scene or {}).get('storyEn', '') }}</textarea>
-            <button id="pack-story-generate-submit" type="submit" form="pack-story-generate-form" class="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white text-lg hover:bg-slate-50" title="换一个 story">🔄</button>
+            <button id="pack-story-generate-submit" type="submit" form="pack-story-generate-form" class="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white text-lg hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed" title="换一个 story" data-submitting-label="...">🔄</button>
           </span>
         </label>
         <label class="text-sm text-slate-700">小故事（中文）
@@ -189,10 +189,11 @@
       当前实例未配置可用的封面生成模型，请稍后联系管理员。
     </p>
     {% endif %}
-    <form id="pack-cover-generate-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/cover/generate">
+    <form id="pack-cover-generate-form" method="post" action="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ definition.pack_id }}/cover/generate" data-disable-on-submit="true">
       <button id="pack-cover-generate-submit"
               type="submit"
               class="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              data-submitting-label="生成中，请稍候..."
               {% if not cover_generation_ready %}disabled{% endif %}>
         生成封面图
       </button>
@@ -313,6 +314,7 @@
     </table>
   </section>
 </section>
+{% include "partials/disable_on_submit.html" %}
 <script>
   (() => {
     const titleInput = document.getElementById("pack-title-input");

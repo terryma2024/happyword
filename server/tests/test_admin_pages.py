@@ -295,6 +295,14 @@ async def test_admin_family_packs_page_renders_story_editor(
     )
     assert generate_form is not None
     assert generate_form.get("action") == "/admin/family-packs/pck-html-story-render/story/generate"
+    assert generate_form.get("data-disable-on-submit") == "true"
+    generate_button = dialog.find(
+        "button", attrs={"form": "family-pack-story-generate-pck-html-story-render"}
+    )
+    assert generate_button is not None
+    assert generate_button.get("data-submitting-label") == "..."
+    assert 'form.dataset.submitting === "true"' in page.text
+    assert "submitButton.disabled = true" in page.text
     assert "A family story glows on the server page." in page.text
     assert "家庭小故事在服务端页面发光。" in page.text
 
@@ -885,12 +893,20 @@ async def test_admin_global_pack_detail_renders_split_form(
     assert story_button is not None
     assert story_button.get_text(strip=True) == "🔄"
     assert story_button.get("form") == "global-pack-story-generate-form"
+    assert story_button.get("data-submitting-label") == "..."
+    story_form = soup.find(id="global-pack-story-generate-form")
+    assert story_form is not None
+    assert story_form.get("data-disable-on-submit") == "true"
     cover_form = soup.find(id="global-pack-cover-generate-form")
     assert cover_form is not None
     assert cover_form.get("action") == "/admin/global-packs/packs/gpk-html-split-ui/cover/generate"
+    assert cover_form.get("data-disable-on-submit") == "true"
     cover_button = soup.find(id="global-pack-cover-generate-submit")
     assert cover_button is not None
     assert cover_button.get_text(strip=True) == "生成封面"
+    assert cover_button.get("data-submitting-label") == "生成中，请稍候..."
+    assert 'form.dataset.submitting === "true"' in page.text
+    assert "submitButton.disabled = true" in page.text
     assert "A global story waits for editing." in page.text
     assert "一个全局小故事等着编辑。" in page.text
 

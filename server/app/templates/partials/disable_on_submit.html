@@ -1,0 +1,33 @@
+<script>
+  (() => {
+    const forms = Array.from(document.querySelectorAll('form[data-disable-on-submit="true"]'));
+
+    forms.forEach((form) => {
+      const externalSubmitButton = form.id
+        ? Array.from(document.querySelectorAll('[type="submit"][form]')).find(
+            (button) => button.getAttribute("form") === form.id
+          )
+        : null;
+      const submitButton = externalSubmitButton || form.querySelector('button[type="submit"], input[type="submit"]');
+
+      form.addEventListener("submit", (event) => {
+        if (form.dataset.submitting === "true") {
+          event.preventDefault();
+          return;
+        }
+
+        form.dataset.submitting = "true";
+        form.setAttribute("aria-busy", "true");
+
+        if (!submitButton) {
+          return;
+        }
+
+        submitButton.disabled = true;
+        if (submitButton.dataset.submittingLabel) {
+          submitButton.textContent = submitButton.dataset.submittingLabel;
+        }
+      });
+    });
+  })();
+</script>

@@ -1,8 +1,19 @@
-<div class="flex items-start justify-between gap-4 p-4 hover:bg-sky-50">
-  <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ summary.definition.pack_id }}" class="block min-w-0 flex-1">
+{% set scene = summary.definition.scene or {} %}
+<div data-pack-row="{{ summary.definition.pack_id }}" class="flex items-start justify-between gap-4 p-4 hover:bg-sky-50">
+  <a href="/family/{{ (user.family_id if (user is defined and user) else '_') }}/packs/{{ summary.definition.pack_id }}" class="flex min-w-0 flex-1 gap-4">
+    <div class="h-16 w-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+      {% if scene.get('spellbookCoverUrl') %}
+        <img src="{{ scene.get('spellbookCoverUrl') }}" alt="{{ summary.definition.name }} 封面" class="h-full w-full object-contain" />
+      {% else %}
+        <div class="flex h-full w-full items-center justify-center text-xs text-slate-400">封面</div>
+      {% endif %}
+    </div>
     <div class="min-w-0">
       <p class="font-semibold text-slate-900">{{ summary.definition.name }}</p>
       <p class="text-xs text-slate-500 mt-1">{{ summary.definition.description or "无描述" }}</p>
+      {% if scene.get('storyEn') %}
+        <p data-pack-story-en="{{ summary.definition.pack_id }}" class="mt-2 max-w-3xl text-xs text-slate-600">{{ scene.get('storyEn') }}</p>
+      {% endif %}
       <p class="text-xs text-slate-500 mt-2">
         草稿 {{ summary.draft_word_count }} 词 · 已发布 {{ summary.current_word_count }} 词
       </p>
