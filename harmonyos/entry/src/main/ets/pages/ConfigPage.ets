@@ -33,10 +33,12 @@ import {
   CONFIG_CONTROL_GAP_VP,
   CONFIG_CONTROL_COLUMN_WIDTH_VP,
   CONFIG_FORM_ROW_WIDTH_VP,
+  CONFIG_GROUP_BOTTOM_GAP_VP,
   CONFIG_LABEL_TEXT_COLOR,
   CONFIG_LABEL_WIDTH_VP,
   CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
   CONFIG_SWITCH_LABEL_WIDTH_VP,
+  CONFIG_SWITCH_OPTION_GAP_VP,
   questionTypeColumnRows,
   timerOptionRows,
 } from '../components/ConfigPageLayout';
@@ -751,7 +753,7 @@ struct ConfigPage {
   private audioPlaybackRow() {
     Row({ space: CONFIG_CONTROL_GAP_VP }) {
       this.configLabel('发音播放');
-      Column({ space: 8 }) {
+      Column({ space: CONFIG_SWITCH_OPTION_GAP_VP }) {
         this.audioSwitch('自动发音', this.draft.autoSpeak, 'ConfigAutoSpeakSwitch',
           (enabled: boolean): void => this.setAutoSpeak(enabled));
         this.audioSwitch('播放BGM', this.draft.playBgm, 'ConfigPlayBgmSwitch',
@@ -762,7 +764,7 @@ struct ConfigPage {
       .width(CONFIG_CONTROL_COLUMN_WIDTH_VP)
       .alignItems(HorizontalAlign.Start);
     }
-    .margin({ bottom: 12 })
+    .margin({ bottom: CONFIG_GROUP_BOTTOM_GAP_VP })
     .width(CONFIG_FORM_ROW_WIDTH_VP)
     .alignItems(VerticalAlign.Center);
   }
@@ -772,7 +774,7 @@ struct ConfigPage {
     Column() {
       Row({ space: CONFIG_CONTROL_GAP_VP }) {
         this.configLabel('题型选择');
-        Column({ space: 8 }) {
+        Column({ space: CONFIG_SWITCH_OPTION_GAP_VP }) {
           ForEach(questionTypeColumnRows(DEFAULT_ENABLED_QUESTION_TYPES), (row: string[]) => {
             Row({ space: 8 }) {
               ForEach(row, (typeId: string) => {
@@ -812,7 +814,7 @@ struct ConfigPage {
     }
     .width('100%')
     .alignItems(HorizontalAlign.Center)
-    .margin({ bottom: 12 });
+    .margin({ bottom: CONFIG_GROUP_BOTTOM_GAP_VP });
   }
 
   @Builder
