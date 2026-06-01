@@ -1,4 +1,4 @@
-# PCM Audio Mixing V0.10 — Parity Checklist
+# PCM Audio Mixing V1.0.0 — Parity Checklist
 
 > Inputs: [`00-design.md`](00-design.md), [`20-replication-trigger.md`](20-replication-trigger.md)
 
@@ -53,9 +53,9 @@ No server/shared contract changes.
 
 | Platform | Field | Value |
 | --- | --- | --- |
-| HarmonyOS | `versionName` / `versionCode` | unchanged in this PR |
-| iOS | `CFBundleShortVersionString` / `CFBundleVersion` | unchanged in this PR |
-| Android | `versionName` / `versionCode` | unchanged in this PR |
+| HarmonyOS | `versionName` / `versionCode` | `1.0.0` / `1010000` |
+| iOS | `CFBundleShortVersionString` / `CFBundleVersion` | `1.0.0` / `1010000` |
+| Android | `versionName` / `versionCode` | `1.0.0` / `1010000` |
 
 ## 7. Sign-off
 

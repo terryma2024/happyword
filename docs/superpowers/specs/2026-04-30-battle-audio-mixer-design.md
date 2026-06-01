@@ -7,7 +7,7 @@
 - **Depends on:** Existing `AudioService`, `PronunciationService`, and BattlePage feedback flow
 - **Out-of-scope:** Cocos2D battle rewrite, online audio assets, voice recognition, background playback outside BattlePage, true PCM mixer in the first implementation
 
-> **2026-06-01 supersession note:** this April design records the early logical-mixer approach. Harmony V0.10 validation selected the PCM route described in `docs/superpowers/specs/2026-05-30-v0-10-audio-lab-design.md`, and production `BattlePage` now uses a `BattleAudioMixer` facade over `AudioLabController`. For iOS/Android replication, use the 2026-05-30 spec and plan as source of truth. Key superseding deltas: no System TTS playback branch, no stop/resume around voice, speak-over-BGM lowers BGM to `0.50` then restores to `0.32`, `GameConfig.playBgm` defaults `false`, and `GameConfig.actionSfx` defaults `true`.
+> **2026-06-01 supersession note:** this April design records the early logical-mixer approach. Harmony V1.0.0 validation selected the PCM route described in `docs/superpowers/specs/2026-05-30-v1-0-0-audio-lab-design.md`, and production `BattlePage` now uses a `BattleAudioMixer` facade over `AudioLabController`. For iOS/Android replication, use the 2026-05-30 spec and plan as source of truth. Key superseding deltas: no System TTS playback branch, no stop/resume around voice, speak-over-BGM lowers BGM to `0.50` then restores to `0.32`, `GameConfig.playBgm` defaults `false`, and `GameConfig.actionSfx` defaults `true`.
 
 ## 1. 背景与目标
 

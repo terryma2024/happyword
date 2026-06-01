@@ -1,8 +1,8 @@
-# PCM Audio Mixing V0.10 — Harmony Plan
+# PCM Audio Mixing V1.0.0 — Harmony Plan
 
-> Status: implemented on branch `codex/v0-10-audio-merge`.
+> Status: implemented on branch `codex/v1-0-0-audio-merge`.
 
-HarmonyOS is the source implementation for this feature. The detailed task plan and post-implementation corrections live in [`docs/superpowers/plans/2026-05-30-v0-10-audio-lab.md`](../../superpowers/plans/2026-05-30-v0-10-audio-lab.md).
+HarmonyOS is the source implementation for this feature. The detailed task plan and post-implementation corrections live in [`docs/superpowers/plans/2026-05-30-v1-0-0-audio-lab.md`](../../superpowers/plans/2026-05-30-v1-0-0-audio-lab.md).
 
 ## Completed Scope
 

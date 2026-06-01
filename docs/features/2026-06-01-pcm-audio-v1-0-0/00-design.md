@@ -1,15 +1,15 @@
-# PCM Audio Mixing V0.10 — Cross-Platform Design
+# PCM Audio Mixing V1.0.0 — Cross-Platform Design
 
-> Feature ID: `2026-06-01-pcm-audio-v0-10`
+> Feature ID: `2026-06-01-pcm-audio-v1-0-0`
 > Status: `frozen`
 > Owner: matianyi
 > Last updated: 2026-06-01
 
-This document is the platform-neutral source of truth for replicating the HarmonyOS V0.10 PCM audio behavior and related configuration UI to iOS and Android. HarmonyOS implementation details are captured in [`docs/superpowers/specs/2026-05-30-v0-10-audio-lab-design.md`](../../superpowers/specs/2026-05-30-v0-10-audio-lab-design.md) and [`docs/superpowers/plans/2026-05-30-v0-10-audio-lab.md`](../../superpowers/plans/2026-05-30-v0-10-audio-lab.md).
+This document is the platform-neutral source of truth for replicating the HarmonyOS V1.0.0 PCM audio behavior and related configuration UI to iOS and Android. HarmonyOS implementation details are captured in [`docs/superpowers/specs/2026-05-30-v1-0-0-audio-lab-design.md`](../../superpowers/specs/2026-05-30-v1-0-0-audio-lab-design.md) and [`docs/superpowers/plans/2026-05-30-v1-0-0-audio-lab.md`](../../superpowers/plans/2026-05-30-v1-0-0-audio-lab.md).
 
 ## 1. Motivation
 
-The old battle audio path let pronunciation playback interrupt or stop BGM. V0.10 replaces stop/resume coordination with a PCM-owned mixing route so voice, BGM, and action SFX can overlap predictably during battle.
+The old battle audio path let pronunciation playback interrupt or stop BGM. V1.0.0 replaces stop/resume coordination with a PCM-owned mixing route so voice, BGM, and action SFX can overlap predictably during battle.
 
 ## 2. Goals
 

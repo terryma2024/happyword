@@ -1,4 +1,4 @@
-# PCM Audio Mixing V0.10 — Android Replication Plan
+# PCM Audio Mixing V1.0.0 — Android Replication Plan
 
 > Inputs: [`00-design.md`](00-design.md), [`20-replication-trigger.md`](20-replication-trigger.md)
 > Owner: Android replication subagent

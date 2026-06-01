@@ -28,7 +28,7 @@ V0.9.1 added sentence cloze questions, moving the learning loop from word recogn
 - No admin or parent editing UI for dialogue copy.
 - No LLM generation flow; content production and review remain a V0.9.6 concern.
 - No region story card, chapter intro, or chapter completion celebration; those remain V0.9.3.
-- No battle BGM, audio mixing, or voice acting; those remain V0.10.
+- No battle BGM, audio mixing, or voice acting; those remain V1.0.0.
 - No click-to-start interaction for intro bubbles.
 - No defeat bubble or result-page redesign for defeat dialogue in V0.9.2; defeat copy stays in the catalog for a later exit-effect design.
 

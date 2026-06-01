@@ -35,10 +35,10 @@ V0.8.3 ships small, **independently shippable** changes that target each item, w
 
 - No change to the existing ⭐ 0–3 cap on `ResultPage`. Bonus reward shows up as ✨ coins, not as 4 ⭐.
 - No change to V0.4.x critical-hit logic (combo double-damage is **already** in the engine; we only surface it through the floater).
-- No new asset pipeline, no audio additions, no BGM (V0.10 owns audio).
+- No new asset pipeline, no audio additions, no BGM (V1.0.0 owns audio).
 - No new server contract, no schema migration, no Pack schema bump.
 - No change to learning report, mastery state machine, forgetting curve, or `WordStat`.
-- No change to monster art (V0.11 Cocos owns visual redesign).
+- No change to monster art (V1.1.0 Cocos owns visual redesign).
 - No expansion of the monster catalog to 100; this version codifies the **schema** and seeds 10 with levels. Catalog scale-up is V0.9 incremental work.
 
 ## 4. User Flows

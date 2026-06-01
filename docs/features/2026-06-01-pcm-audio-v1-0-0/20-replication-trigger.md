@@ -1,4 +1,4 @@
-# PCM Audio Mixing V0.10 — Replication Trigger
+# PCM Audio Mixing V1.0.0 — Replication Trigger
 
 > Inputs (frozen): [`00-design.md`](00-design.md), [`10-harmony-plan.md`](10-harmony-plan.md)
 >
@@ -14,8 +14,8 @@
   - Evidence: local run on branch `codex/v0-10-audio-merge`; build successful, no `ArkTS:WARN`.
 - [x] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
   - Evidence: `No defects found in your code.`
-- [ ] **Version bumped** — `harmonyos/AppScope/app.json5`
-  - Evidence: not yet bumped on this branch.
+- [x] **Version bumped** — `harmonyos/AppScope/app.json5`
+  - Evidence: `versionName=1.0.0`, `versionCode=1010000`; iOS and Android mirror `1.0.0 / 1010000`.
 - [ ] **Feature merged to main**
   - Evidence: draft PR [#154](https://github.com/terryma2024/happyword/pull/154) open, not merged.
 - [ ] **Screenshots refreshed**
@@ -87,4 +87,3 @@ approved_at: 2026-06-01
 replication_approved: true
 notes: Approved by explicit chat instruction to start iOS and Android replication subagents.
 ```
-

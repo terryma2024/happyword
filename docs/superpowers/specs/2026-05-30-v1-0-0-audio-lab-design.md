@@ -1,10 +1,10 @@
-# V0.10 Audio Lab Technical Probe Design
+# V1.0.0 Audio Lab Technical Probe Design
 
 - **Date:** 2026-05-30
 - **Last updated:** 2026-06-01
 - **Status:** HarmonyOS probe accepted; HarmonyOS production battle integration in progress
 - **Scope:** HarmonyOS PCM audio lab plus production battle audio adoption notes for iOS/Android replication
-- **Related roadmap:** `docs/WordMagicGame_roadmap.md` V0.10 battle audio mixing
+- **Related roadmap:** `docs/WordMagicGame_roadmap.md` V1.0.0 battle audio mixing
 - **Predecessor design:** `docs/superpowers/specs/2026-04-30-battle-audio-mixer-design.md`
 
 ## 0. 2026-06-01 Harmony Delta For Replication
@@ -47,7 +47,7 @@ Build an isolated HarmonyOS audio lab module that lets developers experience and
 
 The lab must make BGM, short SFX, and TTS word pronunciation testable together on a debug/test page. Production adoption may change `BattlePage` audio plumbing only; it must not change battle scoring, question flow, navigation, or release-only UI exposure.
 
-This started as a technical feasibility probe for V0.10. After Harmony validation, the selected PCM route is also the source of truth for production `BattleAudioMixer` integration.
+This started as a technical feasibility probe for V1.0.0. After Harmony validation, the selected PCM route is also the source of truth for production `BattleAudioMixer` integration.
 
 ## 2. Non-Goals
 

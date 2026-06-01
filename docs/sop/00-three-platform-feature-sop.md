@@ -151,7 +151,7 @@ Screenshot parity rule: every visibly-changed screen must end with a refreshed P
 - A bugfix that is platform-local (e.g. a Harmony-only ArkTS warning, an Android-only Compose recomposition fix) does not trigger replication and does not need a feature folder.
 - Server contract changes always run [`tools/contracts/check_contracts.py`](../../tools/contracts/check_contracts.py) before the gate. Both Stage 4 plans must consume the regenerated contract.
 - Asset retention policy from [`AGENTS.md`](../../AGENTS.md) (Asset retention policy) continues to apply; this SOP does not override it. Never delete unused images / audio / SVGs — move them under `assets/`.
-- HarmonyOS keeps its `0.<minor>.<patch>` cadence (`harmonyos/AppScope/app.json5`). iOS and Android mirror the same `versionName`; their `versionCode` / `CFBundleVersion` are integers that the per-platform plan computes deterministically (the templates show how).
+- HarmonyOS version names are the product release source of truth (`harmonyos/AppScope/app.json5`). Starting with the PCM audio release, the cadence has crossed to `1.0.0`; iOS and Android mirror the same `versionName`, and their `versionCode` / `CFBundleVersion` are integers that the per-platform plan computes deterministically (the templates show how).
 
 ## 4. What an agent should do at the start of any task
 

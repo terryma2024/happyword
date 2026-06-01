@@ -35,13 +35,13 @@ export class GameConfig {
    */
   autoSpeak: boolean = true;
   /**
-   * V0.10: battle BGM toggle. Default off so the new PCM mixer is
+   * V1.0.0: battle BGM toggle. Default off so the new PCM mixer is
    * opt-in for background music until parents choose the fuller
    * soundscape.
    */
   playBgm: boolean = false;
   /**
-   * V0.10: battle action SFX toggle. Default on to preserve the
+   * V1.0.0: battle action SFX toggle. Default on to preserve the
    * existing hit / wrong / victory feedback unless the parent mutes it.
    */
   actionSfx: boolean = true;

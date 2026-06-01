@@ -50,7 +50,7 @@ The detailed phase implementation specs live under `docs/superpowers/specs/` so 
 
 ## Current Repository State
 
-`ios/` contains a native Swift / SwiftUI project (`ios/project.yml` → `WordMagicGame.xcodeproj`), JVM-equivalent XCTest coverage for domain logic, XCUITest smoke flows, copied HarmonyOS art/audio under `ios/WordMagicGame/Resources/`, and release metadata in `ios/release-pre.md`. Parity scope matches the 17 HarmonyOS routes below; **V0.9 / V0.10 / V0.11** roadmap items (AI sentences, battle BGM, Cocos) are **out of bootstrap parity**.
+`ios/` contains a native Swift / SwiftUI project (`ios/project.yml` → `WordMagicGame.xcodeproj`), JVM-equivalent XCTest coverage for domain logic, XCUITest smoke flows, copied HarmonyOS art/audio under `ios/WordMagicGame/Resources/`, and release metadata in `ios/release-pre.md`. Parity scope matches the 17 HarmonyOS routes below; **V0.9 / V1.0.0 / V1.1.0** roadmap items (AI sentences, battle BGM, Cocos) are **out of bootstrap parity**.
 
 ## Current HarmonyOS Route Coverage
 
