@@ -381,14 +381,13 @@ export interface VoiceLabLane {
 }
 ```
 
-The lab provides two backend implementations:
+The lab exposes one backend implementation:
 
-- `RealVoiceLabLane`: delegates to `PronunciationService` and uses CoreSpeechKit system playback. This is kept for comparison and regression evidence.
 - `PcmVoiceLabLane`: owns a CoreSpeechKit engine listener, buffers `onData` PCM chunks, and feeds an `AudioRenderer.writeData` callback. This is the candidate route for true BGM/SFX/voice overlap because pronunciation no longer asks CoreSpeechKit to own playback focus.
 
 `PcmVoiceLabLane` must remain isolated under `audio_lab/` until the route is validated by manual listening. It must not change `PronunciationService` or production auto-speak behavior.
 
-## 9. Audio Lab Page
+## 9. PcmAudioLab Page
 
 The page should expose actual controls, not just logs:
 
@@ -401,8 +400,7 @@ SFX:
   monster defeat / victory / defeat
 
 Voice:
-  backend switch: PCM mix / System TTS
-  word input / speak
+  word selection / speak via PCM mix
 
 Demos:
   speak over BGM / combo over BGM / wrong answer sequence /
@@ -426,7 +424,7 @@ The page can be utilitarian. It is a developer tool, so density and fast iterati
 - Missing BGM: disable music lane, log error, keep SFX and voice usable.
 - Missing SFX: mute only that key.
 - TTS unavailable: voice controls no-op and show unavailable in the snapshot.
-- Unsupported TTS audio type: PCM voice lane logs and ignores the chunk; system backend remains available for comparison.
+- Unsupported TTS audio type: PCM voice lane logs and ignores the chunk.
 - Player error: record `lastError`, degrade the affected lane only.
 - Disposed callback: no-op.
 - Observer error: catch and log, do not break controller state.
@@ -461,8 +459,7 @@ On HarmonyOS device or simulator:
 - Start BGM and confirm loop playback.
 - Play every SFX over BGM.
 - Speak a word over BGM and confirm BGM volume lowers then restores.
-- In default `PCM mix` backend, confirm BGM keeps playing while voice is audible.
-- Switch to `System TTS` backend and compare whether direct TTS playback still interrupts BGM on the device.
+- Confirm BGM keeps playing while PCM voice is audible.
 - While speaking, trigger normal / combo / hurt SFX under each SFX policy and compare clarity.
 - Toggle `resume after voice` and compare behavior.
 - Run demo flows and confirm no stuck lowered volume after exit/re-enter.
@@ -485,7 +482,7 @@ The HAP build log must have zero `ArkTS:WARN` lines. Since the lab does not touc
 - Debug-only page can start/stop BGM.
 - Page can play current battle SFX over BGM.
 - Page can speak a typed word while lowering BGM volume.
-- Page defaults to the `PCM mix` voice backend and can A/B against `System TTS`.
+- Page uses the `PCM mix` voice backend only; no voice backend switch is shown.
 - Page can compare SFX/TTS overlap policies: full, lowered, suppressed, delayed.
 - Page can manually test `resumeMusicOnce`.
 - `resumeMusicAfterVoice` defaults to false.

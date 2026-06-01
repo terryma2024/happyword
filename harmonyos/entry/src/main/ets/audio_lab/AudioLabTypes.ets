@@ -7,11 +7,6 @@ export enum SfxDuringVoicePolicy {
   DelayUntilVoiceEnds = 'delay_until_voice_ends',
 }
 
-export enum AudioLabVoiceBackend {
-  PcmTts = 'pcm_tts',
-  SystemTts = 'system_tts',
-}
-
 export class AudioLabConfig {
   musicEnabled: boolean = true;
   sfxEnabled: boolean = true;

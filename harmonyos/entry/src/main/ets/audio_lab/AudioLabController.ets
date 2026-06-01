@@ -16,7 +16,7 @@ import {
 } from './AudioLabTypes';
 import { RealMusicLabLane } from './lanes/MusicLabLane';
 import { RealSfxLabLane } from './lanes/SfxLabLane';
-import { RealVoiceLabLane } from './lanes/VoiceLabLane';
+import { PcmVoiceLabLane } from './lanes/PcmVoiceLabLane';
 
 const KEY_HIT_NORMAL: string = 'hit_normal';
 const KEY_HIT_CRIT: string = 'hit_crit';
@@ -43,7 +43,7 @@ export class AudioLabController {
     this.observer = observer;
     this.music = deps?.music !== undefined ? deps.music : new RealMusicLabLane();
     this.sfx = deps?.sfx !== undefined ? deps.sfx : new RealSfxLabLane();
-    this.voice = deps?.voice !== undefined ? deps.voice : new RealVoiceLabLane();
+    this.voice = deps?.voice !== undefined ? deps.voice : new PcmVoiceLabLane();
     this.timer = deps?.timer !== undefined ? deps.timer : new RealAudioLabTimerDriver();
     this.snap.sfxDuringVoicePolicy = this.config.sfxDuringVoicePolicy;
   }

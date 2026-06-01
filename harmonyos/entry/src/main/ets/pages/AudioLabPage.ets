@@ -6,7 +6,6 @@ import {
   AudioLabControllerDeps,
   AudioLabObserver,
   AudioLabSnapshot,
-  AudioLabVoiceBackend,
   SfxDuringVoicePolicy,
 } from '../audio_lab/AudioLabTypes';
 import { PcmVoiceLabLane } from '../audio_lab/lanes/PcmVoiceLabLane';
@@ -67,9 +66,8 @@ class PageAudioLabObserver implements AudioLabObserver {
 @Component
 struct AudioLabPage {
   @State private snap: AudioLabSnapshot = new AudioLabSnapshot();
-  @State private statusText: string = 'Initializing audio lab... PCM mix is the active voice backend.';
+  @State private statusText: string = 'Initializing PcmAudioLab...';
   @State private selectedWord: string = 'apple';
-  @State private voiceBackend: AudioLabVoiceBackend = AudioLabVoiceBackend.PcmTts;
   @State private musicEnabled: boolean = true;
   @State private sfxEnabled: boolean = true;
   @State private voiceEnabled: boolean = true;
@@ -86,7 +84,7 @@ struct AudioLabPage {
   aboutToAppear(): void {
     requestPageOrientation(
       this.getUIContext().getHostContext() as common.UIAbilityContext,
-      'AudioLabPage',
+      'PcmAudioLab',
       (px: number): number => this.getUIContext().px2vp(px),
     );
     this.controllerVersion += 1;
@@ -138,13 +136,6 @@ struct AudioLabPage {
     this.musicLoweredVolume = next.musicLoweredVolume;
     this.sfxDuringVoicePolicy = next.sfxDuringVoicePolicy;
     this.sfxDuringVoiceVolume = next.sfxDuringVoiceVolume;
-  }
-
-  private backendLabel(backend: AudioLabVoiceBackend): string {
-    if (backend === AudioLabVoiceBackend.PcmTts) {
-      return 'PCM mix';
-    }
-    return 'System TTS';
   }
 
   private policyLabel(policy: string): string {
@@ -266,38 +257,6 @@ struct AudioLabPage {
       },
     );
     return new AudioLabController(this.config, observer, deps);
-  }
-
-  private switchVoiceBackend(backend: AudioLabVoiceBackend): void {
-    if (backend === AudioLabVoiceBackend.SystemTts) {
-      this.voiceBackend = AudioLabVoiceBackend.PcmTts;
-      this.statusText = 'System TTS direct playback is unavailable in this environment. PCM mix remains active.';
-      this.refreshSnapshot();
-      return;
-    }
-    if (backend === this.voiceBackend) {
-      return;
-    }
-    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    const label: string = this.backendLabel(backend);
-    const previous: AudioLabController = this.controller;
-    this.voiceBackend = backend;
-    this.controllerVersion += 1;
-    this.statusText = `Voice backend: ${label}.`;
-    previous.exit().catch((err: BusinessError): void => {
-      console.error(`AudioLabPage backend switch exit failed: ${JSON.stringify(err)}`);
-    });
-    this.controller = this.makeController(this.controllerVersion);
-    this.controller.updateConfig(this.config);
-    this.controller.enter(ctx)
-      .then((): void => {
-        this.refreshSnapshot();
-      })
-      .catch((err: BusinessError): void => {
-        this.statusText = `Backend switch failed: ${JSON.stringify(err)}`;
-        this.refreshSnapshot();
-      });
-    this.refreshSnapshot();
   }
 
   private setPolicy(policy: string): void {
@@ -468,32 +427,7 @@ struct AudioLabPage {
   @Builder
   private voicePanel() {
     Column({ space: 5 }) {
-      this.sectionTitle('Voice');
-      Row({ space: 6 }) {
-        Button(this.backendLabel(AudioLabVoiceBackend.PcmTts))
-          .id('AudioLabBackendPcm')
-          .height(24)
-          .fontSize(11)
-          .fontWeight(this.voiceBackend === AudioLabVoiceBackend.PcmTts ? FontWeight.Bold : FontWeight.Regular)
-          .fontColor(this.voiceBackend === AudioLabVoiceBackend.PcmTts ? '#FFFFFF' : '#315166')
-          .backgroundColor(this.voiceBackend === AudioLabVoiceBackend.PcmTts ? '#276C7D' : '#EEF3F4')
-          .borderRadius(7)
-          .layoutWeight(1)
-          .onClick((): void => this.switchVoiceBackend(AudioLabVoiceBackend.PcmTts));
-        Button(this.backendLabel(AudioLabVoiceBackend.SystemTts))
-          .id('AudioLabBackendSystem')
-          .height(24)
-          .fontSize(11)
-          .fontWeight(FontWeight.Regular)
-          .fontColor('#7A8B93')
-          .backgroundColor('#EEF3F4')
-          .borderRadius(7)
-          .layoutWeight(1)
-          .opacity(0.55)
-          .enabled(false)
-          .onClick((): void => this.switchVoiceBackend(AudioLabVoiceBackend.SystemTts));
-      }
-      .width('100%');
+      this.sectionTitle('PCM Voice');
       Row({ space: 6 }) {
         ForEach(LAB_WORDS, (word: string) => {
           Button(word)
@@ -725,7 +659,7 @@ struct AudioLabPage {
             .borderWidth(1)
             .borderColor('#B8D7F6')
             .onClick((): void => this.goBack());
-          Text('Audio Lab')
+          Text('PcmAudioLab')
             .fontSize(22)
             .fontWeight(FontWeight.Bold)
             .fontColor('#1D3557')
@@ -754,7 +688,7 @@ struct AudioLabPage {
       .width('100%')
       .padding({ top: 12, left: PAGE_PADDING, right: PAGE_PADDING, bottom: 24 });
     }
-    .id('AudioLabPage')
+    .id('PcmAudioLabPage')
     .width('100%')
     .height('100%')
     .scrollable(ScrollDirection.Vertical)

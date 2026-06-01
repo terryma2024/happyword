@@ -442,10 +442,10 @@ struct DevMenuPage {
       });
   }
 
-  private openAudioLab(): void {
+  private openPcmAudioLab(): void {
     this.getUIContext().getRouter().pushUrl({ url: 'pages/AudioLabPage' })
       .catch((err: BusinessError): void => {
-        console.error(`DevMenuPage.openAudioLab failed: ${JSON.stringify(err)}`);
+        console.error(`DevMenuPage.openPcmAudioLab failed: ${JSON.stringify(err)}`);
       });
   }
 
@@ -589,7 +589,7 @@ struct DevMenuPage {
           .margin({ bottom: 16 })
           .onClick((): void => this.openMessageBubbleLab());
 
-        Button('Audio Lab')
+        Button('PcmAudioLab')
           .id('DevMenuAudioLabButton')
           .height(44)
           .fontSize(16)
@@ -598,7 +598,7 @@ struct DevMenuPage {
           .backgroundColor('#EAF4F8')
           .borderRadius(12)
           .margin({ bottom: 16 })
-          .onClick((): void => this.openAudioLab());
+          .onClick((): void => this.openPcmAudioLab());
 
         Column({ space: 12 }) {
           ForEach(this.cardPairs(this.previewCardList()), (pair: CardProps[]) => {

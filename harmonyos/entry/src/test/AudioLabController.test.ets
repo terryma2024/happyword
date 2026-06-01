@@ -228,7 +228,7 @@ export default function audioLabControllerTest(): void {
       expect(rig.controller.snapshot().resumeAttempts).assertEqual(0);
     });
 
-    it('resumeAfterVoiceCanBeEnabledForSystemTtsComparison', 0, () => {
+    it('resumeAfterVoiceCanBeEnabledForPcmVoiceTimeout', 0, () => {
       const cfg: AudioLabConfig = new AudioLabConfig();
       cfg.resumeMusicAfterVoice = true;
       const rig: TestRig = new TestRig(cfg);
