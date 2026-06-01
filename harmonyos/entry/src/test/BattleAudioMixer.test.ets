@@ -194,7 +194,7 @@ export default function battleAudioMixerTest(): void {
 
       rig.mixer.speakWord('apple');
       expect(rig.voice.spoken[0]).assertEqual('apple');
-      expect(rig.music.volumes[0]).assertEqual(0.08);
+      expect(rig.music.volumes[0]).assertEqual(0.5);
 
       rig.timer.runLatest();
       expect(rig.music.volumes[1]).assertEqual(0.32);

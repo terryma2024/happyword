@@ -14,7 +14,7 @@ export function battleAudioConfigFromGameConfig(cfg: GameConfig): AudioLabConfig
   out.musicEnabled = cfg.playBgm;
   out.sfxEnabled = cfg.actionSfx;
   out.musicVolume = 0.32;
-  out.musicLoweredVolume = 0.08;
+  out.musicLoweredVolume = 0.5;
   out.sfxDuringVoicePolicy = SfxDuringVoicePolicy.LowerVolume;
   out.sfxDuringVoiceVolume = 0.35;
   out.resumeMusicAfterVoice = false;
