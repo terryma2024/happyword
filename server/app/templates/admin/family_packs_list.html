@@ -53,7 +53,7 @@
                       class="text-xs bg-red-700 text-white px-2 py-1 rounded">删除</button>
             </div>
 
-            <form id="family-pack-story-generate-{{ d.pack_id }}" method="post" action="/admin/family-packs/{{ d.pack_id }}/story/generate"></form>
+            <form id="family-pack-story-generate-{{ d.pack_id }}" method="post" action="/admin/family-packs/{{ d.pack_id }}/story/generate" data-disable-on-submit="true"></form>
             <dialog id="story-{{ d.pack_id }}" class="rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40 w-full max-w-lg">
               <div class="p-4 space-y-4">
                 <h2 class="text-base font-semibold text-slate-900">编辑 story</h2>
@@ -68,7 +68,7 @@
                   <label class="block text-sm text-slate-700">Little story (English)
                     <span class="mt-1 flex gap-2">
                       <textarea name="storyEn" maxlength="240" rows="2" class="min-w-0 flex-1 text-sm rounded border border-slate-300 px-3 py-2">{{ (d.scene or {}).get('storyEn', '') }}</textarea>
-                      <button type="submit" form="family-pack-story-generate-{{ d.pack_id }}" class="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white text-lg hover:bg-slate-50" title="换一个 story">🔄</button>
+                      <button type="submit" form="family-pack-story-generate-{{ d.pack_id }}" class="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white text-lg hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed" title="换一个 story" data-submitting-label="...">🔄</button>
                     </span>
                   </label>
                   <label class="block text-sm text-slate-700">小故事（中文）
@@ -186,4 +186,5 @@
   </nav>
   {% endif %}
 </section>
+{% include "partials/disable_on_submit.html" %}
 {% endblock %}

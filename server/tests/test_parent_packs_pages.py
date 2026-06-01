@@ -177,10 +177,16 @@ async def test_pack_detail_renders_title_edit_form(parent_client: tuple[AsyncCli
     assert story_button is not None
     assert story_button.get_text(strip=True) == "🔄"
     assert story_button.get("form") == "pack-story-generate-form"
+    assert story_button.get("data-submitting-label") == "..."
+    story_form = soup.find(id="pack-story-generate-form")
+    assert story_form is not None
+    assert story_form.get("data-disable-on-submit") == "true"
     assert "A small story waits on the card." in resp.text
     assert "卡片上等着一个小故事。" in resp.text
     assert 'titleInput.addEventListener("input"' in resp.text
     assert "titleSubmit.classList.toggle" in resp.text
+    assert 'form.dataset.submitting === "true"' in resp.text
+    assert "submitButton.disabled = true" in resp.text
 
 
 @pytest.mark.asyncio
@@ -208,8 +214,10 @@ async def test_pack_detail_renders_cover_generate_controls(
     image = soup.find("img", attrs={"alt": "魔法书封面"})
     assert form is not None
     assert form.get("action") == f"/family/{fid}/packs/{pack_id}/cover/generate"
+    assert form.get("data-disable-on-submit") == "true"
     assert button is not None
     assert button.get_text(strip=True) == "生成封面图"
+    assert button.get("data-submitting-label") == "生成中，请稍候..."
     assert image is not None
     assert image.get("src") == "https://assets.example.test/covers/family-cover.png"
 
