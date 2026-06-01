@@ -1,35 +1,68 @@
 # V0.10 Audio Lab Technical Probe Design
 
 - **Date:** 2026-05-30
-- **Status:** Active technical probe
-- **Scope:** HarmonyOS technical probe only
+- **Last updated:** 2026-06-01
+- **Status:** HarmonyOS probe accepted; HarmonyOS production battle integration in progress
+- **Scope:** HarmonyOS PCM audio lab plus production battle audio adoption notes for iOS/Android replication
 - **Related roadmap:** `docs/WordMagicGame_roadmap.md` V0.10 battle audio mixing
 - **Predecessor design:** `docs/superpowers/specs/2026-04-30-battle-audio-mixer-design.md`
 
+## 0. 2026-06-01 Harmony Delta For Replication
+
+The original document described an isolated debug probe. Harmony validation has now selected the PCM route and started replacing production battle audio with the same controller/lane model. iOS and Android replicas should use this section as the frozen behavior delta over the earlier probe-only text.
+
+Production battle audio:
+
+- `BattlePage` uses a production `BattleAudioMixer` wrapper around `AudioLabController`; it no longer directly coordinates `AudioService` SFX and `PronunciationService` word playback.
+- Voice uses PCM synthesis/playback only. Do not reintroduce a System TTS playback switch for battle or for the debug lab.
+- BGM starts only when `GameConfig.playBgm=true`.
+- Speaking a word must not stop BGM. It lowers current BGM volume and restores it after the voice timeout.
+- Production battle BGM normal volume is `0.32`.
+- Production battle speak-over-BGM lowered volume is `0.50`.
+- `resumeMusicAfterVoice=false` for production battle. The PCM route should preserve BGM continuity without stop/resume fighting.
+- SFX while voice is active uses `SfxDuringVoicePolicy.LowerVolume` at `0.35`.
+- `GameConfig.actionSfx=false` suppresses battle SFX and must not trigger BGM lowering as a side effect.
+
+Configuration page:
+
+- The `发音播放` row is three switches:
+  - `自动发音`, persisted as `GameConfig.autoSpeak`, default `true`.
+  - `播放BGM`, persisted as `GameConfig.playBgm`, default `false`.
+  - `动作特效音`, persisted as `GameConfig.actionSfx`, default `true`.
+- `题型选择` is also switch-based, not orange selected chips. Each question type has a label plus a switch; at least one question type must remain enabled.
+
+Debug tooling:
+
+- `DevMenuPage` remains a launcher with peer entries `Domain Switch`, `PcmAudioLab`, and `MessageBubbleLab`.
+- `DomainSwitchPage` owns backend environment switching.
+- `PcmAudioLab` remains useful for manual listening and policy tuning, but it is not the production UI.
+
+Replication requirement:
+
+- iOS and Android must replicate the production semantics above, not the abandoned logical-mixer/System-TTS variants from earlier design notes.
+
 ## 1. Goal
 
-Build an isolated HarmonyOS audio lab module that lets developers experience and validate battle-style audio mixing before touching the production battle flow.
+Build an isolated HarmonyOS audio lab module that lets developers experience and validate battle-style audio mixing, then apply the selected PCM route to production battle audio.
 
-The lab must make BGM, short SFX, and TTS word pronunciation testable together on a debug/test page. It must not change current `BattlePage` behavior, production navigation, battle scoring, question flow, or release UI.
+The lab must make BGM, short SFX, and TTS word pronunciation testable together on a debug/test page. Production adoption may change `BattlePage` audio plumbing only; it must not change battle scoring, question flow, navigation, or release-only UI exposure.
 
-This is a technical feasibility probe for V0.10, not the final `BattleAudioMixer` product integration.
+This started as a technical feasibility probe for V0.10. After Harmony validation, the selected PCM route is also the source of truth for production `BattleAudioMixer` integration.
 
 ## 2. Non-Goals
 
-- Do not modify `BattlePage` audio call sites.
-- Do not replace the existing production `AudioService` / `PronunciationService` usage.
+- Do not reintroduce System TTS direct playback into battle or the lab.
 - Do not expose new controls in release builds.
-- Do not implement three-platform replication yet.
 - Do not listen to `audioInterrupt`.
 - Do not add periodic BGM rescue / polling.
 - Do not loosen `SpellQuestionFlow.ui.test.ets` polling as part of this probe.
-- Do not change production BattlePage audio until the lab proves the selected route.
+- Do not change iOS or Android independently before the Harmony delta is frozen and handed off through the replication plan.
 
 ## 3. Product And SOP Boundary
 
-This lab is a debug-only technical probe. It does not ship a child-facing product feature and therefore does not start the full three-platform feature lifecycle by itself.
+This lab began as a debug-only technical probe. The debug page itself still does not ship as a child-facing feature, but the selected PCM battle behavior is now a production behavior change and must be replicated through the normal three-platform handoff.
 
-If the lab proves feasible and the audio behavior is selected for production battle, V0.10 must then create the normal `docs/features/<feature-id>/` package and follow the Harmony-first replication gate before iOS and Android begin implementation.
+Before iOS and Android start implementation, create or update the normal `docs/features/<feature-id>/` package and follow the Harmony-first replication gate.
 
 ### 3.1 Harmony Debug Surface Delta For Replication
 
@@ -126,6 +159,8 @@ export class AudioLabConfig {
 ```
 
 Volume inputs are normalized from `0.0` to `1.0`. The page may render them as sliders, but the controller stores normalized values.
+
+`AudioLabConfig.musicLoweredVolume=0.08` remains the generic lab default. Production battle overrides this via `BattleAudioMixer` to `0.50` for speak-over-BGM.
 
 ### 6.2 SFX During Voice Policy
 
@@ -407,7 +442,7 @@ The lab exposes one backend implementation:
 
 - `PcmVoiceLabLane`: owns a CoreSpeechKit engine listener, buffers `onData` PCM chunks, and feeds an `AudioRenderer.writeData` callback. This is the candidate route for true BGM/SFX/voice overlap because pronunciation no longer asks CoreSpeechKit to own playback focus.
 
-`PcmVoiceLabLane` must remain isolated under `audio_lab/` until the route is validated by manual listening. It must not change `PronunciationService` or production auto-speak behavior.
+`PcmVoiceLabLane` was first isolated under `audio_lab/` for manual listening. Harmony production battle now reuses this route through `BattleAudioMixer`; new platform replicas should keep a similar app-owned PCM voice lane instead of using direct system TTS playback for battle.
 
 ## 9. PcmAudioLab Page
 
@@ -505,7 +540,13 @@ cd harmonyos && hvigorw assembleHap
 cd harmonyos && codelinter -c ./code-linter.json5 . --fix
 ```
 
-The HAP build log must have zero `ArkTS:WARN` lines. Since the lab does not touch `BattlePage`, full `SpellQuestionFlow.ui.test.ets` looping is not a gate for the lab-only PR, but it remains required before production V0.10 battle audio integration.
+The HAP build log must have zero `ArkTS:WARN` lines. Lab-only work does not require full battle UI looping, but production battle integration must include battle audio unit coverage and focused manual listening for:
+
+- BGM enabled, speak over BGM, BGM remains playing.
+- BGM returns from `0.50` lowered volume to `0.32`.
+- `Win sequence` / victory / defeat cues do not accidentally stop ongoing BGM unless the spec explicitly calls for terminal music stop.
+- `actionSfx=false` suppresses SFX and does not lower BGM.
+- Config page switches persist and affect the next battle.
 
 ## 12. Acceptance Criteria
 
@@ -520,7 +561,9 @@ The HAP build log must have zero `ArkTS:WARN` lines. Since the lab does not touc
 - Page can manually test `resumeMusicOnce`.
 - `resumeMusicAfterVoice` defaults to false.
 - Leaving the page stops BGM and releases resources.
-- No production battle behavior changes.
+- Production battle uses `BattleAudioMixer` once the PCM route is selected.
+- Production speak-over-BGM lowers BGM to `0.50`, then restores to `0.32`.
+- Config page exposes the three audio switches and switch-based question type selection.
 - Release build does not expose the lab entry.
 - Build and CodeLinter pass with zero ArkTS warnings.
 
@@ -533,7 +576,9 @@ The production goal is cross-platform battle audio parity, but the debug probe s
 | Debug entry structure | `DevMenuPage` + `DevMenuToolEntries` | Add a debug launcher with peer entries: Domain Switch, PcmAudioLab, MessageBubbleLab. | Same peer launcher structure in debug tooling. |
 | Domain switching | `DomainSwitchPage` | Keep environment switching outside the audio lab. | Keep environment switching outside the audio lab. |
 | Voice backend | `PcmVoiceLabLane` only | Prefer synthesized/decoded PCM rendered through app-owned audio output. Do not expose a broken System TTS comparison toggle. | Prefer synthesized/decoded PCM rendered through app-owned audio output. Do not expose a broken System TTS comparison toggle. |
-| BGM behavior | `MusicLabLane.setVolume`, no pause on voice | Speaking over BGM lowers music volume and restores; it must not stop BGM. | Speaking over BGM lowers music volume and restores; it must not stop BGM. |
+| Production config | `GameConfig.autoSpeak/playBgm/actionSfx` | Add the same three persisted switches: auto speak default on, BGM default off, action SFX default on. | Same three persisted switches in Settings/Config. |
+| Question type settings | `ConfigPage` switch controls | Use switch controls, not selected chips/buttons; enforce at least one enabled type. | Same switch controls and invariant. |
+| BGM behavior | `BattleAudioMixer` + `MusicLabLane.setVolume`, no pause on voice | Speaking over BGM lowers music to 50% and restores to 32%; it must not stop BGM. | Speaking over BGM lowers music to 50% and restores to 32%; it must not stop BGM. |
 | SFX during voice | Controller policy gate | Preserve full/lower/suppress/delay policy semantics. | Preserve full/lower/suppress/delay policy semantics. |
 | Test strategy | no-device controller + launcher-model tests; DevMenu not in ohosTest | Unit-test controller policy and debug launcher model; keep hidden debug gesture out of flaky UI automation. | Unit-test controller policy and debug launcher model; keep hidden debug gesture out of flaky UI automation. |
 

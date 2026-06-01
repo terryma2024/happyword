@@ -7,6 +7,8 @@
 - **Depends on:** Existing `AudioService`, `PronunciationService`, and BattlePage feedback flow
 - **Out-of-scope:** Cocos2D battle rewrite, online audio assets, voice recognition, background playback outside BattlePage, true PCM mixer in the first implementation
 
+> **2026-06-01 supersession note:** this April design records the early logical-mixer approach. Harmony V0.10 validation selected the PCM route described in `docs/superpowers/specs/2026-05-30-v0-10-audio-lab-design.md`, and production `BattlePage` now uses a `BattleAudioMixer` facade over `AudioLabController`. For iOS/Android replication, use the 2026-05-30 spec and plan as source of truth. Key superseding deltas: no System TTS playback branch, no stop/resume around voice, speak-over-BGM lowers BGM to `0.50` then restores to `0.32`, `GameConfig.playBgm` defaults `false`, and `GameConfig.actionSfx` defaults `true`.
+
 ## 1. 背景与目标
 
 ### 1.1 问题背景
@@ -114,7 +116,7 @@ Voice / word pronunciation
 | 普通战斗 | 0.28-0.35 | 0.85-1.0 | 1.0 |
 | 普通攻击 | 0.28-0.35 | 0.9 | 1.0 |
 | combo 攻击 | 0.18-0.24, 300-500 ms 后恢复 | 1.0 | 1.0 |
-| 单词朗读 | 0.08-0.12, 朗读结束后恢复 | 0.5-0.7 或不触发 | 1.0 |
+| 单词朗读 | Superseded: production PCM route uses 0.50, 朗读结束后恢复到 0.32 | 0.35 for lowered SFX during voice | 1.0 |
 | 胜利 / 失败 | BGM fade 或 stop | 1.0 | no-op |
 
 第一版可以不用复杂淡入淡出曲线，但必须避免突兀：
