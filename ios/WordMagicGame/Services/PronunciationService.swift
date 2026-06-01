@@ -153,7 +153,7 @@ final class PcmBattleAudioMixer: BattleAudioMixing {
     init(
         musicLane: BattleMusicLane = BundleAudioMusicLane(),
         voice: BattleVoiceLane = PcmSpeechVoiceLane(),
-        sfxLane: BattleSfxLane = GeneratedSfxLane()
+        sfxLane: BattleSfxLane = BundleAudioSfxLane()
     ) {
         self.musicLane = musicLane
         self.voice = voice
@@ -470,6 +470,61 @@ final class GeneratedMusicLane: BattleMusicLane {
             channel[frame] = amplitude * Float(wave)
         }
         return buffer
+    }
+}
+
+@MainActor
+final class BundleAudioSfxLane: BattleSfxLane {
+    static let resourceExtension = "caf"
+
+    private let bundle: Bundle
+    private var activePlayers: [AVAudioPlayer] = []
+
+    init(bundle: Bundle = .main) {
+        self.bundle = bundle
+    }
+
+    func play(_ cue: BattleSfxCue, volume: Double) {
+        configureAudioSessionForMixing()
+        activePlayers = activePlayers.filter(\.isPlaying)
+        guard let url = bundle.url(
+            forResource: Self.resourceName(for: cue),
+            withExtension: Self.resourceExtension
+        ),
+            let player = try? AVAudioPlayer(contentsOf: url)
+        else {
+            return
+        }
+        player.volume = Float(volume)
+        player.numberOfLoops = 0
+        player.prepareToPlay()
+        if player.play() {
+            activePlayers.append(player)
+        }
+    }
+
+    func dispose() {
+        activePlayers.forEach { $0.stop() }
+        activePlayers.removeAll()
+    }
+
+    static func resourceName(for cue: BattleSfxCue) -> String {
+        switch cue {
+        case .normalHit:
+            return "hit_normal"
+        case .comboHit:
+            return "hit_crit"
+        case .wrong:
+            return "answer_wrong"
+        case .hurt:
+            return "player_hurt"
+        case .monsterDefeat:
+            return "monster_defeat"
+        case .victory:
+            return "victory"
+        case .defeat:
+            return "defeat"
+        }
     }
 }
 

@@ -37,6 +37,13 @@
 		55390F1AEF427177EFA5778D /* fruit-forest.json in Resources */ = {isa = PBXBuildFile; fileRef = 47BC3511BBA49EE9C87AD467 /* fruit-forest.json */; };
 		579EE45B2B7202F7B3269EFF /* WordEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD002304AC10A20B5A041CF4 /* WordEntry.swift */; };
 		791A0488B58B44C7A7088481 /* bgm_battle_loop.caf in Resources */ = {isa = PBXBuildFile; fileRef = 4DFFEE4EEB074AD69DAD3501 /* bgm_battle_loop.caf */; };
+		1D900BB212964ECAB5CC1F01 /* answer_wrong.caf in Resources */ = {isa = PBXBuildFile; fileRef = 9AFA1DE9F1504166919C21CA /* answer_wrong.caf */; };
+		34E107AB577D46F88444EF62 /* defeat.caf in Resources */ = {isa = PBXBuildFile; fileRef = 8C454A2DEB3F47ADAA7880D7 /* defeat.caf */; };
+		104E1986FD0B4279966DAC20 /* hit_crit.caf in Resources */ = {isa = PBXBuildFile; fileRef = F2F6E85FC3E24384A91AFBC3 /* hit_crit.caf */; };
+		9B079C73028B43969147E4F2 /* hit_normal.caf in Resources */ = {isa = PBXBuildFile; fileRef = A26A3632112A45F799EDB139 /* hit_normal.caf */; };
+		D829B47E662B4222B17AF3FD /* monster_defeat.caf in Resources */ = {isa = PBXBuildFile; fileRef = 51A8F9C6E9164A579BD996A2 /* monster_defeat.caf */; };
+		ACA8C37FF7B14A1C9F0A46DC /* player_hurt.caf in Resources */ = {isa = PBXBuildFile; fileRef = 607DD09F946549179E98C954 /* player_hurt.caf */; };
+		76393186C6A24D248DD66E69 /* victory.caf in Resources */ = {isa = PBXBuildFile; fileRef = 1EA7780036FA4F3F9BEC2A76 /* victory.caf */; };
 		5977BDCF4C1E492668878C0A /* GrowthLoopViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3244CB8E1A251419DDBF976E /* GrowthLoopViews.swift */; };
 		5CE532062EAAC36F72958B4D /* AppMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9157DCBBBBB134DAFBFB0F /* AppMetadata.swift */; };
 		6E05CEC0063F85029AD9E9CE /* animal-safari.json in Resources */ = {isa = PBXBuildFile; fileRef = B9404434663A9314B7DFB316 /* animal-safari.json */; };
@@ -124,6 +131,13 @@
 		4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConfig.swift; sourceTree = "<group>"; };
 		4A3AE3BC6E5E9D7342858F39 /* CloudSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncTests.swift; sourceTree = "<group>"; };
 		4DFFEE4EEB074AD69DAD3501 /* bgm_battle_loop.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = bgm_battle_loop.caf; sourceTree = "<group>"; };
+		9AFA1DE9F1504166919C21CA /* answer_wrong.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = answer_wrong.caf; sourceTree = "<group>"; };
+		8C454A2DEB3F47ADAA7880D7 /* defeat.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = defeat.caf; sourceTree = "<group>"; };
+		F2F6E85FC3E24384A91AFBC3 /* hit_crit.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hit_crit.caf; sourceTree = "<group>"; };
+		A26A3632112A45F799EDB139 /* hit_normal.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hit_normal.caf; sourceTree = "<group>"; };
+		51A8F9C6E9164A579BD996A2 /* monster_defeat.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = monster_defeat.caf; sourceTree = "<group>"; };
+		607DD09F946549179E98C954 /* player_hurt.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = player_hurt.caf; sourceTree = "<group>"; };
+		1EA7780036FA4F3F9BEC2A76 /* victory.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = victory.caf; sourceTree = "<group>"; };
 		4AF7C75746693A30D0733A5A /* WordMagicGameTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WordMagicGameTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D84AAB7ED8DD3DC8C0E97D3 /* BuiltinPackLoaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltinPackLoaderTests.swift; sourceTree = "<group>"; };
 		4DD3AB20492B28D8947B85F7 /* WordMagicGameUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WordMagicGameUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -383,6 +397,13 @@
 			isa = PBXGroup;
 			children = (
 				4DFFEE4EEB074AD69DAD3501 /* bgm_battle_loop.caf */,
+				9AFA1DE9F1504166919C21CA /* answer_wrong.caf */,
+				8C454A2DEB3F47ADAA7880D7 /* defeat.caf */,
+				F2F6E85FC3E24384A91AFBC3 /* hit_crit.caf */,
+				A26A3632112A45F799EDB139 /* hit_normal.caf */,
+				51A8F9C6E9164A579BD996A2 /* monster_defeat.caf */,
+				607DD09F946549179E98C954 /* player_hurt.caf */,
+				1EA7780036FA4F3F9BEC2A76 /* victory.caf */,
 			);
 			path = Sounds;
 			sourceTree = "<group>";
@@ -509,6 +530,13 @@
 			files = (
 				4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */,
 				791A0488B58B44C7A7088481 /* bgm_battle_loop.caf in Resources */,
+				1D900BB212964ECAB5CC1F01 /* answer_wrong.caf in Resources */,
+				34E107AB577D46F88444EF62 /* defeat.caf in Resources */,
+				104E1986FD0B4279966DAC20 /* hit_crit.caf in Resources */,
+				9B079C73028B43969147E4F2 /* hit_normal.caf in Resources */,
+				D829B47E662B4222B17AF3FD /* monster_defeat.caf in Resources */,
+				ACA8C37FF7B14A1C9F0A46DC /* player_hurt.caf in Resources */,
+				76393186C6A24D248DD66E69 /* victory.caf in Resources */,
 				C4EBC57B653E00711C0B4378 /* InfoPlist.strings in Resources */,
 				6E05CEC0063F85029AD9E9CE /* animal-safari.json in Resources */,
 				55390F1AEF427177EFA5778D /* fruit-forest.json in Resources */,

@@ -102,6 +102,17 @@ final class PronunciationServiceTests: XCTestCase {
         XCTAssertEqual(BundleAudioMusicLane.defaultResourceExtension, "caf")
     }
 
+    func testDefaultSfxLaneUsesHarmonyCueBundleResources() {
+        XCTAssertEqual(BundleAudioSfxLane.resourceName(for: .normalHit), "hit_normal")
+        XCTAssertEqual(BundleAudioSfxLane.resourceName(for: .comboHit), "hit_crit")
+        XCTAssertEqual(BundleAudioSfxLane.resourceName(for: .wrong), "answer_wrong")
+        XCTAssertEqual(BundleAudioSfxLane.resourceName(for: .hurt), "player_hurt")
+        XCTAssertEqual(BundleAudioSfxLane.resourceName(for: .monsterDefeat), "monster_defeat")
+        XCTAssertEqual(BundleAudioSfxLane.resourceName(for: .victory), "victory")
+        XCTAssertEqual(BundleAudioSfxLane.resourceName(for: .defeat), "defeat")
+        XCTAssertEqual(BundleAudioSfxLane.resourceExtension, "caf")
+    }
+
     func testBattleAudioMixerLowersBgmDuringVoiceWithoutStopResume() {
         let music = RecordingMusicLane()
         let voice = RecordingPronunciationService()
