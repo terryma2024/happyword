@@ -10,7 +10,6 @@ import {
   SfxDuringVoicePolicy,
 } from '../audio_lab/AudioLabTypes';
 import { PcmVoiceLabLane } from '../audio_lab/lanes/PcmVoiceLabLane';
-import { RealVoiceLabLane } from '../audio_lab/lanes/VoiceLabLane';
 import { requestPageOrientation } from '../utils/orientation';
 
 const PANEL_WIDTH: number = 360;
@@ -68,7 +67,7 @@ class PageAudioLabObserver implements AudioLabObserver {
 @Component
 struct AudioLabPage {
   @State private snap: AudioLabSnapshot = new AudioLabSnapshot();
-  @State private statusText: string = 'Initializing audio lab... PCM voice backend is selected by default.';
+  @State private statusText: string = 'Initializing audio lab... PCM mix is the active voice backend.';
   @State private selectedWord: string = 'apple';
   @State private voiceBackend: AudioLabVoiceBackend = AudioLabVoiceBackend.PcmTts;
   @State private musicEnabled: boolean = true;
@@ -91,7 +90,7 @@ struct AudioLabPage {
       (px: number): number => this.getUIContext().px2vp(px),
     );
     this.controllerVersion += 1;
-    this.controller = this.makeController(this.voiceBackend, this.controllerVersion);
+    this.controller = this.makeController(this.controllerVersion);
     this.controller.updateConfig(this.config);
     this.controller.enter(this.getUIContext().getHostContext() as common.UIAbilityContext)
       .then((): void => {
@@ -256,13 +255,9 @@ struct AudioLabPage {
     this.setResumeMusicAfterVoice(!this.resumeMusicAfterVoice);
   }
 
-  private makeController(backend: AudioLabVoiceBackend, version: number): AudioLabController {
+  private makeController(version: number): AudioLabController {
     const deps: AudioLabControllerDeps = new AudioLabControllerDeps();
-    if (backend === AudioLabVoiceBackend.PcmTts) {
-      deps.voice = new PcmVoiceLabLane();
-    } else {
-      deps.voice = new RealVoiceLabLane();
-    }
+    deps.voice = new PcmVoiceLabLane();
     const observer: AudioLabObserver = new PageAudioLabObserver(
       version,
       (): number => this.controllerVersion,
@@ -274,6 +269,12 @@ struct AudioLabPage {
   }
 
   private switchVoiceBackend(backend: AudioLabVoiceBackend): void {
+    if (backend === AudioLabVoiceBackend.SystemTts) {
+      this.voiceBackend = AudioLabVoiceBackend.PcmTts;
+      this.statusText = 'System TTS direct playback is unavailable in this environment. PCM mix remains active.';
+      this.refreshSnapshot();
+      return;
+    }
     if (backend === this.voiceBackend) {
       return;
     }
@@ -286,7 +287,7 @@ struct AudioLabPage {
     previous.exit().catch((err: BusinessError): void => {
       console.error(`AudioLabPage backend switch exit failed: ${JSON.stringify(err)}`);
     });
-    this.controller = this.makeController(backend, this.controllerVersion);
+    this.controller = this.makeController(this.controllerVersion);
     this.controller.updateConfig(this.config);
     this.controller.enter(ctx)
       .then((): void => {
@@ -483,11 +484,13 @@ struct AudioLabPage {
           .id('AudioLabBackendSystem')
           .height(24)
           .fontSize(11)
-          .fontWeight(this.voiceBackend === AudioLabVoiceBackend.SystemTts ? FontWeight.Bold : FontWeight.Regular)
-          .fontColor(this.voiceBackend === AudioLabVoiceBackend.SystemTts ? '#FFFFFF' : '#315166')
-          .backgroundColor(this.voiceBackend === AudioLabVoiceBackend.SystemTts ? '#276C7D' : '#EEF3F4')
+          .fontWeight(FontWeight.Regular)
+          .fontColor('#7A8B93')
+          .backgroundColor('#EEF3F4')
           .borderRadius(7)
           .layoutWeight(1)
+          .opacity(0.55)
+          .enabled(false)
           .onClick((): void => this.switchVoiceBackend(AudioLabVoiceBackend.SystemTts));
       }
       .width('100%');
