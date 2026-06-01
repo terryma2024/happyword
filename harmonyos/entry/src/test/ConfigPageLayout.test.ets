@@ -5,6 +5,9 @@ import {
   CONFIG_FORM_ROW_WIDTH_VP,
   CONFIG_GROUP_BOTTOM_GAP_VP,
   CONFIG_LABEL_TEXT_COLOR,
+  CONFIG_PARENT_ACTION_BORDER_COLOR,
+  CONFIG_PARENT_ACTION_BG_COLOR,
+  CONFIG_PARENT_ACTION_TEXT_COLOR,
   CONFIG_QUESTION_TYPE_CONTROL_KIND,
   CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
   CONFIG_SWITCH_LABEL_WIDTH_VP,
@@ -24,6 +27,12 @@ export default function configPageLayoutTest(): void {
 
     it('usesExplicitDarkLabelTextForLightPages', 0, () => {
       expect(CONFIG_LABEL_TEXT_COLOR).assertEqual('#333333');
+    });
+
+    it('usesLearningRecordStyleForParentActionButtons', 0, () => {
+      expect(CONFIG_PARENT_ACTION_BG_COLOR).assertEqual('#E0F2FE');
+      expect(CONFIG_PARENT_ACTION_TEXT_COLOR).assertEqual('#0369A1');
+      expect(CONFIG_PARENT_ACTION_BORDER_COLOR).assertEqual('#0EA5E9');
     });
 
     it('stacksQuestionTypesVertically', 0, () => {

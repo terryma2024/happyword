@@ -4,6 +4,9 @@ export const CONFIG_CONTROL_COLUMN_WIDTH_VP: number = 220;
 export const CONFIG_FORM_ROW_WIDTH_VP: number =
   CONFIG_LABEL_WIDTH_VP + CONFIG_CONTROL_GAP_VP + CONFIG_CONTROL_COLUMN_WIDTH_VP;
 export const CONFIG_LABEL_TEXT_COLOR: string = '#333333';
+export const CONFIG_PARENT_ACTION_BG_COLOR: string = '#E0F2FE';
+export const CONFIG_PARENT_ACTION_TEXT_COLOR: string = '#0369A1';
+export const CONFIG_PARENT_ACTION_BORDER_COLOR: string = '#0EA5E9';
 export const CONFIG_SWITCH_LABEL_WIDTH_VP: number = 116;
 export const CONFIG_SWITCH_OPTION_GAP_VP: number = 4;
 export const CONFIG_GROUP_BOTTOM_GAP_VP: number = 24;

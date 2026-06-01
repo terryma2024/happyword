@@ -36,6 +36,9 @@ import {
   CONFIG_GROUP_BOTTOM_GAP_VP,
   CONFIG_LABEL_TEXT_COLOR,
   CONFIG_LABEL_WIDTH_VP,
+  CONFIG_PARENT_ACTION_BORDER_COLOR,
+  CONFIG_PARENT_ACTION_BG_COLOR,
+  CONFIG_PARENT_ACTION_TEXT_COLOR,
   CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
   CONFIG_SWITCH_LABEL_WIDTH_VP,
   CONFIG_SWITCH_OPTION_GAP_VP,
@@ -216,8 +219,8 @@ struct ConfigPage {
           Button(`孩子档案：${this.bindingNickname}`)
             .id('ConfigBoundDeviceInfoButton')
             .width(220).height(40).fontSize(15)
-            .backgroundColor('#E0F2FE').fontColor('#0369A1')
-            .borderWidth(2).borderColor('#0EA5E9')
+            .backgroundColor(CONFIG_PARENT_ACTION_BG_COLOR).fontColor(CONFIG_PARENT_ACTION_TEXT_COLOR)
+            .borderWidth(2).borderColor(CONFIG_PARENT_ACTION_BORDER_COLOR)
             .onClick((): void => this.openBoundDeviceInfo());
         } else {
           Button('绑定家长账号')
@@ -278,9 +281,9 @@ struct ConfigPage {
           Button(this.cloudSyncBusy ? '同步中…' : '立即同步学习记录')
             .id('ConfigCloudSyncButton')
             .width(220).height(40).fontSize(15)
-            .backgroundColor(this.cloudSyncBusy ? '#E5E7EB' : '#E0F2FE')
-            .fontColor(this.cloudSyncBusy ? '#6B7280' : '#0369A1')
-            .borderWidth(2).borderColor(this.cloudSyncBusy ? '#9CA3AF' : '#0EA5E9')
+            .backgroundColor(this.cloudSyncBusy ? '#E5E7EB' : CONFIG_PARENT_ACTION_BG_COLOR)
+            .fontColor(this.cloudSyncBusy ? '#6B7280' : CONFIG_PARENT_ACTION_TEXT_COLOR)
+            .borderWidth(2).borderColor(this.cloudSyncBusy ? '#9CA3AF' : CONFIG_PARENT_ACTION_BORDER_COLOR)
             .enabled(!this.cloudSyncBusy)
             .onClick((): void => this.onCloudSyncTap());
         }
@@ -385,10 +388,10 @@ struct ConfigPage {
         .id('ConfigParentAdminButton')
         .width(220).height(40)
         .fontSize(15)
-        .backgroundColor('#FFF4D0')
-        .fontColor('#7C2D12')
+        .backgroundColor(CONFIG_PARENT_ACTION_BG_COLOR)
+        .fontColor(CONFIG_PARENT_ACTION_TEXT_COLOR)
         .borderWidth(2)
-        .borderColor('#FFB400')
+        .borderColor(CONFIG_PARENT_ACTION_BORDER_COLOR)
         .onClick((): void => this.openParentAdmin());
     }
     .margin({ bottom: 16 })
@@ -825,10 +828,10 @@ struct ConfigPage {
         .id('ConfigParentPinButton')
         .width(220).height(40)
         .fontSize(15)
-        .backgroundColor(this.draft.parentPin.length === 6 ? '#FFF4D0' : '#EAF2F8')
-        .fontColor(this.draft.parentPin.length === 6 ? '#7C2D12' : '#1D4ED8')
-        .borderWidth(this.draft.parentPin.length === 6 ? 2 : 0)
-        .borderColor('#FFB400')
+        .backgroundColor(CONFIG_PARENT_ACTION_BG_COLOR)
+        .fontColor(CONFIG_PARENT_ACTION_TEXT_COLOR)
+        .borderWidth(2)
+        .borderColor(CONFIG_PARENT_ACTION_BORDER_COLOR)
         .onClick((): void => this.openParentPinSetup());
     }
     .margin({ bottom: 12 })
