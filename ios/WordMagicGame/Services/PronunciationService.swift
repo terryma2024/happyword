@@ -54,11 +54,31 @@ enum BattleAudioMixPolicy {
     static let resumeMusicAfterVoice = false
 }
 
+enum BattleSfxDuringVoicePolicy: String, CaseIterable, Equatable {
+    case full
+    case lower
+    case suppress
+    case delay
+}
+
+struct BattleAudioMixSettings: Equatable {
+    var masterVolume = BattleAudioMixPolicy.masterVolume
+    var musicVolume = BattleAudioMixPolicy.musicVolume
+    var musicLoweredVolumeWhileVoice = BattleAudioMixPolicy.musicLoweredVolumeWhileVoice
+    var sfxVolume = BattleAudioMixPolicy.sfxVolume
+    var sfxDuringVoiceVolume = BattleAudioMixPolicy.sfxDuringVoiceVolume
+    var resumeMusicAfterVoice = BattleAudioMixPolicy.resumeMusicAfterVoice
+    var voiceEnabled = true
+    var sfxEnabled = true
+    var sfxDuringVoicePolicy = BattleSfxDuringVoicePolicy.lower
+}
+
 @MainActor
 protocol BattleAudioMixing: AnyObject {
     var isAvailable: Bool { get }
 
     func prepare()
+    func updateSettings(_ settings: BattleAudioMixSettings)
     func startBattle(config: GameConfig)
     func stopBattle()
     func speak(_ word: String)
@@ -145,6 +165,8 @@ final class PcmBattleAudioMixer: BattleAudioMixing {
     private let sfxLane: BattleSfxLane
     private var config = GameConfig.default
     private var voiceActive = false
+    private var settings = BattleAudioMixSettings()
+    private var delayedSfx: [BattleSfxCue] = []
 
     var isAvailable: Bool {
         voice.isAvailable
@@ -164,40 +186,70 @@ final class PcmBattleAudioMixer: BattleAudioMixing {
         voice.prepare()
     }
 
+    func updateSettings(_ settings: BattleAudioMixSettings) {
+        self.settings = settings
+        if musicLane.isPlaying {
+            musicLane.setVolume(effectiveMusicVolume(voiceActive ? settings.musicLoweredVolumeWhileVoice : settings.musicVolume))
+        }
+    }
+
     func startBattle(config: GameConfig) {
         self.config = config
         voiceActive = false
+        delayedSfx.removeAll()
         if config.playBgm {
-            musicLane.startLoop(volume: BattleAudioMixPolicy.musicVolume)
+            musicLane.startLoop(volume: effectiveMusicVolume(settings.musicVolume))
         }
     }
 
     func stopBattle() {
         musicLane.stop()
         voiceActive = false
+        delayedSfx.removeAll()
     }
 
     func speak(_ word: String) {
-        guard voice.isAvailable else { return }
+        guard settings.voiceEnabled, voice.isAvailable else { return }
         let trimmed = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
         voiceActive = true
         if musicLane.isPlaying {
-            musicLane.setVolume(BattleAudioMixPolicy.musicLoweredVolumeWhileVoice)
+            musicLane.setVolume(effectiveMusicVolume(settings.musicLoweredVolumeWhileVoice))
         }
         voice.speak(trimmed) { [weak self] in
             guard let self else { return }
             voiceActive = false
             if musicLane.isPlaying {
-                musicLane.setVolume(BattleAudioMixPolicy.musicVolume)
+                musicLane.setVolume(effectiveMusicVolume(settings.musicVolume))
             }
+            flushDelayedSfx()
         }
     }
 
     func playSfx(_ cue: BattleSfxCue) {
-        guard config.actionSfx else { return }
-        sfxLane.play(cue, volume: voiceActive ? BattleAudioMixPolicy.sfxDuringVoiceVolume : BattleAudioMixPolicy.sfxVolume)
+        guard config.actionSfx, settings.sfxEnabled else { return }
+        guard voiceActive else {
+            sfxLane.play(cue, volume: effectiveSfxVolume(settings.sfxVolume))
+            return
+        }
+
+        switch settings.sfxDuringVoicePolicy {
+        case .full:
+            sfxLane.play(cue, volume: effectiveSfxVolume(settings.sfxVolume))
+        case .lower:
+            sfxLane.play(cue, volume: effectiveSfxVolume(settings.sfxDuringVoiceVolume))
+        case .suppress:
+            if cue.isCriticalDuringVoice {
+                sfxLane.play(cue, volume: effectiveSfxVolume(settings.sfxDuringVoiceVolume))
+            }
+        case .delay:
+            if cue.isCriticalDuringVoice {
+                sfxLane.play(cue, volume: effectiveSfxVolume(settings.sfxDuringVoiceVolume))
+            } else {
+                delayedSfx.append(cue)
+            }
+        }
     }
 
     func dispose() {
@@ -205,6 +257,31 @@ final class PcmBattleAudioMixer: BattleAudioMixing {
         voice.dispose()
         musicLane.dispose()
         sfxLane.dispose()
+    }
+
+    private func flushDelayedSfx() {
+        let cues = delayedSfx
+        delayedSfx.removeAll()
+        cues.forEach { sfxLane.play($0, volume: effectiveSfxVolume(settings.sfxVolume)) }
+    }
+
+    private func effectiveMusicVolume(_ volume: Double) -> Double {
+        volume * settings.masterVolume
+    }
+
+    private func effectiveSfxVolume(_ volume: Double) -> Double {
+        volume * settings.masterVolume
+    }
+}
+
+private extension BattleSfxCue {
+    var isCriticalDuringVoice: Bool {
+        switch self {
+        case .hurt, .victory, .defeat:
+            return true
+        case .normalHit, .comboHit, .wrong, .monsterDefeat:
+            return false
+        }
     }
 }
 

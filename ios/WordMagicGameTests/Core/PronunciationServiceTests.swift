@@ -113,6 +113,44 @@ final class PronunciationServiceTests: XCTestCase {
         XCTAssertEqual(BundleAudioSfxLane.resourceExtension, "caf")
     }
 
+    func testPcmAudioLabControllerMirrorsHarmonyControls() {
+        let mixer = RecordingBattleAudioMixer()
+        let lab = PcmAudioLabController(mixer: mixer)
+
+        XCTAssertEqual(lab.selectedWord, "apple")
+        XCTAssertTrue(lab.musicEnabled)
+        XCTAssertTrue(lab.sfxEnabled)
+        XCTAssertTrue(lab.voiceEnabled)
+        XCTAssertFalse(lab.resumeMusicAfterVoice)
+        XCTAssertEqual(lab.masterVolume, 1.0, accuracy: 0.001)
+        XCTAssertEqual(lab.musicVolume, 0.32, accuracy: 0.001)
+        XCTAssertEqual(lab.musicLoweredVolume, 0.50, accuracy: 0.001)
+        XCTAssertEqual(lab.sfxDuringVoiceVolume, 0.35, accuracy: 0.001)
+        XCTAssertEqual(lab.sfxDuringVoicePolicy, .lower)
+
+        lab.selectWord("dragon")
+        lab.adjustMusic(-0.05)
+        lab.setPolicy(.delay)
+        lab.toggleSfx()
+        lab.startBgm()
+        lab.speak()
+        lab.comboOverBgm()
+        lab.wrongSequence()
+        lab.winSequence()
+
+        XCTAssertEqual(lab.selectedWord, "dragon")
+        XCTAssertEqual(lab.musicVolume, 0.27, accuracy: 0.001)
+        XCTAssertEqual(lab.sfxDuringVoicePolicy, .delay)
+        XCTAssertFalse(lab.sfxEnabled)
+        XCTAssertEqual(mixer.settings.last?.sfxEnabled, false)
+        XCTAssertEqual(mixer.startedConfigs.last?.playBgm, true)
+        XCTAssertEqual(mixer.spokenWords, ["dragon"])
+        XCTAssertTrue(mixer.sfxCues.contains(.comboHit))
+        XCTAssertTrue(mixer.sfxCues.contains(.wrong))
+        XCTAssertTrue(mixer.sfxCues.contains(.hurt))
+        XCTAssertTrue(mixer.sfxCues.contains(.victory))
+    }
+
     func testBattleAudioMixerLowersBgmDuringVoiceWithoutStopResume() {
         let music = RecordingMusicLane()
         let voice = RecordingPronunciationService()
@@ -226,6 +264,45 @@ final class PronunciationServiceTests: XCTestCase {
 
         func dispose() {
             events.append("dispose")
+        }
+    }
+
+    private final class RecordingBattleAudioMixer: BattleAudioMixing {
+        var isAvailable = true
+        private(set) var preparedCount = 0
+        private(set) var settings: [BattleAudioMixSettings] = []
+        private(set) var startedConfigs: [GameConfig] = []
+        private(set) var stoppedCount = 0
+        private(set) var spokenWords: [String] = []
+        private(set) var sfxCues: [BattleSfxCue] = []
+        private(set) var disposedCount = 0
+
+        func prepare() {
+            preparedCount += 1
+        }
+
+        func updateSettings(_ settings: BattleAudioMixSettings) {
+            self.settings.append(settings)
+        }
+
+        func startBattle(config: GameConfig) {
+            startedConfigs.append(config)
+        }
+
+        func stopBattle() {
+            stoppedCount += 1
+        }
+
+        func speak(_ word: String) {
+            spokenWords.append(word)
+        }
+
+        func playSfx(_ cue: BattleSfxCue) {
+            sfxCues.append(cue)
+        }
+
+        func dispose() {
+            disposedCount += 1
         }
     }
 

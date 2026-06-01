@@ -371,6 +371,46 @@ final class WordMagicGameUITests: XCTestCase {
         app.buttons["DevMenuAudioLabButton"].tap()
         XCTAssertTrue(app.staticTexts["PcmAudioLabTitle"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.switches["PcmAudioLabSystemTtsSwitch"].exists)
+        for id in [
+            "AudioLabToggleMusic",
+            "AudioLabToggleSfx",
+            "AudioLabToggleVoice",
+            "AudioLabToggleResume",
+            "AudioLabMasterMinus",
+            "AudioLabMasterPlus",
+            "AudioLabMusicMinus",
+            "AudioLabMusicPlus",
+            "AudioLabDuckMinus",
+            "AudioLabDuckPlus",
+            "AudioLabSfxVoiceMinus",
+            "AudioLabSfxVoicePlus",
+            "PcmAudioLabStartBgmButton",
+            "PcmAudioLabStopBgmButton",
+            "AudioLabNormalHit",
+            "AudioLabComboHit",
+            "AudioLabWrong",
+            "AudioLabHurt",
+            "AudioLabVictory",
+            "AudioLabDefeat",
+            "AudioLabWord_apple",
+            "AudioLabWord_dragon",
+            "AudioLabWord_magic",
+            "AudioLabWord_school",
+            "AudioLabSpeak",
+            "PcmAudioLabSpeakOverBgmButton",
+            "AudioLabComboOverMusic",
+            "PcmAudioLabSfxDuringVoiceButton",
+            "AudioLabWrongSequence",
+            "AudioLabWinSequence",
+            "AudioLabPolicy_full",
+            "AudioLabPolicy_lower",
+            "AudioLabPolicy_suppress",
+            "AudioLabPolicy_delay",
+        ] {
+            XCTAssertTrue(app.buttons[id].exists, "Missing PcmAudioLab control: \(id)")
+        }
+        XCTAssertTrue(app.staticTexts["PcmAudioLabStatus"].exists)
+        XCTAssertTrue(app.staticTexts["AudioLabSnapshot"].exists)
 
         app.terminate()
         app.launchArguments = ["-UITestResetState", "-UITestRouteDevMenu"]

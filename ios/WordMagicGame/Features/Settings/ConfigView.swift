@@ -798,32 +798,239 @@ enum DeveloperMenuLayoutSpec {
 @MainActor
 final class PcmAudioLabController: ObservableObject {
     @Published var status = "idle"
-    private let mixer = PcmBattleAudioMixer()
+    @Published var selectedWord = "apple"
+    @Published var musicEnabled = true
+    @Published var sfxEnabled = true
+    @Published var voiceEnabled = true
+    @Published var resumeMusicAfterVoice = false
+    @Published var masterVolume = BattleAudioMixPolicy.masterVolume
+    @Published var musicVolume = BattleAudioMixPolicy.musicVolume
+    @Published var musicLoweredVolume = BattleAudioMixPolicy.musicLoweredVolumeWhileVoice
+    @Published var sfxDuringVoiceVolume = BattleAudioMixPolicy.sfxDuringVoiceVolume
+    @Published var sfxDuringVoicePolicy = BattleSfxDuringVoicePolicy.lower
+    @Published var lastEvent = "none"
+    @Published var delayedStatus = "none"
+    @Published var resumeAttempts = 0
+    @Published var musicState = "idle"
+    @Published var voiceState = "idle"
+
+    let words = ["apple", "dragon", "magic", "school"]
+    let policies = BattleSfxDuringVoicePolicy.allCases
+    private let mixer: BattleAudioMixing
+
+    init(mixer: BattleAudioMixing = PcmBattleAudioMixer()) {
+        self.mixer = mixer
+        syncMixerSettings()
+    }
 
     func startBgm() {
         mixer.prepare()
-        mixer.startBattle(config: GameConfig(playBgm: true, actionSfx: true))
-        status = "music=playing volume=32%"
+        syncMixerSettings()
+        mixer.startBattle(config: labConfig(playBgm: musicEnabled))
+        musicState = musicEnabled ? "playing" : "disabled"
+        lastEvent = "start_music"
+        status = musicEnabled ? "BGM loop requested." : "BGM disabled."
     }
 
     func stopBgm() {
         mixer.stopBattle()
-        status = "music=stopped"
+        musicState = "stopped"
+        lastEvent = "stop_music"
+        status = "BGM stopped."
+    }
+
+    func selectWord(_ word: String) {
+        guard words.contains(word) else { return }
+        selectedWord = word
+        status = "Selected \(word)."
+        lastEvent = "select_word"
+    }
+
+    func speak() {
+        guard voiceEnabled else {
+            status = "Voice disabled."
+            return
+        }
+        syncMixerSettings()
+        mixer.speak(selectedWord)
+        voiceState = "active"
+        lastEvent = "speak"
+        status = "Speaking \(selectedWord)."
     }
 
     func speakOverBgm() {
-        mixer.speak("apple")
-        status = "voice=pcm music=lowered-to-50%"
+        mixer.prepare()
+        syncMixerSettings()
+        mixer.startBattle(config: labConfig(playBgm: musicEnabled))
+        mixer.speak(selectedWord)
+        musicState = musicEnabled ? "playing" : "disabled"
+        voiceState = voiceEnabled ? "active" : "idle"
+        lastEvent = "speak_over_music"
+        status = "BGM plus voice for \(selectedWord)."
+    }
+
+    func playNormalHit() {
+        playSfx(.normalHit, event: "normal_attack", message: "Played normal attack SFX.")
+    }
+
+    func playComboHit() {
+        playSfx(.comboHit, event: "combo_attack", message: "Played combo SFX with temporary BGM duck.")
+    }
+
+    func playWrong() {
+        playSfx(.wrong, event: "wrong_answer", message: "Played wrong-answer SFX.")
+    }
+
+    func playHurt() {
+        playSfx(.hurt, event: "player_hurt", message: "Played critical player-hurt SFX.")
+    }
+
+    func playVictory() {
+        playSfx(.victory, event: "victory", message: "Played victory SFX.")
+    }
+
+    func playDefeat() {
+        playSfx(.defeat, event: "defeat", message: "Played defeat SFX.")
+    }
+
+    func comboOverBgm() {
+        mixer.prepare()
+        syncMixerSettings()
+        mixer.startBattle(config: labConfig(playBgm: musicEnabled))
+        mixer.playSfx(.comboHit)
+        musicState = musicEnabled ? "playing" : "disabled"
+        lastEvent = "combo_over_music"
+        status = "Combo attack over BGM."
     }
 
     func playSfxDuringVoice() {
-        mixer.speak("dragon")
+        if voiceEnabled {
+            mixer.speak(selectedWord)
+            voiceState = "active"
+        }
+        mixer.playSfx(.normalHit)
+        mixer.playSfx(.comboHit)
+        mixer.playSfx(.hurt)
+        delayedStatus = sfxDuringVoicePolicy == .delay ? "normal_hit, combo_hit" : "none"
+        lastEvent = "sfx_during_voice"
+        status = "Voice, BGM, non-critical SFX, combo SFX, and critical SFX fired together."
+    }
+
+    func wrongSequence() {
+        syncMixerSettings()
+        mixer.playSfx(.wrong)
+        mixer.playSfx(.hurt)
+        lastEvent = "wrong_sequence"
+        status = "Wrong answer plus player hurt sequence."
+    }
+
+    func winSequence() {
+        syncMixerSettings()
         mixer.playSfx(.victory)
-        status = "sfx=victory volume=35% while voice"
+        lastEvent = "win_sequence"
+        status = "Played victory over current BGM."
+    }
+
+    func toggleMusic() {
+        musicEnabled.toggle()
+        if !musicEnabled {
+            mixer.stopBattle()
+            musicState = "stopped"
+        }
+        syncMixerSettings()
+        lastEvent = "toggle_music"
+        status = "BGM \(boolLabel(musicEnabled))."
+    }
+
+    func toggleSfx() {
+        sfxEnabled.toggle()
+        syncMixerSettings()
+        lastEvent = "toggle_sfx"
+        status = "SFX \(boolLabel(sfxEnabled))."
+    }
+
+    func toggleVoice() {
+        voiceEnabled.toggle()
+        voiceState = voiceEnabled ? "idle" : "disabled"
+        syncMixerSettings()
+        lastEvent = "toggle_voice"
+        status = "Voice \(boolLabel(voiceEnabled))."
+    }
+
+    func toggleResumeMusicAfterVoice() {
+        resumeMusicAfterVoice.toggle()
+        resumeAttempts += resumeMusicAfterVoice ? 1 : 0
+        syncMixerSettings()
+        lastEvent = "toggle_resume"
+        status = "Resume after voice \(boolLabel(resumeMusicAfterVoice))."
+    }
+
+    func adjustMaster(_ delta: Double) {
+        masterVolume = clamp01(masterVolume + delta)
+        syncMixerSettings()
+    }
+
+    func adjustMusic(_ delta: Double) {
+        musicVolume = clamp01(musicVolume + delta)
+        syncMixerSettings()
+    }
+
+    func adjustDuck(_ delta: Double) {
+        musicLoweredVolume = clamp01(musicLoweredVolume + delta)
+        syncMixerSettings()
+    }
+
+    func adjustSfxDuringVoice(_ delta: Double) {
+        sfxDuringVoiceVolume = clamp01(sfxDuringVoiceVolume + delta)
+        syncMixerSettings()
+    }
+
+    func setPolicy(_ policy: BattleSfxDuringVoicePolicy) {
+        sfxDuringVoicePolicy = policy
+        syncMixerSettings()
+        lastEvent = "policy_\(policy.rawValue)"
+        status = "SFX during voice policy: \(policy.rawValue)."
     }
 
     func dispose() {
         mixer.dispose()
+    }
+
+    func percent(_ value: Double) -> String {
+        "\(Int((value * 100).rounded()))%"
+    }
+
+    private func playSfx(_ cue: BattleSfxCue, event: String, message: String) {
+        syncMixerSettings()
+        mixer.playSfx(cue)
+        lastEvent = event
+        status = message
+    }
+
+    private func syncMixerSettings() {
+        mixer.updateSettings(BattleAudioMixSettings(
+            masterVolume: masterVolume,
+            musicVolume: musicVolume,
+            musicLoweredVolumeWhileVoice: musicLoweredVolume,
+            sfxVolume: BattleAudioMixPolicy.sfxVolume,
+            sfxDuringVoiceVolume: sfxDuringVoiceVolume,
+            resumeMusicAfterVoice: resumeMusicAfterVoice,
+            voiceEnabled: voiceEnabled,
+            sfxEnabled: sfxEnabled,
+            sfxDuringVoicePolicy: sfxDuringVoicePolicy,
+        ))
+    }
+
+    private func labConfig(playBgm: Bool? = nil) -> GameConfig {
+        GameConfig(playBgm: playBgm ?? musicEnabled, actionSfx: sfxEnabled)
+    }
+
+    private func clamp01(_ value: Double) -> Double {
+        min(1.0, max(0.0, (value * 100).rounded() / 100))
+    }
+
+    private func boolLabel(_ value: Bool) -> String {
+        value ? "on" : "off"
     }
 }
 
@@ -832,59 +1039,246 @@ struct PcmAudioLabView: View {
     @StateObject private var lab = PcmAudioLabController()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Button("Back") {
-                    lab.dispose()
-                    coordinator.route = .devMenu
-                }
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
-                .frame(minHeight: DeveloperMenuLayoutSpec.headerButtonHeight)
-                .background(AppTheme.blue, in: Capsule())
-                .buttonStyle(.plain)
-                Spacer()
-            }
-            Text("PcmAudioLab")
-                .font(.system(size: 26, weight: .heavy, design: .rounded))
-                .foregroundStyle(AppTheme.navy)
-                .accessibilityIdentifier("PcmAudioLabTitle")
+        ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    labButton("Start BGM", id: "PcmAudioLabStartBgmButton") { lab.startBgm() }
-                    labButton("Stop BGM", id: "PcmAudioLabStopBgmButton") { lab.stopBgm() }
+                HStack {
+                    Button("Back") {
+                        lab.dispose()
+                        coordinator.route = .devMenu
+                    }
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .frame(minHeight: DeveloperMenuLayoutSpec.headerButtonHeight)
+                    .background(AppTheme.blue, in: Capsule())
+                    .buttonStyle(.plain)
+                    Spacer()
+                    Text("PcmAudioLab")
+                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(AppTheme.navy)
+                        .accessibilityIdentifier("PcmAudioLabTitle")
+                    Spacer()
+                    Color.clear.frame(width: 72, height: 1)
                 }
-                HStack(spacing: 12) {
-                    labButton("Speak over BGM", id: "PcmAudioLabSpeakOverBgmButton") { lab.speakOverBgm() }
-                    labButton("SFX during voice", id: "PcmAudioLabSfxDuringVoiceButton") { lab.playSfxDuringVoice() }
+
+                mixPanel
+
+                VStack(alignment: .leading, spacing: 12) {
+                    transportPanel
+                    voicePanel
+                    policyPanel
+                    statusPanel
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Text(lab.status)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color(red: 0.31, green: 0.44, blue: 0.52))
-                .accessibilityIdentifier("PcmAudioLabStatus")
-            Spacer()
+            .padding(.horizontal, AppTheme.pageHorizontalPadding)
+            .padding(.vertical, 14)
         }
-        .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .padding(.vertical, 18)
         .background(Color.white)
         .onDisappear {
             lab.dispose()
         }
     }
 
+    private var transportPanel: some View {
+        labPanel("Transport") {
+            buttonGrid([
+                ("Start BGM", "PcmAudioLabStartBgmButton", { lab.startBgm() }),
+                ("Stop BGM", "PcmAudioLabStopBgmButton", { lab.stopBgm() }),
+                ("Normal hit", "AudioLabNormalHit", { lab.playNormalHit() }),
+                ("Combo hit", "AudioLabComboHit", { lab.playComboHit() }),
+                ("Wrong", "AudioLabWrong", { lab.playWrong() }),
+                ("Hurt", "AudioLabHurt", { lab.playHurt() }),
+                ("Victory", "AudioLabVictory", { lab.playVictory() }),
+                ("Defeat", "AudioLabDefeat", { lab.playDefeat() }),
+            ])
+        }
+    }
+
+    private var voicePanel: some View {
+        labPanel("PCM Voice") {
+            HStack(spacing: 6) {
+                ForEach(lab.words, id: \.self) { word in
+                    chipButton(
+                        word,
+                        selected: lab.selectedWord == word,
+                        id: "AudioLabWord_\(word)",
+                    ) {
+                        lab.selectWord(word)
+                    }
+                }
+            }
+            buttonGrid([
+                ("Speak", "AudioLabSpeak", { lab.speak() }),
+                ("Speak over BGM", "PcmAudioLabSpeakOverBgmButton", { lab.speakOverBgm() }),
+                ("Combo over BGM", "AudioLabComboOverMusic", { lab.comboOverBgm() }),
+                ("SFX during voice", "PcmAudioLabSfxDuringVoiceButton", { lab.playSfxDuringVoice() }),
+                ("Wrong sequence", "AudioLabWrongSequence", { lab.wrongSequence() }),
+                ("Win sequence", "AudioLabWinSequence", { lab.winSequence() }),
+            ])
+        }
+    }
+
+    private var mixPanel: some View {
+        labPanel("Mix") {
+            HStack(spacing: 6) {
+                toggleChip("BGM", isOn: lab.musicEnabled, id: "AudioLabToggleMusic") { lab.toggleMusic() }
+                toggleChip("SFX", isOn: lab.sfxEnabled, id: "AudioLabToggleSfx") { lab.toggleSfx() }
+                toggleChip("Voice", isOn: lab.voiceEnabled, id: "AudioLabToggleVoice") { lab.toggleVoice() }
+                toggleChip("Resume", isOn: lab.resumeMusicAfterVoice, id: "AudioLabToggleResume") { lab.toggleResumeMusicAfterVoice() }
+            }
+
+            VStack(spacing: 7) {
+                HStack(spacing: 8) {
+                    volumeControl("Master", value: lab.percent(lab.masterVolume), minusId: "AudioLabMasterMinus", plusId: "AudioLabMasterPlus", onMinus: { lab.adjustMaster(-0.05) }, onPlus: { lab.adjustMaster(0.05) })
+                    volumeControl("BGM", value: lab.percent(lab.musicVolume), minusId: "AudioLabMusicMinus", plusId: "AudioLabMusicPlus", onMinus: { lab.adjustMusic(-0.05) }, onPlus: { lab.adjustMusic(0.05) })
+                }
+                HStack(spacing: 8) {
+                    volumeControl("BGM duck", value: lab.percent(lab.musicLoweredVolume), minusId: "AudioLabDuckMinus", plusId: "AudioLabDuckPlus", onMinus: { lab.adjustDuck(-0.02) }, onPlus: { lab.adjustDuck(0.02) })
+                    volumeControl("SFX voice", value: lab.percent(lab.sfxDuringVoiceVolume), minusId: "AudioLabSfxVoiceMinus", plusId: "AudioLabSfxVoicePlus", onMinus: { lab.adjustSfxDuringVoice(-0.05) }, onPlus: { lab.adjustSfxDuringVoice(0.05) })
+                }
+            }
+        }
+    }
+
+    private var policyPanel: some View {
+        labPanel("SFX During Voice") {
+            HStack(spacing: 8) {
+                ForEach(lab.policies, id: \.self) { policy in
+                    chipButton(
+                        policy.rawValue,
+                        selected: lab.sfxDuringVoicePolicy == policy,
+                        id: "AudioLabPolicy_\(policy.rawValue)",
+                    ) {
+                        lab.setPolicy(policy)
+                    }
+                }
+            }
+            Text("Critical hurt/victory/defeat cues still play under suppress and delay policies.")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(red: 0.33, green: 0.42, blue: 0.47))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var statusPanel: some View {
+        labPanel("Status") {
+            Text(lab.status)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(red: 0.2, green: 0.29, blue: 0.35))
+                .accessibilityIdentifier("PcmAudioLabStatus")
+            Text("music=\(lab.musicState) voice=\(lab.voiceState) volume=\(lab.percent(lab.musicVolume)) timers=0")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(red: 0.33, green: 0.42, blue: 0.47))
+                .accessibilityIdentifier("AudioLabSnapshot")
+            Text("last=\(lab.lastEvent) delayed=\(lab.delayedStatus) resume=\(lab.resumeAttempts)")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(red: 0.33, green: 0.42, blue: 0.47))
+        }
+    }
+
+    private func labPanel<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                .foregroundStyle(Color(red: 0.02, green: 0.23, blue: 0.34))
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func buttonGrid(_ items: [(String, String, () -> Void)]) -> some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: 8),
+            GridItem(.flexible(), spacing: 8),
+        ], spacing: 8) {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                labButton(item.0, id: item.1, action: item.2)
+            }
+        }
+    }
+
     private func labButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
                 .foregroundStyle(ConfigActionButtonStyle.foreground)
-                .frame(width: 170, height: 46)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .frame(maxWidth: .infinity)
+                .frame(height: 34)
                 .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
                 )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
+    }
+
+    private func chipButton(_ title: String, selected: Bool, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: selected ? .heavy : .semibold, design: .rounded))
+                .foregroundStyle(selected ? Color.white : Color(red: 0.19, green: 0.32, blue: 0.4))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .frame(maxWidth: .infinity)
+                .frame(height: 28)
+                .background(selected ? Color(red: 0.15, green: 0.42, blue: 0.49) : Color(red: 0.93, green: 0.96, blue: 0.96), in: RoundedRectangle(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
+    }
+
+    private func toggleChip(_ title: String, isOn: Bool, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text("\(title)  \(isOn ? "on" : "off")")
+                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .foregroundStyle(isOn ? Color.white : Color(red: 0.33, green: 0.42, blue: 0.47))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .frame(maxWidth: .infinity)
+                .frame(height: 28)
+                .background(isOn ? Color(red: 0, green: 0.48, blue: 0.53) : Color(red: 0.92, green: 0.96, blue: 0.97), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
+    }
+
+    private func volumeControl(
+        _ label: String,
+        value: String,
+        minusId: String,
+        plusId: String,
+        onMinus: @escaping () -> Void,
+        onPlus: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 4) {
+            Text(label)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(red: 0.2, green: 0.29, blue: 0.35))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: 64, alignment: .leading)
+            stepButton("-", id: minusId, action: onMinus)
+            Text(value)
+                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .foregroundStyle(Color(red: 0.07, green: 0.19, blue: 0.28))
+                .frame(width: 38)
+            stepButton("+", id: plusId, action: onPlus)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func stepButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 14, weight: .heavy, design: .rounded))
+                .foregroundStyle(Color(red: 0.07, green: 0.19, blue: 0.28))
+                .frame(width: 28, height: 24)
+                .background(Color(red: 0.92, green: 0.96, blue: 0.97), in: Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(id)
