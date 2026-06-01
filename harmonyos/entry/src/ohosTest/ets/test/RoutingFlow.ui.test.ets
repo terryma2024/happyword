@@ -7,6 +7,7 @@ import {
   GAME_CONFIG_STORAGE_KEY,
   GAME_MODE_NORMAL,
 } from '../../../main/ets/models/GameConfig';
+import { sanitizeEnabledQuestionTypes } from '../../../main/ets/services/BattleQuestionTypePolicy';
 import { enForZh, findPlayerFullHpLabel } from './UiTestBattleHelpers.ets';
 
 /**
@@ -216,8 +217,13 @@ async function tapConfigSaveShared(driver: Driver): Promise<void> {
   }
 }
 
-function hasCheckPrefix(text: string): boolean {
-  return text.indexOf('✓') === 0;
+function isQuestionTypeSelectedInStorage(typeId: string): boolean {
+  const stored: GameConfig | undefined =
+    AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+  const safeTypes: string[] = sanitizeEnabledQuestionTypes(
+    stored !== undefined ? stored.enabledQuestionTypes : QUESTION_TYPE_IDS,
+  );
+  return safeTypes.indexOf(typeId) >= 0;
 }
 
 export async function setQuestionTypeChipShared(driver: Driver, typeId: string, selected: boolean): Promise<void> {
@@ -225,10 +231,9 @@ export async function setQuestionTypeChipShared(driver: Driver, typeId: string, 
     await scrollToQuestionTypeChipsShared(driver);
     const id: string = `ConfigQuestionType_${typeId}`;
     await driver.assertComponentExist(ON.id(id));
-    const chip: Component = await driver.findComponent(ON.id(id));
-    const text: string = await chip.getText();
-    if (hasCheckPrefix(text) !== selected) {
-      await chip.click();
+    const switchComp: Component = await driver.findComponent(ON.id(id));
+    if (isQuestionTypeSelectedInStorage(typeId) !== selected) {
+      await switchComp.click();
       await driver.delayMs(250);
     }
   } catch (err) {
@@ -238,7 +243,7 @@ export async function setQuestionTypeChipShared(driver: Driver, typeId: string, 
 
 export async function selectQuestionTypesShared(driver: Driver, selectedTypes: string[]): Promise<void> {
   try {
-    resetBattleConfigForUiTestShared(selectedTypes);
+    resetBattleConfigForUiTestShared(QUESTION_TYPE_IDS);
     await clickByIdShared(driver, 'HomeConfigButton');
     await driver.delayMs(1000);
     for (let i: number = 0; i < QUESTION_TYPE_IDS.length; i++) {

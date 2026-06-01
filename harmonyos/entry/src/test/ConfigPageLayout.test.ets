@@ -4,6 +4,7 @@ import {
   CONFIG_CONTROL_GAP_VP,
   CONFIG_FORM_ROW_WIDTH_VP,
   CONFIG_LABEL_TEXT_COLOR,
+  CONFIG_QUESTION_TYPE_CONTROL_KIND,
   CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED,
   CONFIG_TIMER_OPTIONS_PER_ROW,
   questionTypeColumnRows,
@@ -32,6 +33,10 @@ export default function configPageLayoutTest(): void {
 
     it('alignsQuestionTypeOptionsToTheLeft', 0, () => {
       expect(CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED).assertTrue();
+    });
+
+    it('usesSwitchControlsForQuestionTypes', 0, () => {
+      expect(CONFIG_QUESTION_TYPE_CONTROL_KIND).assertEqual('switch');
     });
 
     it('groupsTimerOptionsThreePerRow', 0, () => {

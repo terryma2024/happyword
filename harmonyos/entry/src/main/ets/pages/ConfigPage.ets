@@ -484,6 +484,10 @@ struct ConfigPage {
     return `ConfigQuestionType_${typeId}`;
   }
 
+  private questionTypeLabelId(typeId: string): string {
+    return `ConfigQuestionTypeLabel_${typeId}`;
+  }
+
   private questionTypeLabel(typeId: string): string {
     if (typeId === QuestionKind.Choice) {
       return '中文选词';
@@ -501,12 +505,6 @@ struct ConfigPage {
       return '句子填词';
     }
     return '题型';
-  }
-
-  private questionTypeChipLabel(typeId: string): string {
-    const selected: boolean = this.isQuestionTypeEnabled(typeId);
-    const prefix: string = selected ? '✓ ' : '';
-    return `${prefix}${this.questionTypeLabel(typeId)}`;
   }
 
   private isQuestionTypeEnabled(typeId: string): boolean {
@@ -768,21 +766,27 @@ struct ConfigPage {
         this.configLabel('题型选择');
         Column({ space: 8 }) {
           ForEach(questionTypeColumnRows(DEFAULT_ENABLED_QUESTION_TYPES), (row: string[]) => {
-            Row() {
+            Row({ space: 8 }) {
               ForEach(row, (typeId: string) => {
-                Button(this.questionTypeChipLabel(typeId))
-                  .id(this.questionTypeChipId(typeId))
-                  .height(40)
-                  .padding({ left: 12, right: 12 })
+                Text(this.questionTypeLabel(typeId))
+                  .id(this.questionTypeLabelId(typeId))
                   .fontSize(14)
-                  .backgroundColor(this.isQuestionTypeEnabled(typeId) ? '#FFF4D0' : '#F0F0F0')
-                  .fontColor(this.isQuestionTypeEnabled(typeId) ? '#7C2D12' : '#4B5563')
-                  .borderWidth(this.isQuestionTypeEnabled(typeId) ? 2 : 0)
-                  .borderColor('#FFB400')
-                  .onClick((): void => this.toggleQuestionType(typeId));
+                  .fontColor('#1f2937')
+                  .width(116)
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis });
+                Toggle({ type: ToggleType.Switch, isOn: this.isQuestionTypeEnabled(typeId) })
+                  .id(this.questionTypeChipId(typeId))
+                  .width(54)
+                  .height(32)
+                  .selectedColor('#0F7C86')
+                  .onChange((_enabled: boolean): void => {
+                    this.toggleQuestionType(typeId);
+                  });
               }, (typeId: string): string => typeId);
             }
             .width('100%')
+            .alignItems(VerticalAlign.Center)
             .justifyContent(CONFIG_QUESTION_TYPE_OPTIONS_LEFT_ALIGNED ? FlexAlign.Start : FlexAlign.Center);
           }, (row: string[]): string => row[0]);
         }

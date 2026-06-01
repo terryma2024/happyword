@@ -2,6 +2,10 @@ import { describe, it, expect } from '@ohos/hypium';
 import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { Want } from '@kit.AbilityKit';
 import {
+  GameConfig,
+  GAME_CONFIG_STORAGE_KEY,
+} from '../../../main/ets/models/GameConfig';
+import {
   clickParentPinSetupCancelShared,
   clickByIdShared,
   scrollToQuestionTypeChipsShared,
@@ -343,7 +347,7 @@ export default function configFlowUiTest(): void {
       done();
     });
 
-    it('questionTypeSectionRendersImplementedChineseChipsOnly', 0, async (done: Function) => {
+    it('questionTypeSectionRendersImplementedChineseSwitchesOnly', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
       await openConfig(driver);
@@ -354,14 +358,20 @@ export default function configFlowUiTest(): void {
       await driver.assertComponentExist(ON.id('ConfigQuestionType_fill-letter-medium'));
       await driver.assertComponentExist(ON.id('ConfigQuestionType_spell'));
       await driver.assertComponentExist(ON.id('ConfigQuestionType_sentence-cloze'));
-      const choiceChip: Component =
+      await driver.assertComponentExist(ON.id('ConfigQuestionTypeLabel_choice'));
+      await driver.assertComponentExist(ON.id('ConfigQuestionTypeLabel_sentence-cloze'));
+      const choiceLabel: Component =
+        await driver.findComponent(ON.id('ConfigQuestionTypeLabel_choice'));
+      const choiceText: string = await choiceLabel.getText();
+      expect(choiceText).assertEqual('中文选词');
+      const choiceSwitch: Component =
         await driver.findComponent(ON.id('ConfigQuestionType_choice'));
-      const choiceText: string = await choiceChip.getText();
-      expect(choiceText.indexOf('中文选词') >= 0).assertTrue();
-      const sentenceClozeChip: Component =
-        await driver.findComponent(ON.id('ConfigQuestionType_sentence-cloze'));
-      const sentenceClozeText: string = await sentenceClozeChip.getText();
-      expect(sentenceClozeText.indexOf('句子填词') >= 0).assertTrue();
+      const choiceSwitchText: string = await choiceSwitch.getText();
+      expect(choiceSwitchText.length).assertEqual(0);
+      const sentenceClozeLabel: Component =
+        await driver.findComponent(ON.id('ConfigQuestionTypeLabel_sentence-cloze'));
+      const sentenceClozeText: string = await sentenceClozeLabel.getText();
+      expect(sentenceClozeText).assertEqual('句子填词');
       const sentenceChip: Component | null =
         await driver.findComponent(ON.id('ConfigQuestionType_sentence-fill'));
       expect(sentenceChip === null).assertTrue();
@@ -378,14 +388,14 @@ export default function configFlowUiTest(): void {
       await openConfig(driver);
       await scrollToQuestionTypeChipsShared(driver);
 
-      const spellChip: Component =
-        await driver.findComponent(ON.id('ConfigQuestionType_spell'));
-      const choiceChip: Component =
-        await driver.findComponent(ON.id('ConfigQuestionType_choice'));
-      const spellText: string = await spellChip.getText();
-      const choiceText: string = await choiceChip.getText();
-      expect(spellText.indexOf('✓') === 0).assertTrue();
-      expect(choiceText.indexOf('✓') === 0).assertFalse();
+      const stored: GameConfig | undefined =
+        AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
+      expect(stored !== undefined).assertTrue();
+      const selected: string[] = stored !== undefined
+        ? stored.enabledQuestionTypes
+        : [];
+      expect(selected.length).assertEqual(1);
+      expect(selected[0]).assertEqual('spell');
 
       await tapConfigCancelShared(driver);
       await returnToHome(driver);
