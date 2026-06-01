@@ -92,6 +92,37 @@ async def test_parent_packs_list_renders_delete_form(
 
 
 @pytest.mark.asyncio
+async def test_parent_packs_list_renders_cover_and_story_en(
+    parent_client: tuple[AsyncClient, str],
+) -> None:
+    ac, fid = parent_client
+    created = await ac.post(
+        f"/api/v1/family/{fid}/family-packs",
+        json={
+            "name": "Scene UI",
+            "scene": {
+                "spellbookCoverUrl": "https://assets.example.test/covers/scene-ui.png",
+                "storyEn": "A moonlit library opens for brave word keepers.",
+            },
+        },
+    )
+    pack_id = created.json()["pack_id"]
+
+    resp = await ac.get(f"/family/{fid}/packs/")
+
+    assert resp.status_code == 200
+    soup = BeautifulSoup(resp.text, "html.parser")
+    row = soup.find(attrs={"data-pack-row": pack_id})
+    assert row is not None
+    cover = row.find("img", attrs={"alt": "Scene UI 封面"})
+    assert cover is not None
+    assert cover.get("src") == "https://assets.example.test/covers/scene-ui.png"
+    story = row.find(attrs={"data-pack-story-en": pack_id})
+    assert story is not None
+    assert story.get_text(strip=True) == "A moonlit library opens for brave word keepers."
+
+
+@pytest.mark.asyncio
 async def test_parent_pack_delete_form_removes_pack_records(
     parent_client: tuple[AsyncClient, str],
 ) -> None:
