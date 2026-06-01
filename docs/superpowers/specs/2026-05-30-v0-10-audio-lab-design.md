@@ -31,6 +31,26 @@ This lab is a debug-only technical probe. It does not ship a child-facing produc
 
 If the lab proves feasible and the audio behavior is selected for production battle, V0.10 must then create the normal `docs/features/<feature-id>/` package and follow the Harmony-first replication gate before iOS and Android begin implementation.
 
+### 3.1 Harmony Debug Surface Delta For Replication
+
+The Harmony probe now has a stable debug-entry structure that iOS and Android should mirror when they add their own debug audio labs:
+
+```text
+DevMenuPage
+  -> Domain Switch
+  -> PcmAudioLab
+  -> MessageBubbleLab
+```
+
+`Domain Switch` is a separate page (`DomainSwitchPage`) that owns backend environment selection, Preview manifest cards, Bypass Secret, health probe status, and routing debug text. `DevMenuPage` itself is only a launcher page with the three peer entries above. The audio lab entry label is `PcmAudioLab`; the route/file name remains `AudioLabPage` on Harmony for compatibility with the existing route profile.
+
+Replication rule:
+
+- iOS and Android debug menus should treat `Domain Switch`, `PcmAudioLab`, and `MessageBubbleLab` as sibling tools, not nest the labs below domain switching.
+- Domain/environment switching UI must be isolated from the audio lab. Audio lab testing must not require loading preview manifests or changing backend state.
+- The PCM audio lab must not show a System TTS backend switch. Harmony testing proved that the System TTS direct-playback route can be silent or can interrupt/stop BGM, so the selected probe surface is PCM-only.
+- Automated UI tests should not depend on the hidden DevMenu unlock gesture. Harmony covers the launcher model with a no-device unit test and keeps DevMenu/triple-tap out of ohosTest; iOS/Android should use the equivalent low-flake coverage for debug launcher ordering/routes.
+
 ## 4. Proposed Architecture
 
 Use a standalone controller and three lane interfaces:
@@ -40,7 +60,7 @@ AudioLabPage
   -> AudioLabController
       -> MusicLabLane: BGM loop, volume changes, single manual resume
       -> SfxLabLane: short battle SFX playback
-      -> VoiceLabLane: TTS word pronunciation, either system playback or PCM render
+      -> PcmVoiceLabLane: TTS synthesize-to-PCM, app-owned renderer playback
 ```
 
 The controller owns sequencing and timers. The page owns only UI controls and debug display. The lanes hide platform playback details behind small interfaces so the technical probe can later inform `BattleAudioMixer` without coupling it to the page.
@@ -54,10 +74,12 @@ harmonyos/entry/src/main/ets/audio_lab/
   lanes/
     MusicLabLane.ets
     SfxLabLane.ets
-    VoiceLabLane.ets
     PcmVoiceLabLane.ets
 
 harmonyos/entry/src/main/ets/pages/AudioLabPage.ets
+harmonyos/entry/src/main/ets/pages/DevMenuPage.ets
+harmonyos/entry/src/main/ets/pages/DomainSwitchPage.ets
+harmonyos/entry/src/main/ets/services/DevMenuToolEntries.ets
 ```
 
 The lab page should be reachable only from the existing debug/developer surface. Release builds must not expose it.
@@ -271,7 +293,7 @@ export class AudioLabController {
 2. Increment a voice token.
 3. Mark voiceActive.
 4. lowerMusicForVoice().
-5. VoiceLabLane.speak(word).
+5. VoiceLabLane.speak(word) using the PCM implementation.
 6. Schedule one timeout using voiceLowerDurationMs.
 7. On timeout, if token is still current:
    - mark voice inactive
@@ -280,7 +302,7 @@ export class AudioLabController {
    - if resumeMusicAfterVoice is true, resumeMusicOnce('voice-timeout')
 ```
 
-The system TTS playback route is retained only as an A/B backend. Manual testing showed that `CoreSpeechKit` direct playback can still stop or interrupt BGM even when the controller only lowers volume. The selected lab route is therefore `PcmVoiceLabLane`: request TTS synthesis with `playType=0`, receive PCM chunks through `SpeakListener.onData`, and render them through an app-owned `AudioRenderer` stream. Timeout-based restoration remains in the controller so the lab can compare policy timing without depending on production battle flow.
+The System TTS direct-playback route was removed after manual validation. It can be silent on the simulator and can still stop or interrupt BGM even when the controller only lowers volume. The selected lab route is therefore `PcmVoiceLabLane`: request TTS synthesis with `playType=0`, receive PCM chunks through `SpeakListener.onData`, and render them through an app-owned `AudioRenderer` stream. Timeout-based restoration remains in the controller so the lab can compare policy timing without depending on production battle flow.
 
 ### 7.4 SFX Policy Gate
 
@@ -419,6 +441,15 @@ Debug:
 
 The page can be utilitarian. It is a developer tool, so density and fast iteration matter more than decorative polish.
 
+Layout and interaction requirements from Harmony validation:
+
+- Keep the page compact enough for landscape simulator use; Mix/settings controls should sit below Transport and Voice rather than clipped off the right edge.
+- Word chips must be real selectable controls; tapping a word changes the active word and the selected visual state.
+- Mix policy controls and on/off toggles must update both controller config and visible state.
+- Numeric volume controls must show visible `-` / `+` controls and update the displayed percentage immediately after taps.
+- The page title and DevMenu entry must read `PcmAudioLab`, not generic `Audio Lab`, once the System TTS option is removed.
+- `Speak over BGM`, `Win sequence`, and other demo flows must not stop current BGM unless the button is explicitly a BGM stop control.
+
 ## 10. Error Handling
 
 - Missing BGM: disable music lane, log error, keep SFX and voice usable.
@@ -483,6 +514,8 @@ The HAP build log must have zero `ArkTS:WARN` lines. Since the lab does not touc
 - Page can play current battle SFX over BGM.
 - Page can speak a typed word while lowering BGM volume.
 - Page uses the `PCM mix` voice backend only; no voice backend switch is shown.
+- DevMenu shows `Domain Switch`, `PcmAudioLab`, and `MessageBubbleLab` as peer entries.
+- Backend environment switching lives on `DomainSwitchPage`, not on `DevMenuPage`.
 - Page can compare SFX/TTS overlap policies: full, lowered, suppressed, delayed.
 - Page can manually test `resumeMusicOnce`.
 - `resumeMusicAfterVoice` defaults to false.
@@ -490,3 +523,18 @@ The HAP build log must have zero `ArkTS:WARN` lines. Since the lab does not touc
 - No production battle behavior changes.
 - Release build does not expose the lab entry.
 - Build and CodeLinter pass with zero ArkTS warnings.
+
+## 13. Replica Notes For iOS And Android
+
+The production goal is cross-platform battle audio parity, but the debug probe should remain platform-native:
+
+| Concern | Harmony source of truth | iOS replica guidance | Android replica guidance |
+| --- | --- | --- | --- |
+| Debug entry structure | `DevMenuPage` + `DevMenuToolEntries` | Add a debug launcher with peer entries: Domain Switch, PcmAudioLab, MessageBubbleLab. | Same peer launcher structure in debug tooling. |
+| Domain switching | `DomainSwitchPage` | Keep environment switching outside the audio lab. | Keep environment switching outside the audio lab. |
+| Voice backend | `PcmVoiceLabLane` only | Prefer synthesized/decoded PCM rendered through app-owned audio output. Do not expose a broken System TTS comparison toggle. | Prefer synthesized/decoded PCM rendered through app-owned audio output. Do not expose a broken System TTS comparison toggle. |
+| BGM behavior | `MusicLabLane.setVolume`, no pause on voice | Speaking over BGM lowers music volume and restores; it must not stop BGM. | Speaking over BGM lowers music volume and restores; it must not stop BGM. |
+| SFX during voice | Controller policy gate | Preserve full/lower/suppress/delay policy semantics. | Preserve full/lower/suppress/delay policy semantics. |
+| Test strategy | no-device controller + launcher-model tests; DevMenu not in ohosTest | Unit-test controller policy and debug launcher model; keep hidden debug gesture out of flaky UI automation. | Unit-test controller policy and debug launcher model; keep hidden debug gesture out of flaky UI automation. |
+
+Do not replicate the abandoned System TTS direct-playback branch. It was useful as a probe, but it created confusion and did not provide reliable audible output with BGM.
