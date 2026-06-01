@@ -14,6 +14,12 @@ import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCre
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
+import {
+  APP_SWITCH_HEIGHT_VP,
+  APP_SWITCH_POINT_COLOR,
+  APP_SWITCH_SELECTED_COLOR,
+  APP_SWITCH_WIDTH_VP,
+} from '../components/SwitchStyle';
 import { requestPageOrientation } from '../utils/orientation';
 
 /**
@@ -374,9 +380,9 @@ struct PackManagerPage {
       // id from the active set so a fast double-tap never desyncs.
       Toggle({ type: ToggleType.Switch, isOn: this.isActive(p.id) })
         .id(`PackToggle_${p.id}`)
-        .selectedColor('#FFB400')
-        .switchPointColor('#FFFFFF')
-        .width(48).height(28)
+        .selectedColor(APP_SWITCH_SELECTED_COLOR)
+        .switchPointColor(APP_SWITCH_POINT_COLOR)
+        .width(APP_SWITCH_WIDTH_VP).height(APP_SWITCH_HEIGHT_VP)
         .onChange((isOn: boolean): void => {
           if (isOn === this.isActive(p.id)) {
             return;

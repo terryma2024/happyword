@@ -40,6 +40,12 @@ import {
   questionTypeColumnRows,
   timerOptionRows,
 } from '../components/ConfigPageLayout';
+import {
+  APP_SWITCH_HEIGHT_VP,
+  APP_SWITCH_POINT_COLOR,
+  APP_SWITCH_SELECTED_COLOR,
+  APP_SWITCH_WIDTH_VP,
+} from '../components/SwitchStyle';
 import { REPORT_CHANNEL_URL } from '../services/CompliancePolicy';
 import { openUrlInAppBrowser } from '../services/SystemBrowser';
 import { requestPageOrientation } from '../utils/orientation';
@@ -730,9 +736,10 @@ struct ConfigPage {
         .textOverflow({ overflow: TextOverflow.Ellipsis });
       Toggle({ type: ToggleType.Switch, isOn: value })
         .id(id)
-        .width(54)
-        .height(32)
-        .selectedColor('#0F7C86')
+        .width(APP_SWITCH_WIDTH_VP)
+        .height(APP_SWITCH_HEIGHT_VP)
+        .selectedColor(APP_SWITCH_SELECTED_COLOR)
+        .switchPointColor(APP_SWITCH_POINT_COLOR)
         .onChange((enabled: boolean): void => {
           onChange(enabled);
         });
@@ -778,9 +785,10 @@ struct ConfigPage {
                   .textOverflow({ overflow: TextOverflow.Ellipsis });
                 Toggle({ type: ToggleType.Switch, isOn: this.isQuestionTypeEnabled(typeId) })
                   .id(this.questionTypeChipId(typeId))
-                  .width(54)
-                  .height(32)
-                  .selectedColor('#0F7C86')
+                  .width(APP_SWITCH_WIDTH_VP)
+                  .height(APP_SWITCH_HEIGHT_VP)
+                  .selectedColor(APP_SWITCH_SELECTED_COLOR)
+                  .switchPointColor(APP_SWITCH_POINT_COLOR)
                   .onChange((_enabled: boolean): void => {
                     this.toggleQuestionType(typeId);
                   });

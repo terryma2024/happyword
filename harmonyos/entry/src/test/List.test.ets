@@ -80,6 +80,7 @@ import spellbookCoverResolverTest from './SpellbookCoverResolver.test';
 import devMenuToolEntriesTest from './DevMenuToolEntries.test';
 import audioLabControllerTest from './AudioLabController.test';
 import audioLabPcmVoiceTest from './AudioLabPcmVoice.test';
+import switchStyleTest from './SwitchStyle.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -164,4 +165,5 @@ export default function testsuite() {
   devMenuToolEntriesTest();
   audioLabControllerTest();
   audioLabPcmVoiceTest();
+  switchStyleTest();
 }
