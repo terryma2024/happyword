@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -185,7 +186,8 @@ internal const val ConfigFormRowWidthDp = ConfigLabelWidthDp + ConfigControlGapD
 internal const val ConfigTimerOptionsPerRow = 3
 internal const val ConfigSwitchColumnWidthDp = 72
 internal const val ConfigSettingGroupGapDp = 16
-internal const val ConfigSettingOptionGapDp = 6
+internal const val ConfigSettingOptionGapDp = 2
+internal const val ConfigSettingOptionHeightDp = 42
 internal val ConfigSwitchCheckedTrackColor: Int = 0xFFFFB400.toInt()
 internal val ConfigSwitchUncheckedTrackColor: Int = 0xFFE5E7EB.toInt()
 internal val ConfigParentActionBgColor: Int = 0xFFE0F2FE.toInt()
@@ -280,7 +282,7 @@ private fun ConfigSwitchOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp),
+            .height(ConfigSettingOptionHeightDp.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -288,7 +290,7 @@ private fun ConfigSwitchOption(
             modifier = Modifier.weight(1f),
             fontSize = 17.sp,
             color = Color(0xFF1F2937),
-            textAlign = TextAlign.End,
+            textAlign = TextAlign.Start,
         )
         Spacer(Modifier.width(14.dp))
         Box(
@@ -301,6 +303,37 @@ private fun ConfigSwitchOption(
                 modifier = Modifier.testTag(testTag),
             )
         }
+    }
+}
+
+@Composable
+private fun ConfigSwitchGroupRow(
+    label: String,
+    optionCount: Int,
+    bottomPadding: Dp = ConfigSettingGroupGapDp.dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val groupHeight = (ConfigSettingOptionHeightDp * optionCount) +
+        (ConfigSettingOptionGapDp * (optionCount - 1).coerceAtLeast(0))
+    val labelTopPadding = ((groupHeight - ConfigSettingOptionHeightDp) / 2).dp
+    ConfigCenteredFormRow(bottomPadding = bottomPadding, verticalAlignment = Alignment.Top) {
+        Box(
+            modifier = Modifier
+                .width(ConfigLabelWidthDp.dp)
+                .padding(top = labelTopPadding),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            Text(
+                label,
+                fontSize = 18.sp,
+                textAlign = TextAlign.End,
+            )
+        }
+        Column(
+            modifier = Modifier.width(ConfigControlColumnWidthDp.dp),
+            verticalArrangement = Arrangement.spacedBy(ConfigSettingOptionGapDp.dp),
+            content = content,
+        )
     }
 }
 
@@ -405,7 +438,6 @@ internal fun ConfigScreen(
     }
 
     val ordered = BattleQuestionTypePolicy.defaultOrderedTypeIds
-    val questionTypeRows = configQuestionTypeRows(ordered)
     val timerOptionRows = configTimerOptionRows(GameConfig.timerPresets + listOf(0))
 
     Column(
@@ -526,48 +558,34 @@ internal fun ConfigScreen(
                     }
                 }
             }
-            ConfigCenteredFormRow(bottomPadding = ConfigSettingGroupGapDp.dp, verticalAlignment = Alignment.Top) {
-                ConfigLabel("发音播放")
-                Column(
-                    modifier = Modifier.width(ConfigControlColumnWidthDp.dp),
-                    verticalArrangement = Arrangement.spacedBy(ConfigSettingOptionGapDp.dp),
-                ) {
-                    ConfigSwitchOption(
-                        label = "自动发音",
-                        checked = config.autoPronunciation,
-                        testTag = "ConfigAutoSpeakSwitch",
-                        onCheckedChange = { onConfigChange(config.copy(autoPronunciation = it)) },
-                    )
-                    ConfigSwitchOption(
-                        label = "播放BGM",
-                        checked = config.playBgm,
-                        testTag = "ConfigPlayBgmSwitch",
-                        onCheckedChange = { onConfigChange(config.copy(playBgm = it)) },
-                    )
-                    ConfigSwitchOption(
-                        label = "动作特效音",
-                        checked = config.actionSfx,
-                        testTag = "ConfigActionSfxSwitch",
-                        onCheckedChange = { onConfigChange(config.copy(actionSfx = it)) },
-                    )
-                }
+            ConfigSwitchGroupRow(label = "发音播放", optionCount = 3) {
+                ConfigSwitchOption(
+                    label = "自动发音",
+                    checked = config.autoPronunciation,
+                    testTag = "ConfigAutoSpeakSwitch",
+                    onCheckedChange = { onConfigChange(config.copy(autoPronunciation = it)) },
+                )
+                ConfigSwitchOption(
+                    label = "播放BGM",
+                    checked = config.playBgm,
+                    testTag = "ConfigPlayBgmSwitch",
+                    onCheckedChange = { onConfigChange(config.copy(playBgm = it)) },
+                )
+                ConfigSwitchOption(
+                    label = "动作特效音",
+                    checked = config.actionSfx,
+                    testTag = "ConfigActionSfxSwitch",
+                    onCheckedChange = { onConfigChange(config.copy(actionSfx = it)) },
+                )
             }
-            ConfigCenteredFormRow(bottomPadding = ConfigSettingGroupGapDp.dp, verticalAlignment = Alignment.Top) {
-                ConfigLabel("题型选择")
-                Column(
-                    modifier = Modifier.width(ConfigControlColumnWidthDp.dp),
-                    verticalArrangement = Arrangement.spacedBy(ConfigSettingOptionGapDp.dp),
-                ) {
-                    questionTypeRows.forEach { row ->
-                        row.forEach { typeId ->
-                            ConfigSwitchOption(
-                                label = BattleQuestionTypePolicy.displayLabel(typeId),
-                                checked = isTypeOn(typeId),
-                                testTag = "ConfigQuestionType_$typeId",
-                                onCheckedChange = { toggleQuestionType(typeId) },
-                            )
-                        }
-                    }
+            ConfigSwitchGroupRow(label = "题型选择", optionCount = ordered.size) {
+                ordered.forEach { typeId ->
+                    ConfigSwitchOption(
+                        label = BattleQuestionTypePolicy.displayLabel(typeId),
+                        checked = isTypeOn(typeId),
+                        testTag = "ConfigQuestionType_$typeId",
+                        onCheckedChange = { toggleQuestionType(typeId) },
+                    )
                 }
             }
             if (questionTypeHint.isNotEmpty()) {
@@ -665,11 +683,11 @@ internal fun ConfigScreen(
                             .height(40.dp)
                             .testTag("ConfigCloudBindingButton"),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFF4D0),
-                            contentColor = Color(0xFF7C2D12),
+                            containerColor = configColor(ConfigParentActionBgColor),
+                            contentColor = configColor(ConfigParentActionTextColor),
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(2.dp, Color(0xFFFFB400)),
+                        border = BorderStroke(2.dp, configColor(ConfigParentActionBorderColor)),
                     ) {
                         Text("绑定家长账号", fontSize = 15.sp)
                     }

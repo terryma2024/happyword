@@ -14,6 +14,9 @@ class BattleAudioMixerPolicyTest {
         assertEquals(0.50f, policy.musicLoweredVolumeWhileVoice, 0.001f)
         assertEquals(0.35f, policy.sfxDuringVoiceVolume, 0.001f)
         assertFalse(policy.resumeMusicAfterVoice)
+        assertEquals(800L, policy.voiceSynthesisStartDelayMs)
+        assertEquals(3500L, policy.voiceSynthesisTimeoutMs)
+        assertEquals(1, policy.maxVoiceSynthesisStartRetries)
     }
 
     @Test

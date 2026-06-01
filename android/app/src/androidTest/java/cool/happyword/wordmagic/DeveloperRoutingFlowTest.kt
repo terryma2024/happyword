@@ -36,6 +36,13 @@ class DeveloperRoutingFlowTest {
 
         composeRule.onNodeWithTag("DevMenuAudioLabButton").performClick()
         composeRule.onNodeWithTag("PcmAudioLabTitle").assertIsDisplayed()
+        composeRule.onNodeWithText("Mix").assertIsDisplayed()
+        composeRule.onNodeWithText("Transport").assertIsDisplayed()
+        composeRule.onNodeWithText("PCM Voice").assertIsDisplayed()
+        composeRule.onNodeWithText("SFX During Voice").assertIsDisplayed()
+        composeRule.onNodeWithText("Status").assertIsDisplayed()
+        composeRule.onNodeWithText("Speak over BGM").assertIsDisplayed()
+        composeRule.onNodeWithText("BGM duck").assertIsDisplayed()
         assertTrue(composeRule.onAllNodesWithText("System TTS").fetchSemanticsNodes().isEmpty())
         composeRule.onNodeWithTag("PcmAudioLabBackButton").performClick()
 

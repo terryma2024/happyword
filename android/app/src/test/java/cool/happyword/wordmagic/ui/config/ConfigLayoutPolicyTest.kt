@@ -13,7 +13,8 @@ class ConfigLayoutPolicyTest {
         assertEquals(352, ConfigFormRowWidthDp)
         assertEquals(72, ConfigSwitchColumnWidthDp)
         assertEquals(16, ConfigSettingGroupGapDp)
-        assertEquals(6, ConfigSettingOptionGapDp)
+        assertEquals(2, ConfigSettingOptionGapDp)
+        assertEquals(42, ConfigSettingOptionHeightDp)
     }
 
     @Test
