@@ -204,111 +204,25 @@ internal fun BattleScreen(
     onEscape: () -> Unit,
 ) {
     val context = LocalContext.current
-    val mainHandler = remember { Handler(Looper.getMainLooper()) }
     var activeOutcome by remember(runId) { mutableStateOf<BattleAnswerOutcome?>(null) }
     var introBubbleCatalogIndex by remember(runId) { mutableStateOf<Int?>(null) }
     var introShownCatalogIndices by remember(runId) { mutableStateOf(emptySet<Int>()) }
     var playerFloaters by remember(runId) { mutableStateOf(emptyList<FloaterPending>()) }
     var monsterFloaters by remember(runId) { mutableStateOf(emptyList<FloaterPending>()) }
     var nextFloaterKey by remember(runId) { mutableIntStateOf(0) }
-    var ttsReady by remember { mutableStateOf(false) }
-    var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
-    var ttsPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
-    var ttsRequestId by remember { mutableIntStateOf(0) }
-    var pendingSpeech by remember { mutableStateOf<String?>(null) }
+    val battleAudioMixer = remember(runId) { AndroidBattleAudioMixer(context.applicationContext) }
     val speakWord: (String) -> Unit = { word ->
-        val cleanWord = word.trim()
-        if (cleanWord.isNotEmpty()) {
-            val engine = ttsEngine
-            if (ttsReady && engine != null) {
-                ttsRequestId += 1
-                val utteranceId = "battle-tts-$ttsRequestId"
-                val outputFile = File(context.cacheDir, "$utteranceId.wav")
-                engine.stop()
-                val result = engine.synthesizeToFile(cleanWord, null, outputFile, utteranceId)
-                if (result == TextToSpeech.ERROR) {
-                    Log.w("WordMagicTTS", "synthesizeToFile failed to start for word=$cleanWord")
-                }
-            } else {
-                pendingSpeech = cleanWord
-            }
-        }
+        battleAudioMixer.speakWord(word)
     }
 
-    DisposableEffect(context.applicationContext) {
-        val holder = arrayOfNulls<TextToSpeech>(1)
-        val engine = TextToSpeech(context.applicationContext) { status ->
-            mainHandler.post {
-                val initializedEngine = holder[0] ?: return@post
-                if (status == TextToSpeech.SUCCESS) {
-                    val languageStatus = initializedEngine.setLanguage(Locale.US)
-                    val languageReady = languageStatus != TextToSpeech.LANG_MISSING_DATA &&
-                        languageStatus != TextToSpeech.LANG_NOT_SUPPORTED
-                    initializedEngine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                        override fun onStart(utteranceId: String?) = Unit
-
-                        override fun onDone(utteranceId: String?) {
-                            if (utteranceId == null) return
-                            val outputFile = File(context.cacheDir, "$utteranceId.wav")
-                            mainHandler.post {
-                                if (outputFile.exists()) {
-                                    ttsPlayer?.stop()
-                                    ttsPlayer?.release()
-                                    ttsPlayer = MediaPlayer().apply {
-                                        setDataSource(outputFile.absolutePath)
-                                        setOnCompletionListener { completed ->
-                                            completed.release()
-                                            if (ttsPlayer === completed) {
-                                                ttsPlayer = null
-                                            }
-                                            outputFile.delete()
-                                        }
-                                        setOnErrorListener { failed, _, _ ->
-                                            failed.release()
-                                            if (ttsPlayer === failed) {
-                                                ttsPlayer = null
-                                            }
-                                            outputFile.delete()
-                                            true
-                                        }
-                                        prepare()
-                                        start()
-                                    }
-                                }
-                            }
-                        }
-
-                        @Suppress("OVERRIDE_DEPRECATION")
-                        override fun onError(utteranceId: String?) {
-                            Log.w("WordMagicTTS", "TTS synthesis error utteranceId=$utteranceId")
-                        }
-
-                        override fun onError(utteranceId: String?, errorCode: Int) {
-                            Log.w("WordMagicTTS", "TTS synthesis error utteranceId=$utteranceId code=$errorCode")
-                        }
-                    })
-                    ttsEngine = initializedEngine
-                    ttsReady = languageReady
-                } else {
-                    Log.w("WordMagicTTS", "TextToSpeech init failed status=$status")
-                    ttsReady = false
-                }
-            }
-        }
-        holder[0] = engine
+    DisposableEffect(battleAudioMixer) {
+        battleAudioMixer.enter(config)
         onDispose {
-            ttsPlayer?.stop()
-            ttsPlayer?.release()
-            engine.stop()
-            engine.shutdown()
+            battleAudioMixer.dispose()
         }
     }
-    LaunchedEffect(ttsReady, pendingSpeech) {
-        val word = pendingSpeech
-        if (ttsReady && word != null) {
-            pendingSpeech = null
-            speakWord(word)
-        }
+    LaunchedEffect(battleAudioMixer, config) {
+        battleAudioMixer.updateConfig(config)
     }
     LaunchedEffect(activeOutcome) {
         val outcome = activeOutcome ?: return@LaunchedEffect
@@ -322,20 +236,20 @@ internal fun BattleScreen(
             val pushed = pushBattleFloater(monsterFloaters, nextFloaterKey, outcome.damage)
             monsterFloaters = pushed.first
             nextFloaterKey = pushed.second
-            playBattleSound(context, if (outcome.comboTriggered) R.raw.hit_crit else R.raw.hit_normal)
+            battleAudioMixer.playSfx(if (outcome.comboTriggered) R.raw.hit_crit else R.raw.hit_normal)
             if (outcome.monsterDefeated && !outcome.battleEnded) {
                 delay(120)
-                playBattleSound(context, R.raw.monster_defeat)
+                battleAudioMixer.playSfx(R.raw.monster_defeat)
             }
         } else {
-            playBattleSound(context, R.raw.answer_wrong)
+            battleAudioMixer.playSfx(R.raw.answer_wrong)
             delay(PROJECTILE_IMPACT_MS)
             if (outcome.playerDamaged) {
                 val pushed = pushBattleFloater(playerFloaters, nextFloaterKey, outcome.damage)
                 playerFloaters = pushed.first
                 nextFloaterKey = pushed.second
             }
-            playBattleSound(context, R.raw.player_hurt)
+            battleAudioMixer.playSfx(R.raw.player_hurt)
         }
         val remainingFeedback = BATTLE_FEEDBACK_MS - PROJECTILE_IMPACT_MS
         if (remainingFeedback > 0) {
@@ -344,6 +258,11 @@ internal fun BattleScreen(
         val finishedState = outcome.nextState
         activeOutcome = null
         if (finishedState.status != BattleStatus.Playing) {
+            if (finishedState.status == BattleStatus.Won) {
+                battleAudioMixer.playVictory()
+            } else {
+                battleAudioMixer.playDefeat()
+            }
             onBattleFinished(finishedState)
         }
     }
@@ -360,10 +279,9 @@ internal fun BattleScreen(
             introBubbleCatalogIndex = null
         }
     }
-    LaunchedEffect(runId, state.question.correctAnswer, state.question.kind, config.autoPronunciation, ttsReady, activeOutcome) {
+    LaunchedEffect(runId, state.question.correctAnswer, state.question.kind, config.autoPronunciation, activeOutcome) {
         if (
             config.autoPronunciation &&
-            ttsReady &&
             activeOutcome == null &&
             state.status == BattleStatus.Playing &&
             state.question.kind != QuestionKind.SentenceCloze

@@ -6,6 +6,9 @@ enum ConfigLayoutRules {
     static let controlColumnWidth: CGFloat = 220
     static let timerOptionsPerRow = 3
     static let questionTypesLeftAligned = true
+    static let settingGroupSpacing: CGFloat = 22
+    static let settingOptionSpacing: CGFloat = 8
+    static let settingSwitchLabelWidth: CGFloat = 132
 
     static func questionTypeRows(_ typeIds: [String]) -> [[String]] {
         typeIds.map { [$0] }
@@ -16,6 +19,12 @@ enum ConfigLayoutRules {
             Array(options[start..<min(start + timerOptionsPerRow, options.count)])
         }
     }
+}
+
+enum ConfigActionButtonStyle {
+    static let background = Color(red: 0.88, green: 0.95, blue: 0.99)
+    static let foreground = Color(red: 0.01, green: 0.41, blue: 0.63)
+    static let border = Color(red: 0.05, green: 0.65, blue: 0.91)
 }
 
 struct ConfigView: View {
@@ -37,7 +46,7 @@ struct ConfigView: View {
             VStack(spacing: 0) {
                 configTopBar(compactHeight: compactHeight)
                 ScrollView {
-                    VStack(spacing: 18) {
+                    VStack(spacing: ConfigLayoutRules.settingGroupSpacing) {
                         Text("游戏配置")
                             .font(.system(size: 20, weight: .bold, design: .rounded))
                             .frame(maxWidth: .infinity, alignment: .center)
@@ -48,7 +57,7 @@ struct ConfigView: View {
                         settingStepper("怪物数量", value: $draft.monstersTotal, range: GameConfig.monsterCountRange)
 
                         timerRow
-                        autoSpeakRow
+                        audioPlaybackSection
                         questionTypeSection
                         packPickerSection
                         reportChannelRow
@@ -255,53 +264,31 @@ struct ConfigView: View {
         .accessibilityIdentifier("ConfigTimer\(seconds)s")
     }
 
-    private var autoSpeakRow: some View {
-        HStack(spacing: 12) {
-            Text("发音播放")
-                .font(.title2.weight(.bold))
-                .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
-            Button {
-                draft.autoSpeak.toggle()
-            } label: {
-                Text(draft.autoSpeak ? "✓ 自动朗读" : "自动朗读")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .frame(width: 140, height: 40)
-                    .background(draft.autoSpeak ? Color(red: 1, green: 0.96, blue: 0.82) : Color(red: 0.94, green: 0.94, blue: 0.94))
-                    .foregroundStyle(draft.autoSpeak ? Color(red: 0.49, green: 0.18, blue: 0.07) : Color(red: 0.29, green: 0.33, blue: 0.39))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: draft.autoSpeak ? 2 : 0)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+    private var audioPlaybackSection: some View {
+        settingGroup(label: "发音播放") {
+            VStack(alignment: .leading, spacing: ConfigLayoutRules.settingOptionSpacing) {
+                configSwitch("自动发音", isOn: $draft.autoSpeak, accessibilityIdentifier: "ConfigAutoSpeakSwitch")
+                configSwitch("播放BGM", isOn: $draft.playBgm, accessibilityIdentifier: "ConfigPlayBgmSwitch")
+                configSwitch("动作特效音", isOn: $draft.actionSfx, accessibilityIdentifier: "ConfigActionSfxSwitch")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("ConfigAutoSpeakToggle")
-            Spacer(minLength: 0)
         }
-        .frame(maxWidth: 560)
     }
 
-    /// Parity with Harmony `ConfigPage.questionTypeRow` — vertical chip column + last-type hint.
+    /// Parity with Harmony `ConfigPage.questionTypeRow` — switch column + last-type hint.
     private var questionTypeSection: some View {
         let ordered = BattleQuestionTypePolicy.defaultOrderedTypeIds
         return VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top, spacing: 12) {
-                Text("题型选择")
-                    .font(.title2.weight(.bold))
-                    .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
+            settingGroup(label: "题型选择") {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(ConfigLayoutRules.questionTypeRows(ordered), id: \.self) { row in
-                        HStack(spacing: 8) {
-                            ForEach(row, id: \.self) { typeId in
-                                questionTypeChip(typeId: typeId)
-                            }
-                        }
+                    ForEach(ordered, id: \.self) { typeId in
+                        configSwitch(
+                            BattleQuestionTypePolicy.displayLabel(forTypeId: typeId),
+                            isOn: questionTypeBinding(typeId),
+                            accessibilityIdentifier: "ConfigQuestionType_\(typeId)"
+                        )
                     }
                 }
-                .frame(width: ConfigLayoutRules.controlColumnWidth, alignment: .leading)
-                Spacer(minLength: 0)
             }
-            .frame(maxWidth: 560)
             Text("至少保留一种题型")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(
@@ -312,6 +299,34 @@ struct ConfigView: View {
                 .padding(.leading, ConfigLayoutRules.labelWidth + ConfigLayoutRules.controlGap)
                 .accessibilityIdentifier("ConfigQuestionTypeLastEnabledHint")
         }
+    }
+
+    private func settingGroup<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .top, spacing: ConfigLayoutRules.controlGap) {
+            Text(label)
+                .font(.title2.weight(.bold))
+                .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
+            content()
+                .frame(width: ConfigLayoutRules.controlColumnWidth, alignment: .leading)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: 560)
+    }
+
+    private func configSwitch(_ title: String, isOn: Binding<Bool>, accessibilityIdentifier: String) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.navy)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .frame(width: ConfigLayoutRules.settingSwitchLabelWidth, alignment: .leading)
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(AppTheme.gold)
+                .accessibilityIdentifier(accessibilityIdentifier)
+        }
+        .frame(width: ConfigLayoutRules.controlColumnWidth, height: 42, alignment: .leading)
     }
 
     private func isQuestionTypeEnabled(_ typeId: String) -> Bool {
@@ -334,32 +349,11 @@ struct ConfigView: View {
         draft.enabledQuestionTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(safe)
     }
 
-    private func questionTypeChip(typeId: String) -> some View {
-        let on = isQuestionTypeEnabled(typeId)
-        return Button {
-            toggleQuestionType(typeId)
-        } label: {
-            Text(chipLabel(typeId: typeId, selected: on))
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .padding(.horizontal, 12)
-                .frame(height: 40)
-                .background(on ? Color(red: 1, green: 0.96, blue: 0.82) : Color(red: 0.94, green: 0.94, blue: 0.94))
-                .foregroundStyle(on ? Color(red: 0.49, green: 0.18, blue: 0.07) : Color(red: 0.29, green: 0.33, blue: 0.39))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: on ? 2 : 0)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("ConfigQuestionType_\(typeId)")
-    }
-
-    private func chipLabel(typeId: String, selected: Bool) -> String {
-        let base = BattleQuestionTypePolicy.displayLabel(forTypeId: typeId)
-        return selected ? "✓ \(base)" : base
+    private func questionTypeBinding(_ typeId: String) -> Binding<Bool> {
+        Binding(
+            get: { isQuestionTypeEnabled(typeId) },
+            set: { _ in toggleQuestionType(typeId) }
+        )
     }
 
     private var packPickerSection: some View {
@@ -431,11 +425,11 @@ struct ConfigView: View {
                 Text(pinReady ? "修改 (•••••• 已设置)" : "设置")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .frame(width: 220, height: 40)
-                    .background(pinReady ? Color(red: 1, green: 0.96, blue: 0.82) : AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 8))
-                    .foregroundStyle(pinReady ? Color(red: 0.49, green: 0.18, blue: 0.07) : Color(red: 0.11, green: 0.3, blue: 0.85))
+                    .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
+                    .foregroundStyle(ConfigActionButtonStyle.foreground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: pinReady ? 2 : 0)
+                            .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
                     )
             }
             .buttonStyle(.plain)
@@ -459,11 +453,11 @@ struct ConfigView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
                         .frame(width: 220, height: 40)
-                        .background(Color(red: 0.88, green: 0.95, blue: 0.99), in: RoundedRectangle(cornerRadius: 8))
-                        .foregroundStyle(Color(red: 0.01, green: 0.41, blue: 0.63))
+                        .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
+                        .foregroundStyle(ConfigActionButtonStyle.foreground)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(red: 0.05, green: 0.65, blue: 0.91), lineWidth: 2)
+                                .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
                         )
                 }
                 .buttonStyle(.plain)
@@ -501,11 +495,11 @@ struct ConfigView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
                         .frame(width: 220, height: 40)
-                        .background(Color(red: 0.88, green: 0.95, blue: 0.99), in: RoundedRectangle(cornerRadius: 8))
-                        .foregroundStyle(Color(red: 0.01, green: 0.41, blue: 0.63))
+                        .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
+                        .foregroundStyle(ConfigActionButtonStyle.foreground)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(red: 0.05, green: 0.65, blue: 0.91), lineWidth: 2)
+                                .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
                         )
                 }
                 .buttonStyle(.plain)
@@ -524,11 +518,11 @@ struct ConfigView: View {
             Button("家长管理后台") { coordinator.openParentAdmin() }
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .frame(width: 220, height: 40)
-                .background(Color(red: 1, green: 0.96, blue: 0.82), in: RoundedRectangle(cornerRadius: 8))
-                .foregroundStyle(Color(red: 0.49, green: 0.18, blue: 0.07))
+                .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
+                .foregroundStyle(ConfigActionButtonStyle.foreground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: 2)
+                        .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
                 )
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("ConfigParentAdminButton")
@@ -564,6 +558,66 @@ struct ConfigView: View {
 }
 
 struct DevMenuView: View {
+    @ObservedObject var coordinator: AppCoordinator
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 16) {
+                Button("Back") { coordinator.route = .home }
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .frame(minHeight: DeveloperMenuLayoutSpec.headerButtonHeight)
+                    .background(AppTheme.blue, in: Capsule())
+                    .buttonStyle(.plain)
+                Text("Developer Options")
+                    .font(.system(size: DeveloperMenuLayoutSpec.titleFontSize, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color(red: 0.13, green: 0.13, blue: 0.13))
+                Spacer()
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                devToolButton("Domain Switch", id: "DevMenuDomainSwitchButton") {
+                    coordinator.openDomainSwitch()
+                }
+                devToolButton("PcmAudioLab", id: "DevMenuAudioLabButton") {
+                    coordinator.openPcmAudioLab()
+                }
+                devToolButton("MessageBubbleLab", id: "DevMenuMessageBubbleLabButton") {
+                    coordinator.openMessageBubbleLab()
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 16)
+        .background(Color.white)
+    }
+
+    private func devToolButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
+                Spacer()
+                Text("Open")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ConfigActionButtonStyle.foreground)
+            }
+            .padding(.horizontal, 16)
+            .frame(width: 360, height: 56)
+            .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
+    }
+}
+
+struct DomainSwitchView: View {
     @ObservedObject var coordinator: AppCoordinator
     @ObservedObject private var viewModel: DeveloperMenuViewModel
     private let columns = [
@@ -638,9 +692,9 @@ struct DevMenuView: View {
     private var header: some View {
         HStack(spacing: 16) {
             headerButton("Back", minWidth: DeveloperMenuLayoutSpec.backButtonMinWidth) {
-                coordinator.route = .home
+                coordinator.route = .devMenu
             }
-            Text("Developer Options")
+            Text("Domain Switch")
                 .font(.system(size: DeveloperMenuLayoutSpec.titleFontSize, weight: .heavy, design: .rounded))
                 .foregroundStyle(Color(red: 0.13, green: 0.13, blue: 0.13))
                 .lineLimit(1)
@@ -653,14 +707,6 @@ struct DevMenuView: View {
                 isDisabled: viewModel.isApplying
             ) {
                 coordinator.openBypassSecret()
-            }
-            headerButton(
-                "Bubble Lab",
-                minWidth: DeveloperMenuLayoutSpec.bubbleLabButtonMinWidth,
-                accessibilityIdentifier: "DevMenuMessageBubbleLabButton",
-                isDisabled: viewModel.isApplying
-            ) {
-                coordinator.openMessageBubbleLab()
             }
             headerButton(
                 viewModel.statusMessage == "Refreshing..." ? "Refreshing..." : "Refresh Manifest",
@@ -747,6 +793,102 @@ enum DeveloperMenuLayoutSpec {
     static let cardTitleFontSize: CGFloat = 14
     static let cardFooterFontSize: CGFloat = 13
     static let cardHeight: CGFloat = 96
+}
+
+@MainActor
+final class PcmAudioLabController: ObservableObject {
+    @Published var status = "idle"
+    private let mixer = PcmBattleAudioMixer()
+
+    func startBgm() {
+        mixer.prepare()
+        mixer.startBattle(config: GameConfig(playBgm: true, actionSfx: true))
+        status = "music=playing volume=32%"
+    }
+
+    func stopBgm() {
+        mixer.stopBattle()
+        status = "music=stopped"
+    }
+
+    func speakOverBgm() {
+        mixer.speak("apple")
+        status = "voice=pcm music=lowered-to-50%"
+    }
+
+    func playSfxDuringVoice() {
+        mixer.speak("dragon")
+        mixer.playSfx(.victory)
+        status = "sfx=victory volume=35% while voice"
+    }
+
+    func dispose() {
+        mixer.dispose()
+    }
+}
+
+struct PcmAudioLabView: View {
+    @ObservedObject var coordinator: AppCoordinator
+    @StateObject private var lab = PcmAudioLabController()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Button("Back") {
+                    lab.dispose()
+                    coordinator.route = .devMenu
+                }
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+                .frame(minHeight: DeveloperMenuLayoutSpec.headerButtonHeight)
+                .background(AppTheme.blue, in: Capsule())
+                .buttonStyle(.plain)
+                Spacer()
+            }
+            Text("PcmAudioLab")
+                .font(.system(size: 26, weight: .heavy, design: .rounded))
+                .foregroundStyle(AppTheme.navy)
+                .accessibilityIdentifier("PcmAudioLabTitle")
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    labButton("Start BGM", id: "PcmAudioLabStartBgmButton") { lab.startBgm() }
+                    labButton("Stop BGM", id: "PcmAudioLabStopBgmButton") { lab.stopBgm() }
+                }
+                HStack(spacing: 12) {
+                    labButton("Speak over BGM", id: "PcmAudioLabSpeakOverBgmButton") { lab.speakOverBgm() }
+                    labButton("SFX during voice", id: "PcmAudioLabSfxDuringVoiceButton") { lab.playSfxDuringVoice() }
+                }
+            }
+            Text(lab.status)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(red: 0.31, green: 0.44, blue: 0.52))
+                .accessibilityIdentifier("PcmAudioLabStatus")
+            Spacer()
+        }
+        .padding(.horizontal, AppTheme.pageHorizontalPadding)
+        .padding(.vertical, 18)
+        .background(Color.white)
+        .onDisappear {
+            lab.dispose()
+        }
+    }
+
+    private func labButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                .foregroundStyle(ConfigActionButtonStyle.foreground)
+                .frame(width: 170, height: 46)
+                .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
+    }
 }
 
 struct BypassSecretView: View {

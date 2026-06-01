@@ -766,6 +766,10 @@ struct BattleView: View {
 
     private func triggerAnimation(_ event: BattleAnimationEvent) {
         let damage = max(event.projectileIntensity, 1)
+        coordinator.playBattleSfx(sfxCue(for: event))
+        if event.playsMonsterDefeatCue {
+            coordinator.playBattleSfx(.monsterDefeat)
+        }
         triggerProjectile(event)
         switch event.playerMotion {
         case .nudge:
@@ -797,6 +801,18 @@ struct BattleView: View {
                     break
                 }
             }
+        }
+    }
+
+    private func sfxCue(for event: BattleAnimationEvent) -> BattleSfxCue {
+        if event.showsCritOverlay {
+            return .comboHit
+        }
+        switch event.projectileDirection {
+        case .forward:
+            return .normalHit
+        case .backward:
+            return event.playerMotion == .hurt ? .hurt : .wrong
         }
     }
 

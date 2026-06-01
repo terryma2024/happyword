@@ -18,6 +18,8 @@ struct GameConfig: Codable, Equatable {
     var monstersTotal: Int = 10
     var startingSeconds: Int = 300
     var autoSpeak: Bool = true
+    var playBgm: Bool = false
+    var actionSfx: Bool = true
     var mode: GameMode = .normal
     var parentPin: String = ""
     var enabledQuestionTypes: [String]
@@ -28,6 +30,8 @@ struct GameConfig: Codable, Equatable {
         case monstersTotal
         case startingSeconds
         case autoSpeak
+        case playBgm
+        case actionSfx
         case mode
         case parentPin
         case enabledQuestionTypes
@@ -39,6 +43,8 @@ struct GameConfig: Codable, Equatable {
         monstersTotal: Int = 10,
         startingSeconds: Int = 300,
         autoSpeak: Bool = true,
+        playBgm: Bool = false,
+        actionSfx: Bool = true,
         mode: GameMode = .normal,
         parentPin: String = "",
         enabledQuestionTypes: [String]? = nil,
@@ -48,6 +54,8 @@ struct GameConfig: Codable, Equatable {
         self.monstersTotal = Self.clampMonsterCount(monstersTotal)
         self.startingSeconds = Self.isValidTimer(startingSeconds) ? startingSeconds : 300
         self.autoSpeak = autoSpeak
+        self.playBgm = playBgm
+        self.actionSfx = actionSfx
         self.mode = mode
         self.parentPin = parentPin
         self.enabledQuestionTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(
@@ -62,7 +70,9 @@ struct GameConfig: Codable, Equatable {
         monstersTotal = Self.clampMonsterCount(try container.decode(Int.self, forKey: .monstersTotal))
         let decodedSeconds = try container.decode(Int.self, forKey: .startingSeconds)
         startingSeconds = Self.isValidTimer(decodedSeconds) ? decodedSeconds : 300
-        autoSpeak = try container.decode(Bool.self, forKey: .autoSpeak)
+        autoSpeak = try container.decodeIfPresent(Bool.self, forKey: .autoSpeak) ?? true
+        playBgm = try container.decodeIfPresent(Bool.self, forKey: .playBgm) ?? false
+        actionSfx = try container.decodeIfPresent(Bool.self, forKey: .actionSfx) ?? true
         mode = try container.decode(GameMode.self, forKey: .mode)
         parentPin = try container.decode(String.self, forKey: .parentPin)
         let rawTypes = try container.decodeIfPresent([String].self, forKey: .enabledQuestionTypes)
@@ -78,6 +88,8 @@ struct GameConfig: Codable, Equatable {
         try container.encode(monstersTotal, forKey: .monstersTotal)
         try container.encode(startingSeconds, forKey: .startingSeconds)
         try container.encode(autoSpeak, forKey: .autoSpeak)
+        try container.encode(playBgm, forKey: .playBgm)
+        try container.encode(actionSfx, forKey: .actionSfx)
         try container.encode(mode, forKey: .mode)
         try container.encode(parentPin, forKey: .parentPin)
         try container.encode(enabledQuestionTypes, forKey: .enabledQuestionTypes)

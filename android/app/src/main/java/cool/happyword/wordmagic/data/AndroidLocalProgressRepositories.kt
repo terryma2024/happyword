@@ -94,7 +94,12 @@ class AndroidLocalProgressRepositories {
             monsterHp = prefs.getInt("gameConfig.monsterMaxHp", defaults.monsterHp),
             monsterCount = prefs.getInt("gameConfig.monstersTotal", defaults.monsterCount),
             timerSeconds = prefs.getInt("gameConfig.timerSeconds", defaults.timerSeconds),
-            autoPronunciation = prefs.getBoolean("gameConfig.autoPronunciation", defaults.autoPronunciation),
+            autoPronunciation = prefs.getBoolean(
+                "gameConfig.autoSpeak",
+                prefs.getBoolean("gameConfig.autoPronunciation", defaults.autoPronunciation),
+            ),
+            playBgm = prefs.getBoolean("gameConfig.playBgm", defaults.playBgm),
+            actionSfx = prefs.getBoolean("gameConfig.actionSfx", defaults.actionSfx),
             enabledQuestionTypes = prefs.getString("gameConfig.enabledQuestionTypes", null)
                 ?.split(",")
                 ?.filter { it.isNotBlank() }
@@ -108,7 +113,9 @@ class AndroidLocalProgressRepositories {
             .putInt("gameConfig.monsterMaxHp", config.monsterHp)
             .putInt("gameConfig.monstersTotal", config.monsterCount)
             .putInt("gameConfig.timerSeconds", config.timerSeconds)
-            .putBoolean("gameConfig.autoPronunciation", config.autoPronunciation)
+            .putBoolean("gameConfig.autoSpeak", config.autoPronunciation)
+            .putBoolean("gameConfig.playBgm", config.playBgm)
+            .putBoolean("gameConfig.actionSfx", config.actionSfx)
             .putString("gameConfig.enabledQuestionTypes", config.enabledQuestionTypes.joinToString(","))
             .apply()
     }
@@ -385,7 +392,9 @@ class AndroidLocalProgressRepositories {
             .put("monsterHp", config.monsterHp)
             .put("monsterCount", config.monsterCount)
             .put("timerSeconds", config.timerSeconds)
-            .put("autoPronunciation", config.autoPronunciation)
+            .put("autoSpeak", config.autoPronunciation)
+            .put("playBgm", config.playBgm)
+            .put("actionSfx", config.actionSfx)
             .put("enabledQuestionTypes", stringJsonArray(config.enabledQuestionTypes))
 
     private fun gameConfigFromJson(json: JSONObject?): GameConfig {
@@ -396,7 +405,13 @@ class AndroidLocalProgressRepositories {
             monsterHp = json.optInt("monsterHp", defaults.monsterHp),
             monsterCount = json.optInt("monsterCount", defaults.monsterCount),
             timerSeconds = json.optInt("timerSeconds", defaults.timerSeconds),
-            autoPronunciation = json.optBoolean("autoPronunciation", defaults.autoPronunciation),
+            autoPronunciation = if (json.has("autoSpeak")) {
+                json.optBoolean("autoSpeak", defaults.autoPronunciation)
+            } else {
+                json.optBoolean("autoPronunciation", defaults.autoPronunciation)
+            },
+            playBgm = json.optBoolean("playBgm", defaults.playBgm),
+            actionSfx = json.optBoolean("actionSfx", defaults.actionSfx),
             enabledQuestionTypes = json.optJSONArray("enabledQuestionTypes").toStringList().ifEmpty { defaults.enabledQuestionTypes },
         )
     }

@@ -13,6 +13,9 @@ import {
   selectOnlyQuestionTypeShared,
   tapConfigCancelShared,
 } from './RoutingFlow.ui.test';
+import {
+  bindMockParentViaShortCodeFromHome,
+} from './UiTestBindingHelpers';
 
 const BUNDLE: string = 'com.terryma.wordmagicgame';
 const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
@@ -25,6 +28,7 @@ const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
 const DEFAULT_TIMER_CHIP_ID: string = 'ConfigTimer300s';
 const STEPPER_MAX_VALUE: number = 10;
 const CONFIG_SCROLL_X: number = 630;
+const VALID_SHORT_CODE: string = '345678';
 
 class StepperProbe {
   valueBeforeIncrement: number = 0;
@@ -180,6 +184,14 @@ async function tapPinSetupKey(driver: Driver, key: string): Promise<void> {
   }
 }
 
+async function ensureBoundParentAccountFromHome(driver: Driver): Promise<void> {
+  try {
+    await bindMockParentViaShortCodeFromHome(driver, VALID_SHORT_CODE);
+  } catch (err) {
+    throw err as Error;
+  }
+}
+
 /**
  * V0.6.7.7: drive the 自定义 timer dialog end-to-end. Caller is
  * responsible for already being on `ConfigPage` (the 自定义 button
@@ -278,7 +290,8 @@ async function restoreDefaultTimerChip(driver: Driver): Promise<void> {
 
 /**
  * V0.3.9 acceptance for the parent PIN configuration surface:
- *  - ConfigPage shows the new ConfigParentPinButton row.
+ *  - ConfigPage shows the new ConfigParentPinButton row after the
+ *    test binds a mock parent account.
  *  - Tapping it lands on ParentPinSetupPage (the page exposes
  *    keypad keys ParentPinSetupKey_{0..9}, a delete key, and the
  *    step-1 / step-2 prompts).
@@ -406,6 +419,7 @@ export default function configFlowUiTest(): void {
     it('configParentPinButtonNavigatesToSetupPage', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await ensureBoundParentAccountFromHome(driver);
       await openConfig(driver);
 
       // V0.6.5.1: iterate scroll until the parent-PIN button is
@@ -442,6 +456,7 @@ export default function configFlowUiTest(): void {
     it('twoStepMatchPersistsPinAndUpdatesButtonLabel', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await ensureBoundParentAccountFromHome(driver);
       await openConfig(driver);
       await scrollToParentPinButton(driver);
       await clickByIdShared(driver, 'ConfigParentPinButton');
@@ -614,6 +629,7 @@ export default function configFlowUiTest(): void {
     it('mismatchSurfacesHintAndResetsBuffer', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);
+      await ensureBoundParentAccountFromHome(driver);
       await openConfig(driver);
       await scrollToParentPinButton(driver);
       await clickByIdShared(driver, 'ConfigParentPinButton');

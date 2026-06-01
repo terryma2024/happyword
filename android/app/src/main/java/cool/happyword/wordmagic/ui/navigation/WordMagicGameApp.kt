@@ -168,12 +168,14 @@ import cool.happyword.wordmagic.data.AndroidParentPinRepository
 import cool.happyword.wordmagic.ui.BypassSecretScreen
 import cool.happyword.wordmagic.ui.BoundDeviceInfoScreen
 import cool.happyword.wordmagic.ui.DevMenuScreen
+import cool.happyword.wordmagic.ui.DomainSwitchScreen
 import cool.happyword.wordmagic.ui.CheckInCalendarScreen
 import cool.happyword.wordmagic.ui.LearningReportScreen
 import cool.happyword.wordmagic.ui.MessageBubbleLabScreen
 import cool.happyword.wordmagic.ui.MonsterCodexScreen
 import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.PackManagerScreen
+import cool.happyword.wordmagic.ui.PcmAudioLabScreen
 import cool.happyword.wordmagic.ui.RedemptionHistoryScreen
 import cool.happyword.wordmagic.ui.ScanBindingScreen
 import cool.happyword.wordmagic.ui.SpellbookScreen
@@ -228,6 +230,8 @@ private val GameConfigSaver = Saver<GameConfig, Bundle>(
             putInt("monsterCount", config.monsterCount)
             putInt("timerSeconds", config.timerSeconds)
             putBoolean("autoPronunciation", config.autoPronunciation)
+            putBoolean("playBgm", config.playBgm)
+            putBoolean("actionSfx", config.actionSfx)
             putStringArrayList("enabledQuestionTypes", ArrayList(config.enabledQuestionTypes))
         }
     },
@@ -238,6 +242,8 @@ private val GameConfigSaver = Saver<GameConfig, Bundle>(
             monsterCount = bundle.getInt("monsterCount", GameConfig().monsterCount),
             timerSeconds = bundle.getInt("timerSeconds", GameConfig().timerSeconds),
             autoPronunciation = bundle.getBoolean("autoPronunciation", GameConfig().autoPronunciation),
+            playBgm = bundle.getBoolean("playBgm", GameConfig().playBgm),
+            actionSfx = bundle.getBoolean("actionSfx", GameConfig().actionSfx),
             enabledQuestionTypes = bundle.getStringArrayList("enabledQuestionTypes") ?: GameConfig().enabledQuestionTypes,
         )
     },
@@ -451,6 +457,7 @@ fun WordMagicGameApp() {
     var previewManifestBusy by remember { mutableStateOf(false) }
     var backendApplying by remember { mutableStateOf(false) }
     var pendingPreviewAfterSecret by remember { mutableStateOf<cool.happyword.wordmagic.core.PreviewTarget?>(null) }
+    var bypassSecretReturnRoute by remember { mutableStateOf(AppRoute.DomainSwitch) }
     var probeStatus by remember { mutableStateOf("尚未探测") }
     val packLibrary = remember(globalPacks, familyPacks) { PackLibrary.merge(BuiltinPacks.all, globalPacks, familyPacks) }
     var selection by remember { mutableStateOf(repositories.loadSelection().prune(packLibrary)) }
@@ -1465,6 +1472,13 @@ fun WordMagicGameApp() {
                     onBack = { route = AppRoute.Config },
                 )
                 AppRoute.DevMenu -> DevMenuScreen(
+                    applying = backendApplying,
+                    onDomainSwitch = { route = AppRoute.DomainSwitch },
+                    onAudioLab = { route = AppRoute.PcmAudioLab },
+                    onMessageBubbleLab = { route = AppRoute.MessageBubbleLab },
+                    onBack = { route = AppRoute.Home },
+                )
+                AppRoute.DomainSwitch -> DomainSwitchScreen(
                     state = backendRouteState,
                     previews = previewTargets,
                     routingSummary = devMenuViewModel.routingSummary(backendRouteState),
@@ -1490,19 +1504,25 @@ fun WordMagicGameApp() {
                         val secret = debugRoutingRepository.bypassSecretStore.load()
                         if (secret.isBlank()) {
                             pendingPreviewAfterSecret = preview
+                            bypassSecretReturnRoute = AppRoute.DomainSwitch
                             route = AppRoute.BypassSecret
                         } else {
                             applyBackendRoute(devMenuViewModel.selectPreview(backendRouteState, preview), secret)
                         }
                     },
                     onProbe = { probeStatus = devMenuViewModel.probe(backendRouteState) },
-                    onBypassSecret = { route = AppRoute.BypassSecret },
-                    onMessageBubbleLab = { route = AppRoute.MessageBubbleLab },
+                    onBypassSecret = {
+                        bypassSecretReturnRoute = AppRoute.DomainSwitch
+                        route = AppRoute.BypassSecret
+                    },
                     onClear = {
                         backendRouteState = BackendRouteState()
                         debugRoutingRepository.clearRouteState()
                     },
-                    onBack = { route = AppRoute.Home },
+                    onBack = { route = AppRoute.DevMenu },
+                )
+                AppRoute.PcmAudioLab -> PcmAudioLabScreen(
+                    onBack = { route = AppRoute.DevMenu },
                 )
                 AppRoute.MessageBubbleLab -> MessageBubbleLabScreen(
                     onBack = { route = AppRoute.DevMenu },
@@ -1516,17 +1536,17 @@ fun WordMagicGameApp() {
                             pendingPreviewAfterSecret = null
                             applyBackendRoute(devMenuViewModel.selectPreview(backendRouteState, pendingPreview), secret)
                         } else {
-                            route = AppRoute.DevMenu
+                            route = bypassSecretReturnRoute
                         }
                     },
                     onClear = {
                         debugRoutingRepository.bypassSecretStore.clear()
                         pendingPreviewAfterSecret = null
-                        route = AppRoute.DevMenu
+                        route = bypassSecretReturnRoute
                     },
                     onCancel = {
                         pendingPreviewAfterSecret = null
-                        route = AppRoute.DevMenu
+                        route = bypassSecretReturnRoute
                     },
                 )
             }

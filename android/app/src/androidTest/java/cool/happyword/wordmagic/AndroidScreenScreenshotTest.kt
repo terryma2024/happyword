@@ -68,12 +68,17 @@ class AndroidScreenScreenshotTest {
         composeRule.onNodeWithTag("HomeCodexButton").performClick()
         capture("monster-codex.png")
         composeRule.onNodeWithTag("MonsterCodexBack").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
 
         composeRule.onNodeWithTag("HomePlanButton").performClick()
         capture("today-plan.png")
         composeRule.onNodeWithTag("TodayPlanBackButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
 
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigScreen") }
+        composeRule.onNodeWithTag("ConfigSectionParentTitle").performScrollTo()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigCloudBindingButton") }
         composeRule.onNodeWithTag("ConfigCloudBindingButton").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             hasNode("ScanBindingScreen") || hasNode("BoundDeviceInfoScreen")
@@ -145,6 +150,9 @@ class AndroidScreenScreenshotTest {
         repeat(3) { composeRule.onNodeWithTag("HomeVersionLabel").performClick() }
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("DevMenuScreen") }
         capture("dev-menu-debug.png")
+        composeRule.onNodeWithTag("DevMenuDomainSwitchButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("DomainSwitchScreen") }
+        capture("domain-switch-debug.png")
         composeRule.onNodeWithTag("DevMenuBypassSecretButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("BypassSecretPageInput") }
         capture("bypass-secret-debug.png")

@@ -13,6 +13,8 @@ class GameConfigTest {
         assertEquals(10, config.monsterCount)
         assertEquals(300, config.timerSeconds)
         assertEquals(true, config.autoPronunciation)
+        assertEquals(false, config.playBgm)
+        assertEquals(true, config.actionSfx)
         assertEquals(
             listOf(
                 BattleQuestionTypePolicy.CHOICE,

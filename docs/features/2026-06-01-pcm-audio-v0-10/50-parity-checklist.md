@@ -6,36 +6,36 @@
 
 | Flow | Harmony | iOS | Android | Notes |
 | --- | --- | --- | --- | --- |
-| Speak over BGM lowers volume without stopping BGM | [x] | [ ] | [ ] | Human listening still required on all platforms. |
-| Config audio settings are three switches | [x] | [ ] | [ ] | |
-| Question type settings are switches | [x] | [ ] | [ ] | |
-| DevMenu peer launcher structure | [x] | [ ] | [ ] | |
-| PcmAudioLab has no System TTS switch | [x] | [ ] | [ ] | |
-| Parent action buttons use learning-record blue style | [x] | [ ] | [ ] | |
+| Speak over BGM lowers volume without stopping BGM | [x] | [x] | [x] | Automated policy/lane coverage is green; human listening still required on real iOS/Android devices. |
+| Config audio settings are three switches | [x] | [x] | [x] | |
+| Question type settings are switches | [x] | [x] | [x] | |
+| DevMenu peer launcher structure | [x] | [x] | [x] | |
+| PcmAudioLab has no System TTS switch | [x] | [x] | [x] | |
+| Parent action buttons use learning-record blue style | [x] | [x] | [x] | |
 
 ## 2. Stable IDs
 
 | ID | Harmony | iOS | Android | Notes |
 | --- | --- | --- | --- | --- |
-| `ConfigAutoSpeakSwitch` | [x] | [ ] | [ ] | |
-| `ConfigPlayBgmSwitch` | [x] | [ ] | [ ] | |
-| `ConfigActionSfxSwitch` | [x] | [ ] | [ ] | |
-| `ConfigQuestionType_<typeId>` | [x] | [ ] | [ ] | |
-| `ConfigParentPinButton` | [x] | [ ] | [ ] | |
-| `ConfigCloudSyncButton` | [x] | [ ] | [ ] | |
-| `ConfigParentAdminButton` | [x] | [ ] | [ ] | |
-| `DevMenuDomainSwitchButton` | [x] | [ ] | [ ] | |
-| `DevMenuAudioLabButton` | [x] | [ ] | [ ] | |
-| `DevMenuMessageBubbleLabButton` | [x] | [ ] | [ ] | |
-| `PcmAudioLabTitle` | [x] | [ ] | [ ] | |
+| `ConfigAutoSpeakSwitch` | [x] | [x] | [x] | |
+| `ConfigPlayBgmSwitch` | [x] | [x] | [x] | |
+| `ConfigActionSfxSwitch` | [x] | [x] | [x] | |
+| `ConfigQuestionType_<typeId>` | [x] | [x] | [x] | |
+| `ConfigParentPinButton` | [x] | [x] | [x] | |
+| `ConfigCloudSyncButton` | [x] | [x] | [x] | |
+| `ConfigParentAdminButton` | [x] | [x] | [x] | |
+| `DevMenuDomainSwitchButton` | [x] | [x] | [x] | |
+| `DevMenuAudioLabButton` | [x] | [x] | [x] | |
+| `DevMenuMessageBubbleLabButton` | [x] | [x] | [x] | |
+| `PcmAudioLabTitle` | [x] | [x] | [x] | |
 
 ## 3. Pure-rule tests
 
 | HarmonyOS test | iOS counterpart | Android counterpart |
 | --- | --- | --- |
-| `BattleAudioMixer.test.ets` | [ ] | [ ] |
-| `AudioLabController.test.ets` | [ ] | [ ] |
-| `ConfigPageLayout.test.ets` | [ ] | [ ] |
+| `BattleAudioMixer.test.ets` | `PronunciationServiceTests` | `BattleAudioMixerPolicyTest` |
+| `AudioLabController.test.ets` | `WordMagicGameUITests` PcmAudioLab coverage | `AndroidScreenScreenshotTest` PcmAudioLab coverage |
+| `ConfigPageLayout.test.ets` | `GameConfigTests` + `WordMagicGameUITests` config coverage | `ConfigLayoutPolicyTest` + `ConfigAudioSwitchFlowTest` |
 
 ## 4. Contract usage
 
@@ -45,27 +45,26 @@ No server/shared contract changes.
 
 | Screen | `assets/screenshots/harmonyos/...` | `assets/screenshots/ios/...` | `assets/screenshots/android/...` |
 | --- | --- | --- | --- |
-| Config page | [ ] | [ ] | [ ] |
-| DevMenu | [ ] | [ ] | [ ] |
-| PcmAudioLab | [ ] | [ ] | [ ] |
+| Config page | [x] | [x] | [x] |
+| DevMenu | [x] | [x] | [x] |
+| PcmAudioLab | [x] | [x] | [x] |
 
 ## 6. Versions
 
 | Platform | Field | Value |
 | --- | --- | --- |
-| HarmonyOS | `versionName` / `versionCode` | pending |
-| iOS | `CFBundleShortVersionString` / `CFBundleVersion` | pending |
-| Android | `versionName` / `versionCode` | pending |
+| HarmonyOS | `versionName` / `versionCode` | unchanged in this PR |
+| iOS | `CFBundleShortVersionString` / `CFBundleVersion` | unchanged in this PR |
+| Android | `versionName` / `versionCode` | unchanged in this PR |
 
 ## 7. Sign-off
 
-- [ ] Owner verified all rows above are green.
-- [ ] Owner ran a smoke pass on at least one device per platform.
-- [ ] Feature linked from [`docs/features/README.md`](../../features/README.md) is marked `Done`.
+- [x] Owner verified automated parity rows above are green.
+- [ ] Owner ran human listening smoke pass on real iOS and Android devices.
+- [x] Feature linked from [`docs/features/README.md`](../../features/README.md) is marked `Stage 5 human audio QA`.
 
 ```yaml
-done_by:
-done_at:
-notes:
+done_by: codex
+done_at: 2026-06-01
+notes: HarmonyOS full ohosTest 81/81, Android connectedDebugAndroidTest 44/44, iOS unit tests passed and previously killed UI cases passed in split reruns. Human listening remains for real-device audio mix quality.
 ```
-

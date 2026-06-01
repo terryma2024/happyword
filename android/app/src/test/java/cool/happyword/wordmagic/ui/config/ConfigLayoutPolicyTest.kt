@@ -11,6 +11,18 @@ class ConfigLayoutPolicyTest {
         assertEquals(12, ConfigControlGapDp)
         assertEquals(220, ConfigControlColumnWidthDp)
         assertEquals(352, ConfigFormRowWidthDp)
+        assertEquals(72, ConfigSwitchColumnWidthDp)
+        assertEquals(16, ConfigSettingGroupGapDp)
+        assertEquals(6, ConfigSettingOptionGapDp)
+    }
+
+    @Test
+    fun actionAndSwitchColorsMatchSettledHarmonyGuideline() {
+        assertEquals(0xFFFFB400.toInt(), ConfigSwitchCheckedTrackColor)
+        assertEquals(0xFFE5E7EB.toInt(), ConfigSwitchUncheckedTrackColor)
+        assertEquals(0xFFE0F2FE.toInt(), ConfigParentActionBgColor)
+        assertEquals(0xFF0369A1.toInt(), ConfigParentActionTextColor)
+        assertEquals(0xFF0EA5E9.toInt(), ConfigParentActionBorderColor)
     }
 
     @Test

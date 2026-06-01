@@ -22,7 +22,9 @@ enum AppRoute: Equatable {
     case boundDeviceInfo
     case childProfile
     case devMenu
+    case domainSwitch
     case bypassSecret
+    case pcmAudioLab
     case messageBubbleLab
 }
 
@@ -68,6 +70,7 @@ final class AppCoordinator: ObservableObject {
     let spellbookRewardStore: SpellbookRewardStore
     let learningRecorder: LearningRecorder
     let pronunciationService: PronunciationSpeaking
+    let battleAudioMixer: BattleAudioMixing
     let cloudCredentialsStore: CloudCredentialsStore
     let deviceIdProvider: DeviceIdProvider
     let bindingClient: any DeviceBindingClienting
@@ -125,10 +128,18 @@ final class AppCoordinator: ObservableObject {
         childProfileClient: any ChildProfileClienting = CloudClientFactory.childProfileClient(),
         parentClient: (any ParentApiClient)? = nil,
         developerMenuViewModel: DeveloperMenuViewModel = DeveloperMenuViewModel(),
+        battleAudioMixer: BattleAudioMixing? = nil,
         battleRandomSeed: UInt64? = nil
     ) {
         self.configStore = configStore
         self.pronunciationService = pronunciationService
+        if let battleAudioMixer {
+            self.battleAudioMixer = battleAudioMixer
+        } else if pronunciationService is SystemPronunciationService {
+            self.battleAudioMixer = PcmBattleAudioMixer()
+        } else {
+            self.battleAudioMixer = PcmBattleAudioMixer(voice: PronunciationVoiceLaneAdapter(pronunciationService))
+        }
         self.cloudCredentialsStore = cloudCredentialsStore
         self.deviceIdProvider = deviceIdProvider
         self.bindingClient = bindingClient
@@ -157,7 +168,7 @@ final class AppCoordinator: ObservableObject {
         packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id), defaults: configStore.backingDefaults)
         selectedPack = Pack.builtin[0]
         dailyLearningState = dailyLearningStateService.state
-        pronunciationService.prepare()
+        self.battleAudioMixer.prepare()
         loadCachedPackLayers()
         reconcilePackSelectionWithLibrary()
         applyLaunchSeeds()
@@ -268,7 +279,7 @@ final class AppCoordinator: ObservableObject {
 
     func startBattle() {
         let state = refreshDailyLearningState()
-        pronunciationService.prepare()
+        battleAudioMixer.prepare()
         let repository = WordRepository(words: selectedPack.words)
         let enabledTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(configStore.config.enabledQuestionTypes)
         guard BattleQuestionTypePolicy.anyWordSupportsQuestionTypes(selectedPack.words, typeIds: enabledTypes) else {
@@ -289,6 +300,7 @@ final class AppCoordinator: ObservableObject {
         )
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
+        battleAudioMixer.startBattle(config: configStore.config)
         activeBattleKind = .normal
         activeBattleStartDate = Date()
         dailyLearningState = state
@@ -319,7 +331,7 @@ final class AppCoordinator: ObservableObject {
             return
         }
 
-        pronunciationService.prepare()
+        battleAudioMixer.prepare()
         let repository = WordRepository(words: allWords)
         let reviewPlan = BattleQuestionPlan(
             wordIds: focusedIds,
@@ -346,6 +358,7 @@ final class AppCoordinator: ObservableObject {
         )
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
+        battleAudioMixer.startBattle(config: reviewConfig)
         activeBattleKind = .review
         activeBattleStartDate = Date()
         battleEngine = engine
@@ -355,7 +368,7 @@ final class AppCoordinator: ObservableObject {
     func autoSpeakCurrentBattleAnswer(isRevealing: Bool) {
         guard shouldAutoSpeak(
             autoSpeakEnabled: configStore.config.autoSpeak,
-            ttsAvailable: pronunciationService.isAvailable,
+            ttsAvailable: battleAudioMixer.isAvailable,
             isRevealing: isRevealing,
             questionKind: battleEngine?.state.currentQuestion?.kind
         ) else { return }
@@ -364,11 +377,15 @@ final class AppCoordinator: ObservableObject {
 
     func speakCurrentBattleAnswer() {
         guard let word = battleEngine?.state.currentQuestion?.answer else { return }
-        pronunciationService.speak(word)
+        battleAudioMixer.speak(word)
     }
 
     func disposeBattlePronunciation() {
-        pronunciationService.dispose()
+        battleAudioMixer.dispose()
+    }
+
+    func playBattleSfx(_ cue: BattleSfxCue) {
+        battleAudioMixer.playSfx(cue)
     }
 
     func submitBattleOption(_ option: String) {
@@ -420,12 +437,14 @@ final class AppCoordinator: ObservableObject {
     func escapeBattle() {
         guard let engine = battleEngine else { return }
         engine.escapeBattle()
+        battleAudioMixer.stopBattle()
         finishBattle()
     }
 
     func finishBattle() {
         guard let engine = battleEngine,
               var result = try? engine.buildSessionResult() else { return }
+        battleAudioMixer.stopBattle()
         result.coinsTotal = coinAccount.earn(result.coinsEarned)
         if result.status == .won {
             if activeBattleKind == .normal {
@@ -588,6 +607,11 @@ final class AppCoordinator: ObservableObject {
         route = .devMenu
     }
 
+    func openDomainSwitch() {
+        guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
+        route = .domainSwitch
+    }
+
     /// Returns and clears the pending `presetEnv` value for `DevMenuView` (single consume).
     func takeDevMenuRoutePreset() -> String? {
         let value = devMenuRoutePreset
@@ -601,6 +625,11 @@ final class AppCoordinator: ObservableObject {
         route = .bypassSecret
     }
 
+    func openPcmAudioLab() {
+        guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
+        route = .pcmAudioLab
+    }
+
     func openMessageBubbleLab() {
         guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
         route = .messageBubbleLab
@@ -608,7 +637,7 @@ final class AppCoordinator: ObservableObject {
 
     func cancelBypassSecret() {
         pendingDeveloperMenuCard = nil
-        route = .devMenu
+        route = .domainSwitch
     }
 
     func saveBypassSecretAndContinue(_ secret: String) async {
@@ -618,11 +647,11 @@ final class AppCoordinator: ObservableObject {
             return
         }
         guard let card = pendingDeveloperMenuCard else {
-            route = .devMenu
+            route = .domainSwitch
             return
         }
         pendingDeveloperMenuCard = nil
-        route = .devMenu
+        route = .domainSwitch
         await activateDeveloperMenuCard(card)
     }
 
@@ -916,8 +945,12 @@ final class AppCoordinator: ObservableObject {
             route = .childProfile
         } else if arguments.contains("-UITestRouteDevMenu"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
             route = .devMenu
+        } else if arguments.contains("-UITestRouteDomainSwitch"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
+            route = .domainSwitch
         } else if arguments.contains("-UITestRouteBypassSecret"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
             route = .bypassSecret
+        } else if arguments.contains("-UITestRoutePcmAudioLab"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
+            route = .pcmAudioLab
         } else if arguments.contains("-UITestRouteMessageBubbleLab"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
             route = .messageBubbleLab
         }

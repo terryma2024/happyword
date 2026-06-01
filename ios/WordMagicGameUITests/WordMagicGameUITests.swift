@@ -362,9 +362,23 @@ final class WordMagicGameUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Developer Options"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Backend environment (debug builds only)"].exists)
-        XCTAssertTrue(app.buttons["DevMenuBypassSecretButton"].exists)
+        XCTAssertTrue(app.buttons["DevMenuDomainSwitchButton"].exists)
+        XCTAssertTrue(app.buttons["DevMenuAudioLabButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuMessageBubbleLabButton"].exists)
+        XCTAssertFalse(app.buttons["DevMenuRefreshManifestButton"].exists)
+        XCTAssertFalse(app.buttons["DevMenuLocalCard"].exists)
+
+        app.buttons["DevMenuAudioLabButton"].tap()
+        XCTAssertTrue(app.staticTexts["PcmAudioLabTitle"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.switches["PcmAudioLabSystemTtsSwitch"].exists)
+
+        app.terminate()
+        app.launchArguments = ["-UITestResetState", "-UITestRouteDevMenu"]
+        app.launch()
+        app.buttons["DevMenuDomainSwitchButton"].tap()
+
+        XCTAssertTrue(app.staticTexts["Domain Switch"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["DevMenuBypassSecretButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuRefreshManifestButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuLocalCard"].exists)
         XCTAssertTrue(app.buttons["DevMenuStagingCard"].exists)
@@ -528,14 +542,19 @@ final class WordMagicGameUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["ConfigTitle"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["ConfigQuestionType_choice"].exists)
-        XCTAssertTrue(app.buttons["ConfigQuestionType_fill-letter"].exists)
-        XCTAssertTrue(app.buttons["ConfigQuestionType_fill-letter-medium"].exists)
-        XCTAssertTrue(app.buttons["ConfigQuestionType_spell"].exists)
-        XCTAssertTrue(app.buttons["ConfigQuestionType_sentence-cloze"].exists)
+        XCTAssertTrue(app.switches["ConfigAutoSpeakSwitch"].exists)
+        XCTAssertTrue(app.switches["ConfigPlayBgmSwitch"].exists)
+        XCTAssertTrue(app.switches["ConfigActionSfxSwitch"].exists)
+        XCTAssertTrue(app.switches["ConfigQuestionType_choice"].exists)
+        XCTAssertTrue(app.switches["ConfigQuestionType_fill-letter"].exists)
+        XCTAssertTrue(app.switches["ConfigQuestionType_fill-letter-medium"].exists)
+        XCTAssertTrue(app.switches["ConfigQuestionType_spell"].exists)
+        XCTAssertTrue(app.switches["ConfigQuestionType_sentence-cloze"].exists)
 
-        app.buttons["ConfigQuestionType_spell"].tap()
-        app.buttons["ConfigQuestionType_spell"].tap()
+        app.switches["ConfigPlayBgmSwitch"].tap()
+        app.switches["ConfigActionSfxSwitch"].tap()
+        app.switches["ConfigQuestionType_spell"].tap()
+        app.switches["ConfigQuestionType_spell"].tap()
         app.buttons["ConfigTimerCustom"].tap()
 
         let customTimerInput = app.textFields["CustomTimerDialogInput"]

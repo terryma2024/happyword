@@ -64,6 +64,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
@@ -181,6 +183,14 @@ internal const val ConfigControlGapDp = 12
 internal const val ConfigControlColumnWidthDp = 220
 internal const val ConfigFormRowWidthDp = ConfigLabelWidthDp + ConfigControlGapDp + ConfigControlColumnWidthDp
 internal const val ConfigTimerOptionsPerRow = 3
+internal const val ConfigSwitchColumnWidthDp = 72
+internal const val ConfigSettingGroupGapDp = 16
+internal const val ConfigSettingOptionGapDp = 6
+internal val ConfigSwitchCheckedTrackColor: Int = 0xFFFFB400.toInt()
+internal val ConfigSwitchUncheckedTrackColor: Int = 0xFFE5E7EB.toInt()
+internal val ConfigParentActionBgColor: Int = 0xFFE0F2FE.toInt()
+internal val ConfigParentActionTextColor: Int = 0xFF0369A1.toInt()
+internal val ConfigParentActionBorderColor: Int = 0xFF0EA5E9.toInt()
 
 internal fun <T> configRows(items: List<T>, perRow: Int): List<List<T>> =
     items.chunked(perRow)
@@ -190,6 +200,9 @@ internal fun configQuestionTypeRows(typeIds: List<String>): List<List<String>> =
 
 internal fun configTimerOptionRows(options: List<Int>): List<List<Int>> =
     configRows(options, ConfigTimerOptionsPerRow)
+
+internal fun configColor(value: Int): Color =
+    Color(value.toLong() and 0xFFFFFFFF)
 
 internal fun harmonyTimerChipBase(seconds: Int): String =
     if (seconds < 60) "${seconds}s" else "${seconds / 60}m"
@@ -234,6 +247,61 @@ private fun ConfigLabel(text: String) {
         modifier = Modifier.width(ConfigLabelWidthDp.dp),
         textAlign = TextAlign.End,
     )
+}
+
+@Composable
+private fun HarmonyConfigSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        enabled = enabled,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = Color.White,
+            checkedTrackColor = configColor(ConfigSwitchCheckedTrackColor),
+            uncheckedThumbColor = Color.White,
+            uncheckedTrackColor = configColor(ConfigSwitchUncheckedTrackColor),
+        ),
+    )
+}
+
+@Composable
+private fun ConfigSwitchOption(
+    label: String,
+    checked: Boolean,
+    testTag: String,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            fontSize = 17.sp,
+            color = Color(0xFF1F2937),
+            textAlign = TextAlign.End,
+        )
+        Spacer(Modifier.width(14.dp))
+        Box(
+            modifier = Modifier.width(ConfigSwitchColumnWidthDp.dp),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            HarmonyConfigSwitch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                modifier = Modifier.testTag(testTag),
+            )
+        }
+    }
 }
 
 @Composable
@@ -316,10 +384,6 @@ internal fun ConfigScreen(
 
     val safeTypes = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(config.enabledQuestionTypes)
     fun isTypeOn(id: String) = safeTypes.contains(id)
-    fun chipLabel(typeId: String, selected: Boolean): String {
-        val base = BattleQuestionTypePolicy.displayLabel(typeId)
-        return if (selected) "\u2713 $base" else base
-    }
     fun toggleQuestionType(typeId: String) {
         val current = BattleQuestionTypePolicy.sanitizeEnabledQuestionTypes(config.enabledQuestionTypes).toMutableList()
         if (current.contains(typeId)) {
@@ -462,54 +526,46 @@ internal fun ConfigScreen(
                     }
                 }
             }
-            ConfigCenteredFormRow {
+            ConfigCenteredFormRow(bottomPadding = ConfigSettingGroupGapDp.dp, verticalAlignment = Alignment.Top) {
                 ConfigLabel("发音播放")
-                Button(
-                    onClick = { onConfigChange(config.copy(autoPronunciation = !config.autoPronunciation)) },
-                    modifier = Modifier
-                        .width(140.dp)
-                        .height(40.dp)
-                        .testTag("ConfigAutoSpeakToggle"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (config.autoPronunciation) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
-                        contentColor = if (config.autoPronunciation) Color(0xFF7C2D12) else Color(0xFF4B5563),
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    border = if (config.autoPronunciation) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
+                Column(
+                    modifier = Modifier.width(ConfigControlColumnWidthDp.dp),
+                    verticalArrangement = Arrangement.spacedBy(ConfigSettingOptionGapDp.dp),
                 ) {
-                    Text(
-                        if (config.autoPronunciation) "\u2713 自动朗读" else "自动朗读",
-                        fontSize = 16.sp,
+                    ConfigSwitchOption(
+                        label = "自动发音",
+                        checked = config.autoPronunciation,
+                        testTag = "ConfigAutoSpeakSwitch",
+                        onCheckedChange = { onConfigChange(config.copy(autoPronunciation = it)) },
+                    )
+                    ConfigSwitchOption(
+                        label = "播放BGM",
+                        checked = config.playBgm,
+                        testTag = "ConfigPlayBgmSwitch",
+                        onCheckedChange = { onConfigChange(config.copy(playBgm = it)) },
+                    )
+                    ConfigSwitchOption(
+                        label = "动作特效音",
+                        checked = config.actionSfx,
+                        testTag = "ConfigActionSfxSwitch",
+                        onCheckedChange = { onConfigChange(config.copy(actionSfx = it)) },
                     )
                 }
             }
-            ConfigCenteredFormRow(bottomPadding = 4.dp, verticalAlignment = Alignment.Top) {
+            ConfigCenteredFormRow(bottomPadding = ConfigSettingGroupGapDp.dp, verticalAlignment = Alignment.Top) {
                 ConfigLabel("题型选择")
                 Column(
                     modifier = Modifier.width(ConfigControlColumnWidthDp.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(ConfigSettingOptionGapDp.dp),
                 ) {
                     questionTypeRows.forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            row.forEach { typeId ->
-                                val selected = isTypeOn(typeId)
-                                Button(
-                                    onClick = { toggleQuestionType(typeId) },
-                                    modifier = Modifier
-                                        .height(40.dp)
-                                        .testTag("ConfigQuestionType_$typeId"),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (selected) Color(0xFFFFF4D0) else Color(0xFFF0F0F0),
-                                        contentColor = if (selected) Color(0xFF7C2D12) else Color(0xFF4B5563),
-                                    ),
-                                    shape = RoundedCornerShape(8.dp),
-                                    border = if (selected) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                ) {
-                                    Text(chipLabel(typeId, selected), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
+                        row.forEach { typeId ->
+                            ConfigSwitchOption(
+                                label = BattleQuestionTypePolicy.displayLabel(typeId),
+                                checked = isTypeOn(typeId),
+                                testTag = "ConfigQuestionType_$typeId",
+                                onCheckedChange = { toggleQuestionType(typeId) },
+                            )
                         }
                     }
                 }
@@ -559,11 +615,11 @@ internal fun ConfigScreen(
                         .height(40.dp)
                         .testTag("ConfigReportChannelButton"),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE0F2FE),
-                        contentColor = Color(0xFF0369A1),
+                        containerColor = configColor(ConfigParentActionBgColor),
+                        contentColor = configColor(ConfigParentActionTextColor),
                     ),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+                    border = BorderStroke(2.dp, configColor(ConfigParentActionBorderColor)),
                 ) {
                     Text("投诉与举报入口", fontSize = 15.sp)
                 }
@@ -588,11 +644,11 @@ internal fun ConfigScreen(
                             .height(40.dp)
                             .testTag("ConfigCloudBindingButton"),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE0F2FE),
-                            contentColor = Color(0xFF0369A1),
+                            containerColor = configColor(ConfigParentActionBgColor),
+                            contentColor = configColor(ConfigParentActionTextColor),
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+                        border = BorderStroke(2.dp, configColor(ConfigParentActionBorderColor)),
                     ) {
                         Text(
                             "孩子档案：$cloudChildNickname",
@@ -629,11 +685,11 @@ internal fun ConfigScreen(
                             .height(40.dp)
                             .testTag("ConfigParentPinButton"),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (parentPinReady) Color(0xFFFFF4D0) else Color(0xFFEAF2F8),
-                            contentColor = if (parentPinReady) Color(0xFF7C2D12) else Color(0xFF1D4ED8),
+                            containerColor = configColor(ConfigParentActionBgColor),
+                            contentColor = configColor(ConfigParentActionTextColor),
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        border = if (parentPinReady) BorderStroke(2.dp, Color(0xFFFFB400)) else null,
+                        border = BorderStroke(2.dp, configColor(ConfigParentActionBorderColor)),
                     ) {
                         Text(
                             if (parentPinReady) "修改 (•••••• 已设置)" else "设置",
@@ -654,10 +710,10 @@ internal fun ConfigScreen(
                             .height(40.dp)
                             .testTag("ConfigCloudSyncButton"),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color(0xFFE0F2FE),
-                            contentColor = Color(0xFF0369A1),
+                            containerColor = configColor(ConfigParentActionBgColor),
+                            contentColor = configColor(ConfigParentActionTextColor),
                         ),
-                        border = BorderStroke(2.dp, Color(0xFF0EA5E9)),
+                        border = BorderStroke(2.dp, configColor(ConfigParentActionBorderColor)),
                     ) {
                         Text(if (learningSyncBusy) "同步中…" else "立即同步学习记录", fontSize = 15.sp)
                     }
@@ -696,11 +752,11 @@ internal fun ConfigScreen(
                                 .height(40.dp)
                                 .testTag("ConfigParentAdminButton"),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFFFF4D0),
-                                contentColor = Color(0xFF7C2D12),
+                                containerColor = configColor(ConfigParentActionBgColor),
+                                contentColor = configColor(ConfigParentActionTextColor),
                             ),
                             shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(2.dp, Color(0xFFFFB400)),
+                            border = BorderStroke(2.dp, configColor(ConfigParentActionBorderColor)),
                         ) {
                             Text("家长管理后台", fontSize = 15.sp)
                         }

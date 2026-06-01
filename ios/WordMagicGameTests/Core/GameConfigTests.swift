@@ -26,6 +26,9 @@ final class GameConfigTests: XCTestCase {
         XCTAssertEqual(config.monstersTotal, 10)
         XCTAssertEqual(config.monsterMaxHp, 5)
         XCTAssertEqual(config.playerMaxHp, 10)
+        XCTAssertTrue(config.autoSpeak)
+        XCTAssertFalse(config.playBgm)
+        XCTAssertTrue(config.actionSfx)
     }
 
     @MainActor
@@ -53,6 +56,8 @@ final class GameConfigTests: XCTestCase {
             monstersTotal: 3,
             startingSeconds: 42,
             autoSpeak: false,
+            playBgm: true,
+            actionSfx: false,
             mode: .review,
             parentPin: "123456",
             enabledQuestionTypes: [QuestionKind.spell.rawValue, QuestionKind.choice.rawValue]
@@ -65,6 +70,8 @@ final class GameConfigTests: XCTestCase {
         XCTAssertEqual(relaunched.config.monstersTotal, 3)
         XCTAssertEqual(relaunched.config.startingSeconds, 42)
         XCTAssertFalse(relaunched.config.autoSpeak)
+        XCTAssertTrue(relaunched.config.playBgm)
+        XCTAssertFalse(relaunched.config.actionSfx)
         XCTAssertEqual(relaunched.config.mode, .review)
         XCTAssertEqual(relaunched.config.parentPin, "123456")
         XCTAssertEqual(relaunched.config.enabledQuestionTypes, [QuestionKind.choice.rawValue, QuestionKind.spell.rawValue])
@@ -123,6 +130,8 @@ final class GameConfigTests: XCTestCase {
         XCTAssertEqual(ConfigLayoutRules.controlColumnWidth, 220)
         XCTAssertEqual(ConfigLayoutRules.timerOptionsPerRow, 3)
         XCTAssertTrue(ConfigLayoutRules.questionTypesLeftAligned)
+        XCTAssertEqual(ConfigLayoutRules.settingGroupSpacing, 22)
+        XCTAssertEqual(ConfigLayoutRules.settingOptionSpacing, 8)
 
         XCTAssertEqual(
             ConfigLayoutRules.questionTypeRows(["choice", "fill-letter", "fill-letter-medium", "spell"]),
@@ -152,6 +161,8 @@ final class GameConfigTests: XCTestCase {
         )
         let decoded = try JSONDecoder().decode(GameConfig.self, from: json)
         XCTAssertEqual(decoded.enabledQuestionTypes, BattleQuestionTypePolicy.defaultOrderedTypeIds)
+        XCTAssertFalse(decoded.playBgm)
+        XCTAssertTrue(decoded.actionSfx)
     }
 
     func testSanitizeEnabledQuestionTypesDropsUnknownAndUsesDefaultOrder() {
