@@ -97,6 +97,11 @@ final class PronunciationServiceTests: XCTestCase {
         XCTAssertFalse(BattleAudioMixPolicy.resumeMusicAfterVoice)
     }
 
+    func testDefaultMusicLaneUsesHarmonyBgmBundleResource() {
+        XCTAssertEqual(BundleAudioMusicLane.defaultResourceName, "bgm_battle_loop")
+        XCTAssertEqual(BundleAudioMusicLane.defaultResourceExtension, "caf")
+    }
+
     func testBattleAudioMixerLowersBgmDuringVoiceWithoutStopResume() {
         let music = RecordingMusicLane()
         let voice = RecordingPronunciationService()

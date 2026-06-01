@@ -151,7 +151,7 @@ final class PcmBattleAudioMixer: BattleAudioMixing {
     }
 
     init(
-        musicLane: BattleMusicLane = GeneratedMusicLane(),
+        musicLane: BattleMusicLane = BundleAudioMusicLane(),
         voice: BattleVoiceLane = PcmSpeechVoiceLane(),
         sfxLane: BattleSfxLane = GeneratedSfxLane()
     ) {
@@ -336,6 +336,73 @@ final class PronunciationVoiceLaneAdapter: BattleVoiceLane {
 
     func dispose() {
         speaker.dispose()
+    }
+}
+
+@MainActor
+final class BundleAudioMusicLane: NSObject, BattleMusicLane, AVAudioPlayerDelegate {
+    static let defaultResourceName = "bgm_battle_loop"
+    static let defaultResourceExtension = "caf"
+
+    private let resourceName: String
+    private let resourceExtension: String
+    private let bundle: Bundle
+    private var player: AVAudioPlayer?
+    private(set) var isPlaying = false
+
+    init(
+        resourceName: String = BundleAudioMusicLane.defaultResourceName,
+        resourceExtension: String = BundleAudioMusicLane.defaultResourceExtension,
+        bundle: Bundle = .main
+    ) {
+        self.resourceName = resourceName
+        self.resourceExtension = resourceExtension
+        self.bundle = bundle
+    }
+
+    func startLoop(volume: Double) {
+        configureAudioSessionForMixing()
+        let audioPlayer: AVAudioPlayer
+        if let existing = player {
+            audioPlayer = existing
+        } else {
+            guard let url = bundle.url(forResource: resourceName, withExtension: resourceExtension),
+                  let loaded = try? AVAudioPlayer(contentsOf: url)
+            else {
+                isPlaying = false
+                return
+            }
+            loaded.delegate = self
+            loaded.numberOfLoops = -1
+            loaded.prepareToPlay()
+            player = loaded
+            audioPlayer = loaded
+        }
+
+        audioPlayer.currentTime = 0
+        audioPlayer.volume = Float(volume)
+        isPlaying = audioPlayer.play()
+    }
+
+    func setVolume(_ volume: Double) {
+        player?.volume = Float(volume)
+    }
+
+    func stop() {
+        player?.stop()
+        player?.currentTime = 0
+        isPlaying = false
+    }
+
+    func dispose() {
+        stop()
+        player = nil
+    }
+
+    nonisolated func audioPlayerDecodeErrorDidOccur(_: AVAudioPlayer, error _: Error?) {
+        Task { @MainActor in
+            self.isPlaying = false
+        }
     }
 }
 
