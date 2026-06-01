@@ -18,6 +18,7 @@
     "pages/ScanBindingPage",
     "pages/BoundDeviceInfoPage",
     "pages/DevMenuPage",
+    "pages/DomainSwitchPage",
     "pages/MessageBubbleLabPage",
     "pages/AudioLabPage",
     "pages/PackManagerPage",

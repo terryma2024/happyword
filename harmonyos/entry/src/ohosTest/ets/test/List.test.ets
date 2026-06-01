@@ -66,9 +66,11 @@ export default function testsuite() {
   // surfaced when recentWrongCount is 0, which would silently flip to
   // navigation once the recorder has accrued at least one wrong answer.
   homeToolbarLockedUiTest();
-  // DevMenuPage + version-label triple-tap are intentionally NOT in ohosTest —
-  // developer data/env tooling; validate manually on debug builds (see
-  // `.cursor/ohos-dev-commands.md` §4).
+  // DevMenuPage, DomainSwitchPage, PcmAudioLab, MessageBubbleLab, and
+  // the version-label triple-tap entry are intentionally NOT in ohosTest —
+  // developer data/env/audio tooling; validate manually on debug builds
+  // (see `.cursor/ohos-dev-commands.md` §4). The DevMenu peer-entry model
+  // is covered by the no-device DevMenuToolEntries unit test.
   // MonsterCodexFlow is order-independent: the codex page reads only
   // a frozen static array (MONSTER_CODEX) and does not touch the
   // recorder. Runs early to surface failures fast — codex regressions
