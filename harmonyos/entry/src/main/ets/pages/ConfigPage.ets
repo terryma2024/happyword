@@ -44,7 +44,7 @@ import { openUrlInAppBrowser } from '../services/SystemBrowser';
 import { requestPageOrientation } from '../utils/orientation';
 /**
  * ConfigPage exposes battle knobs (HP / monster count / timer /
- * autoSpeak / 题型选择) plus pack manager entry. Changes persist
+ * audio playback / 题型选择) plus pack manager entry. Changes persist
  * immediately to AppStorage + disk (no Save/Cancel). Parent rows
  * (密码 / 学习记录 / 管理后台) render only after the device is bound;
  * 管理后台 appears only when a 6-digit parent PIN exists.
@@ -398,6 +398,8 @@ struct ConfigPage {
     merged.monstersTotal = this.draft.monstersTotal;
     merged.startingSeconds = this.draft.startingSeconds;
     merged.autoSpeak = this.draft.autoSpeak;
+    merged.playBgm = this.draft.playBgm;
+    merged.actionSfx = this.draft.actionSfx;
     merged.enabledQuestionTypes = sanitizeEnabledQuestionTypes(this.draft.enabledQuestionTypes);
     AppStorage.set<GameConfig>(GAME_CONFIG_STORAGE_KEY, merged);
     persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, merged);
@@ -460,8 +462,20 @@ struct ConfigPage {
     this.persistBattleSettings();
   }
 
-  private toggleAutoSpeak(): void {
-    this.draft.autoSpeak = !this.draft.autoSpeak;
+  private setAutoSpeak(enabled: boolean): void {
+    this.draft.autoSpeak = enabled;
+    this.forceRerender();
+    this.persistBattleSettings();
+  }
+
+  private setPlayBgm(enabled: boolean): void {
+    this.draft.playBgm = enabled;
+    this.forceRerender();
+    this.persistBattleSettings();
+  }
+
+  private setActionSfx(enabled: boolean): void {
+    this.draft.actionSfx = enabled;
     this.forceRerender();
     this.persistBattleSettings();
   }
@@ -707,18 +721,40 @@ struct ConfigPage {
   }
 
   @Builder
-  private autoSpeakRow() {
+  private audioSwitch(label: string, value: boolean, id: string, onChange: (enabled: boolean) => void) {
+    Row({ space: 8 }) {
+      Text(label)
+        .fontSize(14)
+        .fontColor('#1f2937')
+        .width(96)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis });
+      Toggle({ type: ToggleType.Switch, isOn: value })
+        .id(id)
+        .width(54)
+        .height(32)
+        .selectedColor('#0F7C86')
+        .onChange((enabled: boolean): void => {
+          onChange(enabled);
+        });
+    }
+    .alignItems(VerticalAlign.Center);
+  }
+
+  @Builder
+  private audioPlaybackRow() {
     Row({ space: CONFIG_CONTROL_GAP_VP }) {
       this.configLabel('发音播放');
-      Button(this.draft.autoSpeak ? '✓ 自动朗读' : '自动朗读')
-        .id('ConfigAutoSpeakToggle')
-        .width(140).height(40)
-        .fontSize(16)
-        .backgroundColor(this.draft.autoSpeak ? '#FFF4D0' : '#F0F0F0')
-        .fontColor(this.draft.autoSpeak ? '#7C2D12' : '#4B5563')
-        .borderWidth(this.draft.autoSpeak ? 2 : 0)
-        .borderColor('#FFB400')
-        .onClick((): void => this.toggleAutoSpeak());
+      Column({ space: 8 }) {
+        this.audioSwitch('自动发音', this.draft.autoSpeak, 'ConfigAutoSpeakSwitch',
+          (enabled: boolean): void => this.setAutoSpeak(enabled));
+        this.audioSwitch('播放BGM', this.draft.playBgm, 'ConfigPlayBgmSwitch',
+          (enabled: boolean): void => this.setPlayBgm(enabled));
+        this.audioSwitch('动作特效音', this.draft.actionSfx, 'ConfigActionSfxSwitch',
+          (enabled: boolean): void => this.setActionSfx(enabled));
+      }
+      .width(CONFIG_CONTROL_COLUMN_WIDTH_VP)
+      .alignItems(HorizontalAlign.Start);
     }
     .margin({ bottom: 12 })
     .width(CONFIG_FORM_ROW_WIDTH_VP)
@@ -959,7 +995,7 @@ struct ConfigPage {
           .alignItems(VerticalAlign.Center);
 
           this.timerRow();
-          this.autoSpeakRow();
+          this.audioPlaybackRow();
           this.questionTypeRow();
           this.packPickerSection();
           this.reportChannelRow();

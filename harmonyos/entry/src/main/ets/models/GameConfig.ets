@@ -35,6 +35,17 @@ export class GameConfig {
    */
   autoSpeak: boolean = true;
   /**
+   * V0.10: battle BGM toggle. Default off so the new PCM mixer is
+   * opt-in for background music until parents choose the fuller
+   * soundscape.
+   */
+  playBgm: boolean = false;
+  /**
+   * V0.10: battle action SFX toggle. Default on to preserve the
+   * existing hit / wrong / victory feedback unless the parent mutes it.
+   */
+  actionSfx: boolean = true;
+  /**
    * V0.2: battle mode — 'normal' uses the built-in word repository,
    * 'review' sources prompts from the wrong-answer store (T14). Stays
    * 'normal' on fresh AppStorage; HomePage's review button flips it
@@ -124,6 +135,8 @@ export function cloneGameConfig(src: GameConfig): GameConfig {
   c.monstersTotal = src.monstersTotal;
   c.startingSeconds = src.startingSeconds;
   c.autoSpeak = src.autoSpeak;
+  c.playBgm = typeof src.playBgm === 'boolean' ? src.playBgm : false;
+  c.actionSfx = typeof src.actionSfx === 'boolean' ? src.actionSfx : true;
   c.mode = src.mode;
   c.enabledQuestionTypes = sanitizeEnabledQuestionTypes(src.enabledQuestionTypes);
   // V0.3.9: legacy AppStorage snapshots written before parentPin

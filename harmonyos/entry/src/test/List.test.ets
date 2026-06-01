@@ -62,6 +62,7 @@ import compliancePolicyTest from './CompliancePolicy.test';
 import systemBrowserTest from './SystemBrowser.test';
 import battleStageSchedulerTest from './BattleStageScheduler.test';
 import battleQuestionSchedulerTest from './BattleQuestionScheduler.test';
+import battleAudioMixerTest from './BattleAudioMixer.test';
 import battleEngineTest from './BattleEngine.test';
 import battleRewardCalcTest from './BattleRewardCalc.test';
 import damageFloaterLabelTest from './DamageFloaterLabel.test';
@@ -145,6 +146,7 @@ export default function testsuite() {
   systemBrowserTest();
   battleStageSchedulerTest();
   battleQuestionSchedulerTest();
+  battleAudioMixerTest();
   battleEngineTest();
   battleRewardCalcTest();
   damageFloaterLabelTest();

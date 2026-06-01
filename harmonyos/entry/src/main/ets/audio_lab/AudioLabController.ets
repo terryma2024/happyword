@@ -102,6 +102,10 @@ export class AudioLabController {
     return out;
   }
 
+  isVoiceAvailable(): boolean {
+    return this.voice.isAvailable();
+  }
+
   startMusic(): void {
     if (this.snap.disposed || !this.config.musicEnabled) {
       return;
@@ -161,6 +165,9 @@ export class AudioLabController {
   }
 
   playComboAttack(): void {
+    if (!this.config.sfxEnabled) {
+      return;
+    }
     this.lowerMusicTemporarily('combo', this.config.comboLowerDurationMs);
     this.playSfx(KEY_HIT_CRIT, false, AudioLabEvent.ComboAttack);
   }
