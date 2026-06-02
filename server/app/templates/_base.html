@@ -9,10 +9,11 @@
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
   <link rel="stylesheet" href="/static/parent.css" />
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen">
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
   {% block nav %}{% include "_nav.html" ignore missing %}{% endblock %}
-  <main class="max-w-3xl mx-auto px-4 py-8">
+  <main class="max-w-3xl w-full mx-auto px-4 py-8 flex-1">
     {% block content %}{% endblock %}
   </main>
+  {% include "_icp_footer.html" %}
 </body>
 </html>

@@ -53,6 +53,15 @@ async def test_admin_login_rejects_bad_password(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_login_page_includes_icp_footer(client: AsyncClient) -> None:
+    res = await client.get("/admin/login")
+
+    assert res.status_code == 200
+    assert "沪ICP备2026023209号-1" in res.text
+    assert 'href="https://beian.miit.gov.cn/"' in res.text
+
+
+@pytest.mark.asyncio
 @pytest.mark.usefixtures("admin_console_admin")
 async def test_admin_login_sets_cookie_and_overview_renders(client: AsyncClient) -> None:
     res = await client.post(

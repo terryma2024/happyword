@@ -36,3 +36,12 @@ async def test_report_and_appeal_page_includes_contact_email(client: AsyncClient
     assert "matianyi2023@gmail.com" in response.text
     assert "投诉" in response.text
     assert "举报" in response.text
+
+
+@pytest.mark.asyncio
+async def test_public_pages_include_icp_footer(client: AsyncClient) -> None:
+    response = await client.get("/privacy")
+
+    assert response.status_code == 200
+    assert "沪ICP备2026023209号-1" in response.text
+    assert 'href="https://beian.miit.gov.cn/"' in response.text
