@@ -111,8 +111,60 @@ jobs:
           TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
         run: |
           set -euo pipefail
+          server_name="happyword-server"
           rm -rf .venv .pytest_cache .ruff_cache .mypy_cache
-          printf '\n' | tcb cloudrun deploy -e "$TCB_ENV_ID" -s happyword-server --port 8080 --source . --force
+
+          describe_latest_deploy() {
+            tcb api tcbr DescribeCloudRunDeployRecord \
+              --api-version 2022-02-17 \
+              -e "$TCB_ENV_ID" \
+              --body "{\"EnvId\":\"$TCB_ENV_ID\",\"ServerName\":\"$server_name\"}" \
+              --json > /tmp/cloudbase-deploy-record-after.json || return 1
+            node <<'NODE'
+          const fs = require("node:fs");
+
+          const raw = fs.readFileSync("/tmp/cloudbase-deploy-record-after.json", "utf8");
+          const jsonStart = raw.indexOf("{");
+          const payload = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw);
+          const records = payload.data?.DeployRecords ?? [];
+          const latest = records[records.length - 1];
+          if (!latest) {
+            console.log("no CloudBase deploy records found");
+            process.exit(1);
+          }
+          console.log(
+            [
+              `latest=${latest.DeployId}`,
+              `status=${latest.Status}`,
+              `build=${latest.BuildId}`,
+              `traffic=${latest.FlowRatio}`,
+              `hasTraffic=${latest.HasTraffic}`,
+            ].join(" "),
+          );
+          const previousDeployId = process.env.CLOUDBASE_PREVIOUS_DEPLOY_ID ?? "";
+          process.exit(latest.DeployId !== previousDeployId ? 0 : 2);
+          NODE
+          }
+
+          last_status=0
+          for attempt in 1 2 3; do
+            if printf '\n' | tcb cloudrun deploy -e "$TCB_ENV_ID" -s "$server_name" --port 8080 --source . --force; then
+              exit 0
+            fi
+
+            last_status=$?
+            echo "::warning::CloudBase Run submit attempt ${attempt}/3 failed with exit ${last_status}."
+            if describe_latest_deploy; then
+              echo "::notice::CloudBase created a new deploy record despite the CLI failure; continuing to wait for rollout."
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 30))
+            fi
+          done
+
+          exit "$last_status"
 
       - name: Wait for CloudBase deployment
         if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}

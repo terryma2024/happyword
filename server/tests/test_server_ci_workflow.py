@@ -250,3 +250,16 @@ def test_cloudbase_cd_prunes_local_test_artifacts_before_source_deploy() -> None
     assert deploy_step.index("rm -rf .venv") < deploy_step.index(
         "tcb cloudrun deploy"
     )
+
+
+def test_cloudbase_cd_retries_transient_submit_failures() -> None:
+    cloudbase_cd = _workflow("server-cloudbase-cd.yml")
+
+    deploy_step = _step_named(cloudbase_cd, "Deploy CloudBase Run")
+
+    assert "for attempt in 1 2 3" in deploy_step
+    assert "CloudBase Run submit attempt ${attempt}/3 failed" in deploy_step
+    assert "DescribeCloudRunDeployRecord" in deploy_step
+    assert "CLOUDBASE_PREVIOUS_DEPLOY_ID" in deploy_step
+    assert "latest.DeployId !== previousDeployId" in deploy_step
+    assert "CloudBase created a new deploy record despite the CLI failure" in deploy_step
