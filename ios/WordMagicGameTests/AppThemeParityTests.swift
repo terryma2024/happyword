@@ -84,6 +84,65 @@ final class AppThemeParityTests: XCTestCase {
         XCTAssertFalse(homeView.contains("Text(\"开始冒险\")"))
     }
 
+    func testConfigPageActionButtonsUseReportChannelColors() throws {
+        let root = try repoRoot()
+        let configView = try String(contentsOf: root.appending(path: "ios/WordMagicGame/Features/Settings/ConfigView.swift"))
+        let actionButtonIdentifiers = [
+            "ConfigReportChannelButton",
+            "ConfigParentPinButton",
+            "ConfigBoundDeviceInfoButton",
+            "ConfigBindParentButton",
+            "ConfigCloudSyncButton",
+            "ConfigParentAdminButton",
+        ]
+
+        for identifier in actionButtonIdentifiers {
+            let styleMarker = ".configActionButtonStyle()"
+            let identifierMarker = ".accessibilityIdentifier(\"\(identifier)\")"
+            guard let identifierRange = configView.range(of: identifierMarker) else {
+                XCTFail("Missing \(identifierMarker)")
+                continue
+            }
+            let prefix = configView[..<identifierRange.lowerBound].suffix(700)
+            XCTAssertTrue(prefix.contains(styleMarker), "\(identifier) should use \(styleMarker)")
+        }
+    }
+
+    func testConfigPagePackManagerButtonKeepsOriginalPaleBlueStyle() throws {
+        let root = try repoRoot()
+        let configView = try String(contentsOf: root.appending(path: "ios/WordMagicGame/Features/Settings/ConfigView.swift"))
+        let packButtonRange = try XCTUnwrap(configView.range(of: ".accessibilityIdentifier(\"ConfigPackManagerEntry\")"))
+        let packButtonBody = configView[..<packButtonRange.lowerBound].suffix(700)
+
+        XCTAssertTrue(packButtonBody.contains(".foregroundStyle(Color(red: 0.12, green: 0.16, blue: 0.23))"))
+        XCTAssertTrue(packButtonBody.contains(".foregroundStyle(Color(red: 0.27, green: 0.48, blue: 0.62))"))
+        XCTAssertTrue(packButtonBody.contains(".background(AppTheme.paleBlue, in: RoundedRectangle(cornerRadius: 8))"))
+        XCTAssertFalse(packButtonBody.contains(".configActionButtonStyle()"))
+    }
+
+    func testConfigPageTimerButtonsKeepOriginalSelectedAndPaleBlueStyles() throws {
+        let root = try repoRoot()
+        let configView = try String(contentsOf: root.appending(path: "ios/WordMagicGame/Features/Settings/ConfigView.swift"))
+
+        XCTAssertTrue(configView.contains(".background(isCustomTimer ? Color(red: 0.71, green: 0.33, blue: 0.04) : AppTheme.paleBlue, in: Capsule())"))
+        XCTAssertTrue(configView.contains(".foregroundStyle(isCustomTimer ? Color.white : Color(red: 0.11, green: 0.3, blue: 0.85))"))
+        XCTAssertTrue(configView.contains(".background(isSelected ? Color(red: 0.71, green: 0.33, blue: 0.04) : AppTheme.paleBlue, in: Capsule())"))
+        XCTAssertTrue(configView.contains(".foregroundStyle(isSelected ? Color.white : Color(red: 0.11, green: 0.3, blue: 0.85))"))
+        XCTAssertFalse(configView.contains(".configCapsuleButtonColors"))
+    }
+
+    func testConfigPageStepperButtonsKeepOriginalBlueCircleStyle() throws {
+        let root = try repoRoot()
+        let configView = try String(contentsOf: root.appending(path: "ios/WordMagicGame/Features/Settings/ConfigView.swift"))
+        let roundControlRange = try XCTUnwrap(configView.range(of: "private func roundControl"))
+        let roundControlBody = configView[roundControlRange.lowerBound...].prefix(450)
+
+        XCTAssertTrue(roundControlBody.contains(".foregroundStyle(.white)"))
+        XCTAssertTrue(roundControlBody.contains(".background(AppTheme.blue, in: Circle())"))
+        XCTAssertFalse(roundControlBody.contains(".configActionButtonStyle()"))
+        XCTAssertFalse(roundControlBody.contains(".configCapsuleButtonColors"))
+    }
+
     private func repoRoot() throws -> URL {
         var url = URL(fileURLWithPath: #filePath)
         for _ in 0..<3 {

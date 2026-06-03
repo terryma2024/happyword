@@ -25,6 +25,28 @@ enum ConfigActionButtonStyle {
     static let background = Color(red: 0.88, green: 0.95, blue: 0.99)
     static let foreground = Color(red: 0.01, green: 0.41, blue: 0.63)
     static let border = Color(red: 0.05, green: 0.65, blue: 0.91)
+    static let width: CGFloat = 220
+    static let height: CGFloat = 40
+    static let cornerRadius: CGFloat = 8
+    static let borderWidth: CGFloat = 2
+}
+
+private extension View {
+    func configActionButtonStyle() -> some View {
+        font(.system(size: 15, weight: .semibold, design: .rounded))
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .frame(width: ConfigActionButtonStyle.width, height: ConfigActionButtonStyle.height)
+            .background(
+                ConfigActionButtonStyle.background,
+                in: RoundedRectangle(cornerRadius: ConfigActionButtonStyle.cornerRadius)
+            )
+            .foregroundStyle(ConfigActionButtonStyle.foreground)
+            .overlay(
+                RoundedRectangle(cornerRadius: ConfigActionButtonStyle.cornerRadius)
+                    .stroke(ConfigActionButtonStyle.border, lineWidth: ConfigActionButtonStyle.borderWidth)
+            )
+    }
 }
 
 struct ConfigView: View {
@@ -397,14 +419,7 @@ struct ConfigView: View {
                 Button("投诉与举报入口") {
                     SystemBrowser.open(CompliancePolicy.reportChannelURL)
                 }
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .frame(width: 220, height: 40)
-                .background(Color(red: 0.88, green: 0.95, blue: 0.99), in: RoundedRectangle(cornerRadius: 8))
-                .foregroundStyle(Color(red: 0.01, green: 0.41, blue: 0.63))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(red: 0.05, green: 0.65, blue: 0.91), lineWidth: 2)
-                )
+                .configActionButtonStyle()
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("ConfigReportChannelButton")
                 Spacer(minLength: 0)
@@ -423,14 +438,7 @@ struct ConfigView: View {
                 coordinator.route = .pinSetup
             } label: {
                 Text(pinReady ? "修改 (•••••• 已设置)" : "设置")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .frame(width: 220, height: 40)
-                    .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
-                    .foregroundStyle(ConfigActionButtonStyle.foreground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
-                    )
+                    .configActionButtonStyle()
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("ConfigParentPinButton")
@@ -449,29 +457,13 @@ struct ConfigView: View {
                     coordinator.openBoundDeviceInfo()
                 } label: {
                     Text("学习档案：\(credentials.nickname)")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                        .frame(width: 220, height: 40)
-                        .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
-                        .foregroundStyle(ConfigActionButtonStyle.foreground)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
-                        )
+                        .configActionButtonStyle()
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("ConfigBoundDeviceInfoButton")
             } else {
                 Button("绑定家长账号") { coordinator.openBinding() }
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .frame(width: 220, height: 40)
-                    .background(Color(red: 1, green: 0.96, blue: 0.82), in: RoundedRectangle(cornerRadius: 8))
-                    .foregroundStyle(Color(red: 0.49, green: 0.18, blue: 0.07))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(red: 1, green: 0.71, blue: 0), lineWidth: 2)
-                    )
+                    .configActionButtonStyle()
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("ConfigBindParentButton")
             }
@@ -491,16 +483,7 @@ struct ConfigView: View {
                     Task { await coordinator.syncWordStatsExplicitly() }
                 } label: {
                     Text("立即同步学习记录")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                        .frame(width: 220, height: 40)
-                        .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
-                        .foregroundStyle(ConfigActionButtonStyle.foreground)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
-                        )
+                        .configActionButtonStyle()
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("ConfigCloudSyncButton")
@@ -516,14 +499,7 @@ struct ConfigView: View {
                 .font(.title2.weight(.bold))
                 .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
             Button("家长管理后台") { coordinator.openParentAdmin() }
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .frame(width: 220, height: 40)
-                .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
-                .foregroundStyle(ConfigActionButtonStyle.foreground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
-                )
+                .configActionButtonStyle()
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("ConfigParentAdminButton")
             Spacer(minLength: 0)
