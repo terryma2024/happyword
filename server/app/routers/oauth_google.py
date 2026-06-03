@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import RedirectResponse
@@ -37,8 +38,12 @@ logger = logging.getLogger(__name__)
 
 
 def _login_redirect(oauth_error: str) -> RedirectResponse:
+    params = {
+        "oauth_error": oauth_error,
+        "oauth_provider": OAuthProvider.GOOGLE.value,
+    }
     return RedirectResponse(
-        url=f"/family/login?oauth_error={oauth_error}",
+        url=f"/family/login?{urlencode(params)}",
         status_code=status.HTTP_302_FOUND,
     )
 

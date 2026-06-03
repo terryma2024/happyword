@@ -12224,6 +12224,16 @@
               "title": "Oauth Error",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "oauth_provider",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Oauth Provider",
+              "type": "string"
+            }
           }
         ],
         "responses": {
