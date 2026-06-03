@@ -10,7 +10,12 @@ from fastapi.responses import RedirectResponse
 
 from app.config import Settings, get_settings
 from app.models.oauth_identity import OAuthProvider
-from app.routers.oauth_common import oauth_login_redirect, oauth_session_redirect
+from app.routers.oauth_common import (
+    oauth_login_redirect as _oauth_login_redirect,
+)
+from app.routers.oauth_common import (
+    oauth_session_redirect,
+)
 from app.services.alipay_oauth_service import (
     AlipayOAuthClient,
     alipay_callback_url_for_origin,
@@ -31,6 +36,10 @@ from app.services.oauth_state_service import OAuthStateError, issue_state, verif
 
 router = APIRouter(prefix="/v1/oauth/alipay", tags=["oauth-alipay"])
 logger = logging.getLogger(__name__)
+
+
+def oauth_login_redirect(oauth_error: str) -> RedirectResponse:
+    return _oauth_login_redirect(oauth_error, provider=OAuthProvider.ALIPAY)
 
 
 @router.get("/start")

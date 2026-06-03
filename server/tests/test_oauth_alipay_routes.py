@@ -89,3 +89,20 @@ async def test_alipay_callback_for_unlinked_identity_redirects_to_bind_email(
     assert r.status_code == 302
     assert r.headers["location"].startswith("/family/oauth/bind-email?ticket=")
     assert await OAuthPendingIdentity.count() == 1
+
+
+@pytest.mark.asyncio
+async def test_alipay_start_rejects_disallowed_return_origin_with_provider(
+    alipay_oauth_client: tuple[AsyncClient, StubAlipayOAuthClient],
+) -> None:
+    ac, _ = alipay_oauth_client
+    r = await ac.get(
+        "/v1/oauth/alipay/start",
+        params={"return_origin": "https://evil.example"},
+    )
+
+    assert r.status_code == 302
+    assert (
+        r.headers["location"]
+        == "/family/login?oauth_error=invalid_origin&oauth_provider=alipay"
+    )

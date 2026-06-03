@@ -9,7 +9,12 @@ from fastapi.responses import RedirectResponse
 
 from app.config import Settings, get_settings
 from app.models.oauth_identity import OAuthProvider
-from app.routers.oauth_common import oauth_login_redirect, oauth_session_redirect
+from app.routers.oauth_common import (
+    oauth_login_redirect as _oauth_login_redirect,
+)
+from app.routers.oauth_common import (
+    oauth_session_redirect,
+)
 from app.services.apple_oauth_service import (
     AppleOAuthClient,
     apple_callback_url_for_origin,
@@ -36,6 +41,10 @@ from app.services.oauth_return_origin_service import (
 from app.services.oauth_state_service import OAuthStateError, issue_state, verify_state
 
 router = APIRouter(prefix="/v1/oauth/apple", tags=["oauth-apple"])
+
+
+def oauth_login_redirect(oauth_error: str) -> RedirectResponse:
+    return _oauth_login_redirect(oauth_error, provider=OAuthProvider.APPLE)
 
 
 @router.get("/start")

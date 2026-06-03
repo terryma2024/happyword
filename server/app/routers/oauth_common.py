@@ -3,19 +3,30 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 from fastapi import status
 from fastapi.responses import RedirectResponse
 
+from app.models.oauth_identity import OAuthProvider
 from app.services.auth_service import create_session_token
 
 if TYPE_CHECKING:
     from app.config import Settings
 
 
-def oauth_login_redirect(oauth_error: str) -> RedirectResponse:
+def oauth_login_redirect(
+    oauth_error: str,
+    *,
+    provider: OAuthProvider | str | None = None,
+) -> RedirectResponse:
+    params = {"oauth_error": oauth_error}
+    if provider:
+        params["oauth_provider"] = (
+            provider.value if isinstance(provider, OAuthProvider) else provider
+        )
     return RedirectResponse(
-        url=f"/family/login?oauth_error={oauth_error}",
+        url=f"/family/login?{urlencode(params)}",
         status_code=status.HTTP_302_FOUND,
     )
 

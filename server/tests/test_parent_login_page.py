@@ -54,3 +54,48 @@ async def test_login_page_renders_privacy_consent_checkbox(
     # OAuth and password-login links are gated by the consent script.
     assert "/v1/oauth/" in body
     assert "/family/login/password" in body
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("provider", "display_name"),
+    [
+        ("google", "Google"),
+        ("apple", "Apple"),
+        ("wechat", "WeChat"),
+        ("alipay", "Alipay"),
+    ],
+)
+async def test_login_page_renders_provider_specific_oauth_origin_error(
+    client: AsyncClient,
+    provider: str,
+    display_name: str,
+) -> None:
+    response = await client.get(
+        "/family/login",
+        params={"oauth_error": "invalid_origin", "oauth_provider": provider},
+    )
+
+    assert response.status_code == 200
+    assert f"无法从当前站点发起 {display_name} 登录" in response.text
+
+
+@pytest.mark.asyncio
+async def test_login_page_places_oauth_error_with_consent_error(
+    client: AsyncClient,
+) -> None:
+    response = await client.get(
+        "/family/login",
+        params={"oauth_error": "invalid_origin", "oauth_provider": "apple"},
+    )
+
+    assert response.status_code == 200
+    body = response.text
+    oauth_message = "无法从当前站点发起 Apple 登录"
+    assert oauth_message in body
+    assert body.index('id="privacy-consent-error"') < body.index(oauth_message)
+    assert body.index(oauth_message) < body.index('id="parent-otp-form"')
+    assert (
+        'bg-rose-50 border border-rose-200 text-rose-800 rounded-md text-sm'
+        in body[body.index(oauth_message) - 200 : body.index(oauth_message)]
+    )
