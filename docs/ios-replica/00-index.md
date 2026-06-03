@@ -28,6 +28,7 @@ The plan is grounded in:
 | `04-pack-sync-and-parent-cloud.md` | Later phases for PackManager, binding, cloud sync, wishlist cloud, and report parity. |
 | `05-validation-plan.md` | Verification matrix for docs, XCTest, XCUITest, screenshots, and contract fixtures. |
 | `06-release-readiness-checklist.md` | Phase 5 release gates for debug routing, fixture parity, accessibility IDs, and TestFlight readiness. |
+| `07-configpage-color-style-spec.md` | Current iOS ConfigPage color/style rules for future `ConfigView` edits. |
 
 ## Superpowers Phase Specs
 
