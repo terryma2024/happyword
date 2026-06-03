@@ -6,7 +6,7 @@ import { CoinAccount } from '../main/ets/services/CoinAccount';
 import { StringPreferencesLike } from '../main/ets/services/WrongAnswerStore';
 import { ParentFetchAdapter, ParentFetchResult } from '../main/ets/services/ParentApiClient';
 
-const BASE: string = 'https://happyword.cool';
+const BASE: string = 'https://happyword.com.cn';
 const SYNC_PATH: string = '/api/v1/family/fam-12345678/checkins/sync';
 
 class MemPrefs implements StringPreferencesLike {

@@ -30,16 +30,16 @@ final class AppMetadataTests: XCTestCase {
     }
 
     func testCompliancePolicyMatchesReleaseSubmission() {
-        XCTAssertEqual(CompliancePolicy.privacyPolicyURL.absoluteString, "https://happyword.cool/privacy")
-        XCTAssertEqual(CompliancePolicy.termsOfServiceURL.absoluteString, "https://happyword.cool/terms")
-        XCTAssertEqual(CompliancePolicy.reportChannelURL.absoluteString, "https://happyword.cool/report_and_appeal")
+        XCTAssertEqual(CompliancePolicy.privacyPolicyURL.absoluteString, "https://happyword.com.cn/privacy")
+        XCTAssertEqual(CompliancePolicy.termsOfServiceURL.absoluteString, "https://happyword.com.cn/terms")
+        XCTAssertEqual(CompliancePolicy.reportChannelURL.absoluteString, "https://happyword.com.cn/report_and_appeal")
         XCTAssertEqual(CompliancePolicy.privacyConsentUserDefaultsKey, "privacy_consent_v1")
     }
 
     @MainActor
     func testSystemBrowserPresentsSafariViewControllerInApp() {
         let host = BrowserPresentationHostSpy()
-        let url = URL(string: "https://happyword.cool/family/login")!
+        let url = URL(string: "https://happyword.com.cn/family/login")!
 
         let didPresent = SystemBrowser.open(url, from: host)
 

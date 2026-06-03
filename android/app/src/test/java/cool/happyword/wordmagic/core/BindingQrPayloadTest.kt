@@ -8,7 +8,7 @@ class BindingQrPayloadTest {
     fun extractTokenFromQrPayload_readsHappywordUrl() {
         assertEquals(
             "uitestqr01",
-            extractTokenFromQrPayload("https://happyword.cool/p/uitestqr01"),
+            extractTokenFromQrPayload("https://happyword.com.cn/p/uitestqr01"),
         )
     }
 

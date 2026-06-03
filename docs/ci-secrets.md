@@ -9,18 +9,18 @@ end-to-end. If you only want one section, jump straight to
 
 | Workflow | File | Trigger | Purpose |
 | --- | --- | --- | --- |
-| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself; manual dispatch | Offline pytest plus opt-in shared CloudBase staging E2E through `workflow_dispatch` or the `cloudbase-smoke` PR label |
-| `server-cd` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Push to `main` touching `server/**` | Wait for Vercel **production** deploy, then run HTTP-only smoke (`pytest -m smoke`) |
+| `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself; manual dispatch | Offline pytest plus shared CloudBase staging E2E |
+| `server-cd-legacy-vercel` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Manual dispatch only | Legacy Vercel rollback/archive smoke |
 | `server-cloudbase-cd` | [`.github/workflows/server-cloudbase-cd.yml`](../.github/workflows/server-cloudbase-cd.yml) | Push to `main` touching `server/**`; manual dispatch | Deploy server to CloudBase Run, then health check and HTTP-only smoke |
-| `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | PR `closed` + dispatch | Legacy cleanup-on-close + manual repair for the Vercel Blob preview manifest |
+| `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | Manual dispatch only | Legacy manual repair for the Vercel Blob preview manifest |
 | `atlas-cleanup` | [`.github/workflows/atlas-cleanup.yml`](../.github/workflows/atlas-cleanup.yml) | Cron Mon 09:00 UTC + dispatch | Drop stale per-PR Mongo Atlas DBs older than 14 days |
-| `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Cron Mon 10:00 UTC + dispatch | Keep only the newest Vercel deployment per non-`main` branch (production alias preserved) |
+| `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Manual dispatch only | Legacy manual cleanup for Vercel deployments |
 
-During the transition, both Vercel and CloudBase deployment workflows stay
-alive. PR online E2E no longer deploys Vercel previews; it uses the shared
-CloudBase staging service and the Beijing Lighthouse E2E database, opt-in so it
-does not reset shared staging data on every PR. Pushes to `main` run both Vercel
-`server-cd` and CloudBase `server-cloudbase-cd`.
+Current production deploys use CloudBase. PR online E2E no longer deploys
+Vercel previews; it uses the shared CloudBase staging service and the Beijing
+Lighthouse E2E database. Pushes to `main` run CloudBase
+`server-cloudbase-cd`; the Vercel workflow is manual-only for rollback/archive
+checks while `happyword.cool` remains available.
 
 The shared CloudBase staging E2E job runs on the Beijing self-hosted runner. The
 runner must have system `jq`, `python3.12`, and `/usr/local/bin/uv`; the workflow
@@ -45,8 +45,8 @@ E2E runs, so the credentials do not depend on a CloudBase service restart.
 | [`VERCEL_TOKEN`](#vercel_token) | `preview-manifest`, `vercel-prune`, legacy Vercel workflows | optional during M8A | Legacy Vercel cleanup / manifest repair jobs skip with a warning |
 | [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflows | optional during M8A | Legacy Vercel fallback operations cannot identify the project |
 | [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflows | optional during M8A | same as above |
-| [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `server-ci`, `preview-manifest` legacy path | **required** only for the legacy manifest rebuild path | The legacy refresh / repair job skips with a warning; CloudBase inline manifest does not need it |
-| [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | legacy Vercel E2E only | optional during M8A | No longer used by `server-ci`; keep only while any protected Vercel preview automation remains |
+| [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `preview-manifest` legacy path | **required** only for the legacy manifest rebuild path | The legacy refresh / repair job skips with a warning; CloudBase inline manifest does not need it |
+| [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | legacy Vercel preview tooling only | optional during M8A | No longer used by `server-ci`; keep only while any protected Vercel preview automation remains |
 | _operator_ [**`VERCEL_CRON_SECRET`**](#vercel_cron_secret-lesson-import-extraction-cron) | workstation `~/.env` | optional | Mirrors Vercel **`CRON_SECRET`** for [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh); not a GitHub Actions secret |
 | [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `atlas-cleanup` | optional | Shared staging E2E cannot reset or inject fixtures; cron cleanup is a no-op |
 | [`E2E_ADMIN_USER`](#e2e_admin_user--e2e_admin_pass), [`E2E_ADMIN_PASS`](#e2e_admin_user--e2e_admin_pass) | `server-ci` | optional | E2E tests that need an admin login skip |
@@ -92,7 +92,7 @@ secrets until the Vercel retirement phase.
 | `TCB_SECRET_KEY` | CloudBase CD | Tencent Cloud API credential key for CloudBase CLI login. |
 | `TCB_ENV_ID` | CloudBase CD | CloudBase environment id. |
 | `CLOUDBASE_STAGING_BASE_URL` | CloudBase smoke | Staging CloudBase HTTP Access URL. |
-| `CLOUDBASE_PROD_BASE_URL` | CloudBase smoke | First CloudBase production validation URL, normally `https://happyword.com.cn`; switch to `https://happyword.cool` only after the final DNS cutover. |
+| `CLOUDBASE_PROD_BASE_URL` | CloudBase smoke | Current CloudBase production URL: `https://happyword.com.cn`. |
 | `CLOUDBASE_CRON_TARGET_URL` | CloudBase cron function | Target FastAPI cron endpoint, e.g. staging `/api/v1/admin/cron/extract-pending`. |
 | `CLOUDBASE_CRON_SECRET` | CloudBase cron function | Same bearer secret as the target CloudBase Run service `CRON_SECRET`. |
 
@@ -485,14 +485,10 @@ For someone forking this repo and wanting CI fully working:
 5. **Smoke test**
 
    - [ ] Open a tiny PR that touches `server/`. `server-ci` should run
-         offline `pytest` by default.
-   - [ ] Add the `cloudbase-smoke` label, or manually dispatch `server-ci`.
-         Confirm `server / cloudbase staging e2e` runs against
-         `CLOUDBASE_STAGING_BASE_URL`.
-   - [ ] Merge a `server/**` change to `main`. Watch both `server-cd` and
-         `server-cloudbase-cd`; Vercel should run HTTP-only smoke after
-         production deploy, and CloudBase should deploy, health check, and run
-         HTTP-only smoke.
+         offline `pytest` and `server / cloudbase staging e2e`.
+   - [ ] Merge a `server/**` change to `main`. Watch `server-cloudbase-cd`;
+         CloudBase should deploy, health check `https://happyword.com.cn`, and
+         run HTTP-only smoke.
          First green main run: `server-cloudbase-cd` `26199672079` on
          2026-05-21 after PR #118 merged.
    - [ ] Wait until Monday 09:00 UTC (or trigger `atlas-cleanup` manually)

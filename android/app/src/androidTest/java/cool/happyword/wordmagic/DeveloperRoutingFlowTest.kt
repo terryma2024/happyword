@@ -55,7 +55,7 @@ class DeveloperRoutingFlowTest {
         composeRule.onNodeWithTag("DevMenuLocalCard").assertHeightIsEqualTo(96.dp)
         composeRule.onNodeWithTag("DevMenuStagingCard").assertHeightIsEqualTo(96.dp)
         composeRule.onNodeWithText("http://10.0.2.2:8000").assertIsDisplayed()
-        composeRule.onNodeWithText("https://happyword.cool").assertIsDisplayed()
+        composeRule.onNodeWithText("https://happyword.com.cn").assertIsDisplayed()
         assertTrue(composeRule.onAllNodesWithTag("DevMenuPreviewRow_preview-main").fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithTag("DevMenuPreviewRow_preview-e2e").fetchSemanticsNodes().isEmpty())
 

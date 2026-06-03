@@ -120,8 +120,8 @@ struct StaticBackendURLProvider: BackendURLProviding {
 
 struct BackendURLProvider: BackendURLProviding {
     static let localBaseURL = URL(string: "http://127.0.0.1:8000")!
-    static let stagingBaseURL = URL(string: "https://happyword.cool")!
-    static let previewManifestURL = URL(string: "https://happyword.cool/api/v1/public/preview-urls.json")!
+    static let stagingBaseURL = URL(string: "https://happyword.com.cn")!
+    static let previewManifestURL = URL(string: "https://happyword.com.cn/api/v1/public/preview-urls.json")!
 
     private let store: BackendEnvironmentStore
     private let launchOverrideURL: URL?

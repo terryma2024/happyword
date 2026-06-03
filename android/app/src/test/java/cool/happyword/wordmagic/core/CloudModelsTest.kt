@@ -43,7 +43,7 @@ class CloudModelsTest {
         var capturedUrl = ""
         var capturedBody = ""
         val client = DeviceBindingClient(
-            baseUrlProvider = { "https://happyword.cool/" },
+            baseUrlProvider = { "https://happyword.com.cn/" },
             extraHeadersProvider = { mapOf("x-vercel-protection-bypass" to "secret") },
             transport = BindingHttpTransport { method, url, headers, body ->
                 capturedMethod = method
@@ -63,7 +63,7 @@ class CloudModelsTest {
 
         assertTrue(result is BindingResult.Success)
         assertEquals("POST", capturedMethod)
-        assertEquals("https://happyword.cool/api/v1/public/pair/redeem", capturedUrl)
+        assertEquals("https://happyword.com.cn/api/v1/public/pair/redeem", capturedUrl)
         assertEquals("""{"device_id":"device-aaaa","short_code":"123456"}""", capturedBody)
         assertEquals("bind-1", (result as BindingResult.Success).credentials.bindingId)
         assertEquals("jwt.token.value", result.credentials.deviceToken)
@@ -93,7 +93,7 @@ class CloudModelsTest {
         var capturedUrl = ""
         var capturedBody = ""
         val client = ChildProfileClient(
-            baseUrlProvider = { "https://happyword.cool/" },
+            baseUrlProvider = { "https://happyword.com.cn/" },
             extraHeadersProvider = { mapOf("x-vercel-protection-bypass" to "secret") },
             transport = BindingHttpTransport { method, url, headers, body ->
                 capturedMethod = method
@@ -111,7 +111,7 @@ class CloudModelsTest {
         val updated = client.updateProfile("device.jwt.token", "fam-1", "星星", "🦄")
 
         assertEquals("PUT", capturedMethod)
-        assertEquals("https://happyword.cool/api/v1/family/fam-1/profile", capturedUrl)
+        assertEquals("https://happyword.com.cn/api/v1/family/fam-1/profile", capturedUrl)
         assertEquals("""{"nickname":"星星","avatar_emoji":"🦄"}""", capturedBody)
         assertEquals("星星", updated.nickname)
         assertEquals("🦄", updated.avatarEmoji)
@@ -123,7 +123,7 @@ class CloudModelsTest {
         var capturedUrl = ""
         var capturedBody = ""
         val client = WordStatsSyncClient(
-            baseUrlProvider = { "https://happyword.cool/" },
+            baseUrlProvider = { "https://happyword.com.cn/" },
             extraHeadersProvider = { mapOf("x-vercel-protection-bypass" to "secret") },
             transport = BindingHttpTransport { method, url, headers, body ->
                 capturedMethod = method
@@ -148,7 +148,7 @@ class CloudModelsTest {
         )
 
         assertEquals("POST", capturedMethod)
-        assertEquals("https://happyword.cool/api/v1/family/fam-sync-test/word-stats/sync", capturedUrl)
+        assertEquals("https://happyword.com.cn/api/v1/family/fam-sync-test/word-stats/sync", capturedUrl)
         assertEquals(
             """{"items":[{"word_id":"fruit-apple","seen_count":2,"correct_count":1,"wrong_count":1,"last_answered_ms":2000,"last_correct_ms":2000,"next_review_ms":0,"memory_state":"new","consecutive_correct":0,"consecutive_wrong":0,"mastery":0.5}],"synced_through_ms":1000}""",
             capturedBody,
@@ -164,7 +164,7 @@ class CloudModelsTest {
         var capturedUrl = ""
         var capturedBody = ""
         val client = CheckInSyncClient(
-            baseUrlProvider = { "https://happyword.cool/" },
+            baseUrlProvider = { "https://happyword.com.cn/" },
             extraHeadersProvider = { mapOf("x-vercel-protection-bypass" to "secret") },
             transport = BindingHttpTransport { method, url, headers, body ->
                 capturedMethod = method
@@ -192,7 +192,7 @@ class CloudModelsTest {
         )
 
         assertEquals("POST", capturedMethod)
-        assertEquals("https://happyword.cool/api/v1/family/fam-sync-test/checkins/sync", capturedUrl)
+        assertEquals("https://happyword.com.cn/api/v1/family/fam-sync-test/checkins/sync", capturedUrl)
         assertEquals(
             """{"checked_day_keys":["2026-05-01","2026-05-07"],"weekly_bonus_day_keys":["2026-05-07"],"coin_txns":[{"txn_id":"checkin-weekly-bonus:2026-05-07","delta":50,"reason":"checkin-weekly-bonus:2026-05-07","created_at_ms":0}],"synced_through_ms":1000}""",
             capturedBody,
@@ -207,7 +207,7 @@ class CloudModelsTest {
     fun wordStatsSyncClientOnlyUploadsDirtyStats() = runBlocking {
         var capturedBody = ""
         val client = WordStatsSyncClient(
-            baseUrlProvider = { "https://happyword.cool" },
+            baseUrlProvider = { "https://happyword.com.cn" },
             transport = BindingHttpTransport { _, _, _, body ->
                 capturedBody = body
                 BindingHttpResponse(

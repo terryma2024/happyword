@@ -5,7 +5,7 @@ import { common } from '@kit.AbilityKit';
 import { PREVIEW_MANIFEST_JSON_URL } from './RemoteWordPackConfig';
 
 /** Cached DevMenu manifest — fetched only from {@link PREVIEW_MANIFEST_JSON_URL}
- *  (production `happyword.cool`), never from preview deployments or with bypass headers. */
+ *  (production `happyword.com.cn`), never from preview deployments or with bypass headers. */
 
 const PREFS_NAME: string = 'wm_dev_menu';
 const CACHE_KEY: string = 'preview_manifest_cache';

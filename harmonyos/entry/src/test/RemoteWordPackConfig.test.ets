@@ -20,12 +20,12 @@ export default function remoteWordPackConfigTest() {
       expect(LOCAL_BASE_URL).assertEqual('http://10.0.2.2:8000');
     });
     it('stagingUrlIsProdApexDomain', 0, () => {
-      expect(STAGING_BASE_URL).assertEqual('https://happyword.cool');
+      expect(STAGING_BASE_URL).assertEqual('https://happyword.com.cn');
     });
     it('previewManifestAlwaysUsesProdOriginNotBackendEnv', 0, () => {
-      expect(PREVIEW_MANIFEST_ORIGIN).assertEqual('https://happyword.cool');
+      expect(PREVIEW_MANIFEST_ORIGIN).assertEqual('https://happyword.com.cn');
       expect(PREVIEW_MANIFEST_JSON_URL).assertEqual(
-        'https://happyword.cool/api/v1/public/preview-urls.json',
+        'https://happyword.com.cn/api/v1/public/preview-urls.json',
       );
     });
     it('prodUrlReservedEmpty', 0, () => {

@@ -1,6 +1,6 @@
 name: vercel-prune
 
-# Weekly cleanup of Vercel preview deployments. For every non-protected branch
+# Legacy manual cleanup of Vercel preview deployments. For every non-protected branch
 # (default: not main / master) we keep ONLY the newest deployment and delete
 # the rest. Branches that no longer exist on origin (git ls-remote) delete ALL
 # deployments for that branch. The production-aliased deployment is always preserved.
@@ -8,10 +8,6 @@ name: vercel-prune
 # See: server/scripts/vercel_prune_branch_deployments.mjs
 
 on:
-  schedule:
-    # Monday 10:00 UTC = 18:00 Beijing. Spaced ~1h after atlas-cleanup so the
-    # two scheduled jobs don't both peak the runner pool at the same minute.
-    - cron: "0 10 * * 1"
   workflow_dispatch:
     inputs:
       dry_run:

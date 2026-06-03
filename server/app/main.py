@@ -181,7 +181,7 @@ app.add_middleware(
 async def root() -> RedirectResponse:
     """Redirect bare-domain visits to the parent web shell.
 
-    Without this route a hit to e.g. https://happyword.cool/ falls
+    Without this route a hit to e.g. https://happyword.com.cn/ falls
     through to FastAPI's default 404 handler and returns
     `{"detail":"Not Found"}`, which looks broken to anyone landing on the
     domain. The parent shell is the only public HTML surface this server

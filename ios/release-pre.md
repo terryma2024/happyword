@@ -34,8 +34,8 @@
 - [x] Real-device Release/TestFlight smoke test passed for build `0.7.0 (1007004)`.
 - [x] App Store Connect app record is verified by successful upload (`adamId: 6768499286`).
 - [x] App privacy questionnaire draft is derived from the current repo behavior.
-- [x] Privacy policy URL exists in repo as public server page: `https://happyword.cool/privacy`.
-- [x] Support URL exists in repo as public server page: `https://happyword.cool/support`.
+- [x] Privacy policy URL exists in repo as public server page: `https://happyword.com.cn/privacy`.
+- [x] Support URL exists in repo as public server page: `https://happyword.com.cn/support`.
 - [x] In-app account deletion initiation path is verified from this repo: `学习档案` -> `账号与数据管理` opens `/family/<family_id>/account`.
 - [x] Apple App Review approved iOS version `0.8.4` / build `1008006`; App Store Connect status is `可分发`.
 - [x] iOS version `0.9.4` / build `1009004` was submitted for App Review on 2026-05-29; App Store Connect status is `正在等待审核`.
@@ -72,10 +72,10 @@
   - Reviewer note draft: bind or seed a learner profile, open `游戏配置` -> `学习档案` -> `账号与数据管理`; log in to the parent web page with a reachable reviewer email and OTP; use `删除账号`.
 
 - [x] Confirm privacy policy URL.
-  - Public URL: `https://happyword.cool/privacy`.
+  - Public URL: `https://happyword.com.cn/privacy`.
   - It is implemented as `/privacy` without a parent session requirement.
   - It describes collected data, purpose, deletion/export path, third-party services, child/minor handling, and support contact.
-  - Support URL: `https://happyword.cool/support`.
+  - Support URL: `https://happyword.com.cn/support`.
 
 - [x] Confirm App Privacy details.
   - Inventory data collected by the app and server: account/binding data, child profile name, learning progress, uploaded textbook photos, generated word lists, device identifier, diagnostics/logs if any.
@@ -217,9 +217,9 @@ xcodebuild archive \
 - [x] Subtitle draft: `家长导入，闯关背单词`.
 - [x] Description draft prepared below.
 - [x] Keywords draft prepared below.
-- [x] Support URL: public, reachable, and preferably Chinese: `https://happyword.cool/support`.
+- [x] Support URL: public, reachable, and preferably Chinese: `https://happyword.com.cn/support`.
 - [x] Marketing URL: skip for v0.7.0 unless a polished public product page is added.
-- [x] Privacy Policy URL: required: `https://happyword.cool/privacy`.
+- [x] Privacy Policy URL: required: `https://happyword.com.cn/privacy`.
 - [x] Copyright and contact-info finalized below.
 - [x] Age rating questionnaire draft prepared below.
 - [x] Content rights declaration draft prepared below.
@@ -254,11 +254,11 @@ Use the following values for the App Store Connect version metadata unless the r
 | Primary category | Education |
 | Secondary category | Games, optional. Skip if App Store Connect does not require it. |
 | Kids Category | Do not select for v0.7.0 unless legal/product explicitly wants the stricter Kids Category obligations. The app is child-facing, but it also has parent account, web login, support, and textbook-image import flows. |
-| Privacy Policy URL | `https://happyword.cool/privacy` |
-| Support URL | `https://happyword.cool/support` |
+| Privacy Policy URL | `https://happyword.com.cn/privacy` |
+| Support URL | `https://happyword.com.cn/support` |
 | Marketing URL | Leave empty for v0.7.0. |
 | Copyright | `© 2026 TianYi Ma` |
-| Contact email | `support@happyword.cool` |
+| Contact email | `support@happyword.com.cn` |
 
 ### Description Draft
 

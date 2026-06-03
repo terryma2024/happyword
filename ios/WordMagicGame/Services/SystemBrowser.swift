@@ -2,9 +2,9 @@ import SafariServices
 import UIKit
 
 enum CompliancePolicy {
-    static let privacyPolicyURL = URL(string: "https://happyword.cool/privacy")!
-    static let termsOfServiceURL = URL(string: "https://happyword.cool/terms")!
-    static let reportChannelURL = URL(string: "https://happyword.cool/report_and_appeal")!
+    static let privacyPolicyURL = URL(string: "https://happyword.com.cn/privacy")!
+    static let termsOfServiceURL = URL(string: "https://happyword.com.cn/terms")!
+    static let reportChannelURL = URL(string: "https://happyword.com.cn/report_and_appeal")!
     static let privacyConsentUserDefaultsKey = "privacy_consent_v1"
 }
 

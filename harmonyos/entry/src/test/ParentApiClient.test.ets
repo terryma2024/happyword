@@ -68,7 +68,7 @@ class StubAdapter implements ParentFetchAdapter {
   }
 }
 
-const BASE: string = 'https://happyword.cool';
+const BASE: string = 'https://happyword.com.cn';
 
 function fakeOk(body: string): ParentFetchResult {
   const r: ParentFetchResult = new ParentFetchResult();

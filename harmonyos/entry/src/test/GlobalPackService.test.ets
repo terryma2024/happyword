@@ -77,7 +77,7 @@ class MemPrefs implements StringPreferencesLike {
   async flush(): Promise<void> {}
 }
 
-const BASE: string = 'https://happyword.cool';
+const BASE: string = 'https://happyword.com.cn';
 const URL_LATEST: string = `${BASE}/api/v1/public/global-packs/latest.json`;
 const CACHE_KEY: string = 'global_packs_v1';
 

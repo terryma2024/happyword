@@ -16,9 +16,9 @@ from app.services.oauth_return_origin_service import (
 
 @pytest.mark.asyncio
 async def test_allows_canonical_production_origin(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "https://happyword.cool")
+    monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "https://happyword.com.cn")
     get_settings.cache_clear()
-    assert await is_allowed_origin("https://happyword.cool") is True
+    assert await is_allowed_origin("https://happyword.com.cn") is True
 
 
 @pytest.mark.asyncio
@@ -50,16 +50,16 @@ def test_normalize_origin_rejects_relative() -> None:
 def test_build_google_start_url_relative_on_canonical(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "cid")
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "secret")
-    monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "https://happyword.cool")
+    monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "https://happyword.com.cn")
     get_settings.cache_clear()
-    url = build_google_start_url("https://happyword.cool/family/login")
+    url = build_google_start_url("https://happyword.com.cn/family/login")
     assert url == "/v1/oauth/google/start"
 
 
 def test_build_google_start_url_relative_on_preview(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "cid")
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "secret")
-    monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "https://happyword.cool")
+    monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "https://happyword.com.cn")
     get_settings.cache_clear()
     url = build_google_start_url("https://branch-preview.vercel.app")
     assert url == "/v1/oauth/google/start"

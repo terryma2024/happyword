@@ -3,7 +3,7 @@ import BuildProfile from 'BuildProfile';
 /**
  * V0.7: Remote API base URL routing for word packs and cloud APIs.
  *
- * STAGING_BASE_URL is the default hosted backend (Vercel production deploy).
+ * STAGING_BASE_URL is the default hosted backend (CloudBase production).
  * PROD_BASE_URL is reserved for a future dedicated production slot — empty
  * until V0.7+ wires it; resolvers fall back to STAGING_BASE_URL.
  *
@@ -15,17 +15,17 @@ import BuildProfile from 'BuildProfile';
  * port forwarding (see project README).
  */
 export const LOCAL_BASE_URL: string = 'http://10.0.2.2:8000';
-export const STAGING_BASE_URL: string = 'https://happyword.cool';
+export const STAGING_BASE_URL: string = 'https://happyword.com.cn';
 /** Reserved — empty string means “not configured”; non-empty enables prod routing. */
 export const PROD_BASE_URL: string = '';
 
 /**
- * DevMenu preview-manifest fetch origin — **always** the production Vercel app,
+ * DevMenu preview-manifest fetch origin — **always** the stable production app,
  * independent of `BackendEnv`, `effectiveServerBaseUrl()`, preview deployments,
  * or `x-vercel-protection-bypass`. The JSON lists PR preview URLs; the manifest
  * endpoint itself is served from stable prod (`GET /api/v1/public/preview-urls.json`).
  */
-export const PREVIEW_MANIFEST_ORIGIN: string = 'https://happyword.cool';
+export const PREVIEW_MANIFEST_ORIGIN: string = 'https://happyword.com.cn';
 
 export const PREVIEW_MANIFEST_JSON_URL: string =
   `${PREVIEW_MANIFEST_ORIGIN}/api/v1/public/preview-urls.json`;
