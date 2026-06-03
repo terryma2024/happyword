@@ -45,3 +45,17 @@ async def test_public_pages_include_icp_footer(client: AsyncClient) -> None:
     assert response.status_code == 200
     assert "沪ICP备2026023209号-1" in response.text
     assert 'href="https://beian.miit.gov.cn/"' in response.text
+
+
+@pytest.mark.asyncio
+async def test_privacy_page_matches_current_cloudbase_stack(client: AsyncClient) -> None:
+    response = await client.get("/privacy")
+
+    assert response.status_code == 200
+    assert "最后更新：2026-06-03" in response.text
+    assert "腾讯云 CloudBase Run" in response.text
+    assert "腾讯 COS" in response.text
+    assert "上海 Lighthouse MongoDB" in response.text
+    assert "通义千问（Qwen）视觉能力" in response.text
+    assert "Vercel 托管和对象存储" not in response.text
+    assert "OpenAI 视觉能力" not in response.text

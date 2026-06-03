@@ -207,8 +207,9 @@ async def test_login_shows_google_when_configured(
     ac, _ = html_client
     r = await ac.get("/family/login")
     soup = BeautifulSoup(r.text, "html.parser")
-    link = soup.find("a", href="/v1/oauth/google/start")
+    link = soup.find("a", href=lambda href: href and href.startswith("/v1/oauth/google/start?"))
     assert link is not None
+    assert "return_origin=http%3A%2F%2Ftest" in link["href"]
     assert "Continue with Google" in link.get_text()
     assert link.find("svg", attrs={"aria-hidden": "true"}) is not None
 
@@ -229,8 +230,9 @@ async def test_login_shows_apple_when_configured(
     ac, _ = html_client
     r = await ac.get("/family/login")
     soup = BeautifulSoup(r.text, "html.parser")
-    link = soup.find("a", href="/v1/oauth/apple/start")
+    link = soup.find("a", href=lambda href: href and href.startswith("/v1/oauth/apple/start?"))
     assert link is not None
+    assert "return_origin=https%3A%2F%2Fhappyword.com.cn" in link["href"]
     assert "Continue with Apple" in link.get_text()
 
 

@@ -3,7 +3,7 @@
 {% block content %}
 <article class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-6">
   <header class="space-y-2">
-    <p class="text-sm text-slate-500">最后更新：2026-05-16</p>
+    <p class="text-sm text-slate-500">最后更新：2026-06-03</p>
     <h1 class="text-2xl font-semibold text-slate-900">魔法背单词隐私政策</h1>
     <p class="text-sm text-slate-700">
       魔法背单词是一款面向儿童英语练习与家长词库管理的应用。我们只在提供账号绑定、学习同步、
@@ -36,8 +36,11 @@
   <section class="space-y-2">
     <h2 class="text-lg font-semibold text-slate-900">第三方服务</h2>
     <p class="text-sm text-slate-700">
-      服务端可能使用 Vercel 托管和对象存储、MongoDB 数据库、邮件服务发送一次性验证码，以及
-      OpenAI 视觉能力处理家长主动上传的教材图片。iOS 应用当前不包含广告、第三方分析或跨应用追踪 SDK。
+      服务端当前运行在腾讯云 CloudBase Run，使用腾讯 COS 存储新上传的图片与音频资源，
+      使用上海 Lighthouse MongoDB 兼容数据库保存账号、词包与学习数据，并通过邮件服务发送一次性验证码。
+      家长主动上传教材图片时，服务端可能调用阿里云通义千问（Qwen）视觉能力生成可复核的词条草稿。
+      历史上传资源或短期回滚路径中可能仍保留 Vercel Blob / MongoDB Atlas 链接，直到完成归档或回填。
+      iOS 应用当前不包含广告、第三方分析或跨应用追踪 SDK。
     </p>
   </section>
 

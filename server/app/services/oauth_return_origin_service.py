@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from urllib.parse import quote
 from urllib.parse import urlparse
 
 import httpx
@@ -148,7 +149,8 @@ def build_oauth_start_url(
         return ""
     if provider == "alipay" and not settings.alipay_oauth_configured():
         return ""
-    return f"/v1/oauth/{provider}/start"
+    return_origin = quote(canonical_origin(settings), safe="")
+    return f"/v1/oauth/{provider}/start?return_origin={return_origin}"
 
 
 def build_google_start_url(

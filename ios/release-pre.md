@@ -5,7 +5,7 @@
 > Bundle ID: `com.terryma.wordmagicgame`
 > Version: `1.0.0`
 > Build: `1010000`
-> Last updated: 2026-06-01
+> Last updated: 2026-06-03
 
 ## Source Of Truth
 
@@ -92,7 +92,12 @@
 - Does the app collect data from this app? **Yes**.
 - Is any collected data used for tracking? **No** based on the current repo: no `AdSupport`, `AppTrackingTransparency`, ad SDK, analytics SDK, or third-party tracking integration is present in the iOS target.
 - Is data linked to the user? **Yes** for parent account, child profile, device binding, learning sync, wishlist/redemption, and lesson-import data because these are tied to `family_id`, `child_profile_id`, `device_id`, account email, or device token.
-- Third-party services involved by the backend: Vercel hosting/CDN/blob storage, MongoDB data store, configured email provider for OTP, and OpenAI vision extraction for textbook-image lesson import. No third-party SDK is embedded in the iOS app target.
+- Third-party services involved by the backend: Tencent CloudBase Run hosting,
+  Tencent COS for new uploads, Shanghai Lighthouse MongoDB-compatible data
+  store, configured email provider for OTP, and Qwen vision extraction for
+  textbook-image lesson import. Historical uploaded assets or rollback paths may
+  still reference Vercel Blob / MongoDB Atlas until archival or backfill is
+  complete. No third-party SDK is embedded in the iOS app target.
 
 ### Data Types To Declare
 
@@ -117,7 +122,8 @@
 ### Privacy Policy Notes To Match
 
 - Explain parent email OTP login, family/device binding, learner profile nickname/avatar, generated/custom word packs, learning progress sync, wishlist/redemption flow, and textbook image import.
-- Explain that textbook images may be processed by backend services and OpenAI vision extraction when lesson import is used.
+- Explain that textbook images may be processed by backend services and Qwen
+  vision extraction when lesson import is used.
 - Explain account deletion: in iOS open `游戏配置` -> `学习档案` -> `账号与数据管理`; parent deletes from the Web account page with a grace period and cancel option.
 - State that data is not used for third-party tracking or targeted advertising unless that changes before submission.
 
