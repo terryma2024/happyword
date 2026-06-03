@@ -75,7 +75,11 @@ class GoogleOAuthClientImpl:
             "grant_type": "authorization_code",
         }
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(_GOOGLE_TOKEN_URL, data=data)
+            try:
+                response = await client.post(_GOOGLE_TOKEN_URL, data=data)
+            except httpx.HTTPError as exc:
+                msg = "Google token exchange request failed"
+                raise ValueError(msg) from exc
         if response.status_code != 200:
             msg = f"Google token exchange failed: HTTP {response.status_code}"
             raise ValueError(msg)
@@ -130,7 +134,11 @@ class GoogleOAuthClientImpl:
 
     async def _fetch_jwks(self) -> dict[str, object]:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(_GOOGLE_JWKS_URL)
+            try:
+                response = await client.get(_GOOGLE_JWKS_URL)
+            except httpx.HTTPError as exc:
+                msg = "Google JWKS fetch request failed"
+                raise ValueError(msg) from exc
         if response.status_code != 200:
             msg = f"Google JWKS fetch failed: HTTP {response.status_code}"
             raise ValueError(msg)
