@@ -139,8 +139,8 @@ async def _load_active_device_for_parent(
 
 def _oauth_error_message(code: str) -> str:
     messages = {
-        "invalid_origin": "无法从当前站点发起 Google 登录，请使用官方家长后台地址。",
-        "cancelled": "已取消 Google 登录。",
+        "invalid_origin": "无法从当前站点发起第三方登录，请使用官方家长后台地址。",
+        "cancelled": "已取消第三方登录。",
         "invalid_state": "登录状态已失效，请重试。",
         "invalid_request": "登录请求无效，请重试。",
         "role_mismatch": "该邮箱归属于管理员账号；请使用管理员登录入口。",
