@@ -86,7 +86,10 @@ async def test_apple_start_rejects_disallowed_return_origin(
         params={"return_origin": "https://evil.example"},
     )
     assert r.status_code == 302
-    assert r.headers["location"] == "/family/login?oauth_error=invalid_origin"
+    assert (
+        r.headers["location"]
+        == "/family/login?oauth_error=invalid_origin&oauth_provider=apple"
+    )
 
 
 @pytest.mark.asyncio
@@ -165,7 +168,10 @@ async def test_apple_callback_email_unavailable_for_new_user(
         data={"code": "auth-code", "state": state},
     )
     assert r.status_code == 302
-    assert r.headers["location"] == "/family/login?oauth_error=email_unavailable"
+    assert (
+        r.headers["location"]
+        == "/family/login?oauth_error=email_unavailable&oauth_provider=apple"
+    )
 
 
 @pytest.mark.asyncio

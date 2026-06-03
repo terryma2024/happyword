@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pytest
@@ -84,7 +84,10 @@ async def test_start_rejects_disallowed_return_origin(
         params={"return_origin": "https://evil.example"},
     )
     assert r.status_code == 302
-    assert r.headers["location"] == "/family/login?oauth_error=invalid_origin"
+    assert (
+        r.headers["location"]
+        == "/family/login?oauth_error=invalid_origin&oauth_provider=google"
+    )
 
 
 @pytest.mark.asyncio

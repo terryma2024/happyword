@@ -96,6 +96,23 @@ async def test_wechat_callback_for_unlinked_identity_redirects_to_bind_email(
 
 
 @pytest.mark.asyncio
+async def test_wechat_start_rejects_disallowed_return_origin_with_provider(
+    wechat_oauth_client: tuple[AsyncClient, StubWeChatOAuthClient],
+) -> None:
+    ac, _ = wechat_oauth_client
+    r = await ac.get(
+        "/v1/oauth/wechat/start",
+        params={"return_origin": "https://evil.example"},
+    )
+
+    assert r.status_code == 302
+    assert (
+        r.headers["location"]
+        == "/family/login?oauth_error=invalid_origin&oauth_provider=wechat"
+    )
+
+
+@pytest.mark.asyncio
 async def test_wechat_callback_for_linked_identity_sets_session(
     wechat_oauth_client: tuple[AsyncClient, StubWeChatOAuthClient],
 ) -> None:

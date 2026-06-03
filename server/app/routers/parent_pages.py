@@ -38,15 +38,6 @@ from app.services.auth_service import (
     decode_typed_token,
 )
 from app.services.family_service import ParentLoginSuspended, create_family_for_parent
-from app.services.parent_password_service import (
-    EmailNotRegistered,
-    ParentPasswordError,
-    PasswordInvalid,
-    PasswordLocked,
-    PasswordNotSet,
-    RoleMismatch,
-    authenticate_parent_password,
-)
 from app.services.notification_service import (
     EmailDeliveryDegraded,
     send_device_unbind_otp_email,
@@ -71,6 +62,15 @@ from app.services.pair_service import (
 )
 from app.services.pair_service import (
     cancel as pair_cancel,
+)
+from app.services.parent_password_service import (
+    EmailNotRegistered,
+    ParentPasswordError,
+    PasswordInvalid,
+    PasswordLocked,
+    PasswordNotSet,
+    RoleMismatch,
+    authenticate_parent_password,
 )
 from app.services.parent_report_service import (
     ChildProfileNotFoundForReport,
@@ -137,10 +137,27 @@ async def _load_active_device_for_parent(
     return binding, child
 
 
-def _oauth_error_message(code: str) -> str:
+OAUTH_PROVIDER_DISPLAY_NAMES = {
+    OAuthProvider.GOOGLE: "Google",
+    OAuthProvider.APPLE: "Apple",
+    OAuthProvider.WECHAT: "WeChat",
+    OAuthProvider.ALIPAY: "Alipay",
+}
+
+
+def _oauth_provider_display_name(provider: str) -> str:
+    try:
+        oauth_provider = OAuthProvider(provider)
+    except ValueError:
+        return "第三方"
+    return OAUTH_PROVIDER_DISPLAY_NAMES[oauth_provider]
+
+
+def _oauth_error_message(code: str, provider: str = "") -> str:
+    provider_name = _oauth_provider_display_name(provider)
     messages = {
-        "invalid_origin": "无法从当前站点发起 Google 登录，请使用官方家长后台地址。",
-        "cancelled": "已取消 Google 登录。",
+        "invalid_origin": f"无法从当前站点发起 {provider_name} 登录，请使用官方家长后台地址。",
+        "cancelled": f"已取消 {provider_name} 登录。",
         "invalid_state": "登录状态已失效，请重试。",
         "invalid_request": "登录请求无效，请重试。",
         "role_mismatch": "该邮箱归属于管理员账号；请使用管理员登录入口。",
@@ -158,6 +175,7 @@ def _oauth_error_message(code: str) -> str:
 async def get_login(
     request: Request,
     oauth_error: str = "",
+    oauth_provider: str = "",
 ) -> HTMLResponse:
     """Canonical pre-login parent shell entry (no decorative `{family_id}` segment)."""
     from app.services.oauth_return_origin_service import (
@@ -186,7 +204,9 @@ async def get_login(
             "alipay_oauth_enabled": alipay_oauth_enabled(),
             "alipay_start_url": build_alipay_start_url(base),
             "oauth_error": oauth_error,
-            "oauth_error_message": _oauth_error_message(oauth_error) if oauth_error else "",
+            "oauth_error_message": (
+                _oauth_error_message(oauth_error, oauth_provider) if oauth_error else ""
+            ),
         },
     )
 
