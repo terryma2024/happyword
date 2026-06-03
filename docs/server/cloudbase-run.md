@@ -3,8 +3,8 @@
 ## Current State
 
 - Runtime owner: CloudBase Run
-- Current production and rollback domain: happyword.cool
-- First CloudBase production validation domain: happyword.com.cn
+- Current production domain: happyword.com.cn
+- Legacy rollback domain: happyword.cool
 - Production service name: happyword-server
 - Staging service name: happyword-server-staging
 - MongoDB provider during Wave A: MongoDB Atlas
@@ -28,24 +28,22 @@
   happyword-d5g66zmq8ef2430b8-1429584068.ap-shanghai.app.tcloudbase.com
 - Staging default domain:
   https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com
-- Custom domains: none
-- Routes: none
+- Custom domains: `happyword.com.cn` bound for production validation
+- Routes: `happyword.com.cn` `/` routes to CloudBase Run service
+  `happyword-server`
 
 ## Domain and DNS Management
 
 ### Domain Strategy
 
-- Current production and rollback domain: `happyword.cool`
-- First CloudBase production validation domain: `happyword.com.cn`
+- Current production domain: `happyword.com.cn`
+- Legacy rollback domain: `happyword.cool`
 - Additional Tencent-registered reserve domain: `happyword.cloud`
-- Production-domain sequence: bind and fully validate CloudBase production on
-  `happyword.com.cn` first. Only after health, admin pages, OAuth/cookie
-  behavior, cron, LLM import, and client smoke checks pass on
-  `happyword.com.cn`, change `happyword.cool` from Vercel DNS/CNAME to the
-  CloudBase target.
-- Cutover rule: do not change `happyword.cool` DNS while `happyword.com.cn`
-  validation is incomplete. Keep `happyword.cool` on Vercel as the rollback
-  domain until the final CNAME cutover.
+- Production-domain sequence: `happyword.com.cn` is the single apex production
+  domain for CloudBase. Keep `happyword.cool` on Vercel only as a temporary
+  rollback/archive path until Vercel retirement is approved.
+- Cutover rule: do not attempt to bind or route `www.happyword.com.cn`.
+  This migration intentionally supports the single apex domain only.
 
 ### Tencent Cloud Domain Console Findings
 
@@ -55,7 +53,7 @@ Snapshot date: 2026-05-17.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `happyword.com.cn` | 正常 | DNSPod | 马天一 | 腾讯云 | 2026-05-17 18:07:10 | 2027-05-17 18:07:10 | New Tencent candidate production domain. Apex DNS has no answer yet. |
 | `happyword.cloud` | 正常 | DNSPod | 马天一 | 帝思普 | 2026-05-17 18:07:12 | 2027-05-17 18:07:12 | Reserve or secondary domain. |
-| `happyword.cool` | Existing production | Vercel DNS | Not checked in Tencent console | Vercel | Not checked | Not checked | Current production and rollback domain. |
+| `happyword.cool` | Legacy rollback | Vercel DNS | Not checked in Tencent console | Vercel | Not checked | Not checked | Kept on Vercel as temporary rollback/archive path. |
 
 Tencent Cloud real-name template:
 
@@ -74,6 +72,14 @@ Snapshot date: 2026-05-17.
 | `happyword.cool` | apex A | Vercel-managed A records; check DNS provider for current values |
 | `happyword.com.cn` | `NS` | `cob.dnspod.net`, `user.dnspod.net` |
 | `happyword.com.cn` | apex A/CNAME | no answer yet |
+
+Snapshot date: 2026-06-03.
+
+| Domain | Query | Result |
+| --- | --- | --- |
+| `happyword.com.cn` | apex CNAME | `happyword.com.cn.tcbaccess.tencentcloudbase.com` |
+| `happyword.com.cn` | apex A via CloudBase target | `124.223.146.214`, `124.223.148.238` |
+| `www.happyword.com.cn` | A/CNAME | intentionally unsupported; the production validation domain is apex-only |
 
 ### CloudBase Console Findings
 
@@ -860,15 +866,13 @@ Implementation status, 2026-05-20:
 - HarmonyOS `PreviewManifestService` now accepts CloudBase default domains
   ending in `.tcloudbase.com` as well as legacy `*.vercel.app` preview rows.
 - `.github/workflows/server-ci.yml` no longer deploys Vercel Preview for online
-  E2E. It runs offline pytest by default and the shared CloudBase staging E2E
-  job only through `workflow_dispatch` or when a PR has the `cloudbase-smoke`
-  label.
-- `.github/workflows/server-cloudbase-cd.yml` deploys `main` to CloudBase Run
-  in parallel with the existing Vercel `server-cd.yml` workflow. Its
-  GitHub-hosted post-deploy smoke is HTTP-only; Mongo fixture injection remains
-  on the Beijing self-hosted staging E2E runner. Keep both deployment workflows
-  active until CloudBase has passed the stability window and rollback no longer
-  depends on Vercel.
+  E2E. It runs offline pytest and the shared CloudBase staging E2E job for
+  server PRs and manual dispatches.
+- `.github/workflows/server-cloudbase-cd.yml` deploys `main` to CloudBase Run.
+  Its GitHub-hosted post-deploy smoke is HTTP-only; Mongo fixture injection
+  remains on the Beijing self-hosted staging E2E runner. Update, 2026-06-03:
+  legacy Vercel `server-cd.yml` is manual-only for rollback/archive smoke and
+  no longer runs automatically on pushes to `main`.
 - PR-specific CloudBase preview deployment is still disabled until quota,
   routing, database isolation, and cleanup are implemented.
 
@@ -883,10 +887,9 @@ Post-merge CD status, 2026-05-21:
   because `E2E_MONGODB_URI` is now a Beijing self-hosted runner loopback URI.
   Tests that need direct Mongo access still run under `server-ci` CloudBase
   staging E2E on the self-hosted runner.
-- The legacy Vercel `server-cd` workflow also stays active and green on `main`.
-  During the transition, every `main` server deploy should keep deploying both
-  Vercel production and CloudBase production until CloudBase has passed the
-  stability window and the final `happyword.cool` cutover is complete.
+- The legacy Vercel `server-cd` workflow was changed on 2026-06-03 to
+  manual-only rollback/archive smoke. CloudBase production validation and
+  current app defaults now use `happyword.com.cn`.
 - `tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"` failed
   when the API key only had `QcloudTCBRFullAccess`. Adding
   `QcloudTCBFullAccess` allowed GitHub Actions and the local CLI to authenticate.
@@ -991,13 +994,14 @@ Storage implementation status, 2026-05-21:
 CloudBase filing page says mainland China servers used for websites or apps
 must complete ICP filing and obtain an ICP filing number before opening access.
 
-Current CloudBase custom-domain state as of 2026-05-18:
+Historical CloudBase custom-domain state as of 2026-05-18:
 
 - CloudBase HTTP Access has only the default domain. No custom domains or
   routes are bound.
-- Tencent Cloud SSL certificate `XjNs7qFU` for `happyword.com.cn` was issued on
-  2026-05-18. It covers `happyword.com.cn` and `www.happyword.com.cn`, and is
-  valid until 2026-08-16 07:59:59.
+- Tencent Cloud SSL certificate `XjNs7qFU` for the apex domain
+  `happyword.com.cn` was issued on 2026-05-18 and is valid until
+  2026-08-16 07:59:59. The migration uses only the apex domain; do not bind or
+  validate `www.happyword.com.cn`.
 - `tcb domains add` requires a valid Tencent Cloud SSL certificate ID and
   explicitly states that the domain must have completed ICP filing.
 - Attempting to bind `happyword.com.cn` to CloudBase HTTP Access with
@@ -1028,6 +1032,25 @@ Required before production custom-domain binding:
 - Bind `happyword.com.cn` in CloudBase HTTP Access after both prerequisites are
   satisfied, then create the route to CloudBase Run service `happyword-server`.
 
+Current CloudBase custom-domain state as of 2026-06-03:
+
+- ICP filing has been obtained and the public pages render
+  `沪ICP备2026023209号-1`.
+- `happyword.com.cn` is bound to CloudBase HTTP Access and routes `/` to
+  production CloudBase Run service `happyword-server`.
+- Apex DNS resolves through
+  `happyword.com.cn.tcbaccess.tencentcloudbase.com`.
+- `www.happyword.com.cn` is intentionally unsupported. The production
+  validation domain is the single apex domain `happyword.com.cn`; do not treat
+  `www` DNS/route absence as a migration blocker.
+- Active TLS certificate subject is `CN=happyword.com.cn`, issued by TrustAsia,
+  valid from 2026-05-18 00:00:00 GMT to 2026-08-15 23:59:59 GMT. Set a renewal
+  reminder before August 2026.
+- CloudBase production runtime is configured with
+  `PARENT_WEB_BASE_URL=https://happyword.com.cn`,
+  `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and an empty
+  `SESSION_COOKIE_DOMAIN`.
+
 CloudBase CD status as of 2026-05-21:
 
 - `server-cloudbase-cd` is live on `main` and succeeded in GitHub Actions run
@@ -1038,6 +1061,13 @@ CloudBase CD status as of 2026-05-21:
   until the ICP filing and HTTP Access custom-domain binding are complete.
 - `CLOUDBASE_STAGING_BASE_URL` remains the shared staging CloudBase URL used by
   M8A smoke and the DevMenu manifest. It is not `happyword.com.cn`.
+
+CloudBase CD update, 2026-06-03:
+
+- GitHub Actions secret `CLOUDBASE_PROD_BASE_URL` was updated to
+  `https://happyword.com.cn` so future `server-cloudbase-cd` health and
+  HTTP-only smoke checks validate the custom production domain instead of only
+  the CloudBase default domain.
 
 Server CI E2E status as of 2026-05-25:
 
@@ -1114,8 +1144,9 @@ M4 production default-domain smoke results on 2026-05-18 against
 - `GET /privacy`: `200`
 - `GET /admin/login`: `200`
 - No `happyword.com.cn` or `happyword.cool` DNS change was made during this
-  smoke. The only public production traffic path still in use is
-  `happyword.cool` on Vercel.
+  historical smoke. Update, 2026-06-03: the current production domain is
+  `happyword.com.cn` on CloudBase; `happyword.cool` remains on Vercel as a
+  legacy rollback/archive path.
 
 ### LLM Provider Switching
 
@@ -1172,9 +1203,9 @@ manager.
 | `KIMI_MODEL_VISION` | Optional | Defaults to `kimi-k2.6`. |
 | `CORS_ALLOW_ORIGINS` | Staging, production | Current default can remain `*` unless tightened later. |
 | `LOG_LEVEL` | Staging, production | Use `info` for normal deployment. |
-| `PARENT_WEB_BASE_URL` | Staging, production | Canonical parent web shell base URL for the deployed environment. CloudBase production validation uses `https://happyword.com.cn` before final `happyword.cool` cutover. |
-| `OAUTH_CANONICAL_BASE_URL` | Staging, production | Canonical OAuth host. CloudBase production validation uses `https://happyword.com.cn` before final `happyword.cool` cutover. |
-| `SESSION_COOKIE_DOMAIN` | Production | Leave empty while validating on CloudBase default domains so browser sessions use a host-only cookie. An exact `happyword.com.cn` host also works with the empty value after binding. Set `.happyword.com.cn` or `.happyword.cool` only if cross-subdomain cookie sharing becomes necessary after custom-domain cutover. |
+| `PARENT_WEB_BASE_URL` | Staging, production | Canonical parent web shell base URL for the deployed environment. CloudBase production uses `https://happyword.com.cn`. |
+| `OAUTH_CANONICAL_BASE_URL` | Staging, production | Canonical OAuth host. CloudBase production uses `https://happyword.com.cn`. |
+| `SESSION_COOKIE_DOMAIN` | Production | Leave empty for the single apex domain so browser sessions use a host-only cookie. |
 | `ADMIN_SESSION_COOKIE_NAME` | Staging, production | Current value is `wm_admin_session`. |
 
 ### Cron
@@ -1230,6 +1261,62 @@ M3 CloudBase cron replacement status:
 | `ALIPAY_OAUTH_APP_ID` | Alipay OAuth | Set only if Alipay OAuth remains enabled in the target environment. |
 | `ALIPAY_OAUTH_APP_PRIVATE_KEY` | Alipay OAuth | Keep escaped/newline formatting compatible with `server/app/config.py`. |
 | `ALIPAY_OAUTH_PUBLIC_KEY` | Alipay OAuth | Keep escaped/newline formatting compatible with `server/app/config.py`. |
+
+## Migration Status - 2026-06-03
+
+- Current milestone: CloudBase production database catch-up before final
+  production-domain cutover.
+- Completed today: Vercel production Atlas was compared against CloudBase
+  production's Shanghai Lighthouse MongoDB target through an SSH tunnel. Atlas
+  had 27 collections and 556 documents; Shanghai still had 27 collections and
+  275 documents from the 2026-05-24 cutover.
+- Safety check: Atlas was a strict superset of Shanghai for this comparison:
+  281 documents were missing in Shanghai, 47 shared documents differed, and 0
+  Shanghai-only documents were found.
+- Backup: a fresh Shanghai backup was created before writing:
+  `happyword-20260603-104456.archive.gz`; the backup script also uploaded it to
+  the configured production COS backup prefix.
+- Write path: an upsert-only sync copied Atlas into Shanghai collection by
+  collection using `_id` as the identity key. No target documents were deleted.
+  Result: 275 matched, 47 modified, 281 upserted.
+- Validation run: post-sync inventory matched Atlas exactly at 27 collections
+  and 556 documents; full document hash diff returned none.
+- Smoke: `tools/cloudbase/smoke-default-domains.sh` passed for staging and
+  production default domains; `E2E_BASE_URL=https://happyword.com.cn uv run
+  pytest -q -m smoke` passed with `2 passed, 705 deselected`;
+  `tests/e2e/test_admin_auth_e2e.py` passed with `5 passed`.
+- Production traffic owner: `happyword.com.cn` is the CloudBase production
+  domain; `happyword.cool` remains a Vercel rollback/archive path.
+- Rollback target: restore from the fresh Shanghai backup above, or switch
+  CloudBase production `MONGODB_URI` back to the retained Atlas rollback URI if
+  the issue is CloudBase/Lighthouse-specific.
+
+## Migration Status - 2026-06-03 Domain Validation
+
+- Current milestone: production domain `https://happyword.com.cn` is live on
+  CloudBase.
+- Completed today: DNS, HTTPS, public pages, admin page, family page, preview
+  manifest, root redirect, CloudBase runtime env, and CI smoke target were
+  validated for `happyword.com.cn`.
+- DNS: apex CNAME points to
+  `happyword.com.cn.tcbaccess.tencentcloudbase.com`, which resolves to
+  CloudBase access IPs. `www.happyword.com.cn` is intentionally unsupported
+  because this migration uses a single apex domain.
+- Runtime env: CloudBase production `PARENT_WEB_BASE_URL` and
+  `OAUTH_CANONICAL_BASE_URL` are both `https://happyword.com.cn`;
+  `SESSION_COOKIE_DOMAIN` is empty.
+- Public checks: `/api/v1/public/health`, `/privacy`, `/admin/login`,
+  `/family/login`, and `/api/v1/public/preview-urls.json` all returned `200`;
+  `/` redirects to `/family/login` and follows to `200`.
+- Compliance: `/privacy` includes `沪ICP备2026023209号-1`.
+- Validation run: `E2E_BASE_URL=https://happyword.com.cn uv run pytest -q -m
+  smoke` passed with `2 passed, 705 deselected`;
+  `tests/e2e/test_admin_auth_e2e.py` passed with `5 passed`.
+- CI update: GitHub Actions secret `CLOUDBASE_PROD_BASE_URL` now points to
+  `https://happyword.com.cn`.
+- Next gate: monitor `happyword.com.cn` through at least one clean release
+  cycle, then retire or archive Vercel once rollback through `happyword.cool`
+  is no longer needed.
 
 ## Rollback
 

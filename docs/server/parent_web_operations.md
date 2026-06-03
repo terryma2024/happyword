@@ -16,8 +16,8 @@
 | --- | --- | --- |
 | 本地完整测试 | `cd server && uv run pytest && uv run ruff check && uv run mypy app` | 全套必须 0 失败 0 警告 |
 | 客户端构建 | `cd harmonyos && hvigorw assembleHap`（DevEco Studio CLI） | 需要校验 `cd harmonyos && codelinter -c ./code-linter.json5 . --fix` 通过 |
-| 生产部署 | `bash tools/vercel/deploy-prod.sh` | 部署前先做 `git pull --rebase` |
-| 紧急回滚 | Vercel Dashboard → 选择上一个绿色 deployment → `Promote` | 数据库不会自动回滚，按 §6 数据修复流程处理 |
+| 生产部署 | GitHub Actions `server-cloudbase-cd` | push `main` 后自动部署 CloudBase；也可手动 dispatch |
+| 旧域名回滚 | `bash tools/vercel/deploy-prod.sh` 或 Vercel Dashboard → 选择上一个绿色 deployment → `Promote` | 仅用于 `happyword.cool` 回滚/归档路径；数据库不会自动回滚，按 §6 数据修复流程处理 |
 
 ---
 
@@ -29,9 +29,9 @@
 
 | 项 | 值 |
 | --- | --- |
-| Canonical callback | `https://happyword.cool/v1/oauth/google/callback` |
+| Canonical callback | `https://happyword.com.cn/v1/oauth/google/callback` |
 | Fixed Preview callback | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/google/callback`（与 `OAUTH_PREVIEW_BASE_URL` 一致） |
-| Vercel env | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `OAUTH_CANONICAL_BASE_URL` / `OAUTH_PREVIEW_BASE_URL` |
+| Runtime env | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `OAUTH_CANONICAL_BASE_URL` / `OAUTH_PREVIEW_BASE_URL` |
 | 本地开发 | `http://localhost:8000` 在 `OAUTH_LOCAL_ORIGINS` 中；未配置 Preview base 时走生产 callback + `/finish` handoff |
 | 固定 Vercel Preview | 同域 `start` → Google → **Preview callback** → 直接种 `wm_session`（无需 handoff） |
 | 其它 `*.vercel.app` Preview | 仍用生产 callback + `/finish` ticket（需在 Google Console 单独登记才能直回） |
@@ -42,10 +42,10 @@
 
 | 项 | 值 |
 | --- | --- |
-| Canonical callback | `https://happyword.cool/v1/oauth/apple/callback` |
+| Canonical callback | `https://happyword.com.cn/v1/oauth/apple/callback` |
 | Fixed Preview callback | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/apple/callback`（与 `OAUTH_PREVIEW_BASE_URL` 一致） |
-| Apple Developer | Services ID + Sign in with Apple；Website URLs 填 `happyword.cool` 和固定 Preview 域名；Return URLs 填上面两个 callback |
-| Vercel env | `APPLE_OAUTH_CLIENT_ID`（Services ID）/ `APPLE_OAUTH_TEAM_ID` / `APPLE_OAUTH_KEY_ID` / `APPLE_OAUTH_PRIVATE_KEY` |
+| Apple Developer | Services ID + Sign in with Apple；Website URLs 填 `happyword.com.cn` 和固定 Preview 域名；Return URLs 填上面两个 callback |
+| Runtime env | `APPLE_OAUTH_CLIENT_ID`（Services ID）/ `APPLE_OAUTH_TEAM_ID` / `APPLE_OAUTH_KEY_ID` / `APPLE_OAUTH_PRIVATE_KEY` |
 
 Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏 Apple 按钮。
 
@@ -53,8 +53,8 @@ Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏
 
 | Provider | Canonical callback | Fixed Preview callback | Env |
 | --- | --- | --- | --- |
-| WeChat | `https://happyword.cool/v1/oauth/wechat/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/wechat/callback` | `WECHAT_OAUTH_APP_ID` / `WECHAT_OAUTH_APP_SECRET` |
-| Alipay | `https://happyword.cool/v1/oauth/alipay/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/alipay/callback` | `ALIPAY_OAUTH_APP_ID` / `ALIPAY_OAUTH_APP_PRIVATE_KEY` / `ALIPAY_OAUTH_PUBLIC_KEY` |
+| WeChat | `https://happyword.com.cn/v1/oauth/wechat/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/wechat/callback` | `WECHAT_OAUTH_APP_ID` / `WECHAT_OAUTH_APP_SECRET` |
+| Alipay | `https://happyword.com.cn/v1/oauth/alipay/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/alipay/callback` | `ALIPAY_OAUTH_APP_ID` / `ALIPAY_OAUTH_APP_PRIVATE_KEY` / `ALIPAY_OAUTH_PUBLIC_KEY` |
 
 微信网站应用使用 `snsapi_login`；支付宝网站登录使用 `auth_user`。两者首次登录通常不返回可验证邮箱，因此流程为：OAuth 回调 → `/family/oauth/bind-email?ticket=...` → 邮箱 OTP 验证 → 写入 `oauth_identities` → 种 `wm_session`。已绑定过的用户下次直接登录。
 
@@ -169,7 +169,7 @@ Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏
   await account_deletion_service.sweep_scheduled_deletes(now=datetime.now(tz=UTC))
   ```
 
-  推荐通过 Vercel Cron 或外部定时器调用一个内部端点（V0.7 计划）。
+  推荐通过 CloudBase 定时函数或外部定时器调用一个内部端点。
 
 * 级联删除顺序见 `account_deletion_service.cascade_delete_user`：
   redemption_requests → cloud_wishlist_items → synced_word_stats → child_profiles
@@ -228,9 +228,9 @@ Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏
 
 1. 重新启用 2-Step Verification：<https://myaccount.google.com/security>。
 2. 生成新 App Password：<https://myaccount.google.com/apppasswords>。
-3. 在 Vercel Dashboard → Project → Settings → Environment Variables 更新
+3. 在 CloudBase Run 生产服务环境变量中更新
    `SMTP_PASSWORD` 字段（注意去掉空格）。
-4. 重新部署 `bash tools/vercel/deploy-prod.sh` 或 Vercel Dashboard → Redeploy。
+4. 触发 GitHub Actions `server-cloudbase-cd` 或在 CloudBase 控制台重启服务。
 5. 用 `live_smtp` 标记的 pytest 集合或一个临时 `/api/v1/family/{family_id}/auth/request-code`
    验证发件成功。
 6. 第一次成功的请求即可关闭工单。
@@ -249,12 +249,12 @@ Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏
 
 ## 13. 应急联系流程
 
-1. 第一时间在 Vercel 上确认是否有 deployment 在跑红 / 部分实例不健康。
+1. 第一时间在 CloudBase Run 上确认是否有部署失败 / 实例不健康。
 2. 若服务整体不可用：回滚到最近一个绿色 deployment。
 3. 若仅某子模块出故障：临时关闭对应 feature flag（V0.7 引入），或在 Mongo 上修
    数据后让用户重试。
 4. 若数据库被破坏：
-   - 立刻禁止写流量（Vercel env `READ_ONLY=true`，V0.7 计划）。
+   - 立刻禁止写流量（CloudBase env `READ_ONLY=true`，V0.7 计划）。
    - 从 MongoDB Atlas 备份点恢复。
    - 重放过期间隙的 `audit_log` 行（手工补 / 通知用户）。
 
@@ -273,6 +273,6 @@ Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏
 
 * 单家长账号；不支持夫妻协同审批。
 * 邮件类通知；无 push（计划接 HarmonyOS Push Kit）。
-* `cleanup_pending_deletions` 的运行时机靠运维定时调用；后续会集成到 Vercel Cron。
+* `cleanup_pending_deletions` 的运行时机靠运维定时调用；后续会集成到 CloudBase 定时函数。
 * Inbox 还没有未读 badge 推送；前端 `unread_count` 仅靠刷新更新。
 * 客户端 `PendingRedemptionOverlay` UI 实现仅有数据接口，可视化在 V0.7 完善。

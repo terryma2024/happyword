@@ -25,7 +25,7 @@ from qrcode.image.pil import PilImage
 # ScanKit successfully decodes the bundled PNG. The token "uitestqr01"
 # is 10 chars (within MIN_TOKEN_LEN=4 / MAX_TOKEN_LEN=64) and the mock
 # UI server's /api/v1/public/pair/redeem accepts any non-empty token.
-PAYLOAD: str = "https://happyword.cool/p/uitestqr01"
+PAYLOAD: str = "https://happyword.com.cn/p/uitestqr01"
 
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent
 OUT: Path = (

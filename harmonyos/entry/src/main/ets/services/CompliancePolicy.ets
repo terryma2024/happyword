@@ -2,9 +2,9 @@ import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@ohos.base';
 import preferences from '@ohos.data.preferences';
 
-export const PRIVACY_POLICY_URL: string = 'https://happyword.cool/privacy';
-export const TERMS_OF_SERVICE_URL: string = 'https://happyword.cool/terms';
-export const REPORT_CHANNEL_URL: string = 'https://happyword.cool/report_and_appeal';
+export const PRIVACY_POLICY_URL: string = 'https://happyword.com.cn/privacy';
+export const TERMS_OF_SERVICE_URL: string = 'https://happyword.com.cn/terms';
+export const REPORT_CHANNEL_URL: string = 'https://happyword.com.cn/report_and_appeal';
 
 export const PRIVACY_CONSENT_PREF_NAME: string = 'wordmagic_compliance';
 export const PRIVACY_CONSENT_PREF_KEY: string = 'privacy_consent_v1';

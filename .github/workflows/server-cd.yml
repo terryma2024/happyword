@@ -1,14 +1,10 @@
-name: server-cd
+name: server-cd-legacy-vercel
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "server/**"
-      - ".github/workflows/server-cd.yml"
+  workflow_dispatch:
 
 concurrency:
-  group: server-cd
+  group: server-cd-legacy-vercel
   cancel-in-progress: false
 
 env:
@@ -16,7 +12,7 @@ env:
 
 jobs:
   staging_smoke:
-    name: server / staging smoke
+    name: server / legacy Vercel smoke
     runs-on: ubuntu-latest
     defaults:
       run:

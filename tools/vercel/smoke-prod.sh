@@ -27,7 +27,7 @@
 
 set -u
 
-PROD_URL="${1:-https://happyword.cool}"
+PROD_URL="${1:-https://happyword.com.cn}"
 ADMIN_USER="${ADMIN_USER:-admin}"
 
 resolve_password() {

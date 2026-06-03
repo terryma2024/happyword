@@ -1,18 +1,11 @@
 name: preview-manifest
 
-# Legacy cleanup-on-close + manual repair entrypoint for the public preview
+# Legacy manual repair entrypoint for the retired public preview
 # manifest stored in Vercel Blob (`preview/preview-urls.json`). The M8A
 # CloudBase path serves `PREVIEW_MANIFEST_INLINE_JSON` first; this workflow is
-# retained for close cleanup and manual repair while Vercel Preview remains
-# available. Open-PR refresh still runs from `server-ci.yml` during the
-# dual-deploy transition.
+# retained only for operator-driven legacy repairs while the Vercel archive
+# remains available.
 #
-#   - PR closed → rebuild the Blob. The closed PR's preview may still
-#                 be alive on Vercel until the weekly prune cron deletes
-#                 it, in which case it (correctly) STAYS in the manifest.
-#                 If Vercel has already pruned it, the rebuild naturally
-#                 drops the row. No e2e gate — the PR is closed and won't
-#                 be running e2e anymore.
 #   - workflow_dispatch → manual repair / backfill button. Same script,
 #                 fully idempotent rebuild.
 #
@@ -24,8 +17,6 @@ name: preview-manifest
 # only added bot-commit churn; the runtime path was always the Blob).
 
 on:
-  pull_request:
-    types: [closed]
   workflow_dispatch: {}
 
 permissions:

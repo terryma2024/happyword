@@ -6,7 +6,7 @@ import {
 } from '../main/ets/services/ChildProfileApiClient';
 import { ParentFetchAdapter, ParentFetchResult } from '../main/ets/services/ParentApiClient';
 
-const BASE: string = 'https://happyword.cool';
+const BASE: string = 'https://happyword.com.cn';
 const FAM: string = 'fam-12345678';
 
 class CapturedRequest {

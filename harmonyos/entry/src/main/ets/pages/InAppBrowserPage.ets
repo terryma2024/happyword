@@ -4,7 +4,7 @@ import { InAppBrowserRouteParams } from '../services/SystemBrowser';
 import { PageTopChrome } from '../components/PageTopChrome';
 import { requestPageOrientation } from '../utils/orientation';
 
-const FALLBACK_URL: string = 'https://happyword.cool';
+const FALLBACK_URL: string = 'https://happyword.com.cn';
 
 @Entry
 @Component

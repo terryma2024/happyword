@@ -1,4 +1,8 @@
-# Vercel deploy & ops scripts (server/ FastAPI)
+# Legacy Vercel deploy & ops scripts (server/ FastAPI)
+
+CloudBase production now uses `https://happyword.com.cn`. These Vercel scripts
+remain for the temporary `happyword.cool` rollback/archive path until Vercel is
+retired.
 
 Distilled from the V0.5.1 Walking Skeleton deploy. Each one captures
 something we hit and had to debug live; reading the script source is
@@ -9,12 +13,12 @@ intentionally a fast way to remember **why** we do it that way.
 | Script | What it does | When to run |
 | --- | --- | --- |
 | [`api.sh`](api.sh) | Sourced helper library (token + REST helpers). Not run directly. | Sourced by `deploy-status.sh`. |
-| [`deploy-prod.sh`](deploy-prod.sh) | Deploy `server/` to production. Sets repo-local `user.email = zjumty@gmail.com` (the Vercel team's recognized email) on first run, then verifies HEAD's author matches before deploying. | After every `server/` change you want live. |
-| [`smoke-prod.sh`](smoke-prod.sh) | 4 curl probes: `/api/v1/public/health`, `/api/v1/admin/auth/login`, `/api/v1/admin/auth/me`, `/api/v1/public/packs/latest.json`. Exits non-zero on first failure. | Right after `deploy-prod.sh`, also any time prod is acting up. |
-| [`preview-health.sh`](preview-health.sh) | Fetch the live preview manifest from `https://happyword.cool/api/v1/public/preview-urls.json` and probe `/api/v1/public/health` on every PR preview behind Vercel Deployment Protection. Reads `VERCEL_AUTOMATION_BYPASS_SECRET` from `~/.env`. Exits non-zero if any preview fails. | Before merging anything, after a fleet-wide redeploy, or when triaging "is my preview alive?". |
-| [`trigger-cron.sh`](trigger-cron.sh) | Trigger one or more cron HTTP endpoints declared in [`server/vercel.json`](../../server/vercel.json) (default: all). Adds `Authorization: Bearer $VERCEL_CRON_SECRET`. Reads `VERCEL_CRON_SECRET` from env or `~/.env`. Target defaults to `https://happyword.cool`; can target a preview by full `--url`, `--url-fragment`, or `--deployment-id`. | When imports sit in `extracting`, to verify cron auth on Prod/Preview, or any time you need a manual tick (Vercel Cron is Production-only). See `docs/ci-secrets.md` → `VERCEL_CRON_SECRET`. |
-| [`deploy-status.sh`](deploy-status.sh) | List recent deployments via REST API, **including the `errorMessage` the CLI hides**. Optional build event dump. | Anytime `deploy-prod.sh` exits non-zero or you need to investigate a previous failure. |
-| [`env-bootstrap.sh`](env-bootstrap.sh) | Idempotently push the deterministic env vars (`MONGO_DB_NAME`, `JWT_SECRET`, `ADMIN_BOOTSTRAP_PASS`, …) to a target scope. Auto-generates JWT secret + admin password when missing. | Initial project setup, or onboarding a new staging/preview scope. |
+| [`deploy-prod.sh`](deploy-prod.sh) | Deploy `server/` to the legacy Vercel production slot. Sets repo-local `user.email = zjumty@gmail.com` (the Vercel team's recognized email) on first run, then verifies HEAD's author matches before deploying. | Only for `happyword.cool` rollback/archive maintenance. Current production deploys through CloudBase CD. |
+| [`smoke-prod.sh`](smoke-prod.sh) | 4 curl probes: `/api/v1/public/health`, `/api/v1/admin/auth/login`, `/api/v1/admin/auth/me`, `/api/v1/public/packs/latest.json`. Exits non-zero on first failure. | For legacy Vercel rollback smoke, or ad hoc HTTP checks against an explicit base URL. |
+| [`preview-health.sh`](preview-health.sh) | Fetch the live preview manifest from `https://happyword.com.cn/api/v1/public/preview-urls.json` and probe `/api/v1/public/health` on every legacy PR preview behind Vercel Deployment Protection. Reads `VERCEL_AUTOMATION_BYPASS_SECRET` from `~/.env`. Exits non-zero if any preview fails. | Only while legacy Vercel Preview rows remain in the manifest. |
+| [`trigger-cron.sh`](trigger-cron.sh) | Trigger one or more cron HTTP endpoints declared in [`server/vercel.json`](../../server/vercel.json) (default: all). Adds `Authorization: Bearer $VERCEL_CRON_SECRET`. Reads `VERCEL_CRON_SECRET` from env or `~/.env`. Target defaults to `https://happyword.com.cn`; can target a preview by full `--url`, `--url-fragment`, or `--deployment-id`. | Legacy helper for Vercel-style cron endpoints or explicit URL ticks. Prefer CloudBase cron tooling for current production automation. |
+| [`deploy-status.sh`](deploy-status.sh) | List recent Vercel deployments via REST API, **including the `errorMessage` the CLI hides**. Optional build event dump. | Anytime legacy `deploy-prod.sh` exits non-zero or you need to investigate previous Vercel state. |
+| [`env-bootstrap.sh`](env-bootstrap.sh) | Idempotently push deterministic env vars (`MONGO_DB_NAME`, `JWT_SECRET`, `ADMIN_BOOTSTRAP_PASS`, …) to a Vercel target scope. Auto-generates JWT secret + admin password when missing. | Legacy Vercel setup only. |
 
 ## Quickstart
 
@@ -24,7 +28,7 @@ brew install vercel-cli || npm i -g vercel@latest    # need >= 47.2.2
 vercel login
 cd server && vercel link                              # writes server/.vercel/project.json
 
-# typical day:
+# legacy rollback/archive only:
 bash tools/vercel/deploy-prod.sh
 bash tools/vercel/smoke-prod.sh
 ```

@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 
 enum class BackendEnv(val label: String, val defaultUrl: String) {
     Local("Local", "http://10.0.2.2:8000"),
-    Staging("Staging", "https://happyword.cool"),
+    Staging("Staging", "https://happyword.com.cn"),
     Prod("Production", ""),
     Preview("Preview", ""),
 }
@@ -103,7 +103,7 @@ class PreviewManifestClient(
     )
 
     companion object {
-        const val PREVIEW_MANIFEST_JSON_URL = "https://happyword.cool/api/v1/public/preview-urls.json"
+        const val PREVIEW_MANIFEST_JSON_URL = "https://happyword.com.cn/api/v1/public/preview-urls.json"
         private const val SCHEMA_VERSION = 1
         private const val CACHE_TTL_MS = 5 * 60 * 1000L
 

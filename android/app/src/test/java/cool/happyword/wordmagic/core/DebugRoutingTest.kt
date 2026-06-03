@@ -16,14 +16,14 @@ class DebugRoutingTest {
         assertEquals("http://127.0.0.1:8123", provider.resolve(BackendRouteState(instrumentationOverrideUrl = "http://127.0.0.1:8123")))
         assertEquals("http://10.0.2.2:8000", provider.resolve(BackendRouteState(env = BackendEnv.Local)))
         assertEquals("https://preview.example.com", provider.resolve(BackendRouteState(env = BackendEnv.Preview, selectedPreview = preview)))
-        assertEquals("https://happyword.cool", provider.resolve(BackendRouteState(env = BackendEnv.Staging)))
+        assertEquals("https://happyword.com.cn", provider.resolve(BackendRouteState(env = BackendEnv.Staging)))
     }
 
     @Test
     fun parentFamilyLoginPageUrlMatchesEffectiveBaseOrigin() {
         val provider = BackendURLProvider()
         val stagingState = BackendRouteState(env = BackendEnv.Staging)
-        assertEquals("https://happyword.cool/family/login", provider.parentFamilyLoginPageUrl(stagingState))
+        assertEquals("https://happyword.com.cn/family/login", provider.parentFamilyLoginPageUrl(stagingState))
 
         val preview = PreviewTarget("p1", "P1", "https://preview.example.com/")
         val previewState = BackendRouteState(env = BackendEnv.Preview, selectedPreview = preview)
@@ -32,9 +32,9 @@ class DebugRoutingTest {
 
     @Test
     fun compliancePolicyMatchesReleaseSubmission() {
-        assertEquals("https://happyword.cool/privacy", CompliancePolicy.PRIVACY_POLICY_URL)
-        assertEquals("https://happyword.cool/terms", CompliancePolicy.TERMS_OF_SERVICE_URL)
-        assertEquals("https://happyword.cool/report_and_appeal", CompliancePolicy.REPORT_CHANNEL_URL)
+        assertEquals("https://happyword.com.cn/privacy", CompliancePolicy.PRIVACY_POLICY_URL)
+        assertEquals("https://happyword.com.cn/terms", CompliancePolicy.TERMS_OF_SERVICE_URL)
+        assertEquals("https://happyword.com.cn/report_and_appeal", CompliancePolicy.REPORT_CHANNEL_URL)
         assertEquals("wordmagic_compliance", CompliancePolicy.PREFS_NAME)
         assertEquals("privacy_consent_v1", CompliancePolicy.PRIVACY_CONSENT_KEY)
     }

@@ -41,7 +41,7 @@ final class CloudSyncTests: XCTestCase {
         let store = BackendEnvironmentStore(defaults: defaults)
 
         store.save(environment: .staging)
-        XCTAssertEqual(BackendURLProvider(store: store).effectiveBaseURL().absoluteString, "https://happyword.cool")
+        XCTAssertEqual(BackendURLProvider(store: store).effectiveBaseURL().absoluteString, "https://happyword.com.cn")
 
         store.save(environment: .local)
         XCTAssertEqual(BackendURLProvider(store: store).effectiveBaseURL().absoluteString, "http://127.0.0.1:8000")
@@ -63,7 +63,7 @@ final class CloudSyncTests: XCTestCase {
         store.save(environment: .staging)
         XCTAssertEqual(
             BackendURLProvider.parentFamilyLoginPageURL(baseURL: BackendURLProvider(store: store).effectiveBaseURL()).absoluteString,
-            "https://happyword.cool/family/login"
+            "https://happyword.com.cn/family/login"
         )
 
         store.save(environment: .preview, previewURL: URL(string: "https://happyword-preview.example.test/")!)
@@ -109,7 +109,7 @@ final class CloudSyncTests: XCTestCase {
         secretStore.save("secret-demo")
 
         let transport = RecordingHTTPTransport { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://happyword.cool/api/v1/public/preview-urls.json")
+            XCTAssertEqual(request.url?.absoluteString, "https://happyword.com.cn/api/v1/public/preview-urls.json")
             XCTAssertNil(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader))
             return Self.httpResponse(request: request, status: 200, body: Self.previewManifestFixture)
         }
@@ -168,7 +168,7 @@ final class CloudSyncTests: XCTestCase {
         ])
         XCTAssertEqual(cards.map(\.footer), [
             "http://127.0.0.1:8000",
-            "https://happyword.cool",
+            "https://happyword.com.cn",
             "#65(24cd43a)",
             "#61(a1211b8)",
         ])

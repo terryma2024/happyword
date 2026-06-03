@@ -422,7 +422,7 @@ final class WordMagicGameUITests: XCTestCase {
         XCTAssertTrue(app.buttons["DevMenuRefreshManifestButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuLocalCard"].exists)
         XCTAssertTrue(app.buttons["DevMenuStagingCard"].exists)
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.cool")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.com.cn")).firstMatch.exists)
 
         app.terminate()
         app.launchArguments = ["-UITestResetState", "-UITestRouteBypassSecret"]
@@ -435,7 +435,7 @@ final class WordMagicGameUITests: XCTestCase {
         bypassInput.typeText("secret-demo")
         app.buttons["保存"].tap()
 
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.cool")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.com.cn")).firstMatch.waitForExistence(timeout: 5))
     }
 
     @MainActor

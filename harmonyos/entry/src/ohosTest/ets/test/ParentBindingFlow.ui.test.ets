@@ -397,7 +397,7 @@ async function waitForCloudSyncButton(driver: Driver, maxMs: number): Promise<bo
  */
 const SCAN_QR_FIXTURE_NAME: string = 'scan_binding_qr_fixture.png';
 const SCAN_QR_FIXTURE_PAYLOAD: string =
-  'https://happyword.cool/p/uitestqr01';
+  'https://happyword.com.cn/p/uitestqr01';
 
 async function ensureScanBindingQrFixtureOnDevice(): Promise<string> {
   try {

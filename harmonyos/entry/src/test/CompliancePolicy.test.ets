@@ -10,9 +10,9 @@ import {
 export default function compliancePolicyTest(): void {
   describe('CompliancePolicy', () => {
     it('uses public happyword policy and report channels', 0, () => {
-      expect(PRIVACY_POLICY_URL).assertEqual('https://happyword.cool/privacy');
-      expect(TERMS_OF_SERVICE_URL).assertEqual('https://happyword.cool/terms');
-      expect(REPORT_CHANNEL_URL).assertEqual('https://happyword.cool/report_and_appeal');
+      expect(PRIVACY_POLICY_URL).assertEqual('https://happyword.com.cn/privacy');
+      expect(TERMS_OF_SERVICE_URL).assertEqual('https://happyword.com.cn/terms');
+      expect(REPORT_CHANNEL_URL).assertEqual('https://happyword.com.cn/report_and_appeal');
     });
 
     it('uses stable privacy consent preference keys', 0, () => {

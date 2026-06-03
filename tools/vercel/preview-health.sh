@@ -3,7 +3,7 @@
 #
 # Health-check every active Vercel Preview deployment listed in the live
 # preview manifest served by production at
-# `https://happyword.cool/api/v1/public/preview-urls.json` (the public proxy in
+# `https://happyword.com.cn/api/v1/public/preview-urls.json` (the public proxy in
 # `server/app/routers/public_packs.py` over the Vercel Blob mirror —
 # see `server/scripts/README.md`).
 #
@@ -15,7 +15,7 @@
 #
 # Usage:
 #   bash tools/vercel/preview-health.sh
-#   bash tools/vercel/preview-health.sh https://happyword.cool/api/v1/public/preview-urls.json
+#   bash tools/vercel/preview-health.sh https://happyword.com.cn/api/v1/public/preview-urls.json
 #   MANIFEST_URL=https://staging.example/preview-urls.json \
 #     bash tools/vercel/preview-health.sh
 #
@@ -38,7 +38,7 @@
 
 set -u
 
-MANIFEST_URL_DEFAULT='https://happyword.cool/api/v1/public/preview-urls.json'
+MANIFEST_URL_DEFAULT='https://happyword.com.cn/api/v1/public/preview-urls.json'
 MANIFEST_URL="${1:-${MANIFEST_URL:-$MANIFEST_URL_DEFAULT}}"
 HEALTH_PATH="${HEALTH_PATH:-/api/v1/public/health}"
 ENV_FILE="${ENV_FILE:-$HOME/.env}"

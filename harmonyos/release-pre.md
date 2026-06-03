@@ -46,7 +46,7 @@
   - The parent binding/login entry also shows Privacy Policy / User Agreement links.
 
 - [x] Add an in-app minor-protection complaint/report channel.
-  - Settings now exposes `投诉与举报`, opening `https://happyword.cool/support`.
+  - Settings now exposes `投诉与举报`, opening `https://happyword.com.cn/support`.
   - Support email for fallback review notes: `zjumty@gmail.com`.
 
 - [ ] Replace AppGallery screenshots after rebuilding.

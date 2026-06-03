@@ -27,12 +27,12 @@ export default function barcodeImageDecoderTest(): void {
     it('decodeFromUri returns override payload when key is set', 0, async () => {
       AppStorage.setOrCreate<string>(
         SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY,
-        'https://happyword.cool/p/uitestqr01',
+        'https://happyword.com.cn/p/uitestqr01',
       );
       try {
         const dec: RealBarcodeImageDecoder = new RealBarcodeImageDecoder();
         const out: string = await dec.decodeFromUri('file:///does/not/exist.png');
-        expect(out).assertEqual('https://happyword.cool/p/uitestqr01');
+        expect(out).assertEqual('https://happyword.com.cn/p/uitestqr01');
       } finally {
         AppStorage.delete(SCAN_BINDING_BARCODE_DECODER_OVERRIDE_PAYLOAD_KEY);
       }

@@ -5,7 +5,7 @@ This is the operator-facing runbook for the FastAPI service at
 operator UI is the terminal until the admin web app lands in V0.6.
 
 > Conventions used throughout
-> - `${API}` — the deployed base URL (e.g. `https://happyword.cool`).
+> - `${API}` — the deployed base URL (e.g. `https://happyword.com.cn`).
 > - `${ADMIN_USER}` / `${ADMIN_PASS}` — the admin credentials seeded via
 >   `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` env vars.
 > - Replace `<…>` placeholders before pasting.
@@ -180,15 +180,16 @@ curl -s -X POST "${API}/api/v1/admin/words/fruit-apple/audio" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -F audio=@/path/to/apple.mp3
 
-# Delete (clears DB field + best-effort Blob delete)
+# Delete (clears DB field + best-effort object delete)
 curl -s -X DELETE "${API}/api/v1/admin/words/fruit-apple/illustration" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 curl -s -X DELETE "${API}/api/v1/admin/words/fruit-apple/audio" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
-Re-upload deletes the previous Blob object first. The Blob is private
-to Vercel until the URL is referenced from a published pack.
+Re-upload deletes the previous object first. Current production uploads use
+Tencent COS; legacy deployments may still reference Vercel Blob URLs until
+their asset rows are backfilled or intentionally retained.
 
 ## 8. Publish / rollback / preview
 
@@ -271,5 +272,5 @@ If something goes wrong:
 | `OPENAI_API_KEY`          | Required for `/admin/llm/*`, `/admin/lessons/*`.     |
 | `OPENAI_MODEL_VISION`     | Default `gpt-4o`.                                    |
 | `OPENAI_MODEL_TEXT`       | Default `gpt-4o-mini`.                               |
-| `BLOB_READ_WRITE_TOKEN`   | Required for live Vercel Blob uploads (lessons + word assets). |
+| `BLOB_READ_WRITE_TOKEN`   | Required only for legacy Vercel Blob uploads / retained URLs. Current production uses Tencent COS credentials. |
 | `CORS_ALLOW_ORIGINS`      | Comma-separated origins (defaults to `*`).           |

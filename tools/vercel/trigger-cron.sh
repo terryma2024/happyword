@@ -17,7 +17,7 @@
 #
 # Target resolution order:
 #   1. --url / --url-fragment / --deployment-id (Preview or specific deploy)
-#   2. https://happyword.cool (Production latest)
+#   2. https://happyword.com.cn (Production latest)
 #
 # Usage:
 #   # Trigger every cron declared in server/vercel.json (default)
@@ -49,7 +49,7 @@ ORIGINAL_ARGC=$#
 ENV_FILE="${ENV_FILE:-$HOME/.env}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VERCEL_JSON_PATH="${VERCEL_JSON_PATH:-$REPO_ROOT/server/vercel.json}"
-DEFAULT_BASE="https://happyword.cool"
+DEFAULT_BASE="https://happyword.com.cn"
 TIMEOUT="${TIMEOUT:-120}"
 
 JSON_ONLY=0
