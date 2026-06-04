@@ -12,6 +12,7 @@ row + (best-effort) email.
 
 import logging
 import secrets
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -38,10 +39,19 @@ async def send_email(
     subject: str,
     html: str,
     text: str,
+    template_key: str | None = None,
+    template_data: Mapping[str, str] | None = None,
 ) -> None:
     """Single funnel for all outbound mail; raises EmailDeliveryDegraded on failure."""
     try:
-        await provider.send(to=to, subject=subject, html=html, text=text)
+        await provider.send(
+            to=to,
+            subject=subject,
+            html=html,
+            text=text,
+            template_key=template_key,
+            template_data=template_data,
+        )
     except EmailDeliveryError as e:
         logger.warning("email delivery degraded to=%s subject=%r: %s", to, subject, e)
         raise EmailDeliveryDegraded(str(e)) from e
@@ -82,7 +92,18 @@ async def send_otp_email(
         "如果未在收件箱看到本邮件，请检查垃圾邮件文件夹。</p>"
         "</div>"
     )
-    await send_email(provider, to=to, subject=subject, html=html, text=text)
+    await send_email(
+        provider,
+        to=to,
+        subject=subject,
+        html=html,
+        text=text,
+        template_key="otp",
+        template_data={
+            "code": code,
+            "expires_in_minutes": str(expires_in_minutes),
+        },
+    )
 
 
 async def send_device_unbind_otp_email(
@@ -116,7 +137,8 @@ async def send_device_unbind_otp_email(
         '<p style="font-size:14px;color:#444;margin:0 0 4px">验证码：</p>'
         '<p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#111;'
         f'margin:8px 0">{code}</p>'
-        f'<p style="font-size:13px;color:#555;margin:0 0 8px">设备尾号：<span style="font-family:monospace">{tail}</span></p>'
+        '<p style="font-size:13px;color:#555;margin:0 0 8px">设备尾号：'
+        f'<span style="font-family:monospace">{tail}</span></p>'
         '<p style="font-size:12px;color:#888;margin:8px 0">'
         "请在「解除设备绑定」确认页输入以上 6 位验证码。"
         f"有效期 {expires_in_minutes} 分钟。如非本人操作，请忽略本邮件。</p>"
@@ -124,7 +146,20 @@ async def send_device_unbind_otp_email(
         "如果未在收件箱看到本邮件，请检查垃圾邮件文件夹。</p>"
         "</div>"
     )
-    await send_email(provider, to=to, subject=subject, html=html, text=text)
+    await send_email(
+        provider,
+        to=to,
+        subject=subject,
+        html=html,
+        text=text,
+        template_key="device_unbind_otp",
+        template_data={
+            "code": code,
+            "expires_in_minutes": str(expires_in_minutes),
+            "child_nickname": nickname,
+            "device_tail": tail,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +234,21 @@ async def send_redemption_email(
         f'<p style="color:#888;font-size:12px">申请编号：{request_id}</p>'
         "</div>"
     )
-    await send_email(provider, to=to, subject=subject, html=html, text=text)
+    await send_email(
+        provider,
+        to=to,
+        subject=subject,
+        html=html,
+        text=text,
+        template_key="redemption",
+        template_data={
+            "child_nickname": child_nickname,
+            "item_display_name": item_display_name,
+            "cost_coins": str(cost_coins),
+            "request_id": request_id,
+            "inbox_url": inbox_url,
+        },
+    )
 
 
 def send_weekly_digest_stub() -> None:

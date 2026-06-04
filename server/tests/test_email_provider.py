@@ -1,8 +1,10 @@
 """V0.6.1 — EmailProvider Protocol + GmailSmtpProvider + RecordingEmailProvider tests."""
 
+import json
 from unittest.mock import AsyncMock
 
 import aiosmtplib
+import httpx
 import pytest
 
 
@@ -16,6 +18,26 @@ async def test_recording_provider_captures_sends() -> None:
     assert len(provider.outbox) == 2
     assert provider.outbox[0]["to"] == "a@b.com"
     assert provider.outbox[1]["subject"] == "hi2"
+
+
+@pytest.mark.asyncio
+async def test_send_otp_email_passes_template_context() -> None:
+    from app.services.email_provider import RecordingEmailProvider
+    from app.services.notification_service import send_otp_email
+
+    provider = RecordingEmailProvider()
+    await send_otp_email(
+        provider,
+        to="parent@example.com",
+        code="123456",
+        expires_in_minutes=10,
+    )
+
+    assert provider.outbox[0]["template_key"] == "otp"
+    assert provider.outbox[0]["template_data"] == {
+        "code": "123456",
+        "expires_in_minutes": "10",
+    }
 
 
 @pytest.mark.asyncio
@@ -166,6 +188,83 @@ def test_build_email_provider_gmail_smtp_default() -> None:
     provider = build_email_provider(settings)
     # In test env smtp_* are blank, so the provider is constructed but unconfigured.
     assert isinstance(provider, GmailSmtpProvider)
+
+
+def test_build_email_provider_tencent_ses_requires_credentials() -> None:
+    from app.config import Settings
+    from app.services.email_provider import build_email_provider
+
+    settings = Settings(
+        mongo_uri="x",
+        mongo_db_name="x",
+        jwt_secret="x" * 32,
+        admin_bootstrap_user="x",
+        admin_bootstrap_pass="x",
+        email_provider="tencent_ses_api",
+    )
+
+    with pytest.raises(ValueError, match="TENCENT_SES_SECRET_ID"):
+        build_email_provider(settings)
+
+
+@pytest.mark.asyncio
+async def test_tencent_ses_provider_sends_template_email() -> None:
+    from app.services.email_provider import TencentSesApiProvider
+
+    requests: list[httpx.Request] = []
+
+    async def _handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={"Response": {"RequestId": "req-1", "MessageId": "msg-1"}},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(_handler)) as client:
+        provider = TencentSesApiProvider(
+            secret_id="sid",
+            secret_key="skey",
+            region="ap-guangzhou",
+            from_email="noreply@mail.happyword.com.cn",
+            from_name="魔法背单词",
+            reply_to="support@happyword.com.cn",
+            template_ids={"otp": 12345},
+            allow_simple=False,
+            timeout=10.0,
+            http_client=client,
+            timestamp_provider=lambda: 1780550000,
+        )
+
+        await provider.send(
+            to="parent@example.com",
+            subject="魔法背单词 - 验证码 123456",
+            html="<p>123456</p>",
+            text="123456",
+            template_key="otp",
+            template_data={"code": "123456", "expires_in_minutes": "10"},
+        )
+
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.url == "https://ses.tencentcloudapi.com/"
+    assert request.headers["X-TC-Action"] == "SendEmail"
+    assert request.headers["X-TC-Version"] == "2020-10-02"
+    assert request.headers["X-TC-Region"] == "ap-guangzhou"
+    assert request.headers["X-TC-Timestamp"] == "1780550000"
+    assert request.headers["Authorization"].startswith(
+        "TC3-HMAC-SHA256 Credential=sid/"
+    )
+    payload = json.loads(request.content)
+    assert payload["FromEmailAddress"] == "魔法背单词 <noreply@mail.happyword.com.cn>"
+    assert payload["ReplyToAddresses"] == "support@happyword.com.cn"
+    assert payload["Destination"] == ["parent@example.com"]
+    assert payload["Subject"] == "魔法背单词 - 验证码 123456"
+    assert payload["TriggerType"] == 1
+    assert payload["Template"]["TemplateID"] == 12345
+    assert json.loads(payload["Template"]["TemplateData"]) == {
+        "code": "123456",
+        "expires_in_minutes": "10",
+    }
 
 
 def test_build_email_provider_unknown_raises() -> None:

@@ -132,6 +132,29 @@ Do not configure Vercel Blob for new uploads. Keep `BLOB_READ_WRITE_TOKEN` only
 on an operator machine while historical Vercel Blob URLs are being backfilled
 to COS or deleted.
 
+#### Tencent SES transactional email
+
+CloudBase production should use Tencent Cloud SES API instead of Gmail SMTP,
+because the China-hosted runtime may not reliably reach `smtp.gmail.com`.
+
+| Name | Where to store | Purpose |
+| --- | --- | --- |
+| `EMAIL_PROVIDER` | CloudBase env | Set to `tencent_ses_api` for production. |
+| `TENCENT_SES_SECRET_ID` | CloudBase/Tencent secret store | Tencent Cloud API credential id with SES send permission. |
+| `TENCENT_SES_SECRET_KEY` | CloudBase/Tencent secret store | Matching Tencent Cloud API credential key. |
+| `TENCENT_SES_REGION` | CloudBase env | `ap-guangzhou` unless the SES console says otherwise. |
+| `TENCENT_SES_FROM_EMAIL` | CloudBase env | Verified sender address, e.g. `noreply@mail.happyword.com.cn`. |
+| `TENCENT_SES_FROM_NAME` | CloudBase env | Display name, e.g. `魔法背单词`. |
+| `TENCENT_SES_REPLY_TO` | CloudBase env | Optional reply-to mailbox. |
+| `TENCENT_SES_OTP_TEMPLATE_ID` | CloudBase env | Required unless `TENCENT_SES_ALLOW_SIMPLE=true`. Template variables: `code`, `expires_in_minutes`. |
+| `TENCENT_SES_DEVICE_UNBIND_TEMPLATE_ID` | CloudBase env | Optional template for device-unbind OTP. Variables: `code`, `expires_in_minutes`, `child_nickname`, `device_tail`. |
+| `TENCENT_SES_REDEMPTION_TEMPLATE_ID` | CloudBase env | Optional template for redemption notifications. Variables: `child_nickname`, `item_display_name`, `cost_coins`, `request_id`, `inbox_url`. |
+| `TENCENT_SES_ALLOW_SIMPLE` | CloudBase env | Set only if Tencent SES has enabled non-template `Simple` sends for the account. Default `false`. |
+
+Configure a dedicated sender domain such as `mail.happyword.com.cn` in Tencent
+SES, then add the DNS verification records for SPF, DKIM, and DMARC before
+switching production.
+
 After the staging bucket exists, validate the runtime credentials before
 switching CloudBase staging:
 
@@ -416,7 +439,9 @@ DB fixture injection.
 | `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASS` | Seed admin row at startup | **Must equal** `E2E_ADMIN_USER` / `E2E_ADMIN_PASS`. |
 | `CRON_SECRET` | Bearer for **`POST /api/v1/admin/cron/extract-pending`** | Required for lesson-import async extraction cron + manual trigger script. **`openssl rand -hex 32`**. Preview + Production. See [`VERCEL_CRON_SECRET` §](#vercel_cron_secret-lesson-import-extraction-cron). |
 | `OPENAI_API_KEY` | LLM features | Leave **empty** for E2E previews (E2E never calls real OpenAI). |
-| `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_HOST` / `SMTP_PORT` | Email | Leave **`SMTP_USERNAME` blank** on Preview so E2E uses DB OTP injection instead of real email. |
+| `EMAIL_PROVIDER` | Email | CloudBase production uses `tencent_ses_api`; local fallback can use `gmail_smtp`. |
+| `TENCENT_SES_*` | Email | Required when `EMAIL_PROVIDER=tencent_ses_api`; see Tencent SES section above. |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_HOST` / `SMTP_PORT` | Email fallback | Leave **`SMTP_USERNAME` blank** on Preview so E2E uses DB OTP injection instead of real email. |
 | `CORS_ALLOW_ORIGINS` | CORS | `*` for non-production; lock down for production. |
 | `LOG_LEVEL` | Logging | `info`. |
 
