@@ -1,28 +1,43 @@
-"""Runtime proxy for the preview deployment manifest.
+"""Runtime manifest for selectable CloudBase backend environments.
 
 The FastAPI route ``GET /api/v1/public/preview-urls.json`` that calls this module is
-**public**: callers never send credentials. Inline CloudBase staging config is
-served before falling back to the legacy Vercel Blob mirror.
+**public**: callers never send credentials. The endpoint now serves only
+CloudBase production/staging rows; legacy Vercel Preview and Blob manifest
+sources have been retired.
 """
 
 import json
 import os
 
-import httpx
 from fastapi import HTTPException, Response, status
 
 CACHE_SECONDS = 60
 SCHEMA_VERSION = 1
-
-
-def _blob_url() -> str:
-    url = os.environ.get("PREVIEW_MANIFEST_BLOB_URL", "").strip()
-    if not url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="PREVIEW_MANIFEST_BLOB_URL is not configured",
-        )
-    return url
+CLOUDBASE_STATIC_UPDATED_AT = "cloudbase-static"
+DEFAULT_CLOUDBASE_MANIFEST = {
+    "schema_version": SCHEMA_VERSION,
+    "updated_at": CLOUDBASE_STATIC_UPDATED_AT,
+    "previews": [
+        {
+            "pr": 0,
+            "title": "HappyWord Production",
+            "branch": "main",
+            "url": "https://happyword.com.cn",
+            "author": "cloudbase",
+            "head_sha": "prod",
+            "updated_at": CLOUDBASE_STATIC_UPDATED_AT,
+        },
+        {
+            "pr": 0,
+            "title": "CloudBase Staging",
+            "branch": "shared-staging",
+            "url": "https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com",
+            "author": "cloudbase",
+            "head_sha": "staging",
+            "updated_at": CLOUDBASE_STATIC_UPDATED_AT,
+        },
+    ],
+}
 
 
 def _inline_json() -> str:
@@ -102,7 +117,8 @@ def _normalise_inline_manifest(raw: str) -> str:
 
 
 async def fetch_preview_manifest(if_none_match: str | None = None) -> Response:
-    """Fetch the public Blob mirror and return a FastAPI response."""
+    """Return the public CloudBase environment manifest."""
+    _ = if_none_match
     inline = _inline_json()
     if inline:
         return Response(
@@ -112,40 +128,9 @@ async def fetch_preview_manifest(if_none_match: str | None = None) -> Response:
             headers=_cache_headers(),
         )
 
-    request_headers = {}
-    if if_none_match:
-        request_headers["If-None-Match"] = if_none_match
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            upstream = await client.get(_blob_url(), headers=request_headers)
-    except httpx.HTTPError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Preview manifest Blob fetch failed: {exc.__class__.__name__}",
-        ) from exc
-
-    etag = upstream.headers.get("ETag")
-    if upstream.status_code == status.HTTP_304_NOT_MODIFIED:
-        return Response(status_code=304, headers=_cache_headers(etag))
-
-    if upstream.status_code != status.HTTP_200_OK:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Preview manifest Blob returned {upstream.status_code}",
-        )
-
-    try:
-        json.loads(upstream.text)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Preview manifest Blob did not return valid JSON",
-        ) from exc
-
     return Response(
         status_code=200,
-        content=upstream.text,
+        content=json.dumps(DEFAULT_CLOUDBASE_MANIFEST, separators=(",", ":")),
         media_type="application/json",
-        headers=_cache_headers(etag),
+        headers=_cache_headers(),
     )

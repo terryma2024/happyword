@@ -12164,7 +12164,7 @@
     },
     "/api/v1/public/preview-urls.json": {
       "get": {
-        "description": "Public QA preview manifest (proxied from Vercel Blob).\n\n**Unauthenticated** — no Authorization header, cookies, or API keys required.\nSafe for DevMenu and scripted clients to fetch directly.",
+        "description": "Public CloudBase environment manifest.\n\n**Unauthenticated** — no Authorization header, cookies, or API keys required.\nSafe for DevMenu and scripted clients to fetch directly.",
         "operationId": "preview_manifest_api_v1_public_preview_urls_json_get",
         "parameters": [
           {

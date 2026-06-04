@@ -8,8 +8,8 @@ from any future global middleware.
 Exposed paths:
 
 - ``GET /api/v1/public/health`` — liveness.
-- ``GET /api/v1/public/preview-urls.json`` — proxies the public Blob mirror of the QA
-  preview manifest (same trust model as ``latest.json``).
+- ``GET /api/v1/public/preview-urls.json`` — public CloudBase prod/staging
+  environment manifest (same trust model as ``latest.json``).
 - ``GET /api/v1/public/packs/latest.json`` — published pack JSON with ETag.
 
 Deployment Protection on Vercel preview deployments is orthogonal (platform
@@ -44,7 +44,7 @@ async def health() -> dict[str, object]:
 async def preview_manifest(
     if_none_match: str | None = Header(None, alias="If-None-Match"),
 ) -> Response:
-    """Public QA preview manifest (proxied from Vercel Blob).
+    """Public CloudBase environment manifest.
 
     **Unauthenticated** — no Authorization header, cookies, or API keys required.
     Safe for DevMenu and scripted clients to fetch directly.

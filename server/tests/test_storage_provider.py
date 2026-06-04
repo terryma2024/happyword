@@ -134,7 +134,7 @@ async def test_upload_cos_object_puts_signed_request_and_returns_public_url(
             return None
 
     class _Client:
-        def __init__(self, *, timeout: float) -> None:
+        def __init__(self, *, timeout: float, **kwargs: object) -> None:
             self.timeout = timeout
 
         async def __aenter__(self) -> "_Client":
@@ -234,7 +234,7 @@ async def test_delete_cos_object_tolerates_upstream_http_error(
             raise httpx.HTTPStatusError("nope", request=request, response=httpx.Response(500))
 
     class _Client:
-        def __init__(self, *, timeout: float) -> None:
+        def __init__(self, *, timeout: float, **kwargs: object) -> None:
             self.timeout = timeout
 
         async def __aenter__(self) -> "_Client":

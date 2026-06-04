@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from beanie import init_beanie
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -175,6 +175,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def redirect_happyword_cool(request: Request, call_next):
+    """Permanently move the legacy Vercel domain to the CloudBase apex."""
+    host = request.headers.get("host", "").split(":", 1)[0].lower()
+    if host == "happyword.cool":
+        target = request.url.replace(scheme="https", netloc="happyword.com.cn")
+        return RedirectResponse(url=str(target), status_code=301)
+    return await call_next(request)
 
 
 @app.get("/", include_in_schema=False)

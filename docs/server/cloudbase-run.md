@@ -4,16 +4,19 @@
 
 - Runtime owner: CloudBase Run
 - Current production domain: happyword.com.cn
-- Legacy rollback domain: happyword.cool
+- Legacy domain: happyword.cool, served by Vercel as a 301 redirect to
+  happyword.com.cn
 - Production service name: happyword-server
 - Staging service name: happyword-server-staging
-- MongoDB provider during Wave A: MongoDB Atlas
-- MongoDB provider after Wave C: Shanghai Lighthouse MongoDB for the current
+- MongoDB provider: Shanghai Lighthouse MongoDB for the current
   low-cost URI-compatible path, with Beijing Lighthouse as a hidden backup
   secondary; built-in CloudBase document database is no longer on the migration
   path; TencentDB remains the managed HA upgrade path when cost/risk allows
-- Asset storage provider during Wave A: Vercel Blob
-- Asset storage provider during Wave B: Tencent COS for new uploads; CloudBase Storage remains an alternate only if server-side public URL behavior proves simpler
+- Asset storage provider: Tencent COS. Historical Vercel Blob URLs should be
+  backfilled to COS before Blob credentials are removed.
+- OAuth status: Apple and Alipay passed production smoke on `happyword.com.cn`;
+  WeChat is pending platform review; Google remains disabled on China-hosted
+  CloudBase until an approved overseas token broker exists.
 
 ## CloudBase Environment
 
@@ -28,7 +31,7 @@
   happyword-d5g66zmq8ef2430b8-1429584068.ap-shanghai.app.tcloudbase.com
 - Staging default domain:
   https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com
-- Custom domains: `happyword.com.cn` bound for production validation
+- Custom domains: `happyword.com.cn` bound for production
 - Routes: `happyword.com.cn` `/` routes to CloudBase Run service
   `happyword-server`
 
@@ -37,11 +40,11 @@
 ### Domain Strategy
 
 - Current production domain: `happyword.com.cn`
-- Legacy rollback domain: `happyword.cool`
+- Legacy domain: `happyword.cool`
 - Additional Tencent-registered reserve domain: `happyword.cloud`
 - Production-domain sequence: `happyword.com.cn` is the single apex production
-  domain for CloudBase. Keep `happyword.cool` on Vercel only as a temporary
-  rollback/archive path until Vercel retirement is approved.
+  domain for CloudBase. Keep `happyword.cool` on Vercel only as a legacy HTTPS
+  redirect endpoint to `happyword.com.cn`.
 - Cutover rule: do not attempt to bind or route `www.happyword.com.cn`.
   This migration intentionally supports the single apex domain only.
 
@@ -53,7 +56,7 @@ Snapshot date: 2026-05-17.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `happyword.com.cn` | 正常 | DNSPod | 马天一 | 腾讯云 | 2026-05-17 18:07:10 | 2027-05-17 18:07:10 | New Tencent candidate production domain. Apex DNS has no answer yet. |
 | `happyword.cloud` | 正常 | DNSPod | 马天一 | 帝思普 | 2026-05-17 18:07:12 | 2027-05-17 18:07:12 | Reserve or secondary domain. |
-| `happyword.cool` | Legacy rollback | Vercel DNS | Not checked in Tencent console | Vercel | Not checked | Not checked | Kept on Vercel as temporary rollback/archive path. |
+| `happyword.cool` | Legacy domain | Vercel DNS/project | Not checked in Tencent console | Vercel | Not checked | Not checked | Serve HTTPS 301 to `happyword.com.cn`; do not bind `.cool` in CloudBase. |
 
 Tencent Cloud real-name template:
 
@@ -80,6 +83,39 @@ Snapshot date: 2026-06-03.
 | `happyword.com.cn` | apex CNAME | `happyword.com.cn.tcbaccess.tencentcloudbase.com` |
 | `happyword.com.cn` | apex A via CloudBase target | `124.223.146.214`, `124.223.148.238` |
 | `www.happyword.com.cn` | A/CNAME | intentionally unsupported; the production validation domain is apex-only |
+
+Legacy-domain strategy after retirement:
+
+| Domain | Query | Desired result |
+| --- | --- | --- |
+| `happyword.cool` | Vercel DNS/project | Vercel-owned HTTPS endpoint returns `301` to `https://happyword.com.cn` preserving path/query. |
+
+Update, 2026-06-04:
+
+- Vercel DNS cannot add a true CNAME at the apex. A temporary equivalent ALIAS
+  record (`rec_41d667563571c34d2420153c`) pointing at `happyword.com.cn` was
+  tested, but CloudBase rejected the Host with `INVALID_HOST` and TLS could not
+  validate because CloudBase only had the `happyword.com.cn` certificate/domain.
+- That temporary ALIAS was removed. `happyword.cool` is again served by Vercel's
+  default DNS/project binding so Vercel can terminate TLS for the `.cool` domain.
+- The Vercel server app now contains a Host middleware: any request with
+  `Host: happyword.cool` returns `301` to `https://happyword.com.cn` preserving
+  path and query. This keeps `.cool` as a legacy redirect domain without adding
+  `.cool` to CloudBase ICP/certificate scope.
+- Vercel production deployment `dpl_ADUaZRtkYK9rH1u5c9Nq7hXG63St`
+  (`happyword-m8me6g6jw-terrymas-projects.vercel.app`) was promoted to
+  `https://happyword.cool`.
+- GitHub-triggered Vercel deployments are disabled in `server/vercel.json` via
+  `git.deploymentEnabled: false`; keep using manual Vercel CLI deploys only for
+  maintaining the `.cool` 301 endpoint.
+- The Vercel project GitHub repository connection was disconnected with
+  `vercel git disconnect`; Vercel API verification returned `link: null`.
+- Smoke passed:
+  `https://happyword.cool/api/v1/public/health?source=cool` returns `301`
+  with `Location:
+  https://happyword.com.cn/api/v1/public/health?source=cool`, and
+  `https://happyword.cool/family/login` returns `301` with `Location:
+  https://happyword.com.cn/family/login`.
 
 ### CloudBase Console Findings
 
@@ -177,10 +213,9 @@ Required staging secrets:
 - `ARK_API_KEY` - required when `LLM_PROVIDER=doubao`
 - `MOONSHOT_API_KEY` - required when `LLM_PROVIDER=kimi`; `KIMI_API_KEY` is
   accepted as a local compatibility alias
-- `PREVIEW_MANIFEST_BLOB_URL` - present in local `~/.env.tcb` on 2026-05-18;
-  required only if staging must validate `/api/v1/public/preview-urls.json`
-- `BLOB_READ_WRITE_TOKEN` - present in local `~/.env.tcb` on 2026-05-18;
-  required only if upload paths must be tested during staging
+- Historical `PREVIEW_MANIFEST_BLOB_URL` / `BLOB_READ_WRITE_TOKEN` values may
+  still exist in local env snapshots, but active CloudBase production no longer
+  needs them for manifest serving or new asset uploads.
 
 Required operator decisions:
 
@@ -188,6 +223,25 @@ Required operator decisions:
   `httpx.ConnectTimeout` / `openai.APITimeoutError`. The server can now switch
   lesson image parsing through `LLM_PROVIDER`; validate `qwen`, `doubao`, and
   `kimi` from CloudBase before production cutover.
+
+### Google API / OAuth Connectivity
+
+Status, 2026-06-04:
+
+- CloudBase Run in mainland China cannot reliably call Google OAuth token/JWKS
+  endpoints. Google login should remain hidden on `happyword.com.cn` unless a
+  compliant overseas handoff is added.
+- Tencent Cloud API Gateway documentation notes that cross-border access may
+  suffer packet loss or timeout because of international link quality, and
+  recommends creating separate domestic and overseas resources when the target
+  business is overseas.
+- Tencent Cloud CCN / cross-border access products are network architecture
+  tools, not a CloudBase Run switch that makes Google endpoints reachable from
+  the mainland runtime.
+- Recommended app architecture: deploy a small token-exchange broker in an
+  overseas region that can reach Google, validate the OAuth state there, then
+  hand back a short-lived signed ticket to CloudBase. Keep Google disabled until
+  that broker and its operational/legal review exist.
 
 ## Replacement Strategy
 
@@ -770,8 +824,8 @@ Rationale:
   in MongoDB documents.
 - COS provides object storage with SDK/REST access, lifecycle management,
   public URL/custom-domain patterns, and CDN integration.
-- Existing Vercel Blob URLs can remain readable; the first migration only needs
-  to route new uploads to COS.
+- Historical Vercel Blob URLs have been backfilled to COS; production MongoDB
+  should no longer contain Vercel Blob asset refs.
 
 CloudBase Storage remains an alternate if a later console/API validation proves
 that its Python server-side upload and public URL behavior is simpler than COS.
@@ -780,7 +834,7 @@ Planned env vars:
 
 | Variable | Required for | Notes |
 | --- | --- | --- |
-| `ASSET_STORAGE_PROVIDER` | Wave B storage switch | `vercel_blob` by default; set `tencent_cos` after staging validation. |
+| `ASSET_STORAGE_PROVIDER` | Wave B storage switch | `tencent_cos` for active CloudBase runtimes. |
 | `COS_SECRET_ID` | Tencent COS uploads | Secret store only. |
 | `COS_SECRET_KEY` | Tencent COS uploads | Secret store only. |
 | `COS_REGION` | Tencent COS uploads | Region selected for the bucket. |
@@ -796,7 +850,8 @@ Planned sequence:
    domain.
 3. Add a storage-provider abstraction while keeping existing
    `blob_service.py` call sites stable. Done on 2026-05-20.
-4. Keep `vercel_blob` as the default provider until staging passes.
+4. Keep `vercel_blob` as the default provider until staging passes. Done;
+   active CloudBase runtimes now use `tencent_cos`.
 5. Upload new staging assets to COS and verify image/audio URLs load publicly.
    Use `cd server && uv run python -m scripts.cos_storage_smoke` with
    `ASSET_STORAGE_PROVIDER=tencent_cos` and the staging COS env vars before
@@ -808,16 +863,17 @@ Planned sequence:
    `happyword-assets-prod-1429584068`; read-only production smoke passed, and
    `scripts.cos_storage_smoke` uploaded, publicly read, and deleted production
    COS smoke objects without writing to production MongoDB.
-7. Do not rewrite existing Vercel Blob URLs during the first rollout.
-8. Decide later whether old Vercel Blob objects should be copied to COS and DB
-   URLs rewritten. If approved, that backfill must be a separate reversible
-   migration with a rollback map.
+7. Backfill historical Vercel Blob URLs. Done on 2026-06-04 with
+   `scripts.migrate_vercel_blob_to_cos --apply --verify`: 10 objects copied to
+   `happyword-assets-prod-1429584068`, 10 MongoDB refs updated, and 10 new COS
+   URLs verified readable. Follow-up dry-run reported 0 remaining Vercel Blob
+   URL refs.
 
 Cutover acceptance:
 
 - New admin-uploaded illustration/audio assets return COS URLs.
 - New lesson-import image uploads return COS URLs.
-- Existing Vercel Blob URLs stored in MongoDB remain readable.
+- Existing Vercel Blob URLs stored in MongoDB have been rewritten to COS.
 - Delete logic only deletes objects owned by the URL provider.
 
 ### Vercel Preview Replacement
@@ -836,35 +892,37 @@ Replacement sequence:
 1. **M8A shared staging.** Use existing CloudBase staging service
    `happyword-server-staging` as the default QA/DevMenu target.
 2. **M8A manifest source.** Keep the public endpoint
-   `/api/v1/public/preview-urls.json`, but serve a CloudBase staging row from a
-   non-Vercel source such as `PREVIEW_MANIFEST_INLINE_JSON`.
+   `/api/v1/public/preview-urls.json`, but serve CloudBase production/staging
+   rows without Vercel Blob.
 3. **M8A CI behavior.** Keep normal PR CI offline by default. Run shared
    CloudBase staging E2E only on `workflow_dispatch`, a maintainer-approved
    label, or a scheduled validation window.
 4. **M8B on-demand PR previews.** Later, selected PRs may deploy a temporary
    CloudBase Run version or service only after service quota, route URL,
    database isolation, and cleanup are implemented.
-5. **M8C retirement.** Remove Vercel preview deployment detection and Vercel
-   Blob manifest publishing only after DevMenu and CI can use CloudBase staging.
+5. **M8C retirement.** Vercel preview deployment detection and Vercel Blob
+   manifest publishing were removed on 2026-06-04.
 
 Planned environment variables:
 
 | Variable | Required for | Notes |
 | --- | --- | --- |
 | `CLOUDBASE_STAGING_BASE_URL` | M8A shared staging smoke | CloudBase staging URL used by CI and DevMenu manifest. |
-| `PREVIEW_MANIFEST_INLINE_JSON` | M8A manifest replacement | JSON payload served by `/api/v1/public/preview-urls.json` before a Mongo-backed manifest exists. |
+| `PREVIEW_MANIFEST_INLINE_JSON` | Optional manifest override | Optional JSON payload; unset returns built-in CloudBase production/staging rows. |
 | `CLOUDBASE_PREVIEW_MODE` | Future M8B | Suggested values: `shared_staging`, `on_demand_version`, `on_demand_service`. |
 
-Implementation status, 2026-05-20:
+Implementation status, 2026-06-04:
 
 - `server/app/services/preview_manifest_service.py` now checks
-  `PREVIEW_MANIFEST_INLINE_JSON` first and falls back to
-  `PREVIEW_MANIFEST_BLOB_URL` for legacy Vercel Preview compatibility.
+  `PREVIEW_MANIFEST_INLINE_JSON` first and otherwise returns built-in
+  `HappyWord Production` and `CloudBase Staging` rows. It no longer reads
+  `PREVIEW_MANIFEST_BLOB_URL` or calls Vercel Blob.
 - Inline JSON can use the `items` shape below; the server normalizes it to the
   existing `schema_version: 1` / `previews` response expected by current
   clients.
-- HarmonyOS `PreviewManifestService` now accepts CloudBase default domains
-  ending in `.tcloudbase.com` as well as legacy `*.vercel.app` preview rows.
+- HarmonyOS `PreviewManifestService` accepts CloudBase default domains ending
+  in `.tcloudbase.com`; legacy Vercel preview rows are no longer published by
+  the server manifest.
 - `.github/workflows/server-ci.yml` no longer deploys Vercel Preview for online
   E2E. It runs offline pytest and the shared CloudBase staging E2E job for
   server PRs and manual dispatches.
@@ -875,6 +933,9 @@ Implementation status, 2026-05-20:
   no longer runs automatically on pushes to `main`.
 - PR-specific CloudBase preview deployment is still disabled until quota,
   routing, database isolation, and cleanup are implemented.
+- `.github/workflows/preview-manifest.yml`,
+  `.github/workflows/vercel-prune.yml`, `server/scripts/update_preview_manifest.mjs`,
+  and `server/scripts/vercel_prune_branch_deployments.mjs` were removed.
 
 Post-merge CD status, 2026-05-21:
 
@@ -918,7 +979,7 @@ Default-domain smoke tooling, 2026-05-21:
   Key-Value entries or JSON. Use the console to add this value so existing
   secret environment variables are not copied through shell command arguments.
 
-Initial inline manifest shape:
+Optional inline manifest shape:
 
 ```json
 {
@@ -973,8 +1034,6 @@ M8B cleanup requirements before implementation:
 
 Storage implementation status, 2026-05-21:
 
-- `ASSET_STORAGE_PROVIDER` defaults to `vercel_blob`, preserving current
-  behavior.
 - `ASSET_STORAGE_PROVIDER=tencent_cos` routes new uploads through the Tencent
   COS XML API using `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_REGION`,
   `COS_BUCKET`, and `COS_PUBLIC_BASE_URL`.
@@ -983,11 +1042,20 @@ Storage implementation status, 2026-05-21:
   URLs are ignored.
 - Staging and production COS buckets are provisioned in `ap-shanghai`.
 - CloudBase staging and production services are configured for Tencent COS new
-  uploads. Existing Vercel Blob URLs remain stored as-is and readable through
-  their original public URLs.
+  uploads.
 - `scripts.cos_storage_smoke` verifies illustration, audio, and lesson-image
   uploads, checks the public URLs, and deletes the smoke objects unless
   `COS_SMOKE_KEEP_OBJECTS=1`.
+
+Storage update, 2026-06-04:
+
+- `scripts.migrate_vercel_blob_to_cos` was added for dry-run and apply/verify
+  backfills.
+- Production dry-run found 10 historical Vercel Blob refs:
+  8 in `family_pack_definitions` and 2 in `lesson_import_drafts`.
+- Production apply copied all 10 objects to COS, updated all 10 MongoDB refs,
+  and verified all 10 new URLs.
+- Follow-up dry-run reported 0 remaining Vercel Blob URL refs.
 
 ### Filing and Certificate Readiness
 
@@ -1239,12 +1307,12 @@ M3 CloudBase cron replacement status:
   temporary gateway `503` before the backend cron endpoint was confirmed
   healthy.
 
-### Wave A Vercel Blob Compatibility
+### Retired Vercel Blob Compatibility
 
 | Variable | Required for | Notes |
 | --- | --- | --- |
-| `PREVIEW_MANIFEST_BLOB_URL` | Wave A staging, Wave A production | Keeps `/api/v1/public/preview-urls.json` working while Vercel Blob remains the manifest source. |
-| `BLOB_READ_WRITE_TOKEN` | Wave A upload paths | Keeps existing asset upload code working until storage moves to Tencent COS. |
+| `PREVIEW_MANIFEST_BLOB_URL` | Retired | Runtime manifest ignores this value and returns CloudBase production/staging rows. |
+| `BLOB_READ_WRITE_TOKEN` | Operator-only historical cleanup | Use only for one-off Vercel Blob backfill/deletion tasks; not needed for CloudBase runtime uploads. |
 
 ### OAuth Providers
 
