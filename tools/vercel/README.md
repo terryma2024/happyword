@@ -1,8 +1,8 @@
 # Legacy Vercel deploy & ops scripts (server/ FastAPI)
 
 CloudBase production now uses `https://happyword.com.cn`. These Vercel scripts
-remain for the temporary `happyword.cool` rollback/archive path until Vercel is
-retired.
+remain for the legacy `happyword.cool` HTTPS endpoint, which should return a
+301 redirect to `https://happyword.com.cn`.
 
 Distilled from the V0.5.1 Walking Skeleton deploy. Each one captures
 something we hit and had to debug live; reading the script source is
@@ -13,7 +13,7 @@ intentionally a fast way to remember **why** we do it that way.
 | Script | What it does | When to run |
 | --- | --- | --- |
 | [`api.sh`](api.sh) | Sourced helper library (token + REST helpers). Not run directly. | Sourced by `deploy-status.sh`. |
-| [`deploy-prod.sh`](deploy-prod.sh) | Deploy `server/` to the legacy Vercel production slot. Sets repo-local `user.email = zjumty@gmail.com` (the Vercel team's recognized email) on first run, then verifies HEAD's author matches before deploying. | Only for `happyword.cool` rollback/archive maintenance. Current production deploys through CloudBase CD. |
+| [`deploy-prod.sh`](deploy-prod.sh) | Deploy `server/` to the legacy Vercel production slot. Sets repo-local `user.email = zjumty@gmail.com` (the Vercel team's recognized email) on first run, then verifies HEAD's author matches before deploying. | Only for maintaining the `happyword.cool` 301 redirect endpoint. Current application production deploys through CloudBase CD. |
 | [`smoke-prod.sh`](smoke-prod.sh) | 4 curl probes: `/api/v1/public/health`, `/api/v1/admin/auth/login`, `/api/v1/admin/auth/me`, `/api/v1/public/packs/latest.json`. Exits non-zero on first failure. | For legacy Vercel rollback smoke, or ad hoc HTTP checks against an explicit base URL. |
 | [`preview-health.sh`](preview-health.sh) | Fetch the live preview manifest from `https://happyword.com.cn/api/v1/public/preview-urls.json` and probe `/api/v1/public/health` on every legacy PR preview behind Vercel Deployment Protection. Reads `VERCEL_AUTOMATION_BYPASS_SECRET` from `~/.env`. Exits non-zero if any preview fails. | Only while legacy Vercel Preview rows remain in the manifest. |
 | [`trigger-cron.sh`](trigger-cron.sh) | Trigger one or more cron HTTP endpoints declared in [`server/vercel.json`](../../server/vercel.json) (default: all). Adds `Authorization: Bearer $VERCEL_CRON_SECRET`. Reads `VERCEL_CRON_SECRET` from env or `~/.env`. Target defaults to `https://happyword.com.cn`; can target a preview by full `--url`, `--url-fragment`, or `--deployment-id`. | Legacy helper for Vercel-style cron endpoints or explicit URL ticks. Prefer CloudBase cron tooling for current production automation. |
@@ -42,7 +42,10 @@ that the CLI's "deploy_failed" message buries.
 The linked Vercel project uses **Project Settings → General → Root Directory =
 `server`**. Only **`server/vercel.json`** is used for builds, `crons`, and
 `git.deploymentEnabled`. A `vercel.json` at the Git repository root is **not**
-read by this project. Details: [`.cursor/rules/vercel-root-directory.mdc`](../../.cursor/rules/vercel-root-directory.mdc).
+read by this project. GitHub-triggered Vercel deployments are disabled and the
+Vercel project is disconnected from its GitHub repository; use the manual CLI
+deploy path only when maintaining the legacy `happyword.cool` 301 endpoint.
+Details: [`.cursor/rules/vercel-root-directory.mdc`](../../.cursor/rules/vercel-root-directory.mdc).
 
 ## Design decisions (the `why`)
 
@@ -133,14 +136,15 @@ Current shape (abbreviated):
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "git": {
-    "deploymentEnabled": { "main": true, "**": false }
+    "deploymentEnabled": false
   },
   "crons": [{ "path": "/api/v1/admin/cron/extract-pending", "schedule": "* * * * *" }]
 }
 ```
 
-Use `**` (not `*`) for “all branches except `main`”: minimatch `*` does not
-cross `/`, so slashy branch names would still get previews.
+`deploymentEnabled: false` is a defense-in-depth guard if the GitHub repository
+is ever reconnected; commits or PRs still must not create new Vercel
+deployments.
 
 The companion knob is in [`server/pyproject.toml`](../../server/pyproject.toml):
 

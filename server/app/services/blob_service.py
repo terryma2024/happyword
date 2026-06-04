@@ -148,7 +148,7 @@ async def _upload_vercel_object(path: str, payload: bytes, mime: str) -> str:
         "x-content-type": mime,
         "x-add-random-suffix": "0",
     }
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=60.0, trust_env=False) as client:
         resp = await client.put(url, content=payload, headers=headers)
         resp.raise_for_status()
         body: dict[str, Any] = resp.json()
@@ -169,7 +169,7 @@ async def _upload_cos_object(path: str, payload: bytes, mime: str) -> str:
         "Content-Type": mime,
         "Host": host,
     }
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=60.0, trust_env=False) as client:
         resp = await client.put(url, content=payload, headers=headers)
         resp.raise_for_status()
     return f"{_cos_public_base_url()}/{object_path}"
@@ -195,7 +195,7 @@ async def _delete_vercel_object(url: str) -> None:
     """
     if not _is_vercel_blob_configured():
         return
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
         try:
             resp = await client.post(
                 f"{_BLOB_API_BASE}/delete",
@@ -220,7 +220,7 @@ async def _delete_cos_object(url: str) -> None:
         "Authorization": _cos_authorization("DELETE", object_path, host),
         "Host": host,
     }
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
         try:
             resp = await client.delete(delete_url, headers=headers)
             resp.raise_for_status()

@@ -12,15 +12,12 @@ end-to-end. If you only want one section, jump straight to
 | `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself; manual dispatch | Offline pytest plus shared CloudBase staging E2E |
 | `server-cd-legacy-vercel` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Manual dispatch only | Legacy Vercel rollback/archive smoke |
 | `server-cloudbase-cd` | [`.github/workflows/server-cloudbase-cd.yml`](../.github/workflows/server-cloudbase-cd.yml) | Push to `main` touching `server/**`; manual dispatch | Deploy server to CloudBase Run, then health check and HTTP-only smoke |
-| `preview-manifest` | [`.github/workflows/preview-manifest.yml`](../.github/workflows/preview-manifest.yml) | Manual dispatch only | Legacy manual repair for the Vercel Blob preview manifest |
-| `atlas-cleanup` | [`.github/workflows/atlas-cleanup.yml`](../.github/workflows/atlas-cleanup.yml) | Cron Mon 09:00 UTC + dispatch | Drop stale per-PR Mongo Atlas DBs older than 14 days |
-| `vercel-prune` | [`.github/workflows/vercel-prune.yml`](../.github/workflows/vercel-prune.yml) | Manual dispatch only | Legacy manual cleanup for Vercel deployments |
 
 Current production deploys use CloudBase. PR online E2E no longer deploys
 Vercel previews; it uses the shared CloudBase staging service and the Beijing
 Lighthouse E2E database. Pushes to `main` run CloudBase
 `server-cloudbase-cd`; the Vercel workflow is manual-only for rollback/archive
-checks while `happyword.cool` remains available.
+checks only until the legacy Vercel production path is fully archived.
 
 The shared CloudBase staging E2E job runs on the Beijing self-hosted runner. The
 runner must have system `jq`, `python3.12`, and `/usr/local/bin/uv`; the workflow
@@ -42,13 +39,13 @@ E2E runs, so the credentials do not depend on a CloudBase service restart.
 | Secret | Required by | Optional? | Effect when missing |
 | --- | --- | --- | --- |
 | `GITHUB_TOKEN` | every workflow | **Auto-provided.** No setup. | n/a |
-| [`VERCEL_TOKEN`](#vercel_token) | `preview-manifest`, `vercel-prune`, legacy Vercel workflows | optional during M8A | Legacy Vercel cleanup / manifest repair jobs skip with a warning |
-| [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflows | optional during M8A | Legacy Vercel fallback operations cannot identify the project |
-| [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflows | optional during M8A | same as above |
-| [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | `preview-manifest` legacy path | **required** only for the legacy manifest rebuild path | The legacy refresh / repair job skips with a warning; CloudBase inline manifest does not need it |
-| [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | legacy Vercel preview tooling only | optional during M8A | No longer used by `server-ci`; keep only while any protected Vercel preview automation remains |
+| [`VERCEL_TOKEN`](#vercel_token) | legacy Vercel workflow only | optional | Legacy Vercel rollback/archive workflow cannot deploy/query the project |
+| [`VERCEL_ORG_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflow only | optional | Legacy Vercel fallback operations cannot identify the project |
+| [`VERCEL_PROJECT_ID`](#vercel_org_id--vercel_project_id) | legacy Vercel workflow only | optional | same as above |
+| [`BLOB_READ_WRITE_TOKEN`](#blob_read_write_token) | operator-only Blob backfill/removal tasks | optional | Needed only while copying or deleting historical Vercel Blob assets |
+| [`VERCEL_AUTOMATION_BYPASS_SECRET`](#vercel_automation_bypass_secret) | none after Vercel Preview retirement | optional | Safe to remove once no protected Vercel preview automation remains |
 | _operator_ [**`VERCEL_CRON_SECRET`**](#vercel_cron_secret-lesson-import-extraction-cron) | workstation `~/.env` | optional | Mirrors Vercel **`CRON_SECRET`** for [`tools/vercel/trigger-cron.sh`](../tools/vercel/trigger-cron.sh); not a GitHub Actions secret |
-| [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci`, `atlas-cleanup` | optional | Shared staging E2E cannot reset or inject fixtures; cron cleanup is a no-op |
+| [`E2E_MONGODB_URI`](#e2e_mongodb_uri) | `server-ci` | optional | Shared staging E2E cannot reset or inject fixtures |
 | [`E2E_ADMIN_USER`](#e2e_admin_user--e2e_admin_pass), [`E2E_ADMIN_PASS`](#e2e_admin_user--e2e_admin_pass) | `server-ci` | optional | E2E tests that need an admin login skip |
 | [`E2E_CRON_SECRET`](#e2e_cron_secret) | `server-ci` | optional | [`test_lesson_import_cron_e2e`](../server/tests/e2e/test_lesson_import_cron_e2e.py) skips if unset; must equal target **`CRON_SECRET`** |
 | [`E2E_STAGING_DB_NAME`](#e2e_staging_db_name) | `server-ci` CloudBase staging E2E | optional | Shared staging E2E cannot reset or validate the target DB |
@@ -58,12 +55,12 @@ E2E runs, so the credentials do not depend on a CloudBase service restart.
 | [`TCB_ENV_ID`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | CloudBase deploy workflow does not know which environment to deploy to. |
 | [`CLOUDBASE_STAGING_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase staging E2E | optional during migration | Staging E2E cannot run against CloudBase. |
 | [`CLOUDBASE_PROD_BASE_URL`](#cloudbase-run-migration-secrets) | CloudBase CD | optional during migration | Production health and HTTP-only smoke checks cannot run against CloudBase. |
-| `ASSET_STORAGE_PROVIDER` | CloudBase runtime env | optional until M7 | Defaults to Vercel Blob; set to `tencent_cos` after COS staging validation. |
+| `ASSET_STORAGE_PROVIDER` | CloudBase runtime env | required after M7 | Set to `tencent_cos`; Vercel Blob is retired for new uploads. |
 | `COS_SECRET_ID` / `COS_SECRET_KEY` | CloudBase runtime env | optional until M7 | New COS uploads cannot run without these when `ASSET_STORAGE_PROVIDER=tencent_cos`. |
 | `COS_REGION` / `COS_BUCKET` / `COS_PUBLIC_BASE_URL` | CloudBase runtime env | optional until M7 | COS URLs cannot be generated correctly without bucket and public base URL config. |
 | `LIGHTHOUSE_MONGODB_URI` | Tencent secret store / operator password manager | optional until M7A | Current low-cost MongoDB Atlas replacement URI for Shanghai Lighthouse; do not put it in GitHub logs. |
 | `TENCENTDB_MONGODB_URI` | Operator secret inventory | optional until managed DB upgrade | Future TencentDB URI if/when Lighthouse operational risk or traffic justifies managed HA. |
-| `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase runtime env | optional until M8 | Lets `/api/v1/public/preview-urls.json` serve CloudBase staging without Vercel Blob. |
+| `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase runtime env | optional | Optional override for `/api/v1/public/preview-urls.json`; unset returns built-in CloudBase prod/staging rows. |
 | `CLOUDBASE_PREVIEW_MODE` | CloudBase preview workflow | optional until M8B | Documents whether preview publishing is shared staging or on-demand CloudBase preview. |
 
 ## Setting secrets in the repo
@@ -124,15 +121,16 @@ Use these after M7 switches new uploads away from Vercel Blob:
 
 | Name | Where to store | Purpose |
 | --- | --- | --- |
-| `ASSET_STORAGE_PROVIDER` | CloudBase env | `vercel_blob` by default; set `tencent_cos` after staging validation. |
+| `ASSET_STORAGE_PROVIDER` | CloudBase env | `tencent_cos` for active CloudBase runtimes. |
 | `COS_SECRET_ID` | CloudBase/Tencent secret store | Tencent COS API credential id. |
 | `COS_SECRET_KEY` | CloudBase/Tencent secret store | Tencent COS API credential key. |
 | `COS_REGION` | CloudBase env | Bucket region. |
 | `COS_BUCKET` | CloudBase env | Separate staging and production bucket names. |
 | `COS_PUBLIC_BASE_URL` | CloudBase env | Public HTTPS base URL, CDN domain, or custom asset domain used to form stored URLs. |
 
-Keep `BLOB_READ_WRITE_TOKEN` until all write paths use COS and any remaining
-Vercel Blob URLs are intentionally retained or backfilled.
+Do not configure Vercel Blob for new uploads. Keep `BLOB_READ_WRITE_TOKEN` only
+on an operator machine while historical Vercel Blob URLs are being backfilled
+to COS or deleted.
 
 After the staging bucket exists, validate the runtime credentials before
 switching CloudBase staging:
@@ -161,14 +159,14 @@ MongoDB remains the future managed HA upgrade path.
 | `LIGHTHOUSE_MONGODB_URI` | Tencent secret store / operator password manager | Shanghai Lighthouse app-user TLS URI for the active M7A path; do not put it in GitHub logs. |
 | `TENCENTDB_MONGODB_URI` | Operator password manager / Tencent secret store | Future TencentDB URI before it replaces runtime `MONGODB_URI`. |
 | `TENCENTDB_MONGO_DB_NAME` | Operator password manager / Tencent secret store | Target database name if different from current `MONGO_DB_NAME`. |
-| `ATLAS_MONGODB_URI_ROLLBACK` | Operator password manager only | Old Atlas URI retained for rollback; do not put this in GitHub logs. |
 
 Historical FlexDB spike variables (`FLEXDB_ENV_ID`, `FLEXDB_TAG`,
 `FLEXDB_MONGODB_URI`, `FLEXDB_API_SECRET_ID`, and `FLEXDB_API_SECRET_KEY`) are
 not required for the active migration unless the project explicitly reopens the
 CloudBase document database API-adapter path.
 
-Do not remove Atlas credentials until the database rollback window is complete.
+Atlas is no longer retained as a rollback path. Do not keep
+`ATLAS_MONGODB_URI_ROLLBACK` in GitHub, CloudBase, or operator runbooks.
 
 ### CloudBase preview replacement secrets
 
@@ -180,15 +178,15 @@ These names replace the Vercel Preview publishing path during M8.
 | `PREVIEW_MANIFEST_INLINE_JSON` | CloudBase env | Inline manifest payload used before a Mongo-backed manifest exists. |
 | `CLOUDBASE_PREVIEW_MODE` | GitHub Actions variable or CloudBase env | Suggested values: `shared_staging`, `on_demand_version`, `on_demand_service`. |
 
-M8A no longer uses the legacy Vercel Preview path for `server-ci` online E2E.
-Keep `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
-`VERCEL_AUTOMATION_BYPASS_SECRET`, and `BLOB_READ_WRITE_TOKEN` configured only
-for the remaining legacy cleanup / repair workflows until M8C/M9 retirement.
+The legacy Vercel Preview path is retired. `server-ci` online E2E uses shared
+CloudBase staging, and the runtime manifest returns only CloudBase production
+and staging rows.
 
 ### `VERCEL_TOKEN`
 
-A Vercel API token used by legacy preview deploy/E2E, cleanup, and manifest
-repair workflows while the old Preview path remains available.
+A Vercel API token used only by the manual legacy Vercel rollback/archive
+workflow. It is not needed for CloudBase production, staging E2E, or the
+runtime manifest.
 
 **Get it:**
 
@@ -202,41 +200,34 @@ repair workflows while the old Preview path remains available.
 
 ### `VERCEL_ORG_ID` & `VERCEL_PROJECT_ID`
 
-Needed by legacy workflows that deploy, query, or repair Vercel Preview state,
-including the transitional `server-ci` preview deploy.
-
-### `BLOB_READ_WRITE_TOKEN`
-
-Used by `server/scripts/update_preview_manifest.mjs` to publish the public
-preview manifest to Vercel Blob at `preview/preview-urls.json`. The Blob is
-the **only** output of the script — there is no repo-tracked audit copy any
-more, so without this token the rebuild jobs skip with a warning and the
-runtime endpoint `GET /api/v1/public/preview-urls.json` keeps serving whatever is
-currently in Blob (or returns `503` until the env var is wired up the first
-time).
-
-**Get it:**
-
-1. In the Vercel project, create or open the Blob store used by `happyword`.
-2. Copy the read-write token and save it as repo secret `BLOB_READ_WRITE_TOKEN`.
-3. Run `preview-manifest` manually once and copy the log line
-   `Uploaded Blob mirror: <url>`.
-4. Save that URL as the Vercel project env var `PREVIEW_MANIFEST_BLOB_URL` for
-   Production and Preview. The backend endpoint returns `503` until this env var
-   is set.
+Needed only by legacy workflows that deploy or query the Vercel archive project.
 
 **Get them** (after `VERCEL_TOKEN` is set):
 
 ```bash
 cd server
 npx vercel link        # interactive: pick Team + Project
-cat .vercel/project.json   # → { "orgId": "...", "projectId": "..." }
+cat .vercel/project.json   # -> { "orgId": "...", "projectId": "..." }
 ```
 
 Save:
 
-- `VERCEL_ORG_ID` ← `orgId`
-- `VERCEL_PROJECT_ID` ← `projectId`
+- `VERCEL_ORG_ID` <- `orgId`
+- `VERCEL_PROJECT_ID` <- `projectId`
+
+### `BLOB_READ_WRITE_TOKEN`
+
+Used only for operator-run historical asset backfill or deletion against
+Vercel Blob. The runtime manifest no longer reads Vercel Blob, and
+`server/scripts/update_preview_manifest.mjs` has been removed.
+
+**Get it:**
+
+1. In the Vercel project, create or open the Blob store used by `happyword`.
+2. Copy the read-write token into a local operator shell only for the backfill
+   session.
+3. Remove the token from local shell history / temporary env files after the
+   backfill or deletion task completes.
 
 (`server/.vercel/` is gitignored.)
 

@@ -18,16 +18,16 @@ The DevMenu loads PR preview rows from:
 That URL is **fixed** in code (`PREVIEW_MANIFEST_JSON_URL` in `RemoteWordPackConfig.ets`). It does **not** follow the backend environment you selected, and the GET carries **no** `x-vercel-protection-bypass` header — you only need normal HTTPS reachability to production.
 
 Use **Refresh manifest** (top-right on DevMenu) after the server-side manifest
-source changes. During the CloudBase migration, production can serve the
-manifest from `PREVIEW_MANIFEST_INLINE_JSON`; otherwise it falls back to the
-legacy Vercel Blob mirror.
+source changes. The production endpoint returns CloudBase production and
+staging rows by default; `PREVIEW_MANIFEST_INLINE_JSON` is now only an optional
+override.
 
 ## Environments
 
 | Mode | Use |
 | --- | --- |
 | **Local** | Machine reachable from the device or emulator (e.g. `<android-emulator-host>` for Android-style emulator loopback). |
-| **Preview** | A manifest row. During M8A this is usually the shared `CloudBase Staging` row (`*.tcloudbase.com`); legacy Vercel preview rows (`*.vercel.app`) remain accepted until Vercel Preview is retired. |
+| **Preview** | A manifest row. After Vercel Preview retirement this list contains CloudBase production/staging rows only. |
 | **Staging** | Default shared hosted URL (`https://happyword.com.cn`) for normal API traffic. |
 | **Production** | Reserved; disabled until a production URL ships in a future release. |
 
@@ -35,36 +35,18 @@ Tapping a card **applies** the environment immediately (health probe for Preview
 
 ## Automation / server
 
-The public preview manifest can now come from either source:
+The public manifest no longer reads Vercel Blob and no workflow rebuilds
+`preview/preview-urls.json`. The default response is defined in
+`server/app/services/preview_manifest_service.py`:
 
-- `PREVIEW_MANIFEST_INLINE_JSON` on the FastAPI server. This is the M8A
-  CloudBase path and can publish a single shared `CloudBase Staging` row
-  without Vercel Blob.
-- `PREVIEW_MANIFEST_BLOB_URL`, the legacy Vercel Blob mirror. This remains as a
-  compatibility fallback until the Vercel Preview path is retired.
+- `HappyWord Production` -> `https://happyword.com.cn`
+- `CloudBase Staging` -> the shared `happyword-server-staging` CloudBase Run
+  default domain
 
-The legacy Vercel Blob manifest at `preview/preview-urls.json` can still be
-rebuilt from Vercel's deployments API by
-`server/scripts/update_preview_manifest.mjs`. After the 2026-06-03 production
-cutover, `server-ci` no longer deploys Vercel Preview or refreshes this Blob
-mirror for PRs; it uses the shared CloudBase staging service for online E2E.
-Use `.github/workflows/preview-manifest.yml` only for manual legacy repair /
-backfill while Vercel Preview remains available as a rollback/archive path.
+Set `PREVIEW_MANIFEST_INLINE_JSON` only when you need to temporarily override
+those rows from runtime configuration.
 
-A merged PR whose legacy preview deployment has not been manually pruned can
-still stay in the Vercel Blob manifest, because that legacy source of truth is
-"what's alive on Vercel right now", not "what PR is currently open". The
-`vercel-prune.yml` workflow is manual-only after the CloudBase cutover.
-
-For the legacy path, the Blob is the only output: the historical repo-tracked
-audit copy at `docs/preview-urls.json` was retired in 2026-05 because the
-bot-commit churn on `main` had no readers — the FastAPI proxy already served
-traffic out of Blob. `BLOB_READ_WRITE_TOKEN` must therefore be configured in
-GitHub Actions for the rebuild jobs to do anything (otherwise they skip with a
-warning), and the FastAPI backend must have `PREVIEW_MANIFEST_BLOB_URL` set to
-the public Blob URL printed by the manifest rebuild job.
-
-PR-specific CloudBase previews are not automatic in M8A. Keep using the shared
+PR-specific CloudBase previews are not automatic. Keep using the shared
 CloudBase staging row until service quota, route discovery, data isolation, and
 cleanup are implemented for on-demand PR previews.
 
@@ -74,4 +56,4 @@ CloudBase staging smoke runs automatically for PRs that touch `server/**` or
 service, waits for that revision to receive traffic, then resets the shared E2E
 database and runs the HTTP E2E suite against `CLOUDBASE_STAGING_BASE_URL`.
 
-**Server contract:** `GET /api/v1/public/preview-urls.json` is intentionally **unauthenticated** at the application layer (public router — no JWT, cookies, or API keys). Vercel Deployment Protection on *preview* deployments does not apply to this URL because the client always calls **production** `happyword.com.cn` for the manifest.
+**Server contract:** `GET /api/v1/public/preview-urls.json` is intentionally **unauthenticated** at the application layer (public router — no JWT, cookies, or API keys). The client always calls **production** `happyword.com.cn` for the manifest, independent of the currently selected backend.

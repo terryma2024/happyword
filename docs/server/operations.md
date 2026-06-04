@@ -264,7 +264,7 @@ If something goes wrong:
 
 | Var                       | Purpose                                              |
 |---------------------------|------------------------------------------------------|
-| `MONGODB_URI`             | Connection string (Atlas / local).                   |
+| `MONGODB_URI`             | Connection string (Tencent-side MongoDB / local).    |
 | `MONGO_DB_NAME`           | Database name (default `happyword`).                 |
 | `JWT_SECRET`              | ≥ 32 byte secret for signing access tokens.          |
 | `ADMIN_BOOTSTRAP_USER`    | Username seeded on first start.                      |
@@ -272,5 +272,5 @@ If something goes wrong:
 | `OPENAI_API_KEY`          | Required for `/admin/llm/*`, `/admin/lessons/*`.     |
 | `OPENAI_MODEL_VISION`     | Default `gpt-4o`.                                    |
 | `OPENAI_MODEL_TEXT`       | Default `gpt-4o-mini`.                               |
-| `BLOB_READ_WRITE_TOKEN`   | Required only for legacy Vercel Blob uploads / retained URLs. Current production uses Tencent COS credentials. |
+| `BLOB_READ_WRITE_TOKEN`   | Operator-only for historical Vercel Blob backfill/deletion. Current production uses Tencent COS credentials. |
 | `CORS_ALLOW_ORIGINS`      | Comma-separated origins (defaults to `*`).           |

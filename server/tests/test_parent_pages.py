@@ -46,6 +46,35 @@ async def test_root_redirects_to_parent_shell(
 
 
 @pytest.mark.asyncio
+async def test_happyword_cool_redirects_permanently_to_com_cn(
+    html_client: tuple[AsyncClient, object],
+) -> None:
+    ac, _ = html_client
+
+    r = await ac.get(
+        "/api/v1/public/health?source=cool",
+        headers={"host": "happyword.cool"},
+    )
+
+    assert r.status_code == 301
+    assert r.headers["location"] == "https://happyword.com.cn/api/v1/public/health?source=cool"
+
+
+@pytest.mark.asyncio
+async def test_happyword_com_cn_does_not_self_redirect(
+    html_client: tuple[AsyncClient, object],
+) -> None:
+    ac, _ = html_client
+
+    r = await ac.get(
+        "/api/v1/public/health",
+        headers={"host": "happyword.com.cn"},
+    )
+
+    assert r.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_legacy_scoped_login_redirects_to_canonical(
     html_client: tuple[AsyncClient, object],
 ) -> None:

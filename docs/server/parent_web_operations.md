@@ -17,13 +17,15 @@
 | 本地完整测试 | `cd server && uv run pytest && uv run ruff check && uv run mypy app` | 全套必须 0 失败 0 警告 |
 | 客户端构建 | `cd harmonyos && hvigorw assembleHap`（DevEco Studio CLI） | 需要校验 `cd harmonyos && codelinter -c ./code-linter.json5 . --fix` 通过 |
 | 生产部署 | GitHub Actions `server-cloudbase-cd` | push `main` 后自动部署 CloudBase；也可手动 dispatch |
-| 旧域名回滚 | `bash tools/vercel/deploy-prod.sh` 或 Vercel Dashboard → 选择上一个绿色 deployment → `Promote` | 仅用于 `happyword.cool` 回滚/归档路径；数据库不会自动回滚，按 §6 数据修复流程处理 |
+| 旧 Vercel 归档检查 | GitHub Actions `server-cd-legacy-vercel`（manual only） | 仅用于归档验证；生产回滚优先使用 CloudBase 上一个绿色 revision，数据库不会自动回滚，按 §6 数据修复流程处理 |
 
 ---
 
 ## 2. 第三方 OAuth 登录（V0.6.8+）
 
-家长可在 **`/family/login`** 使用 **Continue with Google**（与邮箱 OTP 并列）。
+家长可在 **`/family/login`** 使用 Apple / 微信 / 支付宝登录（与邮箱 OTP 并列）。Google
+登录在 CloudBase 中国大陆运行时暂时隐藏：服务器到 Google token/JWKS endpoint
+不可稳定连通，除非后续引入境外 token broker。
 
 ### Google
 
@@ -36,7 +38,10 @@
 | 固定 Vercel Preview | 同域 `start` → Google → **Preview callback** → 直接种 `wm_session`（无需 handoff） |
 | 其它 `*.vercel.app` Preview | 仍用生产 callback + `/finish` ticket（需在 Google Console 单独登记才能直回） |
 
-未配置 `GOOGLE_OAUTH_*` 时登录页隐藏 Google 按钮（仅 OTP）。
+生产状态：Google Console callback 已配置为 `https://happyword.com.cn/v1/oauth/google/callback`，
+但 CloudBase 中国大陆服务端无法稳定请求 Google token endpoint；生产登录页应保持隐藏
+Google 按钮。恢复方案是把 code -> token 交换放到境外合规中继服务，再用签名 handoff
+回 CloudBase。
 
 ### Apple
 
@@ -49,6 +54,8 @@
 
 Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏 Apple 按钮。
 
+生产状态：Apple 登录已在 `happyword.com.cn` 实测通过。
+
 ### WeChat / Alipay
 
 | Provider | Canonical callback | Fixed Preview callback | Env |
@@ -57,6 +64,8 @@ Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏
 | Alipay | `https://happyword.com.cn/v1/oauth/alipay/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/alipay/callback` | `ALIPAY_OAUTH_APP_ID` / `ALIPAY_OAUTH_APP_PRIVATE_KEY` / `ALIPAY_OAUTH_PUBLIC_KEY` |
 
 微信网站应用使用 `snsapi_login`；支付宝网站登录使用 `auth_user`。两者首次登录通常不返回可验证邮箱，因此流程为：OAuth 回调 → `/family/oauth/bind-email?ticket=...` → 邮箱 OTP 验证 → 写入 `oauth_identities` → 种 `wm_session`。已绑定过的用户下次直接登录。
+
+生产状态：支付宝已在开发者平台手动配置并实测通过；微信仍等待平台审核。
 
 设计说明：[`docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md`](../superpowers/specs/2026-05-16-parent-oauth-login-design.md)
 
@@ -255,7 +264,7 @@ Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏
    数据后让用户重试。
 4. 若数据库被破坏：
    - 立刻禁止写流量（CloudBase env `READ_ONLY=true`，V0.7 计划）。
-   - 从 MongoDB Atlas 备份点恢复。
+   - 从当前 Tencent-side MongoDB 备份恢复；Atlas 不再作为保留回滚路径。
    - 重放过期间隙的 `audit_log` 行（手工补 / 通知用户）。
 
 ---

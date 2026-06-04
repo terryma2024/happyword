@@ -26,15 +26,14 @@ def test_vercel_extract_pending_cron_is_every_minute() -> None:
     assert crons[0]["schedule"] == "* * * * *"
 
 
-def test_vercel_git_preview_branches_use_double_star_glob() -> None:
-    """``*`` does not match branch names with ``/`` (e.g. ``cursor/foo``); those
-    branches were still getting previews because unspecified globs default to
-    ``true``. Use ``**`` so only ``main`` stays enabled — see Vercel git docs
-    (minimatch / multiple matching rules).
+def test_vercel_git_deployments_are_disabled() -> None:
+    """CloudBase owns production deploys now. Vercel remains attached only for
+    the legacy ``happyword.cool`` 301 endpoint, so GitHub commits must not create
+    Vercel deployments.
     """
     config = json.loads(_VERCEL_JSON.read_text(encoding="utf-8"))
     de = config.get("git", {}).get("deploymentEnabled")
-    assert de == {"main": True, "**": False}
+    assert de is False
 
 
 def test_vercel_config_uses_fastapi_framework_preset() -> None:
