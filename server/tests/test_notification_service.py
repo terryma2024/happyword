@@ -48,7 +48,7 @@ async def test_send_otp_email_degraded_when_provider_fails() -> None:
 
     class _FailingProvider:
         async def send(
-            self, *, to: str, subject: str, html: str, text: str
+            self, *, to: str, subject: str, html: str, text: str, **_kwargs: object
         ) -> None:
             raise EmailDeliveryError("simulated auth fail")
 
@@ -98,7 +98,7 @@ async def test_send_device_unbind_otp_email_degraded_when_provider_fails() -> No
 
     class _FailingProvider:
         async def send(
-            self, *, to: str, subject: str, html: str, text: str
+            self, *, to: str, subject: str, html: str, text: str, **_kwargs: object
         ) -> None:
             raise EmailDeliveryError("simulated auth fail")
 

@@ -224,25 +224,28 @@ Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏
 
 ---
 
-## 11. 邮件 / SMTP 故障排查
+## 11. 邮件 / Tencent SES 故障排查
 
 | 症状 | 排查路径 |
 | --- | --- |
-| OTP 邮件没收到 | `aiosmtplib` 是否抛错 → 检查 `SMTP_USERNAME`/`SMTP_PASSWORD`；OTP 行已写入数据库 |
-| `EMAIL_DELIVERY_DEGRADED` 在响应里出现 | provider raised `EmailDeliveryError`；查 SMTP 日志；用户可点"重新发送" |
+| OTP 邮件没收到 | 生产先查 Tencent SES `SendEmail` 调用错误码 / CloudBase 日志；OTP 行已写入数据库 |
+| `EMAIL_DELIVERY_DEGRADED` 在响应里出现 | provider raised `EmailDeliveryError`；查 Tencent SES 发送状态 / CloudBase 日志；用户可点"重新发送" |
 | 兑换通知邮件丢失 | `NOTIFICATION_EMAIL_ENABLED` 是否被关；`Family.primary_email` / `User.email` 是否填 |
-| Gmail 535 5.7.8 | App Password 失效 — 见下面"轮换流程" |
+| Tencent SES `NotAuthenticatedSender` | 发信地址或域名未验证；检查 `TENCENT_SES_FROM_EMAIL` 和发信域名 SPF / DKIM / DMARC |
+| Tencent SES `WithOutPermission` | 当前账号未开通非模板 `Simple` 发送；配置模板 ID 或申请特殊配置 |
 
-### Gmail App Password 轮换流程
+### Tencent SES 切换 / 轮换流程
 
-1. 重新启用 2-Step Verification：<https://myaccount.google.com/security>。
-2. 生成新 App Password：<https://myaccount.google.com/apppasswords>。
-3. 在 CloudBase Run 生产服务环境变量中更新
-   `SMTP_PASSWORD` 字段（注意去掉空格）。
-4. 触发 GitHub Actions `server-cloudbase-cd` 或在 CloudBase 控制台重启服务。
-5. 用 `live_smtp` 标记的 pytest 集合或一个临时 `/api/v1/family/{family_id}/auth/request-code`
-   验证发件成功。
-6. 第一次成功的请求即可关闭工单。
+1. 在腾讯云邮件推送创建发信域名，建议 `mail.happyword.com.cn`。
+2. 在 DNSPod 添加腾讯 SES 给出的 SPF / DKIM / DMARC 验证记录，直到控制台显示已验证。
+3. 创建发信地址，例如 `noreply@mail.happyword.com.cn`。
+4. 创建验证码模板，至少提供变量：`code`、`expires_in_minutes`。
+5. 在 CloudBase Run 生产服务环境变量中设置
+   `EMAIL_PROVIDER=tencent_ses_api`、`TENCENT_SES_SECRET_ID`、
+   `TENCENT_SES_SECRET_KEY`、`TENCENT_SES_FROM_EMAIL`、
+   `TENCENT_SES_OTP_TEMPLATE_ID`。
+6. 触发 GitHub Actions `server-cloudbase-cd` 或在 CloudBase 控制台重启服务。
+7. 用一个临时 `/api/v1/family/{family_id}/auth/request-code` 请求验证真发件成功。
 
 ---
 

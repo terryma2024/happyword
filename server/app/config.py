@@ -120,7 +120,9 @@ class Settings(BaseSettings):
     password_lockout_minutes: int = 15
 
     # V0.6.1 — email backend (Gmail SMTP default; EmailProvider abstraction)
-    email_provider: Literal["gmail_smtp", "resend", "ses"] = "gmail_smtp"
+    email_provider: Literal["gmail_smtp", "tencent_ses_api", "resend", "ses"] = (
+        "gmail_smtp"
+    )
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_username: str = ""
@@ -129,6 +131,17 @@ class Settings(BaseSettings):
     smtp_from_name: str = "魔法背单词"
     smtp_starttls: bool = True
     smtp_timeout_seconds: float = 10.0
+    tencent_ses_secret_id: str = ""
+    tencent_ses_secret_key: str = ""
+    tencent_ses_region: str = "ap-guangzhou"
+    tencent_ses_endpoint: str = "https://ses.tencentcloudapi.com"
+    tencent_ses_from_email: str = ""
+    tencent_ses_from_name: str = "魔法背单词"
+    tencent_ses_reply_to: str = ""
+    tencent_ses_otp_template_id: int = 0
+    tencent_ses_device_unbind_template_id: int = 0
+    tencent_ses_redemption_template_id: int = 0
+    tencent_ses_allow_simple: bool = False
 
     # V0.6.3 — family word packs
     family_pack_max_words: int = 50
