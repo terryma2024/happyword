@@ -60,12 +60,14 @@ Apple callback 使用 `form_post`；未配置完整 Apple env 时登录页隐藏
 
 | Provider | Canonical callback | Fixed Preview callback | Env |
 | --- | --- | --- | --- |
-| WeChat | `https://happyword.com.cn/v1/oauth/wechat/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/wechat/callback` | `WECHAT_OAUTH_APP_ID` / `WECHAT_OAUTH_APP_SECRET` |
+| WeChat | `https://happyword.com.cn/v1/oauth/wechat/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/wechat/callback` | `WECHAT_OAUTH_LOGIN_ENABLED=true` / `WECHAT_OAUTH_APP_ID` / `WECHAT_OAUTH_APP_SECRET` |
 | Alipay | `https://happyword.com.cn/v1/oauth/alipay/callback` | `https://happyword-zjumty-2580-terrymas-projects.vercel.app/v1/oauth/alipay/callback` | `ALIPAY_OAUTH_APP_ID` / `ALIPAY_OAUTH_APP_PRIVATE_KEY` / `ALIPAY_OAUTH_PUBLIC_KEY` |
 
 微信网站应用使用 `snsapi_login`；支付宝网站登录使用 `auth_user`。两者首次登录通常不返回可验证邮箱，因此流程为：OAuth 回调 → `/family/oauth/bind-email?ticket=...` → 邮箱 OTP 验证 → 写入 `oauth_identities` → 种 `wm_session`。已绑定过的用户下次直接登录。
 
 生产状态：支付宝已在开发者平台手动配置并实测通过；微信仍等待平台审核。
+
+WeChat 登录默认隐藏。只有 `WECHAT_OAUTH_LOGIN_ENABLED=true` 且 AppID/Secret 都已配置时，登录页才显示 WeChat 按钮，`/v1/oauth/wechat/start` 才会跳转到微信授权页。
 
 设计说明：[`docs/superpowers/specs/2026-05-16-parent-oauth-login-design.md`](../superpowers/specs/2026-05-16-parent-oauth-login-design.md)
 

@@ -57,6 +57,24 @@ async def test_login_page_renders_privacy_consent_checkbox(
 
 
 @pytest.mark.asyncio
+async def test_login_page_hides_wechat_when_credentials_exist_but_login_is_disabled(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.config import get_settings
+
+    monkeypatch.setenv("WECHAT_OAUTH_APP_ID", "wx-test")
+    monkeypatch.setenv("WECHAT_OAUTH_APP_SECRET", "secret")
+    get_settings.cache_clear()
+
+    response = await client.get("/family/login")
+
+    assert response.status_code == 200
+    assert "Continue with WeChat" not in response.text
+    assert 'href="/v1/oauth/wechat/start"' not in response.text
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("provider", "display_name"),
     [

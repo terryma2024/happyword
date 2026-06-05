@@ -1324,8 +1324,9 @@ M3 CloudBase cron replacement status:
 | `APPLE_OAUTH_TEAM_ID` | Sign in with Apple | Set only if Apple OAuth remains enabled in the target environment. |
 | `APPLE_OAUTH_KEY_ID` | Sign in with Apple | Set only if Apple OAuth remains enabled in the target environment. |
 | `APPLE_OAUTH_PRIVATE_KEY` | Sign in with Apple | Keep escaped/newline formatting compatible with `server/app/config.py`. |
-| `WECHAT_OAUTH_APP_ID` | WeChat OAuth | Set only if WeChat OAuth remains enabled in the target environment. |
-| `WECHAT_OAUTH_APP_SECRET` | WeChat OAuth | Set only if WeChat OAuth remains enabled in the target environment. |
+| `WECHAT_OAUTH_LOGIN_ENABLED` | WeChat OAuth | Defaults to `false`; set `true` only after the WeChat Open Platform website-app login capability is approved. |
+| `WECHAT_OAUTH_APP_ID` | WeChat OAuth | Set only when WeChat OAuth is approved and `WECHAT_OAUTH_LOGIN_ENABLED=true`. |
+| `WECHAT_OAUTH_APP_SECRET` | WeChat OAuth | Set only when WeChat OAuth is approved and `WECHAT_OAUTH_LOGIN_ENABLED=true`. |
 | `ALIPAY_OAUTH_APP_ID` | Alipay OAuth | Set only if Alipay OAuth remains enabled in the target environment. |
 | `ALIPAY_OAUTH_APP_PRIVATE_KEY` | Alipay OAuth | Keep escaped/newline formatting compatible with `server/app/config.py`. |
 | `ALIPAY_OAUTH_PUBLIC_KEY` | Alipay OAuth | Keep escaped/newline formatting compatible with `server/app/config.py`. |

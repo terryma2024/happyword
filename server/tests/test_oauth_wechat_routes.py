@@ -45,6 +45,7 @@ class StubWeChatOAuthClient:
 
 @pytest.fixture
 def wechat_oauth_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WECHAT_OAUTH_LOGIN_ENABLED", "true")
     monkeypatch.setenv("WECHAT_OAUTH_APP_ID", "wx-test")
     monkeypatch.setenv("WECHAT_OAUTH_APP_SECRET", "secret")
     monkeypatch.setenv("OAUTH_CANONICAL_BASE_URL", "http://test")
@@ -110,6 +111,22 @@ async def test_wechat_start_rejects_disallowed_return_origin_with_provider(
         r.headers["location"]
         == "/family/login?oauth_error=invalid_origin&oauth_provider=wechat"
     )
+
+
+@pytest.mark.asyncio
+async def test_wechat_start_redirects_to_login_when_credentials_exist_but_login_disabled(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("WECHAT_OAUTH_LOGIN_ENABLED", "false")
+    monkeypatch.setenv("WECHAT_OAUTH_APP_ID", "wx-test")
+    monkeypatch.setenv("WECHAT_OAUTH_APP_SECRET", "secret")
+    get_settings.cache_clear()
+
+    r = await client.get("/v1/oauth/wechat/start", follow_redirects=False)
+
+    assert r.status_code == 302
+    assert r.headers["location"] == "/family/login"
 
 
 @pytest.mark.asyncio

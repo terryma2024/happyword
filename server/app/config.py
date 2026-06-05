@@ -186,6 +186,10 @@ class Settings(BaseSettings):
         )
 
     # V0.6.8 — WeChat / Alipay web OAuth; first-time login binds email by OTP.
+    wechat_oauth_login_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("WECHAT_OAUTH_LOGIN_ENABLED", "WECHAT_OAUTH_ENABLED"),
+    )
     wechat_oauth_app_id: str = ""
     wechat_oauth_app_secret: str = ""
     alipay_oauth_app_id: str = ""
@@ -198,7 +202,11 @@ class Settings(BaseSettings):
         return value.replace("\\n", "\n").strip()
 
     def wechat_oauth_configured(self) -> bool:
-        return bool(self.wechat_oauth_app_id.strip() and self.wechat_oauth_app_secret.strip())
+        return bool(
+            self.wechat_oauth_login_enabled
+            and self.wechat_oauth_app_id.strip()
+            and self.wechat_oauth_app_secret.strip()
+        )
 
     def alipay_oauth_configured(self) -> bool:
         return bool(
