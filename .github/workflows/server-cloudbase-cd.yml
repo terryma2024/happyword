@@ -14,6 +14,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CLOUDBASE_CLI_VERSION: 3.5.5
 
 jobs:
   deploy:
@@ -73,7 +74,9 @@ jobs:
 
       - name: Install CloudBase CLI
         if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
-        run: npm install -g @cloudbase/cli
+        run: |
+          npm install -g "@cloudbase/cli@${CLOUDBASE_CLI_VERSION}"
+          tcb --version
 
       - name: Login to CloudBase
         if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
@@ -142,17 +145,34 @@ jobs:
             ].join(" "),
           );
           const previousDeployId = process.env.CLOUDBASE_PREVIOUS_DEPLOY_ID ?? "";
-          process.exit(latest.DeployId !== previousDeployId ? 0 : 2);
+          if (latest.Status === "deploy_failed") {
+            process.exit(latest.DeployId !== previousDeployId ? 3 : 4);
+          }
+          if (latest.DeployId !== previousDeployId && Number(latest.BuildId) > 0) {
+            process.exit(0);
+          }
+          process.exit(2);
           NODE
           }
 
           last_status=0
           for attempt in 1 2 3; do
-            if printf '\n' | tcb cloudrun deploy -e "$TCB_ENV_ID" -s "$server_name" --port 8080 --source . --force; then
+            deploy_output="$(mktemp)"
+            set +e
+            printf '\n' | tcb cloudrun deploy -e "$TCB_ENV_ID" -s "$server_name" --port 8080 --source . --force 2>&1 | tee "$deploy_output"
+            deploy_status=${PIPESTATUS[1]}
+            set -e
+
+            if [ "$deploy_status" -eq 0 ] && \
+               ! grep -Eq 'HTTP ERROR|Error:' "$deploy_output" && \
+               grep -Eq 'submission completed|提交完成' "$deploy_output"; then
               exit 0
             fi
 
-            last_status=$?
+            last_status=$deploy_status
+            if [ "$last_status" -eq 0 ]; then
+              last_status=1
+            fi
             echo "::warning::CloudBase Run submit attempt ${attempt}/3 failed with exit ${last_status}."
             if describe_latest_deploy; then
               echo "::notice::CloudBase created a new deploy record despite the CLI failure; continuing to wait for rollout."
@@ -207,6 +227,37 @@ jobs:
             return records[records.length - 1];
           }
 
+          function printProcessLog(runId) {
+            if (!runId) return;
+            try {
+              const raw = execFileSync(
+                "tcb",
+                [
+                  "api",
+                  "tcbr",
+                  "DescribeCloudRunProcessLog",
+                  "--api-version",
+                  "2022-02-17",
+                  "-e",
+                  envId,
+                  "--body",
+                  JSON.stringify({ EnvId: envId, RunId: runId }),
+                  "--json",
+                ],
+                { encoding: "utf8" },
+              );
+              const jsonStart = raw.indexOf("{");
+              const payload = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw);
+              const logs = payload.data?.Logs ?? [];
+              if (logs.length) {
+                console.log("=== CloudBase deploy process log ===");
+                console.log(logs.join("\n"));
+              }
+            } catch (error) {
+              console.log(`CloudBase deploy process log unavailable: ${error.message}`);
+            }
+          }
+
           while (Date.now() < deadline) {
             const latest = latestDeployRecord();
             if (!latest) {
@@ -221,8 +272,24 @@ jobs:
                 `hasTraffic=${latest.HasTraffic}`,
               ].join(" "),
             );
+            if (latest.DeployId === previousDeployId && latest.Status === "deploy_failed") {
+              throw new Error(
+                `CloudBase did not create a new deploy; latest existing deploy ${latest.DeployId} is already failed`,
+              );
+            }
             if (latest.DeployId !== previousDeployId && latest.Status === "deploy_failed") {
+              printProcessLog(latest.RunId);
               throw new Error(`CloudBase deploy ${latest.DeployId} failed`);
+            }
+            if (
+              latest.DeployId !== previousDeployId &&
+              latest.Status === "normal" &&
+              Number(latest.BuildId) === 0
+            ) {
+              printProcessLog(latest.RunId);
+              throw new Error(
+                `CloudBase deploy ${latest.DeployId} reached normal with BuildId=0; it reused an existing image instead of building the submitted source`,
+              );
             }
             if (
               latest.DeployId !== previousDeployId &&
