@@ -1082,6 +1082,8 @@ enum AppTheme {
     static let page = Color(red: 0.98, green: 0.99, blue: 1.00)
     /// Standard horizontal gutter for full-screen flows (pt).
     static let pageHorizontalPadding: CGFloat = 24
+    /// Tight landscape gutter for core-loop screens that need more play space.
+    static let landscapeCoreLoopHorizontalPadding: CGFloat = 6
     static let portraitPageTopPadding: CGFloat = 4
     static let portraitPageBottomPadding: CGFloat = 16
 }

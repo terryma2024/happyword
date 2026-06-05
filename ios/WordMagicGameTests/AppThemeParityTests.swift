@@ -84,6 +84,18 @@ final class AppThemeParityTests: XCTestCase {
         XCTAssertFalse(homeView.contains("Text(\"开始冒险\")"))
     }
 
+    func testHomeOuterGutterMatchesBattleScreen() throws {
+        let root = try repoRoot()
+        let homeView = try String(contentsOf: root.appending(path: "ios/WordMagicGame/Features/CoreLoop/HomeView.swift"))
+        let battleView = try String(contentsOf: root.appending(path: "ios/WordMagicGame/Features/CoreLoop/BattleView.swift"))
+
+        XCTAssertTrue(homeView.contains("private let homeHorizontalPadding = AppTheme.landscapeCoreLoopHorizontalPadding"))
+        XCTAssertTrue(battleView.contains("private let battleHorizontalPadding = AppTheme.landscapeCoreLoopHorizontalPadding"))
+        XCTAssertTrue(homeView.contains(".padding(.horizontal, homeHorizontalPadding)"))
+        XCTAssertTrue(homeView.contains(".padding(.leading, homeHorizontalPadding)"))
+        XCTAssertTrue(homeView.contains(".padding(.trailing, homeHorizontalPadding)"))
+    }
+
     func testConfigPageActionButtonsUseReportChannelColors() throws {
         let root = try repoRoot()
         let configView = try String(contentsOf: root.appending(path: "ios/WordMagicGame/Features/Settings/ConfigView.swift"))
