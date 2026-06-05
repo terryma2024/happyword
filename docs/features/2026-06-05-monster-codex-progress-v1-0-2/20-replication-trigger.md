@@ -10,8 +10,8 @@ Paste evidence (paths to logs, commit SHAs, screenshot folders) next to each ite
 
 - [x] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
   - Evidence: local run on 2026-06-05, `BUILD SUCCESSFUL`; includes `MonsterProgressStore.test.ets`, `CoinAccount.test.ets`, and `MonsterCodex.test.ets`.
-- [ ] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
-  - Evidence: not run in this pass; requires HarmonyOS UI test target.
+- [x] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
+  - Evidence: local run on 2026-06-05, `scripts/run_ui_tests.sh --suite MonsterCodexFlow --rebuild`; `Tests run: 5, Failure: 0, Error: 0, Pass: 5`, `OHOS_REPORT_CODE: 0`.
 - [x] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
   - Evidence: local run on 2026-06-05, `BUILD SUCCESSFUL`, no `ArkTS:WARN` lines observed.
 - [x] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
@@ -39,7 +39,7 @@ This section is filled after HarmonyOS stabilization. iOS and Android agents con
 | Models | `harmonyos/entry/src/main/ets/data/MonsterCodex.ets` |
 | Services | `harmonyos/entry/src/main/ets/services/MonsterProgressStore.ets`, `harmonyos/entry/src/main/ets/services/CoinAccount.ets` |
 | Pages | `harmonyos/entry/src/main/ets/pages/MonsterCodexPage.ets`, `harmonyos/entry/src/main/ets/pages/BattlePage.ets` |
-| Tests | `harmonyos/entry/src/test/MonsterProgressStore.test.ets`, `harmonyos/entry/src/test/CoinAccount.test.ets`, `harmonyos/entry/src/test/MonsterCodex.test.ets` |
+| Tests | `harmonyos/entry/src/test/MonsterProgressStore.test.ets`, `harmonyos/entry/src/test/CoinAccount.test.ets`, `harmonyos/entry/src/test/MonsterCodex.test.ets`, `harmonyos/entry/src/ohosTest/ets/test/MonsterCodexFlow.ui.test.ets` |
 
 ### 2.2 Persistence keys (cross-platform; replicas must match semantics)
 
@@ -87,8 +87,8 @@ None.
 > **iOS / Android agents:** if `replication_approved` is missing, blank, or `false`, refuse to start Stage 4 and ask the human owner. Do not proceed.
 
 ```yaml
-approved_by:
-approved_at:
-replication_approved: false
-notes:
+approved_by: matianyi
+approved_at: 2026-06-05
+replication_approved: true
+notes: User requested starting iOS and Android alignment subagents after HarmonyOS implementation and MonsterCodexFlow UI test pass.
 ```
