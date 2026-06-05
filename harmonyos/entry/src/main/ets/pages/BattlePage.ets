@@ -88,6 +88,7 @@ import {
   BossDialogueIntroDecisionKind,
   BossDialogueSequencer,
 } from '../services/BossDialogueSequencer';
+import { getMonsterProgressStore, MonsterProgressStore } from '../services/MonsterProgressStore';
 import { requestPageOrientation } from '../utils/orientation';
 
 /**
@@ -265,6 +266,7 @@ struct BattlePage {
   private sessionAnswers: Map<string, AnswerCount> = new Map<string, AnswerCount>();
   private coinAccount: CoinAccount = getCoinAccount();
   private checkInStore: CheckInStore = getCheckInStore();
+  private monsterProgress: MonsterProgressStore = getMonsterProgressStore();
   private feedbackTimer: number = -1;
   /**
    * Handle returned by setInterval for the 1Hz countdown driver. -1 when
@@ -278,6 +280,7 @@ struct BattlePage {
   private bossDialogueSequencer: BossDialogueSequencer = new BossDialogueSequencer();
   private lastIntroMonsterIndex: number = 0;
   private currentMonsterCatalogIndex: number = 1;
+  private lastEncounterRecordedCatalogIndex: number = 0;
   private introShownCatalogIndices: number[] = [];
   private defeatShownCatalogIndices: number[] = [];
   /**
@@ -452,6 +455,9 @@ struct BattlePage {
     });
     this.checkInStore.init(ctx).catch((err: BusinessError): void => {
       console.error(`BattlePage: CheckInStore.init failed: ${JSON.stringify(err)}`);
+    });
+    this.monsterProgress.init(ctx).catch((err: BusinessError): void => {
+      console.error(`BattlePage: MonsterProgressStore.init failed: ${JSON.stringify(err)}`);
     });
     WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
       const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
@@ -1123,6 +1129,7 @@ struct BattlePage {
     // ever resets monsterIndex back to 1 between battles.
     this.currentMonsterCatalogIndex = this.resolveMonsterCatalogIndex(state);
     this.currentMonster = getMonsterByIndex(this.currentMonsterCatalogIndex);
+    this.recordEncounterForCurrentMonster();
     this.currentMonsterBonus = state.currentMonsterBonus;
     this.comboCount = state.comboCount;
     this.remainingSeconds = state.remainingSeconds;
@@ -1198,6 +1205,21 @@ struct BattlePage {
       }
     }
     return state.monsterIndex <= 0 ? 1 : state.monsterIndex;
+  }
+
+  private recordEncounterForCurrentMonster(): void {
+    if (this.currentMonsterCatalogIndex <= 0 || this.currentMonsterCatalogIndex === this.lastEncounterRecordedCatalogIndex) {
+      return;
+    }
+    this.lastEncounterRecordedCatalogIndex = this.currentMonsterCatalogIndex;
+    this.monsterProgress.recordEncounter(this.currentMonsterCatalogIndex);
+  }
+
+  private recordMonsterDefeat(catalogIndex: number): void {
+    if (catalogIndex <= 0) {
+      return;
+    }
+    this.monsterProgress.recordDefeat(catalogIndex);
   }
 
   /**
@@ -1296,6 +1318,7 @@ struct BattlePage {
     // damage is visible before the reveal delay elapses.
     if (outcome.monsterDefeated) {
       this.bossDialogueSequencer.beginDefeatTransition();
+      this.recordMonsterDefeat(defeatedMonsterCatalogBeforeAnswer);
     }
     this.syncFromEngine();
     if (outcome.monsterDefeated) {
@@ -1544,6 +1567,7 @@ struct BattlePage {
 
     if (outcome.monsterDefeated) {
       this.bossDialogueSequencer.beginDefeatTransition();
+      this.recordMonsterDefeat(defeatedMonsterCatalogBeforeAnswer);
     }
     this.syncFromEngine();
     if (outcome.monsterDefeated) {
@@ -1744,6 +1768,9 @@ struct BattlePage {
     // errors are swallowed inside flushNow() so nothing is leaked.
     this.recorder.flushNow().catch((err: BusinessError): void => {
       console.error(`BattlePage: LearningRecorder.flushNow failed: ${JSON.stringify(err)}`);
+    });
+    this.monsterProgress.flushNow().catch((err: BusinessError): void => {
+      console.error(`BattlePage: MonsterProgressStore.flushNow failed: ${JSON.stringify(err)}`);
     });
     this.getUIContext().getRouter().replaceUrl({
       url: 'pages/ResultPage',

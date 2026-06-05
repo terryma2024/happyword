@@ -150,6 +150,20 @@ export class CoinAccount {
     return true;
   }
 
+  creditCapFree(reason: string, amount: number, nowMs: number): number {
+    if (reason.length === 0 || amount <= 0) {
+      return 0;
+    }
+    const actual: number = Math.floor(amount);
+    if (actual <= 0) {
+      return 0;
+    }
+    this.snap.totalCoins += actual;
+    this.pushTxn(nowMs, actual, reason, this.balance());
+    this.scheduleSave();
+    return actual;
+  }
+
   applyExternalTxn(txnId: string, delta: number, reason: string, ts: number): boolean {
     if (txnId.length === 0 || delta === 0 || this.hasTxnId(txnId)) {
       return false;

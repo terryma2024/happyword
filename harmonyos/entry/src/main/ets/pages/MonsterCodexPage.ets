@@ -3,6 +3,15 @@ import {
   getMonsterByIndex,
   levelBadgeZhForMonsterLevel,
 } from '../data/MonsterCatalog';
+import { CoinAccount, getCoinAccount } from '../services/CoinAccount';
+import {
+  getMonsterProgressStore,
+  maskedQuestionMarks,
+  MonsterProgressRecord,
+  MonsterProgressStore,
+  MonsterRewardState,
+  MONSTER_MYSTERY_ASSET,
+} from '../services/MonsterProgressStore';
 import display from '@ohos.display';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
@@ -47,12 +56,15 @@ const PAD_BREAKPOINT_VP: number = 600;
 @Component
 struct MonsterCodexPage {
   @State private currentIndex: number = 0;
+  @State private progressRevision: number = 0;
   /**
    * Shorter screen edge in vp. Drives the responsive sizing helpers
    * below. Defaults to a phone-class value so the first frame is
    * never larger-than-life if the display query throws.
    */
   @State private shortEdgeVp: number = 360;
+  private progressStore: MonsterProgressStore = getMonsterProgressStore();
+  private coinAccount: CoinAccount = getCoinAccount();
 
   private applyOrientationPolicy(): void {
     requestPageOrientation(
@@ -64,6 +76,15 @@ struct MonsterCodexPage {
 
   aboutToAppear(): void {
     this.applyOrientationPolicy();
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    this.progressStore.init(ctx).then((): void => {
+      this.progressRevision += 1;
+    }).catch((err: BusinessError): void => {
+      console.error(`MonsterCodexPage: MonsterProgressStore.init failed: ${JSON.stringify(err)}`);
+    });
+    this.coinAccount.init(ctx).catch((err: BusinessError): void => {
+      console.error(`MonsterCodexPage: CoinAccount.init failed: ${JSON.stringify(err)}`);
+    });
     try {
       const d: display.Display = display.getDefaultDisplaySync();
       const widthVp: number = this.getUIContext().px2vp(d.width);
@@ -114,6 +135,59 @@ struct MonsterCodexPage {
 
   private current(): CodexEntry {
     return MONSTER_CODEX[this.currentIndex];
+  }
+
+  private currentProgress(): MonsterProgressRecord {
+    const revision: number = this.progressRevision;
+    if (revision < 0) {
+      return new MonsterProgressRecord();
+    }
+    return this.progressStore.recordFor(this.currentIndex + 1);
+  }
+
+  private currentEncountered(): boolean {
+    return this.currentProgress().encountered;
+  }
+
+  private currentAssetPath(): string {
+    return this.currentEncountered() ? this.current().assetPath : MONSTER_MYSTERY_ASSET;
+  }
+
+  private currentDisplayName(): string {
+    const name: string = this.current().nameEn;
+    return this.currentEncountered() ? name : maskedQuestionMarks(name);
+  }
+
+  private currentKindLabel(): string {
+    const kind: string = this.current().kindLabelZh;
+    return this.currentEncountered() ? kind : maskedQuestionMarks(kind);
+  }
+
+  private currentDescription(): string {
+    const description: string = this.current().descriptionZh;
+    return this.currentEncountered() ? description : maskedQuestionMarks(description);
+  }
+
+  private rewardState(milestone: number): MonsterRewardState {
+    return this.progressStore.rewardState(this.currentIndex + 1, milestone);
+  }
+
+  private claimReward(milestone: number): void {
+    const state: MonsterRewardState = this.rewardState(milestone);
+    if (!state.enabled) {
+      return;
+    }
+    const ok: boolean = this.progressStore.claimReward(this.currentIndex + 1, milestone, this.coinAccount, Date.now());
+    if (!ok) {
+      return;
+    }
+    this.progressRevision += 1;
+    this.progressStore.flushNow().catch((err: BusinessError): void => {
+      console.error(`MonsterCodexPage: MonsterProgressStore.flushNow failed: ${JSON.stringify(err)}`);
+    });
+    this.coinAccount.flushNow().catch((err: BusinessError): void => {
+      console.error(`MonsterCodexPage: CoinAccount.flushNow failed: ${JSON.stringify(err)}`);
+    });
   }
 
   private currentLevelBadgeZh(): string {
@@ -189,7 +263,7 @@ struct MonsterCodexPage {
           .borderRadius(this.avatarFrameRadius())
           .border({ width: 1, color: '#E0E0E0' });
 
-        Image($rawfile(this.current().assetPath))
+        Image($rawfile(this.currentAssetPath()))
           .id('CodexAvatar')
           .objectFit(ImageFit.Contain)
           .width(this.avatarImageSize())
@@ -222,7 +296,7 @@ struct MonsterCodexPage {
   private nameBlock() {
     Column({ space: 6 }) {
       Row({ space: 8 }) {
-        Text(this.current().nameEn)
+        Text(this.currentDisplayName())
           .id('CodexName')
           .fontSize(this.nameFontSize())
           .fontWeight(FontWeight.Bold)
@@ -239,7 +313,7 @@ struct MonsterCodexPage {
       }
       .justifyContent(FlexAlign.Center);
 
-      Text(`「${this.current().kindLabelZh}」`)
+      Text(`「${this.currentKindLabel()}」`)
         .id('CodexKindLabel')
         .fontSize(this.kindFontSize())
         .fontColor('#457B9D')
@@ -253,16 +327,52 @@ struct MonsterCodexPage {
 
   @Builder
   private positionIndicator() {
-    Text(`${this.currentIndex + 1} / ${MONSTER_CODEX.length}`)
-      .id('CodexPositionIndicator')
-      .fontSize(this.positionFontSize())
-      .fontColor('#888888')
-      .margin({ top: 8 });
+    Column({ space: 8 }) {
+      Text(`${this.currentIndex + 1} / ${MONSTER_CODEX.length}`)
+        .id('CodexPositionIndicator')
+        .fontSize(this.positionFontSize())
+        .fontColor('#888888');
+      if (this.currentEncountered()) {
+        Text(`击败 ${this.currentProgress().defeatCount} 次`)
+          .id('CodexDefeatCount')
+          .fontSize(this.positionFontSize())
+          .fontColor('#1D3557')
+          .fontWeight(FontWeight.Medium);
+        this.rewardButtons();
+      }
+    }
+    .alignItems(HorizontalAlign.Center)
+    .margin({ top: 8 });
+  }
+
+  @Builder
+  private rewardButtons() {
+    Row({ space: 10 }) {
+      this.rewardButton(50, 'CodexReward50Button');
+      this.rewardButton(100, 'CodexReward100Button');
+    }
+    .justifyContent(FlexAlign.Center);
+  }
+
+  @Builder
+  private rewardButton(milestone: number, id: string) {
+    Button(this.rewardState(milestone).label)
+      .id(id)
+      .height(this.isPad() ? 40 : 32)
+      .padding({ left: 14, right: 14 })
+      .fontSize(this.isPad() ? 15 : 12)
+      .fontColor(this.rewardState(milestone).enabled ? '#503A00' : '#7A8794')
+      .backgroundColor(this.rewardState(milestone).enabled ? '#F6C453' : '#EDF0F3')
+      .borderRadius(16)
+      .enabled(this.rewardState(milestone).enabled)
+      .onClick((): void => {
+        this.claimReward(milestone);
+      });
   }
 
   @Builder
   private descriptionBlock() {
-    Text(this.current().descriptionZh)
+    Text(this.currentDescription())
       .id('CodexDescription')
       .fontSize(this.descriptionFontSize())
       .lineHeight(this.descriptionLineHeight())

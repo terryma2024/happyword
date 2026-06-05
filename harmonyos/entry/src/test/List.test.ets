@@ -18,6 +18,7 @@ import wishlistStoreTest from './WishlistStore.test';
 import todayPreferencesTest from './TodayPreferences.test';
 import characterAssetsTests from './CharacterAssets.test';
 import monsterCodexTests from './MonsterCodex.test';
+import monsterProgressStoreTest from './MonsterProgressStore.test';
 import redemptionHistoryStoreTest from './RedemptionHistoryStore.test';
 import parentPinDialogTest from './ParentPinDialog.test';
 import remoteWordPackConfigTest from './RemoteWordPackConfig.test';
@@ -104,6 +105,7 @@ export default function testsuite() {
   todayPreferencesTest();
   characterAssetsTests();
   monsterCodexTests();
+  monsterProgressStoreTest();
   redemptionHistoryStoreTest();
   parentPinDialogTest();
   remoteWordPackConfigTest();
