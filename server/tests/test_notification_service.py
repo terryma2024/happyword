@@ -111,3 +111,44 @@ async def test_send_device_unbind_otp_email_degraded_when_provider_fails() -> No
             child_nickname="Kid",
             device_tail="abcd",
         )
+
+
+@pytest.mark.asyncio
+async def test_send_redemption_email_uses_reviewable_template_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.config import get_settings
+    from app.services.email_provider import RecordingEmailProvider
+    from app.services.notification_service import send_redemption_email
+
+    monkeypatch.setenv("PARENT_WEB_BASE_URL", "https://happyword.com.cn")
+    get_settings.cache_clear()
+
+    provider = RecordingEmailProvider()
+    await send_redemption_email(
+        provider,
+        to="parent@example.com",
+        family_id="fam-123",
+        child_nickname="小明",
+        item_display_name="棒棒糖",
+        cost_coins=15,
+        request_id="rdm-12345678",
+    )
+
+    msg = provider.outbox[0]
+    assert msg["template_key"] == "redemption"
+    assert msg["template_data"] == {
+        "child_nickname": "小明",
+        "item_display_name": "棒棒糖",
+        "cost_coins": "15",
+        "request_id": "rdm-12345678",
+        "inbox_path": "/family/fam-123/redemptions",
+    }
+    assert "inbox_url" not in msg["template_data"]
+    assert "https://happyword.com.cn/family/fam-123/redemptions" in msg["text"]
+    assert len(str(msg["text"])) >= 50
+    assert "家长通知邮件" in msg["text"]
+    assert "确认奖励内容" in msg["text"]
+
+    monkeypatch.delenv("PARENT_WEB_BASE_URL", raising=False)
+    get_settings.cache_clear()
