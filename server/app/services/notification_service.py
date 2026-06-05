@@ -214,10 +214,13 @@ async def send_redemption_email(
     settings = get_settings()
     fid = family_id.strip() or "_"
     subject = f"[Word Magic] {child_nickname} 想兑换 {item_display_name}"
-    inbox_url = f"{settings.parent_web_base_url.rstrip('/')}/family/{fid}/redemptions"
+    parent_web_origin = settings.parent_web_base_url.rstrip("/")
+    inbox_path = f"/family/{fid}/redemptions"
+    inbox_url = f"{parent_web_origin}{inbox_path}"
     text = (
-        f"{child_nickname} 想兑换 {item_display_name}（{cost_coins} 金币）。\n\n"
-        f"请前往家长后台审批：\n{inbox_url}\n\n"
+        f"{child_nickname} 想兑换 {item_display_name}，预计需要 {cost_coins} 个金币。\n\n"
+        "这是一封来自魔法背单词的家长通知邮件。孩子发起兑换后，需要家长在后台查看申请详情、确认奖励内容，并选择同意或拒绝，兑换才会继续处理。\n\n"
+        f"请前往家长后台审批：{inbox_url}\n\n"
         f"申请编号：{request_id}\n"
     )
     html = (
@@ -226,6 +229,9 @@ async def send_redemption_email(
         '<h2 style="margin:0 0 16px;font-size:18px">魔法背单词</h2>'
         f"<p>{child_nickname} 想兑换 <strong>{item_display_name}</strong>"
         f"（{cost_coins} 金币）。</p>"
+        "<p>这是一封来自魔法背单词的家长通知邮件。孩子发起兑换后，"
+        "需要家长在后台查看申请详情、确认奖励内容，并选择同意或拒绝，"
+        "兑换才会继续处理。</p>"
         '<p style="margin:16px 0">'
         f'<a href="{inbox_url}" style="display:inline-block;background:#0ea5e9;'
         'color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none">'
@@ -246,7 +252,7 @@ async def send_redemption_email(
             "item_display_name": item_display_name,
             "cost_coins": str(cost_coins),
             "request_id": request_id,
-            "inbox_url": inbox_url,
+            "inbox_path": inbox_path,
         },
     )
 

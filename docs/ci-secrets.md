@@ -150,7 +150,7 @@ because the China-hosted runtime may not reliably reach `smtp.gmail.com`.
 | `TENCENT_SES_REPLY_TO` | CloudBase env | Optional reply-to mailbox. |
 | `TENCENT_SES_OTP_TEMPLATE_ID` | CloudBase env | Required unless `TENCENT_SES_ALLOW_SIMPLE=true`. Template variables: `code`, `expires_in_minutes`. |
 | `TENCENT_SES_DEVICE_UNBIND_TEMPLATE_ID` | CloudBase env | Optional template for device-unbind OTP. Variables: `code`, `expires_in_minutes`, `child_nickname`, `device_tail`. |
-| `TENCENT_SES_REDEMPTION_TEMPLATE_ID` | CloudBase env | Optional template for redemption notifications. Variables: `child_nickname`, `item_display_name`, `cost_coins`, `request_id`, `inbox_url`. |
+| `TENCENT_SES_REDEMPTION_TEMPLATE_ID` | CloudBase env | Optional template for redemption notifications. Variables: `child_nickname`, `item_display_name`, `cost_coins`, `request_id`, `inbox_path`. Keep the domain literal in the Tencent template, e.g. `https://happyword.com.cn{{inbox_path}}`; do not use a variable containing the full link. |
 | `TENCENT_SES_ALLOW_SIMPLE` | CloudBase env | Set only if Tencent SES has enabled non-template `Simple` sends for the account. Default `false`. |
 
 Configure a dedicated sender domain such as `mail.happyword.com.cn` in Tencent

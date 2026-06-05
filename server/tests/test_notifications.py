@@ -111,6 +111,9 @@ async def test_redemption_submit_sends_email_with_subject(
     subject = new_emails[0]["subject"]
     assert subject.startswith("[Word Magic]")
     assert "棒棒糖" in subject
+    assert new_emails[0]["template_key"] == "redemption"
+    assert new_emails[0]["template_data"]["inbox_path"].endswith("/redemptions")
+    assert "inbox_url" not in new_emails[0]["template_data"]
 
 
 @pytest.mark.asyncio
