@@ -64,6 +64,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
@@ -79,7 +80,10 @@ import cool.happyword.wordmagic.core.CheckInCalendar
 import cool.happyword.wordmagic.core.CheckInSnapshot
 import cool.happyword.wordmagic.core.CheckInWeekRow
 import cool.happyword.wordmagic.core.LearningReport
+import cool.happyword.wordmagic.core.MONSTER_MYSTERY_RESOURCE_NAME
 import cool.happyword.wordmagic.core.MonsterCatalog
+import cool.happyword.wordmagic.core.MonsterProgressSnapshot
+import cool.happyword.wordmagic.core.MonsterRewardState
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.RedemptionRecord
 import cool.happyword.wordmagic.core.RedemptionHistoryStore
@@ -89,6 +93,7 @@ import cool.happyword.wordmagic.core.TodayPlanWordRow
 import cool.happyword.wordmagic.core.WishItem
 import cool.happyword.wordmagic.core.WishlistState
 import cool.happyword.wordmagic.core.WordPack
+import cool.happyword.wordmagic.core.maskedQuestionMarks
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
@@ -717,21 +722,55 @@ private fun RedemptionHistoryRecordRow(record: RedemptionRecord) {
 }
 
 @Composable
-fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
+fun MonsterCodexScreen(
+    catalog: MonsterCatalog,
+    progress: MonsterProgressSnapshot,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onClaimReward: (catalogIndex: Int, milestone: Int) -> Unit,
+    onBack: () -> Unit,
+) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val compactLandscape = configuration.screenWidthDp > configuration.screenHeightDp &&
+        configuration.screenHeightDp <= 520
     val current = catalog.current()
+    val catalogIndex = catalog.index + 1
+    val currentProgress = progress.recordFor(catalogIndex)
+    val encountered = currentProgress.encountered
+    val avatarResourceName = if (encountered) current.rawResourceName else MONSTER_MYSTERY_RESOURCE_NAME
+    val displayName = if (encountered) current.nameEn else maskedQuestionMarks(current.nameEn)
+    val kindLabel = if (encountered) current.kindZh else maskedQuestionMarks(current.kindZh)
+    val description = if (encountered) current.descriptionZh else maskedQuestionMarks(current.descriptionZh)
     val hasPrevious = catalog.index > 0
     val hasNext = catalog.index < catalog.entries.lastIndex
+    val headerHeight = 52.dp
+    val titleSize = if (compactLandscape) 22.sp else 25.sp
+    val imageFrameSize = if (compactLandscape) 112.dp else 148.dp
+    val imageSize = if (compactLandscape) 84.dp else 110.dp
+    val imageCorner = if (compactLandscape) 16.dp else 22.dp
+    val nameTopSpace = if (compactLandscape) 4.dp else 10.dp
+    val nameSize = if (compactLandscape) 22.sp else 26.sp
+    val kindSize = if (compactLandscape) 13.sp else 15.sp
+    val levelSize = if (compactLandscape) 12.sp else 14.sp
+    val positionSize = if (compactLandscape) 12.sp else 14.sp
+    val defeatSize = if (compactLandscape) 12.sp else 14.sp
+    val rewardTopSpace = if (compactLandscape) 3.dp else 6.dp
+    val descriptionTopSpace = if (compactLandscape) 4.dp else 12.dp
+    val descriptionSize = if (compactLandscape) 13.sp else 15.sp
+    val descriptionLineHeight = if (compactLandscape) 18.sp else 22.sp
+    val bottomPadding = if (compactLandscape) 8.dp else PageChromeInsets.bodyBottom
     Column(
         Modifier
             .fillMaxSize()
             .background(Color(0xFFFAFBFD))
             .topChromeSafeInsets()
+            .verticalScroll(rememberScrollState())
             .padding(
                 start = PageChromeInsets.bodyHorizontal,
                 top = PageChromeInsets.bodyTop,
                 end = PageChromeInsets.bodyHorizontal,
-                bottom = PageChromeInsets.bodyBottom,
+                bottom = bottomPadding,
             )
             .testTag("MonsterCodexScreen"),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -739,7 +778,7 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(headerHeight),
         ) {
             HarmonyPageTopBackButton(
                 onClick = onBack,
@@ -750,7 +789,7 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
             Text(
                 "怪物图鉴",
                 modifier = Modifier.align(Alignment.Center),
-                fontSize = 25.sp,
+                fontSize = titleSize,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF0B3B63),
             )
@@ -769,18 +808,20 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
             )
             Box(
                 modifier = Modifier
-                    .size(148.dp)
-                    .clip(RoundedCornerShape(22.dp))
+                    .size(imageFrameSize)
+                    .clip(RoundedCornerShape(imageCorner))
                     .background(Color.White)
-                    .border(1.dp, Color(0xFFE1E1E1), RoundedCornerShape(22.dp)),
+                    .border(1.dp, Color(0xFFE1E1E1), RoundedCornerShape(imageCorner))
+                    .testTag("MonsterCodexImage"),
                 contentAlignment = Alignment.Center,
             ) {
                 SvgRawImage(
-                    monsterResource(context, current.rawResourceName),
+                    monsterResource(context, avatarResourceName),
                     modifier = Modifier
-                        .height(110.dp)
+                        .height(imageSize)
                         .aspectRatio(1f)
-                        .testTag("MonsterCodexImage"),
+                        .semantics { contentDescription = if (encountered) current.nameEn else "未知怪物" }
+                        .testTag("CodexAvatar"),
                 )
             }
             CodexArrowButton(
@@ -790,19 +831,27 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
                 onClick = onNext,
             )
         }
-        Spacer(Modifier.height(10.dp))
-        Text(current.nameEn, modifier = Modifier.testTag("MonsterCodexName"), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0B3B63))
-        Text(
-            "「${current.kindZh}」",
+        Spacer(Modifier.height(nameTopSpace))
+        Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFE2F5FC))
-                .padding(horizontal = 22.dp, vertical = 2.dp)
-                .testTag("MonsterCodexKind"),
-            fontSize = 15.sp,
-            color = Color(0xFF0C85B6),
-        )
-        Spacer(Modifier.height(4.dp))
+                .testTag("MonsterCodexName"),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(displayName, modifier = Modifier.testTag("CodexName"), fontSize = nameSize, fontWeight = FontWeight.Bold, color = Color(0xFF0B3B63))
+        }
+        Box(modifier = Modifier.testTag("MonsterCodexKind")) {
+            Text(
+                "「$kindLabel」",
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFE2F5FC))
+                    .padding(horizontal = 22.dp, vertical = 2.dp)
+                    .testTag("CodexKindLabel"),
+                fontSize = kindSize,
+                color = Color(0xFF0C85B6),
+            )
+        }
+        Spacer(Modifier.height(if (compactLandscape) 2.dp else 4.dp))
         Text(
             current.levelLabelZh,
             modifier = Modifier
@@ -810,23 +859,67 @@ fun MonsterCodexScreen(catalog: MonsterCatalog, onPrevious: () -> Unit, onNext: 
                 .background(Color(0xFFD84545))
                 .padding(horizontal = 18.dp, vertical = 3.dp)
                 .testTag("MonsterCodexLevelBadge_${current.id}"),
-            fontSize = 14.sp,
+            fontSize = levelSize,
             fontWeight = FontWeight.Bold,
             color = Color.White,
         )
-        Spacer(Modifier.height(2.dp))
-        Text("${catalog.index + 1} / ${catalog.entries.size}", modifier = Modifier.testTag("MonsterCodexPosition"), fontSize = 14.sp, color = Color(0xFF8A8A8A))
-        Spacer(Modifier.height(12.dp))
-        Text(
-            current.descriptionZh,
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .testTag("MonsterCodexDescription"),
-            color = Color(0xFF333333),
-            fontSize = 15.sp,
-            lineHeight = 22.sp,
-            textAlign = TextAlign.Center,
-        )
+        Spacer(Modifier.height(if (compactLandscape) 1.dp else 2.dp))
+        Box(modifier = Modifier.testTag("MonsterCodexPosition")) {
+            Text("$catalogIndex / ${catalog.entries.size}", modifier = Modifier.testTag("CodexPositionIndicator"), fontSize = positionSize, color = Color(0xFF8A8A8A))
+        }
+        if (encountered) {
+            Spacer(Modifier.height(if (compactLandscape) 2.dp else 4.dp))
+            Text(
+                "击败 ${currentProgress.defeatCount} 次",
+                modifier = Modifier.testTag("CodexDefeatCount"),
+                fontSize = defeatSize,
+                color = Color(0xFF0B3B63),
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.height(rewardTopSpace))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                CodexRewardButton(progress.rewardState(catalogIndex, 50), compact = compactLandscape, tag = "CodexReward50Button") {
+                    onClaimReward(catalogIndex, 50)
+                }
+                CodexRewardButton(progress.rewardState(catalogIndex, 100), compact = compactLandscape, tag = "CodexReward100Button") {
+                    onClaimReward(catalogIndex, 100)
+                }
+            }
+        }
+        Spacer(Modifier.height(descriptionTopSpace))
+        Box(modifier = Modifier.fillMaxWidth(0.9f).testTag("MonsterCodexDescription")) {
+            Text(
+                description,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("CodexDescription"),
+                color = Color(0xFF333333),
+                fontSize = descriptionSize,
+                lineHeight = descriptionLineHeight,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CodexRewardButton(state: MonsterRewardState, compact: Boolean = false, tag: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = state.enabled,
+        modifier = Modifier
+            .height(if (compact) 30.dp else 36.dp)
+            .testTag(tag),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFFF6C453),
+            contentColor = Color(0xFF503A00),
+            disabledContainerColor = Color(0xFFEDF0F3),
+            disabledContentColor = Color(0xFF7A8794),
+        ),
+        shape = RoundedCornerShape(16.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+    ) {
+        Text(state.label, fontSize = if (compact) 12.sp else 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 

@@ -49,23 +49,23 @@ enum MonsterCodex {
     static let entries: [MonsterCodexEntry] = [
         MonsterCodexEntry(
             key: "slime",
-            nameEn: "Slime",
+            nameEn: "软泥小灵",
             kindLabelZh: "普通怪物",
-            descriptionZh: "Slime 是一只软软的小精灵，整天住在森林深处的青草丛里。它最喜欢的事情就是在月光下打滚，把身体滚得圆圆的。它见到谁都会咧开大嘴笑一笑，从来不会真的生气。",
+            descriptionZh: "软泥小灵是一只软软的小精灵，整天住在森林深处的青草丛里。它最喜欢的事情就是在月光下打滚，把身体滚得圆圆的。它见到谁都会咧开大嘴笑一笑，从来不会真的生气。",
             assetName: "CharacterSlime"
         ),
         MonsterCodexEntry(
             key: "zombie",
-            nameEn: "Zombie",
+            nameEn: "书页僵僵",
             kindLabelZh: "拼写专家",
-            descriptionZh: "Zombie 来自一座很老很老的图书馆，他喜欢把翻烂的书页披在身上当披风。他口袋里装满了散落一地的字母，每天都要把它们重新摆一摆。他看起来有点呆呆的，其实只是太爱发呆。",
+            descriptionZh: "书页僵僵来自一座很老很老的图书馆，他喜欢把翻烂的书页披在身上当披风。他口袋里装满了散落一地的字母，每天都要把它们重新摆一摆。他看起来有点呆呆的，其实只是太爱发呆。",
             assetName: "CharacterZombie"
         ),
         MonsterCodexEntry(
             key: "dragon",
-            nameEn: "Dragon",
+            nameEn: "云眠巨龙",
             kindLabelZh: "精英挑战者",
-            descriptionZh: "Dragon 是住在云朵后面的一只老巨龙，鳞片闪着金色的光。他大部分时间都在睡觉，一觉就是一百年。打喷嚏的时候会喷出小小的火苗，把天上的云染成漂亮的橘红色。",
+            descriptionZh: "云眠巨龙是住在云朵后面的一只老巨龙，鳞片闪着金色的光。他大部分时间都在睡觉，一觉就是一百年。打喷嚏的时候会喷出小小的火苗，把天上的云染成漂亮的橘红色。",
             assetName: "CharacterDragon"
         ),
         MonsterCodexEntry(

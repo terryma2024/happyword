@@ -2,7 +2,11 @@ package cool.happyword.wordmagic.data
 
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
+import cool.happyword.wordmagic.core.CoinAccount
+import cool.happyword.wordmagic.core.CoinTransaction
 import cool.happyword.wordmagic.core.GameConfig
+import cool.happyword.wordmagic.core.MonsterProgressRecord
+import cool.happyword.wordmagic.core.MonsterProgressSnapshot
 import cool.happyword.wordmagic.core.PackLibrary
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.SpellbookRewardSnapshot
@@ -58,6 +62,63 @@ class AndroidLocalProgressRepositoriesTest {
         assertEquals(
             listOf("fruit-forest", "school-castle"),
             AndroidLocalProgressRepositories(prefs).loadSpellbookRewards().claimedPackIds,
+        )
+    }
+
+    @Test
+    fun monsterProgressPersistsAsSignedSnapshotKeyJson() {
+        val prefs = FakeSharedPreferences()
+        val repository = AndroidLocalProgressRepositories(prefs)
+        val snapshot = MonsterProgressSnapshot(
+            records = listOf(
+                MonsterProgressRecord(
+                    catalogIndex = 1,
+                    encountered = true,
+                    defeatCount = 100,
+                    claimedMilestones = listOf(50),
+                ),
+            ),
+        )
+
+        repository.saveMonsterProgress(snapshot)
+
+        val raw = prefs.getString("monster_progress/snapshot_v1", "")
+        assertEquals(
+            MonsterProgressSnapshot(
+                records = listOf(
+                    MonsterProgressRecord(
+                        catalogIndex = 1,
+                        encountered = true,
+                        defeatCount = 100,
+                        claimedMilestones = listOf(50),
+                    ),
+                ),
+            ),
+            AndroidLocalProgressRepositories(prefs).loadMonsterProgress(),
+        )
+        assertEquals(true, raw?.contains("\"version\":1"))
+    }
+
+    @Test
+    fun coinAccountPersistsTransactionHistory() {
+        val prefs = FakeSharedPreferences()
+        val repository = AndroidLocalProgressRepositories(prefs)
+
+        repository.saveCoinAccount(
+            CoinAccount(
+                balance = 50,
+                earnedByDay = mapOf("2026-06-05" to 20),
+                transactions = listOf(CoinTransaction("monster-codex:50:1", 50, 50)),
+            ),
+        )
+
+        assertEquals(
+            CoinAccount(
+                balance = 50,
+                earnedByDay = mapOf("2026-06-05" to 20),
+                transactions = listOf(CoinTransaction("monster-codex:50:1", 50, 50)),
+            ),
+            AndroidLocalProgressRepositories(prefs).loadCoinAccount(),
         )
     }
 

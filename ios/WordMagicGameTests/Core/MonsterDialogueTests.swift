@@ -10,7 +10,7 @@ final class MonsterDialogueTests: XCTestCase {
 
         for row in expected {
             let actual = try XCTUnwrap(MonsterDialogueCatalog.dialogue(catalogIndex1Based: row.index))
-            XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: row.index).nameEn, row.name)
+            XCTAssertEqual(MonsterCodex.entry(catalogIndex1Based: row.index).nameEn, Self.expectedDisplayName(for: row))
             XCTAssertEqual(actual.introLine.en, row.introEn, "intro EN mismatch for \(row.index) \(row.name)")
             XCTAssertEqual(actual.introLine.zh, row.introZh, "intro ZH mismatch for \(row.index) \(row.name)")
             XCTAssertEqual(actual.defeatLine.en, row.defeatEn, "defeat EN mismatch for \(row.index) \(row.name)")
@@ -48,6 +48,15 @@ final class MonsterDialogueTests: XCTestCase {
                     defeatZh: cells[5]
                 )
             }
+    }
+
+    private static func expectedDisplayName(for row: DialogueRow) -> String {
+        switch row.index {
+        case 1: "软泥小灵"
+        case 2: "书页僵僵"
+        case 3: "云眠巨龙"
+        default: row.name
+        }
     }
 
     private static var repoRoot: URL {

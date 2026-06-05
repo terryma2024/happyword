@@ -20,36 +20,38 @@
 
 ### Pre-flight: verify the trigger is signed
 
-- [ ] Open [`20-replication-trigger.md`](20-replication-trigger.md) and confirm `replication_approved: true` with a non-empty `approved_by` and `approved_at`.
-- [ ] If missing, stop and ask the human owner. Do not proceed past this point.
+- [x] Open [`20-replication-trigger.md`](20-replication-trigger.md) and confirm `replication_approved: true` with a non-empty `approved_by` and `approved_at`.
+- [x] If missing, stop and ask the human owner. Do not proceed past this point.
 
 ### Task 1: Domain types and pure logic
 
-- [ ] Translate the design's domain rules (§6) into pure Kotlin types and services.
-- [ ] Mirror persistence key `monster_progress/snapshot_v1` exactly.
-- [ ] Write JUnit cases that mirror the HarmonyOS tests listed in trigger §2.5.
-- [ ] Run `cd android && ./gradlew testDebugUnitTest`.
+- [x] Translate the design's domain rules (§6) into pure Kotlin types and services.
+- [x] Mirror persistence key `monster_progress/snapshot_v1` exactly.
+- [x] Write JUnit cases that mirror the HarmonyOS tests listed in trigger §2.5.
+- [x] Run `cd android && ./gradlew testDebugUnitTest`.
 
 ### Task 2: Compose codex states
 
-- [ ] Implement locked, encountered-disabled, claimable, and claimed codex states.
-- [ ] Every UI element listed in `00-design.md` §5 carries `Modifier.testTag("<ID>")` verbatim.
-- [ ] Preserve Monster Codex landscape orientation.
+- [x] Implement locked, encountered-disabled, claimable, and claimed codex states.
+- [x] Every UI element listed in `00-design.md` §5 carries `Modifier.testTag("<ID>")` verbatim.
+- [x] Preserve Monster Codex landscape orientation.
 
 ### Task 3: Compose UI parity
 
-- [ ] Add UI coverage for locked, disabled, claimable, and claimed reward states.
-- [ ] Use stable tags; avoid coordinate taps.
+- [x] Add UI coverage for locked, disabled, claimable, and claimed reward states.
+- [x] Use stable tags; avoid coordinate taps.
 
 ### Task 4: Versioning and screenshots
 
-- [ ] Set `versionName` to `1.0.2`.
-- [ ] Pick a monotonically increasing `versionCode`.
+- [x] Set `versionName` to `1.0.2`.
+- [x] Pick a monotonically increasing `versionCode`.
 - [ ] Capture affected codex screenshots under `assets/screenshots/android/`.
+  - Not updated by this Android worker because the direct scope allowed Android files and this plan only; `assets/` was read-only for parity.
 
 ### Task 5: Verification
 
-- [ ] All affected JVM tests green.
-- [ ] All affected Compose UI / UI Automator tests green.
-- [ ] `cd android && ./gradlew assembleDebug` succeeds with no new warnings in files changed.
+- [x] All affected JVM tests green.
+- [x] All affected Compose UI / UI Automator tests green.
+- [x] `cd android && ./gradlew assembleDebug` succeeds with no new warnings in files changed.
 - [ ] Update [`50-parity-checklist.md`](50-parity-checklist.md) Android columns.
+  - Not updated by this Android worker to avoid conflicts with parallel platform workers; direct scope allowed updates only to this Android plan.

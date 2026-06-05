@@ -103,11 +103,16 @@ class LocalGrowthFlowTest {
         assert(composeRule.onAllNodesWithText("返回").fetchSemanticsNodes().isEmpty())
         composeRule.onNodeWithText("⬅️").assertIsDisplayed()
         composeRule.onNodeWithText("➡️").assertIsDisplayed()
-        composeRule.onNodeWithText("「普通怪物」").assertIsDisplayed()
+        composeRule.onNodeWithTag("CodexAvatar").assertIsDisplayed()
+        composeRule.onNodeWithTag("CodexName").assertIsDisplayed()
+        composeRule.onNodeWithText("????").assertIsDisplayed()
+        composeRule.onNodeWithTag("CodexKindLabel").assertIsDisplayed()
+        composeRule.onNodeWithText("「????」").assertIsDisplayed()
+        composeRule.onNodeWithTag("CodexPositionIndicator").assertIsDisplayed()
         composeRule.onNodeWithText("1 / 100").assertIsDisplayed()
-        composeRule.onNodeWithText(
-            "Slime 是一只软软的小精灵，整天住在森林深处的青草丛里。它最喜欢的事情就是在月光下打滚，把身体滚得圆圆的。它见到谁都会咧开大嘴笑一笑，从来不会真的生气。",
-        ).assertIsDisplayed()
+        assert(composeRule.onAllNodesWithTag("CodexDefeatCount").fetchSemanticsNodes().isEmpty())
+        assert(composeRule.onAllNodesWithTag("CodexReward50Button").fetchSemanticsNodes().isEmpty())
+        assert(composeRule.onAllNodesWithTag("CodexReward100Button").fetchSemanticsNodes().isEmpty())
         composeRule.onNodeWithTag("MonsterCodexNext").performClick()
         composeRule.onNodeWithTag("MonsterCodexName").assertIsDisplayed()
         composeRule.onNodeWithTag("MonsterCodexBack").performClick()
@@ -117,6 +122,42 @@ class LocalGrowthFlowTest {
         composeRule.onNodeWithTag("TodayPlanReportButton").performClick()
         composeRule.onNodeWithTag("LearningReportScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("LearningReportAccuracy").assertIsDisplayed()
+    }
+
+    @Test
+    fun codexShowsEncounteredRewardStatesAndClaimsCapFreeCoins() {
+        relaunchWithSeededProgress(
+            progressJson = """{"version":1,"records":[{"catalogIndex":1,"encountered":true,"defeatCount":100,"claimedMilestones":[]}]}""",
+            coinBalance = 0,
+            earnedByDay = "2026-06-05\t20",
+        )
+
+        composeRule.onNodeWithTag("HomeCodexButton").performClick()
+        composeRule.onNodeWithTag("MonsterCodexScreen").assertIsDisplayed()
+        composeRule.onNodeWithTag("CodexName").assertIsDisplayed()
+        composeRule.onNodeWithText("软泥小灵").assertIsDisplayed()
+        composeRule.onNodeWithText("「普通怪物」").assertIsDisplayed()
+        composeRule.onNodeWithTag("CodexDefeatCount").assertIsDisplayed()
+        composeRule.onNodeWithText("击败 100 次").assertIsDisplayed()
+        composeRule.onNodeWithTag("CodexDescription").assertIsDisplayed()
+        composeRule.onNodeWithTag("CodexReward50Button").assertIsEnabled()
+        composeRule.onNodeWithTag("CodexReward100Button").assertIsEnabled()
+
+        composeRule.onNodeWithTag("CodexReward50Button").performClick()
+        composeRule.onNodeWithTag("CodexReward50Button").assertIsNotEnabled()
+        composeRule.onNodeWithText("已领 50 金币").assertIsDisplayed()
+        composeRule.onNodeWithTag("CodexReward100Button").performClick()
+        composeRule.onNodeWithTag("CodexReward100Button").assertIsNotEnabled()
+        composeRule.onNodeWithText("已领 100 金币").assertIsDisplayed()
+        composeRule.onNodeWithTag("MonsterCodexBack").performClick()
+        composeRule.onNodeWithTag("HomeCoinBalance").assertIsDisplayed()
+        composeRule.onNodeWithText("✨ 150").assertIsDisplayed()
+
+        val prefs = targetContext.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE)
+        assert(prefs.getString("coinEarnedByDay", "") == "2026-06-05\t20")
+        assert(prefs.getString("coinTransactions", "") == "monster-codex:50:1\t50\t50\nmonster-codex:100:1\t100\t150")
+        val persisted = prefs.getString("monster_progress/snapshot_v1", "").orEmpty()
+        assert(persisted.contains(""""claimedMilestones":[50,100]"""))
     }
 
     @Test
@@ -193,6 +234,18 @@ class LocalGrowthFlowTest {
             .edit()
             .clear()
             .commit()
+    }
+
+    private fun relaunchWithSeededProgress(progressJson: String, coinBalance: Int, earnedByDay: String) {
+        scenario?.close()
+        clearLocalProgress()
+        targetContext.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE)
+            .edit()
+            .putString("monster_progress/snapshot_v1", progressJson)
+            .putInt("coinBalance", coinBalance)
+            .putString("coinEarnedByDay", earnedByDay)
+            .commit()
+        scenario = ActivityScenario.launch(MainActivity::class.java)
     }
 
     private companion object {
