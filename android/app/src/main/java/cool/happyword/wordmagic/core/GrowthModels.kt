@@ -4,10 +4,17 @@ import kotlin.math.max
 
 data class CoinCreditResult(val account: CoinAccount, val delta: Int)
 
+data class CoinTransaction(
+    val reason: String,
+    val delta: Int,
+    val balanceAfter: Int,
+)
+
 data class CoinAccount(
     /** Default matches first catalog wish cost (10) so one row shows 申请兑换 and others show 还差 N ✨. */
     val balance: Int = 10,
     val earnedByDay: Map<String, Int> = emptyMap(),
+    val transactions: List<CoinTransaction> = emptyList(),
 ) {
     fun creditBattleReward(stars: Int, dayKey: String): CoinCreditResult {
         val reward = stars.coerceAtLeast(0)
@@ -18,6 +25,7 @@ data class CoinAccount(
             account = copy(
                 balance = balance + delta,
                 earnedByDay = earnedByDay + (dayKey to (earnedToday + delta)),
+                transactions = appendTransaction("battle:$dayKey", delta, balance + delta),
             ),
             delta = delta,
         )
@@ -32,16 +40,36 @@ data class CoinAccount(
     fun creditCheckInWeeklyBonus(dayKey: String, amount: Int = CheckInSnapshot.WEEKLY_BONUS_COINS): CoinAccount {
         val delta = amount.coerceAtLeast(0)
         if (dayKey.isBlank() || delta == 0) return this
-        return copy(balance = balance + delta)
+        return copy(balance = balance + delta, transactions = appendTransaction("checkin-weekly-bonus:$dayKey", delta, balance + delta))
     }
 
     fun creditSpellbookReward(amount: Int = SpellbookService.REWARD_COINS): CoinAccount {
         val delta = amount.coerceAtLeast(0)
-        return if (delta == 0) this else copy(balance = balance + delta)
+        return if (delta == 0) this else copy(balance = balance + delta, transactions = appendTransaction("spellbook-reward", delta, balance + delta))
+    }
+
+    fun creditCapFree(reason: String, amount: Int): CoinCreditResult {
+        val delta = amount.coerceAtLeast(0)
+        if (reason.isBlank() || delta == 0) {
+            return CoinCreditResult(account = this, delta = 0)
+        }
+        return CoinCreditResult(
+            account = copy(
+                balance = balance + delta,
+                transactions = appendTransaction(reason, delta, balance + delta),
+            ),
+            delta = delta,
+        )
+    }
+
+    private fun appendTransaction(reason: String, delta: Int, balanceAfter: Int): List<CoinTransaction> {
+        if (delta == 0) return transactions
+        return (transactions + CoinTransaction(reason = reason, delta = delta, balanceAfter = balanceAfter)).takeLast(MAX_TRANSACTION_HISTORY)
     }
 
     companion object {
         const val DAILY_BATTLE_REWARD_CAP = 20
+        const val MAX_TRANSACTION_HISTORY = 100
     }
 }
 
@@ -450,9 +478,9 @@ data class MonsterCatalog(
     companion object {
         fun default(): MonsterCatalog = MonsterCatalog(
             entries = listOf(
-                MonsterEntry("slime", "Slime", "普通怪物", "Slime 是一只软软的小精灵，整天住在森林深处的青草丛里。它最喜欢的事情就是在月光下打滚，把身体滚得圆圆的。它见到谁都会咧开大嘴笑一笑，从来不会真的生气。", "character_slime"),
-                MonsterEntry("zombie", "Zombie", "拼写专家", "Zombie 来自一座很老很老的图书馆，他喜欢把翻烂的书页披在身上当披风。他口袋里装满了散落一地的字母，每天都要把它们重新摆一摆。他看起来有点呆呆的，其实只是太爱发呆。", "character_zombie"),
-                MonsterEntry("dragon", "Dragon", "精英挑战者", "Dragon 是住在云朵后面的一只老巨龙，鳞片闪着金色的光。他大部分时间都在睡觉，一觉就是一百年。打喷嚏的时候会喷出小小的火苗，把天上的云染成漂亮的橘红色。", "character_dragon"),
+                MonsterEntry("slime", "软泥小灵", "普通怪物", "Slime 是一只软软的小精灵，整天住在森林深处的青草丛里。它最喜欢的事情就是在月光下打滚，把身体滚得圆圆的。它见到谁都会咧开大嘴笑一笑，从来不会真的生气。", "character_slime"),
+                MonsterEntry("zombie", "书页僵僵", "拼写专家", "Zombie 来自一座很老很老的图书馆，他喜欢把翻烂的书页披在身上当披风。他口袋里装满了散落一地的字母，每天都要把它们重新摆一摆。他看起来有点呆呆的，其实只是太爱发呆。", "character_zombie"),
+                MonsterEntry("dragon", "云眠巨龙", "精英挑战者", "Dragon 是住在云朵后面的一只老巨龙，鳞片闪着金色的光。他大部分时间都在睡觉，一觉就是一百年。打喷嚏的时候会喷出小小的火苗，把天上的云染成漂亮的橘红色。", "character_dragon"),
                 MonsterEntry("pumpkin-king", "Pumpkin King", "秋夜灯王", "南瓜王戴着藤蔓皇冠，住在最大的那个南瓜里面。每到秋天他就把灯一盏一盏点起来，让回家的小孩不会迷路。他的笑声脆脆的，像踩在落叶上。", "character_pumpkin_king"),
                 MonsterEntry("imp-king", "Imp King", "林间舞者", "小妖王是个赤脚的小胖精灵，戴一顶蘑菇帽。森林里所有的萤火虫都听他的口令。傍晚他敲敲蘑菇，全林子的小妖就出来跟他绕着大树跳舞。", "character_imp_king"),
                 MonsterEntry("phoenix", "Phoenix", "火羽之灵", "凤凰是一只长着金色尾羽的大鸟，住在最高的果园树梢。每天清晨翅膀一拍就把太阳唤醒。羽毛掉下来就变成秋叶，谁捡到都会觉得手心暖暖的。", "character_phoenix"),

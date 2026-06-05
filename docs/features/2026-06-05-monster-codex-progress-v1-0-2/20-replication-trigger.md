@@ -1,0 +1,97 @@
+# Monster Codex Progress v1.0.2 — Replication Trigger
+
+> Inputs (frozen): [`00-design.md`](00-design.md), [`10-harmony-plan.md`](10-harmony-plan.md)
+>
+> This document is the single gate that controls when iOS / Android replication may begin. iOS and Android agents must verify the signature block at the bottom is filled in before starting any work in `30-ios-plan.md` / `40-android-plan.md`.
+
+## 1. Soft Gate (machine-checkable)
+
+Paste evidence (paths to logs, commit SHAs, screenshot folders) next to each item before checking it.
+
+- [x] **No-device unit tests green** — `cd harmonyos && hvigorw -p module=entry@default test`
+  - Evidence: local run on 2026-06-05, `BUILD SUCCESSFUL`; includes `MonsterProgressStore.test.ets`, `CoinAccount.test.ets`, and `MonsterCodex.test.ets`.
+- [x] **ohosTest UI tests green** — `scripts/run_ui_tests.sh`
+  - Evidence: local run on 2026-06-05, `scripts/run_ui_tests.sh --suite MonsterCodexFlow --rebuild`; `Tests run: 5, Failure: 0, Error: 0, Pass: 5`, `OHOS_REPORT_CODE: 0`.
+- [x] **0 `ArkTS:WARN` lines in HAP build** — `cd harmonyos && hvigorw assembleHap`
+  - Evidence: local run on 2026-06-05, `BUILD SUCCESSFUL`, no `ArkTS:WARN` lines observed.
+- [x] **CodeLinter clean** — `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
+  - Evidence: local run on 2026-06-05, `No defects found in your code.`
+- [x] **Version bumped** — `harmonyos/AppScope/app.json5`
+  - From: `versionName=1.0.1` `versionCode=1010001`
+  - To: `versionName=1.0.2` `versionCode=1020001`
+- [ ] **Feature merged to main**
+  - PR: https://github.com/terryma2024/happyword/pull/168
+  - Branch commit: `20dcb22` (`feat: add mobile monster codex progress parity`)
+- [x] **Screenshots refreshed / human-reviewed** — for every screen this feature visibly changed
+  - HarmonyOS screenshots were reviewed in-thread before replication approval.
+  - Android screenshots were reviewed in-thread after compact landscape fixes.
+  - iOS was accepted by the owner as part of all-client sign-off on 2026-06-05.
+- [x] **Server contracts up to date** — N/A; this feature is local client state only.
+  - Regenerated: N/A
+  - Tests: N/A
+  - Fixture diffs: N/A
+
+## 2. Delta Letter
+
+This section is filled after HarmonyOS stabilization. iOS and Android agents consume it verbatim.
+
+### 2.1 New / changed code
+
+| Layer | HarmonyOS files |
+| --- | --- |
+| Models | `harmonyos/entry/src/main/ets/data/MonsterCodex.ets` |
+| Services | `harmonyos/entry/src/main/ets/services/MonsterProgressStore.ets`, `harmonyos/entry/src/main/ets/services/CoinAccount.ets` |
+| Pages | `harmonyos/entry/src/main/ets/pages/MonsterCodexPage.ets`, `harmonyos/entry/src/main/ets/pages/BattlePage.ets` |
+| Tests | `harmonyos/entry/src/test/MonsterProgressStore.test.ets`, `harmonyos/entry/src/test/CoinAccount.test.ets`, `harmonyos/entry/src/test/MonsterCodex.test.ets`, `harmonyos/entry/src/ohosTest/ets/test/MonsterCodexFlow.ui.test.ets` |
+
+### 2.2 Persistence keys (cross-platform; replicas must match semantics)
+
+| Key | Type | Default | Migration notes |
+| --- | --- | --- | --- |
+| `monster_progress/snapshot_v1` | JSON string | `{"version":1,"records":[]}` | No older snapshot exists. |
+
+### 2.3 Stable IDs introduced or changed
+
+> Cross-link to [`00-design.md`](00-design.md) §5.
+
+| ID | Where | Notes |
+| --- | --- | --- |
+| `CodexDefeatCount` | Monster Codex | New. |
+| `CodexReward50Button` | Monster Codex | New. |
+| `CodexReward100Button` | Monster Codex | New. |
+
+### 2.4 Edge cases discovered during stabilization
+
+- Locked entries hide defeat count and reward buttons entirely.
+- Encountered entries always render both milestone buttons; labels become claimable only at 50 / 100 defeats and disabled again after claiming.
+- Reaching 100 defeats before claiming the 50-tier still allows both claims.
+- Monster rewards use cap-free coin credit and do not mutate the daily 20-coin earned counter.
+
+### 2.5 Tests requiring parity counterparts
+
+| HarmonyOS test | iOS counterpart (XCTest / XCUITest) | Android counterpart (JUnit / Compose UI / UIA) |
+| --- | --- | --- |
+| `harmonyos/entry/src/test/MonsterProgressStore.test.ets` | [x] `MonsterCodexTests` / local store coverage | [x] `MonsterProgressTest`, `AndroidLocalProgressRepositoriesTest` |
+| `harmonyos/entry/src/test/MonsterCodex.test.ets` | [x] `MonsterCodexTests`, `MonsterDialogueTests` | [x] `MonsterProgressTest`, `GrowthStoresTest` |
+| Codex ohosTest flow for locked / disabled / claimable / claimed states | [x] `WordMagicGameUITests` | [x] `LocalGrowthFlowTest.codexShowsEncounteredRewardStatesAndClaimsCapFreeCoins` plus locked-state coverage |
+
+### 2.6 Pitfalls / "do not repeat my mistakes"
+
+- Keep the original monster keys, asset paths, and catalog order stable when changing display names.
+- The mystery image must be copied to `rawfile/character/` as well as retained under `assets/icons/`.
+- Do not mark `replication_approved: true` until the human owner reviews the HarmonyOS screen states.
+
+## 3. Open Questions for the Replicas
+
+None.
+
+## 4. Human-Confirm Signature Block
+
+> **iOS / Android agents:** if `replication_approved` is missing, blank, or `false`, refuse to start Stage 4 and ask the human owner. Do not proceed.
+
+```yaml
+approved_by: matianyi
+approved_at: 2026-06-05
+replication_approved: true
+notes: User requested starting iOS and Android alignment subagents after HarmonyOS implementation and MonsterCodexFlow UI test pass.
+```

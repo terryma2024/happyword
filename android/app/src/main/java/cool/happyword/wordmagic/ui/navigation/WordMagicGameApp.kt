@@ -140,6 +140,7 @@ import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.LearningRecorder
 import cool.happyword.wordmagic.core.LearningReportBuilder
 import cool.happyword.wordmagic.core.MonsterCatalog
+import cool.happyword.wordmagic.core.MonsterProgressSnapshot
 import cool.happyword.wordmagic.core.PackLibrary
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.ParentPinStore
@@ -505,6 +506,7 @@ fun WordMagicGameApp() {
     var redemptionHistory by remember { mutableStateOf(repositories.loadRedemptionHistory()) }
     var localProgressMessage by remember { mutableStateOf("") }
     var monsterCatalog by remember { mutableStateOf(MonsterCatalog.default()) }
+    var monsterProgress by remember { mutableStateOf(repositories.loadMonsterProgress()) }
     var pendingRedemptionWishId by remember { mutableStateOf<String?>(null) }
     var wishlistGiftBoxVisible by remember { mutableStateOf(false) }
     var wishlistGiftBoxTrigger by remember { mutableIntStateOf(0) }
@@ -524,6 +526,20 @@ fun WordMagicGameApp() {
     var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
     var battleDailyDayKey by rememberSaveable { mutableStateOf(restoredBattleSnapshot?.dailyDayKey ?: "") }
     val dailyLearningService = remember { DailyLearningStateService() }
+
+    fun updateMonsterProgress(next: MonsterProgressSnapshot) {
+        if (next == monsterProgress) return
+        monsterProgress = next
+        repositories.saveMonsterProgress(monsterProgress)
+    }
+
+    fun recordMonsterEncounter(catalogIndex: Int) {
+        updateMonsterProgress(monsterProgress.recordEncounter(catalogIndex))
+    }
+
+    fun recordMonsterDefeat(catalogIndex: Int) {
+        updateMonsterProgress(monsterProgress.recordDefeat(catalogIndex))
+    }
 
     fun openParentPin(target: ParentPinReturnTarget) {
         parentPinReturnTarget = target.name
@@ -832,6 +848,7 @@ fun WordMagicGameApp() {
         val initial = engine.initialState()
         battleState = initial
         rememberServedQuestion(initial.question)
+        recordMonsterEncounter(initial.monsterCatalogIndex)
         route = AppRoute.Battle
         return true
     }
@@ -856,6 +873,12 @@ fun WordMagicGameApp() {
         if (restoredBattleSnapshot == null && (route == AppRoute.Battle || route == AppRoute.Result)) {
             clearTransientBattleUiState()
             route = AppRoute.Home
+        }
+    }
+    LaunchedEffect(route, battleState?.monsterCatalogIndex, battleState?.status) {
+        val state = battleState
+        if (route == AppRoute.Battle && state?.status == BattleStatus.Playing) {
+            recordMonsterEncounter(state.monsterCatalogIndex)
         }
     }
     DisposableEffect(lifecycleOwner, route) {
@@ -963,6 +986,7 @@ fun WordMagicGameApp() {
                         val initial = engine.initialState()
                         battleState = initial
                         rememberServedQuestion(initial.question)
+                        recordMonsterEncounter(initial.monsterCatalogIndex)
                         route = AppRoute.Battle
                     },
                     onReview = ::startReviewBattle,
@@ -989,7 +1013,9 @@ fun WordMagicGameApp() {
                         outcome
                     },
                     onAnswer = { answer ->
-                        val outcome = engine.submitAnswerWithOutcome(battleState ?: engine.initialState(), answer)
+                        val currentBattleState = battleState ?: engine.initialState()
+                        recordMonsterEncounter(currentBattleState.monsterCatalogIndex)
+                        val outcome = engine.submitAnswerWithOutcome(currentBattleState, answer)
                         val sourcePack = packLibrary.allPacks().firstOrNull { pack ->
                             pack.words.any { it.id == outcome.question.wordId }
                         }
@@ -1008,6 +1034,12 @@ fun WordMagicGameApp() {
                         }
                         val next = outcome.nextState
                         battleState = next
+                        if (outcome.monsterDefeated) {
+                            recordMonsterDefeat(currentBattleState.monsterCatalogIndex)
+                        }
+                        if (next.status == BattleStatus.Playing) {
+                            recordMonsterEncounter(next.monsterCatalogIndex)
+                        }
                         if (next.status == BattleStatus.Playing) {
                             rememberServedQuestion(next.question)
                         }
@@ -1358,8 +1390,18 @@ fun WordMagicGameApp() {
                 )
                 AppRoute.MonsterCodex -> MonsterCodexScreen(
                     catalog = monsterCatalog,
+                    progress = monsterProgress,
                     onPrevious = { monsterCatalog = monsterCatalog.previous() },
                     onNext = { monsterCatalog = monsterCatalog.next() },
+                    onClaimReward = { catalogIndex, milestone ->
+                        val claim = monsterProgress.claimReward(catalogIndex, milestone, coinAccount)
+                        if (claim.claimed) {
+                            monsterProgress = claim.snapshot
+                            coinAccount = claim.account
+                            repositories.saveMonsterProgress(monsterProgress)
+                            repositories.saveCoinAccount(coinAccount)
+                        }
+                    },
                     onBack = { route = AppRoute.Home },
                 )
                 AppRoute.Spellbook -> SpellbookScreen(

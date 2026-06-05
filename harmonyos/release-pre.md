@@ -1,10 +1,10 @@
-# HarmonyOS v1.0.1 Release Preparation
+# HarmonyOS v1.0.2 Release Preparation
 
 > Scope: Huawei AppGallery / HarmonyOS release only. Android release work is intentionally excluded.
 > App: `魔法背单词`
 > Bundle name: `com.terryma.wordmagicgame`
-> Version name: `1.0.1`
-> Version code: `1010001`
+> Version name: `1.0.2`
+> Version code: `1020001`
 > Last updated: 2026-06-05
 
 ## Source Of Truth
@@ -19,8 +19,8 @@
 
 ## Current Repo State
 
-- [x] `versionName` is `1.0.1` in `harmonyos/AppScope/app.json5`.
-- [x] `versionCode` is `1010001` in `harmonyos/AppScope/app.json5`.
+- [x] `versionName` is `1.0.2` in `harmonyos/AppScope/app.json5`.
+- [x] `versionCode` is `1020001` in `harmonyos/AppScope/app.json5`.
 - [x] Bundle name is `com.terryma.wordmagicgame`.
 - [x] Debug-only battle finish button is gated by `BuildProfile.BUILD_MODE_NAME`.
 - [x] Home version-label triple-tap is gated to debug builds.
@@ -28,8 +28,9 @@
 - [x] Debug HAP build passed locally with no observed `ArkTS:WARN` lines.
 - [x] CodeLinter passed locally with no defects after the successful HAP build.
 - [ ] No-device unit tests need a clean rerun: the latest local run completed `UnitTestArkTS`, printed `Darwin`, then the runner hung before reporting pass/fail.
-- [x] Full HarmonyOS UI test passed for `1.0.1` on 2026-06-05 (Parfit run observed by human).
-- [x] Release-mode APP build passed locally for `1.0.1` with no observed `ArkTS:WARN` lines.
+- [x] Monster Codex v1.0.2 acceptance UI flow passed on 2026-06-05.
+- [ ] Full HarmonyOS UI test pass for `1.0.2` release-candidate build needs a clean rerun before upload.
+- [ ] Release-mode APP build for `1.0.2` needs a clean rerun before upload.
 - [x] Signed APP package exists at `harmonyos/build/outputs/default/harmonyos-default-signed.app`.
 - [x] Official signing material was generated locally under `~/.ohos/config`; the local `build-profile.json5` credential-path/password change is intentionally not safe to commit.
 - [ ] Real-device Release smoke test is not yet done.
@@ -195,4 +196,4 @@ hvigorw assembleApp -p buildMode=release --no-daemon
 8. [ ] Complete Release smoke test.
 9. [x] Prepare Huawei privacy/permission declarations.
 10. [ ] Replace screenshots and AppGallery metadata after rejection hotfix rebuild.
-11. [ ] Submit v1.0.1 for Huawei review.
+11. [ ] Submit v1.0.2 for Huawei review.

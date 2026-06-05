@@ -132,6 +132,7 @@ final class CoinAccount: ObservableObject {
         case redemption
         case checkInWeeklyBonus
         case spellbookPackComplete
+        case monsterCodexReward
     }
 
     struct Transaction: Equatable, Identifiable, Codable {
@@ -227,6 +228,20 @@ final class CoinAccount: ObservableObject {
     }
 
     @discardableResult
+    func creditMonsterCodexReward(reason: String, amount: Int, now: Date = Date()) -> Int {
+        let actual = max(amount, 0)
+        let normalizedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard actual > 0, !normalizedReason.isEmpty else { return 0 }
+        balance += actual
+        transactions.insert(
+            Transaction(id: normalizedReason, delta: actual, reason: .monsterCodexReward, createdAt: now),
+            at: 0
+        )
+        save()
+        return actual
+    }
+
+    @discardableResult
     func redeem(_ amount: Int, now: Date = Date()) -> Bool {
         guard amount > 0, balance >= amount else { return false }
         balance -= amount
@@ -246,6 +261,217 @@ final class CoinAccount: ObservableObject {
     private static func dayKey(_ date: Date) -> String {
         let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
         return "\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)"
+    }
+
+    func todayEarnedForTesting(now: Date = Date()) -> Int {
+        earnedByDay[Self.dayKey(now), default: 0]
+    }
+}
+
+struct MonsterProgressRecord: Codable, Equatable {
+    var catalogIndex: Int
+    var encountered: Bool = false
+    var defeatCount: Int = 0
+    var claimedMilestones: [Int] = []
+}
+
+struct MonsterProgressSnapshot: Codable, Equatable {
+    var version: Int = 1
+    var records: [MonsterProgressRecord] = []
+
+    func record(catalogIndex: Int) -> MonsterProgressRecord? {
+        records.first { $0.catalogIndex == catalogIndex }
+    }
+}
+
+struct MonsterRewardState: Equatable {
+    var milestone: Int
+    var amount: Int
+    var label: String
+    var enabled: Bool
+    var claimed: Bool
+}
+
+@MainActor
+final class MonsterProgressStore: ObservableObject {
+    static let snapshotKey = "monster_progress/snapshot_v1"
+    static let mysteryAssetName = "CharacterMonsterMysteryQuestion"
+
+    @Published private(set) var snapshot: MonsterProgressSnapshot
+    private let defaults: UserDefaults?
+
+    init(snapshot: MonsterProgressSnapshot = MonsterProgressSnapshot(), defaults: UserDefaults? = .standard) {
+        self.defaults = defaults
+        if ProcessInfo.processInfo.arguments.contains("-UITestResetState") {
+            defaults?.removeObject(forKey: Self.snapshotKey)
+        }
+        if snapshot != MonsterProgressSnapshot() {
+            self.snapshot = Self.normalized(snapshot)
+        } else if let raw = defaults?.string(forKey: Self.snapshotKey) {
+            self.snapshot = Self.parseSnapshot(raw)
+        } else {
+            self.snapshot = snapshot
+        }
+    }
+
+    static func parseSnapshot(_ raw: String) -> MonsterProgressSnapshot {
+        guard !raw.isEmpty,
+              let data = raw.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(MonsterProgressSnapshot.self, from: data)
+        else { return MonsterProgressSnapshot() }
+        return normalized(decoded)
+    }
+
+    static func maskedQuestionMarks(_ source: String) -> String {
+        String(repeating: "?", count: source.count)
+    }
+
+    static func milestoneCoinAmount(_ milestone: Int) -> Int {
+        switch milestone {
+        case 50:
+            50
+        case 100:
+            100
+        default:
+            0
+        }
+    }
+
+    static func rewardState(defeatCount: Int, claimed: Bool, milestone: Int) -> MonsterRewardState {
+        let amount = milestoneCoinAmount(milestone)
+        if claimed {
+            return MonsterRewardState(
+                milestone: milestone,
+                amount: amount,
+                label: "已领 \(amount) 金币",
+                enabled: false,
+                claimed: true
+            )
+        }
+        if amount > 0, defeatCount >= milestone {
+            return MonsterRewardState(
+                milestone: milestone,
+                amount: amount,
+                label: "领 \(amount) 金币",
+                enabled: true,
+                claimed: false
+            )
+        }
+        return MonsterRewardState(
+            milestone: milestone,
+            amount: amount,
+            label: "\(amount) 金币 \(max(defeatCount, 0))/\(milestone)",
+            enabled: false,
+            claimed: false
+        )
+    }
+
+    func record(for catalogIndex: Int) -> MonsterProgressRecord {
+        let index = normalizedCatalogIndex(catalogIndex)
+        return snapshot.record(catalogIndex: index) ?? MonsterProgressRecord(catalogIndex: index)
+    }
+
+    func recordEncounter(catalogIndex: Int) {
+        guard catalogIndex > 0 else { return }
+        var record = mutableRecord(catalogIndex: catalogIndex)
+        record.encountered = true
+        upsert(record)
+    }
+
+    func recordDefeat(catalogIndex: Int) {
+        guard catalogIndex > 0 else { return }
+        var record = mutableRecord(catalogIndex: catalogIndex)
+        record.encountered = true
+        record.defeatCount += 1
+        upsert(record)
+    }
+
+    func rewardState(catalogIndex: Int, milestone: Int) -> MonsterRewardState {
+        let record = record(for: catalogIndex)
+        return Self.rewardState(
+            defeatCount: record.defeatCount,
+            claimed: record.claimedMilestones.contains(milestone),
+            milestone: milestone
+        )
+    }
+
+    func canClaim(catalogIndex: Int, milestone: Int) -> Bool {
+        let record = record(for: catalogIndex)
+        return record.encountered
+            && record.defeatCount >= milestone
+            && Self.milestoneCoinAmount(milestone) > 0
+            && !record.claimedMilestones.contains(milestone)
+    }
+
+    @discardableResult
+    func claimReward(catalogIndex: Int, milestone: Int, coins: CoinAccount, now: Date = Date()) -> Bool {
+        guard canClaim(catalogIndex: catalogIndex, milestone: milestone) else { return false }
+        let amount = Self.milestoneCoinAmount(milestone)
+        let reason = "monster-codex:\(milestone):\(catalogIndex)"
+        guard coins.creditMonsterCodexReward(reason: reason, amount: amount, now: now) == amount else { return false }
+        return markClaimed(catalogIndex: catalogIndex, milestone: milestone)
+    }
+
+    func replaceSnapshotForTesting(_ snapshot: MonsterProgressSnapshot) {
+        self.snapshot = Self.normalized(snapshot)
+        save()
+    }
+
+    private static func normalized(_ input: MonsterProgressSnapshot) -> MonsterProgressSnapshot {
+        var output = MonsterProgressSnapshot(version: max(1, input.version), records: [])
+        var seen: Set<Int> = []
+        for raw in input.records {
+            let index = Int(raw.catalogIndex)
+            guard index > 0, !seen.contains(index) else { continue }
+            seen.insert(index)
+            output.records.append(MonsterProgressRecord(
+                catalogIndex: index,
+                encountered: raw.encountered,
+                defeatCount: max(0, raw.defeatCount),
+                claimedMilestones: normalizeMilestones(raw.claimedMilestones)
+            ))
+        }
+        return output
+    }
+
+    private static func normalizeMilestones(_ raw: [Int]) -> [Int] {
+        Array(Set(raw.filter { $0 == 50 || $0 == 100 })).sorted()
+    }
+
+    private func normalizedCatalogIndex(_ catalogIndex: Int) -> Int {
+        max(0, catalogIndex)
+    }
+
+    private func mutableRecord(catalogIndex: Int) -> MonsterProgressRecord {
+        let index = normalizedCatalogIndex(catalogIndex)
+        return snapshot.record(catalogIndex: index) ?? MonsterProgressRecord(catalogIndex: index)
+    }
+
+    @discardableResult
+    private func markClaimed(catalogIndex: Int, milestone: Int) -> Bool {
+        guard Self.milestoneCoinAmount(milestone) > 0 else { return false }
+        var record = mutableRecord(catalogIndex: catalogIndex)
+        guard !record.claimedMilestones.contains(milestone) else { return false }
+        record.claimedMilestones.append(milestone)
+        record.claimedMilestones = Self.normalizeMilestones(record.claimedMilestones)
+        upsert(record)
+        return true
+    }
+
+    private func upsert(_ record: MonsterProgressRecord) {
+        var records = snapshot.records.filter { $0.catalogIndex != record.catalogIndex }
+        records.append(record)
+        records.sort { $0.catalogIndex < $1.catalogIndex }
+        snapshot.records = records
+        save()
+    }
+
+    private func save() {
+        guard let defaults,
+              let data = try? JSONEncoder().encode(snapshot),
+              let raw = String(data: data, encoding: .utf8)
+        else { return }
+        defaults.set(raw, forKey: Self.snapshotKey)
     }
 }
 

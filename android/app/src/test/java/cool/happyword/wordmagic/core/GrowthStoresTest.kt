@@ -91,9 +91,9 @@ class GrowthStoresTest {
         val catalog = MonsterCatalog.default()
 
         assertEquals(100, catalog.entries.size)
-        assertEquals("Slime", catalog.current().nameEn)
-        assertEquals("Zombie", catalog.next().current().nameEn)
-        assertEquals("Slime", catalog.previous().current().nameEn)
+        assertEquals("软泥小灵", catalog.current().nameEn)
+        assertEquals("书页僵僵", catalog.next().current().nameEn)
+        assertEquals("软泥小灵", catalog.previous().current().nameEn)
         assertEquals("Music Box Fairy", catalog.copy(index = 99).current().nameEn)
         assertEquals("character_music_box_fairy", catalog.copy(index = 99).current().rawResourceName)
     }

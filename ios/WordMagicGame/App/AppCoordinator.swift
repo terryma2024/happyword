@@ -61,6 +61,7 @@ final class AppCoordinator: ObservableObject {
 
     let configStore: GameConfigStore
     let coinAccount: CoinAccount
+    let monsterProgressStore: MonsterProgressStore
     let checkInStore: CheckInStore
     let dailyLearningStateService: DailyLearningStateService
     let parentClient: any ParentApiClient
@@ -120,6 +121,7 @@ final class AppCoordinator: ObservableObject {
         checkInStore: CheckInStore = CheckInStore(),
         dailyLearningStateService: DailyLearningStateService = DailyLearningStateService(),
         coinAccount: CoinAccount? = nil,
+        monsterProgressStore: MonsterProgressStore? = nil,
         wishlistStore: WishlistStore? = nil,
         redemptionHistoryStore: RedemptionHistoryStore? = nil,
         spellbookRewardStore: SpellbookRewardStore? = nil,
@@ -152,6 +154,7 @@ final class AppCoordinator: ObservableObject {
         self.checkInStore = checkInStore
         self.dailyLearningStateService = dailyLearningStateService
         self.coinAccount = coinAccount ?? CoinAccount(defaults: configStore.backingDefaults)
+        self.monsterProgressStore = monsterProgressStore ?? MonsterProgressStore(defaults: configStore.backingDefaults)
         self.wishlistStore = wishlistStore ?? WishlistStore(defaults: configStore.backingDefaults)
         self.redemptionHistoryStore = redemptionHistoryStore ?? RedemptionHistoryStore(defaults: configStore.backingDefaults)
         self.spellbookRewardStore = spellbookRewardStore ?? SpellbookRewardStore(defaults: configStore.backingDefaults)
@@ -298,6 +301,7 @@ final class AppCoordinator: ObservableObject {
         )
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
+        monsterProgressStore.recordEncounter(catalogIndex: engine.state.currentMonsterCatalogIndex)
         battleAudioMixer.startBattle(config: configStore.config)
         activeBattleKind = .normal
         activeBattleStartDate = Date()
@@ -356,6 +360,7 @@ final class AppCoordinator: ObservableObject {
         )
         questionSource.setMonsterIndexProvider { engine.state.monsterIndex }
         engine.start()
+        monsterProgressStore.recordEncounter(catalogIndex: engine.state.currentMonsterCatalogIndex)
         battleAudioMixer.startBattle(config: reviewConfig)
         activeBattleKind = .review
         activeBattleStartDate = Date()
@@ -390,11 +395,13 @@ final class AppCoordinator: ObservableObject {
         guard let engine = battleEngine else { return }
         do {
             let answeredWordId = engine.state.currentQuestion?.wordId
+            let defeatedCatalogIndex = engine.state.currentMonsterCatalogIndex
             let outcome = try engine.submitAnswer(option)
             if let answeredWordId, !outcome.advancedStep {
                 learningRecorder.record(wordId: answeredWordId, correct: outcome.correct)
                 markReviewWordIfNeeded(answeredWordId)
             }
+            recordMonsterProgress(defeatedCatalogIndex: defeatedCatalogIndex, outcome: outcome, engine: engine)
             if outcome.battleEnded {
                 finishBattle()
             } else {
@@ -409,11 +416,13 @@ final class AppCoordinator: ObservableObject {
         guard let engine = battleEngine else { return nil }
         do {
             let answeredWordId = engine.state.currentQuestion?.wordId
+            let defeatedCatalogIndex = engine.state.currentMonsterCatalogIndex
             let outcome = try engine.submitAnswer(option)
             if let answeredWordId, !outcome.advancedStep {
                 learningRecorder.record(wordId: answeredWordId, correct: outcome.correct)
                 markReviewWordIfNeeded(answeredWordId)
             }
+            recordMonsterProgress(defeatedCatalogIndex: defeatedCatalogIndex, outcome: outcome, engine: engine)
             objectWillChange.send()
             return outcome
         } catch {
@@ -487,6 +496,15 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    private func recordMonsterProgress(defeatedCatalogIndex: Int, outcome: AnswerOutcome, engine: BattleEngine) {
+        if outcome.monsterDefeated {
+            monsterProgressStore.recordDefeat(catalogIndex: defeatedCatalogIndex)
+        }
+        if outcome.newMonsterSpawned {
+            monsterProgressStore.recordEncounter(catalogIndex: engine.state.currentMonsterCatalogIndex)
+        }
+    }
+
     private func makeBattleRandomSeed() -> UInt64 {
         if let battleRandomSeed {
             return battleRandomSeed
@@ -552,6 +570,11 @@ final class AppCoordinator: ObservableObject {
 
     func openMonsterCodex() {
         route = .monsterCodex
+    }
+
+    func claimMonsterCodexReward(catalogIndex: Int, milestone: Int) {
+        guard monsterProgressStore.claimReward(catalogIndex: catalogIndex, milestone: milestone, coins: coinAccount) else { return }
+        objectWillChange.send()
     }
 
     func openSpellbook() {
@@ -1014,6 +1037,18 @@ final class AppCoordinator: ObservableObject {
         if arguments.contains("-UITestResetState") {
             packSelectionStore = PackSelectionStore(defaultIds: Pack.builtin.map(\.id), defaults: configStore.backingDefaults)
             selectedPack = Pack.builtin[0]
+        }
+        if arguments.contains("-UITestSeedAllMonstersEncountered") {
+            let records = (1...MonsterCodex.entries.count).map {
+                MonsterProgressRecord(catalogIndex: $0, encountered: true)
+            }
+            monsterProgressStore.replaceSnapshotForTesting(MonsterProgressSnapshot(records: records))
+        }
+        if let defeatsArgument = arguments.first(where: { $0.hasPrefix("-UITestSeedMonster1Defeats=") }),
+           let defeats = Int(defeatsArgument.replacingOccurrences(of: "-UITestSeedMonster1Defeats=", with: "")) {
+            monsterProgressStore.replaceSnapshotForTesting(MonsterProgressSnapshot(records: [
+                MonsterProgressRecord(catalogIndex: 1, encountered: true, defeatCount: max(0, defeats)),
+            ]))
         }
         if arguments.contains("-UITestBattleBossFirst") {
             selectedPack.scene.monsterPlan = [MonsterPlanSlot(kind: .boss, catalogIndex: 4)]

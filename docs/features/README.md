@@ -24,6 +24,7 @@ For every feature, agents work inside `docs/features/<feature-id>/`, where `<fea
 
 | Feature ID | Slug | Owner | Status | Replication approved | Folder |
 | --- | --- | --- | --- | --- | --- |
+| `2026-06-05-monster-codex-progress-v1-0-2` | monster-codex-progress-v1-0-2 | matianyi | Client accepted; PR pending merge | yes | [`2026-06-05-monster-codex-progress-v1-0-2/`](2026-06-05-monster-codex-progress-v1-0-2/) |
 | `2026-06-01-pcm-audio-v1-0-0` | pcm-audio-v1-0-0 | matianyi | Stage 5 human audio QA | yes | [`2026-06-01-pcm-audio-v1-0-0/`](2026-06-01-pcm-audio-v1-0-0/) |
 | `2026-05-29-spellbook-v0-9-5` | spellbook-v0-9-5 | (V0.9.5 — 魔法书图鉴) | Done | yes | [`2026-05-29-spellbook-v0-9-5/`](2026-05-29-spellbook-v0-9-5/) |
 | `2026-05-26-learning-plan-review-v0-9-3` | learning-plan-review-v0-9-3 | (V0.9.3 — 学习计划与复习逻辑重构) | Done | yes | [`2026-05-26-learning-plan-review-v0-9-3/`](2026-05-26-learning-plan-review-v0-9-3/) |

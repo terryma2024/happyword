@@ -8,8 +8,11 @@ import cool.happyword.wordmagic.core.BattleState
 import cool.happyword.wordmagic.core.BattleStatus
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.CoinAccount
+import cool.happyword.wordmagic.core.CoinTransaction
 import cool.happyword.wordmagic.core.CheckInSnapshot
 import cool.happyword.wordmagic.core.LearningRecorder
+import cool.happyword.wordmagic.core.MONSTER_PROGRESS_PREFS_KEY
+import cool.happyword.wordmagic.core.MonsterProgressSnapshot
 import cool.happyword.wordmagic.core.PackLibrary
 import cool.happyword.wordmagic.core.PackSelectionStore
 import cool.happyword.wordmagic.core.RedemptionHistoryStore
@@ -128,13 +131,29 @@ class AndroidLocalProgressRepositories {
                 if (parts.size == 2) parts[0] to parts[1].toIntOrNull().orZero() else null
             }
             .toMap()
-        return CoinAccount(balance = prefs.getInt("coinBalance", 10), earnedByDay = earned)
+        val transactions = prefs.getString("coinTransactions", "").orEmpty()
+            .lineSequence()
+            .mapNotNull { line ->
+                val parts = line.split('\t')
+                if (parts.size == 3) {
+                    CoinTransaction(
+                        reason = parts[0],
+                        delta = parts[1].toIntOrNull() ?: return@mapNotNull null,
+                        balanceAfter = parts[2].toIntOrNull() ?: return@mapNotNull null,
+                    )
+                } else {
+                    null
+                }
+            }
+            .toList()
+        return CoinAccount(balance = prefs.getInt("coinBalance", 10), earnedByDay = earned, transactions = transactions)
     }
 
     fun saveCoinAccount(account: CoinAccount) {
         prefs.edit()
             .putInt("coinBalance", account.balance)
             .putString("coinEarnedByDay", account.earnedByDay.entries.joinToString("\n") { "${it.key}\t${it.value}" })
+            .putString("coinTransactions", account.transactions.joinToString("\n") { "${it.reason}\t${it.delta}\t${it.balanceAfter}" })
             .apply()
     }
 
@@ -180,6 +199,15 @@ class AndroidLocalProgressRepositories {
     fun saveSpellbookRewards(snapshot: SpellbookRewardSnapshot) {
         prefs.edit()
             .putString(SPELLBOOK_REWARDS_KEY, snapshot.claimedPackIds.joinToString("\n"))
+            .apply()
+    }
+
+    fun loadMonsterProgress(): MonsterProgressSnapshot =
+        MonsterProgressSnapshot.parse(prefs.getString(MONSTER_PROGRESS_PREFS_KEY, ""))
+
+    fun saveMonsterProgress(snapshot: MonsterProgressSnapshot) {
+        prefs.edit()
+            .putString(MONSTER_PROGRESS_PREFS_KEY, snapshot.serialize())
             .apply()
     }
 

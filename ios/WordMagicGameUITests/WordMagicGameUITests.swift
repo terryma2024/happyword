@@ -83,12 +83,36 @@ final class WordMagicGameUITests: XCTestCase {
 
         assertLandscape(app)
         XCTAssertTrue(app.staticTexts["怪物图鉴"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Slime"].exists)
-        XCTAssertTrue(app.staticTexts["「普通怪物」"].exists)
+        XCTAssertTrue(app.staticTexts["????"].exists)
+        XCTAssertTrue(app.staticTexts["「????」"].exists)
         XCTAssertTrue(app.staticTexts["1 / 100"].exists)
+        XCTAssertFalse(app.staticTexts["CodexDefeatCount"].exists)
+        XCTAssertFalse(app.buttons["CodexReward50Button"].exists)
+        XCTAssertFalse(app.buttons["CodexReward100Button"].exists)
+        XCTAssertTrue(app.staticTexts["CodexDescription"].label.allSatisfy { $0 == "?" })
+
+        app.buttons["返回"].tap()
+        XCTAssertTrue(app.buttons["开始今日冒险"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testMonsterCodexEncounteredNavigationAndRewardStates() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestSeedAllMonstersEncountered", "-UITestRouteMonsterCodex"]
+        app.launch()
+
+        assertLandscape(app)
+        XCTAssertTrue(app.staticTexts["怪物图鉴"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["软泥小灵"].exists)
+        XCTAssertTrue(app.staticTexts["「普通怪物」"].exists)
+        XCTAssertTrue(app.staticTexts["击败 0 次"].exists)
+        XCTAssertEqual(app.buttons["CodexReward50Button"].label, "50 金币 0/50")
+        XCTAssertFalse(app.buttons["CodexReward50Button"].isEnabled)
+        XCTAssertEqual(app.buttons["CodexReward100Button"].label, "100 金币 0/100")
+        XCTAssertFalse(app.buttons["CodexReward100Button"].isEnabled)
 
         app.buttons["下一只"].tap()
-        XCTAssertTrue(app.staticTexts["Zombie"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["书页僵僵"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["2 / 100"].exists)
 
         for _ in 0..<9 {
@@ -109,6 +133,29 @@ final class WordMagicGameUITests: XCTestCase {
 
         app.buttons["返回"].tap()
         XCTAssertTrue(app.buttons["开始今日冒险"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testMonsterCodexClaimableAndClaimedRewards() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITestResetState", "-UITestSeedMonster1Defeats=100", "-UITestRouteMonsterCodex"]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["软泥小灵"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["击败 100 次"].exists)
+        XCTAssertEqual(app.buttons["CodexReward50Button"].label, "领 50 金币")
+        XCTAssertTrue(app.buttons["CodexReward50Button"].isEnabled)
+        XCTAssertEqual(app.buttons["CodexReward100Button"].label, "领 100 金币")
+        XCTAssertTrue(app.buttons["CodexReward100Button"].isEnabled)
+
+        app.buttons["CodexReward50Button"].tap()
+        XCTAssertEqual(app.buttons["CodexReward50Button"].label, "已领 50 金币")
+        XCTAssertFalse(app.buttons["CodexReward50Button"].isEnabled)
+        XCTAssertEqual(app.buttons["CodexReward100Button"].label, "领 100 金币")
+
+        app.buttons["CodexReward100Button"].tap()
+        XCTAssertEqual(app.buttons["CodexReward100Button"].label, "已领 100 金币")
+        XCTAssertFalse(app.buttons["CodexReward100Button"].isEnabled)
     }
 
     @MainActor

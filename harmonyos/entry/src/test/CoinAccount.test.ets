@@ -173,5 +173,18 @@ export default function coinAccountTest() {
       expect(acct.balance()).assertEqual(50);
       expect(acct.snapshot().txns.length).assertEqual(1);
     });
+
+    it('creditCapFreeBypassesDailyCapWithoutChangingTodayEarned', 0, () => {
+      const acct: CoinAccount = freshAccount();
+      acct.earn('today-first', DAILY_CAP, NOW);
+
+      const credited: number = acct.creditCapFree('monster-codex:50:1', 50, NOW + 1);
+      const snap: CoinSnapshot = acct.snapshot();
+
+      expect(credited).assertEqual(50);
+      expect(acct.balance()).assertEqual(DAILY_CAP + 50);
+      expect(snap.todayCoinsEarned).assertEqual(DAILY_CAP);
+      expect(snap.txns[snap.txns.length - 1].reason).assertEqual('monster-codex:50:1');
+    });
   });
 }

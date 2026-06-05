@@ -17,6 +17,7 @@ each) caused intermittent placeholder flashes on `Image` remount.
 | `spellbook.svg` | HomePage `HomeSpellbookButton` | Generated with Recraft V4 Vector on 2026-05-29; transparent background. |
 | `scroll.svg`  | WishlistPage `WishlistHistoryButton` | Restored from commit `f6c87f3^`.            |
 | `checkin.svg` | TodayPlanPage `TodayPlanCheckInButton` | Transparent-background check-in calendar source; rasterized to `rawfile/icons/checkin.png`. |
+| `monster-mystery-question.svg` | MonsterCodex locked entry | Generated with Recraft V4 Vector on 2026-06-05; transparent background; runtime copy ships under `rawfile/character/`. |
 | `retired/wishlist-with-background-2026-05-18.svg` | Backup only | Previous wishlist icon source with off-white canvas background. |
 
 ## When to touch these

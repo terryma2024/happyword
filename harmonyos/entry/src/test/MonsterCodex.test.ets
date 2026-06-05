@@ -3,7 +3,7 @@ import { CodexEntry, MONSTER_CODEX } from '../main/ets/data/MonsterCodex';
 import { MonsterKind } from '../main/ets/data/MonsterCatalog';
 import { characterAssetForKind } from '../main/ets/data/CharacterAssets';
 
-const EXPECTED_FIRST_NAMES: string[] = ['Slime', 'Zombie', 'Dragon'];
+const EXPECTED_FIRST_NAMES: string[] = ['软泥小灵', '书页僵僵', '云眠巨龙'];
 const EXPECTED_FIRST_BOSS_NAMES: string[] = [
   'Pumpkin King',
   'Imp King',
@@ -80,6 +80,12 @@ export default function monsterCodexTests() {
       expect(MONSTER_CODEX[0].assetPath).assertEqual(characterAssetForKind(MonsterKind.Normal));
       expect(MONSTER_CODEX[1].assetPath).assertEqual(characterAssetForKind(MonsterKind.Spelling));
       expect(MONSTER_CODEX[2].assetPath).assertEqual(characterAssetForKind(MonsterKind.Elite));
+    });
+
+    it('firstThreeDescriptionsUseChineseDisplayNames', 0, () => {
+      for (let i: number = 0; i < EXPECTED_FIRST_NAMES.length; i++) {
+        expect(MONSTER_CODEX[i].descriptionZh.indexOf(EXPECTED_FIRST_NAMES[i]) >= 0).assertTrue();
+      }
     });
 
     it('expandedEntriesUseCharacterSvgPaths', 0, () => {
