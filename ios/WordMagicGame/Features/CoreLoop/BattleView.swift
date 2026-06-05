@@ -103,7 +103,7 @@ struct BattleView: View {
     private let maxFloatersPerSide = 4
     private let floaterStackOffset: CGFloat = 6
     private let battleImpactDelayNs: UInt64 = 340_000_000
-    private let battleHorizontalPadding: CGFloat = 6
+    private let battleHorizontalPadding = AppTheme.landscapeCoreLoopHorizontalPadding
     private let battleColumnSpacing: CGFloat = 18
     private let battleFighterCardWidth: CGFloat = 168
 

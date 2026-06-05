@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @ObservedObject var coordinator: AppCoordinator
     @State private var versionTripleTap = VersionTripleTapState()
+    private let homeHorizontalPadding = AppTheme.landscapeCoreLoopHorizontalPadding
 
     private var scenePalette: HomeScenePalette {
         HomeScenePalette(scene: coordinator.selectedPack.scene)
@@ -24,7 +25,7 @@ struct HomeView: View {
                     adventureCard
                         .frame(maxHeight: .infinity)
                 }
-                .padding(.horizontal, AppTheme.pageHorizontalPadding)
+                .padding(.horizontal, homeHorizontalPadding)
                 .padding(.top, 18)
                 .padding(.bottom, 10)
                 .frame(width: proxy.size.width, height: proxy.size.height)
@@ -36,9 +37,9 @@ struct HomeView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
                         .frame(maxWidth: proxy.size.width * 0.55, alignment: .leading)
-                    .padding(.leading, AppTheme.pageHorizontalPadding)
-                    .padding(.top, 16)
-                    .padding(.trailing, AppTheme.pageHorizontalPadding)
+                        .padding(.leading, homeHorizontalPadding)
+                        .padding(.top, 16)
+                        .padding(.trailing, homeHorizontalPadding)
                         .padding(.bottom, 8)
                         .accessibilityLabel("HomeVersionLabel")
                         .accessibilityIdentifier("HomeVersionLabel")
