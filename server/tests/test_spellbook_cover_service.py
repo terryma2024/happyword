@@ -9,7 +9,7 @@ from PIL import Image
 from app.models.family_pack_definition import FamilyPackDefinition
 
 
-def test_build_spellbook_cover_prompt_requests_small_transparent_icon() -> None:
+def test_build_spellbook_cover_prompt_requests_stable_book_icon_composition() -> None:
     from app.services.spellbook_cover_service import build_spellbook_cover_prompt
 
     prompt = build_spellbook_cover_prompt(
@@ -21,7 +21,32 @@ def test_build_spellbook_cover_prompt_requests_small_transparent_icon() -> None:
     assert "apple" in prompt
     assert "128x128" in prompt
     assert "transparent background" in prompt
-    assert "magical vocabulary book" in prompt
+    assert "isometric app icon" in prompt
+    assert "closed magic book" in prompt
+    assert "gold corner protectors" in prompt
+    assert "ribbon bookmark" in prompt
+    assert "center emblem" in prompt
+    assert "Only vary the book color and the center emblem" in prompt
+    assert "Template lock" in prompt
+    assert "four gold corner protectors" in prompt
+    assert "spine on the left" in prompt
+    assert "flat-lying closed book" in prompt
+    assert "diagonal flat book orientation" in prompt
+    assert "long axis runs from upper-left to lower-right" in prompt
+    assert "front cover is a slanted parallelogram" in prompt
+    assert "not a vertical rectangle" in prompt
+    assert "not standing upright" in prompt
+    assert "seen from above" in prompt
+    assert "thin cream page strips" in prompt
+    assert "right page block visible" in prompt
+    assert "bookmark near the lower-left corner" in prompt
+    assert "center emblem around 30% of the front cover" in prompt
+    assert "tiny gold stars" in prompt
+    assert "small magical sparkles" in prompt
+    assert "thin golden orbit arcs" in prompt
+    assert "Do not draw the pack name" in prompt
+    assert "no words anywhere" in prompt
+    assert "Magic, ABC, title, label" in prompt
 
 
 @pytest.mark.asyncio

@@ -1209,6 +1209,8 @@ async def test_admin_system_config_can_change_image_provider(
     assert page.status_code == 200
     assert "魔法书封面生成模型" in page.text
     assert "Qwen Image" in page.text
+    assert "Doubao Seedream" in page.text
+    assert "doubao-seedream-4-5-251128" in page.text
 
     saved = await client.post(
         "/admin/system-config/image-provider",
