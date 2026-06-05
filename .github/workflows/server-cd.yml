@@ -1,78 +1,269 @@
-name: server-cd-legacy-vercel
+name: server-cd
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 concurrency:
-  group: server-cd-legacy-vercel
+  group: server-cd-main
   cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CLOUDBASE_CLI_VERSION: 3.5.5
+  CLOUDBASE_SERVER_NAME: happyword-server-prod
+  CLOUDBASE_PROD_DEFAULT_BASE_URL: https://happyword-server-prod-255236-5-1429584068.sh.run.tcloudbase.com
 
 jobs:
-  staging_smoke:
-    name: server / legacy Vercel smoke
+  cloudbase_prod:
+    name: server / cloudbase prod deployment
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
+    env:
+      HAS_TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID != '' }}
+      HAS_TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY != '' }}
+      HAS_TCB_ENV_ID: ${{ secrets.TCB_ENV_ID != '' }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - name: CloudBase prod deploy gate
+        run: |
+          set -euo pipefail
+          echo "HAS_TCB_SECRET_ID=${HAS_TCB_SECRET_ID}"
+          echo "HAS_TCB_SECRET_KEY=${HAS_TCB_SECRET_KEY}"
+          echo "HAS_TCB_ENV_ID=${HAS_TCB_ENV_ID}"
+          if [ "${HAS_TCB_SECRET_ID}" != "true" ] || \
+             [ "${HAS_TCB_SECRET_KEY}" != "true" ] || \
+             [ "${HAS_TCB_ENV_ID}" != "true" ]; then
+            echo "::warning::server-cd skipped: configure TCB_SECRET_ID, TCB_SECRET_KEY, and TCB_ENV_ID."
+          fi
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up Node
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        uses: actions/setup-node@v5
         with:
-          python-version: "3.12"
+          node-version: "24"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.1.0
+      - name: Install CloudBase CLI
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        run: |
+          npm install -g "@cloudbase/cli@${CLOUDBASE_CLI_VERSION}"
+          tcb --version
 
-      - name: Sync dependencies
-        run: uv sync --dev
-
-      - name: Wait for Vercel production deploy
-        id: wait_deploy
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const sha = context.sha;
-            // Poll deployment statuses for up to 8 minutes.
-            const deadline = Date.now() + 8 * 60 * 1000;
-            while (Date.now() < deadline) {
-              const deployments = await github.paginate(
-                github.rest.repos.listDeployments,
-                { owner, repo, sha, per_page: 100 }
-              );
-              for (const d of deployments.sort((a, b) => b.id - a.id)) {
-                const statuses = await github.paginate(
-                  github.rest.repos.listDeploymentStatuses,
-                  { owner, repo, deployment_id: d.id, per_page: 100 }
-                );
-                for (const s of statuses) {
-                  const url = s.environment_url || s.target_url;
-                  if (s.state === "success" && url && !url.includes("git-")) {
-                    // Production deploys have a short alias URL (no `git-`
-                    // segment that preview deploys carry).
-                    core.info(`Production URL: ${url}`);
-                    core.setOutput("url", url);
-                    return;
-                  }
-                }
-              }
-              await new Promise(r => setTimeout(r, 15000));
-            }
-            core.setFailed("No production deploy URL appeared within 8 minutes.");
-
-      - name: Run staging smoke
+      - name: Login to CloudBase
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
-          E2E_BASE_URL: ${{ steps.wait_deploy.outputs.url }}
-        run: uv run pytest -v -m smoke
+          TCB_SECRET_ID: ${{ secrets.TCB_SECRET_ID }}
+          TCB_SECRET_KEY: ${{ secrets.TCB_SECRET_KEY }}
+        run: tcb login --apiKeyId "$TCB_SECRET_ID" --apiKey "$TCB_SECRET_KEY"
 
-      - name: Slack alert on smoke failure
+      - name: Resolve CloudBase deploy lower bound
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        run: |
+          set -euo pipefail
+          node <<'NODE' >> "$GITHUB_ENV"
+          const fs = require("node:fs");
+
+          const eventName = process.env.GITHUB_EVENT_NAME;
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+          let lowerBoundMs = Date.now();
+
+          if (eventName === "push") {
+            const pushedAtSeconds = event.repository && event.repository.pushed_at;
+            const headCommitTimestamp = event.head_commit?.timestamp;
+            if (Number.isFinite(Number(pushedAtSeconds)) && Number(pushedAtSeconds) > 0) {
+              lowerBoundMs = Number(pushedAtSeconds) * 1000;
+            } else if (headCommitTimestamp) {
+              lowerBoundMs = Date.parse(headCommitTimestamp);
+            }
+            // CloudBase can receive the Git webhook before this workflow starts.
+            lowerBoundMs -= 2 * 60 * 1000;
+          } else {
+            // Manual dispatch is for retrying observation around a recent deployment.
+            lowerBoundMs -= 30 * 60 * 1000;
+          }
+
+          if (!Number.isFinite(lowerBoundMs)) {
+            throw new Error("Unable to resolve CloudBase deploy lower bound timestamp");
+          }
+
+          console.log(`CLOUDBASE_DEPLOY_LOWER_BOUND_MS=${Math.floor(lowerBoundMs)}`);
+          NODE
+
+      - name: Wait for CloudBase prod Git deployment
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        env:
+          TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { execFileSync } = require("node:child_process");
+          const fs = require("node:fs");
+
+          const envId = process.env.TCB_ENV_ID;
+          const serverName = process.env.CLOUDBASE_SERVER_NAME;
+          const lowerBoundMs = Number(process.env.CLOUDBASE_DEPLOY_LOWER_BOUND_MS);
+          const deadline = Date.now() + 15 * 60 * 1000;
+
+          function sleep(ms) {
+            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+          }
+
+          function parseCloudBaseDeployTime(value) {
+            const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/.exec(String(value ?? ""));
+            if (!match) return Number.NaN;
+            const [, year, month, day, hour, minute, second] = match.map(Number);
+            return Date.UTC(year, month - 1, day, hour - 8, minute, second);
+          }
+
+          function recordStartedBeforeLowerBound(record) {
+            const deployTimeMs = parseCloudBaseDeployTime(record?.DeployTime);
+            return Number.isFinite(deployTimeMs) && deployTimeMs < lowerBoundMs;
+          }
+
+          function deploySortKey(record) {
+            const numericId = Number(record?.DeployId);
+            if (Number.isFinite(numericId)) return numericId;
+            const deployTimeMs = parseCloudBaseDeployTime(record?.DeployTime);
+            return Number.isFinite(deployTimeMs) ? deployTimeMs : 0;
+          }
+
+          function latestDeployRecord() {
+            const raw = execFileSync(
+              "tcb",
+              [
+                "api",
+                "tcbr",
+                "DescribeCloudRunDeployRecord",
+                "--api-version",
+                "2022-02-17",
+                "-e",
+                envId,
+                "--body",
+                JSON.stringify({ EnvId: envId, ServerName: serverName }),
+                "--json",
+              ],
+              { encoding: "utf8" },
+            );
+            const jsonStart = raw.indexOf("{");
+            const payload = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw);
+            const records = payload.data?.DeployRecords ?? [];
+            return records.sort((left, right) => deploySortKey(left) - deploySortKey(right)).at(-1);
+          }
+
+          function printProcessLog(runId) {
+            if (!runId) return;
+            try {
+              const raw = execFileSync(
+                "tcb",
+                [
+                  "api",
+                  "tcbr",
+                  "DescribeCloudRunProcessLog",
+                  "--api-version",
+                  "2022-02-17",
+                  "-e",
+                  envId,
+                  "--body",
+                  JSON.stringify({ EnvId: envId, RunId: runId }),
+                  "--json",
+                ],
+                { encoding: "utf8" },
+              );
+              const jsonStart = raw.indexOf("{");
+              const payload = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw);
+              const logs = payload.data?.Logs ?? [];
+              if (logs.length) {
+                console.log("=== CloudBase deploy process log ===");
+                console.log(logs.join("\n"));
+              }
+            } catch (error) {
+              console.log(`CloudBase deploy process log unavailable: ${error.message}`);
+            }
+          }
+
+          while (Date.now() < deadline) {
+            const latest = latestDeployRecord();
+            if (!latest) {
+              throw new Error(`CloudBase deploy record list is empty for ${serverName}`);
+            }
+
+            const startedBeforeLowerBound = recordStartedBeforeLowerBound(latest);
+            console.log(
+              [
+                `server=${serverName}`,
+                `deploy=${latest.DeployId}`,
+                `time=${latest.DeployTime}`,
+                `status=${latest.Status}`,
+                `build=${latest.BuildId}`,
+                `traffic=${latest.FlowRatio}`,
+                `hasTraffic=${latest.HasTraffic}`,
+                `beforeLowerBound=${startedBeforeLowerBound}`,
+              ].join(" "),
+            );
+
+            if (!startedBeforeLowerBound && latest.Status === "deploy_failed") {
+              printProcessLog(latest.RunId);
+              throw new Error(`CloudBase deploy ${latest.DeployId} failed`);
+            }
+
+            if (
+              !startedBeforeLowerBound &&
+              latest.Status === "normal" &&
+              Number(latest.BuildId) === 0
+            ) {
+              printProcessLog(latest.RunId);
+              throw new Error(
+                `CloudBase deploy ${latest.DeployId} reached normal with BuildId=0; it did not build the Git push`,
+              );
+            }
+
+            if (
+              !startedBeforeLowerBound &&
+              latest.Status === "normal" &&
+              Number(latest.BuildId) > 0 &&
+              String(latest.FlowRatio) === "100" &&
+              latest.HasTraffic === true
+            ) {
+              fs.appendFileSync(process.env.GITHUB_ENV, `CLOUDBASE_DEPLOY_ID=${latest.DeployId}\n`);
+              console.log(`CloudBase deploy ${latest.DeployId} is normal with 100% traffic.`);
+              process.exit(0);
+            }
+
+            sleep(15000);
+          }
+
+          throw new Error(
+            `Timed out waiting for ${serverName} Git deployment to reach normal with 100% traffic`,
+          );
+          NODE
+
+      - name: Resolve CloudBase prod base URL
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        env:
+          CLOUDBASE_PROD_BASE_URL: ${{ secrets.CLOUDBASE_PROD_BASE_URL }}
+        run: |
+          set -euo pipefail
+          for candidate_name in configured default; do
+            case "$candidate_name" in
+              configured) base_url="${CLOUDBASE_PROD_BASE_URL%/}" ;;
+              default) base_url="${CLOUDBASE_PROD_DEFAULT_BASE_URL%/}" ;;
+            esac
+            if [ -z "$base_url" ]; then
+              continue
+            fi
+            echo "Probing CloudBase prod ${candidate_name} base URL."
+            if curl -fsS --connect-timeout 10 --retry 3 --retry-delay 3 "$base_url/api/v1/public/health"; then
+              echo "CLOUDBASE_EFFECTIVE_PROD_BASE_URL=$base_url" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "::error::CloudBase prod health check failed for configured and default base URLs."
+          exit 1
+
+      - name: Health check CloudBase prod
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        run: curl -fsS --connect-timeout 10 --retry 3 --retry-delay 3 "$CLOUDBASE_EFFECTIVE_PROD_BASE_URL/api/v1/public/health"
+
+      - name: Slack alert on CloudBase prod failure
         if: failure()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -83,13 +274,13 @@ jobs:
           fi
           PAYLOAD=$(jq -n \
             --arg sha "${{ github.sha }}" \
-            --arg url "${{ github.event.head_commit.url }}" \
-            --arg msg "${{ github.event.head_commit.message }}" \
+            --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --arg service "${CLOUDBASE_SERVER_NAME}" \
             '{
-              text: "server-cd staging smoke FAILED",
+              text: "server-cd CloudBase prod deployment FAILED",
               blocks: [
                 { type: "section", text: { type: "mrkdwn",
-                  text: ("*Staging smoke failed after merge to main*\nSHA: `" + $sha + "`\n" + $url + "\n```" + $msg + "```")
+                  text: ("*CloudBase prod deployment failed*\nService: `" + $service + "`\nSHA: `" + $sha + "`\n" + $run)
                 }}
               ]
             }')

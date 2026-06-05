@@ -178,18 +178,27 @@ def test_cloudbase_staging_e2e_deploys_pr_artifact_before_reset_and_tests() -> N
     assert 'E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_STAGING_BASE_URL"' in smoke_step
 
 
-def test_main_cd_deploys_to_cloudbase_with_vercel_manual_rollback_only() -> None:
-    vercel_cd = _workflow("server-cd.yml")
+def test_main_cd_waits_for_cloudbase_git_autodeploy() -> None:
+    server_cd = _workflow("server-cd.yml")
     cloudbase_cd = _workflow("server-cloudbase-cd.yml")
 
-    assert "name: server-cd-legacy-vercel" in vercel_cd
-    assert "workflow_dispatch:" in vercel_cd
-    assert "push:" not in vercel_cd
-    assert "Wait for Vercel production deploy" in vercel_cd
-    assert "Run staging smoke" in vercel_cd
+    assert "name: server-cd" in server_cd
+    assert "workflow_dispatch:" in server_cd
+    assert "push:" in server_cd
+    assert "branches: [main]" in server_cd
+    assert "CLOUDBASE_SERVER_NAME: happyword-server-prod" in server_cd
+    assert "Install CloudBase CLI" in server_cd
+    assert "tcb login --apiKeyId" in server_cd
+    assert "Wait for CloudBase prod Git deployment" in server_cd
+    assert "DescribeCloudRunDeployRecord" in server_cd
+    assert "happyword-server-prod" in server_cd
+    assert "tcb cloudrun deploy" not in server_cd
+    assert "Wait for Vercel production deploy" not in server_cd
+    assert "Run staging smoke" not in server_cd
 
-    assert "name: server-cloudbase-cd" in cloudbase_cd
-    assert "push:" in cloudbase_cd
+    assert "name: server-cloudbase-cd-manual" in cloudbase_cd
+    assert "push:" not in cloudbase_cd
+    assert "workflow_dispatch:" in cloudbase_cd
     assert "CLOUDBASE_CLI_VERSION: 3.5.5" in cloudbase_cd
     assert "npm install -g \"@cloudbase/cli@${CLOUDBASE_CLI_VERSION}\"" in cloudbase_cd
     assert "tcb login --apiKeyId" in cloudbase_cd
@@ -198,22 +207,60 @@ def test_main_cd_deploys_to_cloudbase_with_vercel_manual_rollback_only() -> None
 
 
 def test_cd_smoke_jobs_are_http_only_on_github_hosted_runners() -> None:
-    vercel_cd = _workflow("server-cd.yml")
+    server_cd = _workflow("server-cd.yml")
     cloudbase_cd = _workflow("server-cloudbase-cd.yml")
 
-    vercel_smoke_step = _step_named(vercel_cd, "Run staging smoke")
+    server_health_step = _step_named(server_cd, "Health check CloudBase prod")
     cloudbase_smoke_step = _step_named(cloudbase_cd, "Smoke test")
 
-    assert "runs-on: ubuntu-latest" in vercel_cd
+    assert "runs-on: ubuntu-latest" in server_cd
     assert "runs-on: ubuntu-latest" in cloudbase_cd
-    assert "E2E_BASE_URL:" in vercel_smoke_step
+    assert "$CLOUDBASE_EFFECTIVE_PROD_BASE_URL/api/v1/public/health" in server_health_step
     assert 'E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_PROD_BASE_URL"' in cloudbase_smoke_step
-    assert "E2E_MONGODB_URI" not in vercel_smoke_step
+    assert "E2E_MONGODB_URI" not in server_health_step
     assert "E2E_MONGODB_URI" not in cloudbase_smoke_step
-    assert "E2E_MONGO_DB_NAME" not in vercel_smoke_step
+    assert "E2E_MONGO_DB_NAME" not in server_health_step
     assert "E2E_MONGO_DB_NAME" not in cloudbase_smoke_step
-    assert "uv run pytest -v -m smoke" in vercel_smoke_step
     assert "uv run pytest -v -m smoke" in cloudbase_smoke_step
+
+
+def test_server_cd_waits_for_prod_traffic_switch_before_health_check() -> None:
+    server_cd = _workflow("server-cd.yml")
+
+    marker_step = _step_named(server_cd, "Resolve CloudBase deploy lower bound")
+    wait_step = _step_named(server_cd, "Wait for CloudBase prod Git deployment")
+    resolve_step = _step_named(server_cd, "Resolve CloudBase prod base URL")
+    health_step = _step_named(server_cd, "Health check CloudBase prod")
+
+    assert server_cd.index("Resolve CloudBase deploy lower bound") < server_cd.index(
+        "Wait for CloudBase prod Git deployment"
+    )
+    assert server_cd.index("Wait for CloudBase prod Git deployment") < server_cd.index(
+        "Resolve CloudBase prod base URL"
+    )
+    assert server_cd.index("Resolve CloudBase prod base URL") < server_cd.index(
+        "Health check CloudBase prod"
+    )
+
+    assert "CLOUDBASE_DEPLOY_LOWER_BOUND_MS" in marker_step
+    assert "repository.pushed_at" in marker_step
+    assert "CLOUDBASE_SERVER_NAME" in wait_step
+    assert "parseCloudBaseDeployTime" in wait_step
+    assert "recordStartedBeforeLowerBound" in wait_step
+    assert 'latest.Status === "deploy_failed"' in wait_step
+    assert "CloudBase deploy process log" in wait_step
+    assert 'latest.Status === "normal"' in wait_step
+    assert "Number(latest.BuildId) > 0" in wait_step
+    assert 'String(latest.FlowRatio) === "100"' in wait_step
+    assert "latest.HasTraffic === true" in wait_step
+    assert "CLOUDBASE_PROD_DEFAULT_BASE_URL" in resolve_step
+    assert "happyword-server-prod-255236-5-1429584068.sh.run.tcloudbase.com" in server_cd
+    assert "--retry 3" in resolve_step
+    assert "--retry-delay 3" in resolve_step
+    assert (
+        'curl -fsS --connect-timeout 10 --retry 3 --retry-delay 3 '
+        '"$CLOUDBASE_EFFECTIVE_PROD_BASE_URL/api/v1/public/health"'
+    ) in health_step
 
 
 def test_cloudbase_cd_waits_for_a_real_new_deploy_before_health_and_smoke() -> None:

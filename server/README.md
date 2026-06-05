@@ -231,33 +231,23 @@ row in `users` (which the reset script preserves).
 
 ## After a merge to main (`server-cd.yml`)
 
-Every push to `main` that touches `server/**` triggers `server-cd.yml`,
-which:
+Every push to `main` triggers CloudBase's Git pipeline for
+`happyword-server-prod` and starts `server-cd.yml`, which:
 
-1. Waits up to 8 minutes for the Vercel production deploy URL.
-2. Runs the 5-case smoke subset (`pytest -v -m smoke`) against
-   `happyword_staging` (NOT a fresh DB — smoke is non-destructive and
-   namespace-safe).
-3. On failure, posts a Slack alert to `#happyword-ci`. Does not
-   auto-revert; humans investigate the deploy itself, not the merged
-   PR (the PR was already gated on full E2E before merge).
+1. Logs in to CloudBase and waits for the `happyword-server-prod` deployment
+   created by the Git push.
+2. Requires the new deploy record to reach `normal`, receive `100%` traffic,
+   and report `HasTraffic=true`.
+3. Probes `/api/v1/public/health` on the configured production URL, falling
+   back to the CloudBase default domain.
+4. On failure, posts a Slack alert to `#happyword-ci` if `SLACK_WEBHOOK_URL` is
+   configured. It does not auto-revert; humans investigate the deployment.
 
-The 5 smoke cases live in their existing `tests/e2e/` files, tagged
-with `@pytest.mark.smoke`:
-- health liveness
-- public packs ETag round-trip
-- parent OTP request-code
-- pair create + short-code
-- child word-stats sync (empty payload)
-
-To debug a failed staging smoke locally:
+To debug a failed production health check locally:
 
 ```bash
-cd server
-export E2E_BASE_URL="https://happyword.cool"
-export E2E_MONGODB_URI="mongodb+srv://.../happyword_staging"
-export E2E_MONGO_DB_NAME="happyword_staging"
-uv run pytest -v -m smoke
+curl -fsS --connect-timeout 10 \
+  "https://happyword-server-prod-255236-5-1429584068.sh.run.tcloudbase.com/api/v1/public/health"
 ```
 
 ## Deploy

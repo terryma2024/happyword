@@ -10,14 +10,16 @@ end-to-end. If you only want one section, jump straight to
 | Workflow | File | Trigger | Purpose |
 | --- | --- | --- | --- |
 | `server-ci` | [`.github/workflows/server-ci.yml`](../.github/workflows/server-ci.yml) | PR touching `server/**` or workflow itself; manual dispatch | Offline pytest plus shared CloudBase staging E2E |
-| `server-cd-legacy-vercel` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Manual dispatch only | Legacy Vercel rollback/archive smoke |
-| `server-cloudbase-cd` | [`.github/workflows/server-cloudbase-cd.yml`](../.github/workflows/server-cloudbase-cd.yml) | Push to `main` touching `server/**`; manual dispatch | Deploy server to CloudBase Run, then health check and HTTP-only smoke |
+| `server-cd` | [`.github/workflows/server-cd.yml`](../.github/workflows/server-cd.yml) | Push to `main`; manual dispatch | Wait for `happyword-server-prod` CloudBase Git deployment, traffic switch, and health check |
+| `server-cloudbase-cd-manual` | [`.github/workflows/server-cloudbase-cd.yml`](../.github/workflows/server-cloudbase-cd.yml) | Manual dispatch only | Legacy/manual direct CloudBase CLI deploy fallback |
 
 Current production deploys use CloudBase. PR online E2E no longer deploys
 Vercel previews; it uses the shared CloudBase staging service and the Beijing
-Lighthouse E2E database. Pushes to `main` run CloudBase
-`server-cloudbase-cd`; the Vercel workflow is manual-only for rollback/archive
-checks only until the legacy Vercel production path is fully archived.
+Lighthouse E2E database. Pushes to `main` trigger the CloudBase Git pipeline for
+`happyword-server-prod`; `server-cd` waits for that deployment to receive 100%
+traffic and then probes `/api/v1/public/health`. The direct CloudBase CLI deploy
+workflow is manual-only fallback while the Git pipeline is the primary prod
+path.
 
 The shared CloudBase staging E2E job runs on the Beijing self-hosted runner. The
 runner must have system `jq`, `python3.12`, and `/usr/local/bin/uv`; the workflow

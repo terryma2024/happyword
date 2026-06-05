@@ -1,15 +1,10 @@
-name: server-cloudbase-cd
+name: server-cloudbase-cd-manual
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "server/**"
-      - ".github/workflows/server-cloudbase-cd.yml"
 
 concurrency:
-  group: server-cloudbase-cd
+  group: server-cloudbase-cd-manual
   cancel-in-progress: false
 
 env:
