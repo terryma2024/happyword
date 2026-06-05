@@ -308,11 +308,33 @@ jobs:
           throw new Error("Timed out waiting for a new CloudBase staging deploy to receive 100% traffic");
           NODE
 
-      - name: Health check CloudBase staging
+      - name: Resolve CloudBase staging base URL
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
           CLOUDBASE_STAGING_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}
-        run: curl -fsS "$CLOUDBASE_STAGING_BASE_URL/api/v1/public/health"
+          CLOUDBASE_STAGING_DEFAULT_BASE_URL: https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com
+        run: |
+          set -euo pipefail
+          for candidate_name in configured default; do
+            case "$candidate_name" in
+              configured) base_url="${CLOUDBASE_STAGING_BASE_URL%/}" ;;
+              default) base_url="${CLOUDBASE_STAGING_DEFAULT_BASE_URL%/}" ;;
+            esac
+            if [ -z "$base_url" ]; then
+              continue
+            fi
+            echo "Probing CloudBase staging ${candidate_name} base URL."
+            if curl -fsS --connect-timeout 10 --retry 3 --retry-delay 3 "$base_url/api/v1/public/health"; then
+              echo "CLOUDBASE_EFFECTIVE_STAGING_BASE_URL=$base_url" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "::error::CloudBase staging health check failed for configured and default base URLs."
+          exit 1
+
+      - name: Health check CloudBase staging
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        run: curl -fsS --connect-timeout 10 --retry 3 --retry-delay 3 "$CLOUDBASE_EFFECTIVE_STAGING_BASE_URL/api/v1/public/health"
 
       - name: Sync dependencies
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
@@ -332,7 +354,6 @@ jobs:
       - name: Run CloudBase staging E2E
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         env:
-          E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}
           E2E_MONGODB_URI: ${{ secrets.TCB_E2E_MONGODB_URI }}
           E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}
           E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}
@@ -341,7 +362,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts
-          "$UV_BIN" run --python 3.12 pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
+          E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_STAGING_BASE_URL" "$UV_BIN" run --python 3.12 pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
 
       - name: Slack alert on E2E failure
         if: ${{ failure() && env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
