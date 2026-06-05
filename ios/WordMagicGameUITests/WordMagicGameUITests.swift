@@ -356,7 +356,7 @@ final class WordMagicGameUITests: XCTestCase {
     }
 
     @MainActor
-    func testDebugBackendMenuAndBypassSecretRoutesAreReachableInDebugBuild() {
+    func testDebugBackendMenuRoutesAreReachableInDebugBuild() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITestResetState", "-UITestRouteDevMenu"]
         app.launch()
@@ -418,24 +418,10 @@ final class WordMagicGameUITests: XCTestCase {
         app.buttons["DevMenuDomainSwitchButton"].tap()
 
         XCTAssertTrue(app.staticTexts["Domain Switch"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["DevMenuBypassSecretButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuRefreshManifestButton"].exists)
         XCTAssertTrue(app.buttons["DevMenuLocalCard"].exists)
         XCTAssertTrue(app.buttons["DevMenuStagingCard"].exists)
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.com.cn")).firstMatch.exists)
-
-        app.terminate()
-        app.launchArguments = ["-UITestResetState", "-UITestRouteBypassSecret"]
-        app.launch()
-
-        XCTAssertTrue(app.staticTexts["Bypass Secret"].waitForExistence(timeout: 5))
-        let bypassInput = app.secureTextFields.firstMatch
-        XCTAssertTrue(bypassInput.waitForExistence(timeout: 5))
-        bypassInput.tap()
-        bypassInput.typeText("secret-demo")
-        app.buttons["保存"].tap()
-
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "https://happyword.com.cn")).firstMatch.waitForExistence(timeout: 5))
     }
 
     @MainActor

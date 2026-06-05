@@ -46,15 +46,6 @@ class BackendURLProvider {
     }
 }
 
-class BackendHeaderProvider {
-    fun headers(state: BackendRouteState, bypassSecret: String): Map<String, String> {
-        if (state.env != BackendEnv.Preview) return emptyMap()
-        val trimmed = bypassSecret.trim()
-        if (trimmed.isBlank()) return emptyMap()
-        return mapOf("x-vercel-protection-bypass" to trimmed)
-    }
-}
-
 class PreviewManifestClient(
     private val fetcher: suspend (String) -> String? = ::fetchUrl,
     private val nowMillis: () -> Long = System::currentTimeMillis,
@@ -70,14 +61,20 @@ class PreviewManifestClient(
                 val url = row.stringField("url") ?: return@mapNotNull null
                 if (!isValidPreviewUrl(url)) return@mapNotNull null
                 val pr = row.intField("pr") ?: row.intField("number")
-                val id = row.stringField("id") ?: pr?.let { "pr-$it" } ?: return@mapNotNull null
-                val label = row.stringField("label") ?: row.stringField("title") ?: row.stringField("branch") ?: id
+                val title = row.stringField("title")
+                val branch = row.stringField("branch")
+                val id = row.stringField("id")
+                    ?: pr?.takeIf { it > 0 }?.let { "pr-$it" }
+                    ?: branch?.stablePreviewId()
+                    ?: title?.stablePreviewId()
+                    ?: return@mapNotNull null
+                val label = row.stringField("label") ?: title ?: branch ?: id
                 val sha = row.stringField("head_sha").orEmpty().take(7)
                 val footer = when {
                     pr != null && sha.isNotBlank() -> "#$pr($sha)"
                     pr != null -> "#$pr"
                     else -> id
-                }
+                }.takeUnless { pr == 0 } ?: id
                 PreviewTarget(id = id, label = label.replace(Regex("""[\r\n]+"""), " ").take(80), url = url, footer = footer)
             }.toList()
         }.getOrDefault(emptyList())
@@ -107,8 +104,13 @@ class PreviewManifestClient(
         private const val SCHEMA_VERSION = 1
         private const val CACHE_TTL_MS = 5 * 60 * 1000L
 
-        private fun isValidPreviewUrl(url: String): Boolean =
-            url.startsWith("https://") && url.endsWith(".vercel.app")
+        private fun isValidPreviewUrl(url: String): Boolean {
+            if (!url.startsWith("https://")) return false
+            val host = runCatching { URL(url).host.lowercase() }.getOrDefault("")
+            return host == "happyword.com.cn" ||
+                host.endsWith(".vercel.app") ||
+                host.endsWith(".tcloudbase.com")
+        }
 
         private suspend fun fetchUrl(url: String): String? {
             val connection = (URL(url).openConnection() as HttpURLConnection).apply {
@@ -148,22 +150,12 @@ class PreviewManifestClient(
 
     private fun String.intField(name: String): Int? =
         Regex(""""$name"\s*:\s*(\d+)""").find(this)?.groupValues?.get(1)?.toIntOrNull()
-}
 
-class BypassSecretStore(private val store: StringKeyValueStore) {
-    fun load(): String = store.getString(KEY).orEmpty()
-
-    fun save(secret: String) {
-        val trimmed = secret.trim()
-        if (trimmed.isBlank()) store.remove(KEY) else store.putString(KEY, trimmed)
-    }
-
-    fun clear() {
-        store.remove(KEY)
-    }
-
-    companion object {
-        private const val KEY = "preview_bypass_secret"
+    private fun String.stablePreviewId(): String? {
+        val normalized = lowercase()
+            .replace(Regex("""[^a-z0-9]+"""), "-")
+            .trim('-')
+        return normalized.takeIf { it.isNotBlank() }
     }
 }
 
@@ -192,16 +184,13 @@ class DevMenuViewModel(
         return "OK ${urlProvider.resolve(state)}"
     }
 
-    suspend fun probeHealth(state: BackendRouteState, bypassSecret: String): ProbeResult = withContext(Dispatchers.IO) {
+    suspend fun probeHealth(state: BackendRouteState): ProbeResult = withContext(Dispatchers.IO) {
         val baseUrl = urlProvider.resolve(state)
         val fullUrl = "${baseUrl.trimEnd('/')}/api/v1/public/health"
         val connection = (URL(fullUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 10_000
             readTimeout = 10_000
-            BackendHeaderProvider().headers(state, bypassSecret).forEach { (key, value) ->
-                setRequestProperty(key, value)
-            }
         }
         try {
             val code = connection.responseCode

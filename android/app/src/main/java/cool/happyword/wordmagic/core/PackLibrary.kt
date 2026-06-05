@@ -36,25 +36,69 @@ class PackLibrary private constructor(
             val merged = linkedMapOf<String, WordPack>()
             builtin.forEach { merged[it.id] = it }
             global.forEach { pack ->
-                merged[pack.id] = pack.copy(scene = mergeSceneWithFallback(pack.scene, builtinScenes[pack.id]))
+                merged[pack.id] = pack.copy(scene = mergeSceneWithFallback(pack.id, pack.scene, builtinScenes[pack.id]))
             }
             family.forEach { pack ->
-                merged[pack.id] = pack.copy(scene = mergeSceneWithFallback(pack.scene, builtinScenes[pack.id]))
+                merged[pack.id] = pack.copy(scene = mergeSceneWithFallback(pack.id, pack.scene, builtinScenes[pack.id]))
             }
             return PackLibrary(merged)
         }
 
-        private fun mergeSceneWithFallback(own: SceneMetadata, fallback: SceneMetadata?): SceneMetadata {
-            if (fallback == null) return own
+        private fun mergeSceneWithFallback(packId: String, own: SceneMetadata, fallback: SceneMetadata?): SceneMetadata {
+            val sceneFallback = fallback ?: fallbackSceneFor(packId)
+            if (!needsSceneFallback(own) && fallback == null) return own
             return SceneMetadata(
-                bgPrimary = own.bgPrimary.takeUnless { it == "#FFFFFF" } ?: fallback.bgPrimary,
-                bgAccent = own.bgAccent.takeUnless { it == "#FFFFFF" } ?: fallback.bgAccent,
-                bossName = own.bossName.takeIf { it.isNotBlank() } ?: fallback.bossName,
-                monsterPlan = own.monsterPlan.takeIf { it.isNotEmpty() } ?: fallback.monsterPlan,
-                bossCandidates = own.bossCandidates.takeIf { it.isNotEmpty() } ?: fallback.bossCandidates,
-                storyZh = own.storyZh.takeIf { it.isNotBlank() } ?: fallback.storyZh,
-                storyEn = own.storyEn.takeIf { it.isNotBlank() } ?: fallback.storyEn,
+                bgPrimary = own.bgPrimary.takeUnless { it == "#FFFFFF" } ?: sceneFallback.bgPrimary,
+                bgAccent = own.bgAccent.takeUnless { it == "#FFFFFF" } ?: sceneFallback.bgAccent,
+                bossName = own.bossName.takeIf { it.isNotBlank() } ?: sceneFallback.bossName,
+                monsterPlan = own.monsterPlan.takeIf { it.isNotEmpty() } ?: sceneFallback.monsterPlan,
+                bossCandidates = own.bossCandidates.takeIf { it.isNotEmpty() } ?: sceneFallback.bossCandidates,
+                storyZh = own.storyZh.takeIf { it.isNotBlank() } ?: sceneFallback.storyZh,
+                storyEn = own.storyEn.takeIf { it.isNotBlank() } ?: sceneFallback.storyEn,
+                spellbookCoverUrl = own.spellbookCoverUrl.takeIf { it.isNotBlank() } ?: sceneFallback.spellbookCoverUrl,
             )
         }
+
+        private fun needsSceneFallback(scene: SceneMetadata): Boolean =
+            scene.bgPrimary == "#FFFFFF" ||
+                scene.bgAccent == "#FFFFFF" ||
+                scene.bossName.isBlank() ||
+                scene.monsterPlan.isEmpty() ||
+                scene.bossCandidates.isEmpty()
+
+        private fun fallbackSceneFor(seed: String): SceneMetadata {
+            val palette = FALLBACK_PALETTE[stableHash(seed).mod(FALLBACK_PALETTE.size)]
+            return SceneMetadata(
+                bgPrimary = palette.bgPrimary,
+                bgAccent = palette.bgAccent,
+                bossName = palette.bossName,
+                monsterPlan = listOf("slime", "zombie", "dragon"),
+                bossCandidates = listOf("dragon"),
+                storyZh = "",
+                storyEn = "",
+            )
+        }
+
+        private fun stableHash(value: String): Int {
+            var hash = 5381
+            value.forEach { ch ->
+                hash = ((hash shl 5) - hash) + ch.code
+            }
+            return hash and Int.MAX_VALUE
+        }
+
+        private data class FallbackPalette(
+            val bgPrimary: String,
+            val bgAccent: String,
+            val bossName: String,
+        )
+
+        private val FALLBACK_PALETTE = listOf(
+            FallbackPalette("#FFF6E0", "#FFD49A", "Orchard Sentinel"),
+            FallbackPalette("#E8F0FE", "#AECBFA", "Clock Wizard"),
+            FallbackPalette("#FFF1E6", "#F4B98A", "Toy Knight"),
+            FallbackPalette("#F0F8E8", "#A4D274", "Meadow Beast"),
+            FallbackPalette("#E8F4F8", "#6EB7CC", "Sea Sovereign"),
+        )
     }
 }

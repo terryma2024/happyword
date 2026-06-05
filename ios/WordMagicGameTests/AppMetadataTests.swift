@@ -49,8 +49,8 @@ final class AppMetadataTests: XCTestCase {
     }
 
     func testVersionMatchesHarmonyOSBaseline() {
-        XCTAssertEqual(AppMetadata.harmonyVersionName, "1.0.0")
-        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_010_000)
+        XCTAssertEqual(AppMetadata.harmonyVersionName, "1.0.1")
+        XCTAssertEqual(AppMetadata.harmonyVersionCode, 1_010_001)
     }
 
     func testPortraitTopChromeSpacingIsCompact() {
@@ -75,7 +75,6 @@ final class AppMetadataTests: XCTestCase {
         XCTAssertEqual(OrientationController.mask(for: .monsterCodex, idiom: .phone), .landscape)
         XCTAssertEqual(OrientationController.mask(for: .devMenu, idiom: .phone), .landscape)
         XCTAssertEqual(OrientationController.mask(for: .domainSwitch, idiom: .phone), .landscape)
-        XCTAssertEqual(OrientationController.mask(for: .bypassSecret, idiom: .phone), .landscape)
         XCTAssertEqual(OrientationController.mask(for: .wishlist, idiom: .phone), .landscape)
 
         XCTAssertEqual(OrientationController.mask(for: .config, idiom: .phone), .portrait)

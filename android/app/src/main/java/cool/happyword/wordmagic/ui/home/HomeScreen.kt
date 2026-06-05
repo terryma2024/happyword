@@ -86,7 +86,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -107,7 +106,6 @@ import cool.happyword.wordmagic.core.BattleEngine
 import cool.happyword.wordmagic.core.BattleState
 import cool.happyword.wordmagic.core.BattleStatus
 import cool.happyword.wordmagic.core.BackendEnv
-import cool.happyword.wordmagic.core.BackendHeaderProvider
 import cool.happyword.wordmagic.core.BackendRouteState
 import cool.happyword.wordmagic.core.BackendURLProvider
 import cool.happyword.wordmagic.core.BindingResult
@@ -148,7 +146,6 @@ import cool.happyword.wordmagic.core.WordStatsSyncStatus
 import cool.happyword.wordmagic.data.AndroidCloudRepositories
 import cool.happyword.wordmagic.data.AndroidDebugRoutingRepository
 import cool.happyword.wordmagic.data.AndroidLocalProgressRepositories
-import cool.happyword.wordmagic.ui.BypassSecretScreen
 import cool.happyword.wordmagic.ui.BoundDeviceInfoScreen
 import cool.happyword.wordmagic.ui.DevMenuScreen
 import cool.happyword.wordmagic.ui.LearningReportScreen
@@ -157,7 +154,7 @@ import cool.happyword.wordmagic.ui.PageChromeInsets
 import cool.happyword.wordmagic.ui.PackManagerScreen
 import cool.happyword.wordmagic.ui.RedemptionHistoryScreen
 import cool.happyword.wordmagic.ui.ScanBindingScreen
-import cool.happyword.wordmagic.ui.spellbookCoverDrawableId
+import cool.happyword.wordmagic.ui.SpellbookCoverImage
 import cool.happyword.wordmagic.ui.TodayPlanScreen
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
@@ -228,6 +225,7 @@ internal fun HomeScreen(
     showDeveloperTools: Boolean,
     homeVersionLabel: String,
     dailyStatus: DailyHomeStatus,
+    coverCacheVersion: Int = 0,
     onDeveloperVersionTripleTap: () -> Unit,
     onSelectPack: (WordPack) -> Unit,
     onBoundChild: () -> Unit,
@@ -297,8 +295,9 @@ internal fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(spellbookCoverDrawableId(selectedPack.id)),
+                        SpellbookCoverImage(
+                            pack = selectedPack,
+                            cacheVersion = coverCacheVersion,
                             contentDescription = selectedPack.nameZh,
                             modifier = Modifier
                                 .size(48.dp)

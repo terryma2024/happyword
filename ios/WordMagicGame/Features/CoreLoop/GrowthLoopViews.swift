@@ -1,9 +1,13 @@
 import SwiftUI
 
 enum PackManagerLayoutRules {
-    static let packTitleFontSize: CGFloat = 20
+    static let headerTitleFontSize: CGFloat = 25
+    static let packTitleFontSize: CGFloat = 17
     static let packTitleLineLimit = 2
     static let packTitleMinimumScaleFactor: CGFloat = 0.88
+    static let packSourceIconSide: CGFloat = 32
+    static let packSourceTagWidth: CGFloat = 58
+    static let packActionAreaWidth: CGFloat = 132
 }
 
 struct PackManagerView: View {
@@ -26,18 +30,18 @@ struct PackManagerView: View {
                 Spacer()
                 HStack(spacing: 10) {
                     Text("📦")
-                        .font(.system(size: 26))
+                        .font(.system(size: 22))
                     Text("我的词包")
-                        .font(.system(size: 29, weight: .heavy, design: .rounded))
+                        .font(.system(size: PackManagerLayoutRules.headerTitleFontSize, weight: .heavy, design: .rounded))
                         .foregroundStyle(AppTheme.navy)
                         .accessibilityIdentifier("PackManagerTitle")
                 }
                 Spacer()
                 Button("同步词包") { coordinator.syncPacks() }
-                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .foregroundStyle(AppTheme.navy)
-                    .padding(.horizontal, 18)
-                    .frame(height: 54)
+                    .padding(.horizontal, 14)
+                    .frame(height: 48)
                     .background(AppTheme.paleBlue, in: Capsule())
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("PackManagerSyncButton")
@@ -98,13 +102,23 @@ struct PackManagerView: View {
     private func packRow(_ pack: Pack) -> some View {
         let isActive = packSelectionStore.activePackIds.contains(pack.id)
         let isPinned = packSelectionStore.pinnedPackIds.contains(pack.id)
-        return HStack(spacing: 14) {
-            Text(pack.source.labelZh)
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .foregroundStyle(AppTheme.navy.opacity(0.72))
-                .padding(.horizontal, 10)
-                .frame(height: 28)
+        return HStack(spacing: 12) {
+            HStack(spacing: 4) {
+                Image(systemName: sourceIconName(pack.source))
+                    .font(.system(size: 13, weight: .heavy))
+                    .foregroundStyle(AppTheme.navy.opacity(0.72))
+                    .frame(width: 18, height: 18)
+                Text(pack.source.labelZh)
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy.opacity(0.72))
+            }
+                .padding(.horizontal, 6)
+                .frame(
+                    width: PackManagerLayoutRules.packSourceTagWidth,
+                    height: PackManagerLayoutRules.packSourceIconSide
+                )
                 .background(sourceColor(pack.source), in: Capsule())
+                .layoutPriority(2)
                 .accessibilityIdentifier("PackSourceTag_\(pack.id)")
             VStack(alignment: .leading, spacing: 4) {
                 Text(pack.title)
@@ -117,39 +131,52 @@ struct PackManagerView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)
-            if isActive {
-                Button {
-                    coordinator.togglePackPin(pack)
-                    refreshToken += 1
-                } label: {
-                    Text("📌 \(isPinned ? "已固定" : "固定")")
-                        .font(.system(size: 15, weight: .heavy, design: .rounded))
-                        .foregroundStyle(AppTheme.navy.opacity(0.76))
-                        .padding(.horizontal, 12)
-                        .frame(height: 34)
-                        .background(isPinned ? AppTheme.gold.opacity(0.52) : Color(red: 0.94, green: 0.95, blue: 0.96), in: Capsule())
+            HStack(spacing: 8) {
+                if isActive {
+                    Button {
+                        coordinator.togglePackPin(pack)
+                        refreshToken += 1
+                    } label: {
+                        Image(systemName: isPinned ? "pin.fill" : "pin")
+                            .font(.system(size: 15, weight: .heavy))
+                            .foregroundStyle(AppTheme.navy.opacity(0.76))
+                            .frame(width: 34, height: 34)
+                            .background(isPinned ? AppTheme.gold.opacity(0.52) : Color(red: 0.94, green: 0.95, blue: 0.96), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Capsule())
+                    .accessibilityLabel("\(isPinned ? "已固定" : "固定") \(pack.title)")
+                    .accessibilityIdentifier("PackPin_\(pack.id)")
+                } else {
+                    Color.clear.frame(width: 34, height: 34)
                 }
-                .buttonStyle(.plain)
-                .contentShape(Capsule())
-                .accessibilityLabel("\(isPinned ? "已固定" : "固定") \(pack.title)")
-                .accessibilityIdentifier("PackPin_\(pack.id)")
+                Toggle("", isOn: Binding(
+                    get: { packSelectionStore.activePackIds.contains(pack.id) },
+                    set: { _ in
+                        coordinator.togglePackActive(pack)
+                        refreshToken += 1
+                    }
+                ))
+                .labelsHidden()
+                .tint(AppTheme.gold)
+                .accessibilityIdentifier("PackToggle_\(pack.id)")
             }
-            Toggle("", isOn: Binding(
-                get: { packSelectionStore.activePackIds.contains(pack.id) },
-                set: { _ in
-                    coordinator.togglePackActive(pack)
-                    refreshToken += 1
-                }
-            ))
-            .labelsHidden()
-            .tint(AppTheme.gold)
-            .accessibilityIdentifier("PackToggle_\(pack.id)")
+            .frame(width: PackManagerLayoutRules.packActionAreaWidth, alignment: .trailing)
+            .layoutPriority(2)
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .frame(height: 66)
+        .frame(minHeight: 68)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
             RoundedRectangle(cornerRadius: 18).stroke(Color.gray.opacity(isActive ? 0.14 : 0.10), lineWidth: 1.2)
+        }
+    }
+
+    private func sourceIconName(_ source: PackSource) -> String {
+        switch source {
+        case .builtin: "shippingbox.fill"
+        case .global: "globe.asia.australia.fill"
+        case .family: "house.fill"
         }
     }
 

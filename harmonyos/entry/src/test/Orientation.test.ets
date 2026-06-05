@@ -55,8 +55,6 @@ export default function orientationTest(): void {
         .assertEqual('AUTO_ROTATION_LANDSCAPE');
       expect(desiredOrientationForPage('WishlistPage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
         .assertEqual('AUTO_ROTATION_LANDSCAPE');
-      expect(desiredOrientationForPage('BypassSecretPage', PAD_SHORT_EDGE_BREAKPOINT_VP - 1))
-        .assertEqual('AUTO_ROTATION_LANDSCAPE');
     });
 
     it('phone portrait pages request portrait', 0, () => {

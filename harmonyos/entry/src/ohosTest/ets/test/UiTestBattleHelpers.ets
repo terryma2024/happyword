@@ -35,6 +35,7 @@ const WORD_ZH: string[] = [
   '鱼', '鲸鱼', '鲨鱼', '螃蟹', '海豚',
   '章鱼', '海豹', '海龟', '海星', '水母',
   '贝壳', '珊瑚', '沙滩', '海浪', '海草',
+  '火箭', '行星', '彗星', '阿尔法', '饼干', '糖果', '酸奶',
 ];
 const WORD_EN: string[] = [
   'apple', 'banana', 'orange', 'grape', 'pear',
@@ -52,6 +53,7 @@ const WORD_EN: string[] = [
   'fish', 'whale', 'shark', 'crab', 'dolphin',
   'octopus', 'seal', 'turtle', 'starfish', 'jellyfish',
   'shell', 'coral', 'beach', 'wave', 'seaweed',
+  'rocket', 'planet', 'comet', 'alpha', 'cookie', 'candy', 'yogurt',
 ];
 
 export async function assertPlayerHp(

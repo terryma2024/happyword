@@ -29,7 +29,7 @@
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
-- [x] Release Simulator sanity check verified `-UITestRouteDevMenu` and `-UITestRouteBypassSecret` land on the normal home screen.
+- [x] Release Simulator sanity check verified developer-only routes land on the normal home screen.
 - [x] `NSPhotoLibraryAddUsageDescription` was removed because the iOS client only reads from Photos via `PhotosPicker` and does not write to the photo library.
 - [x] Real-device Release/TestFlight smoke test passed for build `0.7.0 (1007004)`.
 - [x] App Store Connect app record is verified by successful upload (`adamId: 6768499286`).
@@ -215,7 +215,7 @@ xcodebuild archive \
   - [x] Sync after app restart.
   - [x] Settings page has no developer backend entry.
   - [x] Home version-label triple-tap does not open DevMenu in Release.
-  - [x] Bypass secret route cannot be opened in Release.
+  - [x] Legacy preview bypass route is not present in the client.
 
 ## P1 App Store Connect Metadata
 

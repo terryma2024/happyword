@@ -66,12 +66,6 @@ struct ContentView: View {
                 } else {
                     ConfigView(coordinator: coordinator)
                 }
-            case .bypassSecret:
-                if DeveloperToolsPolicy.isDeveloperToolsVisible() {
-                    BypassSecretView(coordinator: coordinator)
-                } else {
-                    ConfigView(coordinator: coordinator)
-                }
             case .pcmAudioLab:
                 if DeveloperToolsPolicy.isDeveloperToolsVisible() {
                     PcmAudioLabView(coordinator: coordinator)
@@ -118,6 +112,8 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             Task { await coordinator.syncWordStatsIfPossible(showStatus: false) }
         }
+        .environment(\.spellbookCoverCache, coordinator.spellbookCoverCache)
+        .environment(\.spellbookCoverCacheVersion, coordinator.spellbookCoverCacheVersion)
     }
 }
 

@@ -20,14 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -95,7 +89,6 @@ fun DomainSwitchScreen(
     onRefreshManifest: () -> Unit,
     onSelectPreview: (PreviewTarget) -> Unit,
     onProbe: () -> Unit,
-    onBypassSecret: () -> Unit,
     onClear: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -126,8 +119,6 @@ fun DomainSwitchScreen(
                 color = Color(0xFF303030),
             )
             Spacer(Modifier.weight(1f))
-            HarmonyDevMenuButton("Bypass Secret", Modifier.testTag("DevMenuBypassSecretButton"), enabled = !applying, onClick = onBypassSecret)
-            Spacer(Modifier.width(10.dp))
             HarmonyDevMenuButton(
                 if (manifestBusy) "Refreshing..." else "Refresh Manifest",
                 Modifier.testTag("DevMenuRefreshManifestButton"),
@@ -300,48 +291,6 @@ private fun DevMenuCard(
         )
         if (card.preview != null) {
             Box(Modifier.size(1.dp).testTag(card.id))
-        }
-    }
-}
-
-@Composable
-fun BypassSecretScreen(
-    initialSecret: String,
-    onSave: (String) -> Unit,
-    onClear: () -> Unit,
-    onCancel: () -> Unit,
-) {
-    var secret by remember(initialSecret) { mutableStateOf(initialSecret) }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Color(0xFFFFF6E7))
-            .topChromeSafeInsets()
-            .padding(
-                start = PageChromeInsets.bodyHorizontal,
-                top = PageChromeInsets.bodyTop,
-                end = PageChromeInsets.bodyHorizontal,
-                bottom = PageChromeInsets.bodyBottom,
-            ),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            HarmonyPageTopBackButton(
-                onClick = onCancel,
-                modifier = Modifier.testTag("BypassSecretPageBackButton"),
-            )
-            Spacer(Modifier.weight(1f))
-        }
-        Text("Bypass Secret", fontSize = 28.sp, fontWeight = FontWeight.Black, modifier = Modifier.testTag("BypassSecretPageTitle"))
-        OutlinedTextField(
-            value = secret,
-            onValueChange = { secret = it },
-            label = { Text("Vercel Protection Bypass") },
-            modifier = Modifier.padding(top = 18.dp).testTag("BypassSecretPageInput"),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 18.dp)) {
-            OutlinedButton(onClick = onClear, modifier = Modifier.testTag("BypassSecretPageClearButton")) { Text("清除") }
-            Button(onClick = { onSave(secret) }, modifier = Modifier.testTag("BypassSecretPageSaveButton")) { Text("保存") }
         }
     }
 }

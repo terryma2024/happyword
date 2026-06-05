@@ -64,6 +64,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -161,7 +164,14 @@ fun PackManagerScreen(
                     else -> "PackManagerLimitMessage"
                 }
                 val messageColor = if (messageTag == "PackManagerLimitMessage") Color(0xFF147C42) else Color(0xFFD94141)
-                Text(message, color = messageColor, modifier = Modifier.padding(vertical = 6.dp).testTag(messageTag))
+                Text(
+                    message,
+                    color = messageColor,
+                    modifier = Modifier
+                        .padding(vertical = 6.dp)
+                        .testTag(messageTag)
+                        .semantics { text = AnnotatedString(message) },
+                )
             }
         }
         items(packs) { pack ->

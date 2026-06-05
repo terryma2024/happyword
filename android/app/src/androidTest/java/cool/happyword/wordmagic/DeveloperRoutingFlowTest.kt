@@ -50,7 +50,6 @@ class DeveloperRoutingFlowTest {
         composeRule.onNodeWithTag("DomainSwitchScreen").assertIsDisplayed()
         composeRule.onNodeWithText("Backend environment (debug builds only)").assertIsDisplayed()
         composeRule.onNodeWithTag("DomainSwitchBackButton").assertIsDisplayed()
-        composeRule.onNodeWithTag("DevMenuBypassSecretButton").assertIsDisplayed()
         composeRule.onNodeWithTag("DevMenuRefreshManifestButton").assertIsDisplayed()
         composeRule.onNodeWithTag("DevMenuLocalCard").assertHeightIsEqualTo(96.dp)
         composeRule.onNodeWithTag("DevMenuStagingCard").assertHeightIsEqualTo(96.dp)
@@ -59,9 +58,6 @@ class DeveloperRoutingFlowTest {
         assertTrue(composeRule.onAllNodesWithTag("DevMenuPreviewRow_preview-main").fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithTag("DevMenuPreviewRow_preview-e2e").fetchSemanticsNodes().isEmpty())
 
-        composeRule.onNodeWithTag("DevMenuBypassSecretButton").performClick()
-        composeRule.onNodeWithTag("BypassSecretPageClearButton").performClick()
-        composeRule.onNodeWithTag("DomainSwitchScreen").assertIsDisplayed()
         composeRule.onNodeWithTag("DevMenuLocalCard").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             composeRule.onAllNodesWithTag("HomeScreen").fetchSemanticsNodes().isNotEmpty()

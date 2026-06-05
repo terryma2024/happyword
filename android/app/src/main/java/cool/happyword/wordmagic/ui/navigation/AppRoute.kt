@@ -21,6 +21,5 @@ internal enum class AppRoute {
     DevMenu,
     DomainSwitch,
     PcmAudioLab,
-    BypassSecret,
     MessageBubbleLab,
 }

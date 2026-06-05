@@ -69,13 +69,13 @@
 
 - [ ] Confirm production backend is ready for Huawei review.
   - Production API must be HTTPS and reachable from Huawei review devices.
-  - Review account and sample flow must not depend on DevMenu, preview routing, local server, or Vercel bypass secret.
+  - Review account and sample flow must not depend on DevMenu, preview routing, or local server.
   - Parent binding, QR scan, photo import, word extraction, sync, and child practice flows must be reviewable.
 
 - [ ] Confirm release build exposes no debug-only controls.
   - Settings must not expose Developer / Backend environment.
   - Home version-label triple-tap must not navigate to DevMenu.
-  - Bypass secret page must not be reachable through normal Release UI.
+  - Legacy preview bypass UI must not be present.
   - Battle page must not show `[debug] end battle`.
 
 - [ ] Confirm privacy policy URL.

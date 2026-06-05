@@ -79,6 +79,10 @@ import {
   SpellbookCoverSourceKind,
   spellbookCoverSourceForPack,
 } from '../services/SpellbookCoverResolver';
+import {
+  CachedSpellbookCover,
+  cachedSpellbookCoverPathsForPacks,
+} from '../services/SpellbookCoverCache';
 
 /**
  * Route params bag for `pages/DevMenuPage`. ArkTS strict mode rejects
@@ -107,6 +111,7 @@ struct HomePage {
   @State private chipPacks: Pack[] = fallbackPacks();
   @State private todayPack: Pack = fallbackPacks()[0];
   @State private todayRegion: AdventureRegion = ADVENTURE_REGIONS[0];
+  @State private cachedSpellbookCovers: CachedSpellbookCover[] = [];
   /**
    * Bumped on every successful loadHomeIntegration / setActiveIds /
    * togglePin / pruneAgainstLibrary call. ArkUI does not track through
@@ -190,6 +195,7 @@ struct HomePage {
     loadHomeIntegration(ctx).then((bundle: HomeIntegrationBundle): void => {
       this.homeIntegration = bundle;
       this.applyActivePacks();
+      this.refreshCachedSpellbookCovers(ctx);
       this.refreshDailyLearningState(ctx);
     }).catch((err: BusinessError): void => {
       console.error(`HomePage: loadHomeIntegration failed: ${JSON.stringify(err)}`);
@@ -268,6 +274,7 @@ struct HomePage {
     loadHomeIntegration(ctxShow).then((bundle: HomeIntegrationBundle): void => {
       this.homeIntegration = bundle;
       this.applyActivePacks();
+      this.refreshCachedSpellbookCovers(ctxShow);
       this.refreshDailyLearningState(ctxShow);
     }).catch((err: BusinessError): void => {
       console.error(`HomePage: loadHomeIntegration on show failed: ${JSON.stringify(err)}`);
@@ -393,6 +400,24 @@ struct HomePage {
     this.todayPack = chosen;
     this.todayRegion = regionFromPack(chosen);
     this.packLibraryVersion = this.packLibraryVersion + 1;
+  }
+
+  private refreshCachedSpellbookCovers(ctx: common.UIAbilityContext): void {
+    cachedSpellbookCoverPathsForPacks(ctx, this.chipPacks).then((items: CachedSpellbookCover[]): void => {
+      this.cachedSpellbookCovers = items;
+      this.packLibraryVersion = this.packLibraryVersion + 1;
+    }).catch((err: BusinessError): void => {
+      console.error(`HomePage.refreshCachedSpellbookCovers failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private cachedSpellbookCoverPath(packId: string): string {
+    for (let i = 0; i < this.cachedSpellbookCovers.length; i++) {
+      if (this.cachedSpellbookCovers[i].packId === packId) {
+        return this.cachedSpellbookCovers[i].path;
+      }
+    }
+    return '';
   }
 
   private reviewEnabled(): boolean {
@@ -933,7 +958,13 @@ struct HomePage {
   @Builder
   private homePackSpellbookCover() {
     Stack() {
-      if (spellbookCoverSourceForPack(this.todayPack).kind === SpellbookCoverSourceKind.RemoteUrl) {
+      if (this.cachedSpellbookCoverPath(this.todayPack.id).length > 0) {
+        Image(this.cachedSpellbookCoverPath(this.todayPack.id))
+          .width(36)
+          .height(36)
+          .objectFit(ImageFit.Contain)
+          .syncLoad(true);
+      } else if (spellbookCoverSourceForPack(this.todayPack).kind === SpellbookCoverSourceKind.RemoteUrl) {
         Image(spellbookCoverSourceForPack(this.todayPack).value)
           .width(36)
           .height(36)

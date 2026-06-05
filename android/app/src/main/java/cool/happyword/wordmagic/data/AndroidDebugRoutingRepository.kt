@@ -3,7 +3,6 @@ package cool.happyword.wordmagic.data
 import android.content.Context
 import cool.happyword.wordmagic.core.BackendEnv
 import cool.happyword.wordmagic.core.BackendRouteState
-import cool.happyword.wordmagic.core.BypassSecretStore
 import cool.happyword.wordmagic.core.PreviewTarget
 import cool.happyword.wordmagic.core.StringKeyValueStore
 
@@ -18,8 +17,6 @@ class AndroidDebugRoutingRepository(context: Context) {
             prefs.edit().remove(key).apply()
         }
     }
-    val bypassSecretStore = BypassSecretStore(store)
-
     fun loadRouteState(): BackendRouteState {
         val env = runCatching { BackendEnv.valueOf(prefs.getString("env", BackendEnv.Staging.name).orEmpty()) }.getOrDefault(BackendEnv.Staging)
         val previewId = prefs.getString("previewId", null)
@@ -30,7 +27,11 @@ class AndroidDebugRoutingRepository(context: Context) {
         } else {
             null
         }
-        return BackendRouteState(env = env, selectedPreview = preview)
+        return BackendRouteState(
+            env = env,
+            selectedPreview = preview,
+            instrumentationOverrideUrl = prefs.getString("instrumentationOverrideUrl", null),
+        )
     }
 
     fun saveRouteState(state: BackendRouteState) {
@@ -39,6 +40,7 @@ class AndroidDebugRoutingRepository(context: Context) {
             .putString("previewId", state.selectedPreview?.id)
             .putString("previewLabel", state.selectedPreview?.label)
             .putString("previewUrl", state.selectedPreview?.url)
+            .putString("instrumentationOverrideUrl", state.instrumentationOverrideUrl)
             .apply()
     }
 

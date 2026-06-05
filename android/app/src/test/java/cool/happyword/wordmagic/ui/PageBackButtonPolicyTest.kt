@@ -23,7 +23,6 @@ class PageBackButtonPolicyTest {
             PageSource("ScanBindingScreen", "src/main/java/cool/happyword/wordmagic/ui/CloudBindingScreens.kt"),
             PageSource("BoundDeviceInfoScreen", "src/main/java/cool/happyword/wordmagic/ui/CloudBindingScreens.kt"),
             PageSource("DevMenuScreen", "src/main/java/cool/happyword/wordmagic/ui/DeveloperRoutingScreens.kt"),
-            PageSource("BypassSecretScreen", "src/main/java/cool/happyword/wordmagic/ui/DeveloperRoutingScreens.kt"),
         )
 
         pages.forEach { page ->

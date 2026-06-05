@@ -77,6 +77,7 @@ import homeDailyStatusBadgeStyleTest from './HomeDailyStatusBadgeStyle.test';
 import spellbookServiceTest from './SpellbookService.test';
 import spellbookRewardStoreTest from './SpellbookRewardStore.test';
 import spellbookCoverResolverTest from './SpellbookCoverResolver.test';
+import spellbookCoverCacheTest from './SpellbookCoverCache.test';
 import devMenuToolEntriesTest from './DevMenuToolEntries.test';
 import audioLabControllerTest from './AudioLabController.test';
 import audioLabPcmVoiceTest from './AudioLabPcmVoice.test';
@@ -162,6 +163,7 @@ export default function testsuite() {
   spellbookServiceTest();
   spellbookRewardStoreTest();
   spellbookCoverResolverTest();
+  spellbookCoverCacheTest();
   devMenuToolEntriesTest();
   audioLabControllerTest();
   audioLabPcmVoiceTest();

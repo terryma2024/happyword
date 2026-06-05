@@ -40,14 +40,6 @@ class DebugRoutingTest {
     }
 
     @Test
-    fun bypassHeaderOnlyAppliesToPreview() {
-        val provider = BackendHeaderProvider()
-
-        assertTrue(provider.headers(BackendRouteState(env = BackendEnv.Staging), "secret").isEmpty())
-        assertEquals("secret", provider.headers(BackendRouteState(env = BackendEnv.Preview), " secret ")["x-vercel-protection-bypass"])
-    }
-
-    @Test
     fun previewManifestRejectsInvalidUrls() {
         val parsed = PreviewManifestClient().parse(
             """{"schema_version":1,"previews":[{"id":"ok","url":"https://ok.example.com"},{"id":"bad","url":"ftp://bad"}]}""",
@@ -65,6 +57,19 @@ class DebugRoutingTest {
         assertEquals("pr-65", parsed.single().id)
         assertEquals("fix(harmony): stabilize UI suite", parsed.single().label)
         assertEquals("#65(24cd43a)", parsed.single().footer)
+    }
+
+    @Test
+    fun previewManifestKeepsCloudBaseStagingRows() {
+        val parsed = PreviewManifestClient().parse(
+            """{"schema_version":1,"updated_at":"","previews":[{"pr":0,"title":"CloudBase Staging","branch":"shared-staging","url":"https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com","author":"cloudbase","head_sha":"inline","updated_at":""}]}""",
+        )
+
+        assertEquals(1, parsed.size)
+        assertEquals("shared-staging", parsed.single().id)
+        assertEquals("CloudBase Staging", parsed.single().label)
+        assertEquals("https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com", parsed.single().url)
+        assertEquals("shared-staging", parsed.single().footer)
     }
 
     @Test
@@ -102,16 +107,6 @@ class DebugRoutingTest {
 
         assertTrue(vm.fallbackManifest().isEmpty())
         assertTrue(vm.refreshManifest(emptyList(), force = false).isEmpty())
-    }
-
-    @Test
-    fun bypassSecretStoreSavesTrimsAndClears() {
-        val store = BypassSecretStore(MemoryStringKeyValueStore())
-
-        store.save(" token ")
-        assertEquals("token", store.load())
-        store.clear()
-        assertEquals("", store.load())
     }
 
     @Test

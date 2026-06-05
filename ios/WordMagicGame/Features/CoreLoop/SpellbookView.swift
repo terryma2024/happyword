@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SpellbookView: View {
     @ObservedObject var coordinator: AppCoordinator
@@ -209,26 +210,46 @@ struct SpellbookView: View {
 
 struct SpellbookCoverImage: View {
     let pack: Pack
+    @Environment(\.spellbookCoverCache) private var coverCache
+    @Environment(\.spellbookCoverCacheVersion) private var coverCacheVersion
+    @State private var source: SpellbookCoverSource?
 
     var body: some View {
-        Group {
-            if let url = pack.scene.spellbookCoverUrl.flatMap(URL.init(string:)) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFit()
-                    default:
-                        Image(SpellbookCoverAsset.assetName(for: pack.id)).resizable().scaledToFit()
-                    }
-                }
-            } else {
-                Image(SpellbookCoverAsset.assetName(for: pack.id))
-                    .resizable()
-                    .scaledToFit()
-            }
-        }
+        coverImage(source ?? coverCache.source(for: pack))
         .padding(4)
         .background(Color.white.opacity(0.62), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .task(id: "\(pack.id)::\(pack.scene.spellbookCoverUrl ?? "")::\(coverCacheVersion)") {
+            source = coverCache.source(for: pack)
+        }
+    }
+
+    @ViewBuilder
+    private func coverImage(_ source: SpellbookCoverSource) -> some View {
+        switch source {
+        case .bundledAsset(let name):
+            bundledImage(name)
+        case .cachedFile(let fileURL):
+            if let uiImage = UIImage(contentsOfFile: fileURL.path) {
+                Image(uiImage: uiImage).resizable().scaledToFit()
+            } else {
+                bundledImage(SpellbookCoverAsset.assetName(for: pack.id))
+            }
+        case .remoteURL(let url):
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFit()
+                default:
+                    bundledImage(SpellbookCoverAsset.assetName(for: pack.id))
+                }
+            }
+        }
+    }
+
+    private func bundledImage(_ name: String) -> some View {
+        Image(name)
+            .resizable()
+            .scaledToFit()
     }
 }
 

@@ -114,7 +114,6 @@ import cool.happyword.wordmagic.core.BattleEngine
 import cool.happyword.wordmagic.core.BattleState
 import cool.happyword.wordmagic.core.BattleStatus
 import cool.happyword.wordmagic.core.BackendEnv
-import cool.happyword.wordmagic.core.BackendHeaderProvider
 import cool.happyword.wordmagic.core.BackendRouteState
 import cool.happyword.wordmagic.core.BackendURLProvider
 import cool.happyword.wordmagic.core.SystemBrowser
@@ -135,7 +134,6 @@ import cool.happyword.wordmagic.core.VersionTripleTap
 import cool.happyword.wordmagic.core.DailyLearningState
 import cool.happyword.wordmagic.core.DailyLearningStateService
 import cool.happyword.wordmagic.core.DeviceBindingClient
-import cool.happyword.wordmagic.core.FixtureDeviceBindingClient
 import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
 import cool.happyword.wordmagic.core.CustomWishRules
 import cool.happyword.wordmagic.core.GameConfig
@@ -148,6 +146,8 @@ import cool.happyword.wordmagic.core.ParentPinStore
 import cool.happyword.wordmagic.core.Question
 import cool.happyword.wordmagic.core.QuestionKind
 import cool.happyword.wordmagic.core.RedemptionHistoryStore
+import cool.happyword.wordmagic.core.RemoteFamilyPackClient
+import cool.happyword.wordmagic.core.RemoteGlobalPackClient
 import cool.happyword.wordmagic.core.SessionResult
 import cool.happyword.wordmagic.core.TodayPlanService
 import cool.happyword.wordmagic.core.WishlistState
@@ -164,8 +164,8 @@ import cool.happyword.wordmagic.core.WordStatsSyncStatus
 import cool.happyword.wordmagic.data.AndroidCloudRepositories
 import cool.happyword.wordmagic.data.AndroidDebugRoutingRepository
 import cool.happyword.wordmagic.data.AndroidLocalProgressRepositories
+import cool.happyword.wordmagic.data.SpellbookCoverCache
 import cool.happyword.wordmagic.data.AndroidParentPinRepository
-import cool.happyword.wordmagic.ui.BypassSecretScreen
 import cool.happyword.wordmagic.ui.BoundDeviceInfoScreen
 import cool.happyword.wordmagic.ui.DevMenuScreen
 import cool.happyword.wordmagic.ui.DomainSwitchScreen
@@ -298,6 +298,16 @@ private val BattleStateSaver = Saver<BattleState?, Bundle>(
     },
 )
 
+private enum class ParentPinReturnTarget {
+    ParentAdmin,
+    WishlistRedemption,
+    CloudUnbind,
+    BoundDeviceInfo,
+}
+
+private fun parentPinReturnTargetFromName(name: String): ParentPinReturnTarget =
+    ParentPinReturnTarget.entries.firstOrNull { it.name == name } ?: ParentPinReturnTarget.ParentAdmin
+
 private fun Question.toSaveBundle(): Bundle =
     Bundle().apply {
         putString("prompt", prompt)
@@ -380,7 +390,6 @@ fun WordMagicGameApp() {
     val debugRoutingRepository = remember { AndroidDebugRoutingRepository(context.applicationContext) }
     val devMenuViewModel = remember { DevMenuViewModel() }
     val appScope = rememberCoroutineScope()
-    val cloudCoordinator = remember { CloudSyncCoordinator() }
     val isDebuggable = remember { (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
     val showDeveloperTools = BuildGate.showDeveloperTools(isDebuggable)
     val compliancePrefs = remember {
@@ -398,6 +407,7 @@ fun WordMagicGameApp() {
     var cloudCredentials by remember { mutableStateOf(cloudRepositories.loadCredentials()) }
     var globalPacks by remember { mutableStateOf(cloudRepositories.loadGlobalPacks()) }
     var familyPacks by remember { mutableStateOf(cloudRepositories.loadFamilyPacks()) }
+    var coverCacheVersion by remember { mutableIntStateOf(0) }
     var cloudSyncStatus by remember { mutableStateOf(cloudRepositories.loadSyncStatus()) }
     var learningSyncStatus by remember { mutableStateOf(cloudRepositories.loadLearningSyncStatus()) }
     var learningSyncToast by remember { mutableStateOf("") }
@@ -411,53 +421,37 @@ fun WordMagicGameApp() {
     val bindingClient = remember {
         DeviceBindingClient(
             baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
-            extraHeadersProvider = {
-                BackendHeaderProvider().headers(
-                    backendRouteState,
-                    debugRoutingRepository.bypassSecretStore.load(),
-                )
-            },
         )
     }
-    val fixtureBindingClient = remember { FixtureDeviceBindingClient() }
     val childProfileClient = remember {
         ChildProfileClient(
             baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
-            extraHeadersProvider = {
-                BackendHeaderProvider().headers(
-                    backendRouteState,
-                    debugRoutingRepository.bypassSecretStore.load(),
-                )
-            },
         )
     }
     val wordStatsSyncClient = remember {
         WordStatsSyncClient(
             baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
-            extraHeadersProvider = {
-                BackendHeaderProvider().headers(
-                    backendRouteState,
-                    debugRoutingRepository.bypassSecretStore.load(),
-                )
-            },
+        )
+    }
+    val cloudCoordinator = remember {
+        CloudSyncCoordinator(
+            globalClient = RemoteGlobalPackClient(
+                baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
+            ),
+            familyClient = RemoteFamilyPackClient(
+                baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
+            ),
+            statsClient = wordStatsSyncClient,
         )
     }
     val checkInSyncClient = remember {
         CheckInSyncClient(
             baseUrlProvider = { BackendURLProvider().resolve(backendRouteState) },
-            extraHeadersProvider = {
-                BackendHeaderProvider().headers(
-                    backendRouteState,
-                    debugRoutingRepository.bypassSecretStore.load(),
-                )
-            },
         )
     }
     var previewTargets by remember { mutableStateOf(devMenuViewModel.fallbackManifest()) }
     var previewManifestBusy by remember { mutableStateOf(false) }
     var backendApplying by remember { mutableStateOf(false) }
-    var pendingPreviewAfterSecret by remember { mutableStateOf<cool.happyword.wordmagic.core.PreviewTarget?>(null) }
-    var bypassSecretReturnRoute by remember { mutableStateOf(AppRoute.DomainSwitch) }
     var probeStatus by remember { mutableStateOf("尚未探测") }
     val packLibrary = remember(globalPacks, familyPacks) { PackLibrary.merge(BuiltinPacks.all, globalPacks, familyPacks) }
     var selection by remember { mutableStateOf(repositories.loadSelection().prune(packLibrary)) }
@@ -526,9 +520,15 @@ fun WordMagicGameApp() {
     var removeCustomWishPinInput by remember { mutableStateOf("") }
     var pendingRemoveCustomWishId by remember { mutableStateOf<String?>(null) }
     var parentPinReady by remember { mutableStateOf(parentPinRepository.hasPin()) }
+    var parentPinReturnTarget by rememberSaveable { mutableStateOf(ParentPinReturnTarget.ParentAdmin.name) }
     var devMenuRoutePreset by remember { mutableStateOf<String?>(null) }
     var battleDailyDayKey by rememberSaveable { mutableStateOf(restoredBattleSnapshot?.dailyDayKey ?: "") }
     val dailyLearningService = remember { DailyLearningStateService() }
+
+    fun openParentPin(target: ParentPinReturnTarget) {
+        parentPinReturnTarget = target.name
+        route = AppRoute.ParentPin
+    }
 
     fun clearTransientBattleUiState() {
         battleState = null
@@ -542,7 +542,16 @@ fun WordMagicGameApp() {
         engine = BattleEngine(config = config, words = selectedPack.words)
     }
 
-    fun applyBindingSuccess(credentials: CloudCredentials) {
+    fun refreshSpellbookCoverCache(packs: List<WordPack>) {
+        appScope.launch {
+            withContext(Dispatchers.IO) {
+                SpellbookCoverCache.forContext(context.applicationContext).refresh(packs)
+            }
+            coverCacheVersion += 1
+        }
+    }
+
+    suspend fun applyBindingSuccess(credentials: CloudCredentials) {
         cloudRepositories.saveCredentials(credentials)
         cloudCredentials = credentials
         val syncResult = cloudCoordinator.syncPacks(cloudCredentials)
@@ -550,6 +559,7 @@ fun WordMagicGameApp() {
         familyPacks = syncResult.familyPacks.ifEmpty { familyPacks }
         cloudRepositories.saveGlobalPacks(globalPacks)
         cloudRepositories.saveFamilyPacks(familyPacks)
+        refreshSpellbookCoverCache(globalPacks + familyPacks)
         cloudSyncStatus = syncResult.statusMessage
         cloudRepositories.saveSyncStatus(cloudSyncStatus)
         scanBindingSuccessNickname = credentials.childNickname.ifBlank { "宝贝" }
@@ -558,7 +568,7 @@ fun WordMagicGameApp() {
             route = AppRoute.BoundDeviceInfo
         } else {
             pendingPostBindPinSetup = true
-            route = AppRoute.ParentPin
+            openParentPin(ParentPinReturnTarget.BoundDeviceInfo)
         }
     }
 
@@ -568,11 +578,7 @@ fun WordMagicGameApp() {
             scanBindingBusy = true
             scanBindingFailureReason = ""
             val deviceId = cloudRepositories.deviceIdProvider.getOrCreate()
-            val result = if (isDebuggable) {
-                fixtureBindingClient.redeemShortCode(code, deviceId)
-            } else {
-                bindingClient.redeemShortCode(code, deviceId)
-            }
+            val result = bindingClient.redeemShortCode(code, deviceId)
             when (result) {
                 is BindingResult.Success -> applyBindingSuccess(result.credentials)
                 is BindingResult.Failure -> scanBindingFailureReason = bindingFailureReasonFromMessage(result.message)
@@ -587,11 +593,7 @@ fun WordMagicGameApp() {
             scanBindingBusy = true
             scanBindingFailureReason = ""
             val deviceId = cloudRepositories.deviceIdProvider.getOrCreate()
-            val result = if (isDebuggable) {
-                fixtureBindingClient.redeemToken(token, deviceId)
-            } else {
-                bindingClient.redeemToken(token, deviceId)
-            }
+            val result = bindingClient.redeemToken(token, deviceId)
             when (result) {
                 is BindingResult.Success -> applyBindingSuccess(result.credentials)
                 is BindingResult.Failure -> scanBindingFailureReason = bindingFailureReasonFromMessage(result.message)
@@ -640,21 +642,20 @@ fun WordMagicGameApp() {
         learningSyncToast = ""
     }
 
-    fun applyBackendRoute(targetState: BackendRouteState, bypassSecret: String = "") {
+    fun applyBackendRoute(targetState: BackendRouteState) {
         if (backendApplying) return
         appScope.launch {
             backendApplying = true
             try {
                 if (targetState.env == BackendEnv.Preview) {
                     probeStatus = "Probing ${devMenuViewModel.routingSummary(targetState).substringAfter(": ")}/api/v1/public/health..."
-                    val probeResult = devMenuViewModel.probeHealth(targetState, bypassSecret)
+                    val probeResult = devMenuViewModel.probeHealth(targetState)
                     probeStatus = probeResult.message
                     if (!probeResult.ok) {
                         route = AppRoute.DevMenu
                         Toast.makeText(context, "Cannot reach /api/v1/public/health - see status at bottom", Toast.LENGTH_SHORT).show()
                         return@launch
                     }
-                    debugRoutingRepository.bypassSecretStore.save(bypassSecret)
                 }
                 resetForBackendSwitch()
                 debugRoutingRepository.saveRouteState(targetState)
@@ -934,6 +935,7 @@ fun WordMagicGameApp() {
                     showDeveloperTools = showDeveloperTools,
                     homeVersionLabel = homeVersionLabel,
                     dailyStatus = dailyLearningService.homeStatus(dailyLearningState),
+                    coverCacheVersion = coverCacheVersion,
                     onDeveloperVersionTripleTap = {
                         if (showDeveloperTools) {
                             devMenuRoutePreset = DevMenuRouteParams.PRESET_ENV_PREVIEW
@@ -1041,8 +1043,8 @@ fun WordMagicGameApp() {
                         engine = BattleEngine(config = config, words = selectedPack.words)
                     },
                     onBack = { route = AppRoute.Home },
-                    onParentAdmin = { route = AppRoute.ParentPin },
-                    onParentPinSetup = { route = AppRoute.ParentPin },
+                    onParentAdmin = { openParentPin(ParentPinReturnTarget.ParentAdmin) },
+                    onParentPinSetup = { openParentPin(ParentPinReturnTarget.ParentAdmin) },
                     onCloudBinding = {
                         scanBindingFailureReason = ""
                         scanBindingSuccessNickname = null
@@ -1087,20 +1089,20 @@ fun WordMagicGameApp() {
                 AppRoute.ParentPin -> ParentPinScreen(
                     hasPin = parentPinReady,
                     onBack = {
-                        when {
-                            pendingRedemptionWishId != null -> {
+                        when (parentPinReturnTargetFromName(parentPinReturnTarget)) {
+                            ParentPinReturnTarget.WishlistRedemption -> {
                                 pendingRedemptionWishId = null
                                 route = AppRoute.Wishlist
                             }
-                            pendingCloudUnbind -> {
+                            ParentPinReturnTarget.CloudUnbind -> {
                                 pendingCloudUnbind = false
                                 route = AppRoute.BoundDeviceInfo
                             }
-                            pendingPostBindPinSetup -> {
+                            ParentPinReturnTarget.BoundDeviceInfo -> {
                                 pendingPostBindPinSetup = false
                                 route = AppRoute.BoundDeviceInfo
                             }
-                            else -> route = AppRoute.Config
+                            ParentPinReturnTarget.ParentAdmin -> route = AppRoute.Config
                         }
                     },
                     onSubmit = { value ->
@@ -1111,7 +1113,8 @@ fun WordMagicGameApp() {
                         } else {
                             parentPinRepository.verifyPin(value)
                         }
-                        if (pinAccepted && pendingRedemptionWishId != null) {
+                        val returnTarget = parentPinReturnTargetFromName(parentPinReturnTarget)
+                        if (pinAccepted && returnTarget == ParentPinReturnTarget.WishlistRedemption && pendingRedemptionWishId != null) {
                             val redeemedWishId = pendingRedemptionWishId.orEmpty()
                             val redeemed = redemptionHistory.redeem(
                                 account = coinAccount,
@@ -1142,14 +1145,14 @@ fun WordMagicGameApp() {
                                 }
                             }
                             route = AppRoute.Wishlist
-                        } else if (pinAccepted && pendingCloudUnbind) {
+                        } else if (pinAccepted && returnTarget == ParentPinReturnTarget.CloudUnbind && pendingCloudUnbind) {
                             pendingCloudUnbind = false
                             cloudRepositories.clearCredentials()
                             cloudCredentials = null
                             cloudSyncStatus = "已解除绑定，本地进度保留"
                             cloudRepositories.saveSyncStatus(cloudSyncStatus)
                             route = AppRoute.Config
-                        } else if (pinAccepted && pendingPostBindPinSetup) {
+                        } else if (pinAccepted && returnTarget == ParentPinReturnTarget.BoundDeviceInfo && pendingPostBindPinSetup) {
                             pendingPostBindPinSetup = false
                             route = AppRoute.BoundDeviceInfo
                         } else if (pinAccepted) {
@@ -1189,14 +1192,17 @@ fun WordMagicGameApp() {
                         repositories.saveSelection(selection)
                     },
                     onSync = {
-                        val syncResult = cloudCoordinator.syncPacks(cloudCredentials)
-                        globalPacks = syncResult.globalPacks.ifEmpty { globalPacks }
-                        familyPacks = syncResult.familyPacks.ifEmpty { familyPacks }
-                        cloudRepositories.saveGlobalPacks(globalPacks)
-                        cloudRepositories.saveFamilyPacks(familyPacks)
-                        cloudSyncStatus = syncResult.statusMessage
-                        localProgressMessage = syncResult.statusMessage
-                        cloudRepositories.saveSyncStatus(cloudSyncStatus)
+                        appScope.launch {
+                            val syncResult = cloudCoordinator.syncPacks(cloudCredentials)
+                            globalPacks = syncResult.globalPacks.ifEmpty { globalPacks }
+                            familyPacks = syncResult.familyPacks.ifEmpty { familyPacks }
+                            cloudRepositories.saveGlobalPacks(globalPacks)
+                            cloudRepositories.saveFamilyPacks(familyPacks)
+                            refreshSpellbookCoverCache(globalPacks + familyPacks)
+                            cloudSyncStatus = syncResult.statusMessage
+                            localProgressMessage = syncResult.statusMessage
+                            cloudRepositories.saveSyncStatus(cloudSyncStatus)
+                        }
                     },
                     onBack = { route = AppRoute.Home },
                 )
@@ -1212,7 +1218,7 @@ fun WordMagicGameApp() {
                             showAddCustomEntry = parentPinReady,
                             onRedeem = { wish ->
                                 pendingRedemptionWishId = wish.id
-                                route = AppRoute.ParentPin
+                                openParentPin(ParentPinReturnTarget.WishlistRedemption)
                             },
                             onHistory = { route = AppRoute.RedemptionHistory },
                             onAddCustom = {
@@ -1361,6 +1367,7 @@ fun WordMagicGameApp() {
                     stats = learningRecorder.statsSnapshot(),
                     rewards = spellbookRewards,
                     coinAccount = coinAccount,
+                    coverCacheVersion = coverCacheVersion,
                     onClaimReward = { pack ->
                         val result = spellbookRewards.claim(pack.id, coinAccount)
                         if (result.claimed) {
@@ -1467,7 +1474,7 @@ fun WordMagicGameApp() {
                     },
                     onUnbind = {
                         pendingCloudUnbind = true
-                        route = AppRoute.ParentPin
+                        openParentPin(ParentPinReturnTarget.CloudUnbind)
                     },
                     onBack = { route = AppRoute.Config },
                 )
@@ -1501,20 +1508,9 @@ fun WordMagicGameApp() {
                         }
                     },
                     onSelectPreview = { preview ->
-                        val secret = debugRoutingRepository.bypassSecretStore.load()
-                        if (secret.isBlank()) {
-                            pendingPreviewAfterSecret = preview
-                            bypassSecretReturnRoute = AppRoute.DomainSwitch
-                            route = AppRoute.BypassSecret
-                        } else {
-                            applyBackendRoute(devMenuViewModel.selectPreview(backendRouteState, preview), secret)
-                        }
+                        applyBackendRoute(devMenuViewModel.selectPreview(backendRouteState, preview))
                     },
                     onProbe = { probeStatus = devMenuViewModel.probe(backendRouteState) },
-                    onBypassSecret = {
-                        bypassSecretReturnRoute = AppRoute.DomainSwitch
-                        route = AppRoute.BypassSecret
-                    },
                     onClear = {
                         backendRouteState = BackendRouteState()
                         debugRoutingRepository.clearRouteState()
@@ -1526,28 +1522,6 @@ fun WordMagicGameApp() {
                 )
                 AppRoute.MessageBubbleLab -> MessageBubbleLabScreen(
                     onBack = { route = AppRoute.DevMenu },
-                )
-                AppRoute.BypassSecret -> BypassSecretScreen(
-                    initialSecret = debugRoutingRepository.bypassSecretStore.load(),
-                    onSave = { secret ->
-                        debugRoutingRepository.bypassSecretStore.save(secret)
-                        val pendingPreview = pendingPreviewAfterSecret
-                        if (pendingPreview != null) {
-                            pendingPreviewAfterSecret = null
-                            applyBackendRoute(devMenuViewModel.selectPreview(backendRouteState, pendingPreview), secret)
-                        } else {
-                            route = bypassSecretReturnRoute
-                        }
-                    },
-                    onClear = {
-                        debugRoutingRepository.bypassSecretStore.clear()
-                        pendingPreviewAfterSecret = null
-                        route = bypassSecretReturnRoute
-                    },
-                    onCancel = {
-                        pendingPreviewAfterSecret = null
-                        route = bypassSecretReturnRoute
-                    },
                 )
             }
             if (!privacyConsentAccepted) {

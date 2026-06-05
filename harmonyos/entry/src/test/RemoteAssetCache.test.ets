@@ -150,6 +150,22 @@ export default function remoteAssetCacheTest(): void {
       }
     });
 
+    it('reusesCoverFileAcrossCacheInstancesWithoutNetwork', 0, async () => {
+      const fs: FakeFs = new FakeFs();
+      const f: FakeFetcher = new FakeFetcher();
+      const url: string = 'https://blob/covers/family-pack.png?v=2';
+      f.responses.set(url, makeBytes('cover-v2'));
+      const firstCache: RemoteAssetCache = new RemoteAssetCache(fs, f, ROOT);
+      const firstPath: string | undefined = await firstCache.resolve(url, AssetKind.Cover);
+      expect(firstPath !== undefined).assertTrue();
+
+      const secondCache: RemoteAssetCache = new RemoteAssetCache(fs, f, ROOT);
+      const secondPath: string | undefined = await secondCache.resolve(url, AssetKind.Cover);
+
+      expect(secondPath).assertEqual(firstPath);
+      expect(f.fetchCalls).assertEqual(1);
+    });
+
     it('returnsUndefinedOnDownloadFailure', 0, async () => {
       const fs: FakeFs = new FakeFs();
       const f: FakeFetcher = new FakeFetcher();

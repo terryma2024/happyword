@@ -97,6 +97,23 @@ export default function PackLibraryTest() {
       expect(got.scene.bossName.length > 0).assertTrue();
     });
 
+    it('storyAndCoverOnlyGlobalPackKeepsMetadataAndReceivesFallbackPalette', 0, () => {
+      const lib: PackLibrary = new PackLibrary();
+      const scene: SceneMetadata = new SceneMetadata();
+      scene.storyZh = '在厨房里，泡泡欢快地跳舞。';
+      scene.spellbookCoverUrl = 'https://blob.example/covers/kitchen.png';
+      const pack: Pack = mkPack('gpk-kitchen', 'global', 3, scene);
+      lib.setGlobals([pack]);
+
+      const got: Pack = lib.allPacks()[0];
+
+      expect(got.scene.bgPrimary !== '#FFFFFF').assertTrue();
+      expect(got.scene.bgAccent !== '#FFFFFF').assertTrue();
+      expect(got.scene.bossName.length > 0).assertTrue();
+      expect(got.scene.storyZh).assertEqual('在厨房里，泡泡欢快地跳舞。');
+      expect(got.scene.spellbookCoverUrl).assertEqual('https://blob.example/covers/kitchen.png');
+    });
+
     it('refresh() rebuilds keyed union and dedupes', 0, () => {
       const lib: PackLibrary = new PackLibrary();
       lib.setBuiltins([mkPack('a', 'builtin', 1), mkPack('b', 'builtin', 1)]);

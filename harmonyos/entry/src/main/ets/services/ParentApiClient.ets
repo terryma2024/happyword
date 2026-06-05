@@ -1,7 +1,6 @@
 import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@ohos.base';
 import { buildSingleImageMultipart, MultipartResult } from './MultipartBuilder';
-import { withBypassHeaders } from './BackendHeaders';
 
 /**
  * ParentApiClient — V0.5.8.
@@ -480,7 +479,7 @@ export class ParentApiClient {
     try {
       const opts: http.HttpRequestOptions = {
         method: http.RequestMethod.POST,
-        header: withBypassHeaders(headers),
+        header: headers,
         extraData: built.body,
         connectTimeout: IMPORT_TIMEOUT_MS,
         readTimeout: IMPORT_TIMEOUT_MS,
@@ -714,14 +713,9 @@ export class RealParentFetchAdapter implements ParentFetchAdapter {
     const out: ParentFetchResult = new ParentFetchResult();
     const req: http.HttpRequest = http.createHttp();
     try {
-      // Auto-inject `x-vercel-protection-bypass` when active env is
-      // Preview and a bypass secret is stored. No-op for Local /
-      // Staging / Prod and for releases (the AppStorage mirror is
-      // empty there).
-      const merged: Record<string, string> = withBypassHeaders(headers);
       const resp: http.HttpResponse = await req.request(url, {
         method,
-        header: merged,
+        header: headers,
         extraData: body.length > 0 ? body : undefined,
         connectTimeout: TIMEOUT_MS,
         readTimeout: TIMEOUT_MS,
