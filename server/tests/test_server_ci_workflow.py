@@ -38,7 +38,7 @@ def test_server_ci_runs_cloudbase_staging_e2e_without_legacy_vercel_preview() ->
     assert "  update_manifest:" not in workflow
     assert "node server/scripts/update_preview_manifest.mjs" not in workflow
     assert "  cloudbase_staging_e2e:" in workflow
-    assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in workflow
+    assert 'E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_STAGING_BASE_URL"' in workflow
     assert '"$UV_BIN" run --python 3.12 python scripts/e2e_reset_db.py' in workflow
     assert '"$UV_BIN" run --python 3.12 pytest -v -m e2e' in workflow
 
@@ -122,7 +122,7 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "npm --version" in bootstrap_node_step
     assert "node --version" in verify_step
     assert "npm --version" in verify_step
-    assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
+    assert 'E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_STAGING_BASE_URL"' in smoke_step
     assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
     assert "E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}" in reset_step
     assert "E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}" in reset_step
@@ -136,12 +136,16 @@ def test_cloudbase_staging_e2e_deploys_pr_artifact_before_reset_and_tests() -> N
     capture_step = _step_named(workflow, "Capture CloudBase staging deploy marker")
     deploy_step = _step_named(workflow, "Deploy CloudBase staging Run")
     wait_step = _step_named(workflow, "Wait for CloudBase staging deployment")
+    resolve_step = _step_named(workflow, "Resolve CloudBase staging base URL")
     health_step = _step_named(workflow, "Health check CloudBase staging")
     reset_step = _step_named(workflow, "Reset shared staging E2E database")
     smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
 
     assert workflow.index("Deploy CloudBase staging Run") < workflow.index(
         "Reset shared staging E2E database"
+    )
+    assert workflow.index("Resolve CloudBase staging base URL") < workflow.index(
+        "Health check CloudBase staging"
     )
     assert workflow.index("Health check CloudBase staging") < workflow.index(
         "Run CloudBase staging E2E"
@@ -162,9 +166,16 @@ def test_cloudbase_staging_e2e_deploys_pr_artifact_before_reset_and_tests() -> N
     assert 'latest.Status === "normal"' in wait_step
     assert 'String(latest.FlowRatio) === "100"' in wait_step
     assert "latest.HasTraffic === true" in wait_step
-    assert 'curl -fsS "$CLOUDBASE_STAGING_BASE_URL/api/v1/public/health"' in health_step
+    assert "CLOUDBASE_STAGING_DEFAULT_BASE_URL" in resolve_step
+    assert "CLOUDBASE_EFFECTIVE_STAGING_BASE_URL" in resolve_step
+    assert "--retry 3" in resolve_step
+    assert "--retry-delay 3" in resolve_step
+    assert (
+        'curl -fsS --connect-timeout 10 --retry 3 --retry-delay 3 '
+        '"$CLOUDBASE_EFFECTIVE_STAGING_BASE_URL/api/v1/public/health"'
+    ) in health_step
     assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
-    assert "E2E_BASE_URL: ${{ secrets.CLOUDBASE_STAGING_BASE_URL }}" in smoke_step
+    assert 'E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_STAGING_BASE_URL"' in smoke_step
 
 
 def test_main_cd_deploys_to_cloudbase_with_vercel_manual_rollback_only() -> None:
@@ -196,7 +207,7 @@ def test_cd_smoke_jobs_are_http_only_on_github_hosted_runners() -> None:
     assert "runs-on: ubuntu-latest" in vercel_cd
     assert "runs-on: ubuntu-latest" in cloudbase_cd
     assert "E2E_BASE_URL:" in vercel_smoke_step
-    assert "E2E_BASE_URL:" in cloudbase_smoke_step
+    assert 'E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_PROD_BASE_URL"' in cloudbase_smoke_step
     assert "E2E_MONGODB_URI" not in vercel_smoke_step
     assert "E2E_MONGODB_URI" not in cloudbase_smoke_step
     assert "E2E_MONGO_DB_NAME" not in vercel_smoke_step
@@ -211,12 +222,16 @@ def test_cloudbase_cd_waits_for_a_real_new_deploy_before_health_and_smoke() -> N
     capture_step = _step_named(cloudbase_cd, "Capture CloudBase deploy marker")
     deploy_step = _step_named(cloudbase_cd, "Deploy CloudBase Run")
     wait_step = _step_named(cloudbase_cd, "Wait for CloudBase deployment")
+    resolve_step = _step_named(cloudbase_cd, "Resolve CloudBase production base URL")
     health_step = _step_named(cloudbase_cd, "Health check")
 
     assert cloudbase_cd.index("Capture CloudBase deploy marker") < cloudbase_cd.index(
         "Deploy CloudBase Run"
     )
     assert cloudbase_cd.index("Wait for CloudBase deployment") < cloudbase_cd.index(
+        "Resolve CloudBase production base URL"
+    )
+    assert cloudbase_cd.index("Resolve CloudBase production base URL") < cloudbase_cd.index(
         "Health check"
     )
 
@@ -231,7 +246,14 @@ def test_cloudbase_cd_waits_for_a_real_new_deploy_before_health_and_smoke() -> N
     assert 'latest.Status === "normal"' in wait_step
     assert 'String(latest.FlowRatio) === "100"' in wait_step
     assert "latest.HasTraffic === true" in wait_step
-    assert "curl -fsS" in health_step
+    assert "CLOUDBASE_PROD_DEFAULT_BASE_URL" in resolve_step
+    assert "CLOUDBASE_EFFECTIVE_PROD_BASE_URL" in resolve_step
+    assert "--retry 3" in resolve_step
+    assert "--retry-delay 3" in resolve_step
+    assert (
+        'curl -fsS --connect-timeout 10 --retry 3 --retry-delay 3 '
+        '"$CLOUDBASE_EFFECTIVE_PROD_BASE_URL/api/v1/public/health"'
+    ) in health_step
 
 
 def test_cloudbase_cd_prunes_local_test_artifacts_before_source_deploy() -> None:

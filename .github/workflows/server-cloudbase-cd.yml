@@ -306,14 +306,34 @@ jobs:
           throw new Error("Timed out waiting for a new CloudBase deploy to receive 100% traffic");
           NODE
 
-      - name: Health check
+      - name: Resolve CloudBase production base URL
         if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
         env:
           CLOUDBASE_PROD_BASE_URL: ${{ secrets.CLOUDBASE_PROD_BASE_URL }}
-        run: curl -fsS "$CLOUDBASE_PROD_BASE_URL/api/v1/public/health"
+          CLOUDBASE_PROD_DEFAULT_BASE_URL: https://happyword-server-255236-5-1429584068.sh.run.tcloudbase.com
+        run: |
+          set -euo pipefail
+          for candidate_name in configured default; do
+            case "$candidate_name" in
+              configured) base_url="${CLOUDBASE_PROD_BASE_URL%/}" ;;
+              default) base_url="${CLOUDBASE_PROD_DEFAULT_BASE_URL%/}" ;;
+            esac
+            if [ -z "$base_url" ]; then
+              continue
+            fi
+            echo "Probing CloudBase production ${candidate_name} base URL."
+            if curl -fsS --connect-timeout 10 --retry 3 --retry-delay 3 "$base_url/api/v1/public/health"; then
+              echo "CLOUDBASE_EFFECTIVE_PROD_BASE_URL=$base_url" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "::error::CloudBase production health check failed for configured and default base URLs."
+          exit 1
+
+      - name: Health check
+        if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
+        run: curl -fsS --connect-timeout 10 --retry 3 --retry-delay 3 "$CLOUDBASE_EFFECTIVE_PROD_BASE_URL/api/v1/public/health"
 
       - name: Smoke test
         if: ${{ env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' && env.HAS_CLOUDBASE_PROD_BASE_URL == 'true' }}
-        env:
-          E2E_BASE_URL: ${{ secrets.CLOUDBASE_PROD_BASE_URL }}
-        run: uv run pytest -v -m smoke
+        run: E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_PROD_BASE_URL" uv run pytest -v -m smoke
