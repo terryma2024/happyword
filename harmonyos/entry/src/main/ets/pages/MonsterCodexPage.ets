@@ -63,6 +63,8 @@ struct MonsterCodexPage {
    * never larger-than-life if the display query throws.
    */
   @State private shortEdgeVp: number = 360;
+  @State private viewportWidthVp: number = 360;
+  @State private viewportHeightVp: number = 640;
   private progressStore: MonsterProgressStore = getMonsterProgressStore();
   private coinAccount: CoinAccount = getCoinAccount();
 
@@ -89,6 +91,8 @@ struct MonsterCodexPage {
       const d: display.Display = display.getDefaultDisplaySync();
       const widthVp: number = this.getUIContext().px2vp(d.width);
       const heightVp: number = this.getUIContext().px2vp(d.height);
+      this.viewportWidthVp = widthVp;
+      this.viewportHeightVp = heightVp;
       this.shortEdgeVp = Math.min(widthVp, heightVp);
     } catch (err) {
       const e: BusinessError = err as BusinessError;
@@ -105,25 +109,37 @@ struct MonsterCodexPage {
     return this.shortEdgeVp >= PAD_BREAKPOINT_VP;
   }
 
+  private isCompactLandscape(): boolean {
+    return !this.isPad() && this.viewportWidthVp > this.viewportHeightVp;
+  }
+
   // --- responsive sizing ---------------------------------------------------
   // Two-tier breakpoint: phone (sm) vs pad (md+). Sticking to two tiers
   // keeps the visual language predictable and avoids a continuous-scale
   // factor that compounds rounding errors in nested layouts.
 
-  private avatarFrameSize(): number { return this.isPad() ? 320 : 140; }
-  private avatarImageSize(): number { return this.isPad() ? 256 : 112; }
+  private avatarFrameSize(): number { return this.isPad() ? 320 : (this.isCompactLandscape() ? 120 : 140); }
+  private avatarImageSize(): number { return this.isPad() ? 256 : (this.isCompactLandscape() ? 96 : 112); }
   private avatarFrameRadius(): number { return this.isPad() ? 32 : 20; }
 
-  private arrowSize(): number { return this.isPad() ? 96 : 56; }
-  private arrowFontSize(): number { return this.isPad() ? 44 : 28; }
+  private arrowSize(): number { return this.isPad() ? 96 : (this.isCompactLandscape() ? 48 : 56); }
+  private arrowFontSize(): number { return this.isPad() ? 44 : (this.isCompactLandscape() ? 24 : 28); }
   private arrowGap(): number { return this.isPad() ? 28 : 12; }
 
-  private nameFontSize(): number { return this.isPad() ? 32 : 22; }
-  private kindFontSize(): number { return this.isPad() ? 20 : 14; }
+  private nameFontSize(): number { return this.isPad() ? 32 : (this.isCompactLandscape() ? 20 : 22); }
+  private kindFontSize(): number { return this.isPad() ? 20 : (this.isCompactLandscape() ? 13 : 14); }
   private positionFontSize(): number { return this.isPad() ? 16 : 12; }
-  private descriptionFontSize(): number { return this.isPad() ? 20 : 14; }
-  private descriptionLineHeight(): number { return this.isPad() ? 30 : 22; }
+  private descriptionFontSize(): number { return this.isPad() ? 20 : (this.isCompactLandscape() ? 13 : 14); }
+  private descriptionLineHeight(): number { return this.isPad() ? 30 : (this.isCompactLandscape() ? 19 : 22); }
   private descriptionMaxWidth(): string { return this.isPad() ? '70%' : '100%'; }
+  private bodyTopPadding(): number { return this.isCompactLandscape() ? 4 : 12; }
+  private bodyBottomPadding(): number { return this.isCompactLandscape() ? 12 : PAGE_BODY_EDGE_VP; }
+  private nameTopMargin(): number { return this.isCompactLandscape() ? 8 : 16; }
+  private positionTopMargin(): number { return this.isCompactLandscape() ? 4 : 8; }
+  private positionGap(): number { return this.isCompactLandscape() ? 4 : 8; }
+  private rewardButtonHeight(): number { return this.isPad() ? 40 : (this.isCompactLandscape() ? 28 : 32); }
+  private rewardButtonFontSize(): number { return this.isPad() ? 15 : 12; }
+  private descriptionTopMargin(): number { return this.isCompactLandscape() ? 6 : 12; }
 
   private hasPrev(): boolean {
     return this.currentIndex > 0;
@@ -216,21 +232,26 @@ struct MonsterCodexPage {
           this.getUIContext().getRouter().back();
         },
       })
-      // Body wrapper: layoutWeight(1) consumes the remaining vertical
-      // space and `FlexAlign.Center` pins the avatar/name/description
-      // block to the page's vertical centre. Without this the codex
-      // hugs the top of the screen on tall pads, leaving a giant
-      // empty area below the description.
-      Column() {
-        this.avatarRow();
-        this.nameBlock();
-        this.positionIndicator();
-        this.descriptionBlock();
+      // Scroll keeps long codex copy and the reward milestone controls
+      // reachable on compact landscape devices.
+      Scroll() {
+        Column() {
+          this.avatarRow();
+          this.nameBlock();
+          this.positionIndicator();
+          this.descriptionBlock();
+        }
+        .width('100%')
+        .padding({
+          left: PAGE_BODY_EDGE_VP,
+          right: PAGE_BODY_EDGE_VP,
+          top: this.bodyTopPadding(),
+          bottom: this.bodyBottomPadding(),
+        });
       }
       .width('100%')
       .layoutWeight(1)
-      .justifyContent(FlexAlign.Center)
-      .padding({ left: PAGE_BODY_EDGE_VP, right: PAGE_BODY_EDGE_VP, bottom: PAGE_BODY_EDGE_VP });
+      .scrollBar(BarState.Auto);
     }
     .width('100%')
     .height('100%')
@@ -322,12 +343,12 @@ struct MonsterCodexPage {
         .borderRadius(12);
     }
     .alignItems(HorizontalAlign.Center)
-    .margin({ top: 16 });
+    .margin({ top: this.nameTopMargin() });
   }
 
   @Builder
   private positionIndicator() {
-    Column({ space: 8 }) {
+    Column({ space: this.positionGap() }) {
       Text(`${this.currentIndex + 1} / ${MONSTER_CODEX.length}`)
         .id('CodexPositionIndicator')
         .fontSize(this.positionFontSize())
@@ -342,7 +363,7 @@ struct MonsterCodexPage {
       }
     }
     .alignItems(HorizontalAlign.Center)
-    .margin({ top: 8 });
+    .margin({ top: this.positionTopMargin() });
   }
 
   @Builder
@@ -358,9 +379,9 @@ struct MonsterCodexPage {
   private rewardButton(milestone: number, id: string) {
     Button(this.rewardState(milestone).label)
       .id(id)
-      .height(this.isPad() ? 40 : 32)
+      .height(this.rewardButtonHeight())
       .padding({ left: 14, right: 14 })
-      .fontSize(this.isPad() ? 15 : 12)
+      .fontSize(this.rewardButtonFontSize())
       .fontColor(this.rewardState(milestone).enabled ? '#503A00' : '#7A8794')
       .backgroundColor(this.rewardState(milestone).enabled ? '#F6C453' : '#EDF0F3')
       .borderRadius(16)
@@ -380,6 +401,6 @@ struct MonsterCodexPage {
       .textAlign(TextAlign.Center)
       .constraintSize({ maxWidth: this.descriptionMaxWidth() })
       .padding({ left: 24, right: 24 })
-      .margin({ top: 12 });
+      .margin({ top: this.descriptionTopMargin() });
   }
 }
