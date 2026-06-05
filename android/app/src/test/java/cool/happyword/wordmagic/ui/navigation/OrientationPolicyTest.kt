@@ -14,7 +14,6 @@ class OrientationPolicyTest {
         assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, requestedOrientationForRoute(AppRoute.Result, phoneShortEdge))
         assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, requestedOrientationForRoute(AppRoute.MonsterCodex, phoneShortEdge))
         assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, requestedOrientationForRoute(AppRoute.DevMenu, phoneShortEdge))
-        assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, requestedOrientationForRoute(AppRoute.BypassSecret, phoneShortEdge))
         assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, requestedOrientationForRoute(AppRoute.Wishlist, phoneShortEdge))
 
         assertEquals(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, requestedOrientationForRoute(AppRoute.Config, phoneShortEdge))

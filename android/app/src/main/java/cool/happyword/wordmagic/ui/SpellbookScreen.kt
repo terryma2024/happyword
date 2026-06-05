@@ -1,7 +1,6 @@
 package cool.happyword.wordmagic.ui
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +33,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +52,7 @@ internal fun SpellbookScreen(
     stats: List<WordLearningStat>,
     rewards: SpellbookRewardSnapshot,
     coinAccount: CoinAccount,
+    coverCacheVersion: Int = 0,
     onClaimReward: (WordPack) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -116,6 +115,7 @@ internal fun SpellbookScreen(
                     pack = pack,
                     statsByWordId = statsByPack[pack.id].orEmpty(),
                     rewards = rewards,
+                    coverCacheVersion = coverCacheVersion,
                     onClaimReward = { onClaimReward(pack) },
                     onLocked = { lockedTipVisible = true },
                     onWord = { selected = it },
@@ -165,6 +165,7 @@ private fun PackSpellbookCard(
     pack: WordPack,
     statsByWordId: Map<String, WordLearningStat>,
     rewards: SpellbookRewardSnapshot,
+    coverCacheVersion: Int,
     onClaimReward: () -> Unit,
     onLocked: () -> Unit,
     onWord: (SpellbookWordSelection) -> Unit,
@@ -178,7 +179,7 @@ private fun PackSpellbookCard(
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SpellbookCover(packId = pack.id, modifier = Modifier.testTag("SpellbookPackCover_${pack.id}"))
+                SpellbookCover(pack = pack, cacheVersion = coverCacheVersion, modifier = Modifier.testTag("SpellbookPackCover_${pack.id}"))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(pack.nameEn, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
@@ -288,10 +289,11 @@ private fun WordSpellbookCard(
 }
 
 @Composable
-private fun SpellbookCover(packId: String, modifier: Modifier = Modifier) {
-    Image(
-        painter = painterResource(spellbookCoverDrawableId(packId)),
-        contentDescription = packId,
+private fun SpellbookCover(pack: WordPack, cacheVersion: Int, modifier: Modifier = Modifier) {
+    SpellbookCoverImage(
+        pack = pack,
+        cacheVersion = cacheVersion,
+        contentDescription = pack.id,
         modifier = modifier
             .size(72.dp)
             .clip(RoundedCornerShape(14.dp))

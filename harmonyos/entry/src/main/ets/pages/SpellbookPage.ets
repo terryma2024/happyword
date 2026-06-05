@@ -27,6 +27,10 @@ import {
   SpellbookCoverSourceKind,
   spellbookCoverSourceForPack,
 } from '../services/SpellbookCoverResolver';
+import {
+  CachedSpellbookCover,
+  cachedSpellbookCoverPathsForPacks,
+} from '../services/SpellbookCoverCache';
 import { PageTopChrome } from '../components/PageTopChrome';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { requestPageOrientation } from '../utils/orientation';
@@ -43,6 +47,7 @@ struct SpellbookPage {
   @State private detailWord: WordEntry = new WordEntry();
   @State private detailState: SpellbookCardState = SpellbookCardState.Locked;
   @State private pageVersion: number = 0;
+  @State private cachedSpellbookCovers: CachedSpellbookCover[] = [];
   private rewardStore: SpellbookRewardStore = new SpellbookRewardStore();
   private coins: CoinAccount = getCoinAccount();
   private lockedTipTimer: number = -1;
@@ -83,6 +88,7 @@ struct SpellbookPage {
     ]).then((values: [HomeIntegrationBundle, void, void, void]): void => {
       const bundle: HomeIntegrationBundle = values[0];
       this.packs = bundle.library.allPacks();
+      this.refreshCachedSpellbookCovers(ctx);
       this.stats = recorder.allStats();
       this.rewardStore.load().then((snap: SpellbookRewardSnapshot): void => {
         this.claimedPackIds = snap.claimedPackIds;
@@ -104,6 +110,24 @@ struct SpellbookPage {
 
   private hasClaimed(packId: string): boolean {
     return this.claimedPackIds.indexOf(packId) >= 0;
+  }
+
+  private refreshCachedSpellbookCovers(ctx: common.UIAbilityContext): void {
+    cachedSpellbookCoverPathsForPacks(ctx, this.packs).then((items: CachedSpellbookCover[]): void => {
+      this.cachedSpellbookCovers = items;
+      this.pageVersion += 1;
+    }).catch((err: BusinessError): void => {
+      console.error(`SpellbookPage.refreshCachedSpellbookCovers failed: ${JSON.stringify(err)}`);
+    });
+  }
+
+  private cachedSpellbookCoverPath(packId: string): string {
+    for (let i = 0; i < this.cachedSpellbookCovers.length; i++) {
+      if (this.cachedSpellbookCovers[i].packId === packId) {
+        return this.cachedSpellbookCovers[i].path;
+      }
+    }
+    return '';
   }
 
   private claimReward(pack: Pack): void {
@@ -284,7 +308,13 @@ struct SpellbookPage {
   @Builder
   private coverImage(pack: Pack, imageId: string, size: number) {
     Stack() {
-      if (spellbookCoverSourceForPack(pack).kind === SpellbookCoverSourceKind.RemoteUrl) {
+      if (this.cachedSpellbookCoverPath(pack.id).length > 0) {
+        Image(this.cachedSpellbookCoverPath(pack.id))
+          .width(size)
+          .height(size)
+          .objectFit(ImageFit.Contain)
+          .syncLoad(true);
+      } else if (spellbookCoverSourceForPack(pack).kind === SpellbookCoverSourceKind.RemoteUrl) {
         Image(spellbookCoverSourceForPack(pack).value)
           .width(size)
           .height(size)

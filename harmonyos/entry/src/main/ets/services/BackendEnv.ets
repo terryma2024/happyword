@@ -2,7 +2,6 @@ import preferences from '@ohos.data.preferences';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
 import {
-  BACKEND_BYPASS_SECRET_CACHE_KEY,
   BACKEND_ENV_CACHE_KEY,
   BACKEND_PREVIEW_URL_CACHE_KEY,
   LOCAL_BASE_URL,
@@ -15,15 +14,6 @@ const KEY_ENV: string = 'backend_env';
 const KEY_PREVIEW_URL: string = 'backend_preview_url';
 const KEY_HISTORY: string = 'backend_preview_history';
 const KEY_AUDIT: string = 'dev_menu_audit';
-/**
- * Vercel "Protection Bypass for Automation" secret entered via the
- * DevMenu Preview-card prompt. Mirrored to AppStorage on init so any
- * outgoing request to a Preview deployment can attach the
- * `x-vercel-protection-bypass` header synchronously. Persists across
- * app relaunches; cleared only when the user explicitly re-enters or
- * via a future "clear bypass secret" action (not yet wired).
- */
-const KEY_BYPASS_SECRET: string = 'backend_bypass_secret';
 
 const HISTORY_CAP: number = 5;
 const AUDIT_CAP: number = 50;
@@ -141,18 +131,14 @@ export async function initBackendEnvPrefs(ctx: common.UIAbilityContext): Promise
     prefsHandle = await preferences.getPreferences(ctx, PREFS_NAME);
     const envVt: preferences.ValueType = await prefsHandle.get(KEY_ENV, BackendEnv.STAGING);
     const urlVt: preferences.ValueType = await prefsHandle.get(KEY_PREVIEW_URL, '');
-    const secretVt: preferences.ValueType = await prefsHandle.get(KEY_BYPASS_SECRET, '');
     const envStr: string = typeof envVt === 'string' ? envVt : BackendEnv.STAGING;
     const urlStr: string = typeof urlVt === 'string' ? urlVt : '';
-    const secretStr: string = typeof secretVt === 'string' ? secretVt : '';
     AppStorage.setOrCreate<string>(BACKEND_ENV_CACHE_KEY, envStr);
     AppStorage.setOrCreate<string>(BACKEND_PREVIEW_URL_CACHE_KEY, urlStr);
-    AppStorage.setOrCreate<string>(BACKEND_BYPASS_SECRET_CACHE_KEY, secretStr);
   } catch (err) {
     console.error(`BackendEnv.initPrefs failed: ${JSON.stringify(err as BusinessError)}`);
     AppStorage.setOrCreate<string>(BACKEND_ENV_CACHE_KEY, BackendEnv.STAGING);
     AppStorage.setOrCreate<string>(BACKEND_PREVIEW_URL_CACHE_KEY, '');
-    AppStorage.setOrCreate<string>(BACKEND_BYPASS_SECRET_CACHE_KEY, '');
   }
 }
 
@@ -205,35 +191,6 @@ export async function loadPreviewUrl(): Promise<string> {
 export async function savePreviewUrl(url: string): Promise<void> {
   await putAndFlush(KEY_PREVIEW_URL, url);
   AppStorage.setOrCreate<string>(BACKEND_PREVIEW_URL_CACHE_KEY, url);
-}
-
-/**
- * Read the persisted Vercel bypass-secret. Returns '' when prefs
- * aren't initialised yet (boot races) or when the user has never
- * entered one. The DevMenu uses '' as the trigger for "open prompt".
- */
-export async function loadBypassSecret(): Promise<string> {
-  if (prefsHandle === null) {
-    return '';
-  }
-  try {
-    const raw: preferences.ValueType = await prefsHandle.get(KEY_BYPASS_SECRET, '');
-    return typeof raw === 'string' ? raw : '';
-  } catch (err) {
-    console.error(`BackendEnv.loadBypassSecret failed: ${JSON.stringify(err as BusinessError)}`);
-    return '';
-  }
-}
-
-/**
- * Persist the Vercel bypass-secret and update the AppStorage mirror so
- * subsequent HTTP calls pick it up immediately (no relaunch needed).
- * Saving '' acts as a "clear" — useful if we ever wire a "forget
- * bypass secret" action into the DevMenu.
- */
-export async function saveBypassSecret(secret: string): Promise<void> {
-  await putAndFlush(KEY_BYPASS_SECRET, secret);
-  AppStorage.setOrCreate<string>(BACKEND_BYPASS_SECRET_CACHE_KEY, secret);
 }
 
 export async function loadHistory(): Promise<string[]> {

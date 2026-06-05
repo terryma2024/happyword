@@ -34,6 +34,7 @@ class FamilyLearningFlowTest {
     val composeRule = createEmptyComposeRule()
 
     private var scenario: ActivityScenario<MainActivity>? = null
+    private var backendServer: TestBackendServer? = null
     private val targetContext: Context
         get() = InstrumentationRegistry.getInstrumentation().targetContext
 
@@ -41,6 +42,8 @@ class FamilyLearningFlowTest {
     fun cleanup() {
         scenario?.close()
         scenario = null
+        backendServer?.close()
+        backendServer = null
         clearLocalState()
     }
 
@@ -87,7 +90,9 @@ class FamilyLearningFlowTest {
         composeRule.onNodeWithTag("PackManagerScreen").assertIsDisplayed()
 
         composeRule.onNodeWithTag("PackManagerSyncButton").performClick()
-        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("PackManagerLimitMessage").fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithTag("PackManagerLimitMessage").assertTextContains("同步成功", substring = true)
         composeRule.onNodeWithTag("PackManagerScreen").performScrollToNode(hasTestTag("PackLabel_global-colors"))
         composeRule.onNodeWithTag("PackLabel_global-colors").performScrollTo().assertTextContains("Color Harbor")
@@ -274,7 +279,13 @@ class FamilyLearningFlowTest {
     }
 
     private fun launch(bound: Boolean) {
+        backendServer?.close()
+        backendServer = TestBackendServer.start()
         clearLocalState()
+        targetContext.getSharedPreferences("wordmagic-debug-routing", Context.MODE_PRIVATE)
+            .edit()
+            .putString("instrumentationOverrideUrl", backendServer?.baseUrl)
+            .commit()
         if (bound) seedCloudBinding()
         scenario = ActivityScenario.launch(MainActivity::class.java)
         composeRule.onNodeWithTag("HomeScreen").assertIsDisplayed()
@@ -395,6 +406,7 @@ class FamilyLearningFlowTest {
         targetContext.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE).edit().clear().commit()
         targetContext.getSharedPreferences("wordmagic-cloud", Context.MODE_PRIVATE).edit().clear().commit()
         targetContext.getSharedPreferences("wordmagic-debug-routing", Context.MODE_PRIVATE).edit().clear().commit()
+        targetContext.getSharedPreferences("wordmagic-parent-pin", Context.MODE_PRIVATE).edit().clear().commit()
         File(targetContext.filesDir, "cloud_device_token.secure").delete()
     }
 

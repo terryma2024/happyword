@@ -677,14 +677,6 @@ struct DomainSwitchView: View {
                 .fixedSize(horizontal: true, vertical: false)
             Spacer()
             headerButton(
-                "Bypass Secret",
-                minWidth: DeveloperMenuLayoutSpec.bypassButtonMinWidth,
-                accessibilityIdentifier: "DevMenuBypassSecretButton",
-                isDisabled: viewModel.isApplying
-            ) {
-                coordinator.openBypassSecret()
-            }
-            headerButton(
                 viewModel.statusMessage == "Refreshing..." ? "Refreshing..." : "Refresh Manifest",
                 minWidth: DeveloperMenuLayoutSpec.refreshButtonMinWidth,
                 accessibilityIdentifier: "DevMenuRefreshManifestButton",
@@ -763,7 +755,6 @@ enum DeveloperMenuLayoutSpec {
     static let headerButtonHeight: CGFloat = 36
     static let headerButtonLineLimit = 1
     static let backButtonMinWidth: CGFloat = 72
-    static let bypassButtonMinWidth: CGFloat = 142
     static let bubbleLabButtonMinWidth: CGFloat = 108
     static let refreshButtonMinWidth: CGFloat = 156
     static let cardTitleFontSize: CGFloat = 14
@@ -1258,58 +1249,6 @@ struct PcmAudioLabView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(id)
-    }
-}
-
-struct BypassSecretView: View {
-    @ObservedObject var coordinator: AppCoordinator
-    @ObservedObject private var viewModel: DeveloperMenuViewModel
-    @State private var secret: String
-
-    init(coordinator: AppCoordinator) {
-        self.coordinator = coordinator
-        viewModel = coordinator.developerMenuViewModel
-        _secret = State(initialValue: coordinator.developerMenuViewModel.bypassSecret)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Bypass Secret")
-                .font(.system(size: 34, weight: .heavy, design: .rounded))
-                .accessibilityIdentifier("BypassSecretPageTitle")
-            SecureField("Vercel protection bypass", text: $secret)
-                .textFieldStyle(.roundedBorder)
-                .font(.title3.weight(.bold))
-                .accessibilityIdentifier("BypassSecretPageInput")
-            Text(viewModel.statusMessage)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(AppTheme.red)
-                .frame(height: 24, alignment: .leading)
-                .accessibilityIdentifier("BypassSecretPageError")
-            HStack {
-                Button("取消") { coordinator.cancelBypassSecret() }
-                    .accessibilityIdentifier("BypassSecretPageCancel")
-                Button("清除") {
-                    secret = ""
-                    viewModel.clearBypassSecret()
-                }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("BypassSecretPageClear")
-                Spacer()
-                Button("保存") {
-                    Task {
-                        await coordinator.saveBypassSecretAndContinue(secret)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.red)
-                .accessibilityIdentifier("BypassSecretPageSave")
-            }
-        }
-        .padding(.horizontal, AppTheme.pageHorizontalPadding)
-        .padding(.vertical, 32)
-        .frame(width: 520)
-        .background(AppTheme.cream, in: RoundedRectangle(cornerRadius: 22))
     }
 }
 

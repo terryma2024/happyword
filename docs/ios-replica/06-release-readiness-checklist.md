@@ -24,7 +24,7 @@ xcodebuild build -scheme WordMagicGame -configuration Release -destination 'gene
 
 - `HAPPYWORD_API_BASE_URL` launch environment has the highest priority for simulator automation.
 - Debug-only backend environment selection supports local, staging, production, and preview.
-- Preview routing attaches `x-vercel-protection-bypass` only when a non-empty secret is saved and the selected environment is preview.
+- Preview routing does not attach legacy Vercel bypass headers.
 - Preview manifest decoding accepts both the current `previews` shape and older `pulls` samples.
 
 ## Accessibility Gates
@@ -37,6 +37,6 @@ xcodebuild build -scheme WordMagicGame -configuration Release -destination 'gene
 
 - Launch the app in Debug, open settings, and confirm `Backend environment` appears.
 - Switch to Local and Preview, then confirm the routing summary updates.
-- Open Bypass Secret, save a test value, and confirm returning to DevMenu succeeds.
+- Confirm DevMenu has no Bypass Secret entry.
 - Build Release and confirm there is no visible developer entry from settings.
 - Run the primary iPhone landscape XCUITest smoke flow before TestFlight packaging.

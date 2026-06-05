@@ -44,14 +44,14 @@ class CloudModelsTest {
         var capturedBody = ""
         val client = DeviceBindingClient(
             baseUrlProvider = { "https://happyword.com.cn/" },
-            extraHeadersProvider = { mapOf("x-vercel-protection-bypass" to "secret") },
+            extraHeadersProvider = { mapOf("X-Test-Header" to "secret") },
             transport = BindingHttpTransport { method, url, headers, body ->
                 capturedMethod = method
                 capturedUrl = url
                 capturedBody = body
                 assertEquals("application/json", headers["Content-Type"])
                 assertEquals("application/json", headers["Accept"])
-                assertEquals("secret", headers["x-vercel-protection-bypass"])
+                assertEquals("secret", headers["X-Test-Header"])
                 BindingHttpResponse(
                     200,
                     """{"binding_id":"bind-1","family_id":"fam-1","child_profile_id":"child-1","nickname":"宝贝","avatar_emoji":"🦁","device_token":"jwt.token.value"}""",
@@ -94,13 +94,13 @@ class CloudModelsTest {
         var capturedBody = ""
         val client = ChildProfileClient(
             baseUrlProvider = { "https://happyword.com.cn/" },
-            extraHeadersProvider = { mapOf("x-vercel-protection-bypass" to "secret") },
+            extraHeadersProvider = { mapOf("X-Test-Header" to "secret") },
             transport = BindingHttpTransport { method, url, headers, body ->
                 capturedMethod = method
                 capturedUrl = url
                 capturedBody = body
                 assertEquals("Bearer device.jwt.token", headers["Authorization"])
-                assertEquals("secret", headers["x-vercel-protection-bypass"])
+                assertEquals("secret", headers["X-Test-Header"])
                 BindingHttpResponse(
                     200,
                     """{"profile_id":"child-1","family_id":"fam-1","nickname":"星星","avatar_emoji":"🦄","updated_at":"2026-05-12T00:00:00Z"}""",
@@ -124,7 +124,7 @@ class CloudModelsTest {
         var capturedBody = ""
         val client = WordStatsSyncClient(
             baseUrlProvider = { "https://happyword.com.cn/" },
-            extraHeadersProvider = { mapOf("x-vercel-protection-bypass" to "secret") },
+            extraHeadersProvider = { mapOf("X-Test-Header" to "secret") },
             transport = BindingHttpTransport { method, url, headers, body ->
                 capturedMethod = method
                 capturedUrl = url
@@ -132,7 +132,7 @@ class CloudModelsTest {
                 assertEquals("application/json", headers["Content-Type"])
                 assertEquals("application/json", headers["Accept"])
                 assertEquals("Bearer device.jwt.token", headers["Authorization"])
-                assertEquals("secret", headers["x-vercel-protection-bypass"])
+                assertEquals("secret", headers["X-Test-Header"])
                 BindingHttpResponse(
                     200,
                     """{"accepted":["fruit-apple"],"rejected":[],"server_pulls":[],"server_now_ms":2600}""",
@@ -165,7 +165,7 @@ class CloudModelsTest {
         var capturedBody = ""
         val client = CheckInSyncClient(
             baseUrlProvider = { "https://happyword.com.cn/" },
-            extraHeadersProvider = { mapOf("x-vercel-protection-bypass" to "secret") },
+            extraHeadersProvider = { mapOf("X-Test-Header" to "secret") },
             transport = BindingHttpTransport { method, url, headers, body ->
                 capturedMethod = method
                 capturedUrl = url
@@ -173,7 +173,7 @@ class CloudModelsTest {
                 assertEquals("application/json", headers["Content-Type"])
                 assertEquals("application/json", headers["Accept"])
                 assertEquals("Bearer device.jwt.token", headers["Authorization"])
-                assertEquals("secret", headers["x-vercel-protection-bypass"])
+                assertEquals("secret", headers["X-Test-Header"])
                 BindingHttpResponse(
                     200,
                     """{"checked_day_keys":["2026-05-01","2026-05-07"],"weekly_bonus_day_keys":["2026-05-07"],"coin_txns":[],"server_now_ms":2600}""",
@@ -201,6 +201,133 @@ class CloudModelsTest {
         assertEquals(listOf("2026-05-01", "2026-05-07"), result.checkedDayKeys)
         assertEquals(listOf("2026-05-07"), result.weeklyBonusDayKeys)
         assertEquals(2600L, result.serverNowMs)
+    }
+
+    @Test
+    fun remoteGlobalPackClientFetchesPublicEndpointAndDecodesServerPayload() = runBlocking {
+        var capturedMethod = ""
+        var capturedUrl = ""
+        val client = RemoteGlobalPackClient(
+            baseUrlProvider = { "https://happyword.com.cn/" },
+            extraHeadersProvider = { mapOf("X-Test-Header" to "secret") },
+            transport = BindingHttpTransport { method, url, headers, body ->
+                capturedMethod = method
+                capturedUrl = url
+                assertEquals("", body)
+                assertEquals("application/json", headers["Accept"])
+                assertEquals("secret", headers["X-Test-Header"])
+                assertFalse(headers.containsKey("Authorization"))
+                BindingHttpResponse(
+                    200,
+                    """
+                    {
+                      "schema_version": 5,
+                      "merged_at": "2026-06-04T12:07:40.169556Z",
+                      "packs": [
+                        {
+                          "pack_id": "gpk-demo",
+                          "name": "二年级英语下册词汇-3",
+                          "description": null,
+                          "scene": {
+                            "storyEn": "A robot shares a birthday in the forest.",
+                            "storyZh": "机器人在森林里分享生日。",
+                            "spellbookCoverUrl": "https://cdn.example/gpk-demo.png"
+                          },
+                          "version": 2,
+                          "schema_version": 5,
+                          "published_at": "2026-06-04T09:07:15.177000",
+                          "words": [
+                            {
+                              "id": "word-party",
+                              "word": "party",
+                              "meaningZh": "聚会",
+                              "difficulty": 2,
+                              "exampleEn": "We have a party.",
+                              "exampleZh": "我们举办聚会。"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """.trimIndent(),
+                )
+            },
+        )
+
+        val packs = client.sync()
+
+        assertEquals("GET", capturedMethod)
+        assertEquals("https://happyword.com.cn/api/v1/public/global-packs/latest.json", capturedUrl)
+        assertEquals(1, packs.size)
+        assertEquals("gpk-demo", packs.single().id)
+        assertEquals(PackSource.Global, packs.single().source)
+        assertEquals("二年级英语下册词汇-3", packs.single().nameEn)
+        assertEquals("A robot shares a birthday in the forest.", packs.single().scene.storyEn)
+        assertEquals("https://cdn.example/gpk-demo.png", packs.single().scene.spellbookCoverUrl)
+        assertEquals("#FFFFFF", packs.single().scene.bgPrimary)
+        assertEquals(2, packs.single().words.single().difficulty)
+        assertEquals("We have a party.", packs.single().words.single().example?.en)
+        assertNotNull(packs.single().publishedAtMs)
+    }
+
+    @Test
+    fun remoteFamilyPackClientFetchesFamilyEndpointWithDeviceToken() = runBlocking {
+        var capturedMethod = ""
+        var capturedUrl = ""
+        val credentials = CloudCredentials(
+            deviceId = "device-1",
+            deviceToken = "device.jwt.token",
+            bindingId = "binding-1",
+            childNickname = "宝贝",
+            avatarEmoji = "🦁",
+            familyLabel = "fam-sync-test",
+        )
+        val client = RemoteFamilyPackClient(
+            baseUrlProvider = { "https://happyword.com.cn/" },
+            transport = BindingHttpTransport { method, url, headers, body ->
+                capturedMethod = method
+                capturedUrl = url
+                assertEquals("", body)
+                assertEquals("application/json", headers["Accept"])
+                assertEquals("Bearer device.jwt.token", headers["Authorization"])
+                BindingHttpResponse(
+                    200,
+                    """
+                    {
+                      "schema_version": 5,
+                      "family_id": "fam-sync-test",
+                      "merged_at": "2026-06-04T12:07:40.169556Z",
+                      "packs": [
+                        {
+                          "pack_id": "family-snacks",
+                          "name": "Family Snacks",
+                          "version": 1,
+                          "schema_version": 5,
+                          "published_at": "2026-06-04T09:07:15.177000",
+                          "words": [
+                            {
+                              "id": "snack-cookie",
+                              "word": "cookie",
+                              "meaning_zh": "饼干",
+                              "difficulty": 1
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """.trimIndent(),
+                )
+            },
+        )
+
+        val packs = client.sync(credentials)
+
+        assertEquals("GET", capturedMethod)
+        assertEquals("https://happyword.com.cn/api/v1/family/fam-sync-test/family-packs/latest.json", capturedUrl)
+        assertEquals(1, packs.size)
+        assertEquals("family-snacks", packs.single().id)
+        assertEquals(PackSource.Family, packs.single().source)
+        assertEquals("饼干", packs.single().words.single().meaning)
     }
 
     @Test
@@ -233,7 +360,7 @@ class CloudModelsTest {
     }
 
     @Test
-    fun syncCoordinatorKeepsOfflineResultWhenClientsFail() {
+    fun syncCoordinatorKeepsOfflineResultWhenClientsFail() = runBlocking {
         val result = CloudSyncCoordinator(
             globalClient = FixtureGlobalPackClient(fail = true),
             familyClient = FixtureFamilyPackClient(fail = true),

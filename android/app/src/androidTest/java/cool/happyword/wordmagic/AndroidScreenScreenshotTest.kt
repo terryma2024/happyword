@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.io.FileOutputStream
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -22,17 +23,31 @@ import org.junit.Test
 class AndroidScreenScreenshotTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
+    private var backendServer: TestBackendServer? = null
 
     @Before
     fun resetLocalState() {
+        backendServer?.close()
+        backendServer = TestBackendServer.start()
         val targetContext = InstrumentationRegistry.getInstrumentation().targetContext
         targetContext.getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE).edit().clear().commit()
         targetContext.getSharedPreferences("wordmagic-cloud", Context.MODE_PRIVATE).edit().clear().commit()
         targetContext.getSharedPreferences("wordmagic-debug-routing", Context.MODE_PRIVATE).edit().clear().commit()
+        targetContext.getSharedPreferences("wordmagic-parent-pin", Context.MODE_PRIVATE).edit().clear().commit()
+        targetContext.getSharedPreferences("wordmagic-debug-routing", Context.MODE_PRIVATE)
+            .edit()
+            .putString("instrumentationOverrideUrl", backendServer?.baseUrl)
+            .commit()
         composeRule.runOnUiThread {
             composeRule.activity.recreate()
         }
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
+    }
+
+    @After
+    fun stopTestBackend() {
+        backendServer?.close()
+        backendServer = null
     }
 
     @Test
@@ -70,13 +85,8 @@ class AndroidScreenScreenshotTest {
         composeRule.onNodeWithTag("MonsterCodexBack").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
 
-        composeRule.onNodeWithTag("HomePlanButton").performClick()
-        capture("today-plan.png")
-        composeRule.onNodeWithTag("TodayPlanBackButton").performClick()
-        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
-
         composeRule.onNodeWithTag("HomeConfigButton").performClick()
-        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigScreen") }
+        composeRule.waitUntil(timeoutMillis = 5_000) { hasNode("ConfigScreen") }
         composeRule.onNodeWithTag("ConfigSectionParentTitle").performScrollTo()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigCloudBindingButton") }
         composeRule.onNodeWithTag("ConfigCloudBindingButton").performScrollTo().performClick()
@@ -95,6 +105,19 @@ class AndroidScreenScreenshotTest {
         } else {
             capture("bound-device-info.png")
         }
+        if (hasNode("ScanBindingTopBack")) {
+            composeRule.onNodeWithTag("ScanBindingTopBack").performClick()
+        } else if (hasNode("BoundDeviceInfoBackButton")) {
+            composeRule.onNodeWithTag("BoundDeviceInfoBackButton").performClick()
+        }
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("ConfigScreen") }
+        composeRule.onNodeWithTag("ConfigBackButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
+
+        composeRule.onNodeWithTag("HomePlanButton").performClick()
+        capture("today-plan.png")
+        composeRule.onNodeWithTag("TodayPlanBackButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("HomeScreen") }
     }
 
     @Test
@@ -153,9 +176,6 @@ class AndroidScreenScreenshotTest {
         composeRule.onNodeWithTag("DevMenuDomainSwitchButton").performClick()
         composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("DomainSwitchScreen") }
         capture("domain-switch-debug.png")
-        composeRule.onNodeWithTag("DevMenuBypassSecretButton").performClick()
-        composeRule.waitUntil(timeoutMillis = 2_000) { hasNode("BypassSecretPageInput") }
-        capture("bypass-secret-debug.png")
     }
 
     @Test

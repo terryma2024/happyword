@@ -1,78 +1,12 @@
 import { describe, it, expect } from '@ohos/hypium';
 import {
-  buildVercelBypassHeader,
   mergeHeaders,
-  VERCEL_BYPASS_HEADER,
 } from '../main/ets/services/BackendHeaders';
-import { BackendEnv } from '../main/ets/services/BackendEnv';
 
 /**
- * Pure-function tests for BackendHeaders. Mirrors the server e2e
- * driver's branch logic (`server/tests/e2e/_utils/vercel.py`):
- *   - empty secret  → no header (any env)
- *   - non-preview   → no header (even with secret)
- *   - preview+secret → x-vercel-protection-bypass attached
+ * Pure-function tests for BackendHeaders.
  */
 export default function backendHeadersTest(): void {
-  describe('BackendHeaders.buildVercelBypassHeader', () => {
-    it('returnsEmptyForNonPreviewEnvEvenWithSecret', 0, () => {
-      const h: Record<string, string> = buildVercelBypassHeader(
-        BackendEnv.STAGING,
-        'super-secret',
-      );
-      expect(Object.keys(h).length).assertEqual(0);
-    });
-
-    it('returnsEmptyForLocalEnv', 0, () => {
-      const h: Record<string, string> = buildVercelBypassHeader(
-        BackendEnv.LOCAL,
-        'super-secret',
-      );
-      expect(Object.keys(h).length).assertEqual(0);
-    });
-
-    it('returnsEmptyForProdEnv', 0, () => {
-      const h: Record<string, string> = buildVercelBypassHeader(
-        BackendEnv.PROD,
-        'super-secret',
-      );
-      expect(Object.keys(h).length).assertEqual(0);
-    });
-
-    it('returnsEmptyForPreviewWithEmptySecret', 0, () => {
-      const h: Record<string, string> = buildVercelBypassHeader(
-        BackendEnv.PREVIEW,
-        '',
-      );
-      expect(Object.keys(h).length).assertEqual(0);
-    });
-
-    it('attachesBypassHeaderForPreviewWithSecret', 0, () => {
-      const h: Record<string, string> = buildVercelBypassHeader(
-        BackendEnv.PREVIEW,
-        'super-secret',
-      );
-      expect(h[VERCEL_BYPASS_HEADER]).assertEqual('super-secret');
-      expect(Object.keys(h).length).assertEqual(1);
-    });
-
-    it('usesCanonicalLowercaseHeaderName', 0, () => {
-      // Vercel checks the lowercase name. Don't accidentally rename
-      // the constant — server e2e helper hardcodes the same string.
-      expect(VERCEL_BYPASS_HEADER).assertEqual('x-vercel-protection-bypass');
-    });
-
-    it('returnsEmptyForUnknownEnvString', 0, () => {
-      // Defensive — `env` is a free string in the AppStorage cache so
-      // a corrupt value should NOT accidentally attach the header.
-      const h: Record<string, string> = buildVercelBypassHeader(
-        'garbage-env',
-        'super-secret',
-      );
-      expect(Object.keys(h).length).assertEqual(0);
-    });
-  });
-
   describe('BackendHeaders.mergeHeaders', () => {
     it('mergesDisjointKeysFromBothInputs', 0, () => {
       const base: Record<string, string> = { 'Accept': 'application/json' };

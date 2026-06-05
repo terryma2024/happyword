@@ -23,7 +23,6 @@ enum AppRoute: Equatable {
     case childProfile
     case devMenu
     case domainSwitch
-    case bypassSecret
     case pcmAudioLab
     case messageBubbleLab
 }
@@ -55,6 +54,7 @@ final class AppCoordinator: ObservableObject {
     /// After first successful cloud bind, steer the parent to PIN setup once (Harmony parity).
     @Published var pendingPostBindPinSetup: Bool = false
     @Published var packLibrary = PackLibrary()
+    @Published var spellbookCoverCacheVersion = 0
     @Published var toastMessage: String?
     @Published var toastAccessibilityIdentifier: String = "AppToast"
     @Published var dailyLearningState: DailyLearningState
@@ -76,6 +76,7 @@ final class AppCoordinator: ObservableObject {
     let bindingClient: any DeviceBindingClienting
     let packLayerClient: any PackLayerClienting
     let packLayerStore: FileBackedPackLayerStore
+    let spellbookCoverCache: SpellbookCoverCache
     let wordStatsSyncClient: any WordStatsSyncClienting
     let wordStatsSyncStateStore: WordStatsSyncStateStore
     let checkInSyncClient: any CheckInSyncClienting
@@ -87,7 +88,6 @@ final class AppCoordinator: ObservableObject {
     private var familyPackCache: PackLayerCache?
     private let battleRandomSeed: UInt64?
     private var toastToken = UUID()
-    private var pendingDeveloperMenuCard: DeveloperMenuCard?
     /// Consumed once when `DevMenuView` appears. Matches Harmony `presetEnv` route param.
     private var devMenuRoutePreset: String?
     private let reviewWindowSize = 12
@@ -114,6 +114,7 @@ final class AppCoordinator: ObservableObject {
         bindingClient: any DeviceBindingClienting = CloudClientFactory.bindingClient(),
         packLayerClient: any PackLayerClienting = CloudClientFactory.packLayerClient(),
         packLayerStore: FileBackedPackLayerStore = FileBackedPackLayerStore(),
+        spellbookCoverCache: SpellbookCoverCache = SpellbookCoverCache(),
         wordStatsSyncClient: any WordStatsSyncClienting = CloudClientFactory.wordStatsSyncClient(),
         wordStatsSyncStateStore: WordStatsSyncStateStore = WordStatsSyncStateStore(),
         checkInStore: CheckInStore = CheckInStore(),
@@ -145,6 +146,7 @@ final class AppCoordinator: ObservableObject {
         self.bindingClient = bindingClient
         self.packLayerClient = packLayerClient
         self.packLayerStore = packLayerStore
+        self.spellbookCoverCache = spellbookCoverCache
         self.wordStatsSyncClient = wordStatsSyncClient
         self.wordStatsSyncStateStore = wordStatsSyncStateStore
         self.checkInStore = checkInStore
@@ -217,12 +219,6 @@ final class AppCoordinator: ObservableObject {
     }
 
     func activateDeveloperMenuCard(_ card: DeveloperMenuCard) async {
-        if card.environment == .preview, developerMenuViewModel.bypassSecret.isEmpty {
-            pendingDeveloperMenuCard = card
-            developerMenuViewModel.statusMessage = "请先保存 bypass secret"
-            route = .bypassSecret
-            return
-        }
         let bindingBeforeSwitch = cloudCredentialsStore.credentials
         let result = await developerMenuViewModel.activate(card)
         guard result.didApply else { return }
@@ -268,6 +264,8 @@ final class AppCoordinator: ObservableObject {
             try packLayerStore.save(familyPackCache, layer: .family)
             rebuildPackLibraryFromCaches()
             reconcilePackSelectionWithLibrary()
+            await spellbookCoverCache.prewarm(packs: packLibrary.allPacks())
+            spellbookCoverCacheVersion += 1
             packManagerMessage = "已同步官方/家庭词包"
         } catch PackSyncError.bindingGone {
             cloudCredentialsStore.clear()
@@ -619,12 +617,6 @@ final class AppCoordinator: ObservableObject {
         return value
     }
 
-    func openBypassSecret() {
-        guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
-        pendingDeveloperMenuCard = nil
-        route = .bypassSecret
-    }
-
     func openPcmAudioLab() {
         guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
         route = .pcmAudioLab
@@ -633,26 +625,6 @@ final class AppCoordinator: ObservableObject {
     func openMessageBubbleLab() {
         guard DeveloperToolsPolicy.isDeveloperToolsVisible() else { return }
         route = .messageBubbleLab
-    }
-
-    func cancelBypassSecret() {
-        pendingDeveloperMenuCard = nil
-        route = .domainSwitch
-    }
-
-    func saveBypassSecretAndContinue(_ secret: String) async {
-        developerMenuViewModel.saveBypassSecret(secret)
-        guard !developerMenuViewModel.bypassSecret.isEmpty else {
-            route = .bypassSecret
-            return
-        }
-        guard let card = pendingDeveloperMenuCard else {
-            route = .domainSwitch
-            return
-        }
-        pendingDeveloperMenuCard = nil
-        route = .domainSwitch
-        await activateDeveloperMenuCard(card)
     }
 
     func currentChildNickname() -> String {
@@ -947,8 +919,6 @@ final class AppCoordinator: ObservableObject {
             route = .devMenu
         } else if arguments.contains("-UITestRouteDomainSwitch"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
             route = .domainSwitch
-        } else if arguments.contains("-UITestRouteBypassSecret"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
-            route = .bypassSecret
         } else if arguments.contains("-UITestRoutePcmAudioLab"), DeveloperToolsPolicy.isDeveloperToolsVisible() {
             route = .pcmAudioLab
         } else if arguments.contains("-UITestRouteMessageBubbleLab"), DeveloperToolsPolicy.isDeveloperToolsVisible() {

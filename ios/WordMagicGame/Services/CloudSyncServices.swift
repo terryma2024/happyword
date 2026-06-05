@@ -73,35 +73,6 @@ final class BackendEnvironmentStore: @unchecked Sendable {
     }
 }
 
-final class BypassSecretStore: @unchecked Sendable {
-    private let secretKey = "wordMagicBackendBypassSecret"
-    private let defaults: UserDefaults
-
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        if ProcessInfo.processInfo.arguments.contains("-UITestResetState") {
-            clear()
-        }
-    }
-
-    var secret: String {
-        defaults.string(forKey: secretKey) ?? ""
-    }
-
-    func save(_ value: String) {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            clear()
-        } else {
-            defaults.set(trimmed, forKey: secretKey)
-        }
-    }
-
-    func clear() {
-        defaults.removeObject(forKey: secretKey)
-    }
-}
-
 protocol BackendURLProviding: Sendable {
     func effectiveBaseURL() -> URL
 }
@@ -181,28 +152,10 @@ extension BackendHeaderProviding {
 }
 
 struct BackendHeaderProvider: BackendHeaderProviding {
-    static let vercelBypassHeader = "x-vercel-protection-bypass"
-
-    private let environmentStore: BackendEnvironmentStore
-    private let secretStore: BypassSecretStore
-
-    init(
-        environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
-        secretStore: BypassSecretStore = BypassSecretStore()
-    ) {
-        self.environmentStore = environmentStore
-        self.secretStore = secretStore
-    }
+    init(environmentStore: BackendEnvironmentStore = BackendEnvironmentStore()) {}
 
     func headers() -> [String: String] {
-        guard DeveloperToolsPolicy.isDeveloperToolsVisible(),
-              environmentStore.environment == .preview
-        else {
-            return [:]
-        }
-        let secret = secretStore.secret
-        guard !secret.isEmpty else { return [:] }
-        return [Self.vercelBypassHeader: secret]
+        [:]
     }
 }
 
@@ -225,14 +178,13 @@ enum CloudClientFactory {
     static func bindingClient(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
-        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
         transport: any HTTPTransporting = URLSessionHTTPTransport()
     ) -> any DeviceBindingClienting {
         shouldUseLocalMocks(arguments: arguments)
             ? MockDeviceBindingClient()
             : HTTPDeviceBindingClient(
                 baseURLProvider: BackendURLProvider(store: environmentStore),
-                headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: bypassSecretStore),
+                headerProvider: BackendHeaderProvider(environmentStore: environmentStore),
                 transport: transport
             )
     }
@@ -240,14 +192,13 @@ enum CloudClientFactory {
     static func packLayerClient(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
-        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
         transport: any HTTPTransporting = URLSessionHTTPTransport()
     ) -> any PackLayerClienting {
         shouldUseLocalMocks(arguments: arguments)
             ? DemoPackLayerClient()
             : HTTPPackLayerClient(
                 baseURLProvider: BackendURLProvider(store: environmentStore),
-                headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: bypassSecretStore),
+                headerProvider: BackendHeaderProvider(environmentStore: environmentStore),
                 transport: transport
             )
     }
@@ -255,14 +206,13 @@ enum CloudClientFactory {
     static func wordStatsSyncClient(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
-        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
         transport: any HTTPTransporting = URLSessionHTTPTransport()
     ) -> any WordStatsSyncClienting {
         shouldUseLocalMocks(arguments: arguments)
             ? MockWordStatsSyncClient()
             : HTTPWordStatsSyncClient(
                 baseURLProvider: BackendURLProvider(store: environmentStore),
-                headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: bypassSecretStore),
+                headerProvider: BackendHeaderProvider(environmentStore: environmentStore),
                 transport: transport
             )
     }
@@ -270,14 +220,13 @@ enum CloudClientFactory {
     static func checkInSyncClient(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
-        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
         transport: any HTTPTransporting = URLSessionHTTPTransport()
     ) -> any CheckInSyncClienting {
         shouldUseLocalMocks(arguments: arguments)
             ? MockCheckInSyncClient()
             : HTTPCheckInSyncClient(
                 baseURLProvider: BackendURLProvider(store: environmentStore),
-                headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: bypassSecretStore),
+                headerProvider: BackendHeaderProvider(environmentStore: environmentStore),
                 transport: transport
             )
     }
@@ -285,14 +234,13 @@ enum CloudClientFactory {
     static func unbindClient(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
-        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
         transport: any HTTPTransporting = URLSessionHTTPTransport()
     ) -> any DeviceUnbindClienting {
         shouldUseLocalMocks(arguments: arguments)
             ? MockDeviceUnbindClient()
             : HTTPDeviceUnbindClient(
                 baseURLProvider: BackendURLProvider(store: environmentStore),
-                headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: bypassSecretStore),
+                headerProvider: BackendHeaderProvider(environmentStore: environmentStore),
                 transport: transport
             )
     }
@@ -300,14 +248,13 @@ enum CloudClientFactory {
     static func childProfileClient(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
-        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
         transport: any HTTPTransporting = URLSessionHTTPTransport()
     ) -> any ChildProfileClienting {
         shouldUseLocalMocks(arguments: arguments)
             ? MockChildProfileClient()
             : HTTPChildProfileClient(
                 baseURLProvider: BackendURLProvider(store: environmentStore),
-                headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: bypassSecretStore),
+                headerProvider: BackendHeaderProvider(environmentStore: environmentStore),
                 transport: transport
             )
     }
@@ -317,7 +264,6 @@ enum CloudClientFactory {
         arguments: [String] = ProcessInfo.processInfo.arguments,
         cloudCredentialsStore: CloudCredentialsStore,
         environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
-        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
         transport: any HTTPTransporting = URLSessionHTTPTransport()
     ) -> any ParentApiClient {
         shouldUseLocalMocks(arguments: arguments)
@@ -326,7 +272,7 @@ enum CloudClientFactory {
             ? MockParentApiClient()
             : HTTPParentApiClient(
                 baseURLProvider: BackendURLProvider(store: environmentStore),
-                headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: bypassSecretStore),
+                headerProvider: BackendHeaderProvider(environmentStore: environmentStore),
                 credentialsProvider: { cloudCredentialsStore.credentials },
                 transport: transport
             )
@@ -358,6 +304,20 @@ extension JSONDecoder {
         ] {
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = options
+            if let date = formatter.date(from: value) {
+                return date
+            }
+        }
+        for format in [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "yyyy-MM-dd'T'HH:mm:ss",
+        ] {
+            let formatter = DateFormatter()
+            formatter.calendar = Calendar(identifier: .gregorian)
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            formatter.dateFormat = format
             if let date = formatter.date(from: value) {
                 return date
             }
@@ -689,19 +649,16 @@ final class DeveloperMenuViewModel: ObservableObject {
     @Published var isApplying = false
 
     private let environmentStore: BackendEnvironmentStore
-    private let bypassSecretStore: BypassSecretStore
     private let manifestClient: PreviewManifestClient
     private let urlProvider: BackendURLProvider
     private let transport: any HTTPTransporting
 
     init(
         environmentStore: BackendEnvironmentStore = BackendEnvironmentStore(),
-        bypassSecretStore: BypassSecretStore = BypassSecretStore(),
         manifestClient: PreviewManifestClient = PreviewManifestClient(),
         transport: any HTTPTransporting = URLSessionHTTPTransport()
     ) {
         self.environmentStore = environmentStore
-        self.bypassSecretStore = bypassSecretStore
         self.manifestClient = manifestClient
         self.transport = transport
         environment = environmentStore.environment
@@ -715,10 +672,6 @@ final class DeveloperMenuViewModel: ObservableObject {
 
     var effectiveBaseURL: URL {
         urlProvider.effectiveBaseURL()
-    }
-
-    var bypassSecret: String {
-        bypassSecretStore.secret
     }
 
     var cards: [DeveloperMenuCard] {
@@ -789,13 +742,8 @@ final class DeveloperMenuViewModel: ObservableObject {
             return .environmentUpdated
         case .preview:
             guard let previewURL = card.previewURL else { return .blocked() }
-            let secret = bypassSecretStore.secret
-            guard !secret.isEmpty else {
-                statusMessage = "请先保存 bypass secret"
-                return .blocked(statusMessage)
-            }
             lastProbeStatus = "Probing \(endpoint("/api/v1/public/health", baseURL: previewURL).absoluteString)…"
-            let result = await probeHealth(baseURL: previewURL, bypassSecret: secret)
+            let result = await probeHealth(baseURL: previewURL)
             lastProbeStatus = result.message
             guard result.ok else {
                 statusMessage = "Cannot reach /api/v1/public/health"
@@ -809,16 +757,6 @@ final class DeveloperMenuViewModel: ObservableObject {
         }
     }
 
-    func saveBypassSecret(_ value: String) {
-        bypassSecretStore.save(value)
-        statusMessage = bypassSecretStore.secret.isEmpty ? "已清除 bypass secret" : "已保存 bypass secret"
-    }
-
-    func clearBypassSecret() {
-        bypassSecretStore.clear()
-        statusMessage = "已清除 bypass secret"
-    }
-
     func refreshManifest() async {
         do {
             manifest = try await manifestClient.fetch()
@@ -829,7 +767,7 @@ final class DeveloperMenuViewModel: ObservableObject {
     }
 
     func probeHealth() async {
-        let result = await probeHealth(baseURL: urlProvider.effectiveBaseURL(), bypassSecret: bypassSecretStore.secret)
+        let result = await probeHealth(baseURL: urlProvider.effectiveBaseURL())
         lastProbeStatus = result.message
     }
 
@@ -842,13 +780,10 @@ final class DeveloperMenuViewModel: ObservableObject {
         return value
     }
 
-    private func probeHealth(baseURL: URL, bypassSecret: String) async -> (ok: Bool, message: String) {
+    private func probeHealth(baseURL: URL) async -> (ok: Bool, message: String) {
         let url = endpoint("/api/v1/public/health", baseURL: baseURL)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        if !bypassSecret.isEmpty {
-            request.setValue(bypassSecret, forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader)
-        }
         do {
             let (_, response) = try await transport.data(for: request)
             return (response.statusCode == 200, "\(url.absoluteString) → HTTP \(response.statusCode)")

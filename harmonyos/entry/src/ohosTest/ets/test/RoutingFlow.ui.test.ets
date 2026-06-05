@@ -335,17 +335,70 @@ const WORD_MAP: WordMapEntry[] = [
   { zh: '珊瑚', en: 'coral' },
   { zh: '沙滩', en: 'beach' },
   { zh: '海浪', en: 'wave' },
-  { zh: '海草', en: 'seaweed' }
+  { zh: '海草', en: 'seaweed' },
+  { zh: '火箭', en: 'rocket' },
+  { zh: '行星', en: 'planet' },
+  { zh: '彗星', en: 'comet' },
+  { zh: '阿尔法', en: 'alpha' },
+  { zh: '饼干', en: 'cookie' },
+  { zh: '糖果', en: 'candy' },
+  { zh: '酸奶', en: 'yogurt' }
 ];
 
-function lookupEnglishAnswer(zhPrompt: string): string {
+class PromptHintEntry {
+  zh: string = '';
+  en: string = '';
+}
+
+const PROMPT_HINTS: PromptHintEntry[] = [
+  { zh: '看电影', en: 'cinema' },
+  { zh: '电影院', en: 'cinema' },
+  { zh: '在家', en: 'home' },
+  { zh: '家里', en: 'home' }
+];
+
+function optionContains(optionTexts: string[], answer: string): boolean {
+  const lower: string = answer.toLowerCase();
+  for (let i = 0; i < optionTexts.length; i++) {
+    if (optionTexts[i].toLowerCase() === lower) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function lookupEnglishAnswer(zhPrompt: string, optionTexts: string[]): string {
   for (let i = 0; i < WORD_MAP.length; i++) {
     if (WORD_MAP[i].zh === zhPrompt) {
       return WORD_MAP[i].en;
     }
   }
   const fromCatalog: string = enForZh(zhPrompt);
-  return fromCatalog;
+  if (fromCatalog.length > 0) {
+    return fromCatalog;
+  }
+
+  for (let i = 0; i < PROMPT_HINTS.length; i++) {
+    const hint: PromptHintEntry = PROMPT_HINTS[i];
+    if (zhPrompt.indexOf(hint.zh) >= 0 && optionContains(optionTexts, hint.en)) {
+      return hint.en;
+    }
+  }
+  return '';
+}
+
+async function readChoiceOptions(driver: Driver): Promise<string[]> {
+  try {
+    const optionIds: string[] = ['BattleOptionA', 'BattleOptionB', 'BattleOptionC'];
+    const out: string[] = [];
+    for (let i = 0; i < optionIds.length; i++) {
+      const btn = await driver.findComponent(ON.id(optionIds[i]));
+      out.push(await btn.getText());
+    }
+    return out;
+  } catch (err) {
+    throw err as Error;
+  }
 }
 
 /**
@@ -363,7 +416,8 @@ async function tapCorrectAnswer(driver: Driver): Promise<string> {
   try {
     const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
     const promptText: string = await promptComp.getText();
-    const answer: string = lookupEnglishAnswer(promptText);
+    const optionTexts: string[] = await readChoiceOptions(driver);
+    const answer: string = lookupEnglishAnswer(promptText, optionTexts);
     if (answer === '') {
       throw new Error(`tapCorrectAnswer: unknown prompt "${promptText}"`);
     }
@@ -399,7 +453,8 @@ async function tapWrongAnswer(driver: Driver): Promise<string> {
   try {
     const promptComp = await driver.findComponent(ON.id('BattlePrompt'));
     const promptText: string = await promptComp.getText();
-    const correct: string = lookupEnglishAnswer(promptText);
+    const optionTexts: string[] = await readChoiceOptions(driver);
+    const correct: string = lookupEnglishAnswer(promptText, optionTexts);
     if (correct === '') {
       throw new Error(`tapWrongAnswer: unknown prompt "${promptText}"`);
     }

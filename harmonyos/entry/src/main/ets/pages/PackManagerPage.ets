@@ -12,6 +12,7 @@ import { FamilyPackService, FamilyPackEnsureResult } from '../services/FamilyPac
 import { PackNetworkFetchAdapter } from '../services/PackNetworkFetchAdapter';
 import { CloudCredentials, CloudCredentialsSnapshot } from '../services/CloudCredentials';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
+import { refreshSpellbookCoverCacheForPacks } from '../services/SpellbookCoverCache';
 import { PAGE_BODY_EDGE_VP } from '../constants/PageLayoutInsets';
 import { PageTopChrome } from '../components/PageTopChrome';
 import {
@@ -223,6 +224,9 @@ struct PackManagerPage {
     this.packSyncBusy = false;
     this.showPackToast(PackManagerPage.formatPackSyncToast(globalsUpdated, familyUpdated, familyAttempted));
     this.forceRerender();
+    refreshSpellbookCoverCacheForPacks(ctx, this.homeIntegration.library.allPacks()).catch((err: BusinessError): void => {
+      console.error(`PackManagerPage.refreshSpellbookCoverCacheForPacks failed: ${JSON.stringify(err)}`);
+    });
   }
 
   private static formatPackSyncToast(g: boolean, f: boolean, fAttempted: boolean): string {

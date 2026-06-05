@@ -3,9 +3,9 @@
 > Scope: Apple App Store only. Android release work is intentionally excluded.
 > App: `WordMagicGame` / `魔法背单词`
 > Bundle ID: `com.terryma.wordmagicgame`
-> Version: `1.0.0`
-> Build: `1010000`
-> Last updated: 2026-06-03
+> Version: `1.0.1`
+> Build: `1010001`
+> Last updated: 2026-06-05
 
 ## Source Of Truth
 
@@ -19,17 +19,19 @@
 
 ## Current Repo State
 
-- [x] `MARKETING_VERSION` is `1.0.0` in `ios/project.yml`.
-- [x] `CURRENT_PROJECT_VERSION` is `1010000` in `ios/project.yml`.
+- [x] `MARKETING_VERSION` is `1.0.1` in `ios/project.yml`.
+- [x] `CURRENT_PROJECT_VERSION` is `1010001` in `ios/project.yml`.
 - [x] Bundle ID is `com.terryma.wordmagicgame`.
 - [x] App display name is `魔法背单词`.
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
 - [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v1.0.0-b1010000.xcarchive`.
+- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v1.0.1-b1010001.xcarchive`.
 - [x] App Store Connect upload succeeded for build `1.0.0 (1010000)` on 2026-06-01; TestFlight/App Store Connect processing completed.
+- [x] App Store Connect upload succeeded for build `1.0.1 (1010001)` on 2026-06-05; ASC returned delivery UUID `b4a71dc5-7f6e-423b-b4b7-fb8013290ed9` and `Upload succeeded`.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
-- [x] Release Simulator sanity check verified `-UITestRouteDevMenu` and `-UITestRouteBypassSecret` land on the normal home screen.
+- [x] Release Simulator sanity check verified developer-only routes land on the normal home screen.
 - [x] `NSPhotoLibraryAddUsageDescription` was removed because the iOS client only reads from Photos via `PhotosPicker` and does not write to the photo library.
 - [x] Real-device Release/TestFlight smoke test passed for build `0.7.0 (1007004)`.
 - [x] App Store Connect app record is verified by successful upload (`adamId: 6768499286`).
@@ -41,6 +43,7 @@
 - [x] iOS version `0.9.4` / build `1009004` was submitted for App Review on 2026-05-29; App Store Connect status is `正在等待审核`.
 - [x] iOS version `0.9.5` / build `1009005` was uploaded to App Store Connect/TestFlight, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for App Review on 2026-05-30. App Store Connect status is `正在等待审核`.
 - [x] iOS version `1.0.0` / build `1010000` was archived, uploaded to App Store Connect/TestFlight, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for App Review on 2026-06-01. App Store Connect status is `正在等待审核`.
+- [x] iOS version `1.0.1` / build `1010001` was archived and uploaded to App Store Connect on 2026-06-05. Build processing / App Store version selection / export-compliance confirmation / App Review submission still need App Store Connect authentication or manual console action.
 - [x] App Store availability was re-enabled on 2026-05-24 for the available storefront set. App Store Connect now shows 148 countries/regions `正在处理为可用`.
 - [ ] EU / DSA trader-status countries remain unavailable until the account owner provides trader status in App Store Connect.
 
@@ -215,7 +218,7 @@ xcodebuild archive \
   - [x] Sync after app restart.
   - [x] Settings page has no developer backend entry.
   - [x] Home version-label triple-tap does not open DevMenu in Release.
-  - [x] Bypass secret route cannot be opened in Release.
+  - [x] Legacy preview bypass route is not present in the client.
 
 ## P1 App Store Connect Metadata
 

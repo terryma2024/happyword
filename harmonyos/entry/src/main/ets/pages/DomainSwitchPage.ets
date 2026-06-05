@@ -7,16 +7,11 @@ import {
   AuditRow,
   initBackendEnvPrefs,
   loadBackendEnv,
-  loadBypassSecret,
   loadPreviewUrl,
   metaFor,
   saveBackendEnv,
-  saveBypassSecret,
   savePreviewUrl,
 } from '../services/BackendEnv';
-import {
-  buildVercelBypassHeader,
-} from '../services/BackendHeaders';
 import {
   fetchManifest,
   getCached,
@@ -26,7 +21,6 @@ import { resetForEnvSwitch } from '../services/SessionResetService';
 import { effectiveServerBaseUrl } from '../services/RemoteWordPackConfig';
 import { isDebugBuild } from '../services/ReleaseGate';
 import BuildProfile from 'BuildProfile';
-import { BypassSecretDialog } from '../components/BypassSecretDialog';
 import { requestPageOrientation } from '../utils/orientation';
 
 /**
@@ -80,17 +74,7 @@ struct DomainSwitchPage {
   // generic "Cannot reach" toast. Empty string = no probe attempted
   // this session, hide the line.
   @State private lastProbeStatus: string = '';
-  // Cached Vercel "Protection Bypass for Automation" secret. Hydrated
-  // from prefs in `aboutToAppear`; updated via `BypassSecretPage` or
-  // first-time Preview flow (`BypassSecretDialog`). AppStorage is the
-  // source of truth for outgoing HTTP calls (see BackendHeaders.ets).
-  @State private bypassSecret: string = '';
-  // Local handle to the current dialog — held so the closure-driven
-  // close path (mirrors AddCustomWishDialog) works regardless of
-  // whether the auto-bound controller field on the dialog struct
-  // wires up correctly under customStyle: true.
-  private bypassDialog: CustomDialogController | null = null;
-  /** Debug-only footer on Domain Switch — env / preview / bypass / API base. */
+  /** Debug-only footer on Domain Switch — env / preview / API base. */
   @State private routingDebugText: string = '';
 
   private applyOrientationPolicy(): void {
@@ -156,7 +140,6 @@ struct DomainSwitchPage {
     this.manifest = getCached();
     this.currentEnv = await loadBackendEnv();
     this.currentPreviewUrl = await loadPreviewUrl();
-    this.bypassSecret = await loadBypassSecret();
     this.refreshRoutingDebugPanel();
     this.refreshManifest(false).catch((err: BusinessError): void => {
       console.error(`DomainSwitchPage.refreshManifest: ${JSON.stringify(err)}`);
@@ -176,34 +159,14 @@ struct DomainSwitchPage {
    * the OpenHarmony emulator (cold DNS / cold TCP / cold edge) often
    * exceeds 5s; once the host has warmed the path, subsequent requests
    * complete in well under a second.
-   *
-   * The optional `bypassSecret` is folded into an
-   * `x-vercel-protection-bypass` header when non-empty (mirrors the
-   * server-side e2e driver in `server/tests/e2e/_utils/vercel.py`).
-   * Without it, Vercel preview deployments return HTTP 401 + an HTML
-   * SSO page; with it, the platform layer waves the request through
-   * to the FastAPI function which returns 200.
-   *
-   * Note we pass the secret in directly rather than reading the
-   * AppStorage mirror — the user's just-entered secret has not yet
-   * been persisted at the moment this method is called from
-   * `onCardTap`, so we can't rely on `vercelBypassHeader()`.
    */
-  private async probeHealth(url: string, bypassSecret: string): Promise<ProbeResult> {
+  private async probeHealth(url: string): Promise<ProbeResult> {
     const fullUrl: string = `${url}/api/v1/public/health`;
     const req: http.HttpRequest = http.createHttp();
     const out: ProbeResult = new ProbeResult();
     try {
-      // Direct call to buildVercelBypassHeader (the pure helper) —
-      // bypasses the AppStorage read because the secret may not yet
-      // be persisted at this point in the flow.
-      const headers: Record<string, string> = buildVercelBypassHeader(
-        BackendEnv.PREVIEW,
-        bypassSecret,
-      );
       const resp: http.HttpResponse = await req.request(fullUrl, {
         method: http.RequestMethod.GET,
-        header: headers,
         connectTimeout: 10000,
         readTimeout: 10000,
       });
@@ -223,14 +186,11 @@ struct DomainSwitchPage {
   }
 
   /**
-   * V0.6.2 unified tap handler. Routes Preview cards through the
-   * bypass-secret prompt (when no secret is yet stored) before
-   * running the safety pipeline; Local / Staging / Prod skip the
-   * prompt and the probe.
+   * V0.6.2 unified tap handler. Preview cards run a health probe;
+   * Local / Staging / Prod skip the probe.
    *
-   * Safety pipeline (Preview only): bypass-secret prompt (if needed)
-   * → probeHealth with secret → resetForEnvSwitch → saveBackendEnv
-   * → savePreviewUrl → saveBypassSecret → audit row → toast →
+   * Safety pipeline (Preview only): probeHealth → resetForEnvSwitch
+   * → saveBackendEnv → savePreviewUrl → audit row → toast →
    * replaceUrl back to HomePage. Re-entrancy is guarded by
    * `applying`; while a tap is in flight every card is rendered
    * with `enabled(false)` so a second-finger double-tap can't fire
@@ -240,59 +200,18 @@ struct DomainSwitchPage {
     if (this.applying) {
       return;
     }
-    if (env === BackendEnv.PREVIEW && this.bypassSecret.length === 0) {
-      // Defer apply until the user enters the secret. Dialog's
-      // onSubmit closure resumes the pipeline.
-      this.openBypassDialog(previewUrl);
-      return;
-    }
-    this.applyEnv(env, previewUrl, this.bypassSecret).catch((err: BusinessError): void => {
+    this.applyEnv(env, previewUrl).catch((err: BusinessError): void => {
       console.error(`DomainSwitchPage.onCardTap.applyEnv failed: ${JSON.stringify(err)}`);
     });
   }
 
   /**
-   * Open the bypass-secret prompt for the given preview URL. On
-   * submit, persist the secret and resume the apply pipeline; on
-   * cancel, leave state untouched (no env switch).
-   */
-  private openBypassDialog(previewUrl: string): void {
-    let ctrl: CustomDialogController | null = null;
-    ctrl = new CustomDialogController({
-      builder: BypassSecretDialog({
-        initialSecret: this.bypassSecret,
-        onSubmit: (secret: string): void => {
-          if (ctrl !== null) {
-            ctrl.close();
-          }
-          this.bypassSecret = secret;
-          this.applyEnv(BackendEnv.PREVIEW, previewUrl, secret).catch((err: BusinessError): void => {
-            console.error(`DomainSwitchPage.openBypassDialog.applyEnv failed: ${JSON.stringify(err)}`);
-          });
-        },
-        onCancel: (): void => {
-          if (ctrl !== null) {
-            ctrl.close();
-          }
-        },
-      }),
-      autoCancel: true,
-      customStyle: true,
-    });
-    this.bypassDialog = ctrl;
-    ctrl.open();
-  }
-
-  /**
    * Run the actual env-switch pipeline. Extracted from `onCardTap`
-   * so the post-prompt resume path (after `BypassSecretDialog`
-   * confirms) and the no-prompt path (Local / Staging / cached
-   * Preview secret) share one code path.
+   * so Preview probe and Local / Staging / Prod share one code path.
    */
   private async applyEnv(
     env: BackendEnv,
     previewUrl: string,
-    bypassSecret: string,
   ): Promise<void> {
     this.applying = true;
     try {
@@ -301,7 +220,7 @@ struct DomainSwitchPage {
         // Surface the URL we're about to probe BEFORE the request so
         // the user sees something even if the call hangs to timeout.
         this.lastProbeStatus = `Probing ${previewUrl}/api/v1/public/health…`;
-        const result: ProbeResult = await this.probeHealth(previewUrl, bypassSecret);
+        const result: ProbeResult = await this.probeHealth(previewUrl);
         this.lastProbeStatus = result.message;
         if (!result.ok) {
           this.showToast('Cannot reach /api/v1/public/health — see status at bottom');
@@ -314,9 +233,6 @@ struct DomainSwitchPage {
       await saveBackendEnv(env);
       if (env === BackendEnv.PREVIEW) {
         await savePreviewUrl(previewUrl);
-        // Persist the secret only after a successful 200 probe so a
-        // mistyped secret never gets cached.
-        await saveBypassSecret(bypassSecret);
       } else {
         await savePreviewUrl('');
         urlForAudit = '';
@@ -486,17 +402,6 @@ struct DomainSwitchPage {
             .fontWeight(FontWeight.Bold)
             .margin({ left: 16 });
           Blank();
-          Button('Bypass Secret')
-            .id('DevMenuBypassSecretButton')
-            .fontSize(13)
-            .height(36)
-            .margin({ right: 10 })
-            .enabled(!this.applying)
-            .onClick((): void => {
-              this.getUIContext().getRouter().pushUrl({ url: 'pages/BypassSecretPage' }).catch((err: BusinessError): void => {
-                console.error(`DomainSwitchPage.pushUrl BypassSecretPage failed: ${JSON.stringify(err)}`);
-              });
-            });
           Button(this.manifestBusy ? 'Refreshing...' : 'Refresh Manifest')
             .id('DevMenuRefreshManifestButton')
             .fontSize(13)

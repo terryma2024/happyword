@@ -1,8 +1,5 @@
 package cool.happyword.wordmagic.app
 
-import cool.happyword.wordmagic.core.BackendEnv
-import cool.happyword.wordmagic.core.BackendHeaderProvider
-import cool.happyword.wordmagic.core.BackendRouteState
 import cool.happyword.wordmagic.core.BuiltinPacks
 import cool.happyword.wordmagic.core.CloudSyncCoordinator
 import cool.happyword.wordmagic.core.FixtureFamilyPackClient
@@ -10,13 +7,14 @@ import cool.happyword.wordmagic.core.FixtureGlobalPackClient
 import cool.happyword.wordmagic.core.PackLibrary
 import cool.happyword.wordmagic.core.WordLearningStat
 import cool.happyword.wordmagic.core.WordStatsSyncClient
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OfflineFailureGateTest {
     @Test
-    fun failedPackSyncPreservesBuiltinPlayablePacks() {
+    fun failedPackSyncPreservesBuiltinPlayablePacks() = runBlocking {
         val syncResult = CloudSyncCoordinator(
             globalClient = FixtureGlobalPackClient(fail = true),
             familyClient = FixtureFamilyPackClient(fail = true),
@@ -47,13 +45,4 @@ class OfflineFailureGateTest {
         assertEquals("""{"items":[],"synced_through_ms":456}""", payload)
     }
 
-    @Test
-    fun productionRoutingDoesNotAttachPreviewBypassHeader() {
-        val headers = BackendHeaderProvider().headers(
-            state = BackendRouteState(env = BackendEnv.Prod),
-            bypassSecret = "secret-from-debug-device",
-        )
-
-        assertTrue(headers.isEmpty())
-    }
 }

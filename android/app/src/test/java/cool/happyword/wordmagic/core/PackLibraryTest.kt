@@ -60,6 +60,45 @@ class PackLibraryTest {
     }
 
     @Test
+    fun storyAndCoverOnlyGlobalPackReceivesFallbackPaletteAndPreservesMetadata() {
+        val global = WordPack(
+            id = "gpk-kitchen-bubbles",
+            nameEn = "Kitchen Bubbles",
+            nameZh = "厨房泡泡",
+            source = PackSource.Global,
+            version = 1,
+            publishedAtMs = 2_000L,
+            scene = SceneMetadata(
+                bgPrimary = "#FFFFFF",
+                bgAccent = "#FFFFFF",
+                bossName = "",
+                monsterPlan = emptyList(),
+                bossCandidates = emptyList(),
+                storyZh = "在厨房里，泡泡欢快地跳舞。",
+                storyEn = "Tiny bubbles dance through the kitchen words.",
+                spellbookCoverUrl = "https://blob.example/covers/kitchen-bubbles.png",
+            ),
+            words = listOf(
+                WordEntry("kitchen-cup", "cup", "杯子"),
+                WordEntry("kitchen-spoon", "spoon", "勺子"),
+                WordEntry("kitchen-plate", "plate", "盘子"),
+            ),
+        )
+
+        val library = PackLibrary.merge(BuiltinPacks.all, global = listOf(global), family = emptyList())
+        val merged = library.requirePack("gpk-kitchen-bubbles")
+
+        assertTrue(merged.scene.bgPrimary != "#FFFFFF")
+        assertTrue(merged.scene.bgAccent != "#FFFFFF")
+        assertTrue(merged.scene.bossName.isNotBlank())
+        assertTrue(merged.scene.monsterPlan.isNotEmpty())
+        assertTrue(merged.scene.bossCandidates.isNotEmpty())
+        assertEquals("在厨房里，泡泡欢快地跳舞。", merged.scene.storyZh)
+        assertEquals("Tiny bubbles dance through the kitchen words.", merged.scene.storyEn)
+        assertEquals("https://blob.example/covers/kitchen-bubbles.png", merged.scene.spellbookCoverUrl)
+    }
+
+    @Test
     fun builtinPacksExposeFifteenSentenceReadyWordsEach() {
         val expectedIds = setOf("fruit-forest", "school-castle", "home-cottage", "animal-safari", "ocean-realm")
         assertEquals(expectedIds, BuiltinPacks.all.map { it.id }.toSet())

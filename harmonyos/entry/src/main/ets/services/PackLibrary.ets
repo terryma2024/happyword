@@ -45,7 +45,15 @@ function djb2Hash(s: string): number {
 function isEmptyScene(s: SceneMetadata): boolean {
   const noStory: boolean = (s.storyEn === undefined || s.storyEn.length === 0)
     && (s.storyZh === undefined || s.storyZh.length === 0);
-  return s.bgPrimary === '#FFFFFF' && s.bgAccent === '#FFFFFF' && s.bossName === '' && noStory;
+  const noCover: boolean = s.spellbookCoverUrl === undefined || s.spellbookCoverUrl.length === 0;
+  return s.bgPrimary === '#FFFFFF' && s.bgAccent === '#FFFFFF' && s.bossName === '' && noStory && noCover;
+}
+
+function needsSceneFallback(s: SceneMetadata): boolean {
+  return s.bgPrimary === '#FFFFFF'
+    || s.bgAccent === '#FFFFFF'
+    || s.bossName.length === 0
+    || s.monsterPlan.slots.length === 0;
 }
 
 function mergeSceneWithFallback(own: SceneMetadata, fallback: SceneMetadata): SceneMetadata {
@@ -59,7 +67,23 @@ function mergeSceneWithFallback(own: SceneMetadata, fallback: SceneMetadata): Sc
     : fallback.bossCandidates.slice();
   scene.storyEn = own.storyEn !== undefined && own.storyEn.length > 0 ? own.storyEn : fallback.storyEn;
   scene.storyZh = own.storyZh !== undefined && own.storyZh.length > 0 ? own.storyZh : fallback.storyZh;
+  scene.spellbookCoverUrl = own.spellbookCoverUrl !== undefined && own.spellbookCoverUrl.length > 0
+    ? own.spellbookCoverUrl
+    : fallback.spellbookCoverUrl;
   return scene;
+}
+
+function clonePackWithScene(p: Pack, scene: SceneMetadata): Pack {
+  const merged: Pack = new Pack();
+  merged.id = p.id;
+  merged.name = p.name;
+  merged.labelZh = p.labelZh;
+  merged.source = p.source;
+  merged.version = p.version;
+  merged.publishedAtMs = p.publishedAtMs;
+  merged.scene = scene;
+  merged.words = p.words.slice();
+  return merged;
 }
 
 export class PackLibrary {
@@ -134,27 +158,9 @@ export class PackLibrary {
   private static applySceneFallback(p: Pack, builtinById: Map<string, Pack>): Pack {
     const sib: Pack | undefined = builtinById.get(p.id);
     if (sib !== undefined && !isEmptyScene(sib.scene)) {
-      const merged: Pack = new Pack();
-      merged.id = p.id;
-      merged.name = p.name;
-      merged.labelZh = p.labelZh;
-      merged.source = p.source;
-      merged.version = p.version;
-      merged.publishedAtMs = p.publishedAtMs;
-      merged.scene = mergeSceneWithFallback(p.scene, sib.scene);
-      merged.words = p.words.slice();
-      return merged;
+      return clonePackWithScene(p, mergeSceneWithFallback(p.scene, sib.scene));
     }
-    if (!isEmptyScene(p.scene)) return p;
-    const merged: Pack = new Pack();
-    merged.id = p.id;
-    merged.name = p.name;
-    merged.labelZh = p.labelZh;
-    merged.source = p.source;
-    merged.version = p.version;
-    merged.publishedAtMs = p.publishedAtMs;
-    merged.scene = PackLibrary.fallbackSceneFor(p.id);
-    merged.words = p.words.slice();
-    return merged;
+    if (!needsSceneFallback(p.scene)) return p;
+    return clonePackWithScene(p, mergeSceneWithFallback(p.scene, PackLibrary.fallbackSceneFor(p.id)));
   }
 }

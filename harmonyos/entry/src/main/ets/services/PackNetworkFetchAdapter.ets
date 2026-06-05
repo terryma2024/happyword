@@ -2,7 +2,6 @@ import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@ohos.base';
 
 import { ParentFetchResult } from './ParentApiClient';
-import { withBypassHeaders } from './BackendHeaders';
 import { FamilyPackFetchAdapter } from './FamilyPackService';
 import { GlobalPackFetchAdapter } from './GlobalPackService';
 
@@ -69,10 +68,9 @@ export class PackNetworkFetchAdapter implements FamilyPackFetchAdapter, GlobalPa
     this.capturedHeaders = {};
     const req: http.HttpRequest = http.createHttp();
     try {
-      const merged: Record<string, string> = withBypassHeaders(headers);
       const resp: http.HttpResponse = await req.request(url, {
         method,
-        header: merged,
+        header: headers,
         extraData: body.length > 0 ? body : undefined,
         connectTimeout: TIMEOUT_MS,
         readTimeout: TIMEOUT_MS,

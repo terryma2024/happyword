@@ -14,11 +14,11 @@ class AppMetadataTest {
     }
 
     @Test
-    fun gradleVersionMatchesV100Release() {
+    fun gradleVersionMatchesV101Release() {
         val buildFile = File("build.gradle.kts").readText()
 
-        assertTrue(buildFile.contains("""versionCode = 1_010_000"""))
-        assertTrue(buildFile.contains("""versionName = "1.0.0""""))
+        assertTrue(buildFile.contains("""versionCode = 1_010_001"""))
+        assertTrue(buildFile.contains("""versionName = "1.0.1""""))
     }
 
     @Test

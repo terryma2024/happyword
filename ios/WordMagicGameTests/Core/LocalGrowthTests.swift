@@ -37,6 +37,37 @@ final class LocalGrowthTests: XCTestCase {
         XCTAssertEqual(library.builtinIds(), ["forest"])
     }
 
+    func testStoryAndCoverOnlyGlobalPackReceivesFallbackPaletteAndPreservesMetadata() {
+        let scene = SceneMetadata(
+            storyEn: "A tiny kitchen train carries bright new words.",
+            storyZh: "厨房小火车载着闪亮的新单词出发。",
+            spellbookCoverUrl: "https://cdn.example.test/covers/kitchen.png"
+        )
+        let global = Pack(
+            id: "gpk-kitchen",
+            title: "Kitchen Words",
+            subtitle: "Kitchen",
+            story: "Kitchen",
+            source: .global,
+            scene: scene,
+            words: [DemoWords.words[0]]
+        )
+
+        let library = PackLibrary(builtin: [], global: [global], family: [])
+        let resolved = library.pack(id: "gpk-kitchen")
+
+        XCTAssertEqual(resolved?.scene.storyEn, scene.storyEn)
+        XCTAssertEqual(resolved?.scene.storyZh, scene.storyZh)
+        XCTAssertEqual(resolved?.scene.spellbookCoverUrl, scene.spellbookCoverUrl)
+        XCTAssertNotEqual(resolved?.scene.bgPrimary, "")
+        XCTAssertNotEqual(resolved?.scene.bgPrimary, "#FFFFFF")
+        XCTAssertNotEqual(resolved?.scene.bgAccent, "")
+        XCTAssertNotEqual(resolved?.scene.bgAccent, "#FFFFFF")
+        XCTAssertNotEqual(resolved?.scene.bossName, "")
+        XCTAssertFalse(resolved?.scene.bossCandidates.isEmpty ?? true)
+        XCTAssertFalse(resolved?.scene.monsterPlan.isEmpty ?? true)
+    }
+
     func testPackSelectionDefaultsCapPinPerfectRotationAndActivationAutoRotate() {
         let initial = ["forest", "home", "park", "school", "castle", "ocean", "space", "snacks", "animals", "colors"]
         let store = PackSelectionStore(defaultIds: initial)
@@ -96,9 +127,12 @@ final class LocalGrowthTests: XCTestCase {
     }
 
     func testPackManagerTitleTypographyFavorsLongNames() {
-        XCTAssertLessThanOrEqual(PackManagerLayoutRules.packTitleFontSize, 20)
+        XCTAssertLessThanOrEqual(PackManagerLayoutRules.headerTitleFontSize, 25)
+        XCTAssertLessThanOrEqual(PackManagerLayoutRules.packTitleFontSize, 17)
         XCTAssertEqual(PackManagerLayoutRules.packTitleLineLimit, 2)
         XCTAssertLessThanOrEqual(PackManagerLayoutRules.packTitleMinimumScaleFactor, 0.9)
+        XCTAssertGreaterThanOrEqual(PackManagerLayoutRules.packSourceIconSide, 30)
+        XCTAssertGreaterThanOrEqual(PackManagerLayoutRules.packActionAreaWidth, 128)
     }
 
     @MainActor

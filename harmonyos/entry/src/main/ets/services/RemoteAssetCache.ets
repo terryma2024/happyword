@@ -2,8 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { http } from '@kit.NetworkKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@ohos.base';
-import { buffer } from '@kit.ArkTS';
-import { vercelBypassHeader } from './BackendHeaders';
+import { buffer, util } from '@kit.ArkTS';
 
 /**
  * RemoteAssetCache — lazy on-disk LRU cache for word illustration / audio URLs
@@ -36,6 +35,7 @@ const FETCH_TIMEOUT_MS: number = 6000;
 const FS_ERR_FILE_EXISTS: number = 13900015;
 // HarmonyOS file APIs raise this code when unlink hits a missing file.
 const FS_ERR_NO_SUCH_FILE: number = 13900002;
+const INDEX_FILE_NAME: string = '_index.json';
 
 export interface AssetFsAdapter {
   ensureDir(dir: string): Promise<void>;
@@ -54,6 +54,16 @@ class IndexEntry {
   url: string = '';
   fileName: string = '';
   lastAccessedMs: number = 0;
+}
+
+interface RawIndexEntry {
+  url?: string;
+  fileName?: string;
+  lastAccessedMs?: number;
+}
+
+interface RawIndexFile {
+  entries?: RawIndexEntry[];
 }
 
 export class RemoteAssetCache {
@@ -86,6 +96,52 @@ export class RemoteAssetCache {
     }
     await this.ensureBootstrapped();
 
+    const cachedPath: string | undefined = await this.cachedPathAfterBootstrap(url, kind);
+    if (cachedPath !== undefined) {
+      await this.persistIndex(kind);
+      return cachedPath;
+    }
+
+    const index: Map<string, IndexEntry> | undefined = this.indexes.get(kind);
+    if (index === undefined) {
+      return undefined;
+    }
+    const fileName: string = RemoteAssetCache.fileNameFor(url);
+    const fullPath: string = this.pathFor(kind, fileName);
+    const bytes: ArrayBuffer | undefined = await this.fetcher.fetchBinary(url);
+    if (bytes === undefined) {
+      return undefined;
+    }
+    try {
+      await this.fsAdapter.writeBytes(fullPath, bytes);
+    } catch (err) {
+      const be: BusinessError = err as BusinessError;
+      console.error(`RemoteAssetCache.write failed for ${fullPath}: ${JSON.stringify(be)}`);
+      return undefined;
+    }
+    const entry: IndexEntry = new IndexEntry();
+    entry.url = url;
+    entry.fileName = fileName;
+    entry.lastAccessedMs = Date.now();
+    index.set(url, entry);
+    await this.evictIfNeeded(kind);
+    await this.persistIndex(kind);
+    return fullPath;
+  }
+
+  async cachedPath(url: string, kind: AssetKind): Promise<string | undefined> {
+    if (url.length === 0) {
+      return undefined;
+    }
+    await this.ensureBootstrapped();
+    const out: string | undefined = await this.cachedPathAfterBootstrap(url, kind);
+    if (out !== undefined) {
+      await this.persistIndex(kind);
+    }
+    return out;
+  }
+
+  private async cachedPathAfterBootstrap(url: string, kind: AssetKind): Promise<string | undefined> {
     const index: Map<string, IndexEntry> | undefined = this.indexes.get(kind);
     if (index === undefined) {
       return undefined;
@@ -100,19 +156,11 @@ export class RemoteAssetCache {
       // Disk file vanished (e.g. user cleared storage). Drop the
       // index entry so we re-fetch below.
       index.delete(url);
-    }
-
-    const bytes: ArrayBuffer | undefined = await this.fetcher.fetchBinary(url);
-    if (bytes === undefined) {
-      return undefined;
+      await this.persistIndex(kind);
     }
     const fileName: string = RemoteAssetCache.fileNameFor(url);
     const fullPath: string = this.pathFor(kind, fileName);
-    try {
-      await this.fsAdapter.writeBytes(fullPath, bytes);
-    } catch (err) {
-      const be: BusinessError = err as BusinessError;
-      console.error(`RemoteAssetCache.write failed for ${fullPath}: ${JSON.stringify(be)}`);
+    if (!(await this.fsAdapter.exists(fullPath))) {
       return undefined;
     }
     const entry: IndexEntry = new IndexEntry();
@@ -120,7 +168,6 @@ export class RemoteAssetCache {
     entry.fileName = fileName;
     entry.lastAccessedMs = Date.now();
     index.set(url, entry);
-    await this.evictIfNeeded(kind);
     return fullPath;
   }
 
@@ -133,10 +180,9 @@ export class RemoteAssetCache {
     await this.fsAdapter.ensureDir(`${this.root}/${ASSET_DIR_ILLUSTRATIONS}`);
     await this.fsAdapter.ensureDir(`${this.root}/${ASSET_DIR_AUDIO}`);
     await this.fsAdapter.ensureDir(`${this.root}/${ASSET_DIR_COVERS}`);
-    // We deliberately do NOT rebuild url -> fileName mappings from the
-    // listing because we don't store URLs on disk. A cold-start process
-    // simply re-fetches assets the first time they're requested again —
-    // fine for V0.5.D where ≤ 150 small files total.
+    await this.loadIndex(AssetKind.Illustration);
+    await this.loadIndex(AssetKind.Audio);
+    await this.loadIndex(AssetKind.Cover);
   }
 
   private pathFor(kind: AssetKind, fileName: string): string {
@@ -147,6 +193,74 @@ export class RemoteAssetCache {
       bucket = ASSET_DIR_COVERS;
     }
     return `${this.root}/${bucket}/${fileName}`;
+  }
+
+  private indexPathFor(kind: AssetKind): string {
+    let bucket: string = ASSET_DIR_AUDIO;
+    if (kind === AssetKind.Illustration) {
+      bucket = ASSET_DIR_ILLUSTRATIONS;
+    } else if (kind === AssetKind.Cover) {
+      bucket = ASSET_DIR_COVERS;
+    }
+    return `${this.root}/${bucket}/${INDEX_FILE_NAME}`;
+  }
+
+  private async loadIndex(kind: AssetKind): Promise<void> {
+    const path: string = this.indexPathFor(kind);
+    if (!(await this.fsAdapter.exists(path))) {
+      return;
+    }
+    let raw: string = '';
+    try {
+      raw = RemoteAssetCache.arrayBufferToString(await this.fsAdapter.readBytes(path));
+    } catch (err) {
+      const be: BusinessError = err as BusinessError;
+      console.error(`RemoteAssetCache.loadIndex read failed for ${path}: ${JSON.stringify(be)}`);
+      return;
+    }
+    let parsed: RawIndexFile;
+    try {
+      parsed = JSON.parse(raw) as RawIndexFile;
+    } catch (_err) {
+      return;
+    }
+    const entries: RawIndexEntry[] = Array.isArray(parsed.entries) ? parsed.entries : [];
+    const index: Map<string, IndexEntry> | undefined = this.indexes.get(kind);
+    if (index === undefined) {
+      return;
+    }
+    for (let i = 0; i < entries.length; i++) {
+      const rawEntry: RawIndexEntry = entries[i];
+      if (typeof rawEntry.url !== 'string' || rawEntry.url.length === 0) {
+        continue;
+      }
+      if (typeof rawEntry.fileName !== 'string' || rawEntry.fileName.length === 0) {
+        continue;
+      }
+      const entry: IndexEntry = new IndexEntry();
+      entry.url = rawEntry.url;
+      entry.fileName = rawEntry.fileName;
+      entry.lastAccessedMs = typeof rawEntry.lastAccessedMs === 'number' ? rawEntry.lastAccessedMs : 0;
+      index.set(entry.url, entry);
+    }
+  }
+
+  private async persistIndex(kind: AssetKind): Promise<void> {
+    const index: Map<string, IndexEntry> | undefined = this.indexes.get(kind);
+    if (index === undefined) {
+      return;
+    }
+    const entries: IndexEntry[] = [];
+    index.forEach((e: IndexEntry): void => {
+      entries.push(e);
+    });
+    const raw: string = JSON.stringify({ entries: entries });
+    try {
+      await this.fsAdapter.writeBytes(this.indexPathFor(kind), RemoteAssetCache.stringToArrayBuffer(raw));
+    } catch (err) {
+      const be: BusinessError = err as BusinessError;
+      console.error(`RemoteAssetCache.persistIndex failed for ${kind}: ${JSON.stringify(be)}`);
+    }
   }
 
   private async evictIfNeeded(kind: AssetKind): Promise<void> {
@@ -177,6 +291,7 @@ export class RemoteAssetCache {
       }
       index.delete(victim.url);
     }
+    await this.persistIndex(kind);
   }
 
   private static trimTrailingSlash(p: string): string {
@@ -196,6 +311,17 @@ export class RemoteAssetCache {
     const safeExt: string = cleanExt.length === 0 || cleanExt.length > 5 ? 'bin' : cleanExt;
     const hash: string = RemoteAssetCache.hashUrl(url);
     return `${hash}.${safeExt}`;
+  }
+
+  private static stringToArrayBuffer(value: string): ArrayBuffer {
+    const enc: util.TextEncoder = new util.TextEncoder('utf-8');
+    const bytes: Uint8Array = enc.encodeInto(value);
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  }
+
+  private static arrayBufferToString(value: ArrayBuffer): string {
+    const dec: util.TextDecoder = util.TextDecoder.create('utf-8');
+    return dec.decodeToString(new Uint8Array(value));
   }
 
   // FNV-1a 32-bit hash, hex-encoded (8 chars). We only need a stable
@@ -301,14 +427,8 @@ class RealAssetFetcher implements AssetHttpFetcher {
   async fetchBinary(url: string): Promise<ArrayBuffer | undefined> {
     const req: http.HttpRequest = http.createHttp();
     try {
-      // Asset URLs may live on the same Vercel preview as the API
-      // (e.g. /api/v1/assets/<id>). Attach the bypass header when
-      // env=preview so deployment protection lets binary fetches
-      // through. No-op for Local / Staging / Prod.
-      const bypass: Record<string, string> = vercelBypassHeader();
       const resp: http.HttpResponse = await req.request(url, {
         method: http.RequestMethod.GET,
-        header: bypass,
         connectTimeout: FETCH_TIMEOUT_MS,
         readTimeout: FETCH_TIMEOUT_MS,
         expectDataType: http.HttpDataType.ARRAY_BUFFER,

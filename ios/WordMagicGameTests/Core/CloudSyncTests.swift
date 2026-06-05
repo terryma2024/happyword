@@ -14,7 +14,6 @@ final class CloudSyncTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "FactoryBindingRouting-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
         environmentStore.save(environment: .staging)
-        let secretStore = BypassSecretStore(defaults: defaults)
         let recorder = RequestURLRecorder()
         let transport = RecordingHTTPTransport { request in
             recorder.append(request.url?.absoluteString)
@@ -23,7 +22,6 @@ final class CloudSyncTests: XCTestCase {
         let client = CloudClientFactory.bindingClient(
             arguments: ["WordMagicGame"],
             environmentStore: environmentStore,
-            bypassSecretStore: secretStore,
             transport: transport
         )
 
@@ -73,20 +71,15 @@ final class CloudSyncTests: XCTestCase {
         )
     }
 
-    func testBackendHeaderProviderAttachesVercelBypassOnlyForPreview() {
+    func testBackendHeaderProviderDoesNotAttachLegacyPreviewBypassHeader() {
         let defaults = UserDefaults(suiteName: "BackendHeaders-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
-        let secretStore = BypassSecretStore(defaults: defaults)
-        let provider = BackendHeaderProvider(environmentStore: environmentStore, secretStore: secretStore)
+        let provider = BackendHeaderProvider(environmentStore: environmentStore)
 
-        secretStore.save("secret-demo")
         environmentStore.save(environment: .staging)
         XCTAssertEqual(provider.headers(), [:])
 
         environmentStore.save(environment: .preview, previewURL: URL(string: "https://happyword-preview.example.test")!)
-        XCTAssertEqual(provider.headers()[BackendHeaderProvider.vercelBypassHeader], "secret-demo")
-
-        secretStore.clear()
         XCTAssertEqual(provider.headers(), [:])
     }
 
@@ -105,17 +98,15 @@ final class CloudSyncTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "PreviewManifestHeaders-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
         environmentStore.save(environment: .preview, previewURL: URL(string: "https://happyword-preview.example.test")!)
-        let secretStore = BypassSecretStore(defaults: defaults)
-        secretStore.save("secret-demo")
 
         let transport = RecordingHTTPTransport { request in
             XCTAssertEqual(request.url?.absoluteString, "https://happyword.com.cn/api/v1/public/preview-urls.json")
-            XCTAssertNil(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader))
+            XCTAssertNil(request.value(forHTTPHeaderField: "x-vercel-protection-bypass"))
             return Self.httpResponse(request: request, status: 200, body: Self.previewManifestFixture)
         }
         let client = PreviewManifestClient(
             transport: transport,
-            headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: secretStore)
+            headerProvider: BackendHeaderProvider(environmentStore: environmentStore)
         )
 
         let manifest = try await client.fetch()
@@ -132,7 +123,6 @@ final class CloudSyncTests: XCTestCase {
         environmentStore.save(environment: .staging)
         let viewModel = DeveloperMenuViewModel(
             environmentStore: environmentStore,
-            bypassSecretStore: BypassSecretStore(defaults: defaults),
             manifestClient: PreviewManifestClient(transport: RecordingHTTPTransport { request in
                 Self.httpResponse(request: request, status: 200, body: Self.previewManifestFixture)
             }),
@@ -192,16 +182,13 @@ final class CloudSyncTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "DevMenuPreviewFail-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
         environmentStore.save(environment: .staging)
-        let secretStore = BypassSecretStore(defaults: defaults)
-        secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
             XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-fail.vercel.app/api/v1/public/health")
-            XCTAssertEqual(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader), "secret-demo")
+            XCTAssertNil(request.value(forHTTPHeaderField: "x-vercel-protection-bypass"))
             return Self.httpResponse(request: request, status: 401, body: Data())
         }
         let viewModel = DeveloperMenuViewModel(
             environmentStore: environmentStore,
-            bypassSecretStore: secretStore,
             transport: transport
         )
         viewModel.manifest = PreviewManifest(previews: [
@@ -221,16 +208,13 @@ final class CloudSyncTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "DevMenuPreviewSuccess-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
         environmentStore.save(environment: .staging)
-        let secretStore = BypassSecretStore(defaults: defaults)
-        secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
             XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
-            XCTAssertEqual(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader), "secret-demo")
+            XCTAssertNil(request.value(forHTTPHeaderField: "x-vercel-protection-bypass"))
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
         let viewModel = DeveloperMenuViewModel(
             environmentStore: environmentStore,
-            bypassSecretStore: secretStore,
             transport: transport
         )
         viewModel.manifest = PreviewManifest(previews: [
@@ -250,15 +234,12 @@ final class CloudSyncTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "DevMenuCoordinatorSuccess-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
         environmentStore.save(environment: .staging)
-        let secretStore = BypassSecretStore(defaults: defaults)
-        secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
             XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
         let viewModel = DeveloperMenuViewModel(
             environmentStore: environmentStore,
-            bypassSecretStore: secretStore,
             transport: transport
         )
         viewModel.manifest = PreviewManifest(previews: [
@@ -278,15 +259,12 @@ final class CloudSyncTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "DevMenuCoordinatorDomainSwitch-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
         environmentStore.save(environment: .staging)
-        let secretStore = BypassSecretStore(defaults: defaults)
-        secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
             XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
         let viewModel = DeveloperMenuViewModel(
             environmentStore: environmentStore,
-            bypassSecretStore: secretStore,
             transport: transport
         )
         viewModel.manifest = PreviewManifest(previews: [
@@ -317,15 +295,12 @@ final class CloudSyncTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "DevMenuCoordinatorLegacyBinding-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
         environmentStore.save(environment: .preview, previewURL: previewURL)
-        let secretStore = BypassSecretStore(defaults: defaults)
-        secretStore.save("secret-demo")
         let transport = RecordingHTTPTransport { request in
             XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
         let viewModel = DeveloperMenuViewModel(
             environmentStore: environmentStore,
-            bypassSecretStore: secretStore,
             transport: transport
         )
         viewModel.manifest = PreviewManifest(previews: [
@@ -348,21 +323,19 @@ final class CloudSyncTests: XCTestCase {
     }
 
     @MainActor
-    func testDeveloperMenuPreviewCardWithoutSecretOpensSecretPageAndContinuesAfterSave() async throws {
-        let defaults = UserDefaults(suiteName: "DevMenuCoordinatorSecretContinue-\(UUID().uuidString)")!
+    func testDeveloperMenuPreviewCardAppliesWithoutLegacyHeader() async throws {
+        let defaults = UserDefaults(suiteName: "DevMenuCoordinatorNoSecret-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
         environmentStore.save(environment: .staging)
-        let secretStore = BypassSecretStore(defaults: defaults)
         let counter = RequestCounter()
         let transport = RecordingHTTPTransport { request in
             counter.increment()
             XCTAssertEqual(request.url?.absoluteString, "https://happyword-git-ok.vercel.app/api/v1/public/health")
-            XCTAssertEqual(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader), "secret-demo")
+            XCTAssertNil(request.value(forHTTPHeaderField: "x-vercel-protection-bypass"))
             return Self.httpResponse(request: request, status: 200, body: Data())
         }
         let viewModel = DeveloperMenuViewModel(
             environmentStore: environmentStore,
-            bypassSecretStore: secretStore,
             transport: transport
         )
         viewModel.manifest = PreviewManifest(previews: [
@@ -372,12 +345,6 @@ final class CloudSyncTests: XCTestCase {
         coordinator.route = .devMenu
 
         await coordinator.activateDeveloperMenuCard(viewModel.cards[2])
-
-        XCTAssertEqual(counter.value, 0)
-        XCTAssertEqual(coordinator.route, .bypassSecret)
-        XCTAssertEqual(environmentStore.environment, .staging)
-
-        await coordinator.saveBypassSecretAndContinue("secret-demo")
 
         XCTAssertEqual(counter.value, 1)
         XCTAssertEqual(environmentStore.environment, .preview)
@@ -397,7 +364,6 @@ final class CloudSyncTests: XCTestCase {
         }
         let viewModel = DeveloperMenuViewModel(
             environmentStore: environmentStore,
-            bypassSecretStore: BypassSecretStore(defaults: defaults),
             transport: transport
         )
 
@@ -443,21 +409,19 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(preview.previews.count, 1)
     }
 
-    func testHTTPClientsUseBackendURLProviderAndBypassHeader() async throws {
+    func testHTTPClientsUseBackendURLProviderWithoutLegacyBypassHeader() async throws {
         let defaults = UserDefaults(suiteName: "HTTPBackendRouting-\(UUID().uuidString)")!
         let environmentStore = BackendEnvironmentStore(defaults: defaults)
         environmentStore.save(environment: .preview, previewURL: URL(string: "https://happyword-preview.example.test")!)
-        let secretStore = BypassSecretStore(defaults: defaults)
-        secretStore.save("secret-demo")
 
         let transport = RecordingHTTPTransport { request in
             XCTAssertEqual(request.url?.host, "happyword-preview.example.test")
-            XCTAssertEqual(request.value(forHTTPHeaderField: BackendHeaderProvider.vercelBypassHeader), "secret-demo")
+            XCTAssertNil(request.value(forHTTPHeaderField: "x-vercel-protection-bypass"))
             return Self.httpResponse(request: request, status: 200, body: Self.wordStatsSyncResponseFixture)
         }
         let client = HTTPWordStatsSyncClient(
             baseURLProvider: BackendURLProvider(store: environmentStore),
-            headerProvider: BackendHeaderProvider(environmentStore: environmentStore, secretStore: secretStore),
+            headerProvider: BackendHeaderProvider(environmentStore: environmentStore),
             transport: transport
         )
 
@@ -645,6 +609,41 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(library.pack(id: "space-station")?.title, "Family Space")
         XCTAssertEqual(library.pack(id: "space-station")?.source, .family)
         XCTAssertEqual(library.pack(id: "family-snacks")?.title, "Family Snacks")
+    }
+
+    func testGlobalPackResponseDecodesServerPublishedAtWithoutTimezone() throws {
+        let payload = """
+        {
+          "packs": [
+            {
+              "pack_id": "gpk-live-shape",
+              "name": "Live Shape",
+              "description": null,
+              "version": 1,
+              "published_at": "2026-06-04T09:07:15.177000",
+              "scene": {
+                "storyZh": "在厨房里，泡泡欢快地跳舞。",
+                "spellbookCoverUrl": "https://cdn.example.test/covers/live.png"
+              },
+              "words": [
+                {
+                  "id": "fam-demo-cup",
+                  "word": "cup",
+                  "meaningZh": "杯子",
+                  "category": "kitchen",
+                  "difficulty": 1
+                }
+              ]
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder.snakeCase.decode(RemotePackPayload.self, from: payload)
+        let pack = try XCTUnwrap(response.packs.first)
+
+        XCTAssertEqual(pack.packId, "gpk-live-shape")
+        XCTAssertNotNil(pack.publishedAt)
     }
 
     func testFamilyPackClientKeepsCacheForAuthProblemsAndMarksGoneBinding() throws {

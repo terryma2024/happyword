@@ -2,6 +2,8 @@ package cool.happyword.wordmagic.core
 
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
+import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -165,6 +167,9 @@ data class BindingHttpResponse(val status: Int, val body: String)
 fun interface BindingHttpTransport {
     suspend fun requestJson(method: String, url: String, headers: Map<String, String>, body: String): BindingHttpResponse
 
+    suspend fun getJson(url: String, headers: Map<String, String>): BindingHttpResponse =
+        requestJson("GET", url, headers, "")
+
     suspend fun postJson(url: String, headers: Map<String, String>, body: String): BindingHttpResponse =
         requestJson("POST", url, headers, body)
 
@@ -179,12 +184,14 @@ class UrlConnectionBindingHttpTransport : BindingHttpTransport {
                 requestMethod = method
                 connectTimeout = 10_000
                 readTimeout = 10_000
-                doOutput = true
+                doOutput = body.isNotEmpty()
                 headers.forEach { (key, value) -> setRequestProperty(key, value) }
             }
             try {
-                connection.outputStream.use { stream ->
-                    stream.write(body.toByteArray(Charsets.UTF_8))
+                if (body.isNotEmpty()) {
+                    connection.outputStream.use { stream ->
+                        stream.write(body.toByteArray(Charsets.UTF_8))
+                    }
                 }
                 val status = connection.responseCode
                 val responseBody = runCatching {
@@ -375,8 +382,63 @@ data class CloudPackSyncResult(
     val lastSyncAtMs: Long,
 )
 
-class FixtureGlobalPackClient(private val fail: Boolean = false) {
-    fun sync(): List<WordPack> {
+interface GlobalPackClient {
+    suspend fun sync(): List<WordPack>
+}
+
+interface FamilyPackClient {
+    suspend fun sync(credentials: CloudCredentials?): List<WordPack>
+}
+
+class RemoteGlobalPackClient(
+    private val baseUrlProvider: () -> String,
+    private val extraHeadersProvider: () -> Map<String, String> = { emptyMap() },
+    private val transport: BindingHttpTransport = UrlConnectionBindingHttpTransport(),
+) : GlobalPackClient {
+    override suspend fun sync(): List<WordPack> {
+        val baseUrl = baseUrlProvider().trimEnd('/')
+        if (baseUrl.isBlank()) return emptyList()
+        val headers = linkedMapOf("Accept" to "application/json").apply {
+            putAll(extraHeadersProvider().filterValues { it.isNotBlank() })
+        }
+        val response = runCatching {
+            transport.getJson("$baseUrl/api/v1/public/global-packs/latest.json", headers)
+        }.getOrElse { return emptyList() }
+        if (response.status == 204) return emptyList()
+        if (response.status !in 200..299) return emptyList()
+        return RemotePackPayloadParser.parse(response.body, PackSource.Global)
+    }
+}
+
+class RemoteFamilyPackClient(
+    private val baseUrlProvider: () -> String,
+    private val extraHeadersProvider: () -> Map<String, String> = { emptyMap() },
+    private val transport: BindingHttpTransport = UrlConnectionBindingHttpTransport(),
+) : FamilyPackClient {
+    override suspend fun sync(credentials: CloudCredentials?): List<WordPack> {
+        val token = credentials?.deviceToken.orEmpty()
+        if (token.isBlank()) return emptyList()
+        val familyId = credentials?.familyLabel.orEmpty().ifBlank { "_" }
+        val baseUrl = baseUrlProvider().trimEnd('/')
+        if (baseUrl.isBlank()) return emptyList()
+        val headers = linkedMapOf(
+            "Accept" to "application/json",
+            "Authorization" to "Bearer $token",
+        ).apply {
+            putAll(extraHeadersProvider().filterValues { it.isNotBlank() })
+        }
+        val encodedFamilyId = URLEncoder.encode(familyId, "UTF-8").replace("+", "%20")
+        val response = runCatching {
+            transport.getJson("$baseUrl/api/v1/family/$encodedFamilyId/family-packs/latest.json", headers)
+        }.getOrElse { return emptyList() }
+        if (response.status == 204) return emptyList()
+        if (response.status !in 200..299) return emptyList()
+        return RemotePackPayloadParser.parse(response.body, PackSource.Family)
+    }
+}
+
+class FixtureGlobalPackClient(private val fail: Boolean = false) : GlobalPackClient {
+    override suspend fun sync(): List<WordPack> {
         if (fail) error("global pack sync failed")
         return listOf(
             BuiltinPacks.all.first { it.id == "ocean-realm" }.copy(
@@ -396,8 +458,8 @@ class FixtureGlobalPackClient(private val fail: Boolean = false) {
     }
 }
 
-class FixtureFamilyPackClient(private val fail: Boolean = false) {
-    fun sync(credentials: CloudCredentials?): List<WordPack> {
+class FixtureFamilyPackClient(private val fail: Boolean = false) : FamilyPackClient {
+    override suspend fun sync(credentials: CloudCredentials?): List<WordPack> {
         if (fail) error("family pack sync failed")
         if (credentials == null) return emptyList()
         return listOf(
@@ -590,12 +652,12 @@ private fun String.stringArrayField(name: String): List<String> {
 }
 
 class CloudSyncCoordinator(
-    private val globalClient: FixtureGlobalPackClient = FixtureGlobalPackClient(),
-    private val familyClient: FixtureFamilyPackClient = FixtureFamilyPackClient(),
+    private val globalClient: GlobalPackClient = FixtureGlobalPackClient(),
+    private val familyClient: FamilyPackClient = FixtureFamilyPackClient(),
     private val statsClient: WordStatsSyncClient = WordStatsSyncClient(),
     private val clockMs: () -> Long = { System.currentTimeMillis() },
 ) {
-    fun syncPacks(credentials: CloudCredentials?): CloudPackSyncResult {
+    suspend fun syncPacks(credentials: CloudCredentials?): CloudPackSyncResult {
         val global = runCatching { globalClient.sync() }.getOrElse { emptyList() }
         val family = runCatching { familyClient.sync(credentials) }.getOrElse { emptyList() }
         val status = when {
@@ -610,5 +672,238 @@ class CloudSyncCoordinator(
     fun syncStats(stats: List<WordLearningStat>, syncedThroughMs: Long): String {
         return runCatching { statsClient.buildPayload(stats, syncedThroughMs) }
             .getOrElse { """{"items":[],"synced_through_ms":$syncedThroughMs}""" }
+    }
+}
+
+private object RemotePackPayloadParser {
+    fun parse(body: String, source: PackSource): List<WordPack> {
+        val root = SimpleJsonParser.parse(body) as? Map<*, *> ?: return emptyList()
+        val mergedAtMs = stringValue(root, "merged_at")?.let(::parseIsoMs)
+        val packs = root["packs"] as? List<*> ?: return emptyList()
+        return packs.mapNotNull { raw ->
+            parsePack(raw as? Map<*, *> ?: return@mapNotNull null, source, mergedAtMs)
+        }
+    }
+
+    private fun parsePack(raw: Map<*, *>, source: PackSource, mergedAtMs: Long?): WordPack? {
+        val id = stringValue(raw, "pack_id")?.takeIf { it.isNotBlank() } ?: return null
+        val name = stringValue(raw, "name")?.takeIf { it.isNotBlank() } ?: id
+        val words = listValue(raw, "words")
+            .mapNotNull { parseWord(it as? Map<*, *> ?: return@mapNotNull null) }
+        if (words.isEmpty()) return null
+        return WordPack(
+            id = id,
+            nameEn = name,
+            nameZh = name,
+            source = source,
+            version = intValue(raw, "version")?.takeIf { it > 0 } ?: 1,
+            publishedAtMs = stringValue(raw, "published_at")?.let(::parseIsoMs) ?: mergedAtMs,
+            scene = parseScene(raw["scene"] as? Map<*, *>),
+            words = words,
+        )
+    }
+
+    private fun parseScene(raw: Map<*, *>?): SceneMetadata {
+        return SceneMetadata(
+            bgPrimary = stringValue(raw, "bgPrimary") ?: stringValue(raw, "bg_primary") ?: "#FFFFFF",
+            bgAccent = stringValue(raw, "bgAccent") ?: stringValue(raw, "bg_accent") ?: "#FFFFFF",
+            bossName = stringValue(raw, "bossName") ?: stringValue(raw, "boss_name") ?: "",
+            monsterPlan = listValue(raw, "monsterPlan").mapNotNull { slot ->
+                when (slot) {
+                    is String -> slot
+                    is Map<*, *> -> stringValue(slot, "kind")
+                    else -> null
+                }
+            },
+            bossCandidates = listValue(raw, "bossCandidates").mapNotNull { it as? String },
+            storyZh = stringValue(raw, "storyZh") ?: stringValue(raw, "story_zh") ?: "",
+            storyEn = stringValue(raw, "storyEn") ?: stringValue(raw, "story_en") ?: "",
+            spellbookCoverUrl = stringValue(raw, "spellbookCoverUrl") ?: stringValue(raw, "spellbook_cover_url") ?: "",
+        )
+    }
+
+    private fun parseWord(raw: Map<*, *>): WordEntry? {
+        if (raw["hidden"] == true) return null
+        val id = stringValue(raw, "id")?.takeIf { it.isNotBlank() } ?: return null
+        val word = stringValue(raw, "word")?.takeIf { it.isNotBlank() } ?: return null
+        val meaning = stringValue(raw, "meaningZh")
+            ?: stringValue(raw, "meaning_zh")
+            ?: stringValue(raw, "meaning")
+            ?: word
+        val exampleMap = raw["example"] as? Map<*, *>
+        val exampleEn = stringValue(exampleMap, "en") ?: stringValue(raw, "exampleEn") ?: stringValue(raw, "example_en")
+        val exampleZh = stringValue(exampleMap, "zh") ?: stringValue(raw, "exampleZh") ?: stringValue(raw, "example_zh")
+        return WordEntry(
+            id = id,
+            word = word,
+            meaning = meaning,
+            distractors = listValue(raw, "distractors").mapNotNull { it as? String },
+            example = if (!exampleEn.isNullOrBlank() || !exampleZh.isNullOrBlank()) {
+                ExampleSentence(exampleEn.orEmpty(), exampleZh.orEmpty())
+            } else {
+                null
+            },
+            difficulty = intValue(raw, "difficulty")?.takeIf { it > 0 } ?: 1,
+        )
+    }
+
+    private fun stringValue(raw: Map<*, *>?, key: String): String? =
+        raw?.get(key) as? String
+
+    private fun intValue(raw: Map<*, *>?, key: String): Int? =
+        when (val value = raw?.get(key)) {
+            is Int -> value
+            is Long -> value.toInt()
+            is Double -> value.toInt()
+            else -> null
+        }
+
+    private fun listValue(raw: Map<*, *>?, key: String): List<*> =
+        raw?.get(key) as? List<*> ?: emptyList<Any>()
+
+    private fun parseIsoMs(value: String): Long? {
+        val trimmed = value.trim()
+        if (trimmed.isBlank()) return null
+        val hasZone = Regex("""(Z|z|[+-]\d{2}:?\d{2})$""").containsMatchIn(trimmed)
+        val normalized = if (hasZone) trimmed else "${trimmed}Z"
+        return runCatching { Instant.parse(normalized).toEpochMilli() }.getOrNull()
+    }
+}
+
+private class SimpleJsonParser(private val input: String) {
+    private var index = 0
+
+    fun parseValue(): Any? {
+        skipWhitespace()
+        if (index >= input.length) return null
+        return when (input[index]) {
+            '{' -> parseObject()
+            '[' -> parseArray()
+            '"' -> parseString()
+            't' -> parseLiteral("true", true)
+            'f' -> parseLiteral("false", false)
+            'n' -> parseLiteral("null", null)
+            else -> parseNumber()
+        }
+    }
+
+    private fun parseObject(): Map<String, Any?> {
+        index++
+        val out = linkedMapOf<String, Any?>()
+        skipWhitespace()
+        if (peek('}')) {
+            index++
+            return out
+        }
+        while (index < input.length) {
+            skipWhitespace()
+            val key = parseString()
+            skipWhitespace()
+            if (peek(':')) index++
+            out[key] = parseValue()
+            skipWhitespace()
+            when {
+                peek(',') -> index++
+                peek('}') -> {
+                    index++
+                    return out
+                }
+                else -> return out
+            }
+        }
+        return out
+    }
+
+    private fun parseArray(): List<Any?> {
+        index++
+        val out = mutableListOf<Any?>()
+        skipWhitespace()
+        if (peek(']')) {
+            index++
+            return out
+        }
+        while (index < input.length) {
+            out += parseValue()
+            skipWhitespace()
+            when {
+                peek(',') -> index++
+                peek(']') -> {
+                    index++
+                    return out
+                }
+                else -> return out
+            }
+        }
+        return out
+    }
+
+    private fun parseString(): String {
+        if (!peek('"')) return ""
+        index++
+        val out = StringBuilder()
+        while (index < input.length) {
+            val ch = input[index++]
+            when (ch) {
+                '"' -> return out.toString()
+                '\\' -> out.append(parseEscape())
+                else -> out.append(ch)
+            }
+        }
+        return out.toString()
+    }
+
+    private fun parseEscape(): Char {
+        if (index >= input.length) return '\\'
+        return when (val ch = input[index++]) {
+            '"' -> '"'
+            '\\' -> '\\'
+            '/' -> '/'
+            'b' -> '\b'
+            'f' -> '\u000C'
+            'n' -> '\n'
+            'r' -> '\r'
+            't' -> '\t'
+            'u' -> {
+                val hex = input.substring(index, (index + 4).coerceAtMost(input.length))
+                index = (index + 4).coerceAtMost(input.length)
+                hex.toIntOrNull(16)?.toChar() ?: '?'
+            }
+            else -> ch
+        }
+    }
+
+    private fun parseLiteral(literal: String, value: Any?): Any? {
+        if (input.regionMatches(index, literal, 0, literal.length)) {
+            index += literal.length
+        }
+        return value
+    }
+
+    private fun parseNumber(): Any? {
+        val start = index
+        while (index < input.length && input[index] in "-+0123456789.eE") {
+            index++
+        }
+        val token = input.substring(start, index)
+        return if (token.contains('.') || token.contains('e', ignoreCase = true)) {
+            token.toDoubleOrNull()
+        } else {
+            token.toLongOrNull()
+        }
+    }
+
+    private fun skipWhitespace() {
+        while (index < input.length && input[index].isWhitespace()) {
+            index++
+        }
+    }
+
+    private fun peek(ch: Char): Boolean = index < input.length && input[index] == ch
+
+    companion object {
+        fun parse(raw: String): Any? {
+            val parser = SimpleJsonParser(raw)
+            return parser.parseValue()
+        }
     }
 }
