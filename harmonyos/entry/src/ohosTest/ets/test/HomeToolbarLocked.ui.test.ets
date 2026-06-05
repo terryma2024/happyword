@@ -3,7 +3,7 @@ import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
 import { common, Want } from '@kit.AbilityKit';
 import {
   clickByIdShared,
-  selectAllQuestionTypesShared,
+  resetBattleConfigForUiTestShared,
   selectOnlyQuestionTypeShared,
   tapWrongAnswerShared,
 } from './RoutingFlow.ui.test';
@@ -49,6 +49,13 @@ async function returnToHome(driver: Driver): Promise<void> {
       if (home !== null) {
         return;
       }
+      const codexBack: Component | null =
+        await driver.findComponent(ON.id('CodexBackButton'));
+      if (codexBack !== null) {
+        await codexBack.click();
+        await driver.delayMs(800);
+        continue;
+      }
       await driver.pressBack();
       await driver.delayMs(500);
     }
@@ -75,7 +82,7 @@ async function clearLearningRecordsAndRefreshHome(driver: Driver): Promise<void>
     await driver.assertComponentExist(ON.id('HomeCodexButton'));
     await clickByIdShared(driver, 'HomeCodexButton');
     await driver.delayMs(800);
-    await driver.pressBack();
+    await clickByIdShared(driver, 'CodexBackButton');
     await driver.delayMs(800);
     await driver.assertComponentExist(ON.id('HomeStartButton'));
   } catch (err) {
@@ -161,7 +168,7 @@ export default function homeToolbarLockedUiTest(): void {
         await driver.assertComponentExist(ON.id('HomeStartButton'));
       } finally {
         await clearLearningRecordsAndRefreshHome(driver);
-        await selectAllQuestionTypesShared(driver);
+        resetBattleConfigForUiTestShared();
       }
       done();
     });

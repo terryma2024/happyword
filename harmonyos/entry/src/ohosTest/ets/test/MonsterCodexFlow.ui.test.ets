@@ -35,6 +35,13 @@ async function returnToHome(driver: Driver): Promise<void> {
       if (home !== null) {
         return;
       }
+      const codexBack: Component | null =
+        await driver.findComponent(ON.id('CodexBackButton'));
+      if (codexBack !== null) {
+        await codexBack.click();
+        await driver.delayMs(800);
+        continue;
+      }
       await driver.pressBack();
       await driver.delayMs(500);
     }
@@ -92,6 +99,9 @@ export default function monsterCodexFlowUiTest(): void {
       await driver.assertComponentExist(ON.text('Slime'));
       await driver.assertComponentExist(ON.text('「普通怪物」'));
       await driver.assertComponentExist(ON.text('1 / 100'));
+      await clickByIdShared(driver, 'CodexBackButton');
+      await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
     });
 
@@ -114,13 +124,16 @@ export default function monsterCodexFlowUiTest(): void {
       await driver.assertComponentExist(ON.text('Jellyfish'));
       await driver.assertComponentExist(ON.text('11 / 100'));
       for (let i: number = 0; i < 89; i++) {
-        await clickNextAndDelay(driver, 80);
+        await clickNextAndDelay(driver, 180);
       }
       await driver.assertComponentExist(ON.text('Music Box Fairy'));
       await driver.assertComponentExist(ON.text('100 / 100'));
       await clickNextAndDelay(driver, 300);
       await driver.assertComponentExist(ON.text('Music Box Fairy'));
       await driver.assertComponentExist(ON.text('100 / 100'));
+      await clickByIdShared(driver, 'CodexBackButton');
+      await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
     });
 
@@ -141,6 +154,9 @@ export default function monsterCodexFlowUiTest(): void {
       // Boundary: extra tap on disabled CodexPrev is a no-op.
       await clickPrevAndDelay(driver, 300);
       await driver.assertComponentExist(ON.text('Slime'));
+      await clickByIdShared(driver, 'CodexBackButton');
+      await driver.delayMs(800);
+      await driver.assertComponentExist(ON.id('HomeStartButton'));
       done();
     });
 
