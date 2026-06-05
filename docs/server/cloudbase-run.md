@@ -176,7 +176,7 @@ Staging service:
 - Staging Mongo database override: `MONGO_DB_NAME=happyword_cloudbase_staging`
 - Logs: enabled after initial OpenAI smoke returned `500`
 - Current staging LLM provider: `LLM_PROVIDER=qwen`,
-  `QWEN_MODEL_VISION=qwen3.6-plus`
+  `QWEN_MODEL_VISION=qwen3.6-flash`
 
 Production service:
 
@@ -191,7 +191,7 @@ Production service:
   `happyword.cool` DNS were not changed.
 - Production Mongo database: `MONGO_DB_NAME=happyword`
 - Current production LLM provider: `LLM_PROVIDER=qwen`,
-  `QWEN_MODEL_VISION=qwen3.6-plus`
+  `QWEN_MODEL_VISION=qwen3.6-flash`
 - Production canonical URLs staged for first validation domain:
   `PARENT_WEB_BASE_URL=https://happyword.com.cn`,
   `OAUTH_CANONICAL_BASE_URL=https://happyword.com.cn`, and an empty
@@ -1253,7 +1253,21 @@ manager.
 | `OPENAI_MODEL_TEXT` | Optional | Defaults to `gpt-4o-mini` for older word-level OpenAI helpers. |
 | `OPENAI_MODEL_VISION` | Optional | Defaults to `gpt-4o` for OpenAI lesson image parsing. |
 | `DASHSCOPE_API_KEY` | Optional | Required when `LLM_PROVIDER=qwen`. |
-| `QWEN_MODEL_VISION` | Optional | Defaults to `qwen3.6-plus`. |
+| `QWEN_MODEL_VISION` | Optional | Code default is `qwen3.6-plus`; CloudBase staging/production currently override it to `qwen3.6-flash`. |
+| `IMAGE_PROVIDER` | Optional | Spellbook cover image provider: `openai`, `qwen`, or `doubao`. |
+| `OPENAI_MODEL_IMAGE` | Optional | Defaults to `gpt-image-2` for OpenAI spellbook cover generation. |
+| `QWEN_MODEL_IMAGE` | Optional | Defaults to `qwen-image-2.0-pro` for DashScope spellbook cover generation. |
+| `ARK_API_KEY` | Optional | Required when `LLM_PROVIDER=doubao` or `IMAGE_PROVIDER=doubao`. |
+| `DOUBAO_MODEL_VISION` | Optional | Defaults to `doubao-seed-2-0-pro-260215`. |
+| `DOUBAO_MODEL_IMAGE` | Optional | Defaults to `doubao-seedream-4-5-251128` for Ark spellbook cover generation. |
+| `MOONSHOT_API_KEY` | Optional | Required when `LLM_PROVIDER=kimi`; `KIMI_API_KEY` is accepted as a compatibility alias. |
+| `KIMI_MODEL_VISION` | Optional | Defaults to `kimi-k2.6`. |
+| `CORS_ALLOW_ORIGINS` | Staging, production | Current default can remain `*` unless tightened later. |
+| `LOG_LEVEL` | Staging, production | Use `info` for normal deployment. |
+| `PARENT_WEB_BASE_URL` | Staging, production | Canonical parent web shell base URL for the deployed environment. CloudBase production uses `https://happyword.com.cn`. |
+| `OAUTH_CANONICAL_BASE_URL` | Staging, production | Canonical OAuth host. CloudBase production uses `https://happyword.com.cn`. |
+| `SESSION_COOKIE_DOMAIN` | Production | Leave empty for the single apex domain so browser sessions use a host-only cookie. |
+| `ADMIN_SESSION_COOKIE_NAME` | Staging, production | Current value is `wm_admin_session`. |
 
 ### Shared Staging E2E CI
 
@@ -1265,16 +1279,6 @@ manager.
 | `E2E_ADMIN_USER` | GitHub Actions shared staging E2E | Staging admin username only. |
 | `E2E_ADMIN_PASS` | GitHub Actions shared staging E2E | Staging admin password; keep separate from production. |
 | `E2E_CRON_SECRET` | GitHub Actions shared staging E2E | Must match CloudBase staging `CRON_SECRET`. |
-| `ARK_API_KEY` | Optional | Required when `LLM_PROVIDER=doubao`. |
-| `DOUBAO_MODEL_VISION` | Optional | Defaults to `doubao-seed-2-0-pro-260215`. |
-| `MOONSHOT_API_KEY` | Optional | Required when `LLM_PROVIDER=kimi`; `KIMI_API_KEY` is accepted as a compatibility alias. |
-| `KIMI_MODEL_VISION` | Optional | Defaults to `kimi-k2.6`. |
-| `CORS_ALLOW_ORIGINS` | Staging, production | Current default can remain `*` unless tightened later. |
-| `LOG_LEVEL` | Staging, production | Use `info` for normal deployment. |
-| `PARENT_WEB_BASE_URL` | Staging, production | Canonical parent web shell base URL for the deployed environment. CloudBase production uses `https://happyword.com.cn`. |
-| `OAUTH_CANONICAL_BASE_URL` | Staging, production | Canonical OAuth host. CloudBase production uses `https://happyword.com.cn`. |
-| `SESSION_COOKIE_DOMAIN` | Production | Leave empty for the single apex domain so browser sessions use a host-only cookie. |
-| `ADMIN_SESSION_COOKIE_NAME` | Staging, production | Current value is `wm_admin_session`. |
 
 ### Cron
 

@@ -89,6 +89,26 @@ def test_settings_defaults_to_openai_llm_provider(monkeypatch: pytest.MonkeyPatc
     assert s.kimi_model_vision == "kimi-k2.6"
 
 
+def test_settings_accepts_doubao_image_provider_and_model_alias(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for k in (
+        "MONGODB_URI",
+        "MONGO_DB_NAME",
+        "JWT_SECRET",
+        "ADMIN_BOOTSTRAP_USER",
+        "ADMIN_BOOTSTRAP_PASS",
+    ):
+        monkeypatch.setenv(k, "x")
+    monkeypatch.setenv("IMAGE_PROVIDER", "doubao")
+    monkeypatch.setenv("DOUBAO_MODEL_IMAGE", "doubao-test-image")
+
+    s = Settings()  # type: ignore[call-arg]
+
+    assert s.image_provider == "doubao"
+    assert s.doubao_model_image == "doubao-test-image"
+
+
 def test_settings_accepts_kimi_api_key_alias(monkeypatch: pytest.MonkeyPatch) -> None:
     for k in (
         "MONGODB_URI",

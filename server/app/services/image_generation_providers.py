@@ -16,7 +16,7 @@ from openai import AsyncOpenAI
 from app.config import Settings, get_settings
 from app.services.llm_service import LlmCallError, LlmConfigError
 
-ImageProviderKind = Literal["openai_images", "dashscope_image"]
+ImageProviderKind = Literal["openai_images", "dashscope_image", "ark_image"]
 
 
 @dataclass(frozen=True)
@@ -58,9 +58,19 @@ IMAGE_PROVIDER_SPECS: dict[str, ImageProviderSpec] = {
         api_key_env="DASHSCOPE_API_KEY",
         settings_api_key_attr="dashscope_api_key",
         settings_model_attr="qwen_model_image",
-        default_model="qwen-image",
+        default_model="qwen-image-2.0-pro",
         base_url_attr="qwen_image_base_url",
         comparison_notes="国内可用的阿里云百炼 / DashScope 图片生成 Provider。",
+    ),
+    "doubao": ImageProviderSpec(
+        id="doubao",
+        display_name="Doubao Seedream",
+        kind="ark_image",
+        api_key_env="ARK_API_KEY",
+        settings_api_key_attr="ark_api_key",
+        settings_model_attr="doubao_model_image",
+        default_model="doubao-seedream-4-5-251128",
+        comparison_notes="国内可用的火山方舟 / 豆包 Seedream 图片生成 Provider。",
     ),
 }
 
@@ -218,44 +228,114 @@ async def _generate_dashscope_image(
     timeout_seconds: float,
 ) -> bytes:
     origin = base_url or "https://dashscope.aliyuncs.com"
-    create_url = f"{origin}/api/v1/services/aigc/image-generation/generation"
+    create_url = f"{origin}/api/v1/services/aigc/multimodal-generation/generation"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable",
     }
     payload = {
         "model": model,
-        "input": {"prompt": prompt},
-        "parameters": {"size": "1024*1024", "n": 1},
+        "input": {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [{"text": prompt}],
+                }
+            ]
+        },
+        "parameters": {
+            "negative_prompt": "",
+            "prompt_extend": True,
+            "watermark": False,
+            "size": "2048*2048",
+        },
     }
-    async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-        created = await client.post(create_url, json=payload, headers=headers)
-        created.raise_for_status()
-        task_id = str(created.json().get("output", {}).get("task_id") or "")
-        if not task_id:
-            raise LlmCallError(f"{provider.display_name} returned no task_id")
-        task_url = f"{origin}/api/v1/tasks/{task_id}"
-        for _ in range(30):
-            polled = await client.get(task_url, headers={"Authorization": f"Bearer {api_key}"})
-            polled.raise_for_status()
-            body = polled.json()
-            output = body.get("output", {})
-            status = str(output.get("task_status") or "").upper()
-            if status == "SUCCEEDED":
-                results = output.get("results") or output.get("task_results") or []
-                if not results:
-                    raise LlmCallError(f"{provider.display_name} task returned no results")
-                image_url = results[0].get("url")
-                if not isinstance(image_url, str) or not image_url.strip():
-                    raise LlmCallError(f"{provider.display_name} task returned no image URL")
-                image = await client.get(image_url)
-                image.raise_for_status()
-                return image.content
-            if status in {"FAILED", "CANCELED", "UNKNOWN"}:
-                message = output.get("message") or output.get("code") or status
-                raise LlmCallError(f"{provider.display_name} image task failed: {message}")
-        raise LlmCallError(f"{provider.display_name} image task timed out")
+    try:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            created = await client.post(create_url, json=payload, headers=headers)
+            created.raise_for_status()
+            image_url = _image_url_from_dashscope_response(provider, created.json())
+            image = await client.get(image_url)
+            image.raise_for_status()
+            return image.content
+    except httpx.HTTPError as exc:
+        raise LlmCallError(f"{provider.display_name} image call failed: {exc}") from exc
+    except ValueError as exc:
+        raise LlmCallError(f"{provider.display_name} returned invalid JSON") from exc
+
+
+def _image_url_from_dashscope_response(provider: ImageProviderSpec, body: dict[str, Any]) -> str:
+    output = body.get("output")
+    if not isinstance(output, dict):
+        raise LlmCallError(f"{provider.display_name} returned no image URL")
+    choices = output.get("choices")
+    if not isinstance(choices, list):
+        raise LlmCallError(f"{provider.display_name} returned no image URL")
+    for choice in choices:
+        if not isinstance(choice, dict):
+            continue
+        message = choice.get("message")
+        if not isinstance(message, dict):
+            continue
+        content = message.get("content")
+        if not isinstance(content, list):
+            continue
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            image_url = item.get("image")
+            if isinstance(image_url, str) and image_url.strip():
+                return image_url
+    raise LlmCallError(f"{provider.display_name} returned no image URL")
+
+
+def _image_url_from_ark_response(provider: ImageProviderSpec, body: dict[str, Any]) -> str:
+    data = body.get("data") or []
+    if not isinstance(data, list) or not data:
+        raise LlmCallError(f"{provider.display_name} returned no image data")
+    first = data[0]
+    if not isinstance(first, dict):
+        raise LlmCallError(f"{provider.display_name} returned invalid image data")
+    image_url = first.get("url")
+    if not isinstance(image_url, str) or not image_url.strip():
+        raise LlmCallError(f"{provider.display_name} returned no image URL")
+    return image_url
+
+
+async def _generate_doubao_image(
+    *,
+    provider: ImageProviderSpec,
+    api_key: str,
+    model: str,
+    prompt: str,
+    timeout_seconds: float,
+) -> bytes:
+    create_url = "https://ark.cn-beijing.volces.com/api/v3/images/generations"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "sequential_image_generation": "disabled",
+        "response_format": "url",
+        "size": "2K",
+        "stream": False,
+        "watermark": True,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            created = await client.post(create_url, json=payload, headers=headers)
+            created.raise_for_status()
+            image_url = _image_url_from_ark_response(provider, created.json())
+            image = await client.get(image_url)
+            image.raise_for_status()
+            return image.content
+    except httpx.HTTPError as exc:
+        raise LlmCallError(f"{provider.display_name} image call failed: {exc}") from exc
+    except ValueError as exc:
+        raise LlmCallError(f"{provider.display_name} returned invalid JSON") from exc
 
 
 async def generate_spellbook_cover_png(
@@ -282,14 +362,27 @@ async def generate_spellbook_cover_png(
                 timeout_seconds=timeout_seconds,
             ),
         )
-    return (
-        model,
-        await _generate_dashscope_image(
-            provider=provider,
-            api_key=api_key,
-            model=model,
-            base_url=_provider_base_url(settings, provider),
-            prompt=use_prompt,
-            timeout_seconds=timeout_seconds,
-        ),
-    )
+    if provider.kind == "dashscope_image":
+        return (
+            model,
+            await _generate_dashscope_image(
+                provider=provider,
+                api_key=api_key,
+                model=model,
+                base_url=_provider_base_url(settings, provider),
+                prompt=use_prompt,
+                timeout_seconds=timeout_seconds,
+            ),
+        )
+    if provider.kind == "ark_image":
+        return (
+            model,
+            await _generate_doubao_image(
+                provider=provider,
+                api_key=api_key,
+                model=model,
+                prompt=use_prompt,
+                timeout_seconds=timeout_seconds,
+            ),
+        )
+    raise LlmConfigError(f"Unsupported image provider kind {provider.kind!r}.")
