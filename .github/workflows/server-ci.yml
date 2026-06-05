@@ -82,6 +82,7 @@ jobs:
       HAS_TCB_ENV_ID: ${{ secrets.TCB_ENV_ID != '' }}
       UV_BIN: /usr/local/bin/uv
       NODE_VERSION: 24.11.1
+      CLOUDBASE_CLI_VERSION: 3.5.5
       NPM_CONFIG_PREFIX: /tmp/happyword-npm-global
     defaults:
       run:
@@ -193,7 +194,9 @@ jobs:
 
       - name: Install CloudBase CLI
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
-        run: npm install -g @cloudbase/cli
+        run: |
+          npm install -g "@cloudbase/cli@${CLOUDBASE_CLI_VERSION}"
+          tcb --version
 
       - name: Login to CloudBase for staging deploy
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}

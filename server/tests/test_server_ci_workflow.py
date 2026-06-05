@@ -94,6 +94,7 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "uses: astral-sh/setup-uv" not in smoke_job
     assert "UV_BIN: /usr/local/bin/uv" in smoke_job
     assert "NODE_VERSION: 24.11.1" in smoke_job
+    assert "CLOUDBASE_CLI_VERSION: 3.5.5" in smoke_job
     assert "NPM_CONFIG_PREFIX: /tmp/happyword-npm-global" in smoke_job
     assert "HAS_TCB_E2E_MONGODB_URI" in smoke_job
     assert "secrets.TCB_E2E_MONGODB_URI" in smoke_job
@@ -178,6 +179,8 @@ def test_main_cd_deploys_to_cloudbase_with_vercel_manual_rollback_only() -> None
 
     assert "name: server-cloudbase-cd" in cloudbase_cd
     assert "push:" in cloudbase_cd
+    assert "CLOUDBASE_CLI_VERSION: 3.5.5" in cloudbase_cd
+    assert "npm install -g \"@cloudbase/cli@${CLOUDBASE_CLI_VERSION}\"" in cloudbase_cd
     assert "tcb login --apiKeyId" in cloudbase_cd
     assert "tcb cloudrun deploy" in cloudbase_cd
     assert "CLOUDBASE_PROD_BASE_URL" in cloudbase_cd
@@ -221,6 +224,9 @@ def test_cloudbase_cd_waits_for_a_real_new_deploy_before_health_and_smoke() -> N
     assert "DescribeCloudRunDeployRecord" in capture_step
     assert "printf '\\n' | tcb cloudrun deploy" in deploy_step
     assert "previousDeployId" in wait_step
+    assert "latest.DeployId === previousDeployId && latest.Status === \"deploy_failed\"" in wait_step
+    assert "Number(latest.BuildId) === 0" in wait_step
+    assert "CloudBase deploy process log" in wait_step
     assert "Number(latest.BuildId) > 0" in wait_step
     assert 'latest.Status === "normal"' in wait_step
     assert 'String(latest.FlowRatio) === "100"' in wait_step
@@ -247,7 +253,13 @@ def test_cloudbase_cd_retries_transient_submit_failures() -> None:
 
     assert "for attempt in 1 2 3" in deploy_step
     assert "CloudBase Run submit attempt ${attempt}/3 failed" in deploy_step
+    assert "deploy_output=\"$(mktemp)\"" in deploy_step
+    assert "deploy_status=${PIPESTATUS[1]}" in deploy_step
+    assert "HTTP ERROR|Error:" in deploy_step
+    assert "submission completed" in deploy_step
     assert "DescribeCloudRunDeployRecord" in deploy_step
     assert "CLOUDBASE_PREVIOUS_DEPLOY_ID" in deploy_step
     assert "latest.DeployId !== previousDeployId" in deploy_step
+    assert "Number(latest.BuildId) > 0" in deploy_step
+    assert 'latest.Status === "deploy_failed"' in deploy_step
     assert "CloudBase created a new deploy record despite the CLI failure" in deploy_step
