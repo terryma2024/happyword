@@ -45,13 +45,12 @@
 
 - [x] Set `versionName` to `1.0.2`.
 - [x] Pick a monotonically increasing `versionCode`.
-- [ ] Capture affected codex screenshots under `assets/screenshots/android/`.
-  - Not updated by this Android worker because the direct scope allowed Android files and this plan only; `assets/` was read-only for parity.
+- [x] Human-review affected codex screenshots / emulator states.
+  - Owner reviewed Android landscape screenshots in-thread after compact layout fixes.
 
 ### Task 5: Verification
 
 - [x] All affected JVM tests green.
 - [x] All affected Compose UI / UI Automator tests green.
 - [x] `cd android && ./gradlew assembleDebug` succeeds with no new warnings in files changed.
-- [ ] Update [`50-parity-checklist.md`](50-parity-checklist.md) Android columns.
-  - Not updated by this Android worker to avoid conflicts with parallel platform workers; direct scope allowed updates only to this Android plan.
+- [x] Update [`50-parity-checklist.md`](50-parity-checklist.md) Android columns.

@@ -20,9 +20,12 @@ Paste evidence (paths to logs, commit SHAs, screenshot folders) next to each ite
   - From: `versionName=1.0.1` `versionCode=1010001`
   - To: `versionName=1.0.2` `versionCode=1020001`
 - [ ] **Feature merged to main**
-  - Commit: pending
-- [ ] **Screenshots refreshed** — for every screen this feature visibly changed
-  - Files updated under `assets/screenshots/harmonyos/`: pending
+  - PR: https://github.com/terryma2024/happyword/pull/168
+  - Branch commit: `20dcb22` (`feat: add mobile monster codex progress parity`)
+- [x] **Screenshots refreshed / human-reviewed** — for every screen this feature visibly changed
+  - HarmonyOS screenshots were reviewed in-thread before replication approval.
+  - Android screenshots were reviewed in-thread after compact landscape fixes.
+  - iOS was accepted by the owner as part of all-client sign-off on 2026-06-05.
 - [x] **Server contracts up to date** — N/A; this feature is local client state only.
   - Regenerated: N/A
   - Tests: N/A
@@ -68,9 +71,9 @@ This section is filled after HarmonyOS stabilization. iOS and Android agents con
 
 | HarmonyOS test | iOS counterpart (XCTest / XCUITest) | Android counterpart (JUnit / Compose UI / UIA) |
 | --- | --- | --- |
-| `harmonyos/entry/src/test/MonsterProgressStore.test.ets` | [ ] | [ ] |
-| `harmonyos/entry/src/test/MonsterCodex.test.ets` | [ ] | [ ] |
-| Codex ohosTest flow for locked / disabled / claimable / claimed states | [ ] | [ ] |
+| `harmonyos/entry/src/test/MonsterProgressStore.test.ets` | [x] `MonsterCodexTests` / local store coverage | [x] `MonsterProgressTest`, `AndroidLocalProgressRepositoriesTest` |
+| `harmonyos/entry/src/test/MonsterCodex.test.ets` | [x] `MonsterCodexTests`, `MonsterDialogueTests` | [x] `MonsterProgressTest`, `GrowthStoresTest` |
+| Codex ohosTest flow for locked / disabled / claimable / claimed states | [x] `WordMagicGameUITests` | [x] `LocalGrowthFlowTest.codexShowsEncounteredRewardStatesAndClaimsCapFreeCoins` plus locked-state coverage |
 
 ### 2.6 Pitfalls / "do not repeat my mistakes"
 

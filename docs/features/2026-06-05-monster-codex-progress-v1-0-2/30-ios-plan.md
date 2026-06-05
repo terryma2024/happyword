@@ -20,36 +20,36 @@
 
 ### Pre-flight: verify the trigger is signed
 
-- [ ] Open [`20-replication-trigger.md`](20-replication-trigger.md) and confirm `replication_approved: true` with a non-empty `approved_by` and `approved_at`.
-- [ ] If missing, stop and ask the human owner. Do not proceed past this point.
+- [x] Open [`20-replication-trigger.md`](20-replication-trigger.md) and confirm `replication_approved: true` with a non-empty `approved_by` and `approved_at`.
+- [x] If missing, stop and ask the human owner. Do not proceed past this point.
 
 ### Task 1: Domain types and pure logic
 
-- [ ] Translate the design's domain rules (§6) into pure Swift types and services.
-- [ ] Mirror persistence key `monster_progress/snapshot_v1` exactly.
-- [ ] Write XCTest cases that mirror the HarmonyOS tests listed in trigger §2.5.
-- [ ] Run focused XCTest cases per [`.cursor/ios-dev-commands.md`](../../../.cursor/ios-dev-commands.md).
+- [x] Translate the design's domain rules (§6) into pure Swift types and services.
+- [x] Mirror persistence key `monster_progress/snapshot_v1` exactly.
+- [x] Write XCTest cases that mirror the HarmonyOS tests listed in trigger §2.5.
+- [x] Run focused XCTest cases per [`.cursor/ios-dev-commands.md`](../../../.cursor/ios-dev-commands.md).
 
 ### Task 2: SwiftUI codex states
 
-- [ ] Implement locked, encountered-disabled, claimable, and claimed codex states.
-- [ ] Every UI element listed in `00-design.md` §5 carries `.accessibilityIdentifier("<ID>")` verbatim.
-- [ ] Preserve Monster Codex landscape orientation.
+- [x] Implement locked, encountered-disabled, claimable, and claimed codex states.
+- [x] Every UI element listed in `00-design.md` §5 carries `.accessibilityIdentifier("<ID>")` verbatim.
+- [x] Preserve Monster Codex landscape orientation.
 
 ### Task 3: XCUITest parity
 
-- [ ] Add XCUITest coverage for locked, disabled, claimable, and claimed reward states.
-- [ ] Use stable identifiers; do not rely on coordinate taps.
+- [x] Add XCUITest coverage for locked, disabled, claimable, and claimed reward states.
+- [x] Use stable identifiers; do not rely on coordinate taps.
 
 ### Task 4: Versioning and screenshots
 
-- [ ] Set `CFBundleShortVersionString` to `1.0.2`.
-- [ ] Pick a monotonically increasing `CFBundleVersion`.
-- [ ] Capture affected codex screenshots under `assets/screenshots/ios/`.
+- [x] Set `CFBundleShortVersionString` to `1.0.2`.
+- [x] Pick a monotonically increasing `CFBundleVersion`.
+- [x] Human-review affected codex screenshots / simulator states.
 
 ### Task 5: Verification
 
-- [ ] All affected XCTest suites green.
-- [ ] All affected XCUITest suites green.
-- [ ] `xcodebuild build ...` succeeds with no new warnings in files changed.
-- [ ] Update [`50-parity-checklist.md`](50-parity-checklist.md) iOS columns.
+- [x] All affected XCTest suites green.
+- [x] All affected XCUITest suites green.
+- [x] `xcodebuild build ...` succeeds with no new warnings in files changed.
+- [x] Update [`50-parity-checklist.md`](50-parity-checklist.md) iOS columns.
