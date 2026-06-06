@@ -1,0 +1,4 @@
+interface:
+  display_name: "iOS App Store Submit"
+  short_description: "Archive, upload, and submit iOS releases"
+  default_prompt: "Use $ios-app-store-submit to archive, upload, and submit the next iOS build to App Store Connect."

@@ -5,7 +5,7 @@
 > Bundle ID: `com.terryma.wordmagicgame`
 > Version: `1.0.2`
 > Build: `1020001`
-> Last updated: 2026-06-05
+> Last updated: 2026-06-06
 
 ## Source Of Truth
 
@@ -26,9 +26,10 @@
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
 - [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v1.0.0-b1010000.xcarchive`.
 - [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v1.0.1-b1010001.xcarchive`.
-- [ ] Release archive for `1.0.2 (1020001)` needs to be produced and uploaded before App Store submission.
+- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v1.0.2-b1020001.xcarchive`.
 - [x] App Store Connect upload succeeded for build `1.0.0 (1010000)` on 2026-06-01; TestFlight/App Store Connect processing completed.
 - [x] App Store Connect upload succeeded for build `1.0.1 (1010001)` on 2026-06-05; ASC returned delivery UUID `b4a71dc5-7f6e-423b-b4b7-fb8013290ed9` and `Upload succeeded`.
+- [x] App Store Connect upload succeeded for build `1.0.2 (1020001)` on 2026-06-06; ASC buildUpload id `74ca06ca-4d35-4cd2-ba30-1a40d94967dc`; Xcode reported `Upload succeeded`.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
@@ -45,7 +46,7 @@
 - [x] iOS version `0.9.5` / build `1009005` was uploaded to App Store Connect/TestFlight, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for App Review on 2026-05-30. App Store Connect status is `正在等待审核`.
 - [x] iOS version `1.0.0` / build `1010000` was archived, uploaded to App Store Connect/TestFlight, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for App Review on 2026-06-01. App Store Connect status is `正在等待审核`.
 - [x] iOS version `1.0.1` / build `1010001` was archived and uploaded to App Store Connect on 2026-06-05. Build processing / App Store version selection / export-compliance confirmation / App Review submission still need App Store Connect authentication or manual console action.
-- [ ] iOS version `1.0.2` / build `1020001` has not been archived or uploaded yet.
+- [x] iOS version `1.0.2` / build `1020001` was archived, uploaded to App Store Connect, selected for the App Store version, export-compliance answered as no listed encryption algorithm, and submitted for App Review on 2026-06-06. App Store Connect status is `正在等待审核`; review submission id `e3da3fe4-d9db-46d9-8556-88f261fa95a9`.
 - [x] App Store availability was re-enabled on 2026-05-24 for the available storefront set. App Store Connect now shows 148 countries/regions `正在处理为可用`.
 - [ ] EU / DSA trader-status countries remain unavailable until the account owner provides trader status in App Store Connect.
 
@@ -383,6 +384,7 @@ Notes:
   - Version `0.9.4 (1009004)` was uploaded, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for review. App Store Connect status is `正在等待审核`.
   - Version `0.9.5 (1009005)` was uploaded, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for review on 2026-05-30. App Store Connect status is `正在等待审核`; submission confirmation said review may take up to 48 hours.
   - Version `1.0.0 (1010000)` was uploaded, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for review on 2026-06-01. App Store Connect status is `正在等待审核`; submission confirmation said review may take up to 48 hours.
+  - Version `1.0.2 (1020001)` was uploaded, export-compliance answered as no listed encryption algorithm, selected for the App Store version, and submitted for review on 2026-06-06. App Store Connect status is `正在等待审核`; submission confirmation said review may take up to 48 hours.
 - Screenshots cover:
   1. Learning home screen.
   2. Battle/practice screen.
