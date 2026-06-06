@@ -46,6 +46,15 @@ async def get_support(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/features", response_class=HTMLResponse)
+async def get_features(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "features.html",
+        {"user": None},
+    )
+
+
 @router.get("/report_and_appeal", response_class=HTMLResponse)
 async def get_report_and_appeal(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
