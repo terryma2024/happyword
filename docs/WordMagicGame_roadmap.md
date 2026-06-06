@@ -3,7 +3,7 @@
 > 文档状态：路线图基线（与仓库实现对齐）  
 > 关联基线：[WordMagicGame_overall_spec.md](WordMagicGame_overall_spec.md)（「现在跑的代码」）  
 > 当前路线选择：趣味学习与长期学习系统平衡推进；**HarmonyOS / iOS / Android 三端 bootstrap 功能已对齐**，后续新能力走 `docs/features/` 三端 SOP。  
-> 最近更新：**2026-06-01** — 当前发布版本改为 **1.0.0 / 1010000**。V1.0.0 **战斗音频混音与 BGM 版**已按三端 SOP 合入：生产战斗音频统一走 `BattleAudioMixer`，BGM / TTS / SFX 可真正重叠，speak 时 BGM duck 到 50%，配置页提供「自动发音 / 播放BGM / 动作特效音」三个开关，DevMenu 的 `PcmAudioLab` 保留为三端对照测试页。V0.9.5 **魔法书图鉴**已完成并作为 1.0.0 前置底座；原计划的推荐 / 章节感与 LLM 内容扩量方向已从路线图移除，不再作为后续版本推进。设计基线见 [`docs/features/2026-06-01-pcm-audio-v1-0-0/00-design.md`](features/2026-06-01-pcm-audio-v1-0-0/00-design.md)、[`docs/features/2026-05-29-spellbook-v0-9-5/00-design.md`](features/2026-05-29-spellbook-v0-9-5/00-design.md)、[`docs/features/2026-05-26-learning-plan-review-v0-9-3/00-design.md`](features/2026-05-26-learning-plan-review-v0-9-3/00-design.md)、[`docs/features/2026-05-24-sentence-cloze-v0-9-1/00-design.md`](features/2026-05-24-sentence-cloze-v0-9-1/00-design.md)、[`docs/features/2026-05-25-boss-dialogue-v0-9-2/00-design.md`](features/2026-05-25-boss-dialogue-v0-9-2/00-design.md)、[`docs/features/2026-05-18-battle-polish-v0-8-3/00-design.md`](features/2026-05-18-battle-polish-v0-8-3/00-design.md)、[`docs/features/2026-05-18-battle-balance-v0-8-4/00-design.md`](features/2026-05-18-battle-balance-v0-8-4/00-design.md)、[`docs/features/2026-05-23-coin-reward-by-monster-level-v0-8-6/00-design.md`](features/2026-05-23-coin-reward-by-monster-level-v0-8-6/00-design.md) 与 [`docs/features/2026-05-23-daily-checkin-v0-8-8/00-design.md`](features/2026-05-23-daily-checkin-v0-8-8/00-design.md)。
+> 最近更新：**2026-06-06** — 当前仓库版本改为 **1.0.2 / 1020001**。V1.0.2 **怪物图鉴进度与奖励版**已按三端 SOP 完成：图鉴未遭遇怪物显示 mystery art 与问号遮罩；战斗遭遇 / 击败写入本地进度；每只怪物 50 / 100 次击败可各领一次 cap-free 金币奖励；前三只怪物显示名调整为 `软泥小灵` / `书页僵僵` / `云眠巨龙`。V1.0.1 已作为提审与生产环境硬化补丁完成：三端版本号升至 `1.0.1 / 1010001`，同步词包 / 魔法书封面缓存、去掉 legacy Vercel bypass、收紧 OAuth 与隐私政策文案，并完成 iOS `1.0.1 (1010001)` App Store Connect 上传记录。V1.0.0 **战斗音频混音与 BGM 版**仍是音频底座；原计划的推荐 / 章节感与 LLM 内容扩量方向已从路线图移除，不再作为后续版本推进。设计基线见 [`docs/features/2026-06-05-monster-codex-progress-v1-0-2/00-design.md`](features/2026-06-05-monster-codex-progress-v1-0-2/00-design.md)、[`docs/features/2026-06-01-pcm-audio-v1-0-0/00-design.md`](features/2026-06-01-pcm-audio-v1-0-0/00-design.md)、[`docs/features/2026-05-29-spellbook-v0-9-5/00-design.md`](features/2026-05-29-spellbook-v0-9-5/00-design.md)、[`docs/features/2026-05-26-learning-plan-review-v0-9-3/00-design.md`](features/2026-05-26-learning-plan-review-v0-9-3/00-design.md)、[`docs/features/2026-05-24-sentence-cloze-v0-9-1/00-design.md`](features/2026-05-24-sentence-cloze-v0-9-1/00-design.md)、[`docs/features/2026-05-25-boss-dialogue-v0-9-2/00-design.md`](features/2026-05-25-boss-dialogue-v0-9-2/00-design.md)、[`docs/features/2026-05-18-battle-polish-v0-8-3/00-design.md`](features/2026-05-18-battle-polish-v0-8-3/00-design.md)、[`docs/features/2026-05-18-battle-balance-v0-8-4/00-design.md`](features/2026-05-18-battle-balance-v0-8-4/00-design.md)、[`docs/features/2026-05-23-coin-reward-by-monster-level-v0-8-6/00-design.md`](features/2026-05-23-coin-reward-by-monster-level-v0-8-6/00-design.md) 与 [`docs/features/2026-05-23-daily-checkin-v0-8-8/00-design.md`](features/2026-05-23-daily-checkin-v0-8-8/00-design.md)。
 > 历史逐版本实施笔记（2026-05-10 及更早）仍保留在本文 §4–§11 与 [`WordMagicGame_overall_spec.md`](WordMagicGame_overall_spec.md) §2；下文不再在页首堆叠超长 changelog。  
 
 ## 1. 产品愿景
@@ -19,16 +19,16 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 
 ## 2. 当前实现状态摘要
 
-> **基线日期：2026-06-01。** 下文「已交付」指本仓库主干可构建、可测、可部署的实现；「计划中」指路线图目标尚未合入或仅有方向性文档。
+> **基线日期：2026-06-06。** 下文「已交付」指本仓库主干可构建、可测、可部署的实现；「计划中」指路线图目标尚未合入或仅有方向性文档。
 
 当前工程是 **monorepo 产品工程**：根目录并列 `harmonyos/`、`ios/`、`android/`、`server/`、`shared/`。HarmonyOS 仍是新功能的设计与验证基准，iOS / Android 按三端 SOP 复制；`shared/` 只保存 contracts、schemas 与 fixtures，不承载客户端运行时代码。
 
-- **三端客户端当前版本：1.0.0 / 1010000。** HarmonyOS、iOS、Android 已完成 bootstrap 17 页矩阵、三层词包、家长绑定 / PIN / 后台入口、愿望单、怪物图鉴、今日计划、本地学习报告、V0.9.1 句子填词、V0.9.2 Boss 个性 / 登场对话、V0.9.3 daily learning / review state、V0.9.4 词包故事展示、V0.9.5 魔法书图鉴，以及 V1.0.0 PCM 战斗音频混音。
+- **三端客户端当前版本：1.0.2 / 1020001。** HarmonyOS、iOS、Android 已完成 bootstrap 17 页矩阵、三层词包、家长绑定 / PIN / 后台入口、愿望单、怪物图鉴、今日计划、本地学习报告、V0.9.1 句子填词、V0.9.2 Boss 个性 / 登场对话、V0.9.3 daily learning / review state、V0.9.4 词包故事展示、V0.9.5 魔法书图鉴、V1.0.0 PCM 战斗音频混音、V1.0.1 提审 / 生产环境硬化，以及 V1.0.2 怪物图鉴本地进度与奖励。
 - **学习与战斗现状。** 当前已具备轻量遗忘曲线、稳定 daily review snapshot、A/B 今日完成语义、Home 复习计数、按词包本地报告、V0.8.8 每日打卡、V0.8.6 怪物等级积分金币、V0.8.4 题型阶段调度、15-word built-in packs 和 10/5/10 初装战斗默认值。`TodayPlanPage` 已接入 A/B aware 进度与 required review section，但学习报告仍主要是本地静态快照，云端聚合尚未做。
 - **服务端当前能力。** `server/` 是 FastAPI + MongoDB + Vercel 后端，已覆盖内容管线、词条 CRUD、版本化词包、LLM 草稿、课本图 import、插画 / 发音 Blob、家长账户 / 设备绑定、child word-stats / wishlist、V0.8.1 家长词库工作台、V0.8.2 系统管理员 HTML 控制台与审计。后台高风险操作已补齐：global pack 硬删除、family pack 管理员 / 家长硬删除、family/global 草稿词包 split copy/move；V0.9.4 新增 pack story 编辑与 LLM 生成路径；V0.9.5 已合入 spellbook cover 生成、Blob 上传、admin / parent 触发入口与 OpenAPI 契约。
 - **仍未实现的边界。** 学习报告仍是 **device-local**，未做云端按 pack 聚合；Cocos2D 战斗表现层仍未实现。推荐 / 章节感与 LLM 内容扩量方向已移出路线图。
 
-因此后续路线不应回到「从零搭原型」或「单端 replica / 后台追平」，而应围绕 **V1.0.0 音频稳定收口、V1.1.0 战斗表现层** 继续演进。
+因此后续路线不应回到「从零搭原型」或「单端 replica / 后台追平」，而应在 **V1.0.2 图鉴进度收口** 之后，围绕 **V1.1.0 战斗表现层** 继续演进。
 
 ## 3. 路线图总览
 
@@ -78,6 +78,8 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V0.9.4 | 已完成 | 词包故事与提审版本硬化 | 三端解析并展示 `SceneMetadata.storyEn/storyZh`；内置 5 词包补齐故事文案；global/family pack merge 与缓存保留 story；家长 / 管理员后台支持 story 手填与 LLM 生成；OpenAPI 同步；三端版本号升至 `0.9.4 / 1009004`；iOS `0.9.4 (1009004)` 已上传并于 2026-05-29 提交 App Review | 必需 |
 | V0.9.5 | 已完成 | 魔法书图鉴 | 三端已完成：`HomeSpellbookButton`、`HomePackSpellbookCover`、`SpellbookPage`、locked/seen/mastered 词卡、词详情、按 pack 进度、一次性 +50 魔法币奖励与 `scene.spellbookCoverUrl` 解析；服务端 cover 生成 / Blob / admin-parent 入口 / OpenAPI 已合入 | 必需 |
 | V1.0.0  | 已完成 | 战斗音频混音与 BGM 版 | 三端新增 `BattleAudioMixer` / `PcmAudioLab`，让战斗 BGM、combo/攻击/受伤音效、单词朗读按优先级共存；配置页音频与题型开关已同步为 switch 风格 | 无 |
+| V1.0.1  | 已完成 | 提审与生产环境硬化版 | 三端版本号升至 `1.0.1 / 1010001`；对齐词包同步与魔法书封面缓存；移除 legacy Vercel preview bypass header / Bypass Secret 入口；HarmonyOS release gate、iOS App Store Connect 上传、生产域名 `happyword.com.cn` OAuth return_origin、隐私政策 / 服务条款与第三方服务说明完成硬化 | 必需 |
+| V1.0.2  | 已完成 | 怪物图鉴进度与奖励版 | 三端已完成：未遭遇怪物锁定为 mystery art + 问号遮罩；战斗遭遇即解锁，击败累计本地 defeat count；每只怪物 50 / 100 击败里程碑各可领取一次 50 / 100 cap-free 金币；支持 100 次后补领 50 次奖励；前三只怪物显示名改为中文，key / asset / catalog 顺序保持稳定。设计：[`docs/features/2026-06-05-monster-codex-progress-v1-0-2/00-design.md`](features/2026-06-05-monster-codex-progress-v1-0-2/00-design.md) | 无 |
 | V1.1.0  | 计划中 | Cocos2D 战斗美术化重构版 | 用 Cocos Creator 重写战斗表现层，支持更完整的角色、怪物、动画、特效和多美术主题           | 可选       |
 
 
@@ -1357,7 +1359,43 @@ V1.0.0 已交付能力：
 
 V1.0.0 的 PcmAudioLab 已验证“逻辑混音 + CoreSpeechKit 直接播放 TTS”在当前环境不可用，且仍可能让 BGM 停止，因此生产路线调整为：BGM/SFX 继续保留独立 lane，TTS 先合成 PCM，再由 app 自有播放链路播放。PcmAudioLab 不再暴露系统直播放音对照/切换，避免把不可用路径误认为可选方案。
 
-## 18. V1.1.0 Cocos2D 战斗美术化重构版
+## 18. V1.0.1 提审与生产环境硬化版
+
+V1.0.1 是 V1.0.0 之后的提审 / 生产环境硬化补丁，不引入新的儿童端玩法。它的核心目标是让三端版本号、生产域名、OAuth 回跳、隐私政策和商店提交证据与当前线上运维现实对齐。
+
+V1.0.1 已交付能力：
+
+- 三端版本号升至 `1.0.1 / 1010001`。
+- 词包同步与魔法书封面缓存行为在 HarmonyOS / iOS / Android 对齐。
+- 移除 legacy Vercel preview bypass header 与 Bypass Secret 入口，Release 审核路径不再依赖预览绕过逻辑。
+- 生产域名切到 `happyword.com.cn` 后，OAuth `return_origin` 使用 canonical origin 并与隐私 / 条款页面文案一致。
+- WeChat OAuth 登录按环境变量开关门控，未配置时不在家长登录页暴露入口。
+- iOS `1.0.1 (1010001)` 已于 2026-06-05 上传 App Store Connect；HarmonyOS release-pre 更新到 `1.0.1` 并记录 release gate / signed APP 证据。
+
+V1.0.1 不改变题型、奖励、怪物生成、词包选择或学习调度语义；这些产品能力继续以 V1.0.0 为底座，并由 V1.0.2 的图鉴进度功能向前推进。
+
+## 19. V1.0.2 怪物图鉴进度与奖励版
+
+V1.0.2 的目标是把「怪物图鉴」从静态 100 怪列表升级为本地收集进度。孩子在战斗中见到怪物后解锁图鉴内容，反复击败同一只怪物可以领取小额里程碑金币，形成战斗循环与收集循环之间的连接。
+
+设计基线：
+
+- [`docs/features/2026-06-05-monster-codex-progress-v1-0-2/00-design.md`](features/2026-06-05-monster-codex-progress-v1-0-2/00-design.md)
+- [`docs/features/2026-06-05-monster-codex-progress-v1-0-2/50-parity-checklist.md`](features/2026-06-05-monster-codex-progress-v1-0-2/50-parity-checklist.md)
+
+V1.0.2 已交付能力：
+
+- 未遭遇怪物显示 `monster-mystery-question.svg`，名称、类型、描述用问号遮罩，并隐藏击败次数与奖励按钮。
+- 怪物在战斗中出现即记录 encountered；被击败时同步累计 defeat count。
+- 已遭遇怪物显示击败次数，并展示 50 / 100 击败两个奖励按钮。
+- 每只怪物 50 次击败奖励 50 金币、100 次击败奖励 100 金币；奖励 cap-free、不消耗击败次数、每个 milestone 只能领取一次。
+- 支持 catch-up：如果直接达到 100 次且 50 次奖励未领，50 与 100 两档仍可分别领取。
+- 前三只怪物显示名改为 `软泥小灵` / `书页僵僵` / `云眠巨龙`，但 key、asset path、catalog index 与 battle spawn 规则不变。
+- 三端版本号升至 `1.0.2 / 1020001`，Parity Checklist 已标记 HarmonyOS / iOS / Android 全部完成。
+
+V1.0.2 不新增服务端同步、全局排行榜或新的怪物掉落类型；图鉴进度仍是 device-local 状态。
+
+## 20. V1.1.0 Cocos2D 战斗美术化重构版
 
 V1.1.0 的目标是在玩法、学习系统和战斗音频策略都打磨稳定后，把战斗场景从 ArkUI 元素拼装升级为更完整的 2D 游戏表现层。ArkUI 继续承担应用外壳和业务页面，Cocos Creator / Cocos2D 负责战斗场景、角色、怪物、动画、特效和美术主题。
 
@@ -1385,7 +1423,7 @@ Cocos2D Battle Scene
 - **Cocos 负责表现和输入**：角色、怪物、背景、技能、动画、粒子、战斗内按钮和点击反馈。
 - **学习逻辑留在核心层**：题目生成、答题判定、遗忘曲线、学习记录、奖励结算和服务端同步不写死在 Cocos 场景脚本里。
 - **ArkUI 保持产品外壳**：首页、配置、愿望单、家长绑定、学习报告等仍然用 ArkUI 实现。
-- **数据接口先行**：在 V0.3-V1.0.0 中逐步形成可序列化的 `BattleSession`、`Question`、`AnswerOutcome`、`SessionResult` 等边界对象。
+- **数据接口先行**：在 V0.3-V1.0.2 中逐步形成可序列化的 `BattleSession`、`Question`、`AnswerOutcome`、`SessionResult`、怪物图鉴进度等边界对象。
 - **美术资源规范化**：提前规划角色序列帧或 Spine、怪物图集、背景分层、特效图集、UI 皮肤和主题资源目录。
 
 V1.1.0 建议能力：
@@ -1397,38 +1435,38 @@ V1.1.0 建议能力：
 - 支持普通攻击、暴击、补字母成功、复习怪、Boss 技能等专属特效。
 - 支持移动端性能优化，包括图集、对象池、粒子数量控制和资源预加载。
 
-V1.1.0 不建议重写全部 App。它是战斗表现层重构，不是产品业务层重构。等 V0.3-V1.0.0 的题型、学习状态、奖励、后台模型和音频策略稳定后再做，可以减少跨引擎迁移返工。
+V1.1.0 不建议重写全部 App。它是战斗表现层重构，不是产品业务层重构。等 V0.3-V1.0.2 的题型、学习状态、奖励、后台模型、音频策略和图鉴进度稳定后再做，可以减少跨引擎迁移返工。
 
-## 19. 长期能力地图
+## 21. 长期能力地图
 
 长期产品可以分为五个能力域：
 
 
-| 能力域   | 近期目标（V0.7.1 已达成） | 长期目标                            |
+| 能力域   | 近期目标（截至 V1.0.2） | 长期目标                            |
 | ----- | ------------------- | ------------------------------- |
 | 三端客户端 | Harmony / iOS / Android bootstrap 17 页对齐 | 新功能经三端 SOP 持续 parity；商店发布与硬化 |
-| 游戏战斗  | 怪物题型差异、Boss 混合题（三端 ArkUI/Swift/Compose） | Cocos2D 战斗场景、技能、装备、剧情、地图冒险      |
-| 学习系统  | 错词复习、轻量遗忘曲线、按词包本地报告；V0.9.3 已统一本地 daily learning / review state；V0.9.5 已把 mastered 词沉淀到魔法书图鉴 | 长期掌握度模型、云端报告                 |
+| 游戏战斗  | 怪物题型差异、Boss 混合题（三端 ArkUI/Swift/Compose）；V1.0.2 已把怪物遭遇 / 击败进度接入战斗循环 | Cocos2D 战斗场景、技能、装备、剧情、地图冒险      |
+| 学习系统  | 错词复习、轻量遗忘曲线、按词包本地报告；V0.9.3 已统一本地 daily learning / review state；V0.9.5 已把 mastered 词沉淀到魔法书图鉴；V1.0.2 已把怪物图鉴进度沉淀为本地收集状态 | 长期掌握度模型、云端报告                 |
 | 内容系统  | 后台 CMS、家长/管理员词库工作台、三层 Pack、V0.9.4 词包故事、V0.9.5 spellbook cover 生成链路  | 审核流优化            |
 | 家长系统  | 家长账号、设备绑定、词库发布/回滚、管理员审计       | 学习报告上云、兑换推送通知             |
 | AI 能力 | 后台生成题目草稿        | 保持人工审核边界，不再单列 LLM 内容扩量版本               |
 | 美术表现  | 三端原生战斗 UI（非 Cocos）      | Cocos2D 场景、角色动画、怪物图集、粒子特效、多主题皮肤 |
 
 
-## 20. 开发优先级建议
+## 22. 开发优先级建议
 
-> **2026-06-01 刷新。** V0.3–**V1.0.0**（含三端 bootstrap、家长词库、管理员后台、admin global pack delete、admin / parent family pack delete、draft pack split、V0.9.x 学习体验与 V1.0.0 PCM 战斗音频）已在主干交付。推荐 / 章节感与 LLM 内容扩量方向已移出路线图。短期重点：继续 V0.8.4 release gate hygiene，并以 V1.0.0 音频 QA 反馈做局部 bugfix。
+> **2026-06-06 刷新。** V0.3–**V1.0.2**（含三端 bootstrap、家长词库、管理员后台、admin global pack delete、admin / parent family pack delete、draft pack split、V0.9.x 学习体验、V1.0.0 PCM 战斗音频、V1.0.1 提审 / 生产环境硬化与 V1.0.2 怪物图鉴进度）已在主干交付。推荐 / 章节感与 LLM 内容扩量方向已移出路线图。短期重点：收口 V1.0.2 发版包装，并准备 V1.1.0 战斗表现层。
 
 短期优先级建议如下：
 
-1. **V0.8.4 release gate closeout**：V0.8.4 core 已在三端出现；下一步补跑 iOS / Android full suite / assemble gate。详见 [`docs/features/2026-05-18-battle-balance-v0-8-4/50-parity-checklist.md`](features/2026-05-18-battle-balance-v0-8-4/50-parity-checklist.md)。
-2. **V1.0.0 战斗音频 QA closeout**：三端已落地 `BattleAudioMixer` 与 `PcmAudioLab`；后续只接收真实设备 / 模拟器音频 QA 反馈的局部修正，不再扩大本版范围。
-3. **V0.9.1–V0.9.5 release notes hygiene**：已完成，不再作为短期阻塞项；后续仅随发版清单同步引用。
-4. **V1.1.0 Cocos 战斗表现层**：玩法与音频稳定后再迁移表现层。
+1. **V1.0.2 release packaging closeout**：三端代码与 parity checklist 已完成，下一步跟随各平台 release-pre 补齐 archive / upload / store metadata 证据。
+2. **V0.8.4 release gate hygiene**：V0.8.4 core 已在三端出现；历史 gate 证据仍可随发版清单补齐。详见 [`docs/features/2026-05-18-battle-balance-v0-8-4/50-parity-checklist.md`](features/2026-05-18-battle-balance-v0-8-4/50-parity-checklist.md)。
+3. **V1.0.0 / V1.0.2 QA feedback**：战斗音频和怪物图鉴进度只接收真实设备 / 模拟器 QA 反馈的局部修正，不再扩大版本范围。
+4. **V1.1.0 Cocos 战斗表现层**：玩法、音频和图鉴进度稳定后再迁移表现层。
 5. **新功能走三端 SOP**：`docs/features/<feature-id>/` — Harmony 设计实现 → `20-replication-trigger.md` 签字 → iOS / Android 复制。
 6. **体验增强（可选）**：云端学习报告按 pack、兑换推送通知、运维 runbook 补全——不阻塞版本号推进，可按 feature 单独立项。
 
-## 21. 验收标准建议
+## 23. 验收标准建议
 
 V0.3 完成时建议满足：
 
@@ -1442,7 +1480,7 @@ V0.3 完成时建议满足：
 - 当前离线游戏能力不依赖服务端。
 - 原有三选一战斗、音效、TTS、复习模式不发生明显回归。
 
-## 22. 关键风险
+## 24. 关键风险
 
 
 | 风险         | 影响          | 应对                             |
@@ -1455,21 +1493,22 @@ V0.3 完成时建议满足：
 | 后台过早进入     | 客户端模型反复变化   | V0.5 再做内容后台，V0.6 再做账号绑定        |
 | Monorepo 迁移粗暴搬目录 | DevEco Studio / Hvigor 路径失效 | V0.7.0 把 `harmonyos/` 定义为完整 DevEco 项目根，先更新命令和本地 IDE handoff，再迁移工程文件 |
 | 音频策略过早复杂化 | BGM/TTS 互抢焦点导致 UI flake | V1.0.0 已通过 PCM-owned 播放链路替代 stop/resume 伪混音，后续只做 QA 收口 |
+| 图鉴奖励变成刷分入口 | 孩子反复刷单只为金币 | V1.0.2 奖励按怪物 milestone 一次性领取，不消耗、不重复、不进入每日上限 |
 | Cocos 迁移过早 | 玩法未定导致表现层返工 | V1.1.0 再做战斗美术化重构，V0.3 起保持逻辑与表现分离 |
 
 
-## 23. 近期建议结论
+## 25. 近期建议结论
 
 **V0.7.1 与 V0.8.1 / V0.8.2+ 已完成**：三端客户端 bootstrap 对齐；家长词库工作台与子端合并拉取、系统管理员控制台与审计均已交付；草稿词包拆分新建包已同时覆盖 family / global 管理；global pack 与 family pack 的硬删除路径已补齐。
 
-下一步最适合推进的主题（2026-06-01）：
+下一步最适合推进的主题（2026-06-06）：
 
 ```text
-V0.8.4 release gate closeout
+V1.0.2 release packaging closeout
   ↓
-V1.0.0 战斗音频 QA closeout
+V1.0.0 / V1.0.2 QA feedback
   ↓
 V1.1.0 Cocos2D 战斗表现层
 ```
 
-V0.3–V1.0.0 已构成当前产品的 **三端可玩、可绑、可运营词库、可后台排查、可日常留存、可语境练习、可故事化 Boss 入场、可解释今日复习、可展示词包故事、可收藏掌握词、可稳定混音战斗音频** 底座。V0.8.4 的剩余事项主要是 release gate hygiene；推荐 / 章节感与 LLM 内容扩量方向不再推进。
+V0.3–V1.0.2 已构成当前产品的 **三端可玩、可绑、可运营词库、可后台排查、可日常留存、可语境练习、可故事化 Boss 入场、可解释今日复习、可展示词包故事、可收藏掌握词、可稳定混音战斗音频、可收集怪物图鉴进度并领取一次性里程碑奖励** 底座。V0.8.4 的剩余事项主要是 release gate hygiene；推荐 / 章节感与 LLM 内容扩量方向不再推进。
