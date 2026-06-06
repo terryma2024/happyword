@@ -103,6 +103,23 @@ async def test_landing_page_has_app_download_options(
 
 
 @pytest.mark.asyncio
+async def test_landing_page_has_mobile_reachable_features_link(
+    html_client: tuple[AsyncClient, object],
+) -> None:
+    """Feature page entry should remain available when mobile CSS hides nav links."""
+    ac, _ = html_client
+    r = await ac.get("/")
+    assert r.status_code == 200
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    hero_actions = soup.find("div", class_="hero-actions")
+    assert hero_actions is not None
+    features_link = hero_actions.find("a", href="/features")
+    assert features_link is not None
+    assert "功能介绍" in features_link.get_text(strip=True)
+
+
+@pytest.mark.asyncio
 async def test_happyword_cool_redirects_permanently_to_com_cn(
     html_client: tuple[AsyncClient, object],
 ) -> None:

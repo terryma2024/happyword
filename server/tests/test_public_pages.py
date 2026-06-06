@@ -50,6 +50,27 @@ async def test_public_pages_include_icp_footer(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path",
+    ["/privacy", "/terms", "/report_and_appeal"],
+)
+async def test_legal_pages_match_landing_visual_shell(client: AsyncClient, path: str) -> None:
+    response = await client.get(path)
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    assert soup.find("link", href=lambda value: value and value.startswith("/static/landing.css"))
+    assert soup.find("main", attrs={"data-page": "legal"}) is not None
+    assert soup.find("article", class_="legal-panel") is not None
+
+    brand = soup.find("a", class_="brand")
+    assert brand is not None
+    assert brand["href"] == "/"
+    assert "魔法背单词" in brand.get_text(" ", strip=True)
+
+
+@pytest.mark.asyncio
 async def test_features_page_uses_ios_screenshots(client: AsyncClient) -> None:
     response = await client.get("/features")
 

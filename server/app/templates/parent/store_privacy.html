@@ -1,15 +1,12 @@
-{% extends "_base.html" %}
+{% extends "_legal_base.html" %}
 {% block title %}隐私政策{% endblock %}
-{% block content %}
-<article class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-6">
-  <header class="space-y-2">
-    <p class="text-sm text-slate-500">最后更新：2026-06-03</p>
-    <h1 class="text-2xl font-semibold text-slate-900">魔法背单词隐私政策</h1>
-    <p class="text-sm text-slate-700">
-      魔法背单词是一款面向儿童英语练习与家长词库管理的应用。我们只在提供账号绑定、学习同步、
-      家长导入词库、愿望兑换和账号安全所需范围内处理数据。
-    </p>
-  </header>
+{% block legal_meta %}最后更新：2026-06-03{% endblock %}
+{% block legal_title %}魔法背单词隐私政策{% endblock %}
+{% block legal_intro %}
+  魔法背单词是一款面向儿童英语练习与家长词库管理的应用。我们只在提供账号绑定、学习同步、
+  家长导入词库、愿望兑换和账号安全所需范围内处理数据。
+{% endblock %}
+{% block legal_body %}
 
   <section class="space-y-2">
     <h2 class="text-lg font-semibold text-slate-900">我们收集的数据</h2>
@@ -66,5 +63,4 @@
       如需隐私、账号或数据删除支持，请访问 <a class="text-sky-600 hover:underline" href="/support">支持页面</a>。
     </p>
   </section>
-</article>
 {% endblock %}

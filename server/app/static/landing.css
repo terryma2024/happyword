@@ -534,6 +534,91 @@ img {
   max-width: 38rem;
 }
 
+.legal-shell {
+  width: min(100% - 32px, 960px);
+  margin: 0 auto;
+  padding: clamp(38px, 7vw, 78px) 0 clamp(72px, 10vw, 118px);
+}
+
+.legal-hero {
+  display: grid;
+  gap: 18px;
+  padding: clamp(20px, 4vw, 38px) 0 clamp(28px, 6vw, 54px);
+}
+
+.legal-kicker {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+.legal-hero h1 {
+  max-width: 12em;
+  margin: 0;
+  font-size: clamp(2.55rem, 7vw, 5.2rem);
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.legal-hero p:not(.legal-kicker) {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(1.02rem, 1.5vw, 1.18rem);
+  line-height: 1.8;
+}
+
+.legal-panel {
+  display: grid;
+  gap: 28px;
+  padding: clamp(24px, 5vw, 46px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: 0 28px 80px var(--shadow);
+}
+
+.legal-panel section {
+  display: grid;
+  gap: 10px;
+}
+
+.legal-panel h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.18rem, 2vw, 1.45rem);
+  line-height: 1.28;
+  letter-spacing: 0;
+}
+
+.legal-panel p,
+.legal-panel li {
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.85;
+}
+
+.legal-panel p,
+.legal-panel ul {
+  margin: 0;
+}
+
+.legal-panel ul {
+  padding-left: 1.2rem;
+}
+
+.legal-panel li + li {
+  margin-top: 6px;
+}
+
+.legal-panel a {
+  color: var(--accent-strong);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 body > footer {
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface) 72%, transparent);
@@ -658,7 +743,8 @@ body > footer a:hover {
   .landing-nav,
   .hero-section,
   .section,
-  .final-section {
+  .final-section,
+  .legal-shell {
     width: min(100% - 28px, 1180px);
   }
 
@@ -680,6 +766,15 @@ body > footer a:hover {
 
   .hero-copy h1 {
     font-size: clamp(2.55rem, 14vw, 4rem);
+  }
+
+  .legal-hero h1 {
+    font-size: clamp(2.35rem, 12vw, 3.9rem);
+  }
+
+  .legal-panel {
+    gap: 24px;
+    padding: 22px 18px;
   }
 
   .hero-text {
