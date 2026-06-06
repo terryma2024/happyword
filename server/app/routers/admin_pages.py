@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.deps import clear_admin_session_cookie, set_admin_session_cookie
 from app.models.device_binding import DeviceBinding
 from app.models.family_pack_definition import FamilyPackDefinition
+from app.models.family_pack_draft import FamilyPackDraft
 from app.models.feedback import UserFeedback
 from app.models.user import User, UserRole
 from app.services import admin_console_service as acs
@@ -1666,85 +1667,37 @@ async def admin_family_packs_list(
     )
 
 
-@router.post("/family-packs/{pack_id}/metadata", response_model=None)
-async def admin_family_pack_metadata_post(
+@router.get("/family-packs/{pack_id}", response_class=HTMLResponse, response_model=None)
+async def admin_family_pack_detail(
     request: Request,
     pack_id: str,
-    name: str = Form(...),
-    description: str = Form(""),
-    storyEn: str | None = Form(None),  # noqa: N803
-    storyZh: str | None = Form(None),  # noqa: N803
-) -> RedirectResponse:
+) -> HTMLResponse | RedirectResponse:
     gate = await _require_admin_html(request)
     if isinstance(gate, RedirectResponse):
         return gate
     definition = await _load_admin_family_pack_definition(pack_id)
     if definition is None:
         return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
-    try:
-        await fps.patch_definition(
-            pack_id=definition.pack_id,
-            family_id=definition.family_id,
-            name=name,
-            description=description,
-            scene=_story_scene_update(definition.scene, story_en=storyEn, story_zh=storyZh),
-        )
-    except (fps.NameTaken, fps.InvalidPayload) as exc:
-        return RedirectResponse(
-            url=f"/admin/family-packs?flash_err={quote(str(exc))}",
-            status_code=303,
-        )
-    await record_admin_action(
-        admin_username=gate.username,
-        action="family_pack.metadata_update",
-        target_collection="family_pack_definitions",
-        target_id=definition.pack_id,
-        payload_summary={"family_id": definition.family_id, "via": "admin_html"},
+    draft = await FamilyPackDraft.find_one(
+        FamilyPackDraft.pack_definition_id == definition.pack_id,
+        FamilyPackDraft.family_id == definition.family_id,
     )
-    return RedirectResponse(url="/admin/family-packs?flash_ok=story_saved", status_code=303)
-
-
-@router.post("/family-packs/{pack_id}/story/generate", response_model=None)
-async def admin_family_pack_story_generate_post(
-    request: Request,
-    pack_id: str,
-) -> RedirectResponse:
-    gate = await _require_admin_html(request)
-    if isinstance(gate, RedirectResponse):
-        return gate
-    definition = await _load_admin_family_pack_definition(pack_id)
-    if definition is None:
-        return RedirectResponse(url="/admin/family-packs?flash_err=not_found", status_code=303)
-    draft = await fps.get_or_create_draft(definition=definition, parent_user_id=gate.username)
-    try:
-        _model, story = await pack_story_service.generate_pack_story(
-            pack_name=definition.name,
-            words=list(draft.words),
-        )
-        await fps.patch_definition(
-            pack_id=definition.pack_id,
-            family_id=definition.family_id,
-            name=None,
-            description=None,
-            scene=_story_scene_update(
-                definition.scene,
-                story_en=story["storyEn"],
-                story_zh=story["storyZh"],
-            ),
-        )
-    except (LlmConfigError, LlmCallError) as exc:
-        return RedirectResponse(
-            url=f"/admin/family-packs?flash_err={quote(str(exc))}",
-            status_code=303,
-        )
-    await record_admin_action(
-        admin_username=gate.username,
-        action="family_pack.story_generate",
-        target_collection="family_pack_definitions",
-        target_id=definition.pack_id,
-        payload_summary={"family_id": definition.family_id, "via": "admin_html"},
+    pointer, published = await fps.current_pack(definition=definition)
+    versions = await fps.list_versions(definition=definition)
+    return templates.TemplateResponse(
+        request,
+        "admin/family_pack_detail.html",
+        {
+            "admin_user": gate,
+            "definition": definition,
+            "draft_words": list(draft.words) if draft is not None else [],
+            "draft_word_count": len(draft.words) if draft is not None else 0,
+            "pointer": pointer,
+            "published_word_count": len(published.words) if published is not None else 0,
+            "published_version": published.version if published is not None else None,
+            "versions": versions,
+        },
     )
-    return RedirectResponse(url="/admin/family-packs?flash_ok=story_generated", status_code=303)
 
 
 @router.post("/family-packs/{pack_id}/unarchive", response_model=None)

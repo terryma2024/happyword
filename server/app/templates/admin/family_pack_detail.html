@@ -1,0 +1,150 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ definition.name }} · 家庭词包{% endblock %}
+{% block content %}
+<section class="space-y-8">
+  <p class="text-sm"><a href="/admin/family-packs" class="text-sky-600 hover:underline">← 返回家庭词库</a></p>
+
+  <header class="space-y-1">
+    <h1 class="text-2xl font-semibold text-slate-900">{{ definition.name }}</h1>
+    <p class="text-sm text-slate-500">
+      <span class="font-mono">{{ definition.pack_id }}</span>
+      <span class="mx-2 text-slate-300">/</span>
+      <span class="font-mono">{{ definition.family_id }}</span>
+    </p>
+  </header>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase">状态</p>
+      <p class="text-lg font-semibold mt-1">{% if definition.state.value == 'active' %}<span class="text-emerald-700">活跃</span>{% else %}<span class="text-slate-500">已归档</span>{% endif %}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase">草稿词数</p>
+      <p class="text-2xl font-semibold mt-1">{{ draft_word_count }}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase">已发布版本</p>
+      <p class="text-2xl font-semibold mt-1">{% if published_version is not none %}v{{ published_version }}{% else %}—{% endif %}</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+      <p class="text-xs text-slate-500 uppercase">当前发布词数</p>
+      <p class="text-2xl font-semibold mt-1">{{ published_word_count }}</p>
+    </div>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
+    <div>
+      <h2 class="font-semibold text-slate-900">词包信息</h2>
+      <dl class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <dt class="text-xs text-slate-500 uppercase">名称</dt>
+          <dd class="mt-1 text-slate-900">{{ definition.name }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-slate-500 uppercase">创建者</dt>
+          <dd class="mt-1 font-mono text-xs text-slate-700">{{ definition.created_by_parent_id }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-slate-500 uppercase">创建时间</dt>
+          <dd class="mt-1 text-slate-700">{{ definition.created_at.strftime('%Y-%m-%d %H:%M') if definition.created_at else '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-slate-500 uppercase">更新时间</dt>
+          <dd class="mt-1 text-slate-700">{{ definition.updated_at.strftime('%Y-%m-%d %H:%M') if definition.updated_at else '—' }}</dd>
+        </div>
+      </dl>
+    </div>
+    <div>
+      <h3 class="text-sm font-medium text-slate-800">描述</h3>
+      <p class="mt-1 text-sm text-slate-600">{{ definition.description or '—' }}</p>
+    </div>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
+    <h2 class="font-semibold text-slate-900">词包 story</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      <div class="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+        <p class="text-xs text-slate-500 uppercase">Little story (English)</p>
+        <p class="mt-2 whitespace-pre-wrap text-slate-800">{{ (definition.scene or {}).get('storyEn') or '—' }}</p>
+      </div>
+      <div class="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+        <p class="text-xs text-slate-500 uppercase">小故事（中文）</p>
+        <p class="mt-2 whitespace-pre-wrap text-slate-800">{{ (definition.scene or {}).get('storyZh') or '—' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-100">
+      <h2 class="font-semibold text-slate-900">草稿词条</h2>
+      <p class="text-xs text-slate-500 mt-1">只读查看家庭词包草稿内容；家庭词包编辑仍由家长侧流程完成。</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <tr>
+            <th class="px-3 py-2">词条 ID</th>
+            <th class="px-3 py-2">英文</th>
+            <th class="px-3 py-2">中文</th>
+            <th class="px-3 py-2">分类</th>
+            <th class="px-3 py-2">难度</th>
+            <th class="px-3 py-2">来源</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for w in draft_words %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-3 py-2 font-mono text-xs align-top">{{ w.id }}</td>
+            {% if w.get('hidden') %}
+            <td colspan="4" class="px-3 py-2 text-xs text-slate-500 align-top">隐藏占位</td>
+            <td class="px-3 py-2 text-xs text-slate-500 align-top">hidden</td>
+            {% else %}
+            <td class="px-3 py-2 align-top">{{ w.word or '—' }}</td>
+            <td class="px-3 py-2 align-top">{{ w.meaningZh or w.meaning_zh or '—' }}</td>
+            <td class="px-3 py-2 align-top">{{ w.category or '—' }}</td>
+            <td class="px-3 py-2 align-top">{{ w.difficulty | default('—') }}</td>
+            <td class="px-3 py-2 align-top">{{ w.source or '—' }}</td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="px-3 py-8 text-center text-slate-500">暂无草稿词条。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-100">
+      <h2 class="font-semibold text-slate-900">发布版本</h2>
+      {% if pointer %}
+      <p class="text-xs text-slate-500 mt-1">当前 v{{ pointer.current_version }}{% if pointer.previous_version is not none %}，可回滚至 v{{ pointer.previous_version }}{% endif %}。</p>
+      {% endif %}
+    </div>
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <tr>
+          <th class="px-4 py-2">版本</th>
+          <th class="px-4 py-2">词数</th>
+          <th class="px-4 py-2">发布人</th>
+          <th class="px-4 py-2">发布时间</th>
+          <th class="px-4 py-2">备注</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for version in versions %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-2 font-semibold">v{{ version.version }}</td>
+          <td class="px-4 py-2">{{ version.words | length }}</td>
+          <td class="px-4 py-2 font-mono text-xs">{{ version.published_by_parent_id }}</td>
+          <td class="px-4 py-2 text-xs text-slate-600">{{ version.published_at.strftime('%Y-%m-%d %H:%M') if version.published_at else '—' }}</td>
+          <td class="px-4 py-2">{{ version.notes or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">暂无发布版本。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
