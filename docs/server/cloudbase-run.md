@@ -6,7 +6,7 @@
 - Current production domain: happyword.com.cn
 - Legacy domain: happyword.cool, served by Vercel as a 301 redirect to
   happyword.com.cn
-- Production service name: happyword-server
+- Production service name: happyword-server-prod
 - Staging service name: happyword-server-staging
 - MongoDB provider: Shanghai Lighthouse MongoDB for the current
   low-cost URI-compatible path, with Beijing Lighthouse as a hidden backup
@@ -26,14 +26,14 @@
 - Region: ap-shanghai
 - HTTP Access Service: enabled
 - Production Cloud Run default domain:
-  https://happyword-server-255236-5-1429584068.sh.run.tcloudbase.com
+  https://happyword-server-prod-255236-5-1429584068.sh.run.tcloudbase.com
 - HTTP Access default domain:
   happyword-d5g66zmq8ef2430b8-1429584068.ap-shanghai.app.tcloudbase.com
 - Staging default domain:
   https://happyword-server-staging-255236-5-1429584068.sh.run.tcloudbase.com
 - Custom domains: `happyword.com.cn` bound for production
 - Routes: `happyword.com.cn` `/` routes to CloudBase Run service
-  `happyword-server`
+  `happyword-server-prod`
 
 ## Domain and DNS Management
 
@@ -180,15 +180,16 @@ Staging service:
 
 Production service:
 
-- Service name: `happyword-server`
+- Service name: `happyword-server-prod`
 - Default domain:
-  `https://happyword-server-255236-5-1429584068.sh.run.tcloudbase.com`
+  `https://happyword-server-prod-255236-5-1429584068.sh.run.tcloudbase.com`
 - Runtime port: `8080`
-- Deploy method: CloudBase CLI local code upload, archive rooted at `server/`
-- Active version: `happyword-server-008`, updated 2026-05-22 after clearing
-  `SESSION_COOKIE_DOMAIN` for CloudBase default-domain admin login validation
-- Traffic: 100% on the Cloud Run default domain only. `happyword.com.cn` and
-  `happyword.cool` DNS were not changed.
+- Deploy method: CloudBase Git deployment observed by `server-cd.yml`
+- Active version: `happyword-server-prod-008`, updated 2026-06-05 and confirmed
+  normal with 100% Cloud Run traffic on 2026-06-06.
+- Traffic: 100% on `happyword-server-prod`; `happyword.com.cn` HTTP Access
+  route `/` targets this service. `happyword.cool` remains on Vercel as a 301
+  redirect endpoint.
 - Production Mongo database: `MONGO_DB_NAME=happyword`
 - Current production LLM provider: `LLM_PROVIDER=qwen`,
   `QWEN_MODEL_VISION=qwen3.6-flash`
@@ -1100,14 +1101,20 @@ Required before production custom-domain binding:
 - Bind `happyword.com.cn` in CloudBase HTTP Access after both prerequisites are
   satisfied, then create the route to CloudBase Run service `happyword-server`.
 
-Current CloudBase custom-domain state as of 2026-06-03:
+Current CloudBase custom-domain state as of 2026-06-06:
 
 - ICP filing has been obtained and the public pages render
   `沪ICP备2026023209号-1`.
 - `happyword.com.cn` is bound to CloudBase HTTP Access and routes `/` to
-  production CloudBase Run service `happyword-server`.
+  production CloudBase Run service `happyword-server-prod`.
 - Apex DNS resolves through
   `happyword.com.cn.tcbaccess.tencentcloudbase.com`.
+- Route switch completed at 2026-06-06 21:28:43 Asia/Shanghai via
+  `tcb routes edit`. Verification passed for
+  `/api/v1/public/health`, `/api/v1/public/packs/latest.json`, `/admin/login`,
+  and `/family/login`.
+- Legacy CloudBase Run service `happyword-server` was deleted on 2026-06-06
+  after the production route moved to `happyword-server-prod`.
 - `www.happyword.com.cn` is intentionally unsupported. The production
   validation domain is the single apex domain `happyword.com.cn`; do not treat
   `www` DNS/route absence as a migration blocker.
