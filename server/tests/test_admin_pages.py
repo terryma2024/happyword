@@ -266,7 +266,7 @@ async def test_admin_family_packs_page_renders_copy_action_dialogs(
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("admin_console_admin")
-async def test_admin_family_packs_page_renders_story_editor(
+async def test_admin_family_packs_page_links_readonly_detail_without_story_editor(
     client: AsyncClient,
 ) -> None:
     from app.services import family_pack_service
@@ -295,30 +295,24 @@ async def test_admin_family_packs_page_renders_story_editor(
 
     assert page.status_code == 200
     soup = BeautifulSoup(page.text, "html.parser")
-    dialog = soup.find("dialog", attrs={"id": "story-pck-html-story-render"})
-    assert dialog is not None
-    assert dialog.find("textarea", attrs={"name": "storyEn"}) is not None
-    assert dialog.find("textarea", attrs={"name": "storyZh"}) is not None
-    generate_form = soup.find(
-        "form", attrs={"id": "family-pack-story-generate-pck-html-story-render"}
+    action_cell = soup.find("td", attrs={"data-pack-actions": "pck-html-story-render"})
+    assert action_cell is not None
+    action_bar = action_cell.find("div", attrs={"data-action-buttons": "true"})
+    assert action_bar is not None
+    detail_link = action_bar.find(
+        "a", attrs={"href": "/admin/family-packs/pck-html-story-render"}
     )
-    assert generate_form is not None
-    assert generate_form.get("action") == "/admin/family-packs/pck-html-story-render/story/generate"
-    assert generate_form.get("data-disable-on-submit") == "true"
-    generate_button = dialog.find(
-        "button", attrs={"form": "family-pack-story-generate-pck-html-story-render"}
-    )
-    assert generate_button is not None
-    assert generate_button.get("data-submitting-label") == "..."
-    assert 'form.dataset.submitting === "true"' in page.text
-    assert "submitButton.disabled = true" in page.text
-    assert "A family story glows on the server page." in page.text
-    assert "家庭小故事在服务端页面发光。" in page.text
+    assert detail_link is not None
+    assert detail_link.string == "详情"
+    assert action_bar.find("button", string="编辑 story") is None
+    assert action_cell.find("dialog", attrs={"id": "story-pck-html-story-render"}) is None
+    assert "story/generate" not in page.text
+    assert "/metadata" not in page.text
 
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("admin_console_admin")
-async def test_admin_family_pack_metadata_form_updates_story_fields(
+async def test_admin_family_pack_detail_renders_story_and_words_readonly(
     client: AsyncClient,
 ) -> None:
     from app.services import family_pack_service
@@ -333,33 +327,82 @@ async def test_admin_family_pack_metadata_form_updates_story_fields(
     family, user = await create_family_for_parent(email="family-story-edit@example.com")
     await family_pack_service.create_definition(
         family_id=family.family_id,
-        name="Family Story Edit",
-        description=None,
+        name="Family Story Detail",
+        description="family desc",
         parent_user_id=user.username,
-        pack_id="pck-html-story-edit",
-        scene={"bossName": "Keep Me"},
-    )
-
-    resp = await client.post(
-        "/admin/family-packs/pck-html-story-edit/metadata",
-        data={
-            "name": "Family Story Edit",
-            "description": "family desc",
+        pack_id="pck-html-story-detail",
+        scene={
+            "bossName": "Keep Me",
             "storyEn": "A family lantern lights every word.",
             "storyZh": "家庭灯笼照亮每一个单词。",
         },
+    )
+    definition = await family_pack_service.get_definition_for_family(
+        pack_id="pck-html-story-detail",
+        family_id=family.family_id,
+    )
+    await family_pack_service.upsert_draft_word(
+        definition=definition,
+        word_id=f"{family.family_id}-apple",
+        payload={
+            "source": "custom",
+            "word": "apple",
+            "meaning_zh": "苹果",
+            "category": "fruit",
+            "difficulty": 1,
+        },
+        parent_user_id=user.username,
+    )
+    await family_pack_service.publish(
+        definition=definition,
+        parent_user_id=user.username,
+        notes="v1",
+    )
+
+    page = await client.get("/admin/family-packs/pck-html-story-detail")
+
+    assert page.status_code == 200
+    soup = BeautifulSoup(page.text, "html.parser")
+    assert soup.find("a", attrs={"href": "/admin/family-packs"}) is not None
+    assert "Family Story Detail" in page.text
+    assert "family desc" in page.text
+    assert "A family lantern lights every word." in page.text
+    assert "家庭灯笼照亮每一个单词。" in page.text
+    assert "apple" in page.text
+    assert "苹果" in page.text
+    assert "v1" in page.text
+    assert soup.find(
+        "form", attrs={"action": "/admin/family-packs/pck-html-story-detail/metadata"}
+    ) is None
+    assert "story/generate" not in page.text
+    assert soup.find("textarea", attrs={"name": "storyEn"}) is None
+    assert soup.find("textarea", attrs={"name": "storyZh"}) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("admin_console_admin")
+async def test_admin_family_pack_story_edit_endpoints_are_removed(
+    client: AsyncClient,
+) -> None:
+    login = await client.post(
+        "/admin/login",
+        data={"username": "console-admin", "password": _CONSOLE_PW},
+        follow_redirects=False,
+    )
+    client.cookies.update(login.cookies)
+
+    metadata = await client.post(
+        "/admin/family-packs/pck-missing/metadata",
+        data={"name": "X", "description": "", "storyEn": "x", "storyZh": "y"},
+        follow_redirects=False,
+    )
+    generate = await client.post(
+        "/admin/family-packs/pck-missing/story/generate",
         follow_redirects=False,
     )
 
-    assert resp.status_code == 303
-    refreshed = await family_pack_service.get_definition_for_family(
-        pack_id="pck-html-story-edit",
-        family_id=family.family_id,
-    )
-    assert refreshed.description == "family desc"
-    assert refreshed.scene["bossName"] == "Keep Me"
-    assert refreshed.scene["storyEn"] == "A family lantern lights every word."
-    assert refreshed.scene["storyZh"] == "家庭灯笼照亮每一个单词。"
+    assert metadata.status_code == 404
+    assert generate.status_code == 404
 
 
 @pytest.mark.asyncio
