@@ -27,7 +27,8 @@ def test_root_renders_public_landing_and_parent_login_remains_available(
     )
     assert "text/html" in r.headers.get("content-type", "")
     body = r.text
-    assert "魔法背单词把英语词汇练习变成孩子愿意进入的冒险" in body
+    assert 'data-page="landing"' in body
+    assert "魔法背单词｜英语学习小冒险" in body
     assert "/features" in body
     assert "/family/login" in body
 
