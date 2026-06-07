@@ -89,15 +89,12 @@ img {
   letter-spacing: 0;
 }
 
-.brand-mark {
-  display: grid;
+.brand-icon {
   width: 34px;
   height: 34px;
-  place-items: center;
+  flex: 0 0 auto;
   border-radius: var(--radius-card);
-  background: var(--accent);
-  color: #f8fffb;
-  font-weight: 900;
+  box-shadow: 0 10px 24px var(--shadow);
 }
 
 .nav-links {

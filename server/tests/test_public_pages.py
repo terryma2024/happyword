@@ -52,7 +52,7 @@ async def test_public_pages_include_icp_footer(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "path",
-    ["/privacy", "/terms", "/report_and_appeal"],
+    ["/privacy", "/terms", "/report_and_appeal", "/support"],
 )
 async def test_legal_pages_match_landing_visual_shell(client: AsyncClient, path: str) -> None:
     response = await client.get(path)
@@ -68,6 +68,26 @@ async def test_legal_pages_match_landing_visual_shell(client: AsyncClient, path:
     assert brand is not None
     assert brand["href"] == "/"
     assert "魔法背单词" in brand.get_text(" ", strip=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path",
+    ["/", "/features", "/privacy", "/terms", "/report_and_appeal", "/support"],
+)
+async def test_public_pages_use_app_icon_for_brand(client: AsyncClient, path: str) -> None:
+    response = await client.get(path)
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    brand = soup.find("a", class_="brand")
+    assert brand is not None
+
+    icon = brand.find("img", class_="brand-icon")
+    assert icon is not None
+    assert icon["src"] == "/static/favicon.png"
+    assert icon["alt"] == ""
+    assert brand.find(class_="brand-mark") is None
 
 
 @pytest.mark.asyncio
