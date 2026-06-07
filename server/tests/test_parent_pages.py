@@ -272,6 +272,9 @@ async def test_dashboard_with_cookie_renders_skeleton(
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     assert soup.find(id="devices-grid") is not None
+    brand = soup.find("header").find("a", string="魔法背单词 · 家长后台")
+    assert brand is not None
+    assert brand["href"] == dash_home
     assert "dash" in r.text
 
 
