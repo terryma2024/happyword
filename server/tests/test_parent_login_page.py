@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from bs4 import BeautifulSoup
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -54,6 +55,21 @@ async def test_login_page_renders_privacy_consent_checkbox(
     # OAuth and password-login links are gated by the consent script.
     assert "/v1/oauth/" in body
     assert "/family/login/password" in body
+
+
+@pytest.mark.asyncio
+async def test_login_page_header_brand_returns_to_landing_page(
+    client: AsyncClient,
+) -> None:
+    response = await client.get("/family/login")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    header = soup.find("header")
+    assert header is not None
+    brand = header.find("a", string="魔法背单词 · 家长后台")
+    assert brand is not None
+    assert brand["href"] == "/"
 
 
 @pytest.mark.asyncio

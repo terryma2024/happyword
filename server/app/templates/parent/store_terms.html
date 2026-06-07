@@ -1,17 +1,14 @@
-{% extends "_base.html" %}
+{% extends "_legal_base.html" %}
 {% block title %}用户协议{% endblock %}
-{% block content %}
-<article class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-6">
-  <header class="space-y-2">
-    <p class="text-sm text-slate-500">最后更新：2026-06-03</p>
-    <h1 class="text-2xl font-semibold text-slate-900">魔法背单词用户协议</h1>
-    <p class="text-sm text-slate-700">
-      本协议是您（"家长用户"或"您"）与魔法背单词运营方（个人开发者 马天一，
-      以下简称"我们"）之间的有效合同，约定您注册、使用魔法背单词应用与家长后台时的
-      权利义务。请您在使用前认真阅读，勾选"我已阅读并同意"并完成登录即视为接受
-      本协议全部内容。
-    </p>
-  </header>
+{% block legal_meta %}最后更新：2026-06-03{% endblock %}
+{% block legal_title %}魔法背单词用户协议{% endblock %}
+{% block legal_intro %}
+  本协议是您（"家长用户"或"您"）与魔法背单词运营方（个人开发者 马天一，
+  以下简称"我们"）之间的有效合同，约定您注册、使用魔法背单词应用与家长后台时的
+  权利义务。请您在使用前认真阅读，勾选"我已阅读并同意"并完成登录即视为接受
+  本协议全部内容。
+{% endblock %}
+{% block legal_body %}
 
   <section class="space-y-2">
     <h2 class="text-lg font-semibold text-slate-900">一、服务说明</h2>
@@ -136,5 +133,4 @@
       与我们联系。
     </p>
   </section>
-</article>
 {% endblock %}

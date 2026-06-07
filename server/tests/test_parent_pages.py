@@ -6,6 +6,7 @@ ordering changes in the templates.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -35,14 +36,87 @@ async def html_client(db: object) -> AsyncIterator[tuple[AsyncClient, object]]:
 
 
 @pytest.mark.asyncio
-async def test_root_redirects_to_parent_shell(
+async def test_root_renders_public_landing_page(
     html_client: tuple[AsyncClient, object],
 ) -> None:
-    """Bare-domain visits should land on the parent shell, not a 404 JSON."""
+    """Bare-domain visits should show the public product landing page."""
     ac, _ = html_client
     r = await ac.get("/")
-    assert r.status_code in (303, 307, 308)
-    assert r.headers["location"] == "/family/login"
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    assert soup.find("main", attrs={"data-page": "landing"}) is not None
+    assert "魔法背单词" in r.text
+    assert "把英语练习变成一场小小冒险" in r.text
+    assert soup.find("a", href="/family/login") is not None
+    assert soup.find("img", attrs={"src": "/static/landing-hero.png"}) is not None
+    assert "沪ICP备2026023209号-1" in r.text
+
+
+@pytest.mark.asyncio
+async def test_landing_page_styles_shared_icp_footer(
+    html_client: tuple[AsyncClient, object],
+) -> None:
+    """Landing CSS should style the shared ICP footer without Tailwind."""
+    ac, _ = html_client
+    r = await ac.get("/")
+    assert r.status_code == 200
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    footer = soup.find("footer")
+    assert footer is not None
+    assert footer.find("a", href="https://beian.miit.gov.cn/") is not None
+
+    css = (Path(__file__).resolve().parents[1] / "app/static/landing.css").read_text()
+    assert "body > footer > div" in css
+    assert "text-align: center" in css
+
+
+@pytest.mark.asyncio
+async def test_landing_page_has_app_download_options(
+    html_client: tuple[AsyncClient, object],
+) -> None:
+    """Landing page should expose iOS download and coming-soon placeholders."""
+    ac, _ = html_client
+    r = await ac.get("/")
+    assert r.status_code == 200
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    download = soup.find(id="download")
+    assert download is not None
+    ios = download.find(
+        "a",
+        href="https://apps.apple.com/cn/app/%E9%AD%94%E6%B3%95%E8%83%8C%E5%8D%95%E8%AF%8D/id6768499286",
+    )
+    assert ios is not None
+    assert ios.get("target") == "_blank"
+    assert ios.get("rel") == ["noopener"]
+
+    placeholders = download.find_all("button", attrs={"data-coming-soon": "true"})
+    assert {button.get_text(strip=True) for button in placeholders} == {
+        "AndroidComing soon",
+        "HarmonyOSComing soon",
+    }
+    assert download.find(id="download-status") is not None
+    assert "Coming soon" in r.text
+
+
+@pytest.mark.asyncio
+async def test_landing_page_has_mobile_reachable_features_link(
+    html_client: tuple[AsyncClient, object],
+) -> None:
+    """Feature page entry should remain available when mobile CSS hides nav links."""
+    ac, _ = html_client
+    r = await ac.get("/")
+    assert r.status_code == 200
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    hero_actions = soup.find("div", class_="hero-actions")
+    assert hero_actions is not None
+    features_link = hero_actions.find("a", href="/features")
+    assert features_link is not None
+    assert "功能介绍" in features_link.get_text(strip=True)
 
 
 @pytest.mark.asyncio
@@ -198,6 +272,9 @@ async def test_dashboard_with_cookie_renders_skeleton(
     assert r.status_code == 200
     soup = BeautifulSoup(r.text, "html.parser")
     assert soup.find(id="devices-grid") is not None
+    brand = soup.find("header").find("a", string="魔法背单词 · 家长后台")
+    assert brand is not None
+    assert brand["href"] == dash_home
     assert "dash" in r.text
 
 

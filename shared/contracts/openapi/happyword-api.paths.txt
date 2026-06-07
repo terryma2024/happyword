@@ -134,6 +134,7 @@
 /family/{family_id}/redemptions/{request_id}/approve
 /family/{family_id}/redemptions/{request_id}/reject
 /family/{family_id}/verify
+/features
 /p/{token_short}
 /privacy
 /report_and_appeal

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/static/favicon.png" />
+  <link rel="stylesheet" href="/static/landing.css?v=legal-260607" />
+  <title>{% block title %}魔法背单词{% endblock %}｜魔法背单词</title>
+</head>
+<body>
+  <header class="landing-nav legal-nav" aria-label="主导航">
+    <a class="brand" href="/" aria-label="返回魔法背单词落地页">
+      <img class="brand-icon" src="/static/favicon.png" alt="" width="34" height="34" />
+      <span>魔法背单词</span>
+    </a>
+    <nav class="nav-links" aria-label="页面链接">
+      <a href="/">首页</a>
+      <a href="/features">功能介绍</a>
+      <a href="/#download">App 下载</a>
+      <a href="/support">支持</a>
+    </nav>
+    <a class="nav-cta" href="/family/login">进入家长后台</a>
+  </header>
+
+  <main class="legal-shell" data-page="legal">
+    <section class="legal-hero">
+      <p class="legal-kicker">{% block legal_meta %}{% endblock %}</p>
+      <h1>{% block legal_title %}{% endblock %}</h1>
+      <p>{% block legal_intro %}{% endblock %}</p>
+    </section>
+
+    <article class="legal-panel">
+      {% block legal_body %}{% endblock %}
+    </article>
+  </main>
+
+  {% include "_icp_footer.html" %}
+</body>
+</html>

@@ -15034,6 +15034,27 @@
         ]
       }
     },
+    "/features": {
+      "get": {
+        "operationId": "get_features_features_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Features",
+        "tags": [
+          "public-pages"
+        ]
+      }
+    },
     "/p/{token_short}": {
       "get": {
         "operationId": "get_landing_p__token_short__get",

@@ -1,33 +1,29 @@
-{% extends "_base.html" %}
+{% extends "_legal_base.html" %}
 {% block title %}支持{% endblock %}
-{% block content %}
-<article class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-6">
-  <header class="space-y-2">
-    <h1 class="text-2xl font-semibold text-slate-900">魔法背单词支持</h1>
-    <p class="text-sm text-slate-700">
-      如果你在账号绑定、词库导入、孩子练习或数据删除上遇到问题，可以通过下面方式获得帮助。
-    </p>
-  </header>
+{% block legal_meta %}用户支持{% endblock %}
+{% block legal_title %}魔法背单词支持{% endblock %}
+{% block legal_intro %}
+如果你在账号绑定、词库导入、孩子练习或数据删除上遇到问题，可以通过下面方式获得帮助。
+{% endblock %}
+{% block legal_body %}
+<section>
+  <h2>常见入口</h2>
+  <ul>
+    <li>家长后台：首页、词库、兑换、消息和账号设置均在登录后可用。</li>
+    <li>账号与数据管理：iOS 应用内打开“游戏配置 → 孩子档案 → 账号与数据管理”。</li>
+    <li>隐私政策：<a href="/privacy">/privacy</a>。</li>
+  </ul>
+</section>
 
-  <section class="space-y-2">
-    <h2 class="text-lg font-semibold text-slate-900">常见入口</h2>
-    <ul class="list-disc pl-5 text-sm text-slate-700 space-y-1">
-      <li>家长后台：首页、词库、兑换、消息和账号设置均在登录后可用。</li>
-      <li>账号与数据管理：iOS 应用内打开“游戏配置 → 孩子档案 → 账号与数据管理”。</li>
-      <li>隐私政策：<a class="text-sky-600 hover:underline" href="/privacy">/privacy</a>。</li>
-    </ul>
-  </section>
-
-  <section class="space-y-2">
-    <h2 class="text-lg font-semibold text-slate-900">联系支持</h2>
-    <p class="text-sm text-slate-700">
-      支持邮箱：
-      <a class="text-sky-600 hover:underline" href="mailto:matianyi2023@gmail.com">matianyi2023@gmail.com</a>。
-    </p>
-    <p class="text-sm text-slate-700">
-      来信时请尽量提供设备类型、应用版本、问题出现的时间、家长账号邮箱，以及可复现步骤。
-      请不要在邮件中发送孩子的敏感个人信息。
-    </p>
-  </section>
-</article>
+<section>
+  <h2>联系支持</h2>
+  <p>
+    支持邮箱：
+    <a href="mailto:matianyi2023@gmail.com">matianyi2023@gmail.com</a>。
+  </p>
+  <p>
+    来信时请尽量提供设备类型、应用版本、问题出现的时间、家长账号邮箱，以及可复现步骤。
+    请不要在邮件中发送孩子的敏感个人信息。
+  </p>
+</section>
 {% endblock %}

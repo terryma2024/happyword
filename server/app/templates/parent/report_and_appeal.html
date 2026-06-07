@@ -1,14 +1,12 @@
-{% extends "_base.html" %}
+{% extends "_legal_base.html" %}
 {% block title %}投诉与举报入口{% endblock %}
-{% block content %}
-<article class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 space-y-6">
-  <header class="space-y-2">
-    <h1 class="text-2xl font-semibold text-slate-900">投诉与举报入口</h1>
-    <p class="text-sm text-slate-700">
-      我们非常重视每一位用户和家长的投诉、举报与申诉。若你在使用魔法背单词时遇到内容、账号、学习数据、
-      未成年人保护、愿望兑换或其他体验问题，请通过本页面提供的邮箱联系我们。
-    </p>
-  </header>
+{% block legal_meta %}公开反馈入口{% endblock %}
+{% block legal_title %}投诉与举报入口{% endblock %}
+{% block legal_intro %}
+  我们非常重视每一位用户和家长的投诉、举报与申诉。若你在使用魔法背单词时遇到内容、账号、学习数据、
+  未成年人保护、愿望兑换或其他体验问题，请通过本页面提供的邮箱联系我们。
+{% endblock %}
+{% block legal_body %}
 
   <section class="space-y-2">
     <h2 class="text-lg font-semibold text-slate-900">可以反馈的问题</h2>
@@ -32,5 +30,4 @@
       如涉及未成年人，请避免在邮件中发送不必要的敏感个人信息。
     </p>
   </section>
-</article>
 {% endblock %}

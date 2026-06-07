@@ -1,15 +1,13 @@
-"""Apex-domain landing E2E (PUB-6): / -> /family/login.
+"""Apex-domain landing E2E (PUB-6): / renders the public landing page.
 
 Regression guard for the Vercel deploy returning ``{"detail":"Not Found"}``
 at the apex (e.g. ``https://happyword.com.cn/``). The unit test in
 ``tests/test_parent_pages.py`` exercises the in-process ASGI app and
 cannot catch deployment-layer breakage — a Vercel rewrite that
-short-circuits ``/``, the FastAPI preset loading the wrong entrypoint
-(`api/index.py` vs `app.main.py`, see the comment in
-`server/api/index.py`), or the parent web router silently dropping out.
-This test walks the redirect chain over real HTTP so any of those
-failures surface as a red CI gate instead of a broken-looking domain in
-production.
+short-circuits ``/`` or the FastAPI preset loading the wrong entrypoint
+(`api/index.py` vs `app.main.py`, see the comment in `server/api/index.py`).
+The root route now serves the public marketing landing page, while the
+parent login shell remains available at ``/family/login``.
 """
 
 import httpx
@@ -17,23 +15,24 @@ import pytest
 
 
 @pytest.mark.e2e
-def test_root_redirects_to_parent_login_chain(http: httpx.Client) -> None:
-    """GET / -> 3xx /family/login -> 200 HTML.
-
-    The shared ``http`` fixture has ``follow_redirects=False`` so each hop
-    is asserted explicitly. We accept any 3xx redirect status (303/307/308)
-    because the chosen status is an implementation detail and the suite
-    should not over-specify it.
-    """
-    # Hop 1: bare apex must NOT return FastAPI's default 404 JSON.
+def test_root_renders_public_landing_and_parent_login_remains_available(
+    http: httpx.Client,
+) -> None:
+    """GET / returns the marketing landing page and /family/login still works."""
+    # Bare apex must NOT return FastAPI's default 404 JSON.
     r = http.get("/")
-    assert r.status_code in (303, 307, 308), (
-        f"apex / returned {r.status_code}; expected a redirect to the "
-        f"parent shell. Body preview: {r.text[:200]!r}"
+    assert r.status_code == 200, (
+        f"apex / returned {r.status_code}; expected the public landing page. "
+        f"Body preview: {r.text[:200]!r}"
     )
-    assert r.headers["location"] == "/family/login"
+    assert "text/html" in r.headers.get("content-type", "")
+    body = r.text
+    assert 'data-page="landing"' in body
+    assert "魔法背单词｜英语学习小冒险" in body
+    assert "/features" in body
+    assert "/family/login" in body
 
-    # Hop 2: login page renders the actual HTML landing page.
+    # Parent shell still renders separately for the CTA and existing family flows.
     r = http.get("/family/login")
     assert r.status_code == 200
     assert "text/html" in r.headers.get("content-type", "")

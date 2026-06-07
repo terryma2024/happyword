@@ -7,8 +7,9 @@ from datetime import UTC, datetime
 from beanie import init_beanie
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.config import get_settings
@@ -77,6 +78,7 @@ from app.services.category_service import seed_manual_categories
 from app.services.email_provider import build_email_provider
 
 logger = logging.getLogger("uvicorn.error")
+templates = Jinja2Templates(directory="app/templates")
 
 
 async def bootstrap_admin_user(username: str, password: str) -> None:
@@ -187,18 +189,14 @@ async def redirect_happyword_cool(request: Request, call_next):
     return await call_next(request)
 
 
-@app.get("/", include_in_schema=False)
-async def root() -> RedirectResponse:
-    """Redirect bare-domain visits to the parent web shell.
-
-    Without this route a hit to e.g. https://happyword.com.cn/ falls
-    through to FastAPI's default 404 handler and returns
-    `{"detail":"Not Found"}`, which looks broken to anyone landing on the
-    domain. The parent shell is the only public HTML surface this server
-    has, so `/` -> `/family/login` (canonical pre-login parent shell entry)
-    is the most useful landing experience.
-    """
-    return RedirectResponse(url="/family/login", status_code=307)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def root(request: Request) -> HTMLResponse:
+    """Render the public product landing page for bare-domain visits."""
+    return templates.TemplateResponse(
+        request,
+        "landing.html",
+        {"user": None},
+    )
 
 
 app.include_router(auth_router.router)
