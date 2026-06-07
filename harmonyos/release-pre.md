@@ -4,8 +4,8 @@
 > App: `魔法背单词`
 > Bundle name: `com.terryma.wordmagicgame`
 > Version name: `1.0.2`
-> Version code: `1020001`
-> Last updated: 2026-06-05
+> Version code: `1020002`
+> Last updated: 2026-06-07
 
 ## Source Of Truth
 
@@ -20,7 +20,7 @@
 ## Current Repo State
 
 - [x] `versionName` is `1.0.2` in `harmonyos/AppScope/app.json5`.
-- [x] `versionCode` is `1020001` in `harmonyos/AppScope/app.json5`.
+- [x] `versionCode` is `1020002` in `harmonyos/AppScope/app.json5`.
 - [x] Bundle name is `com.terryma.wordmagicgame`.
 - [x] Debug-only battle finish button is gated by `BuildProfile.BUILD_MODE_NAME`.
 - [x] Home version-label triple-tap is gated to debug builds.
