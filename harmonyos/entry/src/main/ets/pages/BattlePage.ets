@@ -14,6 +14,11 @@ import { BattleQuestionScheduler } from '../services/BattleQuestionScheduler';
 import { BattleStageScheduler } from '../services/BattleStageScheduler';
 import { wordSupportsQuestionType } from '../services/BattleQuestionTypePolicy';
 import {
+  LetterSlotView,
+  buildLetterSlots,
+  letterSlotRenderKey,
+} from '../services/LetterSlotKey';
+import {
   BattleEngine,
   BattleConfig,
   AnswerOutcome,
@@ -158,19 +163,6 @@ class FloaterPending {
   amount: number = 1;
   key: number = 0;
   stackOffsetVp: number = 0;
-}
-
-/**
- * Inlined LetterTemplate slot model. The previous standalone
- * @Component was folded into BattlePage as @Builder method to
- * satisfy codelinter's avoid-overusing-custom-component rule;
- * the slot row was the entire payload of that component.
- */
-class LetterSlot {
-  idx: number = 0;
-  glyph: string = '';
-  isMissing: boolean = false;
-  isPending: boolean = false;
 }
 
 const LETTER_TEXT_FILLED: string = '#1D3557';
@@ -1955,28 +1947,15 @@ struct BattlePage {
   }
 
   /**
-   * Pre-compute the slot list for the letter-template row. Hoists
-   * `letterMissingIndex` into a local before iterating so the loop
-   * body never reads the @State directly (codelinter rule
-   * `hp-arkui-no-state-var-access-in-loop`).
+   * Pre-compute the slot list for the letter-template row. The visible row
+   * hides normal phrase spaces, so each slot keeps its original template
+   * index before deciding whether it is the active or pending blank.
    */
-  private letterSlots(): LetterSlot[] {
-    const out: LetterSlot[] = [];
+  private letterSlots(): LetterSlotView[] {
     if (this.letterTemplate.length === 0) {
-      return out;
+      return [];
     }
-    const missingIdx: number = this.letterMissingIndex;
-    const pendingIdx: number = this.pendingMissingIndex;
-    const parts: string[] = this.letterTemplateGlyphs();
-    for (let i = 0; i < parts.length; i++) {
-      const slot: LetterSlot = new LetterSlot();
-      slot.idx = i;
-      slot.glyph = parts[i];
-      slot.isMissing = i === missingIdx;
-      slot.isPending = i === pendingIdx;
-      out.push(slot);
-    }
-    return out;
+    return buildLetterSlots(this.letterTemplate, this.letterMissingIndex, this.pendingMissingIndex);
   }
 
   private letterTemplateGlyphs(): string[] {
@@ -2032,7 +2011,7 @@ struct BattlePage {
   @Builder
   private letterTemplateRow() {
     Row({ space: this.letterMetrics().gap }) {
-      ForEach(this.letterSlots(), (item: LetterSlot, _idx: number) => {
+      ForEach(this.letterSlots(), (item: LetterSlotView, _idx: number) => {
         Stack() {
           if (item.isMissing) {
             Column()
@@ -2067,7 +2046,8 @@ struct BattlePage {
         .width(this.letterMetrics().width)
         .height(this.letterMetrics().height)
         .alignContent(Alignment.Center);
-      }, (item: LetterSlot, _idx: number): string => `${item.idx}-${item.glyph}`);
+      }, (item: LetterSlotView, _idx: number): string =>
+        letterSlotRenderKey(item.idx, item.glyph, item.isMissing, item.isPending));
     }
     .id('LetterTemplateRow')
     .width('100%')

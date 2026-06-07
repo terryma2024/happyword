@@ -66,6 +66,7 @@ import battleQuestionSchedulerTest from './BattleQuestionScheduler.test';
 import battleAudioMixerTest from './BattleAudioMixer.test';
 import battleEngineTest from './BattleEngine.test';
 import battleRewardCalcTest from './BattleRewardCalc.test';
+import letterSlotKeyTest from './LetterSlotKey.test';
 import damageFloaterLabelTest from './DamageFloaterLabel.test';
 import pronunciationServiceTest from './PronunciationService.test';
 import themePolicyTest from './ThemePolicy.test';
@@ -153,6 +154,7 @@ export default function testsuite() {
   battleAudioMixerTest();
   battleEngineTest();
   battleRewardCalcTest();
+  letterSlotKeyTest();
   damageFloaterLabelTest();
   pronunciationServiceTest();
   themePolicyTest();
