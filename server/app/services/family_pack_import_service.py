@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import re
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -10,6 +12,8 @@ from app.config import get_settings
 from app.models.family_pack_definition import FamilyPackDefinition  # noqa: TC001
 from app.models.lesson_import_draft import LessonImportDraft  # noqa: TC001
 from app.services import family_pack_service, lesson_service, pack_story_service
+
+logger = logging.getLogger("uvicorn.error")
 
 
 def _slug_word(word: str) -> str:
@@ -105,6 +109,43 @@ def _has_extracted_story(extracted: dict[str, Any]) -> bool:
     )
 
 
+def _elapsed_ms(start: float) -> int:
+    return int((time.perf_counter() - start) * 1000)
+
+
+def _log_import_stage(
+    *,
+    stage: str,
+    definition: FamilyPackDefinition,
+    stage_start: float,
+    total_start: float,
+    rows_count: int | None = None,
+    imported_count: int | None = None,
+    errors_count: int | None = None,
+    payload_bytes: int | None = None,
+    mime: str | None = None,
+) -> None:
+    parts = [
+        "family_pack_import_timing",
+        f"stage={stage}",
+        f"family_id={definition.family_id}",
+        f"pack_id={definition.pack_id}",
+        f"elapsed_ms={_elapsed_ms(stage_start)}",
+        f"total_elapsed_ms={_elapsed_ms(total_start)}",
+    ]
+    optional = {
+        "rows_count": rows_count,
+        "imported_count": imported_count,
+        "errors_count": errors_count,
+        "payload_bytes": payload_bytes,
+        "mime": mime,
+    }
+    for key, value in optional.items():
+        if value is not None:
+            parts.append(f"{key}={value}")
+    logger.info(" ".join(parts))
+
+
 async def import_image_to_draft(
     *,
     definition: FamilyPackDefinition,
@@ -112,24 +153,103 @@ async def import_image_to_draft(
     mime: str,
     parent_user_id: str,
 ) -> tuple[str, str, int, object, list[dict[str, Any]]]:
-    source_image_url = await upload_family_pack_image(payload, mime)
-    model_name, extracted = await extract_family_pack_image(payload, mime)
-    rows = extracted_words_to_rows(family_id=definition.family_id, extracted=extracted)
-    if _has_extracted_story(extracted):
-        await apply_extracted_stories_to_definition(definition=definition, extracted=extracted)
-    else:
-        _story_model, story = await pack_story_service.generate_pack_story(
-            pack_name=definition.name,
-            words=rows,
-        )
-        await apply_extracted_stories_to_definition(definition=definition, extracted=story)
-    draft, errors = await family_pack_service.batch_upsert_draft_words(
+    total_start = time.perf_counter()
+    stage_start = total_start
+    current_stage = "start"
+    _log_import_stage(
+        stage=current_stage,
         definition=definition,
-        rows=rows,
-        parent_user_id=parent_user_id,
+        stage_start=stage_start,
+        total_start=total_start,
+        payload_bytes=len(payload),
+        mime=mime,
     )
-    imported = len(rows) - len(errors)
-    return source_image_url, model_name, imported, draft, errors
+    try:
+        current_stage = "upload_image"
+        stage_start = time.perf_counter()
+        source_image_url = await upload_family_pack_image(payload, mime)
+        _log_import_stage(
+            stage=current_stage,
+            definition=definition,
+            stage_start=stage_start,
+            total_start=total_start,
+        )
+
+        current_stage = "extract_image"
+        stage_start = time.perf_counter()
+        model_name, extracted = await extract_family_pack_image(payload, mime)
+        rows = extracted_words_to_rows(family_id=definition.family_id, extracted=extracted)
+        _log_import_stage(
+            stage=current_stage,
+            definition=definition,
+            stage_start=stage_start,
+            total_start=total_start,
+            rows_count=len(rows),
+        )
+
+        if _has_extracted_story(extracted):
+            current_stage = "story_from_extract"
+            stage_start = time.perf_counter()
+            await apply_extracted_stories_to_definition(definition=definition, extracted=extracted)
+            _log_import_stage(
+                stage=current_stage,
+                definition=definition,
+                stage_start=stage_start,
+                total_start=total_start,
+            )
+        else:
+            current_stage = "story_generate"
+            stage_start = time.perf_counter()
+            _story_model, story = await pack_story_service.generate_pack_story(
+                pack_name=definition.name,
+                words=rows,
+            )
+            await apply_extracted_stories_to_definition(definition=definition, extracted=story)
+            _log_import_stage(
+                stage=current_stage,
+                definition=definition,
+                stage_start=stage_start,
+                total_start=total_start,
+            )
+
+        current_stage = "batch_upsert"
+        stage_start = time.perf_counter()
+        draft, errors = await family_pack_service.batch_upsert_draft_words(
+            definition=definition,
+            rows=rows,
+            parent_user_id=parent_user_id,
+        )
+        imported = len(rows) - len(errors)
+        _log_import_stage(
+            stage=current_stage,
+            definition=definition,
+            stage_start=stage_start,
+            total_start=total_start,
+            rows_count=len(rows),
+            imported_count=imported,
+            errors_count=len(errors),
+        )
+
+        _log_import_stage(
+            stage="complete",
+            definition=definition,
+            stage_start=total_start,
+            total_start=total_start,
+            rows_count=len(rows),
+            imported_count=imported,
+            errors_count=len(errors),
+        )
+        return source_image_url, model_name, imported, draft, errors
+    except Exception:
+        logger.exception(
+            "family_pack_import_timing stage=%s family_id=%s pack_id=%s "
+            "failed=true total_elapsed_ms=%s",
+            current_stage,
+            definition.family_id,
+            definition.pack_id,
+            _elapsed_ms(total_start),
+        )
+        raise
 
 
 class LessonFamilyApproveError(RuntimeError):
