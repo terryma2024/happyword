@@ -106,6 +106,7 @@ class Settings(BaseSettings):
     kimi_model_vision: str = "kimi-k2.6"
     cors_allow_origins: str = "*"
     log_level: Literal["debug", "info", "warning", "error"] = "info"
+    e2e_llm_stub_secret: str = ""
 
     # V0.6.1 — parent web shell
     parent_web_base_url: str = "http://localhost:3000"

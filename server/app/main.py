@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from beanie import init_beanie
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -15,10 +15,10 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import get_settings
 from app.models.audit_log import AuditLog
 from app.models.category import Category
-from app.models.child_profile import ChildProfile
 from app.models.child_checkin import ChildCheckIn
-from app.models.cloud_wishlist_item import CloudWishlistItem
+from app.models.child_profile import ChildProfile
 from app.models.cloud_coin_txn import CloudCoinTxn
+from app.models.cloud_wishlist_item import CloudWishlistItem
 from app.models.device_binding import DeviceBinding
 from app.models.email_verification import EmailVerification
 from app.models.family import Family
@@ -52,8 +52,8 @@ from app.routers import admin_pages as admin_pages_router
 from app.routers import admin_stats as admin_stats_router
 from app.routers import admin_words as admin_words_router
 from app.routers import auth as auth_router
-from app.routers import child_family_pack as child_family_pack_router
 from app.routers import child_checkins as child_checkins_router
+from app.routers import child_family_pack as child_family_pack_router
 from app.routers import child_profile as child_profile_router
 from app.routers import child_wishlist as child_wishlist_router
 from app.routers import child_word_stats as child_word_stats_router
@@ -73,6 +73,7 @@ from app.routers import parent_pages as parent_pages_router
 from app.routers import public_global_pack as public_global_pack_router
 from app.routers import public_packs as public_packs_router
 from app.routers import public_pages as public_pages_router
+from app.services import e2e_llm_stub
 from app.services.auth_service import hash_password, verify_password
 from app.services.category_service import seed_manual_categories
 from app.services.email_provider import build_email_provider
@@ -177,6 +178,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def e2e_llm_stub_middleware(request: Request, call_next):
+    try:
+        token = e2e_llm_stub.enable_for_header(
+            request.headers.get(e2e_llm_stub.HEADER_NAME)
+        )
+    except e2e_llm_stub.E2ELlmStubAuthError:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": {
+                    "error": {
+                        "code": "E2E_LLM_STUB_FORBIDDEN",
+                        "message": "Invalid E2E LLM stub header",
+                    }
+                }
+            },
+        )
+    try:
+        return await call_next(request)
+    finally:
+        if token is not None:
+            e2e_llm_stub.disable(token)
 
 
 @app.middleware("http")

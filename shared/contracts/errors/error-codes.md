@@ -16,6 +16,7 @@ This file is curated from router helpers, service exceptions, and tests. When ad
 | `DRAFT_WORD_NOT_FOUND` | 404 | Family/global packs | Requested draft word id is not present in the source pack draft. |
 | `DRAFT_VALIDATION_FAILED` | 422 | Family packs | Draft rows failed validation before publish (details in payload `rows`). |
 | `DUPLICATE_ID` | 409 | Admin words | Word id already exists. |
+| `E2E_LLM_STUB_FORBIDDEN` | 403 | E2E LLM stub | Request attempted to enable the deployed-test LLM stub with a missing or invalid secret. |
 | `EMAIL_NOT_REGISTERED` | 404 | Parent auth | No parent account exists for this email (password login). |
 | `EMPTY_BODY` | 400 | Admin assets / parent family pack import | Uploaded body is empty (image/audio/import). |
 | `EMPTY_PACK` | 409 | Family/global packs | Pack publish attempted without publishable words. |
