@@ -106,6 +106,10 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     download_step = _step_named(workflow, "Download server source")
     bootstrap_node_step = _step_named(workflow, "Bootstrap Node.js")
     verify_step = _step_named(workflow, "Verify runner toolchain")
+    llm_stub_step = _step_named(
+        workflow,
+        "Generate CloudBase staging LLM E2E stub secret",
+    )
     reset_step = _step_named(workflow, "Reset shared staging E2E database")
     smoke_step = _step_named(workflow, "Run CloudBase staging E2E")
     assert "GITHUB_TOKEN" in download_step
@@ -122,7 +126,17 @@ def test_cloudbase_staging_e2e_uses_self_hosted_runner_and_global_lock() -> None
     assert "npm --version" in bootstrap_node_step
     assert "node --version" in verify_step
     assert "npm --version" in verify_step
+    assert workflow.index("Verify runner toolchain") < workflow.index(
+        "Generate CloudBase staging LLM E2E stub secret"
+    )
+    assert workflow.index("Generate CloudBase staging LLM E2E stub secret") < workflow.index(
+        "Deploy CloudBase staging Run"
+    )
+    assert "secrets.token_hex(32)" in llm_stub_step
+    assert "ENV E2E_LLM_STUB_SECRET=" in llm_stub_step
+    assert 'echo "E2E_LLM_STUB_SECRET=$secret" >> "$GITHUB_ENV"' in llm_stub_step
     assert 'E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_STAGING_BASE_URL"' in smoke_step
+    assert 'E2E_LLM_STUB_SECRET was not generated.' in smoke_step
     assert "E2E_MONGO_DB_NAME: ${{ secrets.E2E_STAGING_DB_NAME }}" in reset_step
     assert "E2E_ADMIN_USER: ${{ secrets.E2E_ADMIN_USER }}" in reset_step
     assert "E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}" in reset_step
@@ -286,7 +300,10 @@ def test_cloudbase_cd_waits_for_a_real_new_deploy_before_health_and_smoke() -> N
     assert "DescribeCloudRunDeployRecord" in capture_step
     assert "printf '\\n' | tcb cloudrun deploy" in deploy_step
     assert "previousDeployId" in wait_step
-    assert "latest.DeployId === previousDeployId && latest.Status === \"deploy_failed\"" in wait_step
+    assert (
+        "latest.DeployId === previousDeployId && latest.Status === \"deploy_failed\""
+        in wait_step
+    )
     assert "Number(latest.BuildId) === 0" in wait_step
     assert "CloudBase deploy process log" in wait_step
     assert "Number(latest.BuildId) > 0" in wait_step
