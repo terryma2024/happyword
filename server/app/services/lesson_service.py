@@ -110,8 +110,10 @@ async def upload_lesson_image(image_bytes: bytes, mime: str) -> str:
     admin import flow still works in dev / CI. V0.5.6 swaps this in for
     a real Vercel Blob `httpx.put` (see app/services/blob_service.py).
     """
-    from app.services import blob_service  # noqa: PLC0415
+    from app.services import blob_service, e2e_llm_stub  # noqa: PLC0415
 
+    if e2e_llm_stub.enabled():
+        return e2e_llm_stub.source_image_url(image_bytes, mime)
     if not blob_service.is_blob_configured():
         digest = blob_service.short_hash(image_bytes)
         ext = mime.removeprefix("image/")
@@ -138,6 +140,12 @@ async def fetch_lesson_image(url: str) -> tuple[bytes, str]:
     as the bytes look like a real image.
     """
     import httpx  # noqa: PLC0415
+
+    from app.services import e2e_llm_stub  # noqa: PLC0415
+
+    stubbed = e2e_llm_stub.fetch_image(url)
+    if stubbed is not None:
+        return stubbed
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(url)

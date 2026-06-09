@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -132,6 +134,63 @@ async def test_import_image_updates_pack_scene_stories(
     scene = detail.json()["definition"]["scene"]
     assert scene["storyEn"] == "A bright castle opens its classroom gates."
     assert scene["storyZh"] == "明亮的城堡打开教室大门，邀请孩子们开始单词冒险。"
+
+
+@pytest.mark.asyncio
+async def test_import_image_logs_stage_timings(
+    db: object, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    from app.services import family_pack_import_service
+
+    async def fake_extract(payload: bytes, mime: str) -> tuple[str, dict[str, object]]:
+        return (
+            "fake-model",
+            {
+                "category_id": "school",
+                "story_en": "A bright castle opens its classroom gates.",
+                "story_zh": "明亮的城堡打开教室大门，邀请孩子们开始单词冒险。",
+                "words": [
+                    {
+                        "word": "book",
+                        "meaningZh": "书",
+                        "category": "school",
+                        "difficulty": 1,
+                    }
+                ],
+            },
+        )
+
+    async def fake_upload(payload: bytes, mime: str) -> str:
+        return "mock://family-pack-image.png"
+
+    monkeypatch.setattr(family_pack_import_service, "extract_family_pack_image", fake_extract)
+    monkeypatch.setattr(family_pack_import_service, "upload_family_pack_image", fake_upload)
+    caplog.set_level(logging.INFO, logger="uvicorn.error")
+
+    ac, family_id = await _make_parent_client(email="timed-import@example.com")
+    async with ac:
+        created = await ac.post("/api/v1/family/_/family-packs", json={"name": "Timed"})
+        pack_id = created.json()["pack_id"]
+        resp = await ac.post(
+            f"/api/v1/family/_/family-packs/{pack_id}/import-image",
+            files={"image": ("page.png", b"fake-png", "image/png")},
+        )
+
+    assert resp.status_code == 201, resp.text
+    messages = "\n".join(record.getMessage() for record in caplog.records)
+    for stage in (
+        "start",
+        "upload_image",
+        "extract_image",
+        "story_from_extract",
+        "batch_upsert",
+        "complete",
+    ):
+        assert f"stage={stage}" in messages
+    assert f"family_id={family_id}" in messages
+    assert f"pack_id={pack_id}" in messages
+    assert "elapsed_ms=" in messages
+    assert "total_elapsed_ms=" in messages
 
 
 @pytest.mark.asyncio

@@ -192,6 +192,38 @@ jobs:
           npm --version
           "$UV_BIN" --version
 
+      - name: Generate CloudBase staging LLM E2E stub secret
+        if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
+        run: |
+          set -euo pipefail
+          secret="$(python3.12 - <<'PY'
+          import secrets
+
+          print(secrets.token_hex(32))
+          PY
+          )"
+          echo "::add-mask::$secret"
+          export E2E_LLM_STUB_SECRET="$secret"
+          python3.12 - <<'PY'
+          import os
+          from pathlib import Path
+
+          secret = os.environ["E2E_LLM_STUB_SECRET"]
+          dockerfile = Path("Dockerfile")
+          text = dockerfile.read_text(encoding="utf-8")
+          marker = "ENV E2E_LLM_STUB_SECRET="
+          if marker in text:
+              raise SystemExit("Dockerfile already contains E2E_LLM_STUB_SECRET")
+          needle = "EXPOSE 8080\n"
+          if needle not in text:
+              raise SystemExit("Dockerfile ENV insertion point not found")
+          dockerfile.write_text(
+              text.replace(needle, f"{needle}ENV E2E_LLM_STUB_SECRET={secret}\n", 1),
+              encoding="utf-8",
+          )
+          PY
+          echo "E2E_LLM_STUB_SECRET=$secret" >> "$GITHUB_ENV"
+
       - name: Install CloudBase CLI
         if: ${{ env.HAS_CLOUDBASE_STAGING_BASE_URL == 'true' && env.HAS_TCB_E2E_MONGODB_URI == 'true' && env.HAS_E2E_STAGING_DB_NAME == 'true' && env.HAS_TCB_SECRET_ID == 'true' && env.HAS_TCB_SECRET_KEY == 'true' && env.HAS_TCB_ENV_ID == 'true' }}
         run: |
@@ -361,6 +393,10 @@ jobs:
           E2E_CRON_SECRET: ${{ secrets.E2E_CRON_SECRET }}
         run: |
           set -o pipefail
+          if [ -z "${E2E_LLM_STUB_SECRET:-}" ]; then
+            echo "::error::E2E_LLM_STUB_SECRET was not generated."
+            exit 1
+          fi
           mkdir -p artifacts
           E2E_BASE_URL="$CLOUDBASE_EFFECTIVE_STAGING_BASE_URL" "$UV_BIN" run --python 3.12 pytest -v -m e2e 2>&1 | tee artifacts/e2e-pytest.log
 

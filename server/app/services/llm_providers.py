@@ -621,6 +621,11 @@ async def generate_json_text_with_provider(
     prompt: str,
     timeout_seconds: float,
 ) -> tuple[str, dict[str, Any]]:
+    from app.services import e2e_llm_stub  # noqa: PLC0415
+
+    if e2e_llm_stub.enabled():
+        return e2e_llm_stub.MODEL_NAME, e2e_llm_stub.story_payload()
+
     settings = get_settings()
     provider, _source = await _selected_lesson_provider_async(settings)
     api_key = _require_provider_api_key(settings, provider)
@@ -656,6 +661,11 @@ async def extract_lesson_payload_with_provider(
     prompt: str,
     timeout_seconds: float,
 ) -> tuple[str, dict[str, Any]]:
+    from app.services import e2e_llm_stub  # noqa: PLC0415
+
+    if e2e_llm_stub.enabled():
+        return e2e_llm_stub.MODEL_NAME, e2e_llm_stub.lesson_payload()
+
     settings = get_settings()
     provider, _source = await _selected_lesson_provider_async(settings)
     api_key = _require_provider_api_key(settings, provider)

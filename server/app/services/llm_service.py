@@ -129,6 +129,14 @@ async def extract_target_vocabulary(
         LlmConfigError: when the server has no API key configured.
         LlmCallError: when the model returns no parsed payload.
     """
+    from app.services import e2e_llm_stub  # noqa: PLC0415
+
+    if e2e_llm_stub.enabled():
+        return (
+            e2e_llm_stub.MODEL_NAME,
+            ScanResult.model_validate(e2e_llm_stub.scan_payload()),
+        )
+
     settings = get_settings()
     if settings.llm_provider != "openai":
         from app.services.llm_providers import (  # noqa: PLC0415
@@ -224,6 +232,11 @@ async def extract_word_distractors(word: Word) -> tuple[str, list[str]]:
     when the model refuses, returns the wrong shape, or includes the
     source word as a distractor.
     """
+    from app.services import e2e_llm_stub  # noqa: PLC0415
+
+    if e2e_llm_stub.enabled():
+        return e2e_llm_stub.MODEL_NAME, e2e_llm_stub.distractors()
+
     settings = get_settings()
     client = _get_openai_client()
     chosen_model = settings.openai_model_text
@@ -257,6 +270,11 @@ async def extract_word_example(word: Word) -> tuple[str, dict[str, str]]:
 
     Returns ``(model_used, {"en": ..., "zh": ...})``.
     """
+    from app.services import e2e_llm_stub  # noqa: PLC0415
+
+    if e2e_llm_stub.enabled():
+        return e2e_llm_stub.MODEL_NAME, e2e_llm_stub.example_sentence(word.word)
+
     settings = get_settings()
     client = _get_openai_client()
     chosen_model = settings.openai_model_text
