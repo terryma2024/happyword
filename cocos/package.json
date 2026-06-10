@@ -10,5 +10,6 @@
   "devDependencies": {
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
-  }
+  },
+  "version": "3.8.8"
 }

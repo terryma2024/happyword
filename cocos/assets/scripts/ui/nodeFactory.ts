@@ -73,6 +73,18 @@ export function makeCapsule(
     return makeRoundedRect(name, parent, width, height, height / 2, fillHex, options);
 }
 
+/// Repaints a node previously created via makeRoundedRect/makeCapsule.
+export function redrawRoundedRect(node: Node, radius: number, fillHex: string): void {
+    const transform = node.getComponent(UITransform);
+    const g = node.getComponent(Graphics);
+    if (!transform || !g) { return; }
+    const { width, height } = transform.contentSize;
+    g.clear();
+    g.roundRect(-width / 2, -height / 2, width, height, radius);
+    g.fillColor = color(fillHex);
+    g.fill();
+}
+
 /// Horizontal bar that can be resized by ratio (HP bars).
 export function makeBar(
     name: string,

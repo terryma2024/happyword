@@ -33,7 +33,8 @@ export class FighterCard {
         );
 
         const half = layout.fighterCardHeight / 2;
-        this.hpLabel = makeLabel('HpLabel', this.cardNode, 'HP 10 / 10', 24, theme.navy, { y: half - 40 });
+        // Slightly left of center so the top-right bonus capsule never overlaps.
+        this.hpLabel = makeLabel('HpLabel', this.cardNode, 'HP 10 / 10', 24, theme.navy, { x: -28, y: half - 40 });
         this.hpBar = makeBar('HpBar', this.cardNode, layout.hpBarWidth, layout.hpBarHeight, theme.hpGreen, { y: half - 72 });
 
         this.spriteNode = makeNode('CharacterSprite', this.cardNode, 0, 10);

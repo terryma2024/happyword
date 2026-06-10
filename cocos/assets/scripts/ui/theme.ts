@@ -13,6 +13,8 @@ export const theme = {
     page: '#FAFCFF',
     hpGreen: '#2EBF61',
     feedbackGreen: '#2EA659',
+    capsuleCorrect: '#2EBF61',
+    capsuleDisabled: '#9CA3AF',
     hpTrack: '#D8DEE6',
     textSecondary: '#6B7280',
     white: '#FFFFFF',

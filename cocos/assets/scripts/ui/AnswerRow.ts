@@ -3,7 +3,8 @@
 // Mirrors BattleView.swift answerRow.
 
 import { Label, Node } from 'cc';
-import { makeCapsule, makeLabel, makeNode } from './nodeFactory';
+import { AnswerSelection, capsuleColorHex } from './answerFeedback';
+import { makeCapsule, makeLabel, makeNode, redrawRoundedRect } from './nodeFactory';
 import { layout, theme } from './theme';
 
 export class AnswerRow {
@@ -33,5 +34,15 @@ export class AnswerRow {
             button.node.active = text.length > 0;
             button.label.string = text;
         });
+        this.setSelection(null, false);
+    }
+
+    /// Feedback colors while input is locked (BattleView.tint(for:) parity).
+    setSelection(selection: AnswerSelection | null, locked: boolean): void {
+        const radius = layout.answerCapsuleHeight / 2;
+        for (const button of this.buttons) {
+            redrawRoundedRect(button.node, radius,
+                capsuleColorHex(button.label.string, selection, locked));
+        }
     }
 }
