@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0229DC3FF1FA96BF049D43B5 /* AppMetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */; };
 		02807A455A26A592F5A50824 /* ParentLessonAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 055A58C7A27B41F82685F51B /* ParentLessonAPITests.swift */; };
+		02D94A056415627298BF1D5E /* CocosBattleBridgeMessageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B25BEDF6B2E3DAE952649EB /* CocosBattleBridgeMessageTests.swift */; };
 		030EFE16BBEEDAB01CC37A16 /* BattleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9983A8C2B2B01829EC9597FF /* BattleEngineTests.swift */; };
 		03E9C1A592065ACCA85467EA /* BattleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD73245074A18477196A675 /* BattleEngine.swift */; };
 		05BC6D224C27760A1DAD2210 /* DeviceBindingQRSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAEB370D2B26B2384DF6720 /* DeviceBindingQRSupport.swift */; };
@@ -58,6 +59,7 @@
 		84D8A119D96B9FA547E4A692 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD67E5BBF93C1BE0735D635A /* MessageBubble.swift */; };
 		85D1855D2EF21E06F39BEEFD /* MonsterCodex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07C00999FA9E98A1DB8AA43 /* MonsterCodex.swift */; };
 		8921E19FF5AD3AA7BE0DE7CE /* DamageFloaterLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DD367904EE83901B35B4DBF /* DamageFloaterLabel.swift */; };
+		8F419690CE5BC272F58E0C2D /* CocosBattleBridgeMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08B482B5E9419345EE4C8683 /* CocosBattleBridgeMessage.swift */; };
 		94E337DE08EB43CCE456B2EE /* BattleAnimationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270E555771AAF420876EE21A /* BattleAnimationEvent.swift */; };
 		9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F904781ED9F4E18758477D /* ContentView.swift */; };
 		9DF2BEE790660386A5F086D0 /* WMCocosGame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D77EB7D022B942903648CBF4 /* WMCocosGame.cpp */; };
@@ -113,6 +115,7 @@
 /* Begin PBXFileReference section */
 		00F904781ED9F4E18758477D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		055A58C7A27B41F82685F51B /* ParentLessonAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentLessonAPITests.swift; sourceTree = "<group>"; };
+		08B482B5E9419345EE4C8683 /* CocosBattleBridgeMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocosBattleBridgeMessage.swift; sourceTree = "<group>"; };
 		09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleAnimationTests.swift; sourceTree = "<group>"; };
 		0DD367904EE83901B35B4DBF /* DamageFloaterLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DamageFloaterLabel.swift; sourceTree = "<group>"; };
 		23154A3F10071C2D2CCFD273 /* hit_normal.caf */ = {isa = PBXFileReference; path = hit_normal.caf; sourceTree = "<group>"; };
@@ -130,6 +133,7 @@
 		352522C2D3BD647768FE7121 /* CocosLabSpike.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocosLabSpike.swift; sourceTree = "<group>"; };
 		357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalGrowthTests.swift; sourceTree = "<group>"; };
 		38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordMagicGameUITests.swift; sourceTree = "<group>"; };
+		3B25BEDF6B2E3DAE952649EB /* CocosBattleBridgeMessageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocosBattleBridgeMessageTests.swift; sourceTree = "<group>"; };
 		3CEAE6C7CF557B6369922034 /* SystemBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBrowser.swift; sourceTree = "<group>"; };
 		3D6DC100A56167A251EA78E3 /* defeat.caf */ = {isa = PBXFileReference; path = defeat.caf; sourceTree = "<group>"; };
 		3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentApiModels.swift; sourceTree = "<group>"; };
@@ -223,6 +227,7 @@
 				6F814B1BBA3CCE7B7362B3C5 /* BattleQuestionScheduler.swift */,
 				3F8096273F6C5E474BA07021 /* BattleQuestionTypePolicy.swift */,
 				7E7911CFA23216E3E25B0767 /* BuiltinPackLoader.swift */,
+				08B482B5E9419345EE4C8683 /* CocosBattleBridgeMessage.swift */,
 				4A2A531BC5F3AB79B8D7B9A4 /* GameConfig.swift */,
 				9608B2C630968DC71F5D8092 /* Learning.swift */,
 				B07C00999FA9E98A1DB8AA43 /* MonsterCodex.swift */,
@@ -316,6 +321,7 @@
 				729681DD70AD1933A6DBB022 /* BattleStartTests.swift */,
 				4D84AAB7ED8DD3DC8C0E97D3 /* BuiltinPackLoaderTests.swift */,
 				4A3AE3BC6E5E9D7342858F39 /* CloudSyncTests.swift */,
+				3B25BEDF6B2E3DAE952649EB /* CocosBattleBridgeMessageTests.swift */,
 				4397EF73C254584D191DEFC5 /* DamageFloaterLabelTests.swift */,
 				546A3D7EC1D58BE06B395150 /* GameConfigTests.swift */,
 				357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */,
@@ -619,6 +625,7 @@
 				36A3AC8F104BA497DBDCA64F /* BattleStartTests.swift in Sources */,
 				1C0C548B809FA132D6A411D8 /* BuiltinPackLoaderTests.swift in Sources */,
 				118517F860A8B7A84CC7F205 /* CloudSyncTests.swift in Sources */,
+				02D94A056415627298BF1D5E /* CocosBattleBridgeMessageTests.swift in Sources */,
 				D6BAC04EAF14394DB70A9820 /* DamageFloaterLabelTests.swift in Sources */,
 				E92ACF8BEA82C2AC742DB463 /* GameConfigTests.swift in Sources */,
 				DF359379C8C7DA1A70E22B08 /* HTTPParentApiClientTests.swift in Sources */,
@@ -651,6 +658,7 @@
 				1EC51AEF8DDD6E8ABCDDD57E /* ChildProfileView.swift in Sources */,
 				307C8F11567A577C390D2D67 /* CloudBindingViews.swift in Sources */,
 				443F20D68ED6417108718DFF /* CloudSyncServices.swift in Sources */,
+				8F419690CE5BC272F58E0C2D /* CocosBattleBridgeMessage.swift in Sources */,
 				DCD90407A7A0493118D579D0 /* CocosLabSpike.swift in Sources */,
 				E7276A8FCD0B214B97D93205 /* ConfigView.swift in Sources */,
 				9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */,
