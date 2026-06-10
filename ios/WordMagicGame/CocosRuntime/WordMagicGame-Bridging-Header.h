@@ -1,0 +1,1 @@
+#import "WMCocosRuntimeShim.h"

@@ -561,12 +561,58 @@ struct DevMenuView: View {
                 devToolButton("MessageBubbleLab", id: "DevMenuMessageBubbleLabButton") {
                     coordinator.openMessageBubbleLab()
                 }
+                devToolButton("CocosLab", id: "DevMenuCocosLabButton") {
+                    runCocosBridgeSpike()
+                }
             }
             Spacer()
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 16)
         .background(Color.white)
+    }
+
+    /// Phase 0 spike: boots the embedded Cocos runtime, round-trips a
+    /// ping/pong over the JSB bridge, then dismisses the Cocos window.
+    /// Temporary — replaced by the battle integration in Phase 2.
+    private func runCocosBridgeSpike() {
+        let shim = WMCocosRuntimeShim.shared()
+        guard WMCocosRuntimeShim.isLinked else {
+            coordinator.showToast("Cocos runtime not linked (simulator build)")
+            return
+        }
+
+        shim.setScriptHandler { json in
+            guard let data = json.data(using: .utf8),
+                  let message = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let type = message["type"] as? String
+            else { return }
+
+            switch type {
+            case "battle/ready":
+                shim.send(toScript: #"{"v":1,"type":"battle/ping","payload":{"echo":"spike"}}"#)
+            case "battle/pong":
+                let payload = message["payload"] as? [String: Any]
+                let echo = payload?["echo"] as? String ?? "?"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    shim.dismissCocosWindow()
+                    shim.setScriptHandler(nil)
+                    coordinator.showToast("Cocos pong OK (echo: \(echo))")
+                }
+            default:
+                break
+            }
+        }
+
+        guard shim.presentCocosWindow() else {
+            coordinator.showToast("Cocos runtime failed to boot")
+            return
+        }
+
+        // Safety net: never leave the Cocos window stuck over the app.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
+            shim.dismissCocosWindow()
+        }
     }
 
     private func devToolButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {
