@@ -129,7 +129,7 @@ export class CritOverlay {
         const flashOpacity = flash.addComponent(UIOpacity);
         flashOpacity.opacity = 0;
         tween(flashOpacity)
-            .to(0.12, { opacity: 195 })
+            .to(0.12, { opacity: 128 })
             .delay(0.22)
             .to(0.55, { opacity: 0 })
             .call(() => flash.destroy())

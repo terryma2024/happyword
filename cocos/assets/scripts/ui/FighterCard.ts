@@ -170,7 +170,7 @@ export class FighterCard {
                     .to(0.2, { position: base })
                     .start();
                 tween(this.hurtOpacity)
-                    .to(0.08, { opacity: 120 })
+                    .to(0.08, { opacity: 85 })
                     .to(0.34, { opacity: 0 })
                     .start();
                 break;
