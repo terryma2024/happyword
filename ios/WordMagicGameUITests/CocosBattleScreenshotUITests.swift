@@ -14,8 +14,11 @@ final class CocosBattleScreenshotUITests: XCTestCase {
         XCTAssertTrue(start.waitForExistence(timeout: 10), "home start button missing")
         start.tap()
 
-        // First boot takes a couple of seconds; capture early and settled frames.
-        sleep(3)
+        // First boot takes a couple of seconds; the early frame aims at the
+        // monster-intro bubble window (visible ~1.05s after scene ready).
+        sleep(2)
+        attachScreenshot(named: "battle-2s")
+        sleep(1)
         attachScreenshot(named: "battle-3s")
         sleep(4)
         attachScreenshot(named: "battle-7s")
