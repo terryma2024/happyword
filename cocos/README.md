@@ -10,8 +10,15 @@ Contract: `shared/contracts/cocos-battle-bridge/`.
 
 ## Commands
 - Unit tests (pure TS, no editor): `npm test`
-- iOS build: open in Cocos Creator → Project → Build → platform iOS,
-  output `build/ios` (gitignored). See "iOS embed" below.
+- **Headless iOS build (preferred)**: `tools/cocos/build-ios.sh` — quits the
+  editor, runs the Creator CLI build (data + Xcode project), and rebuilds the
+  arm64 device engine libs. Then rebuild the host app in `ios/`.
+- Editor build (alternative): open in Cocos Creator → Project → Build →
+  platform iOS, output `build/ios` (gitignored). Editor builds reset the
+  engine libs to x86_64-simulator; rerun the cmake arm64 steps afterwards.
+- Device battle screenshot check: `xcodebuild test … -only-testing:`
+  `WordMagicGameUITests/CocosBattleScreenshotUITests` (device destination),
+  then export attachments from the result bundle.
 
 ## iOS embed (Phase 0 spike recipe — keep updated)
 
