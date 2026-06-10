@@ -7,6 +7,7 @@ final class CocosBattleBridgeTests: XCTestCase {
         var sent: [String] = []
         var handler: ((String) -> Void)?
         var presented = false
+        var isEngineBooted = false
 
         func present() -> Bool { presented = true; return true }
         func dismiss() { presented = false }

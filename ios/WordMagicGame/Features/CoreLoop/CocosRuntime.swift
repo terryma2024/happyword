@@ -4,6 +4,9 @@ import UIKit
 /// without the engine linked (simulator builds, unit tests).
 @MainActor
 protocol CocosRuntime: AnyObject {
+    /// True once the engine booted in this process; re-entry resumes the
+    /// existing scene (which will NOT send battle/ready again).
+    var isEngineBooted: Bool { get }
     /// Shows the Cocos window, booting the engine on first call.
     /// Returns false when the runtime is unavailable or failed to boot.
     func present() -> Bool
@@ -27,6 +30,7 @@ enum CocosRuntimeFactory {
 
 @MainActor
 private final class ShimCocosRuntime: CocosRuntime {
+    var isEngineBooted: Bool { WMCocosRuntimeShim.shared().isBooted }
     func present() -> Bool { WMCocosRuntimeShim.shared().presentCocosWindow() }
     func dismiss() { WMCocosRuntimeShim.shared().dismissCocosWindow() }
     func send(json: String) { WMCocosRuntimeShim.shared().send(toScript: json) }

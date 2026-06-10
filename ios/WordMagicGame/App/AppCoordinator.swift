@@ -58,6 +58,9 @@ final class AppCoordinator: ObservableObject {
     @Published var toastMessage: String?
     @Published var toastAccessibilityIdentifier: String = "AppToast"
     @Published var dailyLearningState: DailyLearningState
+    /// Set when the Cocos battle surface failed for the current session;
+    /// reset on every battle start so one bad session never disables Cocos.
+    @Published var cocosBattleFallbackActive = false
 
     let configStore: GameConfigStore
     let coinAccount: CoinAccount
@@ -307,7 +310,27 @@ final class AppCoordinator: ObservableObject {
         activeBattleStartDate = Date()
         dailyLearningState = state
         battleEngine = engine
+        cocosBattleFallbackActive = false
         route = .battle
+    }
+
+    /// Whether the battle route shows the Cocos scene (device builds) or the
+    /// native BattleView (simulator, debug toggle, UI tests, runtime failure).
+    var shouldUseCocosBattleView: Bool {
+        shouldUseCocosBattleView(runtimeLinked: CocosRuntimeFactory.isRuntimeLinked)
+    }
+
+    func shouldUseCocosBattleView(
+        runtimeLinked: Bool,
+        arguments: [String] = ProcessInfo.processInfo.arguments,
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        guard runtimeLinked, !cocosBattleFallbackActive else { return false }
+        guard !arguments.contains("-UITestForceNativeBattle") else { return false }
+        if DeveloperToolsPolicy.isDeveloperToolsVisible(), defaults.bool(forKey: "dev.useNativeBattleView") {
+            return false
+        }
+        return true
     }
 
     func startReviewBattle() {
@@ -365,6 +388,7 @@ final class AppCoordinator: ObservableObject {
         activeBattleKind = .review
         activeBattleStartDate = Date()
         battleEngine = engine
+        cocosBattleFallbackActive = false
         route = .battle
     }
 

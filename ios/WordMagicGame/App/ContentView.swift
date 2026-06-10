@@ -18,7 +18,11 @@ struct ContentView: View {
                 HomeView(coordinator: coordinator)
             case .battle:
                 if let engine = coordinator.battleEngine {
-                    BattleView(coordinator: coordinator, engine: engine)
+                    if coordinator.shouldUseCocosBattleView {
+                        CocosBattleView(coordinator: coordinator, engine: engine)
+                    } else {
+                        BattleView(coordinator: coordinator, engine: engine)
+                    }
                 }
             case .result:
                 ResultView(coordinator: coordinator)

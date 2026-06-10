@@ -29,6 +29,7 @@
 		1EA949B65E0754847993E701 /* answer_wrong.caf in Resources */ = {isa = PBXBuildFile; fileRef = 68372BDDD996C96E71C26B01 /* answer_wrong.caf */; };
 		1EC51AEF8DDD6E8ABCDDD57E /* ChildProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC72BF2F14325B68BCB749C /* ChildProfileView.swift */; };
 		26B615F58D86B8EC7AA6B0D7 /* BattleAnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09D8D3EF59E2C8C643882355 /* BattleAnimationTests.swift */; };
+		287707A6BA0CF0CE69D00F5C /* CocosBattleRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C895746EC6A44339ED5A814A /* CocosBattleRoutingTests.swift */; };
 		2D9B8D104C526A576B6FF478 /* ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94693A96123F2BD2C3D2F70B /* ResultView.swift */; };
 		301B7244196BEFBF71282B40 /* BattleQuestionSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3C8A9552AEDE224EFFE2585 /* BattleQuestionSchedulerTests.swift */; };
 		307C8F11567A577C390D2D67 /* CloudBindingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75E239F17ECE5B0C5B1CF48 /* CloudBindingViews.swift */; };
@@ -47,6 +48,7 @@
 		4F4ECE46BBDD358C515C85D3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6288AB79A566478B8CD0BC1F /* Assets.xcassets */; };
 		54CE238928E274D0BB0B5A92 /* BattleQuestionTypePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8096273F6C5E474BA07021 /* BattleQuestionTypePolicy.swift */; };
 		55390F1AEF427177EFA5778D /* fruit-forest.json in Resources */ = {isa = PBXBuildFile; fileRef = 47BC3511BBA49EE9C87AD467 /* fruit-forest.json */; };
+		55AB9D672684CBEAD91B9CD6 /* CocosBattleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91375262D5025DD5EBC0135 /* CocosBattleView.swift */; };
 		579EE45B2B7202F7B3269EFF /* WordEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD002304AC10A20B5A041CF4 /* WordEntry.swift */; };
 		5977BDCF4C1E492668878C0A /* GrowthLoopViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3244CB8E1A251419DDBF976E /* GrowthLoopViews.swift */; };
 		5CE532062EAAC36F72958B4D /* AppMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9157DCBBBBB134DAFBFB0F /* AppMetadata.swift */; };
@@ -194,6 +196,7 @@
 		BAFCA991CD24F7ED033538FB /* MonsterDialogueCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterDialogueCatalog.swift; sourceTree = "<group>"; };
 		BD67E5BBF93C1BE0735D635A /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
 		C695865CC24B715BCC601E85 /* PackSelectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackSelectionStore.swift; sourceTree = "<group>"; };
+		C895746EC6A44339ED5A814A /* CocosBattleRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocosBattleRoutingTests.swift; sourceTree = "<group>"; };
 		CD002304AC10A20B5A041CF4 /* WordEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordEntry.swift; sourceTree = "<group>"; };
 		CD41DDA32E64510B4BF3B879 /* WMCocosEnginePrelude.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WMCocosEnginePrelude.h; sourceTree = "<group>"; };
 		D2A9EC8E570DA5CD48D36B4B /* MonsterCodexStyleBackButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexStyleBackButton.swift; sourceTree = "<group>"; };
@@ -201,6 +204,7 @@
 		D6EA146510840CA416E89B42 /* MonsterDialogueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterDialogueTests.swift; sourceTree = "<group>"; };
 		D77EB7D022B942903648CBF4 /* WMCocosGame.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = WMCocosGame.cpp; sourceTree = "<group>"; };
 		D8153AC2F257A53D94737FCE /* MessageBubbleGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleGeometryTests.swift; sourceTree = "<group>"; };
+		D91375262D5025DD5EBC0135 /* CocosBattleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocosBattleView.swift; sourceTree = "<group>"; };
 		DE88295E834B88BEA145A889 /* QuestionGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionGeneratorTests.swift; sourceTree = "<group>"; };
 		DF9CF0856D6DEEA5B1643F84 /* CocosBattleBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocosBattleBridge.swift; sourceTree = "<group>"; };
 		E1915D885E57624FF4078BDE /* MonsterCodexView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonsterCodexView.swift; sourceTree = "<group>"; };
@@ -301,6 +305,7 @@
 			children = (
 				3282D4D1268FF1FE6DAB3358 /* BattleView.swift */,
 				DF9CF0856D6DEEA5B1643F84 /* CocosBattleBridge.swift */,
+				D91375262D5025DD5EBC0135 /* CocosBattleView.swift */,
 				E7CA91CD35DEFA93FEEAE51C /* CocosRuntime.swift */,
 				0DD367904EE83901B35B4DBF /* DamageFloaterLabel.swift */,
 				3244CB8E1A251419DDBF976E /* GrowthLoopViews.swift */,
@@ -334,6 +339,7 @@
 				4A3AE3BC6E5E9D7342858F39 /* CloudSyncTests.swift */,
 				3B25BEDF6B2E3DAE952649EB /* CocosBattleBridgeMessageTests.swift */,
 				615E3D9A77B471B6CF5931E9 /* CocosBattleBridgeTests.swift */,
+				C895746EC6A44339ED5A814A /* CocosBattleRoutingTests.swift */,
 				4397EF73C254584D191DEFC5 /* DamageFloaterLabelTests.swift */,
 				546A3D7EC1D58BE06B395150 /* GameConfigTests.swift */,
 				357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */,
@@ -639,6 +645,7 @@
 				118517F860A8B7A84CC7F205 /* CloudSyncTests.swift in Sources */,
 				02D94A056415627298BF1D5E /* CocosBattleBridgeMessageTests.swift in Sources */,
 				D9BBBA36BFAEABC2F0E6C70E /* CocosBattleBridgeTests.swift in Sources */,
+				287707A6BA0CF0CE69D00F5C /* CocosBattleRoutingTests.swift in Sources */,
 				D6BAC04EAF14394DB70A9820 /* DamageFloaterLabelTests.swift in Sources */,
 				E92ACF8BEA82C2AC742DB463 /* GameConfigTests.swift in Sources */,
 				DF359379C8C7DA1A70E22B08 /* HTTPParentApiClientTests.swift in Sources */,
@@ -674,6 +681,7 @@
 				443F20D68ED6417108718DFF /* CloudSyncServices.swift in Sources */,
 				39BE3E746CC471728BC813BD /* CocosBattleBridge.swift in Sources */,
 				8F419690CE5BC272F58E0C2D /* CocosBattleBridgeMessage.swift in Sources */,
+				55AB9D672684CBEAD91B9CD6 /* CocosBattleView.swift in Sources */,
 				DCD90407A7A0493118D579D0 /* CocosLabSpike.swift in Sources */,
 				E85A60BC5DC45B4AD0BAC8A5 /* CocosRuntime.swift in Sources */,
 				E7276A8FCD0B214B97D93205 /* ConfigView.swift in Sources */,

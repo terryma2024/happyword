@@ -30,7 +30,14 @@ final class CocosBattleBridge {
     }
 
     func start() -> Bool {
-        runtime.present()
+        let resuming = runtime.isEngineBooted
+        guard runtime.present() else { return false }
+        if resuming {
+            // The scene is already alive and won't send battle/ready again;
+            // battle/init acts as a full scene reset (see contract README).
+            handleReady()
+        }
+        return true
     }
 
     func stop() {

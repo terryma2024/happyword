@@ -13,6 +13,10 @@ typedef void (^WMScriptMessageHandler)(NSString *json);
 
 @property (class, readonly) BOOL isLinked;
 
+/// YES once the engine has booted in this process (battles after the first
+/// resume the existing scene instead of reloading it).
+@property (readonly) BOOL isBooted;
+
 + (instancetype)shared;
 
 /// Boots the engine on first call (irreversible for the process lifetime),

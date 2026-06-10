@@ -15,6 +15,7 @@
 }
 
 + (BOOL)isLinked { return NO; }
+- (BOOL)isBooted { return NO; }
 - (BOOL)presentCocosWindow { return NO; }
 - (void)dismissCocosWindow {}
 - (void)sendToScript:(NSString *)json {}
@@ -86,6 +87,8 @@ static NSString *const kWMToNativeEvent = @"wmBattleToNative";
 }
 
 + (BOOL)isLinked { return YES; }
+
+- (BOOL)isBooted { return _booted; }
 
 - (BOOL)presentCocosWindow {
     if (_booted) {

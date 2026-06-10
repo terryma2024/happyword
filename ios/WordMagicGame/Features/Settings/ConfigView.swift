@@ -535,6 +535,7 @@ struct ConfigView: View {
 
 struct DevMenuView: View {
     @ObservedObject var coordinator: AppCoordinator
+    @AppStorage("dev.useNativeBattleView") private var useNativeBattleView = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -564,6 +565,17 @@ struct DevMenuView: View {
                 devToolButton("CocosLab", id: "DevMenuCocosLabButton") {
                     runCocosBridgeSpike()
                 }
+                Toggle("Use native BattleView", isOn: $useNativeBattleView)
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .foregroundStyle(AppTheme.navy)
+                    .padding(.horizontal, 16)
+                    .frame(width: 360, height: 56)
+                    .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
+                    )
+                    .accessibilityIdentifier("DevMenuNativeBattleToggle")
             }
             Spacer()
         }
