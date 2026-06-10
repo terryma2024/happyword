@@ -27,6 +27,10 @@ typedef void (^WMScriptMessageHandler)(NSString *json);
 - (void)sendToScript:(NSString *)json;
 - (void)setScriptHandler:(nullable WMScriptMessageHandler)handler;
 
+/// Spike diagnostics: logs whether the engine loop ticks and what the JS
+/// world looks like. Safe to call any time after presentCocosWindow.
+- (void)debugProbe;
+
 @end
 
 NS_ASSUME_NONNULL_END

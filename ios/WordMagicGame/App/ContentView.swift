@@ -105,6 +105,11 @@ struct ContentView: View {
         }
         .onAppear {
             OrientationController.apply(for: coordinator.route)
+            if ProcessInfo.processInfo.arguments.contains("-CocosLabAutoRun") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    CocosLabSpike.run(coordinator: coordinator)
+                }
+            }
         }
         .onChange(of: coordinator.route) { _, route in
             OrientationController.apply(for: route)

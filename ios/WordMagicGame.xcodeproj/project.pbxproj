@@ -14,6 +14,7 @@
 		05BC6D224C27760A1DAD2210 /* DeviceBindingQRSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAEB370D2B26B2384DF6720 /* DeviceBindingQRSupport.swift */; };
 		0A5527873875D5DF44DFC7FF /* Learning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9608B2C630968DC71F5D8092 /* Learning.swift */; };
 		0B0BDF39C97A5ECA4B8DC408 /* MonsterDialogueCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCA991CD24F7ED033538FB /* MonsterDialogueCatalog.swift */; };
+		0C6AA20F0EF1444281B39E74 /* CocosLabSpikeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592FB161A28256A2ACEA6D01 /* CocosLabSpikeUITests.swift */; };
 		0D92C5BC2268F1E0D62A4CA9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3D73555B610C471DEB23E99 /* AppDelegate.swift */; };
 		0F85857104D068CD0348FD23 /* PackLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FAA4BEA60462EF5E008000A /* PackLibrary.swift */; };
 		118517F860A8B7A84CC7F205 /* CloudSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A3AE3BC6E5E9D7342858F39 /* CloudSyncTests.swift */; };
@@ -76,6 +77,7 @@
 		D6BAC04EAF14394DB70A9820 /* DamageFloaterLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4397EF73C254584D191DEFC5 /* DamageFloaterLabelTests.swift */; };
 		DB7C81381850767CB9885D42 /* school-castle.json in Resources */ = {isa = PBXBuildFile; fileRef = 322D0A3007C7DA1E3A44E318 /* school-castle.json */; };
 		DC8CE988A3697BC51B07E777 /* MonsterCodexView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1915D885E57624FF4078BDE /* MonsterCodexView.swift */; };
+		DCD90407A7A0493118D579D0 /* CocosLabSpike.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352522C2D3BD647768FE7121 /* CocosLabSpike.swift */; };
 		DDA330FBA246668479E39BF3 /* monster_defeat.caf in Resources */ = {isa = PBXBuildFile; fileRef = 3201BCE4E5A181174665A24E /* monster_defeat.caf */; };
 		DEA66323892BE383962CB013 /* SpellbookTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E0AFDE11C52A445F1E6563 /* SpellbookTests.swift */; };
 		DF359379C8C7DA1A70E22B08 /* HTTPParentApiClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F1547BA538DD85443F0406 /* HTTPParentApiClientTests.swift */; };
@@ -125,6 +127,7 @@
 		322D0A3007C7DA1E3A44E318 /* school-castle.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "school-castle.json"; sourceTree = "<group>"; };
 		3244CB8E1A251419DDBF976E /* GrowthLoopViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrowthLoopViews.swift; sourceTree = "<group>"; };
 		3282D4D1268FF1FE6DAB3358 /* BattleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleView.swift; sourceTree = "<group>"; };
+		352522C2D3BD647768FE7121 /* CocosLabSpike.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocosLabSpike.swift; sourceTree = "<group>"; };
 		357E80E34F6EF98CF4A1F005 /* LocalGrowthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalGrowthTests.swift; sourceTree = "<group>"; };
 		38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordMagicGameUITests.swift; sourceTree = "<group>"; };
 		3CEAE6C7CF557B6369922034 /* SystemBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemBrowser.swift; sourceTree = "<group>"; };
@@ -144,6 +147,7 @@
 		4E24CB33D609FA08E8E9B075 /* WordMagicGame.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WordMagicGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		546A3D7EC1D58BE06B395150 /* GameConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConfigTests.swift; sourceTree = "<group>"; };
 		588982EC166F4EE86491D005 /* Spellbook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spellbook.swift; sourceTree = "<group>"; };
+		592FB161A28256A2ACEA6D01 /* CocosLabSpikeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocosLabSpikeUITests.swift; sourceTree = "<group>"; };
 		5E540CFB2BCCC470ED117B65 /* Question.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Question.swift; sourceTree = "<group>"; };
 		5FAA4BEA60462EF5E008000A /* PackLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackLibrary.swift; sourceTree = "<group>"; };
 		6288AB79A566478B8CD0BC1F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -270,6 +274,7 @@
 			children = (
 				8BC72BF2F14325B68BCB749C /* ChildProfileView.swift */,
 				A75E239F17ECE5B0C5B1CF48 /* CloudBindingViews.swift */,
+				352522C2D3BD647768FE7121 /* CocosLabSpike.swift */,
 				B8B82B38DA43BA9443CC2B54 /* ConfigView.swift */,
 				AAAEB370D2B26B2384DF6720 /* DeviceBindingQRSupport.swift */,
 				9C15AADFA8966E1FCC290A1C /* MessageBubbleLabView.swift */,
@@ -339,6 +344,7 @@
 		91144466FE6FE0F30DABF0B7 /* WordMagicGameUITests */ = {
 			isa = PBXGroup;
 			children = (
+				592FB161A28256A2ACEA6D01 /* CocosLabSpikeUITests.swift */,
 				38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */,
 			);
 			path = WordMagicGameUITests;
@@ -596,6 +602,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0C6AA20F0EF1444281B39E74 /* CocosLabSpikeUITests.swift in Sources */,
 				B3504CF00EF29F88A237A5D9 /* WordMagicGameUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -644,6 +651,7 @@
 				1EC51AEF8DDD6E8ABCDDD57E /* ChildProfileView.swift in Sources */,
 				307C8F11567A577C390D2D67 /* CloudBindingViews.swift in Sources */,
 				443F20D68ED6417108718DFF /* CloudSyncServices.swift in Sources */,
+				DCD90407A7A0493118D579D0 /* CocosLabSpike.swift in Sources */,
 				E7276A8FCD0B214B97D93205 /* ConfigView.swift in Sources */,
 				9596795CCBB5E69984F7DF0F /* ContentView.swift in Sources */,
 				8921E19FF5AD3AA7BE0DE7CE /* DamageFloaterLabel.swift in Sources */,

@@ -62,5 +62,18 @@ no separate Cocos app. Verified with Cocos Creator 3.8.8 + Xcode 26.4.
 ### Known quirks
 - `native/engine/ios/CMakeLists.txt` adds `-Wno-invalid-specialization`
   (Xcode 26 clang rejects enoki's std-trait specializations on the arm64 path).
+- `JsbBridgeWrapper addScriptEventListener:` (MRC) **takes ownership** of the
+  listener — it calls `[listener release]` internally. ARC callers must hand it
+  an extra retain (`CFRetain`) or the block is over-released and the first
+  `triggerEvent` jumps through a dangling pointer (see WMCocosRuntimeShim.mm).
+- The actual `UIApplication.delegate` is SwiftUI's internal class; reach the
+  `@UIApplicationDelegateAdaptor`'s `window` property with `performSelector:`
+  (message forwarding) — KVC `setValue:forKey:` throws `NSUnknownKeyException`.
+- A `UIWindow` created without attaching a `UIWindowScene` never becomes
+  visible in scene-based apps; the shim attaches the foreground scene.
 - Spike verification: DevMenu → CocosLab runs a ping/pong round-trip against
   the `BridgeProbe` scene script and dismisses the Cocos window on success.
+  Headless repro: launch the app with `-CocosLabAutoRun`
+  (`xcrun devicectl device process launch --console --device <id>
+  com.terryma.wordmagicgame -- -CocosLabAutoRun`). Automated check:
+  `WordMagicGameUITests/CocosLabSpikeUITests` (device destination only).
