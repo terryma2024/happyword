@@ -1,14 +1,21 @@
-// Top status strip: Combo (left), Battle title (center), Countdown + Escape (right).
-// Mirrors BattleView.swift topStatus.
+// Top status strip: Combo (left), Battle title (center), Countdown + Escape
+// (right). Mirrors BattleView.swift topStatus: Escape is a small bordered
+// button (pale fill, blue text) and disables while feedback is showing.
 
-import { Label, Node, UITransform } from 'cc';
+import { Label, Node, UIOpacity, UITransform } from 'cc';
 import { formatCountdown } from './format';
-import { makeCapsule, makeLabel, makeNode } from './nodeFactory';
+import { makeCapsule, makeLabel, makeNode, redrawRoundedRect } from './nodeFactory';
 import { layout, theme } from './theme';
+
+const ESCAPE_WIDTH = 110;
+const ESCAPE_HEIGHT = 46;
+const ESCAPE_FILL = '#E8EDF4';
 
 export class TopStatusBar {
     private comboLabel!: Label;
     private countdownLabel!: Label;
+    private escapeLabel!: Label;
+    private escapeEnabled = true;
     escapeNode!: Node;
     onEscapeTap: (() => void) | null = null;
 
@@ -16,13 +23,16 @@ export class TopStatusBar {
         const bar = makeNode('TopStatusBar', parent, 0, layout.topStatusY);
         bar.getComponent(UITransform)!.setContentSize(layout.designWidth, 60);
 
-        this.comboLabel = makeLabel('ComboLabel', bar, 'Combo: 0', 26, theme.navy, { x: -520 });
-        makeLabel('TitleLabel', bar, 'Battle', 34, theme.ink, { x: 0 });
-        this.countdownLabel = makeLabel('CountdownLabel', bar, 'Countdown 5:00', 26, theme.navy, { x: 380 });
+        this.comboLabel = makeLabel('ComboLabel', bar, 'Combo: 0', 28, theme.navy, { x: -520 });
+        makeLabel('TitleLabel', bar, 'Battle', 44, theme.navy, { x: 0 });
+        this.countdownLabel = makeLabel('CountdownLabel', bar, 'Countdown 5:00', 28, theme.navy, { x: 390 });
 
-        this.escapeNode = makeCapsule('EscapeButton', bar, 130, 50, theme.blue, { x: 560 });
-        makeLabel('EscapeLabel', this.escapeNode, 'Escape', 24, theme.white);
-        this.escapeNode.on(Node.EventType.TOUCH_END, () => { this.onEscapeTap?.(); });
+        this.escapeNode = makeCapsule('EscapeButton', bar, ESCAPE_WIDTH, ESCAPE_HEIGHT, ESCAPE_FILL, { x: 560 });
+        this.escapeNode.addComponent(UIOpacity);
+        this.escapeLabel = makeLabel('EscapeLabel', this.escapeNode, 'Escape', 22, theme.blue);
+        this.escapeNode.on(Node.EventType.TOUCH_END, () => {
+            if (this.escapeEnabled) { this.onEscapeTap?.(); }
+        });
     }
 
     setCombo(count: number): void {
@@ -31,5 +41,14 @@ export class TopStatusBar {
 
     setCountdown(seconds: number): void {
         this.countdownLabel.string = `Countdown ${formatCountdown(seconds)}`;
+    }
+
+    /// Native parity: Escape disables (grays out) while feedback is showing.
+    setEscapeEnabled(enabled: boolean): void {
+        this.escapeEnabled = enabled;
+        redrawRoundedRect(this.escapeNode, ESCAPE_HEIGHT / 2, ESCAPE_FILL);
+        this.escapeLabel.color.fromHEX(enabled ? theme.blue : theme.capsuleDisabled);
+        this.escapeLabel.color = this.escapeLabel.color.clone();
+        this.escapeNode.getComponent(UIOpacity)!.opacity = enabled ? 255 : 160;
     }
 }

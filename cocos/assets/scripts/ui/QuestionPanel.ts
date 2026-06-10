@@ -23,16 +23,16 @@ export class QuestionPanel {
     build(parent: Node): void {
         const panel = makeNode('QuestionPanel', parent, 0, 40);
 
-        makeLabel('CaptionLabel', panel, 'Question', 22, theme.textSecondary, { y: 150 });
-        this.promptLabel = makeLabel('PromptLabel', panel, '', 56, theme.ink, { y: 90 });
+        makeLabel('CaptionLabel', panel, 'Question', 26, theme.questionCaption, { y: 150 });
+        this.promptLabel = makeLabel('PromptLabel', panel, '', 60, theme.navy, { y: 90 });
 
         this.sentenceTemplateLabel = makeLabel('SentenceTemplateLabel', panel, '', 30, theme.ink, { y: 100 });
         this.sentenceZhLabel = makeLabel('SentenceZhLabel', panel, '', 24, theme.textSecondary, { y: 56 });
 
         this.templateRow = makeNode('LetterTemplateRow', panel, 0, 20);
 
-        this.speakerNode = makeCapsule('SpeakerButton', panel, 64, 64, theme.navy, { y: -50 });
-        makeLabel('SpeakerGlyph', this.speakerNode, '♪', 30, theme.white);
+        this.speakerNode = makeCapsule('SpeakerButton', panel, 87, 87, theme.paleBlue, { y: -50 });
+        makeLabel('SpeakerGlyph', this.speakerNode, '🔊', 42, theme.navy);
         this.speakerNode.on(Node.EventType.TOUCH_END, () => { this.onSpeakerTap?.(); });
 
         this.feedbackLabel = makeLabel('FeedbackLabel', panel, 'Choose the right spell', 24, theme.textSecondary, { y: -120 });

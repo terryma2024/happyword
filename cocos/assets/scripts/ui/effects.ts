@@ -18,17 +18,40 @@ export class ProjectileLayer {
         this.layer = makeNode('ProjectileLayer', parent);
     }
 
-    fly(direction: 'forward' | 'backward', label: string): void {
-        const fromX = direction === 'forward' ? -layout.fighterCardX + 150 : layout.fighterCardX - 150;
+    /// Glow circle + colored capsule with the word (MagicProjectileOverlay):
+    /// blue for a forward hit, red for a backward (wrong-answer) bounce,
+    /// gold and larger for crits (intensity > 1).
+    fly(direction: 'forward' | 'backward', label: string, intensity = 1): void {
+        const crit = intensity > 1;
+        const coreHex = crit ? theme.gold : (direction === 'forward' ? '#7AA8FF' : theme.red);
+        const glowHex = crit ? '#FFE670' : coreHex;
+
+        const margin = layout.designWidth * 0.34;
+        const fromX = direction === 'forward' ? -margin : margin;
         const toX = -fromX;
 
         const node = makeNode('Projectile', this.layer, fromX, 0);
-        const g = node.addComponent(Graphics);
-        g.circle(0, 0, 18);
-        g.fillColor = color(theme.gold);
-        g.fill();
-        makeLabel('ProjectileLabel', node, label, 22, theme.navy, { y: 34 });
-        node.addComponent(UIOpacity);
+
+        const glow = makeNode('ProjectileGlow', node);
+        const glowGraphics = glow.addComponent(Graphics);
+        glowGraphics.circle(0, 0, crit ? 64 : 44);
+        glowGraphics.fillColor = color(glowHex);
+        glowGraphics.fill();
+        glow.addComponent(UIOpacity).opacity = 115;
+
+        const capsuleWidth = Math.max(72, label.length * 14 + 28);
+        const capsuleHeight = crit ? 40 : 34;
+        const capsule = makeNode('ProjectileCapsule', node);
+        capsule.getComponent(UITransform)!.setContentSize(capsuleWidth, capsuleHeight);
+        const capsuleGraphics = capsule.addComponent(Graphics);
+        capsuleGraphics.roundRect(-capsuleWidth / 2, -capsuleHeight / 2, capsuleWidth, capsuleHeight, capsuleHeight / 2);
+        capsuleGraphics.fillColor = color(coreHex);
+        capsuleGraphics.fill();
+        capsuleGraphics.lineWidth = 2;
+        capsuleGraphics.strokeColor = color(crit ? '#E8821E' : theme.navy);
+        capsuleGraphics.roundRect(-capsuleWidth / 2, -capsuleHeight / 2, capsuleWidth, capsuleHeight, capsuleHeight / 2);
+        capsuleGraphics.stroke();
+        makeLabel('ProjectileLabel', capsule, label, crit ? 24 : 20, theme.white);
 
         tween(node)
             .to(PROJECTILE_FLIGHT_SECONDS, { position: new Vec3(toX, 0, 0) })
@@ -50,17 +73,19 @@ export class FloaterLayer {
         this.active[side] += 1;
         const baseX = side === 'player' ? -layout.fighterCardX : layout.fighterCardX;
         const offset = (this.active[side] - 1) * FLOATER_STAGGER;
+        // Just above the character art region of the card.
+        const baseY = layout.fighterCardY + layout.fighterCardHeight / 2 - 24;
 
-        const node = makeNode('Floater', this.layer, baseX + offset, 130 + offset);
+        const node = makeNode('Floater', this.layer, baseX + offset, baseY + offset);
         const label = node.addComponent(Label);
         label.string = text;
-        label.fontSize = 34;
+        label.fontSize = 32;
         label.isBold = true;
         label.color = color(theme.red);
         const opacity = node.addComponent(UIOpacity);
 
         tween(node)
-            .to(FLOATER_SECONDS, { position: new Vec3(baseX + offset, 130 + offset + FLOATER_RISE, 0) })
+            .to(FLOATER_SECONDS, { position: new Vec3(baseX + offset, baseY + offset + FLOATER_RISE, 0) })
             .start();
         tween(opacity)
             .to(FLOATER_SECONDS, { opacity: 0 })

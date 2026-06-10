@@ -200,6 +200,7 @@ export class BattleSceneController extends Component {
             this.spellPool.setVisible(false);
         }
         this.questionPanel.setFeedback(IDLE_FEEDBACK, theme.textSecondary);
+        this.topStatus.setEscapeEnabled(true);
         this.inputLocked = false;
     }
 
@@ -235,6 +236,7 @@ export class BattleSceneController extends Component {
     private applyAnimation(payload: BattleAnimationPayload) {
         this.inputLocked = true;
         this.feedbackHolding = true;
+        this.topStatus.setEscapeEnabled(false);
         this.answerRow.setSelection(
             { selected: this.lastTappedOption, correct: payload.correct },
             true,
@@ -277,7 +279,7 @@ export class BattleSceneController extends Component {
     private runAnimationStep(step: AnimationStep) {
         switch (step.target) {
             case 'projectile':
-                this.projectileLayer.fly(step.effect as 'forward' | 'backward', step.label ?? '');
+                this.projectileLayer.fly(step.effect as 'forward' | 'backward', step.label ?? '', step.intensity ?? 1);
                 break;
             case 'player':
                 this.playerCard.playMotion(step.effect, this.playerPoseTextures(step.effect));
@@ -300,6 +302,8 @@ export class BattleSceneController extends Component {
     private playerPoseTextures(effect: string): { temp: string; revert: string } | undefined {
         switch (effect) {
             case 'hurt': return { temp: this.playerArt.hurt, revert: this.playerArt.idle };
+            // Native swaps to the fight pose for normal hits too (triggerPlayerNudge).
+            case 'nudge':
             case 'cast': return { temp: this.playerArt.fight, revert: this.playerArt.idle };
             default: return undefined;
         }

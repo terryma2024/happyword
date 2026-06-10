@@ -1,9 +1,10 @@
-// Fighter card (player left / monster right): rounded tint card, character
-// sprite, name, subtitle, HP label + bar, level badge, bonus capsule.
-// Mirrors BattleView.swift fighterCard.
+// Fighter card mirroring the native layout (BattleView.swift fighterCard):
+// top-to-bottom — character art (with hurt circle / cast glow overlays),
+// name (+inline level badge), subtitle, left-aligned HP label, full-width
+// HP bar with gray track. Bonus capsule floats at the top-right corner.
 
-import { Graphics, Label, Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
-import { color, loadCharacterSprite, makeBar, makeCapsule, makeLabel, makeNode, makeRoundedRect } from './nodeFactory';
+import { Graphics, HorizontalTextAlignment, Label, Layout, Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
+import { color, loadCharacterSprite, makeCapsule, makeLabel, makeNode, makeRoundedRect } from './nodeFactory';
 import { layout, theme } from './theme';
 
 export interface FighterCardConfig {
@@ -12,101 +13,188 @@ export interface FighterCardConfig {
     x: number;
 }
 
+const HURT_RED = '#E63848';
+
 export class FighterCard {
     private spriteNode!: Node;
+    private spriteRegion!: Node;
+    private glowOpacity!: UIOpacity;
+    private hurtOpacity!: UIOpacity;
     private nameLabel!: Label;
     private subtitleLabel!: Label;
     private hpLabel!: Label;
-    private hpBar!: { node: Node; setRatio: (ratio: number) => void };
+    private hpFill!: Node;
+    private hpFillGraphics!: Graphics;
     private levelBadgeNode!: Node;
     private levelBadgeLabel!: Label;
     private bonusNode!: Node;
-    private hurtFlash!: UIOpacity;
     private towardCenterSign = 1;
     private currentImageKey = '';
     cardNode!: Node;
 
     build(parent: Node, config: FighterCardConfig): void {
+        const width = layout.fighterCardWidth;
+        const height = layout.fighterCardHeight;
+        const half = height / 2;
+        const pad = layout.fighterCardPadding;
+        const innerWidth = width - pad * 2;
+
         this.cardNode = makeRoundedRect(
-            config.nodeName, parent,
-            layout.fighterCardWidth, layout.fighterCardHeight, layout.fighterCardCornerRadius,
+            config.nodeName, parent, width, height, layout.fighterCardCornerRadius,
             config.tintHex,
-            { x: config.x, strokeHex: config.tintHex, lineWidth: 2 },
+            { x: config.x, y: layout.fighterCardY, strokeHex: config.tintHex, lineWidth: 2 },
         );
+        this.towardCenterSign = config.x < 0 ? 1 : -1;
 
-        const half = layout.fighterCardHeight / 2;
-        this.hpLabel = makeLabel('HpLabel', this.cardNode, 'HP 10 / 10', 22, theme.navy, { y: half - 40 });
-        this.hpBar = makeBar('HpBar', this.cardNode, layout.hpBarWidth, layout.hpBarHeight, theme.hpGreen, { y: half - 72 });
+        // --- character art region (top) ---
+        this.spriteRegion = makeNode('SpriteRegion', this.cardNode, 0, half - 110);
 
-        this.spriteNode = makeNode('CharacterSprite', this.cardNode, 0, 10);
-        this.spriteNode.getComponent(UITransform)!.setContentSize(layout.fighterSpriteSize, layout.fighterSpriteSize);
+        const glowNode = makeNode('CastGlow', this.spriteRegion);
+        const glowGraphics = glowNode.addComponent(Graphics);
+        glowGraphics.circle(0, 0, 84);
+        glowGraphics.fillColor = color(theme.gold);
+        glowGraphics.fill();
+        this.glowOpacity = glowNode.addComponent(UIOpacity);
+        this.glowOpacity.opacity = 0;
 
-        this.nameLabel = makeLabel('NameLabel', this.cardNode, '', 28, theme.ink, { y: -half + 80 });
-        this.subtitleLabel = makeLabel('SubtitleLabel', this.cardNode, '', 20, theme.textSecondary, { y: -half + 44 });
+        this.spriteNode = makeNode('CharacterSprite', this.spriteRegion);
+        this.spriteNode.getComponent(UITransform)!
+            .setContentSize(layout.fighterSpriteWidth, layout.fighterSpriteHeight);
 
-        this.levelBadgeNode = makeCapsule('LevelBadge', this.cardNode, 56, 36, theme.navy, {
-            x: -layout.fighterCardWidth / 2 + 32, y: half - 40,
-        });
-        this.levelBadgeLabel = makeLabel('LevelBadgeLabel', this.levelBadgeNode, 'L1', 20, theme.white);
+        // Translucent red circle over the art only (native hurtOpacity circle).
+        const hurtNode = makeNode('HurtCircle', this.spriteRegion);
+        const hurtGraphics = hurtNode.addComponent(Graphics);
+        hurtGraphics.circle(0, 0, 78);
+        hurtGraphics.fillColor = color(HURT_RED);
+        hurtGraphics.fill();
+        this.hurtOpacity = hurtNode.addComponent(UIOpacity);
+        this.hurtOpacity.opacity = 0;
+
+        // --- name row with inline level badge ---
+        const nameRow = makeNode('NameRow', this.cardNode, 0, half - 222);
+        const rowLayout = nameRow.addComponent(Layout);
+        rowLayout.type = Layout.Type.HORIZONTAL;
+        rowLayout.resizeMode = Layout.ResizeMode.CONTAINER;
+        rowLayout.spacingX = 10;
+        this.nameLabel = makeLabel('NameLabel', nameRow, '', 30, theme.navy);
+        this.levelBadgeNode = makeCapsule('LevelBadge', nameRow, 46, 30, theme.navy);
+        this.levelBadgeLabel = makeLabel('LevelBadgeLabel', this.levelBadgeNode, 'L1', 17, theme.white);
         this.levelBadgeNode.active = false;
 
-        // Below the HP bar so it never collides with the HP label.
-        this.bonusNode = makeCapsule('BonusBadge', this.cardNode, 90, 38, theme.gold, {
-            x: layout.fighterCardWidth / 2 - 56, y: half - 96,
-        });
-        makeLabel('BonusLabel', this.bonusNode, 'Bonus', 20, theme.white);
-        this.bonusNode.active = false;
+        this.subtitleLabel = makeLabel('SubtitleLabel', this.cardNode, '', 24, theme.textSecondary, { y: half - 262 });
 
-        this.towardCenterSign = config.x < 0 ? 1 : -1;
-        const flashNode = makeNode('HurtFlash', this.cardNode);
-        flashNode.getComponent(UITransform)!.setContentSize(layout.fighterCardWidth, layout.fighterCardHeight);
-        const g = flashNode.addComponent(Graphics);
-        g.roundRect(-layout.fighterCardWidth / 2, -layout.fighterCardHeight / 2,
-            layout.fighterCardWidth, layout.fighterCardHeight, layout.fighterCardCornerRadius);
-        g.fillColor = color(theme.red);
-        g.fill();
-        this.hurtFlash = flashNode.addComponent(UIOpacity);
-        this.hurtFlash.opacity = 0;
+        // --- HP label (left aligned) + full-width bar with track ---
+        this.hpLabel = makeLabel('HpLabel', this.cardNode, 'HP 10 / 10', 24, theme.navy, {
+            x: -width / 2 + pad, y: half - 308,
+        });
+        this.hpLabel.horizontalAlign = HorizontalTextAlignment.LEFT;
+        this.hpLabel.node.getComponent(UITransform)!.setAnchorPoint(0, 0.5);
+
+        const track = makeNode('HpTrack', this.cardNode, 0, half - 344);
+        track.getComponent(UITransform)!.setContentSize(innerWidth, layout.hpBarHeight);
+        const trackGraphics = track.addComponent(Graphics);
+        trackGraphics.roundRect(-innerWidth / 2, -layout.hpBarHeight / 2, innerWidth, layout.hpBarHeight, layout.hpBarHeight / 2);
+        trackGraphics.fillColor = color(theme.hpTrack);
+        trackGraphics.fill();
+
+        this.hpFill = makeNode('HpFill', this.cardNode, 0, half - 344);
+        this.hpFill.getComponent(UITransform)!.setContentSize(innerWidth, layout.hpBarHeight);
+        this.hpFillGraphics = this.hpFill.addComponent(Graphics);
+        this.drawHpFill(1);
+
+        // --- bonus capsule, top-right corner overlay ---
+        this.bonusNode = makeCapsule('BonusBadge', this.cardNode, 84, 34, theme.gold, {
+            x: width / 2 - 52, y: half - 24,
+        });
+        makeLabel('BonusLabel', this.bonusNode, 'Bonus', 18, theme.white);
+        this.bonusNode.active = false;
     }
 
-    /// Mirrors the BattleView fighter motions (nudge/hurt/cast/zoom).
+    private drawHpFill(ratio: number): void {
+        const innerWidth = layout.fighterCardWidth - layout.fighterCardPadding * 2;
+        const w = Math.max(0, Math.min(1, ratio)) * innerWidth;
+        this.hpFillGraphics.clear();
+        if (w <= 0) { return; }
+        this.hpFillGraphics.roundRect(-innerWidth / 2, -layout.hpBarHeight / 2, w, layout.hpBarHeight, layout.hpBarHeight / 2);
+        this.hpFillGraphics.fillColor = color(theme.hpGreen);
+        this.hpFillGraphics.fill();
+    }
+
+    setIdentity(imageKey: string, name: string, subtitle: string): void {
+        this.nameLabel.string = name;
+        this.subtitleLabel.string = subtitle;
+        if (imageKey !== this.currentImageKey) {
+            this.currentImageKey = imageKey;
+            loadCharacterSprite(this.spriteNode, imageKey);
+        }
+    }
+
+    setHp(hp: number, maxHp: number): void {
+        this.hpLabel.string = `HP ${hp} / ${maxHp}`;
+        this.drawHpFill(maxHp > 0 ? hp / maxHp : 0);
+    }
+
+    setLevelBadge(label: string | null): void {
+        this.levelBadgeNode.active = label !== null;
+        if (label !== null) { this.levelBadgeLabel.string = label; }
+    }
+
+    setBonusVisible(visible: boolean): void {
+        this.bonusNode.active = visible;
+    }
+
+    /// Mirrors the BattleView fighter motions (BattleView.swift:916-997).
     /// `textures` lets the player card swap pose art during the motion.
     playMotion(effect: string, textures?: { temp: string; revert: string }): void {
         const base = this.cardNode.position.clone();
         switch (effect) {
             case 'nudge':
                 tween(this.cardNode)
-                    .to(0.12, { position: new Vec3(base.x + 26 * this.towardCenterSign, base.y, 0) })
-                    .to(0.14, { position: base })
+                    .to(0.06, { position: new Vec3(base.x + 12 * this.towardCenterSign, base.y, 0) })
+                    .delay(0.06)
+                    .to(0.08, { position: base })
                     .start();
                 break;
             case 'cast':
+                // Scale + rocking rotation + gold glow (triggerPlayerCast).
                 tween(this.cardNode)
-                    .to(0.15, { scale: new Vec3(1.12, 1.12, 1) })
-                    .to(0.18, { scale: new Vec3(1, 1, 1) })
+                    .to(0.18, { scale: new Vec3(1.15, 1.15, 1), angle: 10 })
+                    .to(0.18, { angle: -10 })
+                    .to(0.16, { scale: new Vec3(1, 1, 1), angle: 0 })
+                    .start();
+                tween(this.glowOpacity)
+                    .to(0.18, { opacity: 200 })
+                    .delay(0.2)
+                    .to(0.2, { opacity: 0 })
                     .start();
                 break;
             case 'zoom':
                 tween(this.cardNode)
-                    .to(0.12, { scale: new Vec3(1.18, 1.18, 1) })
-                    .to(0.2, { scale: new Vec3(1, 1, 1) })
+                    .to(0.22, { scale: new Vec3(1.12, 1.12, 1) })
+                    .delay(0.12)
+                    .to(0.16, { scale: new Vec3(1, 1, 1) })
                     .start();
                 break;
             case 'hurt':
-                tween(this.hurtFlash)
-                    .to(0.08, { opacity: 110 })
-                    .to(0.3, { opacity: 0 })
+                // Recoil away from center + translucent red circle over the art.
+                tween(this.cardNode)
+                    .to(0.08, { position: new Vec3(base.x - 18 * this.towardCenterSign, base.y, 0) })
+                    .to(0.2, { position: base })
+                    .start();
+                tween(this.hurtOpacity)
+                    .to(0.08, { opacity: 165 })
+                    .to(0.34, { opacity: 0 })
                     .start();
                 break;
             default:
                 return;
         }
         if (textures) {
-            this.swapTexture(textures.temp, textures.revert, 0.45);
+            this.swapTexture(textures.temp, textures.revert, 0.48);
         }
     }
 
-    /// Quick fade/scale-in when a new monster takes the card.
+    /// Quick scale-in when a new monster takes the card.
     playSpawnTransition(): void {
         this.cardNode.setScale(new Vec3(0.88, 0.88, 1));
         tween(this.cardNode)
@@ -125,28 +213,5 @@ export class FighterCard {
                 loadCharacterSprite(this.spriteNode, revertKey);
             })
             .start();
-    }
-
-    setIdentity(imageKey: string, name: string, subtitle: string): void {
-        this.nameLabel.string = name;
-        this.subtitleLabel.string = subtitle;
-        if (imageKey !== this.currentImageKey) {
-            this.currentImageKey = imageKey;
-            loadCharacterSprite(this.spriteNode, imageKey);
-        }
-    }
-
-    setHp(hp: number, maxHp: number): void {
-        this.hpLabel.string = `HP ${hp} / ${maxHp}`;
-        this.hpBar.setRatio(maxHp > 0 ? hp / maxHp : 0);
-    }
-
-    setLevelBadge(label: string | null): void {
-        this.levelBadgeNode.active = label !== null;
-        if (label !== null) { this.levelBadgeLabel.string = label; }
-    }
-
-    setBonusVisible(visible: boolean): void {
-        this.bonusNode.active = visible;
     }
 }

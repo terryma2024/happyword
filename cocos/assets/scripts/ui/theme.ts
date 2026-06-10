@@ -17,6 +17,7 @@ export const theme = {
     capsuleDisabled: '#9CA3AF',
     hpTrack: '#D8DEE6',
     textSecondary: '#6B7280',
+    questionCaption: '#3B739C',
     white: '#FFFFFF',
 } as const;
 
@@ -25,15 +26,17 @@ export const theme = {
 export const layout = {
     designWidth: 1280,
     designHeight: 720,
-    fighterCardWidth: 250,
-    fighterCardHeight: 460,
+    fighterCardWidth: 280,
+    fighterCardHeight: 400,
     fighterCardCornerRadius: 33,
-    fighterSpriteSize: 220,
-    hpBarWidth: 200,
-    hpBarHeight: 14,
+    fighterCardPadding: 21,
+    fighterSpriteWidth: 168,
+    fighterSpriteHeight: 132,
+    hpBarHeight: 12,
     answerCapsuleWidth: 320,
     answerCapsuleHeight: 76,
     answerRowY: -300,
     topStatusY: 320,
     fighterCardX: 465,
+    fighterCardY: 30,
 } as const;

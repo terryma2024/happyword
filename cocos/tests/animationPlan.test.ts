@@ -15,7 +15,7 @@ function payload(overrides: Partial<BattleAnimationPayload>): BattleAnimationPay
 describe('planAnimation', () => {
     it('correct answer: projectile forward, player nudge, monster hurt + floater after impact delay', () => {
         const steps = planAnimation(payload({}));
-        expect(steps).toContainEqual({ target: 'projectile', effect: 'forward', delayMs: 0, label: 'apple' });
+        expect(steps).toContainEqual({ target: 'projectile', effect: 'forward', delayMs: 0, label: 'apple', intensity: 1 });
         expect(steps).toContainEqual({ target: 'player', effect: 'nudge', delayMs: 0 });
         expect(steps).toContainEqual({ target: 'monster', effect: 'hurt', delayMs: 340 });
         expect(steps).toContainEqual({ target: 'floaterMonster', effect: 'show', delayMs: 340, label: '-1' });

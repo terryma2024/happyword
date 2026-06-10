@@ -11,6 +11,7 @@ export interface AnimationStep {
     effect: string;
     delayMs: number;
     label?: string;
+    intensity?: number;
 }
 
 export function planAnimation(payload: BattleAnimationPayload): AnimationStep[] {
@@ -23,6 +24,7 @@ export function planAnimation(payload: BattleAnimationPayload): AnimationStep[] 
         effect: payload.projectileDirection,
         delayMs: 0,
         label: payload.projectileLabel,
+        intensity: damage,
     });
 
     switch (payload.playerMotion) {
