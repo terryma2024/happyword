@@ -3,7 +3,7 @@
 // hairline border, bottom-right tail pointing at the monster, soft shadow.
 // Centered at 65% width / 20% height; the scene owns display and dismissal.
 
-import { Graphics, Node, tween, Vec3 } from 'cc';
+import { Graphics, Label, Node, tween, UITransform, Vec3 } from 'cc';
 import { color, makeLabel, makeNode } from './nodeFactory';
 import { layout } from './theme';
 
@@ -40,6 +40,11 @@ export class BossIntroBubble {
         this.enLabel.isBold = false;
         this.zhLabel = makeLabel('BossLineZh', this.bubble, '', 17, ZH_GRAY, { y: -28 });
         this.zhLabel.isBold = false;
+        // Long lines shrink to fit instead of clipping (native minimumScaleFactor).
+        for (const label of [this.enLabel, this.zhLabel]) {
+            label.overflow = Label.Overflow.SHRINK;
+            label.node.getComponent(UITransform)!.setContentSize(WIDTH - 28, 30);
+        }
 
         this.bubble.active = false;
     }

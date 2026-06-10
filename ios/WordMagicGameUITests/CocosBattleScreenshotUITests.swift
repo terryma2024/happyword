@@ -16,7 +16,11 @@ final class CocosBattleScreenshotUITests: XCTestCase {
 
         // First boot takes a couple of seconds; the early frame aims at the
         // monster-intro bubble window (visible ~1.05s after scene ready).
-        sleep(2)
+        sleep(1)
+        attachScreenshot(named: "battle-1s")
+        usleep(500_000)
+        attachScreenshot(named: "battle-1_5s")
+        usleep(500_000)
         attachScreenshot(named: "battle-2s")
         sleep(1)
         attachScreenshot(named: "battle-3s")
