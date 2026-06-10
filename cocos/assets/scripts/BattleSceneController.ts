@@ -5,6 +5,7 @@
 import { _decorator, Component } from 'cc';
 import { AnswerRow } from './ui/AnswerRow';
 import { FighterCard } from './ui/FighterCard';
+import { makeRoundedRect } from './ui/nodeFactory';
 import { QuestionPanel } from './ui/QuestionPanel';
 import { TopStatusBar } from './ui/TopStatusBar';
 import { layout, theme } from './ui/theme';
@@ -20,6 +21,8 @@ export class BattleSceneController extends Component {
     private answerRow = new AnswerRow();
 
     onLoad() {
+        makeRoundedRect('PageBackground', this.node,
+            layout.designWidth * 2, layout.designHeight * 2, 0, theme.page);
         this.topStatus.build(this.node);
         this.playerCard.build(this.node, {
             nodeName: 'PlayerCard', tintHex: theme.paleBlue, x: -layout.fighterCardX,
