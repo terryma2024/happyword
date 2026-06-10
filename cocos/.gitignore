@@ -1,0 +1,9 @@
+build/
+library/
+temp/
+local/
+profiles/
+native/engine/common/
+node_modules/
+.vscode/
+.idea/
