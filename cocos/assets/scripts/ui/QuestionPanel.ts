@@ -10,6 +10,7 @@ export class QuestionPanel {
     private promptLabel!: Label;
     private feedbackLabel!: Label;
     speakerNode!: Node;
+    onSpeakerTap: (() => void) | null = null;
 
     build(parent: Node): void {
         const panel = makeNode('QuestionPanel', parent, 0, 40);
@@ -19,6 +20,7 @@ export class QuestionPanel {
 
         this.speakerNode = makeCapsule('SpeakerButton', panel, 64, 64, theme.navy, { y: -30 });
         makeLabel('SpeakerGlyph', this.speakerNode, '♪', 30, theme.white);
+        this.speakerNode.on(Node.EventType.TOUCH_END, () => { this.onSpeakerTap?.(); });
 
         this.feedbackLabel = makeLabel('FeedbackLabel', panel, 'Choose the right spell', 24, theme.textSecondary, { y: -110 });
         this.feedbackLabel.isBold = false;

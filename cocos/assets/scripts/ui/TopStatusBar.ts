@@ -2,20 +2,15 @@
 // Mirrors BattleView.swift topStatus.
 
 import { Label, Node, UITransform } from 'cc';
+import { formatCountdown } from './format';
 import { makeCapsule, makeLabel, makeNode } from './nodeFactory';
 import { layout, theme } from './theme';
-
-export function formatCountdown(totalSeconds: number): string {
-    const seconds = Math.max(0, Math.floor(totalSeconds));
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
-}
 
 export class TopStatusBar {
     private comboLabel!: Label;
     private countdownLabel!: Label;
     escapeNode!: Node;
+    onEscapeTap: (() => void) | null = null;
 
     build(parent: Node): void {
         const bar = makeNode('TopStatusBar', parent, 0, layout.topStatusY);
@@ -27,6 +22,7 @@ export class TopStatusBar {
 
         this.escapeNode = makeCapsule('EscapeButton', bar, 130, 50, theme.blue, { x: 560 });
         makeLabel('EscapeLabel', this.escapeNode, 'Escape', 24, theme.white);
+        this.escapeNode.on(Node.EventType.TOUCH_END, () => { this.onEscapeTap?.(); });
     }
 
     setCombo(count: number): void {

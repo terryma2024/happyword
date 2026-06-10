@@ -8,6 +8,8 @@ import { layout, theme } from './theme';
 
 export class AnswerRow {
     private buttons: { node: Node; label: Label }[] = [];
+    /// Invoked with the tapped option text. Set by the scene controller.
+    onOptionTap: ((option: string) => void) | null = null;
 
     build(parent: Node): void {
         const row = makeNode('AnswerRow', parent, 0, layout.answerRowY);
@@ -17,6 +19,10 @@ export class AnswerRow {
                 layout.answerCapsuleWidth, layout.answerCapsuleHeight, theme.purple,
                 { x: (i - 1) * spacing });
             const label = makeLabel(`AnswerLabel${i}`, node, '', 28, theme.white);
+            node.on(Node.EventType.TOUCH_END, () => {
+                const text = label.string;
+                if (text.length > 0 && this.onOptionTap) { this.onOptionTap(text); }
+            });
             this.buttons.push({ node, label });
         }
     }
