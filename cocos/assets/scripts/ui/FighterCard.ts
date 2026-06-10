@@ -63,7 +63,7 @@ export class FighterCard {
         // Translucent red circle over the art only (native hurtOpacity circle).
         const hurtNode = makeNode('HurtCircle', this.spriteRegion);
         const hurtGraphics = hurtNode.addComponent(Graphics);
-        hurtGraphics.circle(0, 0, 86);
+        hurtGraphics.circle(0, 0, 95);
         hurtGraphics.fillColor = color(HURT_RED);
         hurtGraphics.fill();
         this.hurtOpacity = hurtNode.addComponent(UIOpacity);
@@ -166,11 +166,11 @@ export class FighterCard {
             case 'hurt':
                 // Recoil away from center + translucent red circle over the art.
                 tween(this.cardNode)
-                    .to(0.08, { position: new Vec3(base.x - 18 * this.towardCenterSign, base.y, 0) })
+                    .to(0.08, { position: new Vec3(base.x - 10 * this.towardCenterSign, base.y, 0) })
                     .to(0.2, { position: base })
                     .start();
                 tween(this.hurtOpacity)
-                    .to(0.08, { opacity: 165 })
+                    .to(0.08, { opacity: 185 })
                     .to(0.34, { opacity: 0 })
                     .start();
                 break;

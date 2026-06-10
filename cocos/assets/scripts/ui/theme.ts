@@ -13,8 +13,11 @@ export const theme = {
     page: '#FAFCFF',
     hpGreen: '#2EBF61',
     feedbackGreen: '#2EA659',
-    capsuleCorrect: '#2EBF61',
-    capsuleDisabled: '#9CA3AF',
+    // Feedback colors are washed out like SwiftUI's disabled buttons
+    // (the native row disables all buttons during feedback).
+    capsuleCorrect: '#95CBA4',
+    capsuleWrong: '#E3A1A7',
+    capsuleDisabled: '#D8DCE3',
     hpTrack: '#D8DEE6',
     textSecondary: '#6B7280',
     questionCaption: '#3B739C',

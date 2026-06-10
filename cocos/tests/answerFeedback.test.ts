@@ -11,8 +11,8 @@ describe('capsuleColorHex', () => {
         expect(capsuleColorHex('apple', { selected: 'apple', correct: true }, true)).toBe(theme.capsuleCorrect);
     });
 
-    it('reds the selected option on a wrong answer', () => {
-        expect(capsuleColorHex('apple', { selected: 'apple', correct: false }, true)).toBe(theme.red);
+    it('muted-reds the selected option on a wrong answer', () => {
+        expect(capsuleColorHex('apple', { selected: 'apple', correct: false }, true)).toBe(theme.capsuleWrong);
     });
 
     it('grays unselected options while feedback shows', () => {

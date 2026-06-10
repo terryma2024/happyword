@@ -17,7 +17,7 @@ export function capsuleColorHex(option: string, selection: AnswerSelection | nul
     if (option !== selection.selected) {
         return theme.capsuleDisabled;
     }
-    return selection.correct ? theme.capsuleCorrect : theme.red;
+    return selection.correct ? theme.capsuleCorrect : theme.capsuleWrong;
 }
 
 export function feedbackColorHex(outcome: { correct: boolean; comboTriggered: boolean }): string {

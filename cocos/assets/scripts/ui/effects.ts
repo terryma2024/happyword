@@ -1,15 +1,23 @@
 // Combat effect layers: projectile flight, damage floaters, crit overlay.
 // Mirrors MagicProjectileOverlay / DamageFloaterLabel / CritSpectacleOverlay.
 
-import { Graphics, Label, Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
+import { Color, Graphics, Label, Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 import { color, makeLabel, makeNode } from './nodeFactory';
 import { layout, theme } from './theme';
 
 const PROJECTILE_FLIGHT_SECONDS = 0.34;
-const FLOATER_RISE = 56;
-const FLOATER_SECONDS = 0.8;
+const FLOATER_RISE = 32;
+const FLOATER_SECONDS = 0.65;
 const MAX_FLOATERS_PER_SIDE = 4;
 const FLOATER_STAGGER = 9;
+
+function fillCircle(g: Graphics, radius: number, hex: string, alpha: number): void {
+    const c = color(hex);
+    c.a = alpha;
+    g.fillColor = c;
+    g.circle(0, 0, radius);
+    g.fill();
+}
 
 export class ProjectileLayer {
     private layer!: Node;
@@ -18,7 +26,7 @@ export class ProjectileLayer {
         this.layer = makeNode('ProjectileLayer', parent);
     }
 
-    /// Glow circle + colored capsule with the word (MagicProjectileOverlay):
+    /// Soft glow + colored capsule with the word (MagicProjectileOverlay):
     /// blue for a forward hit, red for a backward (wrong-answer) bounce,
     /// gold and larger for crits (intensity > 1).
     fly(direction: 'forward' | 'backward', label: string, intensity = 1): void {
@@ -32,12 +40,13 @@ export class ProjectileLayer {
 
         const node = makeNode('Projectile', this.layer, fromX, 0);
 
+        // Concentric fading circles fake the native blurred glow.
         const glow = makeNode('ProjectileGlow', node);
-        const glowGraphics = glow.addComponent(Graphics);
-        glowGraphics.circle(0, 0, crit ? 64 : 44);
-        glowGraphics.fillColor = color(glowHex);
-        glowGraphics.fill();
-        glow.addComponent(UIOpacity).opacity = 115;
+        const g = glow.addComponent(Graphics);
+        const baseRadius = crit ? 66 : 46;
+        fillCircle(g, baseRadius, glowHex, 36);
+        fillCircle(g, baseRadius * 0.78, glowHex, 60);
+        fillCircle(g, baseRadius * 0.56, glowHex, 90);
 
         const capsuleWidth = Math.max(72, label.length * 14 + 28);
         const capsuleHeight = crit ? 40 : 34;
@@ -68,18 +77,19 @@ export class FloaterLayer {
         this.layer = makeNode('FloaterLayer', parent);
     }
 
+    /// Small "-N" that drifts up briefly from the card's top edge
+    /// (native DamageFloaterLabel is light: ~17pt, short travel).
     show(side: 'player' | 'monster', text: string): void {
         if (this.active[side] >= MAX_FLOATERS_PER_SIDE) { return; }
         this.active[side] += 1;
         const baseX = side === 'player' ? -layout.fighterCardX : layout.fighterCardX;
         const offset = (this.active[side] - 1) * FLOATER_STAGGER;
-        // Just above the character art region of the card.
-        const baseY = layout.fighterCardY + layout.fighterCardHeight / 2 - 24;
+        const baseY = layout.fighterCardY + layout.fighterCardHeight / 2 - 6;
 
         const node = makeNode('Floater', this.layer, baseX + offset, baseY + offset);
         const label = node.addComponent(Label);
         label.string = text;
-        label.fontSize = 32;
+        label.fontSize = 24;
         label.isBold = true;
         label.color = color(theme.red);
         const opacity = node.addComponent(UIOpacity);
@@ -88,7 +98,8 @@ export class FloaterLayer {
             .to(FLOATER_SECONDS, { position: new Vec3(baseX + offset, baseY + offset + FLOATER_RISE, 0) })
             .start();
         tween(opacity)
-            .to(FLOATER_SECONDS, { opacity: 0 })
+            .delay(FLOATER_SECONDS * 0.4)
+            .to(FLOATER_SECONDS * 0.6, { opacity: 0 })
             .call(() => {
                 this.active[side] = Math.max(0, this.active[side] - 1);
                 node.destroy();
@@ -104,39 +115,68 @@ export class CritOverlay {
         this.layer = makeNode('CritOverlay', parent);
     }
 
+    /// Native CritSpectacleOverlay: the whole screen washes heavy gold,
+    /// white rings burst outward from the center, and a huge RED damage
+    /// label punches in, lingering past the wash (~1s total).
     show(damageLabel: string): void {
+        // Full-screen heavy gold wash.
         const flash = makeNode('CritFlash', this.layer);
         flash.getComponent(UITransform)!.setContentSize(layout.designWidth * 2, layout.designHeight * 2);
-        const g = flash.addComponent(Graphics);
-        g.rect(-layout.designWidth, -layout.designHeight, layout.designWidth * 2, layout.designHeight * 2);
-        g.fillColor = color(theme.gold);
-        g.fill();
+        const flashGraphics = flash.addComponent(Graphics);
+        flashGraphics.rect(-layout.designWidth, -layout.designHeight, layout.designWidth * 2, layout.designHeight * 2);
+        flashGraphics.fillColor = color(theme.gold);
+        flashGraphics.fill();
         const flashOpacity = flash.addComponent(UIOpacity);
         flashOpacity.opacity = 0;
-
-        const burst = makeNode('CritLabel', this.layer, 0, 140);
-        const label = burst.addComponent(Label);
-        label.string = damageLabel;
-        label.fontSize = 72;
-        label.isBold = true;
-        label.color = color(theme.gold);
-        burst.setScale(new Vec3(0.4, 0.4, 1));
-        const burstOpacity = burst.addComponent(UIOpacity);
-
         tween(flashOpacity)
-            .to(0.1, { opacity: 90 })
-            .to(0.4, { opacity: 0 })
+            .to(0.12, { opacity: 195 })
+            .delay(0.22)
+            .to(0.55, { opacity: 0 })
             .call(() => flash.destroy())
             .start();
+
+        // Expanding white rings.
+        this.burstRing(radius => radius * 2.6, 150, 10, 0.55);
+        this.burstRing(radius => radius * 3.1, 80, 6, 0.65);
+
+        // Huge red damage label, scale punch + lingering fade.
+        const burst = makeNode('CritLabel', this.layer, 0, 40);
+        const label = burst.addComponent(Label);
+        label.string = damageLabel;
+        label.fontSize = 120;
+        label.lineHeight = 130;
+        label.isBold = true;
+        label.color = color(theme.red);
+        burst.setScale(new Vec3(0.4, 0.4, 1));
+        const burstOpacity = burst.addComponent(UIOpacity);
         tween(burst)
-            .to(0.16, { scale: new Vec3(1.25, 1.25, 1) })
+            .to(0.14, { scale: new Vec3(1.25, 1.25, 1) })
             .to(0.12, { scale: new Vec3(1.0, 1.0, 1) })
-            .delay(0.25)
             .start();
         tween(burstOpacity)
-            .delay(0.5)
-            .to(0.15, { opacity: 0 })
+            .delay(0.85)
+            .to(0.25, { opacity: 0 })
             .call(() => burst.destroy())
+            .start();
+    }
+
+    private burstRing(grow: (radius: number) => number, radius: number, lineWidth: number, seconds: number): void {
+        const ring = makeNode('CritRing', this.layer);
+        const g = ring.addComponent(Graphics);
+        const stroke = new Color(255, 255, 255, 235);
+        g.lineWidth = lineWidth;
+        g.strokeColor = stroke;
+        g.circle(0, 0, radius);
+        g.stroke();
+        const opacity = ring.addComponent(UIOpacity);
+        const scale = grow(radius) / radius;
+        tween(ring)
+            .to(seconds, { scale: new Vec3(scale, scale, 1) })
+            .start();
+        tween(opacity)
+            .delay(seconds * 0.35)
+            .to(seconds * 0.65, { opacity: 0 })
+            .call(() => ring.destroy())
             .start();
     }
 }

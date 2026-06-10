@@ -37,6 +37,7 @@ function base(overrides: Partial<BattleQuestionPayload>): BattleQuestionPayload 
 export class PreviewFakeHost {
     private index = 0;
     private monsterHp = 5;
+    private streak = 0;
 
     initPayload(): BattleInitPayload {
         return {
@@ -48,7 +49,7 @@ export class PreviewFakeHost {
     statePayload(): BattleStatePayload {
         return {
             playerHp: 10, playerMaxHp: 10, monsterHp: this.monsterHp, monsterMaxHp: 5,
-            monsterIndex: 1, monstersTotal: 5, remainingSeconds: 297, comboCount: 0,
+            monsterIndex: 1, monstersTotal: 5, remainingSeconds: 297, comboCount: this.streak,
             status: 'playing',
             monster: { catalogIndex: 3, imageKey: 'CharacterSnowGoblin', name: 'Snow Goblin', levelLabel: 'L1', bonus: this.index % 2 === 1 },
         };
@@ -62,20 +63,26 @@ export class PreviewFakeHost {
     submit(option: string): { animation: BattleAnimationPayload; state: BattleStatePayload; question: BattleQuestionPayload } {
         const question = this.currentQuestion();
         const correct = this.isCorrect(option, question);
-        if (correct) { this.monsterHp = Math.max(0, this.monsterHp - 1); }
+        // Mirror the engine's combo: every 3rd consecutive correct bursts x2.
+        const combo = correct && this.streak === 2;
+        this.streak = correct ? (combo ? 0 : this.streak + 1) : 0;
+        const damage = combo ? 2 : 1;
+        if (correct) { this.monsterHp = Math.max(0, this.monsterHp - damage); }
+        if (this.monsterHp === 0) { this.monsterHp = 5; }
         this.index += 1;
         return {
             animation: {
                 projectileDirection: correct ? 'forward' : 'backward',
-                projectileIntensity: 1,
+                projectileIntensity: damage,
                 projectileLabel: question.answer,
-                playerMotion: correct ? 'nudge' : 'hurt',
-                monsterMotion: correct ? 'hurt' : 'idle',
-                feedbackText: correct ? 'Correct!' : `Correct answer: ${question.answer}`,
-                showsCritOverlay: false,
-                damageLabel: '-1!',
+                playerMotion: combo ? 'cast' : (correct ? 'nudge' : 'hurt'),
+                monsterMotion: combo ? 'zoom' : (correct ? 'hurt' : 'idle'),
+                feedbackText: combo ? `Combo 3! Magic Burst x${damage}`
+                    : (correct ? 'Correct!' : `Correct answer: ${question.answer}`),
+                showsCritOverlay: combo,
+                damageLabel: `-${damage}!`,
                 playsMonsterDefeatCue: false,
-                correct, comboTriggered: false, battleEnded: false,
+                correct, comboTriggered: combo, battleEnded: false,
             },
             state: this.statePayload(),
             question: this.currentQuestion(),
