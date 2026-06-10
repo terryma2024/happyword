@@ -3,7 +3,7 @@
 // state snapshots and reports user input (contract:
 // shared/contracts/cocos-battle-bridge/).
 
-import { _decorator, Component } from 'cc';
+import { _decorator, Component, ResolutionPolicy, view } from 'cc';
 import { BridgeClient } from './bridge/BridgeClient';
 import {
     BattleAnimationPayload, BattleInitPayload, BattleQuestionPayload, BattleStatePayload,
@@ -33,6 +33,11 @@ export class BattleSceneController extends Component {
     private inputLocked = true;
 
     onLoad() {
+        // Landscape battle: lock the 720 design height so wide phone aspect
+        // ratios letterbox horizontally instead of cropping the top status
+        // bar and answer row (default fitWidth crops vertically on ~2.17:1).
+        view.setDesignResolutionSize(layout.designWidth, layout.designHeight, ResolutionPolicy.FIXED_HEIGHT);
+
         makeRoundedRect('PageBackground', this.node,
             layout.designWidth * 2, layout.designHeight * 2, 0, theme.page);
         this.topStatus.build(this.node);
