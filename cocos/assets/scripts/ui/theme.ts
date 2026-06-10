@@ -26,17 +26,26 @@ export const theme = {
 export const layout = {
     designWidth: 1280,
     designHeight: 720,
-    fighterCardWidth: 280,
-    fighterCardHeight: 400,
+    fighterCardWidth: 330,
+    fighterCardHeight: 415,
     fighterCardCornerRadius: 33,
     fighterCardPadding: 21,
-    fighterSpriteWidth: 168,
-    fighterSpriteHeight: 132,
+    /// Character art fits (aspect-preserving) inside this square box.
+    fighterSpriteFit: 185,
     hpBarHeight: 12,
-    answerCapsuleWidth: 320,
-    answerCapsuleHeight: 76,
-    answerRowY: -300,
-    topStatusY: 320,
+    /// Native answer row: 9px page gutters + 27px spacing, buttons share the rest.
+    answerRowContentWidth: 1262,
+    answerRowSpacing: 27,
+    answerCapsuleHeight: 93,
+    answerRowY: -255,
+    topStatusY: 308,
     fighterCardX: 465,
-    fighterCardY: 30,
+    fighterCardY: 42,
 } as const;
+
+/// Per-button width when `count` capsules share the answer row (native
+/// .frame(maxWidth:.infinity) three-way split).
+export function answerCapsuleWidth(count: number): number {
+    const n = Math.max(1, count);
+    return Math.floor((layout.answerRowContentWidth - (n - 1) * layout.answerRowSpacing) / n);
+}

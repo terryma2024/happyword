@@ -1,14 +1,10 @@
-// Letter pool for spell questions: replaces the answer row. Tapping the
-// next correct letter fills a slot; wrong taps shake and cost HP.
-// Mirrors the BattleView spell pool (spellConsumedIndices/spellShakingPoolIndex).
+// Letter pool for spell questions. Native reuses the answer row for the
+// pool (answerButtons returns spellPool), so the pool shares the exact
+// capsule styling: full-row split, 93px height, purple fill.
 
 import { Label, Node, tween, Vec3 } from 'cc';
 import { makeCapsule, makeLabel, makeNode, redrawRoundedRect } from './nodeFactory';
-import { layout, theme } from './theme';
-
-const BUTTON_WIDTH = 96;
-const BUTTON_HEIGHT = 76;
-const SPACING = 24;
+import { answerCapsuleWidth, layout, theme } from './theme';
 
 export class SpellPool {
     private row!: Node;
@@ -24,12 +20,15 @@ export class SpellPool {
         this.row.removeAllChildren();
         this.buttons = [];
         this.row.active = letters.length > 0;
-        const step = BUTTON_WIDTH + SPACING;
+        if (letters.length === 0) { return; }
+
+        const width = answerCapsuleWidth(letters.length);
+        const step = width + layout.answerRowSpacing;
         const startX = -((letters.length - 1) * step) / 2;
         letters.forEach((letter, i) => {
             const node = makeCapsule(`PoolButton${i}`, this.row,
-                BUTTON_WIDTH, BUTTON_HEIGHT, theme.purple, { x: startX + i * step });
-            const label = makeLabel(`PoolLabel${i}`, node, letter, 30, theme.white);
+                width, layout.answerCapsuleHeight, theme.purple, { x: startX + i * step });
+            const label = makeLabel(`PoolLabel${i}`, node, letter, 36, theme.white);
             node.on(Node.EventType.TOUCH_END, () => { this.onLetterTap?.(i); });
             this.buttons.push({ node, label });
         });
@@ -42,7 +41,7 @@ export class SpellPool {
     markConsumed(poolIndex: number): void {
         const button = this.buttons[poolIndex];
         if (!button) { return; }
-        redrawRoundedRect(button.node, BUTTON_HEIGHT / 2, theme.capsuleDisabled);
+        redrawRoundedRect(button.node, layout.answerCapsuleHeight / 2, theme.capsuleDisabled);
     }
 
     /// ±9 px, 3 cycles, ~0.3 s (native: ±6 pt over the same duration).

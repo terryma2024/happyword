@@ -47,11 +47,11 @@ export class FighterCard {
         this.towardCenterSign = config.x < 0 ? 1 : -1;
 
         // --- character art region (top) ---
-        this.spriteRegion = makeNode('SpriteRegion', this.cardNode, 0, half - 110);
+        this.spriteRegion = makeNode('SpriteRegion', this.cardNode, 0, half - 110);  // art center ~110 below card top
 
         const glowNode = makeNode('CastGlow', this.spriteRegion);
         const glowGraphics = glowNode.addComponent(Graphics);
-        glowGraphics.circle(0, 0, 84);
+        glowGraphics.circle(0, 0, 92);
         glowGraphics.fillColor = color(theme.gold);
         glowGraphics.fill();
         this.glowOpacity = glowNode.addComponent(UIOpacity);
@@ -59,19 +59,19 @@ export class FighterCard {
 
         this.spriteNode = makeNode('CharacterSprite', this.spriteRegion);
         this.spriteNode.getComponent(UITransform)!
-            .setContentSize(layout.fighterSpriteWidth, layout.fighterSpriteHeight);
+            .setContentSize(layout.fighterSpriteFit, layout.fighterSpriteFit);
 
         // Translucent red circle over the art only (native hurtOpacity circle).
         const hurtNode = makeNode('HurtCircle', this.spriteRegion);
         const hurtGraphics = hurtNode.addComponent(Graphics);
-        hurtGraphics.circle(0, 0, 78);
+        hurtGraphics.circle(0, 0, 86);
         hurtGraphics.fillColor = color(HURT_RED);
         hurtGraphics.fill();
         this.hurtOpacity = hurtNode.addComponent(UIOpacity);
         this.hurtOpacity.opacity = 0;
 
         // --- name row with inline level badge ---
-        const nameRow = makeNode('NameRow', this.cardNode, 0, half - 222);
+        const nameRow = makeNode('NameRow', this.cardNode, 0, half - 242);
         const rowLayout = nameRow.addComponent(Layout);
         rowLayout.type = Layout.Type.HORIZONTAL;
         rowLayout.resizeMode = Layout.ResizeMode.CONTAINER;
@@ -81,23 +81,23 @@ export class FighterCard {
         this.levelBadgeLabel = makeLabel('LevelBadgeLabel', this.levelBadgeNode, 'L1', 17, theme.white);
         this.levelBadgeNode.active = false;
 
-        this.subtitleLabel = makeLabel('SubtitleLabel', this.cardNode, '', 24, theme.textSecondary, { y: half - 262 });
+        this.subtitleLabel = makeLabel('SubtitleLabel', this.cardNode, '', 24, theme.textSecondary, { y: half - 295 });
 
         // --- HP label (left aligned) + full-width bar with track ---
         this.hpLabel = makeLabel('HpLabel', this.cardNode, 'HP 10 / 10', 24, theme.navy, {
-            x: -width / 2 + pad, y: half - 308,
+            x: -width / 2 + pad, y: half - 343,
         });
         this.hpLabel.horizontalAlign = HorizontalTextAlignment.LEFT;
         this.hpLabel.node.getComponent(UITransform)!.setAnchorPoint(0, 0.5);
 
-        const track = makeNode('HpTrack', this.cardNode, 0, half - 344);
+        const track = makeNode('HpTrack', this.cardNode, 0, half - 378);
         track.getComponent(UITransform)!.setContentSize(innerWidth, layout.hpBarHeight);
         const trackGraphics = track.addComponent(Graphics);
         trackGraphics.roundRect(-innerWidth / 2, -layout.hpBarHeight / 2, innerWidth, layout.hpBarHeight, layout.hpBarHeight / 2);
         trackGraphics.fillColor = color(theme.hpTrack);
         trackGraphics.fill();
 
-        this.hpFill = makeNode('HpFill', this.cardNode, 0, half - 344);
+        this.hpFill = makeNode('HpFill', this.cardNode, 0, half - 378);
         this.hpFill.getComponent(UITransform)!.setContentSize(innerWidth, layout.hpBarHeight);
         this.hpFillGraphics = this.hpFill.addComponent(Graphics);
         this.drawHpFill(1);

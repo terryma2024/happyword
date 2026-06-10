@@ -110,7 +110,10 @@ export function makeBar(
     return { node, setRatio: draw };
 }
 
-export function loadCharacterSprite(node: Node, imageKey: string): void {
+/// Loads a character texture and sizes the node to FIT inside fitWidth/fitHeight
+/// while preserving the texture's aspect ratio (native scaledToFit parity —
+/// stretching to a fixed box distorts the art).
+export function loadCharacterSprite(node: Node, imageKey: string, fitWidth = 185, fitHeight = 185): void {
     const sprite = node.getComponent(Sprite) ?? node.addComponent(Sprite);
     sprite.sizeMode = Sprite.SizeMode.CUSTOM;
     resources.load(`art/characters/${imageKey}/spriteFrame`, SpriteFrame, (err, frame) => {
@@ -118,6 +121,9 @@ export function loadCharacterSprite(node: Node, imageKey: string): void {
             console.warn(`[battle] missing texture art/characters/${imageKey}`);
             return;
         }
+        const original = frame.originalSize;
+        const scale = Math.min(fitWidth / original.width, fitHeight / original.height);
+        node.getComponent(UITransform)!.setContentSize(original.width * scale, original.height * scale);
         sprite.spriteFrame = frame;
     });
 }

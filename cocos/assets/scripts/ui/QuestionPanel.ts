@@ -1,15 +1,26 @@
-// Center question panel with per-kind rendering:
-// choice          — big Chinese prompt
-// fill-letter(-medium) — prompt + letter template slots (missing shows _)
+// Center question panel with per-kind rendering (mirrors BattleView.swift
+// questionPanel / spellingTemplate / letterTemplateSlot):
+// choice          — big Chinese prompt (42pt)
+// fill-letter(-medium) — smaller prompt (28pt) + letter template slots:
+//   missing slot = pink rounded box + red underscore; pending (medium other
+//   step) = gray box + gray glyph; filled = navy glyph, no box
 // sentence-cloze  — English template with blank + Chinese sentence
 // spell           — prompt + spell slots (letter pool handled by SpellPool)
-// Mirrors BattleView.swift questionPanel.
 
-import { Label, Node } from 'cc';
+import { Graphics, Label, Node, UITransform } from 'cc';
 import type { BattleQuestionPayload } from '../bridge/messages';
 import { LetterTemplateSlot, metricsForGlyphCount, slotsFromTemplate } from './letterTemplate';
-import { makeCapsule, makeLabel, makeNode } from './nodeFactory';
+import { color, makeCapsule, makeLabel, makeNode } from './nodeFactory';
 import { theme } from './theme';
+
+const SLOT_SCALE = 1.5;
+const PROMPT_LARGE = 63;   // native 42pt (choice)
+const PROMPT_SMALL = 42;   // native 28pt (template kinds)
+const MISSING_BG = '#FCEBEB';
+const MISSING_TEXT = '#E63845';
+const PENDING_BG = '#F2F2F5';
+const PENDING_TEXT = '#A3A3A3';
+const FILLED_TEXT = '#1C3657';
 
 export class QuestionPanel {
     private promptLabel!: Label;
@@ -23,28 +34,31 @@ export class QuestionPanel {
     build(parent: Node): void {
         const panel = makeNode('QuestionPanel', parent, 0, 40);
 
-        makeLabel('CaptionLabel', panel, 'Question', 26, theme.questionCaption, { y: 150 });
-        this.promptLabel = makeLabel('PromptLabel', panel, '', 60, theme.navy, { y: 90 });
+        makeLabel('CaptionLabel', panel, 'Question', 26, theme.questionCaption, { y: 165 });
+        this.promptLabel = makeLabel('PromptLabel', panel, '', PROMPT_LARGE, theme.navy, { y: 95 });
 
-        this.sentenceTemplateLabel = makeLabel('SentenceTemplateLabel', panel, '', 30, theme.ink, { y: 100 });
-        this.sentenceZhLabel = makeLabel('SentenceZhLabel', panel, '', 24, theme.textSecondary, { y: 56 });
+        this.sentenceTemplateLabel = makeLabel('SentenceTemplateLabel', panel, '', 30, theme.navy, { y: 105 });
+        this.sentenceZhLabel = makeLabel('SentenceZhLabel', panel, '', 24, theme.textSecondary, { y: 60 });
 
         this.templateRow = makeNode('LetterTemplateRow', panel, 0, 20);
 
-        this.speakerNode = makeCapsule('SpeakerButton', panel, 87, 87, theme.paleBlue, { y: -50 });
+        this.speakerNode = makeCapsule('SpeakerButton', panel, 87, 87, theme.paleBlue, { y: -85 });
         makeLabel('SpeakerGlyph', this.speakerNode, '🔊', 42, theme.navy);
         this.speakerNode.on(Node.EventType.TOUCH_END, () => { this.onSpeakerTap?.(); });
 
-        this.feedbackLabel = makeLabel('FeedbackLabel', panel, 'Choose the right spell', 24, theme.textSecondary, { y: -120 });
+        this.feedbackLabel = makeLabel('FeedbackLabel', panel, 'Choose the right spell', 24, theme.textSecondary, { y: -168 });
         this.feedbackLabel.isBold = false;
     }
 
     setQuestion(question: BattleQuestionPayload): void {
         const sentence = question.kind === 'sentence-cloze';
+        const hasTemplate = question.kind !== 'choice' && !sentence;
         this.promptLabel.node.active = !sentence;
         this.sentenceTemplateLabel.node.active = sentence;
         this.sentenceZhLabel.node.active = sentence;
         this.promptLabel.string = sentence ? '' : question.promptZh;
+        this.promptLabel.fontSize = hasTemplate ? PROMPT_SMALL : PROMPT_LARGE;
+        this.promptLabel.lineHeight = Math.round(this.promptLabel.fontSize * 1.2);
         this.sentenceTemplateLabel.string = question.sentenceTemplate;
         this.sentenceZhLabel.string = question.sentenceZh;
 
@@ -54,7 +68,9 @@ export class QuestionPanel {
                 break;
             case 'fill-letter-medium': {
                 const missing = question.missingIndices[question.currentStep] ?? -1;
-                this.renderTemplate(slotsFromTemplate(question.letterTemplateBase, missing));
+                const pendingStep = question.currentStep === 0 ? 1 : 0;
+                const pending = question.missingIndices[pendingStep] ?? -1;
+                this.renderTemplate(slotsFromTemplate(question.letterTemplateBase, missing, pending));
                 break;
             }
             case 'spell':
@@ -93,14 +109,38 @@ export class QuestionPanel {
 
         // Swift metrics are iPhone points; design space is ~1.5x.
         const metrics = metricsForGlyphCount(slots.length);
-        const scale = 1.5;
-        const step = (metrics.width + metrics.gap) * scale;
+        const slotWidth = metrics.width * SLOT_SCALE;
+        const slotHeight = metrics.height * SLOT_SCALE;
+        const step = slotWidth + metrics.gap * SLOT_SCALE;
         const startX = -((slots.length - 1) * step) / 2;
+
         slots.forEach((slot, i) => {
-            const shown = slot.isMissing ? '_' : slot.glyph;
-            const hex = slot.isMissing ? theme.textSecondary : theme.ink;
-            const size = (slot.isMissing ? metrics.placeholderFontSize : metrics.filledFontSize) * scale;
-            makeLabel(`Slot${i}`, this.templateRow, shown, size, hex, { x: startX + i * step });
+            const slotNode = makeNode(`Slot${i}`, this.templateRow, startX + i * step, 0);
+            slotNode.getComponent(UITransform)!.setContentSize(slotWidth, slotHeight);
+            if (slot.glyph === ' ') { return; }
+
+            let textHex = FILLED_TEXT;
+            let fontSize = metrics.filledFontSize * SLOT_SCALE;
+            let glyph = slot.glyph;
+            let bgHex: string | null = null;
+            if (slot.isMissing) {
+                bgHex = MISSING_BG;
+                textHex = MISSING_TEXT;
+                fontSize = metrics.placeholderFontSize * SLOT_SCALE;
+                glyph = '_';
+            } else if (slot.isPending) {
+                bgHex = PENDING_BG;
+                textHex = PENDING_TEXT;
+                fontSize = metrics.placeholderFontSize * SLOT_SCALE;
+            }
+
+            if (bgHex !== null) {
+                const g = slotNode.addComponent(Graphics);
+                g.roundRect(-slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight, 9);
+                g.fillColor = color(bgHex);
+                g.fill();
+            }
+            makeLabel('Glyph', slotNode, glyph, fontSize, textHex);
         });
     }
 
