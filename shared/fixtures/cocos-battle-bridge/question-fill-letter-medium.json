@@ -1,0 +1,42 @@
+{
+  "payload": {
+    "answer": "banana",
+    "currentStep": 0,
+    "kind": "fill-letter-medium",
+    "letterAnswer": "",
+    "letterAnswers": [
+      "a",
+      "a"
+    ],
+    "letterOptions": [],
+    "letterOptionsSteps": [
+      [
+        "a",
+        "e",
+        "o"
+      ],
+      [
+        "a",
+        "i",
+        "u"
+      ]
+    ],
+    "letterTemplate": "",
+    "letterTemplateBase": "b_nan_",
+    "missingIndex": -1,
+    "missingIndices": [
+      1,
+      5
+    ],
+    "options": [],
+    "promptZh": "香蕉",
+    "sentenceTemplate": "",
+    "sentenceZh": "",
+    "spellLetters": [],
+    "spellPool": [],
+    "spellRevealedMask": [],
+    "wordId": "w-banana"
+  },
+  "type": "battle/question",
+  "v": 1
+}

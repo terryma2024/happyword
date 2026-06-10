@@ -1,0 +1,7 @@
+{
+  "payload": {
+    "option": "apple"
+  },
+  "type": "battle/submitOption",
+  "v": 1
+}

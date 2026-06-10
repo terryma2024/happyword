@@ -1,0 +1,10 @@
+{
+  "payload": {
+    "introLineEn": "You dare wake me, little wizard?",
+    "introLineZh": "小法师，你竟敢吵醒我？",
+    "monsterIndex": 2,
+    "name": "云眠巨龙"
+  },
+  "type": "battle/bossIntro",
+  "v": 1
+}

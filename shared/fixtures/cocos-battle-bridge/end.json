@@ -1,0 +1,7 @@
+{
+  "payload": {
+    "status": "won"
+  },
+  "type": "battle/end",
+  "v": 1
+}

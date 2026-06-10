@@ -1,5 +1,13 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseNativeMessage, serializeScriptMessage } from '../assets/scripts/bridge/messages';
+
+const FIXTURES_DIR = join(__dirname, '../../shared/fixtures/cocos-battle-bridge');
+const SCRIPT_TO_NATIVE = new Set([
+    'battle/ready', 'battle/submitOption', 'battle/spellWrongTap',
+    'battle/speakAnswer', 'battle/escape', 'battle/pong',
+]);
 
 describe('parseNativeMessage', () => {
     it('parses a battle/state envelope', () => {
@@ -28,4 +36,30 @@ describe('serializeScriptMessage', () => {
         const json = serializeScriptMessage({ type: 'battle/submitOption', payload: { option: 'apple' } });
         expect(JSON.parse(json)).toEqual({ v: 1, type: 'battle/submitOption', payload: { option: 'apple' } });
     });
+});
+
+describe('shared contract fixtures', () => {
+    const files = readdirSync(FIXTURES_DIR).filter(f => f.endsWith('.json'));
+
+    it('covers every fixture file', () => {
+        expect(files.length).toBeGreaterThanOrEqual(19);
+    });
+
+    for (const file of files) {
+        const raw = readFileSync(join(FIXTURES_DIR, file), 'utf8');
+        const envelope = JSON.parse(raw);
+
+        if (SCRIPT_TO_NATIVE.has(envelope.type)) {
+            it(`round-trips script fixture ${file}`, () => {
+                const serialized = serializeScriptMessage({ type: envelope.type, payload: envelope.payload });
+                expect(JSON.parse(serialized)).toEqual(envelope);
+            });
+        } else {
+            it(`parses native fixture ${file}`, () => {
+                const msg = parseNativeMessage(raw);
+                expect(msg).not.toBeNull();
+                expect(msg?.type).toBe(envelope.type);
+            });
+        }
+    }
 });

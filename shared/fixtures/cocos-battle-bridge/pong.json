@@ -1,0 +1,7 @@
+{
+  "payload": {
+    "echo": "spike"
+  },
+  "type": "battle/pong",
+  "v": 1
+}
