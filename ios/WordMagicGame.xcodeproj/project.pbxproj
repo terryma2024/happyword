@@ -74,6 +74,7 @@
 		B4574D0D03B445D58D4097A0 /* MessageBubbleLabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C15AADFA8966E1FCC290A1C /* MessageBubbleLabView.swift */; };
 		B60048E8C6C4645BDD9762F9 /* PronunciationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FAE4997C3E18E4C154192C3 /* PronunciationService.swift */; };
 		B78D4D8347BED158B20C4848 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */; };
+		B8429B6F44D6B0AEA925E851 /* CocosBattleScreenshotUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 462E34D8E18FA9C1943262C8 /* CocosBattleScreenshotUITests.swift */; };
 		B96EE54B096D36EE228F71CA /* MonsterCodexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4F6C0F250B5DDB85CA37E3 /* MonsterCodexTests.swift */; };
 		BFB2D10A293E35EAD0F46005 /* ParentApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E536CB57513E373F4DAE0FB /* ParentApiModels.swift */; };
 		C4EBC57B653E00711C0B4378 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 278A1A6949FE6B8D92879377 /* InfoPlist.strings */; };
@@ -147,6 +148,7 @@
 		3F8096273F6C5E474BA07021 /* BattleQuestionTypePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleQuestionTypePolicy.swift; sourceTree = "<group>"; };
 		427C7D950FD8A8075470C061 /* SpellbookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpellbookView.swift; sourceTree = "<group>"; };
 		4397EF73C254584D191DEFC5 /* DamageFloaterLabelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DamageFloaterLabelTests.swift; sourceTree = "<group>"; };
+		462E34D8E18FA9C1943262C8 /* CocosBattleScreenshotUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CocosBattleScreenshotUITests.swift; sourceTree = "<group>"; };
 		46B11FD6736977A7563E1AC2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		47053DBD03F5240ECCD35573 /* AppMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetadataTests.swift; sourceTree = "<group>"; };
 		47BC3511BBA49EE9C87AD467 /* fruit-forest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "fruit-forest.json"; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 		91144466FE6FE0F30DABF0B7 /* WordMagicGameUITests */ = {
 			isa = PBXGroup;
 			children = (
+				462E34D8E18FA9C1943262C8 /* CocosBattleScreenshotUITests.swift */,
 				592FB161A28256A2ACEA6D01 /* CocosLabSpikeUITests.swift */,
 				38479AC6AB0335AC72A4D84F /* WordMagicGameUITests.swift */,
 			);
@@ -626,6 +629,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B8429B6F44D6B0AEA925E851 /* CocosBattleScreenshotUITests.swift in Sources */,
 				0C6AA20F0EF1444281B39E74 /* CocosLabSpikeUITests.swift in Sources */,
 				B3504CF00EF29F88A237A5D9 /* WordMagicGameUITests.swift in Sources */,
 			);
