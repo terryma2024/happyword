@@ -20,6 +20,24 @@ Contract: `shared/contracts/cocos-battle-bridge/`.
   `WordMagicGameUITests/CocosBattleScreenshotUITests` (device destination),
   then export attachments from the result bundle.
 
+## Browser preview SOP (fast iteration)
+
+1. Keep ONE editor instance open. `tools/cocos/build-ios.sh` QUITS the editor
+   (device deploys end preview sessions) — relaunch afterwards with
+   `open -na CocosCreator.app --args --project <repo>/cocos`.
+2. Preview URL: http://localhost:7456/. The FIRST page load after an editor
+   start triggers script compilation (black screen 10–30s) — reload once.
+3. **The page's game loop freezes whenever its browser window is hidden:
+   minimized, fully occluded, or on another macOS Space (requestAnimationFrame
+   stops; `document.visibilityState === "hidden"`).** Symptoms: profiler shows
+   Framerate 0 and the fake-host data never applies. Keep the preview window
+   visible on the active Space; don't fullscreen the editor over it.
+4. After editing scripts: focus the editor once (it recompiles on focus),
+   wait ~8s, reload the preview page.
+5. Browser preview runs the PreviewFakeHost (no JSB bridge): cycles all five
+   question kinds, simulates the 3-streak combo burst, monster intro bubble
+   shows at startup.
+
 ## iOS embed (Phase 0 spike recipe — keep updated)
 
 The host app (`ios/WordMagicGame`) embeds the Cocos runtime directly; there is
