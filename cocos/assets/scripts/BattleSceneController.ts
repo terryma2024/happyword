@@ -10,8 +10,11 @@ import {
     NativeToScriptMessage,
 } from './bridge/messages';
 import { PreviewFakeHost } from './bridge/previewFakeHost';
+import { AnimationStep, planAnimation } from './ui/animationPlan';
 import { AnswerRow } from './ui/AnswerRow';
 import { feedbackColorHex } from './ui/answerFeedback';
+import { BossIntroBubble } from './ui/BossIntroBubble';
+import { CritOverlay, FloaterLayer, ProjectileLayer } from './ui/effects';
 import { FighterCard } from './ui/FighterCard';
 import { optionsForQuestion } from './ui/format';
 import { makeRoundedRect } from './ui/nodeFactory';
@@ -35,7 +38,13 @@ export class BattleSceneController extends Component {
     private questionPanel = new QuestionPanel();
     private answerRow = new AnswerRow();
     private spellPool = new SpellPool();
+    private projectileLayer = new ProjectileLayer();
+    private floaterLayer = new FloaterLayer();
+    private critOverlay = new CritOverlay();
+    private bossIntro = new BossIntroBubble();
     private bridge = new BridgeClient();
+    private bossIntroMonsterIndex = 0;
+    private lastMonsterIndex = 0;
     private previewHost: PreviewFakeHost | null = null;
     private playerArt = { idle: 'CharacterMagician', fight: 'CharacterMagicianFight', hurt: 'CharacterMagicianBeaten' };
     private inputLocked = true;
@@ -63,6 +72,11 @@ export class BattleSceneController extends Component {
         this.questionPanel.build(this.node);
         this.answerRow.build(this.node);
         this.spellPool.build(this.node);
+        // Effect layers attach last so they render above the cards.
+        this.projectileLayer.build(this.node);
+        this.floaterLayer.build(this.node);
+        this.critOverlay.build(this.node);
+        this.bossIntro.build(this.node);
 
         this.answerRow.onOptionTap = (option) => this.submitOption(option);
         this.spellPool.onLetterTap = (poolIndex) => this.handleSpellPoolTap(poolIndex);
@@ -89,6 +103,8 @@ export class BattleSceneController extends Component {
             this.applyInit(host.initPayload());
             this.applyState(host.statePayload());
             this.applyQuestion(host.currentQuestion());
+            this.showBossIntro(1, 'Snow Goblin',
+                'Bounce into my wiggly quiz!', '跳进我的软软小题吧！');
         }, 0.3);
     }
 
@@ -111,7 +127,10 @@ export class BattleSceneController extends Component {
             case 'battle/state': this.applyState(msg.payload); break;
             case 'battle/question': this.applyQuestion(msg.payload); break;
             case 'battle/animation': this.applyAnimation(msg.payload); break;
-            case 'battle/bossIntro': break; // Task 3.5: boss intro bubble
+            case 'battle/bossIntro':
+                this.showBossIntro(msg.payload.monsterIndex, msg.payload.name,
+                    msg.payload.introLineEn, msg.payload.introLineZh);
+                break;
             case 'battle/end': this.inputLocked = true; break;
             case 'battle/ping':
                 this.bridge.send({ type: 'battle/pong', payload: { echo: msg.payload.echo } });
@@ -136,6 +155,15 @@ export class BattleSceneController extends Component {
         this.topStatus.setCombo(payload.comboCount);
         this.topStatus.setCountdown(payload.remainingSeconds);
         this.playerCard.setHp(payload.playerHp, payload.playerMaxHp);
+        if (payload.monsterIndex !== this.lastMonsterIndex) {
+            if (this.lastMonsterIndex > 0) {
+                this.monsterCard.playSpawnTransition();
+            }
+            this.lastMonsterIndex = payload.monsterIndex;
+            if (this.bossIntroMonsterIndex !== payload.monsterIndex) {
+                this.bossIntro.hide();
+            }
+        }
         this.monsterCard.setIdentity(
             payload.monster.imageKey,
             payload.monster.name,
@@ -213,6 +241,14 @@ export class BattleSceneController extends Component {
         );
         this.questionPanel.setFeedback(payload.feedbackText, feedbackColorHex(payload));
 
+        for (const step of planAnimation(payload)) {
+            if (step.delayMs === 0) {
+                this.runAnimationStep(step);
+            } else {
+                this.scheduleOnce(() => this.runAnimationStep(step), step.delayMs / 1000);
+            }
+        }
+
         this.scheduleOnce(() => {
             this.feedbackHolding = false;
             if (this.pendingQuestion) {
@@ -224,5 +260,48 @@ export class BattleSceneController extends Component {
                 this.inputLocked = false;
             }
         }, FEEDBACK_HOLD_SECONDS);
+    }
+
+    /// Auto-dismisses after ~1.05 s (native parity) unless a newer monster
+    /// replaced it first.
+    private showBossIntro(monsterIndex: number, name: string, lineEn: string, lineZh: string) {
+        this.bossIntroMonsterIndex = monsterIndex;
+        this.bossIntro.show(name, lineEn, lineZh);
+        this.scheduleOnce(() => {
+            if (this.bossIntroMonsterIndex === monsterIndex) {
+                this.bossIntro.hide();
+            }
+        }, 1.05);
+    }
+
+    private runAnimationStep(step: AnimationStep) {
+        switch (step.target) {
+            case 'projectile':
+                this.projectileLayer.fly(step.effect as 'forward' | 'backward', step.label ?? '');
+                break;
+            case 'player':
+                this.playerCard.playMotion(step.effect, this.playerPoseTextures(step.effect));
+                break;
+            case 'monster':
+                this.monsterCard.playMotion(step.effect);
+                break;
+            case 'crit':
+                this.critOverlay.show(step.label ?? '');
+                break;
+            case 'floaterPlayer':
+                this.floaterLayer.show('player', step.label ?? '');
+                break;
+            case 'floaterMonster':
+                this.floaterLayer.show('monster', step.label ?? '');
+                break;
+        }
+    }
+
+    private playerPoseTextures(effect: string): { temp: string; revert: string } | undefined {
+        switch (effect) {
+            case 'hurt': return { temp: this.playerArt.hurt, revert: this.playerArt.idle };
+            case 'cast': return { temp: this.playerArt.fight, revert: this.playerArt.idle };
+            default: return undefined;
+        }
     }
 }
