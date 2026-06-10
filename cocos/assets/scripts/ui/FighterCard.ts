@@ -169,7 +169,7 @@ export class FighterCard {
                     g.fillColor = c;
                     g.circle(0, 0, 95);
                     g.fill();
-                }, [{ to: 85, seconds: 0.08 }, { to: 0, seconds: 0.34 }]);
+                }, [{ to: 128, seconds: 0.08 }, { to: 0, seconds: 0.34 }]);
                 break;
             default:
                 return;
