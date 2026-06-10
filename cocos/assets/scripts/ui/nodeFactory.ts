@@ -3,7 +3,7 @@
 // pure logic stays in importable .ts modules tested by vitest.
 
 import {
-    Color, Graphics, Label, Node, Sprite, SpriteFrame, UITransform, Vec3, resources,
+    Color, Graphics, Label, Node, Sprite, SpriteFrame, UITransform, Vec3, resources, tween,
 } from 'cc';
 
 export function color(hex: string): Color {
@@ -108,6 +108,31 @@ export function makeBar(
     };
     draw(1);
     return { node, setRatio: draw };
+}
+
+/// Animates the alpha of Graphics content by redrawing it each frame.
+/// UIOpacity does NOT affect Graphics nodes in this engine version, so
+/// fades must be baked into the fill/stroke colors.
+export function animateGraphicsAlpha(
+    g: Graphics,
+    draw: (g: Graphics, alpha: number) => void,
+    steps: { to: number; seconds: number; delay?: number }[],
+    from = 0,
+    onDone?: () => void,
+): void {
+    const proxy = { a: from };
+    const redraw = () => {
+        g.clear();
+        draw(g, Math.round(proxy.a));
+    };
+    redraw();
+    let chain = tween(proxy);
+    for (const step of steps) {
+        if (step.delay) { chain = chain.delay(step.delay); }
+        chain = chain.to(step.seconds, { a: step.to }, { onUpdate: redraw });
+    }
+    if (onDone) { chain = chain.call(onDone); }
+    chain.start();
 }
 
 /// Loads a character texture and sizes the node to FIT inside fitWidth/fitHeight

@@ -3,8 +3,8 @@
 // name (+inline level badge), subtitle, left-aligned HP label, full-width
 // HP bar with gray track.
 
-import { Graphics, HorizontalTextAlignment, Label, Layout, Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
-import { color, loadCharacterSprite, makeCapsule, makeLabel, makeNode, makeRoundedRect } from './nodeFactory';
+import { Graphics, HorizontalTextAlignment, Label, Layout, Node, tween, UITransform, Vec3 } from 'cc';
+import { animateGraphicsAlpha, color, loadCharacterSprite, makeCapsule, makeLabel, makeNode, makeRoundedRect } from './nodeFactory';
 import { layout, theme } from './theme';
 
 export interface FighterCardConfig {
@@ -18,8 +18,8 @@ const HURT_RED = '#E63848';
 export class FighterCard {
     private spriteNode!: Node;
     private spriteRegion!: Node;
-    private glowOpacity!: UIOpacity;
-    private hurtOpacity!: UIOpacity;
+    private glowGraphics!: Graphics;
+    private hurtGraphics!: Graphics;
     private nameLabel!: Label;
     private subtitleLabel!: Label;
     private hpLabel!: Label;
@@ -48,26 +48,18 @@ export class FighterCard {
         // --- character art region (top) ---
         this.spriteRegion = makeNode('SpriteRegion', this.cardNode, 0, half - 110);  // art center ~110 below card top
 
+        // Drawn on demand with baked alpha (UIOpacity does not affect Graphics).
         const glowNode = makeNode('CastGlow', this.spriteRegion);
-        const glowGraphics = glowNode.addComponent(Graphics);
-        glowGraphics.circle(0, 0, 92);
-        glowGraphics.fillColor = color(theme.gold);
-        glowGraphics.fill();
-        this.glowOpacity = glowNode.addComponent(UIOpacity);
-        this.glowOpacity.opacity = 0;
+        this.glowGraphics = glowNode.addComponent(Graphics);
 
         this.spriteNode = makeNode('CharacterSprite', this.spriteRegion);
         this.spriteNode.getComponent(UITransform)!
             .setContentSize(layout.fighterSpriteFit, layout.fighterSpriteFit);
 
-        // Translucent red circle over the art only (native hurtOpacity circle).
+        // Translucent red circle over the art only (native hurtOpacity circle),
+        // drawn on demand with baked alpha.
         const hurtNode = makeNode('HurtCircle', this.spriteRegion);
-        const hurtGraphics = hurtNode.addComponent(Graphics);
-        hurtGraphics.circle(0, 0, 95);
-        hurtGraphics.fillColor = color(HURT_RED);
-        hurtGraphics.fill();
-        this.hurtOpacity = hurtNode.addComponent(UIOpacity);
-        this.hurtOpacity.opacity = 0;
+        this.hurtGraphics = hurtNode.addComponent(Graphics);
 
         // --- name row with inline level badge ---
         const nameRow = makeNode('NameRow', this.cardNode, 0, half - 242);
@@ -150,11 +142,13 @@ export class FighterCard {
                     .to(0.18, { angle: -10 })
                     .to(0.16, { scale: new Vec3(1, 1, 1), angle: 0 })
                     .start();
-                tween(this.glowOpacity)
-                    .to(0.18, { opacity: 200 })
-                    .delay(0.2)
-                    .to(0.2, { opacity: 0 })
-                    .start();
+                animateGraphicsAlpha(this.glowGraphics, (g, alpha) => {
+                    const c = color(theme.gold);
+                    c.a = alpha;
+                    g.fillColor = c;
+                    g.circle(0, 0, 92);
+                    g.fill();
+                }, [{ to: 200, seconds: 0.18 }, { to: 0, seconds: 0.2, delay: 0.2 }]);
                 break;
             case 'zoom':
                 tween(this.cardNode)
@@ -169,10 +163,13 @@ export class FighterCard {
                     .to(0.08, { position: new Vec3(base.x - 10 * this.towardCenterSign, base.y, 0) })
                     .to(0.2, { position: base })
                     .start();
-                tween(this.hurtOpacity)
-                    .to(0.08, { opacity: 85 })
-                    .to(0.34, { opacity: 0 })
-                    .start();
+                animateGraphicsAlpha(this.hurtGraphics, (g, alpha) => {
+                    const c = color(HURT_RED);
+                    c.a = alpha;
+                    g.fillColor = c;
+                    g.circle(0, 0, 95);
+                    g.fill();
+                }, [{ to: 85, seconds: 0.08 }, { to: 0, seconds: 0.34 }]);
                 break;
             default:
                 return;

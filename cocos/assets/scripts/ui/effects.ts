@@ -1,8 +1,8 @@
 // Combat effect layers: projectile flight, damage floaters, crit overlay.
 // Mirrors MagicProjectileOverlay / DamageFloaterLabel / CritSpectacleOverlay.
 
-import { Color, Graphics, Label, Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
-import { color, makeLabel, makeNode } from './nodeFactory';
+import { Graphics, Label, Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
+import { animateGraphicsAlpha, color, makeLabel, makeNode } from './nodeFactory';
 import { layout, theme } from './theme';
 
 const PROJECTILE_FLIGHT_SECONDS = 0.34;
@@ -119,21 +119,20 @@ export class CritOverlay {
     /// white rings burst outward from the center, and a huge RED damage
     /// label punches in, lingering past the wash (~1s total).
     show(damageLabel: string): void {
-        // Full-screen heavy gold wash.
+        // Full-screen gold wash with baked alpha (UIOpacity ignores Graphics).
         const flash = makeNode('CritFlash', this.layer);
         flash.getComponent(UITransform)!.setContentSize(layout.designWidth * 2, layout.designHeight * 2);
         const flashGraphics = flash.addComponent(Graphics);
-        flashGraphics.rect(-layout.designWidth, -layout.designHeight, layout.designWidth * 2, layout.designHeight * 2);
-        flashGraphics.fillColor = color(theme.gold);
-        flashGraphics.fill();
-        const flashOpacity = flash.addComponent(UIOpacity);
-        flashOpacity.opacity = 0;
-        tween(flashOpacity)
-            .to(0.12, { opacity: 128 })
-            .delay(0.22)
-            .to(0.55, { opacity: 0 })
-            .call(() => flash.destroy())
-            .start();
+        animateGraphicsAlpha(flashGraphics, (g, alpha) => {
+            const c = color(theme.gold);
+            c.a = alpha;
+            g.fillColor = c;
+            g.rect(-layout.designWidth, -layout.designHeight, layout.designWidth * 2, layout.designHeight * 2);
+            g.fill();
+        }, [
+            { to: 128, seconds: 0.12 },
+            { to: 0, seconds: 0.55, delay: 0.22 },
+        ], 0, () => flash.destroy());
 
         // Expanding white rings.
         this.burstRing(radius => radius * 2.6, 150, 10, 0.55);
@@ -163,20 +162,17 @@ export class CritOverlay {
     private burstRing(grow: (radius: number) => number, radius: number, lineWidth: number, seconds: number): void {
         const ring = makeNode('CritRing', this.layer);
         const g = ring.addComponent(Graphics);
-        const stroke = new Color(255, 255, 255, 235);
-        g.lineWidth = lineWidth;
-        g.strokeColor = stroke;
-        g.circle(0, 0, radius);
-        g.stroke();
-        const opacity = ring.addComponent(UIOpacity);
         const scale = grow(radius) / radius;
         tween(ring)
             .to(seconds, { scale: new Vec3(scale, scale, 1) })
             .start();
-        tween(opacity)
-            .delay(seconds * 0.35)
-            .to(seconds * 0.65, { opacity: 0 })
-            .call(() => ring.destroy())
-            .start();
+        animateGraphicsAlpha(g, (graphics, alpha) => {
+            const stroke = color(theme.white);
+            stroke.a = alpha;
+            graphics.lineWidth = lineWidth;
+            graphics.strokeColor = stroke;
+            graphics.circle(0, 0, radius);
+            graphics.stroke();
+        }, [{ to: 0, seconds: seconds * 0.65, delay: seconds * 0.35 }], 235, () => ring.destroy());
     }
 }
