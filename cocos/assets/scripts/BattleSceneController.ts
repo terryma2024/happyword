@@ -171,7 +171,6 @@ export class BattleSceneController extends Component {
         );
         this.monsterCard.setHp(payload.monsterHp, payload.monsterMaxHp);
         this.monsterCard.setLevelBadge(payload.monster.levelLabel);
-        this.monsterCard.setBonusVisible(payload.monster.bonus);
         if (payload.status !== 'playing') {
             this.inputLocked = true;
         }

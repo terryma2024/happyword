@@ -1,7 +1,7 @@
 // Fighter card mirroring the native layout (BattleView.swift fighterCard):
 // top-to-bottom — character art (with hurt circle / cast glow overlays),
 // name (+inline level badge), subtitle, left-aligned HP label, full-width
-// HP bar with gray track. Bonus capsule floats at the top-right corner.
+// HP bar with gray track.
 
 import { Graphics, HorizontalTextAlignment, Label, Layout, Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 import { color, loadCharacterSprite, makeCapsule, makeLabel, makeNode, makeRoundedRect } from './nodeFactory';
@@ -27,7 +27,6 @@ export class FighterCard {
     private hpFillGraphics!: Graphics;
     private levelBadgeNode!: Node;
     private levelBadgeLabel!: Label;
-    private bonusNode!: Node;
     private towardCenterSign = 1;
     private currentImageKey = '';
     cardNode!: Node;
@@ -101,13 +100,6 @@ export class FighterCard {
         this.hpFill.getComponent(UITransform)!.setContentSize(innerWidth, layout.hpBarHeight);
         this.hpFillGraphics = this.hpFill.addComponent(Graphics);
         this.drawHpFill(1);
-
-        // --- bonus capsule, top-right corner overlay ---
-        this.bonusNode = makeCapsule('BonusBadge', this.cardNode, 84, 34, theme.gold, {
-            x: width / 2 - 52, y: half - 24,
-        });
-        makeLabel('BonusLabel', this.bonusNode, 'Bonus', 18, theme.white);
-        this.bonusNode.active = false;
     }
 
     private drawHpFill(ratio: number): void {
@@ -137,10 +129,6 @@ export class FighterCard {
     setLevelBadge(label: string | null): void {
         this.levelBadgeNode.active = label !== null;
         if (label !== null) { this.levelBadgeLabel.string = label; }
-    }
-
-    setBonusVisible(visible: boolean): void {
-        this.bonusNode.active = visible;
     }
 
     /// Mirrors the BattleView fighter motions (BattleView.swift:916-997).
