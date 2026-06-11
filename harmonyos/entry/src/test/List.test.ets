@@ -84,6 +84,7 @@ import devMenuToolEntriesTest from './DevMenuToolEntries.test';
 import audioLabControllerTest from './AudioLabController.test';
 import audioLabPcmVoiceTest from './AudioLabPcmVoice.test';
 import switchStyleTest from './SwitchStyle.test';
+import cocosBridgeMessagesTest from './CocosBridgeMessages.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -172,4 +173,5 @@ export default function testsuite() {
   audioLabControllerTest();
   audioLabPcmVoiceTest();
   switchStyleTest();
+  cocosBridgeMessagesTest();
 }
