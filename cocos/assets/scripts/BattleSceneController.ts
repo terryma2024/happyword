@@ -3,7 +3,7 @@
 // state snapshots and reports user input (contract:
 // shared/contracts/cocos-battle-bridge/).
 
-import { _decorator, Component, game, ResolutionPolicy, sys, view } from 'cc';
+import { _decorator, Component, game, ResolutionPolicy, screen, sys, view } from 'cc';
 import { BridgeClient } from './bridge/BridgeClient';
 import {
     BattleAnimationPayload, BattleInitPayload, BattleQuestionPayload, BattleStatePayload,
@@ -23,6 +23,7 @@ import { SpellPool } from './ui/SpellPool';
 import { SpellViewState } from './ui/spellView';
 import { TopStatusBar } from './ui/TopStatusBar';
 import { layout, theme } from './ui/theme';
+import { choosePolicy, topStatusOffsetY } from './ui/resolutionPolicy';
 
 const { ccclass } = _decorator;
 
@@ -55,14 +56,25 @@ export class BattleSceneController extends Component {
     private currentQuestion: BattleQuestionPayload | null = null;
 
     onLoad() {
-        // Landscape battle: lock the 720 design height so wide phone aspect
-        // ratios letterbox horizontally instead of cropping the top status
-        // bar and answer row (default fitWidth crops vertically on ~2.17:1).
-        view.setDesignResolutionSize(layout.designWidth, layout.designHeight, ResolutionPolicy.FIXED_HEIGHT);
+        // Adaptive resolution policy: FIXED_HEIGHT on wide phones (aspect ≥ design
+        // aspect 2.174:1); FIXED_WIDTH on squarish tablets/pads (aspect < design,
+        // e.g. MatePad Air at 3:2 ≈ 1.52:1). FIXED_WIDTH keeps all content
+        // visible at the cost of extra vertical canvas; the 2× background already
+        // covers the extra area. Fighter cards at ±465 don't clip on FIXED_WIDTH
+        // because design width is always fully mapped to screen width.
+        const winSize = screen.windowSize;
+        const policy = choosePolicy(winSize.width, winSize.height, layout.designWidth, layout.designHeight);
+        view.setDesignResolutionSize(
+            layout.designWidth, layout.designHeight,
+            policy === 'fixedHeight' ? ResolutionPolicy.FIXED_HEIGHT : ResolutionPolicy.FIXED_WIDTH,
+        );
+        // Under FIXED_WIDTH the visible canvas is taller than 720 design units;
+        // shift the top status bar up so it hugs the visible top edge.
+        const topBarOffset = topStatusOffsetY(policy, winSize.width, winSize.height, layout.designWidth, layout.designHeight);
 
         makeRoundedRect('PageBackground', this.node,
             layout.designWidth * 2, layout.designHeight * 2, 0, theme.page);
-        this.topStatus.build(this.node);
+        this.topStatus.build(this.node, topBarOffset);
         this.playerCard.build(this.node, {
             nodeName: 'PlayerCard', tintHex: theme.paleBlue, x: -layout.fighterCardX,
         });

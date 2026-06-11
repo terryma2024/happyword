@@ -19,8 +19,8 @@ export class TopStatusBar {
     escapeNode!: Node;
     onEscapeTap: (() => void) | null = null;
 
-    build(parent: Node): void {
-        const bar = makeNode('TopStatusBar', parent, 0, layout.topStatusY);
+    build(parent: Node, topOffsetY = 0): void {
+        const bar = makeNode('TopStatusBar', parent, 0, layout.topStatusY + topOffsetY);
         bar.getComponent(UITransform)!.setContentSize(layout.designWidth, 60);
 
         this.comboLabel = makeLabel('ComboLabel', bar, 'Combo: 0', 28, theme.navy, { x: -520 });
