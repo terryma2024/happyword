@@ -37,5 +37,37 @@ if [ -z "$DATA_MAIN" ]; then
     exit 1
 fi
 
+# Post-process: rewrite any machine-specific absolute paths in build-profile.json5
+# back to project-relative values.  Cocos Creator regenerates this file with absolute
+# paths on every build, so we normalise them here to keep the file committable.
+BPROFILE="$ROOT/cocos/native/engine/harmonyos-next/entry/build-profile.json5"
+if [ -f "$BPROFILE" ]; then
+    python3 - "$BPROFILE" "$ROOT/cocos" <<'PYEOF'
+import sys, re, pathlib
+
+profile_path = pathlib.Path(sys.argv[1])
+cocos_root   = pathlib.Path(sys.argv[2]).resolve()
+
+text = profile_path.read_text()
+
+# Replace any absolute path that ends with /cocos/build/harmonyos-next (RES_DIR)
+text = re.sub(
+    r'-DRES_DIR=[^\s\'"]+build/harmonyos-next',
+    '-DRES_DIR=../../../build/harmonyos-next',
+    text,
+)
+
+# Replace any absolute path that ends with /cocos/native/engine/common (COMMON_DIR)
+text = re.sub(
+    r'-DCOMMON_DIR=[^\s\'"]+native/engine/common',
+    '-DCOMMON_DIR=../common',
+    text,
+)
+
+profile_path.write_text(text)
+print("  patched build-profile.json5 (relative native paths restored)")
+PYEOF
+fi
+
 echo "==> done; output at cocos/build/harmonyos-next/"
 echo "    data bundle: $DATA_MAIN"
