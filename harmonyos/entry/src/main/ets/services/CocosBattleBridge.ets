@@ -91,6 +91,13 @@ export interface CocosBattleBridgeCallbacks {
   playSfx(soundKey: string): void;
   speakWord(word: string): void;
   autoSpeakWord(word: string, questionKind: string): void;
+  /**
+   * Optional: fired on EVERY battle/ready the scene delivers (including the
+   * synthetic replay CocosEngineHost emits on page re-entry). The hosting
+   * page uses the first invocation to cancel its ready-timeout fallback and
+   * start the countdown interval.
+   */
+  onReady?(): void;
 }
 
 /**
@@ -162,6 +169,20 @@ export class CocosBattleBridge {
 
   private ready: boolean = false;
   private finishNotified: boolean = false;
+  /**
+   * Set by dispose() when the hosting page tears down. Once true the bridge
+   * is inert: inbound messages are ignored, outbound sends stop, and every
+   * already-scheduled closure (question hold, hurt grunt, finish hold)
+   * becomes a no-op — so no callback can touch a destroyed page.
+   */
+  private disposed: boolean = false;
+  /**
+   * True while the 650 ms post-submit feedback hold is pending. A second
+   * battle/submitOption racing the hold (double-tap in the scene) is dropped
+   * so the engine receives exactly one submitAnswer per question swap —
+   * parity with BattlePage's feedbackTimer guard in onOptionTap.
+   */
+  private holdActive: boolean = false;
   /** Mirrors Swift shownBossIntroCatalogIndices / lastBossIntroMonsterIndex. */
   private shownBossIntroCatalogIndices: Set<number> = new Set<number>();
   private lastBossIntroMonsterIndex: number = 0;
@@ -196,12 +217,27 @@ export class CocosBattleBridge {
     return this.ready;
   }
 
+  /**
+   * Tear-down latch — call from the hosting page's aboutToDisappear. After
+   * this, the bridge neither sends to the scene nor invokes any callback,
+   * even from closures that were already scheduled before disposal.
+   */
+  dispose(): void {
+    this.disposed = true;
+  }
+
   /** Called by the hosting page's countdown timer after engine.tick(1). */
   sendStateTick(): void {
+    if (this.disposed) {
+      return;
+    }
     this.sendState();
   }
 
   handleSceneMessage(json: string): void {
+    if (this.disposed) {
+      return;
+    }
     const message: SceneMessage | null = decodeSceneMessage(json);
     if (message === null) {
       console.warn('CocosBattleBridge: ignoring unknown bridge message');
@@ -242,6 +278,9 @@ export class CocosBattleBridge {
       this.engine.start();
     }
     this.ready = true;
+    if (this.callbacks.onReady !== undefined) {
+      this.callbacks.onReady();
+    }
     this.sendInit();
     this.sendState();
     this.sendQuestion();
@@ -251,6 +290,11 @@ export class CocosBattleBridge {
 
   /** Mirrors BattlePage.onOptionTap / handleSpellSubmit around the engine. */
   private handleSubmit(option: string): void {
+    if (this.holdActive) {
+      // Duplicate tap racing the 650 ms feedback hold — drop it (BattlePage
+      // parity: option buttons are disabled while feedbackTimer is pending).
+      return;
+    }
     const state: BattleState = this.engine.getState();
     if (state.status !== BattleStatus.Playing || state.currentQuestion === undefined) {
       return;
@@ -290,7 +334,12 @@ export class CocosBattleBridge {
     }
     // Mirror the native FEEDBACK_MS hold: the answered question (and its
     // feedback) stays on screen 650 ms before the next question swaps in.
+    this.holdActive = true;
     this.scheduler((): void => {
+      this.holdActive = false;
+      if (this.disposed) {
+        return;
+      }
       this.sendQuestion();
       this.maybeSendBossIntro();
       this.autoSpeakCurrent();
@@ -364,6 +413,9 @@ export class CocosBattleBridge {
 
   private schedulePlayerHurtGrunt(): void {
     this.scheduler((): void => {
+      if (this.disposed) {
+        return;
+      }
       this.callbacks.playSfx(SoundKeys.PLAYER_HURT);
     }, COCOS_PLAYER_HURT_GRUNT_MS);
   }
@@ -380,7 +432,7 @@ export class CocosBattleBridge {
   private finishAfterFeedbackHold(endStatus: BattleStatus | undefined): void {
     this.transport.send(encodeEnd(endStatus === BattleStatus.Won ? 'won' : 'lost'));
     this.scheduler((): void => {
-      if (this.finishNotified) {
+      if (this.disposed || this.finishNotified) {
         return;
       }
       this.finishNotified = true;

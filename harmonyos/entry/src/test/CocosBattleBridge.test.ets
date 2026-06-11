@@ -119,9 +119,14 @@ class RecordingCallbacks implements CocosBattleBridgeCallbacks {
   sfx: string[] = [];
   spoken: string[] = [];
   autoSpoken: string[] = [];
+  readyCount: number = 0;
 
   onFinish(result: SessionResult): void {
     this.finishResults.push(result);
+  }
+
+  onReady(): void {
+    this.readyCount += 1;
   }
 
   playSfx(soundKey: string): void {
@@ -287,8 +292,12 @@ export default function cocosBattleBridgeTest() {
     it('comboBurstSendsCritAnimationAndCritSfx', 0, () => {
       const h: BridgeHarness = makeHarness(5, 5, 10);
       h.injectReady();
+      // Drain the feedback hold between answers — submits racing the hold
+      // are dropped by design (see duplicateSubmitDuringFeedbackHoldIsDropped).
       h.injectSubmit('cat');
+      h.scheduler.runAll();
       h.injectSubmit('cat');
+      h.scheduler.runAll();
       h.transport.clear();
       h.callbacks.sfx = [];
 
@@ -472,6 +481,87 @@ export default function cocosBattleBridgeTest() {
 
       expect(h.bridge.isReady).assertFalse();
       expect(h.transport.sent.length).assertEqual(0);
+    });
+
+    it('onReadyHookFiresOnEveryReady', 0, () => {
+      const h: BridgeHarness = makeHarness(2, 5, 10);
+      expect(h.callbacks.readyCount).assertEqual(0);
+
+      h.injectReady();
+      expect(h.callbacks.readyCount).assertEqual(1);
+
+      // Re-entry replay (CocosEngineHost synthetic ready) fires it again.
+      h.injectReady();
+      expect(h.callbacks.readyCount).assertEqual(2);
+    });
+
+    it('duplicateSubmitDuringFeedbackHoldIsDropped', 0, () => {
+      const h: BridgeHarness = makeHarness(5, 5, 10);
+      h.injectReady();
+      h.transport.clear();
+
+      h.injectSubmit('cat');
+      // Second tap racing the 650 ms hold — engine must see exactly one answer.
+      h.injectSubmit('cat');
+
+      expect(h.engine.getState().totalAnswers).assertEqual(1);
+      expect(h.transport.sentTypes().join(',')).assertEqual('battle/animation,battle/state');
+
+      // After the hold elapses the next submit is accepted again.
+      h.scheduler.runAll();
+      h.injectSubmit('cat');
+      expect(h.engine.getState().totalAnswers).assertEqual(2);
+    });
+
+    it('disposeMakesScheduledQuestionClosureANoOp', 0, () => {
+      const h: BridgeHarness = makeHarness(5, 5, 10);
+      h.injectReady();
+      h.transport.clear();
+      h.callbacks.autoSpoken = [];
+
+      h.injectSubmit('cat');
+      expect(h.scheduler.calls.length).assertEqual(1);
+      h.bridge.dispose();
+      h.scheduler.runAll();
+
+      // No battle/question after the hold, no auto-speak callback.
+      expect(h.transport.sentTypes().join(',')).assertEqual('battle/animation,battle/state');
+      expect(h.callbacks.autoSpoken.length).assertEqual(0);
+    });
+
+    it('disposeMakesFinishHoldClosureANoOp', 0, () => {
+      const h: BridgeHarness = makeHarness(1, 1, 10);
+      h.injectReady();
+      h.transport.clear();
+      h.callbacks.sfx = [];
+
+      h.injectSubmit('cat');
+      expect(h.transport.lastPayloadOfType('battle/end') !== undefined).assertTrue();
+      h.bridge.dispose();
+      h.scheduler.runAll();
+
+      // Page tore down before the 650 ms finish hold: no onFinish, no fanfare.
+      expect(h.callbacks.finishResults.length).assertEqual(0);
+      expect(h.callbacks.sfx.indexOf(SoundKeys.VICTORY)).assertEqual(-1);
+    });
+
+    it('messagesAndTicksAfterDisposeAreIgnored', 0, () => {
+      const h: BridgeHarness = makeHarness(2, 5, 10);
+      h.injectReady();
+      h.transport.clear();
+      h.callbacks.spoken = [];
+
+      h.bridge.dispose();
+
+      h.injectSubmit('cat');
+      h.transport.inject('{"v":1,"type":"battle/speakAnswer","payload":{}}');
+      h.transport.inject('{"v":1,"type":"battle/escape","payload":{}}');
+      h.bridge.sendStateTick();
+
+      expect(h.engine.getState().totalAnswers).assertEqual(0);
+      expect(h.transport.sent.length).assertEqual(0);
+      expect(h.callbacks.spoken.length).assertEqual(0);
+      expect(h.callbacks.finishResults.length).assertEqual(0);
     });
 
     it('cocosImageKeyMapsCodexKeysToCharacterArtNames', 0, () => {
