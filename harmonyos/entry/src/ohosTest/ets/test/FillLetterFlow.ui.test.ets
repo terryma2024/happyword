@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
-import { Want } from '@kit.AbilityKit';
+import { Driver, ON, Component } from '@kit.TestKit';
 import {
+  launchAppShared,
   selectAllQuestionTypesShared,
   selectOnlyQuestionTypeShared,
 } from './RoutingFlow.ui.test';
@@ -20,22 +20,6 @@ import {
  * Config `selectOnlyQuestionTypeShared` forces 100% of today-battle
  * questions to the selected kind — no monster-slot ordering.
  */
-
-const BUNDLE: string = 'com.terryma.wordmagicgame';
-const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
-  abilityDelegatorRegistry.getAbilityDelegator();
-
-async function launchApp(): Promise<Driver> {
-  try {
-    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-    await DELEGATOR.startAbility(want);
-    const driver: Driver = Driver.create();
-    await driver.delayMs(1000);
-    return driver;
-  } catch (err) {
-    throw err as Error;
-  }
-}
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
@@ -103,7 +87,7 @@ async function exitToHome(driver: Driver): Promise<void> {
 export default function fillLetterFlowUiTest(): void {
   describe('FillLetterFlow', () => {
     it('singleLetterFillAcceptsCorrectLetter', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
       await selectOnlyQuestionTypeShared(driver, 'fill-letter');
       await driver.delayMs(900);
@@ -130,7 +114,7 @@ export default function fillLetterFlowUiTest(): void {
     });
 
     it('mediumLetterFillCompletesBothSteps', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
       await selectOnlyQuestionTypeShared(driver, 'fill-letter-medium');
       await driver.delayMs(900);

@@ -1,31 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { abilityDelegatorRegistry, Driver, ON } from '@kit.TestKit';
-import { Want } from '@kit.AbilityKit';
-
-const BUNDLE: string = 'com.terryma.wordmagicgame';
-const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
-  abilityDelegatorRegistry.getAbilityDelegator();
-
-/**
- * Cold-launch helper. Mirrors RoutingFlow's launchApp so the V0.3 suite
- * shares the 1s settle window and avoids force-stopping the bundle —
- * force-stop kills the test runner alongside the app and surfaces as
- * "App died" in the runner output.
- */
-async function launchApp(): Promise<Driver> {
-  // ArkTS strict mode flags direct @kit calls as may-throw — wrap the
-  // helper body in try/catch+rethrow to silence the warning while
-  // preserving propagation to hypium's per-`it` handler.
-  try {
-    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-    await DELEGATOR.startAbility(want);
-    const driver: Driver = Driver.create();
-    await driver.delayMs(1000);
-    return driver;
-  } catch (err) {
-    throw err as Error;
-  }
-}
+import { Driver, ON } from '@kit.TestKit';
+import { launchAppShared } from './RoutingFlow.ui.test';
 
 /**
  * Navigate back to HomePage after a test. Each `it` block is required
@@ -60,7 +35,7 @@ async function returnToHome(driver: Driver): Promise<void> {
 export default function adventureFlowUiTest(): void {
   describe('AdventureFlow', () => {
     it('homePageShowsAdventureCardAndCoinPill', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
 
       await driver.assertComponentExist(ON.id('AdventureCard'));
@@ -72,7 +47,7 @@ export default function adventureFlowUiTest(): void {
     });
 
     it('todayAdventureLaunchesPlanBattleWithPrompt', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
 
       await driver.assertComponentExist(ON.id('HomeStartButton'));
@@ -99,7 +74,7 @@ export default function adventureFlowUiTest(): void {
     });
 
     it('wishlistPageShowsThreeBuiltInWishes', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
 
       await driver.assertComponentExist(ON.id('HomeWishlistButton'));
@@ -127,7 +102,7 @@ export default function adventureFlowUiTest(): void {
      * with a rendered title.
      */
     it('homeStartButtonOpensTodayAdventure', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
 
       await driver.assertComponentExist(ON.id('HomeStartButton'));
@@ -151,7 +126,7 @@ export default function adventureFlowUiTest(): void {
     });
 
     it('homePageRegionPickerSwitchesPersistently', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
 
       await driver.assertComponentExist(ON.id('RegionChip_fruit-forest'));

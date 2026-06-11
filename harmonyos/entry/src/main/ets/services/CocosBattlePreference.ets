@@ -35,7 +35,13 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 const DOMAIN: number = 0x0000;
 const PREFS_NAME: string = 'wordmagic_cocos_battle_prefs';
 
-/** Exported for test assertion and ConfigPage (Task 1.4). */
+/**
+ * Exported for test assertion and ConfigPage (Task 1.4).
+ *
+ * NOTE: this constant serves as BOTH the @ohos.data.preferences file key
+ * (where the value is stored as the string 'true' | 'false') AND the
+ * AppStorage key (where the value is stored as a boolean).
+ */
 export const COCOS_BATTLE_PREF_KEY: string = 'battle.useCocosScene';
 
 /** AppStorage key written by CocosBattlePage on engine crash (Task 1.5). */
@@ -99,11 +105,17 @@ export function cocosBattlePrefEnabledFromRaw(raw: string): boolean {
 /**
  * Persist the Cocos-scene preference.  Fire-and-forget — failures are
  * logged but not surfaced to the caller (UI parity with BackendEnv).
+ *
+ * Also updates AppStorage immediately so battleRouteUrl() reflects the
+ * new value without an app restart.
  */
 export async function saveCocosScenePref(
   ctx: common.UIAbilityContext,
   enabled: boolean,
 ): Promise<void> {
+  // Update AppStorage immediately so battleRouteUrl() picks up the new
+  // value on the next call (no restart required).
+  AppStorage.setOrCreate<boolean>(COCOS_BATTLE_PREF_KEY, enabled);
   try {
     const handle: preferences.Preferences =
       await preferences.getPreferences(ctx, PREFS_NAME);
@@ -163,10 +175,9 @@ export async function loadCocosScenePrefRaw(
 export function battleRouteUrl(): string {
   const runtimeAvailable: boolean = isCocosRuntimeAvailable();
 
-  const prefRaw: string | undefined =
-    AppStorage.get<string>(COCOS_BATTLE_PREF_KEY);
-  const prefEnabled: boolean =
-    cocosBattlePrefEnabledFromRaw(prefRaw !== undefined ? prefRaw : '');
+  const prefStored: boolean | undefined =
+    AppStorage.get<boolean>(COCOS_BATTLE_PREF_KEY);
+  const prefEnabled: boolean = prefStored !== undefined ? prefStored : true;
 
   const fallbackActive: boolean =
     AppStorage.get<boolean>(COCOS_BATTLE_FALLBACK_KEY) === true;
@@ -188,14 +199,14 @@ export function battleRouteUrl(): string {
  * Boot helper: read the persisted preference and write it to AppStorage
  * so `battleRouteUrl()` can read it synchronously afterwards.
  *
- * Call once from EntryAbility.onCreate (after initBackendEnvPrefs, before
- * loadHome).  Idempotent — second call from the same process is a no-op
- * because AppStorage already has the key.
+ * Called from onWindowStageCreate concurrently with other hydrates.
+ * setOrCreate overwrites any existing value, so a second call in the
+ * same process will re-apply the persisted preference (not a no-op).
  */
 export async function hydrateCocosScenePref(
   ctx: common.UIAbilityContext,
 ): Promise<void> {
   const raw: string = await loadCocosScenePrefRaw(ctx);
   const enabled: boolean = cocosBattlePrefEnabledFromRaw(raw);
-  AppStorage.setOrCreate<string>(COCOS_BATTLE_PREF_KEY, enabled ? 'true' : 'false');
+  AppStorage.setOrCreate<boolean>(COCOS_BATTLE_PREF_KEY, enabled);
 }

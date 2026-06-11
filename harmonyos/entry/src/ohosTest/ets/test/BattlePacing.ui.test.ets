@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
-import { Want } from '@kit.AbilityKit';
+import { Driver, ON, Component } from '@kit.TestKit';
 import {
+  launchAppShared,
   selectAllQuestionTypesShared,
   selectQuestionTypesShared,
 } from './RoutingFlow.ui.test';
@@ -18,24 +18,8 @@ import {
  * BattleQuestionScheduler (two_phase / intro_only / challenge_only).
  */
 
-const BUNDLE: string = 'com.terryma.wordmagicgame';
-const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
-  abilityDelegatorRegistry.getAbilityDelegator();
-
 /** Enough turns to see both intro kinds; full plan may end battle before challenge. */
 const MAX_INTRO_OBSERVE_TURNS: number = 16;
-
-async function launchApp(): Promise<Driver> {
-  try {
-    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-    await DELEGATOR.startAbility(want);
-    const driver: Driver = Driver.create();
-    await driver.delayMs(1000);
-    return driver;
-  } catch (err) {
-    throw err as Error;
-  }
-}
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
@@ -124,7 +108,7 @@ function recordSurface(
 export default function battlePacingUiTest(): void {
   describe('BattlePacing', () => {
     it('twoPhaseOpensOnIntroAndShowsBothIntroKinds', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
       await selectAllQuestionTypesShared(driver);
       await startFruitForestBattle(driver);
@@ -160,7 +144,7 @@ export default function battlePacingUiTest(): void {
     });
 
     it('introOnlyNeverShowsChallengeSurfaces', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
       await selectQuestionTypesShared(driver, ['choice', 'fill-letter']);
       await startFruitForestBattle(driver);
@@ -187,7 +171,7 @@ export default function battlePacingUiTest(): void {
     });
 
     it('challengeOnlyOpensOnChallengeSurface', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
       await selectQuestionTypesShared(driver, ['fill-letter-medium', 'spell']);
       await startFruitForestBattle(driver);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium';
-import { abilityDelegatorRegistry, Driver, ON, Component } from '@kit.TestKit';
-import { Want } from '@kit.AbilityKit';
+import { Driver, ON, Component } from '@kit.TestKit';
 import {
+  launchAppShared,
   selectAllQuestionTypesShared,
   selectOnlyQuestionTypeShared,
 } from './RoutingFlow.ui.test';
@@ -24,22 +24,6 @@ import {
  * `selectOnlyQuestionTypeShared('spell')` → first question is Spell
  * (100% single-type mode). No Boss-slot walk required.
  */
-
-const BUNDLE: string = 'com.terryma.wordmagicgame';
-const DELEGATOR: abilityDelegatorRegistry.AbilityDelegator =
-  abilityDelegatorRegistry.getAbilityDelegator();
-
-async function launchApp(): Promise<Driver> {
-  try {
-    const want: Want = { bundleName: BUNDLE, abilityName: 'EntryAbility' };
-    await DELEGATOR.startAbility(want);
-    const driver: Driver = Driver.create();
-    await driver.delayMs(1000);
-    return driver;
-  } catch (err) {
-    throw err as Error;
-  }
-}
 
 async function returnToHome(driver: Driver): Promise<void> {
   try {
@@ -108,7 +92,7 @@ async function exitToHome(driver: Driver): Promise<void> {
 export default function spellQuestionFlowUiTest(): void {
   describe('SpellQuestionFlow', () => {
     it('fillsSpellSlotsByTappingCorrectPoolLetters', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
       await selectOnlyQuestionTypeShared(driver, 'spell');
       await startFruitForestBattle(driver);
@@ -156,7 +140,7 @@ export default function spellQuestionFlowUiTest(): void {
     });
 
     it('spellWrongTapDecreasesPlayerHp', 0, async (done: Function) => {
-      const driver: Driver = await launchApp();
+      const driver: Driver = await launchAppShared();
       await returnToHome(driver);
       await selectOnlyQuestionTypeShared(driver, 'spell');
       await startFruitForestBattle(driver);

@@ -1,4 +1,5 @@
 import { SERVER_BASE_URL_OVERRIDE_KEY } from '../../../main/ets/services/RemoteWordPackConfig';
+import { FORCE_NATIVE_BATTLE_KEY } from '../../../main/ets/services/CocosBattlePreference';
 import routingFlowUiTest from './RoutingFlow.ui.test';
 import critSpectacleUiTest from './CritSpectacle.ui.test';
 import battleFlowUiTest from './BattleFlow.ui.test';
@@ -51,6 +52,14 @@ function injectMockServerOverride(): void {
     SERVER_BASE_URL_OVERRIDE_KEY,
     UI_TEST_SERVER_BASE_URL,
   );
+  // Ensure all battle suites see native BattlePage regardless of launch
+  // order. The want-param mechanism (RoutingFlow.launchAppShared) only
+  // works on the first cold onCreate; suites that launch second
+  // (HomeToolbarLocked, MonsterCodex, …) never re-trigger onCreate and
+  // would miss the parameter.  Writing directly to AppStorage here is
+  // order-independent and survives across all startAbility calls within
+  // the same test runner process.
+  AppStorage.setOrCreate<boolean>(FORCE_NATIVE_BATTLE_KEY, true);
 }
 
 export default function testsuite() {
