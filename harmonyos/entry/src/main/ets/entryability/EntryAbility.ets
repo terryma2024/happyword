@@ -16,6 +16,8 @@ import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { initBackendEnvPrefs } from '../services/BackendEnv';
 import { cocosEngineHost } from '../services/CocosEngineHost';
 import { initPreviewManifestService } from '../services/PreviewManifestService';
+import { isDebugBuild } from '../services/ReleaseGate';
+import BuildProfile from 'BuildProfile';
 import { StringPreferencesLike } from '../services/WrongAnswerStore';
 import { APP_COLOR_MODE } from '../utils/theme';
 
@@ -59,11 +61,13 @@ export default class EntryAbility extends UIAbility {
   // TEMPORARY (V1.1.0 Task 0.2 spike): `aa start ... --ps cocosLab true`
   // boots straight into the Cocos battle page so the embed can be verified
   // from the command line. Remove once the real battle routing lands.
+  // Debug builds only — release builds never inspect this want parameter.
   private launchCocosLab: boolean = false;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     const wantParams: Record<string, Object> | undefined = want.parameters;
-    if (wantParams !== undefined && wantParams['cocosLab'] === 'true') {
+    if (isDebugBuild(BuildProfile.BUILD_MODE_NAME) &&
+        wantParams !== undefined && wantParams['cocosLab'] === 'true') {
       this.launchCocosLab = true;
     }
     try {

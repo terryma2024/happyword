@@ -5,16 +5,17 @@
  * the Cocos-generated scaffold page (pages/index.ets in
  * cocos/native/engine/harmonyos-next): the engine boots lazily on first
  * visit (CocosEngineHost.ensureBooted), then the XComponent surface load
- * posts 'onXCLoad' to the CocosWorker, which runs nativeEngineInit/Start.
+ * posts 'onXCLoad' to the CocosWorker via CocosEngineHost.notifySurfaceLoaded
+ * (at most once per process), which runs nativeEngineInit/Start.
+ *
+ * All engine and worker interactions are routed through CocosEngineHost so
+ * this page imports no vendored symbols directly.
  *
  * The scene renders its default state (Battle top bar + two cards); its
  * `battle/ready` bridge message goes unanswered at this stage — expected
  * until Task 0.3 wires the bridge.
  */
 import { common } from '@kit.AbilityKit';
-import cocos, { context } from 'libcocos.so';
-import { ContextType } from '../cocosvendor/common/Constants';
-import { WorkerPort } from '../cocosvendor/common/WorkerPort';
 import { cocosEngineHost } from '../services/CocosEngineHost';
 
 /** Must stay in sync with the surface id the Cocos native layer binds to. */
@@ -25,22 +26,18 @@ const COCOS_LIBRARY_NAME: string = 'cocos';
 @Entry
 @Component
 struct CocosBattlePage {
-  private workPort: WorkerPort = WorkerPort.getInstance();
-  private pageLifecycle: context | undefined = undefined;
-
   aboutToAppear(): void {
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     cocosEngineHost().ensureBooted(ctx);
-    this.pageLifecycle = cocos.getContext(ContextType.JSPAGE_LIFECYCLE);
   }
 
   onPageShow(): void {
-    this.pageLifecycle?.onPageShow();
+    cocosEngineHost().notifyPageShow();
   }
 
   onPageHide(): void {
-    this.pageLifecycle?.onPageHide();
+    cocosEngineHost().notifyPageHide();
   }
 
   build() {
@@ -55,8 +52,8 @@ struct CocosBattlePage {
         .width('100%')
         .height('100%')
         .onLoad((): void => {
-          // Surface is ready — tell the CocosWorker to init + start the engine.
-          this.workPort.postMessage('onXCLoad');
+          // Surface is ready — notify the host; it posts onXCLoad at most once.
+          cocosEngineHost().notifySurfaceLoaded();
         })
 
       Button('Back')

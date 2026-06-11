@@ -54,18 +54,26 @@ vendor_into_harmonyos() {
     rsync -a --delete "$SCAF/ets/workers/" "$VENDOR/workers/"
 
     # Fix-up 1: worker script URL must point at the vendored location.
+    # `sed -i ''` is intentionally BSD/macOS sed (this script is macOS-bound).
     sed -i '' \
         's#"entry/ets/workers/cocos_worker.ets"#"entry/ets/cocosvendor/workers/cocos_worker.ets"#' \
         "$VENDOR/cocos/WorkerManager.ets"
+    grep -q '"entry/ets/cocosvendor/workers/cocos_worker.ets"' "$VENDOR/cocos/WorkerManager.ets" || {
+        echo "fix-up 1 did not apply (Creator template changed?)" >&2; exit 1
+    }
 
     echo "==> vendoring libcocos.so type declarations"
     mkdir -p "$APP/cpp/types"
     rsync -a --delete "$SCAF/cpp/types/libcocos/" "$APP/cpp/types/libcocos/"
 
     # Fix-up 2: type decls import Constants relative to the template layout.
+    # `sed -i ''` is intentionally BSD/macOS sed (this script is macOS-bound).
     sed -i '' \
         "s#'../../../ets/common/Constants'#'../../../ets/cocosvendor/common/Constants'#" \
         "$APP/cpp/types/libcocos/index.d.ets"
+    grep -q "'../../../ets/cocosvendor/common/Constants'" "$APP/cpp/types/libcocos/index.d.ets" || {
+        echo "fix-up 2 did not apply (Creator template changed?)" >&2; exit 1
+    }
 
     echo "==> vendoring data bundle into rawfile/Resources (gitignored, ~13MB)"
     mkdir -p "$APP/resources/rawfile/Resources"
