@@ -53,20 +53,25 @@ export const FORCE_NATIVE_BATTLE_KEY: string = 'forceNativeBattle';
 // ─── Runtime-availability seam ───────────────────────────────────────────────
 
 /**
- * Returns true when the Cocos engine shared library is available.
+ * Returns true when the Cocos battle runtime is considered usable.
  *
- * Task 1.5 integration point: replace this stub with a real probe that
- * checks whether libcocos.so loaded successfully (e.g. a boolean flag
- * written by CocosEngineHost after the first XComponent bind succeeds,
- * or after a boot-time `System.loadLibrary` try/catch). Until that
- * probe exists, the library is always bundled so we return `true`
- * unconditionally.
+ * Task 1.5: libcocos.so is always bundled and dlopened at app start on this
+ * platform, so "library present" is implicit — the only observable failure
+ * modes are runtime ones (engine boot throw, scene never sending
+ * battle/ready). CocosBattlePage records those by latching
+ * AppStorage[COCOS_BATTLE_FALLBACK_KEY] = true, so that flag IS the probe
+ * outcome for the rest of the process lifetime.
  *
- * @returns {boolean} true = Cocos runtime is usable; false = unavailable.
+ * Note this intentionally overlaps with decideBattleRoute's `fallbackActive`
+ * input: routing already stays native via that input, while this function
+ * additionally hides the ConfigPage Cocos switch row once the runtime has
+ * proven broken in this session.
+ *
+ * @returns {boolean} true = Cocos runtime is usable; false = it failed at
+ *          runtime this session.
  */
 export function isCocosRuntimeAvailable(): boolean {
-  // TODO (Task 1.5): read a flag set by CocosEngineHost on successful init.
-  return true;
+  return AppStorage.get<boolean>(COCOS_BATTLE_FALLBACK_KEY) !== true;
 }
 
 // ─── Pure decision function ───────────────────────────────────────────────────
@@ -164,7 +169,7 @@ export async function loadCocosScenePrefRaw(
  *
  * This is the single call-site used by HomePage and ResultPage.
  * It reads:
- *   1. isCocosRuntimeAvailable() — compile-time stub, Task 1.5 flips it.
+ *   1. isCocosRuntimeAvailable() — false once the runtime failed this session.
  *   2. AppStorage 'battle.useCocosScene' — hydrated by
  *      `hydrateCocosScenePref` on app start (call from EntryAbility after
  *      preferences are ready, Task 1.4).  Falls back to true when absent

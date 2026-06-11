@@ -62,18 +62,9 @@ export default class EntryAbility extends UIAbility {
   private cloudSyncSvc?: CloudSyncLike;
   private cloudWishlistSvc?: CloudWishlistService;
   private redemptionPoll?: ParentRedemptionPoll;
-  // TEMPORARY (V1.1.0 Task 0.2 spike): `aa start ... --ps cocosLab true`
-  // boots straight into the Cocos battle page so the embed can be verified
-  // from the command line. Remove once the real battle routing lands.
-  // Debug builds only — release builds never inspect this want parameter.
-  private launchCocosLab: boolean = false;
-
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     const wantParams: Record<string, Object> | undefined = want.parameters;
     if (isDebugBuild(BuildProfile.BUILD_MODE_NAME) && wantParams !== undefined) {
-      if (wantParams['cocosLab'] === 'true') {
-        this.launchCocosLab = true;
-      }
       // forceNativeBattle — debug builds only; used by ohosTest to keep the
       // native BattlePage exercised even after Cocos routing is the default.
       // Release builds never read this parameter.
@@ -162,10 +153,8 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
-    // TEMPORARY (Task 0.2 spike): see launchCocosLab above.
-    const initialPage: string = this.launchCocosLab ? 'pages/CocosBattlePage' : 'pages/HomePage';
     const loadHome = (): void => {
-      windowStage.loadContent(initialPage, (err) => {
+      windowStage.loadContent('pages/HomePage', (err) => {
         if (err.code) {
           hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
           return;

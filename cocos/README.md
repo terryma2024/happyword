@@ -287,10 +287,10 @@ scene pre-registers `globalThis.__wmBattleInbound = handler` in
   calling thread instead of scheduling onto the game thread.
 
 Round-trip measured at ~10 ms on the emulator (ping sent 14:03:35.551,
-pong logged .561). Probe UI: the temporary Ping button on
-`pages/CocosBattlePage.ets` sends a `battle/init` with `playerMaxHp: 7`
-(screenshot check: player card HP 7/7, countdown 5:00) plus a `battle/ping`
-the scene echoes as `battle/pong`.
+pong logged .561). The Task 0.3 probe UI (Ping button + hilog handler on
+`pages/CocosBattlePage.ets`) was removed in Task 1.5 — the page now drives
+live battles through `CocosBattleBridge`; for manual entry use DevMenu →
+CocosLab or just start a battle with the Config switch ON.
 
 ### Known quirks (HarmonyOS side)
 - Engine cmake flags: `USE_SE_JSVM ON`, `USE_SOCKET OFF`; scene
