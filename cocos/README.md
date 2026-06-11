@@ -240,7 +240,12 @@ The HarmonyOS app (`harmonyos/entry`) embeds the engine compiled from source
 `harmonyos/entry/src/main/ets/services/CocosEngineHost.ets` for the boot
 recipe). Verified on the arm64 emulator (`hdc` target `127.0.0.1:5555`);
 spike route: `aa start -a EntryAbility -b com.terryma.wordmagicgame --ps
-cocosLab true` (debug builds only).
+cocosLab true` (debug builds only). The physical verification target is the
+MatePad (`hdc` target `5FFBB25926205346`, 3:2 screen) — wake/unlock routine
+and the pinned password live in `scripts/run_ui_tests.sh`
+(`unlock_target_device_if_needed`); if the hdc channel reports
+`Unauthorized`, confirm the RSA dialog on the tablet (requires physical
+access), or fall back to the emulator.
 
 ### Bridge mechanism (Task 0.3, locked)
 
