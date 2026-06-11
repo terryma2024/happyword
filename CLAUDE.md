@@ -11,7 +11,7 @@
 - **HarmonyOS phased build/test commands, log paths, and device rules:** [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) (source of truth for Harmony autofix skills).
 - Harmony install deps: `cd harmonyos && ohpm install`
 - Harmony build debug HAP: `cd harmonyos && hvigorw assembleHap`
-- The HAP build log must have **no** `ArkTS:WARN` lines (deprecated APIs); see [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) **ArkTS compiler warnings**.
+- The HAP build log must pass `scripts/check_arkts_warnings.sh` — zero `ArkTS:WARN`, with one narrow allowlist for the vendored `ets/cocosvendor/` Cocos adapter (`arkts-no-globalthis` + the `postMessage` may-throw advisory only); see [`.cursor/ohos-dev-commands.md`](.cursor/ohos-dev-commands.md) **ArkTS compiler warnings**, incl. the cold-build caveat (incremental builds skip unchanged files and can look falsely clean).
 - After a successful HAP build, run CodeLinter: `cd harmonyos && codelinter -c ./code-linter.json5 . --fix`
 - Harmony build module: `cd harmonyos && hvigorw --mode module -p module=entry assembleHap`
 - Connect device: `hdc list targets`

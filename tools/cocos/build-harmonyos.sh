@@ -33,7 +33,7 @@ fi
 #     (engine FileUtils.cpp adds search path "Resources", resolved against the
 #     module rawfile root — so the data bundle must live at rawfile/Resources)
 #
-# Two scripted fix-ups are applied to vendored files (recorded here on purpose;
+# Three scripted fix-ups are applied to vendored files (recorded here on purpose;
 # the originals under cocos/native/engine/harmonyos-next/ stay pristine):
 #   1. WorkerManager.ets creates the worker by URL string
 #      "entry/ets/workers/cocos_worker.ets"; our vendored copy lives under
@@ -41,6 +41,13 @@ fi
 #   2. cpp/types/libcocos/index.d.ets imports ContextType via the relative
 #      path ../../../ets/common/Constants; in our tree the vendored Constants
 #      lives at ets/cocosvendor/common/Constants, so the import is rewritten.
+#   3. sys-ability-polyfill.ets queries @ohos.net.connection and calls
+#      @ohos.vibrator, which need the ohos.permission.GET_NETWORK_INFO /
+#      VIBRATE permissions we do not declare (the battle scene uses neither,
+#      and undeclared use would throw error 201 at runtime besides emitting
+#      ArkTS:WARN permission hints on cold builds). Both globalThis hooks are
+#      stubbed: getNetworkType returns -1 (the polyfill's own "no network"
+#      fallback) and vibrate becomes a no-op; the two imports are dropped.
 # ---------------------------------------------------------------------------
 vendor_into_harmonyos() {
     local SCAF="$ROOT/cocos/native/engine/harmonyos-next/entry/src/main"
@@ -60,6 +67,25 @@ vendor_into_harmonyos() {
         "$VENDOR/cocos/WorkerManager.ets"
     grep -q '"entry/ets/cocosvendor/workers/cocos_worker.ets"' "$VENDOR/cocos/WorkerManager.ets" || {
         echo "fix-up 1 did not apply (Creator template changed?)" >&2; exit 1
+    }
+
+    # Fix-up 3: stub the permission-gated system hooks (network info, vibrate).
+    # `sed -i ''` is intentionally BSD/macOS sed (this script is macOS-bound).
+    local POLYFILL="$VENDOR/cocos/oh-adapter/sys-ability-polyfill.ets"
+    sed -i '' '/@ohos\.net\.connection/d;/@ohos\.vibrator/d' "$POLYFILL"
+    sed -i '' '/^globalThis\.getNetworkType = () => {$/,/^}$/c\
+globalThis.getNetworkType = () => {\
+    // WMG fix-up 3: no GET_NETWORK_INFO permission; -1 is the upstream "no network" fallback.\
+    return -1;\
+}' "$POLYFILL"
+    sed -i '' '/^globalThis\.vibrate = (duration: number) => {$/,/^}$/c\
+globalThis.vibrate = (duration: number) => {\
+    // WMG fix-up 3: no VIBRATE permission; intentional no-op.\
+}' "$POLYFILL"
+    grep -q 'WMG fix-up 3: no GET_NETWORK_INFO' "$POLYFILL" \
+        && grep -q 'WMG fix-up 3: no VIBRATE' "$POLYFILL" \
+        && ! grep -q -E '@ohos\.net\.connection|@ohos\.vibrator|connection\.|vibrator\.' "$POLYFILL" || {
+        echo "fix-up 3 did not apply (Creator template changed?)" >&2; exit 1
     }
 
     echo "==> vendoring libcocos.so type declarations"

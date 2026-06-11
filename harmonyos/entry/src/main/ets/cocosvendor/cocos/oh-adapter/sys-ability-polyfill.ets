@@ -26,8 +26,6 @@ import display from '@ohos.display';
 import I18n from '@ohos.i18n';
 import deviceInfo from '@ohos.deviceInfo';
 import batteryInfo from '@ohos.batteryInfo';
-import connection from '@ohos.net.connection'
-import vibrator from '@ohos.vibrator';
 import process from '@ohos.process';
 import { ContextType } from "../../common/Constants"
 import cocos from "libcocos.so";
@@ -104,36 +102,12 @@ globalThis.getDeviceOrientation = (): display.Orientation => {
 }
 
 globalThis.getNetworkType = () => {
-    let netHandle = connection.getDefaultNetSync();
-    if (netHandle && netHandle.netId != 0) {
-        let result = connection.getNetCapabilitiesSync(netHandle);
-        if (result && result.bearerTypes) {
-            return result.bearerTypes[0];
-        }
-    }
+    // WMG fix-up 3: no GET_NETWORK_INFO permission; -1 is the upstream "no network" fallback.
     return -1;
 }
 
 globalThis.vibrate = (duration: number) => {
-    console.log('begin to vibrate, duration is.' + duration);
-    try {
-        vibrator.startVibration({
-            type: 'time',
-            duration: duration * 1000
-        }, {
-            id: 0,
-            usage: 'alarm'
-        }, (error) => {
-            if (error) {
-                console.error('vibrate fail, error.code: ' + error.code + 'error.message: ' + error.message);
-                return error.code;
-            }
-            console.log('Vibration start sucessful.');
-            return 0;
-        });
-      } catch (err) {
-        console.error('errCode: ' + err.code + ' ,msg: ' + err.message);
-      }
+    // WMG fix-up 3: no VIBRATE permission; intentional no-op.
 }
 
 globalThis.initScreenInfo = () => {
