@@ -23,13 +23,13 @@
  *                     parity).
  *
  * Fallback contract: any boot failure / build failure / missing battle-ready
- * / retired surface (the engine cannot render to a re-created XComponent
- * surface — see CocosEngineHost.surfaceRetired) sets
- * AppStorage[COCOS_BATTLE_FALLBACK_KEY] = true (read by battleRouteUrl and
- * isCocosRuntimeAvailable) and replaces this page with the native
+ * sets AppStorage[COCOS_BATTLE_FALLBACK_KEY] = true (read by battleRouteUrl
+ * and isCocosRuntimeAvailable) and replaces this page with the native
  * BattlePage, which restarts the battle from the same stored GameConfig.
- * Practical effect until the engine limitation is fixed: the FIRST battle
- * of a process runs in Cocos; subsequent battles run native.
+ * Page re-entry is fully supported: the patched engine
+ * (cpp/cocos-patches/OpenHarmonyPlatform.cpp) rebinds the swapchain to the
+ * re-created XComponent surface, so every battle of the process can run in
+ * Cocos.
  *
  * Escape contract: the scene's Escape button sends battle/escape and the
  * bridge finishes immediately — same as the native BattlePage and the iOS
@@ -154,9 +154,9 @@ struct CocosBattlePage {
   /** Set once the fallback replaceUrl has been posted. */
   private fallbackTriggered: boolean = false;
   /**
-   * Gates the XComponent: false when the engine cannot render (retired
-   * surface / boot failure) so no new surface is created on the fallback
-   * path. Decided in aboutToAppear, i.e. before the first build().
+   * Gates the XComponent: false when the engine cannot render (boot
+   * failure) so no surface is created on the fallback path. Decided in
+   * aboutToAppear, i.e. before the first build().
    */
   @State private engineUsable: boolean = true;
 
@@ -172,15 +172,6 @@ struct CocosBattlePage {
     this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
-    // Engine limitation (see CocosEngineHost.surfaceRetired): the Cocos
-    // runtime cannot render to a re-created XComponent surface. On re-entry
-    // after a previous Cocos battle, go native BEFORE mounting a new
-    // XComponent — mounting one and resuming would abort in eglSwapBuffers.
-    if (cocosEngineHost().isSurfaceRetired()) {
-      this.engineUsable = false;
-      this.fallbackToNative('surface-retired');
-      return;
-    }
     // Engine boot is retryable inside the host; a throw here means the
     // native engine could not be initialised at all — go native for the
     // rest of the process lifetime.
@@ -402,9 +393,9 @@ struct CocosBattlePage {
             cocosEngineHost().notifySurfaceLoaded();
           })
           .onDestroy((): void => {
-            // Surface gone — the host must not resume rendering (and, per
-            // the engine's surface re-creation limitation, retires Cocos
-            // rendering for the rest of the process).
+            // Surface gone — the host must not resume rendering until the
+            // next surface's onLoad (the patched engine rebinds the
+            // swapchain to that new surface).
             cocosEngineHost().notifySurfaceDestroyed();
           })
       }

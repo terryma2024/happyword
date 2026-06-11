@@ -310,17 +310,32 @@ CocosLab or just start a battle with the Config switch ON.
   derives visibility from `booted && appForeground && pageActive &&
   surfaceAlive` and `CocosBattlePage` calls `pauseRendering()` before every
   `replaceUrl`.
-- **Surface re-creation is NOT supported by the engine** (Cocos 3.8.8 OH
-  platform): `onSurfaceCreatedCB` registers a re-created surface as a NEW
-  `SystemWindow` id while the GFX swapchain stays bound to the removed
-  original window, so the first frame after a resume swaps a dead EGLSurface
-  and aborts. Containment: `CocosEngineHost.surfaceRetired` latches on the
-  first surface destroy after boot, and `CocosBattlePage` falls back to the
-  native BattlePage (fallback flag + `replaceUrl`) without mounting a new
-  XComponent. Net effect: the FIRST battle of a process runs in Cocos;
-  subsequent battles run native until the app restarts. Fixing this needs an
-  engine-side patch (rebind the swapchain on `WM_XCOMPONENT_SURFACE_CREATED`)
-  or a persistent surface host — Phase 2 candidate.
+- **Surface re-creation works via an engine patch** (stock Cocos 3.8.8 OH
+  crashes on it — `onSurfaceCreatedCB` registered the re-created surface as
+  a NEW `SystemWindow` id while the GFX swapchain stayed bound to the
+  removed original window, and the game-thread
+  `WM_XCOMPONENT_SURFACE_CREATED` handler was empty, so the first frame
+  after resume swapped a dead EGLSurface and aborted at
+  `GLES3GPUContext.cpp:332`). The patch is a vendored copy of
+  `OpenHarmonyPlatform.cpp` at
+  `harmonyos/entry/src/main/cpp/cocos-patches/` (patched blocks marked
+  `WMG PATCH(surface-recreation)`); the adapter
+  `harmonyos/entry/src/main/cpp/CMakeLists.txt` swaps it into the
+  `cocos_engine` target sources and pins the Creator bundle original by
+  SHA256, so a Creator upgrade fails the build loudly instead of silently
+  dropping the patch. Mechanism — reuse of the already-working
+  SURFACE_HIDE/SHOW machinery: surface destroy broadcasts
+  `WindowDestroy(mainWindowId)` (swapchain releases its EGL surface) and
+  KEEPS the `SystemWindow` registered; surface re-create rebinds the
+  existing main window to the new native handle (`setWindowHandle`) and the
+  game thread broadcasts `WindowRecreated(mainWindowId)` →
+  `RenderWindow::onNativeWindowResume` → swapchain `createSurface` +
+  `generateFrameBuffer`. Resume ordering is safe because the rebind message
+  and the host's `onShow` relay travel through the same FIFO worker queue,
+  and `CocosEngineHost` only resumes rendering from the new surface's
+  `onLoad`. Net effect: EVERY battle of a process runs in Cocos
+  (emulator-verified 2026-06-11: battle → escape → result → home → battle,
+  plus the 再来一局 replay path — renders, takes touch input, no cppcrash).
 - **Receiver exception rule:** `CocosBridgeReceiver.onSceneMessage` calls
   `done('ok')` BEFORE dispatching into app code. A throw before `done()` would
   permanently hang the game thread (it blocks on an internal NAPI promise). A

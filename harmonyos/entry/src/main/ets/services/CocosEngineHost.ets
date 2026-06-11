@@ -59,20 +59,13 @@ export class CocosEngineHost {
    * onDestroy). Guards resume: after a page exit the next onPageShow fires
    * before the NEW surface exists, and resuming then would swap against the
    * destroyed previous surface.
+   *
+   * Surface RE-creation (page exit + re-entry) is supported by our patched
+   * engine (cpp/cocos-patches/OpenHarmonyPlatform.cpp): on destroy the
+   * swapchain releases its EGL surface, and the re-created surface rebinds
+   * onto the engine's main window before the render loop resumes.
    */
   private surfaceAlive: boolean = false;
-  /**
-   * Latches true the first time a surface the booted engine rendered to is
-   * destroyed. The vendored Cocos OpenHarmony platform does NOT support
-   * XComponent surface re-creation: onSurfaceCreatedCB registers the new
-   * surface as a NEW SystemWindow id while the GFX swapchain stays bound to
-   * the removed original window, so the first frame after a resume swaps a
-   * dead EGLSurface and aborts (GLES3GPUContext.cpp:332, verified on the
-   * emulator). Until that engine limitation is fixed, a Cocos battle can
-   * only run on the FIRST surface of the process — CocosBattlePage checks
-   * this flag and falls back to the native BattlePage on re-entry.
-   */
-  private surfaceRetired: boolean = false;
   private appLifecycle: context | undefined = undefined;
   /** Tracks whether onXCLoad has already been posted to the worker so the
    *  message is sent at most once per process lifetime regardless of how many
@@ -145,11 +138,13 @@ export class CocosEngineHost {
    * lifetime — re-entering the page does not reinitialise the engine.
    *
    * This is also the resume point for the render loop on page re-entry:
-   * onLoad fires AFTER the new surface's WM_XCOMPONENT_SURFACE_CREATE was
-   * queued to the game thread, so the onShow that updateVisibility emits is
-   * processed after the swapchain has been recreated. Resuming earlier (on
-   * onPageShow) lets the loop swap one frame against the previous page
-   * visit's destroyed surface — EGL_BAD_SURFACE abort.
+   * onLoad fires AFTER the native surface-create callback queued the
+   * patched engine's WM_XCOMPONENT_SURFACE_CREATED rebind to the game
+   * thread, and the onShow this emits travels through the SAME message
+   * queue — so the swapchain is rebound to the new surface before the
+   * first frame. Resuming earlier (on onPageShow) lets the loop swap one
+   * frame against the previous page visit's destroyed surface —
+   * EGL_BAD_SURFACE abort.
    */
   notifySurfaceLoaded(): void {
     if (!this.surfaceLoadNotified) {
@@ -163,26 +158,14 @@ export class CocosEngineHost {
 
   /**
    * Called by CocosBattlePage's XComponent onDestroy handler. Marks the
-   * surface gone so updateVisibility cannot resume the render loop, and —
-   * because the engine cannot adopt a re-created surface (see
-   * {@link surfaceRetired}) — permanently retires Cocos rendering for this
-   * process once the engine has booted against the destroyed surface.
+   * surface gone so updateVisibility cannot resume the render loop until
+   * the next surface's onLoad. The patched engine releases the swapchain's
+   * EGL surface on this destroy and rebinds when a new surface is created,
+   * so re-entry is safe (no retirement needed).
    */
   notifySurfaceDestroyed(): void {
     this.surfaceAlive = false;
-    if (this.booted) {
-      this.surfaceRetired = true;
-    }
     this.updateVisibility();
-  }
-
-  /**
-   * True once the engine's only usable surface is gone. CocosBattlePage
-   * checks this BEFORE mounting its XComponent so a re-entry routes to the
-   * native BattlePage instead of crashing the engine.
-   */
-  isSurfaceRetired(): boolean {
-    return this.surfaceRetired;
   }
 
   /**
@@ -195,7 +178,7 @@ export class CocosEngineHost {
    */
   private updateVisibility(): void {
     const want: boolean = this.booted && this.appForeground
-      && this.pageActive && this.surfaceAlive && !this.surfaceRetired;
+      && this.pageActive && this.surfaceAlive;
     if (want === this.visible) {
       return;
     }

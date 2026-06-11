@@ -39,6 +39,51 @@ set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
 
 include(${COMMON_DIR}/CMakeLists.txt)
 
+# ---------------------------------------------------------------------------
+# WMG PATCH(surface-recreation): swap the engine's OpenHarmonyPlatform.cpp
+# for our patched copy (cocos-patches/OpenHarmonyPlatform.cpp) inside the
+# cocos_engine target that the include() above just defined. Stock 3.8.8
+# cannot survive XComponent surface destroy + re-creation — see the banner
+# comment in the patched file for the full mechanism.
+#
+# The SHA256 guard pins the bundle original: if a Creator upgrade (or
+# hotfix) changes the file, the build fails here with instructions instead
+# of silently compiling a patch diffed against a different base.
+# COCOS_X_PATH comes from ${RES_DIR}/proj/cfg.cmake (already included).
+# ---------------------------------------------------------------------------
+set(WMG_OHPLATFORM_ORIG "${COCOS_X_PATH}/cocos/platform/openharmony/OpenHarmonyPlatform.cpp")
+set(WMG_OHPLATFORM_ORIG_SHA256 "6063a93db2615c1eab256cb6a6c4d1dc1c83a084c43dacb8caca095da589968e")
+file(SHA256 "${WMG_OHPLATFORM_ORIG}" _wmg_ohplatform_actual_sha256)
+if(NOT _wmg_ohplatform_actual_sha256 STREQUAL WMG_OHPLATFORM_ORIG_SHA256)
+    message(FATAL_ERROR
+        "Cocos engine file drifted from the base our surface-recreation patch "
+        "was diffed against:\n  ${WMG_OHPLATFORM_ORIG}\n"
+        "expected SHA256 ${WMG_OHPLATFORM_ORIG_SHA256}\n"
+        "actual   SHA256 ${_wmg_ohplatform_actual_sha256}\n"
+        "Re-diff cocos-patches/OpenHarmonyPlatform.cpp against the new engine "
+        "source (all patched blocks are marked 'WMG PATCH(surface-recreation)') "
+        "and update WMG_OHPLATFORM_ORIG_SHA256 in this file.")
+endif()
+get_target_property(_wmg_engine_sources cocos_engine SOURCES)
+set(_wmg_engine_sources_patched)
+set(_wmg_ohplatform_found FALSE)
+foreach(_wmg_src IN LISTS _wmg_engine_sources)
+    if(_wmg_src MATCHES "cocos/platform/openharmony/OpenHarmonyPlatform\\.cpp$")
+        set(_wmg_ohplatform_found TRUE)
+        list(APPEND _wmg_engine_sources_patched
+            "${CMAKE_CURRENT_LIST_DIR}/cocos-patches/OpenHarmonyPlatform.cpp")
+    else()
+        list(APPEND _wmg_engine_sources_patched "${_wmg_src}")
+    endif()
+endforeach()
+if(NOT _wmg_ohplatform_found)
+    message(FATAL_ERROR
+        "OpenHarmonyPlatform.cpp not found in cocos_engine sources — the "
+        "engine CMake layout changed; re-derive the surface-recreation patch "
+        "wiring in this file.")
+endif()
+set_target_properties(cocos_engine PROPERTIES SOURCES "${_wmg_engine_sources_patched}")
+
 cc_openharmony_before_target(${CC_LIB_NAME})
 add_library(${CC_LIB_NAME} SHARED ${CC_ALL_SOURCES})
 cc_openharmony_after_target(${CC_LIB_NAME})
