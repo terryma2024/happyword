@@ -27,7 +27,11 @@ export const theme = {
 // Design resolution is 1280x720 (cocos project settings); the SwiftUI layout
 // is authored in iPhone-landscape points (~852x393), so scale ~1.5x.
 export const layout = {
-    designWidth: 1280,
+    // iPhone 16 Pro landscape is 874x402pt (aspect 2.174); matching it keeps
+    // the browser preview frame identical to the device viewport under
+    // FIXED_HEIGHT, and makes width-relative placements (projectile span,
+    // intro bubble x) track the native proportions exactly.
+    designWidth: 1565,
     designHeight: 720,
     fighterCardWidth: 330,
     fighterCardHeight: 415,
