@@ -1,0 +1,29 @@
+{
+  "payload": {
+    "answer": "apple",
+    "currentStep": 0,
+    "kind": "sentence-cloze",
+    "letterAnswer": "",
+    "letterAnswers": [],
+    "letterOptions": [],
+    "letterOptionsSteps": [],
+    "letterTemplate": "",
+    "letterTemplateBase": "",
+    "missingIndex": -1,
+    "missingIndices": [],
+    "options": [
+      "orange",
+      "apple",
+      "grape"
+    ],
+    "promptZh": "苹果",
+    "sentenceTemplate": "I eat an ____ every day.",
+    "sentenceZh": "我每天吃一个苹果。",
+    "spellLetters": [],
+    "spellPool": [],
+    "spellRevealedMask": [],
+    "wordId": "w-apple"
+  },
+  "type": "battle/question",
+  "v": 1
+}

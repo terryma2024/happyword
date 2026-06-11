@@ -18,7 +18,11 @@ struct ContentView: View {
                 HomeView(coordinator: coordinator)
             case .battle:
                 if let engine = coordinator.battleEngine {
-                    BattleView(coordinator: coordinator, engine: engine)
+                    if coordinator.shouldUseCocosBattleView {
+                        CocosBattleView(coordinator: coordinator, engine: engine)
+                    } else {
+                        BattleView(coordinator: coordinator, engine: engine)
+                    }
                 }
             case .result:
                 ResultView(coordinator: coordinator)
@@ -105,6 +109,11 @@ struct ContentView: View {
         }
         .onAppear {
             OrientationController.apply(for: coordinator.route)
+            if ProcessInfo.processInfo.arguments.contains("-CocosLabAutoRun") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    CocosLabSpike.run(coordinator: coordinator)
+                }
+            }
         }
         .onChange(of: coordinator.route) { _, route in
             OrientationController.apply(for: route)

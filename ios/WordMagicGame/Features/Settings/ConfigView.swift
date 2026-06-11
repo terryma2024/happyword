@@ -6,7 +6,7 @@ enum ConfigLayoutRules {
     static let controlColumnWidth: CGFloat = 220
     static let timerOptionsPerRow = 3
     static let questionTypesLeftAligned = true
-    static let settingGroupSpacing: CGFloat = 22
+    static let settingGroupSpacing: CGFloat = 11
     static let settingOptionSpacing: CGFloat = 8
     static let settingSwitchLabelWidth: CGFloat = 132
 
@@ -32,6 +32,22 @@ enum ConfigActionButtonStyle {
 }
 
 private extension View {
+    /// Groups a settings row into a visible card (soft blue fill + hairline
+    /// border) so the label↔controls relationship is obvious at a glance.
+    func configCard() -> some View {
+        padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: 592)
+            .background(
+                Color(red: 0.95, green: 0.97, blue: 1.0),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color(red: 0.86, green: 0.9, blue: 0.96), lineWidth: 1)
+            )
+    }
+
     func configActionButtonStyle() -> some View {
         font(.system(size: 15, weight: .semibold, design: .rounded))
             .lineLimit(1)
@@ -80,6 +96,7 @@ struct ConfigView: View {
 
                         timerRow
                         audioPlaybackSection
+                        battleSceneSection
                         questionTypeSection
                         packPickerSection
                         reportChannelRow
@@ -153,6 +170,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private var customTimerButton: some View {
@@ -296,6 +314,25 @@ struct ConfigView: View {
         }
     }
 
+    /// Battle presentation switch: Cocos scene (default) vs native BattleView.
+    /// Only meaningful on device builds where the Cocos runtime is linked;
+    /// hidden elsewhere (simulator always uses the native view).
+    @ViewBuilder
+    private var battleSceneSection: some View {
+        if CocosRuntimeFactory.isRuntimeLinked {
+            settingGroup(label: "战斗画面") {
+                configSwitch(
+                    "Cocos 战斗场景",
+                    isOn: Binding(
+                        get: { CocosBattlePreference.isEnabled() },
+                        set: { CocosBattlePreference.setEnabled($0) }
+                    ),
+                    accessibilityIdentifier: "ConfigCocosBattleSwitch"
+                )
+            }
+        }
+    }
+
     /// Parity with Harmony `ConfigPage.questionTypeRow` — switch column + last-type hint.
     private var questionTypeSection: some View {
         let ordered = BattleQuestionTypePolicy.defaultOrderedTypeIds
@@ -324,7 +361,7 @@ struct ConfigView: View {
     }
 
     private func settingGroup<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(alignment: .top, spacing: ConfigLayoutRules.controlGap) {
+        HStack(alignment: .center, spacing: ConfigLayoutRules.controlGap) {
             Text(label)
                 .font(.title2.weight(.bold))
                 .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
@@ -333,6 +370,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private func configSwitch(_ title: String, isOn: Binding<Bool>, accessibilityIdentifier: String) -> some View {
@@ -408,6 +446,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private var reportChannelRow: some View {
@@ -426,6 +465,7 @@ struct ConfigView: View {
             }
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private var parentPinRow: some View {
@@ -445,6 +485,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private var parentAccountSection: some View {
@@ -470,6 +511,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     @ViewBuilder
@@ -490,6 +532,7 @@ struct ConfigView: View {
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: 560)
+        .configCard()
         }
     }
 
@@ -505,6 +548,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private func settingStepper(_ title: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
@@ -520,6 +564,7 @@ struct ConfigView: View {
             Spacer()
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private func roundControl(_ title: String, action: @escaping () -> Void) -> some View {
@@ -561,12 +606,19 @@ struct DevMenuView: View {
                 devToolButton("MessageBubbleLab", id: "DevMenuMessageBubbleLabButton") {
                     coordinator.openMessageBubbleLab()
                 }
+                devToolButton("CocosLab", id: "DevMenuCocosLabButton") {
+                    runCocosBridgeSpike()
+                }
             }
             Spacer()
         }
         .padding(.horizontal, AppTheme.pageHorizontalPadding)
         .padding(.vertical, 16)
         .background(Color.white)
+    }
+
+    private func runCocosBridgeSpike() {
+        CocosLabSpike.run(coordinator: coordinator)
     }
 
     private func devToolButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {

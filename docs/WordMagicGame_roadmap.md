@@ -80,7 +80,7 @@ WordMagicGame 的长期目标不是把单词题包装成一个短期小游戏，
 | V1.0.0  | 已完成 | 战斗音频混音与 BGM 版 | 三端新增 `BattleAudioMixer` / `PcmAudioLab`，让战斗 BGM、combo/攻击/受伤音效、单词朗读按优先级共存；配置页音频与题型开关已同步为 switch 风格 | 无 |
 | V1.0.1  | 已完成 | 提审与生产环境硬化版 | 三端版本号升至 `1.0.1 / 1010001`；对齐词包同步与魔法书封面缓存；移除 legacy Vercel preview bypass header / Bypass Secret 入口；HarmonyOS release gate、iOS App Store Connect 上传、生产域名 `happyword.com.cn` OAuth return_origin、隐私政策 / 服务条款与第三方服务说明完成硬化 | 必需 |
 | V1.0.2  | 已完成 | 怪物图鉴进度与奖励版 | 三端已完成：未遭遇怪物锁定为 mystery art + 问号遮罩；战斗遭遇即解锁，击败累计本地 defeat count；每只怪物 50 / 100 击败里程碑各可领取一次 50 / 100 cap-free 金币；支持 100 次后补领 50 次奖励；前三只怪物显示名改为中文，key / asset / catalog 顺序保持稳定。设计：[`docs/features/2026-06-05-monster-codex-progress-v1-0-2/00-design.md`](features/2026-06-05-monster-codex-progress-v1-0-2/00-design.md) | 无 |
-| V1.1.0  | 计划中 | Cocos2D 战斗美术化重构版 | 用 Cocos Creator 重写战斗表现层，支持更完整的角色、怪物、动画、特效和多美术主题           | 可选       |
+| V1.1.0  | 进行中 | Cocos2D 战斗美术化重构版 | **iOS 先行（用户批准的 SOP 偏离）**：Cocos Creator 3.8 战斗场景已嵌入 iOS 客户端（真机构建启用，模拟器自动回退原生 BattleView），五种题型渲染、战斗动画与 JSB 桥接契约（`shared/contracts/cocos-battle-bridge/`）已落地并真机验证；Swift 保留全部战斗逻辑。工程在 `cocos/`，进度见 [`docs/features/2026-06-10-cocos-battle-scene-v1-1-0/`](features/2026-06-10-cocos-battle-scene-v1-1-0/README.md)。待办：截图级 parity 验收、多美术主题、Harmony/Android 复刻 | 可选       |
 
 
 ## 4. V0.3 趣味学习内核版

@@ -1,0 +1,15 @@
+{
+  "payload": {
+    "monsterMaxHp": 1,
+    "monstersTotal": 2,
+    "playerArt": {
+      "fight": "CharacterMagicianFight",
+      "hurt": "CharacterMagicianBeaten",
+      "idle": "CharacterMagician"
+    },
+    "playerMaxHp": 10,
+    "startingSeconds": 300
+  },
+  "type": "battle/init",
+  "v": 1
+}

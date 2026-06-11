@@ -7,9 +7,9 @@ options:
 settings:
   base:
     CODE_SIGN_STYLE: Automatic
-    CURRENT_PROJECT_VERSION: 1020001
+    CURRENT_PROJECT_VERSION: 1100001
     DEVELOPMENT_TEAM: 99UX498DB4
-    MARKETING_VERSION: 1.0.2
+    MARKETING_VERSION: 1.1.0
     SWIFT_VERSION: 6.0
     VERSIONING_SYSTEM: apple-generic
 packages: {}
@@ -29,6 +29,96 @@ targets:
         INFOPLIST_FILE: WordMagicGame/Resources/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.terryma.wordmagicgame
         PRODUCT_NAME: WordMagicGame
+        SWIFT_OBJC_BRIDGING_HEADER: WordMagicGame/CocosRuntime/WordMagicGame-Bridging-Header.h
+        CLANG_CXX_LANGUAGE_STANDARD: c++17
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        # Embedded Cocos Creator runtime (device builds only; simulator uses
+        # the native BattleView fallback). Paths assume Cocos Creator 3.8.8
+        # installed via Cocos Dashboard and a completed cocos iOS build —
+        # see cocos/README.md.
+        COCOS_ENGINE_NATIVE: /Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/Resources/resources/3d/engine/native
+        COCOS_BUILD_PROJ: $(SRCROOT)/../cocos/build/ios/ios/proj
+        HEADER_SEARCH_PATHS:
+          - $(inherited)
+          - $(COCOS_ENGINE_NATIVE)
+          - $(COCOS_ENGINE_NATIVE)/cocos
+          - $(COCOS_ENGINE_NATIVE)/cocos/platform/ios
+          - $(COCOS_ENGINE_NATIVE)/cocos/bindings/jswrapper
+          - $(COCOS_ENGINE_NATIVE)/external/sources
+          - $(COCOS_ENGINE_NATIVE)/external/ios/include
+          - $(COCOS_ENGINE_NATIVE)/external/ios/include/v8
+          - $(COCOS_ENGINE_NATIVE)/external/ios/include/uv
+          - $(COCOS_BUILD_PROJ)/generated
+          - $(COCOS_BUILD_PROJ)/generated/cocos
+        OTHER_LDFLAGS: "$(inherited)"
+        "OTHER_LDFLAGS[sdk=iphoneos*]":
+          - $(inherited)
+          - -Wl,-ld_classic
+          - $(COCOS_BUILD_PROJ)/archives/Release/libcocos_engine.a
+          - $(COCOS_BUILD_PROJ)/boost/container/archives/Release/libboost_container.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/libjpeg.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/libpng.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/libwebp.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/glslang/libglslang.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/glslang/libglslang-default-resource-limits.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/glslang/libMachineIndependent.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/glslang/libOGLCompiler.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/glslang/libOSDependent.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/glslang/libSPIRV.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/glslang/libSPIRV-Tools-opt.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/glslang/libSPIRV-Tools.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/glslang/libGenericCodeGen.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/spirv-cross/libspirv-cross-core.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/spirv-cross/libspirv-cross-glsl.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/spirv-cross/libspirv-cross-msl.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/libtbb_static.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/libv8_monolith.a
+          - $(COCOS_ENGINE_NATIVE)/external/ios/libs/libuv_a.a
+          - -liconv
+          - -lsqlite3
+          - -lz
+          - -framework
+          - AudioToolbox
+          - -framework
+          - OpenAL
+          - -framework
+          - GameController
+          - -framework
+          - Metal
+          - -framework
+          - MetalKit
+          - -framework
+          - MetalPerformanceShaders
+          - -framework
+          - QuartzCore
+          - -framework
+          - Security
+          - -framework
+          - SystemConfiguration
+          - -framework
+          - AVKit
+          - -framework
+          - WebKit
+          - -framework
+          - CoreVideo
+          - -framework
+          - CoreMotion
+          - -framework
+          - CFNetwork
+          - -framework
+          - CoreMedia
+          - -framework
+          - CoreText
+          - -framework
+          - AVFoundation
+    postCompileScripts:
+      - name: Copy Cocos Data
+        basedOnDependencyAnalysis: false
+        script: |
+          DATA_DIR="${SRCROOT}/../cocos/build/ios/ios/data"
+          if [ "$PLATFORM_NAME" = "iphoneos" ] && [ -d "$DATA_DIR" ]; then
+            rsync -a "$DATA_DIR/" "${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/"
+          fi
     dependencies: []
   WordMagicGameTests:
     type: bundle.unit-test

@@ -1,0 +1,204 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "cocos-battle-bridge.v1",
+  "title": "Cocos battle bridge message (v1)",
+  "type": "object",
+  "required": ["v", "type", "payload"],
+  "properties": {
+    "v": { "const": 1 },
+    "type": { "type": "string" },
+    "payload": { "type": "object" }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "type": { "const": "battle/init" },
+        "payload": {
+          "type": "object",
+          "required": ["playerMaxHp", "monsterMaxHp", "monstersTotal", "startingSeconds", "playerArt"],
+          "properties": {
+            "playerMaxHp": { "type": "integer" },
+            "monsterMaxHp": { "type": "integer" },
+            "monstersTotal": { "type": "integer" },
+            "startingSeconds": { "type": "integer" },
+            "playerArt": {
+              "type": "object",
+              "required": ["idle", "fight", "hurt"],
+              "properties": {
+                "idle": { "type": "string" },
+                "fight": { "type": "string" },
+                "hurt": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/state" },
+        "payload": {
+          "type": "object",
+          "required": ["playerHp", "playerMaxHp", "monsterHp", "monsterMaxHp", "monsterIndex", "monstersTotal", "remainingSeconds", "comboCount", "status", "monster"],
+          "properties": {
+            "playerHp": { "type": "integer" },
+            "playerMaxHp": { "type": "integer" },
+            "monsterHp": { "type": "integer" },
+            "monsterMaxHp": { "type": "integer" },
+            "monsterIndex": { "type": "integer" },
+            "monstersTotal": { "type": "integer" },
+            "remainingSeconds": { "type": "integer" },
+            "comboCount": { "type": "integer" },
+            "status": { "enum": ["ready", "playing", "won", "lost"] },
+            "monster": { "$ref": "#/definitions/monsterArt" }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/question" },
+        "payload": {
+          "type": "object",
+          "required": ["wordId", "kind", "promptZh", "answer", "options", "letterTemplate", "missingIndex", "letterOptions", "letterAnswer", "letterTemplateBase", "missingIndices", "letterOptionsSteps", "letterAnswers", "currentStep", "spellLetters", "spellRevealedMask", "spellPool", "sentenceTemplate", "sentenceZh"],
+          "properties": {
+            "wordId": { "type": "string" },
+            "kind": { "enum": ["choice", "fill-letter", "fill-letter-medium", "spell", "sentence-cloze"] },
+            "promptZh": { "type": "string" },
+            "answer": { "type": "string" },
+            "options": { "type": "array", "items": { "type": "string" } },
+            "letterTemplate": { "type": "string" },
+            "missingIndex": { "type": "integer" },
+            "letterOptions": { "type": "array", "items": { "type": "string" } },
+            "letterAnswer": { "type": "string" },
+            "letterTemplateBase": { "type": "string" },
+            "missingIndices": { "type": "array", "items": { "type": "integer" } },
+            "letterOptionsSteps": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
+            "letterAnswers": { "type": "array", "items": { "type": "string" } },
+            "currentStep": { "type": "integer" },
+            "spellLetters": { "type": "array", "items": { "type": "string" } },
+            "spellRevealedMask": { "type": "array", "items": { "type": "boolean" } },
+            "spellPool": { "type": "array", "items": { "type": "string" } },
+            "sentenceTemplate": { "type": "string" },
+            "sentenceZh": { "type": "string" }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/animation" },
+        "payload": {
+          "type": "object",
+          "required": ["projectileDirection", "projectileIntensity", "projectileLabel", "playerMotion", "monsterMotion", "feedbackText", "showsCritOverlay", "damageLabel", "playsMonsterDefeatCue", "correct", "comboTriggered", "battleEnded"],
+          "properties": {
+            "projectileDirection": { "enum": ["forward", "backward"] },
+            "projectileIntensity": { "type": "integer" },
+            "projectileLabel": { "type": "string" },
+            "playerMotion": { "enum": ["idle", "nudge", "hurt", "cast", "zoom"] },
+            "monsterMotion": { "enum": ["idle", "nudge", "hurt", "cast", "zoom"] },
+            "feedbackText": { "type": "string" },
+            "showsCritOverlay": { "type": "boolean" },
+            "damageLabel": { "type": "string" },
+            "playsMonsterDefeatCue": { "type": "boolean" },
+            "correct": { "type": "boolean" },
+            "comboTriggered": { "type": "boolean" },
+            "battleEnded": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/bossIntro" },
+        "payload": {
+          "type": "object",
+          "required": ["monsterIndex", "name", "introLineEn", "introLineZh"],
+          "properties": {
+            "monsterIndex": { "type": "integer" },
+            "name": { "type": "string" },
+            "introLineEn": { "type": "string" },
+            "introLineZh": { "type": "string" }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/end" },
+        "payload": {
+          "type": "object",
+          "required": ["status"],
+          "properties": { "status": { "enum": ["won", "lost"] } }
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/ping" },
+        "payload": {
+          "type": "object",
+          "required": ["echo"],
+          "properties": { "echo": { "type": "string" } }
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/ready" },
+        "payload": { "type": "object", "additionalProperties": false }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/submitOption" },
+        "payload": {
+          "type": "object",
+          "required": ["option"],
+          "properties": { "option": { "type": "string" } }
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/spellWrongTap" },
+        "payload": { "type": "object", "additionalProperties": false }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/speakAnswer" },
+        "payload": { "type": "object", "additionalProperties": false }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/escape" },
+        "payload": { "type": "object", "additionalProperties": false }
+      }
+    },
+    {
+      "properties": {
+        "type": { "const": "battle/pong" },
+        "payload": {
+          "type": "object",
+          "required": ["echo"],
+          "properties": { "echo": { "type": "string" } }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "monsterArt": {
+      "type": "object",
+      "required": ["catalogIndex", "imageKey", "name", "levelLabel", "bonus"],
+      "properties": {
+        "catalogIndex": { "type": "integer" },
+        "imageKey": { "type": "string" },
+        "name": { "type": "string" },
+        "levelLabel": { "type": "string" },
+        "bonus": { "type": "boolean" }
+      }
+    }
+  }
+}

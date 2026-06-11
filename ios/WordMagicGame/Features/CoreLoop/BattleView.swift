@@ -805,15 +805,7 @@ struct BattleView: View {
     }
 
     private func sfxCue(for event: BattleAnimationEvent) -> BattleSfxCue {
-        if event.showsCritOverlay {
-            return .comboHit
-        }
-        switch event.projectileDirection {
-        case .forward:
-            return .normalHit
-        case .backward:
-            return event.playerMotion == .hurt ? .hurt : .wrong
-        }
+        BattleSfx.cue(for: event)
     }
 
     @ViewBuilder

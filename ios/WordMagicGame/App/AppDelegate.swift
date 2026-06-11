@@ -2,6 +2,11 @@ import SwiftUI
 import UIKit
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    /// The embedded Cocos runtime resolves its render surface through
+    /// `UIApplication.delegate.window.rootViewController.view`; the shim
+    /// assigns its dedicated battle window here before booting the engine.
+    var window: UIWindow?
+
     static var orientationMask: UIInterfaceOrientationMask = {
         if UIDevice.current.userInterfaceIdiom == .pad {
             return .all

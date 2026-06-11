@@ -1,0 +1,22 @@
+{
+  "payload": {
+    "comboCount": 2,
+    "monster": {
+      "bonus": false,
+      "catalogIndex": 3,
+      "imageKey": "CharacterSnowGoblin",
+      "levelLabel": "L1",
+      "name": "Snow Goblin"
+    },
+    "monsterHp": 1,
+    "monsterIndex": 1,
+    "monsterMaxHp": 1,
+    "monstersTotal": 2,
+    "playerHp": 9,
+    "playerMaxHp": 10,
+    "remainingSeconds": 297,
+    "status": "playing"
+  },
+  "type": "battle/state",
+  "v": 1
+}

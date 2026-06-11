@@ -17,6 +17,7 @@
 - Connect device: `hdc list targets`
 - Install app: `hdc install harmonyos/entry/build/default/outputs/default/entry-default-signed.hap`
 - Server tests: `cd server && uv run pytest`
+- **Cocos battle scene (V1.1.0, iOS-embedded):** project root `cocos/` (Cocos Creator 3.8). TS unit tests: `cd cocos && npm test`. Headless iOS build: `tools/cocos/build-ios.sh` (quits the editor; rebuilds data + arm64 device engine libs). Art under `cocos/assets/resources/art/` is generated — edit SVG sources in the iOS asset catalog, then rerun `tools/cocos/sync-art.sh`. Embed recipe and gotchas: [`cocos/README.md`](cocos/README.md). Cocos battle runs on device builds only; simulator falls back to the native BattleView.
 
 ## Rules
 - For HarmonyOS feature work, use ArkTS only and prefer modifying `harmonyos/entry/src/main/ets`.

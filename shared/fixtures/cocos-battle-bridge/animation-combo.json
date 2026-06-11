@@ -1,0 +1,18 @@
+{
+  "payload": {
+    "battleEnded": false,
+    "comboTriggered": true,
+    "correct": true,
+    "damageLabel": "-2!",
+    "feedbackText": "Combo 3! Magic Burst x2",
+    "monsterMotion": "zoom",
+    "playerMotion": "cast",
+    "playsMonsterDefeatCue": true,
+    "projectileDirection": "forward",
+    "projectileIntensity": 2,
+    "projectileLabel": "apple",
+    "showsCritOverlay": true
+  },
+  "type": "battle/animation",
+  "v": 1
+}

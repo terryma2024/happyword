@@ -1,0 +1,44 @@
+{
+  "payload": {
+    "answer": "apple",
+    "currentStep": 0,
+    "kind": "spell",
+    "letterAnswer": "",
+    "letterAnswers": [],
+    "letterOptions": [],
+    "letterOptionsSteps": [],
+    "letterTemplate": "",
+    "letterTemplateBase": "",
+    "missingIndex": -1,
+    "missingIndices": [],
+    "options": [],
+    "promptZh": "苹果",
+    "sentenceTemplate": "",
+    "sentenceZh": "",
+    "spellLetters": [
+      "a",
+      "p",
+      "p",
+      "l",
+      "e"
+    ],
+    "spellPool": [
+      "p",
+      "l",
+      "x",
+      "p",
+      "e",
+      "k"
+    ],
+    "spellRevealedMask": [
+      true,
+      false,
+      false,
+      false,
+      false
+    ],
+    "wordId": "w-apple"
+  },
+  "type": "battle/question",
+  "v": 1
+}

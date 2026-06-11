@@ -1,0 +1,29 @@
+{
+  "payload": {
+    "answer": "apple",
+    "currentStep": 0,
+    "kind": "choice",
+    "letterAnswer": "",
+    "letterAnswers": [],
+    "letterOptions": [],
+    "letterOptionsSteps": [],
+    "letterTemplate": "",
+    "letterTemplateBase": "",
+    "missingIndex": -1,
+    "missingIndices": [],
+    "options": [
+      "orange",
+      "blueberry",
+      "apple"
+    ],
+    "promptZh": "苹果",
+    "sentenceTemplate": "",
+    "sentenceZh": "",
+    "spellLetters": [],
+    "spellPool": [],
+    "spellRevealedMask": [],
+    "wordId": "w-apple"
+  },
+  "type": "battle/question",
+  "v": 1
+}

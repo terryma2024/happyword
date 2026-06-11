@@ -1,0 +1,18 @@
+{
+  "payload": {
+    "battleEnded": false,
+    "comboTriggered": false,
+    "correct": true,
+    "damageLabel": "-1!",
+    "feedbackText": "Correct!",
+    "monsterMotion": "hurt",
+    "playerMotion": "nudge",
+    "playsMonsterDefeatCue": false,
+    "projectileDirection": "forward",
+    "projectileIntensity": 1,
+    "projectileLabel": "apple",
+    "showsCritOverlay": false
+  },
+  "type": "battle/animation",
+  "v": 1
+}

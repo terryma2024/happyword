@@ -1,0 +1,134 @@
+{
+  "ver": "1.0.27",
+  "importer": "image",
+  "imported": true,
+  "uuid": "baf28c12-1e18-4360-9665-79cc635e752b",
+  "files": [
+    ".json",
+    ".png"
+  ],
+  "subMetas": {
+    "6c48a": {
+      "importer": "texture",
+      "uuid": "baf28c12-1e18-4360-9665-79cc635e752b@6c48a",
+      "displayName": "CharacterThornDryad",
+      "id": "6c48a",
+      "name": "texture",
+      "userData": {
+        "wrapModeS": "clamp-to-edge",
+        "wrapModeT": "clamp-to-edge",
+        "imageUuidOrDatabaseUri": "baf28c12-1e18-4360-9665-79cc635e752b",
+        "isUuid": true,
+        "visible": false,
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "f9941": {
+      "importer": "sprite-frame",
+      "uuid": "baf28c12-1e18-4360-9665-79cc635e752b@f9941",
+      "displayName": "CharacterThornDryad",
+      "id": "f9941",
+      "name": "spriteFrame",
+      "userData": {
+        "trimThreshold": 1,
+        "rotated": false,
+        "offsetX": 2,
+        "offsetY": -2,
+        "trimX": 88,
+        "trimY": 13,
+        "width": 340,
+        "height": 490,
+        "rawWidth": 512,
+        "rawHeight": 512,
+        "borderTop": 0,
+        "borderBottom": 0,
+        "borderLeft": 0,
+        "borderRight": 0,
+        "packable": true,
+        "pixelsToUnit": 100,
+        "pivotX": 0.5,
+        "pivotY": 0.5,
+        "meshType": 0,
+        "vertices": {
+          "rawPosition": [
+            -170,
+            -245,
+            0,
+            170,
+            -245,
+            0,
+            -170,
+            245,
+            0,
+            170,
+            245,
+            0
+          ],
+          "indexes": [
+            0,
+            1,
+            2,
+            2,
+            1,
+            3
+          ],
+          "uv": [
+            88,
+            499,
+            428,
+            499,
+            88,
+            9,
+            428,
+            9
+          ],
+          "nuv": [
+            0.171875,
+            0.017578125,
+            0.8359375,
+            0.017578125,
+            0.171875,
+            0.974609375,
+            0.8359375,
+            0.974609375
+          ],
+          "minPos": [
+            -170,
+            -245,
+            0
+          ],
+          "maxPos": [
+            170,
+            245,
+            0
+          ]
+        },
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "baf28c12-1e18-4360-9665-79cc635e752b@6c48a",
+        "atlasUuid": "",
+        "trimType": "auto"
+      },
+      "ver": "1.0.12",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "type": "sprite-frame",
+    "fixAlphaTransparencyArtifacts": false,
+    "hasAlpha": true,
+    "redirect": "baf28c12-1e18-4360-9665-79cc635e752b@6c48a"
+  }
+}
