@@ -7,8 +7,11 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CREATOR="/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator"
 
 echo "==> quitting Cocos Creator (CLI build requires exclusive project lock)"
-osascript -e 'tell application "CocosCreator" to quit' 2>/dev/null || true
-for _ in $(seq 1 20); do pgrep -x CocosCreator >/dev/null || break; sleep 1; done
+osascript -e 'tell application "CocosCreator" to quit' >/dev/null 2>&1 || true
+for _ in $(seq 1 20); do
+    pgrep -x CocosCreator >/dev/null || break
+    sleep 1
+done
 
 echo "==> building platform=harmonyos-next"
 "$CREATOR" --project "$ROOT/cocos" --build "platform=harmonyos-next" || {
@@ -41,12 +44,11 @@ fi
 # back to project-relative values.  Cocos Creator regenerates this file with absolute
 # paths on every build, so we normalise them here to keep the file committable.
 BPROFILE="$ROOT/cocos/native/engine/harmonyos-next/entry/build-profile.json5"
-if [ -f "$BPROFILE" ]; then
-    python3 - "$BPROFILE" "$ROOT/cocos" <<'PYEOF'
+[ -f "$BPROFILE" ] || { echo "build-profile.json5 missing — expected at $BPROFILE" >&2; exit 1; }
+python3 - "$BPROFILE" <<'PYEOF'
 import sys, re, pathlib
 
 profile_path = pathlib.Path(sys.argv[1])
-cocos_root   = pathlib.Path(sys.argv[2]).resolve()
 
 text = profile_path.read_text()
 
@@ -67,7 +69,6 @@ text = re.sub(
 profile_path.write_text(text)
 print("  patched build-profile.json5 (relative native paths restored)")
 PYEOF
-fi
 
 echo "==> done; output at cocos/build/harmonyos-next/"
 echo "    data bundle: $DATA_MAIN"
