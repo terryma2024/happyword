@@ -12,6 +12,7 @@ import {
   SceneMessage,
   SceneSubmitOptionMessage,
   ScenePongMessage,
+  SCENE_TYPES,
   PlayerArtShape,
   MonsterArtShape,
   QuestionPayloadShape,
@@ -133,7 +134,7 @@ export default function cocosBridgeMessagesTest() {
   describe('CocosBridgeMessages — fixture gates', () => {
     // ── Coverage ──────────────────────────────────────────────────────────
     it('coversAllFixtures', 0, () => {
-      expect(FIXTURES.size).assertLargerOrEqual(19);
+      expect(FIXTURES.size).assertEqual(19);
     });
 
     // ── Scene→Native decode ───────────────────────────────────────────────
@@ -335,6 +336,18 @@ export default function cocosBridgeMessagesTest() {
       expect(result).assertNull();
     });
 
+    it('decodeSceneMessageRejectsJsonNull', 0, () => {
+      // JSON.parse('null') succeeds but yields null — must not throw
+      const result: SceneMessage | null = decodeSceneMessage('null');
+      expect(result).assertNull();
+    });
+
+    it('decodeSceneMessageRejectsJsonTrue', 0, () => {
+      // JSON.parse('true') succeeds but yields a non-object primitive
+      const result: SceneMessage | null = decodeSceneMessage('true');
+      expect(result).assertNull();
+    });
+
     // ── Field-value spot checks ───────────────────────────────────────────
     it('encodeInitFieldValues', 0, () => {
       const art: PlayerArtShape = {
@@ -370,10 +383,6 @@ export default function cocosBridgeMessagesTest() {
   // ── All-fixtures gate ─────────────────────────────────────────────────────
   describe('CocosBridgeMessages — all-fixtures gate', () => {
     it('allFixturesDecodeOrRoundTrip', 0, () => {
-      const SCENE_TYPES: Set<string> = new Set<string>([
-        'battle/ready', 'battle/submitOption', 'battle/spellWrongTap',
-        'battle/speakAnswer', 'battle/escape', 'battle/pong',
-      ]);
       let processed: number = 0;
       FIXTURES.forEach((raw: string, _name: string) => {
         const envelope: FixtureEnvelope = JSON.parse(raw) as FixtureEnvelope;
@@ -438,7 +447,7 @@ export default function cocosBridgeMessagesTest() {
           processed++;
         }
       });
-      expect(processed).assertLargerOrEqual(19);
+      expect(processed).assertEqual(19);
     });
   });
 }

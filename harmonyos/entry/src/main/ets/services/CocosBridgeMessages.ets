@@ -211,7 +211,7 @@ export class NativeMessage {
 
 // ── Scene→Native decoder ─────────────────────────────────────────────────────
 
-const SCENE_TYPES: Set<string> = new Set<string>([
+export const SCENE_TYPES: Set<string> = new Set<string>([
   'battle/ready',
   'battle/submitOption',
   'battle/spellWrongTap',
@@ -225,12 +225,16 @@ const SCENE_TYPES: Set<string> = new Set<string>([
  * Returns null for non-JSON, wrong version, or unknown type.
  */
 export function decodeSceneMessage(json: string): SceneMessage | null {
-  let raw: RawEnvelope;
+  let parsed: Object;
   try {
-    raw = JSON.parse(json) as RawEnvelope;
+    parsed = JSON.parse(json) as Object;
   } catch {
     return null;
   }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null;
+  }
+  const raw: RawEnvelope = parsed as RawEnvelope;
   if (raw.v !== 1 || typeof raw.type !== 'string' || !SCENE_TYPES.has(raw.type)) {
     return null;
   }
