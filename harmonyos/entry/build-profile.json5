@@ -29,6 +29,17 @@
       "workers": [
         "./src/main/ets/cocosvendor/workers/cocos_worker.ets"
       ]
+    },
+    "arkOptions": {
+      // V1.1.0 Task 0.3: the Cocos engine delivers scene->ArkTS bridge calls
+      // via napi_load_module_with_info on this module path (engine
+      // JavaScriptArkTsBridge -> services/CocosBridgeReceiver.ets). Modules
+      // loaded by runtime path must be declared here or the load fails.
+      "runtimeOnly": {
+        "sources": [
+          "./src/main/ets/services/CocosBridgeReceiver.ets"
+        ]
+      }
     }
   },
   "buildOptionSet": [

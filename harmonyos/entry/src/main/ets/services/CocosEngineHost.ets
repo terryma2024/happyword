@@ -15,10 +15,15 @@
  * module — no engine threads or rendering start until ensureBooted().
  */
 import { common } from '@kit.AbilityKit';
-import cocos, { context } from 'libcocos.so';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+import cocos, { context, evalString } from 'libcocos.so';
 import { ContextType } from '../cocosvendor/common/Constants';
 import { WorkerPort } from '../cocosvendor/common/WorkerPort';
 import { WorkerManager } from '../cocosvendor/cocos/WorkerManager';
+
+/** Game-thread global the scene pre-registers as its inbound entry point
+ *  (cocos/assets/scripts/bridge/transport.ts, ArkTsReflectionTransport). */
+const SCENE_INBOUND_GLOBAL: string = '__wmBattleInbound';
 
 /** Engine-utils dispatcher pair, replicated from the scaffold pages/index.ets
  *  module prologue (the engine resolves jsb reflection calls through these). */
@@ -38,6 +43,8 @@ export class CocosEngineHost {
    *  message is sent at most once per process lifetime regardless of how many
    *  times CocosBattlePage is entered and re-entered. */
   private surfaceLoadNotified: boolean = false;
+  /** UI-thread consumer of scene->ArkTS bridge messages (Task 0.3). */
+  private sceneMessageHandler: ((json: string) => void) | null = null;
 
   /**
    * Idempotent engine boot. Replicates the scaffold's order:
@@ -113,6 +120,49 @@ export class CocosEngineHost {
     }
     const pageLifecycle: context = cocos.getContext(ContextType.JSPAGE_LIFECYCLE);
     pageLifecycle.onPageHide();
+  }
+
+  /**
+   * Task 0.3 bridge, ArkTS -> scene direction. Serialised bridge envelopes
+   * are delivered to the scene by evaluating a JS snippet inside the engine
+   * VM via libcocos.so's evalString. Called from the UI thread: the engine
+   * recognises the UI main thread (where the XComponent loaded the module)
+   * and re-schedules the eval onto the game thread, so this is async and
+   * fire-and-forget (no return value by design). JSON.stringify(json) is the
+   * escaping step — it turns the payload into a valid JS string literal.
+   *
+   * No-op (with a warning) before the engine boots; the engine side also
+   * drops evals that arrive before the game loop starts, so callers should
+   * only send after the scene's battle/ready arrived.
+   */
+  sendToScene(json: string): void {
+    if (!this.booted) {
+      hilog.warn(0x0000, 'WMBridge', 'sendToScene before boot; dropped');
+      return;
+    }
+    const literal: string = JSON.stringify(json);
+    evalString(
+      `globalThis.${SCENE_INBOUND_GLOBAL} && globalThis.${SCENE_INBOUND_GLOBAL}(${literal})`);
+  }
+
+  /**
+   * Task 0.3 bridge, scene -> ArkTS direction. The scene calls
+   * native.reflection.callStaticMethod(...); the engine resolves it through
+   * the 'executeMethodAsync' threadsafe function registered in ensureBooted,
+   * which runs CocosBridgeReceiver.onSceneMessage on the UI thread; that
+   * receiver forwards here. The handler therefore runs on the UI thread.
+   */
+  setSceneMessageHandler(handler: (json: string) => void): void {
+    this.sceneMessageHandler = handler;
+  }
+
+  /** Entry point used by CocosBridgeReceiver; not for general callers. */
+  dispatchSceneMessage(json: string): void {
+    if (this.sceneMessageHandler) {
+      this.sceneMessageHandler(json);
+    } else {
+      hilog.warn(0x0000, 'WMBridge', 'scene message dropped (no handler): %{public}s', json);
+    }
   }
 
   /** Relay from EntryAbility.onForeground; no-op until booted. */
