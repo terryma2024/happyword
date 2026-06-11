@@ -6,7 +6,7 @@ enum ConfigLayoutRules {
     static let controlColumnWidth: CGFloat = 220
     static let timerOptionsPerRow = 3
     static let questionTypesLeftAligned = true
-    static let settingGroupSpacing: CGFloat = 22
+    static let settingGroupSpacing: CGFloat = 11
     static let settingOptionSpacing: CGFloat = 8
     static let settingSwitchLabelWidth: CGFloat = 132
 
@@ -361,7 +361,7 @@ struct ConfigView: View {
     }
 
     private func settingGroup<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(alignment: .top, spacing: ConfigLayoutRules.controlGap) {
+        HStack(alignment: .center, spacing: ConfigLayoutRules.controlGap) {
             Text(label)
                 .font(.title2.weight(.bold))
                 .frame(width: ConfigLayoutRules.labelWidth, alignment: .trailing)
