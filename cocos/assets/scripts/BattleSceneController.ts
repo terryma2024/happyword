@@ -3,7 +3,7 @@
 // state snapshots and reports user input (contract:
 // shared/contracts/cocos-battle-bridge/).
 
-import { _decorator, Component, ResolutionPolicy, sys, view } from 'cc';
+import { _decorator, Component, game, ResolutionPolicy, sys, view } from 'cc';
 import { BridgeClient } from './bridge/BridgeClient';
 import {
     BattleAnimationPayload, BattleInitPayload, BattleQuestionPayload, BattleStatePayload,
@@ -95,8 +95,29 @@ export class BattleSceneController extends Component {
         }
     }
 
+    /// Browsers stop requestAnimationFrame for hidden/occluded windows,
+    /// freezing the whole game loop (Framerate 0, scheduled callbacks never
+    /// fire). Worker timers are exempt from that throttling, so a tiny
+    /// worker pumps frames manually whenever the page is hidden — automation
+    /// keeps working without needing the window to be visible.
+    private startHiddenTabPump() {
+        try {
+            const g = globalThis as any;
+            const blob = new g.Blob(['setInterval(() => postMessage(0), 33);'], { type: 'text/javascript' });
+            const worker = new g.Worker(g.URL.createObjectURL(blob));
+            worker.onmessage = () => {
+                if (g.document?.visibilityState === 'hidden') {
+                    game.step();
+                }
+            };
+        } catch (error) {
+            console.warn('[preview] hidden-tab frame pump unavailable', error);
+        }
+    }
+
     /// Browser preview has no JSB bridge; a fake host cycles question kinds.
     private startPreviewMode() {
+        this.startHiddenTabPump();
         this.previewHost = new PreviewFakeHost();
         this.scheduleOnce(() => {
             const host = this.previewHost!;

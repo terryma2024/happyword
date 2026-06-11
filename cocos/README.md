@@ -92,9 +92,26 @@ Contract: `shared/contracts/cocos-battle-bridge/`.
    minimized, fully occluded, or on another macOS Space**
    (`document.visibilityState === "hidden"`, requestAnimationFrame stops).
    Symptoms: profiler shows Framerate 0 and fake-host data never applies.
-   Keep the preview window visible on the active Space; don't fullscreen the
-   editor over it. Diagnose with injected JS:
-   `({v: document.visibilityState, f: cc.director.getTotalFrames()})`.
+   **Automated workaround — inject a worker frame pump right after every
+   `navigate`** (worker timers are exempt from visibility throttling and the
+   pump drives engine boot AND the scene):
+   ```js
+   if (!window.__agentPump) {
+     const w = new Worker(URL.createObjectURL(new Blob(
+       ['setInterval(()=>postMessage(0),33)'], {type:'text/javascript'})));
+     w.onmessage = () => { if (document.visibilityState==='hidden'
+       && typeof cc!=='undefined' && cc.game?.step) { try{cc.game.step();}catch(e){} } };
+     window.__agentPump = w;
+   }
+   ```
+   The scene controller also installs its own pump in preview mode
+   (`startHiddenTabPump`), but only after the scene loads — the injected pump
+   covers engine boot too. **Pixel screenshots of a hidden window may be
+   stale/black**; verify state via injected JS instead (walk the node tree and
+   read `cc.Label` strings, query `cc.director.getScene()`), and reserve
+   screenshots for when the window is visible.
+   Quick health probe:
+   `({v: document.visibilityState, f: cc.director.getTotalFrames(), s: cc.director.getScene()?.name})`.
 4. After editing scripts: focus the editor once (recompiles on focus,
    `osascript -e 'tell application "CocosCreator" to activate'`), wait ~8s,
    reload the preview page. If the preview server dies (curl 000,
@@ -104,6 +121,14 @@ Contract: `shared/contracts/cocos-battle-bridge/`.
    question kinds as you answer, simulates the 3-streak combo burst, and shows
    the monster intro bubble at startup. Extend the fake host whenever a new
    scene behavior needs preview-side verification.
+6. **Pin the preview start scene** so the preview never depends on which scene
+   the editor has open (otherwise the editor logs 无法查到当前场景 JSON 数据
+   and the preview loads an empty scene): set
+   `cocos/profiles/v2/packages/preview.json` →
+   `general.start_scene = "fbc8208b-dc3b-4c53-a87e-14a72766a372"` (Battle.scene
+   uuid). The file is gitignored (editor-local prefs); edit it while the editor
+   is CLOSED, then start the editor. If the page loaded before the asset DB was
+   ready the scene stays null — just reload the page.
 
 ## Iteration loop B — device verification (ground truth)
 
