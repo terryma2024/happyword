@@ -9,7 +9,7 @@ export default function devMenuToolEntriesTest(): void {
     it('ordersDomainSwitchAudioLabAndMessageBubbleLabAsPeerEntries', 0, () => {
       const entries: DevMenuToolEntry[] = devMenuToolEntries();
 
-      expect(entries.length).assertEqual(3);
+      expect(entries.length).assertEqual(4);
 
       expect(entries[0].id).assertEqual('DevMenuDomainSwitchButton');
       expect(entries[0].title).assertEqual('Domain Switch');
@@ -22,6 +22,10 @@ export default function devMenuToolEntriesTest(): void {
       expect(entries[2].id).assertEqual('DevMenuMessageBubbleLabButton');
       expect(entries[2].title).assertEqual('MessageBubbleLab');
       expect(entries[2].route).assertEqual('pages/MessageBubbleLabPage');
+
+      expect(entries[3].id).assertEqual('DevMenuCocosLabButton');
+      expect(entries[3].title).assertEqual('CocosLab');
+      expect(entries[3].route).assertEqual('pages/CocosBattlePage');
     });
   });
 }
