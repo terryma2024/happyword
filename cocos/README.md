@@ -63,6 +63,10 @@ Contract: `shared/contracts/cocos-battle-bridge/`.
   plus an explicit `UITransform` content size.
 - **`label.color` mutation needs reassignment** (`label.color = c.clone()`)
   or the renderer may not pick up the change.
+- **Graphics drawn while a node is `active = false` may never render on the
+  NATIVE platform** (fine in web preview — a web/native divergence). If a
+  Graphics node starts hidden and is activated later (e.g. the level badge),
+  redraw its content on activation (`redrawRoundedRect`).
 - The page's **game loop freezes when the browser window is hidden**
   (see Preview SOP below) — Framerate 0 is almost never a code bug.
 - `tsconfig` extends the Creator-generated base; `tsc --noEmit` reports a
