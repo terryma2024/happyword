@@ -80,6 +80,7 @@ struct ConfigView: View {
 
                         timerRow
                         audioPlaybackSection
+                        battleSceneSection
                         questionTypeSection
                         packPickerSection
                         reportChannelRow
@@ -292,6 +293,25 @@ struct ConfigView: View {
                 configSwitch("自动发音", isOn: $draft.autoSpeak, accessibilityIdentifier: "ConfigAutoSpeakSwitch")
                 configSwitch("播放BGM", isOn: $draft.playBgm, accessibilityIdentifier: "ConfigPlayBgmSwitch")
                 configSwitch("动作特效音", isOn: $draft.actionSfx, accessibilityIdentifier: "ConfigActionSfxSwitch")
+            }
+        }
+    }
+
+    /// Battle presentation switch: Cocos scene (default) vs native BattleView.
+    /// Only meaningful on device builds where the Cocos runtime is linked;
+    /// hidden elsewhere (simulator always uses the native view).
+    @ViewBuilder
+    private var battleSceneSection: some View {
+        if CocosRuntimeFactory.isRuntimeLinked {
+            settingGroup(label: "战斗画面") {
+                configSwitch(
+                    "Cocos 战斗场景",
+                    isOn: Binding(
+                        get: { CocosBattlePreference.isEnabled() },
+                        set: { CocosBattlePreference.setEnabled($0) }
+                    ),
+                    accessibilityIdentifier: "ConfigCocosBattleSwitch"
+                )
             }
         }
     }
@@ -535,7 +555,6 @@ struct ConfigView: View {
 
 struct DevMenuView: View {
     @ObservedObject var coordinator: AppCoordinator
-    @AppStorage("dev.useNativeBattleView") private var useNativeBattleView = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -565,17 +584,6 @@ struct DevMenuView: View {
                 devToolButton("CocosLab", id: "DevMenuCocosLabButton") {
                     runCocosBridgeSpike()
                 }
-                Toggle("Use native BattleView", isOn: $useNativeBattleView)
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
-                    .foregroundStyle(AppTheme.navy)
-                    .padding(.horizontal, 16)
-                    .frame(width: 360, height: 56)
-                    .background(ConfigActionButtonStyle.background, in: RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(ConfigActionButtonStyle.border, lineWidth: 2)
-                    )
-                    .accessibilityIdentifier("DevMenuNativeBattleToggle")
             }
             Spacer()
         }

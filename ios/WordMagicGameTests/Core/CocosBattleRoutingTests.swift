@@ -44,13 +44,22 @@ final class CocosBattleRoutingTests: XCTestCase {
         ))
     }
 
-    func testDevToggleForcesNativeInDebugBuilds() {
+    func testConfigSwitchOffForcesNative() {
         let coordinator = makeCoordinator()
         let defaults = isolatedDefaults()
-        defaults.set(true, forKey: "dev.useNativeBattleView")
+        CocosBattlePreference.setEnabled(false, defaults)
         XCTAssertFalse(coordinator.shouldUseCocosBattleView(
             runtimeLinked: true, arguments: [], defaults: defaults
         ))
+    }
+
+    func testConfigSwitchDefaultsToCocos() {
+        let defaults = isolatedDefaults()
+        XCTAssertTrue(CocosBattlePreference.isEnabled(defaults))
+        CocosBattlePreference.setEnabled(false, defaults)
+        XCTAssertFalse(CocosBattlePreference.isEnabled(defaults))
+        CocosBattlePreference.setEnabled(true, defaults)
+        XCTAssertTrue(CocosBattlePreference.isEnabled(defaults))
     }
 
     func testStartBattleResetsFallbackFlag() {

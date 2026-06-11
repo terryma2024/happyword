@@ -327,10 +327,7 @@ final class AppCoordinator: ObservableObject {
     ) -> Bool {
         guard runtimeLinked, !cocosBattleFallbackActive else { return false }
         guard !arguments.contains("-UITestForceNativeBattle") else { return false }
-        if DeveloperToolsPolicy.isDeveloperToolsVisible(), defaults.bool(forKey: "dev.useNativeBattleView") {
-            return false
-        }
-        return true
+        return CocosBattlePreference.isEnabled(defaults)
     }
 
     func startReviewBattle() {

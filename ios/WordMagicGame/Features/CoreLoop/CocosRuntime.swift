@@ -16,6 +16,21 @@ protocol CocosRuntime: AnyObject {
     func setScriptMessageHandler(_ handler: ((String) -> Void)?)
 }
 
+/// User-facing preference (Config page switch): whether the battle route
+/// uses the Cocos scene. Defaults to ON; only effective on device builds
+/// where the runtime is linked.
+enum CocosBattlePreference {
+    static let key = "battle.useCocosScene"
+
+    static func isEnabled(_ defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: key) == nil ? true : defaults.bool(forKey: key)
+    }
+
+    static func setEnabled(_ enabled: Bool, _ defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: key)
+    }
+}
+
 enum CocosRuntimeFactory {
     /// True when the Cocos engine is linked into this build (device builds
     /// only; the simulator shim is a stub).
