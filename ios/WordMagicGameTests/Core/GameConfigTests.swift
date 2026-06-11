@@ -130,7 +130,9 @@ final class GameConfigTests: XCTestCase {
         XCTAssertEqual(ConfigLayoutRules.controlColumnWidth, 220)
         XCTAssertEqual(ConfigLayoutRules.timerOptionsPerRow, 3)
         XCTAssertTrue(ConfigLayoutRules.questionTypesLeftAligned)
-        XCTAssertEqual(ConfigLayoutRules.settingGroupSpacing, 22)
+        // iOS-local UX override (2026-06-11): groups are cards now and the
+        // user asked for half the original spacing; Harmony keeps 22.
+        XCTAssertEqual(ConfigLayoutRules.settingGroupSpacing, 11)
         XCTAssertEqual(ConfigLayoutRules.settingOptionSpacing, 8)
 
         XCTAssertEqual(

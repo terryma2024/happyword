@@ -3,9 +3,9 @@
 > Scope: Apple App Store only. Android release work is intentionally excluded.
 > App: `WordMagicGame` / `魔法背单词`
 > Bundle ID: `com.terryma.wordmagicgame`
-> Version: `1.0.2`
-> Build: `1020001`
-> Last updated: 2026-06-06
+> Version: `1.1.0`
+> Build: `1100001`
+> Last updated: 2026-06-11
 
 ## Source Of Truth
 
@@ -30,6 +30,8 @@
 - [x] App Store Connect upload succeeded for build `1.0.0 (1010000)` on 2026-06-01; TestFlight/App Store Connect processing completed.
 - [x] App Store Connect upload succeeded for build `1.0.1 (1010001)` on 2026-06-05; ASC returned delivery UUID `b4a71dc5-7f6e-423b-b4b7-fb8013290ed9` and `Upload succeeded`.
 - [x] App Store Connect upload succeeded for build `1.0.2 (1020001)` on 2026-06-06; ASC buildUpload id `74ca06ca-4d35-4cd2-ba30-1a40d94967dc`; Xcode reported `Upload succeeded`.
+- [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v1.1.0-b1100001.xcarchive` (V1.1.0 Cocos battle scene).
+- [x] App Store Connect upload succeeded for build `1.1.0 (1100001)` on 2026-06-11 (second export attempt returned `Redundant Binary Upload`, confirming the first upload landed). Version selection / export compliance / review submission pending below.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
