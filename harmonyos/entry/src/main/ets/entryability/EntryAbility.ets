@@ -20,6 +20,10 @@ import { isDebugBuild } from '../services/ReleaseGate';
 import BuildProfile from 'BuildProfile';
 import { StringPreferencesLike } from '../services/WrongAnswerStore';
 import { APP_COLOR_MODE } from '../utils/theme';
+import {
+  hydrateCocosScenePref,
+  FORCE_NATIVE_BATTLE_KEY,
+} from '../services/CocosBattlePreference';
 
 const DOMAIN = 0x0000;
 const WISHLIST_PREFS_NAME: string = 'wordmagic_cloud_wishlist';
@@ -66,9 +70,16 @@ export default class EntryAbility extends UIAbility {
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     const wantParams: Record<string, Object> | undefined = want.parameters;
-    if (isDebugBuild(BuildProfile.BUILD_MODE_NAME) &&
-        wantParams !== undefined && wantParams['cocosLab'] === 'true') {
-      this.launchCocosLab = true;
+    if (isDebugBuild(BuildProfile.BUILD_MODE_NAME) && wantParams !== undefined) {
+      if (wantParams['cocosLab'] === 'true') {
+        this.launchCocosLab = true;
+      }
+      // forceNativeBattle — debug builds only; used by ohosTest to keep the
+      // native BattlePage exercised even after Cocos routing is the default.
+      // Release builds never read this parameter.
+      if (wantParams['forceNativeBattle'] === 'true') {
+        AppStorage.setOrCreate<boolean>(FORCE_NATIVE_BATTLE_KEY, true);
+      }
     }
     try {
       this.context.getApplicationContext().setColorMode(APP_COLOR_MODE);
@@ -163,11 +174,15 @@ export default class EntryAbility extends UIAbility {
       });
     };
 
-    // Restore GameConfig (parent PIN, timers, etc.) before any page reads AppStorage.
-    hydrateGameConfigFromPrefs(this.context).then((): void => {
+    // Restore GameConfig (parent PIN, timers, etc.) and Cocos scene
+    // preference before any page reads AppStorage.
+    Promise.all([
+      hydrateGameConfigFromPrefs(this.context),
+      hydrateCocosScenePref(this.context),
+    ]).then((): void => {
       loadHome();
     }).catch((err: BusinessError): void => {
-      hilog.warn(DOMAIN, 'testTag', 'hydrateGameConfigFromPrefs failed: %{public}s', JSON.stringify(err));
+      hilog.warn(DOMAIN, 'testTag', 'hydratePrefs failed: %{public}s', JSON.stringify(err));
       loadHome();
     });
   }
