@@ -32,6 +32,22 @@ enum ConfigActionButtonStyle {
 }
 
 private extension View {
+    /// Groups a settings row into a visible card (soft blue fill + hairline
+    /// border) so the label↔controls relationship is obvious at a glance.
+    func configCard() -> some View {
+        padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: 592)
+            .background(
+                Color(red: 0.95, green: 0.97, blue: 1.0),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color(red: 0.86, green: 0.9, blue: 0.96), lineWidth: 1)
+            )
+    }
+
     func configActionButtonStyle() -> some View {
         font(.system(size: 15, weight: .semibold, design: .rounded))
             .lineLimit(1)
@@ -154,6 +170,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private var customTimerButton: some View {
@@ -353,6 +370,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private func configSwitch(_ title: String, isOn: Binding<Bool>, accessibilityIdentifier: String) -> some View {
@@ -428,6 +446,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private var reportChannelRow: some View {
@@ -446,6 +465,7 @@ struct ConfigView: View {
             }
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private var parentPinRow: some View {
@@ -465,6 +485,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private var parentAccountSection: some View {
@@ -490,6 +511,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     @ViewBuilder
@@ -510,6 +532,7 @@ struct ConfigView: View {
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: 560)
+        .configCard()
         }
     }
 
@@ -525,6 +548,7 @@ struct ConfigView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private func settingStepper(_ title: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
@@ -540,6 +564,7 @@ struct ConfigView: View {
             Spacer()
         }
         .frame(maxWidth: 560)
+        .configCard()
     }
 
     private func roundControl(_ title: String, action: @escaping () -> Void) -> some View {

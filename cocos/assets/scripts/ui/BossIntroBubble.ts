@@ -23,6 +23,7 @@ const SHADOW_ALPHA = 36;
 
 export class BossIntroBubble {
     private bubble!: Node;
+    private bubbleGraphics!: Graphics;
     private nameLabel!: ReturnType<typeof makeLabel>;
     private enLabel!: ReturnType<typeof makeLabel>;
     private zhLabel!: ReturnType<typeof makeLabel>;
@@ -32,8 +33,8 @@ export class BossIntroBubble {
         const y = (0.5 - 0.20) * layout.designHeight;
         this.bubble = makeNode('BossIntroBubble', parent, x, y);
 
-        const g = this.bubble.addComponent(Graphics);
-        this.drawBubble(g);
+        this.bubbleGraphics = this.bubble.addComponent(Graphics);
+        this.drawBubble(this.bubbleGraphics);
 
         this.nameLabel = makeLabel('BossName', this.bubble, '', 18, NAME_BROWN, { y: 40 });
         this.enLabel = makeLabel('BossLineEn', this.bubble, '', 21, LINE_NAVY, { y: 6 });
@@ -90,6 +91,10 @@ export class BossIntroBubble {
         this.enLabel.string = lineEn;
         this.zhLabel.string = lineZh;
         this.bubble.active = true;
+        // Native quirk: Graphics drawn while the node was inactive may never
+        // upload its render data — redraw on activation.
+        this.bubbleGraphics.clear();
+        this.drawBubble(this.bubbleGraphics);
         this.bubble.setScale(new Vec3(0.85, 0.85, 1));
         tween(this.bubble)
             .to(0.14, { scale: new Vec3(1, 1, 1) })
