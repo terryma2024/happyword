@@ -302,6 +302,25 @@ CocosLab or just start a battle with the Config switch ON.
 - Engine boot is once per process (`CocosEngineHost.ensureBooted` +
   `notifySurfaceLoaded` posts `onXCLoad` at most once); `battle/init` being a
   full scene reset is what makes page re-entry work.
+- **Surface lifecycle (Task 1.5, emulator-verified):** the engine render loop
+  is only stopped by the app-lifecycle `onHide` — the JSPAGE `onPageHide`
+  relay does nothing (`napiOnPageHide` just logs). A frame racing the
+  XComponent surface destroy aborts the process in `eglSwapBuffers`
+  (`EGL_BAD_SURFACE`, `GLES3GPUContext.cpp:332`). `CocosEngineHost` therefore
+  derives visibility from `booted && appForeground && pageActive &&
+  surfaceAlive` and `CocosBattlePage` calls `pauseRendering()` before every
+  `replaceUrl`.
+- **Surface re-creation is NOT supported by the engine** (Cocos 3.8.8 OH
+  platform): `onSurfaceCreatedCB` registers a re-created surface as a NEW
+  `SystemWindow` id while the GFX swapchain stays bound to the removed
+  original window, so the first frame after a resume swaps a dead EGLSurface
+  and aborts. Containment: `CocosEngineHost.surfaceRetired` latches on the
+  first surface destroy after boot, and `CocosBattlePage` falls back to the
+  native BattlePage (fallback flag + `replaceUrl`) without mounting a new
+  XComponent. Net effect: the FIRST battle of a process runs in Cocos;
+  subsequent battles run native until the app restarts. Fixing this needs an
+  engine-side patch (rebind the swapchain on `WM_XCOMPONENT_SURFACE_CREATED`)
+  or a persistent surface host — Phase 2 candidate.
 - **Receiver exception rule:** `CocosBridgeReceiver.onSceneMessage` calls
   `done('ok')` BEFORE dispatching into app code. A throw before `done()` would
   permanently hang the game thread (it blocks on an internal NAPI promise). A

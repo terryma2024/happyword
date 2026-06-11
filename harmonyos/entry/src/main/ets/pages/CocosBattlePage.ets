@@ -23,9 +23,13 @@
  *                     parity).
  *
  * Fallback contract: any boot failure / build failure / missing battle-ready
- * sets AppStorage[COCOS_BATTLE_FALLBACK_KEY] = true (read by battleRouteUrl
- * and isCocosRuntimeAvailable) and replaces this page with the native
+ * / retired surface (the engine cannot render to a re-created XComponent
+ * surface — see CocosEngineHost.surfaceRetired) sets
+ * AppStorage[COCOS_BATTLE_FALLBACK_KEY] = true (read by battleRouteUrl and
+ * isCocosRuntimeAvailable) and replaces this page with the native
  * BattlePage, which restarts the battle from the same stored GameConfig.
+ * Practical effect until the engine limitation is fixed: the FIRST battle
+ * of a process runs in Cocos; subsequent battles run native.
  *
  * Escape contract: the scene's Escape button sends battle/escape and the
  * bridge finishes immediately — same as the native BattlePage and the iOS
@@ -149,6 +153,12 @@ struct CocosBattlePage {
   private battleEndHandled: boolean = false;
   /** Set once the fallback replaceUrl has been posted. */
   private fallbackTriggered: boolean = false;
+  /**
+   * Gates the XComponent: false when the engine cannot render (retired
+   * surface / boot failure) so no new surface is created on the fallback
+   * path. Decided in aboutToAppear, i.e. before the first build().
+   */
+  @State private engineUsable: boolean = true;
 
   private applyOrientationPolicy(): void {
     requestPageOrientation(
@@ -162,6 +172,15 @@ struct CocosBattlePage {
     this.applyOrientationPolicy();
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
+    // Engine limitation (see CocosEngineHost.surfaceRetired): the Cocos
+    // runtime cannot render to a re-created XComponent surface. On re-entry
+    // after a previous Cocos battle, go native BEFORE mounting a new
+    // XComponent — mounting one and resuming would abort in eglSwapBuffers.
+    if (cocosEngineHost().isSurfaceRetired()) {
+      this.engineUsable = false;
+      this.fallbackToNative('surface-retired');
+      return;
+    }
     // Engine boot is retryable inside the host; a throw here means the
     // native engine could not be initialised at all — go native for the
     // rest of the process lifetime.
@@ -169,6 +188,7 @@ struct CocosBattlePage {
       cocosEngineHost().ensureBooted(ctx);
     } catch (err) {
       hilog.error(DOMAIN, TAG, 'engine boot failed: %{public}s', (err as Error).message);
+      this.engineUsable = false;
       this.fallbackToNative('boot-failed');
       return;
     }
@@ -314,6 +334,10 @@ struct CocosBattlePage {
     }
     this.battleEndHandled = true;
     this.clearTimers();
+    // Stop the engine render loop BEFORE the navigation destroys the
+    // XComponent surface — an in-flight frame racing the surface destroy
+    // aborts the process in eglSwapBuffers (see CocosEngineHost.pauseRendering).
+    cocosEngineHost().pauseRendering();
     const setup: BattleSessionSetup | undefined = this.setup;
     const inputs: BattleResultEnrichmentInputs = new BattleResultEnrichmentInputs();
     if (setup !== undefined) {
@@ -345,6 +369,8 @@ struct CocosBattlePage {
     }
     this.fallbackTriggered = true;
     this.clearTimers();
+    // Same surface-destroy race as finishBattle: halt rendering first.
+    cocosEngineHost().pauseRendering();
     hilog.warn(DOMAIN, TAG, 'falling back to native BattlePage (%{public}s)', reason);
     AppStorage.setOrCreate<boolean>(COCOS_BATTLE_FALLBACK_KEY, true);
     const bridge: CocosBattleBridge | undefined = this.bridge;
@@ -360,19 +386,28 @@ struct CocosBattlePage {
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
-      XComponent({
-        id: COCOS_XCOMPONENT_ID,
-        type: XComponentType.SURFACE,
-        libraryname: COCOS_LIBRARY_NAME,
-      })
-        .focusable(true)
-        .defaultFocus(true)
-        .width('100%')
-        .height('100%')
-        .onLoad((): void => {
-          // Surface is ready — notify the host; it posts onXCLoad at most once.
-          cocosEngineHost().notifySurfaceLoaded();
+      if (this.engineUsable) {
+        XComponent({
+          id: COCOS_XCOMPONENT_ID,
+          type: XComponentType.SURFACE,
+          libraryname: COCOS_LIBRARY_NAME,
         })
+          .focusable(true)
+          .defaultFocus(true)
+          .width('100%')
+          .height('100%')
+          .onLoad((): void => {
+            // Surface is ready — notify the host; it posts onXCLoad at most
+            // once and resumes the engine render loop.
+            cocosEngineHost().notifySurfaceLoaded();
+          })
+          .onDestroy((): void => {
+            // Surface gone — the host must not resume rendering (and, per
+            // the engine's surface re-creation limitation, retires Cocos
+            // rendering for the rest of the process).
+            cocosEngineHost().notifySurfaceDestroyed();
+          })
+      }
     }
     .width('100%')
     .height('100%')

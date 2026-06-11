@@ -43,6 +43,36 @@ function executeMethodSync(nativeFunc: Function, funcData: string): string | boo
 export class CocosEngineHost {
   private booted: boolean = false;
   private visible: boolean = false;
+  /** App-level foreground state (EntryAbility onForeground/onBackground). */
+  private appForeground: boolean = false;
+  /**
+   * True while CocosBattlePage is the active route. The engine render loop
+   * only runs when BOTH appForeground and pageActive hold — pausing it
+   * before the page (and its XComponent surface) is torn down. Without the
+   * pause, a frame in flight races the surface destroy and eglSwapBuffers
+   * aborts the process with EGL_BAD_SURFACE (GLES3GPUContext assert), which
+   * is exactly the crash observed on the Task 1.5 emulator smoke.
+   */
+  private pageActive: boolean = false;
+  /**
+   * True while the XComponent surface exists (set on onLoad, cleared on
+   * onDestroy). Guards resume: after a page exit the next onPageShow fires
+   * before the NEW surface exists, and resuming then would swap against the
+   * destroyed previous surface.
+   */
+  private surfaceAlive: boolean = false;
+  /**
+   * Latches true the first time a surface the booted engine rendered to is
+   * destroyed. The vendored Cocos OpenHarmony platform does NOT support
+   * XComponent surface re-creation: onSurfaceCreatedCB registers the new
+   * surface as a NEW SystemWindow id while the GFX swapchain stays bound to
+   * the removed original window, so the first frame after a resume swaps a
+   * dead EGLSurface and aborts (GLES3GPUContext.cpp:332, verified on the
+   * emulator). Until that engine limitation is fixed, a Cocos battle can
+   * only run on the FIRST surface of the process — CocosBattlePage checks
+   * this flag and falls back to the native BattlePage on re-entry.
+   */
+  private surfaceRetired: boolean = false;
   private appLifecycle: context | undefined = undefined;
   /** Tracks whether onXCLoad has already been posted to the worker so the
    *  message is sent at most once per process lifetime regardless of how many
@@ -88,14 +118,19 @@ export class CocosEngineHost {
       // All fallible work succeeded — commit state.
       this.appLifecycle = lifecycle;
       this.booted = true;
-      // The app is foreground when the battle page boots the engine; the
-      // scaffold equivalent fires onShow via its windowStage RESUMED handler.
+      // The app is foreground and the battle page is booting the engine;
+      // the scaffold equivalent fires onShow via its windowStage RESUMED
+      // handler.
+      this.appForeground = true;
+      this.pageActive = true;
       this.visible = true;
       this.appLifecycle.onShow();
     } catch (err) {
       // Reset so the next page visit can retry rather than silently no-op.
       this.booted = false;
       this.appLifecycle = undefined;
+      this.appForeground = false;
+      this.pageActive = false;
       this.visible = false;
       console.error('CocosEngineHost.ensureBooted failed:', JSON.stringify(err as object));
       // Re-throw as a typed Error so ArkTS strict-mode accepts the throw.
@@ -108,31 +143,108 @@ export class CocosEngineHost {
    * Called by CocosBattlePage's XComponent onLoad handler when the surface
    * is ready. Posts 'onXCLoad' to the CocosWorker at most once per process
    * lifetime — re-entering the page does not reinitialise the engine.
+   *
+   * This is also the resume point for the render loop on page re-entry:
+   * onLoad fires AFTER the new surface's WM_XCOMPONENT_SURFACE_CREATE was
+   * queued to the game thread, so the onShow that updateVisibility emits is
+   * processed after the swapchain has been recreated. Resuming earlier (on
+   * onPageShow) lets the loop swap one frame against the previous page
+   * visit's destroyed surface — EGL_BAD_SURFACE abort.
    */
   notifySurfaceLoaded(): void {
-    if (this.surfaceLoadNotified) {
-      return;
+    if (!this.surfaceLoadNotified) {
+      this.surfaceLoadNotified = true;
+      WorkerPort.getInstance().postMessage('onXCLoad');
     }
-    this.surfaceLoadNotified = true;
-    WorkerPort.getInstance().postMessage('onXCLoad');
+    this.surfaceAlive = true;
+    this.pageActive = true;
+    this.updateVisibility();
   }
 
-  /** Relay from CocosBattlePage.onPageShow to the Cocos JSPAGE_LIFECYCLE. */
+  /**
+   * Called by CocosBattlePage's XComponent onDestroy handler. Marks the
+   * surface gone so updateVisibility cannot resume the render loop, and —
+   * because the engine cannot adopt a re-created surface (see
+   * {@link surfaceRetired}) — permanently retires Cocos rendering for this
+   * process once the engine has booted against the destroyed surface.
+   */
+  notifySurfaceDestroyed(): void {
+    this.surfaceAlive = false;
+    if (this.booted) {
+      this.surfaceRetired = true;
+    }
+    this.updateVisibility();
+  }
+
+  /**
+   * True once the engine's only usable surface is gone. CocosBattlePage
+   * checks this BEFORE mounting its XComponent so a re-entry routes to the
+   * native BattlePage instead of crashing the engine.
+   */
+  isSurfaceRetired(): boolean {
+    return this.surfaceRetired;
+  }
+
+  /**
+   * Recompute the engine's render-loop visibility from the combined app +
+   * page state and relay the transition through the app lifecycle. onHide
+   * stops the engine's main-loop timer (OpenHarmonyPlatform::onHideNative),
+   * which is the only call that actually halts rendering — the JSPAGE
+   * onPageHide relay alone does NOT, and an in-flight frame racing the
+   * XComponent surface destroy crashes in eglSwapBuffers.
+   */
+  private updateVisibility(): void {
+    const want: boolean = this.booted && this.appForeground
+      && this.pageActive && this.surfaceAlive && !this.surfaceRetired;
+    if (want === this.visible) {
+      return;
+    }
+    this.visible = want;
+    if (want) {
+      this.appLifecycle?.onShow();
+    } else {
+      this.appLifecycle?.onHide();
+    }
+  }
+
+  /**
+   * Pause the engine render loop ahead of a navigation that will destroy
+   * the XComponent surface (CocosBattlePage calls this before replaceUrl).
+   * Idempotent; the page's organic onPageHide that follows is a no-op for
+   * visibility and only re-relays the JSPAGE event.
+   */
+  pauseRendering(): void {
+    this.pageActive = false;
+    this.updateVisibility();
+  }
+
+  /**
+   * Relay from CocosBattlePage.onPageShow; resumes the render loop ONLY if
+   * the surface is still alive (covers foreground-after-background while in
+   * battle). On re-entry after a page exit the page shows before the new
+   * XComponent surface exists — surfaceAlive is false and the resume rides
+   * notifySurfaceLoaded() instead, AFTER the surface-create message was
+   * queued to the game thread.
+   */
   notifyPageShow(): void {
     if (!this.booted) {
       return;
     }
     const pageLifecycle: context = cocos.getContext(ContextType.JSPAGE_LIFECYCLE);
     pageLifecycle.onPageShow();
+    this.pageActive = true;
+    this.updateVisibility();
   }
 
-  /** Relay from CocosBattlePage.onPageHide to the Cocos JSPAGE_LIFECYCLE. */
+  /** Relay from CocosBattlePage.onPageHide; pauses the render loop. */
   notifyPageHide(): void {
     if (!this.booted) {
       return;
     }
     const pageLifecycle: context = cocos.getContext(ContextType.JSPAGE_LIFECYCLE);
     pageLifecycle.onPageHide();
+    this.pageActive = false;
+    this.updateVisibility();
   }
 
   /**
@@ -209,22 +321,25 @@ export class CocosEngineHost {
     }
   }
 
-  /** Relay from EntryAbility.onForeground; no-op until booted. */
+  /**
+   * Relay from EntryAbility.onForeground; no-op until booted. The render
+   * loop only resumes when the battle page is also the active route.
+   */
   notifyForeground(): void {
-    if (!this.booted || this.visible) {
+    if (!this.booted) {
       return;
     }
-    this.visible = true;
-    this.appLifecycle?.onShow();
+    this.appForeground = true;
+    this.updateVisibility();
   }
 
   /** Relay from EntryAbility.onBackground; no-op until booted. */
   notifyBackground(): void {
-    if (!this.booted || !this.visible) {
+    if (!this.booted) {
       return;
     }
-    this.visible = false;
-    this.appLifecycle?.onHide();
+    this.appForeground = false;
+    this.updateVisibility();
   }
 }
 
