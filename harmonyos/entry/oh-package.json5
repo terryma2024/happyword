@@ -5,5 +5,9 @@
   "main": "",
   "author": "",
   "license": "",
-  "dependencies": {}
+  "dependencies": {
+    // V1.1.0 Cocos battle embed: ArkTS type declarations for the natively
+    // compiled engine lib (vendored by tools/cocos/build-harmonyos.sh).
+    "libcocos.so": "file:./src/main/cpp/types/libcocos"
+  }
 }
