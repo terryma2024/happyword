@@ -4,7 +4,7 @@
 // HP bar with gray track.
 
 import { Graphics, HorizontalTextAlignment, Label, Layout, Node, tween, UITransform, Vec3 } from 'cc';
-import { animateGraphicsAlpha, color, loadCharacterSprite, makeCapsule, makeLabel, makeNode, makeRoundedRect } from './nodeFactory';
+import { animateGraphicsAlpha, color, loadCharacterSprite, makeCapsule, makeLabel, makeNode, makeRoundedRect, redrawRoundedRect } from './nodeFactory';
 import { layout, theme } from './theme';
 
 export interface FighterCardConfig {
@@ -120,7 +120,12 @@ export class FighterCard {
 
     setLevelBadge(label: string | null): void {
         this.levelBadgeNode.active = label !== null;
-        if (label !== null) { this.levelBadgeLabel.string = label; }
+        if (label !== null) {
+            this.levelBadgeLabel.string = label;
+            // Native quirk: Graphics content drawn while the node was inactive
+            // may never upload its render data — redraw on activation.
+            redrawRoundedRect(this.levelBadgeNode, 15, theme.navy);
+        }
     }
 
     /// Mirrors the BattleView fighter motions (BattleView.swift:916-997).
