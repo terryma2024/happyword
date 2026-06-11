@@ -347,8 +347,11 @@ CocosLab or just start a battle with the Config switch ON.
   and the host's `onShow` relay travel through the same FIFO worker queue,
   and `CocosEngineHost` only resumes rendering from the new surface's
   `onLoad`. Net effect: EVERY battle of a process runs in Cocos
-  (emulator-verified 2026-06-11: battle → escape → result → home → battle,
-  plus the 再来一局 replay path — renders, takes touch input, no cppcrash).
+  (emulator-verified 2026-06-11: battle → escape → result → home → battle
+  three times in one process — each re-entry renders, takes touch input, no
+  cppcrash; backgrounding mid-battle and resuming is also clean. 再来一局 on
+  a today-adventure result routes through HomePage by design, so it is the
+  same re-entry path).
 - **Receiver exception rule:** `CocosBridgeReceiver.onSceneMessage` calls
   `done('ok')` BEFORE dispatching into app code. A throw before `done()` would
   permanently hang the game thread (it blocks on an internal NAPI promise). A
