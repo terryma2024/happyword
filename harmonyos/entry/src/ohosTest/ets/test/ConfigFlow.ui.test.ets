@@ -626,6 +626,45 @@ export default function configFlowUiTest(): void {
       done();
     });
 
+    /**
+     * V1.1.0 (Task 1.4): the 战斗画面 / Cocos battle-scene switch must
+     * exist in the Config form, accept two Toggle taps without crashing,
+     * and leave the page in a usable state. isCocosRuntimeAvailable()
+     * returns true unconditionally in Task 1.4 so the group is always
+     * visible on the emulator / ohosTest HAP.
+     */
+    it('cocosBattleSwitchExistsAndIsToggleable', 0, async (done: Function) => {
+      const driver: Driver = await launchApp();
+      await returnToHome(driver);
+      await openConfig(driver);
+
+      // The switch lives near the top of the form (after 发音播放);
+      // no scroll should be needed on the landscape viewport, but swipe
+      // once defensively in case the timer row is taller than expected.
+      for (let attempt: number = 0; attempt < 3; attempt++) {
+        const sw: Component | null =
+          await driver.findComponent(ON.id('ConfigCocosBattleSwitch'));
+        if (sw !== null) {
+          break;
+        }
+        await driver.swipe(CONFIG_SCROLL_X, 1100, CONFIG_SCROLL_X, 300, 600);
+        await driver.delayMs(400);
+      }
+
+      await driver.assertComponentExist(ON.id('ConfigCocosBattleSwitch'));
+      // Toggle off then back on — two taps must not throw or navigate away.
+      await clickByIdShared(driver, 'ConfigCocosBattleSwitch');
+      await driver.delayMs(300);
+      await clickByIdShared(driver, 'ConfigCocosBattleSwitch');
+      await driver.delayMs(300);
+      // Config page must still be visible after both taps.
+      await driver.assertComponentExist(ON.id('ConfigCocosBattleSwitch'));
+
+      await tapConfigCancelShared(driver);
+      await returnToHome(driver);
+      done();
+    });
+
     it('mismatchSurfacesHintAndResetsBuffer', 0, async (done: Function) => {
       const driver: Driver = await launchApp();
       await returnToHome(driver);

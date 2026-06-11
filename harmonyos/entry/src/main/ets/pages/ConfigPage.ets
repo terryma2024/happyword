@@ -54,6 +54,11 @@ import {
 import { REPORT_CHANNEL_URL } from '../services/CompliancePolicy';
 import { openUrlInAppBrowser } from '../services/SystemBrowser';
 import { requestPageOrientation } from '../utils/orientation';
+import {
+  COCOS_BATTLE_PREF_KEY,
+  isCocosRuntimeAvailable,
+  saveCocosScenePref,
+} from '../services/CocosBattlePreference';
 /**
  * ConfigPage exposes battle knobs (HP / monster count / timer /
  * audio playback / 题型选择) plus pack manager entry. Changes persist
@@ -96,6 +101,9 @@ struct ConfigPage {
   @State private cloudSyncStatusText: string = '';
   @State private cloudSyncToastText: string = '';
   @State private questionTypeLastEnabledHint: string = '';
+  // V1.1.0 (Task 1.4): Cocos battle-scene switch.  Initialised in
+  // aboutToAppear from AppStorage; default true (iOS parity).
+  @State private cocosBattleEnabled: boolean = true;
   private cloudCreds: CloudCredentials = new CloudCredentials();
   private adminPinDialog: CustomDialogController | null = null;
   // V0.6.7.7: 自定义 timer dialog controller. Created lazily on first
@@ -144,6 +152,14 @@ struct ConfigPage {
     }).catch((err: BusinessError): void => {
       console.error(`ConfigPage: loadHomeIntegration failed: ${JSON.stringify(err)}`);
     });
+
+    // V1.1.0 (Task 1.4): seed Cocos battle switch from AppStorage.
+    // AppStorage is hydrated by hydrateCocosScenePref (EntryAbility);
+    // if the key is absent (first launch before hydration completes)
+    // fall back to true (iOS parity — default ON).
+    const cocosPref: boolean | undefined =
+      AppStorage.get<boolean>(COCOS_BATTLE_PREF_KEY);
+    this.cocosBattleEnabled = cocosPref !== undefined ? cocosPref : true;
   }
 
   /** Mirror selection count into @State so the entry row re-renders. */
@@ -772,6 +788,36 @@ struct ConfigPage {
     .alignItems(VerticalAlign.Center);
   }
 
+  /**
+   * V1.1.0 (Task 1.4): 战斗画面 group — single Cocos battle-scene switch.
+   * Rendered only when isCocosRuntimeAvailable() returns true so the
+   * group disappears entirely if the engine is absent (iOS parity).
+   */
+  @Builder
+  private cocosBattleRow() {
+    if (isCocosRuntimeAvailable()) {
+      Row({ space: CONFIG_CONTROL_GAP_VP }) {
+        this.configLabel('战斗画面');
+        Column({ space: CONFIG_SWITCH_OPTION_GAP_VP }) {
+          this.audioSwitch('Cocos 战斗场景', this.cocosBattleEnabled,
+            'ConfigCocosBattleSwitch',
+            (enabled: boolean): void => {
+              this.cocosBattleEnabled = enabled;
+              saveCocosScenePref(
+                this.getUIContext().getHostContext() as common.UIAbilityContext,
+                enabled,
+              ).catch((): void => {});
+            });
+        }
+        .width(CONFIG_CONTROL_COLUMN_WIDTH_VP)
+        .alignItems(HorizontalAlign.Start);
+      }
+      .margin({ bottom: CONFIG_GROUP_BOTTOM_GAP_VP })
+      .width(CONFIG_FORM_ROW_WIDTH_VP)
+      .alignItems(VerticalAlign.Center);
+    }
+  }
+
   @Builder
   private questionTypeRow() {
     Column() {
@@ -1014,6 +1060,7 @@ struct ConfigPage {
 
           this.timerRow();
           this.audioPlaybackRow();
+          this.cocosBattleRow();
           this.questionTypeRow();
           this.packPickerSection();
           this.reportChannelRow();
