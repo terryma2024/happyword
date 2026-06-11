@@ -14,6 +14,7 @@ import { CloudWishlistService } from '../services/CloudWishlistService';
 import { ParentRedemptionPoll } from '../services/ParentRedemptionPoll';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { initBackendEnvPrefs } from '../services/BackendEnv';
+import { cocosEngineHost } from '../services/CocosEngineHost';
 import { initPreviewManifestService } from '../services/PreviewManifestService';
 import { StringPreferencesLike } from '../services/WrongAnswerStore';
 import { APP_COLOR_MODE } from '../utils/theme';
@@ -55,8 +56,16 @@ export default class EntryAbility extends UIAbility {
   private cloudSyncSvc?: CloudSyncLike;
   private cloudWishlistSvc?: CloudWishlistService;
   private redemptionPoll?: ParentRedemptionPoll;
+  // TEMPORARY (V1.1.0 Task 0.2 spike): `aa start ... --ps cocosLab true`
+  // boots straight into the Cocos battle page so the embed can be verified
+  // from the command line. Remove once the real battle routing lands.
+  private launchCocosLab: boolean = false;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    const wantParams: Record<string, Object> | undefined = want.parameters;
+    if (wantParams !== undefined && wantParams['cocosLab'] === 'true') {
+      this.launchCocosLab = true;
+    }
     try {
       this.context.getApplicationContext().setColorMode(APP_COLOR_MODE);
     } catch (err) {
@@ -138,8 +147,10 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
+    // TEMPORARY (Task 0.2 spike): see launchCocosLab above.
+    const initialPage: string = this.launchCocosLab ? 'pages/CocosBattlePage' : 'pages/HomePage';
     const loadHome = (): void => {
-      windowStage.loadContent('pages/HomePage', (err) => {
+      windowStage.loadContent(initialPage, (err) => {
         if (err.code) {
           hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
           return;
@@ -168,6 +179,9 @@ export default class EntryAbility extends UIAbility {
     if (this.redemptionPoll !== undefined) {
       this.redemptionPoll.start();
     }
+    // V1.1.0: relay to the embedded Cocos engine; no-op until the battle
+    // page has booted it (see CocosEngineHost).
+    cocosEngineHost().notifyForeground();
   }
 
   onBackground(): void {
@@ -184,6 +198,8 @@ export default class EntryAbility extends UIAbility {
     if (this.redemptionPoll !== undefined) {
       this.redemptionPoll.stop();
     }
+    // V1.1.0: pause the embedded Cocos engine while backgrounded.
+    cocosEngineHost().notifyBackground();
   }
 
   /** V0.6.6: exposed for pages that need to display pending redemptions
