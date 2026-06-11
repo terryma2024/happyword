@@ -62,6 +62,21 @@ export function choosePolicy(
     return screenW * designH >= designW * screenH ? 'fixedHeight' : 'fixedWidth';
 }
 
+/** Combined policy decision — what BattleSceneController applies on load AND
+ * on every window resize (e.g. HarmonyOS freeform window maximised, or the
+ * surface growing once safe-area expansion takes effect). Recomputing from
+ * the CURRENT window size is what keeps the top bar hugging the visible top
+ * edge instead of overshooting it with a stale offset. */
+export function resolvePolicyAndOffset(
+    screenW: number,
+    screenH: number,
+    designW: number,
+    designH: number,
+): { policy: ResolutionPolicyChoice; topOffsetY: number } {
+    const policy = choosePolicy(screenW, screenH, designW, designH);
+    return { policy, topOffsetY: topStatusOffsetY(policy, screenW, screenH, designW, designH) };
+}
+
 /**
  * Y-offset (in design-space units, positive = up) to add to the base
  * `layout.topStatusY` constant so the status bar always hugs the visible

@@ -23,7 +23,7 @@ import { SpellPool } from './ui/SpellPool';
 import { SpellViewState } from './ui/spellView';
 import { TopStatusBar } from './ui/TopStatusBar';
 import { layout, theme } from './ui/theme';
-import { choosePolicy, topStatusOffsetY } from './ui/resolutionPolicy';
+import { resolvePolicyAndOffset } from './ui/resolutionPolicy';
 
 const { ccclass } = _decorator;
 
@@ -62,15 +62,13 @@ export class BattleSceneController extends Component {
         // visible at the cost of extra vertical canvas; the 2× background already
         // covers the extra area. Fighter cards at ±465 don't clip on FIXED_WIDTH
         // because design width is always fully mapped to screen width.
-        const winSize = screen.windowSize;
-        const policy = choosePolicy(winSize.width, winSize.height, layout.designWidth, layout.designHeight);
-        view.setDesignResolutionSize(
-            layout.designWidth, layout.designHeight,
-            policy === 'fixedHeight' ? ResolutionPolicy.FIXED_HEIGHT : ResolutionPolicy.FIXED_WIDTH,
-        );
-        // Under FIXED_WIDTH the visible canvas is taller than 720 design units;
-        // shift the top status bar up so it hugs the visible top edge.
-        const topBarOffset = topStatusOffsetY(policy, winSize.width, winSize.height, layout.designWidth, layout.designHeight);
+        const topBarOffset = this.applyResolutionPolicy();
+        // The window can resize while the scene lives (HarmonyOS freeform
+        // window maximised, surface re-created at a different size). The
+        // policy and top-bar offset were computed from the OLD size; without
+        // a recompute the bar overshoots / undershoots the visible top edge
+        // and the letterbox distribution looks lopsided.
+        screen.on('window-resize', this.onWindowResize, this);
 
         makeRoundedRect('PageBackground', this.node,
             layout.designWidth * 2, layout.designHeight * 2, 0, theme.page);
@@ -105,6 +103,32 @@ export class BattleSceneController extends Component {
         if (!sys.isNative) {
             this.startPreviewMode();
         }
+    }
+
+    onDestroy() {
+        screen.off('window-resize', this.onWindowResize, this);
+    }
+
+    /// Read the CURRENT window size and (re-)apply design resolution policy.
+    /// Returns the top-bar offset so onLoad can pass it to the first build.
+    private applyResolutionPolicy(): number {
+        const winSize = screen.windowSize;
+        const resolved = resolvePolicyAndOffset(
+            winSize.width, winSize.height, layout.designWidth, layout.designHeight);
+        view.setDesignResolutionSize(
+            layout.designWidth, layout.designHeight,
+            resolved.policy === 'fixedHeight' ? ResolutionPolicy.FIXED_HEIGHT : ResolutionPolicy.FIXED_WIDTH,
+        );
+        return resolved.topOffsetY;
+    }
+
+    /// Surface size changed mid-scene (freeform window maximised / restored,
+    /// XComponent re-created at a new geometry): re-derive policy + top-bar
+    /// offset from the new window size so the layout stays centered and the
+    /// status bar hugs the new visible top edge.
+    private onWindowResize() {
+        const topBarOffset = this.applyResolutionPolicy();
+        this.topStatus.setTopOffset(topBarOffset);
     }
 
     /// Browsers stop requestAnimationFrame for hidden/occluded windows,

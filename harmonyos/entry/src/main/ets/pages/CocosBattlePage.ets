@@ -37,6 +37,7 @@
  */
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
+import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { cocosEngineHost } from '../services/CocosEngineHost';
 import {
@@ -159,6 +160,41 @@ struct CocosBattlePage {
    * aboutToAppear, i.e. before the first build().
    */
   @State private engineUsable: boolean = true;
+  /**
+   * Gates the XComponent until setWindowLayoutFullScreen(true) resolved.
+   * expandSafeArea alone is NOT enough for a SURFACE XComponent: ArkUI
+   * expands the drawn hole to the window edges, but the native surface is
+   * created at the safe-area layout size, so the engine renders short of
+   * the bottom avoid area (observed: 2800x1777 surface inside a 2800x1840
+   * hole = 63 px dead strip). Creating the surface only after the window
+   * layout is fullscreen makes its first size the final one.
+   */
+  @State private windowReady: boolean = false;
+
+  /**
+   * Cocos template parity (cocos/native/.../EntryAbility.ets): games run
+   * with the window layout fullscreen so the XComponent surface spans the
+   * whole window. Restored to the default on exit so the rest of the app
+   * keeps its safe-area-aware layout.
+   */
+  private setLayoutFullScreen(enabled: boolean, thenShowSurface: boolean): void {
+    const ctx: common.UIAbilityContext =
+      this.getUIContext().getHostContext() as common.UIAbilityContext;
+    window.getLastWindow(ctx).then((win: window.Window): Promise<void> => {
+      return win.setWindowLayoutFullScreen(enabled);
+    }).then((): void => {
+      if (thenShowSurface) {
+        this.windowReady = true;
+      }
+    }).catch((err: BusinessError): void => {
+      hilog.warn(DOMAIN, TAG, 'setWindowLayoutFullScreen(%{public}s) failed: %{public}s',
+        String(enabled), JSON.stringify(err));
+      // Layout fullscreen is cosmetic; never block the battle on it.
+      if (thenShowSurface) {
+        this.windowReady = true;
+      }
+    });
+  }
 
   private applyOrientationPolicy(): void {
     requestPageOrientation(
@@ -170,6 +206,7 @@ struct CocosBattlePage {
 
   aboutToAppear(): void {
     this.applyOrientationPolicy();
+    this.setLayoutFullScreen(true, true);
     const ctx: common.UIAbilityContext =
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     // Engine boot is retryable inside the host; a throw here means the
@@ -248,6 +285,8 @@ struct CocosBattlePage {
   }
 
   aboutToDisappear(): void {
+    // Give the safe-area-aware pages their reserved avoid areas back.
+    this.setLayoutFullScreen(false, false);
     this.clearTimers();
     const bridge: CocosBattleBridge | undefined = this.bridge;
     if (bridge !== undefined) {
@@ -377,7 +416,7 @@ struct CocosBattlePage {
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
-      if (this.engineUsable) {
+      if (this.engineUsable && this.windowReady) {
         XComponent({
           id: COCOS_XCOMPONENT_ID,
           type: XComponentType.SURFACE,
@@ -387,6 +426,15 @@ struct CocosBattlePage {
           .defaultFocus(true)
           .width('100%')
           .height('100%')
+          // Fill the whole window: without this the page reserves the bottom
+          // navigation-indicator avoid area, the surface ends up shorter than
+          // the window (e.g. 2800x1777 vs 2800x1840 on MatePad) and a dead
+          // strip shows below the scene. CUTOUT is safe to expand too: in
+          // landscape the camera punch-holes sit over empty scene background
+          // at the screen edge, never over content (BattlePage parity —
+          // its root Stack expands SYSTEM on all four edges as well).
+          .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT],
+            [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM, SafeAreaEdge.START, SafeAreaEdge.END])
           .onLoad((): void => {
             // Surface is ready — notify the host; it posts onXCLoad at most
             // once and resumes the engine render loop.
@@ -403,5 +451,10 @@ struct CocosBattlePage {
     .width('100%')
     .height('100%')
     .backgroundColor(Color.Black)
+    // Root expands too so the black backdrop covers the avoid areas even
+    // when the surface lags a frame behind (or the fallback path renders
+    // without an XComponent).
+    .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT],
+      [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM, SafeAreaEdge.START, SafeAreaEdge.END])
   }
 }
