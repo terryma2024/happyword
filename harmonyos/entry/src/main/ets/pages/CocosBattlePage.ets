@@ -45,10 +45,18 @@ struct CocosBattlePage {
       this.getUIContext().getHostContext() as common.UIAbilityContext;
     // Task 0.3 probe: log every scene->ArkTS message (expect the organic
     // battle/ready on scene boot, then battle/pong echoes after Ping taps).
+    // On re-entry the engine replays a synthetic battle/ready immediately
+    // (CocosEngineHost.setSceneMessageHandler ready-latch).
     cocosEngineHost().setSceneMessageHandler((json: string): void => {
       hilog.info(0x0000, 'WMBridge', 'scene->arkts %{public}s', json);
     });
     cocosEngineHost().ensureBooted(ctx);
+  }
+
+  aboutToDisappear(): void {
+    // Deregister the handler so the engine does not hold a reference to this
+    // page's closure after it is torn down.
+    cocosEngineHost().clearSceneMessageHandler();
   }
 
   onPageShow(): void {

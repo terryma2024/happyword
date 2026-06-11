@@ -25,6 +25,11 @@ import { WorkerManager } from '../cocosvendor/cocos/WorkerManager';
  *  (cocos/assets/scripts/bridge/transport.ts, ArkTsReflectionTransport). */
 const SCENE_INBOUND_GLOBAL: string = '__wmBattleInbound';
 
+/** Minimal bridge envelope shape used only to detect the battle/ready type. */
+interface BridgeEnvelopeTypeOnly {
+  type?: string;
+}
+
 /** Engine-utils dispatcher pair, replicated from the scaffold pages/index.ets
  *  module prologue (the engine resolves jsb reflection calls through these). */
 function executeMethodAsync(nativeFunc: Function, funcData: string, funCb: Function): void {
@@ -45,6 +50,14 @@ export class CocosEngineHost {
   private surfaceLoadNotified: boolean = false;
   /** UI-thread consumer of scene->ArkTS bridge messages (Task 0.3). */
   private sceneMessageHandler: ((json: string) => void) | null = null;
+  /**
+   * Latches true the first time the scene sends battle/ready. The engine
+   * persists across page exits, so battle/ready fires exactly ONCE per
+   * process lifetime — subsequent page entries never receive it organically.
+   * setSceneMessageHandler() uses this flag to replay a synthetic ready to
+   * handlers registered after the event already fired.
+   */
+  private sceneReady: boolean = false;
 
   /**
    * Idempotent engine boot. Replicates the scaffold's order:
@@ -142,7 +155,8 @@ export class CocosEngineHost {
     }
     const literal: string = JSON.stringify(json);
     evalString(
-      `globalThis.${SCENE_INBOUND_GLOBAL} && globalThis.${SCENE_INBOUND_GLOBAL}(${literal})`);
+      `if (globalThis.${SCENE_INBOUND_GLOBAL}) { globalThis.${SCENE_INBOUND_GLOBAL}(${literal}); }`
+      + ` else { console.warn('[bridge] inbound dropped'); }`);
   }
 
   /**
@@ -151,13 +165,43 @@ export class CocosEngineHost {
    * the 'executeMethodAsync' threadsafe function registered in ensureBooted,
    * which runs CocosBridgeReceiver.onSceneMessage on the UI thread; that
    * receiver forwards here. The handler therefore runs on the UI thread.
+   *
+   * Re-entry latch: the engine persists across page exits; the scene fires
+   * battle/ready exactly ONCE per process. If a handler is registered AFTER
+   * that event already fired (i.e. sceneReady is already true), a synthetic
+   * '{"v":1,"type":"battle/ready","payload":{}}' is delivered synchronously
+   * to the new handler so the page always receives a ready signal.
    */
   setSceneMessageHandler(handler: (json: string) => void): void {
     this.sceneMessageHandler = handler;
+    if (this.sceneReady) {
+      handler('{"v":1,"type":"battle/ready","payload":{}}');
+    }
+  }
+
+  /**
+   * Deregisters the current scene message handler. Call from
+   * CocosBattlePage.aboutToDisappear to prevent stale handler references
+   * from receiving messages after the page is torn down.
+   */
+  clearSceneMessageHandler(): void {
+    this.sceneMessageHandler = null;
   }
 
   /** Entry point used by CocosBridgeReceiver; not for general callers. */
   dispatchSceneMessage(json: string): void {
+    // Latch sceneReady when the scene sends its one-time boot signal so that
+    // subsequent page entries can receive a synthetic replay via
+    // setSceneMessageHandler (see above).
+    if (!this.sceneReady) {
+      try {
+        if ((JSON.parse(json) as BridgeEnvelopeTypeOnly).type === 'battle/ready') {
+          this.sceneReady = true;
+        }
+      } catch {
+        // Malformed JSON — not battle/ready; ignore parse failure here.
+      }
+    }
     if (this.sceneMessageHandler) {
       this.sceneMessageHandler(json);
     } else {

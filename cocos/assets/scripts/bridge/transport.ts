@@ -48,8 +48,10 @@ export class JsbWrapperTransport implements BridgeTransport {
 /** Module path loaded via napi_load_module_with_info on the ArkTS UI thread.
  *  Must stay in sync with harmonyos/entry/src/main/ets/services/
  *  CocosBridgeReceiver.ets AND its runtimeOnly registration in
- *  harmonyos/entry/build-profile.json5. */
-const ARKTS_RECEIVER_CLS_PATH = 'entry/src/main/ets/services/CocosBridgeReceiver';
+ *  harmonyos/entry/build-profile.json5.
+ *  Exported so transportPathSync.test.ts can assert the path agrees with the
+ *  actual file location and the build-profile runtimeOnly list. */
+export const ARKTS_RECEIVER_CLS_PATH = 'entry/src/main/ets/services/CocosBridgeReceiver';
 /** Top-level exported function (json: string, done: (r: string) => void). */
 const ARKTS_RECEIVER_METHOD = 'onSceneMessage';
 /** Game-thread global invoked by the host via libcocos.so evalString(). */

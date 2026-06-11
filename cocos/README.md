@@ -302,6 +302,19 @@ the scene echoes as `battle/pong`.
 - Engine boot is once per process (`CocosEngineHost.ensureBooted` +
   `notifySurfaceLoaded` posts `onXCLoad` at most once); `battle/init` being a
   full scene reset is what makes page re-entry work.
+- **Receiver exception rule:** `CocosBridgeReceiver.onSceneMessage` calls
+  `done('ok')` BEFORE dispatching into app code. A throw before `done()` would
+  permanently hang the game thread (it blocks on an internal NAPI promise). A
+  throw after `done()` — if unguarded — leaves a pending NAPI exception on the
+  UI thread. The receiver wraps `dispatchSceneMessage` in try/catch and logs
+  via `hilog.error` tag `WMBridge` to prevent that silent corruption.
+- **Ready-latch replay on re-entry:** `battle/ready` fires exactly ONCE per
+  process lifetime (the engine never reloads). `CocosEngineHost.sceneReady`
+  latches true on first receipt. When `setSceneMessageHandler` is called on
+  a subsequent page entry and `sceneReady` is already true, the host
+  synchronously replays a synthetic `'{"v":1,"type":"battle/ready","payload":{}}'`
+  to the new handler so the page always gets a ready signal regardless of
+  whether it was present for the original event.
 
 ## Visual parity workflow (how the scene was matched to native)
 

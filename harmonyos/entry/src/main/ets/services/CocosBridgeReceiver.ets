@@ -20,11 +20,22 @@
  *    internal promise until the callback fires. Call it first so the game
  *    loop resumes before any app-side message handling runs.
  */
+import { hilog } from '@kit.PerformanceAnalysisKit';
 import { cocosEngineHost } from './CocosEngineHost';
 
 export function onSceneMessage(json: string, done: (result: string) => void): void {
   // Unblock the engine's game thread immediately; the dispatch below runs on
   // the UI thread and must not gate the scene's frame loop.
+  // IMPORTANT: done() is called BEFORE dispatch. A throw before done() would
+  // permanently hang the game thread (it blocks on an internal promise). An
+  // escaping exception after done() leaves a pending napi exception on the UI
+  // thread — the try/catch below prevents that.
   done('ok');
-  cocosEngineHost().dispatchSceneMessage(json);
+  try {
+    cocosEngineHost().dispatchSceneMessage(json);
+  } catch (err) {
+    hilog.error(0x0000, 'WMBridge',
+      'dispatchSceneMessage threw (pending napi exception avoided): %{public}s',
+      (err instanceof Error) ? err.message : JSON.stringify(err as object));
+  }
 }
