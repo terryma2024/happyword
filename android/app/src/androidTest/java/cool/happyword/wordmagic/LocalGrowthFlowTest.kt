@@ -27,6 +27,9 @@ import org.junit.Test
 
 class LocalGrowthFlowTest {
     @get:Rule
+    val forceNative = ForceNativeBattleRule()
+
+    @get:Rule
     val composeRule = createEmptyComposeRule()
 
     private var scenario: ActivityScenario<MainActivity>? = null

@@ -62,20 +62,18 @@ enum class BattleRoute {
  * at runtime (boot exception, battle/ready timeout).  Once set, all
  * subsequent battles in this process stay native.
  *
- * This is intentionally a bare @Volatile var on the companion object so that
+ * This is intentionally a bare @Volatile top-level file property so that
  * instrumentation tests can reset it between test runs.
  */
 @Volatile
 var fallbackActive: Boolean = false
 
 /**
- * Debug-only flag for instrumentation tests.  Set [forceNativeBattle] = true
- * in your @Before setup to keep BattleLifecycleFlowTest (and any other battle
- * androidTest) exercising the native BattleScreen, regardless of the stored
- * preference or runtime availability.
- *
- * Example (in androidTest @Before):
- *   cool.happyword.wordmagic.cocos.forceNativeBattle = true
+ * Debug-only flag for instrumentation tests.  Apply [ForceNativeBattleRule] as
+ * a `@get:Rule` to keep any battle-driving androidTest exercising the native
+ * BattleScreen, regardless of the stored preference or runtime availability.
+ * The rule sets this flag in [TestWatcher.starting] and intentionally does not
+ * reset it, so the whole instrumentation process stays protected.
  */
 @Volatile
 var forceNativeBattle: Boolean = false
@@ -134,10 +132,11 @@ fun cocosBattlePrefEnabledFromRaw(raw: String): Boolean = raw != "false"
 /**
  * Persist the Cocos-scene preference to SharedPreferences.
  *
- * Uses commit() (synchronous) to avoid the read-back race that apply()
- * can cause in tests.  This matches the fire-and-forget pattern of the
- * other repositories in this project (write and forget; the value is
- * re-read on the next [chooseBattleRoute] call).
+ * Uses apply() (fire-and-forget).  The write is immediately visible to any
+ * subsequent in-process SharedPreferences read because apply() commits the
+ * in-memory state synchronously; the disk flush happens asynchronously in the
+ * background.  The value is re-read on the next [chooseBattleRoute] call, so
+ * the async disk flush does not create a read-back race.
  */
 fun saveCocosScenePref(context: Context, enabled: Boolean) {
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
