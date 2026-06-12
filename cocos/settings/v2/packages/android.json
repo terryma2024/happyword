@@ -1,0 +1,16 @@
+{
+  "__version__": "1.0.1",
+  "packageName": "cool.happyword.wordmagic.cocos",
+  "appABIs": [
+    "arm64-v8a"
+  ],
+  "apiLevel": 33,
+  "orientation": {
+    "landscapeLeft": true,
+    "landscapeRight": true,
+    "portrait": false,
+    "upsideDown": false
+  },
+  "androidInstant": false,
+  "appBundle": false
+}
