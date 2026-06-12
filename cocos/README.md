@@ -371,7 +371,7 @@ CocosLab or just start a battle with the Config switch ON.
   to the new handler so the page always gets a ready signal regardless of
   whether it was present for the original event.
 
-## Android embed (AND Tasks 0.1–0.3 — keep updated)
+## Android embed (AND Tasks 0.1–2.2 — keep updated)
 
 The Android app (`android/app`) embeds the engine compiled from source.
 Build chain: `tools/cocos/build-android.sh` (headless Creator export of
@@ -429,9 +429,10 @@ touching UI/state.
 Round-trip measured at ~10 ms on the emulator (ping 23:40:00.302 → pong
 .305 logged on the game thread). `battle/init` applies as a full scene
 reset (probe: playerMaxHp 7 → HP 7/7 rendered, startingSeconds 300 →
-Countdown 5:00). The Task 0.3 probe lives in `CocosBattleActivity` behind
-`// Task 0.3 bridge probe` markers and is replaced by the real adapter in
-Task 1.x.
+Countdown 5:00). The Task 0.3 probe has been replaced by the real adapter:
+`CocosBattleBridge.kt` (sequencing, question hold, finish-notify guard)
+fed by the `CocosBridgeMessages.kt` codecs (all 19 shared contract
+fixtures pass in `:app:testDebugUnitTest`).
 
 ### Re-entry + backgrounding verdict (Task 0.3, emulator-verified)
 
@@ -452,6 +453,62 @@ Task 1.x.
   correct on Android (register listener in `onCreate`, remove in
   `onDestroy`, wait for that entry's own `battle/ready`); do NOT port the
   HarmonyOS once-per-process latch.
+
+### Production integration (Tasks 1.3–1.4 — routing, session handoff, lifecycle)
+
+All under `android/app/src/main/java/cool/happyword/wordmagic/cocos/`
+(hand-written Kotlin — only `com/cocos/lib/` and `cpp/cocos/` are vendored).
+
+- **Routing** (`CocosBattlePreference.kt`): `chooseBattleRoute(context)` at
+  every battle-start site. Four-input pure decision —
+  `isCocosRuntimeAvailable()` && pref enabled && !`fallbackActive` &&
+  !`forceNativeBattle` → COCOS, anything else → NATIVE. The preference is
+  `wordmagic_cocos_battle_prefs` / `battle.useCocosScene` (string
+  `"true"`/`"false"`, absent → **default ON**, iOS/HOS parity). The user
+  switch is 游戏配置 → 战斗画面 →「Cocos 战斗场景」. On Android
+  `libcocos.so` is always bundled, so there is no "library missing" probe:
+  the process-scoped `fallbackActive` latch IS the runtime probe.
+- **Fallback contract** (`CocosBattleActivity`): `super.onCreate` runs
+  inside a try (engine boot throw) and a 5 s `battle/ready` watchdog is
+  armed last. Either failure latches `fallbackActive`, posts
+  `CocosBattleOutcome.Fallback` and finishes; the Compose side re-routes
+  the SAME session into the native BattleScreen, and the rest of the
+  process stays native.
+- **Session handoff** (`CocosBattleSession.kt`): `CocosBattleSessionHolder`
+  is a main-thread single-slot holder — the Compose route site builds the
+  session (engine + initial state + config, the same construction the
+  native BattleScreen uses), `publishInputs(...)` → `startActivity`; the
+  activity `takeInputs()` (one-shot) in `onCreate` and `postOutcome(...)`
+  just before `finish()`; WordMagicGameApp `consumeOutcome()` in an
+  ON_RESUME observer and settles exactly like the native path
+  (`Finished` → `finishBattleSession`, `TimedOut` → native-timeout
+  equivalent, `Fallback` → native battle re-route). Intent extras are not
+  an option: `BattleEngine` is not serializable and settlement parity
+  needs the same engine instance on both sides.
+- **Per-answer side effects**: `CocosBattleSessionInputs.onAnswerOutcome`
+  carries the SAME body the native BattleScreen `onAnswer` runs (learning
+  record, review mark, monster progress —
+  `WordMagicGameApp.applyAnswerSideEffects`); the bridge invokes it on the
+  main thread once per accepted submit with the pre-submit state. Without
+  this, Cocos battles would not persist learning progress (iOS-parity
+  fix, verified via `wordmagic-local-progress.xml` on the emulator).
+- **Back press = escape**: `KEYCODE_BACK` is intercepted in
+  `onKeyDown`/`onKeyUp` BEFORE GameActivity forwards keys to the native
+  engine, and routed through `bridge.requestEscape()` (Lost settlement →
+  Result), with `onBackPressed` as a defensive fallback. A bare `finish()`
+  would silently abandon the battle with no outcome posted.
+- **Host-owned countdown**: the functional `BattleState` carries no clock;
+  the activity runs the 1 Hz tick (native `battleTimeLeft` parity) and a
+  0-second tick posts `TimedOut`.
+- **androidTest rule**: battle-driving instrumentation suites apply
+  `ForceNativeBattleRule` (`@get:Rule`) — it sets the debug-only
+  `forceNativeBattle` flag so UI tests always exercise the native
+  BattleScreen regardless of the stored preference.
+
+Emulator parity evidence (entry, all 5 question kinds, crit overlay,
+re-entry, backgrounding, config OFF/ON, back-press escape, per-answer
+records, audio logcat):
+[`docs/features/2026-06-12-cocos-battle-android/`](../docs/features/2026-06-12-cocos-battle-android/50-parity-checklist.md).
 
 ### Emulator notes
 
