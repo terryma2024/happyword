@@ -185,13 +185,13 @@ struct SpellbookPage {
   private cardBackground(state: SpellbookCardState): string {
     if (state === SpellbookCardState.Mastered) return '#FFF6D6';
     if (state === SpellbookCardState.Seen) return '#ECEFF3';
-    return '#F5F5F5';
+    return '#F3F4F6';
   }
 
   private cardBorder(state: SpellbookCardState): string {
     if (state === SpellbookCardState.Mastered) return '#F59E0B';
     if (state === SpellbookCardState.Seen) return '#A7B0BD';
-    return '#D1D5DB';
+    return '#9CA3AF';
   }
 
   build(): void {
@@ -277,16 +277,26 @@ struct SpellbookPage {
             .padding({ left: 10, right: 10, top: 6, bottom: 6 })
             .backgroundColor('#D1FAE5')
             .borderRadius(14);
-        } else {
+        } else if (this.progress(pack).complete) {
           Button(`+${SPELLBOOK_REWARD_COINS}`)
             .id(`SpellbookPackRewardButton_${pack.id}`)
             .height(34)
             .width(78)
             .fontSize(13)
-            .backgroundColor(this.progress(pack).complete ? '#E63946' : '#E5E7EB')
-            .fontColor(this.progress(pack).complete ? '#FFFFFF' : '#9CA3AF')
-            .enabled(this.progress(pack).complete)
+            .backgroundColor('#B91C1C')
+            .fontColor('#FFFFFF')
             .onClick((): void => this.claimReward(pack));
+        } else {
+          Text(`+${SPELLBOOK_REWARD_COINS}`)
+            .id(`SpellbookPackRewardButton_${pack.id}`)
+            .height(34)
+            .width(78)
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#4B5563')
+            .backgroundColor('#E5E7EB')
+            .borderRadius(17)
+            .textAlign(TextAlign.Center);
         }
       }
       .width('100%');
@@ -343,7 +353,7 @@ struct SpellbookPage {
       Text(card.state === SpellbookCardState.Locked ? '？' : card.word.word)
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
-        .fontColor(card.state === SpellbookCardState.Locked ? '#9CA3AF' : '#1F2937')
+        .fontColor(card.state === SpellbookCardState.Locked ? '#374151' : '#1F2937')
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis });
       if (card.state !== SpellbookCardState.Locked) {
@@ -363,7 +373,6 @@ struct SpellbookPage {
     .backgroundColor(this.cardBackground(card.state))
     .borderRadius(8)
     .border({ width: 1, color: this.cardBorder(card.state) })
-    .opacity(card.state === SpellbookCardState.Locked ? 0.65 : 1.0)
     .onClick((): void => this.openDetail(card));
 
     Text('')

@@ -228,10 +228,10 @@ struct LearningReportPage {
         .fontWeight(FontWeight.Bold)
         .fontColor('#1D3557');
       Row({ space: 8 }) {
-        this.statePill('掌握', this.masteredCount, '#2A9D8F', 'LearningReportMastered');
-        this.statePill('熟悉', this.familiarCount, '#457B9D', 'LearningReportFamiliar');
-        this.statePill('学习中', this.learningCount, '#E9C46A', 'LearningReportLearning');
-        this.statePill('新词', this.newCount, '#A8DADC', 'LearningReportNewCount');
+        this.statePill('掌握', this.masteredCount, '#0F766E', 'LearningReportMastered');
+        this.statePill('熟悉', this.familiarCount, '#1D5F82', 'LearningReportFamiliar');
+        this.statePill('学习中', this.learningCount, '#7A5200', 'LearningReportLearning');
+        this.statePill('新词', this.newCount, '#0F6F75', 'LearningReportNewCount');
       }
       .width('100%');
     }
