@@ -83,6 +83,10 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation("junit:junit:4.13.2")
+    // org.json is bundled in the Android SDK but its unit-test artifact is
+    // stubbed (throws "not mocked"). Pull in the real JVM implementation so
+    // CocosBridgeMessages and its tests can use org.json in local unit tests.
+    testImplementation("org.json:json:20240303")
 
     androidTestImplementation(platform("androidx.compose:compose-bom:2026.04.01"))
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
