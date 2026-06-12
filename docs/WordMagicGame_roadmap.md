@@ -1395,7 +1395,13 @@ V1.0.2 已交付能力：
 
 V1.0.2 不新增服务端同步、全局排行榜或新的怪物掉落类型；图鉴进度仍是 device-local 状态。
 
-## 20. V1.1.0 Cocos2D 战斗美术化重构版
+## 20. V1.1.0 Cocos2D 战斗美术化重构版（已交付）
+
+> **2026-06-12 交付记录。** V1.1.0 已在 iOS 与 HarmonyOS 双端落地并提审：iOS 1.1.0 (1100001) 于 2026-06-11 提交 App Review；HarmonyOS 1.1.0 (1100001) 于 2026-06-12 提交 AppGallery（1.0.2 同日上午过审上架）。实际实施与本节最初设想有两处偏差（均为用户批准的决策）：
+> 1. **iOS 先行**而非 Harmony 先行——战斗场景用 Cocos Creator 3.8.8 + TypeScript 实现于 `cocos/`，先嵌入 iOS（PR #176），再按 SOP 复刻到 HarmonyOS（PR #177）。两端共享同一份场景代码与桥接契约（`shared/contracts/cocos-battle-bridge/`，19 个 fixtures 双端测试锁定）。
+> 2. **美术主题与序列帧/Spine 动画推迟**——本版沿用现有插画角色 + 程序化动效（弹道、暴击全屏特效、受击红圈、Boss 登场气泡），多主题与骨骼动画归入后续版本。
+> 交付能力：全部 5 种题型渲染、战斗动画/特效、Boss 登场、自适应分辨率（手机宽屏 FIXED_HEIGHT / 3:2 平板 FIXED_WIDTH、安全区全屏填充）、配置页「Cocos 战斗场景」开关（默认开）、引擎故障自动回退原生战斗页、HarmonyOS 表面重建引擎补丁（SHA256 锚定）。嵌入配方与坑位：`cocos/README.md`；特性档案：`docs/features/2026-06-10-cocos-battle-scene-v1-1-0/`、`docs/features/2026-06-11-cocos-battle-harmonyos/`。
+> Android 端复刻未启动，见第 22 节优先级。
 
 V1.1.0 的目标是在玩法、学习系统和战斗音频策略都打磨稳定后，把战斗场景从 ArkUI 元素拼装升级为更完整的 2D 游戏表现层。ArkUI 继续承担应用外壳和业务页面，Cocos Creator / Cocos2D 负责战斗场景、角色、怪物、动画、特效和美术主题。
 
@@ -1445,7 +1451,7 @@ V1.1.0 不建议重写全部 App。它是战斗表现层重构，不是产品业
 | 能力域   | 近期目标（截至 V1.0.2） | 长期目标                            |
 | ----- | ------------------- | ------------------------------- |
 | 三端客户端 | Harmony / iOS / Android bootstrap 17 页对齐 | 新功能经三端 SOP 持续 parity；商店发布与硬化 |
-| 游戏战斗  | 怪物题型差异、Boss 混合题（三端 ArkUI/Swift/Compose）；V1.0.2 已把怪物遭遇 / 击败进度接入战斗循环 | Cocos2D 战斗场景、技能、装备、剧情、地图冒险      |
+| 游戏战斗  | 怪物题型差异、Boss 混合题（三端）；V1.0.2 已把怪物遭遇 / 击败进度接入战斗循环；**V1.1.0 已在 iOS / HarmonyOS 落地 Cocos 战斗场景（共享场景 + 桥接契约）** | 美术主题、骨骼动画、技能、装备、剧情、地图冒险；Android 端 Cocos 复刻      |
 | 学习系统  | 错词复习、轻量遗忘曲线、按词包本地报告；V0.9.3 已统一本地 daily learning / review state；V0.9.5 已把 mastered 词沉淀到魔法书图鉴；V1.0.2 已把怪物图鉴进度沉淀为本地收集状态 | 长期掌握度模型、云端报告                 |
 | 内容系统  | 后台 CMS、家长/管理员词库工作台、三层 Pack、V0.9.4 词包故事、V0.9.5 spellbook cover 生成链路  | 审核流优化            |
 | 家长系统  | 家长账号、设备绑定、词库发布/回滚、管理员审计       | 学习报告上云、兑换推送通知             |
@@ -1455,14 +1461,14 @@ V1.1.0 不建议重写全部 App。它是战斗表现层重构，不是产品业
 
 ## 22. 开发优先级建议
 
-> **2026-06-06 刷新。** V0.3–**V1.0.2**（含三端 bootstrap、家长词库、管理员后台、admin global pack delete、admin / parent family pack delete、draft pack split、V0.9.x 学习体验、V1.0.0 PCM 战斗音频、V1.0.1 提审 / 生产环境硬化与 V1.0.2 怪物图鉴进度）已在主干交付。推荐 / 章节感与 LLM 内容扩量方向已移出路线图。短期重点：收口 V1.0.2 发版包装，并准备 V1.1.0 战斗表现层。
+> **2026-06-12 刷新。** V0.3–**V1.1.0**（前述全部能力，加上 V1.1.0 Cocos 战斗表现层：iOS 已提审、HarmonyOS 已提审）已在主干交付。推荐 / 章节感与 LLM 内容扩量方向已移出路线图。短期重点：跟进双端 1.1.0 审核结果；中期候选：Android 端 Cocos 战斗复刻、战斗美术主题与骨骼动画。
 
 短期优先级建议如下：
 
-1. **V1.0.2 release packaging closeout**：三端代码与 parity checklist 已完成，下一步跟随各平台 release-pre 补齐 archive / upload / store metadata 证据。
+1. **V1.1.0 审核跟进**：iOS App Review 与 AppGallery 双端审核结果跟进，被驳回项按检测报告快速修复重提。
 2. **V0.8.4 release gate hygiene**：V0.8.4 core 已在三端出现；历史 gate 证据仍可随发版清单补齐。详见 [`docs/features/2026-05-18-battle-balance-v0-8-4/50-parity-checklist.md`](features/2026-05-18-battle-balance-v0-8-4/50-parity-checklist.md)。
 3. **V1.0.0 / V1.0.2 QA feedback**：战斗音频和怪物图鉴进度只接收真实设备 / 模拟器 QA 反馈的局部修正，不再扩大版本范围。
-4. **V1.1.0 Cocos 战斗表现层**：玩法、音频和图鉴进度稳定后再迁移表现层。
+4. **V1.1.x 战斗表现层延展**：Android 端 Cocos 复刻（按三平台 SOP）、美术主题与角色骨骼动画。
 5. **新功能走三端 SOP**：`docs/features/<feature-id>/` — Harmony 设计实现 → `20-replication-trigger.md` 签字 → iOS / Android 复制。
 6. **体验增强（可选）**：云端学习报告按 pack、兑换推送通知、运维 runbook 补全——不阻塞版本号推进，可按 feature 单独立项。
 
@@ -1494,7 +1500,7 @@ V0.3 完成时建议满足：
 | Monorepo 迁移粗暴搬目录 | DevEco Studio / Hvigor 路径失效 | V0.7.0 把 `harmonyos/` 定义为完整 DevEco 项目根，先更新命令和本地 IDE handoff，再迁移工程文件 |
 | 音频策略过早复杂化 | BGM/TTS 互抢焦点导致 UI flake | V1.0.0 已通过 PCM-owned 播放链路替代 stop/resume 伪混音，后续只做 QA 收口 |
 | 图鉴奖励变成刷分入口 | 孩子反复刷单只为金币 | V1.0.2 奖励按怪物 milestone 一次性领取，不消耗、不重复、不进入每日上限 |
-| Cocos 迁移过早 | 玩法未定导致表现层返工 | V1.1.0 再做战斗美术化重构，V0.3 起保持逻辑与表现分离 |
+| Cocos 迁移过早 | 玩法未定导致表现层返工 | 已按计划在 V1.1.0 完成迁移：逻辑全留原生层，Cocos 纯表现，双端共享场景与契约，未发生业务层返工 |
 
 
 ## 25. 近期建议结论
@@ -1504,11 +1510,11 @@ V0.3 完成时建议满足：
 下一步最适合推进的主题（2026-06-06）：
 
 ```text
-V1.0.2 release packaging closeout
+V1.1.0 双端审核跟进
   ↓
 V1.0.0 / V1.0.2 QA feedback
   ↓
-V1.1.0 Cocos2D 战斗表现层
+V1.1.x Android Cocos 复刻与美术主题
 ```
 
-V0.3–V1.0.2 已构成当前产品的 **三端可玩、可绑、可运营词库、可后台排查、可日常留存、可语境练习、可故事化 Boss 入场、可解释今日复习、可展示词包故事、可收藏掌握词、可稳定混音战斗音频、可收集怪物图鉴进度并领取一次性里程碑奖励** 底座。V0.8.4 的剩余事项主要是 release gate hygiene；推荐 / 章节感与 LLM 内容扩量方向不再推进。
+V0.3–V1.1.0 已构成当前产品的 **三端可玩、可绑、可运营词库、可后台排查、可日常留存、可语境练习、可故事化 Boss 入场、可解释今日复习、可展示词包故事、可收藏掌握词、可稳定混音战斗音频、可收集怪物图鉴进度并领取一次性里程碑奖励、可在 iOS / HarmonyOS 以 Cocos 引擎渲染战斗场景** 底座。V0.8.4 的剩余事项主要是 release gate hygiene；推荐 / 章节感与 LLM 内容扩量方向不再推进。
