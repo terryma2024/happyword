@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.terryma.wordmagicgame",
     "vendor": "马天一",
-    "versionCode": 1020002,
-    "versionName": "1.0.2",
+    "versionCode": 1100001,
+    "versionName": "1.1.0",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }
