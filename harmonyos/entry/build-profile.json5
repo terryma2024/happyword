@@ -5,6 +5,41 @@
       "copyCodeResource": {
         "enable": false
       }
+    },
+    // V1.1.0 Cocos battle embed (Task 0.2). libcocos.so is compiled FROM
+    // SOURCE here via the thin adapter CMakeLists (see its header comment for
+    // why we do not point at the Cocos-generated scaffold directly). The
+    // engine sources come from the installed Creator 3.8.8 app bundle, and
+    // cocos/build/harmonyos-next/ must exist (run tools/cocos/build-harmonyos.sh
+    // once before hvigor). First native build compiles the whole engine and
+    // can take 10-20+ minutes.
+    "externalNativeOptions": {
+      "path": "./src/main/cpp/CMakeLists.txt",
+      "arguments": "-DOHOS_STL=c++_shared -DOPENHARMONY=1",
+      "abiFilters": [
+        "arm64-v8a"
+      ],
+      "cppFlags": ""
+    },
+    "sourceOption": {
+      // The Cocos worker lives under ets/cocosvendor/workers/ (vendored), not
+      // the auto-detected ets/workers/ directory, so it must be registered
+      // explicitly or the ThreadWorker URL 404s at runtime. (hvigor 6 schema:
+      // buildOption.sourceOption.workers; arkOptions.workers is rejected.)
+      "workers": [
+        "./src/main/ets/cocosvendor/workers/cocos_worker.ets"
+      ]
+    },
+    "arkOptions": {
+      // V1.1.0 Task 0.3: the Cocos engine delivers scene->ArkTS bridge calls
+      // via napi_load_module_with_info on this module path (engine
+      // JavaScriptArkTsBridge -> services/CocosBridgeReceiver.ets). Modules
+      // loaded by runtime path must be declared here or the load fails.
+      "runtimeOnly": {
+        "sources": [
+          "./src/main/ets/services/CocosBridgeReceiver.ets"
+        ]
+      }
     }
   },
   "buildOptionSet": [

@@ -21,6 +21,7 @@
     "pages/MessageBubbleLabPage",
     "pages/AudioLabPage",
     "pages/PackManagerPage",
-    "pages/InAppBrowserPage"
+    "pages/InAppBrowserPage",
+    "pages/CocosBattlePage"
   ]
 }

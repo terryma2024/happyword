@@ -46,7 +46,15 @@ async function launchApp(): Promise<Driver> {
   // preserving propagation to hypium's per-`it` handler.
   try {
     const bundleName: string = abilityDelegatorRegistry.getArguments().bundleName;
-    const want: Want = { bundleName, abilityName: 'EntryAbility' };
+    // forceNativeBattle keeps UI tests routed to the native BattlePage so
+    // existing battle-flow suites (BattleFlow, BattlePacing, etc.) continue
+    // exercising the native surface after Cocos routing becomes the default.
+    // EntryAbility only reads this parameter on debug builds.
+    const want: Want = {
+      bundleName,
+      abilityName: 'EntryAbility',
+      parameters: { forceNativeBattle: 'true' },
+    };
     await delegator.startAbility(want);
     const driver: Driver = Driver.create();
     // First cold launch needs ~1s for the window stage and HomePage build; use

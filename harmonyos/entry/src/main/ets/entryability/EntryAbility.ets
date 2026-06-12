@@ -14,9 +14,16 @@ import { CloudWishlistService } from '../services/CloudWishlistService';
 import { ParentRedemptionPoll } from '../services/ParentRedemptionPoll';
 import { RealParentFetchAdapter } from '../services/ParentApiClient';
 import { initBackendEnvPrefs } from '../services/BackendEnv';
+import { cocosEngineHost } from '../services/CocosEngineHost';
 import { initPreviewManifestService } from '../services/PreviewManifestService';
+import { isDebugBuild } from '../services/ReleaseGate';
+import BuildProfile from 'BuildProfile';
 import { StringPreferencesLike } from '../services/WrongAnswerStore';
 import { APP_COLOR_MODE } from '../utils/theme';
+import {
+  hydrateCocosScenePref,
+  FORCE_NATIVE_BATTLE_KEY,
+} from '../services/CocosBattlePreference';
 
 const DOMAIN = 0x0000;
 const WISHLIST_PREFS_NAME: string = 'wordmagic_cloud_wishlist';
@@ -55,8 +62,16 @@ export default class EntryAbility extends UIAbility {
   private cloudSyncSvc?: CloudSyncLike;
   private cloudWishlistSvc?: CloudWishlistService;
   private redemptionPoll?: ParentRedemptionPoll;
-
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    const wantParams: Record<string, Object> | undefined = want.parameters;
+    if (isDebugBuild(BuildProfile.BUILD_MODE_NAME) && wantParams !== undefined) {
+      // forceNativeBattle — debug builds only; used by ohosTest to keep the
+      // native BattlePage exercised even after Cocos routing is the default.
+      // Release builds never read this parameter.
+      if (wantParams['forceNativeBattle'] === 'true') {
+        AppStorage.setOrCreate<boolean>(FORCE_NATIVE_BATTLE_KEY, true);
+      }
+    }
     try {
       this.context.getApplicationContext().setColorMode(APP_COLOR_MODE);
     } catch (err) {
@@ -148,11 +163,15 @@ export default class EntryAbility extends UIAbility {
       });
     };
 
-    // Restore GameConfig (parent PIN, timers, etc.) before any page reads AppStorage.
-    hydrateGameConfigFromPrefs(this.context).then((): void => {
+    // Restore GameConfig (parent PIN, timers, etc.) and Cocos scene
+    // preference before any page reads AppStorage.
+    Promise.all([
+      hydrateGameConfigFromPrefs(this.context),
+      hydrateCocosScenePref(this.context),
+    ]).then((): void => {
       loadHome();
     }).catch((err: BusinessError): void => {
-      hilog.warn(DOMAIN, 'testTag', 'hydrateGameConfigFromPrefs failed: %{public}s', JSON.stringify(err));
+      hilog.warn(DOMAIN, 'testTag', 'hydratePrefs failed: %{public}s', JSON.stringify(err));
       loadHome();
     });
   }
@@ -168,6 +187,9 @@ export default class EntryAbility extends UIAbility {
     if (this.redemptionPoll !== undefined) {
       this.redemptionPoll.start();
     }
+    // V1.1.0: relay to the embedded Cocos engine; no-op until the battle
+    // page has booted it (see CocosEngineHost).
+    cocosEngineHost().notifyForeground();
   }
 
   onBackground(): void {
@@ -184,6 +206,8 @@ export default class EntryAbility extends UIAbility {
     if (this.redemptionPoll !== undefined) {
       this.redemptionPoll.stop();
     }
+    // V1.1.0: pause the embedded Cocos engine while backgrounded.
+    cocosEngineHost().notifyBackground();
   }
 
   /** V0.6.6: exposed for pages that need to display pending redemptions

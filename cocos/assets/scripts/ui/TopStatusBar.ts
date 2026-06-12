@@ -12,6 +12,7 @@ const ESCAPE_HEIGHT = 46;
 const ESCAPE_FILL = '#E8EDF4';
 
 export class TopStatusBar {
+    private barNode!: Node;
     private comboLabel!: Label;
     private countdownLabel!: Label;
     private escapeLabel!: Label;
@@ -19,8 +20,9 @@ export class TopStatusBar {
     escapeNode!: Node;
     onEscapeTap: (() => void) | null = null;
 
-    build(parent: Node): void {
-        const bar = makeNode('TopStatusBar', parent, 0, layout.topStatusY);
+    build(parent: Node, topOffsetY = 0): void {
+        const bar = makeNode('TopStatusBar', parent, 0, layout.topStatusY + topOffsetY);
+        this.barNode = bar;
         bar.getComponent(UITransform)!.setContentSize(layout.designWidth, 60);
 
         this.comboLabel = makeLabel('ComboLabel', bar, 'Combo: 0', 28, theme.navy, { x: -520 });
@@ -33,6 +35,13 @@ export class TopStatusBar {
         this.escapeNode.on(Node.EventType.TOUCH_END, () => {
             if (this.escapeEnabled) { this.onEscapeTap?.(); }
         });
+    }
+
+    /// Re-anchor the bar after a resolution-policy recompute (window resize):
+    /// the bar must hug the CURRENT visible top edge, so its Y is the design
+    /// constant plus the policy-derived offset.
+    setTopOffset(topOffsetY: number): void {
+        this.barNode.setPosition(0, layout.topStatusY + topOffsetY);
     }
 
     setCombo(count: number): void {

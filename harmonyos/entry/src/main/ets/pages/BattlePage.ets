@@ -3,16 +3,7 @@ import { common } from '@kit.AbilityKit';
 import { CharacterCard, CharacterKind } from '../components/CharacterCard';
 import { ChoiceButton, ChoiceState } from '../components/ChoiceButton';
 import { SpellingArea } from '../components/SpellingArea';
-import { WordRepository } from '../services/WordRepository';
-import { WordPackBootstrapper, BootstrapDeps } from '../services/WordPackBootstrapper';
-import { QuestionGenerator } from '../services/QuestionGenerator';
-import { FillLetterGenerator } from '../services/FillLetterGenerator';
-import { SpellGenerator } from '../services/SpellGenerator';
-import { IQuestionSource } from '../services/IQuestionSource';
-import { PlanQuestionSource } from '../services/PlanQuestionSource';
-import { BattleQuestionScheduler } from '../services/BattleQuestionScheduler';
 import { BattleStageScheduler } from '../services/BattleStageScheduler';
-import { wordSupportsQuestionType } from '../services/BattleQuestionTypePolicy';
 import {
   LetterSlotView,
   buildLetterSlots,
@@ -20,7 +11,6 @@ import {
 } from '../services/LetterSlotKey';
 import {
   BattleEngine,
-  BattleConfig,
   AnswerOutcome,
   TickOutcome,
   DEFAULT_PLAYER_HP,
@@ -28,38 +18,18 @@ import {
   DEFAULT_MONSTERS_TOTAL,
   DEFAULT_STARTING_SECONDS,
 } from '../services/BattleEngine';
-import {
-  GameConfig,
-  GAME_CONFIG_STORAGE_KEY,
-  GAME_MODE_NORMAL,
-  GAME_MODE_REVIEW,
-  GAME_MODE_TODAY,
-  TODAY_PLAN_STORAGE_KEY,
-  TODAY_LAST_COMPLETED_DAY_KEY,
-  TODAY_ACTIVE_PACK_KEY,
-  cloneGameConfig
-} from '../models/GameConfig';
-import { formatDayKeyLocal } from '../models/CoinSnapshot';
-import { TodaySessionPlan, WordSlot, WordSource } from '../models/AdventureRegion';
-import { AdventureRegion } from '../models/AdventureRegion';
-import { getRegionById } from '../data/AdventureCatalog';
+import { GameConfig } from '../models/GameConfig';
+import { TodaySessionPlan } from '../models/AdventureRegion';
 import { Pack } from '../models/Pack';
-import { PackSelectionService, PerfectAdventureResult } from '../services/PackSelectionService';
 import {
-  HomeIntegrationBundle,
-  LibraryCandidateProvider,
-  loadHomeIntegration,
-  resolveActivePacks,
-} from '../services/PackHomeIntegration';
-import { PackLibrary } from '../services/PackLibrary';
-import { CoinAccount, getCoinAccount, COIN_REASON_TODAY_FIRST } from '../services/CoinAccount';
-import { CoinSnapshot, DAILY_CAP } from '../models/CoinSnapshot';
-import { CheckInRecordResult, CheckInStore, getCheckInStore } from '../services/CheckInStore';
-import { CloudCheckInService } from '../services/CloudCheckInService';
-import { CloudCredentials } from '../services/CloudCredentials';
-import { RealParentFetchAdapter } from '../services/ParentApiClient';
-import { WordEntry } from '../models/WordEntry';
-import { persistGameConfigBestEffort } from '../services/GameConfigPersistence';
+  BattleSessionSetup,
+  buildBattleSessionSetup,
+  initBattleSessionStores,
+} from '../services/BattleSessionFactory';
+import {
+  BattleResultEnrichmentInputs,
+  enrichAndFlushSessionResult,
+} from '../services/BattleResultEnricher';
 import { BattleState, BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { Question, QuestionKind } from '../models/Question';
@@ -69,7 +39,6 @@ import {
   battleLevelLabelForMonsterLevel,
   getMonsterByIndex,
 } from '../data/MonsterCatalog';
-import { computeMonsterLevelCoinAward } from '../services/BattleRewardCalc';
 import { PLAYER_CHARACTER_ASSET, assetPathForEntry } from '../data/CharacterAssets';
 import { SoundKeys } from '../services/AudioService';
 import { BattleAudioMixer } from '../services/BattleAudioMixer';
@@ -81,11 +50,8 @@ import { MessageBubble } from '../components/MessageBubble';
 import { MessageBubbleTail } from '../components/MessageBubbleGeometry';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
 import {
-  DailyLearningState,
   DailyLearningStateService,
-  DailyReviewSnapshot,
   getDailyLearningStateService,
-  reviewMonsterCount,
 } from '../services/DailyLearningStateService';
 import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
 import {
@@ -144,14 +110,6 @@ const BOSS_MESSAGE_BUBBLE_TAIL: MessageBubbleTail = {
 const MAX_FLOATERS_PER_SIDE: number = 4;
 /** V0.8.3 — vertical offset between stacked floaters on the same side. */
 const FLOATER_STACK_OFFSET_VP: number = 6;
-/**
- * Review-mode battle overrides. Kept as top-level constants so unit
- * tests can import the same values and assert the review pool
- * behaviour without poking at private fields. Review battles use a
- * 10-minute countdown; monster count is computed from remaining words.
- */
-export const REVIEW_MODE_STARTING_SECONDS: number = 600;
-
 /** Per-word answer tally used to compute review-only accuracy. */
 class AnswerCount {
   correct: number = 0;
@@ -170,45 +128,6 @@ const LETTER_TEXT_MISSING: string = '#E63946';
 const LETTER_BG_MISSING: string = '#FCEAEA';
 const LETTER_BG_PENDING: string = '#F1F3F5';
 const LETTER_TEXT_PENDING: string = '#A3A3A3';
-
-function countByWordSource(plan: TodaySessionPlan, src: WordSource): number {
-  let n: number = 0;
-  for (let i = 0; i < plan.wordPlan.length; i++) {
-    if (plan.wordPlan[i].source === src) {
-      n += 1;
-    }
-  }
-  return n;
-}
-
-function activeWordsFromBundle(bundle: HomeIntegrationBundle): WordEntry[] {
-  const packs: Pack[] = resolveActivePacks(bundle);
-  const out: WordEntry[] = [];
-  for (let i = 0; i < packs.length; i++) {
-    for (let j = 0; j < packs[i].words.length; j++) {
-      out.push(packs[i].words[j]);
-    }
-  }
-  return out;
-}
-
-function mergeWordEntries(primary: WordEntry[], secondary: WordEntry[]): WordEntry[] {
-  const out: WordEntry[] = [];
-  const seen: string[] = [];
-  for (let i = 0; i < primary.length; i++) {
-    if (primary[i].id.length > 0 && seen.indexOf(primary[i].id) < 0) {
-      seen.push(primary[i].id);
-      out.push(primary[i]);
-    }
-  }
-  for (let i = 0; i < secondary.length; i++) {
-    if (secondary[i].id.length > 0 && seen.indexOf(secondary[i].id) < 0) {
-      seen.push(secondary[i].id);
-      out.push(secondary[i]);
-    }
-  }
-  return out;
-}
 
 @Entry
 @Component
@@ -256,8 +175,6 @@ struct BattlePage {
    * `review-80` coin reward fires on the right metric.
    */
   private sessionAnswers: Map<string, AnswerCount> = new Map<string, AnswerCount>();
-  private coinAccount: CoinAccount = getCoinAccount();
-  private checkInStore: CheckInStore = getCheckInStore();
   private monsterProgress: MonsterProgressStore = getMonsterProgressStore();
   private feedbackTimer: number = -1;
   /**
@@ -432,187 +349,25 @@ struct BattlePage {
     // resolves. On success we snapshot the engine's state into our @State
     // fields, which triggers the first real render of the battle UI.
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    // Hydrate the learning recorder (idempotent — EntryAbility kicks
-    // it off at app boot, this is a belt-and-braces guarantee in case
-    // the user launches directly into BattlePage via a future deep
-    // link). The `beginSession` resets per-session counters so the
-    // ResultPage footer reflects THIS battle only.
-    this.recorder.init(ctx).then((): void => {
-      this.recorder.beginSession();
-    }).catch((err: BusinessError): void => {
-      console.error(`BattlePage: LearningRecorder.init failed: ${JSON.stringify(err)}`);
-    });
-    this.coinAccount.init(ctx).catch((err: BusinessError): void => {
-      console.error(`BattlePage: CoinAccount.init failed: ${JSON.stringify(err)}`);
-    });
-    this.checkInStore.init(ctx).catch((err: BusinessError): void => {
-      console.error(`BattlePage: CheckInStore.init failed: ${JSON.stringify(err)}`);
-    });
-    this.monsterProgress.init(ctx).catch((err: BusinessError): void => {
-      console.error(`BattlePage: MonsterProgressStore.init failed: ${JSON.stringify(err)}`);
-    });
-    WordPackBootstrapper.forContext(ctx).then(async (deps: BootstrapDeps): Promise<void> => {
-      const repo: WordRepository = await new WordPackBootstrapper().bootstrap(deps);
-      const storedCfg: GameConfig | undefined =
-        AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
-      const cfg: GameConfig = cloneGameConfig(storedCfg !== undefined ? storedCfg : new GameConfig());
+    // Hydrate the learning recorder / coin / check-in / monster-progress
+    // stores (idempotent; shared with CocosBattlePage via the factory).
+    initBattleSessionStores(ctx);
+    // V1.1.0 Task 1.5: the engine/source construction block moved verbatim
+    // into BattleSessionFactory so the Cocos battle page builds sessions
+    // through the exact same path. The onConfigReady hook keeps the audio
+    // mixer entering at the same point in the sequence as before.
+    buildBattleSessionSetup(ctx, (cfg: GameConfig): void => {
       this.audio.enter(ctx, cfg).catch((err: BusinessError): void => {
         console.error(`BattlePage: BattleAudioMixer.enter failed: ${JSON.stringify(err)}`);
       });
-      await this.dailyStateService.init(ctx);
-      this.autoSpeak = cfg.autoSpeak;
-      this.isReviewMode = cfg.mode === GAME_MODE_REVIEW;
-      this.isTodayMode = cfg.mode === GAME_MODE_TODAY;
-
-      // Universe pool: every word the player could be shown.
-      // V0.6.6 — the legacy enabledCategories / customWordsRaw filter
-      // was removed when ConfigPage moved to the three-layer pack
-      // model. Normal / review mode now consume the full built-in
-      // repo. Today mode also keeps the full universe so
-      // PlanQuestionSource can resolve any wordId that ended up in
-      // plan.wordPlan; the active pack's words are layered in below
-      // via `bundleEntries`.
-      let universe: WordEntry[] = repo.all();
-      if (this.isReviewMode) {
-        try {
-          const bundle: HomeIntegrationBundle = await loadHomeIntegration(ctx);
-          universe = mergeWordEntries(universe, activeWordsFromBundle(bundle));
-        } catch (err) {
-          console.error(`BattlePage: load review universe failed: ${JSON.stringify(err as BusinessError)}`);
-        }
-      }
-      const finalEntries: WordEntry[] = universe;
-
-      const finalRepo: WordRepository = new WordRepository();
-      finalRepo.setEntries(finalEntries);
-
-      const choiceGen: QuestionGenerator = new QuestionGenerator(finalRepo);
-
-      // Pick the IQuestionSource. Today mode uses PlanQuestionSource
-      // backed by the plan stored in AppStorage; everything else falls
-      // back to the V0.2 QuestionGenerator path.
-      let source: IQuestionSource = choiceGen;
-      let planMonsters: number = -1;
-      let reviewPlanWordCount: number = 0;
-      if (this.isReviewMode) {
-        const reviewPlan: TodaySessionPlan = this.buildReviewPlan(universe);
-        if (reviewPlan.wordPlan.length > 0) {
-          reviewPlanWordCount = reviewPlan.wordPlan.length;
-          const reviewWordIds: string[] = [];
-          for (let wi: number = 0; wi < reviewPlan.wordPlan.length; wi++) {
-            reviewWordIds.push(reviewPlan.wordPlan[wi].wordId);
-          }
-          const fillGen: FillLetterGenerator = new FillLetterGenerator();
-          const spellGen: SpellGenerator = new SpellGenerator();
-          const reviewScheduler: BattleQuestionScheduler =
-            new BattleQuestionScheduler(reviewWordIds, cfg.enabledQuestionTypes);
-          source = new PlanQuestionSource(
-            reviewPlan,
-            finalRepo,
-            choiceGen,
-            fillGen,
-            spellGen,
-            reviewScheduler,
-          );
-        }
-      }
-      if (this.isTodayMode) {
-        const plan: TodaySessionPlan | undefined =
-          AppStorage.get<TodaySessionPlan>(TODAY_PLAN_STORAGE_KEY);
-        if (plan !== undefined && plan.wordPlan.length > 0) {
-          this.todayPlan = plan;
-          // V0.6.5.1: prefer the Pack handed over by HomePage as the
-          // source of truth for the bundleRepo. Pack.words is the
-          // exhaustive set the plan was built against, so
-          // PlanQuestionSource can always resolve every wordId even
-          // when the bundled rawfile no longer carries the same
-          // category (e.g. a family pack with custom words).
-          const handoff: Pack | undefined = AppStorage.get<Pack>(TODAY_ACTIVE_PACK_KEY);
-          let bundleEntries: WordEntry[];
-          if (handoff !== undefined && handoff.words.length > 0) {
-            this.activePack = handoff;
-            bundleEntries = handoff.words.slice();
-          } else {
-            // Legacy fallback: HomePage was on a synthetic Pack with
-            // no words, so use the global rawfile-loaded repo.
-            bundleEntries = repo.all();
-          }
-          const bundleRepo: WordRepository = new WordRepository();
-          bundleRepo.setEntries(bundleEntries);
-          const fillGen: FillLetterGenerator = new FillLetterGenerator();
-          const spellGen: SpellGenerator = new SpellGenerator();
-          const planChoiceGen: QuestionGenerator = new QuestionGenerator(bundleRepo);
-          const planWordIds: string[] = [];
-          for (let wi: number = 0; wi < plan.wordPlan.length; wi++) {
-            planWordIds.push(plan.wordPlan[wi].wordId);
-          }
-          const stageScheduler: BattleStageScheduler = new BattleStageScheduler(
-            planWordIds,
-            cfg.enabledQuestionTypes,
-            (wordId: string, kind: string): boolean => {
-              const w: WordEntry | undefined = bundleRepo.findById(wordId);
-              return w !== undefined && wordSupportsQuestionType(w, kind);
-            },
-          );
-          this.todayStageScheduler = stageScheduler;
-          const planSource: PlanQuestionSource = new PlanQuestionSource(
-            plan, bundleRepo, planChoiceGen, fillGen, spellGen, undefined, stageScheduler);
-          source = planSource;
-          planMonsters = plan.monsterSlots.length;
-          // The provider is wired right after engine construction so the
-          // closure captures the engine reference below.
-        } else {
-          // Plan is missing — degrade gracefully to normal mode so the
-          // player isn't stuck on a black screen.
-          this.isTodayMode = false;
-        }
-      }
-
-      const bc: BattleConfig = new BattleConfig();
-      bc.playerMaxHp = cfg.playerMaxHp;
-      bc.monsterMaxHp = cfg.monsterMaxHp;
-      // Review mode: 10 minutes, with monster count scaled to the
-      // remaining daily review words and the configured monster HP.
-      if (this.isReviewMode) {
-        bc.monstersTotal = reviewMonsterCount(
-          reviewPlanWordCount,
-          cfg.monsterMaxHp,
-          cfg.monstersTotal,
-          new GameConfig().monsterMaxHp,
-        );
-        bc.startingSeconds = REVIEW_MODE_STARTING_SECONDS;
-      } else if (this.isTodayMode && planMonsters > 0) {
-        bc.monstersTotal = cfg.monstersTotal;
-        bc.startingSeconds = cfg.startingSeconds;
-      } else {
-        bc.monstersTotal = cfg.monstersTotal;
-        bc.startingSeconds = cfg.startingSeconds;
-      }
-
-      const planForCatalog: TodaySessionPlan | undefined = this.todayPlan;
-      bc.catalogIndexProvider = (): number => {
-        const eng: BattleEngine | undefined = this.engine;
-        const idx1: number = eng !== undefined ? eng.getState().monsterIndex : 1;
-        const stageScheduler: BattleStageScheduler | undefined = this.todayStageScheduler;
-        if (this.isTodayMode && stageScheduler !== undefined) {
-          return stageScheduler.catalogIndexForMonster(idx1);
-        }
-        if (planForCatalog !== undefined && planForCatalog.monsterSlots.length > 0) {
-          const slotIdx: number = idx1 <= 0 ? 0 : (idx1 - 1) % planForCatalog.monsterSlots.length;
-          return planForCatalog.monsterSlots[slotIdx].catalogIndex;
-        }
-        return idx1 <= 0 ? 1 : idx1;
-      };
-
-      const engine: BattleEngine = new BattleEngine(source, bc);
-      // Now that the engine exists, wire the monster-index provider
-      // so PlanQuestionSource can switch question kind per slot.
-      if (this.isTodayMode && source instanceof PlanQuestionSource) {
-        const planSource: PlanQuestionSource = source as PlanQuestionSource;
-        planSource.setMonsterIndexProvider((): number => engine.getState().monsterIndex);
-      }
-      engine.start();
-      this.engine = engine;
+    }).then((setup: BattleSessionSetup): void => {
+      this.autoSpeak = setup.cfg.autoSpeak;
+      this.isReviewMode = setup.isReviewMode;
+      this.isTodayMode = setup.isTodayMode;
+      this.todayPlan = setup.todayPlan;
+      this.todayStageScheduler = setup.todayStageScheduler;
+      this.activePack = setup.activePack;
+      this.engine = setup.engine;
       this.syncFromEngine();
       // Auto-speak the first question's English answer. Subsequent
       // auto-speaks happen inside the onOptionTap closure when the
@@ -678,41 +433,6 @@ struct BattlePage {
     }
   }
 
-  /**
-   * Build a focused review plan from today's stable review snapshot.
-   * Already-reviewed ids are skipped so returning to review mode only
-   * shows the remaining daily work.
-   */
-  private buildReviewPlan(universe: WordEntry[]): TodaySessionPlan {
-    const plan: TodaySessionPlan = new TodaySessionPlan();
-    plan.regionId = 'review-daily';
-    plan.isFirstToday = false;
-    const daily: DailyLearningState = this.dailyStateService.snapshot();
-    const review: DailyReviewSnapshot = daily.reviewSnapshot;
-    if (review.wordIds.length === 0) {
-      return plan;
-    }
-    const reviewed: string[] = review.reviewedWordIds;
-    const lookup: Map<string, WordEntry> = new Map<string, WordEntry>();
-    for (let i = 0; i < universe.length; i++) {
-      lookup.set(universe[i].id, universe[i]);
-    }
-    for (let i = 0; i < review.wordIds.length; i++) {
-      const wordId: string = review.wordIds[i];
-      if (reviewed.indexOf(wordId) >= 0) {
-        continue;
-      }
-      const hit: WordEntry | undefined = lookup.get(wordId);
-      if (hit !== undefined) {
-        const slot: WordSlot = new WordSlot();
-        slot.wordId = hit.id;
-        slot.source = WordSource.Review;
-        plan.wordPlan.push(slot);
-      }
-    }
-    return plan;
-  }
-
   private markDailyReviewWordIfNeeded(wordId: string): void {
     if (!this.isReviewMode || wordId.length === 0) {
       return;
@@ -721,27 +441,6 @@ struct BattlePage {
       .catch((err: BusinessError): void => {
         console.error(`BattlePage: markReviewedWords failed: ${JSON.stringify(err)}`);
       });
-  }
-
-  /**
-   * Auto-speak helper: bounces through the pure `shouldAutoSpeak`
-   * predicate so the decision stays unit-testable. Callers pass
-   * `isRevealing` true during the feedback window to suppress TTS
-   * while the crit/hurt SFX are already playing.
-   */
-  private resetModeToNormal(): void {
-    const storedCfg: GameConfig | undefined =
-      AppStorage.get<GameConfig>(GAME_CONFIG_STORAGE_KEY);
-    if (storedCfg === undefined) {
-      return;
-    }
-    if (storedCfg.mode === GAME_MODE_NORMAL) {
-      return;
-    }
-    const next: GameConfig = cloneGameConfig(storedCfg);
-    next.mode = GAME_MODE_NORMAL;
-    AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, next);
-    persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, next);
   }
 
   /**
@@ -1068,6 +767,12 @@ struct BattlePage {
     }
   }
 
+  /**
+   * Auto-speak helper: bounces through the pure `shouldAutoSpeak`
+   * predicate so the decision stays unit-testable. Callers pass
+   * `isRevealing` true during the feedback window to suppress TTS
+   * while the crit/hurt SFX are already playing.
+   */
   private maybeAutoSpeakCurrent(isRevealing: boolean): void {
     if (!shouldAutoSpeak(this.autoSpeak, this.audio.isVoiceAvailable(), isRevealing, this.currentQuestionKind)) {
       return;
@@ -1739,159 +1444,23 @@ struct BattlePage {
       return;
     }
     this.battleEndHandled = true;
-    // Enrich the engine-built SessionResult with learning-record
-    // totals before ResultPage consumes it. The engine doesn't know
-    // about the recorder, so this is the integration point.
-    result.newlyLearnedCount = this.recorder.newlyLearnedCount;
-    result.totalLearnedCount = this.recorder.totalLearnedCount;
-    // Today-adventure coin earnings + result enrichment. Runs only
-    // when the engine actually consumed a TodaySessionPlan; in any
-    // other mode the new SessionResult fields stay at their defaults.
-    if (this.isTodayMode && this.todayPlan !== undefined) {
-      this.applyTodayAdventureRewards(result, this.todayPlan);
-    }
-    // Review mode is always a single-battle affordance — reset the
-    // stored GameConfig back to 'normal' so the next HomePage launch
-    // doesn't accidentally start another review session. Done even
-    // when we weren't in review mode so a stale flag from a crashed
-    // previous session gets cleaned up on any battle end.
-    this.resetModeToNormal();
-    // Force a final flush so counters survive a force-stop — disk
-    // errors are swallowed inside flushNow() so nothing is leaked.
-    this.recorder.flushNow().catch((err: BusinessError): void => {
-      console.error(`BattlePage: LearningRecorder.flushNow failed: ${JSON.stringify(err)}`);
-    });
-    this.monsterProgress.flushNow().catch((err: BusinessError): void => {
-      console.error(`BattlePage: MonsterProgressStore.flushNow failed: ${JSON.stringify(err)}`);
-    });
+    // V1.1.0 Task 1.5: the enrichment (learning totals, today rewards,
+    // mode reset, store flushes) moved verbatim into BattleResultEnricher
+    // so CocosBattlePage runs the identical flow.
+    const inputs: BattleResultEnrichmentInputs = new BattleResultEnrichmentInputs();
+    inputs.isTodayMode = this.isTodayMode;
+    inputs.todayPlan = this.todayPlan;
+    inputs.activePack = this.activePack;
+    enrichAndFlushSessionResult(
+      this.getUIContext().getHostContext() as common.UIAbilityContext,
+      result,
+      inputs,
+    );
     this.getUIContext().getRouter().replaceUrl({
       url: 'pages/ResultPage',
       params: result,
     }).catch((err: BusinessError): void => {
       console.error(`BattlePage: replaceUrl ResultPage failed: ${JSON.stringify(err)}`);
-    });
-  }
-
-  /**
-   * Compute today-adventure coin awards, mark today as completed
-   * for the home-page badge, and write the result into the
-   * SessionResult. Coin awards are clamped to the daily cap inside
-   * CoinAccount.earn — `dailyCapHit` mirrors that state.
-   *
-   * V0.8.6 — reward formula is now defeated monster level score:
-   * Σ count(level) × levelValue. Stars and Bonus kills remain visible
-   * combat/result signals, but no longer contribute coins.
-   */
-  private applyTodayAdventureRewards(result: SessionResult, plan: TodaySessionPlan): void {
-    const now: number = Date.now();
-    this.coinAccount.beginToday(now);
-
-    const region: AdventureRegion = getRegionById(plan.regionId);
-    result.isTodayAdventure = true;
-    result.regionId = plan.regionId;
-    result.bossName = region.bossName;
-    result.reviewWordCount = countByWordSource(plan, WordSource.Review);
-    result.newWordCount = countByWordSource(plan, WordSource.New);
-
-    const awardAmount: number = computeMonsterLevelCoinAward(result.monsterLevelScore);
-    result.coinsBaseFromStars = awardAmount;
-    let earned: number = 0;
-    if (plan.isFirstToday && result.status === BattleStatus.Won) {
-      earned = this.coinAccount.earn(COIN_REASON_TODAY_FIRST, awardAmount, now);
-    } else if (awardAmount > 0) {
-      earned = this.coinAccount.earn('stars', awardAmount, now);
-    }
-    result.coinsEarned = earned;
-    if (result.status === BattleStatus.Won) {
-      const checkIn: CheckInRecordResult = this.checkInStore.recordWinSync(now);
-      result.checkInRecorded = checkIn.changed;
-      result.checkInCurrentStreak = checkIn.currentStreak;
-      if (checkIn.bonusCoins > 0 && checkIn.bonusDayKey.length > 0) {
-        const txnId: string = `checkin-weekly-bonus:${checkIn.bonusDayKey}`;
-        const applied: boolean = this.coinAccount.applyExternalTxn(
-          txnId,
-          checkIn.bonusCoins,
-          txnId,
-          now,
-        );
-        result.checkInBonusCoins = applied ? checkIn.bonusCoins : 0;
-      }
-    }
-    const snap: CoinSnapshot = this.coinAccount.snapshot();
-    result.coinsTotal = snap.totalCoins - snap.spentCoins;
-    result.dailyCapHit = snap.todayCoinsEarned >= DAILY_CAP;
-
-    // Mark today as completed so HomePage can light the "已完成" badge
-    // immediately on return from ResultPage. Persistence to disk
-    // happens via flushNow on the coin account; the day-key flag is
-    // session-only AppStorage state read by HomePage.
-    AppStorage.setOrCreate<string>(TODAY_LAST_COMPLETED_DAY_KEY, formatDayKeyLocal(now));
-    if (result.status === BattleStatus.Won) {
-      this.dailyStateService.markPackBattleWon(now).catch((err: BusinessError): void => {
-        console.error(`BattlePage: markPackBattleWon failed: ${JSON.stringify(err)}`);
-      });
-    }
-
-    this.coinAccount.flushNow().catch((err: BusinessError): void => {
-      console.error(`BattlePage: CoinAccount.flushNow failed: ${JSON.stringify(err)}`);
-    });
-    this.checkInStore.flushNow().catch((err: BusinessError): void => {
-      console.error(`BattlePage: CheckInStore.flushNow failed: ${JSON.stringify(err)}`);
-    });
-    this.syncCheckInsBestEffort();
-    // V0.6.5.1: perfect-adventure rotation hook. Fires only when the
-    // session was launched from a real Pack chip (this.activePack
-    // populated) AND the player won with all 3 stars (no mistakes
-    // per spec §4.4). The actual rotation decision (counter +
-    // pinned check + candidate provider) lives in PackSelectionService.
-    if (this.activePack !== undefined &&
-        result.status === BattleStatus.Won &&
-        result.stars >= 3) {
-      this.recordPerfectAdventure(this.activePack.id);
-    }
-  }
-
-  /**
-   * V0.6.5.1 — fire-and-forget perfect-adventure recorder. Runs
-   * asynchronously after the synchronous result-page navigation has
-   * already been posted, so the player never waits on the prefs
-   * write. Errors are logged but never block.
-   */
-  private recordPerfectAdventure(packId: string): void {
-    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    (async (): Promise<void> => {
-      try {
-        const lib: PackLibrary = await WordPackBootstrapper.bootstrapPackLibrary(ctx);
-        const sel: PackSelectionService = new PackSelectionService();
-        await sel.init(ctx, lib.builtinIds());
-        const provider: LibraryCandidateProvider = new LibraryCandidateProvider(lib);
-        const out: PerfectAdventureResult =
-          await sel.recordPerfectAdventure(packId, provider);
-        if (out.rotated) {
-          console.info(`BattlePage: pack rotation ${out.swappedOutId} -> ${out.swappedInId}`);
-        }
-      } catch (err) {
-        console.error(`BattlePage: recordPerfectAdventure failed: ${JSON.stringify(err as BusinessError)}`);
-      }
-    })();
-  }
-
-  private syncCheckInsBestEffort(): void {
-    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    const creds: CloudCredentials = new CloudCredentials();
-    creds.init(ctx).then((): void => {
-      const svc: CloudCheckInService = new CloudCheckInService(
-        this.checkInStore,
-        this.coinAccount,
-        creds,
-        new RealParentFetchAdapter(),
-        (): string => CloudCheckInService.defaultBaseUrlResolver(),
-      );
-      svc.syncOnce().catch((err: BusinessError): void => {
-        console.error(`BattlePage: CloudCheckInService.syncOnce failed: ${JSON.stringify(err)}`);
-      });
-    }).catch((err: BusinessError): void => {
-      console.error(`BattlePage: CloudCredentials.init for check-in failed: ${JSON.stringify(err)}`);
     });
   }
 

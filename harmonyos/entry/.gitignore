@@ -4,3 +4,6 @@
 /build
 /.cxx
 /.test
+# V1.1.0 Cocos battle embed: regenerated 13MB data bundle vendored by
+# tools/cocos/build-harmonyos.sh — run that script once before hvigor.
+/src/main/resources/rawfile/Resources/

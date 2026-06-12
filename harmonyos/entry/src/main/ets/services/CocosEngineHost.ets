@@ -1,0 +1,333 @@
+/**
+ * CocosEngineHost — lazy boot + app-lifecycle relay for the embedded Cocos
+ * battle engine (V1.1.0, Task 0.2 embed spike).
+ *
+ * The Cocos-generated scaffold wires the engine inside its own EntryAbility
+ * (appLifecycle.onCreate / resourceManagerInit in onCreate, writablePathInit
+ * in onWindowStageCreate, onShow/onHide from windowStage events). Our app
+ * hosts many non-Cocos pages, so instead of grafting eager engine calls into
+ * EntryAbility we keep the engine dormant until CocosBattlePage boots it via
+ * ensureBooted(). EntryAbility only relays foreground/background, which
+ * no-ops until the engine is booted.
+ *
+ * Note: importing 'libcocos.so' here dlopens the engine lib at app start
+ * (EntryAbility imports this module). That only loads + registers the NAPI
+ * module — no engine threads or rendering start until ensureBooted().
+ */
+import { common } from '@kit.AbilityKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+import cocos, { context, evalString } from 'libcocos.so';
+import { ContextType } from '../cocosvendor/common/Constants';
+import { WorkerPort } from '../cocosvendor/common/WorkerPort';
+import { WorkerManager } from '../cocosvendor/cocos/WorkerManager';
+
+/** Game-thread global the scene pre-registers as its inbound entry point
+ *  (cocos/assets/scripts/bridge/transport.ts, ArkTsReflectionTransport). */
+const SCENE_INBOUND_GLOBAL: string = '__wmBattleInbound';
+
+/** Minimal bridge envelope shape used only to detect the battle/ready type. */
+interface BridgeEnvelopeTypeOnly {
+  type?: string;
+}
+
+/** Engine-utils dispatcher pair, replicated from the scaffold pages/index.ets
+ *  module prologue (the engine resolves jsb reflection calls through these). */
+function executeMethodAsync(nativeFunc: Function, funcData: string, funCb: Function): void {
+  nativeFunc(funcData, funCb);
+}
+
+function executeMethodSync(nativeFunc: Function, funcData: string): string | boolean | number {
+  return nativeFunc(funcData) as string | boolean | number;
+}
+
+export class CocosEngineHost {
+  private booted: boolean = false;
+  private visible: boolean = false;
+  /** App-level foreground state (EntryAbility onForeground/onBackground). */
+  private appForeground: boolean = false;
+  /**
+   * True while CocosBattlePage is the active route. The engine render loop
+   * only runs when BOTH appForeground and pageActive hold — pausing it
+   * before the page (and its XComponent surface) is torn down. Without the
+   * pause, a frame in flight races the surface destroy and eglSwapBuffers
+   * aborts the process with EGL_BAD_SURFACE (GLES3GPUContext assert), which
+   * is exactly the crash observed on the Task 1.5 emulator smoke.
+   */
+  private pageActive: boolean = false;
+  /**
+   * True while the XComponent surface exists (set on onLoad, cleared on
+   * onDestroy). Guards resume: after a page exit the next onPageShow fires
+   * before the NEW surface exists, and resuming then would swap against the
+   * destroyed previous surface.
+   *
+   * Surface RE-creation (page exit + re-entry) is supported by our patched
+   * engine (cpp/cocos-patches/OpenHarmonyPlatform.cpp): on destroy the
+   * swapchain releases its EGL surface, and the re-created surface rebinds
+   * onto the engine's main window before the render loop resumes.
+   */
+  private surfaceAlive: boolean = false;
+  private appLifecycle: context | undefined = undefined;
+  /** Tracks whether onXCLoad has already been posted to the worker so the
+   *  message is sent at most once per process lifetime regardless of how many
+   *  times CocosBattlePage is entered and re-entered. */
+  private surfaceLoadNotified: boolean = false;
+  /** UI-thread consumer of scene->ArkTS bridge messages (Task 0.3). */
+  private sceneMessageHandler: ((json: string) => void) | null = null;
+  /**
+   * Latches true the first time the scene sends battle/ready. The engine
+   * persists across page exits, so battle/ready fires exactly ONCE per
+   * process lifetime — subsequent page entries never receive it organically.
+   * setSceneMessageHandler() uses this flag to replay a synthetic ready to
+   * handlers registered after the event already fired.
+   */
+  private sceneReady: boolean = false;
+
+  /**
+   * Idempotent engine boot. Replicates the scaffold's order:
+   * appLifecycle.onCreate -> resourceManagerInit -> writablePathInit ->
+   * worker creation + UI<->worker port wiring. The XComponent's onLoad later
+   * posts 'onXCLoad', upon which the worker runs nativeEngineInit/Start.
+   *
+   * All fallible work runs inside the try block; instance fields are only
+   * written after everything succeeds so that a partial failure does not
+   * leave the host in a permanently-latched-but-broken state. On failure the
+   * fields are reset and the error is re-thrown to the caller.
+   */
+  ensureBooted(ctx: common.UIAbilityContext): void {
+    if (this.booted) {
+      return;
+    }
+    try {
+      const engineUtils: context = cocos.getContext(ContextType.ENGINE_UTILS);
+      const lifecycle: context = cocos.getContext(ContextType.APP_LIFECYCLE);
+      engineUtils.registerFunction('executeMethodAsync', executeMethodAsync);
+      engineUtils.registerFunction('executeMethodSync', executeMethodSync);
+      lifecycle.onCreate();
+      engineUtils.resourceManagerInit(ctx.resourceManager);
+      engineUtils.writablePathInit(ctx.cacheDir);
+      // Creates the CocosWorker thread; the vendored WorkerManager points at
+      // entry/ets/cocosvendor/workers/cocos_worker.ets.
+      WorkerPort.getInstance().initPort(WorkerManager.getInstance().getWorker());
+      // All fallible work succeeded — commit state.
+      this.appLifecycle = lifecycle;
+      this.booted = true;
+      // The app is foreground and the battle page is booting the engine;
+      // the scaffold equivalent fires onShow via its windowStage RESUMED
+      // handler.
+      this.appForeground = true;
+      this.pageActive = true;
+      this.visible = true;
+      this.appLifecycle.onShow();
+    } catch (err) {
+      // Reset so the next page visit can retry rather than silently no-op.
+      this.booted = false;
+      this.appLifecycle = undefined;
+      this.appForeground = false;
+      this.pageActive = false;
+      this.visible = false;
+      console.error('CocosEngineHost.ensureBooted failed:', JSON.stringify(err as object));
+      // Re-throw as a typed Error so ArkTS strict-mode accepts the throw.
+      const msg: string = (err instanceof Error) ? err.message : JSON.stringify(err as object);
+      throw new Error(`CocosEngineHost boot failed: ${msg}`);
+    }
+  }
+
+  /**
+   * Called by CocosBattlePage's XComponent onLoad handler when the surface
+   * is ready. Posts 'onXCLoad' to the CocosWorker at most once per process
+   * lifetime — re-entering the page does not reinitialise the engine.
+   *
+   * This is also the resume point for the render loop on page re-entry:
+   * onLoad fires AFTER the native surface-create callback queued the
+   * patched engine's WM_XCOMPONENT_SURFACE_CREATED rebind to the game
+   * thread, and the onShow this emits travels through the SAME message
+   * queue — so the swapchain is rebound to the new surface before the
+   * first frame. Resuming earlier (on onPageShow) lets the loop swap one
+   * frame against the previous page visit's destroyed surface —
+   * EGL_BAD_SURFACE abort.
+   */
+  notifySurfaceLoaded(): void {
+    if (!this.surfaceLoadNotified) {
+      this.surfaceLoadNotified = true;
+      WorkerPort.getInstance().postMessage('onXCLoad');
+    }
+    this.surfaceAlive = true;
+    this.pageActive = true;
+    this.updateVisibility();
+  }
+
+  /**
+   * Called by CocosBattlePage's XComponent onDestroy handler. Marks the
+   * surface gone so updateVisibility cannot resume the render loop until
+   * the next surface's onLoad. The patched engine releases the swapchain's
+   * EGL surface on this destroy and rebinds when a new surface is created,
+   * so re-entry is safe (no retirement needed).
+   */
+  notifySurfaceDestroyed(): void {
+    this.surfaceAlive = false;
+    this.updateVisibility();
+  }
+
+  /**
+   * Recompute the engine's render-loop visibility from the combined app +
+   * page state and relay the transition through the app lifecycle. onHide
+   * stops the engine's main-loop timer (OpenHarmonyPlatform::onHideNative),
+   * which is the only call that actually halts rendering — the JSPAGE
+   * onPageHide relay alone does NOT, and an in-flight frame racing the
+   * XComponent surface destroy crashes in eglSwapBuffers.
+   */
+  private updateVisibility(): void {
+    const want: boolean = this.booted && this.appForeground
+      && this.pageActive && this.surfaceAlive;
+    if (want === this.visible) {
+      return;
+    }
+    this.visible = want;
+    if (want) {
+      this.appLifecycle?.onShow();
+    } else {
+      this.appLifecycle?.onHide();
+    }
+  }
+
+  /**
+   * Pause the engine render loop ahead of a navigation that will destroy
+   * the XComponent surface (CocosBattlePage calls this before replaceUrl).
+   * Idempotent; the page's organic onPageHide that follows is a no-op for
+   * visibility and only re-relays the JSPAGE event.
+   */
+  pauseRendering(): void {
+    this.pageActive = false;
+    this.updateVisibility();
+  }
+
+  /**
+   * Relay from CocosBattlePage.onPageShow; resumes the render loop ONLY if
+   * the surface is still alive (covers foreground-after-background while in
+   * battle). On re-entry after a page exit the page shows before the new
+   * XComponent surface exists — surfaceAlive is false and the resume rides
+   * notifySurfaceLoaded() instead, AFTER the surface-create message was
+   * queued to the game thread.
+   */
+  notifyPageShow(): void {
+    if (!this.booted) {
+      return;
+    }
+    const pageLifecycle: context = cocos.getContext(ContextType.JSPAGE_LIFECYCLE);
+    pageLifecycle.onPageShow();
+    this.pageActive = true;
+    this.updateVisibility();
+  }
+
+  /** Relay from CocosBattlePage.onPageHide; pauses the render loop. */
+  notifyPageHide(): void {
+    if (!this.booted) {
+      return;
+    }
+    const pageLifecycle: context = cocos.getContext(ContextType.JSPAGE_LIFECYCLE);
+    pageLifecycle.onPageHide();
+    this.pageActive = false;
+    this.updateVisibility();
+  }
+
+  /**
+   * Task 0.3 bridge, ArkTS -> scene direction. Serialised bridge envelopes
+   * are delivered to the scene by evaluating a JS snippet inside the engine
+   * VM via libcocos.so's evalString. Called from the UI thread: the engine
+   * recognises the UI main thread (where the XComponent loaded the module)
+   * and re-schedules the eval onto the game thread, so this is async and
+   * fire-and-forget (no return value by design). JSON.stringify(json) is the
+   * escaping step — it turns the payload into a valid JS string literal.
+   *
+   * No-op (with a warning) before the engine boots; the engine side also
+   * drops evals that arrive before the game loop starts, so callers should
+   * only send after the scene's battle/ready arrived.
+   */
+  sendToScene(json: string): void {
+    if (!this.booted) {
+      hilog.warn(0x0000, 'WMBridge', 'sendToScene before boot; dropped');
+      return;
+    }
+    const literal: string = JSON.stringify(json);
+    evalString(
+      `if (globalThis.${SCENE_INBOUND_GLOBAL}) { globalThis.${SCENE_INBOUND_GLOBAL}(${literal}); }`
+      + ` else { console.warn('[bridge] inbound dropped'); }`);
+  }
+
+  /**
+   * Task 0.3 bridge, scene -> ArkTS direction. The scene calls
+   * native.reflection.callStaticMethod(...); the engine resolves it through
+   * the 'executeMethodAsync' threadsafe function registered in ensureBooted,
+   * which runs CocosBridgeReceiver.onSceneMessage on the UI thread; that
+   * receiver forwards here. The handler therefore runs on the UI thread.
+   *
+   * Re-entry latch: the engine persists across page exits; the scene fires
+   * battle/ready exactly ONCE per process. If a handler is registered AFTER
+   * that event already fired (i.e. sceneReady is already true), a synthetic
+   * '{"v":1,"type":"battle/ready","payload":{}}' is delivered synchronously
+   * to the new handler so the page always receives a ready signal.
+   */
+  setSceneMessageHandler(handler: (json: string) => void): void {
+    this.sceneMessageHandler = handler;
+    if (this.sceneReady) {
+      handler('{"v":1,"type":"battle/ready","payload":{}}');
+    }
+  }
+
+  /**
+   * Deregisters the current scene message handler. Call from
+   * CocosBattlePage.aboutToDisappear to prevent stale handler references
+   * from receiving messages after the page is torn down.
+   */
+  clearSceneMessageHandler(): void {
+    this.sceneMessageHandler = null;
+  }
+
+  /** Entry point used by CocosBridgeReceiver; not for general callers. */
+  dispatchSceneMessage(json: string): void {
+    // Latch sceneReady when the scene sends its one-time boot signal so that
+    // subsequent page entries can receive a synthetic replay via
+    // setSceneMessageHandler (see above).
+    if (!this.sceneReady) {
+      try {
+        if ((JSON.parse(json) as BridgeEnvelopeTypeOnly).type === 'battle/ready') {
+          this.sceneReady = true;
+        }
+      } catch {
+        // Malformed JSON — not battle/ready; ignore parse failure here.
+      }
+    }
+    if (this.sceneMessageHandler) {
+      this.sceneMessageHandler(json);
+    } else {
+      hilog.warn(0x0000, 'WMBridge', 'scene message dropped (no handler): %{public}s', json);
+    }
+  }
+
+  /**
+   * Relay from EntryAbility.onForeground; no-op until booted. The render
+   * loop only resumes when the battle page is also the active route.
+   */
+  notifyForeground(): void {
+    if (!this.booted) {
+      return;
+    }
+    this.appForeground = true;
+    this.updateVisibility();
+  }
+
+  /** Relay from EntryAbility.onBackground; no-op until booted. */
+  notifyBackground(): void {
+    if (!this.booted) {
+      return;
+    }
+    this.appForeground = false;
+    this.updateVisibility();
+  }
+}
+
+const host: CocosEngineHost = new CocosEngineHost();
+
+export function cocosEngineHost(): CocosEngineHost {
+  return host;
+}

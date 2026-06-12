@@ -3,6 +3,7 @@ import { common } from '@kit.AbilityKit';
 import { BattleStatus } from '../models/BattleState';
 import { SessionResult } from '../models/SessionResult';
 import { requestPageOrientation } from '../utils/orientation';
+import { battleRouteUrl } from '../services/CocosBattlePreference';
 
 /**
  * ResultPage shows the session summary and navigation back to home or a replay.
@@ -187,7 +188,7 @@ struct ResultPage {
             // Today-adventure replays return to HomePage so the
             // session plan can be rebuilt with up-to-date memory
             // states (instead of replaying the cached plan).
-            const url: string = this.result.isTodayAdventure ? 'pages/HomePage' : 'pages/BattlePage';
+            const url: string = this.result.isTodayAdventure ? 'pages/HomePage' : battleRouteUrl();
             this.getUIContext().getRouter().replaceUrl({ url }).catch((err: BusinessError): void => {
               console.error(`ResultPage: replaceUrl ${url} failed: ${JSON.stringify(err)}`);
             });

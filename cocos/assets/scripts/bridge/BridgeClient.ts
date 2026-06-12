@@ -1,19 +1,25 @@
 // The only TS module that talks to the JSB bridge directly.
-// Pure message codecs live in messages.ts (vitest-covered).
+// Platform mechanics live in transport.ts; pure message codecs live in
+// messages.ts (vitest-covered).
 
-import { native, sys } from 'cc';
+import { sys } from 'cc';
 import { NativeToScriptMessage, ScriptToNativeMessage, parseNativeMessage, serializeScriptMessage } from './messages';
-
-const TO_SCRIPT = 'wmBattleToScript';
-const TO_NATIVE = 'wmBattleToNative';
+import { BridgeTransport, selectTransport } from './transport';
 
 export class BridgeClient {
     onMessage: ((msg: NativeToScriptMessage) => void) | null = null;
+    private transport: BridgeTransport | null = null;
 
-    /// Registers the native listener and announces scene readiness.
+    /// Selects the platform transport, registers the inbound listener and
+    /// announces scene readiness.
     start() {
         if (!sys.isNative) { return; }
-        native.jsbBridgeWrapper.addNativeEventListener(TO_SCRIPT, (json: string) => {
+        this.transport = selectTransport();
+        if (!this.transport) {
+            console.warn('[bridge] no JSB transport available on this platform');
+            return;
+        }
+        this.transport.onReceive((json: string) => {
             const msg = parseNativeMessage(json);
             if (msg && this.onMessage) { this.onMessage(msg); }
         });
@@ -21,7 +27,7 @@ export class BridgeClient {
     }
 
     send(msg: ScriptToNativeMessage) {
-        if (!sys.isNative) { return; }
-        native.jsbBridgeWrapper.dispatchEventToNative(TO_NATIVE, serializeScriptMessage(msg));
+        if (!this.transport) { return; }
+        this.transport.send(serializeScriptMessage(msg));
     }
 }

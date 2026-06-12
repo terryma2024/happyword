@@ -83,6 +83,7 @@ import {
   CachedSpellbookCover,
   cachedSpellbookCoverPathsForPacks,
 } from '../services/SpellbookCoverCache';
+import { battleRouteUrl } from '../services/CocosBattlePreference';
 
 /**
  * Route params bag for `pages/DevMenuPage`. ArkTS strict mode rejects
@@ -466,8 +467,8 @@ struct HomePage {
     cfg.mode = GAME_MODE_REVIEW;
     AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
     persistGameConfigBestEffort(this.getUIContext().getHostContext() as common.UIAbilityContext, cfg);
-    this.getUIContext().getRouter().pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
-      console.error(`HomePage: pushUrl BattlePage (review) failed: ${JSON.stringify(err)}`);
+    this.getUIContext().getRouter().pushUrl({ url: battleRouteUrl() }).catch((err: BusinessError): void => {
+      console.error(`HomePage: pushUrl battle (review) failed: ${JSON.stringify(err)}`);
     });
   }
 
@@ -539,8 +540,8 @@ struct HomePage {
       cfg.mode = GAME_MODE_TODAY;
       AppStorage.setOrCreate<GameConfig>(GAME_CONFIG_STORAGE_KEY, cfg);
       persistGameConfigBestEffort(ctx, cfg);
-      router.pushUrl({ url: 'pages/BattlePage' }).catch((err: BusinessError): void => {
-        console.error(`HomePage: pushUrl BattlePage (today) failed: ${JSON.stringify(err)}`);
+      router.pushUrl({ url: battleRouteUrl() }).catch((err: BusinessError): void => {
+        console.error(`HomePage: pushUrl battle (today) failed: ${JSON.stringify(err)}`);
       });
     }).catch((err: BusinessError): void => {
       console.error(`HomePage.enterTodayAdventure recorder.init failed: ${JSON.stringify(err)}`);

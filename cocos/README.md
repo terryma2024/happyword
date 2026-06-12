@@ -17,8 +17,11 @@ Contract: `shared/contracts/cocos-battle-bridge/`.
    in the native host (`ios/WordMagicGame/Core/BattleEngine.swift` etc.). If a
    change needs game logic, it belongs in Swift + the bridge contract, not here.
 2. **The bridge contract is the only interface.** Envelope
-   `{v:1, type, payload}` over `JsbBridgeWrapper` events `wmBattleToScript` /
-   `wmBattleToNative`. Schema + fixtures: `shared/contracts/cocos-battle-bridge/`.
+   `{v:1, type, payload}` over a per-platform transport
+   (`assets/scripts/bridge/transport.ts`): `JsbBridgeWrapper` events
+   `wmBattleToScript` / `wmBattleToNative` on iOS, ArkTS reflection +
+   `evalString` on HarmonyOS (see “HarmonyOS embed” below).
+   Schema + fixtures: `shared/contracts/cocos-battle-bridge/`.
    Both ends decode every fixture in their test suites
    (`cocos/tests/messages.test.ts`, `WordMagicGameTests/CocosBattleBridgeMessageTests`)
    — change the contract by changing fixtures first, then both codecs.
@@ -229,6 +232,144 @@ no separate Cocos app. Verified with Cocos Creator 3.8.8 + Xcode 26.4.
   dismisses the Cocos window on success. Headless repro: launch with
   `-CocosLabAutoRun`. Automated check: `CocosLabSpikeUITests` (device only;
   auto-skips on simulator).
+
+## HarmonyOS embed (V1.1.0 HOS Tasks 0.1–0.3 — keep updated)
+
+The HarmonyOS app (`harmonyos/entry`) embeds the engine compiled from source
+(`tools/cocos/build-harmonyos.sh` + hvigor; see that script and
+`harmonyos/entry/src/main/ets/services/CocosEngineHost.ets` for the boot
+recipe). Verified on the arm64 emulator (`hdc` target `127.0.0.1:5555`);
+spike route: `aa start -a EntryAbility -b com.terryma.wordmagicgame --ps
+cocosLab true` (debug builds only). The physical verification target is the
+MatePad (`hdc` target `5FFBB25926205346`, 3:2 screen) — wake/unlock routine
+and the pinned password live in `scripts/run_ui_tests.sh`
+(`unlock_target_device_if_needed`); if the hdc channel reports
+`Unauthorized`, confirm the RSA dialog on the tablet (requires physical
+access), or fall back to the emulator.
+
+### Bridge mechanism (Task 0.3, locked)
+
+`native.jsbBridgeWrapper` is **null** on OPENHARMONY — the engine only
+compiles `ScriptNativeBridge` for ANDROID/IOS/OSX/OHOS
+(`cocos/native-binding/impl.ts` + `jsb_module_register.cpp`), so the iOS
+event-bus transport cannot exist here. The scene therefore selects a
+transport at runtime (`assets/scripts/bridge/transport.ts`); BridgeClient's
+public API is unchanged and the contract envelope stays
+`{v:1, type, payload}`.
+
+**Scene → ArkTS** (`ArkTsReflectionTransport.send`):
+`native.reflection.callStaticMethod(clsPath, method, json, false)` backed by
+the engine's `JavaScriptArkTsBridge`. The engine resolves it through the
+`executeMethodAsync` threadsafe function the host registered (UI thread,
+`CocosEngineHost.ensureBooted`), napi-loads the ArkTS module
+`entry/src/main/ets/services/CocosBridgeReceiver` **by path**
+(`napi_load_module_with_info`) and calls its exported
+`onSceneMessage(json, done)` on the **UI thread**.
+- The receiver module path must be listed in
+  `buildOption.arkOptions.runtimeOnly.sources` of
+  `harmonyos/entry/build-profile.json5` or the runtime load fails.
+- The engine **blocks the game thread** on an internal promise until
+  `done()` is invoked — the receiver calls `done('ok')` first and only then
+  dispatches into app code. Keep handlers light; never make the UI thread
+  wait on the game thread inside a handler (deadlock).
+- 4th `callStaticMethod` parameter `false` = async variant; `true` (sync)
+  also blocks and additionally takes the return value — not needed.
+
+**ArkTS → scene** (`CocosEngineHost.sendToScene`): libcocos.so's
+`evalString(snippet)` called from the **UI thread**. The engine detects the
+UI main thread (where the XComponent loaded the NAPI module) and re-schedules
+the eval onto the game thread — async, no return value, thread-safe. The
+scene pre-registers `globalThis.__wmBattleInbound = handler` in
+`ArkTsReflectionTransport.onReceive`.
+- Escaping rule: the snippet is
+  `` `globalThis.__wmBattleInbound && globalThis.__wmBattleInbound(${JSON.stringify(json)})` ``
+  — `JSON.stringify` of the *string* is the only escaping step needed (it
+  yields a valid JS string literal).
+- `evalString` silently drops calls before the game loop runs
+  (`CC_CURRENT_APPLICATION()` null) — only send after the scene's organic
+  `battle/ready` arrived.
+- Never call `evalString` from a non-UI thread: the engine would eval on the
+  calling thread instead of scheduling onto the game thread.
+
+Round-trip measured at ~10 ms on the emulator (ping sent 14:03:35.551,
+pong logged .561). The Task 0.3 probe UI (Ping button + hilog handler on
+`pages/CocosBattlePage.ets`) was removed in Task 1.5 — the page now drives
+live battles through `CocosBattleBridge`; for manual entry use DevMenu →
+CocosLab or just start a battle with the Config switch ON.
+
+### Known quirks (HarmonyOS side)
+- Engine cmake flags: `USE_SE_JSVM ON`, `USE_SOCKET OFF`; scene
+  `console.log` lands in hilog under tag `A00000/HMG_LOG`.
+- Vendored template plumbing under
+  `harmonyos/entry/src/main/ets/cocosvendor/` is regenerated by
+  `tools/cocos/build-harmonyos.sh` — never hand-edit; extend the script's
+  scripted-sed + grep-assertion pattern if a vendored tweak is unavoidable.
+- **ArkTS:WARN policy for cocosvendor/ (cold builds only):** the vendored
+  adapter emits warnings that only surface when its files actually recompile
+  (incremental `assembleHap` looks falsely clean). Two classes are accepted
+  and allowlisted in `scripts/check_arkts_warnings.sh`:
+  `arkts-no-globalthis` (sys-ability-polyfill.ets + cocos_worker.ets define
+  worker globals the native engine looks up via napi — ArkTS has no
+  compliant substitute) and the `MessagePort.postMessage` may-throw advisory
+  (WorkerPort.ts / ui_port.ts message pump — a try/catch wrapper would alter
+  engine plumbing). The third class, missing-permission hints
+  (GET_NETWORK_INFO / VIBRATE), is NOT accepted: fix-up 3 in
+  `build-harmonyos.sh` stubs `getNetworkType` (returns -1) and `vibrate`
+  (no-op) because the battle scene uses neither and the undeclared calls
+  would throw error 201 at runtime anyway.
+- Engine boot is once per process (`CocosEngineHost.ensureBooted` +
+  `notifySurfaceLoaded` posts `onXCLoad` at most once); `battle/init` being a
+  full scene reset is what makes page re-entry work.
+- **Surface lifecycle (Task 1.5, emulator-verified):** the engine render loop
+  is only stopped by the app-lifecycle `onHide` — the JSPAGE `onPageHide`
+  relay does nothing (`napiOnPageHide` just logs). A frame racing the
+  XComponent surface destroy aborts the process in `eglSwapBuffers`
+  (`EGL_BAD_SURFACE`, `GLES3GPUContext.cpp:332`). `CocosEngineHost` therefore
+  derives visibility from `booted && appForeground && pageActive &&
+  surfaceAlive` and `CocosBattlePage` calls `pauseRendering()` before every
+  `replaceUrl`.
+- **Surface re-creation works via an engine patch** (stock Cocos 3.8.8 OH
+  crashes on it — `onSurfaceCreatedCB` registered the re-created surface as
+  a NEW `SystemWindow` id while the GFX swapchain stayed bound to the
+  removed original window, and the game-thread
+  `WM_XCOMPONENT_SURFACE_CREATED` handler was empty, so the first frame
+  after resume swapped a dead EGLSurface and aborted at
+  `GLES3GPUContext.cpp:332`). The patch is a vendored copy of
+  `OpenHarmonyPlatform.cpp` at
+  `harmonyos/entry/src/main/cpp/cocos-patches/` (patched blocks marked
+  `WMG PATCH(surface-recreation)`); the adapter
+  `harmonyos/entry/src/main/cpp/CMakeLists.txt` swaps it into the
+  `cocos_engine` target sources and pins the Creator bundle original by
+  SHA256, so a Creator upgrade fails the build loudly instead of silently
+  dropping the patch. Mechanism — reuse of the already-working
+  SURFACE_HIDE/SHOW machinery: surface destroy broadcasts
+  `WindowDestroy(mainWindowId)` (swapchain releases its EGL surface) and
+  KEEPS the `SystemWindow` registered; surface re-create rebinds the
+  existing main window to the new native handle (`setWindowHandle`) and the
+  game thread broadcasts `WindowRecreated(mainWindowId)` →
+  `RenderWindow::onNativeWindowResume` → swapchain `createSurface` +
+  `generateFrameBuffer`. Resume ordering is safe because the rebind message
+  and the host's `onShow` relay travel through the same FIFO worker queue,
+  and `CocosEngineHost` only resumes rendering from the new surface's
+  `onLoad`. Net effect: EVERY battle of a process runs in Cocos
+  (emulator-verified 2026-06-11: battle → escape → result → home → battle
+  three times in one process — each re-entry renders, takes touch input, no
+  cppcrash; backgrounding mid-battle and resuming is also clean. 再来一局 on
+  a today-adventure result routes through HomePage by design, so it is the
+  same re-entry path).
+- **Receiver exception rule:** `CocosBridgeReceiver.onSceneMessage` calls
+  `done('ok')` BEFORE dispatching into app code. A throw before `done()` would
+  permanently hang the game thread (it blocks on an internal NAPI promise). A
+  throw after `done()` — if unguarded — leaves a pending NAPI exception on the
+  UI thread. The receiver wraps `dispatchSceneMessage` in try/catch and logs
+  via `hilog.error` tag `WMBridge` to prevent that silent corruption.
+- **Ready-latch replay on re-entry:** `battle/ready` fires exactly ONCE per
+  process lifetime (the engine never reloads). `CocosEngineHost.sceneReady`
+  latches true on first receipt. When `setSceneMessageHandler` is called on
+  a subsequent page entry and `sceneReady` is already true, the host
+  synchronously replays a synthetic `'{"v":1,"type":"battle/ready","payload":{}}'`
+  to the new handler so the page always gets a ready signal regardless of
+  whether it was present for the original event.
 
 ## Visual parity workflow (how the scene was matched to native)
 

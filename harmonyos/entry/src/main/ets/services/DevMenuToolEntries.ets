@@ -39,5 +39,11 @@ export function devMenuToolEntries(): DevMenuToolEntry[] {
       'pages/MessageBubbleLabPage',
       '#F4F0FF',
     ),
+    createToolEntry(
+      'DevMenuCocosLabButton',
+      'CocosLab',
+      'pages/CocosBattlePage',
+      '#FFF1E6',
+    ),
   ];
 }

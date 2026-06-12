@@ -3,7 +3,7 @@
 // state snapshots and reports user input (contract:
 // shared/contracts/cocos-battle-bridge/).
 
-import { _decorator, Component, game, ResolutionPolicy, sys, view } from 'cc';
+import { _decorator, Component, game, ResolutionPolicy, screen, sys, view } from 'cc';
 import { BridgeClient } from './bridge/BridgeClient';
 import {
     BattleAnimationPayload, BattleInitPayload, BattleQuestionPayload, BattleStatePayload,
@@ -23,6 +23,7 @@ import { SpellPool } from './ui/SpellPool';
 import { SpellViewState } from './ui/spellView';
 import { TopStatusBar } from './ui/TopStatusBar';
 import { layout, theme } from './ui/theme';
+import { resolvePolicyAndOffset } from './ui/resolutionPolicy';
 
 const { ccclass } = _decorator;
 
@@ -55,14 +56,23 @@ export class BattleSceneController extends Component {
     private currentQuestion: BattleQuestionPayload | null = null;
 
     onLoad() {
-        // Landscape battle: lock the 720 design height so wide phone aspect
-        // ratios letterbox horizontally instead of cropping the top status
-        // bar and answer row (default fitWidth crops vertically on ~2.17:1).
-        view.setDesignResolutionSize(layout.designWidth, layout.designHeight, ResolutionPolicy.FIXED_HEIGHT);
+        // Adaptive resolution policy: FIXED_HEIGHT on wide phones (aspect ≥ design
+        // aspect 2.174:1); FIXED_WIDTH on squarish tablets/pads (aspect < design,
+        // e.g. MatePad Air at 3:2 ≈ 1.52:1). FIXED_WIDTH keeps all content
+        // visible at the cost of extra vertical canvas; the 2× background already
+        // covers the extra area. Fighter cards at ±465 don't clip on FIXED_WIDTH
+        // because design width is always fully mapped to screen width.
+        const topBarOffset = this.applyResolutionPolicy();
+        // The window can resize while the scene lives (HarmonyOS freeform
+        // window maximised, surface re-created at a different size). The
+        // policy and top-bar offset were computed from the OLD size; without
+        // a recompute the bar overshoots / undershoots the visible top edge
+        // and the letterbox distribution looks lopsided.
+        screen.on('window-resize', this.onWindowResize, this);
 
         makeRoundedRect('PageBackground', this.node,
             layout.designWidth * 2, layout.designHeight * 2, 0, theme.page);
-        this.topStatus.build(this.node);
+        this.topStatus.build(this.node, topBarOffset);
         this.playerCard.build(this.node, {
             nodeName: 'PlayerCard', tintHex: theme.paleBlue, x: -layout.fighterCardX,
         });
@@ -93,6 +103,32 @@ export class BattleSceneController extends Component {
         if (!sys.isNative) {
             this.startPreviewMode();
         }
+    }
+
+    onDestroy() {
+        screen.off('window-resize', this.onWindowResize, this);
+    }
+
+    /// Read the CURRENT window size and (re-)apply design resolution policy.
+    /// Returns the top-bar offset so onLoad can pass it to the first build.
+    private applyResolutionPolicy(): number {
+        const winSize = screen.windowSize;
+        const resolved = resolvePolicyAndOffset(
+            winSize.width, winSize.height, layout.designWidth, layout.designHeight);
+        view.setDesignResolutionSize(
+            layout.designWidth, layout.designHeight,
+            resolved.policy === 'fixedHeight' ? ResolutionPolicy.FIXED_HEIGHT : ResolutionPolicy.FIXED_WIDTH,
+        );
+        return resolved.topOffsetY;
+    }
+
+    /// Surface size changed mid-scene (freeform window maximised / restored,
+    /// XComponent re-created at a new geometry): re-derive policy + top-bar
+    /// offset from the new window size so the layout stays centered and the
+    /// status bar hugs the new visible top edge.
+    private onWindowResize() {
+        const topBarOffset = this.applyResolutionPolicy();
+        this.topStatus.setTopOffset(topBarOffset);
     }
 
     /// Browsers stop requestAnimationFrame for hidden/occluded windows,
