@@ -12,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import cool.happyword.wordmagic.core.BuiltinPacks
+import cool.happyword.wordmagic.cocos.forceNativeBattle
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -28,6 +29,10 @@ class BattleLifecycleFlowTest {
 
     @Before
     fun clearLocalProgress() {
+        // Keep the native BattleScreen exercised regardless of the stored Cocos
+        // preference — CocosBattleActivity requires a real device with the Cocos
+        // native libs loaded and is not suitable for in-process Compose tests.
+        forceNativeBattle = true
         targetContext
             .getSharedPreferences("wordmagic-local-progress", Context.MODE_PRIVATE)
             .edit()
@@ -39,6 +44,7 @@ class BattleLifecycleFlowTest {
     fun cleanup() {
         scenario?.close()
         scenario = null
+        forceNativeBattle = false
         clearLocalProgress()
     }
 

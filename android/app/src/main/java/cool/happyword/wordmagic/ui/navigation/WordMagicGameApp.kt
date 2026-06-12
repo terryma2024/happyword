@@ -187,7 +187,9 @@ import com.journeyapps.barcodescanner.ScanOptions
 import cool.happyword.wordmagic.core.ActiveBattleSnapshot
 import cool.happyword.wordmagic.core.BattleServedQuestion
 import cool.happyword.wordmagic.ui.TodayPlanScreen
+import cool.happyword.wordmagic.cocos.BattleRoute
 import cool.happyword.wordmagic.cocos.CocosBattleActivity
+import cool.happyword.wordmagic.cocos.chooseBattleRoute
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
 import java.text.SimpleDateFormat
@@ -386,6 +388,11 @@ fun WordMagicGameApp() {
     val repositories = remember { AndroidLocalProgressRepositories(context.applicationContext) }
     val restoredBattleSnapshot = remember { repositories.loadActiveBattleSnapshot() }
     var route by rememberSaveable(stateSaver = AppRouteSaver) {
+        // Snapshot-restore intentionally bypasses the Cocos routing decision:
+        // an in-flight native battle session must be restored into the native
+        // BattleScreen that owns BattleState/BattleEngine.  Launching
+        // CocosBattleActivity here would drop the saved state and create a
+        // mismatched new session.  Snapshot-restore always stays native.
         mutableStateOf(if (restoredBattleSnapshot != null) AppRoute.Battle else AppRoute.Home)
     }
     val parentPinRepository = remember { AndroidParentPinRepository(context.applicationContext) }
@@ -851,7 +858,15 @@ fun WordMagicGameApp() {
         battleState = initial
         rememberServedQuestion(initial.question)
         recordMonsterEncounter(initial.monsterCatalogIndex)
-        route = AppRoute.Battle
+        // Route decision: Cocos or native BattleScreen.
+        // chooseBattleRoute reads the user preference, process-scoped
+        // fallbackActive flag, and forceNativeBattle (instrumentation).
+        when (chooseBattleRoute(context)) {
+            BattleRoute.COCOS -> context.startActivity(
+                Intent(context, CocosBattleActivity::class.java),
+            )
+            BattleRoute.NATIVE -> route = AppRoute.Battle
+        }
         return true
     }
 
@@ -989,7 +1004,15 @@ fun WordMagicGameApp() {
                         battleState = initial
                         rememberServedQuestion(initial.question)
                         recordMonsterEncounter(initial.monsterCatalogIndex)
-                        route = AppRoute.Battle
+                        // Route decision: Cocos or native BattleScreen.
+                        // chooseBattleRoute reads the user preference, process-scoped
+                        // fallbackActive flag, and forceNativeBattle (instrumentation).
+                        when (chooseBattleRoute(context)) {
+                            BattleRoute.COCOS -> context.startActivity(
+                                Intent(context, CocosBattleActivity::class.java),
+                            )
+                            BattleRoute.NATIVE -> route = AppRoute.Battle
+                        }
                     },
                     onReview = ::startReviewBattle,
                     onPackManager = { route = AppRoute.PackManager },
