@@ -2,6 +2,7 @@ package cool.happyword.wordmagic.ui.navigation
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
@@ -186,6 +187,7 @@ import com.journeyapps.barcodescanner.ScanOptions
 import cool.happyword.wordmagic.core.ActiveBattleSnapshot
 import cool.happyword.wordmagic.core.BattleServedQuestion
 import cool.happyword.wordmagic.ui.TodayPlanScreen
+import cool.happyword.wordmagic.cocos.CocosBattleActivity
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
 import java.text.SimpleDateFormat
@@ -1525,6 +1527,11 @@ fun WordMagicGameApp() {
                     onDomainSwitch = { route = AppRoute.DomainSwitch },
                     onAudioLab = { route = AppRoute.PcmAudioLab },
                     onMessageBubbleLab = { route = AppRoute.MessageBubbleLab },
+                    onCocosLab = {
+                        context.startActivity(
+                            Intent(context, CocosBattleActivity::class.java)
+                        )
+                    },
                     onBack = { route = AppRoute.Home },
                 )
                 AppRoute.DomainSwitch -> DomainSwitchScreen(
@@ -1565,6 +1572,14 @@ fun WordMagicGameApp() {
                 AppRoute.MessageBubbleLab -> MessageBubbleLabScreen(
                     onBack = { route = AppRoute.DevMenu },
                 )
+                // CocosLab launches CocosBattleActivity directly (Task 0.2 dev entry).
+                // No Compose screen needed — the back-stack goes Activity → this route
+                // which means the user never sees a Compose content for CocosLab;
+                // we navigate back to DevMenu immediately so the host Activity's
+                // Compose tree doesn't get stuck on a dead-end route.
+                AppRoute.CocosLab -> {
+                    route = AppRoute.DevMenu
+                }
             }
             if (!privacyConsentAccepted) {
                 PrivacyConsentDialog(

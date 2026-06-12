@@ -22,4 +22,5 @@ internal enum class AppRoute {
     DomainSwitch,
     PcmAudioLab,
     MessageBubbleLab,
+    CocosLab,
 }
