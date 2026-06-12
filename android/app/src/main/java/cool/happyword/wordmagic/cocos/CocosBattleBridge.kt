@@ -372,7 +372,10 @@ class CocosBattleBridge(
         holdActive = true
         schedule(COCOS_FEEDBACK_HOLD_MS) {
             holdActive = false
-            if (disposed) return@schedule
+            // finishNotified guard: an escape racing the hold settles the
+            // battle immediately — the held closure must not emit a
+            // post-finish question to the (already dismissed) scene.
+            if (disposed || finishNotified) return@schedule
             sendQuestion()
             maybeSendBossIntro()
             autoSpeakCurrent()
@@ -596,12 +599,16 @@ class CocosBattleBridge(
     // ── Scheduling ───────────────────────────────────────────────────────────
 
     private fun schedule(delayMs: Long, fn: () -> Unit) {
-        val box = arrayOfNulls<Cancellable>(1)
-        val handle = scheduler(delayMs) {
-            box[0]?.let(pendingDelays::remove)
+        // Captured `var` self-reference: the closure deregisters its own
+        // handle before running. `handle` is assigned right after scheduler()
+        // returns — before any asynchronous invocation of the closure. (A
+        // synchronous zero-delay scheduler would see null and simply skip the
+        // deregistration, which is harmless.)
+        var handle: Cancellable? = null
+        handle = scheduler(delayMs) {
+            handle?.let(pendingDelays::remove)
             fn()
         }
-        box[0] = handle
         pendingDelays.add(handle)
     }
 }
