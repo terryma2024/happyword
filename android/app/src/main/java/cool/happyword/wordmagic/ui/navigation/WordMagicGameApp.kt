@@ -738,6 +738,47 @@ fun WordMagicGameApp() {
         }
     }
 
+    /**
+     * Per-answer side effects shared by BOTH battle frontends: the native
+     * BattleScreen onAnswer lambda and the Cocos bridge's onAnswerOutcome
+     * hook (CocosBattleSessionInputs.onAnswerOutcome). One function so the
+     * two paths cannot drift: learning-record save, review-day mark, monster
+     * encounter/defeat progress, and served-question bookkeeping.
+     *
+     * [preState] is the state the answer was submitted AGAINST —
+     * recordMonsterDefeat must use the pre-answer monsterCatalogIndex.
+     * Runs on the main thread in both paths.
+     */
+    fun applyAnswerSideEffects(preState: BattleState, outcome: BattleAnswerOutcome) {
+        recordMonsterEncounter(preState.monsterCatalogIndex)
+        val sourcePack = packLibrary.allPacks().firstOrNull { pack ->
+            pack.words.any { it.id == outcome.question.wordId }
+        }
+        val answeredWord = sourcePack?.words?.firstOrNull { it.id == outcome.question.wordId }
+        if (answeredWord != null) {
+            learningRecorder.recordAnswer(
+                packId = sourcePack?.id ?: selectedPack.id,
+                wordId = answeredWord.id,
+                correct = outcome.correct,
+                answeredAtMs = System.currentTimeMillis(),
+            )
+            repositories.saveLearningRecorder(learningRecorder)
+            if (battleIsReview && battleDailyDayKey == dailyLearningState.dayKey) {
+                saveDailyLearningState(dailyLearningService.markReviewedWords(dailyLearningState, listOf(answeredWord.id)))
+            }
+        }
+        val next = outcome.nextState
+        if (outcome.monsterDefeated) {
+            recordMonsterDefeat(preState.monsterCatalogIndex)
+        }
+        if (next.status == BattleStatus.Playing) {
+            recordMonsterEncounter(next.monsterCatalogIndex)
+        }
+        if (next.status == BattleStatus.Playing) {
+            rememberServedQuestion(next.question)
+        }
+    }
+
     fun saveActiveBattleSnapshotIfNeeded() {
         val state = battleState ?: return
         if (route != AppRoute.Battle || state.status != BattleStatus.Playing) return
@@ -869,8 +910,10 @@ fun WordMagicGameApp() {
                 // Hand the session the route site just built to the activity
                 // (same engine instance — settlement parity; see
                 // CocosBattleSessionHolder KDoc for the handoff contract).
+                // onAnswerOutcome carries the SAME per-answer side effects
+                // the native BattleScreen onAnswer runs.
                 CocosBattleSessionHolder.publishInputs(
-                    CocosBattleSessionInputs(engine, initial, sessionConfig),
+                    CocosBattleSessionInputs(engine, initial, sessionConfig, ::applyAnswerSideEffects),
                 )
                 context.startActivity(Intent(context, CocosBattleActivity::class.java))
             }
@@ -906,8 +949,10 @@ fun WordMagicGameApp() {
         val battleRoute = if (forceCocos) BattleRoute.COCOS else chooseBattleRoute(context)
         when (battleRoute) {
             BattleRoute.COCOS -> {
+                // onAnswerOutcome carries the SAME per-answer side effects
+                // the native BattleScreen onAnswer runs.
                 CocosBattleSessionHolder.publishInputs(
-                    CocosBattleSessionInputs(engine, initial, sessionConfig),
+                    CocosBattleSessionInputs(engine, initial, sessionConfig, ::applyAnswerSideEffects),
                 )
                 context.startActivity(Intent(context, CocosBattleActivity::class.java))
             }
@@ -1093,35 +1138,11 @@ fun WordMagicGameApp() {
                     },
                     onAnswer = { answer ->
                         val currentBattleState = battleState ?: engine.initialState()
-                        recordMonsterEncounter(currentBattleState.monsterCatalogIndex)
                         val outcome = engine.submitAnswerWithOutcome(currentBattleState, answer)
-                        val sourcePack = packLibrary.allPacks().firstOrNull { pack ->
-                            pack.words.any { it.id == outcome.question.wordId }
-                        }
-                        val answeredWord = sourcePack?.words?.firstOrNull { it.id == outcome.question.wordId }
-                        if (answeredWord != null) {
-                            learningRecorder.recordAnswer(
-                                packId = sourcePack?.id ?: selectedPack.id,
-                                wordId = answeredWord.id,
-                                correct = outcome.correct,
-                                answeredAtMs = System.currentTimeMillis(),
-                            )
-                            repositories.saveLearningRecorder(learningRecorder)
-                            if (battleIsReview && battleDailyDayKey == dailyLearningState.dayKey) {
-                                saveDailyLearningState(dailyLearningService.markReviewedWords(dailyLearningState, listOf(answeredWord.id)))
-                            }
-                        }
-                        val next = outcome.nextState
-                        battleState = next
-                        if (outcome.monsterDefeated) {
-                            recordMonsterDefeat(currentBattleState.monsterCatalogIndex)
-                        }
-                        if (next.status == BattleStatus.Playing) {
-                            recordMonsterEncounter(next.monsterCatalogIndex)
-                        }
-                        if (next.status == BattleStatus.Playing) {
-                            rememberServedQuestion(next.question)
-                        }
+                        battleState = outcome.nextState
+                        // Shared per-answer side effects (also runs for Cocos
+                        // battles via CocosBattleSessionInputs.onAnswerOutcome).
+                        applyAnswerSideEffects(currentBattleState, outcome)
                         outcome
                     },
                     onBattleFinished = ::finishBattleSession,

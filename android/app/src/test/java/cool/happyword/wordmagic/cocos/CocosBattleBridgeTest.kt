@@ -1,8 +1,10 @@
 package cool.happyword.wordmagic.cocos
 
+import cool.happyword.wordmagic.core.BattleAnswerOutcome
 import cool.happyword.wordmagic.core.BattleEngine
 import cool.happyword.wordmagic.core.BattleQuestionTypePolicy
 import cool.happyword.wordmagic.core.BattleState
+import cool.happyword.wordmagic.core.BattleStatus
 import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.MonsterCatalog
 import cool.happyword.wordmagic.core.QuestionKind
@@ -80,6 +82,7 @@ class CocosBattleBridgeTest {
         val sfx = mutableListOf<CocosBattleSfx>()
         val spoken = mutableListOf<String>()
         val autoSpoken = mutableListOf<String>()
+        val answerOutcomes = mutableListOf<Pair<BattleState, BattleAnswerOutcome>>()
         var readyCount = 0
 
         fun asCallbacks(): CocosBattleBridgeCallbacks = CocosBattleBridgeCallbacks(
@@ -88,6 +91,7 @@ class CocosBattleBridgeTest {
             speakWord = { spoken.add(it) },
             autoSpeakWord = { word, _ -> autoSpoken.add(word) },
             onReady = { readyCount += 1 },
+            onAnswerOutcome = { preState, outcome -> answerOutcomes.add(preState to outcome) },
         )
     }
 
@@ -603,6 +607,138 @@ class CocosBattleBridgeTest {
         assertEquals(0, h.totalAnswers())
         assertEquals(0, h.transport.sent.size)
         assertEquals(0, h.callbacks.spoken.size)
+        assertEquals(0, h.callbacks.finishResults.size)
+    }
+
+    // ── onAnswerOutcome (per-answer side-effects hook) ───────────────────────
+
+    @Test
+    fun answerOutcomeFiresOncePerAcceptedSubmitWithPreSubmitState() {
+        val h = makeHarness(5, 5, 10)
+        h.injectReady()
+        val preState = h.state
+
+        h.injectCorrect()
+
+        assertEquals(1, h.callbacks.answerOutcomes.size)
+        val (pre, outcome) = h.callbacks.answerOutcomes[0]
+        // The hook receives the PRE-submit state (recordMonsterDefeat needs
+        // the pre-answer monsterCatalogIndex) and the engine outcome.
+        assertEquals(preState, pre)
+        assertTrue(outcome.correct)
+        assertEquals(h.state, outcome.nextState)
+
+        // Next accepted submit fires it again — exactly once each.
+        h.scheduler.runAll()
+        h.injectCorrect()
+        assertEquals(2, h.callbacks.answerOutcomes.size)
+    }
+
+    @Test
+    fun answerOutcomeNotFiredForDuplicateSubmitDuringFeedbackHold() {
+        val h = makeHarness(5, 5, 10)
+        h.injectReady()
+
+        h.injectCorrect()
+        // Second tap racing the 650 ms hold — dropped before the engine call,
+        // so no side-effects hook either.
+        h.injectSubmit(h.state.question.correctAnswer)
+
+        assertEquals(1, h.totalAnswers())
+        assertEquals(1, h.callbacks.answerOutcomes.size)
+    }
+
+    @Test
+    fun answerOutcomeNotFiredAfterDispose() {
+        val h = makeHarness(5, 5, 10)
+        h.injectReady()
+        h.bridge.dispose()
+
+        h.injectSubmit(h.state.question.correctAnswer)
+
+        assertEquals(0, h.callbacks.answerOutcomes.size)
+    }
+
+    @Test
+    fun answerOutcomeNotFiredForSubmitsAfterBattleEnd() {
+        val h = makeHarness(1, 1, 10)
+        h.injectReady()
+
+        h.injectCorrect() // final blow — battle Won
+        assertEquals(1, h.callbacks.answerOutcomes.size)
+
+        // Racing the finish hold and after it: status != Playing drops both.
+        h.injectSubmit(h.state.question.correctAnswer)
+        h.scheduler.runAll()
+        h.injectSubmit(h.state.question.correctAnswer)
+        assertEquals(1, h.callbacks.answerOutcomes.size)
+    }
+
+    @Test
+    fun answerOutcomeNotFiredForSpellWrongTap() {
+        val h = makeHarness(2, 5, 10)
+        h.injectReady()
+
+        h.transport.inject("""{"v":1,"type":"battle/spellWrongTap","payload":{}}""")
+
+        // Native BattleScreen parity: onSpellWrongTap records no learning.
+        assertEquals(9, h.state.playerHp)
+        assertEquals(0, h.callbacks.answerOutcomes.size)
+    }
+
+    @Test
+    fun answerOutcomeFiresForMediumStepAdvance() {
+        // Native parity: the BattleScreen onAnswer lambda runs (and records
+        // learning) for fill-letter-medium step advances too.
+        val h = Harness(
+            monstersTotal = 5,
+            monsterMaxHp = 99,
+            playerMaxHp = 10,
+            enabledTypes = listOf(BattleQuestionTypePolicy.FILL_LETTER_MEDIUM),
+            words = Harness.mediumWords,
+            randomDouble = { 0.999 },
+        )
+        h.injectReady()
+        assertEquals(QuestionKind.FillLetterMedium, h.state.question.kind)
+        val firstAnswer = h.state.question.letterAnswers[0]
+
+        h.injectSubmit(firstAnswer)
+
+        assertEquals(1, h.callbacks.answerOutcomes.size)
+        assertTrue(h.callbacks.answerOutcomes[0].second.advancedStep)
+    }
+
+    // ── requestEscape (system back on CocosBattleActivity) ───────────────────
+
+    @Test
+    fun requestEscapeSettlesLostLikeSceneEscape() {
+        val h = makeHarness(2, 5, 10)
+        h.injectReady()
+        h.transport.clear()
+
+        h.bridge.requestEscape()
+
+        // Same contract as battle/escape: no scene traffic, no delay,
+        // immediate Lost settlement handed to the host.
+        assertEquals(0, h.transport.sent.size)
+        assertEquals(0, h.scheduler.calls.size)
+        assertEquals(1, h.callbacks.finishResults.size)
+        assertFalse(h.callbacks.finishResults[0].won)
+        assertEquals(BattleStatus.Lost, h.state.status)
+
+        // A second back press cannot finish twice.
+        h.bridge.requestEscape()
+        assertEquals(1, h.callbacks.finishResults.size)
+    }
+
+    @Test
+    fun requestEscapeAfterDisposeIsIgnored() {
+        val h = makeHarness(2, 5, 10)
+        h.injectReady()
+        h.bridge.dispose()
+
+        h.bridge.requestEscape()
+
         assertEquals(0, h.callbacks.finishResults.size)
     }
 

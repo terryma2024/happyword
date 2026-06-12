@@ -1,5 +1,6 @@
 package cool.happyword.wordmagic.cocos
 
+import cool.happyword.wordmagic.core.BattleAnswerOutcome
 import cool.happyword.wordmagic.core.BattleEngine
 import cool.happyword.wordmagic.core.BattleState
 import cool.happyword.wordmagic.core.GameConfig
@@ -41,6 +42,15 @@ data class CocosBattleSessionInputs(
     val engine: BattleEngine,
     val initialState: BattleState,
     val config: GameConfig,
+    /**
+     * Per-answer side effects (learning record, review mark, monster
+     * progress) — the route site captures the SAME body the native
+     * BattleScreen onAnswer runs (WordMagicGameApp.applyAnswerSideEffects),
+     * and the activity wires it into
+     * [CocosBattleBridgeCallbacks.onAnswerOutcome]. Invoked on the main
+     * thread once per accepted submit with the PRE-submit state.
+     */
+    val onAnswerOutcome: (preState: BattleState, outcome: BattleAnswerOutcome) -> Unit = { _, _ -> },
 )
 
 /** What happened in the Cocos battle, for the Compose side to settle. */

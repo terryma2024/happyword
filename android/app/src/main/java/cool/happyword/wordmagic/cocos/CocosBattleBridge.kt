@@ -121,6 +121,18 @@ enum class CocosBattleSfx {
  *   onReady                 → fired on EVERY battle/ready; the host uses the
  *                             first invocation to cancel its ready-timeout
  *                             fallback and start the countdown timer
+ *   onAnswerOutcome(pre, o) → fired exactly once per submit the engine
+ *                             actually processed (including fill-letter-medium
+ *                             step advances — the native BattleScreen onAnswer
+ *                             runs for those too). The host runs the native
+ *                             per-answer side effects here: learning-record
+ *                             save, review-mark, monster encounter/defeat
+ *                             progress. `pre` is the PRE-submit state —
+ *                             recordMonsterDefeat needs the pre-answer
+ *                             monsterCatalogIndex. NOT fired for duplicate
+ *                             taps dropped during the feedback hold, after
+ *                             finish/dispose, or for spellWrongTap (the
+ *                             native screen records no learning there).
  */
 data class CocosBattleBridgeCallbacks(
     val onFinish: (SessionResult) -> Unit,
@@ -128,6 +140,7 @@ data class CocosBattleBridgeCallbacks(
     val speakWord: (String) -> Unit,
     val autoSpeakWord: (word: String, kind: QuestionKind) -> Unit,
     val onReady: () -> Unit = {},
+    val onAnswerOutcome: (preState: BattleState, outcome: BattleAnswerOutcome) -> Unit = { _, _ -> },
 )
 
 /**
@@ -343,10 +356,16 @@ class CocosBattleBridge(
             return
         }
         if (currentState.status != BattleStatus.Playing) return
-        val answeredQuestion = currentState.question
+        val preState = currentState
+        val answeredQuestion = preState.question
 
-        val outcome = engine.submitAnswerWithOutcome(currentState, option)
+        val outcome = engine.submitAnswerWithOutcome(preState, option)
         currentState = outcome.nextState
+        // Per-answer side effects (learning record / review mark / monster
+        // progress) — once per accepted submit, with the PRE-submit state.
+        // The guards above already exclude hold-dropped duplicates and
+        // post-finish submits; dispose is guarded in handleSceneMessage.
+        callbacks.onAnswerOutcome(preState, outcome)
 
         if (outcome.advancedStep) {
             // fill-letter-medium step advance: no damage, no animation —
@@ -408,6 +427,17 @@ class CocosBattleBridge(
         if (word.isNotEmpty()) {
             callbacks.speakWord(word)
         }
+    }
+
+    /**
+     * Host-initiated escape — the system back press on CocosBattleActivity
+     * routes here so it takes the SAME path as the scene's battle/escape
+     * (settle Lost + onFinish immediately) instead of silently abandoning
+     * the battle. No-op after dispose or once the finish already fired.
+     */
+    fun requestEscape() {
+        if (disposed) return
+        handleEscape()
     }
 
     /**

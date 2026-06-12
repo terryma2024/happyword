@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.KeyEvent
 import com.cocos.lib.CocosActivity
 import com.cocos.lib.JsbBridgeWrapper
 import cool.happyword.wordmagic.R
@@ -146,6 +147,11 @@ class CocosBattleActivity : CocosActivity() {
                     }
                 },
                 onReady = { onSceneReady() },
+                // Per-answer side effects — the route site captured the SAME
+                // body the native BattleScreen onAnswer runs (learning record,
+                // review mark, monster progress). Bridge invokes on the main
+                // thread (JsbTransport hops before the handler).
+                onAnswerOutcome = inputs.onAnswerOutcome,
             ),
             scheduler = { delayMs, fn ->
                 val runnable = Runnable(fn)
@@ -202,6 +208,53 @@ class CocosBattleActivity : CocosActivity() {
         outcomePosted = true
         CocosBattleSessionHolder.postOutcome(outcome)
         finish()
+    }
+
+    // ── System back = battle escape ──────────────────────────────────────────
+    //
+    // Without this, back press would finish() the activity with NO outcome
+    // posted — the battle silently abandoned (no Lost settlement, no Result
+    // screen). Route it through the bridge's escape path instead, the same
+    // path the scene's battle/escape takes: settle Lost + onFinish →
+    // postOutcomeAndFinish(Finished) → the Compose side runs the full native
+    // settlement and lands on Result.
+    //
+    // CocosActivity extends android.app.Activity (GameActivity), so there is
+    // no OnBackPressedDispatcher. KEYCODE_BACK is intercepted in onKeyUp /
+    // onKeyDown BEFORE GameActivity forwards key events to the native engine
+    // (onKeyDownNative could consume them and onBackPressed would never run);
+    // onBackPressed stays overridden as a defensive fallback for any back
+    // dispatch that does not arrive as a key event.
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            return true // swallow; the escape fires on key-up
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            escapeFromBackPress()
+            return true
+        }
+        return super.onKeyUp(keyCode, event)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        escapeFromBackPress()
+    }
+
+    private fun escapeFromBackPress() {
+        Log.i(tag, "system back — escaping battle (Lost settlement)")
+        bridge?.requestEscape()
+        // requestEscape → onFinish → postOutcomeAndFinish normally finishes
+        // the activity. If the bridge is gone / already settled (no outcome
+        // posted by this press), still honor the back press and leave.
+        if (!outcomePosted && !isFinishing) {
+            finish()
+        }
     }
 
     override fun onResume() {
