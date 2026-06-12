@@ -189,6 +189,9 @@ import cool.happyword.wordmagic.core.BattleServedQuestion
 import cool.happyword.wordmagic.ui.TodayPlanScreen
 import cool.happyword.wordmagic.cocos.BattleRoute
 import cool.happyword.wordmagic.cocos.CocosBattleActivity
+import cool.happyword.wordmagic.cocos.CocosBattleOutcome
+import cool.happyword.wordmagic.cocos.CocosBattleSessionHolder
+import cool.happyword.wordmagic.cocos.CocosBattleSessionInputs
 import cool.happyword.wordmagic.cocos.chooseBattleRoute
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
@@ -862,12 +865,54 @@ fun WordMagicGameApp() {
         // chooseBattleRoute reads the user preference, process-scoped
         // fallbackActive flag, and forceNativeBattle (instrumentation).
         when (chooseBattleRoute(context)) {
-            BattleRoute.COCOS -> context.startActivity(
-                Intent(context, CocosBattleActivity::class.java),
-            )
+            BattleRoute.COCOS -> {
+                // Hand the session the route site just built to the activity
+                // (same engine instance — settlement parity; see
+                // CocosBattleSessionHolder KDoc for the handoff contract).
+                CocosBattleSessionHolder.publishInputs(
+                    CocosBattleSessionInputs(engine, initial, sessionConfig),
+                )
+                context.startActivity(Intent(context, CocosBattleActivity::class.java))
+            }
             BattleRoute.NATIVE -> route = AppRoute.Battle
         }
         return true
+    }
+
+    /**
+     * Home-start battle construction (identical to the pre-Cocos onStart
+     * body). Extracted so the DevMenu CocosLab entry can launch a REAL
+     * battle session through the same code path (`forceCocos = true`
+     * bypasses only the route decision, not the construction).
+     */
+    fun startPackBattle(forceCocos: Boolean = false) {
+        ensureDailyStateForNow()
+        val sessionConfig = config.copy(timerSeconds = DEFAULT_BATTLE_TIMER_SECONDS)
+        battleIsReview = false
+        battleDailyDayKey = dailyLearningState.dayKey
+        battleConfig = sessionConfig
+        battleTargetWordIds = selectedPack.words.map { it.id }
+        battleServedQuestionKeys = emptyList()
+        battleRunId += 1
+        battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
+        engine = BattleEngine(config = sessionConfig, words = selectedPack.words)
+        val initial = engine.initialState()
+        battleState = initial
+        rememberServedQuestion(initial.question)
+        recordMonsterEncounter(initial.monsterCatalogIndex)
+        // Route decision: Cocos or native BattleScreen.
+        // chooseBattleRoute reads the user preference, process-scoped
+        // fallbackActive flag, and forceNativeBattle (instrumentation).
+        val battleRoute = if (forceCocos) BattleRoute.COCOS else chooseBattleRoute(context)
+        when (battleRoute) {
+            BattleRoute.COCOS -> {
+                CocosBattleSessionHolder.publishInputs(
+                    CocosBattleSessionInputs(engine, initial, sessionConfig),
+                )
+                context.startActivity(Intent(context, CocosBattleActivity::class.java))
+            }
+            BattleRoute.NATIVE -> route = AppRoute.Battle
+        }
     }
 
     ApplyOrientation(route)
@@ -896,6 +941,39 @@ fun WordMagicGameApp() {
         val state = battleState
         if (route == AppRoute.Battle && state?.status == BattleStatus.Playing) {
             recordMonsterEncounter(state.monsterCatalogIndex)
+        }
+    }
+    // Cocos battle handoff: CocosBattleActivity posts its outcome and
+    // finishes; this host resumes and settles it (Task 1.4). Finished runs
+    // the full native settlement (finishBattleSession); TimedOut mirrors the
+    // native countdown-timeout path (minimal settlement, no coin credit);
+    // Fallback re-routes the SAME session into the native BattleScreen
+    // (fallbackActive is already latched by the activity, so chooseBattleRoute
+    // keeps every later battle native this process).
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                when (val outcome = CocosBattleSessionHolder.consumeOutcome()) {
+                    is CocosBattleOutcome.Finished -> {
+                        battleState = outcome.finalState
+                        finishBattleSession(outcome.finalState)
+                    }
+                    is CocosBattleOutcome.TimedOut -> {
+                        battleState = outcome.finalState
+                        repositories.clearActiveBattleSnapshot()
+                        result = engine.resultFor(outcome.finalState)
+                        route = AppRoute.Result
+                    }
+                    CocosBattleOutcome.Fallback -> {
+                        route = AppRoute.Battle
+                    }
+                    null -> Unit
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
     DisposableEffect(lifecycleOwner, route) {
@@ -989,31 +1067,7 @@ fun WordMagicGameApp() {
                     onBoundChild = {
                         route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo
                     },
-                    onStart = {
-                        ensureDailyStateForNow()
-                        val sessionConfig = config.copy(timerSeconds = DEFAULT_BATTLE_TIMER_SECONDS)
-                        battleIsReview = false
-                        battleDailyDayKey = dailyLearningState.dayKey
-                        battleConfig = sessionConfig
-                        battleTargetWordIds = selectedPack.words.map { it.id }
-                        battleServedQuestionKeys = emptyList()
-                        battleRunId += 1
-                        battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
-                        engine = BattleEngine(config = sessionConfig, words = selectedPack.words)
-                        val initial = engine.initialState()
-                        battleState = initial
-                        rememberServedQuestion(initial.question)
-                        recordMonsterEncounter(initial.monsterCatalogIndex)
-                        // Route decision: Cocos or native BattleScreen.
-                        // chooseBattleRoute reads the user preference, process-scoped
-                        // fallbackActive flag, and forceNativeBattle (instrumentation).
-                        when (chooseBattleRoute(context)) {
-                            BattleRoute.COCOS -> context.startActivity(
-                                Intent(context, CocosBattleActivity::class.java),
-                            )
-                            BattleRoute.NATIVE -> route = AppRoute.Battle
-                        }
-                    },
+                    onStart = { startPackBattle() },
                     onReview = ::startReviewBattle,
                     onPackManager = { route = AppRoute.PackManager },
                     onWishlist = { route = AppRoute.Wishlist },
@@ -1550,11 +1604,10 @@ fun WordMagicGameApp() {
                     onDomainSwitch = { route = AppRoute.DomainSwitch },
                     onAudioLab = { route = AppRoute.PcmAudioLab },
                     onMessageBubbleLab = { route = AppRoute.MessageBubbleLab },
-                    onCocosLab = {
-                        context.startActivity(
-                            Intent(context, CocosBattleActivity::class.java)
-                        )
-                    },
+                    // CocosLab launches a REAL battle session forced through the
+                    // Cocos route (HOS DevMenu parity) — the activity requires
+                    // published session inputs since Task 1.4.
+                    onCocosLab = { startPackBattle(forceCocos = true) },
                     onBack = { route = AppRoute.Home },
                 )
                 AppRoute.DomainSwitch -> DomainSwitchScreen(

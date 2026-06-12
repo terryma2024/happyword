@@ -102,6 +102,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.caverock.androidsvg.SVG
 import cool.happyword.wordmagic.app.BuildGate
+import cool.happyword.wordmagic.cocos.cocosBattlePrefEnabledFromRaw
+import cool.happyword.wordmagic.cocos.loadCocosScenePrefRaw
+import cool.happyword.wordmagic.cocos.saveCocosScenePref
 import cool.happyword.wordmagic.app.BuildInfo
 import cool.happyword.wordmagic.core.BattleSessionRecord
 import cool.happyword.wordmagic.core.BattleAnswerOutcome
@@ -574,6 +577,29 @@ internal fun ConfigScreen(
                     checked = config.actionSfx,
                     testTag = "ConfigActionSfxSwitch",
                     onCheckedChange = { onConfigChange(config.copy(actionSfx = it)) },
+                )
+            }
+            // V1.1.0 (Task 1.4): 战斗画面 group — single Cocos battle-scene
+            // switch (HOS ConfigPage parity). Backed by CocosBattlePreference
+            // (SharedPreferences, default ON), not GameConfig: the route
+            // decision reads it directly at every battle start. Always
+            // visible on Android — libcocos.so is always linked; a runtime
+            // fallback only affects routing, not this toggle.
+            ConfigSwitchGroupRow(label = "战斗画面", optionCount = 1) {
+                val cocosSwitchContext = LocalContext.current
+                var cocosBattleEnabled by remember {
+                    mutableStateOf(
+                        cocosBattlePrefEnabledFromRaw(loadCocosScenePrefRaw(cocosSwitchContext)),
+                    )
+                }
+                ConfigSwitchOption(
+                    label = "Cocos 战斗场景",
+                    checked = cocosBattleEnabled,
+                    testTag = "ConfigCocosBattleSwitch",
+                    onCheckedChange = { enabled ->
+                        cocosBattleEnabled = enabled
+                        saveCocosScenePref(cocosSwitchContext, enabled)
+                    },
                 )
             }
             ConfigSwitchGroupRow(label = "题型选择", optionCount = ordered.size) {
