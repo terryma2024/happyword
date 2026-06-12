@@ -6,6 +6,11 @@
 
 **路线图（里程碑与后续方向）：** [`docs/WordMagicGame_roadmap.md`](docs/WordMagicGame_roadmap.md)
 
+## Download
+
+- iOS: [App Store 下载](https://apps.apple.com/cn/app/%E9%AD%94%E6%B3%95%E8%83%8C%E5%8D%95%E8%AF%8D/id6768499286)
+- HarmonyOS: [华为应用市场下载](https://appgallery.huawei.com/app/detail?id=com.terryma.wordmagicgame)
+
 ## Screenshots
 
 Clients ship separate binaries; screenshots are grouped **by platform** under [`assets/screenshots/`](assets/screenshots/).
