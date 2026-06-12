@@ -371,6 +371,99 @@ CocosLab or just start a battle with the Config switch ON.
   to the new handler so the page always gets a ready signal regardless of
   whether it was present for the original event.
 
+## Android embed (AND Tasks 0.1–0.3 — keep updated)
+
+The Android app (`android/app`) embeds the engine compiled from source.
+Build chain: `tools/cocos/build-android.sh` (headless Creator export of
+scene data + the generated android proj into `cocos/build/android/`) →
+Gradle `externalNativeBuild` pointing at the thin adapter
+`android/app/src/main/cpp/cocos/CMakeLists.txt`, which derives RES_DIR /
+COMMON_DIR from its own location and includes the Cocos common CMake chain
+(engine C++ comes from the installed Creator 3.8.8 app bundle; libcocos.so
+is built by Gradle, not by Creator). Engine Java glue is vendored at
+`android/app/src/main/java/com/cocos/lib/` (script-only vendor — never
+hand-edit).
+
+Verified on the arm64 emulator `emulator-5556` (Pixel 9, API 36). Spike
+route (debug builds export the activity):
+`adb -s emulator-5556 shell am start -n cool.happyword.wordmagic/.cocos.CocosBattleActivity`.
+
+### Activity hosting
+
+`cool.happyword.wordmagic.cocos.CocosBattleActivity` extends the engine's
+`CocosActivity` (a `GameActivity` subclass). Each `onCreate` loads the
+native lib (idempotent) and calls `onCreateNative`; each `onDestroy` tears
+the surface/views down. Unlike HarmonyOS there is NO once-per-process boot
+guard and none is needed — see the re-entry verdict below.
+
+### Bridge mechanism (Task 0.3, locked)
+
+On Android `native.jsbBridgeWrapper` EXISTS, so the scene picks the
+`JsbWrapperTransport` (same transport family as iOS): it listens on event
+`wmBattleToScript`, sends on `wmBattleToNative`, envelope `{v:1, type,
+payload}` unchanged.
+
+**Kotlin → scene:** `JsbBridgeWrapper.getInstance()
+.dispatchEventToScript("wmBattleToScript", json)`. The engine's
+`Java_com_cocos_lib_JsbBridge_nativeSendToScript` marshals onto the game
+thread via `performFunctionInCocosThread`, so calling from the main thread
+is safe. Two gotchas (both verified on the emulator):
+- The native side dereferences `ScriptNativeBridge::bridgeCxxInstance`
+  without a null check, and events with no JS listener are dropped — a
+  message dispatched before the scene's `BridgeClient` registers is
+  **silently lost** (no crash, no pong; first boot took ~7.5 s on the
+  emulator and a 4 s blind delay lost the probe). Only send after the
+  scene's organic `battle/ready`; the real adapter must queue outbound
+  messages until then.
+- `JsbBridgeWrapper` is a **process-level singleton**: listeners survive
+  activity recreation, and `addScriptEventListener` does NOT de-duplicate
+  despite its javadoc. Remove your listener in `onDestroy` or each
+  re-entry stacks another copy.
+
+**Scene → Kotlin:** `JsbBridgeWrapper.addScriptEventListener
+("wmBattleToNative") { json -> ... }`. Callbacks arrive on the **Cocos
+game thread** (an unnamed pthread — logged as `Thread-2`, and a new
+`Thread-N` after every activity recreation). Hop to the main thread before
+touching UI/state.
+
+Round-trip measured at ~10 ms on the emulator (ping 23:40:00.302 → pong
+.305 logged on the game thread). `battle/init` applies as a full scene
+reset (probe: playerMaxHp 7 → HP 7/7 rendered, startingSeconds 300 →
+Countdown 5:00). The Task 0.3 probe lives in `CocosBattleActivity` behind
+`// Task 0.3 bridge probe` markers and is replaced by the real adapter in
+Task 1.x.
+
+### Re-entry + backgrounding verdict (Task 0.3, emulator-verified)
+
+- **Back → relaunch (×3): clean, no guard needed.** The process survives
+  back (activity finishes, pid stays). Each `am start` creates a new
+  `CocosActivity`, and the engine performs a **full JS reload per activity
+  entry**: a fresh game thread spins up and the scene emits a fresh organic
+  `battle/ready` every time (unlike HarmonyOS, where the engine boots once
+  per process and ready must be latch-replayed). Verified 3 consecutive
+  back/relaunch cycles in one process: scene renders, init applies,
+  ping/pong round-trips, zero `FATAL`/`AndroidRuntime` lines, no new
+  dropbox crash entries. No iOS-style `isBooted` guard was added — the
+  stock `CocosActivity` lifecycle handles recreation.
+- **Home → relaunch from recents: clean.** Same activity instance gets
+  `onPause`/`onResume`; the JS VM keeps running (no new `battle/ready`),
+  scene state is preserved and the surface re-attaches without a crash.
+- Implication for the Task 1.x adapter: per-activity bridge state is
+  correct on Android (register listener in `onCreate`, remove in
+  `onDestroy`, wait for that entry's own `battle/ready`); do NOT port the
+  HarmonyOS once-per-process latch.
+
+### Emulator notes
+
+- Rebuild loop: `cd android && ./gradlew :app:assembleDebug` (~2 min
+  incremental) → `adb -s emulator-5556 install -r
+  android/app/build/outputs/apk/debug/app-debug.apk`.
+- Scene `console.log` lands in logcat under tag `jswrapper`; probe logs use
+  tags `WMBridge` / `WMCocosBattle`.
+- Crash sweep: `adb logcat -d | grep -E "FATAL|AndroidRuntime"` plus
+  `adb shell dumpsys dropbox` (ignore stale `system_app_*` entries that
+  predate the run).
+
 ## Visual parity workflow (how the scene was matched to native)
 
 1. Read the native implementation for exact values (`BattleView.swift`,
