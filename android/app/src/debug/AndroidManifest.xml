@@ -1,3 +1,12 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application android:usesCleartextTraffic="true" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application android:usesCleartextTraffic="true">
+        <!-- Debug-only: allow `adb shell am start` to launch the Cocos battle
+             activity directly for spike verification and emulator automation
+             (release keeps exported=false from the main manifest). -->
+        <activity
+            android:name=".cocos.CocosBattleActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+    </application>
 </manifest>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    String resources required by the vendored com.cocos.lib Java layer.
+    These match the values in the Cocos engine's libcocos2dx/src/main/res/values/strings.xml
+    and are referenced by CocosEditBoxActivity as R.string.* (resolved against
+    the app's R class via the import fix-up in tools/cocos/build-android.sh).
+    Keep in sync with Creator 3.8.8 — update when the engine version bumps.
+-->
+<resources>
+    <string name="cocos_done" translatable="false">Done</string>
+    <string name="cocos_next" translatable="false">Next</string>
+    <string name="cocos_search" translatable="false">Search</string>
+    <string name="cocos_go" translatable="false">Go</string>
+    <string name="cocos_send" translatable="false">Send</string>
+    <string name="cocos_tip_disable_safe_input_type" translatable="false">Please go to the system settings to turn off the security keyboard!</string>
+</resources>

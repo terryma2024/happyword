@@ -20,6 +20,9 @@ import org.junit.Test
 
 class BattleLifecycleFlowTest {
     @get:Rule
+    val forceNative = ForceNativeBattleRule()
+
+    @get:Rule
     val composeRule = createEmptyComposeRule()
 
     private var scenario: ActivityScenario<MainActivity>? = null

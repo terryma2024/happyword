@@ -30,6 +30,9 @@ import org.junit.Test
 
 class SmokeTest {
     @get:Rule
+    val forceNative = ForceNativeBattleRule()
+
+    @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Before

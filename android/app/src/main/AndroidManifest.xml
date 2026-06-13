@@ -17,5 +17,30 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            Cocos battle scene activity (Task 0.2 — AND embed).
+            Not exported — launched only from within the process (DevMenu CocosLab
+            button in debug builds) or via adb am start on a debuggable build.
+            Orientation/configChanges mirror the Cocos template AppActivity.
+            android.app.lib_name tells CocosActivity which native .so to dlopen.
+        -->
+        <meta-data
+            android:name="android.app.lib_name"
+            android:value="cocos" />
+        <activity
+            android:name=".cocos.CocosBattleActivity"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:launchMode="singleTask"
+            android:exported="false" />
+
+        <!-- CocosEditBoxActivity: needed by the engine's text-input helper. -->
+        <activity
+            android:name="com.cocos.lib.CocosEditBoxActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize"
+            android:screenOrientation="behind"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
     </application>
 </manifest>

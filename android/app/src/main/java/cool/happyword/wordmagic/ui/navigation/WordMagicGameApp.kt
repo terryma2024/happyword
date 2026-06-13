@@ -2,6 +2,7 @@ package cool.happyword.wordmagic.ui.navigation
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
@@ -186,6 +187,12 @@ import com.journeyapps.barcodescanner.ScanOptions
 import cool.happyword.wordmagic.core.ActiveBattleSnapshot
 import cool.happyword.wordmagic.core.BattleServedQuestion
 import cool.happyword.wordmagic.ui.TodayPlanScreen
+import cool.happyword.wordmagic.cocos.BattleRoute
+import cool.happyword.wordmagic.cocos.CocosBattleActivity
+import cool.happyword.wordmagic.cocos.CocosBattleOutcome
+import cool.happyword.wordmagic.cocos.CocosBattleSessionHolder
+import cool.happyword.wordmagic.cocos.CocosBattleSessionInputs
+import cool.happyword.wordmagic.cocos.chooseBattleRoute
 import cool.happyword.wordmagic.ui.WishlistScreen
 import java.io.File
 import java.text.SimpleDateFormat
@@ -384,6 +391,11 @@ fun WordMagicGameApp() {
     val repositories = remember { AndroidLocalProgressRepositories(context.applicationContext) }
     val restoredBattleSnapshot = remember { repositories.loadActiveBattleSnapshot() }
     var route by rememberSaveable(stateSaver = AppRouteSaver) {
+        // Snapshot-restore intentionally bypasses the Cocos routing decision:
+        // an in-flight native battle session must be restored into the native
+        // BattleScreen that owns BattleState/BattleEngine.  Launching
+        // CocosBattleActivity here would drop the saved state and create a
+        // mismatched new session.  Snapshot-restore always stays native.
         mutableStateOf(if (restoredBattleSnapshot != null) AppRoute.Battle else AppRoute.Home)
     }
     val parentPinRepository = remember { AndroidParentPinRepository(context.applicationContext) }
@@ -726,6 +738,47 @@ fun WordMagicGameApp() {
         }
     }
 
+    /**
+     * Per-answer side effects shared by BOTH battle frontends: the native
+     * BattleScreen onAnswer lambda and the Cocos bridge's onAnswerOutcome
+     * hook (CocosBattleSessionInputs.onAnswerOutcome). One function so the
+     * two paths cannot drift: learning-record save, review-day mark, monster
+     * encounter/defeat progress, and served-question bookkeeping.
+     *
+     * [preState] is the state the answer was submitted AGAINST —
+     * recordMonsterDefeat must use the pre-answer monsterCatalogIndex.
+     * Runs on the main thread in both paths.
+     */
+    fun applyAnswerSideEffects(preState: BattleState, outcome: BattleAnswerOutcome) {
+        recordMonsterEncounter(preState.monsterCatalogIndex)
+        val sourcePack = packLibrary.allPacks().firstOrNull { pack ->
+            pack.words.any { it.id == outcome.question.wordId }
+        }
+        val answeredWord = sourcePack?.words?.firstOrNull { it.id == outcome.question.wordId }
+        if (answeredWord != null) {
+            learningRecorder.recordAnswer(
+                packId = sourcePack?.id ?: selectedPack.id,
+                wordId = answeredWord.id,
+                correct = outcome.correct,
+                answeredAtMs = System.currentTimeMillis(),
+            )
+            repositories.saveLearningRecorder(learningRecorder)
+            if (battleIsReview && battleDailyDayKey == dailyLearningState.dayKey) {
+                saveDailyLearningState(dailyLearningService.markReviewedWords(dailyLearningState, listOf(answeredWord.id)))
+            }
+        }
+        val next = outcome.nextState
+        if (outcome.monsterDefeated) {
+            recordMonsterDefeat(preState.monsterCatalogIndex)
+        }
+        if (next.status == BattleStatus.Playing) {
+            recordMonsterEncounter(next.monsterCatalogIndex)
+        }
+        if (next.status == BattleStatus.Playing) {
+            rememberServedQuestion(next.question)
+        }
+    }
+
     fun saveActiveBattleSnapshotIfNeeded() {
         val state = battleState ?: return
         if (route != AppRoute.Battle || state.status != BattleStatus.Playing) return
@@ -849,8 +902,62 @@ fun WordMagicGameApp() {
         battleState = initial
         rememberServedQuestion(initial.question)
         recordMonsterEncounter(initial.monsterCatalogIndex)
-        route = AppRoute.Battle
+        // Route decision: Cocos or native BattleScreen.
+        // chooseBattleRoute reads the user preference, process-scoped
+        // fallbackActive flag, and forceNativeBattle (instrumentation).
+        when (chooseBattleRoute(context)) {
+            BattleRoute.COCOS -> {
+                // Hand the session the route site just built to the activity
+                // (same engine instance — settlement parity; see
+                // CocosBattleSessionHolder KDoc for the handoff contract).
+                // onAnswerOutcome carries the SAME per-answer side effects
+                // the native BattleScreen onAnswer runs.
+                CocosBattleSessionHolder.publishInputs(
+                    CocosBattleSessionInputs(engine, initial, sessionConfig, ::applyAnswerSideEffects),
+                )
+                context.startActivity(Intent(context, CocosBattleActivity::class.java))
+            }
+            BattleRoute.NATIVE -> route = AppRoute.Battle
+        }
         return true
+    }
+
+    /**
+     * Home-start battle construction (identical to the pre-Cocos onStart
+     * body). Extracted so the DevMenu CocosLab entry can launch a REAL
+     * battle session through the same code path (`forceCocos = true`
+     * bypasses only the route decision, not the construction).
+     */
+    fun startPackBattle(forceCocos: Boolean = false) {
+        ensureDailyStateForNow()
+        val sessionConfig = config.copy(timerSeconds = DEFAULT_BATTLE_TIMER_SECONDS)
+        battleIsReview = false
+        battleDailyDayKey = dailyLearningState.dayKey
+        battleConfig = sessionConfig
+        battleTargetWordIds = selectedPack.words.map { it.id }
+        battleServedQuestionKeys = emptyList()
+        battleRunId += 1
+        battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
+        engine = BattleEngine(config = sessionConfig, words = selectedPack.words)
+        val initial = engine.initialState()
+        battleState = initial
+        rememberServedQuestion(initial.question)
+        recordMonsterEncounter(initial.monsterCatalogIndex)
+        // Route decision: Cocos or native BattleScreen.
+        // chooseBattleRoute reads the user preference, process-scoped
+        // fallbackActive flag, and forceNativeBattle (instrumentation).
+        val battleRoute = if (forceCocos) BattleRoute.COCOS else chooseBattleRoute(context)
+        when (battleRoute) {
+            BattleRoute.COCOS -> {
+                // onAnswerOutcome carries the SAME per-answer side effects
+                // the native BattleScreen onAnswer runs.
+                CocosBattleSessionHolder.publishInputs(
+                    CocosBattleSessionInputs(engine, initial, sessionConfig, ::applyAnswerSideEffects),
+                )
+                context.startActivity(Intent(context, CocosBattleActivity::class.java))
+            }
+            BattleRoute.NATIVE -> route = AppRoute.Battle
+        }
     }
 
     ApplyOrientation(route)
@@ -879,6 +986,39 @@ fun WordMagicGameApp() {
         val state = battleState
         if (route == AppRoute.Battle && state?.status == BattleStatus.Playing) {
             recordMonsterEncounter(state.monsterCatalogIndex)
+        }
+    }
+    // Cocos battle handoff: CocosBattleActivity posts its outcome and
+    // finishes; this host resumes and settles it (Task 1.4). Finished runs
+    // the full native settlement (finishBattleSession); TimedOut mirrors the
+    // native countdown-timeout path (minimal settlement, no coin credit);
+    // Fallback re-routes the SAME session into the native BattleScreen
+    // (fallbackActive is already latched by the activity, so chooseBattleRoute
+    // keeps every later battle native this process).
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                when (val outcome = CocosBattleSessionHolder.consumeOutcome()) {
+                    is CocosBattleOutcome.Finished -> {
+                        battleState = outcome.finalState
+                        finishBattleSession(outcome.finalState)
+                    }
+                    is CocosBattleOutcome.TimedOut -> {
+                        battleState = outcome.finalState
+                        repositories.clearActiveBattleSnapshot()
+                        result = engine.resultFor(outcome.finalState)
+                        route = AppRoute.Result
+                    }
+                    CocosBattleOutcome.Fallback -> {
+                        route = AppRoute.Battle
+                    }
+                    null -> Unit
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
     DisposableEffect(lifecycleOwner, route) {
@@ -972,23 +1112,7 @@ fun WordMagicGameApp() {
                     onBoundChild = {
                         route = if (cloudCredentials == null) AppRoute.ScanBinding else AppRoute.BoundDeviceInfo
                     },
-                    onStart = {
-                        ensureDailyStateForNow()
-                        val sessionConfig = config.copy(timerSeconds = DEFAULT_BATTLE_TIMER_SECONDS)
-                        battleIsReview = false
-                        battleDailyDayKey = dailyLearningState.dayKey
-                        battleConfig = sessionConfig
-                        battleTargetWordIds = selectedPack.words.map { it.id }
-                        battleServedQuestionKeys = emptyList()
-                        battleRunId += 1
-                        battleTimeLeft = DEFAULT_BATTLE_TIMER_SECONDS
-                        engine = BattleEngine(config = sessionConfig, words = selectedPack.words)
-                        val initial = engine.initialState()
-                        battleState = initial
-                        rememberServedQuestion(initial.question)
-                        recordMonsterEncounter(initial.monsterCatalogIndex)
-                        route = AppRoute.Battle
-                    },
+                    onStart = { startPackBattle() },
                     onReview = ::startReviewBattle,
                     onPackManager = { route = AppRoute.PackManager },
                     onWishlist = { route = AppRoute.Wishlist },
@@ -1014,35 +1138,11 @@ fun WordMagicGameApp() {
                     },
                     onAnswer = { answer ->
                         val currentBattleState = battleState ?: engine.initialState()
-                        recordMonsterEncounter(currentBattleState.monsterCatalogIndex)
                         val outcome = engine.submitAnswerWithOutcome(currentBattleState, answer)
-                        val sourcePack = packLibrary.allPacks().firstOrNull { pack ->
-                            pack.words.any { it.id == outcome.question.wordId }
-                        }
-                        val answeredWord = sourcePack?.words?.firstOrNull { it.id == outcome.question.wordId }
-                        if (answeredWord != null) {
-                            learningRecorder.recordAnswer(
-                                packId = sourcePack?.id ?: selectedPack.id,
-                                wordId = answeredWord.id,
-                                correct = outcome.correct,
-                                answeredAtMs = System.currentTimeMillis(),
-                            )
-                            repositories.saveLearningRecorder(learningRecorder)
-                            if (battleIsReview && battleDailyDayKey == dailyLearningState.dayKey) {
-                                saveDailyLearningState(dailyLearningService.markReviewedWords(dailyLearningState, listOf(answeredWord.id)))
-                            }
-                        }
-                        val next = outcome.nextState
-                        battleState = next
-                        if (outcome.monsterDefeated) {
-                            recordMonsterDefeat(currentBattleState.monsterCatalogIndex)
-                        }
-                        if (next.status == BattleStatus.Playing) {
-                            recordMonsterEncounter(next.monsterCatalogIndex)
-                        }
-                        if (next.status == BattleStatus.Playing) {
-                            rememberServedQuestion(next.question)
-                        }
+                        battleState = outcome.nextState
+                        // Shared per-answer side effects (also runs for Cocos
+                        // battles via CocosBattleSessionInputs.onAnswerOutcome).
+                        applyAnswerSideEffects(currentBattleState, outcome)
                         outcome
                     },
                     onBattleFinished = ::finishBattleSession,
@@ -1525,6 +1625,10 @@ fun WordMagicGameApp() {
                     onDomainSwitch = { route = AppRoute.DomainSwitch },
                     onAudioLab = { route = AppRoute.PcmAudioLab },
                     onMessageBubbleLab = { route = AppRoute.MessageBubbleLab },
+                    // CocosLab launches a REAL battle session forced through the
+                    // Cocos route (HOS DevMenu parity) — the activity requires
+                    // published session inputs since Task 1.4.
+                    onCocosLab = { startPackBattle(forceCocos = true) },
                     onBack = { route = AppRoute.Home },
                 )
                 AppRoute.DomainSwitch -> DomainSwitchScreen(
@@ -1565,6 +1669,14 @@ fun WordMagicGameApp() {
                 AppRoute.MessageBubbleLab -> MessageBubbleLabScreen(
                     onBack = { route = AppRoute.DevMenu },
                 )
+                // CocosLab launches CocosBattleActivity directly (Task 0.2 dev entry).
+                // No Compose screen needed — the back-stack goes Activity → this route
+                // which means the user never sees a Compose content for CocosLab;
+                // we navigate back to DevMenu immediately so the host Activity's
+                // Compose tree doesn't get stuck on a dead-end route.
+                AppRoute.CocosLab -> {
+                    route = AppRoute.DevMenu
+                }
             }
             if (!privacyConsentAccepted) {
                 PrivacyConsentDialog(

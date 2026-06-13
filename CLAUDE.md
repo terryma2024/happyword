@@ -19,6 +19,7 @@
 - Server tests: `cd server && uv run pytest`
 - **Cocos battle scene (V1.1.0, iOS-embedded):** project root `cocos/` (Cocos Creator 3.8). TS unit tests: `cd cocos && npm test`. Headless iOS build: `tools/cocos/build-ios.sh` (quits the editor; rebuilds data + arm64 device engine libs). Art under `cocos/assets/resources/art/` is generated — edit SVG sources in the iOS asset catalog, then rerun `tools/cocos/sync-art.sh`. Embed recipe and gotchas: [`cocos/README.md`](cocos/README.md). Cocos battle runs on device builds only; simulator falls back to the native BattleView.
 - **Cocos battle scene (HarmonyOS embed):** `tools/cocos/build-harmonyos.sh` vendors the engine sources + ArkTS adapter into `harmonyos/entry` (engine C++ under `entry/src/main/cpp/` — including the `cocos-patches/` engine patch — is vendored/generated and exempt from the ArkTS-only rule; never hand-edit `ets/cocosvendor/`). Recipe, bridge contract, and surface-lifecycle gotchas: [`cocos/README.md`](cocos/README.md) → "HarmonyOS embed".
+- **Cocos battle scene (Android embed):** `tools/cocos/build-android.sh` (headless Creator export; libcocos.so is then built by Gradle `externalNativeBuild`). Vendored/generated and exempt from hand-edit: engine Java glue under `android/app/src/main/java/com/cocos/lib/` and the CMake adapter under `android/app/src/main/cpp/cocos/`. Routing, session handoff, back-press rule, fallback contract: [`cocos/README.md`](cocos/README.md) → "Android embed".
 
 ## Rules
 - For HarmonyOS feature work, use ArkTS only and prefer modifying `harmonyos/entry/src/main/ets`.

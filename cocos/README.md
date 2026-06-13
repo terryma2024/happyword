@@ -371,6 +371,156 @@ CocosLab or just start a battle with the Config switch ON.
   to the new handler so the page always gets a ready signal regardless of
   whether it was present for the original event.
 
+## Android embed (AND Tasks 0.1–2.2 — keep updated)
+
+The Android app (`android/app`) embeds the engine compiled from source.
+Build chain: `tools/cocos/build-android.sh` (headless Creator export of
+scene data + the generated android proj into `cocos/build/android/`) →
+Gradle `externalNativeBuild` pointing at the thin adapter
+`android/app/src/main/cpp/cocos/CMakeLists.txt`, which derives RES_DIR /
+COMMON_DIR from its own location and includes the Cocos common CMake chain
+(engine C++ comes from the installed Creator 3.8.8 app bundle; libcocos.so
+is built by Gradle, not by Creator). Engine Java glue is vendored at
+`android/app/src/main/java/com/cocos/lib/` (script-only vendor — never
+hand-edit).
+
+Verified on the arm64 emulator `emulator-5556` (Pixel 9, API 36). Spike
+route (debug builds export the activity):
+`adb -s emulator-5556 shell am start -n cool.happyword.wordmagic/.cocos.CocosBattleActivity`.
+
+### Activity hosting
+
+`cool.happyword.wordmagic.cocos.CocosBattleActivity` extends the engine's
+`CocosActivity` (a `GameActivity` subclass). Each `onCreate` loads the
+native lib (idempotent) and calls `onCreateNative`; each `onDestroy` tears
+the surface/views down. Unlike HarmonyOS there is NO once-per-process boot
+guard and none is needed — see the re-entry verdict below.
+
+### Bridge mechanism (Task 0.3, locked)
+
+On Android `native.jsbBridgeWrapper` EXISTS, so the scene picks the
+`JsbWrapperTransport` (same transport family as iOS): it listens on event
+`wmBattleToScript`, sends on `wmBattleToNative`, envelope `{v:1, type,
+payload}` unchanged.
+
+**Kotlin → scene:** `JsbBridgeWrapper.getInstance()
+.dispatchEventToScript("wmBattleToScript", json)`. The engine's
+`Java_com_cocos_lib_JsbBridge_nativeSendToScript` marshals onto the game
+thread via `performFunctionInCocosThread`, so calling from the main thread
+is safe. Two gotchas (both verified on the emulator):
+- The native side dereferences `ScriptNativeBridge::bridgeCxxInstance`
+  without a null check, and events with no JS listener are dropped — a
+  message dispatched before the scene's `BridgeClient` registers is
+  **silently lost** (no crash, no pong; first boot took ~7.5 s on the
+  emulator and a 4 s blind delay lost the probe). Only send after the
+  scene's organic `battle/ready`; the real adapter must queue outbound
+  messages until then.
+- `JsbBridgeWrapper` is a **process-level singleton**: listeners survive
+  activity recreation, and `addScriptEventListener` does NOT de-duplicate
+  despite its javadoc. Remove your listener in `onDestroy` or each
+  re-entry stacks another copy.
+
+**Scene → Kotlin:** `JsbBridgeWrapper.addScriptEventListener
+("wmBattleToNative") { json -> ... }`. Callbacks arrive on the **Cocos
+game thread** (an unnamed pthread — logged as `Thread-2`, and a new
+`Thread-N` after every activity recreation). Hop to the main thread before
+touching UI/state.
+
+Round-trip measured at ~10 ms on the emulator (ping 23:40:00.302 → pong
+.305 logged on the game thread). `battle/init` applies as a full scene
+reset (probe: playerMaxHp 7 → HP 7/7 rendered, startingSeconds 300 →
+Countdown 5:00). The Task 0.3 probe has been replaced by the real adapter:
+`CocosBattleBridge.kt` (sequencing, question hold, finish-notify guard)
+fed by the `CocosBridgeMessages.kt` codecs (all 19 shared contract
+fixtures pass in `:app:testDebugUnitTest`).
+
+### Re-entry + backgrounding verdict (Task 0.3, emulator-verified)
+
+- **Back → relaunch (×3): clean, no guard needed.** The process survives
+  back (activity finishes, pid stays). Each `am start` creates a new
+  `CocosActivity`, and the engine performs a **full JS reload per activity
+  entry**: a fresh game thread spins up and the scene emits a fresh organic
+  `battle/ready` every time (unlike HarmonyOS, where the engine boots once
+  per process and ready must be latch-replayed). Verified 3 consecutive
+  back/relaunch cycles in one process: scene renders, init applies,
+  ping/pong round-trips, zero `FATAL`/`AndroidRuntime` lines, no new
+  dropbox crash entries. No iOS-style `isBooted` guard was added — the
+  stock `CocosActivity` lifecycle handles recreation.
+- **Home → relaunch from recents: clean.** Same activity instance gets
+  `onPause`/`onResume`; the JS VM keeps running (no new `battle/ready`),
+  scene state is preserved and the surface re-attaches without a crash.
+- Implication for the Task 1.x adapter: per-activity bridge state is
+  correct on Android (register listener in `onCreate`, remove in
+  `onDestroy`, wait for that entry's own `battle/ready`); do NOT port the
+  HarmonyOS once-per-process latch.
+
+### Production integration (Tasks 1.3–1.4 — routing, session handoff, lifecycle)
+
+All under `android/app/src/main/java/cool/happyword/wordmagic/cocos/`
+(hand-written Kotlin — only `com/cocos/lib/` and `cpp/cocos/` are vendored).
+
+- **Routing** (`CocosBattlePreference.kt`): `chooseBattleRoute(context)` at
+  every battle-start site. Four-input pure decision —
+  `isCocosRuntimeAvailable()` && pref enabled && !`fallbackActive` &&
+  !`forceNativeBattle` → COCOS, anything else → NATIVE. The preference is
+  `wordmagic_cocos_battle_prefs` / `battle.useCocosScene` (string
+  `"true"`/`"false"`, absent → **default ON**, iOS/HOS parity). The user
+  switch is 游戏配置 → 战斗画面 →「Cocos 战斗场景」. On Android
+  `libcocos.so` is always bundled, so there is no "library missing" probe:
+  the process-scoped `fallbackActive` latch IS the runtime probe.
+- **Fallback contract** (`CocosBattleActivity`): `super.onCreate` runs
+  inside a try (engine boot throw) and a 5 s `battle/ready` watchdog is
+  armed last. Either failure latches `fallbackActive`, posts
+  `CocosBattleOutcome.Fallback` and finishes; the Compose side re-routes
+  the SAME session into the native BattleScreen, and the rest of the
+  process stays native.
+- **Session handoff** (`CocosBattleSession.kt`): `CocosBattleSessionHolder`
+  is a main-thread single-slot holder — the Compose route site builds the
+  session (engine + initial state + config, the same construction the
+  native BattleScreen uses), `publishInputs(...)` → `startActivity`; the
+  activity `takeInputs()` (one-shot) in `onCreate` and `postOutcome(...)`
+  just before `finish()`; WordMagicGameApp `consumeOutcome()` in an
+  ON_RESUME observer and settles exactly like the native path
+  (`Finished` → `finishBattleSession`, `TimedOut` → native-timeout
+  equivalent, `Fallback` → native battle re-route). Intent extras are not
+  an option: `BattleEngine` is not serializable and settlement parity
+  needs the same engine instance on both sides.
+- **Per-answer side effects**: `CocosBattleSessionInputs.onAnswerOutcome`
+  carries the SAME body the native BattleScreen `onAnswer` runs (learning
+  record, review mark, monster progress —
+  `WordMagicGameApp.applyAnswerSideEffects`); the bridge invokes it on the
+  main thread once per accepted submit with the pre-submit state. Without
+  this, Cocos battles would not persist learning progress (iOS-parity
+  fix, verified via `wordmagic-local-progress.xml` on the emulator).
+- **Back press = escape**: `KEYCODE_BACK` is intercepted in
+  `onKeyDown`/`onKeyUp` BEFORE GameActivity forwards keys to the native
+  engine, and routed through `bridge.requestEscape()` (Lost settlement →
+  Result), with `onBackPressed` as a defensive fallback. A bare `finish()`
+  would silently abandon the battle with no outcome posted.
+- **Host-owned countdown**: the functional `BattleState` carries no clock;
+  the activity runs the 1 Hz tick (native `battleTimeLeft` parity) and a
+  0-second tick posts `TimedOut`.
+- **androidTest rule**: battle-driving instrumentation suites apply
+  `ForceNativeBattleRule` (`@get:Rule`) — it sets the debug-only
+  `forceNativeBattle` flag so UI tests always exercise the native
+  BattleScreen regardless of the stored preference.
+
+Emulator parity evidence (entry, all 5 question kinds, crit overlay,
+re-entry, backgrounding, config OFF/ON, back-press escape, per-answer
+records, audio logcat):
+[`docs/features/2026-06-12-cocos-battle-android/`](../docs/features/2026-06-12-cocos-battle-android/50-parity-checklist.md).
+
+### Emulator notes
+
+- Rebuild loop: `cd android && ./gradlew :app:assembleDebug` (~2 min
+  incremental) → `adb -s emulator-5556 install -r
+  android/app/build/outputs/apk/debug/app-debug.apk`.
+- Scene `console.log` lands in logcat under tag `jswrapper`; probe logs use
+  tags `WMBridge` / `WMCocosBattle`.
+- Crash sweep: `adb logcat -d | grep -E "FATAL|AndroidRuntime"` plus
+  `adb shell dumpsys dropbox` (ignore stale `system_app_*` entries that
+  predate the run).
+
 ## Visual parity workflow (how the scene was matched to native)
 
 1. Read the native implementation for exact values (`BattleView.swift`,

@@ -40,6 +40,7 @@ fun DevMenuScreen(
     onDomainSwitch: () -> Unit,
     onAudioLab: () -> Unit,
     onMessageBubbleLab: () -> Unit,
+    onCocosLab: () -> Unit,
     onBack: () -> Unit,
 ) {
     Column(
@@ -74,6 +75,8 @@ fun DevMenuScreen(
         DevMenuLauncherButton("PcmAudioLab", Modifier.testTag("DevMenuAudioLabButton"), enabled = !applying, onClick = onAudioLab)
         Spacer(Modifier.height(12.dp))
         DevMenuLauncherButton("MessageBubbleLab", Modifier.testTag("DevMenuMessageBubbleLabButton"), enabled = !applying, onClick = onMessageBubbleLab)
+        Spacer(Modifier.height(12.dp))
+        DevMenuLauncherButton("CocosLab", Modifier.testTag("DevMenuCocosLabButton"), enabled = !applying, onClick = onCocosLab)
     }
 }
 

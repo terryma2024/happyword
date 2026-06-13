@@ -22,6 +22,9 @@ import org.junit.Test
 
 class AndroidScreenScreenshotTest {
     @get:Rule
+    val forceNative = ForceNativeBattleRule()
+
+    @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
     private var backendServer: TestBackendServer? = null
 
