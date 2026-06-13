@@ -421,11 +421,11 @@ class CocosBattleBridge(
         }
     }
 
-    /** Speaker tap in the scene — BattleScreen parity: speakWord(question.correctAnswer). */
+    /** Speaker tap in the scene — speaks the full sentence for cloze, otherwise the answer word. */
     private fun handleSpeakAnswer() {
-        val word = currentState.question.correctAnswer
-        if (word.isNotEmpty()) {
-            callbacks.speakWord(word)
+        val text = currentState.question.battleSpeakText
+        if (text.isNotEmpty()) {
+            callbacks.speakWord(text)
         }
     }
 
