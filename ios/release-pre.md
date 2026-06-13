@@ -3,9 +3,9 @@
 > Scope: Apple App Store only. Android release work is intentionally excluded.
 > App: `WordMagicGame` / `魔法背单词`
 > Bundle ID: `com.terryma.wordmagicgame`
-> Version: `1.1.0`
-> Build: `1100001`
-> Last updated: 2026-06-11
+> Version: `1.1.1`
+> Build: `1110001`
+> Last updated: 2026-06-13
 
 ## Source Of Truth
 
