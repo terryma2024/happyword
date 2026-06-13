@@ -17,8 +17,8 @@ android {
         applicationId = "cool.happyword.wordmagic"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1_020_001
-        versionName = "1.0.2"
+        versionCode = 1_110_001
+        versionName = "1.1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Cocos battle engine — arm64-v8a only (matches our AVD and device target).
