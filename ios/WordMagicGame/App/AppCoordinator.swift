@@ -400,8 +400,8 @@ final class AppCoordinator: ObservableObject {
     }
 
     func speakCurrentBattleAnswer() {
-        guard let word = battleEngine?.state.currentQuestion?.answer else { return }
-        battleAudioMixer.speak(word)
+        guard let question = battleEngine?.state.currentQuestion else { return }
+        battleAudioMixer.speak(question.battleSpeakText)
     }
 
     func disposeBattlePronunciation() {

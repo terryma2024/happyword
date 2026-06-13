@@ -38,6 +38,13 @@ struct Question: Codable, Equatable, Identifiable {
         Question(promptZh: promptZh, answer: answer, options: options, wordId: wordId, kind: .choice)
     }
 
+    /// Text the battle speaker button should pronounce: the full sentence for
+    /// sentence-cloze (blank replaced by the answer), otherwise the answer word.
+    var battleSpeakText: String {
+        guard kind == .sentenceCloze, !sentenceTemplate.isEmpty else { return answer }
+        return sentenceTemplate.replacingOccurrences(of: "____", with: answer)
+    }
+
     var isValid: Bool {
         guard !wordId.isEmpty, !answer.isEmpty else { return false }
         switch kind {
