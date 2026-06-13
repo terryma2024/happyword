@@ -30,22 +30,36 @@ never ran the BattlePage per-answer block (`onOptionTap` /
 `handleSpellSubmit` lines ~1003/~1254). Settlement only ran
 `enrichAndFlushSessionResult`, which reads recorder totals.
 
-### Fix (mirrors iOS `AppCoordinator.submitBattleOptionForAnimation`)
+### Fix (v1.1.1, Android-blueprint consolidation)
 
-- `CocosBattleBridgeCallbacks.onAnswerOutcome(answeredWordId,
-  preAnswerCatalogIndex, outcome)` — fired in `handleSubmit` right after
-  `engine.submitAnswer`, for non-`advancedStep` outcomes only, exactly once
-  per accepted submit, never after finish/dispose. Scalars are captured
-  before submit because `engine.getState()` returns the live state object.
-- `CocosBattlePage` implements the BattlePage-identical block:
-  `recorder.recordAnswer`, `markDailyReviewWordIfNeeded` (review mode),
-  `monsterProgress.recordDefeat(preAnswerCatalogIndex)` on
-  `outcome.monsterDefeated`, `recordEncounter` on `outcome.newMonsterSpawned`
-  (post-answer catalog index) plus the initial monster at session setup.
-- Bridge unit tests extended (`CocosBattleBridge.test.ets`): fires exactly
-  once per accepted submit (correct / wrong / defeat / battle-end), skips
-  medium step advances and spell wrong taps, dropped duplicate submits during
-  the feedback hold, and anything after dispose.
+Two passes landed on 2026-06-13. The first (`dd106ab`) added the hook with an
+inline per-answer block in `CocosBattlePage`; the second consolidated it onto
+the Android fix design (commit `4a0bea8` on `cocos-battle-android`), which
+extracts the native body into ONE shared function so the two frontends cannot
+drift:
+
+- `CocosBattleBridgeCallbacks.onAnswerOutcome(event)` (optional, default
+  no-op) with a typed `CocosAnswerOutcomeEvent` payload `{answeredWordId,
+  preMonsterCatalogIndex, postMonsterCatalogIndex, outcome}` — fired in
+  `handleSubmit` exactly once per submit the engine processed (including
+  fill-letter-medium step advances, Android bridge-contract parity), never
+  for hold-dropped duplicates, post-end submits, after dispose, or
+  `spellWrongTap`. The wordId and pre-answer catalog index are captured
+  BEFORE `engine.submitAnswer` because `getState()` returns the live state.
+- New `services/BattleAnswerRecorder.ets` — the native BattlePage per-answer
+  body moved statement-for-statement (`recordAnswer` +
+  `markDailyReviewWordIfNeeded`, `recordEncounter` with the page's old
+  dedup, `recordMonsterDefeat`). `applyAnswerOutcome(event)` runs the full
+  Cocos-path body and skips learning stats on `advancedStep` — exactly the
+  native page's "Do not record learning stats" early return.
+- `BattlePage` delegates to the same service (extraction-only, zero behavior
+  change); `CocosBattlePage` wires `applyAnswerOutcome` into the bridge
+  callback and records the opening monster's encounter at session setup
+  (BattlePage first-`syncFromEngine` parity).
+- Bridge unit tests (`CocosBattleBridge.test.ets`, 8 cases): fires once per
+  accepted submit with pre-submit info, carries pre/post catalog indices
+  across a defeat, fires on the final blow and on medium step advances, not
+  for hold duplicates / post-end / dispose / spellWrongTap.
 
 ### Reopened parity rows (50-parity-checklist.md)
 
@@ -55,11 +69,24 @@ never ran the BattlePage per-answer block (`onOptionTap` /
   verified, but codex defeat/encounter recording was missing.
 
 Re-verified via bridge unit tests + build gates (assembleHap, 0 `ArkTS:WARN`,
-codelinter). On-device re-check of ResultPage 学习单词 counter and codex
-progress recommended at the next device session.
+codelinter) **and live on the arm64 emulator** (`127.0.0.1:5555`, v1.1.0
+debug HAP build 2606130951, 2026-06-13):
+
+- Before the battle, `/data/app/el2/100/base/com.terryma.wordmagicgame/haps/entry/preferences/`
+  contained neither `wordmagic_learning` nor `wordmagic_monster_progress`.
+- One correct answer (草莓 → strawberry) in the **Cocos** scene created
+  `wordmagic_learning` with
+  `{"wordId":"fruit-strawberry","seenCount":1,"correctCount":1,…,"nextReviewMs":…,"memoryState":"learning"}`
+  — word stats + review scheduling now persist from the Cocos path.
+- Escape → ResultPage showed 答题数 1/1, 正确率 100%, 学习单词 2 (non-zero —
+  the stale-counter symptom is gone), and the settlement flush wrote
+  `wordmagic_monster_progress` with
+  `{"catalogIndex":15,"encountered":true,…}` (Pebble Golem, the monster on
+  screen) — codex encounter recording works end to end.
 
 ### Cross-platform note
 
-iOS was already correct (design source of truth). The same gap exists on the
-Android branch `cocos-battle-android` (flagged in its Task 1.4 review) and is
-being fixed there; this entry covers HarmonyOS only.
+iOS was already correct (design source of truth). Android fixed the same gap
+on `cocos-battle-android` (commit `4a0bea8`, `applyAnswerSideEffects` shared
+by the native screen and both Cocos route sites) — the HarmonyOS
+consolidation above mirrors that design; this entry covers HarmonyOS only.
