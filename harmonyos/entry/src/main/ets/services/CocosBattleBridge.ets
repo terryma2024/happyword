@@ -85,12 +85,32 @@ export type DelayScheduler = (fn: () => void, ms: number) => void;
  *   autoSpeakWord(word, k)  → gate via shouldAutoSpeak(autoSpeak,
  *                             isVoiceAvailable(), false, k) then speakWord
  *   onFinish(result)        → enrich + route to ResultPage (navigateToResult)
+ *   onAnswerOutcome(...)    → BattlePage per-answer side-effect block
+ *                             (recordAnswer, review marking, codex progress)
  */
 export interface CocosBattleBridgeCallbacks {
   onFinish(result: SessionResult): void;
   playSfx(soundKey: string): void;
   speakWord(word: string): void;
   autoSpeakWord(word: string, questionKind: string): void;
+  /**
+   * Fired exactly once per accepted answer submit, right after
+   * BattleEngine.submitAnswer — mirrors the per-answer block the native
+   * BattlePage runs in onOptionTap / handleSpellSubmit and the iOS
+   * AppCoordinator.submitBattleOptionForAnimation. Not fired for medium
+   * fill-letter step advances (advancedStep, BattlePage parity), for
+   * submits dropped by the feedback-hold guard, or after dispose().
+   *
+   * Scalars are passed instead of a pre-answer BattleState because
+   * engine.getState() returns the LIVE state object — by the time the
+   * callback runs it has already rotated to the next question.
+   *
+   * @param answeredWordId        wordId of the question the player answered.
+   * @param preAnswerCatalogIndex monster catalog index BEFORE the answer —
+   *                              the defeated monster's index when
+   *                              outcome.monsterDefeated is true.
+   */
+  onAnswerOutcome(answeredWordId: string, preAnswerCatalogIndex: number, outcome: AnswerOutcome): void;
   /**
    * Optional: fired on EVERY battle/ready the scene delivers (including the
    * synthetic replay CocosEngineHost emits on page re-entry). The hosting
@@ -300,6 +320,10 @@ export class CocosBattleBridge {
       return;
     }
     const word: string = state.currentQuestion.answer;
+    // Captured BEFORE submit: getState() returns the live state object, so
+    // currentQuestion / the catalog index advance as part of submitAnswer.
+    const answeredWordId: string = state.currentQuestion.wordId;
+    const preAnswerCatalogIndex: number = this.catalogIndexProvider();
 
     let outcome: AnswerOutcome | undefined = undefined;
     try {
@@ -322,6 +346,11 @@ export class CocosBattleBridge {
       this.sendQuestion();
       return;
     }
+
+    // Per-answer side effects (learning record, review marking, codex
+    // progress) — same position as BattlePage: after the engine accepted
+    // the answer, before any UI/scene feedback.
+    this.callbacks.onAnswerOutcome(answeredWordId, preAnswerCatalogIndex, outcome);
 
     const event: BattleAnimationEvent = eventForOutcome(outcome, word);
     this.playSubmitAudio(outcome);

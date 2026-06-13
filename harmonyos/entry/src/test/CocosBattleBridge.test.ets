@@ -3,7 +3,7 @@ import { Question, QuestionKind } from '../main/ets/models/Question';
 import { BattleStatus } from '../main/ets/models/BattleState';
 import { SessionResult } from '../main/ets/models/SessionResult';
 import { IQuestionSource } from '../main/ets/services/IQuestionSource';
-import { BattleConfig, BattleEngine } from '../main/ets/services/BattleEngine';
+import { AnswerOutcome, BattleConfig, BattleEngine } from '../main/ets/services/BattleEngine';
 import { SoundKeys } from '../main/ets/services/AudioService';
 import {
   MonsterArtShape,
@@ -114,15 +114,37 @@ class FakeScheduler {
   }
 }
 
+/** Scalar snapshot of one onAnswerOutcome invocation. */
+class RecordedAnswerOutcome {
+  wordId: string = '';
+  preCatalogIndex: number = 0;
+  correct: boolean = false;
+  monsterDefeated: boolean = false;
+  newMonsterSpawned: boolean = false;
+  battleEnded: boolean = false;
+}
+
 class RecordingCallbacks implements CocosBattleBridgeCallbacks {
   finishResults: SessionResult[] = [];
   sfx: string[] = [];
   spoken: string[] = [];
   autoSpoken: string[] = [];
   readyCount: number = 0;
+  answerOutcomes: RecordedAnswerOutcome[] = [];
 
   onFinish(result: SessionResult): void {
     this.finishResults.push(result);
+  }
+
+  onAnswerOutcome(answeredWordId: string, preAnswerCatalogIndex: number, outcome: AnswerOutcome): void {
+    const rec: RecordedAnswerOutcome = new RecordedAnswerOutcome();
+    rec.wordId = answeredWordId;
+    rec.preCatalogIndex = preAnswerCatalogIndex;
+    rec.correct = outcome.correct;
+    rec.monsterDefeated = outcome.monsterDefeated;
+    rec.newMonsterSpawned = outcome.newMonsterSpawned;
+    rec.battleEnded = outcome.battleEnded;
+    this.answerOutcomes.push(rec);
   }
 
   onReady(): void {
@@ -511,6 +533,102 @@ export default function cocosBattleBridgeTest() {
       h.scheduler.runAll();
       h.injectSubmit('cat');
       expect(h.engine.getState().totalAnswers).assertEqual(2);
+    });
+
+    // ── onAnswerOutcome (per-answer learning/codex side effects) ──────────────
+
+    it('answerOutcomeFiresOncePerAcceptedSubmitWithAnsweredWordId', 0, () => {
+      const h: BridgeHarness = makeHarness(5, 5, 10);
+      h.injectReady();
+
+      h.injectSubmit('cat');
+
+      expect(h.callbacks.answerOutcomes.length).assertEqual(1);
+      expect(h.callbacks.answerOutcomes[0].wordId).assertEqual('w-cat');
+      expect(h.callbacks.answerOutcomes[0].preCatalogIndex).assertEqual(1);
+      expect(h.callbacks.answerOutcomes[0].correct).assertTrue();
+      expect(h.callbacks.answerOutcomes[0].battleEnded).assertFalse();
+
+      // Wrong answer after the hold fires again with correct=false.
+      h.scheduler.runAll();
+      h.injectSubmit('dog');
+      expect(h.callbacks.answerOutcomes.length).assertEqual(2);
+      expect(h.callbacks.answerOutcomes[1].correct).assertFalse();
+    });
+
+    it('answerOutcomeDroppedForDuplicateSubmitDuringHold', 0, () => {
+      const h: BridgeHarness = makeHarness(5, 5, 10);
+      h.injectReady();
+
+      h.injectSubmit('cat');
+      // Second tap racing the 650 ms hold is dropped — no second record.
+      h.injectSubmit('cat');
+
+      expect(h.engine.getState().totalAnswers).assertEqual(1);
+      expect(h.callbacks.answerOutcomes.length).assertEqual(1);
+    });
+
+    it('answerOutcomeSkipsMediumStepAdvanceUntilFinalStep', 0, () => {
+      const h: BridgeHarness = makeHarness(2, 5, 10, new MediumQuestionSource());
+      h.injectReady();
+
+      // Step 0 correct: advancedStep — no learning record (BattlePage parity).
+      h.injectSubmit('a');
+      expect(h.callbacks.answerOutcomes.length).assertEqual(0);
+
+      // Final step resolves the question — exactly one record.
+      h.injectSubmit('t');
+      expect(h.callbacks.answerOutcomes.length).assertEqual(1);
+      expect(h.callbacks.answerOutcomes[0].wordId).assertEqual('w-cat');
+      expect(h.callbacks.answerOutcomes[0].correct).assertTrue();
+    });
+
+    it('answerOutcomeOnDefeatCarriesPreAnswerCatalogIndex', 0, () => {
+      const h: BridgeHarness = makeHarness(2, 1, 10);
+      h.injectReady();
+
+      h.injectSubmit('cat');
+
+      expect(h.callbacks.answerOutcomes.length).assertEqual(1);
+      expect(h.callbacks.answerOutcomes[0].monsterDefeated).assertTrue();
+      expect(h.callbacks.answerOutcomes[0].newMonsterSpawned).assertTrue();
+      // The DEFEATED monster's catalog index (pre-answer), not the new one's.
+      expect(h.callbacks.answerOutcomes[0].preCatalogIndex).assertEqual(1);
+    });
+
+    it('answerOutcomeFiresOnFinalBlowAndNeverAfterFinish', 0, () => {
+      const h: BridgeHarness = makeHarness(1, 1, 10);
+      h.injectReady();
+
+      h.injectSubmit('cat');
+      expect(h.callbacks.answerOutcomes.length).assertEqual(1);
+      expect(h.callbacks.answerOutcomes[0].battleEnded).assertTrue();
+
+      // Finish hold elapses, battle is over — further submits record nothing.
+      h.scheduler.runAll();
+      h.injectSubmit('cat');
+      expect(h.callbacks.answerOutcomes.length).assertEqual(1);
+      expect(h.callbacks.finishResults.length).assertEqual(1);
+    });
+
+    it('answerOutcomeNeverFiresAfterDispose', 0, () => {
+      const h: BridgeHarness = makeHarness(5, 5, 10);
+      h.injectReady();
+      h.bridge.dispose();
+
+      h.injectSubmit('cat');
+
+      expect(h.callbacks.answerOutcomes.length).assertEqual(0);
+    });
+
+    it('spellWrongTapDoesNotFireAnswerOutcome', 0, () => {
+      const h: BridgeHarness = makeHarness(2, 5, 10);
+      h.injectReady();
+
+      h.transport.inject('{"v":1,"type":"battle/spellWrongTap","payload":{}}');
+
+      expect(h.engine.getState().playerHp).assertEqual(9);
+      expect(h.callbacks.answerOutcomes.length).assertEqual(0);
     });
 
     it('disposeMakesScheduledQuestionClosureANoOp', 0, () => {

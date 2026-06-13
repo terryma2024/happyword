@@ -55,12 +55,20 @@ import {
   enrichAndFlushSessionResult,
 } from '../services/BattleResultEnricher';
 import { COCOS_BATTLE_FALLBACK_KEY } from '../services/CocosBattlePreference';
-import { BattleEngine, TickOutcome } from '../services/BattleEngine';
+import { AnswerOutcome, BattleEngine, TickOutcome } from '../services/BattleEngine';
 import { GameConfig } from '../models/GameConfig';
 import { SessionResult } from '../models/SessionResult';
 import { BattleAudioMixer } from '../services/BattleAudioMixer';
 import { shouldAutoSpeak } from '../services/PronunciationService';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
+import {
+  getMonsterProgressStore,
+  MonsterProgressStore,
+} from '../services/MonsterProgressStore';
+import {
+  DailyLearningStateService,
+  getDailyLearningStateService,
+} from '../services/DailyLearningStateService';
 import { requestPageOrientation } from '../utils/orientation';
 
 /** Must stay in sync with the surface id the Cocos native layer binds to. */
@@ -101,6 +109,8 @@ class PageBridgeCallbacks implements CocosBattleBridgeCallbacks {
   private readonly speakFn: (word: string) => void;
   private readonly autoSpeakFn: (word: string, questionKind: string) => void;
   private readonly readyFn: () => void;
+  private readonly answerOutcomeFn:
+    (answeredWordId: string, preAnswerCatalogIndex: number, outcome: AnswerOutcome) => void;
 
   constructor(
     finishFn: (result: SessionResult) => void,
@@ -108,16 +118,23 @@ class PageBridgeCallbacks implements CocosBattleBridgeCallbacks {
     speakFn: (word: string) => void,
     autoSpeakFn: (word: string, questionKind: string) => void,
     readyFn: () => void,
+    answerOutcomeFn:
+      (answeredWordId: string, preAnswerCatalogIndex: number, outcome: AnswerOutcome) => void,
   ) {
     this.finishFn = finishFn;
     this.sfxFn = sfxFn;
     this.speakFn = speakFn;
     this.autoSpeakFn = autoSpeakFn;
     this.readyFn = readyFn;
+    this.answerOutcomeFn = answerOutcomeFn;
   }
 
   onFinish(result: SessionResult): void {
     this.finishFn(result);
+  }
+
+  onAnswerOutcome(answeredWordId: string, preAnswerCatalogIndex: number, outcome: AnswerOutcome): void {
+    this.answerOutcomeFn(answeredWordId, preAnswerCatalogIndex, outcome);
   }
 
   playSfx(soundKey: string): void {
@@ -145,6 +162,9 @@ struct CocosBattlePage {
   private setup: BattleSessionSetup | undefined = undefined;
   private audio: BattleAudioMixer = new BattleAudioMixer();
   private recorder: LearningRecorder = getLearningRecorder();
+  private monsterProgress: MonsterProgressStore = getMonsterProgressStore();
+  private dailyStateService: DailyLearningStateService = getDailyLearningStateService();
+  private isReviewMode: boolean = false;
   private autoSpeak: boolean = true;
   /** 1 Hz countdown driver; -1 when not running. */
   private tickTimer: number = -1;
@@ -239,6 +259,12 @@ struct CocosBattlePage {
       }
       this.setup = setup;
       this.engine = setup.engine;
+      this.isReviewMode = setup.isReviewMode;
+      // First monster of the session counts as encountered the moment the
+      // battle is set up — BattlePage parity (recordEncounterForCurrentMonster
+      // runs on its first syncFromEngine). recordEncounter is an idempotent
+      // flag, so a later native-fallback battle recording it again is harmless.
+      this.recordEncounterForCurrentMonster();
       // Constructing the bridge registers the scene handler; on re-entry
       // the host replays a synthetic battle/ready synchronously, which
       // cancels the watchdog and starts the countdown right away.
@@ -265,6 +291,9 @@ struct CocosBattlePage {
           },
           (): void => {
             this.onSceneReady();
+          },
+          (answeredWordId: string, preAnswerCatalogIndex: number, outcome: AnswerOutcome): void => {
+            this.handleAnswerOutcome(answeredWordId, preAnswerCatalogIndex, outcome);
           },
         ),
         setup.catalogIndexProvider,
@@ -315,6 +344,58 @@ struct CocosBattlePage {
       clearTimeout(this.readyTimeoutTimer);
       this.readyTimeoutTimer = -1;
     }
+  }
+
+  /**
+   * Per-answer side effects — the BattlePage-identical block from
+   * onOptionTap / handleSpellSubmit (and the iOS
+   * AppCoordinator.submitBattleOptionForAnimation): learning record, daily
+   * review marking, and monster codex progress. The bridge fires this
+   * exactly once per accepted submit, never for medium step advances and
+   * never after dispose.
+   */
+  private handleAnswerOutcome(
+    answeredWordId: string,
+    preAnswerCatalogIndex: number,
+    outcome: AnswerOutcome,
+  ): void {
+    // Falls through silently if the recorder wasn't ready — BattlePage parity.
+    if (answeredWordId.length > 0) {
+      this.recorder.recordAnswer(answeredWordId, outcome.correct);
+      this.markDailyReviewWordIfNeeded(answeredWordId);
+    }
+    if (outcome.monsterDefeated && preAnswerCatalogIndex > 0) {
+      this.monsterProgress.recordDefeat(preAnswerCatalogIndex);
+    }
+    if (outcome.newMonsterSpawned) {
+      // The engine already advanced, so the provider now resolves the NEW
+      // monster's catalog index (iOS recordMonsterProgress parity).
+      this.recordEncounterForCurrentMonster();
+    }
+  }
+
+  /** Mirrors BattlePage.markDailyReviewWordIfNeeded. */
+  private markDailyReviewWordIfNeeded(wordId: string): void {
+    if (!this.isReviewMode || wordId.length === 0) {
+      return;
+    }
+    this.dailyStateService.markReviewedWords(Date.now(), [wordId])
+      .catch((err: BusinessError): void => {
+        console.error(`CocosBattlePage: markReviewedWords failed: ${JSON.stringify(err)}`);
+      });
+  }
+
+  /** Mirrors BattlePage.recordEncounterForCurrentMonster (codex flag). */
+  private recordEncounterForCurrentMonster(): void {
+    const setup: BattleSessionSetup | undefined = this.setup;
+    if (setup === undefined) {
+      return;
+    }
+    const catalogIndex: number = setup.catalogIndexProvider();
+    if (catalogIndex <= 0) {
+      return;
+    }
+    this.monsterProgress.recordEncounter(catalogIndex);
   }
 
   /** First (and every) battle/ready: stop the watchdog, drive the clock. */
