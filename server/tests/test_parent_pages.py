@@ -77,7 +77,7 @@ async def test_landing_page_styles_shared_icp_footer(
 async def test_landing_page_has_app_download_options(
     html_client: tuple[AsyncClient, object],
 ) -> None:
-    """Landing page should expose iOS download and coming-soon placeholders."""
+    """Landing page should expose live download links for iOS, HarmonyOS, and Android."""
     ac, _ = html_client
     r = await ac.get("/")
     assert r.status_code == 200
@@ -93,13 +93,21 @@ async def test_landing_page_has_app_download_options(
     assert ios.get("target") == "_blank"
     assert ios.get("rel") == ["noopener"]
 
-    placeholders = download.find_all("button", attrs={"data-coming-soon": "true"})
-    assert {button.get_text(strip=True) for button in placeholders} == {
-        "AndroidComing soon",
-        "HarmonyOSComing soon",
-    }
+    harmonyos = download.find(
+        "a",
+        href="https://appgallery.huawei.com/app/detail?id=com.terryma.wordmagicgame",
+    )
+    assert harmonyos is not None
+
+    android = download.find(
+        "a",
+        href="https://github.com/terryma2024/happyword/releases/latest/download/WordMagic-android.apk",
+    )
+    assert android is not None
+
+    # All three platforms are live now — no coming-soon placeholders remain.
+    assert download.find_all("button", attrs={"data-coming-soon": "true"}) == []
     assert download.find(id="download-status") is not None
-    assert "Coming soon" in r.text
 
 
 @pytest.mark.asyncio

@@ -49,6 +49,21 @@ class MediumQuestionSource implements IQuestionSource {
   }
 }
 
+/** Always serves a sentence-cloze question with a fillable blank. */
+class SentenceClozeQuestionSource implements IQuestionSource {
+  nextQuestion(_lastWordId?: string): Question {
+    const q: Question = new Question();
+    q.kind = QuestionKind.SentenceCloze;
+    q.promptZh = '猫';
+    q.answer = 'cat';
+    q.options = ['cat', 'dog', 'pig'];
+    q.wordId = 'w-cat';
+    q.sentenceTemplate = 'The ____ sat on the mat';
+    q.sentenceZh = '猫坐在垫子上';
+    return q;
+  }
+}
+
 // ── Fakes ────────────────────────────────────────────────────────────────────
 
 class FakeTransport implements CocosTransport {
@@ -409,6 +424,17 @@ export default function cocosBattleBridgeTest() {
       h.transport.inject('{"v":1,"type":"battle/speakAnswer","payload":{}}');
 
       expect(h.callbacks.spoken.join(',')).assertEqual('cat');
+      expect(h.transport.sent.length).assertEqual(0);
+    });
+
+    it('speakAnswerSpeaksFullSentenceForSentenceCloze', 0, () => {
+      const h: BridgeHarness = makeHarness(2, 5, 10, new SentenceClozeQuestionSource());
+      h.injectReady();
+      h.transport.clear();
+
+      h.transport.inject('{"v":1,"type":"battle/speakAnswer","payload":{}}');
+
+      expect(h.callbacks.spoken.join(',')).assertEqual('The cat sat on the mat');
       expect(h.transport.sent.length).assertEqual(0);
     });
 

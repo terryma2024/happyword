@@ -91,7 +91,15 @@ data class Question(
     val spellPool: List<String> = emptyList(),
     val sentenceTemplate: String = "",
     val sentenceZh: String = "",
-)
+) {
+    /** Text the battle speaker should pronounce: full sentence for cloze, else the answer word. */
+    val battleSpeakText: String
+        get() = if (kind == QuestionKind.SentenceCloze && sentenceTemplate.isNotEmpty()) {
+            sentenceTemplate.replace("____", correctAnswer)
+        } else {
+            correctAnswer
+        }
+}
 
 data class BattleState(
     val playerHp: Int,

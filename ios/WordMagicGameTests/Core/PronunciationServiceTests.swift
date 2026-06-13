@@ -54,6 +54,21 @@ final class PronunciationServiceTests: XCTestCase {
         XCTAssertEqual(speaker.spokenWords.first, coordinator.battleEngine?.state.currentQuestion?.answer)
     }
 
+    func testBattleSpeakTextReturnsFullSentenceForCloze() {
+        let q = Question(promptZh: "p", answer: "cat", options: ["cat", "dog", "sun"], wordId: "w",
+                         kind: .sentenceCloze, sentenceTemplate: "The ____ sat on the mat", sentenceZh: "z")
+        XCTAssertEqual(q.battleSpeakText, "The cat sat on the mat")
+    }
+    func testBattleSpeakTextReturnsWordForChoice() {
+        let q = Question.choice(wordId: "w", promptZh: "p", answer: "cat", options: ["cat", "dog", "sun"])
+        XCTAssertEqual(q.battleSpeakText, "cat")
+    }
+    func testBattleSpeakTextFallsBackToWordWhenTemplateEmpty() {
+        let q = Question(promptZh: "p", answer: "cat", options: ["cat", "dog", "sun"], wordId: "w",
+                         kind: .sentenceCloze, sentenceTemplate: "", sentenceZh: "z")
+        XCTAssertEqual(q.battleSpeakText, "cat")
+    }
+
     func testSentenceClozeDoesNotAutoSpeakButManualSpeakerStillWorks() {
         let speaker = RecordingPronunciationService()
         let coordinator = makeCoordinator(pronunciationService: speaker)
@@ -64,7 +79,7 @@ final class PronunciationServiceTests: XCTestCase {
         XCTAssertTrue(speaker.spokenWords.isEmpty)
 
         coordinator.speakCurrentBattleAnswer()
-        XCTAssertEqual(speaker.spokenWords, ["apple"])
+        XCTAssertEqual(speaker.spokenWords, ["I eat an apple."])
     }
 
     func testAutoSpeakAfterAnswerUsesNextQuestionAnswer() {

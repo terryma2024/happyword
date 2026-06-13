@@ -5,6 +5,7 @@
 import {
     Color, Graphics, Label, Node, Sprite, SpriteFrame, UITransform, Vec3, resources, tween,
 } from 'cc';
+import { fitTrimmedContentSize } from './spriteFit';
 
 export function color(hex: string): Color {
     const c = new Color();
@@ -146,9 +147,11 @@ export function loadCharacterSprite(node: Node, imageKey: string, fitWidth = 185
             console.warn(`[battle] missing texture art/characters/${imageKey}`);
             return;
         }
-        const original = frame.originalSize;
-        const scale = Math.min(fitWidth / original.width, fitHeight / original.height);
-        node.getComponent(UITransform)!.setContentSize(original.width * scale, original.height * scale);
+        const orig = frame.originalSize;
+        const rect = frame.rect;   // trimmed content rect within the texture
+        const size = fitTrimmedContentSize(
+            orig.width, orig.height, rect.width, rect.height, fitWidth, fitHeight);
+        node.getComponent(UITransform)!.setContentSize(size.width, size.height);
         sprite.spriteFrame = frame;
     });
 }

@@ -7,6 +7,7 @@ import cool.happyword.wordmagic.core.BattleState
 import cool.happyword.wordmagic.core.BattleStatus
 import cool.happyword.wordmagic.core.GameConfig
 import cool.happyword.wordmagic.core.MonsterCatalog
+import cool.happyword.wordmagic.core.Question
 import cool.happyword.wordmagic.core.QuestionKind
 import cool.happyword.wordmagic.core.SessionResult
 import cool.happyword.wordmagic.core.WordEntry
@@ -740,6 +741,20 @@ class CocosBattleBridgeTest {
         h.bridge.requestEscape()
 
         assertEquals(0, h.callbacks.finishResults.size)
+    }
+
+    @Test
+    fun battleSpeakTextReturnsFullSentenceForCloze() {
+        val q = Question(
+            prompt = "p", correctAnswer = "cat", options = listOf("cat", "dog", "sun"),
+            kind = QuestionKind.SentenceCloze, sentenceTemplate = "The ____ sat on the mat", sentenceZh = "z",
+        )
+        assertEquals("The cat sat on the mat", q.battleSpeakText)
+    }
+    @Test
+    fun battleSpeakTextReturnsWordForChoice() {
+        val q = Question(prompt = "p", correctAnswer = "cat", options = listOf("cat", "dog", "sun"))
+        assertEquals("cat", q.battleSpeakText)
     }
 
     @Test

@@ -140,8 +140,8 @@ final class LocalGrowthTests: XCTestCase {
         let coins = CoinAccount(balance: 0)
         XCTAssertEqual(coins.earn(stars: 3, now: fixedDate()), 3)
         XCTAssertEqual(coins.balance, 3)
-        XCTAssertEqual(coins.earn(amount: 30, reason: .todayReward, now: fixedDate()), 17)
-        XCTAssertEqual(coins.balance, 20)
+        XCTAssertEqual(coins.earn(amount: CoinAccount.dailyCap, reason: .todayReward, now: fixedDate()), CoinAccount.dailyCap - 3)
+        XCTAssertEqual(coins.balance, CoinAccount.dailyCap)
 
         let wishlist = WishlistStore()
         let history = RedemptionHistoryStore()
@@ -151,7 +151,7 @@ final class LocalGrowthTests: XCTestCase {
 
         let record = wishlist.redeem(wishId: customId, coins: coins, history: history, now: fixedDate())
         XCTAssertEqual(record?.displayName, "贴纸")
-        XCTAssertEqual(coins.balance, 14)
+        XCTAssertEqual(coins.balance, CoinAccount.dailyCap - 6)
         XCTAssertEqual(history.records.first?.wishId, customId)
         XCTAssertEqual(history.records.count, 1)
     }

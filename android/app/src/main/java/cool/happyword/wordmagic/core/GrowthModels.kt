@@ -68,7 +68,7 @@ data class CoinAccount(
     }
 
     companion object {
-        const val DAILY_BATTLE_REWARD_CAP = 20
+        const val DAILY_BATTLE_REWARD_CAP = 100
         const val MAX_TRANSACTION_HISTORY = 100
     }
 }

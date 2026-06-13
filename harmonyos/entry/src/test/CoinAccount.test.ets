@@ -64,7 +64,7 @@ export default function coinAccountTest() {
       const acct: CoinAccount = freshAccount();
       const got1: number = acct.earn('today-first', 5, NOW);
       const got2: number = acct.earn('monster-defeat', 5, NOW);
-      const got3: number = acct.earn('accuracy-80', 30, NOW);
+      const got3: number = acct.earn('accuracy-80', DAILY_CAP, NOW);
       const snap: CoinSnapshot = acct.snapshot();
       expect(got1).assertEqual(5);
       expect(got2).assertEqual(5);

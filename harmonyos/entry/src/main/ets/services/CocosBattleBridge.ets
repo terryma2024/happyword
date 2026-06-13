@@ -37,6 +37,7 @@ import {
   getMonsterByIndex,
 } from '../data/MonsterCatalog';
 import { SoundKeys } from './AudioService';
+import { buildSpeakText } from './PronunciationService';
 import { cocosImageKeyForCatalogIndex } from './BattleArtCatalog';
 import {
   MonsterArtShape,
@@ -413,11 +414,14 @@ export class CocosBattleBridge {
     }
   }
 
-  /** Speaker tap in the scene — BattlePage parity: audio.speakWord(lastAnswerWord). */
+  /**
+   * Speaker tap in the scene — BattlePage parity: for sentence-cloze speak the
+   * full sentence (blank replaced by the answer), otherwise the answer word.
+   */
   private handleSpeakAnswer(): void {
     const q: Question | undefined = this.engine.getState().currentQuestion;
     if (q !== undefined && q.answer.length > 0) {
-      this.callbacks.speakWord(q.answer);
+      this.callbacks.speakWord(buildSpeakText(q.kind, q.sentenceTemplate, q.answer));
     }
   }
 
