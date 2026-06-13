@@ -33,7 +33,7 @@ export class CoinSnapshot {
 export const COIN_PREFS_NAME: string = 'wordmagic_coins';
 export const COIN_PREFS_KEY: string = 'snapshot_v1';
 /** Daily earning cap, in magic coins. */
-export const DAILY_CAP: number = 20;
+export const DAILY_CAP: number = 100;
 /** Hard cap on retained CoinTxn history; older entries are truncated on save. */
 export const MAX_TXN_HISTORY: number = 50;
 
