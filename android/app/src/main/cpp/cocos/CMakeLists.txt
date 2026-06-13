@@ -26,7 +26,7 @@ set(CC_ALL_SOURCES)
 # ../  = cpp/   ../../../  = src/   ../../../../../  = app/  (one more) = android/  (one more) = repo root
 # That is 6 levels up from the directory containing this file.
 get_filename_component(REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../../../.." ABSOLUTE)
-set(RES_DIR    "${REPO_ROOT}/cocos/build/android/android"  CACHE STRING "Resource path" FORCE)
+set(RES_DIR    "${REPO_ROOT}/cocos/build/android"          CACHE STRING "Resource path" FORCE)
 set(COMMON_DIR "${REPO_ROOT}/cocos/native/engine/common"   CACHE STRING "Cocos common chain" FORCE)
 
 if(NOT EXISTS "${RES_DIR}/proj/cfg.cmake")

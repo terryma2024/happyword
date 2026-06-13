@@ -1,7 +1,7 @@
 #pragma once
 
 // Mirrors the compile definitions the Cocos-generated app target passes via
-// CMake (see cocos/build/ios/ios/proj response files). Engine headers branch
+// CMake (see cocos/build/ios/proj response files). Engine headers branch
 // on these, so this prelude MUST be included before any engine header.
 
 #define CC_PLATFORM_UNKNOWN 0

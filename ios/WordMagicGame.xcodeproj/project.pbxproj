@@ -620,7 +620,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DATA_DIR=\"${SRCROOT}/../cocos/build/ios/ios/data\"\nif [ \"$PLATFORM_NAME\" = \"iphoneos\" ] && [ -d \"$DATA_DIR\" ]; then\n  rsync -a \"$DATA_DIR/\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/\"\nfi\n";
+			shellScript = "DATA_DIR=\"${SRCROOT}/../cocos/build/ios/data\"\nif [ \"$PLATFORM_NAME\" = \"iphoneos\" ] && [ -d \"$DATA_DIR\" ]; then\n  rsync -a \"$DATA_DIR/\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -874,7 +874,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
-				COCOS_BUILD_PROJ = "$(SRCROOT)/../cocos/build/ios/ios/proj";
+				COCOS_BUILD_PROJ = "$(SRCROOT)/../cocos/build/ios/proj";
 				COCOS_ENGINE_NATIVE = /Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/Resources/resources/3d/engine/native;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -1039,7 +1039,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
-				COCOS_BUILD_PROJ = "$(SRCROOT)/../cocos/build/ios/ios/proj";
+				COCOS_BUILD_PROJ = "$(SRCROOT)/../cocos/build/ios/proj";
 				COCOS_ENGINE_NATIVE = /Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/Resources/resources/3d/engine/native;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;

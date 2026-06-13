@@ -18,7 +18,7 @@ android {
 
     // Cocos engine native build — Task 0.2 (AND embed).
     // The Cocos template pins r21 (PROP_NDK_VERSION in
-    // cocos/build/android/android/proj/gradle.properties) but the engine
+    // cocos/build/android/proj/gradle.properties) but the engine
     // builds fine with r23; we standardize on the locally installed r23c.
     ndkVersion = "23.2.8568313"
 

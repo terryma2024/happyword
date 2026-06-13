@@ -12,6 +12,9 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CREATOR="/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator"
+ANDROID_SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+ANDROID_NDK="${ANDROID_NDK_HOME:-$ANDROID_SDK/ndk/23.2.8568313}"
+ANDROID_JAVA_HOME="${JAVA_HOME:-/Applications/Android Studio.app/Contents/jbr/Contents/Home}"
 
 VENDOR_ONLY=0
 if [ "${1:-}" = "--vendor-only" ]; then
@@ -26,7 +29,7 @@ fi
 #   * engine com/cocos/lib/*.java  -> android/app/src/main/java/com/cocos/lib/
 #     (committed; 25 Java source files that make up the Cocos Android platform
 #     layer including CocosActivity, JsbBridgeWrapper, CocosHelper etc.)
-#   * cocos/build/android/android/data/ -> android/app/src/main/assets/
+#   * cocos/build/android/data/ -> android/app/src/main/assets/
 #     (gitignored; the template puts "${RES_PATH}/data" as the assets srcDir,
 #     so the data dir content becomes the APK assets root; our app replicates
 #     the same layout so CocosHelper/FileUtils finds main.js at assets://main.js
@@ -96,7 +99,7 @@ vendor_into_android() {
 
     echo "==> vendoring data bundle into android/app/src/main/assets (gitignored, ~14MB)"
     mkdir -p "$APP/assets"
-    rsync -a --delete "$ROOT/cocos/build/android/android/data/" "$APP/assets/"
+    rsync -a --delete "$ROOT/cocos/build/android/data/" "$APP/assets/"
 
     echo "==> vendor step done"
 }
@@ -114,7 +117,7 @@ for _ in $(seq 1 20); do
 done
 
 echo "==> building platform=android"
-"$CREATOR" --project "$ROOT/cocos" --build "platform=android" || true
+"$CREATOR" --project "$ROOT/cocos" --build "platform=android;packages={\"android\":{\"packageName\":\"cool.happyword.wordmagic.cocos\",\"sdkPath\":\"$ANDROID_SDK\",\"ndkPath\":\"$ANDROID_NDK\",\"javaHome\":\"$ANDROID_JAVA_HOME\"}}" || true
 [ -d "$ROOT/cocos/build/android" ] || {
   echo "build output missing; tail of log:" >&2
   tail -40 "$ROOT/cocos/temp/logs/project.log" >&2 || true

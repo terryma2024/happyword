@@ -37,7 +37,7 @@ targets:
         # installed via Cocos Dashboard and a completed cocos iOS build —
         # see cocos/README.md.
         COCOS_ENGINE_NATIVE: /Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/Resources/resources/3d/engine/native
-        COCOS_BUILD_PROJ: $(SRCROOT)/../cocos/build/ios/ios/proj
+        COCOS_BUILD_PROJ: $(SRCROOT)/../cocos/build/ios/proj
         HEADER_SEARCH_PATHS:
           - $(inherited)
           - $(COCOS_ENGINE_NATIVE)
@@ -115,7 +115,7 @@ targets:
       - name: Copy Cocos Data
         basedOnDependencyAnalysis: false
         script: |
-          DATA_DIR="${SRCROOT}/../cocos/build/ios/ios/data"
+          DATA_DIR="${SRCROOT}/../cocos/build/ios/data"
           if [ "$PLATFORM_NAME" = "iphoneos" ] && [ -d "$DATA_DIR" ]; then
             rsync -a "$DATA_DIR/" "${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/"
           fi

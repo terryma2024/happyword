@@ -185,13 +185,13 @@ no separate Cocos app. Verified with Cocos Creator 3.8.8 + Xcode 26.4.
 
 ### Build steps (local machine)
 1. Cocos build (headless `tools/cocos/build-ios.sh` or editor Build). Generates
-   `build/ios/ios/proj` (CMake/Xcode project), `build/ios/ios/data` (runtime
+   `build/ios/proj` (CMake/Xcode project), `build/ios/data` (runtime
    assets), and `native/engine/` glue.
 2. Device engine libs (editor/CLI Make only builds x86_64-simulator):
    ```sh
    CMAKE=/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/Resources/tools/cmake/bin/cmake
-   $CMAKE --build cocos/build/ios/ios/proj --config Release --target cocos_engine  -- -quiet -sdk iphoneos -arch arm64
-   $CMAKE --build cocos/build/ios/ios/proj --config Release --target boost_container -- -quiet -sdk iphoneos -arch arm64
+   $CMAKE --build cocos/build/ios/proj --config Release --target cocos_engine  -- -quiet -sdk iphoneos -arch arm64
+   $CMAKE --build cocos/build/ios/proj --config Release --target boost_container -- -quiet -sdk iphoneos -arch arm64
    ```
    Note: the CMake Xcode project regenerates itself on the first build after a
    CMakeLists change (ZERO_CHECK); if a flag change seems ignored, run the build
@@ -199,7 +199,7 @@ no separate Cocos app. Verified with Cocos Creator 3.8.8 + Xcode 26.4.
 3. Host app: `cd ios && xcodegen generate` — `ios/project.yml` carries all the
    integration (engine/header paths, device-only `OTHER_LDFLAGS[sdk=iphoneos*]`
    incl. `-Wl,-ld_classic`, the `Copy Cocos Data` script phase that rsyncs
-   `build/ios/ios/data/` into the app bundle root, bridging header).
+   `build/ios/data/` into the app bundle root, bridging header).
 
 ### How the runtime boots (WMCocosRuntimeShim)
 - The engine resolves its render surface via

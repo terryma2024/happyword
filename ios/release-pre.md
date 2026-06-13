@@ -19,8 +19,8 @@
 
 ## Current Repo State
 
-- [x] `MARKETING_VERSION` is `1.0.2` in `ios/project.yml`.
-- [x] `CURRENT_PROJECT_VERSION` is `1020001` in `ios/project.yml`.
+- [x] `MARKETING_VERSION` is `1.1.1` in `ios/project.yml`.
+- [x] `CURRENT_PROJECT_VERSION` is `1110001` in `ios/project.yml`.
 - [x] Bundle ID is `com.terryma.wordmagicgame`.
 - [x] App display name is `魔法背单词`.
 - [x] Release Simulator build succeeded locally with `xcodebuild build -scheme WordMagicGame -configuration Release -destination 'generic/platform=iOS Simulator'`.
@@ -33,6 +33,9 @@
 - [x] Release archive succeeded locally at `/private/tmp/WordMagicGame-v1.1.0-b1100001.xcarchive` (V1.1.0 Cocos battle scene).
 - [x] App Store Connect upload succeeded for build `1.1.0 (1100001)` on 2026-06-11 (second export attempt returned `Redundant Binary Upload`, confirming the first upload landed).
 - [x] iOS version `1.1.0` / build `1100001` was created in App Store Connect, release notes filled (Cocos battle scene, battle-view switch, config card layout), build attached, export-compliance answered as no listed encryption algorithm, and submitted for App Review on 2026-06-11. App Store Connect status is `正在等待审核`; release mode is automatic after approval.
+- [x] Release device build and archive succeeded locally for `1.1.1 (1110001)` on 2026-06-13. Archive: `/private/tmp/WordMagicGame-v1.1.1-b1110001.xcarchive`.
+- [x] App Store Connect upload succeeded for build `1.1.1 (1110001)` on 2026-06-13. Xcode distribution log: `/var/folders/xp/m6czbv6n6sd2mt3bpzr5s8rc0000gn/T/WordMagicGame_2026-06-13_21-13-39.021.xcdistributionlogs`; buildUpload id `400a3e42-508c-4dea-86e9-92253dd552ad`; Xcode reported `Uploaded package is processing` and `Upload succeeded`.
+- [x] iOS version `1.1.1` / build `1110001` was created in App Store Connect, release notes filled (daily coin cap 100, sentence-fill reading full English sentence, Cocos battle character scale fix), build attached, export-compliance answered as no listed encryption algorithm, and submitted for App Review on 2026-06-13. App Store Connect status is `正在等待审核`; review submission id `451026cb-faa3-49fa-bca6-f6f0938f138e`; release mode is automatic after approval.
 - [x] `zh-Hans.lproj/InfoPlist.strings` exists for camera and photo-library permission strings.
 - [x] Release-gated developer tools policy exists in code and has unit coverage in `ios/WordMagicGameTests/Core/CloudSyncTests.swift`.
 - [x] Full iOS unit/UI test pass is verified on simulator `iPhone 17 Pro (iOS 26.4)`: 100 unit tests and 19 UI tests passed.
