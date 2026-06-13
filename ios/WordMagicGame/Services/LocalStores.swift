@@ -142,7 +142,7 @@ final class CoinAccount: ObservableObject {
         var createdAt: Date
     }
 
-    static let dailyCap = 20
+    static let dailyCap = 100
     private static let key = "wordmagic_coin_account/snapshot_v1"
 
     private struct Snapshot: Codable, Equatable {
