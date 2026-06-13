@@ -42,7 +42,7 @@ import {
 import { PLAYER_CHARACTER_ASSET, assetPathForEntry } from '../data/CharacterAssets';
 import { SoundKeys } from '../services/AudioService';
 import { BattleAudioMixer } from '../services/BattleAudioMixer';
-import { shouldAutoSpeak } from '../services/PronunciationService';
+import { shouldAutoSpeak, buildSpeakText } from '../services/PronunciationService';
 import { CritOverlay } from '../components/CritOverlay';
 import { DamageFloaterLabel } from '../components/DamageFloaterLabel';
 import { MagicProjectile } from '../components/MagicProjectile';
@@ -1667,8 +1667,10 @@ struct BattlePage {
           .backgroundColor('#EAF2F8')
           .margin({ top: 12 })
           .onClick((): void => {
-            if (this.lastAnswerWord.length > 0) {
-              this.audio.speakWord(this.lastAnswerWord);
+            const speakText: string = buildSpeakText(
+              this.currentQuestionKind, this.sentenceTemplate, this.lastAnswerWord);
+            if (speakText.length > 0) {
+              this.audio.speakWord(speakText);
             }
           });
         Text(this.feedbackText)

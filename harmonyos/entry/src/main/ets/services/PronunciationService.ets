@@ -176,6 +176,18 @@ export class PronunciationService {
  *      === true would mean crit/hurt audio is playing; overlapping
  *      TTS with that would muddle the soundscape).
  */
+/**
+ * The text the speaker button should pronounce. For sentence-cloze the full
+ * sentence (blank replaced by the answer) is spoken; every other kind speaks
+ * just the answer word. Pure so it stays unit-testable.
+ */
+export function buildSpeakText(questionKind: string, sentenceTemplate: string, answer: string): string {
+  if (questionKind === QuestionKind.SentenceCloze && sentenceTemplate.length > 0) {
+    return sentenceTemplate.replace('____', answer);
+  }
+  return answer;
+}
+
 export function shouldAutoSpeak(
   autoSpeakEnabled: boolean,
   ttsAvailable: boolean,
