@@ -49,17 +49,13 @@ import { MagicProjectile } from '../components/MagicProjectile';
 import { MessageBubble } from '../components/MessageBubble';
 import { MessageBubbleTail } from '../components/MessageBubbleGeometry';
 import { getLearningRecorder, LearningRecorder } from '../services/LearningRecorder';
-import {
-  DailyLearningStateService,
-  getDailyLearningStateService,
-} from '../services/DailyLearningStateService';
+import { BattleAnswerRecorder } from '../services/BattleAnswerRecorder';
 import { LetterMetrics, letterMetricsForLength } from '../services/LetterMetrics';
 import {
   BossDialogueIntroDecision,
   BossDialogueIntroDecisionKind,
   BossDialogueSequencer,
 } from '../services/BossDialogueSequencer';
-import { getMonsterProgressStore, MonsterProgressStore } from '../services/MonsterProgressStore';
 import { requestPageOrientation } from '../utils/orientation';
 
 /**
@@ -141,14 +137,15 @@ struct BattlePage {
   private engine?: BattleEngine;
   private audio: BattleAudioMixer = new BattleAudioMixer();
   private recorder: LearningRecorder = getLearningRecorder();
-  private dailyStateService: DailyLearningStateService = getDailyLearningStateService();
-  private autoSpeak: boolean = true;
   /**
-   * True when this battle was launched from HomePage's review button.
-   * Drives the 10-minute review rules and the mode reset after
-   * the battle ends.
+   * v1.1.1: the per-answer learning side effects (word stats, review-day
+   * mark, monster encounter/defeat progress) moved statement-for-statement
+   * into this shared service so the Cocos battle path records them too.
+   * The old isReviewMode / dailyStateService / monsterProgress /
+   * lastEncounterRecordedCatalogIndex fields live inside it now.
    */
-  private isReviewMode: boolean = false;
+  private answerRecorder: BattleAnswerRecorder = new BattleAnswerRecorder();
+  private autoSpeak: boolean = true;
   /**
    * V0.3: True when this battle was launched from the today-adventure
    * card. Mutually exclusive with isReviewMode. Drives plan-based
@@ -175,7 +172,6 @@ struct BattlePage {
    * `review-80` coin reward fires on the right metric.
    */
   private sessionAnswers: Map<string, AnswerCount> = new Map<string, AnswerCount>();
-  private monsterProgress: MonsterProgressStore = getMonsterProgressStore();
   private feedbackTimer: number = -1;
   /**
    * Handle returned by setInterval for the 1Hz countdown driver. -1 when
@@ -189,7 +185,6 @@ struct BattlePage {
   private bossDialogueSequencer: BossDialogueSequencer = new BossDialogueSequencer();
   private lastIntroMonsterIndex: number = 0;
   private currentMonsterCatalogIndex: number = 1;
-  private lastEncounterRecordedCatalogIndex: number = 0;
   private introShownCatalogIndices: number[] = [];
   private defeatShownCatalogIndices: number[] = [];
   /**
@@ -362,7 +357,7 @@ struct BattlePage {
       });
     }).then((setup: BattleSessionSetup): void => {
       this.autoSpeak = setup.cfg.autoSpeak;
-      this.isReviewMode = setup.isReviewMode;
+      this.answerRecorder.setReviewMode(setup.isReviewMode);
       this.isTodayMode = setup.isTodayMode;
       this.todayPlan = setup.todayPlan;
       this.todayStageScheduler = setup.todayStageScheduler;
@@ -431,16 +426,6 @@ struct BattlePage {
         console.error(`BattlePage: cloud sync failed: ${JSON.stringify(err)}`);
       });
     }
-  }
-
-  private markDailyReviewWordIfNeeded(wordId: string): void {
-    if (!this.isReviewMode || wordId.length === 0) {
-      return;
-    }
-    this.dailyStateService.markReviewedWords(Date.now(), [wordId])
-      .catch((err: BusinessError): void => {
-        console.error(`BattlePage: markReviewedWords failed: ${JSON.stringify(err)}`);
-      });
   }
 
   /**
@@ -905,18 +890,13 @@ struct BattlePage {
   }
 
   private recordEncounterForCurrentMonster(): void {
-    if (this.currentMonsterCatalogIndex <= 0 || this.currentMonsterCatalogIndex === this.lastEncounterRecordedCatalogIndex) {
-      return;
-    }
-    this.lastEncounterRecordedCatalogIndex = this.currentMonsterCatalogIndex;
-    this.monsterProgress.recordEncounter(this.currentMonsterCatalogIndex);
+    // v1.1.1: body (incl. the dedup) moved into BattleAnswerRecorder so the
+    // Cocos battle path shares it.
+    this.answerRecorder.recordEncounter(this.currentMonsterCatalogIndex);
   }
 
   private recordMonsterDefeat(catalogIndex: number): void {
-    if (catalogIndex <= 0) {
-      return;
-    }
-    this.monsterProgress.recordDefeat(catalogIndex);
+    this.answerRecorder.recordMonsterDefeat(catalogIndex);
   }
 
   /**
@@ -999,9 +979,8 @@ struct BattlePage {
     // Record the answer BEFORE syncFromEngine rotates to the next
     // question so the wordId we pass is the one the player just
     // answered. Falls through silently if the recorder wasn't ready.
+    this.answerRecorder.recordAnswer(answeredWordId, outcome.correct);
     if (answeredWordId.length > 0) {
-      this.recorder.recordAnswer(answeredWordId, outcome.correct);
-      this.markDailyReviewWordIfNeeded(answeredWordId);
       const prev: AnswerCount | undefined = this.sessionAnswers.get(answeredWordId);
       const acc: AnswerCount = prev !== undefined ? prev : new AnswerCount();
       acc.total += 1;
@@ -1250,9 +1229,8 @@ struct BattlePage {
 
     const outcome: AnswerOutcome = engine.submitAnswer(answer);
 
+    this.answerRecorder.recordAnswer(answeredWordId, outcome.correct);
     if (answeredWordId.length > 0) {
-      this.recorder.recordAnswer(answeredWordId, outcome.correct);
-      this.markDailyReviewWordIfNeeded(answeredWordId);
       const prev: AnswerCount | undefined = this.sessionAnswers.get(answeredWordId);
       const acc: AnswerCount = prev !== undefined ? prev : new AnswerCount();
       acc.total += 1;

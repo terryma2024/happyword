@@ -76,6 +76,26 @@ export interface CocosTransport {
 export type DelayScheduler = (fn: () => void, ms: number) => void;
 
 /**
+ * Per-answer payload handed to {@link CocosBattleBridgeCallbacks.onAnswerOutcome}
+ * (v1.1.1). The HOS BattleEngine is stateful, so the bridge captures the
+ * PRE-submit values the recording side effects consume before submitAnswer
+ * mutates the state:
+ *   - answeredWordId: wordId of the question the player just answered —
+ *     LearningRecorder.recordAnswer / review-day marking key off it.
+ *   - preMonsterCatalogIndex: catalog index of the monster the answer was
+ *     submitted against — recordMonsterDefeat must use this, not the
+ *     post-answer index (a defeat advances the slot).
+ *   - postMonsterCatalogIndex: catalog index after the submit — the
+ *     encounter for a freshly spawned monster is recorded against it.
+ */
+export class CocosAnswerOutcomeEvent {
+  answeredWordId: string = '';
+  preMonsterCatalogIndex: number = 0;
+  postMonsterCatalogIndex: number = 0;
+  outcome: AnswerOutcome = new AnswerOutcome();
+}
+
+/**
  * Page-provided callbacks. The hosting page owns BattleAudioMixer and the
  * auto-speak gating (PronunciationService.shouldAutoSpeak) — the adapter
  * only encodes WHEN each cue fires, matching BattlePage:
@@ -85,8 +105,6 @@ export type DelayScheduler = (fn: () => void, ms: number) => void;
  *   autoSpeakWord(word, k)  → gate via shouldAutoSpeak(autoSpeak,
  *                             isVoiceAvailable(), false, k) then speakWord
  *   onFinish(result)        → enrich + route to ResultPage (navigateToResult)
- *   onAnswerOutcome(...)    → BattlePage per-answer side-effect block
- *                             (recordAnswer, review marking, codex progress)
  */
 export interface CocosBattleBridgeCallbacks {
   onFinish(result: SessionResult): void;
@@ -94,30 +112,25 @@ export interface CocosBattleBridgeCallbacks {
   speakWord(word: string): void;
   autoSpeakWord(word: string, questionKind: string): void;
   /**
-   * Fired exactly once per accepted answer submit, right after
-   * BattleEngine.submitAnswer — mirrors the per-answer block the native
-   * BattlePage runs in onOptionTap / handleSpellSubmit and the iOS
-   * AppCoordinator.submitBattleOptionForAnimation. Not fired for medium
-   * fill-letter step advances (advancedStep, BattlePage parity), for
-   * submits dropped by the feedback-hold guard, or after dispose().
-   *
-   * Scalars are passed instead of a pre-answer BattleState because
-   * engine.getState() returns the LIVE state object — by the time the
-   * callback runs it has already rotated to the next question.
-   *
-   * @param answeredWordId        wordId of the question the player answered.
-   * @param preAnswerCatalogIndex monster catalog index BEFORE the answer —
-   *                              the defeated monster's index when
-   *                              outcome.monsterDefeated is true.
-   */
-  onAnswerOutcome(answeredWordId: string, preAnswerCatalogIndex: number, outcome: AnswerOutcome): void;
-  /**
    * Optional: fired on EVERY battle/ready the scene delivers (including the
    * synthetic replay CocosEngineHost emits on page re-entry). The hosting
    * page uses the first invocation to cancel its ready-timeout fallback and
    * start the countdown interval.
    */
   onReady?(): void;
+  /**
+   * Optional (v1.1.1): fired exactly once per submit the engine actually
+   * processed — including fill-letter-medium step advances, so the hook
+   * mirrors every engine.submitAnswer call. The hosting page runs the
+   * native BattlePage per-answer side effects here (learning record,
+   * review-day mark, monster encounter/defeat progress — see
+   * BattleAnswerRecorder.applyAnswerOutcome, which skips learning stats for
+   * step advances exactly like the native page). NOT fired for duplicate
+   * taps dropped during the feedback hold, for submits after the battle
+   * ended, after dispose, or for battle/spellWrongTap (the native page
+   * records no learning there either).
+   */
+  onAnswerOutcome?(event: CocosAnswerOutcomeEvent): void;
 }
 
 /**
@@ -320,10 +333,12 @@ export class CocosBattleBridge {
       return;
     }
     const word: string = state.currentQuestion.answer;
-    // Captured BEFORE submit: getState() returns the live state object, so
-    // currentQuestion / the catalog index advance as part of submitAnswer.
+    // PRE-submit captures for onAnswerOutcome: the engine is stateful, so
+    // the answered question and the fought monster's catalog index must be
+    // read before submitAnswer mutates the state (recordMonsterDefeat needs
+    // the pre-answer index).
     const answeredWordId: string = state.currentQuestion.wordId;
-    const preAnswerCatalogIndex: number = this.catalogIndexProvider();
+    const preMonsterCatalogIndex: number = this.catalogIndexProvider();
 
     let outcome: AnswerOutcome | undefined = undefined;
     try {
@@ -338,6 +353,18 @@ export class CocosBattleBridge {
       return;
     }
 
+    // Per-answer side-effects hook — once per accepted submit. The guards
+    // above already exclude hold-dropped duplicates and post-end submits;
+    // dispose is guarded in handleSceneMessage.
+    if (this.callbacks.onAnswerOutcome !== undefined) {
+      const answerEvent: CocosAnswerOutcomeEvent = new CocosAnswerOutcomeEvent();
+      answerEvent.answeredWordId = answeredWordId;
+      answerEvent.preMonsterCatalogIndex = preMonsterCatalogIndex;
+      answerEvent.postMonsterCatalogIndex = this.catalogIndexProvider();
+      answerEvent.outcome = outcome;
+      this.callbacks.onAnswerOutcome(answerEvent);
+    }
+
     if (outcome.advancedStep) {
       // fill-letter-medium step advance: no damage, no animation — resync the
       // mutated question in place. BattlePage plays the normal hit cue here.
@@ -346,11 +373,6 @@ export class CocosBattleBridge {
       this.sendQuestion();
       return;
     }
-
-    // Per-answer side effects (learning record, review marking, codex
-    // progress) — same position as BattlePage: after the engine accepted
-    // the answer, before any UI/scene feedback.
-    this.callbacks.onAnswerOutcome(answeredWordId, preAnswerCatalogIndex, outcome);
 
     const event: BattleAnimationEvent = eventForOutcome(outcome, word);
     this.playSubmitAudio(outcome);
