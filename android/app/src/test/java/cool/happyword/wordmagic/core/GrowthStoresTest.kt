@@ -7,12 +7,13 @@ import org.junit.Test
 
 class GrowthStoresTest {
     @Test
-    fun coinAccountCapsDailyBattleRewardsAtTwenty() {
-        val account = CoinAccount(balance = 18, earnedByDay = mapOf("2026-05-11" to 18))
+    fun coinAccountCapsDailyBattleRewardsAtCap() {
+        val cap = CoinAccount.DAILY_BATTLE_REWARD_CAP
+        val account = CoinAccount(balance = cap - 1, earnedByDay = mapOf("2026-05-11" to (cap - 1)))
         val credited = account.creditBattleReward(stars = 3, dayKey = "2026-05-11")
 
-        assertEquals(20, credited.account.balance)
-        assertEquals(2, credited.delta)
+        assertEquals(cap, credited.account.balance)
+        assertEquals(1, credited.delta)
     }
 
     @Test
